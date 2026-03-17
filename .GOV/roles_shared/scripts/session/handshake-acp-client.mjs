@@ -101,13 +101,17 @@ function activeRunsAreStale(state) {
   const runs = Array.isArray(state?.active_runs) ? state.active_runs : [];
   if (runs.length === 0) return true;
   return runs.every((run) => {
+    const childPid = Number(run.child_pid || 0);
+    if (Number.isInteger(childPid) && childPid > 0 && !isProcessAlive(childPid)) {
+      return true;
+    }
     const timeoutAtMs = Date.parse(run.timeout_at || "");
     return !Number.isNaN(timeoutAtMs)
       && Date.now() > (timeoutAtMs + (SESSION_CONTROL_RUN_STALE_GRACE_SECONDS * 1000));
   });
 }
 
-async function callBrokerRpc({ broker, authToken, method, params = {}, timeoutMs = 10000 }) {
+async function callBrokerRpc({ broker, authToken, method, params = {}, timeoutMs = 10000, allowBuildMismatch = false }) {
   return await new Promise((resolve, reject) => {
     const socket = net.createConnection({ host: broker.host, port: broker.port });
     socket.setEncoding("utf8");
@@ -143,7 +147,7 @@ async function callBrokerRpc({ broker, authToken, method, params = {}, timeoutMs
           return;
         }
         initialized = true;
-        if ((message.result?.broker_build_id || "") !== SESSION_CONTROL_BROKER_BUILD_ID) {
+        if (!allowBuildMismatch && (message.result?.broker_build_id || "") !== SESSION_CONTROL_BROKER_BUILD_ID) {
           finish(new Error(`Handshake ACP broker build mismatch: expected ${SESSION_CONTROL_BROKER_BUILD_ID}, got ${message.result?.broker_build_id || "<missing>"}`), true);
           return;
         }
@@ -174,7 +178,9 @@ async function callBrokerRpc({ broker, authToken, method, params = {}, timeoutMs
         params: {
           protocol_version: "1.0",
           auth_token: authToken,
-          expected_broker_build_id: SESSION_CONTROL_BROKER_BUILD_ID,
+          expected_broker_build_id: allowBuildMismatch
+            ? String(broker?.broker_build_id || broker?.build_id || SESSION_CONTROL_BROKER_BUILD_ID)
+            : SESSION_CONTROL_BROKER_BUILD_ID,
           expected_auth_mode: SESSION_CONTROL_BROKER_AUTH_MODE,
           authority_role: "ORCHESTRATOR",
           authority_branch: "role_orchestrator",
@@ -211,6 +217,7 @@ async function shutdownBrokerGracefully(state, authToken) {
       method: "broker/shutdown",
       params: {},
       timeoutMs: SESSION_CONTROL_BROKER_SHUTDOWN_GRACE_SECONDS * 1000,
+      allowBuildMismatch: true,
     });
     return true;
   } catch {
@@ -257,7 +264,7 @@ export async function shutdownHandshakeAcpBroker(repoRoot, { force = false } = {
   };
 }
 
-async function ensureBroker(repoRoot) {
+async function ensureBroker(repoRoot, { allowBuildMismatch = false } = {}) {
   const inspected = await inspectHandshakeAcpBroker(repoRoot);
   const { state, authToken, brokerIsAlive, brokerIsReachable, buildMatches } = inspected;
 
@@ -265,8 +272,12 @@ async function ensureBroker(repoRoot) {
     return { ...state, auth_token: authToken };
   }
 
+  if (brokerIsAlive && brokerIsReachable && !buildMatches && allowBuildMismatch) {
+    return { ...state, auth_token: authToken };
+  }
+
   if (brokerIsAlive && brokerIsReachable && !buildMatches) {
-    if (Array.isArray(state?.active_runs) && state.active_runs.length > 0) {
+    if (Array.isArray(state?.active_runs) && state.active_runs.length > 0 && !activeRunsAreStale(state)) {
       throw new Error(`Handshake ACP broker build mismatch while active runs exist; drain or cancel governed runs before restart (current=${state.broker_build_id || "<missing>"}, expected=${SESSION_CONTROL_BROKER_BUILD_ID})`);
     }
     const graceful = await shutdownBrokerGracefully(state, authToken);
@@ -297,7 +308,8 @@ export async function callHandshakeAcpMethod({
   timeoutMs = (SESSION_CONTROL_RUN_TIMEOUT_SECONDS + SESSION_CONTROL_RUN_STALE_GRACE_SECONDS + 30) * 1000,
   onNotification = null,
 }) {
-  const broker = await ensureBroker(repoRoot);
+  const allowBuildMismatch = ["session/cancel", "session/close", "broker/shutdown", "session/load"].includes(method);
+  const broker = await ensureBroker(repoRoot, { allowBuildMismatch });
   return await new Promise((resolve, reject) => {
     const socket = net.createConnection({ host: broker.host, port: broker.port });
     socket.setEncoding("utf8");
@@ -338,7 +350,7 @@ export async function callHandshakeAcpMethod({
           finish(new Error(message.error.message || "Handshake ACP initialize failed"), true);
           return;
         }
-        if ((message.result?.broker_build_id || "") !== SESSION_CONTROL_BROKER_BUILD_ID) {
+        if (!allowBuildMismatch && (message.result?.broker_build_id || "") !== SESSION_CONTROL_BROKER_BUILD_ID) {
           finish(new Error(`Handshake ACP broker build mismatch: expected ${SESSION_CONTROL_BROKER_BUILD_ID}, got ${message.result?.broker_build_id || "<missing>"}`), true);
           return;
         }
@@ -382,18 +394,20 @@ export async function callHandshakeAcpMethod({
         method: "initialize",
         params: {
           protocol_version: "1.0",
-            client: {
-              name: "handshake-governance",
-              version: "1.0.0",
-            },
-            auth_token: broker.auth_token,
-            expected_broker_build_id: SESSION_CONTROL_BROKER_BUILD_ID,
-            expected_auth_mode: SESSION_CONTROL_BROKER_AUTH_MODE,
-            authority_role: "ORCHESTRATOR",
-            authority_branch: "role_orchestrator",
+          client: {
+            name: "handshake-governance",
+            version: "1.0.0",
           },
-        });
+          auth_token: broker.auth_token,
+          expected_broker_build_id: allowBuildMismatch
+            ? String(broker.broker_build_id || broker.build_id || SESSION_CONTROL_BROKER_BUILD_ID)
+            : SESSION_CONTROL_BROKER_BUILD_ID,
+          expected_auth_mode: SESSION_CONTROL_BROKER_AUTH_MODE,
+          authority_role: "ORCHESTRATOR",
+          authority_branch: "role_orchestrator",
+        },
       });
+    });
 
     socket.on("data", (chunk) => {
       buffer += chunk.toString("utf8");

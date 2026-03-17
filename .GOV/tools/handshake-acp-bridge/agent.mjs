@@ -43,6 +43,7 @@ const serverHost = "127.0.0.1";
 const activeRuns = new Map();
 const socketContexts = new WeakMap();
 const brokerAuthToken = ensureBrokerAuthToken(repoRoot);
+const brokerFatalLogPath = path.resolve(path.dirname(brokerStatePath), "SESSION_CONTROL_BROKER_FATAL.log");
 
 function nowIso() {
   return new Date().toISOString();
@@ -56,6 +57,16 @@ function readJson(filePath, fallbackValue) {
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function appendBrokerFatalLog(error, phase) {
+  const lines = [
+    `[${nowIso()}] phase=${phase}`,
+    error?.stack || error?.message || String(error),
+    "",
+  ];
+  fs.mkdirSync(path.dirname(brokerFatalLogPath), { recursive: true });
+  fs.appendFileSync(brokerFatalLogPath, `${lines.join("\n")}\n`, "utf8");
 }
 
 function isProcessAlive(pid) {
@@ -262,12 +273,14 @@ function reconcileOrphanedRuns() {
 
   const requests = loadRequestMap();
   const existingResults = loadResultMap();
+  const { registry } = loadSessionRegistry(repoRoot);
 
   for (const run of prior.active_runs) {
     if (run.child_pid) killProcessTree(run.child_pid);
     if (existingResults.has(run.command_id)) continue;
     const request = requests.get(run.command_id);
     if (!request) continue;
+    const session = registry.sessions.find((entry) => entry.session_key === request.session_key) || null;
     const outputFile = defaultSessionOutputFile(repoRoot, request.session_key, request.command_id);
     appendOutputEvent(outputFile, {
       type: "broker.repair",
@@ -296,6 +309,74 @@ function reconcileOrphanedRuns() {
     if (!persisted) {
       appendJsonlLine(resultsPath, result);
     }
+  }
+}
+
+function reconcileOrphanedQueuedRequests() {
+  const prior = loadBrokerState();
+  if (prior?.broker_pid && isProcessAlive(prior.broker_pid)) return;
+
+  const requests = loadRequestMap();
+  const existingResults = loadResultMap();
+  const { registry } = loadSessionRegistry(repoRoot);
+  const activeRunIds = new Set((prior?.active_runs || []).map((run) => run.command_id));
+
+  for (const request of requests.values()) {
+    if (existingResults.has(request.command_id)) continue;
+    if (activeRunIds.has(request.command_id)) continue;
+
+    const session = registry.sessions.find((entry) => entry.session_key === request.session_key) || null;
+    if (!session) continue;
+
+    if (
+      session.last_command_id === request.command_id
+      && session.last_command_status === "RUNNING"
+    ) {
+      continue;
+    }
+
+    const outputFile = defaultSessionOutputFile(repoRoot, request.session_key, request.command_id);
+    appendOutputEvent(outputFile, {
+      type: "broker.repair",
+      reason: "Recovered abandoned governed request after prior broker exit before run start.",
+    });
+
+    const supersededBy = session.last_command_id && session.last_command_id !== request.command_id
+      ? session.last_command_id
+      : "";
+    const summary = supersededBy
+      ? `Recovered abandoned governed request after prior broker exit before run start; superseded by ${supersededBy}.`
+      : "Recovered abandoned governed request after prior broker exit before run start.";
+    const result = buildSessionControlResult({
+      commandId: request.command_id,
+      commandKind: request.command_kind,
+      sessionKey: request.session_key,
+      wpId: request.wp_id,
+      role: request.role,
+      status: "FAILED",
+      threadId: session.session_thread_id || "",
+      summary,
+      outputJsonlFile: outputFile,
+      lastAgentMessage: "",
+      error: "Handshake ACP broker restarted before the governed request began running.",
+      durationMs: 0,
+      targetCommandId: request.target_command_id || "",
+    });
+
+    if (session.last_command_id === request.command_id) {
+      const persisted = mutateSessionRegistrySync(repoRoot, (nextRegistry) => {
+        const liveSession = nextRegistry.sessions.find((entry) => entry.session_key === request.session_key);
+        if (!liveSession) return false;
+        ensureResultPersisted(request, liveSession, result);
+        return true;
+      });
+      if (!persisted) {
+        appendJsonlLine(resultsPath, result);
+      }
+      continue;
+    }
+
+    appendResultOnce(result);
   }
 }
 
@@ -939,19 +1020,29 @@ function shutdown() {
   setTimeout(() => process.exit(0), 250);
 }
 
-ensureSessionStateFiles(repoRoot);
-reconcileOrphanedRuns();
+let server = null;
 
-const prior = loadBrokerState();
-if (prior.broker_pid && prior.broker_pid !== process.pid && isProcessAlive(prior.broker_pid)) {
-  console.error("[HANDSHAKE_ACP_BROKER] Another broker is already running.");
+try {
+  ensureSessionStateFiles(repoRoot);
+  reconcileOrphanedRuns();
+  reconcileOrphanedQueuedRequests();
+
+  const prior = loadBrokerState();
+  if (prior.broker_pid && prior.broker_pid !== process.pid && isProcessAlive(prior.broker_pid)) {
+    console.error("[HANDSHAKE_ACP_BROKER] Another broker is already running.");
+    process.exit(1);
+  }
+
+  server = net.createServer(handleSocket);
+  server.listen(0, serverHost, () => {
+    persistBrokerState(server.address().port);
+  });
+
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+} catch (error) {
+  appendBrokerFatalLog(error, "startup");
+  console.error("[HANDSHAKE_ACP_BROKER] Startup failed.");
+  console.error(error?.stack || error?.message || String(error));
   process.exit(1);
 }
-
-const server = net.createServer(handleSocket);
-server.listen(0, serverHost, () => {
-  persistBrokerState(server.address().port);
-});
-
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);

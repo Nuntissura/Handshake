@@ -29,8 +29,8 @@
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: Coder-B
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -82,7 +82,7 @@
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** Done
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -130,17 +130,17 @@
 - PACKET_FORMAT_VERSION: 2026-03-16
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
 Next: N/A
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: Handshake_Master_Spec_v02.178.md 2.3.13 Storage Backend Portability Architecture [CX-DBP-001] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Handshake_Master_Spec_v02.178.md 2.3.13.7 Loom Storage Trait + Portable Schema (Example) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Handshake_Master_Spec_v02.178.md 10.12 Loom (Heaper-style Library Surface) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Handshake_Master_Spec_v02.178.md Loom search API backend-agnostic contract and portable schema continuation [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Handshake_Master_Spec_v02.178.md 2.3.13 Storage Backend Portability Architecture [CX-DBP-001] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Handshake_Master_Spec_v02.178.md 2.3.13.7 Loom Storage Trait + Portable Schema (Example) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Handshake_Master_Spec_v02.178.md 10.12 Loom (Heaper-style Library Surface) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Handshake_Master_Spec_v02.178.md Loom search API backend-agnostic contract and portable schema continuation [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -163,7 +163,7 @@ Next: N/A
 - Rule: shared registries, shared types, shared storage layers, shared workflow/runtime surfaces, and migrations default to SHARED_SURFACE_RISK=YES.
 ## SEMANTIC_PROOF_ASSETS (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - SEMANTIC_TRIPWIRE_TESTS:
-  - cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check [LEGACY_REFINEMENT_BRIDGE]
+  - cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance; just gov-check [LEGACY_REFINEMENT_BRIDGE]
 - CANONICAL_CONTRACT_EXAMPLES:
   - NONE
 - Rule: for packets using `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`, each clause row must point to TESTS, EXAMPLES, or governed debt, and shared-surface packets should carry at least one concrete tripwire or canonical example.
@@ -598,8 +598,8 @@ Next: N/A
 ## QUALITY_GATE
 ### TEST_PLAN
 ```bash
-cargo test -p handshake_core loom
-  cargo test -p handshake_core --test storage_conformance
+cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance
   just gov-check
 ```
 
@@ -666,8 +666,8 @@ git revert <commit-sha>
 - RUN_COMMANDS:
   ```bash
 rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|LoomSourceAnchor|LoomViewFilters|LoomSearchFilters|loom_blocks|loom_edges|loom_blocks_fts" src/backend/handshake_core
-  cargo test -p handshake_core loom
-  cargo test -p handshake_core --test storage_conformance
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance
   just gov-check
   ```
 - RISK_MAP:
@@ -707,40 +707,92 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 21
+- **End**: 2213
+- **Line Delta**: 36
+- **Pre-SHA1**: `6d815d9ff393eb7073462bcc57bd14286049c6e2`
+- **Post-SHA1**: `b2ba46411dc04b5ae8a4c50ded273f887bb6b19e`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture`, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom -- --nocapture`.
+- **Artifacts**: `git diff --unified=0 705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005 -- src/backend/handshake_core/src/storage/sqlite.rs`; `just cor701-sha src/backend/handshake_core/src/storage/sqlite.rs`
+- **Timestamp**: 2026-03-17T04:34:05.9040608+01:00
+- **Operator**: CODER codex-cli
 - **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
-- **Notes**:
+- **Notes**: Range-mode pre/post SHA1s are anchored to `705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005`; `just cor701-sha` confirms the committed repair LF blob matches the post image.
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 23
+- **End**: 1800
+- **Line Delta**: 39
+- **Pre-SHA1**: `f105bd3fb4bfda5fb9259a330365f651038c4c03`
+- **Post-SHA1**: `023aa7cb5258649d6eb6dd3aa014a5493c2860b9`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture`, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom -- --nocapture`.
+- **Artifacts**: `git diff --unified=0 705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005 -- src/backend/handshake_core/src/storage/postgres.rs`; `just cor701-sha src/backend/handshake_core/src/storage/postgres.rs`
+- **Timestamp**: 2026-03-17T04:34:05.9040608+01:00
+- **Operator**: CODER codex-cli
+- **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Range-mode pre/post SHA1s are anchored to `705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005`; `just cor701-sha` confirms the committed repair LF blob matches the post image.
+
+- **Target File**: `src/backend/handshake_core/src/storage/tests.rs`
+- **Start**: 1186
+- **End**: 1387
+- **Line Delta**: 201
+- **Pre-SHA1**: `83a3a74e37c6ddcd7c335a6cc22694eba328fbfc`
+- **Post-SHA1**: `0f78a8f0862c9cca2f47b4effb26580b36bea86e`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture`, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom -- --nocapture`.
+- **Artifacts**: `git diff --unified=0 705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005 -- src/backend/handshake_core/src/storage/tests.rs`; `just cor701-sha src/backend/handshake_core/src/storage/tests.rs`
+- **Timestamp**: 2026-03-17T04:34:05.9040608+01:00
+- **Operator**: CODER codex-cli
+- **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Range-mode pre/post SHA1s are anchored to `705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005`; `just cor701-sha` confirms the committed repair LF blob matches the post image.
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress; committed repair candidate `643558e2173d4f7d167432be43e6140d97158005` is awaiting integration-validator closeout after packet evidence closure.
+- What changed in this update: The committed repair recalculates surviving Loom `mention_count`, `tag_count`, and `backlink_count` after linked block deletion in `src/backend/handshake_core/src/storage/sqlite.rs`, `src/backend/handshake_core/src/storage/postgres.rs`, and adds shared conformance regression coverage in `src/backend/handshake_core/src/storage/tests.rs`.
+- Next step / handoff hint: Run integration-validator closeout on the committed repair candidate, using the packet evidence below plus the WP communication thread for the bounded PostgreSQL environment skip.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+  - REQUIREMENT: "Loom block, edge, view, search, and source-anchor semantics are either confirmed unchanged or explicitly remediated on the landed current-main slice, with no vague 'looks fine' closeout."
+  - EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:2145`; `src/backend/handshake_core/src/storage/sqlite.rs:2197`; `src/backend/handshake_core/src/storage/postgres.rs:1742`; `src/backend/handshake_core/src/storage/postgres.rs:1783`
+  - REQUIREMENT: "Shared Loom conformance tests and semantic tripwires give explicit parity coverage for CRUD, dedup, views, search filters, literal search escaping, and source-anchor round-trips across both backends."
+  - EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:1284`; `src/backend/handshake_core/src/storage/tests.rs:1295`; `src/backend/handshake_core/src/storage/tests.rs:1314`; `src/backend/handshake_core/src/storage/tests.rs:1386`; `src/backend/handshake_core/tests/storage_conformance.rs:32`; `src/backend/handshake_core/tests/storage_conformance.rs:40`
+  - REQUIREMENT: "[ADD v02.156] LoomBlock/LoomEdge records, LoomViewFilters, LoomSearchFilters, LoomBlockSearchResult, and LoomSourceAnchor are canonical portable backend library contracts. Their meaning MUST survive SQLite-now / PostgreSQL-ready storage, export, and replay instead of being hidden behind view-only adapters."
+  - EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:2165`; `src/backend/handshake_core/src/storage/sqlite.rs:2197`; `src/backend/handshake_core/src/storage/postgres.rs:1762`; `src/backend/handshake_core/src/storage/postgres.rs:1783`; `src/backend/handshake_core/src/storage/tests.rs:1293`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
@@ -749,6 +801,33 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
   - LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v2/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `test sqlite_loom_storage_conformance ... ok`
+  - `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.04s`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `test postgres_loom_storage_conformance ... ok`
+  - `Skipping postgres loom storage conformance: POSTGRES_TEST_URL not set for postgres tests`
+  - `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom -- --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `test storage::tests::loom_migration_schema_is_portable_postgres ... ok`
+  - `test storage::tests::loom_migration_schema_is_portable_sqlite ... ok`
+  - `test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 200 filtered out; finished in 0.40s`
+
+- COMMAND: `just gov-check`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `wp-communications-check ok`
+  - `migration-path-truth-check ok`
+  - `gov-check ok`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -770,3 +849,167 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
     - `- NONE` only when nothing remains unproven
     - otherwise list each unresolved clause/gap explicitly
 - Rule: do not claim spec correctness with a generic PASS paragraph. `SPEC_ALIGNMENT_VERDICT=PASS` is only valid when the diff-scoped clauses are listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `- NONE`.
+
+### VALIDATION REPORT - 2026-03-17 (Integration Validator, authoritative-context superseding report)
+- VALIDATION_CONTEXT: OK
+- GOVERNANCE_VERDICT: PASS
+- TEST_VERDICT: PASS
+- CODE_REVIEW_VERDICT: FAIL
+- HEURISTIC_REVIEW_VERDICT: FAIL
+- SPEC_ALIGNMENT_VERDICT: FAIL
+- ENVIRONMENT_VERDICT: PARTIAL
+- DISPOSITION: NONE
+- LEGAL_VERDICT: FAIL
+- SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+- SUMMARY:
+  - Authoritative current workflow context was accepted for this verdict. Packet status is `In Progress`, Task Board status is `IN_PROGRESS`, and stale local mirror-based packet/task-board reasoning from the earlier local report is superseded as context mismatch rather than counted here as a Loom packet failure.
+  - Final `FAIL` remains because deleting a linked Loom block leaves stale derived counters on surviving blocks. SQLite `delete_loom_block` deletes the block and commits without recomputing `mention_count` / `tag_count` / `backlink_count` for surviving neighbors (`src/backend/handshake_core/src/storage/sqlite.rs:2144-2179`), while the corresponding recomputation exists only in explicit edge create/delete flows (`src/backend/handshake_core/src/storage/sqlite.rs:2272-2289`, `src/backend/handshake_core/src/storage/sqlite.rs:2342-2365`). The same omission exists in PostgreSQL (`src/backend/handshake_core/src/storage/postgres.rs:1741-1762`) even though edge create/delete recompute is present there too (`src/backend/handshake_core/src/storage/postgres.rs:1854-1871`, `src/backend/handshake_core/src/storage/postgres.rs:1924-1947`).
+  - The portable schema cascades `loom_edges` on block delete (`src/backend/handshake_core/migrations/0013_loom_mvp.sql:77-78`), and the shared conformance suite only deletes an unlinked block (`src/backend/handshake_core/src/storage/tests.rs:1187-1193`). The stale-counter regression is therefore real, packet-scope, and currently uncovered by committed regression tests.
+- CLAUSES_REVIEWED:
+  - Handshake_Master_Spec_v02.178.md 2.3.13 Storage Backend Portability Architecture [CX-DBP-001] [LEGACY_REFINEMENT_BRIDGE] -> SQLite and PostgreSQL both implement the block-delete lifecycle, but both omit surviving-block derived-counter recomputation on that path (`src/backend/handshake_core/src/storage/sqlite.rs:2144-2179`, `src/backend/handshake_core/src/storage/postgres.rs:1741-1762`).
+  - Handshake_Master_Spec_v02.178.md 2.3.13.7 Loom Storage Trait + Portable Schema (Example) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] -> the portable schema cascades linked-edge deletion when a block is removed (`src/backend/handshake_core/migrations/0013_loom_mvp.sql:77-78`), so stored derived metrics must remain consistent across that lifecycle transition; the current implementation does not preserve that invariant.
+  - Handshake_Master_Spec_v02.178.md 10.12 Loom (Heaper-style Library Surface) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] -> `LoomBlockDerived` counts on surviving linked blocks can remain stale after deleting a linked target because recomputation only occurs on explicit edge create/delete (`src/backend/handshake_core/src/storage/sqlite.rs:2272-2289`, `src/backend/handshake_core/src/storage/sqlite.rs:2342-2365`, `src/backend/handshake_core/src/storage/postgres.rs:1854-1871`, `src/backend/handshake_core/src/storage/postgres.rs:1924-1947`).
+  - Handshake_Master_Spec_v02.178.md Loom search API backend-agnostic contract and portable schema continuation [LEGACY_REFINEMENT_BRIDGE] -> backend conformance tests pass, but the packet-scoped suite does not cover linked-block deletion; current delete coverage stops at an unlinked block (`src/backend/handshake_core/src/storage/tests.rs:1187-1193`).
+- NOT_PROVEN:
+  - A live ad hoc PostgreSQL repro of the stale-counter effect was not rerun in this session because environment-backed proof remained unavailable; the PostgreSQL delete path is structurally identical to SQLite, but that runtime proof is still absent.
+- FINDINGS:
+  - Deleting a linked Loom block leaves stale derived counts on surviving blocks. In a direct throwaway harness against current SQLite main, the source block reported `mention_count=1` before deletion and still reported `mention_count=1` after deleting the linked target block, even though the cascade had removed the only linking edge. This is a concrete product defect, not a governance artifact.
+- DIFF_ATTACK_SURFACES:
+  - cascading edge lifecycle versus stored derived counters
+  - SQLite/PostgreSQL delete-path parity for provider-portable semantics
+  - conformance coverage gap between edge deletion and linked block deletion
+  - portable DDL assumptions versus runtime-maintained derived state
+- INDEPENDENT_CHECKS_RUN:
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom` -> PASS
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance` -> PASS
+  - `just gov-check` -> PASS
+  - `cargo run --quiet --manifest-path %TEMP%\loom-delete-repro\Cargo.toml` -> defect reproduced on SQLite current main (`after_delete source mention_count=1`)
+- COUNTERFACTUAL_CHECKS:
+  - If block delete recomputed surviving neighbors the same way edge delete already does, the reproduced stale `mention_count` / `tag_count` / `backlink_count` drift would collapse after cascade and this failure mode would disappear.
+  - If these counts were always derived on read instead of stored, this specific cascade-delete drift class would not persist.
+- BOUNDARY_PROBES:
+  - shared SQLite/PostgreSQL storage conformance passed
+  - portable migration checks passed
+  - direct linked-block-delete counter probe failed on SQLite current main
+- NEGATIVE_PATH_CHECKS:
+  - literal `%` and `_` search filters remained bounded in shared conformance coverage
+  - metadata-only derived fields remained unsearchable in shared conformance coverage
+  - no committed packet-scope negative test currently exercises cascade deletion of a linked target block and then verifies surviving derived counters
+- INDEPENDENT_FINDINGS:
+  - The stale local packet/task-board mirror issue is superseded and not counted as a Loom failure in this report.
+  - One concrete packet-scope product defect remains: block deletion can leave stale derived metrics on surviving blocks.
+  - That defect alone is sufficient for final integration `FAIL`.
+- RESIDUAL_UNCERTAINTY:
+  - PostgreSQL runtime repro was not rerun live in this session.
+  - No committed automated regression currently verifies linked-block deletion followed by surviving-block derived-counter refresh.
+
+### VALIDATION REPORT - 2026-03-17 (Integration Validator, resumed current-candidate report)
+- VALIDATION_CONTEXT: OK
+- GOVERNANCE_VERDICT: PASS
+- TEST_VERDICT: PASS
+- CODE_REVIEW_VERDICT: FAIL
+- HEURISTIC_REVIEW_VERDICT: FAIL
+- SPEC_ALIGNMENT_VERDICT: FAIL
+- ENVIRONMENT_VERDICT: PARTIAL
+- DISPOSITION: NONE
+- LEGAL_VERDICT: FAIL
+- SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+- SUMMARY:
+  - This resumed validation reviewed the current packet-scoped candidate after the earlier `FAIL` report was acknowledged. There is still no packet-scoped remediation in the affected Loom storage files: `git diff main...HEAD -- src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/storage/tests.rs src/backend/handshake_core/migrations/0013_loom_mvp.sql` was empty, and `git log main..HEAD --` on those same files was empty.
+  - Because the failing storage paths are unchanged, the prior blocker remains unresolved on the current candidate: deleting a linked Loom block still bypasses surviving-block derived-counter recomputation in SQLite and PostgreSQL block-delete flows (`src/backend/handshake_core/src/storage/sqlite.rs:2144-2179`, `src/backend/handshake_core/src/storage/postgres.rs:1741-1762`) even though explicit edge create/delete paths do recompute those counters (`src/backend/handshake_core/src/storage/sqlite.rs:2272-2289`, `src/backend/handshake_core/src/storage/sqlite.rs:2342-2365`, `src/backend/handshake_core/src/storage/postgres.rs:1854-1871`, `src/backend/handshake_core/src/storage/postgres.rs:1924-1947`).
+  - Targeted Loom tests still pass, but they do not cover linked-block deletion. Shared `gov-check` is currently red for unrelated truth drift on `WP-1-Structured-Collaboration-Schema-Registry-v2`; that is treated here as shared environment noise, not as a Loom packet governance blocker.
+- CLAUSES_REVIEWED:
+  - Handshake_Master_Spec_v02.178.md 2.3.13 Storage Backend Portability Architecture [CX-DBP-001] [LEGACY_REFINEMENT_BRIDGE] -> no current-candidate remediation was present in the affected SQLite/PostgreSQL storage delete paths relative to `main`; the unresolved block-delete lifecycle still omits surviving-block derived-counter refresh (`src/backend/handshake_core/src/storage/sqlite.rs:2144-2179`, `src/backend/handshake_core/src/storage/postgres.rs:1741-1762`).
+  - Handshake_Master_Spec_v02.178.md 2.3.13.7 Loom Storage Trait + Portable Schema (Example) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] -> the portable schema still cascades `loom_edges` on block delete (`src/backend/handshake_core/migrations/0013_loom_mvp.sql:77-78`), but the current candidate still leaves stored derived counters stale on surviving neighbors.
+  - Handshake_Master_Spec_v02.178.md 10.12 Loom (Heaper-style Library Surface) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] -> `LoomBlockDerived` values remain vulnerable to stale `mention_count` / `tag_count` / `backlink_count` after linked-block deletion because only explicit edge create/delete recomputes them (`src/backend/handshake_core/src/storage/sqlite.rs:2272-2289`, `src/backend/handshake_core/src/storage/sqlite.rs:2342-2365`, `src/backend/handshake_core/src/storage/postgres.rs:1854-1871`, `src/backend/handshake_core/src/storage/postgres.rs:1924-1947`).
+  - Handshake_Master_Spec_v02.178.md Loom search API backend-agnostic contract and portable schema continuation [LEGACY_REFINEMENT_BRIDGE] -> the current packet-scoped coverage still stops at deleting an unlinked block (`src/backend/handshake_core/src/storage/tests.rs:1187-1193`), so the linked-block delete regression remains unproven by committed tests.
+- NOT_PROVEN:
+  - A new direct runtime repro was not rerun in this resumed pass because the affected product files are unchanged and no new packet-scoped remediation candidate exists there; this verdict relies on the unchanged failing code path plus the earlier reproduced SQLite defect.
+  - A live PostgreSQL repro remains unavailable in this environment.
+- FINDINGS:
+  - No packet-scoped remediation exists in the affected Loom storage files on the current candidate, so the previously reported blocker is still open.
+  - The unresolved blocker is unchanged: linked-block deletion can leave stale derived counters on surviving blocks.
+- DIFF_ATTACK_SURFACES:
+  - absence of remediation in the exact previously failing storage paths
+  - cascade-delete lifecycle versus runtime-maintained derived counters
+  - green conformance tests masking a linked-block delete regression gap
+  - SQLite/PostgreSQL parity on unchanged delete semantics
+- INDEPENDENT_CHECKS_RUN:
+  - `git diff main...HEAD -- src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/storage/tests.rs src/backend/handshake_core/migrations/0013_loom_mvp.sql` -> no packet-scoped remediation diff
+  - `git log main..HEAD -- src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/storage/tests.rs src/backend/handshake_core/migrations/0013_loom_mvp.sql` -> no commits touching the failing paths on the candidate branch
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom` -> PASS
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance sqlite_loom_storage_conformance -- --exact` -> PASS
+  - `just gov-check` -> FAIL on unrelated packet-truth drift for `WP-1-Structured-Collaboration-Schema-Registry-v2`; not counted as a Loom packet blocker
+- COUNTERFACTUAL_CHECKS:
+  - If `delete_loom_block` in `src/backend/handshake_core/src/storage/sqlite.rs` recomputed surviving neighbors after the cascade, the prior stale `mention_count` condition would no longer survive block deletion.
+  - If `delete_loom_block` in `src/backend/handshake_core/src/storage/postgres.rs` were corrected in parity with a SQLite fix, the backend-portable delete semantics would stop inheriting the same stale-counter risk.
+- BOUNDARY_PROBES:
+  - branch-vs-main diff probe on the exact failing files showed no remediation
+  - targeted SQLite Loom storage conformance still passes on the unchanged candidate
+- NEGATIVE_PATH_CHECKS:
+  - the linked-block delete negative path is still uncovered by committed tests
+  - shared governance validation currently fails on an unrelated WP truth-drift path, confirming the repo environment is not globally clean even though this is not a Loom governance blocker
+- INDEPENDENT_FINDINGS:
+  - This resumed pass did not find a new packet-scoped product candidate in the failing Loom storage paths.
+  - The prior concrete blocker therefore still stands on the current candidate.
+  - Final integration verdict remains `FAIL`.
+- RESIDUAL_UNCERTAINTY:
+  - No new direct runtime repro was rerun in this resumed pass because there was no remediation candidate to test in the affected files.
+  - PostgreSQL live proof remains unavailable.
+
+### VALIDATION REPORT - 2026-03-17 (Integration Validator, committed-range superseding PASS closeout)
+Verdict: PASS
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PARTIAL
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+VALIDATOR_RISK_TIER: HIGH
+COMMITTED_RANGE_VALIDATED: `705220e2e3a9468b83e471029c239ad906f728bd..0dcc5ce505c5b256fe849600223818f22db1a204`
+BASELINE_COMPARED: `main` @ `d8edecab4a4115736a8f58e7f7c73ffcd065b9b5`
+SUMMARY:
+- This report supersedes older FAIL reports that predate the authoritative repaired candidate. Validation was rerun against local `main` first and then against the exact committed candidate range `705220e2e3a9468b83e471029c239ad906f728bd..0dcc5ce505c5b256fe849600223818f22db1a204` on `feat/WP-1-Loom-Storage-Portability-v2`.
+- `just validator-handoff-check WP-1-Loom-Storage-Portability-v2 --range 705220e2e3a9468b83e471029c239ad906f728bd..0dcc5ce505c5b256fe849600223818f22db1a204` now passes on the exact committed range, and `just gov-check` passes in the current authoritative context.
+- Product repair commit `643558e2173d4f7d167432be43e6140d97158005` snapshots surviving neighbor block ids before delete and recomputes `mention_count`, `tag_count`, and `backlink_count` after the cascade in both adapters; packet-evidence closure commit `0dcc5ce505c5b256fe849600223818f22db1a204` does not reopen that defect.
+- No current packet-scoped blocker remains in the validated range. Residual uncertainty is bounded to unavailable live PostgreSQL execution because `POSTGRES_TEST_URL` is unset.
+CLAUSES_REVIEWED:
+- Handshake_Master_Spec_v02.178.md 2.3.13 Storage Backend Portability Architecture [CX-DBP-001] [LEGACY_REFINEMENT_BRIDGE] -> the committed range preserves backend-portable delete semantics by repairing the same linked-delete lifecycle in both `src/backend/handshake_core/src/storage/sqlite.rs:2145` and `src/backend/handshake_core/src/storage/postgres.rs:1742`, with shared parity coverage in `src/backend/handshake_core/src/storage/tests.rs:1284`.
+- Handshake_Master_Spec_v02.178.md 2.3.13.7 Loom Storage Trait + Portable Schema (Example) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] -> the repair now recomputes surviving derived metrics from the canonical `loom_edges` relation after `ON DELETE CASCADE` in both adapters (`src/backend/handshake_core/src/storage/sqlite.rs:2165`, `src/backend/handshake_core/src/storage/postgres.rs:1762`), consistent with the portable schema boundary in `src/backend/handshake_core/migrations/0013_loom_mvp.sql:77`.
+- Handshake_Master_Spec_v02.178.md 10.12 Loom (Heaper-style Library Surface) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] -> shared conformance now verifies that deleting linked targets drops surviving source `mention_count` / `tag_count` and deleting a linked source drops surviving target `backlink_count` (`src/backend/handshake_core/src/storage/tests.rs:1295`, `src/backend/handshake_core/src/storage/tests.rs:1314`, `src/backend/handshake_core/src/storage/tests.rs:1386`).
+- Handshake_Master_Spec_v02.178.md Loom search API backend-agnostic contract and portable schema continuation [LEGACY_REFINEMENT_BRIDGE] -> diff review against local `main` shows no search/view contract drift outside the intended delete-counter repair and shared regression coverage, and the Loom lib/test surfaces remain green.
+NOT_PROVEN:
+- NONE
+MAIN_BODY_GAPS:
+- NONE
+QUALITY_RISKS:
+- NONE
+DIFF_ATTACK_SURFACES:
+- linked-block delete cascade versus surviving derived-counter repair
+- SQLite/PostgreSQL parity inside `delete_loom_block`
+- regression coverage for deleting linked targets and linked sources
+- packet-evidence closure after a product repair commit
+INDEPENDENT_CHECKS_RUN:
+- `just validator-handoff-check WP-1-Loom-Storage-Portability-v2 --range 705220e2e3a9468b83e471029c239ad906f728bd..0dcc5ce505c5b256fe849600223818f22db1a204` -> PASS
+- `just gov-check` -> PASS
+- `git diff --unified=60 705220e2e3a9468b83e471029c239ad906f728bd..0dcc5ce505c5b256fe849600223818f22db1a204 -- src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/storage/tests.rs` -> validator-owned diff review confirmed the committed range is limited to the intended delete-counter repair and shared regression coverage
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance sqlite_loom_storage_conformance -- --exact` -> PASS
+COUNTERFACTUAL_CHECKS:
+- If `delete_loom_block` in `src/backend/handshake_core/src/storage/sqlite.rs` stopped snapshotting surviving neighbor ids before deletion, the repaired source/target derived counters would regress to the stale post-cascade state that originally failed validation.
+- If `delete_loom_block` in `src/backend/handshake_core/src/storage/postgres.rs` failed to mirror the SQLite transaction-local recompute path, the shared linked-delete assertions in `src/backend/handshake_core/src/storage/tests.rs` would no longer represent backend-portable behavior.
+BOUNDARY_PROBES:
+- local-main-to-candidate diff probe confirmed the product delta is confined to the linked-delete repair in both adapters plus shared regression coverage
+- writer/reader boundary probe confirmed the shared conformance path now writes linked edges, deletes linked blocks, then reads surviving blocks to verify repaired derived counts
+NEGATIVE_PATH_CHECKS:
+- `delete_loom_block` still returns `StorageError::NotFound("loom_block")` on missing rows in both adapters; the repair only changes the successful linked-delete path
+- the PostgreSQL exact conformance command still exits through the explicit environment skip gate when `POSTGRES_TEST_URL` is unset, so the candidate does not hide missing live-DB proof behind a silent false PASS
+INDEPENDENT_FINDINGS:
+- The previously reported linked-delete stale-counter defect is repaired in the validated committed range.
+- The exact committed handoff range now passes deterministic handoff validation and current governance checks.
+- No current packet-scoped blocker remains for `705220e2e3a9468b83e471029c239ad906f728bd..0dcc5ce505c5b256fe849600223818f22db1a204`.
+RESIDUAL_UNCERTAINTY:
+- Live PostgreSQL execution of the repaired linked-delete path remains environment-bounded because `POSTGRES_TEST_URL` is unset; this did not surface as a code or governance blocker in the validated range.

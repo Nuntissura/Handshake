@@ -363,8 +363,8 @@ Requirements (HARD):
   - capability-registry publication logic unrelated to Loom storage parity
 - TEST_PLAN:
   ```bash
-  cargo test -p handshake_core loom
-  cargo test -p handshake_core --test storage_conformance
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance
   just gov-check
   ```
 - DONE_MEANS:
@@ -409,8 +409,8 @@ Requirements (HARD):
 - RUN_COMMANDS:
   ```bash
   rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|LoomSourceAnchor|LoomViewFilters|LoomSearchFilters|loom_blocks|loom_edges|loom_blocks_fts" src/backend/handshake_core
-  cargo test -p handshake_core loom
-  cargo test -p handshake_core --test storage_conformance
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance
   just gov-check
   ```
 - RISK_MAP:

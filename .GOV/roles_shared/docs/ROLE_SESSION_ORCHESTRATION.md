@@ -52,6 +52,8 @@ Default external repo-governance runtime root from a repo worktree: `../../Hands
   - `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/**/RUNTIME_STATUS.json`
   - `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/**/RECEIPTS.jsonl`
   - `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/**/THREAD.md`
+- Open review items projected in packet-scoped `RUNTIME_STATUS.json` are wake signals, not passive backlog. If a role session finishes a governed turn while a direct review item targeted to that lane remains unanswered, the next steer must repair that drift.
+- When packet or Task Board truth changes mid-run, refresh the packet-scoped runtime projection through the supported helpers rather than leaving `current_packet_status` or `current_phase` stale in `RUNTIME_STATUS.json`.
 - The VS Code bridge handles launch/bootstrap dispatch plus operator-facing notices. The ACP broker owns steering state, result settlement, and per-command output logs.
 - `just operator-monitor` is the ACP-aware read-only operator viewport: it merges canonical task-board source/drift, broker status, session registry state, control results/output activity, packet thread/receipt activity, and packet/runtime visibility.
 - `just operator-admin` is the explicit admin-mode console for governed lifecycle actions. It remains non-authoritative and must invoke the same governed scripts the Orchestrator would run directly.

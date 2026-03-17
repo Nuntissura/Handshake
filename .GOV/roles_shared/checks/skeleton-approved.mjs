@@ -109,13 +109,16 @@ if (!wpWorktree?.path) {
 
 const wpWorktreePath = wpWorktree.path;
 
-const dirty = gitTrim('status --porcelain=v1', { cwd: wpWorktreePath });
-if (dirty) {
+const staged = gitTrim('diff --cached --name-only', { cwd: wpWorktreePath });
+if (staged) {
   die(
-    `FAIL: Refusing to approve skeleton while WP worktree is dirty: ${wpWorktreePath}\n` +
-      `Ask the Coder to clean/commit/stash their changes, then re-run: just skeleton-approved ${wpId}`,
+    `FAIL: Refusing skeleton approval while the WP worktree has staged changes: ${wpWorktreePath}\n` +
+      `Unstage or commit those files first, then re-run: just skeleton-approved ${wpId}`,
   );
 }
+
+const dirty = gitTrim('status --porcelain=v1', { cwd: wpWorktreePath });
+const hasUnstagedDirt = Boolean(dirty);
 
 const escapeRegex = (s) => (s ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const checkpointRe = `^docs: skeleton checkpoint \\[${escapeRegex(wpId)}\\]$`;
@@ -135,12 +138,15 @@ if (alreadyApprovedSha) {
   console.log(`- WP_ID: ${wpId}`);
   console.log(`- WP_BRANCH: ${wpBranch}`);
   console.log(`- WP_WORKTREE: ${wpWorktreePath}`);
-  console.log(`- APPROVER_BRANCH: ${actorBranch}`);
-  console.log(`- WORKFLOW_LANE: ${workflowLane || '<unknown>'}`);
-  console.log(`- SKELETON_CHECKPOINT_SHA: ${checkpointSha}`);
-  console.log(`- APPROVAL_COMMIT_SHA: ${alreadyApprovedSha}`);
-  console.log(`- STATUS: ALREADY_APPROVED`);
-  process.exit(0);
+console.log(`- APPROVER_BRANCH: ${actorBranch}`);
+console.log(`- WORKFLOW_LANE: ${workflowLane || '<unknown>'}`);
+console.log(`- SKELETON_CHECKPOINT_SHA: ${checkpointSha}`);
+console.log(`- APPROVAL_COMMIT_SHA: ${alreadyApprovedSha}`);
+console.log(`- STATUS: ALREADY_APPROVED`);
+if (hasUnstagedDirt) {
+  console.log(`- NOTE: WP worktree still has unstaged local dirt; approval commit remained allow-empty.`);
+}
+process.exit(0);
 }
 
 execSync(`git commit --allow-empty -m "docs: skeleton approved [${wpId}]"`, {
@@ -158,4 +164,7 @@ console.log(`- APPROVER_BRANCH: ${actorBranch}`);
 console.log(`- WORKFLOW_LANE: ${workflowLane || '<unknown>'}`);
 console.log(`- SKELETON_CHECKPOINT_SHA: ${checkpointSha}`);
 console.log(`- APPROVAL_COMMIT_SHA: ${approvalSha}`);
+if (hasUnstagedDirt) {
+  console.log(`- NOTE: WP worktree had unstaged local dirt; approval commit remained allow-empty and did not include it.`);
+}
 console.log(`- NEXT: Coder re-run 'just pre-work ${wpId}' then proceed to IMPLEMENTATION.`);

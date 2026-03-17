@@ -386,6 +386,15 @@ Immediately after creating a WP task packet and refinement and obtaining `USER_S
   - notices blockers
   - keeps packet/runtime/thread artifacts current
 - The Orchestrator does not implement the WP and does not issue technical verdicts.
+- Status-sync rule for live governed work:
+  - as soon as the first governed coder or validator session starts successfully, or the first substantive coder/validator receipt lands, move the packet `**Status:**` to `In Progress`
+  - update `TASK_BOARD.md` to `IN_PROGRESS` immediately; do not let authoritative packet/task-board truth lag behind live ACP/runtime truth
+- High-risk orchestrator-managed review rule:
+  - for `RISK_TIER=HIGH`, do not let the lane remain hub-and-spoke through the Orchestrator until final handoff
+  - no later than the first substantive diff or the skeleton checkpoint, require one direct coder -> WP Validator review request and one direct WP Validator -> coder response or query in the packet-declared communication folder
+  - if that direct review loop is missing, steer it immediately and record the repair in the WP communications rather than waiting for late-stage validation
+  - once a direct `REVIEW_REQUEST`, `VALIDATOR_QUERY`, or `SPEC_GAP` is open, do not allow the targeted lane to spend another full governed turn in passive `waiting` / `input_required` state without a direct coder-facing or validator-facing resolution receipt (`REVIEW_RESPONSE`, `VALIDATOR_RESPONSE`, `SPEC_CONFIRMATION`, or a stricter `SPEC_GAP`)
+  - if packet or Task Board truth is repaired mid-run, refresh the WP runtime projection immediately through the supported helpers so `current_packet_status`, `current_phase`, and wake signals do not remain stale after governance repair
 
 ### 4. Status Sync and Closure Claims
 

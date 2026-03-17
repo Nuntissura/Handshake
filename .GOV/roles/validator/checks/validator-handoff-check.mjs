@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import {
@@ -126,12 +127,43 @@ function runInWorktree(worktreeAbs, command, args) {
   };
 }
 
+function runInDir(cwd, command, args) {
+  const result = spawnSync(command, args, {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  return {
+    code: typeof result.status === "number" ? result.status : 1,
+    output: `${result.stdout || ""}${result.stderr || ""}`.trim(),
+  };
+}
+
+function runNodeScriptInDir(cwd, scriptAbs, args) {
+  return runInDir(cwd, process.execPath, [scriptAbs, ...args]);
+}
+
 function gitInWorktree(worktreeAbs, args) {
   const result = runInWorktree(worktreeAbs, "git", args);
   if (result.code !== 0) {
     throw new Error(result.output || `git ${args.join(" ")} failed`);
   }
   return result.output.trim();
+}
+
+function createCleanCandidateClone(sourceRepoAbs, targetHeadSha) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-validator-handoff-"));
+  const clone = runInDir(sourceRepoAbs, "git", ["clone", "--quiet", "--no-tags", "--shared", sourceRepoAbs, tempDir]);
+  if (clone.code !== 0) {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    throw new Error(clone.output || "git clone failed");
+  }
+  const checkout = runInDir(tempDir, "git", ["checkout", "--quiet", "--detach", targetHeadSha]);
+  if (checkout.code !== 0) {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    throw new Error(checkout.output || `git checkout --detach ${targetHeadSha} failed`);
+  }
+  return tempDir;
 }
 
 function selectCommittedTarget(worktreeAbs, packetContent, parsedArgs) {
@@ -178,6 +210,7 @@ function persistEvidence(wpId, evidence) {
 
 const parsed = parseArgs(process.argv.slice(2));
 const repoRoot = process.cwd();
+const currentPostWorkCheckAbs = path.resolve(repoRoot, ".GOV", "roles", "coder", "checks", "post-work-check.mjs");
 const gitContext = currentGitContext();
 const packetContentForContext = loadPacket(parsed.wpId);
 const workflowLane = parseClaimField(packetContentForContext, "WORKFLOW_LANE");
@@ -244,13 +277,26 @@ try {
 }
 
 const preWork = runInWorktree(worktreeAbs, "just", ["pre-work", parsed.wpId]);
-const cargoClean = runInWorktree(worktreeAbs, "just", ["cargo-clean"]);
-const postWork = runInWorktree(worktreeAbs, "just", ["post-work", parsed.wpId, ...committedTarget.args]);
+let committedCheckoutDir = "";
+let cargoClean = { code: 1, output: "not run" };
+let postWork = { code: 1, output: "not run" };
+let committedCheckoutError = "";
+try {
+  committedCheckoutDir = createCleanCandidateClone(worktreeAbs, targetHeadSha);
+  cargoClean = runInWorktree(committedCheckoutDir, "just", ["cargo-clean"]);
+  postWork = runNodeScriptInDir(committedCheckoutDir, currentPostWorkCheckAbs, [parsed.wpId, ...committedTarget.args]);
+} catch (error) {
+  committedCheckoutError = error instanceof Error ? error.message : String(error || "unknown clean-checkout failure");
+} finally {
+  if (committedCheckoutDir && fs.existsSync(committedCheckoutDir)) {
+    fs.rmSync(committedCheckoutDir, { recursive: true, force: true });
+  }
+}
 const cargoCleanStatus = cargoClean.code === 0 ? "PASS" : "NON_BLOCKING_FAIL";
 
 const evidence = {
   wp_id: parsed.wpId,
-  status: preWork.code === 0 && postWork.code === 0 ? "PASS" : "FAIL",
+  status: preWork.code === 0 && !committedCheckoutError && postWork.code === 0 ? "PASS" : "FAIL",
   validated_at: new Date().toISOString(),
   source_truth: "PREPARE_WORKTREE",
   prepare_branch: String(prepareEntry.branch || "").trim(),
@@ -259,16 +305,18 @@ const evidence = {
   committed_validation_mode: committedTarget.mode,
   committed_validation_target: committedTarget.summary,
   target_head_sha: targetHeadSha,
+  committed_validation_checkout_mode: "CLEAN_SHARED_CLONE",
   pre_work_status: preWork.code === 0 ? "PASS" : "FAIL",
   cargo_clean_required: false,
   cargo_clean_status: cargoCleanStatus,
-  post_work_status: postWork.code === 0 ? "PASS" : "FAIL",
+  post_work_status: !committedCheckoutError && postWork.code === 0 ? "PASS" : "FAIL",
   pre_work_command: `just pre-work ${parsed.wpId}`,
   cargo_clean_command: "just cargo-clean",
-  post_work_command: `just post-work ${parsed.wpId} ${committedTarget.args.join(" ")}`.trim(),
+  post_work_command: `${process.execPath} ${currentPostWorkCheckAbs} ${parsed.wpId} ${committedTarget.args.join(" ")}`.trim(),
   pre_work_output: preWork.output,
   cargo_clean_output: cargoClean.output,
   post_work_output: postWork.output,
+  committed_checkout_error: committedCheckoutError,
 };
 
 persistEvidence(parsed.wpId, evidence);
@@ -300,5 +348,3 @@ if (nonBlockingSyncWarnings.length > 0) {
     console.log(`    - ${warning}`);
   }
 }
-
-

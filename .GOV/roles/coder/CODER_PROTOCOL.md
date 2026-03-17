@@ -264,16 +264,21 @@ Resume rule (hard, anti-babysit):
   - Integration Validator = final technical and merge authority
 - Update runtime status and append a receipt on session start, phase change, blocker/unblock, handoff, completion, and every packet heartbeat interval only while actively working.
 - Set `validator_trigger` only when the validator should wake up. Do not expect continuous polling.
+- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` and `RISK_TIER=HIGH`, initiate direct WP-validator review before final handoff:
+  - no later than the first substantive product diff or the skeleton checkpoint, send a direct `REVIEW_REQUEST` or equivalent coder-targeted validator request in the packet-declared communication folder
+  - do not wait until a generic "ready for validation" handoff if the validator can challenge contract drift earlier
+- When a WP-validator query lands, answer it directly in the packet-declared communication folder before claiming `HANDOFF_READY`, unless the query is superseded by a stricter follow-up from the same validator lane.
+- If a direct validator review item is open for your WP, your next substantive governed turn must end with a direct `REVIEW_RESPONSE`, `SPEC_CONFIRMATION`, or `SPEC_GAP` addressed to that validator lane. Do not spend a full turn only on silent local testing or freeform notes while the validator is still waiting on a concrete answer.
+- If the packet `TEST_PLAN` command surface is wrong for the actual repo/worktree layout, do not hide behind the broken command. Record the mismatch, run the correct diff-scoped verification commands anyway, and include the exact replacement command surface in the validator-facing response.
 - Prefer deterministic helpers over hand-editing these files:
   - `just wp-thread-append WP-{ID} CODER <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
   - `just wp-heartbeat WP-{ID} CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
   - `just wp-receipt-append WP-{ID} CODER <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
-  - `just wp-validator-query WP-{ID} CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
-  - `just wp-validator-response WP-{ID} CODER <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-review-request WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
   - `just wp-review-response WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-spec-gap WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
   - `just wp-spec-confirmation WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
+  - Rule: `wp-validator-query` / `wp-validator-response` are validator-to-coder helpers. Coders should use `wp-review-request`, `wp-review-response`, `wp-spec-gap`, or `wp-spec-confirmation` when speaking to validator lanes.
   - `just session-registry-status [WP-{ID}]`
   - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Coder session):
@@ -368,6 +373,8 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - **Evidence Management:** You MAY append test logs, command outputs, and proof of work to the `## EVIDENCE` section of the task packet.
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
 - **Status Updates:** Update the `## STATUS_HANDOFF` section with a real self-audit, not a generic "tests passing" note. When `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, include both the standard handoff core and the rubric-proof fields.
+- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` and `RISK_TIER=HIGH`, treat direct coder <-> WP-validator review traffic as part of the required proof surface. A final handoff is not complete if no direct review exchange occurred.
+- A high-risk handoff is also incomplete if the latest validator query or review request remains unanswered in the packet-declared communication folder, even when tests are green locally.
 - Compare your implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` is missing the relevant integrated context or remote drift is the subject of the WP.
 - **Branch Discipline (preferred):** Do all work on a WP branch (e.g., `feat/WP-{ID}`), optionally via `git worktree`. You MAY commit freely to your WP branch and push only the assigned WP backup branch. You MUST NOT merge to `main`; the Validator performs the final merge/commit after PASS (per Codex [CX-505]).
 - **Concurrency rule (MANDATORY when >1 Coder is active):** work only in the dedicated `git worktree` directory assigned to your WP. Do NOT share a single working tree with another active WP.

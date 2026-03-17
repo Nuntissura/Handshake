@@ -420,7 +420,7 @@ wp-heartbeat wp-id actor-role actor-session current-phase runtime-status next-ex
 	@node .GOV/roles_shared/scripts/wp/wp-heartbeat.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{current-phase}} {{runtime-status}} {{next-expected-actor}} "{{waiting-on}}" {{validator-trigger}} "{{last-event}}" "{{worktree-dir}}" "{{next-expected-session}}" "{{waiting-on-session}}"
 
 wp-validator-query wp-id actor-role actor-session target-session summary correlation-id='' spec-anchor='' packet-row-ref='':
-	@node .GOV/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_QUERY {{wp-id}} {{actor-role}} {{actor-session}} WP_VALIDATOR "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}"
+	@node .GOV/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_QUERY {{wp-id}} {{actor-role}} {{actor-session}} CODER "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}"
 
 wp-validator-response wp-id actor-role actor-session target-session summary correlation-id spec-anchor='' packet-row-ref='' ack-for='':
 	@node .GOV/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_RESPONSE {{wp-id}} {{actor-role}} {{actor-session}} CODER "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}" "{{ack-for}}"
