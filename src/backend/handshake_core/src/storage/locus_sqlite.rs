@@ -369,6 +369,7 @@ async fn create_wp(pool: &SqlitePool, params: LocusCreateWpParams) -> StorageRes
     let metadata = json!({
         "labels": params.labels.unwrap_or_default(),
         "spec_session_id": params.spec_session_id,
+        "profile_extension": params.profile_extension,
         "notes": [],
         "gates": {
             "pre_work": { "status": "pending" },
@@ -426,7 +427,18 @@ async fn update_wp(pool: &SqlitePool, params: LocusUpdateWpParams) -> StorageRes
 
     let now = now_rfc3339();
 
+    let existing_metadata =
+        sqlx::query_scalar::<_, String>("SELECT metadata FROM work_packets WHERE wp_id = $1")
+            .bind(&params.wp_id)
+            .fetch_one(pool)
+            .await?;
+    let mut metadata: Value = serde_json::from_str(&existing_metadata)?;
+    if !metadata.is_object() {
+        metadata = json!({});
+    }
+
     let mut cols: Vec<(&'static str, Value)> = Vec::new();
+    let mut metadata_changed = false;
     for (key, value) in params.updates {
         let col = match key.as_str() {
             "title" => "title",
@@ -438,6 +450,11 @@ async fn update_wp(pool: &SqlitePool, params: LocusUpdateWpParams) -> StorageRes
             "governance.routing" | "routing" => "routing",
             "governance.task_packet_path" | "task_packet_path" => "task_packet_path",
             "governance.task_board_status" | "task_board_status" => "task_board_status",
+            "profile_extension" | "metadata.profile_extension" => {
+                metadata["profile_extension"] = value;
+                metadata_changed = true;
+                continue;
+            }
             other => {
                 return Err(StorageError::Validation(match other {
                     "" => "empty update key",
@@ -446,6 +463,10 @@ async fn update_wp(pool: &SqlitePool, params: LocusUpdateWpParams) -> StorageRes
             }
         };
         cols.push((col, value));
+    }
+
+    if metadata_changed {
+        cols.push(("metadata", metadata));
     }
 
     if cols.is_empty() {
@@ -481,6 +502,7 @@ async fn update_wp(pool: &SqlitePool, params: LocusUpdateWpParams) -> StorageRes
                 }
                 _ => return Err(StorageError::Validation("priority must be an integer")),
             },
+            "metadata" => query = query.bind(serde_json::to_string(&value)?),
             _ => match value {
                 Value::String(s) => query = query.bind(s),
                 Value::Null => query = query.bind(Option::<String>::None),

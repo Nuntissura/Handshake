@@ -668,6 +668,8 @@ pub struct LocusCreateWpParams {
     pub labels: Option<Vec<String>>,
     #[serde(default)]
     pub spec_session_id: Option<String>,
+    #[serde(default)]
+    pub profile_extension: Option<Value>,
     pub reporter: String,
 }
 
