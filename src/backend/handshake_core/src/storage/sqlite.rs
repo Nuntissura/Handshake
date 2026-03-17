@@ -19,6 +19,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde_json::Value;
 use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
+use std::collections::BTreeSet;
 use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -2149,6 +2150,24 @@ impl super::Database for SqliteDatabase {
     ) -> StorageResult<()> {
         self.guard.validate_write(ctx, block_id).await?;
         let mut tx = self.pool.begin().await?;
+        let affected_rows: Vec<(String, String)> = sqlx::query_as(
+            r#"
+            SELECT source_block_id, target_block_id
+            FROM loom_edges
+            WHERE workspace_id = $1
+              AND (source_block_id = $2 OR target_block_id = $2)
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_all(&mut *tx)
+        .await?;
+        let affected_block_ids: BTreeSet<String> = affected_rows
+            .into_iter()
+            .flat_map(|(source_block_id, target_block_id)| [source_block_id, target_block_id])
+            .filter(|candidate| candidate != block_id)
+            .collect();
+
         let res = sqlx::query(
             r#"
             DELETE FROM loom_blocks
@@ -2174,6 +2193,23 @@ impl super::Database for SqliteDatabase {
         .bind(block_id)
         .execute(&mut *tx)
         .await?;
+
+        for affected_block_id in affected_block_ids {
+            sqlx::query(
+                r#"
+                UPDATE loom_blocks
+                SET
+                    mention_count = (SELECT COUNT(*) FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'mention'),
+                    tag_count = (SELECT COUNT(*) FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'tag'),
+                    backlink_count = (SELECT COUNT(*) FROM loom_edges WHERE workspace_id = $1 AND target_block_id = $2 AND edge_type IN ('mention', 'tag'))
+                WHERE workspace_id = $1 AND block_id = $2
+                "#,
+            )
+            .bind(workspace_id)
+            .bind(&affected_block_id)
+            .execute(&mut *tx)
+            .await?;
+        }
 
         tx.commit().await?;
         Ok(())
