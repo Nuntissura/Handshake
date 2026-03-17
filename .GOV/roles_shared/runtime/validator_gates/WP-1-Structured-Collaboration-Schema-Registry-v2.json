@@ -1,0 +1,23 @@
+{
+  "validation_sessions": {
+    "WP-1-Structured-Collaboration-Schema-Registry-v2": {
+      "wpId": "WP-1-Structured-Collaboration-Schema-Registry-v2",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-03-17T04:29:02.789Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "PASS",
+          "timestamp": "2026-03-17T04:29:02.789Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-03-17T04:35:00.012Z"
+        }
+      ]
+    }
+  },
+  "archived_sessions": [],
+  "committed_validation_evidence": {}
+}

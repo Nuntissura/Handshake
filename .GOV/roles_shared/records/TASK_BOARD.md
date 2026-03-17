@@ -172,10 +172,9 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 
-- **[WP-1-Loom-Storage-Portability-v2]** - [IN_PROGRESS]
-- **[WP-1-Structured-Collaboration-Schema-Registry-v2]** - [IN_PROGRESS]
-
 ## Done
+- **[WP-1-Loom-Storage-Portability-v2]** - [VALIDATED]
+- **[WP-1-Structured-Collaboration-Schema-Registry-v2]** - [VALIDATED]
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
 - **[WP-1-Front-End-Memory-System-v1]** - [VALIDATED]
 - **[WP-1-Unified-Tool-Surface-Contract-v1]** - [VALIDATED]
