@@ -822,13 +822,13 @@ rg -n "schema_id|schema_version|project_profile_kind|mirror_state|authority_refs
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
 - COMMAND: `cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml`
-- EXIT_CODE: `0`
+- EXIT_CODE: 0
 - LOG_PATH: `N/A`
 - LOG_SHA256: `N/A`
 - PROOF_LINES: `cargo fmt completed with no output`
 
 - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests -- --nocapture`
-- EXIT_CODE: `0`
+- EXIT_CODE: 0
 - LOG_PATH: `N/A`
 - LOG_SHA256: `N/A`
 - PROOF_LINES: `running 24 tests`; `test locus_create_wp_returns_machine_readable_validation_for_incompatible_profile_extension_without_persisting_work_packet ... ok`; `test locus_update_wp_returns_machine_readable_validation_for_incompatible_profile_extension ... ok`; `test locus_work_packet_validation_reports_unknown_schema_version ... ok`; `test locus_sync_task_board_emits_structured_index_and_view ... ok`; `test locus_register_mts_returns_machine_readable_validation_for_incompatible_profile_extension ... ok`; `test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.83s`
