@@ -707,40 +707,92 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 21
+- **End**: 2213
+- **Line Delta**: 36
+- **Pre-SHA1**: `6d815d9ff393eb7073462bcc57bd14286049c6e2`
+- **Post-SHA1**: `b2ba46411dc04b5ae8a4c50ded273f887bb6b19e`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture`, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom -- --nocapture`.
+- **Artifacts**: `git diff --unified=0 705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005 -- src/backend/handshake_core/src/storage/sqlite.rs`; `just cor701-sha src/backend/handshake_core/src/storage/sqlite.rs`
+- **Timestamp**: 2026-03-17T04:34:05.9040608+01:00
+- **Operator**: CODER codex-cli
 - **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
-- **Notes**:
+- **Notes**: Range-mode pre/post SHA1s are anchored to `705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005`; `just cor701-sha` confirms the committed repair LF blob matches the post image.
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 23
+- **End**: 1800
+- **Line Delta**: 39
+- **Pre-SHA1**: `f105bd3fb4bfda5fb9259a330365f651038c4c03`
+- **Post-SHA1**: `023aa7cb5258649d6eb6dd3aa014a5493c2860b9`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture`, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom -- --nocapture`.
+- **Artifacts**: `git diff --unified=0 705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005 -- src/backend/handshake_core/src/storage/postgres.rs`; `just cor701-sha src/backend/handshake_core/src/storage/postgres.rs`
+- **Timestamp**: 2026-03-17T04:34:05.9040608+01:00
+- **Operator**: CODER codex-cli
+- **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Range-mode pre/post SHA1s are anchored to `705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005`; `just cor701-sha` confirms the committed repair LF blob matches the post image.
+
+- **Target File**: `src/backend/handshake_core/src/storage/tests.rs`
+- **Start**: 1186
+- **End**: 1387
+- **Line Delta**: 201
+- **Pre-SHA1**: `83a3a74e37c6ddcd7c335a6cc22694eba328fbfc`
+- **Post-SHA1**: `0f78a8f0862c9cca2f47b4effb26580b36bea86e`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture`, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom -- --nocapture`.
+- **Artifacts**: `git diff --unified=0 705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005 -- src/backend/handshake_core/src/storage/tests.rs`; `just cor701-sha src/backend/handshake_core/src/storage/tests.rs`
+- **Timestamp**: 2026-03-17T04:34:05.9040608+01:00
+- **Operator**: CODER codex-cli
+- **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Range-mode pre/post SHA1s are anchored to `705220e2e3a9468b83e471029c239ad906f728bd..643558e2173d4f7d167432be43e6140d97158005`; `just cor701-sha` confirms the committed repair LF blob matches the post image.
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress; committed repair candidate `643558e2173d4f7d167432be43e6140d97158005` is awaiting integration-validator closeout after packet evidence closure.
+- What changed in this update: The committed repair recalculates surviving Loom `mention_count`, `tag_count`, and `backlink_count` after linked block deletion in `src/backend/handshake_core/src/storage/sqlite.rs`, `src/backend/handshake_core/src/storage/postgres.rs`, and adds shared conformance regression coverage in `src/backend/handshake_core/src/storage/tests.rs`.
+- Next step / handoff hint: Run integration-validator closeout on the committed repair candidate, using the packet evidence below plus the WP communication thread for the bounded PostgreSQL environment skip.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+  - REQUIREMENT: "Loom block, edge, view, search, and source-anchor semantics are either confirmed unchanged or explicitly remediated on the landed current-main slice, with no vague 'looks fine' closeout."
+  - EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:2145`; `src/backend/handshake_core/src/storage/sqlite.rs:2197`; `src/backend/handshake_core/src/storage/postgres.rs:1742`; `src/backend/handshake_core/src/storage/postgres.rs:1783`
+  - REQUIREMENT: "Shared Loom conformance tests and semantic tripwires give explicit parity coverage for CRUD, dedup, views, search filters, literal search escaping, and source-anchor round-trips across both backends."
+  - EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:1284`; `src/backend/handshake_core/src/storage/tests.rs:1295`; `src/backend/handshake_core/src/storage/tests.rs:1314`; `src/backend/handshake_core/src/storage/tests.rs:1386`; `src/backend/handshake_core/tests/storage_conformance.rs:32`; `src/backend/handshake_core/tests/storage_conformance.rs:40`
+  - REQUIREMENT: "[ADD v02.156] LoomBlock/LoomEdge records, LoomViewFilters, LoomSearchFilters, LoomBlockSearchResult, and LoomSourceAnchor are canonical portable backend library contracts. Their meaning MUST survive SQLite-now / PostgreSQL-ready storage, export, and replay instead of being hidden behind view-only adapters."
+  - EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:2165`; `src/backend/handshake_core/src/storage/sqlite.rs:2197`; `src/backend/handshake_core/src/storage/postgres.rs:1762`; `src/backend/handshake_core/src/storage/postgres.rs:1783`; `src/backend/handshake_core/src/storage/tests.rs:1293`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
@@ -749,6 +801,33 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
   - LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v2/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `test sqlite_loom_storage_conformance ... ok`
+  - `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.04s`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `test postgres_loom_storage_conformance ... ok`
+  - `Skipping postgres loom storage conformance: POSTGRES_TEST_URL not set for postgres tests`
+  - `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom -- --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `test storage::tests::loom_migration_schema_is_portable_postgres ... ok`
+  - `test storage::tests::loom_migration_schema_is_portable_sqlite ... ok`
+  - `test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 200 filtered out; finished in 0.40s`
+
+- COMMAND: `just gov-check`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `wp-communications-check ok`
+  - `migration-path-truth-check ok`
+  - `gov-check ok`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
