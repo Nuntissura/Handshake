@@ -29,8 +29,8 @@
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: Coder-B
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -82,7 +82,7 @@
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** In Progress
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -137,10 +137,10 @@ Next: N/A
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: Handshake_Master_Spec_v02.178.md 2.3.13 Storage Backend Portability Architecture [CX-DBP-001] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Handshake_Master_Spec_v02.178.md 2.3.13.7 Loom Storage Trait + Portable Schema (Example) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Handshake_Master_Spec_v02.178.md 10.12 Loom (Heaper-style Library Surface) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Handshake_Master_Spec_v02.178.md Loom search API backend-agnostic contract and portable schema continuation [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Handshake_Master_Spec_v02.178.md 2.3.13 Storage Backend Portability Architecture [CX-DBP-001] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Handshake_Master_Spec_v02.178.md 2.3.13.7 Loom Storage Trait + Portable Schema (Example) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Handshake_Master_Spec_v02.178.md 10.12 Loom (Heaper-style Library Surface) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Handshake_Master_Spec_v02.178.md Loom search API backend-agnostic contract and portable schema continuation [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -163,7 +163,7 @@ Next: N/A
 - Rule: shared registries, shared types, shared storage layers, shared workflow/runtime surfaces, and migrations default to SHARED_SURFACE_RISK=YES.
 ## SEMANTIC_PROOF_ASSETS (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - SEMANTIC_TRIPWIRE_TESTS:
-  - cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check [LEGACY_REFINEMENT_BRIDGE]
+  - cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance; just gov-check [LEGACY_REFINEMENT_BRIDGE]
 - CANONICAL_CONTRACT_EXAMPLES:
   - NONE
 - Rule: for packets using `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`, each clause row must point to TESTS, EXAMPLES, or governed debt, and shared-surface packets should carry at least one concrete tripwire or canonical example.
@@ -598,8 +598,8 @@ Next: N/A
 ## QUALITY_GATE
 ### TEST_PLAN
 ```bash
-cargo test -p handshake_core loom
-  cargo test -p handshake_core --test storage_conformance
+cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance
   just gov-check
 ```
 
@@ -666,8 +666,8 @@ git revert <commit-sha>
 - RUN_COMMANDS:
   ```bash
 rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|LoomSourceAnchor|LoomViewFilters|LoomSearchFilters|loom_blocks|loom_edges|loom_blocks_fts" src/backend/handshake_core
-  cargo test -p handshake_core loom
-  cargo test -p handshake_core --test storage_conformance
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance
   just gov-check
   ```
 - RISK_MAP:
