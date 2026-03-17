@@ -747,6 +747,10 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
         Some("hsk.tracked_work_packet@1")
     );
     assert_eq!(
+        packet_json.get("schema_version").and_then(Value::as_str),
+        Some("1")
+    );
+    assert_eq!(
         packet_json
             .get("summary_record_path")
             .and_then(Value::as_str),
@@ -813,6 +817,262 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
 }
 
 #[tokio::test]
+async fn locus_work_packet_packet_preserves_profile_extension(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let profile_extension = json!({
+        "extension_schema_id": "hsk.profile_extension@1",
+        "extension_schema_version": "1",
+        "compatibility": {
+            "breaking": false,
+        },
+        "project_scope": {
+            "repo": "handshake",
+        },
+    });
+
+    run_locus_job(
+        &state,
+        "locus_update_wp_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "updates": {
+                "profile_extension": profile_extension.clone(),
+            },
+        }),
+    )
+    .await?;
+
+    let packet_path = root
+        .join(".handshake")
+        .join("gov")
+        .join("work_packets")
+        .join("WP-TEST")
+        .join("packet.json");
+    let packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
+
+    assert_eq!(
+        packet_json.get("profile_extension"),
+        Some(&profile_extension)
+    );
+    let packet_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::WorkPacketPacket,
+        &packet_json,
+    );
+    assert!(packet_validation.ok, "{packet_validation:?}");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_create_wp_returns_machine_readable_validation_for_incompatible_profile_extension_without_persisting_work_packet(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let wp_id = "WP-BREAKING-EXT-CREATE";
+    let validation = run_locus_job_expect_validation_failure(
+        &state,
+        "locus_create_wp_v1",
+        json!({
+            "wp_id": wp_id,
+            "title": "Breaking extension create",
+            "description": "should fail before persistence",
+            "priority": 2,
+            "type": "feature",
+            "phase": "1",
+            "routing": "GOV_STANDARD",
+            "task_packet_path": format!(".handshake/gov/task_packets/{wp_id}.md"),
+            "profile_extension": {
+                "extension_schema_id": "hsk.profile_extension@1",
+                "extension_schema_version": "1",
+                "compatibility": {
+                    "breaking": true,
+                },
+            },
+            "reporter": "micro_task_executor_tests",
+        }),
+    )
+    .await?;
+
+    assert_eq!(validation.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        validation.get("family").and_then(Value::as_str),
+        Some("work_packet_packet")
+    );
+    let issues = validation
+        .get("issues")
+        .and_then(Value::as_array)
+        .expect("validation issues");
+    assert!(issues.iter().any(|issue| {
+        issue.get("code").and_then(Value::as_str) == Some("incompatible_profile_extension")
+            && issue.get("field").and_then(Value::as_str) == Some("profile_extension.compatibility")
+    }));
+
+    let packet_path = root
+        .join(".handshake")
+        .join("gov")
+        .join("work_packets")
+        .join(wp_id)
+        .join("packet.json");
+    assert!(
+        !packet_path.exists(),
+        "failed invalid create must not write a work-packet packet artifact"
+    );
+
+    run_locus_job(
+        &state,
+        "locus_create_wp_v1",
+        json!({
+            "wp_id": wp_id,
+            "title": "Recovered create",
+            "description": "valid retry should succeed",
+            "priority": 2,
+            "type": "feature",
+            "phase": "1",
+            "routing": "GOV_STANDARD",
+            "task_packet_path": format!(".handshake/gov/task_packets/{wp_id}.md"),
+            "reporter": "micro_task_executor_tests",
+        }),
+    )
+    .await?;
+
+    let packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
+    assert_eq!(
+        packet_json.get("wp_id").and_then(Value::as_str),
+        Some(wp_id)
+    );
+    assert!(
+        packet_json.get("profile_extension").is_none()
+            || packet_json.get("profile_extension") == Some(&Value::Null),
+        "valid retry should not inherit the rejected profile_extension from the failed create"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_update_wp_returns_machine_readable_validation_for_incompatible_profile_extension(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let validation = run_locus_job_expect_validation_failure(
+        &state,
+        "locus_update_wp_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "updates": {
+                "profile_extension": {
+                    "extension_schema_id": "hsk.profile_extension@1",
+                    "extension_schema_version": "1",
+                    "compatibility": {
+                        "breaking": true,
+                    },
+                },
+            },
+        }),
+    )
+    .await?;
+
+    assert_eq!(validation.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        validation.get("family").and_then(Value::as_str),
+        Some("work_packet_packet")
+    );
+    let issues = validation
+        .get("issues")
+        .and_then(Value::as_array)
+        .expect("validation issues");
+    assert!(issues.iter().any(|issue| {
+        issue.get("code").and_then(Value::as_str) == Some("incompatible_profile_extension")
+            && issue.get("field").and_then(Value::as_str) == Some("profile_extension.compatibility")
+    }));
+
+    run_locus_job(&state, "locus_close_wp_v1", json!({ "wp_id": "WP-TEST" })).await?;
+
+    let packet_path = root
+        .join(".handshake")
+        .join("gov")
+        .join("work_packets")
+        .join("WP-TEST")
+        .join("packet.json");
+    let packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
+    assert!(
+        packet_json.get("profile_extension").is_none()
+            || packet_json.get("profile_extension") == Some(&Value::Null),
+        "failed invalid update must not persist profile_extension into the work-packet packet"
+    );
+    assert_eq!(
+        packet_json.get("status").and_then(Value::as_str),
+        Some("done")
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_work_packet_validation_reports_unknown_schema_version(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let _state = setup_state(llm_client).await?;
+
+    let packet_path = root
+        .join(".handshake")
+        .join("gov")
+        .join("work_packets")
+        .join("WP-TEST")
+        .join("packet.json");
+    let mut packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
+    packet_json["schema_version"] = Value::String("999".to_string());
+
+    let validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::WorkPacketPacket,
+        &packet_json,
+    );
+    let validation_json = serde_json::to_value(&validation)?;
+
+    assert_eq!(
+        validation_json.get("ok").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        validation_json.get("family").and_then(Value::as_str),
+        Some("work_packet_packet")
+    );
+    let issues = validation_json
+        .get("issues")
+        .and_then(Value::as_array)
+        .expect("validation issues");
+    assert!(issues.iter().any(|issue| {
+        issue.get("code").and_then(Value::as_str) == Some("schema_version_mismatch")
+            && issue.get("field").and_then(Value::as_str) == Some("schema_version")
+    }));
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn locus_sync_task_board_emits_structured_index_and_view(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _test_guard = test_guard();
@@ -835,23 +1095,15 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
 
     let sync_result = run_locus_job(&state, "locus_sync_task_board_v1", json!({})).await?;
     assert_eq!(
-        sync_result
-            .get("structured_projection_written")
-            .and_then(Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        sync_result
-            .get("work_packet_artifacts_written")
-            .and_then(Value::as_u64),
+        sync_result.get("applied_updates").and_then(Value::as_u64),
         Some(1)
     );
     assert_eq!(
         sync_result
-            .get("validation_result")
-            .and_then(|value| value.get("ok"))
-            .and_then(Value::as_bool),
-        Some(true)
+            .get("unknown_wp_ids")
+            .and_then(Value::as_array)
+            .map(|items| items.len()),
+        Some(0)
     );
 
     let index_path = gov_root.join("task_board").join("index.json");
@@ -873,6 +1125,8 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
         view_json.get("view_id").and_then(Value::as_str),
         Some("default")
     );
+    assert!(index_json.get("entries").is_none());
+    assert!(view_json.get("lanes").is_none());
     let index_validation = validate_runtime_structured_record(
         &root,
         StructuredCollaborationRecordFamily::TaskBoardIndex,
@@ -898,6 +1152,23 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
     assert_eq!(
         first_row.get("lane_id").and_then(Value::as_str),
         Some("ready")
+    );
+    let lane_ids = view_json
+        .get("lane_ids")
+        .and_then(Value::as_array)
+        .ok_or("missing lane_ids")?
+        .iter()
+        .filter_map(Value::as_str)
+        .collect::<Vec<_>>();
+    assert!(lane_ids.contains(&"ready"));
+    let first_view_row = view_json
+        .get("rows")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .ok_or("missing task-board view row")?;
+    assert_eq!(
+        first_view_row.get("work_packet_id").and_then(Value::as_str),
+        Some("WP-TEST")
     );
 
     let packet_path = gov_root
@@ -1133,13 +1404,24 @@ async fn locus_register_mts_emits_structured_micro_task_packet_and_summary(
     let _env = WorkspaceEnvGuard::activate(dir.path());
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
     let state = setup_state(llm_client).await?;
+    let mut tracked_mt = base_tracked_micro_task_value("MT-ARTIFACTS");
+    tracked_mt["profile_extension"] = json!({
+        "extension_schema_id": "hsk.profile_extension@1",
+        "extension_schema_version": "1",
+        "compatibility": {
+            "breaking": false,
+        },
+        "project_scope": {
+            "repo": "handshake",
+        },
+    });
 
     run_locus_job(
         &state,
         "locus_register_mts_v1",
         json!({
             "wp_id": "WP-TEST",
-            "micro_tasks": [base_tracked_micro_task_value("MT-ARTIFACTS")],
+            "micro_tasks": [tracked_mt],
         }),
     )
     .await?;
@@ -1183,8 +1465,19 @@ async fn locus_register_mts_emits_structured_micro_task_packet_and_summary(
         Some("hsk.tracked_micro_task@1")
     );
     assert_eq!(
+        packet_json.get("schema_version").and_then(Value::as_str),
+        Some("1")
+    );
+    assert_eq!(
         summary_json.get("schema_id").and_then(Value::as_str),
         Some("hsk.structured_collaboration_summary@1")
+    );
+    assert_eq!(
+        packet_json
+            .get("profile_extension")
+            .and_then(|value| value.get("extension_schema_id"))
+            .and_then(Value::as_str),
+        Some("hsk.profile_extension@1")
     );
     let active_session_ids = packet_json
         .get("active_session_ids")
@@ -1391,6 +1684,40 @@ async fn locus_register_mts_returns_machine_readable_validation_for_incompatible
         issue.get("code").and_then(Value::as_str) == Some("incompatible_profile_extension")
             && issue.get("field").and_then(Value::as_str) == Some("profile_extension.compatibility")
     }));
+
+    let packet_path = dir
+        .path()
+        .join(".handshake")
+        .join("gov")
+        .join("micro_tasks")
+        .join("WP-TEST")
+        .join("MT-BREAKING-EXT")
+        .join("packet.json");
+    assert!(
+        !packet_path.exists(),
+        "failed invalid register_mts must not write a micro-task packet artifact"
+    );
+
+    run_locus_job(
+        &state,
+        "locus_register_mts_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "micro_tasks": [base_tracked_micro_task_value("MT-BREAKING-EXT")],
+        }),
+    )
+    .await?;
+
+    let packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
+    assert_eq!(
+        packet_json.get("mt_id").and_then(Value::as_str),
+        Some("MT-BREAKING-EXT")
+    );
+    assert!(
+        packet_json.get("profile_extension").is_none()
+            || packet_json.get("profile_extension") == Some(&Value::Null),
+        "valid retry should not inherit the rejected profile_extension from the failed register_mts"
+    );
 
     Ok(())
 }

@@ -2530,10 +2530,7 @@ async fn emit_locus_operation_event(
     Ok(())
 }
 
-const STRUCTURED_COLLAB_SCHEMA_VERSION: &str = "structured_collaboration_v1";
-const WORK_PACKET_ARTIFACT_SCHEMA_ID: &str = "hsk.tracked_work_packet@1";
-const MICRO_TASK_ARTIFACT_SCHEMA_ID: &str = "hsk.tracked_micro_task@1";
-const STRUCTURED_SUMMARY_SCHEMA_ID: &str = "hsk.structured_collaboration_summary@1";
+const STRUCTURED_COLLAB_SCHEMA_VERSION: &str = locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1;
 const TASK_BOARD_INDEX_SCHEMA_ID: &str = "hsk.task_board_index@1";
 const TASK_BOARD_VIEW_SCHEMA_ID: &str = "hsk.task_board_view@1";
 const TASK_BOARD_ENTRY_SCHEMA_ID: &str = "hsk.task_board_entry@1";
@@ -2568,48 +2565,6 @@ fn default_gate_statuses() -> locus::GateStatuses {
     }
 }
 
-fn parse_gate_statuses_from_metadata(metadata: &Value) -> locus::GateStatuses {
-    let Some(gates) = metadata.get("gates") else {
-        return default_gate_statuses();
-    };
-
-    let pre_work = gates
-        .get("pre_work")
-        .cloned()
-        .and_then(|value| serde_json::from_value::<locus::GateStatus>(value).ok())
-        .unwrap_or_else(default_gate_status);
-    let post_work = gates
-        .get("post_work")
-        .cloned()
-        .and_then(|value| serde_json::from_value::<locus::GateStatus>(value).ok())
-        .unwrap_or_else(default_gate_status);
-
-    locus::GateStatuses {
-        pre_work,
-        post_work,
-    }
-}
-
-fn parse_timestamp_utc(value: &str, field: &str) -> Result<DateTime<Utc>, WorkflowError> {
-    DateTime::parse_from_rfc3339(value)
-        .map(|timestamp| timestamp.with_timezone(&Utc))
-        .map_err(|err| {
-            WorkflowError::Terminal(format!("invalid RFC3339 timestamp for {field}: {err}"))
-        })
-}
-
-fn parse_work_packet_status_db(value: &str) -> locus::WorkPacketStatus {
-    match value.trim() {
-        "ready" => locus::WorkPacketStatus::Ready,
-        "in_progress" => locus::WorkPacketStatus::InProgress,
-        "blocked" => locus::WorkPacketStatus::Blocked,
-        "gated" => locus::WorkPacketStatus::Gated,
-        "done" => locus::WorkPacketStatus::Done,
-        "cancelled" => locus::WorkPacketStatus::Cancelled,
-        _ => locus::WorkPacketStatus::Unknown,
-    }
-}
-
 fn parse_task_board_status_db_global(value: &str) -> locus::TaskBoardStatus {
     match value.trim() {
         "READY" => locus::TaskBoardStatus::Ready,
@@ -2619,49 +2574,6 @@ fn parse_task_board_status_db_global(value: &str) -> locus::TaskBoardStatus {
         "DONE" => locus::TaskBoardStatus::Done,
         "CANCELLED" => locus::TaskBoardStatus::Cancelled,
         _ => locus::TaskBoardStatus::Unknown,
-    }
-}
-
-fn parse_work_packet_phase_db(value: &str) -> locus::WorkPacketPhase {
-    match value.trim() {
-        "0" => locus::WorkPacketPhase::Phase0,
-        "0.5" => locus::WorkPacketPhase::Phase0_5,
-        "2" => locus::WorkPacketPhase::Phase2,
-        "3" => locus::WorkPacketPhase::Phase3,
-        "4" => locus::WorkPacketPhase::Phase4,
-        _ => locus::WorkPacketPhase::Phase1,
-    }
-}
-
-fn parse_routing_policy_db(value: &str) -> locus::RoutingPolicy {
-    match value.trim() {
-        "GOV_STRICT" => locus::RoutingPolicy::GovStrict,
-        "GOV_LIGHT" => locus::RoutingPolicy::GovLight,
-        "GOV_NONE" => locus::RoutingPolicy::GovNone,
-        _ => locus::RoutingPolicy::GovStandard,
-    }
-}
-
-fn work_packet_status_string(status: locus::WorkPacketStatus) -> &'static str {
-    match status {
-        locus::WorkPacketStatus::Unknown => "stub",
-        locus::WorkPacketStatus::Ready => "ready",
-        locus::WorkPacketStatus::InProgress => "in_progress",
-        locus::WorkPacketStatus::Blocked => "blocked",
-        locus::WorkPacketStatus::Gated => "gated",
-        locus::WorkPacketStatus::Done => "done",
-        locus::WorkPacketStatus::Cancelled => "cancelled",
-    }
-}
-
-fn micro_task_status_string(status: locus::MicroTaskStatus) -> &'static str {
-    match status {
-        locus::MicroTaskStatus::Pending => "pending",
-        locus::MicroTaskStatus::InProgress => "in_progress",
-        locus::MicroTaskStatus::Completed => "completed",
-        locus::MicroTaskStatus::Failed => "failed",
-        locus::MicroTaskStatus::Blocked => "blocked",
-        locus::MicroTaskStatus::Skipped => "skipped",
     }
 }
 
@@ -2686,392 +2598,6 @@ fn default_task_board_token_for_artifacts(status: locus::TaskBoardStatus) -> &'s
         locus::TaskBoardStatus::Gated => "GATED",
         locus::TaskBoardStatus::Done => "VALIDATED",
         locus::TaskBoardStatus::Cancelled => "SUPERSEDED",
-    }
-}
-
-fn work_note_type_str(kind: locus::WorkNoteType) -> &'static str {
-    match kind {
-        locus::WorkNoteType::User => "user",
-        locus::WorkNoteType::System => "system",
-        locus::WorkNoteType::Gate => "gate",
-        locus::WorkNoteType::MtExecutor => "mt_executor",
-    }
-}
-
-fn bounded_summary_text(value: &str, max_len: usize) -> String {
-    let collapsed = value.split_whitespace().collect::<Vec<_>>().join(" ");
-    let mut out = String::new();
-    for ch in collapsed.chars() {
-        if out.chars().count() >= max_len {
-            break;
-        }
-        out.push(ch);
-    }
-    out.trim().to_string()
-}
-
-fn string_list(value: Option<&Value>) -> Vec<String> {
-    value
-        .and_then(Value::as_array)
-        .map(|items| {
-            items
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::trim)
-                .filter(|item| !item.is_empty())
-                .map(str::to_string)
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
-fn dedupe_sort_strings(mut items: Vec<String>) -> Vec<String> {
-    items.retain(|item| !item.trim().is_empty());
-    items.sort();
-    items.dedup();
-    items
-}
-
-fn append_ref_strings_from_value(refs: &mut Vec<String>, value: &Value) {
-    match value {
-        Value::String(text) => {
-            let trimmed = text.trim();
-            if !trimmed.is_empty() {
-                refs.push(trimmed.to_string());
-            }
-        }
-        Value::Array(items) => {
-            for item in items {
-                append_ref_strings_from_value(refs, item);
-            }
-        }
-        Value::Object(map) => {
-            for key in [
-                "ref",
-                "path",
-                "artifact_ref",
-                "validation_report_ref",
-                "target_ref",
-            ] {
-                if let Some(text) = map.get(key).and_then(Value::as_str) {
-                    let trimmed = text.trim();
-                    if !trimmed.is_empty() {
-                        refs.push(trimmed.to_string());
-                    }
-                }
-            }
-            if let (Some(artifact_id), Some(path)) = (
-                map.get("artifact_id").and_then(Value::as_str),
-                map.get("path").and_then(Value::as_str),
-            ) {
-                if !artifact_id.trim().is_empty() && !path.trim().is_empty() {
-                    refs.push(format!("artifact:{}:{}", artifact_id.trim(), path.trim()));
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
-async fn load_micro_task_summary_for_wp(
-    pool: &SqlitePool,
-    wp_id: &str,
-) -> Result<locus::MicroTaskSummary, WorkflowError> {
-    let rows = sqlx::query_as::<_, (String, String)>(
-        "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
-    )
-    .bind(wp_id)
-    .fetch_all(pool)
-    .await
-    .map_err(StorageError::from)?;
-
-    let mut summary = locus::MicroTaskSummary {
-        total: rows.len() as u32,
-        completed: 0,
-        failed: 0,
-        in_progress: 0,
-        mt_ids: Vec::new(),
-    };
-
-    for (mt_id, status) in rows {
-        summary.mt_ids.push(mt_id);
-        match status.as_str() {
-            "completed" => summary.completed = summary.completed.saturating_add(1),
-            "in_progress" => summary.in_progress = summary.in_progress.saturating_add(1),
-            "failed" | "blocked" | "skipped" => summary.failed = summary.failed.saturating_add(1),
-            _ => {}
-        }
-    }
-
-    Ok(summary)
-}
-
-async fn load_tracked_work_packet_for_artifacts(
-    pool: &SqlitePool,
-    wp_id: &str,
-) -> Result<Option<locus::TrackedWorkPacket>, WorkflowError> {
-    let row = sqlx::query_as::<
-        _,
-        (
-            i64,
-            String,
-            String,
-            String,
-            i64,
-            String,
-            String,
-            Option<String>,
-            String,
-            Option<String>,
-            String,
-            String,
-            String,
-            String,
-            String,
-        ),
-    >(
-        r#"
-        SELECT
-            version,
-            title,
-            description,
-            status,
-            priority,
-            phase,
-            routing,
-            task_packet_path,
-            task_board_status,
-            assignee,
-            reporter,
-            created_at,
-            updated_at,
-            vector_clock,
-            metadata
-        FROM work_packets
-        WHERE wp_id = $1
-        "#,
-    )
-    .bind(wp_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(StorageError::from)?;
-
-    let Some((
-        version,
-        title,
-        description,
-        status,
-        priority,
-        phase,
-        routing,
-        task_packet_path,
-        task_board_status,
-        assignee,
-        reporter,
-        created_at,
-        updated_at,
-        vector_clock_raw,
-        metadata_raw,
-    )) = row
-    else {
-        return Ok(None);
-    };
-
-    let metadata: Value = serde_json::from_str(&metadata_raw).unwrap_or_else(|_| json!({}));
-    let labels = string_list(metadata.get("labels"));
-    let notes = metadata
-        .get("notes")
-        .cloned()
-        .and_then(|value| serde_json::from_value::<Vec<locus::WorkNote>>(value).ok())
-        .unwrap_or_default();
-    let vector_clock = serde_json::from_str(&vector_clock_raw).unwrap_or_else(|_| json!({}));
-    let profile_extension = metadata
-        .get("profile_extension")
-        .cloned()
-        .filter(|value| !value.is_null());
-
-    let work_packet = locus::TrackedWorkPacket {
-        schema_id: String::new(),
-        schema_version: String::new(),
-        record_id: String::new(),
-        record_kind: String::new(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-        mirror_state: locus::MirrorSyncState::CanonicalOnly,
-        authority_refs: Vec::new(),
-        evidence_refs: Vec::new(),
-        summary_record_path: None,
-        profile_extension,
-        wp_id: wp_id.to_string(),
-        version: version.max(0) as u64,
-        title,
-        description,
-        status: parse_work_packet_status_db(&status),
-        priority: priority.clamp(0, i64::from(u8::MAX)) as u8,
-        governance: locus::WorkPacketGovernance {
-            phase: parse_work_packet_phase_db(&phase),
-            routing: parse_routing_policy_db(&routing),
-            spec_session_id: metadata
-                .get("spec_session_id")
-                .and_then(Value::as_str)
-                .map(str::to_string),
-            gates: parse_gate_statuses_from_metadata(&metadata),
-            task_packet_path,
-            task_board_status: parse_task_board_status_db_global(&task_board_status),
-        },
-        kind: locus::WorkPacketType::Feature,
-        labels,
-        assignee,
-        reporter,
-        micro_tasks: load_micro_task_summary_for_wp(pool, wp_id).await?,
-        created_at: parse_timestamp_utc(&created_at, "work_packets.created_at")?,
-        updated_at: parse_timestamp_utc(&updated_at, "work_packets.updated_at")?,
-        started_at: metadata
-            .get("started_at")
-            .and_then(Value::as_str)
-            .map(|value| parse_timestamp_utc(value, "work_packets.metadata.started_at"))
-            .transpose()?,
-        completed_at: metadata
-            .get("completed_at")
-            .and_then(Value::as_str)
-            .map(|value| parse_timestamp_utc(value, "work_packets.metadata.completed_at"))
-            .transpose()?,
-        due_at: metadata
-            .get("due_at")
-            .and_then(Value::as_str)
-            .map(|value| parse_timestamp_utc(value, "work_packets.metadata.due_at"))
-            .transpose()?,
-        notes,
-        metadata: metadata.clone(),
-        vector_clock,
-        tombstone: metadata.get("tombstone").cloned(),
-    };
-
-    Ok(Some(work_packet))
-}
-
-async fn load_tracked_micro_task_for_artifacts(
-    pool: &SqlitePool,
-    wp_id: &str,
-    mt_id: &str,
-) -> Result<Option<locus::TrackedMicroTask>, WorkflowError> {
-    let metadata = sqlx::query_scalar::<_, String>(
-        r#"
-        SELECT metadata
-        FROM micro_tasks
-        WHERE wp_id = $1 AND mt_id = $2
-        "#,
-    )
-    .bind(wp_id)
-    .bind(mt_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(StorageError::from)?;
-
-    let Some(metadata) = metadata else {
-        return Ok(None);
-    };
-
-    let mut tracked =
-        serde_json::from_str::<locus::TrackedMicroTask>(&metadata).map_err(|err| {
-            WorkflowError::Terminal(format!(
-                "invalid tracked micro task metadata for {wp_id}/{mt_id}: {err}"
-            ))
-        })?;
-    tracked.wp_id = wp_id.to_string();
-    tracked.mt_id = mt_id.to_string();
-    Ok(Some(tracked))
-}
-
-async fn list_tracked_micro_tasks_for_artifacts(
-    pool: &SqlitePool,
-    wp_id: &str,
-) -> Result<Vec<locus::TrackedMicroTask>, WorkflowError> {
-    let rows = sqlx::query_as::<_, (String, String)>(
-        "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
-    )
-    .bind(wp_id)
-    .fetch_all(pool)
-    .await
-    .map_err(StorageError::from)?;
-
-    let mut items = Vec::with_capacity(rows.len());
-    for (mt_id, metadata) in rows {
-        let mut tracked =
-            serde_json::from_str::<locus::TrackedMicroTask>(&metadata).map_err(|err| {
-                WorkflowError::Terminal(format!(
-                    "invalid tracked micro task metadata for {wp_id}/{mt_id}: {err}"
-                ))
-            })?;
-        tracked.wp_id = wp_id.to_string();
-        tracked.mt_id = mt_id;
-        items.push(tracked);
-    }
-    Ok(items)
-}
-
-fn work_packet_workflow_state(
-    status: locus::WorkPacketStatus,
-) -> (locus::WorkflowStateFamily, locus::WorkflowQueueReasonCode) {
-    match status {
-        locus::WorkPacketStatus::Unknown => (
-            locus::WorkflowStateFamily::Intake,
-            locus::WorkflowQueueReasonCode::NewUntriaged,
-        ),
-        locus::WorkPacketStatus::Ready => (
-            locus::WorkflowStateFamily::Ready,
-            locus::WorkflowQueueReasonCode::ReadyForHuman,
-        ),
-        locus::WorkPacketStatus::InProgress => (
-            locus::WorkflowStateFamily::Active,
-            locus::WorkflowQueueReasonCode::ReadyForHuman,
-        ),
-        locus::WorkPacketStatus::Blocked => (
-            locus::WorkflowStateFamily::Blocked,
-            locus::WorkflowQueueReasonCode::BlockedMissingContext,
-        ),
-        locus::WorkPacketStatus::Gated => (
-            locus::WorkflowStateFamily::Approval,
-            locus::WorkflowQueueReasonCode::ApprovalWait,
-        ),
-        locus::WorkPacketStatus::Done => (
-            locus::WorkflowStateFamily::Done,
-            locus::WorkflowQueueReasonCode::ValidationWait,
-        ),
-        locus::WorkPacketStatus::Cancelled => (
-            locus::WorkflowStateFamily::Canceled,
-            locus::WorkflowQueueReasonCode::BlockedPolicy,
-        ),
-    }
-}
-
-fn micro_task_workflow_state(
-    status: locus::MicroTaskStatus,
-) -> (locus::WorkflowStateFamily, locus::WorkflowQueueReasonCode) {
-    match status {
-        locus::MicroTaskStatus::Pending => (
-            locus::WorkflowStateFamily::Ready,
-            locus::WorkflowQueueReasonCode::ReadyForLocalSmallModel,
-        ),
-        locus::MicroTaskStatus::InProgress => (
-            locus::WorkflowStateFamily::Active,
-            locus::WorkflowQueueReasonCode::ReadyForLocalSmallModel,
-        ),
-        locus::MicroTaskStatus::Completed => (
-            locus::WorkflowStateFamily::Done,
-            locus::WorkflowQueueReasonCode::ValidationWait,
-        ),
-        locus::MicroTaskStatus::Failed => (
-            locus::WorkflowStateFamily::Blocked,
-            locus::WorkflowQueueReasonCode::BlockedError,
-        ),
-        locus::MicroTaskStatus::Blocked => (
-            locus::WorkflowStateFamily::Blocked,
-            locus::WorkflowQueueReasonCode::BlockedMissingContext,
-        ),
-        locus::MicroTaskStatus::Skipped => (
-            locus::WorkflowStateFamily::Canceled,
-            locus::WorkflowQueueReasonCode::BlockedPolicy,
-        ),
     }
 }
 
@@ -3127,178 +2653,6 @@ fn allowed_action_ids(family: locus::WorkflowStateFamily) -> Vec<String> {
     actions.iter().map(|action| (*action).to_string()).collect()
 }
 
-fn work_packet_blockers(work_packet: &locus::TrackedWorkPacket) -> Vec<String> {
-    let mut blockers: Vec<String> = work_packet
-        .notes
-        .iter()
-        .rev()
-        .filter(|note| {
-            matches!(
-                note.note_type,
-                locus::WorkNoteType::Gate | locus::WorkNoteType::System
-            )
-        })
-        .map(|note| bounded_summary_text(&note.content, 160))
-        .filter(|note| !note.is_empty())
-        .take(3)
-        .collect();
-
-    if blockers.is_empty() && matches!(work_packet.status, locus::WorkPacketStatus::Blocked) {
-        blockers.push("work packet is blocked pending a follow-up action".to_string());
-    }
-
-    dedupe_sort_strings(blockers)
-}
-
-fn micro_task_blockers(micro_task: &locus::TrackedMicroTask) -> Vec<String> {
-    let mut blockers = Vec::new();
-
-    if let Some(validation) = &micro_task.validation_result {
-        blockers.extend(
-            validation
-                .blocking_failures
-                .iter()
-                .map(|item| bounded_summary_text(item, 160)),
-        );
-    }
-
-    if let Some(error_summary) = micro_task
-        .iterations
-        .iter()
-        .rev()
-        .find_map(|iteration| iteration.error_summary.as_deref())
-    {
-        let text = bounded_summary_text(error_summary, 160);
-        if !text.is_empty() {
-            blockers.push(text);
-        }
-    }
-
-    if blockers.is_empty() && matches!(micro_task.status, locus::MicroTaskStatus::Blocked) {
-        blockers.push("micro-task is blocked pending context or a repair".to_string());
-    }
-
-    dedupe_sort_strings(blockers)
-}
-
-fn next_action_for_work_packet(family: locus::WorkflowStateFamily) -> Option<String> {
-    let action = match family {
-        locus::WorkflowStateFamily::Intake => "triage work packet",
-        locus::WorkflowStateFamily::Ready => "start implementation",
-        locus::WorkflowStateFamily::Active => "continue implementation",
-        locus::WorkflowStateFamily::Waiting => "resume once dependency clears",
-        locus::WorkflowStateFamily::Review => "collect review feedback",
-        locus::WorkflowStateFamily::Approval => "obtain approval",
-        locus::WorkflowStateFamily::Validation => "run validation",
-        locus::WorkflowStateFamily::Blocked => "resolve blocker",
-        locus::WorkflowStateFamily::Done => "archive or hand off",
-        locus::WorkflowStateFamily::Canceled => "reopen only if work resumes",
-        locus::WorkflowStateFamily::Archived => "",
-    };
-
-    if action.is_empty() {
-        None
-    } else {
-        Some(action.to_string())
-    }
-}
-
-fn next_action_for_micro_task(family: locus::WorkflowStateFamily) -> Option<String> {
-    let action = match family {
-        locus::WorkflowStateFamily::Intake => "triage micro-task",
-        locus::WorkflowStateFamily::Ready => "start the next iteration",
-        locus::WorkflowStateFamily::Active => "continue the current iteration",
-        locus::WorkflowStateFamily::Waiting => "resume after dependency response",
-        locus::WorkflowStateFamily::Review => "review the iteration output",
-        locus::WorkflowStateFamily::Approval => "obtain approval to proceed",
-        locus::WorkflowStateFamily::Validation => "run validation checks",
-        locus::WorkflowStateFamily::Blocked => "repair or unblock the micro-task",
-        locus::WorkflowStateFamily::Done => "archive or fold into the work packet",
-        locus::WorkflowStateFamily::Canceled => "reopen only if execution resumes",
-        locus::WorkflowStateFamily::Archived => "",
-    };
-
-    if action.is_empty() {
-        None
-    } else {
-        Some(action.to_string())
-    }
-}
-
-fn work_packet_authority_refs(work_packet: &locus::TrackedWorkPacket) -> Vec<String> {
-    let mut refs = vec![format!("locus:work_packet:{}", work_packet.wp_id)];
-    if let Some(task_packet_path) = work_packet.governance.task_packet_path.as_deref() {
-        let trimmed = task_packet_path.trim();
-        if !trimmed.is_empty() {
-            refs.push(trimmed.to_string());
-        }
-    }
-    dedupe_sort_strings(refs)
-}
-
-fn work_packet_evidence_refs(work_packet: &locus::TrackedWorkPacket) -> Vec<String> {
-    let mut refs = Vec::new();
-    if let Some(value) = work_packet
-        .governance
-        .gates
-        .pre_work
-        .validation_report_ref
-        .as_ref()
-    {
-        append_ref_strings_from_value(&mut refs, value);
-    }
-    if let Some(value) = work_packet
-        .governance
-        .gates
-        .post_work
-        .validation_report_ref
-        .as_ref()
-    {
-        append_ref_strings_from_value(&mut refs, value);
-    }
-    dedupe_sort_strings(refs)
-}
-
-fn micro_task_authority_refs(micro_task: &locus::TrackedMicroTask) -> Vec<String> {
-    dedupe_sort_strings(vec![
-        format!("locus:micro_task:{}:{}", micro_task.wp_id, micro_task.mt_id),
-        micro_task_target_ref(&micro_task.wp_id, &micro_task.mt_id),
-    ])
-}
-
-fn micro_task_evidence_refs(micro_task: &locus::TrackedMicroTask) -> Vec<String> {
-    let mut refs = Vec::new();
-    if let Some(validation_result) = &micro_task.validation_result {
-        append_ref_strings_from_value(&mut refs, &validation_result.evidence_ref);
-    }
-    for iteration in &micro_task.iterations {
-        append_ref_strings_from_value(&mut refs, &iteration.output_artifact_ref);
-        if let Some(value) = &iteration.validation_artifact_ref {
-            append_ref_strings_from_value(&mut refs, value);
-        }
-    }
-    dedupe_sort_strings(refs)
-}
-
-fn micro_task_updated_at(micro_task: &locus::TrackedMicroTask) -> String {
-    if let Some(completed_at) = micro_task.completed_at {
-        return completed_at.to_rfc3339();
-    }
-    if let Some(started_at) = micro_task.started_at {
-        return started_at.to_rfc3339();
-    }
-    if let Some(iteration) = micro_task.iterations.iter().max_by_key(|iteration| {
-        (
-            iteration.completed_at,
-            iteration.started_at,
-            iteration.iteration,
-        )
-    }) {
-        return iteration.completed_at.to_rfc3339();
-    }
-    "1970-01-01T00:00:00Z".to_string()
-}
-
 fn ensure_dir(path: &Path, label: &str) -> Result<(), WorkflowError> {
     fs::create_dir_all(path)
         .map_err(|err| WorkflowError::Terminal(format!("failed to create {label}: {err}")))
@@ -3308,204 +2662,6 @@ fn json_sha256<T: Serialize>(value: &T) -> Result<String, WorkflowError> {
     let bytes = serde_json::to_vec(value)
         .map_err(|err| WorkflowError::Terminal(format!("json serialize error: {err}")))?;
     Ok(sha256_hex(&bytes))
-}
-
-fn emit_work_packet_notes(
-    runtime_paths: &RuntimeGovernancePaths,
-    work_packet: &locus::TrackedWorkPacket,
-) -> Result<Vec<String>, WorkflowError> {
-    if work_packet.notes.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let notes_dir = runtime_paths.work_packet_notes_dir(&work_packet.wp_id);
-    ensure_dir(&notes_dir, "work packet notes dir")?;
-
-    let mut refs = Vec::new();
-    for note in &work_packet.notes {
-        let abs_path = runtime_paths.work_packet_note_path(&work_packet.wp_id, &note.note_id);
-        let body = format!(
-            "# {}\n\n- author: {}\n- created_at: {}\n- note_type: {}\n\n{}",
-            note.note_id,
-            note.author,
-            note.created_at.to_rfc3339(),
-            work_note_type_str(note.note_type),
-            note.content
-        );
-        write_bytes_atomic(runtime_paths.workspace_root(), &abs_path, body.as_bytes())?;
-        refs.push(runtime_paths.work_packet_note_display(&work_packet.wp_id, &note.note_id));
-    }
-
-    Ok(refs)
-}
-
-fn emit_work_packet_artifacts(
-    runtime_paths: &RuntimeGovernancePaths,
-    work_packet: &locus::TrackedWorkPacket,
-) -> Result<(), WorkflowError> {
-    let work_packet_dir = runtime_paths.work_packet_dir(&work_packet.wp_id);
-    ensure_dir(&work_packet_dir, "work packet artifact dir")?;
-
-    let note_refs = emit_work_packet_notes(runtime_paths, work_packet)?;
-    let authority_refs = work_packet_authority_refs(work_packet);
-    let evidence_refs = work_packet_evidence_refs(work_packet);
-    let (workflow_state_family, queue_reason_code) = work_packet_workflow_state(work_packet.status);
-    let summary_ref = runtime_paths.work_packet_summary_display(&work_packet.wp_id);
-    let summary = locus::StructuredCollaborationSummaryV1 {
-        schema_id: STRUCTURED_SUMMARY_SCHEMA_ID.to_string(),
-        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
-        record_id: work_packet.wp_id.clone(),
-        record_kind: "work_packet_summary".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-        updated_at: work_packet.updated_at.to_rfc3339(),
-        mirror_state: locus::MirrorSyncState::CanonicalOnly,
-        authority_refs: authority_refs.clone(),
-        evidence_refs: evidence_refs.clone(),
-        mirror_contract: None,
-        workflow_state_family,
-        queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
-        status: work_packet_status_string(work_packet.status).to_string(),
-        title_or_objective: work_packet.title.clone(),
-        blockers: work_packet_blockers(work_packet),
-        next_action: next_action_for_work_packet(workflow_state_family),
-        summary_ref: None,
-    };
-    write_json_atomic(
-        runtime_paths.workspace_root(),
-        &runtime_paths.work_packet_summary_path(&work_packet.wp_id),
-        &summary,
-    )?;
-
-    let packet = locus::TrackedWorkPacketArtifactV1 {
-        schema_id: WORK_PACKET_ARTIFACT_SCHEMA_ID.to_string(),
-        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
-        record_id: work_packet.wp_id.clone(),
-        record_kind: "work_packet".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-        updated_at: work_packet.updated_at.to_rfc3339(),
-        mirror_state: locus::MirrorSyncState::CanonicalOnly,
-        authority_refs,
-        evidence_refs,
-        mirror_contract: None,
-        workflow_state_family,
-        queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
-        summary_ref,
-        note_refs,
-        wp_id: work_packet.wp_id.clone(),
-        version: work_packet.version,
-        title: work_packet.title.clone(),
-        description: work_packet.description.clone(),
-        status: work_packet.status,
-        priority: work_packet.priority,
-        governance: work_packet.governance.clone(),
-        kind: work_packet.kind,
-        labels: work_packet.labels.clone(),
-        assignee: work_packet.assignee.clone(),
-        reporter: work_packet.reporter.clone(),
-        micro_tasks: work_packet.micro_tasks.clone(),
-        created_at: work_packet.created_at,
-        started_at: work_packet.started_at,
-        completed_at: work_packet.completed_at,
-        due_at: work_packet.due_at,
-        notes: work_packet.notes.clone(),
-        metadata: work_packet.metadata.clone(),
-        vector_clock: work_packet.vector_clock.clone(),
-        tombstone: work_packet.tombstone.clone(),
-    };
-
-    write_json_atomic(
-        runtime_paths.workspace_root(),
-        &runtime_paths.work_packet_packet_path(&work_packet.wp_id),
-        &packet,
-    )?;
-
-    Ok(())
-}
-
-fn emit_micro_task_artifacts(
-    runtime_paths: &RuntimeGovernancePaths,
-    micro_task: &locus::TrackedMicroTask,
-) -> Result<(), WorkflowError> {
-    let micro_task_dir = runtime_paths.micro_task_dir(&micro_task.wp_id, &micro_task.mt_id);
-    ensure_dir(&micro_task_dir, "micro-task artifact dir")?;
-
-    let authority_refs = micro_task_authority_refs(micro_task);
-    let evidence_refs = micro_task_evidence_refs(micro_task);
-    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state(micro_task.status);
-    let summary_ref =
-        runtime_paths.micro_task_summary_display(&micro_task.wp_id, &micro_task.mt_id);
-    let updated_at = micro_task_updated_at(micro_task);
-
-    let summary = locus::StructuredCollaborationSummaryV1 {
-        schema_id: STRUCTURED_SUMMARY_SCHEMA_ID.to_string(),
-        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
-        record_id: format!("{}:{}", micro_task.wp_id, micro_task.mt_id),
-        record_kind: "micro_task_summary".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-        updated_at: updated_at.clone(),
-        mirror_state: locus::MirrorSyncState::CanonicalOnly,
-        authority_refs: authority_refs.clone(),
-        evidence_refs: evidence_refs.clone(),
-        mirror_contract: None,
-        workflow_state_family,
-        queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
-        status: micro_task_status_string(micro_task.status).to_string(),
-        title_or_objective: micro_task.name.clone(),
-        blockers: micro_task_blockers(micro_task),
-        next_action: next_action_for_micro_task(workflow_state_family),
-        summary_ref: None,
-    };
-    write_json_atomic(
-        runtime_paths.workspace_root(),
-        &runtime_paths.micro_task_summary_path(&micro_task.wp_id, &micro_task.mt_id),
-        &summary,
-    )?;
-
-    let packet = locus::TrackedMicroTaskArtifactV1 {
-        schema_id: MICRO_TASK_ARTIFACT_SCHEMA_ID.to_string(),
-        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
-        record_id: format!("{}:{}", micro_task.wp_id, micro_task.mt_id),
-        record_kind: "micro_task".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-        updated_at: summary.updated_at.clone(),
-        mirror_state: locus::MirrorSyncState::CanonicalOnly,
-        authority_refs,
-        evidence_refs,
-        mirror_contract: None,
-        workflow_state_family,
-        queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
-        summary_ref,
-        mt_id: micro_task.mt_id.clone(),
-        wp_id: micro_task.wp_id.clone(),
-        name: micro_task.name.clone(),
-        scope: micro_task.scope.clone(),
-        files: micro_task.files.clone(),
-        done_criteria: micro_task.done_criteria.clone(),
-        status: micro_task.status,
-        active_session_ids: micro_task.active_session_ids.clone(),
-        iterations: micro_task.iterations.clone(),
-        current_iteration: micro_task.current_iteration,
-        max_iterations: micro_task.max_iterations,
-        validation_result: micro_task.validation_result.clone(),
-        escalation: micro_task.escalation.clone(),
-        started_at: micro_task.started_at,
-        completed_at: micro_task.completed_at,
-        duration_ms: micro_task.duration_ms,
-        depends_on: micro_task.depends_on.clone(),
-        metadata: micro_task.metadata.clone(),
-    };
-
-    write_json_atomic(
-        runtime_paths.workspace_root(),
-        &runtime_paths.micro_task_packet_path(&micro_task.wp_id, &micro_task.mt_id),
-        &packet,
-    )?;
-
-    Ok(())
 }
 
 fn task_board_mirror_contract(
@@ -3567,7 +2723,7 @@ async fn emit_task_board_projection_artifacts(
     pool: &SqlitePool,
     runtime_paths: &RuntimeGovernancePaths,
 ) -> Result<(), WorkflowError> {
-    let rows = sqlx::query_as::<_, (String, String, String, String)>(
+    let work_packet_rows = sqlx::query_as::<_, (String, String, String, String)>(
         r#"
         SELECT wp_id, task_board_status, metadata, updated_at
         FROM work_packets
@@ -3579,12 +2735,14 @@ async fn emit_task_board_projection_artifacts(
     .map_err(StorageError::from)?;
 
     let task_board_id = runtime_paths.task_board_display();
+    let index_display = runtime_paths.task_board_index_display();
     let view_id = locus::task_board::default_view_id().to_string();
+    let view_display = runtime_paths.task_board_view_display(&view_id);
     let mut generated_at = "1970-01-01T00:00:00Z".to_string();
     let mut canonical_sections = locus::task_board::TaskBoardSections::default();
     let mut lane_positions: BTreeMap<String, u64> = BTreeMap::new();
 
-    let entry_seeds: Vec<Value> = rows
+    let entry_seeds: Vec<Value> = work_packet_rows
         .iter()
         .map(|(wp_id, status_raw, metadata_raw, updated_at)| {
             let status = parse_task_board_status_db_global(status_raw);
@@ -3604,7 +2762,7 @@ async fn emit_task_board_projection_artifacts(
         .collect();
     let canonical_hash = json_sha256(&entry_seeds)?;
 
-    for (wp_id, status_raw, metadata_raw, updated_at) in &rows {
+    for (wp_id, status_raw, metadata_raw, updated_at) in &work_packet_rows {
         generated_at = generated_at.max(updated_at.clone());
         let status = parse_task_board_status_db_global(status_raw);
         let metadata: Value = serde_json::from_str(metadata_raw).unwrap_or_else(|_| json!({}));
@@ -3630,8 +2788,8 @@ async fn emit_task_board_projection_artifacts(
         &generated_at,
     )?;
 
-    let mut entries: Vec<locus::task_board::TaskBoardEntryRecordV1> = Vec::new();
-    for (wp_id, status_raw, metadata_raw, updated_at) in rows {
+    let mut task_board_rows: Vec<locus::task_board::TaskBoardEntryRecordV1> = Vec::new();
+    for (wp_id, status_raw, metadata_raw, updated_at) in work_packet_rows {
         let status = parse_task_board_status_db_global(&status_raw);
         let metadata: Value = serde_json::from_str(&metadata_raw).unwrap_or_else(|_| json!({}));
         let token = metadata
@@ -3647,7 +2805,7 @@ async fn emit_task_board_projection_artifacts(
             current
         };
         let (workflow_state_family, queue_reason_code) = task_board_workflow_state(status);
-        entries.push(locus::task_board::TaskBoardEntryRecordV1 {
+        task_board_rows.push(locus::task_board::TaskBoardEntryRecordV1 {
             schema_id: TASK_BOARD_ENTRY_SCHEMA_ID.to_string(),
             schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
             record_id: format!("task_board_entry:{wp_id}"),
@@ -3655,11 +2813,8 @@ async fn emit_task_board_projection_artifacts(
             project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
             updated_at,
             mirror_state,
-            authority_refs: vec![
-                format!("locus:work_packet:{wp_id}"),
-                runtime_paths.work_packet_packet_display(&wp_id),
-            ],
-            evidence_refs: Vec::new(),
+            authority_refs: vec![runtime_paths.work_packet_packet_display(&wp_id)],
+            evidence_refs: vec![runtime_paths.work_packet_summary_display(&wp_id)],
             mirror_contract: mirror_contract.clone(),
             workflow_state_family,
             queue_reason_code,
@@ -3683,17 +2838,16 @@ async fn emit_task_board_projection_artifacts(
         project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
         updated_at: generated_at.clone(),
         mirror_state,
-        authority_refs: vec!["locus:task_board".to_string()],
-        evidence_refs: Vec::new(),
+        authority_refs: vec![index_display.clone()],
+        evidence_refs: vec![task_board_id.clone()],
         mirror_contract: mirror_contract.clone(),
         task_board_id: task_board_id.clone(),
         generated_at: generated_at.clone(),
         view_ids: vec![view_id.clone()],
-        entries: entries.clone(),
+        rows: task_board_rows.clone(),
     };
 
-    let mut lanes: Vec<locus::task_board::TaskBoardViewLaneV1> = Vec::new();
-    for status in [
+    let lane_ids = [
         locus::TaskBoardStatus::Unknown,
         locus::TaskBoardStatus::Ready,
         locus::TaskBoardStatus::InProgress,
@@ -3701,18 +2855,10 @@ async fn emit_task_board_projection_artifacts(
         locus::TaskBoardStatus::Gated,
         locus::TaskBoardStatus::Done,
         locus::TaskBoardStatus::Cancelled,
-    ] {
-        let lane_id = locus::task_board::lane_id_for_status(status).to_string();
-        let lane_entries = entries
-            .iter()
-            .filter(|entry| entry.lane_id == lane_id)
-            .cloned()
-            .collect::<Vec<_>>();
-        lanes.push(locus::task_board::TaskBoardViewLaneV1 {
-            lane_id,
-            entries: lane_entries,
-        });
-    }
+    ]
+    .into_iter()
+    .map(|status| locus::task_board::lane_id_for_status(status).to_string())
+    .collect::<Vec<_>>();
 
     let view = locus::task_board::TaskBoardViewV1 {
         schema_id: TASK_BOARD_VIEW_SCHEMA_ID.to_string(),
@@ -3722,14 +2868,44 @@ async fn emit_task_board_projection_artifacts(
         project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
         updated_at: generated_at.clone(),
         mirror_state,
-        authority_refs: vec!["locus:task_board".to_string()],
-        evidence_refs: Vec::new(),
+        authority_refs: vec![view_display.clone()],
+        evidence_refs: vec![index_display.clone(), task_board_id.clone()],
         mirror_contract,
         task_board_id,
         view_id: view_id.clone(),
         generated_at,
-        lanes,
+        lane_ids,
+        rows: task_board_rows,
     };
+
+    let index_value =
+        serde_json::to_value(&index).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    ensure_runtime_structured_record(
+        runtime_paths,
+        locus::StructuredCollaborationRecordFamily::TaskBoardIndex,
+        &index_value,
+        "task-board index",
+    )?;
+
+    for row in &index.rows {
+        let row_value =
+            serde_json::to_value(row).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        ensure_runtime_structured_record(
+            runtime_paths,
+            locus::StructuredCollaborationRecordFamily::TaskBoardEntry,
+            &row_value,
+            "task-board row",
+        )?;
+    }
+
+    let view_value =
+        serde_json::to_value(&view).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    ensure_runtime_structured_record(
+        runtime_paths,
+        locus::StructuredCollaborationRecordFamily::TaskBoardView,
+        &view_value,
+        "task-board view",
+    )?;
 
     ensure_dir(
         &runtime_paths.task_board_projection_dir(),
@@ -3753,6 +2929,75 @@ async fn emit_task_board_projection_artifacts(
     Ok(())
 }
 
+fn ensure_runtime_structured_record(
+    runtime_paths: &RuntimeGovernancePaths,
+    family: locus::StructuredCollaborationRecordFamily,
+    value: &Value,
+    artifact_name: &str,
+) -> Result<(), WorkflowError> {
+    let mut validation = locus::validate_structured_collaboration_record(family, value);
+    let authority_refs = structured_collaboration_string_vec(value.get("authority_refs"));
+    let invalid_refs = runtime_paths.invalid_runtime_authority_refs(&authority_refs);
+    if !invalid_refs.is_empty() {
+        validation.push_issue(
+            locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
+            "authority_refs",
+            Some(runtime_paths.governance_root_display()),
+            Some(invalid_refs.join(",")),
+            format!(
+                "{artifact_name} authority_refs must stay within the product-runtime .handshake/gov boundary"
+            ),
+        );
+    }
+
+    if validation.ok {
+        Ok(())
+    } else {
+        Err(WorkflowError::Terminal(
+            serde_json::to_string(&validation).unwrap_or_else(|_| {
+                format!("structured collaboration validation failed for {artifact_name}")
+            }),
+        ))
+    }
+}
+
+async fn work_packet_exists_for_structured_artifacts(
+    pool: &SqlitePool,
+    wp_id: &str,
+) -> Result<bool, WorkflowError> {
+    sqlx::query_scalar::<_, i64>("SELECT 1 FROM work_packets WHERE wp_id = $1")
+        .bind(wp_id)
+        .fetch_optional(pool)
+        .await
+        .map(|row| row.is_some())
+        .map_err(StorageError::from)
+        .map_err(WorkflowError::from)
+}
+
+async fn list_work_packet_ids_for_structured_artifacts(
+    pool: &SqlitePool,
+) -> Result<Vec<String>, WorkflowError> {
+    sqlx::query_scalar::<_, String>("SELECT wp_id FROM work_packets ORDER BY wp_id ASC")
+        .fetch_all(pool)
+        .await
+        .map_err(StorageError::from)
+        .map_err(WorkflowError::from)
+}
+
+async fn list_micro_task_ids_for_structured_artifacts(
+    pool: &SqlitePool,
+    wp_id: &str,
+) -> Result<Vec<String>, WorkflowError> {
+    sqlx::query_scalar::<_, String>(
+        "SELECT mt_id FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+    )
+    .bind(wp_id)
+    .fetch_all(pool)
+    .await
+    .map_err(StorageError::from)
+    .map_err(WorkflowError::from)
+}
+
 async fn materialize_structured_collaboration_artifacts(
     state: &AppState,
     op: &locus::LocusOperation,
@@ -3763,126 +3008,188 @@ async fn materialize_structured_collaboration_artifacts(
         ))
     })?;
     let pool = sqlite_pool_for_structured_artifacts(state)?;
+    let db = state.storage.as_ref();
 
     match op {
         locus::LocusOperation::CreateWp(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
-            }
+            emit_runtime_structured_work_packet_artifacts(
+                &runtime_paths,
+                db,
+                &params.wp_id,
+                Some(params.kind),
+            )
+            .await?;
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         locus::LocusOperation::UpdateWp(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
+            if work_packet_exists_for_structured_artifacts(pool, &params.wp_id).await? {
+                emit_runtime_structured_work_packet_artifacts(
+                    &runtime_paths,
+                    db,
+                    &params.wp_id,
+                    None,
+                )
+                .await?;
             }
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         locus::LocusOperation::GateWp(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
+            if work_packet_exists_for_structured_artifacts(pool, &params.wp_id).await? {
+                emit_runtime_structured_work_packet_artifacts(
+                    &runtime_paths,
+                    db,
+                    &params.wp_id,
+                    None,
+                )
+                .await?;
             }
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         locus::LocusOperation::CloseWp(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
+            if work_packet_exists_for_structured_artifacts(pool, &params.wp_id).await? {
+                emit_runtime_structured_work_packet_artifacts(
+                    &runtime_paths,
+                    db,
+                    &params.wp_id,
+                    None,
+                )
+                .await?;
             }
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         locus::LocusOperation::DeleteWp(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
+            if work_packet_exists_for_structured_artifacts(pool, &params.wp_id).await? {
+                emit_runtime_structured_work_packet_artifacts(
+                    &runtime_paths,
+                    db,
+                    &params.wp_id,
+                    None,
+                )
+                .await?;
             }
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         locus::LocusOperation::RegisterMts(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
+            if work_packet_exists_for_structured_artifacts(pool, &params.wp_id).await? {
+                emit_runtime_structured_work_packet_artifacts(
+                    &runtime_paths,
+                    db,
+                    &params.wp_id,
+                    None,
+                )
+                .await?;
             }
-            let micro_tasks = list_tracked_micro_tasks_for_artifacts(pool, &params.wp_id).await?;
-            for micro_task in &micro_tasks {
-                emit_micro_task_artifacts(&runtime_paths, micro_task)?;
+            for mt_id in list_micro_task_ids_for_structured_artifacts(pool, &params.wp_id).await? {
+                emit_runtime_structured_micro_task_artifacts(
+                    &runtime_paths,
+                    db,
+                    &params.wp_id,
+                    &mt_id,
+                )
+                .await?;
             }
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         locus::LocusOperation::StartMt(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
+            if work_packet_exists_for_structured_artifacts(pool, &params.wp_id).await? {
+                emit_runtime_structured_work_packet_artifacts(
+                    &runtime_paths,
+                    db,
+                    &params.wp_id,
+                    None,
+                )
+                .await?;
             }
-            if let Some(micro_task) =
-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
-            {
-                emit_micro_task_artifacts(&runtime_paths, &micro_task)?;
-            }
+            emit_runtime_structured_micro_task_artifacts(
+                &runtime_paths,
+                db,
+                &params.wp_id,
+                &params.mt_id,
+            )
+            .await?;
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         locus::LocusOperation::RecordIteration(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
+            if work_packet_exists_for_structured_artifacts(pool, &params.wp_id).await? {
+                emit_runtime_structured_work_packet_artifacts(
+                    &runtime_paths,
+                    db,
+                    &params.wp_id,
+                    None,
+                )
+                .await?;
             }
-            if let Some(micro_task) =
-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
-            {
-                emit_micro_task_artifacts(&runtime_paths, &micro_task)?;
-            }
+            emit_runtime_structured_micro_task_artifacts(
+                &runtime_paths,
+                db,
+                &params.wp_id,
+                &params.mt_id,
+            )
+            .await?;
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         locus::LocusOperation::CompleteMt(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
+            if work_packet_exists_for_structured_artifacts(pool, &params.wp_id).await? {
+                emit_runtime_structured_work_packet_artifacts(
+                    &runtime_paths,
+                    db,
+                    &params.wp_id,
+                    None,
+                )
+                .await?;
             }
-            if let Some(micro_task) =
-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
-            {
-                emit_micro_task_artifacts(&runtime_paths, &micro_task)?;
-            }
+            emit_runtime_structured_micro_task_artifacts(
+                &runtime_paths,
+                db,
+                &params.wp_id,
+                &params.mt_id,
+            )
+            .await?;
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         locus::LocusOperation::BindSession(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
+            if work_packet_exists_for_structured_artifacts(pool, &params.wp_id).await? {
+                emit_runtime_structured_work_packet_artifacts(
+                    &runtime_paths,
+                    db,
+                    &params.wp_id,
+                    None,
+                )
+                .await?;
             }
-            if let Some(micro_task) =
-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
-            {
-                emit_micro_task_artifacts(&runtime_paths, &micro_task)?;
-            }
+            emit_runtime_structured_micro_task_artifacts(
+                &runtime_paths,
+                db,
+                &params.wp_id,
+                &params.mt_id,
+            )
+            .await?;
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         locus::LocusOperation::UnbindSession(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
+            if work_packet_exists_for_structured_artifacts(pool, &params.wp_id).await? {
+                emit_runtime_structured_work_packet_artifacts(
+                    &runtime_paths,
+                    db,
+                    &params.wp_id,
+                    None,
+                )
+                .await?;
             }
-            if let Some(micro_task) =
-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
-            {
-                emit_micro_task_artifacts(&runtime_paths, &micro_task)?;
-            }
+            emit_runtime_structured_micro_task_artifacts(
+                &runtime_paths,
+                db,
+                &params.wp_id,
+                &params.mt_id,
+            )
+            .await?;
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         locus::LocusOperation::SyncTaskBoard(_) => {
+            for wp_id in list_work_packet_ids_for_structured_artifacts(pool).await? {
+                emit_runtime_structured_work_packet_artifacts(&runtime_paths, db, &wp_id, None)
+                    .await?;
+            }
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
         }
         _ => {}
@@ -4059,6 +3366,16 @@ fn build_spec_router_locus_create_wp_params(
             "/work_packet/spec_session_id",
         ],
     );
+    let profile_extension = json_pointer_value(
+        raw_inputs,
+        &[
+            "/profile_extension",
+            "/routing_result/profile_extension",
+            "/work_packet/profile_extension",
+        ],
+    )
+    .cloned()
+    .filter(|value| !value.is_null());
 
     Ok(Some(locus::LocusCreateWpParams {
         wp_id,
@@ -4072,6 +3389,7 @@ fn build_spec_router_locus_create_wp_params(
         assignee,
         labels,
         spec_session_id,
+        profile_extension,
         reporter,
     }))
 }
@@ -4225,9 +3543,126 @@ async fn execute_locus_work_packet_operation(
             ))
         }
     };
+    prevalidate_work_packet_structured_registry(&runtime_paths, db, &op).await?;
     let payload = crate::storage::locus_sqlite::execute_locus_operation(db, op).await?;
     emit_runtime_structured_work_packet_artifacts(&runtime_paths, db, &wp_id, kind_hint).await?;
     Ok(payload)
+}
+
+async fn prevalidate_work_packet_structured_registry(
+    runtime_paths: &RuntimeGovernancePaths,
+    db: &dyn crate::storage::Database,
+    op: &locus::LocusOperation,
+) -> Result<(), WorkflowError> {
+    match op {
+        locus::LocusOperation::CreateWp(params) => {
+            let tracked_wp =
+                build_tracked_work_packet_create_candidate(runtime_paths, params.clone())?;
+            validate_runtime_structured_work_packet_candidate(runtime_paths, &tracked_wp)?;
+        }
+        locus::LocusOperation::UpdateWp(params) => {
+            let profile_extension = params
+                .updates
+                .get("profile_extension")
+                .or_else(|| params.updates.get("metadata.profile_extension"))
+                .cloned();
+            let Some(profile_extension) = profile_extension else {
+                return Ok(());
+            };
+
+            let mut tracked_wp =
+                load_tracked_work_packet_from_sqlite(runtime_paths, db, &params.wp_id, None)
+                    .await?;
+            tracked_wp.profile_extension =
+                (!profile_extension.is_null()).then(|| profile_extension.clone());
+            tracked_wp.metadata["profile_extension"] = profile_extension;
+
+            validate_runtime_structured_work_packet_candidate(runtime_paths, &tracked_wp)?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn build_tracked_work_packet_create_candidate(
+    runtime_paths: &RuntimeGovernancePaths,
+    params: locus::LocusCreateWpParams,
+) -> Result<locus::TrackedWorkPacket, WorkflowError> {
+    let packet_display = runtime_paths.work_packet_packet_display(&params.wp_id);
+    let summary_display = runtime_paths.work_packet_summary_display(&params.wp_id);
+    let labels = params.labels.clone().unwrap_or_default();
+    let task_packet_path = params.task_packet_path.clone();
+    let evidence_refs = task_packet_path
+        .clone()
+        .map(|path| vec![path])
+        .unwrap_or_default();
+    let now = Utc::now();
+    let mut tracked_wp = locus::TrackedWorkPacket {
+        schema_id: String::new(),
+        schema_version: String::new(),
+        record_id: String::new(),
+        record_kind: String::new(),
+        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+        mirror_state: locus::MirrorSyncState::CanonicalOnly,
+        authority_refs: Vec::new(),
+        evidence_refs: Vec::new(),
+        summary_record_path: None,
+        profile_extension: params.profile_extension.clone(),
+        wp_id: params.wp_id,
+        version: 1,
+        title: params.title,
+        description: params.description,
+        status: locus::WorkPacketStatus::Unknown,
+        priority: params.priority,
+        governance: locus::WorkPacketGovernance {
+            phase: params.phase,
+            routing: params.routing,
+            spec_session_id: params.spec_session_id.clone(),
+            gates: default_gate_statuses(),
+            task_packet_path,
+            task_board_status: locus::TaskBoardStatus::Unknown,
+        },
+        kind: params.kind,
+        labels: labels.clone(),
+        assignee: params.assignee,
+        reporter: params.reporter,
+        micro_tasks: locus::MicroTaskSummary {
+            total: 0,
+            completed: 0,
+            failed: 0,
+            in_progress: 0,
+            mt_ids: Vec::new(),
+        },
+        created_at: now,
+        updated_at: now,
+        started_at: None,
+        completed_at: None,
+        due_at: None,
+        notes: Vec::new(),
+        metadata: json!({
+            "labels": labels,
+            "spec_session_id": params.spec_session_id,
+            "profile_extension": params.profile_extension,
+            "notes": [],
+            "gates": {
+                "pre_work": { "status": "pending" },
+                "post_work": { "status": "pending" }
+            },
+            "started_at": null,
+            "completed_at": null,
+            "due_at": null,
+            "tombstone": null,
+        }),
+        vector_clock: json!({"local": 1}),
+        tombstone: None,
+    };
+    locus::backfill_tracked_work_packet_registry_fields(
+        &mut tracked_wp,
+        summary_display,
+        vec![packet_display],
+        evidence_refs,
+    );
+    Ok(tracked_wp)
 }
 
 async fn emit_runtime_structured_work_packet_artifacts(
@@ -4241,9 +3676,20 @@ async fn emit_runtime_structured_work_packet_artifacts(
     let summary_path = runtime_paths.work_packet_summary_path(wp_id);
     let tracked_wp =
         load_tracked_work_packet_from_sqlite(runtime_paths, db, wp_id, kind_hint).await?;
+    let summary = validate_runtime_structured_work_packet_candidate(runtime_paths, &tracked_wp)?;
+
+    write_json_atomic(&workspace_root, &packet_path, &tracked_wp)?;
+    write_json_atomic(&workspace_root, &summary_path, &summary)?;
+    Ok(())
+}
+
+fn validate_runtime_structured_work_packet_candidate(
+    runtime_paths: &RuntimeGovernancePaths,
+    tracked_wp: &locus::TrackedWorkPacket,
+) -> Result<locus::StructuredCollaborationSummaryRecord, WorkflowError> {
     let detail_value =
-        serde_json::to_value(&tracked_wp).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    let summary = build_structured_work_packet_summary(&tracked_wp);
+        serde_json::to_value(tracked_wp).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let summary = build_structured_work_packet_summary(tracked_wp);
     let summary_value =
         serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
 
@@ -4291,9 +3737,7 @@ async fn emit_runtime_structured_work_packet_artifacts(
         ));
     }
 
-    write_json_atomic(&workspace_root, &packet_path, &tracked_wp)?;
-    write_json_atomic(&workspace_root, &summary_path, &summary)?;
-    Ok(())
+    Ok(summary)
 }
 
 async fn emit_runtime_structured_micro_task_artifacts(

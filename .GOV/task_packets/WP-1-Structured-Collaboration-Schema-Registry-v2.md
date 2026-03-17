@@ -82,7 +82,7 @@
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** Done
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -130,17 +130,17 @@
 - PACKET_FORMAT_VERSION: 2026-03-16
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
 Next: N/A
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: Handshake_Master_Spec_v02.178.md interface TrackedWorkPacket shared structured-collaboration envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Handshake_Master_Spec_v02.178.md interface TrackedMicroTask shared structured-collaboration envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Handshake_Master_Spec_v02.178.md Base structured schema and project-profile extension contract [ADD v02.168] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Handshake_Master_Spec_v02.178.md RoleMailboxIndexV1 and RoleMailboxThreadLineV1 base envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Handshake_Master_Spec_v02.178.md interface TrackedWorkPacket shared structured-collaboration envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Handshake_Master_Spec_v02.178.md interface TrackedMicroTask shared structured-collaboration envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Handshake_Master_Spec_v02.178.md Base structured schema and project-profile extension contract [ADD v02.168] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Handshake_Master_Spec_v02.178.md RoleMailboxIndexV1 and RoleMailboxThreadLineV1 base envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -718,3 +718,96 @@ rg -n "schema_id|schema_version|project_profile_kind|mirror_state|authority_refs
     - `- NONE` only when nothing remains unproven
     - otherwise list each unresolved clause/gap explicitly
 - Rule: do not claim spec correctness with a generic PASS paragraph. `SPEC_ALIGNMENT_VERDICT=PASS` is only valid when the diff-scoped clauses are listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `- NONE`.
+
+### VALIDATION REPORT - 2026-03-17 (Integration Validator, exact committed-range closure pass)
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+GATES_PASS (deterministic manifest gate on the committed handoff state: `just validator-handoff-check WP-1-Structured-Collaboration-Schema-Registry-v2 --range 5f2f4831b74a06ca763318c70f7149d1f04c8fe7..da05d07d0365d419dce23bbb27788296d52d2ffd`; not tests): PASS
+TEST_PLAN_PASS (closeout-directed exact proof set for this packet): PASS
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PARTIAL
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+VALIDATOR_RISK_TIER: HIGH
+
+REASON FOR PASS:
+- The exact committed packet-scoped range `5f2f4831b74a06ca763318c70f7149d1f04c8fe7..da05d07d0365d419dce23bbb27788296d52d2ffd` passes deterministic handoff validation on the clean helper branch.
+- Validator-owned exact negative-path proof for incompatible `profile_extension` registration passed again on this branch head.
+- Repo-wide governance is now clean after syncing the already-closed Loom packet truth that was present on disk in `integrate/WP-1-Loom-Storage-Portability-v2`; no Loom product revalidation was reopened in this branch.
+- No current Schema packet-scoped blocker remains in the validated committed range.
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v2.md` (status: Done)
+- Spec: `Handshake_Master_Spec_v02.178.md`
+- Primary baseline: local `main`
+- Candidate range validated: `5f2f4831b74a06ca763318c70f7149d1f04c8fe7..da05d07d0365d419dce23bbb27788296d52d2ffd`
+- Validated head: `da05d07d0365d419dce23bbb27788296d52d2ffd`
+
+Files Checked:
+- `.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v2.md`
+- `.GOV/roles_shared/runtime/validator_gates/WP-1-Structured-Collaboration-Schema-Registry-v2.json`
+- `.GOV/roles_shared/records/TASK_BOARD.md`
+- `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
+- `.GOV/roles_shared/records/BUILD_ORDER.md`
+- `.GOV/task_packets/WP-1-Loom-Storage-Portability-v2.md`
+- `src/backend/handshake_core/src/locus/task_board.rs`
+- `src/backend/handshake_core/src/locus/types.rs`
+- `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- `src/backend/handshake_core/src/workflows.rs`
+- `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+
+CLAUSES_REVIEWED:
+- Handshake_Master_Spec_v02.178.md interface TrackedWorkPacket shared structured-collaboration envelope [LEGACY_REFINEMENT_BRIDGE] -> committed range review confirms work-packet create/update structured-registry validation occurs before persistence and remains covered by committed negative-path tests in `src/backend/handshake_core/tests/micro_task_executor_tests.rs`.
+- Handshake_Master_Spec_v02.178.md interface TrackedMicroTask shared structured-collaboration envelope [LEGACY_REFINEMENT_BRIDGE] -> committed range review confirms micro-task registration validates structured payloads before storage, and the exact validator-owned register-mts incompatible `profile_extension` test passed on this branch head.
+- Handshake_Master_Spec_v02.178.md Base structured schema and project-profile extension contract [ADD v02.168] [LEGACY_REFINEMENT_BRIDGE] -> committed range review confirms `profile_extension` survives on valid artifacts, rejects incompatible payloads deterministically, and task-board field shape remains aligned.
+- Handshake_Master_Spec_v02.178.md RoleMailboxIndexV1 and RoleMailboxThreadLineV1 base envelope [LEGACY_REFINEMENT_BRIDGE] -> no packet-scoped product diff in the validated range touches role-mailbox code paths, and the local-main diff probe confirmed the candidate remains confined to the expected five backend files plus required shared governance truth.
+
+NOT_PROVEN:
+- NONE
+
+MAIN_BODY_GAPS:
+- NONE
+
+QUALITY_RISKS:
+- NONE
+
+DIFF_ATTACK_SURFACES:
+- work-packet create/update validation ordering versus persistence
+- micro-task registration validation ordering versus persistence
+- task-board producer/consumer field-shape alignment
+- closure-branch shared governance truth versus packet-scoped product diff isolation
+
+INDEPENDENT_CHECKS_RUN:
+- `git diff --name-status main...da05d07d0365d419dce23bbb27788296d52d2ffd -- src/backend/handshake_core` -> PASS, exact expected five-file backend delta.
+- `git diff --name-status 5f2f4831b74a06ca763318c70f7149d1f04c8fe7..da05d07d0365d419dce23bbb27788296d52d2ffd -- src/backend/handshake_core` -> PASS, same five packet-scoped backend files.
+- `just validator-handoff-check WP-1-Structured-Collaboration-Schema-Registry-v2 --range 5f2f4831b74a06ca763318c70f7149d1f04c8fe7..da05d07d0365d419dce23bbb27788296d52d2ffd` -> PASS (`cargo_clean_status=NON_BLOCKING_FAIL` only).
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests locus_register_mts_returns_machine_readable_validation_for_incompatible_profile_extension -- --exact` -> PASS.
+- `just gov-check` -> PASS after importing the already-closed Loom governance truth from `integrate/WP-1-Loom-Storage-Portability-v2` and syncing `BUILD_ORDER`.
+
+COUNTERFACTUAL_CHECKS:
+- If `prevalidate_work_packet_structured_registry` were removed or moved behind persistence again, invalid work-packet `profile_extension` payloads could be written before rejection and the committed create/update negative-path proofs would stop holding.
+- If `normalize_locus_register_mts_params` stopped rejecting incompatible structured micro-task payloads before storage, the exact register-mts negative-path proof would fail and retry cleanliness would regress.
+
+BOUNDARY_PROBES:
+- Compared the authoritative committed range against local `main` and the clean helper branch head; both collapse to the same five backend files for Schema product code.
+- Compared the clean helper's shared governance truth against the closed Loom integration branch and imported only the already-closed Loom packet/task-board/traceability/build-order state needed to make repo-wide governance honest.
+
+NEGATIVE_PATH_CHECKS:
+- Validator-owned exact proof: `locus_register_mts_returns_machine_readable_validation_for_incompatible_profile_extension` passed on this branch head.
+- Committed test-body review confirms the create/update incompatible `profile_extension` paths also preserve clean retry state and no rejected extension leakage.
+
+INDEPENDENT_FINDINGS:
+- The clean helper branch now carries the exact validated Schema product range plus required shared governance truth only.
+- No current Schema product-code, manifest-gate, or exact negative-path blocker remains.
+- The earlier repo-wide Loom blocker is resolved here by importing existing closed Loom governance truth, not by reopening Loom product validation.
+
+RESIDUAL_UNCERTAINTY:
+- `validator-handoff-check` reported `cargo_clean_status=NON_BLOCKING_FAIL`, so environment hygiene was not fully clean even though the gate passed.
+- This closure pass reran one validator-owned exact negative-path test rather than the full crate-wide backend suite.
