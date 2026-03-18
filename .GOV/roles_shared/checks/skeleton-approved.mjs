@@ -56,6 +56,8 @@ if (fs.existsSync(packetPath)) {
 const actorBranch = gitTrim('rev-parse --abbrev-ref HEAD');
 const actorAllowed =
   actorBranch === 'role_validator' ||
+  actorBranch.startsWith('validate/') ||
+  actorBranch.startsWith('integrate/') ||
   actorBranch.startsWith('user_') ||
   (actorBranch === 'role_orchestrator' && workflowLane === 'ORCHESTRATOR_MANAGED');
 if (!actorAllowed) {

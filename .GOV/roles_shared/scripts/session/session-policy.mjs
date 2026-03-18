@@ -190,12 +190,12 @@ export function defaultWpValidatorWorktreeDir(wpId) {
   return deterministicWorktreeDir("wtv", "WP_VALIDATOR", wpId);
 }
 
-export function defaultIntegrationValidatorBranch(_wpId) {
-  return "role_validator";
+export function defaultIntegrationValidatorBranch(wpId) {
+  return `integrate/${wpId}`;
 }
 
-export function defaultIntegrationValidatorWorktreeDir(_wpId) {
-  return normalizePath(path.join("..", "wt-validator"));
+export function defaultIntegrationValidatorWorktreeDir(wpId) {
+  return deterministicWorktreeDir("wt-INTV", "INTEGRATION_VALIDATOR", wpId);
 }
 
 export function sessionKey(role, wpId) {

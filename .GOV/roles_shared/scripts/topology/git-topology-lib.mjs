@@ -10,7 +10,7 @@ export const SCHEMA_VERSION = "hsk.git_topology_registry@0.1";
 export const DYNAMIC_SNAPSHOT_SCHEMA_VERSION = "hsk.git_topology_snapshot@0.1";
 export const TOPOLOGY_REGISTRY_JSON_PATH = SHARED_GOV_GIT_TOPOLOGY_FILE;
 export const TOPOLOGY_REGISTRY_MD_PATH = ".GOV/roles_shared/records/GIT_TOPOLOGY_REGISTRY.md";
-export const PROTECTED_BRANCHES = ["main", "user_ilja", "role_orchestrator", "role_validator", "gov_kernel"];
+export const PROTECTED_BRANCHES = ["main", "user_ilja", "role_orchestrator", "gov_kernel"];
 export const WORKTREE_SPECS = [
   {
     id: "handshake_main",
@@ -38,15 +38,6 @@ export const WORKTREE_SPECS = [
     role: "ORCHESTRATOR",
     canonical: false,
     description: "Orchestrator backup worktree",
-  },
-  {
-    id: "wt-validator",
-    rel_path: "../wt-validator",
-    local_branch: "role_validator",
-    remote_branch: "origin/role_validator",
-    role: "VALIDATOR",
-    canonical: false,
-    description: "Validator backup worktree",
   },
   {
     id: "wt-gov-kernel",

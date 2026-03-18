@@ -14,7 +14,7 @@ import {
   listRemoteHeads,
 } from "./git-topology-lib.mjs";
 
-const protectedWorktreeIds = new Set(["handshake_main", "wt-ilja", "wt-orchestrator", "wt-validator", "wt-gov-kernel"]);
+const protectedWorktreeIds = new Set(["handshake_main", "wt-ilja", "wt-orchestrator", "wt-gov-kernel"]);
 const checkoutDirs = discoverGitCheckouts();
 
 const localBranchCandidates = [];

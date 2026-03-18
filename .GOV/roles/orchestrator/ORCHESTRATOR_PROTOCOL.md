@@ -17,9 +17,9 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
 ## Permanent Branch + Backup Model (HARD)
 
 - `main` is the only canonical integrated branch on disk and on GitHub.
-- Permanent protected branches: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `gov_kernel`.
-- Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`, `wt-gov-kernel`.
-- `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches.
+- Permanent protected branches: `main`, `user_ilja`, `role_orchestrator`, `gov_kernel`.
+- Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`.
+- `user_ilja` and `role_orchestrator` on GitHub are backup branches, not integration branches.
 - Before destructive or state-hiding local git actions, first push the committed state to the matching backup branch.
 - Before deleting local branches or worktrees, create an immutable snapshot with `just backup-snapshot`.
 - Startup must surface `just backup-status`; this is safety context, not destruction authorization.
@@ -447,7 +447,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 ## Worktree Budget (HARD RULE)
 
 - Maximum WP-specific worktrees per WP: 2 (1 coder + 1 WP validator).
-- The Integration Validator uses the permanent `wt-validator` worktree and is not counted against the WP budget.
+- The Integration Validator uses WP-specific `wt-INTV-WP-...` worktrees on `integrate/WP-...` branches.
 - Do not create ad-hoc temp worktrees (detached checkouts, merge worktrees, revalidation worktrees) outside the governed naming scheme.
 - If validation or merge requires a clean checkout, reuse the existing WP validator worktree. Do not create additional worktrees.
 - After a WP reaches VALIDATED or MERGED, require governed cleanup of WP-specific worktrees before starting new WPs.
