@@ -9,9 +9,12 @@ import { fileURLToPath } from "node:url";
 import { appendWpThreadEntry } from "../../../roles_shared/scripts/wp/wp-thread-append.mjs";
 import {
   normalize,
+  NOTIFICATIONS_FILE_NAME,
+  NOTIFICATION_CURSOR_FILE_NAME,
   parseJsonFile as sharedParseJsonFile,
   parseJsonlFile as sharedParseJsonlFile,
   REVIEW_TRACKED_RECEIPT_KIND_VALUES,
+  ROUTABLE_ROLE_VALUES,
   validateReceipt,
   validateRuntimeStatus,
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
@@ -585,6 +588,14 @@ function reviewPressureChip(record) {
   return paint(text, count >= 3 ? STATE_COLORS.blocked : STATE_COLORS.waiting, { bold: true });
 }
 
+function notificationChip(record) {
+  const pending = record.packetRecord?.pendingNotifications || { total: 0 };
+  const count = pending.total || 0;
+  if (count <= 0) return "";
+  const text = `\u2709${count}`;
+  return paint(text, count >= 3 ? STATE_COLORS.blocked : "\x1b[38;5;208m", { bold: true });
+}
+
 function latestReviewLabel(record) {
   const entry = record.packetRecord?.lastReviewReceipt;
   if (!entry) return paint("review:none", STATE_COLORS.none, { dim: true });
@@ -651,6 +662,40 @@ function parsePrepareAssignments() {
   } catch {
     return new Map();
   }
+}
+
+function loadPendingNotifications(communicationDir) {
+  const result = { total: 0, byRole: {} };
+  if (!communicationDir) return result;
+  const notificationsPath = normalize(path.join(communicationDir, NOTIFICATIONS_FILE_NAME));
+  const cursorPath = normalize(path.join(communicationDir, NOTIFICATION_CURSOR_FILE_NAME));
+  if (!fs.existsSync(notificationsPath)) return result;
+  let notifications;
+  try {
+    const text = readText(notificationsPath);
+    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    notifications = lines.map((line) => { try { return JSON.parse(line); } catch { return null; } }).filter(Boolean);
+  } catch {
+    return result;
+  }
+  if (notifications.length === 0) return result;
+  let cursors = {};
+  try {
+    if (fs.existsSync(cursorPath)) {
+      const cursorData = JSON.parse(readText(cursorPath));
+      cursors = cursorData.cursors || {};
+    }
+  } catch { /* ignore */ }
+  for (const entry of notifications) {
+    const targetRole = String(entry.target_role || "").toUpperCase();
+    if (!targetRole) continue;
+    const roleCursor = cursors[targetRole];
+    const lastReadAt = roleCursor?.last_read_at || null;
+    if (lastReadAt && entry.timestamp_utc <= lastReadAt) continue;
+    result.total += 1;
+    result.byRole[targetRole] = (result.byRole[targetRole] || 0) + 1;
+  }
+  return result;
 }
 
 function parsePacketRecord(packetPath, prepareAssignment = null) {
@@ -746,6 +791,8 @@ function parsePacketRecord(packetPath, prepareAssignment = null) {
     .filter(Boolean)
     .sort()
     .at(-1) || null;
+
+  record.pendingNotifications = loadPendingNotifications(record.communicationDir);
 
   return record;
 }
@@ -1136,7 +1183,8 @@ function renderList(records, selectedIndex, width, height, listHasFocus) {
       roleLaneChip(record, "WP_VALIDATOR"),
       roleLaneChip(record, "INTEGRATION_VALIDATOR"),
     ].join(" ");
-    const line = `${marker}${stale}${drift}${worktreeFlag} ${record.wpId} ${boardBadge(record.boardSection)} ${reviewChip} ${laneSummary} ${paint(latest, STATE_COLORS.ready, { dim: true })} ${latestReview}`;
+    const notifChip = notificationChip(record);
+    const line = `${marker}${stale}${drift}${worktreeFlag} ${record.wpId} ${boardBadge(record.boardSection)} ${reviewChip}${notifChip ? ` ${notifChip}` : ""} ${laneSummary} ${paint(latest, STATE_COLORS.ready, { dim: true })} ${latestReview}`;
     if (globalIndex === selectedIndex) {
       const selectedLine = truncateVisible(line, width);
       rows.push(listHasFocus ? `\x1b[7m${selectedLine}\x1b[0m` : `\x1b[1m${selectedLine}\x1b[0m`);
@@ -1503,6 +1551,17 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
     lines.push("ROLE LANES");
     lines.push(`  ${roleLaneChip(record, "CODER")}  ${roleLaneChip(record, "WP_VALIDATOR")}  ${roleLaneChip(record, "INTEGRATION_VALIDATOR")}  ${reviewPressureChip(record)}`);
     lines.push("");
+    const pendingNotifs = record.packetRecord?.pendingNotifications || { total: 0, byRole: {} };
+    lines.push("PENDING NOTIFICATIONS");
+    if (pendingNotifs.total === 0) {
+      lines.push("No pending notifications.");
+    } else {
+      lines.push(`Total: ${paint(String(pendingNotifs.total), pendingNotifs.total >= 3 ? STATE_COLORS.blocked : "\x1b[38;5;208m", { bold: true })}`);
+      for (const [roleName, count] of Object.entries(pendingNotifs.byRole)) {
+        lines.push(`  ${paint(roleName, ROLE_COLORS[roleName] || STATUS_COLORS.OTHER)}: ${count} unread`);
+      }
+    }
+    lines.push("");
     lines.push("OPEN REVIEW ITEMS");
     if ((record.packetRecord?.openReviewItems || []).length === 0) {
       lines.push("No open coder/validator review items.");
@@ -1578,11 +1637,15 @@ function renderScreen(model, uiState) {
   const bodyHeight = Math.max(12, rows - 9);
 
   const totalOpenReviews = records.reduce((sum, record) => sum + Number(record.packetRecord?.openReviewItems?.length || 0), 0);
+  const totalPendingNotifications = records.reduce((sum, record) => sum + Number(record.packetRecord?.pendingNotifications?.total || 0), 0);
   const counts = FILTERS.map((filter) => {
     const label = `${filter}:${filterRecords(records, filter).length}`;
     return paint(label, STATUS_COLORS[filter] || STATUS_COLORS.OTHER, { bold: filter === uiState.filter });
   }).join("  ");
-  const header = `${paint("Operator Monitor", STATUS_COLORS.ACTIVE, { bold: true })} | mode=${uiState.admin ? "ADMIN" : "VIEW"} | focus=${uiState.focusedPane} | filter=${uiState.filter} | view=${uiState.detailView} | actor=${uiState.actorRole}/${uiState.actorSession} | open_reviews=${totalOpenReviews}`;
+  const notifLabel = totalPendingNotifications > 0
+    ? paint(` | \u2709${totalPendingNotifications}`, totalPendingNotifications >= 5 ? STATE_COLORS.blocked : "\x1b[38;5;208m", { bold: true })
+    : "";
+  const header = `${paint("Operator Monitor", STATUS_COLORS.ACTIVE, { bold: true })} | mode=${uiState.admin ? "ADMIN" : "VIEW"} | focus=${uiState.focusedPane} | filter=${uiState.filter} | view=${uiState.detailView} | actor=${uiState.actorRole}/${uiState.actorSession} | open_reviews=${totalOpenReviews}${notifLabel}`;
   const board = model.boardSource?.display || "board=<unknown>";
   const boardDetail = model.boardSource?.detail || "board_paths=<unknown>";
   const broker = model.brokerState?.summary || "broker=<unknown>";

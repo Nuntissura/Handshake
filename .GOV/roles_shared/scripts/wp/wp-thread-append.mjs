@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalize } from "../lib/wp-communications-lib.mjs";
 import { appendWpReceipt } from "./wp-receipt-append.mjs";
+import { appendWpNotification, resolveTargetRoleFromMention } from "./wp-notification-append.mjs";
 
 const PACKETS_DIR = path.join(".GOV", "task_packets");
 
@@ -114,6 +115,21 @@ export function appendWpThreadEntry({
       ackFor,
       specAnchor: SPEC_ANCHOR || null,
       packetRowRef: PACKET_ROW_REF || null,
+    });
+  }
+
+  const resolvedTargetRole = TARGET_ROLE || resolveTargetRoleFromMention(TARGET);
+  if (resolvedTargetRole) {
+    appendWpNotification({
+      wpId: WP_ID,
+      sourceKind: "THREAD_MESSAGE",
+      sourceRole: ACTOR_ROLE,
+      sourceSession: ACTOR_SESSION,
+      targetRole: resolvedTargetRole,
+      targetSession: TARGET_SESSION || null,
+      correlationId: CORRELATION_ID || null,
+      summary: `${ACTOR_ROLE} -> ${TARGET || resolvedTargetRole}: ${bodyLines[0]}`,
+      timestamp,
     });
   }
 

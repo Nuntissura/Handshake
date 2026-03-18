@@ -11,6 +11,8 @@ export const LEGACY_COMM_ROOT = LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT;
 export const THREAD_FILE_NAME = "THREAD.md";
 export const RUNTIME_STATUS_FILE_NAME = "RUNTIME_STATUS.json";
 export const RECEIPTS_FILE_NAME = "RECEIPTS.jsonl";
+export const NOTIFICATIONS_FILE_NAME = "NOTIFICATIONS.jsonl";
+export const NOTIFICATION_CURSOR_FILE_NAME = "NOTIFICATION_CURSOR.json";
 export const RUNTIME_STATUS_SCHEMA_PATH = ".GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json";
 export const RECEIPT_SCHEMA_PATH = ".GOV/roles_shared/schemas/WP_RECEIPT.schema.json";
 

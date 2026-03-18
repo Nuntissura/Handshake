@@ -424,6 +424,53 @@ Immediately after creating a WP task packet and refinement and obtaining `USER_S
 - If a previously correct WP is later behind the current spec, treat `OUTDATED_ONLY` as archival history unless the new spec actually requires fresh code work.
 - If new work is needed, create a new remediation WP instead of reopening the old packet as if it were still active execution.
 
+## Orchestrator Lean Mode (HARD RULE — Token Discipline)
+
+During active WP execution (any WP is IN_PROGRESS with live coder or validator sessions):
+
+- Issue only steering commands and status checks. Do not write audits, summaries, explanations, or postmortem reasoning until all active WPs reach a verdict boundary (PASS, FAIL, or explicit STOP).
+- Do not relay messages between coder and validator. Coders and WP validators MUST communicate directly via `just wp-thread-append` and `just wp-receipt-append`. The orchestrator is not a message broker.
+- Do not narrate recovery steps. Fix blockers silently and continue steering.
+- Do not write audit prose mid-run. Audits and reviews belong after the run reaches a stable state, not while active sessions are consuming tokens.
+
+Rationale: the parallel smoke tests proved that orchestrator relay + mid-run narration consumed extreme token budgets. Direct coder<->validator communication and lean orchestrator posture are mandatory for sustainable parallel work.
+
+## Direct Coder <-> WP Validator Communication (HARD RULE)
+
+- The orchestrator MUST instruct both coder and WP validator to communicate directly at session start. This is already embedded in `buildStartupPrompt()`.
+- Before a coder can mark handoff-ready, at least one `REVIEW_REQUEST` or `HANDOFF` receipt from coder to validator must exist in the WP communications folder.
+- Before a WP validator can issue PASS, at least one `REVIEW_RESPONSE`, `SPEC_GAP`, or `VALIDATOR_QUERY` receipt from validator to coder must exist in the WP communications folder.
+- The orchestrator should monitor WP communications to verify direct traffic is happening, and steer correction if it is not.
+
+## Worktree Budget (HARD RULE)
+
+- Maximum WP-specific worktrees per WP: 2 (1 coder + 1 WP validator).
+- The Integration Validator uses the permanent `wt-validator` worktree and is not counted against the WP budget.
+- Do not create ad-hoc temp worktrees (detached checkouts, merge worktrees, revalidation worktrees) outside the governed naming scheme.
+- If validation or merge requires a clean checkout, reuse the existing WP validator worktree. Do not create additional worktrees.
+- After a WP reaches VALIDATED or MERGED, require governed cleanup of WP-specific worktrees before starting new WPs.
+- All worktrees must be created under the shared worktree root so `just enumerate-cleanup-targets` can find them. Off-root worktree creation is forbidden.
+- `worktree-concurrency-check` enforces this budget as part of `gov-check`.
+
+## Notification System (HARD RULE — Message Delivery)
+
+- Every thread message with a `@target` or explicit `target_role` writes a notification to `NOTIFICATIONS.jsonl` in the WP communications directory.
+- Every review exchange (REVIEW_REQUEST, VALIDATOR_QUERY, SPEC_GAP, etc.) writes a notification to the target role.
+- Roles check pending notifications after startup and before each handoff/verdict using `just check-notifications {wpId} {ROLE}`.
+- Roles acknowledge notifications after reading using `just ack-notifications {wpId} {ROLE} {session}`.
+- The orchestrator should monitor notification counts via the Operator Monitor TUI (PENDING NOTIFICATIONS in the OVERVIEW detail view) and steer correction if notifications pile up without acknowledgment.
+- Startup prompts already embed NOTIFICATIONS (MANDATORY) instructions for all three governed roles. Do not remove or weaken these instructions.
+
+## Pre-Smoke Validation Gate (RECOMMENDED)
+
+Before launching an orchestrator-managed session with multiple parallel WPs, run:
+1. `just gov-check` — governance must be clean before starting
+2. Verify all session control tooling paths resolve correctly
+3. Verify all required worktree base branches exist
+4. Verify the ACP broker is responsive or can be started
+
+This prevents the mid-smoke governance repair that consumed excessive context in previous smoke tests.
+
 ## Orchestrator Non-Negotiables
 
 Do not:
@@ -432,6 +479,9 @@ Do not:
 - delegate when `just pre-work` fails
 - let planning projections drift from packet truth
 - broadcast a collapsed single PASS claim for workflow, tests, and spec correctness
+- relay messages between coder and validator (direct communication is mandatory)
+- create ad-hoc temp worktrees outside the governed naming scheme
+- write audit prose during active WP execution
 
 Do:
 - keep refinement, packet, traceability, build-order, and Task Board aligned
@@ -439,3 +489,6 @@ Do:
 - keep external session/topology/WP-communication runtime state under the repo-governance runtime root and keep repo-local spec-coupled runtime state under `/.GOV/roles_shared/runtime/`
 - keep role-owned state under `/.GOV/roles/orchestrator/runtime/`
 - stop and escalate when tooling or docs conflict with active law
+- verify direct coder<->validator communication is happening before allowing handoff
+- enforce worktree budget limits per WP
+- monitor pending notification counts and steer roles that ignore their notifications

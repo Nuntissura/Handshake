@@ -16,7 +16,7 @@ import {
 } from "../lib/runtime-paths.mjs";
 import { ACP_BUILD_ID } from "./acp-build-id.mjs";
 
-export const PACKET_FORMAT_VERSION = "2026-03-16";
+export const PACKET_FORMAT_VERSION = "2026-03-18";
 export const STUB_FORMAT_VERSION = "2026-03-16";
 export const SESSION_POLICY_PACKET_MIN_VERSION = "2026-03-12";
 export const SESSION_POLICY_STUB_MIN_VERSION = "2026-03-12";
@@ -24,6 +24,7 @@ export const EXTERNAL_GOV_RUNTIME_PACKET_MIN_VERSION = "2026-03-16";
 export const EXTERNAL_GOV_RUNTIME_STUB_MIN_VERSION = "2026-03-16";
 export const STRUCTURED_VALIDATION_REPORT_MIN_VERSION = "2026-03-15";
 export const SHARED_REMOTE_WP_BACKUP_PACKET_MIN_VERSION = "2026-03-16";
+export const SPEC_CLAUSE_MAP_MIN_VERSION = "2026-03-18";
 
 export const SESSION_START_AUTHORITY = "ORCHESTRATOR_ONLY";
 export const SESSION_HOST_PREFERENCE = "VSCODE_EXTENSION_TERMINAL";
@@ -189,12 +190,12 @@ export function defaultWpValidatorWorktreeDir(wpId) {
   return deterministicWorktreeDir("wtv", "WP_VALIDATOR", wpId);
 }
 
-export function defaultIntegrationValidatorBranch(wpId) {
-  return `integrate/${wpId}`;
+export function defaultIntegrationValidatorBranch(_wpId) {
+  return "role_validator";
 }
 
-export function defaultIntegrationValidatorWorktreeDir(wpId) {
-  return deterministicWorktreeDir("wti", "INTEGRATION_VALIDATOR", wpId);
+export function defaultIntegrationValidatorWorktreeDir(_wpId) {
+  return normalizePath(path.join("..", "wt-validator"));
 }
 
 export function sessionKey(role, wpId) {
@@ -263,6 +264,11 @@ export function packetUsesStructuredValidationReport(packetFormatVersion) {
 export function packetUsesSharedRemoteWpBackup(packetFormatVersion) {
   const version = String(packetFormatVersion || "").trim();
   return version >= SHARED_REMOTE_WP_BACKUP_PACKET_MIN_VERSION;
+}
+
+export function packetRequiresSpecClauseMap(packetFormatVersion) {
+  const version = String(packetFormatVersion || "").trim();
+  return version >= SPEC_CLAUSE_MAP_MIN_VERSION;
 }
 
 export function stubUsesSessionPolicy(stubFormatVersion) {

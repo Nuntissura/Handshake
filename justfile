@@ -55,6 +55,10 @@ gov-check:
 	just docs-check
 	node .GOV/roles_shared/checks/gov-check.mjs
 
+# Run gov-check and auto-route failures as notifications to the responsible WP coder(s)
+gov-check-feedback wp-id='' session='orchestrator':
+	@node .GOV/roles/orchestrator/scripts/gov-check-feedback.mjs {{wp-id}} --session={{session}}
+
 protocol-alignment-check:
 	node .GOV/roles_shared/checks/protocol-alignment-check.mjs
 
@@ -412,6 +416,14 @@ wp-communications-check:
 
 wp-thread-append wp-id actor-role actor-session message target='' target-role='' target-session='' correlation-id='' requires-ack='false' ack-for='' spec-anchor='' packet-row-ref='':
 	@node .GOV/roles_shared/scripts/wp/wp-thread-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} "{{message}}" "{{target}}" "{{target-role}}" "{{target-session}}" "{{correlation-id}}" {{requires-ack}} "{{ack-for}}" "{{spec-anchor}}" "{{packet-row-ref}}"
+
+# Check pending notifications for a role on a WP (or all roles with --all)
+check-notifications wp-id role='' *args='':
+	@node .GOV/roles_shared/scripts/wp/wp-check-notifications.mjs {{wp-id}} {{role}} {{args}}
+
+# Acknowledge pending notifications for a role on a WP (advances cursor)
+ack-notifications wp-id role session='':
+	@node .GOV/roles_shared/scripts/wp/wp-check-notifications.mjs {{wp-id}} {{role}} --ack --session={{session}}
 
 wp-receipt-append wp-id actor-role actor-session receipt-kind summary state-before='' state-after='' target-role='' target-session='' correlation-id='' requires-ack='false' ack-for='' spec-anchor='' packet-row-ref='':
 	@node .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{receipt-kind}} "{{summary}}" "{{state-before}}" "{{state-after}}" "{{target-role}}" "{{target-session}}" "{{correlation-id}}" {{requires-ack}} "{{ack-for}}" "{{spec-anchor}}" "{{packet-row-ref}}"

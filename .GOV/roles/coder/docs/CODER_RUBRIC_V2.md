@@ -1,6 +1,6 @@
 # CODER_RUBRIC_V2
 
-Status: support guidance only, not live law.
+Status: LIVE LAW — binding for all coder work in governed sessions.
 
 Purpose: define a project-agnostic quality standard for coding work that resists test-gaming, shallow closure, and weak engineering judgment.
 

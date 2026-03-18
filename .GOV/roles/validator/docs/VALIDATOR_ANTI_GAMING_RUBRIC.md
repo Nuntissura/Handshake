@@ -1,6 +1,6 @@
 # VALIDATOR_ANTI_GAMING_RUBRIC
 
-Status: support guidance only, not live law.
+Status: LIVE LAW — binding for all validator work in governed sessions.
 
 Purpose: reduce the chance that a coder or model can win by overfitting to visible tests, visible prompts, or visible checklist language while still missing the real contract.
 

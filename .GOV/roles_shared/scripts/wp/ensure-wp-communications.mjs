@@ -11,6 +11,8 @@ import {
   normalize,
   parseJsonFile,
   parseJsonlFile,
+  NOTIFICATIONS_FILE_NAME,
+  NOTIFICATION_CURSOR_FILE_NAME,
   RECEIPTS_FILE_NAME,
   RUNTIME_STATUS_FILE_NAME,
   THREAD_FILE_NAME,
@@ -204,6 +206,11 @@ export function ensureWpCommunications({
   writeIfMissing(threadPath, fillAll(threadTemplate, replacements));
   writeIfMissing(runtimeStatusPath, fillAll(runtimeTemplate, replacements));
   writeIfMissing(receiptsPath, fillAll(receiptsTemplate, replacements));
+
+  const notificationsPath = normalize(path.join(wpCommDir, NOTIFICATIONS_FILE_NAME));
+  const cursorPath = normalize(path.join(wpCommDir, NOTIFICATION_CURSOR_FILE_NAME));
+  writeIfMissing(notificationsPath, "");
+  writeIfMissing(cursorPath, `${JSON.stringify({ schema_version: "wp_notification_cursor@1", cursors: {} }, null, 2)}\n`);
 
   const runtimeStatus = parseJsonFile(runtimeStatusPath);
   const runtimeErrors = validateRuntimeStatus(runtimeStatus);

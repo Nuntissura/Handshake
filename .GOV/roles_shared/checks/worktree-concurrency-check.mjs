@@ -146,6 +146,21 @@ function main() {
     } else {
       matchedPaths.set(normalizedPath, wpId);
     }
+
+    // Worktree budget: max 2 WP-specific worktrees (1 coder + 1 wp_validator).
+    // Integration validator uses permanent wt-validator and is not counted here.
+    const MAX_WP_WORKTREES = 2;
+    const wpSpecificWorktrees = worktrees.filter((entry) => {
+      const branch = normalizeBranch(entry.branch);
+      return branch.includes(wpId);
+    });
+    if (wpSpecificWorktrees.length > MAX_WP_WORKTREES) {
+      violations.push(
+        `${wpId}: ${wpSpecificWorktrees.length} WP-specific worktrees found (max ${MAX_WP_WORKTREES}). `
+        + `Active: ${wpSpecificWorktrees.map((w) => normalizeBranch(w.branch)).join(", ")}. `
+        + "Reuse existing worktrees or clean up superseded ones before creating more.",
+      );
+    }
   }
 
   if (violations.length > 0) {

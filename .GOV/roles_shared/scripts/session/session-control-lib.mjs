@@ -121,7 +121,7 @@ export function resolveRoleConfig(roleName, workPacketId) {
       title: `INTVAL ${workPacketId}`,
       startupCommand: roleStartupCommand("INTEGRATION_VALIDATOR"),
       nextCommand: roleNextCommand("INTEGRATION_VALIDATOR", workPacketId),
-      focus: "final technical verdict, merge authority, and main/origin integration decisions only after validation handoff",
+      focus: "final technical verdict, merge authority, and main/origin integration decisions only after validation handoff (operates from permanent wt-validator worktree)",
     };
   }
   return null;
@@ -134,23 +134,68 @@ export function selectModel(modelSelector) {
 }
 
 export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
-  return [
-    `ROLE LOCK: You are the ${role}.`,
+  const commonLines = [
+    `ROLE LOCK: You are the ${role}. Do not change roles unless explicitly reassigned.`,
     `WP_ID: ${wpId}`,
     `WORKTREE: ${roleConfig.worktreeDir}`,
     `BRANCH: ${roleConfig.branch}`,
-    `AUTHORITY: AGENTS.md + startup output + the role protocol + .GOV/task_packets/${wpId}.md`,
-    `FOCUS: ${roleConfig.focus}.`,
     `MODEL POLICY: selected ${selectedModel}; primary ${ROLE_SESSION_PRIMARY_MODEL} with ${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}; fallback ${ROLE_SESSION_FALLBACK_MODEL} with the same reasoning value if primary is unavailable.`,
     `REPO POLICY: do not switch to Codex model aliases for repo-governed sessions.`,
-    `REMINDER: the Orchestrator remains workflow authority; only the Integration Validator can own merge-to-main authority.`,
+  ];
+
+  let roleLines;
+  if (role === "CODER") {
+    roleLines = [
+      `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not create a WP, choose a task, or start implementation without an assigned packet.`,
+      `AUTHORITY: AGENTS.md + .GOV/roles/coder/CODER_PROTOCOL.md + startup output + .GOV/task_packets/${wpId}.md`,
+      `FOCUS: only the assigned WP in the assigned WP worktree.`,
+      `FLOW: \`just pre-work ${wpId}\` -> skeleton approval when required -> implementation -> \`just post-work ${wpId}\` -> Validator handoff.`,
+      `BRANCH RULE: never merge \`main\`; only use the assigned WP backup branch when the packet allows it.`,
+      `DIRECT COMMUNICATION (MANDATORY): You MUST use \`just wp-thread-append ${wpId} CODER <your-session> "<message>" @wpval\` to communicate directly with your WP validator. Do not relay messages through the Orchestrator. Use \`just wp-receipt-append\` for structured receipts (REVIEW_REQUEST, HANDOFF, BLOCKER).`,
+      `HANDOFF QUALITY (MANDATORY): Before requesting validation, you MUST produce a WEAK_SPOTS section listing the least-proven requirement and the riskiest file/boundary. "Done, tests pass" is not an acceptable handoff. See .GOV/roles/coder/docs/CODER_RUBRIC_V2.md (live law).`,
+      `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} CODER\` to see pending messages from validators/orchestrator. After reading, run \`just ack-notifications ${wpId} CODER <your-session>\` to clear them. Check again before each handoff.`,
+      `REMINDER: the Orchestrator remains workflow authority; only the Integration Validator can own merge-to-main authority.`,
+    ];
+  } else if (role === "WP_VALIDATOR") {
+    roleLines = [
+      `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation, cleanup, merge, or status sync without a specific task.`,
+      `AUTHORITY: AGENTS.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + .GOV/task_packets/${wpId}.md`,
+      `FOCUS: validate evidence in the assigned WP worktree, not intent.`,
+      `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then report findings.`,
+      `DIRECT COMMUNICATION (MANDATORY): You MUST use \`just wp-thread-append ${wpId} WP_VALIDATOR <your-session> "<message>" @coder\` to communicate directly with the coder. Do not relay messages through the Orchestrator. Use \`just wp-receipt-append\` for structured receipts (REVIEW_RESPONSE, SPEC_GAP, VALIDATOR_QUERY).`,
+      `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
+      `SPEC EVIDENCE (MANDATORY): Every PASS verdict MUST include a spec_clause_map with file:line citations for each packet requirement. You MUST identify at least one spec requirement you verified is NOT fully implemented (negative proof) to demonstrate independent code reading.`,
+      `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} WP_VALIDATOR\` to see pending messages from coders/orchestrator. After reading, run \`just ack-notifications ${wpId} WP_VALIDATOR <your-session>\` to clear them. Check again before each verdict.`,
+      `REMINDER: status sync is not a validation verdict.`,
+    ];
+  } else if (role === "INTEGRATION_VALIDATOR") {
+    roleLines = [
+      `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation, cleanup, merge, or status sync without a specific task.`,
+      `AUTHORITY: AGENTS.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + .GOV/task_packets/${wpId}.md`,
+      `FOCUS: validate evidence in the assigned WP worktree, not intent. You own final technical verdict and merge-to-main authority.`,
+      `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then close or merge validated work.`,
+      `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Do not trust WP validator summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
+      `SPEC EVIDENCE (MANDATORY): Every PASS verdict MUST include a spec_clause_map with file:line citations for each packet requirement. You MUST identify at least one spec requirement you verified is NOT fully implemented (negative proof) to demonstrate independent code reading.`,
+      `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} INTEGRATION_VALIDATOR\` to see pending messages. After reading, run \`just ack-notifications ${wpId} INTEGRATION_VALIDATOR <your-session>\` to clear them. Check again before each verdict.`,
+      `REMINDER: status sync is not a validation verdict. The Orchestrator remains workflow authority; only you can own merge-to-main authority.`,
+    ];
+  } else {
+    roleLines = [
+      `AUTHORITY: AGENTS.md + startup output + the role protocol + .GOV/task_packets/${wpId}.md`,
+      `FOCUS: ${roleConfig.focus}.`,
+    ];
+  }
+
+  const bootLines = [
     `Execute only this startup bootstrap now, in order, before any other work:`,
     `1. ${roleConfig.startupCommand}`,
     `2. ${roleConfig.nextCommand}`,
     `After those commands, report only the resulting lifecycle/gate state, blockers, and next required command(s).`,
     `Do not run follow-on tests, validation, implementation, edits, or merge actions in this START_SESSION turn.`,
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
-  ].join("\n");
+  ];
+
+  return [...commonLines, ...roleLines, ...bootLines].join("\n");
 }
 
 export function buildSessionControlRequest({

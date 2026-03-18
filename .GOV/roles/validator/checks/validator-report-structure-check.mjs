@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { packetUsesStructuredValidationReport } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { packetUsesStructuredValidationReport, packetRequiresSpecClauseMap } from "../../../roles_shared/scripts/session/session-policy.mjs";
 
 const PACKETS_DIR = path.join(".GOV", "task_packets");
 
@@ -174,6 +174,8 @@ for (const name of files) {
   const residualUncertainty = extractListItemsAfterLabel(reports, "RESIDUAL_UNCERTAINTY");
   const boundaryProbes = extractListItemsAfterLabel(reports, "BOUNDARY_PROBES");
   const negativePathChecks = extractListItemsAfterLabel(reports, "NEGATIVE_PATH_CHECKS");
+  const specClauseMap = extractListItemsAfterLabel(reports, "SPEC_CLAUSE_MAP");
+  const negativeProof = extractListItemsAfterLabel(reports, "NEGATIVE_PROOF");
   if (requiresRigorV3 && attackSurfaces.length === 0) {
     violations.push(`${rel}: DIFF_ATTACK_SURFACES missing bullet items in VALIDATION_REPORTS`);
   }
@@ -263,6 +265,22 @@ for (const name of files) {
           );
         }
       }
+      if (packetRequiresSpecClauseMap(packetFormatVersion)) {
+        for (const item of specClauseMap) {
+          if (!hasConcreteCodeReference(item)) {
+            violations.push(
+              `${rel}: LEGAL_VERDICT=PASS requires SPEC_CLAUSE_MAP entries to include file:line evidence (${item})`,
+            );
+          }
+        }
+      }
+    }
+
+    if (packetRequiresSpecClauseMap(packetFormatVersion) && specClauseMap.length === 0) {
+      violations.push(`${rel}: SPEC_CLAUSE_MAP missing bullet items in VALIDATION_REPORTS (required for RIGOR_V3)`);
+    }
+    if (packetRequiresSpecClauseMap(packetFormatVersion) && (negativeProof.length === 0 || hasOnlyNoneList(negativeProof))) {
+      violations.push(`${rel}: NEGATIVE_PROOF must list at least one spec requirement verified as NOT fully implemented (required for RIGOR_V3)`);
     }
   }
 }

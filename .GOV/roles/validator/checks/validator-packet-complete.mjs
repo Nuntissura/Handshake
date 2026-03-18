@@ -4,7 +4,7 @@
  * Ensures required fields are present and sane.
  */
 import { readFileSync } from "node:fs";
-import { packetUsesStructuredValidationReport } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { packetUsesStructuredValidationReport, packetRequiresSpecClauseMap } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { validateClauseReportConsistency, validatePacketClosureMonitoring } from "../../../roles_shared/scripts/lib/packet-closure-monitor-lib.mjs";
 import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/semantic-proof-lib.mjs";
 
@@ -317,6 +317,15 @@ if (packetFormatVersion) {
     if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "RESIDUAL_UNCERTAINTY")) {
       fail("RESIDUAL_UNCERTAINTY missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
+    if (usesRigorV3Report && packetRequiresSpecClauseMap(packetFormatVersion) && !hasListItemAfterLabel(validationReports, "SPEC_CLAUSE_MAP")) {
+      fail("SPEC_CLAUSE_MAP missing/placeholder list items in VALIDATION_REPORTS for closed packet (required for RIGOR_V3)");
+    }
+    if (usesRigorV3Report && packetRequiresSpecClauseMap(packetFormatVersion)) {
+      const negativeProofItems = extractListItemsAfterLabel(validationReports, "NEGATIVE_PROOF");
+      if (negativeProofItems.length === 0 || hasOnlyNoneList(negativeProofItems)) {
+        fail("NEGATIVE_PROOF must list at least one spec requirement verified as NOT fully implemented (required for RIGOR_V3)");
+      }
+    }
 
     if (usesClauseClosureMonitor) {
       const reportConsistency = validateClauseReportConsistency(text);
@@ -388,6 +397,14 @@ if (packetFormatVersion) {
         for (const item of counterfactualChecks) {
           if (!hasConcreteCodeReference(item)) {
             fail(`LEGAL_VERDICT=PASS requires COUNTERFACTUAL_CHECKS entries to name a concrete code path or symbol (${item})`);
+          }
+        }
+        if (packetRequiresSpecClauseMap(packetFormatVersion)) {
+          const specClauseMapItems = extractListItemsAfterLabel(validationReports, "SPEC_CLAUSE_MAP");
+          for (const item of specClauseMapItems) {
+            if (!hasConcreteCodeReference(item)) {
+              fail(`LEGAL_VERDICT=PASS requires SPEC_CLAUSE_MAP entries to include file:line evidence (${item})`);
+            }
           }
         }
       }

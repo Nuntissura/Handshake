@@ -39,6 +39,7 @@ import {
   sessionRegistryFileForPacketVersion,
   sessionRegistryFileForStubVersion,
   stubUsesSessionPolicy,
+  SPEC_CLAUSE_MAP_MIN_VERSION,
 } from "../scripts/session/session-policy.mjs";
 
 const PACKETS_DIR = path.join(".GOV", "task_packets");
@@ -116,7 +117,7 @@ function checkPacket(filePath) {
 
   const wpId = parseSingleField(text, "WP_ID") || path.basename(filePath, ".md");
   const errors = [];
-  const allowedPacketVersions = new Set(["2026-03-12", "2026-03-15", PACKET_FORMAT_VERSION]);
+  const allowedPacketVersions = new Set(["2026-03-12", "2026-03-15", "2026-03-16", PACKET_FORMAT_VERSION]);
 
   if (!allowedPacketVersions.has(version)) {
     errors.push(`${rel}: PACKET_FORMAT_VERSION must be one of ${Array.from(allowedPacketVersions).join(" | ")} (got: ${version || "<missing>"})`);
@@ -150,21 +151,28 @@ function checkPacket(filePath) {
   checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_WORKTREE_DIR", defaultWpValidatorWorktreeDir(wpId));
   checkExpected(errors, rel, text, "WP_VALIDATOR_STARTUP_COMMAND", "just validator-startup");
   checkExpected(errors, rel, text, "WP_VALIDATOR_RESUME_COMMAND", `just validator-next ${wpId}`);
-  checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_BRANCH", defaultIntegrationValidatorBranch(wpId));
-  checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR", defaultIntegrationValidatorWorktreeDir(wpId));
+  if (version >= SPEC_CLAUSE_MAP_MIN_VERSION) {
+    checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_BRANCH", defaultIntegrationValidatorBranch(wpId));
+    checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR", defaultIntegrationValidatorWorktreeDir(wpId));
+  } else {
+    // Legacy packets used per-WP integration branches and worktrees; skip enforcement for those.
+  }
   checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_STARTUP_COMMAND", "just validator-startup");
   checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_RESUME_COMMAND", `just validator-next ${wpId}`);
   if (packetUsesSharedRemoteWpBackup(version)) {
     checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");
-    checkMirrorField(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");
+    if (version >= SPEC_CLAUSE_MAP_MIN_VERSION) {
+      checkMirrorField(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");
+    }
     checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL", "REMOTE_BACKUP_URL");
-    checkMirrorField(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL", "REMOTE_BACKUP_URL");
+    if (version >= SPEC_CLAUSE_MAP_MIN_VERSION) {
+      checkMirrorField(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL", "REMOTE_BACKUP_URL");
+    }
   } else {
     const legacyOriginTreeBase = parseSingleField(text, "REMOTE_BACKUP_URL").replace(/\/tree\/.*$/, "");
     checkExpected(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", defaultWpValidatorBranch(wpId));
-    checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH", defaultIntegrationValidatorBranch(wpId));
+    // Legacy integration validator branch/url: skip enforcement for pre-2026-03-18 packets.
     checkExpected(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL", buildRemoteBackupUrl(legacyOriginTreeBase, defaultWpValidatorBranch(wpId)));
-    checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL", buildRemoteBackupUrl(legacyOriginTreeBase, defaultIntegrationValidatorBranch(wpId)));
   }
   if (packetUsesStructuredValidationReport(version)) {
     const reportProfile = parseSingleField(text, "GOVERNED_VALIDATOR_REPORT_PROFILE");

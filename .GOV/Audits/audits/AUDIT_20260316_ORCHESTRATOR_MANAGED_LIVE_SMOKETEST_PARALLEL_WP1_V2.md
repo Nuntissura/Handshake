@@ -368,3 +368,133 @@ The important conclusion is not "ACP failed." The important conclusion is:
 - ACP parallel orchestration is viable
 - the runtime/check/tooling layer still has failure modes that are only visible under live concurrent use
 - those failure modes are now concrete, reproducible, and documented by this audit
+
+---
+
+## 10. POST-AUDIT REMEDIATION — 2026-03-18T00:00:00Z
+
+Appended: 2026-03-18
+
+Following all three live smoke test audits (2026-03-13, 2026-03-14, 2026-03-16), a comprehensive governance remediation pass addressed the five systemic problems identified across the audit series. All changes were implemented on the `role_orchestrator` branch and verified with a clean `just gov-check` (25/25 checks passing).
+
+### 10.1 Problems Addressed
+
+| # | Audit Finding | Section | Fix Applied |
+|---|---|---|---|
+| 1 | Orchestrator sends weak startup prompts — spawned roles lack governance framing | §3.1, §4.7 | Rich role-specific startup prompts embedded in `buildStartupPrompt()` |
+| 2 | Coder and validator never communicate directly — everything hub-and-spoke | §4.7 | Direct communication mandatory instructions + notification system |
+| 3 | Validators mark PASS on under-specced code | §3.4, §3.5 | SPEC_CLAUSE_MAP + NEGATIVE_PROOF enforcement, anti-gaming rubric promoted to live law |
+| 4 | Worktree sprawl — no cap, no reuse, no cleanup | §4.5 | Worktree budget hard rule (max 2 WP-specific), integration validator on permanent `wt-validator` |
+| 5 | Extreme token burn from orchestrator relay + narration | §3.1 | Orchestrator Lean Mode hard rule |
+
+### 10.2 Governance Changes (PACKET_FORMAT_VERSION 2026-03-16 → 2026-03-18)
+
+**New enforcement (version-gated to ≥ 2026-03-18):**
+- `SPEC_CLAUSE_MAP` — validators must map each packet requirement to file:line evidence for PASS
+- `NEGATIVE_PROOF` — validators must list at least one requirement verified as NOT fully implemented (prevents rubber-stamp PASS)
+- `SPEC_CLAUSE_MAP_MIN_VERSION = "2026-03-18"` gates both new fields so pre-existing closed packets are not broken retroactively
+
+**Integration validator policy change:**
+- `defaultIntegrationValidatorBranch()` → `"role_validator"` (permanent branch, not per-WP)
+- `defaultIntegrationValidatorWorktreeDir()` → `"../wt-validator"` (permanent worktree, not per-WP)
+- Version-gated in `session-policy-check.mjs` — only enforced for packets ≥ 2026-03-18
+
+**Rubrics promoted to live law:**
+- `.GOV/roles/coder/docs/CODER_RUBRIC_V2.md` — `Status: LIVE LAW`
+- `.GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md` — `Status: LIVE LAW`
+
+### 10.3 Startup Prompt Overhaul
+
+`buildStartupPrompt()` in `session-control-lib.mjs` now generates role-specific rich prompts including:
+
+- **CODER:** FLOW, BRANCH RULE, DIRECT COMMUNICATION (MANDATORY), HANDOFF QUALITY (MANDATORY), NOTIFICATIONS (MANDATORY)
+- **WP_VALIDATOR:** DIRECT COMMUNICATION (MANDATORY), ANTI-GAMING (MANDATORY), SPEC EVIDENCE (MANDATORY), NOTIFICATIONS (MANDATORY)
+- **INTEGRATION_VALIDATOR:** ANTI-GAMING (MANDATORY), SPEC EVIDENCE (MANDATORY), NOTIFICATIONS (MANDATORY), merge authority reminder
+
+All three roles receive: ROLE LOCK, WP_ID, WORKTREE, BRANCH, MODEL POLICY, REPO POLICY, and boot sequence instructions.
+
+### 10.4 Notification & Turn-Taking System (NEW)
+
+A notification system was implemented to solve the "roles don't know when messages arrive" problem that forced hub-and-spoke relay:
+
+**Data model:**
+- `NOTIFICATIONS.jsonl` — append-only per-WP notification ledger (`source_kind`, `source_role`, `target_role`, `correlation_id`, `summary`)
+- `NOTIFICATION_CURSOR.json` — per-role read cursors (`last_read_at`, `last_read_by_session`)
+
+**Automatic notification triggers:**
+- `wp-thread-append` writes a notification when `@target` mention or explicit `target_role` is present
+- `wp-review-exchange` writes a notification for all review-tracked receipt kinds (REVIEW_REQUEST, VALIDATOR_QUERY, SPEC_GAP, etc.)
+
+**Commands:**
+- `just check-notifications {wpId} {ROLE}` — check pending messages
+- `just ack-notifications {wpId} {ROLE} {session}` — acknowledge after reading
+- `just gov-check-feedback [WP-ID]` — captures gov-check failures, auto-routes as thread + notification to the responsible coder(s)
+
+**TUI integration:**
+- Operator Monitor list view shows ✉ (envelope) icon + count for WPs with pending notifications
+- OVERVIEW detail view shows PENDING NOTIFICATIONS section with per-role breakdown
+- Header bar shows global pending notification total
+
+### 10.5 Protocol Updates
+
+- **ORCHESTRATOR_PROTOCOL.md:** Added "Notification System" hard rule, "Orchestrator Lean Mode" hard rule, "Direct Coder <-> WP Validator Communication" hard rule, "Worktree Budget" hard rule, "Pre-Smoke Validation Gate" recommendation, updated non-negotiables
+- **CODER_PROTOCOL.md:** Added `check-notifications` and `ack-notifications` to helper commands
+- **VALIDATOR_PROTOCOL.md:** Added `check-notifications` and `ack-notifications` to helper commands
+
+### 10.6 Files Created
+
+| File | Purpose |
+|---|---|
+| `.GOV/roles_shared/scripts/wp/wp-notification-append.mjs` | Core notification append + @mention resolution |
+| `.GOV/roles_shared/scripts/wp/wp-check-notifications.mjs` | Check/acknowledge pending notifications per role |
+| `.GOV/roles/orchestrator/scripts/gov-check-feedback.mjs` | Gov-check failure capture → notification routing |
+
+### 10.7 Files Modified
+
+| File | Change |
+|---|---|
+| `session-policy.mjs` | `PACKET_FORMAT_VERSION` → `2026-03-18`, added `SPEC_CLAUSE_MAP_MIN_VERSION`, permanent integration validator branch/worktree |
+| `session-control-lib.mjs` | Rich `buildStartupPrompt()` with NOTIFICATIONS (MANDATORY) for all roles |
+| `session-policy-check.mjs` | Version-gated integration validator enforcement, added `2026-03-16` to allowed versions |
+| `validator-report-structure-check.mjs` | SPEC_CLAUSE_MAP + NEGATIVE_PROOF enforcement for RIGOR_V3 |
+| `validator-packet-complete.mjs` | SPEC_CLAUSE_MAP + NEGATIVE_PROOF enforcement for closed packets |
+| `worktree-concurrency-check.mjs` | Worktree budget enforcement (max 2 per WP) |
+| `wp-communications-lib.mjs` | Added `NOTIFICATIONS_FILE_NAME`, `NOTIFICATION_CURSOR_FILE_NAME` |
+| `wp-thread-append.mjs` | Auto-notification on targeted thread messages |
+| `wp-review-exchange.mjs` | Auto-notification on review exchanges |
+| `ensure-wp-communications.mjs` | Creates notification files on WP communication init |
+| `operator-monitor-tui.mjs` | Notification counts in list/header/overview |
+| `justfile` | Added `check-notifications`, `ack-notifications`, `gov-check-feedback` recipes |
+| `ORCHESTRATOR_PROTOCOL.md` | Lean Mode, Direct Comms, Worktree Budget, Notification System, Pre-Smoke Gate |
+| `CODER_PROTOCOL.md` | Notification helper commands |
+| `VALIDATOR_PROTOCOL.md` | Notification helper commands |
+| `CODER_RUBRIC_V2.md` | Status → LIVE LAW |
+| `VALIDATOR_ANTI_GAMING_RUBRIC.md` | Status → LIVE LAW |
+| `TASK_PACKET_TEMPLATE.md` | SPEC_CLAUSE_MAP + NEGATIVE_PROOF field definitions |
+
+### 10.8 Audit Findings Resolution Status
+
+| Finding | Status |
+|---|---|
+| §4.7 Direct review channel existed but was not used | **RESOLVED** — notification system + mandatory startup instructions + protocol hard rules |
+| §3.1 #4 Packet/task-board state not synchronized | **PARTIALLY RESOLVED** — Orchestrator Lean Mode reduces narration waste; truth-sync remains orchestrator responsibility |
+| §3.1 #5 No direct coder <-> WP validator review traffic | **RESOLVED** — mandatory in startup prompts + protocol + notification system |
+| §4.5 Governance fix distribution is weak | **ACKNOWLEDGED** — remains an open architectural issue (worktree-local `.GOV` copies) |
+| §4.6 Authoritative state sync failed | **PARTIALLY RESOLVED** — better tooling; full automation deferred |
+| §7 #1 Active worktrees need governance hotfix locally | **ACKNOWLEDGED** — same as §4.5 |
+| §7 #2 ACP operator experience depends on log inspection | **IMPROVED** — TUI now shows notification counts and pending review items |
+| §7 #3 Packet test-law vulnerable to repo-layout drift | **OPEN** — not addressed in this remediation |
+| §7 #4 Validator engagement too passive before handoff | **RESOLVED** — notification system enables proactive validator wake-up |
+| §8 #5 Tighten validator engagement | **RESOLVED** — notification system + anti-gaming rubric live law |
+| §8 #7 Enforce direct review traffic before handoff | **RESOLVED** — protocol hard rule + startup prompt instructions |
+| §8 #8 Harden session-registry writes | **OPEN** — not addressed in this remediation |
+
+### 10.9 Verification
+
+All 25 governance checks pass clean after remediation:
+
+```
+gov-check ok (25/25)
+```
+
+No regressions introduced for existing closed packets — all new enforcement is version-gated to `PACKET_FORMAT_VERSION ≥ 2026-03-18`.
