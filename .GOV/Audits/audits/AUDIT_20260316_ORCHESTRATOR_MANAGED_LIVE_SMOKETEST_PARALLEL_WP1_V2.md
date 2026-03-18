@@ -479,9 +479,9 @@ A notification system was implemented to solve the "roles don't know when messag
 | §4.7 Direct review channel existed but was not used | **RESOLVED** — notification system + mandatory startup instructions + protocol hard rules |
 | §3.1 #4 Packet/task-board state not synchronized | **PARTIALLY RESOLVED** — Orchestrator Lean Mode reduces narration waste; truth-sync remains orchestrator responsibility |
 | §3.1 #5 No direct coder <-> WP validator review traffic | **RESOLVED** — mandatory in startup prompts + protocol + notification system |
-| §4.5 Governance fix distribution is weak | **ACKNOWLEDGED** — remains an open architectural issue (worktree-local `.GOV` copies) |
+| §4.5 Governance fix distribution is weak | **PLANNED** — governance kernel architecture approved (§11), pending implementation |
 | §4.6 Authoritative state sync failed | **PARTIALLY RESOLVED** — better tooling; full automation deferred |
-| §7 #1 Active worktrees need governance hotfix locally | **ACKNOWLEDGED** — same as §4.5 |
+| §7 #1 Active worktrees need governance hotfix locally | **PLANNED** — same as §4.5, resolved by governance kernel (§11) |
 | §7 #2 ACP operator experience depends on log inspection | **IMPROVED** — TUI now shows notification counts and pending review items |
 | §7 #3 Packet test-law vulnerable to repo-layout drift | **OPEN** — not addressed in this remediation |
 | §7 #4 Validator engagement too passive before handoff | **RESOLVED** — notification system enables proactive validator wake-up |
@@ -498,3 +498,105 @@ gov-check ok (25/25)
 ```
 
 No regressions introduced for existing closed packets — all new enforcement is version-gated to `PACKET_FORMAT_VERSION ≥ 2026-03-18`.
+
+---
+
+## 11. GOVERNANCE KERNEL ARCHITECTURE — 2026-03-18T18:00Z
+
+### 11.1 Problem Statement
+
+All three smoke test audits (2026-03-13, 2026-03-14, 2026-03-16) documented the same root cause failure:
+
+- **Worktree-local `.GOV/` copies diverge.** Each worktree gets its own copy of governance scripts, protocols, and checks. Fixes applied in one worktree don't reach others.
+- **Cherry-picking governance changes creates git ancestry contamination.** The March 14 audit documented direct branch merge to `main` failing for both WPs because "each branch carried substantial governance/tooling ancestry from the orchestrator role branch." Selective cherry-picking from temp worktrees was required.
+- **Manual sync is error-prone and compounds.** Each cherry-pick adds a commit with different metadata but identical content. Git cannot reconcile these on merge, creating conflicts on files that should be identical.
+- **Canonical confusion.** Task board, build order, protocols, and packets existed in multiple copies across worktrees. The operator could not reliably identify which copy was authoritative.
+
+Evidence from audits:
+- §4.5 (2026-03-16): "active worktrees diverge mid-smoke on governance-only files"
+- §14.9 (2026-03-14): "a naive merge would have imported unrelated global governance drift into main"
+- §4.3 (2026-03-13): "validator worktrees created from main are structurally correct, but operationally misleading"
+
+### 11.2 Decision: Shared Governance Kernel Worktree
+
+A dedicated governance worktree will hold all governance infrastructure. Role worktrees will execute governance from this kernel via environment variable resolution, extending the existing `runtime-paths.mjs` pattern that already handles runtime data externally.
+
+### 11.3 Kernel Contents (~200 files)
+
+Files that move to the governance kernel (read-only for models during execution):
+
+| Category | Contents | File count |
+|---|---|---|
+| Role protocols | CODER_PROTOCOL.md, ORCHESTRATOR_PROTOCOL.md, VALIDATOR_PROTOCOL.md | 3 |
+| Agentic protocols | Per-role agent behavior definitions | 3 |
+| Shared checks | All validation gate scripts (`roles_shared/checks/`) | 48 |
+| Shared scripts | Session control, topology, WP helpers, libs (`roles_shared/scripts/`) | 35 |
+| Role-specific checks | Coder, orchestrator, validator checks | 22 |
+| Role-specific scripts | coder-next, orchestrator-next, validator-next, etc. | 17 |
+| Schemas | JSON schemas for session, registry, receipts | 6 |
+| Templates | Packet, audit, communication templates | 10 |
+| Validator gate configs | Per-refinement exit criteria JSON files | 53 |
+| Task board & build order | Canonical scheduling state | 2 |
+| Spec & traceability registry | Canonical spec and WP traceability | 2 |
+| Reference material | Legacy protocols, research, past work index | 12 |
+| Role documentation | Rubrics, roadmaps, guides | ~20 |
+| Justfile recipes | Governance recipe definitions | 1 |
+
+### 11.4 WP Worktree Contents (~370 files, stays local)
+
+Files that remain in each WP worktree (model-writable, session-specific):
+
+| Category | Contents | Rationale |
+|---|---|---|
+| Task packets | Working copies of WP execution contracts | Mutable during coder work |
+| WP communications | Threads, receipts, notifications | High-churn, multi-writer |
+| Runtime session state | Broker, registry, session outputs | Volatile, per-session |
+| Audits | Smoke test and validation artifacts | Work session outputs |
+| Operator docs | Private notes, message history | Non-authoritative |
+
+### 11.5 Resolution Mechanism
+
+The existing `runtime-paths.mjs` already resolves runtime data to an external location via `HANDSHAKE_GOV_RUNTIME_ROOT`. The kernel extends this pattern:
+
+- **New env var:** `HANDSHAKE_GOV_ROOT` — points to the kernel worktree's `.GOV/` directory
+- **Justfile:** All 126 `.GOV/` path references resolve through this env var
+- **Hardcoded paths in scripts:** 28 files with string-literal `.GOV/` paths updated to resolve through `runtime-paths.mjs`
+- **Relative imports:** 50+ cross-script imports use `../../../` — these require NO changes (folder structure within `.GOV/` is preserved)
+
+### 11.6 Operational Model
+
+| Concern | Rule |
+|---|---|
+| Who reads the kernel | All role worktrees (via env var resolution) |
+| Who writes to the kernel | Operator only, via a dedicated model session |
+| Managing orchestrator | Reads from kernel, never writes — keeps steering context clean |
+| Governance development | Separate model session edits kernel on operator instruction |
+| Mid-smoke hotfix | Operator edits kernel → all worktrees immediately execute the fix |
+| Communications | Stay WP-local — high-churn, multi-writer, damage contained per-WP |
+
+### 11.7 Migration Impact
+
+| Target | Count | Effort |
+|---|---|---|
+| `runtime-paths.mjs` | 1 file | Add `HANDSHAKE_GOV_ROOT` env var + resolver |
+| Justfile recipes | 126 references | Systematic path prefix replacement |
+| Scripts with hardcoded `.GOV/` paths | 28 files | Route through `runtime-paths.mjs` |
+| `governance-structure-rules.mjs` | 35+ path constants | Update governance structure schema |
+| Protocol/doc path references | ~25 files | Documentation updates |
+| Relative imports | 50+ files | **No change needed** |
+
+### 11.8 Containment Safety
+
+Models remain contained to their assigned worktree. The env var resolves at the script/justfile level — models execute `just gov-check` inside their worktree and the path resolution happens under the hood. No model needs to navigate outside its worktree manually.
+
+This preserves the isolation rule established after prior incidents where models operating outside their designated area caused data loss.
+
+### 11.9 Status
+
+- **Decision:** APPROVED by Operator (2026-03-18)
+- **Implementation:** NOT STARTED — pending backup to NAS
+- **Findings resolved by this change:**
+  - §4.5 (2026-03-16): Governance fix distribution is weak → **WILL BE RESOLVED**
+  - §7 #1 (2026-03-16): Active worktrees need governance hotfix locally → **WILL BE RESOLVED**
+  - §14.9 (2026-03-14): Ancestry contamination from governance drift → **WILL BE RESOLVED**
+  - §4.3 (2026-03-13): Stale validator worktree state → **WILL BE RESOLVED**
