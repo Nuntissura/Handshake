@@ -34,7 +34,8 @@
       "Bash(cd \"D:\\\\Projects\\\\LLM projects\\\\Handshake\\\\Handshake Worktrees\\\\wt-orchestrator\" && node -e \"\nimport { appendWpNotification, resolveTargetRoleFromMention } from './.GOV/roles_shared/scripts/wp/wp-notification-append.mjs';\nconsole.log\\('resolveTargetRoleFromMention tests:'\\);\nconsole.log\\('@wpval ->', resolveTargetRoleFromMention\\('@wpval'\\)\\);\nconsole.log\\('@coder ->', resolveTargetRoleFromMention\\('@coder'\\)\\);\nconsole.log\\('@intval ->', resolveTargetRoleFromMention\\('@intval'\\)\\);\nconsole.log\\('@orc ->', resolveTargetRoleFromMention\\('@orc'\\)\\);\nconsole.log\\('empty ->', resolveTargetRoleFromMention\\(''\\)\\);\nconsole.log\\('ok'\\);\n\")",
       "Bash(cd \"D:\\\\Projects\\\\LLM projects\\\\Handshake\\\\Handshake Worktrees\\\\wt-orchestrator\" && node -e \"\nimport { checkAllNotifications } from './.GOV/roles_shared/scripts/wp/wp-check-notifications.mjs';\nconst result = checkAllNotifications\\({ wpId: 'WP-1-Loom-Storage-Portability-v2' }\\);\nconsole.log\\('check-all result:', JSON.stringify\\(result, null, 2\\)\\);\nconsole.log\\('ok'\\);\n\")",
       "Bash(cd \"D:\\\\Projects\\\\LLM projects\\\\Handshake\\\\Handshake Worktrees\\\\wt-orchestrator\" && node .GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs --once --filter ALL 2>&1 | head -20)",
-      "Bash(find . -name \"*.json\" -type f 2>/dev/null | head -20)"
+      "Bash(find . -name \"*.json\" -type f 2>/dev/null | head -20)",
+      "Skill(update-config)"
     ]
   }
 }
