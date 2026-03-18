@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 function fail(message) {
   console.error(message);
@@ -20,14 +21,14 @@ function requireFileExists(filePath) {
 [
   "Handshake Codex v1.4.md",
   "justfile",
-  path.join(".GOV", "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md"),
-  path.join(".GOV", "roles", "coder", "CODER_PROTOCOL.md"),
-  path.join(".GOV", "roles", "validator", "VALIDATOR_PROTOCOL.md"),
-  path.join(".GOV", "roles", "orchestrator", "agentic", "AGENTIC_PROTOCOL.md"),
-  path.join(".GOV", "roles", "coder", "agentic", "AGENTIC_PROTOCOL.md"),
-  path.join(".GOV", "roles", "validator", "agentic", "AGENTIC_PROTOCOL.md"),
-  path.join(".GOV", "roles_shared", "docs", "BOUNDARY_RULES.md"),
-  path.join(".GOV", "roles_shared", "docs", "EVIDENCE_LEDGER.md"),
+  path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md"),
+  path.join(GOV_ROOT_REPO_REL, "roles", "coder", "CODER_PROTOCOL.md"),
+  path.join(GOV_ROOT_REPO_REL, "roles", "validator", "VALIDATOR_PROTOCOL.md"),
+  path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "agentic", "AGENTIC_PROTOCOL.md"),
+  path.join(GOV_ROOT_REPO_REL, "roles", "coder", "agentic", "AGENTIC_PROTOCOL.md"),
+  path.join(GOV_ROOT_REPO_REL, "roles", "validator", "agentic", "AGENTIC_PROTOCOL.md"),
+  path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "BOUNDARY_RULES.md"),
+  path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "EVIDENCE_LEDGER.md"),
 ].forEach(requireFileExists);
 
 // Ensure the mechanical hard-gate helper prints operator-facing lifecycle + phase templates.
@@ -63,9 +64,9 @@ function requireFileExists(filePath) {
 // Ensure role protocols include lifecycle + gate UX requirements.
 {
   const protocolFiles = [
-    path.join(".GOV", "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md"),
-    path.join(".GOV", "roles", "coder", "CODER_PROTOCOL.md"),
-    path.join(".GOV", "roles", "validator", "VALIDATOR_PROTOCOL.md"),
+    path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md"),
+    path.join(GOV_ROOT_REPO_REL, "roles", "coder", "CODER_PROTOCOL.md"),
+    path.join(GOV_ROOT_REPO_REL, "roles", "validator", "VALIDATOR_PROTOCOL.md"),
   ];
 
   const requiredStrings = [

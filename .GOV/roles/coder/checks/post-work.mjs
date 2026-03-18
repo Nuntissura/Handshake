@@ -14,11 +14,12 @@
 
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const wpId = process.argv[2];
 const extraArgs = process.argv.slice(3);
 if (!wpId) {
-  console.error('Usage: node .GOV/roles/coder/checks/post-work.mjs WP-{ID} [options]');
+  console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/coder/checks/post-work.mjs WP-{ID} [options]`);
   process.exit(1);
 }
 
@@ -44,9 +45,9 @@ let why = 'Post-work checks passed.';
 printBlockHeader('GATE_OUTPUT', 'CX-GATE-UX-001');
 process.stdout.write('\n');
 
-const gateCheckPath = path.join('.GOV', 'roles_shared', 'checks', 'gate-check.mjs');
-const postWorkCheckPath = path.join('.GOV', 'roles', 'coder', 'checks', 'post-work-check.mjs');
-const roleMailboxPath = path.join('.GOV', 'roles_shared', 'checks', 'role_mailbox_export_check.mjs');
+const gateCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'gate-check.mjs');
+const postWorkCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles', 'coder', 'checks', 'post-work-check.mjs');
+const roleMailboxPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'role_mailbox_export_check.mjs');
 
 const gate = run(process.execPath, [gateCheckPath, wpId]);
 process.stdout.write(ensureTrailingNewline(gate.out.trimEnd()));

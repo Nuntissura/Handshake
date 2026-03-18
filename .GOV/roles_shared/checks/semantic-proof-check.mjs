@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { validateSemanticProofAssets } from "../scripts/lib/semantic-proof-lib.mjs";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
-const PACKETS_DIR = path.join(".GOV", "task_packets");
+const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
 function fail(message, details = []) {
   console.error(`[SEMANTIC_PROOF_CHECK] ${message}`);

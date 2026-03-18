@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
-const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
+const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
 function fail(message, details = []) {
   console.error(`[TASK_BOARD_CHECK] ${message}`);
@@ -77,7 +78,7 @@ function checkLines(lines) {
   // Semantic guard: if a WP is marked Done on the task board and the packet is in the
   // modern format (PACKET_FORMAT_VERSION present), it must include a Validator verdict line.
   // This prevents "status sync" commits from marking VALIDATED without the canonical packet report.
-  const packetDir = path.join(".GOV", "task_packets");
+  const packetDir = path.join(GOV_ROOT_REPO_REL, "task_packets");
   const semanticViolations = [];
   for (const entry of doneEntries) {
     const packetPath = path.join(packetDir, `${entry.wpId}.md`);

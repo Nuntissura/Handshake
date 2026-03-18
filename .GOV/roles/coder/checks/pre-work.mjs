@@ -14,10 +14,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const wpId = process.argv[2];
 if (!wpId) {
-  console.error('Usage: node .GOV/roles/coder/checks/pre-work.mjs WP-{ID}');
+  console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/coder/checks/pre-work.mjs WP-{ID}`);
   process.exit(1);
 }
 
@@ -48,7 +49,7 @@ function parseSingleField(text, label) {
 }
 
 function workflowLaneForPacket(wpId) {
-  const packetPath = path.join('.GOV', 'task_packets', `${wpId}.md`);
+  const packetPath = path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
   try {
     const packetText = ensureTrailingNewline(fs.readFileSync(packetPath, 'utf8'));
     return parseSingleField(packetText, 'WORKFLOW_LANE').toUpperCase();
@@ -69,8 +70,8 @@ const skeletonApprover =
 printBlockHeader('GATE_OUTPUT', 'CX-GATE-UX-001');
 process.stdout.write('\n');
 
-const gateCheckPath = path.join('.GOV', 'roles_shared', 'checks', 'gate-check.mjs');
-const preWorkCheckPath = path.join('.GOV', 'roles', 'coder', 'checks', 'pre-work-check.mjs');
+const gateCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'gate-check.mjs');
+const preWorkCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles', 'coder', 'checks', 'pre-work-check.mjs');
 
 const gate = run(process.execPath, [gateCheckPath, wpId]);
 gateOutputs.push(gate.out);

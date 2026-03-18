@@ -6,10 +6,11 @@ import {
   packetUsesSessionPolicy,
   ROLE_SESSION_REASONING_REQUIRED,
 } from "../scripts/session/session-policy.mjs";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 // Canonical governance workspace packets live under `/.GOV/task_packets/`.
 // Legacy compatibility bundles must not be treated as governance SSoT.
-const TASK_PACKETS_DIR = path.join(".GOV", "task_packets");
+const TASK_PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
 function fail(message, details = []) {
   console.error(`[TASK_PACKET_CLAIM_CHECK] ${message}`);

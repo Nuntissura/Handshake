@@ -8,6 +8,7 @@ import {
   roleRootRules,
   rolesSharedRootRules,
 } from "./governance-structure-rules.mjs";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 function resolveRepoRoot() {
   try {
@@ -31,27 +32,27 @@ function pushFinding(findings, scope, relPath, severity, reason, target) {
 }
 
 function auditGovRoot(repoRoot, findings) {
-  const govRoot = path.join(repoRoot, ".GOV");
+  const govRoot = path.join(repoRoot, GOV_ROOT_REPO_REL);
   for (const [name, meta] of Object.entries(govRootHotspots)) {
     const full = path.join(govRoot, name);
     if (fs.existsSync(full)) {
-      pushFinding(findings, ".GOV root", toPosix(path.relative(repoRoot, full)), meta.severity, meta.reason, meta.target);
+      pushFinding(findings, `${GOV_ROOT_REPO_REL} root`, toPosix(path.relative(repoRoot, full)), meta.severity, meta.reason, meta.target);
     }
   }
 }
 
 function auditDocsRoot(repoRoot, findings) {
-  const docsRoot = path.join(repoRoot, ".GOV", "docs");
+  const docsRoot = path.join(repoRoot, GOV_ROOT_REPO_REL, "docs");
   for (const [name, meta] of Object.entries(docsRootHotspots)) {
     const full = path.join(docsRoot, name);
     if (fs.existsSync(full)) {
-      pushFinding(findings, ".GOV/docs", toPosix(path.relative(repoRoot, full)), meta.severity, meta.reason, meta.target);
+      pushFinding(findings, `${GOV_ROOT_REPO_REL}/docs`, toPosix(path.relative(repoRoot, full)), meta.severity, meta.reason, meta.target);
     }
   }
 }
 
 function auditRolesSharedRoot(repoRoot, findings) {
-  const sharedRoot = path.join(repoRoot, ".GOV", "roles_shared");
+  const sharedRoot = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared");
   const buckets = [
     ["docs", rolesSharedRootRules.docs],
     ["records", rolesSharedRootRules.records],
@@ -64,7 +65,7 @@ function auditRolesSharedRoot(repoRoot, findings) {
       if (fs.existsSync(full)) {
         pushFinding(
           findings,
-          ".GOV/roles_shared root",
+          `${GOV_ROOT_REPO_REL}/roles_shared root`,
           toPosix(path.relative(repoRoot, full)),
           bucket === "runtime" ? "HIGH" : "MEDIUM",
           `${bucket} material is still loose at roles_shared root`,
@@ -76,7 +77,7 @@ function auditRolesSharedRoot(repoRoot, findings) {
 }
 
 function auditRoleRoots(repoRoot, findings) {
-  const rolesRoot = path.join(repoRoot, ".GOV", "roles");
+  const rolesRoot = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles");
   for (const [roleName, groups] of Object.entries(roleRootRules)) {
     const roleRoot = path.join(rolesRoot, roleName);
     for (const [bucket, mapping] of Object.entries(groups)) {
@@ -85,7 +86,7 @@ function auditRoleRoots(repoRoot, findings) {
         if (fs.existsSync(full)) {
           pushFinding(
             findings,
-            `.GOV/roles/${roleName} root`,
+            `${GOV_ROOT_REPO_REL}/roles/${roleName} root`,
             toPosix(path.relative(repoRoot, full)),
             bucket === "legacy" ? "MEDIUM" : "HIGH",
             `${bucket} surface still lives at role root`,

@@ -12,8 +12,9 @@ import {
     EXECUTION_OWNER_RANGE_HELP,
     normalizeExecutionOwner,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
+import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
-const STATE_FILE = '.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json';
+const STATE_FILE = `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`;
 
 function loadState() {
     if (!fs.existsSync(STATE_FILE)) {
@@ -36,7 +37,7 @@ const state = loadState();
 // === V2: Protocol-locked refinement gate (unskippable) ===
 // NOTE: We keep the legacy logic below for compatibility, but V2 exits before it can run.
 
-const SIGNATURE_AUDIT_PATH = path.join('.GOV', 'roles_shared', 'records', 'SIGNATURE_AUDIT.md');
+const SIGNATURE_AUDIT_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'SIGNATURE_AUDIT.md');
 const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
 
 function v2Fail(msg, details = []) {
@@ -193,7 +194,7 @@ if (action === 'refine') {
         wpId,
         type: 'REFINEMENT',
         refinement_path: refinementPath.replace(/\\/g, '/'),
-        spec_target_resolved: resolved ? `.GOV/roles_shared/records/SPEC_CURRENT.md -> ${resolved.specFileName}` : '.GOV/roles_shared/records/SPEC_CURRENT.md -> <unresolved>',
+        spec_target_resolved: resolved ? `${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md -> ${resolved.specFileName}` : `${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md -> <unresolved>`,
         spec_target_sha1: resolved ? resolved.sha1 : '<unresolved>',
         timestamp: new Date().toISOString(),
     });
@@ -211,7 +212,7 @@ if (action === 'refine') {
             `[ORCHESTRATOR GATE] Technical Refinement recorded for ${wpId}.`,
         ],
         nextCommands: [
-            `# Paste the FULL Technical Refinement Block from .GOV/refinements/${wpId}.md in chat (verbatim; no summary).`,
+            `# Paste the FULL Technical Refinement Block from ${GOV_ROOT_REPO_REL}/refinements/${wpId}.md in chat (verbatim; no summary).`,
             `# When approved, set USER_APPROVAL_EVIDENCE in the refinement file to: APPROVE REFINEMENT ${wpId}`,
             `# Do NOT ask for or consume a signature until that verbatim block has been shown in chat.`,
             `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
@@ -292,7 +293,7 @@ if (action === 'sign') {
         const enrichmentNeeded = (m?.[1] || '').toUpperCase();
         if (enrichmentNeeded === 'YES') {
             v2Fail('Refinement declares ENRICHMENT_NEEDED=YES; packet signature is forbidden.', [
-                'Run the spec enrichment workflow first (new spec version + update .GOV/roles_shared/records/SPEC_CURRENT.md).',
+                `Run the spec enrichment workflow first (new spec version + update ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md).`,
                 'Then create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
             ]);
         }
@@ -379,7 +380,7 @@ if (action === 'sign') {
         }
         fs.writeFileSync(SIGNATURE_AUDIT_PATH, updatedAudit, 'utf8');
     } catch (e) {
-        v2Fail('Failed to append to .GOV/roles_shared/records/SIGNATURE_AUDIT.md', [String(e?.message || e)]);
+        v2Fail(`Failed to append to ${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`, [String(e?.message || e)]);
     }
 
     state.gate_logs.push({

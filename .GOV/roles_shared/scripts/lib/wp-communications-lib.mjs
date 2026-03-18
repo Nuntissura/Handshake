@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { EXECUTION_OWNER_VALUES } from "../session/session-policy.mjs";
 import {
+  GOV_ROOT_REPO_REL,
   LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT,
   SHARED_GOV_WP_COMMUNICATIONS_ROOT,
 } from "./runtime-paths.mjs";
@@ -13,8 +14,8 @@ export const RUNTIME_STATUS_FILE_NAME = "RUNTIME_STATUS.json";
 export const RECEIPTS_FILE_NAME = "RECEIPTS.jsonl";
 export const NOTIFICATIONS_FILE_NAME = "NOTIFICATIONS.jsonl";
 export const NOTIFICATION_CURSOR_FILE_NAME = "NOTIFICATION_CURSOR.json";
-export const RUNTIME_STATUS_SCHEMA_PATH = ".GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json";
-export const RECEIPT_SCHEMA_PATH = ".GOV/roles_shared/schemas/WP_RECEIPT.schema.json";
+export const RUNTIME_STATUS_SCHEMA_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`;
+export const RECEIPT_SCHEMA_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/schemas/WP_RECEIPT.schema.json`;
 
 export const WORKFLOW_LANE_VALUES = ["MANUAL_RELAY", "ORCHESTRATOR_MANAGED"];
 export { EXECUTION_OWNER_VALUES };
@@ -235,8 +236,9 @@ export function validateRuntimeStatus(data) {
   if (data.schema_version !== "wp_runtime_status@1") errors.push("schema_version must be wp_runtime_status@1");
   if (!isNonEmptyString(data.wp_id) || !/^WP-/.test(data.wp_id)) errors.push("wp_id must start with WP-");
   if (!isNonEmptyString(data.base_wp_id) || !/^WP-/.test(data.base_wp_id)) errors.push("base_wp_id must start with WP-");
-  if (!isNonEmptyString(data.task_packet) || !/^\.GOV\/task_packets\/WP-.*\.md$/.test(normalize(data.task_packet))) {
-    errors.push("task_packet must point to .GOV/task_packets/WP-*.md");
+  const taskPacketPrefix = GOV_ROOT_REPO_REL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!isNonEmptyString(data.task_packet) || !new RegExp(`^${taskPacketPrefix}/task_packets/WP-.*\\.md$`).test(normalize(data.task_packet))) {
+    errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md`);
   }
   const currentPaths = communicationPathsForWp(data.wp_id);
   const legacyPaths = legacyCommunicationPathsForWp(data.wp_id);

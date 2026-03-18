@@ -19,12 +19,13 @@ import {
   SESSION_REGISTRY_FILE,
 } from "../session/session-policy.mjs";
 import { loadJson, loadPacket, packetExists, parseClaimField } from "../lib/role-resume-utils.mjs";
+import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 
 const WORKTREE_CLEANUP_TOKEN_SCHEMA = "hsk.worktree_cleanup_token@1";
 const WORKTREE_CLEANUP_TOKEN_VERSION = "worktree_cleanup_token_v1";
 const CLEANUP_MANIFEST_SCHEMA = "hsk.worktree_cleanup_script_manifest@1";
 const CLEANUP_MANIFEST_VERSION = "worktree_cleanup_script_manifest_v1";
-const GENERATED_SCRIPT_ROOT = path.join(".GOV", "generated_cleanup_scripts");
+const GENERATED_SCRIPT_ROOT = path.join(GOV_ROOT_REPO_REL, "generated_cleanup_scripts");
 const SESSION_REGISTRY_PATH = SESSION_REGISTRY_FILE;
 const TOKEN_TTL_DAYS = 7;
 
@@ -35,8 +36,8 @@ function fail(message, details = []) {
 }
 
 function usage() {
-  fail("Usage: node .GOV/roles_shared/scripts/topology/generate-worktree-cleanup-script.mjs <WP_ID> <CODER|WP_VALIDATOR>", [
-    "Example: node .GOV/roles_shared/scripts/topology/generate-worktree-cleanup-script.mjs WP-1-Example CODER",
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles_shared/scripts/topology/generate-worktree-cleanup-script.mjs <WP_ID> <CODER|WP_VALIDATOR>`, [
+    `Example: node ${GOV_ROOT_REPO_REL}/roles_shared/scripts/topology/generate-worktree-cleanup-script.mjs WP-1-Example CODER`,
   ]);
 }
 
@@ -178,7 +179,7 @@ function buildPowerShellScript({
     "",
     "Push-Location $RepoRoot",
     "try {",
-    "  & node '.GOV/roles_shared/scripts/topology/delete-local-worktree.mjs' $WorktreeId `",
+    `  & node '${GOV_ROOT_REPO_REL}/roles_shared/scripts/topology/delete-local-worktree.mjs' $WorktreeId \``,
     "    --approve $Approval `",
     "    --expect-abs-path $WorktreePath `",
     "    --expect-branch $ExpectedBranch `",
@@ -197,7 +198,7 @@ function buildPowerShellScript({
 function main() {
   const { wpId, role } = parseArgs();
   if (!packetExists(wpId)) {
-    fail("Task packet not found", [`packet=.GOV/task_packets/${wpId}.md`]);
+    fail("Task packet not found", [`packet=${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`]);
   }
 
   const packetContent = loadPacket(wpId);

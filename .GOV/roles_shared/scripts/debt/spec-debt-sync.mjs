@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import path from "node:path";
+import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 import { loadSpecDebtRegistry } from "../lib/spec-debt-registry-lib.mjs";
 import {
   formatUpdatedPacket,
@@ -19,7 +20,7 @@ if (!/^WP-[A-Za-z0-9][A-Za-z0-9-]*$/i.test(wpId)) {
   fail("Usage: node .GOV/roles_shared/scripts/debt/spec-debt-sync.mjs WP-{ID}");
 }
 
-const packetPath = path.join(".GOV", "task_packets", `${wpId}.md`);
+const packetPath = path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
 const packetText = readPacket(packetPath);
 const clauseRows = parseClauseRows(packetText);
 const registry = loadSpecDebtRegistry();

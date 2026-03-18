@@ -38,6 +38,7 @@ import {
   settleTimedOutPluginRequests,
   mutateSessionRegistrySync,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const role = String(process.argv[2] || "").trim().toUpperCase();
 const wpId = String(process.argv[3] || "").trim();
@@ -50,7 +51,7 @@ function fail(message) {
 }
 
 if (!wpId || !wpId.startsWith("WP-")) {
-  fail(`Usage: node .GOV/roles/orchestrator/scripts/launch-cli-session.mjs <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [AUTO|PRINT|CURRENT|${CLI_ESCALATION_HOST_DEFAULT}|${CLI_ESCALATION_HOST_LEGACY_ALIAS}|VSCODE_PLUGIN|VSCODE] [PRIMARY|FALLBACK]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/launch-cli-session.mjs <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [AUTO|PRINT|CURRENT|${CLI_ESCALATION_HOST_DEFAULT}|${CLI_ESCALATION_HOST_LEGACY_ALIAS}|VSCODE_PLUGIN|VSCODE] [PRIMARY|FALLBACK]`);
 }
 if (!["PRIMARY", "FALLBACK"].includes(requestedModel)) {
   fail(`Invalid model selector: ${requestedModel} (expected PRIMARY or FALLBACK)`);
@@ -112,7 +113,7 @@ const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
 if (!fs.existsSync(absWorktreeDir)) {
   execFileSync(
     process.execPath,
-    [path.join(".GOV", "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs"), role, wpId, roleConfig.branch, roleConfig.worktreeDir],
+    [path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs"), role, wpId, roleConfig.branch, roleConfig.worktreeDir],
     { stdio: "inherit" },
   );
 }
@@ -124,7 +125,7 @@ const prompt = [
   `BRANCH: ${roleConfig.branch}`,
   `FIRST COMMAND: ${roleConfig.startupCommand}`,
   `AFTER STARTUP: ${roleConfig.nextCommand}`,
-  `AUTHORITY: AGENTS.md + startup output + the role protocol + .GOV/task_packets/${wpId}.md`,
+  `AUTHORITY: AGENTS.md + startup output + the role protocol + ${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`,
   `FOCUS: ${roleConfig.focus}.`,
   `MODEL POLICY: selected ${selectedModel}; primary ${ROLE_SESSION_PRIMARY_MODEL} with ${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}; fallback ${ROLE_SESSION_FALLBACK_MODEL} with the same reasoning value if primary is unavailable.`,
   `REPO POLICY: do not switch to Codex model aliases for repo-governed sessions.`,

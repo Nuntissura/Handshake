@@ -1,9 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { GOV_ROOT_REPO_REL } from '../scripts/lib/runtime-paths.mjs';
 
-const SPEC_CURRENT_PATH = path.join('.GOV', 'roles_shared', 'records', 'SPEC_CURRENT.md');
-const TASK_BOARD_PATH = path.join('.GOV', 'roles_shared', 'records', 'TASK_BOARD.md');
+const SPEC_CURRENT_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'SPEC_CURRENT.md');
+const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'TASK_BOARD.md');
 
 export function resolveSpecCurrent() {
   if (!fs.existsSync(SPEC_CURRENT_PATH)) {
@@ -24,7 +25,7 @@ export function resolveSpecCurrent() {
 }
 
 export function defaultRefinementPath(wpId) {
-  return path.join('.GOV', 'refinements', `${wpId}.md`);
+  return path.join(GOV_ROOT_REPO_REL, 'refinements', `${wpId}.md`);
 }
 
 export function isAsciiOnly(s) {
@@ -260,7 +261,7 @@ function validateStubIds(rawValue, errors, label) {
       errors.push(`${label} contains invalid WP id: ${id}`);
       continue;
     }
-    const stubPath = path.join('.GOV', 'task_packets', 'stubs', `${id}.md`);
+    const stubPath = path.join(GOV_ROOT_REPO_REL, 'task_packets', 'stubs', `${id}.md`);
     if (!fs.existsSync(stubPath)) {
       errors.push(`Stub referenced in ${label} does not exist: ${stubPath.replace(/\\/g, '/')}`);
     }
@@ -785,7 +786,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   }
   if (resolved) {
     const resolvedLine = getSingleField(content, 'SPEC_TARGET_RESOLVED');
-    const expectedResolvedLine = `.GOV/roles_shared/records/SPEC_CURRENT.md -> ${resolved.specFileName}`;
+    const expectedResolvedLine = `${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md -> ${resolved.specFileName}`;
     if (resolvedLine !== expectedResolvedLine) {
       errors.push(`SPEC_TARGET_RESOLVED mismatch: expected "${expectedResolvedLine}", got "${resolvedLine || '<missing>'}"`);
     }
@@ -857,7 +858,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     parsed.stubWpIdsRaw = stubWpIdsRaw;
     parsed.stubWpIds = validateStubIds(stubWpIdsRaw, errors, 'STUB_WP_IDS');
     if (isHydratedResearchProfile && hasRuntimeAlignmentSections && resolved?.specFileName) {
-      const buildOrderPath = path.join('.GOV', 'roles_shared', 'records', 'BUILD_ORDER.md');
+      const buildOrderPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'BUILD_ORDER.md');
       try {
         const buildOrderContent = fs.readFileSync(buildOrderPath, 'utf8');
         const specTarget = (buildOrderContent.match(/^\s*-\s*SPEC_TARGET\s*:\s*(.+)\s*$/mi) || [])[1]?.trim() || '';
@@ -870,7 +871,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
           }
         }
       } catch (e) {
-        errors.push(`Could not read .GOV/roles_shared/records/BUILD_ORDER.md: ${String(e?.message || e)}`);
+        errors.push(`Could not read ${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md: ${String(e?.message || e)}`);
       }
     }
 
@@ -2036,13 +2037,13 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
             }
           }
           if (group.expectsStubFile) {
-            const stubPath = path.join('.GOV', 'task_packets', 'stubs', `${row.artifact}.md`);
+            const stubPath = path.join(GOV_ROOT_REPO_REL, 'task_packets', 'stubs', `${row.artifact}.md`);
             if (!fs.existsSync(stubPath)) {
               errors.push(`${group.label} ${row.artifact} is missing stub file ${stubPath.replace(/\\/g, '/')}`);
             }
           }
           if (group.expectsOfficialPacket) {
-            const packetPath = path.join('.GOV', 'task_packets', `${row.artifact}.md`);
+            const packetPath = path.join(GOV_ROOT_REPO_REL, 'task_packets', `${row.artifact}.md`);
             if (!fs.existsSync(packetPath)) {
               errors.push(`${group.label} ${row.artifact} is missing official task packet ${packetPath.replace(/\\/g, '/')}`);
             }

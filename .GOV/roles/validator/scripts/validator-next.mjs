@@ -26,6 +26,7 @@ import {
   taskBoardStatus,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { listValidatorGateStateFiles, resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 function freshnessBoost(timestampMs) {
   const ageHours = Math.max(0, (Date.now() - timestampMs) / (1000 * 60 * 60));
@@ -83,7 +84,7 @@ function collectPendingSessions() {
 }
 
 function collectValidationReadyPackets() {
-  const taskPacketDir = path.join(".GOV", "task_packets");
+  const taskPacketDir = path.join(GOV_ROOT_REPO_REL, "task_packets");
   if (!fs.existsSync(taskPacketDir)) return [];
 
   const candidates = [];
@@ -237,7 +238,7 @@ if (!packetExists(wpId)) {
     state: "Task packet is missing; Validator cannot resume deterministically.",
     findings: [`Expected packet: ${packetPath(wpId).replace(/\\/g, "/")}`],
     nextCommands: [
-      `cat .GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
+      `cat ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
       `just orchestrator-next ${wpId}`,
     ],
   });

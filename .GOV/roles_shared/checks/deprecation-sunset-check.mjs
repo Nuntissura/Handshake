@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 function resolveRepoRoot() {
   try {
@@ -19,10 +20,10 @@ function resolveRepoRoot() {
 const repoRoot = path.resolve(resolveRepoRoot());
 process.chdir(repoRoot);
 
-const planPath = path.join(repoRoot, ".GOV", "roles_shared", "docs", "DEPRECATION_SUNSET_PLAN.md");
+const planPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "docs", "DEPRECATION_SUNSET_PLAN.md");
 
 if (!fs.existsSync(planPath)) {
-  console.error("deprecation-sunset-check: FAIL - missing .GOV/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md");
+  console.error(`deprecation-sunset-check: FAIL - missing ${GOV_ROOT_REPO_REL}/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md`);
   process.exit(1);
 }
 
@@ -47,8 +48,8 @@ const allowedStatuses = new Set(["ACTIVE_COMPAT", "REMOVED"]);
 const requiredLegacySurfaces = new Set(["`WINDOWS_TERMINAL`"]);
 const conditionallyRequiredLegacySurfaces = [
   {
-    surface: "`.GOV/roles/validator/VALIDATOR_GATES.json`",
-    filePath: path.join(repoRoot, ".GOV", "roles", "validator", "VALIDATOR_GATES.json"),
+    surface: `\`${GOV_ROOT_REPO_REL}/roles/validator/VALIDATOR_GATES.json\``,
+    filePath: path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "validator", "VALIDATOR_GATES.json"),
   },
 ];
 

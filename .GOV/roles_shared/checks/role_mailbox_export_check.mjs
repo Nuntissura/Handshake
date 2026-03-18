@@ -1,9 +1,10 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { GOV_ROOT_REPO_REL } from '../scripts/lib/runtime-paths.mjs';
 
-const PRIMARY_EXPORT_ROOT = '.GOV/roles_shared/exports/role_mailbox/';
-const PRIMARY_EXPORT_DIR = path.join(process.cwd(), '.GOV', 'roles_shared', 'exports', 'role_mailbox');
+const PRIMARY_EXPORT_ROOT = `${GOV_ROOT_REPO_REL}/roles_shared/exports/role_mailbox/`;
+const PRIMARY_EXPORT_DIR = path.join(process.cwd(), GOV_ROOT_REPO_REL, 'roles_shared', 'exports', 'role_mailbox');
 const EXPORT_ROOT = PRIMARY_EXPORT_ROOT;
 const EXPORT_DIR = PRIMARY_EXPORT_DIR;
 const INDEX_PATH = path.join(EXPORT_DIR, 'index.json');

@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { GOV_ROOT_REPO_REL } from './runtime-paths.mjs';
 
-export const SPEC_DEBT_REGISTRY_PATH = path.join('.GOV', 'roles_shared', 'records', 'SPEC_DEBT_REGISTRY.md');
+export const SPEC_DEBT_REGISTRY_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'SPEC_DEBT_REGISTRY.md');
 
 function parsePipeRecord(item) {
   const record = {};

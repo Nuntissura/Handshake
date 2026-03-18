@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
+import { GOV_ROOT_REPO_REL } from "./runtime-paths.mjs";
 
-export const SHARED_VALIDATOR_GATE_DIR = path.join(".GOV", "roles_shared", "runtime", "validator_gates");
+export const SHARED_VALIDATOR_GATE_DIR = path.join(GOV_ROOT_REPO_REL, "roles_shared", "runtime", "validator_gates");
 
 function isJsonFile(name) {
   return typeof name === "string" && name.toLowerCase().endsWith(".json");

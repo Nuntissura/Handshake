@@ -3,6 +3,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+export const GOV_ROOT_ENV_VAR = "HANDSHAKE_GOV_ROOT";
 export const GOVERNANCE_RUNTIME_ROOT_ENV_VAR = "HANDSHAKE_GOV_RUNTIME_ROOT";
 export const PRODUCT_RUNTIME_ROOT_ENV_VAR = "HANDSHAKE_RUNTIME_ROOT";
 export const LEGACY_SHARED_GOV_RUNTIME_ROOT = ".GOV/roles_shared/runtime";
@@ -49,6 +50,29 @@ export function normalizePath(value) {
 
 export const REPO_ROOT = path.resolve(resolveRepoRoot());
 export const WORKSPACE_ROOT = path.resolve(REPO_ROOT, "..");
+
+// --- Governance root (kernel worktree) resolution ---
+
+function resolveGovRoot() {
+  const directValue = String(
+    process.env[GOV_ROOT_ENV_VAR]
+      || readPersistedUserEnv(GOV_ROOT_ENV_VAR)
+      || "",
+  ).trim();
+  if (directValue) return path.resolve(directValue);
+  return path.resolve(REPO_ROOT, ".GOV");
+}
+
+export const GOV_ROOT_ABS = resolveGovRoot();
+export const GOV_ROOT_REPO_REL = normalizePath(path.relative(REPO_ROOT, GOV_ROOT_ABS)) || ".GOV";
+
+export function govRootAbsPath(...segments) {
+  return path.resolve(GOV_ROOT_ABS, ...segments);
+}
+
+export function govRootRelPath(...segments) {
+  return normalizePath(path.join(GOV_ROOT_REPO_REL, ...segments));
+}
 
 export function resolveGovernanceRuntimeRoot(overrideValue = "") {
   const directValue = String(

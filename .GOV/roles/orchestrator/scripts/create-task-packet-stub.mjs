@@ -38,18 +38,19 @@ import {
   SESSION_LAUNCH_POLICY,
   STUB_FORMAT_VERSION,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const WP_ID = process.argv[2];
 const ROADMAP_POINTER = process.argv[3] || "<fill>";
 const LINE_NUMBERS = process.argv[4] || "<fill>";
 
 if (!WP_ID || !WP_ID.startsWith("WP-")) {
-  console.error("Usage: node .GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs WP-{phase}-{name} [roadmap_pointer] [line_numbers]");
-  console.error("Example: node .GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs WP-1-Session-Spawn-Contract \"§7.6.3\" \"123,124-126\"");
+  console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/create-task-packet-stub.mjs WP-{phase}-{name} [roadmap_pointer] [line_numbers]`);
+  console.error(`Example: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/create-task-packet-stub.mjs WP-1-Session-Spawn-Contract "§7.6.3" "123,124-126"`);
   process.exit(1);
 }
 
-const stubsDir = path.join(".GOV", "task_packets", "stubs");
+const stubsDir = path.join(GOV_ROOT_REPO_REL, "task_packets", "stubs");
 if (!fs.existsSync(stubsDir)) {
   fs.mkdirSync(stubsDir, { recursive: true });
 }
@@ -60,7 +61,7 @@ if (fs.existsSync(filePath)) {
   process.exit(1);
 }
 
-const templatePath = path.join(".GOV", "templates", "TASK_PACKET_STUB_TEMPLATE.md");
+const templatePath = path.join(GOV_ROOT_REPO_REL, "templates", "TASK_PACKET_STUB_TEMPLATE.md");
 if (!fs.existsSync(templatePath)) {
   console.error(`Missing stub template: ${templatePath.replace(/\\/g, "/")}`);
   process.exit(1);

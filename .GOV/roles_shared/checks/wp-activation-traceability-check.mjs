@@ -1,9 +1,10 @@
 import fs from "node:fs";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
-const TRACE_REGISTRY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
-const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
-const TASK_PACKETS_DIR = ".GOV/task_packets";
-const TASK_PACKET_STUBS_DIR = ".GOV/task_packets/stubs";
+const TRACE_REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
+const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
+const TASK_PACKETS_DIR = `${GOV_ROOT_REPO_REL}/task_packets`;
+const TASK_PACKET_STUBS_DIR = `${GOV_ROOT_REPO_REL}/task_packets/stubs`;
 
 function fail(message, details = []) {
   console.error(`[WP_TRACEABILITY_CHECK] ${message}`);
@@ -82,7 +83,7 @@ const violations = [];
 for (const [baseWpId, wpIds] of baseToRevisionPackets.entries()) {
   const registryRow = registry.get(baseWpId);
   if (!registryRow) {
-    const examples = wpIds.map((id) => `.GOV/task_packets/${id}.md`).slice(0, 3);
+    const examples = wpIds.map((id) => `${GOV_ROOT_REPO_REL}/task_packets/${id}.md`).slice(0, 3);
     violations.push(
       `${TRACE_REGISTRY_PATH}: missing Baseâ†’Active mapping for ${baseWpId} (examples: ${examples.join(", ")})`
     );

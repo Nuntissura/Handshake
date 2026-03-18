@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
-
 import path from "node:path";
+import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 
 function runGit(args, opts = {}) {
   return execFileSync("git", args, { stdio: "pipe", ...opts }).toString().trim();
@@ -88,7 +88,7 @@ function requireApproval(approval, branch, remote) {
 
 function createSafetySnapshot(wpId) {
   const label = `pre-close-${wpId}`;
-  execFileSync(process.execPath, [path.join(".GOV", "scripts", "topology", "backup-snapshot.mjs"), "--label", label], {
+  execFileSync(process.execPath, [path.join(GOV_ROOT_REPO_REL, "scripts", "topology", "backup-snapshot.mjs"), "--label", label], {
     stdio: "inherit",
   });
 }
