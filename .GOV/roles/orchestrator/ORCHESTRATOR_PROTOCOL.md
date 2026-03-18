@@ -46,6 +46,8 @@ See also:
 - `Handshake Codex v1.4.md`
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 
+**Governance Kernel [CX-212B/C]:** All `/.GOV/` paths in this protocol refer to the logical governance root. Scripts resolve through `HANDSHAKE_GOV_ROOT` env var (default: local `/.GOV/`). When a governance kernel worktree is configured, justfile and scripts execute from the shared kernel. The managing orchestrator reads from the kernel but MUST NOT write to it; governance edits require a separate model session.
+
 ## Product Runtime Root (Current Default)
 
 - External build, test, and tool outputs stay under `../Handshake Artifacts/`.
