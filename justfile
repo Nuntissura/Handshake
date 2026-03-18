@@ -115,6 +115,10 @@ backup-snapshot-nas label="manual":
 sync-all-role-worktrees:
 	node {{GOV_ROOT}}/roles_shared/scripts/topology/sync-all-role-worktrees.mjs
 
+# Copy governance kernel .GOV/ into the main worktree and auto-commit.
+sync-gov-to-main:
+	node {{GOV_ROOT}}/roles_shared/scripts/topology/sync-gov-to-main.mjs
+
 # Enumerate deletable local worktrees/branches and non-protected remote branches with exact approval examples.
 enumerate-cleanup-targets:
 	node {{GOV_ROOT}}/roles_shared/scripts/topology/enumerate-cleanup-targets.mjs

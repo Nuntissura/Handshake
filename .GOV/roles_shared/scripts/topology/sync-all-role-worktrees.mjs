@@ -13,6 +13,12 @@ import {
 } from "./git-topology-lib.mjs";
 
 for (const spec of WORKTREE_SPECS) {
+  // Skip the governance kernel: it flows to main via sync-gov-to-main, not via FF merge.
+  if (spec.role === "GOV_KERNEL") {
+    console.log(`[SYNC_ALL_ROLE_WORKTREES] skip governance kernel: ${spec.id}`);
+    continue;
+  }
+
   const absDir = absFromRepo(spec.rel_path);
   if (!fs.existsSync(absDir) || !gitCheckoutExists(absDir)) {
     console.log(`[SYNC_ALL_ROLE_WORKTREES] skip missing checkout: ${spec.id} (${spec.rel_path})`);

@@ -15,9 +15,9 @@
 ## Permanent Branch + Backup Model (HARD)
 
 - `main` is the only canonical integrated branch on disk and on GitHub.
-- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`.
-- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
-- Coders must never push to `main`, `user_ilja`, `role_orchestrator`, or `role_validator`.
+- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `gov_kernel`.
+- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`, `wt-gov-kernel`.
+- Coders must never push to `main`, `user_ilja`, `role_orchestrator`, `role_validator`, or `gov_kernel`.
 - A Coder may push only the assigned WP backup branch recorded in the task packet.
 - Treat the assigned WP backup branch as the WP phase-boundary recovery branch for coder work. It should hold the latest committed restart-safe WP state at the key workflow checkpoints you create or consume.
 - Minimum recovery milestones for the WP backup branch are:

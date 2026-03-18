@@ -6,7 +6,7 @@ This document defines the repo-resilience layer for Handshake governance.
 
 - Prevent branch/worktree deletions from becoming unrecoverable events.
 - Preserve both committed git history and working-file snapshots outside the repo tree.
-- Keep permanent topology deterministic across `handshake_main`, `wt-ilja`, `wt-orchestrator`, and `wt-validator`.
+- Keep permanent topology deterministic across `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`, and `wt-gov-kernel`.
 - Keep offline backups safe from mass-deletion sync by using append-only timestamped snapshots instead of destructive mirrors.
 
 ## Commands
@@ -16,6 +16,7 @@ This document defines the repo-resilience layer for Handshake governance.
 - `just backup-status`
 - `just backup-snapshot-nas [label]`
 - `just sync-all-role-worktrees`
+- `just sync-gov-to-main`
 - `just enumerate-cleanup-targets`
 - `just delete-local-worktree <worktree_id> "<approval>"`
 - `just generate-worktree-cleanup-script WP-{ID} CODER|WP_VALIDATOR`
@@ -24,7 +25,7 @@ This document defines the repo-resilience layer for Handshake governance.
 ## Policy
 
 - `main` is the only canonical integrated branch.
-- `user_ilja`, `role_orchestrator`, and `role_validator` are backup branches on GitHub.
+- `user_ilja`, `role_orchestrator`, `role_validator`, and `gov_kernel` are backup branches on GitHub.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Worktree deletion must go through `just delete-local-worktree`. Never fall back to `Remove-Item`, `rm`, `del`, or other direct filesystem deletion for worktree paths.
 - For orchestrator-managed WP closeout, prefer the generated single-target cleanup script flow:
@@ -125,3 +126,4 @@ GitHub branch protection remains recommended for:
 - `user_ilja`
 - `role_orchestrator`
 - `role_validator`
+- `gov_kernel`

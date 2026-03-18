@@ -17,9 +17,9 @@
 ## Permanent Branch + Backup Model (HARD)
 
 - `main` is the only canonical integrated branch on disk and on GitHub.
-- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`.
-- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
-- `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches. They may diverge from `main`.
+- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `gov_kernel`.
+- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`, `wt-gov-kernel`.
+- `user_ilja`, `role_orchestrator`, `role_validator`, and `gov_kernel` on GitHub are backup branches, not integration branches. They may diverge from `main`.
 - Matching backup pushes are allowed safety operations. For Validator work this means pushing `role_validator` to `origin/role_validator` when preserving committed state before destructive local operations.
 - `role_validator` is the shared validator-role backup branch. Any validator form may push it when preserving validator-owned committed state.
 - The packet-declared WP backup branch is the shared remote WP backup branch for Coder, WP Validator, and Integration Validator. Any validator form may push that packet-declared branch when preserving WP-scoped committed state, but validators must not improvise separate validator-only remote WP backup branches.

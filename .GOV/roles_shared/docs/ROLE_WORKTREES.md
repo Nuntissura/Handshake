@@ -19,6 +19,7 @@ Recommended structure:
     wt-ilja/               # Operator role worktree (branch: user_ilja)
     wt-orchestrator/       # Orchestrator role worktree (branch: role_orchestrator)
     wt-validator/          # Validator role worktree (branch: role_validator)
+    wt-gov-kernel/         # Governance kernel worktree (branch: gov_kernel)
     wt-WP-.../             # Coder WP worktrees (branch: feat/WP-...)
     wt-WPV-WP-.../         # WP Validator worktrees (branch: validate/WP-...)
     wt-INTV-WP-.../        # Integration Validator worktrees (branch: integrate/WP-...)
@@ -46,7 +47,7 @@ If you are an AI assistant operating in this repo:
   - docs-only skeleton checkpoint
   - skeleton approval checkpoint before implementation resumes
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
-- Permanent protected branches/worktrees that must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
+- Permanent protected branches/worktrees that must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `gov_kernel`, `wt-ilja`, `wt-orchestrator`, `wt-validator`, `wt-gov-kernel`.
 - Use `.GOV/roles_shared/records/GIT_TOPOLOGY_REGISTRY.md` + `.GOV/roles_shared/docs/REPO_RESILIENCE.md` as the deterministic reference for the permanent checkout layout and backup commands.
 
 ## Role Worktrees (Default)
@@ -56,6 +57,7 @@ If you are an AI assistant operating in this repo:
 | OPERATOR (human) | `<HANDSHAKE_WORKTREES>/wt-ilja` | `user_ilja` | `origin/user_ilja` |
 | ORCHESTRATOR | `<HANDSHAKE_WORKTREES>/wt-orchestrator` | `role_orchestrator` | `origin/role_orchestrator` |
 | VALIDATOR | `<HANDSHAKE_WORKTREES>/wt-validator` | `role_validator` | `origin/role_validator` |
+| GOV_KERNEL | `<HANDSHAKE_WORKTREES>/wt-gov-kernel` | `gov_kernel` | `origin/gov_kernel` |
 | CODER (agent) | WP-assigned worktree only (no default) | WP branch only (no default) | matching WP backup branch on GitHub |
 
 Notes:

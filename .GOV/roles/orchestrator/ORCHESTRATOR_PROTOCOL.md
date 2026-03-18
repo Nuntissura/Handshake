@@ -17,8 +17,8 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
 ## Permanent Branch + Backup Model (HARD)
 
 - `main` is the only canonical integrated branch on disk and on GitHub.
-- Permanent protected branches: `main`, `user_ilja`, `role_orchestrator`, `role_validator`.
-- Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
+- Permanent protected branches: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `gov_kernel`.
+- Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`, `wt-gov-kernel`.
 - `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches.
 - Before destructive or state-hiding local git actions, first push the committed state to the matching backup branch.
 - Before deleting local branches or worktrees, create an immutable snapshot with `just backup-snapshot`.
