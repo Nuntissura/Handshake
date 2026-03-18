@@ -32,7 +32,6 @@ Thumbs.db
 
 # Assistant tool caches
 .gemini/
-.claude/
 .codex_tmp_*
 
 # Local artifacts/logs (not committed)
