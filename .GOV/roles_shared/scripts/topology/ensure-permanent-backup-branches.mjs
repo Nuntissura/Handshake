@@ -2,7 +2,7 @@
 
 import { execFileSync } from "node:child_process";
 
-const PERMANENT_BRANCHES = ["main", "user_ilja", "role_orchestrator", "role_validator", "gov_kernel"];
+const PERMANENT_BRANCHES = ["main", "user_ilja", "role_orchestrator", "gov_kernel"];
 
 function runGit(args, options = {}) {
   return execFileSync("git", args, { stdio: "pipe", encoding: "utf8", ...options }).trim();

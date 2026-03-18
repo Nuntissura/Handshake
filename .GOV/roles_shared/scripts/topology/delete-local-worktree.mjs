@@ -15,7 +15,7 @@ import {
 } from "./git-topology-lib.mjs";
 import { SESSION_REGISTRY_FILE } from "../session/session-policy.mjs";
 
-const PROTECTED_WORKTREES = new Set(["handshake_main", "wt-ilja", "wt-orchestrator", "wt-validator", "wt-gov-kernel"]);
+const PROTECTED_WORKTREES = new Set(["handshake_main", "wt-ilja", "wt-orchestrator", "wt-gov-kernel"]);
 const WORKTREE_CLEANUP_TOKEN_SCHEMA = "hsk.worktree_cleanup_token@1";
 
 function fail(message, details = []) {
@@ -444,7 +444,7 @@ function main() {
   }
 
   const currentBranch = currentBranchInRepo(absDir);
-  if (currentBranch && ["main", "user_ilja", "role_orchestrator", "role_validator", "gov_kernel"].includes(currentBranch)) {
+  if (currentBranch && ["main", "user_ilja", "role_orchestrator", "gov_kernel"].includes(currentBranch)) {
     fail("Refusing to delete a worktree checked out to a protected branch", [
       `path=${absDir}`,
       `branch=${currentBranch}`,

@@ -15,9 +15,9 @@
 ## Permanent Branch + Backup Model (HARD)
 
 - `main` is the only canonical integrated branch on disk and on GitHub.
-- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `gov_kernel`.
-- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`, `wt-gov-kernel`.
-- Coders must never push to `main`, `user_ilja`, `role_orchestrator`, `role_validator`, or `gov_kernel`.
+- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `gov_kernel`.
+- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`.
+- Coders must never push to `main`, `user_ilja`, `role_orchestrator`, or `gov_kernel`.
 - A Coder may push only the assigned WP backup branch recorded in the task packet.
 - Treat the assigned WP backup branch as the WP phase-boundary recovery branch for coder work. It should hold the latest committed restart-safe WP state at the key workflow checkpoints you create or consume.
 - Minimum recovery milestones for the WP backup branch are:
@@ -29,11 +29,11 @@
 - Startup must surface `just backup-status` so backup configuration and recent immutable snapshots are visible before coding proceeds. This is safety context only, not a bypass for destructive-op approvals.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact actions + exact targets, and ask for approval on that presented list.
 - For clearer language going forward, use these exact terms:
-  - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
+  - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_orchestrator`
   - `remote branch` or `GitHub branch`: a branch at `origin/<name>`, for example `origin/main`
-  - `worktree`: a directory on disk, for example `handshake_main` or `wt-validator`
+  - `worktree`: a directory on disk, for example `handshake_main` or `wt-orchestrator`
   - `canonical branch`: always `main`
-  - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/role_validator`
+  - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/role_orchestrator`
 - Broad requests like "clean up branches" or "sync everything" are insufficient for destructive or branch-moving work. Present a deterministic list of exact actions + exact targets first. For that most recently presented list, the only valid approval replies are `approved` or `proceed`. If the list changes, ask again.
 - Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
 - Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the list has been presented. Never use direct filesystem deletion on worktree paths.

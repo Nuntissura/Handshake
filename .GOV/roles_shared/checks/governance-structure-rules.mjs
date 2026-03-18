@@ -79,7 +79,7 @@ export const roleRootRules = {
 };
 
 export const docsRootHotspots = {
-  "memory dump.md": {
+  "memory_dump.md": {
     severity: "MEDIUM",
     reason: "memory dump is not an active architecture surface",
     target: `${GOV_ROOT_REPO_REL}/reference/archaeology/ or a named subfolder under ${GOV_ROOT_REPO_REL}/docs/`,

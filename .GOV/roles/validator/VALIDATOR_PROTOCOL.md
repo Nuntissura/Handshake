@@ -17,22 +17,21 @@
 ## Permanent Branch + Backup Model (HARD)
 
 - `main` is the only canonical integrated branch on disk and on GitHub.
-- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `gov_kernel`.
-- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`, `wt-gov-kernel`.
-- `user_ilja`, `role_orchestrator`, `role_validator`, and `gov_kernel` on GitHub are backup branches, not integration branches. They may diverge from `main`.
-- Matching backup pushes are allowed safety operations. For Validator work this means pushing `role_validator` to `origin/role_validator` when preserving committed state before destructive local operations.
-- `role_validator` is the shared validator-role backup branch. Any validator form may push it when preserving validator-owned committed state.
+- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `gov_kernel`.
+- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`.
+- `user_ilja`, `role_orchestrator`, and `gov_kernel` on GitHub are backup branches, not integration branches. They may diverge from `main`.
+- Matching backup pushes are allowed safety operations. For Validator work this means pushing the assigned WP backup branch when preserving committed state before destructive local operations.
 - The packet-declared WP backup branch is the shared remote WP backup branch for Coder, WP Validator, and Integration Validator. Any validator form may push that packet-declared branch when preserving WP-scoped committed state, but validators must not improvise separate validator-only remote WP backup branches.
 - Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Startup must surface `just backup-status` so backup configuration and recent immutable snapshots are visible before validation proceeds. This is safety context only, not a bypass for destructive-op approvals.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact actions + exact targets, and ask for approval on that presented list.
 - For clearer language going forward, use these exact terms:
-  - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
+  - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_orchestrator`
   - `remote branch` or `GitHub branch`: a branch at `origin/<name>`, for example `origin/main`
-  - `worktree`: a directory on disk, for example `handshake_main` or `wt-validator`
+  - `worktree`: a directory on disk, for example `handshake_main` or `wt-orchestrator`
   - `canonical branch`: always `main`
-  - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/role_validator`
+  - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/role_orchestrator`
 - Broad requests like "clean up branches" or "sync everything" are insufficient for destructive or branch-moving work. Present a deterministic list of exact actions + exact targets first. For that most recently presented list, the only valid approval replies are `approved` or `proceed`. If the list changes, ask again.
 - Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
 - Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the list has been presented. Never use direct filesystem deletion on worktree paths.
@@ -68,7 +67,7 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs
 ## Current Execution Policy (Additional LAW)
 
 - Validator work currently has three governance forms:
-  - `Classical Validator` = manual-relay / non-orchestrator-managed validator operating from `wt-validator` (or the assigned validator checkout). This form may own final validation closure and merge-to-`main` authority when no orchestrator-managed Integration Validator lane exists.
+  - `Classical Validator` = manual-relay / non-orchestrator-managed validator operating from the assigned WP validator checkout. This form may own final validation closure and merge-to-`main` authority when no orchestrator-managed Integration Validator lane exists.
   - `WP Validator` = orchestrator-managed, WP-scoped advisory validator operating in the Orchestrator-provisioned validator worktree. This form may inspect live coder progress, challenge vibe-coding/spec drift, and request steering through packet communications plus Orchestrator-owned ACP controls, but it is not the final merge authority.
   - `Integration Validator` = orchestrator-managed final validator operating in the Orchestrator-provisioned integration worktree. This form owns final technical verdict and merge-to-`main` authority for orchestrator-managed WPs unless the packet explicitly overrides it.
 - Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.

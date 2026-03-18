@@ -18,5 +18,5 @@
 
 ## Operator staging references
 - [Handshake_Export_Bundles_Insert_Plan_v0.1.md](../operator/Handshake_Export_Bundles_Insert_Plan_v0.1.md) - export plan.
-- [extraction and digital production team.md](../operator/extraction%20and%20digital%20production%20team.md) - scoping notes.
+- [extraction_and_digital_production_team.md](../operator/extraction_and_digital_production_team.md) - scoping notes.
 - [primitives_catalogue.md](../operator/primitives_catalogue.md) - legacy primitives reference.
