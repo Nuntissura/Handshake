@@ -27,9 +27,10 @@ import {
   taskBoardStatus,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { EXECUTION_OWNER_RANGE_HELP } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
-const STATE_FILE = ".GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json";
-const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
+const STATE_FILE = `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`;
+const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
 
 function fail(message, details = []) {
@@ -98,7 +99,7 @@ function summarizeResumeState(state, wpId) {
   const lastPrepare = lastLog(state, wpId, "PREPARE");
 
   const refinementPath = defaultRefinementPath(wpId);
-  const currentPacketPath = path.join(".GOV", "task_packets", `${wpId}.md`).replace(/\\/g, "/");
+  const currentPacketPath = path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`).replace(/\\/g, "/");
   const refinementExists = exists(refinementPath);
   const currentPacketExists = exists(currentPacketPath);
   const boardStatus = taskBoardStatus(wpId) || "<none>";
@@ -239,7 +240,7 @@ function main() {
 
   const boardStatus = taskBoardStatus(wpId);
   if (boardStatus && ["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"].includes(boardStatus)) {
-    const packetPath = path.join(".GOV", "task_packets", `${wpId}.md`).replace(/\\/g, "/");
+    const packetPath = path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`).replace(/\\/g, "/");
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorAction("NONE");
     printConfidence(inferred.source === "explicit" ? "HIGH" : "MEDIUM", inferred.source);
@@ -267,7 +268,7 @@ function main() {
   const lastPrepare = lastLog(state, wpId, "PREPARE");
 
   const refinementPath = defaultRefinementPath(wpId);
-  const packetPath = path.join(".GOV", "task_packets", `${wpId}.md`).replace(/\\/g, "/");
+  const packetPath = path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`).replace(/\\/g, "/");
 
   const refinementExists = exists(refinementPath);
   const packetExists = exists(packetPath);
@@ -300,7 +301,7 @@ function main() {
     printConfidence(confidence.level, confidence.detail);
     printState("Refinement file does not exist yet.");
     printNextCommands([
-      `just create-task-packet ${wpId}  # scaffolds .GOV/refinements/${wpId}.md and exits BLOCKED`,
+      `just create-task-packet ${wpId}  # scaffolds ${GOV_ROOT_REPO_REL}/refinements/${wpId}.md and exits BLOCKED`,
       `cat ${refinementPath.replace(/\\/g, "/")}`,
       `# Present the Technical Refinement Block in-chat; wait for explicit review.`,
       `just record-refinement ${wpId}`,
@@ -337,7 +338,7 @@ function main() {
     printConfidence(confidence.level, confidence.detail);
     printState("Refinement recorded; signature not yet recorded.");
     printNextCommands([
-      `# Paste the FULL Technical Refinement Block from .GOV/refinements/${wpId}.md in chat (verbatim; no summary).`,
+      `# Paste the FULL Technical Refinement Block from ${GOV_ROOT_REPO_REL}/refinements/${wpId}.md in chat (verbatim; no summary).`,
       `# Ensure refinement METADATA contains: - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT ${wpId}`,
       `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
     ]);

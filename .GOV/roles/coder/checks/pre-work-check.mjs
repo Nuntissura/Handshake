@@ -59,6 +59,7 @@ import {
   sessionPluginRequestsFileForPacketVersion,
   sessionRegistryFileForPacketVersion,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
+import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const WP_ID = process.argv[2];
 
@@ -71,7 +72,7 @@ console.log(`\nPre-work validation for ${WP_ID}...\n`);
 
 const errors = [];
 const warnings = [];
-const spec = JSON.parse(fs.readFileSync(path.join('.GOV', 'roles_shared', 'checks', 'cor701-spec.json'), 'utf8'));
+const spec = JSON.parse(fs.readFileSync(path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'cor701-spec.json'), 'utf8'));
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
@@ -255,7 +256,7 @@ function hasCommitByExactSubject(subject) {
 
 // Check 1: Task packet file exists
 console.log('Check 1: Task packet file exists');
-const taskPacketDir = '.GOV/task_packets';
+const taskPacketDir = `${GOV_ROOT_REPO_REL}/task_packets`;
 const packetFilename = `${WP_ID}.md`;
 
 let packetContent = '';
@@ -290,7 +291,7 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   try {
-    const gatesPath = path.join('.GOV', 'roles', 'orchestrator', 'runtime', 'ORCHESTRATOR_GATES.json');
+    const gatesPath = path.join(GOV_ROOT_REPO_REL, 'roles', 'orchestrator', 'runtime', 'ORCHESTRATOR_GATES.json');
     const gates = JSON.parse(fs.readFileSync(gatesPath, 'utf8'));
     const logs = Array.isArray(gates?.gate_logs) ? gates.gate_logs : [];
     lastPrepare = [...logs].reverse().find((l) => l?.wpId === WP_ID && l?.type === 'PREPARE') || null;
@@ -299,7 +300,7 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   if (!lastPrepare) {
-    const msg = `Missing PREPARE record in .GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A..Coder-Z} ...)`;
+    const msg = `Missing PREPARE record in ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A..Coder-Z} ...)`;
     if (enforceWorktreeGate) {
       errors.push(msg);
       console.log('FAIL: ' + msg);
@@ -611,7 +612,7 @@ if (!fs.existsSync(taskPacketDir)) {
             errors.push(`STUB_WP_IDS contains invalid WP id: ${id}`);
             continue;
           }
-          const stubPath = path.join('.GOV', 'task_packets', 'stubs', `${id}.md`);
+          const stubPath = path.join(GOV_ROOT_REPO_REL, 'task_packets', 'stubs', `${id}.md`);
           if (!fs.existsSync(stubPath)) {
             errors.push(`Stub referenced in STUB_WP_IDS does not exist: ${stubPath.replace(/\\/g, '/')}`);
           }
@@ -695,13 +696,13 @@ if (!fs.existsSync(taskPacketDir)) {
 
     // Protocol requirement: signature must be present in SIGNATURE_AUDIT.md
     try {
-      const auditPath = path.join('.GOV', 'roles_shared', 'records', 'SIGNATURE_AUDIT.md');
+      const auditPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'SIGNATURE_AUDIT.md');
       const audit = fs.readFileSync(auditPath, 'utf8');
       if (packetSig && !audit.includes(`| ${packetSig} |`)) {
-        errors.push(`USER_SIGNATURE not found in .GOV/roles_shared/records/SIGNATURE_AUDIT.md (${packetSig})`);
+        errors.push(`USER_SIGNATURE not found in ${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md (${packetSig})`);
       }
     } catch {
-      warnings.push('Could not verify signature against .GOV/roles_shared/records/SIGNATURE_AUDIT.md');
+      warnings.push(`Could not verify signature against ${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`);
     }
 
     const refinementProfile = parseSingleField(packetContent, 'REFINEMENT_ENFORCEMENT_PROFILE');
@@ -1050,14 +1051,14 @@ if (!fs.existsSync(taskPacketDir)) {
       execSync(`git cat-file -e HEAD:${packetPath.replace(/\\/g, '/')}`, { stdio: 'ignore' });
     } catch {
       errors.push(`Task packet is not committed yet (checkpoint required): ${packetPath.replace(/\\/g, '/')}`);
-      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/records/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
+      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} ${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
     }
 
     try {
       execSync(`git cat-file -e HEAD:${refinementFile.replace(/\\/g, '/')}`, { stdio: 'ignore' });
     } catch {
       errors.push(`Refinement file is not committed yet (checkpoint required): ${refinementFile.replace(/\\/g, '/')}`);
-      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/records/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
+      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} ${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
     }
   } else {
     console.log('\nCheck 2.7: Technical Refinement gate (skipped for Done/Validated packets)');
@@ -1160,9 +1161,9 @@ if (errors.length === 0) {
     if (/^ALLOWED\b/i.test(subAgentDelegation.trim())) {
       console.log('\nSUB_AGENT_RULES (HARD) [CX-HANDOFF-001]');
       console.log('- Sub-agents are LOW reasoning (draft-only). Verify everything against SPEC_CURRENT + DONE_MEANS.');
-      console.log('- Sub-agents MUST NOT edit `.GOV/**` (including task packets/refinements or `## VALIDATION_REPORTS`).');
+      console.log(`- Sub-agents MUST NOT edit \`${GOV_ROOT_REPO_REL}/**\` (including task packets/refinements or \`## VALIDATION_REPORTS\`).`);
       console.log('- Sub-agents MUST NOT run gates/commits/branch ops as official evidence.');
-      console.log('- Follow: `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md` Section 6.');
+      console.log(`- Follow: \`/${GOV_ROOT_REPO_REL}/roles/coder/agentic/AGENTIC_PROTOCOL.md\` Section 6.`);
     }
 
     console.log('\nCODER_START_COMMANDS [CX-HANDOFF-001]');
@@ -1203,6 +1204,6 @@ if (errors.length === 0) {
     warnings.forEach((warn, i) => console.log(`  ${i + 1}. ${warn}`));
   }
   console.log('\nFix these issues before starting work.');
-  console.log('See: .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md or .GOV/roles/coder/CODER_PROTOCOL.md');
+  console.log(`See: ${GOV_ROOT_REPO_REL}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md or ${GOV_ROOT_REPO_REL}/roles/coder/CODER_PROTOCOL.md`);
   process.exit(1);
 }

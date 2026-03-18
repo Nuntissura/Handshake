@@ -16,23 +16,27 @@ import {
   roleNextCommand,
   roleStartupCommand,
 } from "../scripts/session/session-policy.mjs";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 const JUSTFILE_PATH = "justfile";
-const ORCHESTRATOR_PROTOCOL_PATH = path.join(".GOV", "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md");
-const CODER_PROTOCOL_PATH = path.join(".GOV", "roles", "coder", "CODER_PROTOCOL.md");
-const VALIDATOR_PROTOCOL_PATH = path.join(".GOV", "roles", "validator", "VALIDATOR_PROTOCOL.md");
-const ORCHESTRATOR_GATES_PATH = path.join(".GOV", "roles", "orchestrator", "checks", "orchestrator_gates.mjs");
-const CREATE_TASK_PACKET_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "create-task-packet.mjs");
-const LAUNCH_CLI_SESSION_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "launch-cli-session.mjs");
-const SESSION_CONTROL_COMMAND_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "session-control-command.mjs");
-const SESSION_CONTROL_CANCEL_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "session-control-cancel.mjs");
-const ROLE_SESSION_WORKTREE_ADD_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs");
-const PRE_WORK_CHECK_PATH = path.join(".GOV", "roles", "coder", "checks", "pre-work-check.mjs");
-const SESSION_POLICY_CHECK_PATH = path.join(".GOV", "roles_shared", "checks", "session-policy-check.mjs");
-const REFINEMENT_TEMPLATE_PATH = path.join(".GOV", "templates", "REFINEMENT_TEMPLATE.md");
-const TASK_PACKET_TEMPLATE_PATH = path.join(".GOV", "templates", "TASK_PACKET_TEMPLATE.md");
-const ROLE_WORKTREES_DOC_PATH = path.join(".GOV", "roles_shared", "docs", "ROLE_WORKTREES.md");
-const ROLE_SESSION_REGISTRY_SCHEMA_PATH = path.join(".GOV", "roles_shared", "schemas", "ROLE_SESSION_REGISTRY.schema.json");
+// The justfile uses {{GOV_ROOT}} (a just variable) — when matching raw justfile text,
+// we must use the literal justfile variable syntax, not the resolved GOV_ROOT_REPO_REL.
+const JUSTFILE_GOV_PREFIX = "{{GOV_ROOT}}";
+const ORCHESTRATOR_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md");
+const CODER_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "coder", "CODER_PROTOCOL.md");
+const VALIDATOR_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "validator", "VALIDATOR_PROTOCOL.md");
+const ORCHESTRATOR_GATES_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "checks", "orchestrator_gates.mjs");
+const CREATE_TASK_PACKET_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "create-task-packet.mjs");
+const LAUNCH_CLI_SESSION_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "launch-cli-session.mjs");
+const SESSION_CONTROL_COMMAND_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
+const SESSION_CONTROL_CANCEL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-cancel.mjs");
+const ROLE_SESSION_WORKTREE_ADD_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs");
+const PRE_WORK_CHECK_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "coder", "checks", "pre-work-check.mjs");
+const SESSION_POLICY_CHECK_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "checks", "session-policy-check.mjs");
+const REFINEMENT_TEMPLATE_PATH = path.join(GOV_ROOT_REPO_REL, "templates", "REFINEMENT_TEMPLATE.md");
+const TASK_PACKET_TEMPLATE_PATH = path.join(GOV_ROOT_REPO_REL, "templates", "TASK_PACKET_TEMPLATE.md");
+const ROLE_WORKTREES_DOC_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "ROLE_WORKTREES.md");
+const ROLE_SESSION_REGISTRY_SCHEMA_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "schemas", "ROLE_SESSION_REGISTRY.schema.json");
 
 const ACTIVE_SURFACE_PATHS = [
   JUSTFILE_PATH,
@@ -158,41 +162,42 @@ const roleSessionRegistrySchema = contents.get(ROLE_SESSION_REGISTRY_SCHEMA_PATH
 const roleAlternation = SESSION_ROLES.join("|");
 const commandKindAlternation = SESSION_COMMAND_KINDS.join("|");
 const reasoningConfigPair = `${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}`;
-const retiredRootScriptsDir = [".GOV", "scripts"].join("/");
+const retiredRootScriptsDir = [GOV_ROOT_REPO_REL, "scripts"].join("/");
 
 // justfile recipes must stay aligned with the active orchestrator/session tooling.
+// Note: justfile uses {{GOV_ROOT}} variable syntax — match against JUSTFILE_GOV_PREFIX, not resolved path.
 requireRecipe(errors, justfileContent, "worktree-add", [
-  ".GOV/roles_shared/scripts/topology/worktree-add.mjs",
+  `${JUSTFILE_GOV_PREFIX}/roles_shared/scripts/topology/worktree-add.mjs`,
 ]);
 requireRecipe(errors, justfileContent, "coder-worktree-add", [
-  ".GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs CODER",
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/role-session-worktree-add.mjs CODER`,
 ]);
 requireRecipe(errors, justfileContent, "wp-validator-worktree-add", [
-  ".GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs WP_VALIDATOR",
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/role-session-worktree-add.mjs WP_VALIDATOR`,
 ]);
 requireRecipe(errors, justfileContent, "integration-validator-worktree-add", [
-  ".GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs INTEGRATION_VALIDATOR",
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/role-session-worktree-add.mjs INTEGRATION_VALIDATOR`,
 ]);
 requireRecipe(errors, justfileContent, "launch-coder-session", [
-  ".GOV/roles/orchestrator/scripts/launch-cli-session.mjs CODER",
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/launch-cli-session.mjs CODER`,
 ]);
 requireRecipe(errors, justfileContent, "launch-wp-validator-session", [
-  ".GOV/roles/orchestrator/scripts/launch-cli-session.mjs WP_VALIDATOR",
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/launch-cli-session.mjs WP_VALIDATOR`,
 ]);
 requireRecipe(errors, justfileContent, "launch-integration-validator-session", [
-  ".GOV/roles/orchestrator/scripts/launch-cli-session.mjs INTEGRATION_VALIDATOR",
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/launch-cli-session.mjs INTEGRATION_VALIDATOR`,
 ]);
 requireRecipe(errors, justfileContent, "session-start", [
-  ".GOV/roles/orchestrator/scripts/session-control-command.mjs START_SESSION",
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/session-control-command.mjs START_SESSION`,
 ]);
 requireRecipe(errors, justfileContent, "session-send", [
-  ".GOV/roles/orchestrator/scripts/session-control-command.mjs SEND_PROMPT",
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/session-control-command.mjs SEND_PROMPT`,
 ]);
 requireRecipe(errors, justfileContent, "session-cancel", [
-  ".GOV/roles/orchestrator/scripts/session-control-cancel.mjs",
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/session-control-cancel.mjs`,
 ]);
 requireRecipe(errors, justfileContent, "session-close", [
-  ".GOV/roles/orchestrator/scripts/session-control-command.mjs CLOSE_SESSION",
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/session-control-command.mjs CLOSE_SESSION`,
 ]);
 
 for (const command of [
@@ -208,15 +213,15 @@ for (const command of [
 }
 
 requireRecipe(errors, justfileContent, "orchestrator-startup", [
-  ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`,
   "just orchestrator-preflight",
 ]);
 requireRecipe(errors, justfileContent, "validator-startup", [
-  ".GOV/roles/validator/VALIDATOR_PROTOCOL.md",
+  `${JUSTFILE_GOV_PREFIX}/roles/validator/VALIDATOR_PROTOCOL.md`,
   "just validator-preflight",
 ]);
 requireRecipe(errors, justfileContent, "coder-startup", [
-  ".GOV/roles/coder/CODER_PROTOCOL.md",
+  `${JUSTFILE_GOV_PREFIX}/roles/coder/CODER_PROTOCOL.md`,
   "just coder-preflight",
 ]);
 
@@ -286,14 +291,14 @@ requireRegex(
   errors,
   ROLE_SESSION_WORKTREE_ADD_PATH,
   roleSessionWorktreeAdd,
-  /path\.join\(\s*"\.GOV"\s*,\s*"roles_shared"\s*,\s*"scripts"\s*,\s*"topology"\s*,\s*"worktree-add\.mjs"\s*\)/,
+  /path\.join\(\s*GOV_ROOT_REPO_REL\s*,\s*"roles_shared"\s*,\s*"scripts"\s*,\s*"topology"\s*,\s*"worktree-add\.mjs"\s*\)/,
   "current roles_shared topology worktree-add path",
 );
 requireRegex(
   errors,
   SESSION_CONTROL_COMMAND_PATH,
   sessionControlCommand,
-  /path\.join\(\s*"\.GOV"\s*,\s*"roles"\s*,\s*"orchestrator"\s*,\s*"scripts"\s*,\s*"role-session-worktree-add\.mjs"\s*\)/,
+  /path\.join\(\s*GOV_ROOT_REPO_REL\s*,\s*"roles"\s*,\s*"orchestrator"\s*,\s*"scripts"\s*,\s*"role-session-worktree-add\.mjs"\s*\)/,
   "current orchestrator role-session-worktree-add path",
 );
 

@@ -22,11 +22,12 @@ import {
   EXECUTION_OWNER_VALUES,
   AGENTIC_MODE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
+import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 
-const PACKETS_DIR = path.join(".GOV", "task_packets");
-const THREAD_TEMPLATE = path.join(".GOV", "templates", "WP_COMMUNICATION_THREAD_TEMPLATE.md");
-const RUNTIME_TEMPLATE = path.join(".GOV", "templates", "WP_RUNTIME_STATUS_TEMPLATE.json");
-const RECEIPTS_TEMPLATE = path.join(".GOV", "templates", "WP_RECEIPTS_TEMPLATE.jsonl");
+const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
+const THREAD_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_COMMUNICATION_THREAD_TEMPLATE.md");
+const RUNTIME_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_RUNTIME_STATUS_TEMPLATE.json");
+const RECEIPTS_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_RECEIPTS_TEMPLATE.jsonl");
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");

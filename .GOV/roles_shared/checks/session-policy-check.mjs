@@ -41,9 +41,10 @@ import {
   stubUsesSessionPolicy,
   SPEC_CLAUSE_MAP_MIN_VERSION,
 } from "../scripts/session/session-policy.mjs";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
-const PACKETS_DIR = path.join(".GOV", "task_packets");
-const STUBS_DIR = path.join(".GOV", "task_packets", "stubs");
+const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
+const STUBS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets", "stubs");
 
 function fail(message, details = []) {
   console.error(`[SESSION_POLICY_CHECK] ${message}`);

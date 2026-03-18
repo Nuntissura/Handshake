@@ -19,11 +19,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { GOV_ROOT_REPO_REL } from "./lib/runtime-paths.mjs";
 
-const BUILD_ORDER_PATH = ".GOV/roles_shared/records/BUILD_ORDER.md";
-const SPEC_CURRENT_PATH = ".GOV/roles_shared/records/SPEC_CURRENT.md";
-const TRACE_REGISTRY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
-const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
+const BUILD_ORDER_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md`;
+const SPEC_CURRENT_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md`;
+const TRACE_REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
+const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
 const AUTOGEN_BEGIN = "<!-- BUILD_ORDER_AUTOGEN:BEGIN -->";
 const AUTOGEN_END = "<!-- BUILD_ORDER_AUTOGEN:END -->";

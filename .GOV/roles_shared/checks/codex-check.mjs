@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 function resolveRepoRoot() {
   try {
@@ -139,7 +140,7 @@ await import("./worktree-concurrency-check.mjs");
 await import("./lifecycle-ux-check.mjs");
 await import("./oss-register-check.mjs");
 
-// 7) Product ↔ governance boundary guard: product code MUST NOT reference `/.GOV/`.
+// 7) Product ↔ governance boundary guard: product code MUST NOT reference the governance root.
 {
   const roots = [
     path.join(repoRoot, "src", "backend", "handshake_core", "src"),
@@ -151,12 +152,14 @@ await import("./oss-register-check.mjs");
     .flatMap((root) => listFilesRecursive(root))
     .filter((filePath) => [".rs", ".ts", ".tsx", ".toml"].includes(path.extname(filePath)));
 
+  const govRootEscaped = GOV_ROOT_REPO_REL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const govRootPattern = new RegExp(`${govRootEscaped}[\\\\/]`);
   const hits = files.flatMap((filePath) =>
-    findLineHits(filePath, (line) => /\.GOV[\\/]/.test(line))
+    findLineHits(filePath, (line) => govRootPattern.test(line))
   );
 
   if (hits.length > 0) {
-    fail("Forbidden product reference to `.GOV/` (hard boundary):", hits.join("\n"));
+    fail(`Forbidden product reference to \`${GOV_ROOT_REPO_REL}/\` (hard boundary):`, hits.join("\n"));
   }
 }
 

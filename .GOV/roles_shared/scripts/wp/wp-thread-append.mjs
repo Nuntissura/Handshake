@@ -4,10 +4,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalize } from "../lib/wp-communications-lib.mjs";
+import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 import { appendWpReceipt } from "./wp-receipt-append.mjs";
 import { appendWpNotification, resolveTargetRoleFromMention } from "./wp-notification-append.mjs";
 
-const PACKETS_DIR = path.join(".GOV", "task_packets");
+const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");

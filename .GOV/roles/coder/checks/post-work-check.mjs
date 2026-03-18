@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { execSync } from 'child_process';
+import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const usage = () => [
   'Usage: node post-work-check.mjs WP-{ID} [options]',
@@ -33,7 +34,7 @@ if (!WP_ID) {
 
 const cliArgs = args.slice(1);
 
-const SPEC_PATH = path.join('.GOV', 'roles_shared', 'checks', 'cor701-spec.json');
+const SPEC_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'cor701-spec.json');
 const spec = JSON.parse(fs.readFileSync(SPEC_PATH, 'utf8'));
 
 console.log(`\nPost-work validation for ${WP_ID} (deterministic manifest + gates)...\n`);
@@ -247,7 +248,7 @@ const parseDiffHunks = (targetPath, { staged, baseRev, headRev }) => {
   }
 };
 
-const taskPacketDir = '.GOV/task_packets';
+const taskPacketDir = `${GOV_ROOT_REPO_REL}/task_packets`;
 const packetPath = `${taskPacketDir}/${WP_ID}.md`;
 const packetContent = readFileIfExists(packetPath);
 
@@ -280,7 +281,7 @@ const parseInScopePaths = (content) => {
 
 const requiresManifest = (filePath) => {
   const p = filePath.replace(/\\/g, '/');
-  if (p.startsWith('.GOV/')) return false;
+  if (p.startsWith(`${GOV_ROOT_REPO_REL}/`)) return false;
   return true;
 };
 
@@ -664,16 +665,16 @@ if (useStaged && workingFiles.length > stagedFiles.length) {
   // Avoid warning noise for validator-only governance state.
   const stagedSet = new Set(stagedFiles.map((p) => p.replace(/\\/g, '/')));
   const allowlistedUnstaged = new Set([
-    '.GOV/roles_shared/records/TASK_BOARD.md',
-    '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
-    '.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json',
+    `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`,
+    `${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`,
+    `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
     packetPath.replace(/\\/g, '/'),
-    `.GOV/refinements/${WP_ID}.md`,
+    `${GOV_ROOT_REPO_REL}/refinements/${WP_ID}.md`,
   ].filter(Boolean));
 
   const isAllowlistedUnstaged = (p) =>
     allowlistedUnstaged.has(p)
-    || p.startsWith('.GOV/roles_shared/runtime/validator_gates/');
+    || p.startsWith(`${GOV_ROOT_REPO_REL}/roles_shared/runtime/validator_gates/`);
 
   const hasRelevantUnstaged = workingFiles
     .map((p) => p.replace(/\\/g, '/'))
@@ -692,11 +693,11 @@ if (manifests) {
   // Validate scope (best-effort): changed files must be subset of IN_SCOPE_PATHS (plus allowed governance files),
   // unless a waiver is present. This only applies to the evaluated diff set (staged preferred).
   const allowlisted = new Set([
-    '.GOV/roles_shared/records/TASK_BOARD.md',
-    '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
-    '.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json',
+    `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`,
+    `${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`,
+    `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
     packetPath.replace(/\\/g, '/'),
-    `.GOV/refinements/${WP_ID}.md`,
+    `${GOV_ROOT_REPO_REL}/refinements/${WP_ID}.md`,
   ].filter(Boolean));
 
   const outOfScope = changedFiles
@@ -887,6 +888,6 @@ if (errors.length === 0) {
     warnings.forEach((warn, i) => console.log(`  ${i + 1}. ${warn}`));
   }
   console.log('\nFix these issues before committing (gates enforce determinism).');
-  console.log('See: .GOV/roles/coder/CODER_PROTOCOL.md');
+  console.log(`See: ${GOV_ROOT_REPO_REL}/roles/coder/CODER_PROTOCOL.md`);
   process.exit(1);
 }

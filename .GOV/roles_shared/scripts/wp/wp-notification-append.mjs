@@ -9,8 +9,9 @@ import {
   NOTIFICATIONS_FILE_NAME,
   ROUTABLE_ROLE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
+import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 
-const PACKETS_DIR = path.join(".GOV", "task_packets");
+const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 function resolveRepoRoot() {
   try {
@@ -52,9 +53,9 @@ process.chdir(repoRoot);
 const latestSpec = findLatestSpec(repoRoot);
 const errors = [];
 
-const specCurrentPath = path.join(".GOV", "roles_shared", "records", "SPEC_CURRENT.md");
-const buildOrderPath = path.join(".GOV", "roles_shared", "records", "BUILD_ORDER.md");
-const pastWorkIndexPath = path.join(".GOV", "reference", "PAST_WORK_INDEX.md");
+const specCurrentPath = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "SPEC_CURRENT.md");
+const buildOrderPath = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "BUILD_ORDER.md");
+const pastWorkIndexPath = path.join(GOV_ROOT_REPO_REL, "reference", "PAST_WORK_INDEX.md");
 
 const specCurrent = readRequired(specCurrentPath);
 const buildOrder = readRequired(buildOrderPath);

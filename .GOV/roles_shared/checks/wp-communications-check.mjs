@@ -16,8 +16,9 @@ import {
   validateRuntimeStatus,
 } from "../scripts/lib/wp-communications-lib.mjs";
 import { packetUsesExternalGovernanceRuntime } from "../scripts/session/session-policy.mjs";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
-const PACKETS_DIR = path.join(".GOV", "task_packets");
+const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
 function fail(message, details = []) {
   console.error(`[WP_COMMUNICATIONS_CHECK] ${message}`);

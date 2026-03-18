@@ -24,6 +24,7 @@ import {
   SESSION_CONTROL_RUN_STALE_GRACE_SECONDS,
   SESSION_CONTROL_RUN_TIMEOUT_SECONDS,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const commandKind = String(process.argv[2] || "").trim().toUpperCase();
 const role = String(process.argv[3] || "").trim().toUpperCase();
@@ -55,7 +56,7 @@ function runGit(args) {
 }
 
 if (!["START_SESSION", "SEND_PROMPT", "CANCEL_SESSION", "CLOSE_SESSION"].includes(commandKind)) {
-  fail("Usage: node .GOV/roles/orchestrator/scripts/session-control-command.mjs <START_SESSION|SEND_PROMPT|CANCEL_SESSION|CLOSE_SESSION> <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [PROMPT] [PRIMARY|FALLBACK]");
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-command.mjs <START_SESSION|SEND_PROMPT|CANCEL_SESSION|CLOSE_SESSION> <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [PROMPT] [PRIMARY|FALLBACK]`);
 }
 if (!wpId || !wpId.startsWith("WP-")) {
   fail("WP_ID must start with WP-");
@@ -243,7 +244,7 @@ if (commandKind === "CLOSE_SESSION") {
 if (!fs.existsSync(absWorktreeDir)) {
   execFileSync(
     process.execPath,
-    [path.join(".GOV", "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs"), role, wpId, roleConfig.branch, roleConfig.worktreeDir],
+    [path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs"), role, wpId, roleConfig.branch, roleConfig.worktreeDir],
     { stdio: "inherit" },
   );
 }

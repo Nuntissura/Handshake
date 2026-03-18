@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { GOV_ROOT_REPO_REL } from '../scripts/lib/runtime-paths.mjs';
 
 /**
  * [CX-GATE-001] Binary Phase Gate Validator
@@ -16,7 +17,7 @@ if (!wpId) {
     process.exit(1);
 }
 
-const wpPath = path.join(process.cwd(), '.GOV', 'task_packets', `${wpId}.md`);
+const wpPath = path.join(process.cwd(), GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
 if (!fs.existsSync(wpPath)) {
     console.error(`? GATE FAIL: Task Packet ${wpId}.md not found.`);
     process.exit(1);

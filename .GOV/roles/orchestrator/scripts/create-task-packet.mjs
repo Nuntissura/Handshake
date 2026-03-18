@@ -73,14 +73,15 @@ import {
   SESSION_HOST_PREFERENCE,
   SESSION_LAUNCH_POLICY,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
+import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const WP_ID = process.argv[2];
 const allowOverwriteExisting = process.argv.includes('--overwrite-existing') || process.env.ALLOW_PACKET_OVERWRITE === '1';
 const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
 
 if (!WP_ID || !WP_ID.startsWith('WP-')) {
-  console.error('ERROR: Usage: node .GOV/roles/orchestrator/scripts/create-task-packet.mjs WP-{phase}-{name}');
-  console.error('Example: node .GOV/roles/orchestrator/scripts/create-task-packet.mjs WP-1-Job-Cancel');
+  console.error(`ERROR: Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/create-task-packet.mjs WP-{phase}-{name}`);
+  console.error(`Example: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/create-task-packet.mjs WP-1-Job-Cancel`);
   process.exit(1);
 }
 
@@ -134,7 +135,7 @@ function detectCommunicationArtifactDrift(packetPath, packetText) {
 }
 
 // HARD GATE: Technical Refinement must exist and be signed before packet creation.
-const refinementsDir = path.join('.GOV', 'refinements');
+const refinementsDir = path.join(GOV_ROOT_REPO_REL, 'refinements');
 if (!fs.existsSync(refinementsDir)) {
   fs.mkdirSync(refinementsDir, { recursive: true });
 }
@@ -143,7 +144,7 @@ const refinementPath = defaultRefinementPath(WP_ID);
 let userSignature = '';
 
 if (!fs.existsSync(refinementPath)) {
-  const refinementTemplatePath = path.join('.GOV', 'templates', 'REFINEMENT_TEMPLATE.md');
+  const refinementTemplatePath = path.join(GOV_ROOT_REPO_REL, 'templates', 'REFINEMENT_TEMPLATE.md');
   if (!fs.existsSync(refinementTemplatePath)) {
     console.error(`Missing refinement template: ${refinementTemplatePath}`);
     process.exit(1);
@@ -242,7 +243,7 @@ try {
         'Do NOT create/lock a WP packet while a Main Body or appendix spec update is required.',
       ],
       nextCommands: [
-        '# Run the spec update workflow (new spec version file + update .GOV/roles_shared/records/SPEC_CURRENT.md).',
+        `# Run the spec update workflow (new spec version file + update ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md).`,
         '# If the refinement expanded appendices (primitive index, feature registry, UI guidance, interaction matrix), land those changes in the new spec version first.',
         '# Create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
       ],
@@ -293,7 +294,7 @@ try {
 let signatureGate = null;
 let prepareGate = null;
 try {
-  const gatesPath = path.join('.GOV', 'roles', 'orchestrator', 'runtime', 'ORCHESTRATOR_GATES.json');
+  const gatesPath = path.join(GOV_ROOT_REPO_REL, 'roles', 'orchestrator', 'runtime', 'ORCHESTRATOR_GATES.json');
   const gates = JSON.parse(fs.readFileSync(gatesPath, 'utf8'));
   const logs = Array.isArray(gates.gate_logs) ? gates.gate_logs : [];
   const lastSig = [...logs].reverse().find((l) => l.wpId === WP_ID && l.type === 'SIGNATURE');
@@ -414,10 +415,10 @@ try {
     result: 'BLOCKED',
     why: 'Unable to verify signature in ORCHESTRATOR_GATES.json; cannot proceed deterministically.',
     gateOutputLines: [
-      'BLOCKED: Unable to verify signature in .GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json.',
+      `BLOCKED: Unable to verify signature in ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json.`,
     ],
     nextCommands: [
-      'cat .GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json',
+      `cat ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
     ],
   });
   process.exit(1);
@@ -425,7 +426,7 @@ try {
 
 // Gate: signature must be present in SIGNATURE_AUDIT.md (protocol requirement).
 try {
-  const auditPath = path.join('.GOV', 'roles_shared', 'records', 'SIGNATURE_AUDIT.md');
+  const auditPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'SIGNATURE_AUDIT.md');
   const audit = fs.readFileSync(auditPath, 'utf8');
   if (!audit.includes(`| ${userSignature} |`)) {
     printGateBlocks({
@@ -456,17 +457,17 @@ try {
     result: 'BLOCKED',
     why: 'Unable to verify signature in SIGNATURE_AUDIT.md; cannot proceed deterministically.',
     gateOutputLines: [
-      'BLOCKED: Unable to verify signature in .GOV/roles_shared/records/SIGNATURE_AUDIT.md.',
+      `BLOCKED: Unable to verify signature in ${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md.`,
     ],
     nextCommands: [
-      'cat .GOV/roles_shared/records/SIGNATURE_AUDIT.md',
+      `cat ${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`,
     ],
   });
   process.exit(1);
 }
 
 // Ensure directory exists
-const taskPacketDir = '.GOV/task_packets';
+const taskPacketDir = `${GOV_ROOT_REPO_REL}/task_packets`;
 if (!fs.existsSync(taskPacketDir)) {
   fs.mkdirSync(taskPacketDir, { recursive: true });
   console.log(`Created directory: ${taskPacketDir}/`);
@@ -541,7 +542,7 @@ try {
 }
 
 // Template content (canonical)
-const templatePath = path.join('.GOV', 'templates', 'TASK_PACKET_TEMPLATE.md');
+const templatePath = path.join(GOV_ROOT_REPO_REL, 'templates', 'TASK_PACKET_TEMPLATE.md');
 if (!fs.existsSync(templatePath)) {
   printGateBlocks({
     wpId: WP_ID,
@@ -555,7 +556,7 @@ if (!fs.existsSync(templatePath)) {
       `FAIL: Missing template: ${templatePath.replace(/\\/g, '/')}`,
     ],
     nextCommands: [
-      'ls .GOV/templates',
+      `ls ${GOV_ROOT_REPO_REL}/templates`,
     ],
   });
   process.exit(1);
@@ -570,7 +571,7 @@ const templateBody = templateStartIdx === -1
 
   let specBaseline = 'Handshake_Master_Spec_vXX.XX.md';
   try {
-    const specCurrent = fs.readFileSync(path.join('.GOV', 'roles_shared', 'records', 'SPEC_CURRENT.md'), 'utf8');
+    const specCurrent = fs.readFileSync(path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'SPEC_CURRENT.md'), 'utf8');
     const m = specCurrent.match(/Handshake_Master_Spec_v[0-9.]+\.md/);
     if (m) specBaseline = m[0];
   } catch {
@@ -795,12 +796,12 @@ if (isHydratedProfile) {
   template = replaceSection(template, 'AUTHORITY', `
 ## AUTHORITY
 - SPEC_BASELINE: ${specBaseline} (recorded_at: ${timestamp})
-- SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
+- SPEC_TARGET: ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
 - SPEC_ADD_MARKER_TARGET: ${specAddMarkerTarget}
 - SPEC_ANCHOR_PRIMARY: ${primarySpecAnchor}
 - Codex: Handshake Codex v1.4.md
-- Task Board: .GOV/roles_shared/records/TASK_BOARD.md
-- WP Traceability: .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
+- Task Board: ${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md
+- WP Traceability: ${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
 `);
 
   const clauseClosureRows = buildClauseClosureRows({
@@ -1028,7 +1029,7 @@ ${formatList(hydration.riskMap)}
   template = replaceSection(template, 'VALIDATION', `
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-\`.GOV/\` files, repeat the manifest block once per changed file (multiple \`**Target File**\` entries are supported).
+- If the WP changes multiple non-\`${GOV_ROOT_REPO_REL}/\` files, repeat the manifest block once per changed file (multiple \`**Target File**\` entries are supported).
 - SHA1 hint: stage your changes and run \`just cor701-sha <changed file>\` to get deterministic \`Pre-SHA1\` / \`Post-SHA1\` values.
 - **Target File**: \`N/A (fill after implementation)\`
 - **Start**: N/A
@@ -1051,7 +1052,7 @@ ${formatList(hydration.riskMap)}
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> ${specBaseline}
+- **Spec Target Resolved**: ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md -> ${specBaseline}
 - **Notes**:
 `);
 

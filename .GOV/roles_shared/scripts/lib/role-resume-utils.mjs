@@ -2,15 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import crypto from "node:crypto";
+import { GOV_ROOT_REPO_REL } from "./runtime-paths.mjs";
 
 export const ORCHESTRATOR_GATES_PATH = path.join(
-  ".GOV",
+  GOV_ROOT_REPO_REL,
   "roles",
   "orchestrator",
   "runtime",
   "ORCHESTRATOR_GATES.json",
 );
-export const TASK_BOARD_PATH = path.join(".GOV", "roles_shared", "records", "TASK_BOARD.md");
+export const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
 export const TERMINAL_TASK_BOARD_STATUSES = ["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"];
 export const IMPLICIT_ORCHESTRATOR_RESUME_LOOKBACK_HOURS = 168;
 
@@ -82,7 +83,7 @@ export function inferWpIdFromBranch(branch) {
 }
 
 export function packetPath(wpId) {
-  return path.join(".GOV", "task_packets", `${wpId}.md`);
+  return path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
 }
 
 export function packetExists(wpId) {
@@ -248,7 +249,7 @@ export function taskBoardEntries() {
 }
 
 function taskBoardStatusAtRepo(repoRoot, wpId) {
-  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
+  const taskBoardPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
   if (!exists(taskBoardPath)) return "";
   const content = readUtf8(taskBoardPath);
   const match = content.match(
@@ -258,7 +259,7 @@ function taskBoardStatusAtRepo(repoRoot, wpId) {
 }
 
 function traceabilityPacketPathAtRepo(repoRoot, baseWpId) {
-  const traceabilityPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "WP_TRACEABILITY_REGISTRY.md");
+  const traceabilityPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "WP_TRACEABILITY_REGISTRY.md");
   if (!exists(traceabilityPath)) return "";
   const content = readUtf8(traceabilityPath);
   const lines = content.split(/\r?\n/);
@@ -273,7 +274,7 @@ function traceabilityPacketPathAtRepo(repoRoot, baseWpId) {
 }
 
 function resolveSpecSnapshotAtRepo(repoRoot) {
-  const specCurrentPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "SPEC_CURRENT.md");
+  const specCurrentPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "SPEC_CURRENT.md");
   if (!exists(specCurrentPath)) {
     return { ok: false, error: `Missing ${specCurrentPath}` };
   }
@@ -292,7 +293,7 @@ function resolveSpecSnapshotAtRepo(repoRoot) {
 }
 
 function lastPrepareEntryAtRepo(repoRoot, wpId) {
-  const gatesPath = path.join(repoRoot, ".GOV", "roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
+  const gatesPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
   if (!exists(gatesPath)) return null;
   let state = {};
   try {
@@ -332,8 +333,8 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
     issues.push(`Assigned worktree branch mismatch: expected ${expectedBranch}, got ${actualBranch}`);
   }
 
-  const packetPath = path.join(worktreeAbs, ".GOV", "task_packets", `${wpId}.md`);
-  const referencePacketPath = path.join(repoRoot, ".GOV", "task_packets", `${wpId}.md`);
+  const packetPath = path.join(worktreeAbs, GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  const referencePacketPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
   if (!exists(packetPath)) {
     issues.push(`Assigned worktree is missing the official packet: ${packetPath}`);
   } else if (exists(referencePacketPath)) {

@@ -12,14 +12,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
+import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const wpId = process.argv[2];
 if (!wpId) {
-  console.error('Usage: node .GOV/roles/coder/checks/coder-skeleton-checkpoint.mjs WP-{ID}');
+  console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/coder/checks/coder-skeleton-checkpoint.mjs WP-{ID}`);
   process.exit(1);
 }
 
-const packetRel = path.join('.GOV', 'task_packets', `${wpId}.md`);
+const packetRel = path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
 if (!fs.existsSync(packetRel)) {
   console.error(`FAIL: Task packet not found: ${packetRel}`);
   process.exit(1);

@@ -19,9 +19,10 @@ import {
   validatorGatePath,
   resolveValidatorGatePath,
 } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 function usage() {
-  console.error("Usage: node .GOV/roles/validator/checks/validator-handoff-check.mjs WP-{ID} [--rev <git-rev> | --range <base>..<head>]");
+  console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/checks/validator-handoff-check.mjs WP-{ID} [--rev <git-rev> | --range <base>..<head>]`);
   process.exit(1);
 }
 
@@ -186,7 +187,7 @@ const workflowAuthority = parseClaimField(packetContentForContext, "WORKFLOW_AUT
 const expectedGovernanceBranch = authorityRoleToBranch(workflowAuthority);
 
 if (!packetExists(parsed.wpId)) {
-  hardFail("Task packet not found", [`.GOV/task_packets/${parsed.wpId}.md`]);
+  hardFail("Task packet not found", [`${GOV_ROOT_REPO_REL}/task_packets/${parsed.wpId}.md`]);
 }
 
 const logs = loadOrchestratorGateLogs();
@@ -231,10 +232,10 @@ const nonBlockingSyncWarnings = (syncState.issues || []).filter((issue) =>
   !/does not exist|branch mismatch|PREPARE is missing worktree_dir|could not be resolved/i.test(issue),
 );
 
-const worktreePacketPath = path.join(worktreeAbs, ".GOV", "task_packets", `${parsed.wpId}.md`);
+const worktreePacketPath = path.join(worktreeAbs, GOV_ROOT_REPO_REL, "task_packets", `${parsed.wpId}.md`);
 const packetContent = fs.existsSync(worktreePacketPath)
   ? fs.readFileSync(worktreePacketPath, "utf8")
-  : fs.readFileSync(path.join(".GOV", "task_packets", `${parsed.wpId}.md`), "utf8");
+  : fs.readFileSync(path.join(GOV_ROOT_REPO_REL, "task_packets", `${parsed.wpId}.md`), "utf8");
 const committedTarget = selectCommittedTarget(syncState.worktreeAbs, packetContent, parsed);
 let targetHeadSha = committedTarget.targetHeadSha;
 try {

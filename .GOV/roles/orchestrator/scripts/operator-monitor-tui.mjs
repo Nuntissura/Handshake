@@ -26,16 +26,17 @@ import {
   SESSION_CONTROL_RESULTS_FILE,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { TOPOLOGY_REGISTRY_JSON_PATH } from "../../../roles_shared/scripts/topology/git-topology-lib.mjs";
+import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
-const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
-const TRACEABILITY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
+const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
+const TRACEABILITY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 const TOPOLOGY_PATH = TOPOLOGY_REGISTRY_JSON_PATH;
-const ORCHESTRATOR_GATES_PATH = ".GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json";
+const ORCHESTRATOR_GATES_PATH = `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`;
 const SESSION_CONTROL_REQUESTS_PATH = SESSION_CONTROL_REQUESTS_FILE;
 const SESSION_CONTROL_RESULTS_PATH = SESSION_CONTROL_RESULTS_FILE;
 const SESSION_CONTROL_BROKER_STATE_PATH = SESSION_CONTROL_BROKER_STATE_FILE;
-const PACKETS_DIR = ".GOV/task_packets";
-const PACKET_STUBS_DIR = ".GOV/task_packets/stubs";
+const PACKETS_DIR = `${GOV_ROOT_REPO_REL}/task_packets`;
+const PACKET_STUBS_DIR = `${GOV_ROOT_REPO_REL}/task_packets/stubs`;
 
 const FILTERS = ["ALL", "ACTIVE", "READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "STUB", "DONE", "SUPERSEDED"];
 const DETAIL_VIEWS = ["OVERVIEW", "DOCS", "COMMS", "SESSIONS", "TIMELINE", "CONTROL", "EVENTS"];
@@ -300,7 +301,7 @@ function parseTraceabilityRegistry() {
     const parts = line.split("|").slice(1, -1).map((value) => value.trim());
     if (parts.length < 4) continue;
     const [baseWpId, activePacket] = parts;
-    if (!/^WP-/.test(baseWpId) || !activePacket.startsWith(".GOV/")) continue;
+    if (!/^WP-/.test(baseWpId) || !activePacket.startsWith(`${GOV_ROOT_REPO_REL}/`)) continue;
     byBaseWpId.set(baseWpId, activePacket);
     byWpId.set(path.basename(activePacket, ".md"), activePacket);
   }
@@ -437,7 +438,7 @@ function loadBoardSourceInfo() {
       : null;
     if (canonical?.rel_path) {
       info.canonical_worktree_dir = normalize(path.resolve(process.cwd(), canonical.rel_path));
-      info.canonical_board_path = normalize(path.resolve(process.cwd(), canonical.rel_path, ".GOV/roles_shared/records/TASK_BOARD.md"));
+      info.canonical_board_path = normalize(path.resolve(process.cwd(), canonical.rel_path, `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`));
     }
     const isCanonical = info.canonical_worktree_dir && info.current_worktree_dir === info.canonical_worktree_dir;
     if (isCanonical) {
@@ -798,7 +799,7 @@ function parsePacketRecord(packetPath, prepareAssignment = null) {
 }
 
 function refinementPathForWp(wpId) {
-  const candidate = normalize(path.join(".GOV", "refinements", `${wpId}.md`));
+  const candidate = normalize(path.join(GOV_ROOT_REPO_REL, "refinements", `${wpId}.md`));
   return fs.existsSync(candidate) ? candidate : "";
 }
 
@@ -816,7 +817,7 @@ function validatorGatePathForWp(wpId) {
 }
 
 function latestAuditPathForWp(baseWpId, wpId) {
-  const auditDir = normalize(path.join(".GOV", "Audits"));
+  const auditDir = normalize(path.join(GOV_ROOT_REPO_REL, "Audits"));
   if (!fs.existsSync(auditDir)) return "";
   const matches = fs.readdirSync(auditDir, { withFileTypes: true })
     .filter((entry) => entry.isFile())

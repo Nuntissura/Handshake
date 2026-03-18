@@ -13,6 +13,17 @@ Note: Frontend and Tauri shell live under `app/` and `app/src-tauri/` (codex dev
 
 Feature flags/toggles: If introducing flags, document the flag name and location here and in relevant modules.
 
+## Governance Kernel Path Resolution [CX-212B/C]
+
+All governance scripts and justfile recipes resolve the governance root through the `HANDSHAKE_GOV_ROOT` environment variable instead of hardcoding `.GOV/`.
+
+| Surface | Resolution mechanism | Fallback |
+| --- | --- | --- |
+| Node.js scripts | `GOV_ROOT_REPO_REL` from `runtime-paths.mjs` | `.GOV/` (relative to repo root) |
+| Justfile recipes | `{{GOV_ROOT}}` via `env_var_or_default('HANDSHAKE_GOV_ROOT', '.GOV')` | `.GOV/` |
+
+This enables a **governance kernel worktree**: a dedicated worktree holding the canonical `.GOV/` copy. Role worktrees set `HANDSHAKE_GOV_ROOT` to point at the kernel, so all governance execution (checks, scripts, gates) runs from the single canonical source. No cherry-picking or propagation is needed.
+
 ## Raw / Derived / Display (RDD)
 - Raw: SQLite-backed content is persisted by the backend (`src/backend/handshake_core/migrations/` and API handlers in `src/backend/handshake_core/src/api/`).
 - Derived: TBD (HSK-1003) - no concrete derived pipeline is implemented yet; track when indexing/embeddings land.

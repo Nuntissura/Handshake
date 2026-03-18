@@ -16,10 +16,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
+import { GOV_ROOT_REPO_REL } from '../scripts/lib/runtime-paths.mjs';
 
 const wpId = process.argv[2];
 if (!wpId) {
-  console.error('Usage: node .GOV/roles_shared/checks/skeleton-approved.mjs WP-{ID}');
+  console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles_shared/checks/skeleton-approved.mjs WP-{ID}`);
   process.exit(1);
 }
 
@@ -42,7 +43,7 @@ function parseSingleField(text, label) {
   return m ? m[1].trim() : '';
 }
 
-const packetPath = path.join('.GOV', 'task_packets', `${wpId}.md`);
+const packetPath = path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
 let workflowLane = '';
 if (fs.existsSync(packetPath)) {
   try {

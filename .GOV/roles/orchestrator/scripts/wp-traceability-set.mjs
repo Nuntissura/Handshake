@@ -11,10 +11,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
-const REGISTRY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
-const OFFICIAL_DIR = ".GOV/task_packets";
-const STUB_DIR = ".GOV/task_packets/stubs";
+const REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
+const OFFICIAL_DIR = `${GOV_ROOT_REPO_REL}/task_packets`;
+const STUB_DIR = `${GOV_ROOT_REPO_REL}/task_packets/stubs`;
 
 function fail(message, details = []) {
   console.error(`[WP_TRACEABILITY_SET] ${message}`);
@@ -75,8 +76,8 @@ function main() {
   const activeWpId = (process.argv[3] || "").trim();
 
   if (!baseWpId || !baseWpId.startsWith("WP-")) {
-    fail("Usage: node .GOV/roles/orchestrator/scripts/wp-traceability-set.mjs <BASE_WP_ID> <ACTIVE_PACKET_WP_ID>", [
-      "Example: node .GOV/roles/orchestrator/scripts/wp-traceability-set.mjs WP-1-Workflow-Engine WP-1-Workflow-Engine-v4",
+    fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/wp-traceability-set.mjs <BASE_WP_ID> <ACTIVE_PACKET_WP_ID>`, [
+      `Example: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/wp-traceability-set.mjs WP-1-Workflow-Engine WP-1-Workflow-Engine-v4`,
     ]);
   }
   if (!activeWpId || !activeWpId.startsWith("WP-")) {

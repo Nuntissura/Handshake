@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 function resolveRepoRoot() {
   try {
@@ -75,44 +76,44 @@ const roots = [
   path.join(repoRoot, "AGENTS.md"),
   path.join(repoRoot, "justfile"),
   path.join(repoRoot, ".github"),
-  path.join(repoRoot, ".GOV", "README.md"),
-  path.join(repoRoot, ".GOV", "GOV_KERNEL", "01_AUTHORITY_AND_ROLES.md"),
-  path.join(repoRoot, ".GOV", "GOV_KERNEL", "02_ARTIFACTS_AND_CONTRACTS.md"),
-  path.join(repoRoot, ".GOV", "GOV_KERNEL", "03_GATES_AND_ENFORCERS.md"),
-  path.join(repoRoot, ".GOV", "GOV_KERNEL", "05_CI_HOOKS_AND_CONFIG.md"),
-  path.join(repoRoot, ".GOV", "GOV_KERNEL", "06_VERSIONING_AND_DRIFT_CONTROL.md"),
-  path.join(repoRoot, ".GOV", "roles", "README.md"),
-  path.join(repoRoot, ".GOV", "roles", "coder", "README.md"),
-  path.join(repoRoot, ".GOV", "roles", "coder", "CODER_PROTOCOL.md"),
-  path.join(repoRoot, ".GOV", "roles", "coder", "checks"),
-  path.join(repoRoot, ".GOV", "roles", "coder", "scripts"),
-  path.join(repoRoot, ".GOV", "roles", "orchestrator", "README.md"),
-  path.join(repoRoot, ".GOV", "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md"),
-  path.join(repoRoot, ".GOV", "roles", "orchestrator", "checks"),
-  path.join(repoRoot, ".GOV", "roles", "orchestrator", "scripts"),
-  path.join(repoRoot, ".GOV", "roles", "validator", "README.md"),
-  path.join(repoRoot, ".GOV", "roles", "validator", "VALIDATOR_PROTOCOL.md"),
-  path.join(repoRoot, ".GOV", "roles", "validator", "checks"),
-  path.join(repoRoot, ".GOV", "roles", "validator", "scripts"),
-  path.join(repoRoot, ".GOV", "roles_shared", "README.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "docs", "ARCHITECTURE.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "docs", "BOUNDARY_RULES.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "docs", "REPO_RESILIENCE.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "docs", "ROLE_SESSION_ORCHESTRATION.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "docs", "ROLE_WORKFLOW_QUICKREF.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "docs", "ROLE_WORKTREES.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "docs", "START_HERE.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "docs", "DEPRECATION_SUNSET_PLAN.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "docs", "VALIDATOR_FILE_TOUCH_MAP.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "records"),
-  path.join(repoRoot, ".GOV", "roles_shared", "checks"),
-  path.join(repoRoot, ".GOV", "roles_shared", "scripts"),
-  path.join(repoRoot, ".GOV", "roles_shared", "exports"),
-  path.join(repoRoot, ".GOV", "roles_shared", "schemas"),
-  path.join(repoRoot, ".GOV", "reference", "README.md"),
-  path.join(repoRoot, ".GOV", "templates"),
-  path.join(repoRoot, ".GOV", "tools"),
-  path.join(repoRoot, ".GOV", "docs", "vscode-session-bridge", "GOVERNED_SESSION_CONTROL_ARCHITECTURE.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "README.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "GOV_KERNEL", "01_AUTHORITY_AND_ROLES.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "GOV_KERNEL", "02_ARTIFACTS_AND_CONTRACTS.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "GOV_KERNEL", "03_GATES_AND_ENFORCERS.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "GOV_KERNEL", "05_CI_HOOKS_AND_CONFIG.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "GOV_KERNEL", "06_VERSIONING_AND_DRIFT_CONTROL.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "README.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "coder", "README.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "coder", "CODER_PROTOCOL.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "coder", "checks"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "coder", "scripts"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "orchestrator", "README.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "orchestrator", "checks"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "validator", "README.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "validator", "VALIDATOR_PROTOCOL.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "validator", "checks"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "validator", "scripts"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "README.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "docs", "ARCHITECTURE.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "docs", "BOUNDARY_RULES.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "docs", "REPO_RESILIENCE.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "docs", "ROLE_SESSION_ORCHESTRATION.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "docs", "ROLE_WORKFLOW_QUICKREF.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "docs", "ROLE_WORKTREES.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "docs", "START_HERE.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "docs", "DEPRECATION_SUNSET_PLAN.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "docs", "VALIDATOR_FILE_TOUCH_MAP.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "checks"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "scripts"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "exports"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "schemas"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "reference", "README.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "templates"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "tools"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "docs", "vscode-session-bridge", "GOVERNED_SESSION_CONTROL_ARCHITECTURE.md"),
 ];
 
 const files = roots.flatMap((root) => {
@@ -123,22 +124,22 @@ const files = roots.flatMap((root) => {
 const violations = [];
 
 function isExcludedRuntimeArtifact(relPath) {
-  return relPath === ".GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json"
-    || relPath === ".GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl"
-    || relPath === ".GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl"
-    || relPath === ".GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl"
-    || relPath === ".GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json"
-    || relPath.startsWith(".GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/");
+  return relPath === `${GOV_ROOT_REPO_REL}/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
+    || relPath === `${GOV_ROOT_REPO_REL}/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl`
+    || relPath === `${GOV_ROOT_REPO_REL}/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl`
+    || relPath === `${GOV_ROOT_REPO_REL}/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`
+    || relPath === `${GOV_ROOT_REPO_REL}/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json`
+    || relPath.startsWith(`${GOV_ROOT_REPO_REL}/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/`);
 }
 
 for (const filePath of files) {
   // Exclude evidence/history folders that may contain old absolute paths.
   const rel = toPosix(path.relative(repoRoot, filePath));
   if (
-    rel.startsWith(".GOV/task_packets/") ||
-    rel.startsWith(".GOV/refinements/") ||
-    rel.startsWith(".GOV/Audits/") ||
-    rel.startsWith(".GOV/operator/") ||
+    rel.startsWith(`${GOV_ROOT_REPO_REL}/task_packets/`) ||
+    rel.startsWith(`${GOV_ROOT_REPO_REL}/refinements/`) ||
+    rel.startsWith(`${GOV_ROOT_REPO_REL}/Audits/`) ||
+    rel.startsWith(`${GOV_ROOT_REPO_REL}/operator/`) ||
     isExcludedRuntimeArtifact(rel)
   ) {
     continue;

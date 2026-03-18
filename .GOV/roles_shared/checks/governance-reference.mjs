@@ -12,8 +12,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
-const SPEC_CURRENT_REL = path.join(".GOV", "roles_shared", "records", "SPEC_CURRENT.md");
+const SPEC_CURRENT_REL = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "SPEC_CURRENT.md");
 
 function tryGitRepoRoot() {
   try {
@@ -65,7 +66,7 @@ export function resolveGovernanceReference(options = {}) {
 }
 
 function printUsageAndExit() {
-  console.error("Usage: node .GOV/roles_shared/checks/governance-reference.mjs [--print-file|--print-path|--json]");
+  console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles_shared/checks/governance-reference.mjs [--print-file|--print-path|--json]`);
   process.exit(2);
 }
 

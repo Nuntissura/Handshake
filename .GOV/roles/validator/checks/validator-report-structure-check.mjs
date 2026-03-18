@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { packetUsesStructuredValidationReport, packetRequiresSpecClauseMap } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
-const PACKETS_DIR = path.join(".GOV", "task_packets");
+const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
 function fail(message, details = []) {
   console.error(`[VALIDATOR_REPORT_STRUCTURE_CHECK] ${message}`);
