@@ -237,7 +237,11 @@ export function validateRuntimeStatus(data) {
   if (!isNonEmptyString(data.wp_id) || !/^WP-/.test(data.wp_id)) errors.push("wp_id must start with WP-");
   if (!isNonEmptyString(data.base_wp_id) || !/^WP-/.test(data.base_wp_id)) errors.push("base_wp_id must start with WP-");
   const taskPacketPrefix = GOV_ROOT_REPO_REL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  if (!isNonEmptyString(data.task_packet) || !new RegExp(`^${taskPacketPrefix}/task_packets/WP-.*\\.md$`).test(normalize(data.task_packet))) {
+  const taskPacketFallback = "\\.GOV";
+  if (!isNonEmptyString(data.task_packet) || !(
+    new RegExp(`^${taskPacketPrefix}/task_packets/WP-.*\\.md$`).test(normalize(data.task_packet))
+    || new RegExp(`^${taskPacketFallback}/task_packets/WP-.*\\.md$`).test(normalize(data.task_packet))
+  )) {
     errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md`);
   }
   const currentPaths = communicationPathsForWp(data.wp_id);
