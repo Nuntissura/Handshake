@@ -127,7 +127,6 @@ function buildPowerShellScript({
   branch,
   headSha,
   tokenFile,
-  approvalExact,
 }) {
   return [
     "param(",
@@ -144,7 +143,6 @@ function buildPowerShellScript({
     `\$ExpectedBranch = ${quotePsLiteral(branch)}`,
     `\$ExpectedHead = ${quotePsLiteral(headSha)}`,
     `\$TokenFile = ${quotePsLiteral(normalizePath(tokenFile))}`,
-    `\$ApprovalExact = ${quotePsLiteral(approvalExact)}`,
     "",
     "function Fail([string]$Message, [string[]]$Details = @()) {",
     "  Write-Error \"[GENERATED_WORKTREE_CLEANUP] $Message\"",
@@ -152,8 +150,9 @@ function buildPowerShellScript({
     "  exit 1",
     "}",
     "",
-    "if ($Approval -ne $ApprovalExact) {",
-    "  Fail 'Approval text mismatch.' @(\"required=$ApprovalExact\")",
+    "$ApprovalNormalized = $Approval.Trim().ToLowerInvariant()",
+    "if (@('approved','proceed') -notcontains $ApprovalNormalized) {",
+    "  Fail 'Approval acknowledgement mismatch.' @('accepted approvals: approved | proceed')",
     "}",
     "",
     "if (-not (Test-Path -LiteralPath $RepoRoot)) {",
@@ -181,7 +180,6 @@ function buildPowerShellScript({
     "try {",
     "  & node '.GOV/roles_shared/scripts/topology/delete-local-worktree.mjs' $WorktreeId `",
     "    --approve $Approval `",
-    "    --approval-exact $ApprovalExact `",
     "    --expect-abs-path $WorktreePath `",
     "    --expect-branch $ExpectedBranch `",
     "    --expect-head $ExpectedHead `",
@@ -246,7 +244,6 @@ function main() {
   const issuedAt = new Date().toISOString();
   const expiresAt = new Date(Date.now() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const tokenFile = path.join(gitDir, `handshake-cleanup-token-${sanitizeFileSegment(role.toLowerCase())}-${sanitizeFileSegment(wpId)}.json`);
-  const approvalExact = `APPROVE DELETE LOCAL WORKTREE ${worktreeId} FOR ${wpId} ROLE ${role}`;
 
   const tokenPayload = {
     schema_id: WORKTREE_CLEANUP_TOKEN_SCHEMA,
@@ -280,7 +277,6 @@ function main() {
     branch: target.branch,
     headSha,
     tokenFile,
-    approvalExact,
   });
   fs.writeFileSync(scriptPath, `${scriptContent}\n`);
 
@@ -297,7 +293,7 @@ function main() {
     expected_branch: target.branch,
     expected_head_sha: headSha,
     source: target.source,
-    approval_exact: approvalExact,
+    approval_reply_tokens: ["approved", "proceed"],
     token_file: normalizePath(tokenFile),
     token_sha256: tokenHash,
     expires_at: expiresAt,
@@ -316,11 +312,11 @@ function main() {
   console.log(`- SCRIPT_PATH: ${normalizePath(scriptPath)}`);
   console.log(`- MANIFEST_PATH: ${normalizePath(manifestPath)}`);
   console.log(`- TOKEN_FILE: ${normalizePath(tokenFile)}`);
-  console.log(`- APPROVAL_TEXT: ${approvalExact}`);
+  console.log(`- APPROVAL_REPLY: approved | proceed`);
   console.log(`- EXPIRES_AT: ${expiresAt}`);
   console.log(`- TOKEN: ${tokenPlaintext}`);
   console.log("- RUN_EXAMPLE:");
-  console.log(`  powershell -ExecutionPolicy Bypass -File "${normalizePath(scriptPath)}" -Approval "${approvalExact}" -Token "${tokenPlaintext}"`);
+  console.log(`  powershell -ExecutionPolicy Bypass -File "${normalizePath(scriptPath)}" -Approval "approved" -Token "${tokenPlaintext}"`);
 }
 
 main();

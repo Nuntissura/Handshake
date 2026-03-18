@@ -26,19 +26,16 @@
 - Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Startup must surface `just backup-status` so backup configuration and recent immutable snapshots are visible before validation proceeds. This is safety context only, not a bypass for destructive-op approvals.
-- Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact targets, and ask for an approval command naming those targets deterministically.
+- Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact actions + exact targets, and ask for approval on that presented list.
 - For clearer language going forward, use these exact terms:
   - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
   - `remote branch` or `GitHub branch`: a branch at `origin/<name>`, for example `origin/main`
   - `worktree`: a directory on disk, for example `handshake_main` or `wt-validator`
   - `canonical branch`: always `main`
   - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/role_validator`
-- Broad requests like "clean up branches" or "sync everything" are insufficient for destructive or branch-moving work. Ask for deterministic approvals that name object type + exact target(s), for example:
-  - `APPROVE DELETE LOCAL WORKTREE wt-WP-1-Example`
-  - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`
-  - `APPROVE FAST_FORWARD REMOTE BRANCH role_validator TO main`
+- Broad requests like "clean up branches" or "sync everything" are insufficient for destructive or branch-moving work. Present a deterministic list of exact actions + exact targets first. For that most recently presented list, the only valid approval replies are `approved` or `proceed`. If the list changes, ask again.
 - Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
-- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion. Never use direct filesystem deletion on worktree paths.
+- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the list has been presented. Never use direct filesystem deletion on worktree paths.
 - If `git worktree remove` fails, STOP immediately. Do not continue with manual cleanup inside the shared worktree root.
 - For orchestrator-managed WP cleanup after merge, do not improvise deletion commands. Use the Orchestrator-generated single-target cleanup script for the exact CODER or WP_VALIDATOR worktree:
   - `just generate-worktree-cleanup-script WP-{ID} CODER`
@@ -723,8 +720,8 @@ FLOW DIAGRAM:
 ## Post-Merge Cleanup (reduces branch confusion)
 - Do NOT delete local WP branches or remote WP backup branches as routine cleanup.
 - Any local or remote WP branch deletion requires explicit Operator approval naming the exact target(s).
-- When deletion is approved, use the deterministic helper with the exact approval text:
-  - `just close-wp-branch WP-{ID} "--remote" "APPROVE DELETE LOCAL BRANCH feat/WP-{ID}; APPROVE DELETE REMOTE BRANCH feat/WP-{ID}"`
+- When deletion is approved for a presented exact action/target list, use the deterministic helper with `approved` or `proceed`:
+  - `just close-wp-branch WP-{ID} "--remote" "approved"`
 
 ## Report Template
 ```

@@ -25,8 +25,9 @@ function fail(message, details = []) {
 }
 
 function usage() {
-  fail("Usage: node .GOV/roles_shared/scripts/topology/delete-local-worktree.mjs <WORKTREE_ID> --approve \"APPROVE DELETE LOCAL WORKTREE <WORKTREE_ID>\"", [
-    "Example: node .GOV/roles_shared/scripts/topology/delete-local-worktree.mjs wt-WP-1-Example --approve \"APPROVE DELETE LOCAL WORKTREE wt-WP-1-Example\"",
+  fail("Usage: node .GOV/roles_shared/scripts/topology/delete-local-worktree.mjs <WORKTREE_ID> --approve \"approved|proceed\"", [
+    "Before running this helper, present the exact cleanup action + target list to the Operator and capture `approved` or `proceed` for that list.",
+    "Example: node .GOV/roles_shared/scripts/topology/delete-local-worktree.mjs wt-WP-1-Example --approve \"approved\"",
   ]);
 }
 
@@ -121,17 +122,18 @@ function comparablePath(value) {
   return path.resolve(String(value || "")).replace(/\\/g, "/").toLowerCase();
 }
 
+function normalizeApproval(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 function requireApproval(worktreeId, approval, approvalExact = "") {
-  const required = approvalExact || `APPROVE DELETE LOCAL WORKTREE ${worktreeId}`;
-  if (approvalExact) {
-    if (approval !== required) {
-      fail("Approval text does not exactly match the generated cleanup target", [`required=${required}`]);
-    }
-    return;
-  }
-  if (!approval.includes(required)) {
-    fail("Missing deterministic Operator approval text", [`required token: ${required}`]);
-  }
+  const normalized = normalizeApproval(approval);
+  if (normalized === "approved" || normalized === "proceed") return;
+
+  fail("Missing valid approval acknowledgement", [
+    "accepted approvals: approved | proceed",
+    `worktree_id=${worktreeId}`,
+  ]);
 }
 
 function listRegisteredWorktrees() {
@@ -482,4 +484,3 @@ function main() {
 }
 
 main();
-

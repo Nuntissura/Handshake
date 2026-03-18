@@ -56,7 +56,7 @@ if (worktreeCandidates.length === 0) {
   console.log("  - NONE");
 } else {
   for (const row of worktreeCandidates) {
-    console.log(`  - ${row.id} | rel_path=${row.rel_path} | git_checkout=${row.is_git_checkout ? "YES" : "NO"} | assistant_deletable=${row.is_git_checkout ? "YES" : "NO"} | approval_example=APPROVE DELETE LOCAL WORKTREE ${row.id} | command_example=just delete-local-worktree ${row.id} "APPROVE DELETE LOCAL WORKTREE ${row.id}"`);
+    console.log(`  - ${row.id} | rel_path=${row.rel_path} | git_checkout=${row.is_git_checkout ? "YES" : "NO"} | assistant_deletable=${row.is_git_checkout ? "YES" : "NO"} | approval_reply=approved|proceed | command_example=just delete-local-worktree ${row.id} "approved"`);
   }
 }
 
@@ -65,7 +65,7 @@ if (localBranchCandidates.length === 0) {
   console.log("  - NONE");
 } else {
   for (const row of localBranchCandidates) {
-    console.log(`  - checkout=${row.checkout} | branch=${row.branch} | current=${row.current ? "YES" : "NO"} | approval_example=APPROVE DELETE LOCAL BRANCH ${row.branch}`);
+    console.log(`  - checkout=${row.checkout} | branch=${row.branch} | current=${row.current ? "YES" : "NO"} | approval_reply=approved|proceed`);
   }
 }
 
@@ -74,11 +74,11 @@ if (remoteBranchCandidates.length === 0) {
   console.log("  - NONE");
 } else {
   for (const row of remoteBranchCandidates) {
-    console.log(`  - branch=${row.branch} | sha=${row.sha} | approval_example=APPROVE DELETE REMOTE BRANCH ${row.branch}`);
+    console.log(`  - branch=${row.branch} | sha=${row.sha} | approval_reply=approved|proceed`);
   }
 }
 
 console.log("- Fast-forward examples:");
 for (const branch of PROTECTED_BRANCHES.filter((name) => name !== "main")) {
-  console.log(`  - APPROVE FAST_FORWARD REMOTE BRANCH ${branch} TO main`);
+  console.log(`  - branch=${branch} | action=FAST_FORWARD_REMOTE_TO_MAIN | approval_reply=approved|proceed`);
 }

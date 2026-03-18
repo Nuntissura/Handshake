@@ -29,8 +29,8 @@
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: Coder-A
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -82,7 +82,7 @@
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** In Progress
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->

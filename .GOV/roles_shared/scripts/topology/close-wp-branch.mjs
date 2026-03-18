@@ -18,8 +18,9 @@ function fail(message, details = []) {
 
 function usage() {
   fail("Usage: node .GOV/roles_shared/scripts/topology/close-wp-branch.mjs <WP_ID> [--remote] --approve \"<approval text>\"", [
-    "Example (local only): node .GOV/roles_shared/scripts/topology/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3 --approve \"APPROVE DELETE LOCAL BRANCH feat/WP-1-MEX-v1.2-Runtime-v3\"",
-    "Example (also delete origin branch): node .GOV/roles_shared/scripts/topology/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3 --remote --approve \"APPROVE DELETE LOCAL BRANCH feat/WP-1-MEX-v1.2-Runtime-v3; APPROVE DELETE REMOTE BRANCH feat/WP-1-MEX-v1.2-Runtime-v3\"",
+    "Before running this helper, present the exact close action + target list to the Operator and capture `approved` or `proceed` for that list.",
+    "Example (local only): node .GOV/roles_shared/scripts/topology/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3 --approve \"approved\"",
+    "Example (also delete origin branch): node .GOV/roles_shared/scripts/topology/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3 --remote --approve \"proceed\"",
   ]);
 }
 
@@ -76,15 +77,13 @@ function remoteBranchExists(remoteName, branch) {
 }
 
 function requireApproval(approval, branch, remote) {
-  const required = [`APPROVE DELETE LOCAL BRANCH ${branch}`];
-  if (remote) required.push(`APPROVE DELETE REMOTE BRANCH ${branch}`);
-  const missing = required.filter((token) => !approval.includes(token));
-  if (missing.length > 0) {
-    fail("Missing deterministic Operator approval text", [
-      `branch=${branch}`,
-      ...missing.map((token) => `required token: ${token}`),
-    ]);
-  }
+  const normalized = String(approval || "").trim().toLowerCase();
+  if (normalized === "approved" || normalized === "proceed") return;
+  fail("Missing valid approval acknowledgement", [
+    `branch=${branch}`,
+    `remote_delete=${remote ? "YES" : "NO"}`,
+    "accepted approvals: approved | proceed",
+  ]);
 }
 
 function createSafetySnapshot(wpId) {
@@ -142,4 +141,3 @@ function main() {
 }
 
 main();
-

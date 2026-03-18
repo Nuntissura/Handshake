@@ -18,19 +18,16 @@
 - Before any destructive or state-hiding local git action (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed branch state to its matching GitHub backup branch.
 - Before deleting local branches/worktrees or doing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Role startup now includes `just backup-status` so Codex can see whether local/NAS backup roots are configured and whether recent immutable snapshots exist. Treat that visibility as safety context, not as authorization to skip destructive-op approvals.
-- Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, stop and ask for an approval command naming the exact targets.
+- Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, stop, list the exact actions + exact targets, and ask for approval on that presented list.
 - For clearer language going forward, use these exact terms:
   - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
   - `remote branch` or `GitHub branch`: a branch at `origin/<name>`, for example `origin/main`
   - `worktree`: a directory on disk, for example `handshake_main` or `wt-validator`
   - `canonical branch`: always `main`
   - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/role_validator`
-- Broad requests like "clean up branches" or "sync everything" are insufficient. Use deterministic approvals that name object type + exact target(s), for example:
-  - `APPROVE DELETE LOCAL WORKTREE wt-WP-1-Example`
-  - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`
-  - `APPROVE FAST_FORWARD REMOTE BRANCH role_validator TO main`
-- Use `just enumerate-cleanup-targets` to print current exact targets and copy-paste approval examples.
-- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion. Never delete worktree directories directly with `rm`, `del`, or `Remove-Item`.
+- Broad requests like "clean up branches" or "sync everything" are insufficient. Present a deterministic list of exact actions + exact targets first. For that most recently presented list, the only valid approval replies are `approved` or `proceed`. If the action/target list changes, ask again.
+- Use `just enumerate-cleanup-targets` to print current exact targets and proposed cleanup actions.
+- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the action/target list has been presented. Never delete worktree directories directly with `rm`, `del`, or `Remove-Item`.
 - If `git worktree remove` fails, STOP. Do not switch to manual filesystem cleanup inside the shared worktree root.
 - Use `just sync-all-role-worktrees` to fast-forward the permanent local clones safely when all are clean.
 

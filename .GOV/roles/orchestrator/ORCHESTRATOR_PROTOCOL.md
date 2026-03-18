@@ -28,9 +28,10 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
   - deleting worktrees
   - deleting remote branches
   - fast-forwarding remote backup branches
-- Use deterministic approval text. Broad requests like "clean up branches" are insufficient.
-- Use `just enumerate-cleanup-targets` before asking for approval.
-- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion.
+- Broad requests like "clean up branches" are insufficient. Present a deterministic list of exact actions + exact targets first.
+- For that most recently presented action/target list, the only valid approval replies are `approved` or `proceed`. If the list changes, ask again.
+- Use `just enumerate-cleanup-targets` before asking for approval so the exact targets are visible.
+- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the list has been presented.
 - If `git worktree remove` fails, stop. Do not fall back to manual filesystem cleanup.
 - Use `just sync-all-role-worktrees` only when the permanent local clones are clean.
 
