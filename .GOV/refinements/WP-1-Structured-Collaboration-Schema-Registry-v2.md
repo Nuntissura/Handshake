@@ -337,6 +337,7 @@ Requirements (HARD):
 - IN_SCOPE_PATHS:
   - src/backend/handshake_core/src/locus/types.rs
   - src/backend/handshake_core/src/locus/task_board.rs
+  - src/backend/handshake_core/src/storage/locus_sqlite.rs
   - src/backend/handshake_core/src/runtime_governance.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/role_mailbox.rs
