@@ -20,7 +20,7 @@
 - Role startup now includes `just backup-status` so Codex can see whether local/NAS backup roots are configured and whether recent immutable snapshots exist. Treat that visibility as safety context, not as authorization to skip destructive-op approvals.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, stop, list the exact actions + exact targets, and ask for approval on that presented list.
 - For clearer language going forward, use these exact terms:
-  - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
+  - `local branch`: a branch ref in a local checkout on disk, for example `main` or `gov_kernel`
   - `remote branch` or `GitHub branch`: a branch at `origin/<name>`, for example `origin/main`
   - `worktree`: a directory on disk, for example `handshake_main` or `wt-gov-kernel`
   - `canonical branch`: always `main`
@@ -42,9 +42,9 @@
 - Minimum verification for governance-only changes: `just gov-check`.
 
 ### Safety commit gate (prevents packet/refinement loss)
-- After creating a WP task packet + refinement and obtaining `USER_SIGNATURE`, create a checkpoint commit on the WP branch that includes:
-  - `.GOV/task_packets/WP-{ID}.md`
-  - `.GOV/refinements/WP-{ID}.md`
+- After creating a WP work packet + refinement and obtaining `USER_SIGNATURE`, the orchestrator creates a checkpoint commit on `gov_kernel` (not on the feature branch) [CX-212F].
+- Work packets live in `.GOV/task_packets/WP-{ID}/packet.md` (new) or `.GOV/task_packets/WP-{ID}.md` (legacy).
+- Refinements live in `.GOV/task_packets/WP-{ID}/refinement.md` (new, co-located) or `.GOV/refinements/WP-{ID}.md` (legacy).
 
 ### WP communication artifacts
 - Official packets may define `WP_COMMUNICATION_DIR` under the external repo-governance runtime root (default repo-relative from a worktree: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`; overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`).
@@ -52,7 +52,7 @@
   - `THREAD.md` for append-only freeform discussion
   - `RUNTIME_STATUS.json` for liveness, validator-trigger, waiting-state, next-actor watch state, and bounded loop counters
   - `RECEIPTS.jsonl` for deterministic assignment, status, heartbeat, steering, repair, validation, and handoff receipts
-- The task packet remains authoritative for scope, packet status, PREPARE assignment, acceptance, and verdict.
+- The work packet remains authoritative for scope, packet status, PREPARE assignment, acceptance, and verdict.
 - If packet and communication artifacts disagree, the packet wins.
 - These richer artifacts apply to both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED` workflow lanes.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not improvise role-local inboxes.

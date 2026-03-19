@@ -175,9 +175,11 @@ worktree-add wp-id base="main" branch="" dir="":
 coder-worktree-add wp-id branch="" dir="":
 	node {{GOV_ROOT}}/roles/orchestrator/scripts/role-session-worktree-add.mjs CODER {{wp-id}} {{branch}} {{dir}}
 
+# [CX-212D] WP Validator uses the coder worktree — no-op, prints guidance.
 wp-validator-worktree-add wp-id branch="" dir="":
 	node {{GOV_ROOT}}/roles/orchestrator/scripts/role-session-worktree-add.mjs WP_VALIDATOR {{wp-id}} {{branch}} {{dir}}
 
+# [CX-212D] Integration Validator uses handshake_main — no-op, prints guidance.
 integration-validator-worktree-add wp-id branch="" dir="":
 	node {{GOV_ROOT}}/roles/orchestrator/scripts/role-session-worktree-add.mjs INTEGRATION_VALIDATOR {{wp-id}} {{branch}} {{dir}}
 
