@@ -85,7 +85,7 @@ function resolveRoleConfig(roleName, workPacketId) {
       title: `WPVAL ${workPacketId}`,
       startupCommand: roleStartupCommand("WP_VALIDATOR"),
       nextCommand: roleNextCommand("WP_VALIDATOR", workPacketId),
-      focus: "advisory technical review, steering, and packet-scoped validation receipts",
+      focus: "advisory technical review, steering, and packet-scoped validation receipts (operates from coder worktree, diffs against main)",
     };
   }
   if (roleName === "INTEGRATION_VALIDATOR") {
@@ -95,7 +95,7 @@ function resolveRoleConfig(roleName, workPacketId) {
       title: `INTVAL ${workPacketId}`,
       startupCommand: roleStartupCommand("INTEGRATION_VALIDATOR"),
       nextCommand: roleNextCommand("INTEGRATION_VALIDATOR", workPacketId),
-      focus: "final technical verdict, merge authority, and main/origin integration decisions only after validation handoff",
+      focus: "final technical verdict, merge authority, sync-gov-to-main, and main/origin push (operates from handshake_main on branch main)",
     };
   }
   return null;

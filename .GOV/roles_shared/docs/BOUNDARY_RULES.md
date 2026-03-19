@@ -52,7 +52,7 @@ The governance root path is resolved at runtime via the `HANDSHAKE_GOV_ROOT` env
 - **Purpose:** Enables a shared governance kernel worktree — one canonical `.GOV/` copy that all role worktrees execute from, eliminating cherry-pick ancestry contamination.
 - **Kernel contents:** Scripts, checks, protocols, schemas, templates, validator gate configs, task board, build order, spec, traceability registry.
 - **NOT in kernel:** WP communications, runtime session state, audits — these remain WP-local under the external repo-governance runtime root.
-- **Write access:** The managing orchestrator (model) reads from the kernel but MUST NOT write to it. Governance edits require a separate model session.
+- **Write access:** The orchestrator MAY write governance edits to the kernel directly. During active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Coders and WP Validators MUST NOT edit `.GOV/` directly [CX-212C].
 
 All `.GOV/` path references in codex, protocols, and boundary docs refer to the logical governance root, which resolves to the kernel worktree path when `HANDSHAKE_GOV_ROOT` is set.
 

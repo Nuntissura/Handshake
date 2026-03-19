@@ -183,19 +183,23 @@ export function defaultCoderWorktreeDir(wpId) {
 }
 
 export function defaultWpValidatorBranch(wpId) {
-  return `validate/${wpId}`;
+  // WP validator operates from the coder worktree — same branch as coder [CX-212D].
+  return defaultCoderBranch(wpId);
 }
 
 export function defaultWpValidatorWorktreeDir(wpId) {
-  return deterministicWorktreeDir("wtv", "WP_VALIDATOR", wpId);
+  // WP validator operates from the coder worktree — no separate worktree [CX-212D].
+  return defaultCoderWorktreeDir(wpId);
 }
 
 export function defaultIntegrationValidatorBranch(wpId) {
-  return `integrate/${wpId}`;
+  // Integration validator operates from handshake_main on branch main [CX-212D].
+  return "main";
 }
 
 export function defaultIntegrationValidatorWorktreeDir(wpId) {
-  return deterministicWorktreeDir("wt-INTV", "INTEGRATION_VALIDATOR", wpId);
+  // Integration validator operates from handshake_main — no WP-specific worktree [CX-212D].
+  return "../handshake_main";
 }
 
 export function sessionKey(role, wpId) {

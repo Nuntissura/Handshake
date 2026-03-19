@@ -46,11 +46,11 @@ See also:
 - `.GOV/codex/Handshake_Codex_v1.4.md`
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 
-**Governance Kernel [CX-212B/C]:** All `/.GOV/` paths in this protocol refer to the logical governance root. Scripts resolve through `HANDSHAKE_GOV_ROOT` env var (default: local `/.GOV/`). When a governance kernel worktree is configured, justfile and scripts execute from the shared kernel. The managing orchestrator reads from the kernel but MUST NOT write to it; governance edits require a separate model session.
+**Governance Kernel [CX-212B/C/D]:** All `/.GOV/` paths in this protocol refer to the logical governance root. Scripts resolve through `HANDSHAKE_GOV_ROOT` env var (default: local `/.GOV/`). When a governance kernel worktree is configured, justfile and scripts execute from the shared kernel. The governance kernel worktree contains ONLY `/.GOV/` and git-required files — no product code. The orchestrator MAY write governance edits to the kernel directly. During active multi-session steering (coder/validator sessions consuming tokens), prefer deferring governance edits to reduce cognitive load — this is operator discipline, not a hard ban. Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's responsibility before pushing to `origin/main`; the Orchestrator MUST NOT run `sync-gov-to-main`.
 
 ## Product Runtime Root (Current Default)
 
-- External build, test, and tool outputs stay under `../Handshake Artifacts/`.
+- External build, test, and tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
 - Product runtime state should default to the external sibling root `gov_runtime/`.
 - Do not treat repo-root `data/` or `.handshake/` as the template for new runtime work.
 
@@ -446,13 +446,29 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 ## Worktree Budget (HARD RULE)
 
-- Maximum WP-specific worktrees per WP: 2 (1 coder + 1 WP validator).
-- The Integration Validator uses WP-specific `wt-INTV-WP-...` worktrees on `integrate/WP-...` branches.
+- Maximum WP-specific worktrees per WP: 1 (coder only) [CX-212D].
+- The WP Validator operates from the coder worktree (`wtc-*` on `feat/WP-*`) — reads product code there, diffs against `main`, writes governance through the `.GOV/` junction.
+- The Integration Validator operates from `handshake_main` on branch `main` — no WP-specific worktree.
 - Do not create ad-hoc temp worktrees (detached checkouts, merge worktrees, revalidation worktrees) outside the governed naming scheme.
-- If validation or merge requires a clean checkout, reuse the existing WP validator worktree. Do not create additional worktrees.
 - After a WP reaches VALIDATED or MERGED, require governed cleanup of WP-specific worktrees before starting new WPs.
 - All worktrees must be created under the shared worktree root so `just enumerate-cleanup-targets` can find them. Off-root worktree creation is forbidden.
 - `worktree-concurrency-check` enforces this budget as part of `gov-check`.
+
+## WP Worktree Creation Rules [CX-212D] (HARD RULE)
+
+- WP worktrees (`wtc-*`) are created from `main` but MUST NOT retain a git-tracked `/.GOV/` directory.
+- After `git worktree add`, the creation script MUST:
+  1. Remove the inherited `/.GOV/` directory from the new worktree.
+  2. Create a junction (`mklink /J` on Windows, symlink on Unix) from `/.GOV/` to `../wt-gov-kernel/.GOV`.
+- This ensures WP worktrees always read live governance from the kernel and never have a stale `/.GOV/` copy.
+- The `worktree-add.mjs` script enforces this automatically.
+
+## Gov-to-Main Sync Responsibility [CX-212D] (HARD RULE)
+
+- `just sync-gov-to-main` copies the governance kernel `/.GOV/` into `handshake_main` and auto-commits.
+- This is the Integration Validator's responsibility, to be run before pushing to `origin/main`.
+- The Orchestrator MUST NOT run `sync-gov-to-main`.
+- The `main` worktree retains a real (non-junction) `/.GOV/` copy as a stable backup.
 
 ## Notification System (HARD RULE — Message Delivery)
 

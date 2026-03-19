@@ -133,6 +133,25 @@ function main() {
     runGitInherit(["worktree", "add", "-b", branch, absDir, base]);
   }
 
+  // --- Replace inherited .GOV/ with junction to governance kernel [CX-212D] ---
+  const govDir = path.join(absDir, ".GOV");
+  const govKernelAbs = path.resolve(absDir, "..", "wt-gov-kernel", ".GOV");
+
+  if (fs.existsSync(govDir) && fs.existsSync(govKernelAbs)) {
+    const stat = fs.lstatSync(govDir);
+    // Skip if already a symlink or junction
+    if (!stat.isSymbolicLink()) {
+      console.log(`[WORKTREE_ADD] Replacing inherited .GOV/ with junction to governance kernel`);
+      fs.rmSync(govDir, { recursive: true, force: true });
+      if (process.platform === "win32") {
+        execFileSync("cmd", ["/c", "mklink", "/J", govDir, govKernelAbs], { stdio: "inherit" });
+      } else {
+        fs.symlinkSync(govKernelAbs, govDir, "junction");
+      }
+      console.log(`[WORKTREE_ADD] .GOV/ junction created -> ${govKernelAbs}`);
+    }
+  }
+
   console.log("");
   console.log(`[WORKTREE_ADD] Worktree ready: ${absDir}`);
   console.log(`[WORKTREE_ADD] Next: cd "${absDir}"`);

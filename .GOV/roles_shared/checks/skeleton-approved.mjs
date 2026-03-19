@@ -7,8 +7,8 @@
  *   the workflow hard-gates until the workflow authority approves the skeleton.
  *
  * Enforcement:
- * - Refuses to run unless invoked from `role_validator`, a `user_*` branch,
- *   or `role_orchestrator` when the packet declares `WORKFLOW_LANE: ORCHESTRATOR_MANAGED`.
+ * - Refuses to run unless invoked from `role_validator` (legacy), `main`,
+ *   a `feat/` or `user_*` branch, or `role_orchestrator` when ORCHESTRATOR_MANAGED.
  * - Locates the WP worktree for `feat/{WP_ID}` and creates an allow-empty commit:
  *     "docs: skeleton approved [WP-{ID}]"
  */
@@ -56,8 +56,8 @@ if (fs.existsSync(packetPath)) {
 const actorBranch = gitTrim('rev-parse --abbrev-ref HEAD');
 const actorAllowed =
   actorBranch === 'role_validator' ||
-  actorBranch.startsWith('validate/') ||
-  actorBranch.startsWith('integrate/') ||
+  actorBranch === 'main' ||
+  actorBranch.startsWith('feat/') ||
   actorBranch.startsWith('user_') ||
   (actorBranch === 'role_orchestrator' && workflowLane === 'ORCHESTRATOR_MANAGED');
 if (!actorAllowed) {

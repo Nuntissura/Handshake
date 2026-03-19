@@ -60,11 +60,16 @@ You receive a task packet from the Orchestrator. You implement exactly what it s
 
 See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
-**Governance Kernel [CX-212B/C]:** All `/.GOV/` paths in this protocol refer to the logical governance root. Scripts resolve through `HANDSHAKE_GOV_ROOT` env var (default: local `/.GOV/`). When a governance kernel worktree is configured, justfile and scripts execute from the shared kernel rather than the local `.GOV/` copy.
+**Governance Kernel [CX-212B/C/D]:** All `/.GOV/` paths in this protocol refer to the logical governance root. Scripts resolve through `HANDSHAKE_GOV_ROOT` env var (default: local `/.GOV/`). When a governance kernel worktree is configured, justfile and scripts execute from the shared kernel rather than the local `.GOV/` copy. The governance kernel worktree contains ONLY `/.GOV/` and git-required files — no product code. Coders and WP Validators read governance through their junction and MUST NOT edit `/.GOV/` directly.
 
 ## Product Runtime Root (Current Default)
 
-- External build/test/tool outputs stay under `../Handshake Artifacts/` (for example the external Cargo target dir).
+- External build/test/tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders:
+  - `handshake-cargo-target/` — Cargo build target (already wired via `CARGO_TARGET_DIR` in justfile)
+  - `handshake-product/` — product runtime artifacts, databases, generated files
+  - `handshake-test/` — test outputs, coverage reports, benchmark results
+  - `handshake-tool/` — governance tooling artifacts, linter caches, script outputs
+- Do NOT create artifact paths inside the repo or in ad-hoc sibling folders. Use the subfolders above.
 - Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
 - This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
 - Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the current WP is explicitly remediating them.

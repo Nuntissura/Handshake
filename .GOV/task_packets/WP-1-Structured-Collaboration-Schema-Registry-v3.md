@@ -58,14 +58,14 @@
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next WP-1-Structured-Collaboration-Schema-Registry-v3
 <!-- Validator roles keep distinct local branches/worktrees, but they mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
-- WP_VALIDATOR_LOCAL_BRANCH: validate/WP-1-Structured-Collaboration-Schema-Registry-v3
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtv-2ff4104858
+- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Structured-Collaboration-Schema-Registry-v3
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-32aa9f34d9
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Structured-Collaboration-Schema-Registry-v3
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Structured-Collaboration-Schema-Registry-v3
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
 - WP_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-Structured-Collaboration-Schema-Registry-v3
-- INTEGRATION_VALIDATOR_LOCAL_BRANCH: integrate/WP-1-Structured-Collaboration-Schema-Registry-v3
-- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../wt-INTV-6abdb7ba3b
+- INTEGRATION_VALIDATOR_LOCAL_BRANCH: main
+- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Structured-Collaboration-Schema-Registry-v3
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Structured-Collaboration-Schema-Registry-v3
 - INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup

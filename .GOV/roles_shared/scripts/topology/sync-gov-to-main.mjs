@@ -6,6 +6,10 @@
  * Copies the governance kernel .GOV/ directory into the handshake_main worktree,
  * writes a sync marker, and auto-commits on main.
  *
+ * RESPONSIBILITY [CX-212D]: This script MUST be called by the Integration
+ * Validator before pushing to origin/main. The Orchestrator MUST NOT call
+ * this script.
+ *
  * Usage: node .GOV/roles_shared/scripts/topology/sync-gov-to-main.mjs
  *        just sync-gov-to-main
  */
