@@ -786,8 +786,11 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   }
   if (resolved) {
     const resolvedLine = getSingleField(content, 'SPEC_TARGET_RESOLVED');
-    const expectedResolvedLine = `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> ${resolved.specFileName}`;
-    if (resolvedLine !== expectedResolvedLine) {
+    // Normalize to logical .GOV/ prefix so refinements are worktree-agnostic [CX-212D].
+    // Handles: .GOV/..., ../wt-gov-kernel/.GOV/..., etc.
+    const normalizeGovPrefix = (line) => String(line || '').replace(/^.*?\.GOV\//, '.GOV/');
+    const expectedResolvedLine = `.GOV/spec/SPEC_CURRENT.md -> ${resolved.specFileName}`;
+    if (normalizeGovPrefix(resolvedLine) !== expectedResolvedLine) {
       errors.push(`SPEC_TARGET_RESOLVED mismatch: expected "${expectedResolvedLine}", got "${resolvedLine || '<missing>'}"`);
     }
 
