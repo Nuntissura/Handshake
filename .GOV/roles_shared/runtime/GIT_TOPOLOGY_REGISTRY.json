@@ -5,13 +5,13 @@
     "main",
     "user_ilja",
     "role_orchestrator",
-    "role_validator"
+    "gov_kernel"
   ],
   "protected_remote_branches": [
     "origin/main",
     "origin/user_ilja",
     "origin/role_orchestrator",
-    "origin/role_validator"
+    "origin/gov_kernel"
   ],
   "protected_worktrees": [
     {
@@ -42,13 +42,13 @@
       "description": "Orchestrator backup worktree"
     },
     {
-      "id": "wt-validator",
-      "rel_path": "../wt-validator",
-      "role": "VALIDATOR",
+      "id": "wt-gov-kernel",
+      "rel_path": "../wt-gov-kernel",
+      "role": "GOV_KERNEL",
       "canonical": false,
-      "local_branch": "role_validator",
-      "remote_branch": "origin/role_validator",
-      "description": "Validator backup worktree"
+      "local_branch": "gov_kernel",
+      "remote_branch": "origin/gov_kernel",
+      "description": "Governance kernel worktree (canonical .GOV/ source)"
     }
   ],
   "helper_commands": {
