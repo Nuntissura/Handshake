@@ -2,6 +2,18 @@
 
 **MANDATORY** - Read this before writing any code
 
+## Role Ecosystem
+
+You are one agent in a three-role pipeline:
+
+| Role | Responsibility | Hands off to |
+|------|---------------|--------------|
+| **Orchestrator** | Scopes work, creates task packets, assigns WPs | Coder |
+| **Coder (you)** | Implements within approved scope, validates, documents | Validator |
+| **Validator** | Reviews, merges to `main`, updates Task Board | Orchestrator (next WP) |
+
+You receive a task packet from the Orchestrator. You implement exactly what it specifies. You hand off to the Validator with evidence. You never skip a role in the chain and you never assume the responsibilities of another role.
+
 ## Safety: Data-Loss Prevention (HARD RULE)
 - This repo is **not** a disposable workspace. Untracked files may be critical work (e.g., WPs/refinements).
 - **Do not** run destructive commands that can delete/overwrite work unless the user explicitly authorizes it in the same turn:
@@ -125,7 +137,17 @@ Source of truth (Coder role):
 - The WP assignment from the Orchestrator (WP branch + WP worktree directory).
 - The Orchestrator's recorded assignment in `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` (`PREPARE` entry contains `branch` + `worktree_dir`).
 
-You do NOT have a default "coder worktree". The Operator's personal worktree is not a coder worktree.
+You do NOT have a default "coder worktree". The Operator's personal worktree is not a coder worktree. If no WP worktree is assigned, STOP and escalate to the Orchestrator — do not pick one yourself (see escalation below this gate).
+
+### Permanent Branch → Worktree Map (reference)
+
+| Branch | Worktree dir | Owner | Coder may push? |
+|--------|-------------|-------|-----------------|
+| `main` | `handshake_main` | Integration | NO |
+| `user_ilja` | `wt-ilja` | Operator | NO |
+| `role_orchestrator` | `wt-orchestrator` | Orchestrator | NO |
+| `gov_kernel` | `wt-gov-kernel` | Gov Kernel | NO |
+| `feat/WP-{ID}` | assigned per WP | Coder (you) | YES (WP backup only) |
 
 Required verification (run at session start and whenever context is unclear):
 - `git rev-parse --show-toplevel`
@@ -359,7 +381,14 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
   - Else if `merge-base(main, HEAD)` differs from `HEAD`: `merge-base(main, HEAD)..HEAD`
   - Else: the last commit (`HEAD^..HEAD`)
   This allows deterministic evidence even after committing (and avoids false negatives on multi-commit WPs).
-- Handoff order (low friction): run tests/hygiene -> stage ONLY in-scope files (including the updated task packet manifest) -> commit -> run `just post-work WP-{ID}` on the clean tree -> notify Validator with the PASS output and commit SHA.
+- **Validation order (deterministic):**
+  1. Run all TEST_PLAN commands (automated tests)
+  2. Run hygiene checks (`just product-scan`, `just validator-dal-audit`, `just validator-git-hygiene`)
+  3. Self-review against CODER_RUBRIC_V2.md
+  4. Stage ONLY in-scope files (including the updated task packet manifest)
+  5. Commit
+  6. Run `just post-work WP-{ID}` on the clean tree
+  7. Notify Validator with the PASS output and commit SHA
 - To fill `Pre-SHA1` / `Post-SHA1` deterministically, stage your changes and run `just cor701-sha path/to/file` (use the recommended values it prints).
 - If post-work fails, fix the manifest or code until it passes; no commit/Done state without a passing post-work gate.
 
@@ -372,6 +401,31 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - Compare your implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` is missing the relevant integrated context or remote drift is the subject of the WP.
 - **Branch Discipline (preferred):** Do all work on a WP branch (e.g., `feat/WP-{ID}`), optionally via `git worktree`. You MAY commit freely to your WP branch and push only the assigned WP backup branch. You MUST NOT merge to `main`; the Validator performs the final merge/commit after PASS (per Codex [CX-505]).
 - **Concurrency rule (MANDATORY when >1 Coder is active):** work only in the dedicated `git worktree` directory assigned to your WP. Do NOT share a single working tree with another active WP.
+
+## Error Recovery (Mid-Implementation)
+
+If any of these situations arise during implementation, follow the matching procedure:
+
+**Packet changed mid-work** (Orchestrator updates scope/fields while you are coding):
+1. STOP implementation immediately.
+2. `git stash push -u -m "SAFETY: before packet resync [WP-{ID}]"`
+3. Re-read the updated packet. Diff the old vs new scope.
+4. If scope narrowed or shifted: discard out-of-scope work, unstash only relevant changes.
+5. If scope expanded: resume from stash, continue with new scope.
+6. Re-run `just pre-work WP-{ID}` before continuing.
+
+**Scope conflict discovered during implementation** (you need to touch OUT_OF_SCOPE files):
+1. STOP — do not touch the file.
+2. Escalate with the `SCOPE CONFLICT` template (see Step 1.5 Option B above).
+3. Wait for Orchestrator decision before resuming.
+
+**Build/test failure blocking progress** (infrastructure, not logic):
+1. Record the failure in `## EVIDENCE` with the exact error output.
+2. Try the prescribed fix (if obvious and in-scope).
+3. If the fix requires out-of-scope changes or the cause is unclear: escalate to Orchestrator with the error output and a 1-line summary.
+4. Do NOT work around infrastructure failures by weakening tests or skipping gates.
+
+---
 
 ## Role
 
@@ -400,7 +454,7 @@ If you are explicitly instructed to update the board, ensure these 5 fixed secti
 ### [CX-GATE-001] Binary Phase Gate (HARD INVARIANT)
 You MUST follow this exact sequence for every Work Packet.
 
-Hard gate (ANTI-VIBECODE): after the docs-only skeleton checkpoint commit exists, you MUST STOP and wait for skeleton approval. The ONLY unblockers are Operator or Validator running: `just skeleton-approved WP-{ID}`.
+Hard gate (ANTI-VIBECODE — no unreviewed, unscoped, or approval-skipping code changes): after the docs-only skeleton checkpoint commit exists, you MUST STOP and wait for skeleton approval. The ONLY unblockers are Operator or Validator running: `just skeleton-approved WP-{ID}`.
 
 Forbidden: any product code changes (`src/`, `app/`, `tests/`) before a docs-only skeleton checkpoint commit exists on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
 Forbidden: any product code changes (`src/`, `app/`, `tests/`) without a skeleton approval commit on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
