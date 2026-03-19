@@ -20,6 +20,7 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
 - Permanent protected branches: `main`, `user_ilja`, `role_orchestrator`, `gov_kernel`.
 - Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`.
 - `user_ilja` and `role_orchestrator` on GitHub are backup branches, not integration branches.
+- `role_orchestrator` MUST NOT be merged into `main` — its `.GOV/` is a junction (files absent from git tracking) which creates irreconcilable conflicts. Non-`.GOV/` changes (`AGENTS.md`, `justfile`) reach `main` by file copy + commit on main. `.GOV/` changes reach `main` through `just sync-gov-to-main` [CX-212D].
 - Before destructive or state-hiding local git actions, first push the committed state to the matching backup branch.
 - Before deleting local branches or worktrees, create an immutable snapshot with `just backup-snapshot`.
 - Startup must surface `just backup-status`; this is safety context, not destruction authorization.
