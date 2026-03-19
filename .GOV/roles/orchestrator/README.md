@@ -60,6 +60,6 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `.GOV/co
 - `just record-signature WP-{ID} ...`
 - `just record-prepare WP-{ID} ...`
 - `just orchestrator-prepare-and-packet WP-{ID}`
-- `just launch-coder-session WP-{ID}`
-- `just launch-wp-validator-session WP-{ID}`
-- `just launch-integration-validator-session WP-{ID}`
+- `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
