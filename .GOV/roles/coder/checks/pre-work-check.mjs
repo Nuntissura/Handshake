@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Pre-work validation [CX-580, CX-620]
- * - Verifies task packet exists before work starts
+ * - Verifies work packet exists before work starts
  * - Ensures deterministic manifest template (COR-701-style) is present so post-work can enforce gates
  */
 
@@ -254,8 +254,8 @@ function hasCommitByExactSubject(subject) {
   }
 }
 
-// Check 1: Task packet file exists
-console.log('Check 1: Task packet file exists');
+// Check 1: work packet file exists
+console.log('Check 1: work packet file exists');
 const taskPacketDir = `${GOV_ROOT_REPO_REL}/task_packets`;
 const packetFilename = `${WP_ID}.md`;
 
@@ -264,12 +264,12 @@ let packetPath = '';
 let lastPrepare = null;
 
 if (!fs.existsSync(taskPacketDir)) {
-  errors.push(`Task packet directory not found: ${taskPacketDir}`);
+  errors.push(`work packet directory not found: ${taskPacketDir}`);
   console.log(`FAIL: Missing directory ${taskPacketDir}`);
 } else {
   packetPath = path.join(taskPacketDir, packetFilename);
   if (!fs.existsSync(packetPath)) {
-    errors.push(`No exact task packet file found for ${WP_ID}: expected ${taskPacketDir}/${packetFilename}`);
+    errors.push(`No exact work packet file found for ${WP_ID}: expected ${taskPacketDir}/${packetFilename}`);
     console.log(`FAIL: Missing ${packetFilename}`);
   } else {
     packetContent = fs.readFileSync(packetPath, 'utf8');
@@ -342,7 +342,7 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   // Check 2: Packet has required fields
-  console.log('\nCheck 2: Task packet structure');
+  console.log('\nCheck 2: work packet structure');
   const requiredFields = [
     'TASK_ID',
     'RISK_TIER',
@@ -356,7 +356,7 @@ if (!fs.existsSync(taskPacketDir)) {
   const missingFields = requiredFields.filter((field) => !lowerContent.includes(field.toLowerCase()));
 
   if (missingFields.length > 0) {
-    errors.push(`Task packet missing fields: ${missingFields.join(', ')}`);
+    errors.push(`work packet missing fields: ${missingFields.join(', ')}`);
     console.log(`FAIL: Missing ${missingFields.join(', ')}`);
   } else {
     console.log('PASS: All required fields present');
@@ -622,7 +622,7 @@ if (!fs.existsSync(taskPacketDir)) {
 
     if (/^YES$/i.test(uiApplicable || '')) {
       if (!/##\s*UI_UX_SPEC\b/i.test(packetContent)) {
-        errors.push('UI_UX_APPLICABLE=YES requires ## UI_UX_SPEC in the task packet');
+        errors.push('UI_UX_APPLICABLE=YES requires ## UI_UX_SPEC in the work packet');
       }
 
       const surfaces = extractIndentedListAfterLabel(packetContent, 'UI_SURFACES');
@@ -713,7 +713,7 @@ if (!fs.existsSync(taskPacketDir)) {
       console.log('Check 2.7A: Packet/refinement hydration drift');
 
       if (!/^HYDRATED_RESEARCH_V1$/i.test(refinementProfile || '')) {
-        errors.push('PACKET_HYDRATION_PROFILE=HYDRATED_RESEARCH_V1 requires REFINEMENT_ENFORCEMENT_PROFILE=HYDRATED_RESEARCH_V1 in the task packet');
+        errors.push('PACKET_HYDRATION_PROFILE=HYDRATED_RESEARCH_V1 requires REFINEMENT_ENFORCEMENT_PROFILE=HYDRATED_RESEARCH_V1 in the work packet');
       }
       if (!/^HYDRATED_RESEARCH_V1$/i.test(refinementValidation?.parsed?.refinementEnforcementProfile || '')) {
         errors.push('PACKET_HYDRATION_PROFILE=HYDRATED_RESEARCH_V1 requires the signed refinement to use REFINEMENT_ENFORCEMENT_PROFILE=HYDRATED_RESEARCH_V1');
@@ -1109,7 +1109,7 @@ if (errors.length === 0) {
   if (startAllowed) {
     console.log('You may proceed with the workflow (SKELETON -> approval -> implementation).');
   } else {
-    console.log(`NOTE: Task packet Status is "${status}". Do NOT start implementation unless Status is Ready for Dev or In Progress.`);
+    console.log(`NOTE: work packet Status is "${status}". Do NOT start implementation unless Status is Ready for Dev or In Progress.`);
   }
 
   // Automatic Coder handoff template (printed when packet is actually startable).
@@ -1146,7 +1146,7 @@ if (errors.length === 0) {
     console.log(`- RISK_TIER: ${riskTier}`);
     console.log(`- MERGE_BASE_SHA: ${mergeBaseSha}`);
     if (resolved?.specFileName) console.log(`- SPEC_CURRENT_RESOLVED: ${resolved.specFileName}`);
-    console.log(`- Task packet: ${packetPath.replace(/\\/g, '/')}`);
+    console.log(`- work packet: ${packetPath.replace(/\\/g, '/')}`);
     console.log(`- Refinement: ${refinementFile}`);
     console.log(`- Worktree_dir (repo-relative): ${expectedWorktreeDir || '<missing>'}`);
     console.log(`- Branch: ${expectedBranch || '<missing>'}`);
@@ -1158,7 +1158,7 @@ if (errors.length === 0) {
     if (/^ALLOWED\b/i.test(subAgentDelegation.trim())) {
       console.log('\nSUB_AGENT_RULES (HARD) [CX-HANDOFF-001]');
       console.log('- Sub-agents are LOW reasoning (draft-only). Verify everything against SPEC_CURRENT + DONE_MEANS.');
-      console.log(`- Sub-agents MUST NOT edit \`${GOV_ROOT_REPO_REL}/**\` (including task packets/refinements or \`## VALIDATION_REPORTS\`).`);
+      console.log(`- Sub-agents MUST NOT edit \`${GOV_ROOT_REPO_REL}/**\` (including work packets/refinements or \`## VALIDATION_REPORTS\`).`);
       console.log('- Sub-agents MUST NOT run gates/commits/branch ops as official evidence.');
       console.log(`- Follow: \`/${GOV_ROOT_REPO_REL}/roles/coder/agentic/AGENTIC_PROTOCOL.md\` Section 6.`);
     }

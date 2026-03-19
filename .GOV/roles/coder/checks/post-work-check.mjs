@@ -412,11 +412,11 @@ const parseWaivers = (content) => {
 // Check 1: manifest present and ASCII only
 console.log('Check 1: Validation manifest present');
 if (!packetContent) {
-  errors.push('No task packet found for this WP_ID');
+  errors.push('No work packet found for this WP_ID');
 } else if (!/VALIDATION/i.test(packetContent)) {
-  errors.push('Task packet missing VALIDATION section');
+  errors.push('work packet missing VALIDATION section');
 } else if (/[^\x00-\x7F]/.test(packetContent)) {
-  errors.push('Task packet contains non-ASCII characters (manifest must be ASCII)');
+  errors.push('work packet contains non-ASCII characters (manifest must be ASCII)');
 }
 
 const hasGitWaiver = parseWaivers(packetContent);

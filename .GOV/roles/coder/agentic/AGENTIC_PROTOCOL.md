@@ -8,7 +8,7 @@ It does not replace `/.GOV/roles/coder/CODER_PROTOCOL.md`; it adds constraints t
 
 ## 1) Authority and boundary (HARD)
 
-- Treat the active task packet as the executable contract.
+- Treat the active work packet as the executable contract.
 - Product code MUST NOT read/write `/.GOV/` (hard boundary).
 - Do not "improve governance" while coding product changes unless explicitly scoped and approved.
 
@@ -69,7 +69,7 @@ Primary Coder MAY delegate isolated implementation/testing slices to parallel su
 - Sub-agent delegation becomes allowed ONLY when:
   - The Orchestrator recommends it as a speedup strategy without sacrificing correctness, AND
   - The Operator explicitly approves it for the WP, AND
-  - The task packet records the decision in `## SUB_AGENT_DELEGATION` (including approval evidence).
+  - The work packet records the decision in `## SUB_AGENT_DELEGATION` (including approval evidence).
 
 If any of the above is missing: DO NOT use sub-agents.
 
@@ -84,7 +84,7 @@ If any of the above is missing: DO NOT use sub-agents.
   - correctness,
   - Master Spec conformance (SPEC_CURRENT + SPEC_ANCHOR),
   - WP scope discipline (IN_SCOPE_PATHS / OUT_OF_SCOPE),
-  - and all task packet paperwork (EVIDENCE, EVIDENCE_MAPPING, VALIDATION manifest).
+  - and all work packet paperwork (EVIDENCE, EVIDENCE_MAPPING, VALIDATION manifest).
 
 ### 6.4 Sub-agent constraints (HARD)
 
@@ -105,13 +105,13 @@ Only the Primary Coder may:
 - integrate sub-agent patches,
 - verify each change against `.GOV/spec/SPEC_CURRENT.md` + WP acceptance criteria before applying,
 - run the WP TEST_PLAN and required gates,
-- record canonical evidence in the task packet,
+- record canonical evidence in the work packet,
 - and perform final commit + handoff.
 
 ### 6.6 Delegation template (required)
 
 Every sub-agent task MUST include:
 - WP_ID + branch + repo-relative worktree_dir
-- Canonical artifacts (Codex, role protocol, SPEC_CURRENT + resolved spec, task packet, refinement)
+- Canonical artifacts (Codex, role protocol, SPEC_CURRENT + resolved spec, work packet, refinement)
 - SLICE_NAME + ALLOWED_PATHS + ACCEPTANCE_TARGETS (DONE_MEANS bullets and/or SPEC_ANCHORs)
 - Deliverables: PATCH + WHAT_CHANGED + COMMANDS_RUN + RISKS + NEXT_COMMANDS
