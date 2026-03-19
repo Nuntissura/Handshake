@@ -1,2 +1,0 @@
--- No-op rollback.
--- Replay-safe normalization: block classification columns are created in `0001_init.sql`.

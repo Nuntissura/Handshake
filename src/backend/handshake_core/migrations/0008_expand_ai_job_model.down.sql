@@ -1,2 +1,0 @@
--- No-op rollback.
--- Replay-safe normalization: final schemas are created in `0001_init.sql`, `0002_create_ai_core_tables.sql`, and `0007_workflow_persistence.sql`.

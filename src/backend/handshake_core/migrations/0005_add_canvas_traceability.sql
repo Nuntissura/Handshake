@@ -1,2 +1,0 @@
--- Backfill missing traceability columns on canvases table.
--- NOTE: Replay-safe normalization: traceability columns are created in `0001_init.sql`.

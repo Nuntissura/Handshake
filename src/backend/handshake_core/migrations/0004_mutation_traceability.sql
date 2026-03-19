@@ -1,2 +1,0 @@
--- Add traceability metadata columns to RAW content tables.
--- NOTE: Replay-safe normalization: traceability columns are created in `0001_init.sql`.
