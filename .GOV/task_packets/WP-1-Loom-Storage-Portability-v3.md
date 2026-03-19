@@ -64,8 +64,8 @@
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Loom-Storage-Portability-v3
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
 - WP_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-Loom-Storage-Portability-v3
-- INTEGRATION_VALIDATOR_LOCAL_BRANCH: integrate/WP-1-Loom-Storage-Portability-v3
-- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../wt-INTV-ddc5b29d2c
+- INTEGRATION_VALIDATOR_LOCAL_BRANCH: main
+- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Loom-Storage-Portability-v3
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Loom-Storage-Portability-v3
 - INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup
