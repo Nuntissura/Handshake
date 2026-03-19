@@ -353,7 +353,8 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
   if (!worktreePrepare && !currentPrepare) {
     issues.push("Assigned worktree does not contain the current PREPARE record");
   } else if (
-    currentPrepare
+    worktreePrepare
+    && currentPrepare
     && (
       String(worktreePrepare.branch || "").trim() !== String(currentPrepare.branch || "").trim()
       || String(worktreePrepare.worktree_dir || "").trim() !== String(currentPrepare.worktree_dir || "").trim()
