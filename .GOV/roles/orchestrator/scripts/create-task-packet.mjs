@@ -466,15 +466,33 @@ try {
   process.exit(1);
 }
 
-// Ensure directory exists
-const taskPacketDir = `${GOV_ROOT_REPO_REL}/task_packets`;
-if (!fs.existsSync(taskPacketDir)) {
-  fs.mkdirSync(taskPacketDir, { recursive: true });
-  console.log(`Created directory: ${taskPacketDir}/`);
+// Ensure WP folder exists (new folder structure: .GOV/task_packets/WP-{ID}/)
+const taskPacketBaseDir = `${GOV_ROOT_REPO_REL}/task_packets`;
+const wpDir = path.join(taskPacketBaseDir, WP_ID);
+if (!fs.existsSync(wpDir)) {
+  fs.mkdirSync(wpDir, { recursive: true });
+  console.log(`Created WP directory: ${wpDir}/`);
 }
 
-const fileName = `${WP_ID}.md`;
-const filePath = path.join(taskPacketDir, fileName);
+const fileName = 'packet.md';
+const filePath = path.join(wpDir, fileName);
+
+// Also check legacy flat file location
+const legacyFilePath = path.join(taskPacketBaseDir, `${WP_ID}.md`);
+if (fs.existsSync(legacyFilePath)) {
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'PACKET_CREATE',
+    next: 'STOP',
+    operatorAction: `Legacy flat packet exists at ${legacyFilePath}. Migrate or remove before creating folder-based packet.`,
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'BLOCKED',
+    why: 'Legacy flat packet file conflicts with new folder structure.',
+    gateOutputLines: [`BLOCKED: ${legacyFilePath} exists.`],
+    nextCommands: [`# Move: mkdir ${wpDir} && mv ${legacyFilePath} ${filePath}`],
+  });
+  process.exit(1);
+}
 
 // Check if file already exists
 if (fs.existsSync(filePath)) {
@@ -776,6 +794,7 @@ template = replaceSingleField(template, 'CODER_REASONING_STRENGTH', '<unclaimed>
 template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'DISALLOWED');
 template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', 'N/A');
 
+let clauseClosureRows = [];
 if (isHydratedProfile) {
   const hydration = refinementData.packetHydration || {};
   template = replaceSingleField(template, 'REQUESTOR', hydration.requestor || 'Operator');
@@ -804,7 +823,7 @@ if (isHydratedProfile) {
 - WP Traceability: ${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
 `);
 
-  const clauseClosureRows = buildClauseClosureRows({
+  clauseClosureRows = buildClauseClosureRows({
     clauseProofPlan: refinementData.clauseProofPlan,
     specAnchors: refinementData.specAnchors,
     doneMeans: hydration.doneMeans,
@@ -1091,6 +1110,64 @@ ${formatList(refinementData.uiSpec?.accessibility)}
 
 // Write the file
 fs.writeFileSync(filePath, template, 'utf8');
+
+// Copy refinement into WP folder (co-located)
+const refinementSrc = defaultRefinementPath(WP_ID);
+if (fs.existsSync(refinementSrc)) {
+  const refinementDst = path.join(wpDir, 'refinement.md');
+  fs.copyFileSync(refinementSrc, refinementDst);
+  console.log(`Copied refinement to: ${refinementDst}`);
+}
+
+// Generate micro task files from CLAUSE_CLOSURE_MATRIX rows
+if (clauseClosureRows && clauseClosureRows.length > 0) {
+  const mtTemplatePath = `${GOV_ROOT_REPO_REL}/templates/MICRO_TASK_TEMPLATE.md`;
+  const mtTemplate = fs.existsSync(mtTemplatePath) ? fs.readFileSync(mtTemplatePath, 'utf8') : null;
+
+  // Parse pipe-delimited clause closure rows into fields
+  const parsePipeField = (row, field) => {
+    const re = new RegExp(`${field}:\\s*(.+?)(?:\\s*\\|\\s*|$)`, 'i');
+    const m = String(row).match(re);
+    return m ? m[1].trim() : '<fill>';
+  };
+
+  // Also pull RISK_IF_MISSED from the refinement's CLAUSE_PROOF_PLAN if available
+  const clauseProofPlan = refinementData?.clauseProofPlan || [];
+  const riskByClause = {};
+  for (const item of clauseProofPlan) {
+    const clauseMatch = String(item).match(/CLAUSE:\s*(.+?)(?:\s*\|\s*|$)/i);
+    const riskMatch = String(item).match(/RISK_IF_MISSED:\s*(.+?)(?:\s*\|\s*|$)/i);
+    if (clauseMatch && riskMatch) {
+      riskByClause[clauseMatch[1].trim()] = riskMatch[1].trim();
+    }
+  }
+
+  clauseClosureRows.forEach((row, idx) => {
+    const mtId = `MT-${String(idx + 1).padStart(3, '0')}`;
+    const mtPath = path.join(wpDir, `${mtId}.md`);
+    const clause = parsePipeField(row, 'CLAUSE');
+    const codeSurfaces = parsePipeField(row, 'CODE_SURFACES');
+    const tests = parsePipeField(row, 'TESTS');
+    const riskIfMissed = riskByClause[clause] || '<fill>';
+
+    if (mtTemplate) {
+      let mt = mtTemplate;
+      mt = mt.replace(/\{\{MT_ID\}\}/g, mtId);
+      mt = mt.replace(/\{\{WP_ID\}\}/g, WP_ID);
+      mt = mt.replace(/\{\{CLAUSE_TEXT\}\}/g, clause);
+      mt = mt.replace(/\{\{CODE_SURFACES\}\}/g, codeSurfaces);
+      mt = mt.replace(/\{\{EXPECTED_TESTS\}\}/g, tests);
+      mt = mt.replace(/\{\{DEPENDS_ON\}\}/g, idx === 0 ? 'NONE' : `MT-${String(idx).padStart(3, '0')}`);
+      mt = mt.replace(/\{\{RISK_IF_MISSED\}\}/g, riskIfMissed);
+      fs.writeFileSync(mtPath, mt, 'utf8');
+    } else {
+      const mt = `# ${mtId}: ${clause}\n\n## METADATA\n- WP_ID: ${WP_ID}\n- MT_ID: ${mtId}\n- CLAUSE: ${clause}\n- CODE_SURFACES: ${codeSurfaces}\n- EXPECTED_TESTS: ${tests}\n- DEPENDS_ON: ${idx === 0 ? 'NONE' : `MT-${String(idx).padStart(3, '0')}`}\n- RISK_IF_MISSED: ${riskIfMissed}\n\n## CODER\n- STATUS: PENDING\n\n## VALIDATOR\n- STATUS: PENDING\n`;
+      fs.writeFileSync(mtPath, mt, 'utf8');
+    }
+    console.log(`Created micro task: ${mtPath}`);
+  });
+  console.log(`Generated ${clauseClosureRows.length} micro task files in ${wpDir}/`);
+}
 
 let wpCommunicationPaths = null;
 try {
