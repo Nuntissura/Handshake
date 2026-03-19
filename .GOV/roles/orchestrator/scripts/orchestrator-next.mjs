@@ -117,7 +117,7 @@ function summarizeResumeState(state, wpId) {
   }
 
   let stage = "DELEGATION";
-  let reason = "Task packet exists; ready to delegate to Coder.";
+  let reason = "Work packet exists; ready to delegate to Coder.";
   let ready = true;
   const syncState = lastPrepare && currentPacketExists
     ? preparedWorktreeSyncState(wpId, lastPrepare, process.cwd())
@@ -148,7 +148,7 @@ function summarizeResumeState(state, wpId) {
     reason = syncState.issues[0] || "Assigned WP worktree is stale.";
   } else if (needsStubCleanup) {
     stage = "DELEGATION";
-    reason = "Task packet exists; Task Board still lists this WP as [STUB].";
+    reason = "Work packet exists; Task Board still lists this WP as [STUB].";
   }
 
   const timestamp =
@@ -413,8 +413,8 @@ function main() {
   printConfidence(confidence.level, confidence.detail);
   printState(
     needsStubCleanup
-      ? "Task packet exists; Task Board still lists this WP as [STUB]."
-      : "Task packet exists; ready to delegate to Coder."
+      ? "Work packet exists; Task Board still lists this WP as [STUB]."
+      : "Work packet exists; ready to delegate to Coder."
   );
   printFindings([
     `Resume source: ${inferred.source}`,

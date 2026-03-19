@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Task packet generator [CX-580-581]
- * Creates a task packet from template
+ * Work packet generator [CX-580-581]
+ * Creates a work packet from template
  */
 
 import fs from 'fs';
@@ -176,7 +176,7 @@ if (!fs.existsSync(refinementPath)) {
     result: 'BLOCKED',
     why: 'Refinement scaffold created; complete refinement + review + signature before packet creation.',
     gateOutputLines: [
-      'BLOCKED: Technical Refinement must be completed BEFORE task packet creation.',
+      'BLOCKED: Technical Refinement must be completed BEFORE work packet creation.',
       `Created refinement scaffold: ${refinementPath.replace(/\\/g, '/')}`,
     ],
     nextCommands: [
@@ -205,7 +205,7 @@ if (!refinementValidation.ok) {
     operatorAction: `Collect explicit approval + one-time signature for ${WP_ID}`,
     gateRan: `just create-task-packet ${WP_ID}`,
     result: 'BLOCKED',
-    why: 'Refinement is not approved/signed; task packet creation is forbidden until the refinement signature gate passes.',
+    why: 'Refinement is not approved/signed; work packet creation is forbidden until the refinement signature gate passes.',
     gateOutputLines: [
       `BLOCKED: Refinement is not approved/signed: ${refinementPath.replace(/\\/g, '/')}`,
       ...((refinementValidation.errors || []).map((e) => `- ${e}`)),
@@ -237,7 +237,7 @@ try {
       operatorAction: 'Spec update required (create new spec version + new WP variant)',
       gateRan: `just create-task-packet ${WP_ID}`,
       result: 'BLOCKED',
-      why: 'Refinement declares ENRICHMENT_NEEDED=YES; do not create/lock a task packet until the spec update is completed.',
+      why: 'Refinement declares ENRICHMENT_NEEDED=YES; do not create/lock a work packet until the spec update is completed.',
       gateOutputLines: [
         `BLOCKED: ${WP_ID} refinement declares ENRICHMENT_NEEDED=YES.`,
         'Do NOT create/lock a WP packet while a Main Body or appendix spec update is required.',
@@ -535,7 +535,7 @@ if (fs.existsSync(filePath)) {
       operatorAction: 'NONE',
       gateRan: `just create-task-packet ${WP_ID}`,
       result: 'FAIL',
-      why: 'Task packet file already exists; generator will not overwrite it.',
+      why: 'Work packet file already exists; generator will not overwrite it.',
       gateOutputLines: [
         `FAIL: Work packet already exists: ${filePath.replace(/\\/g, '/')}`,
       ],
@@ -569,7 +569,7 @@ if (!fs.existsSync(templatePath)) {
     operatorAction: 'NONE',
     gateRan: `just create-task-packet ${WP_ID}`,
     result: 'FAIL',
-    why: 'Task packet template is missing; cannot generate packet deterministically.',
+    why: 'Work packet template is missing; cannot generate packet deterministically.',
     gateOutputLines: [
       `FAIL: Missing template: ${templatePath.replace(/\\/g, '/')}`,
     ],
@@ -582,7 +582,7 @@ if (!fs.existsSync(templatePath)) {
 
 const rawTemplate = fs.readFileSync(templatePath, 'utf8');
 const templateLines = rawTemplate.split('\n');
-const templateStartIdx = templateLines.findIndex((line) => line.startsWith('# Task Packet:'));
+const templateStartIdx = templateLines.findIndex((line) => line.startsWith('# Work Packet:'));
 const templateBody = templateStartIdx === -1
   ? rawTemplate
   : templateLines.slice(templateStartIdx).join('\n');
@@ -1190,7 +1190,7 @@ try {
     operatorAction: 'NONE',
     gateRan: `just create-task-packet ${WP_ID}`,
     result: 'BLOCKED',
-    why: 'Task packet was created, but WP communication artifacts could not be bootstrapped deterministically. The packet is intentionally preserved on disk; repair the communication artifacts instead of deleting and recreating the packet.',
+    why: 'Work packet was created, but WP communication artifacts could not be bootstrapped deterministically. The packet is intentionally preserved on disk; repair the communication artifacts instead of deleting and recreating the packet.',
     gateOutputLines: [
       `BLOCKED: WP communication folder bootstrap failed for ${WP_ID}.`,
       `- ${(error && error.message) ? error.message : String(error)}`,
@@ -1231,9 +1231,9 @@ try {
       operatorAction: 'NONE',
       gateRan: `just create-task-packet ${WP_ID}`,
       result: 'PASS',
-      why: 'Task packet was created, but coder handoff is blocked until the assigned WP worktree contains the current packet/spec/governance state.',
+      why: 'Work packet was created, but coder handoff is blocked until the assigned WP worktree contains the current packet/spec/governance state.',
       gateOutputLines: [
-        `OK: Task packet created: ${filePath.replace(/\\/g, '/')}`,
+        `OK: Work packet created: ${filePath.replace(/\\/g, '/')}`,
         `OK: WP communication folder ready: ${wpCommunicationPaths.dir}`,
         ...syncState.issues.map((issue) => `SYNC_REQUIRED: ${issue}`),
       ],
@@ -1257,9 +1257,9 @@ try {
       operatorAction: 'NONE',
       gateRan: `just create-task-packet ${WP_ID}`,
       result: 'PASS',
-      why: 'Task packet created from template.',
+      why: 'Work packet created from template.',
       gateOutputLines: [
-        `OK: Task packet created: ${filePath.replace(/\\/g, '/')}`,
+        `OK: Work packet created: ${filePath.replace(/\\/g, '/')}`,
         `OK: WP communication folder ready: ${wpCommunicationPaths.dir}`,
       ],
       nextCommands,
