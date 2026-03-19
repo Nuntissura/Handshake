@@ -64,7 +64,12 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 
 ## Product Runtime Root (Current Default)
 
-- External build/test/tool outputs stay under `../Handshake Artifacts/` (for example the external Cargo target dir).
+- External build/test/tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders:
+  - `handshake-cargo-target/` — Cargo build target (already wired via `CARGO_TARGET_DIR` in justfile)
+  - `handshake-product/` — product runtime artifacts, databases, generated files
+  - `handshake-test/` — test outputs, coverage reports, benchmark results
+  - `handshake-tool/` — governance tooling artifacts, linter caches, script outputs
+- Do NOT create artifact paths inside the repo or in ad-hoc sibling folders. Use the subfolders above.
 - Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
 - This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
 - Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the current WP is explicitly remediating them.

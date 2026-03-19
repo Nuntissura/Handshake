@@ -50,7 +50,7 @@ See also:
 
 ## Product Runtime Root (Current Default)
 
-- External build, test, and tool outputs stay under `../Handshake Artifacts/`.
+- External build, test, and tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
 - Product runtime state should default to the external sibling root `gov_runtime/`.
 - Do not treat repo-root `data/` or `.handshake/` as the template for new runtime work.
 
