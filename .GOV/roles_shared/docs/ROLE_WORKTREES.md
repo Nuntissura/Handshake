@@ -21,7 +21,7 @@ Recommended structure:
     wt-gov-kernel/         # Governance kernel worktree (branch: gov_kernel)
     wt-WP-.../             # Coder WP worktrees (branch: feat/WP-...)
     wt-WPV-WP-.../         # WP Validator worktrees (branch: validate/WP-...)
-    wt-INTV-WP-.../        # Integration Validator worktrees (branch: integrate/WP-...)
+    # Integration Validator operates from handshake_main on branch main [CX-212D]
 ```
 
 Preferred session host:
@@ -61,7 +61,7 @@ If you are an AI assistant operating in this repo:
 Notes:
 - CODER agents MUST work only in the WP-assigned worktree/branch created and recorded by the Orchestrator. They must not "pick" a worktree.
 - WP Validator sessions SHOULD use `validate/WP-...` + `../wt-WPV-WP-...`.
-- Integration Validator sessions SHOULD use `integrate/WP-...` + `../wt-INTV-WP-...`.
+- Integration Validator sessions operate from `handshake_main` on branch `main` [CX-212D].
 - WP Validator and Integration Validator local lanes do not mint separate GitHub WP backup branches. Coder, WP Validator, and Integration Validator reuse the single packet-declared WP backup branch on GitHub.
 - WP assignment is recorded in `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` as a `PREPARE` entry (via `just record-prepare ...`) with `branch` and `worktree_dir`.
 - ORCHESTRATOR/VALIDATOR role work (governance/validation work outside a specific WP worktree) uses the dedicated role worktrees above.

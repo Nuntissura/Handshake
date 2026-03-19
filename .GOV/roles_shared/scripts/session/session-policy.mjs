@@ -191,11 +191,13 @@ export function defaultWpValidatorWorktreeDir(wpId) {
 }
 
 export function defaultIntegrationValidatorBranch(wpId) {
-  return `integrate/${wpId}`;
+  // Integration validator operates from handshake_main on branch main [CX-212D].
+  return "main";
 }
 
 export function defaultIntegrationValidatorWorktreeDir(wpId) {
-  return deterministicWorktreeDir("wt-INTV", "INTEGRATION_VALIDATOR", wpId);
+  // Integration validator operates from handshake_main — no WP-specific worktree [CX-212D].
+  return "../handshake_main";
 }
 
 export function sessionKey(role, wpId) {

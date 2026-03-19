@@ -67,9 +67,9 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 ## Current Execution Policy (Additional LAW)
 
 - Validator work currently has three governance forms:
-  - `Classical Validator` = manual-relay / non-orchestrator-managed validator operating from the assigned WP validator checkout. This form may own final validation closure and merge-to-`main` authority when no orchestrator-managed Integration Validator lane exists.
-  - `WP Validator` = orchestrator-managed, WP-scoped advisory validator operating in the Orchestrator-provisioned validator worktree. This form may inspect live coder progress, challenge vibe-coding/spec drift, and request steering through packet communications plus Orchestrator-owned ACP controls, but it is not the final merge authority.
-  - `Integration Validator` = orchestrator-managed final validator operating in the Orchestrator-provisioned integration worktree. This form owns final technical verdict and merge-to-`main` authority for orchestrator-managed WPs unless the packet explicitly overrides it.
+  - `Classical Validator` = manual-relay / non-orchestrator-managed validator operating from `handshake_main` on branch `main`. This form may own final validation closure and merge-to-`main` authority when no orchestrator-managed Integration Validator lane exists.
+  - `WP Validator` = orchestrator-managed, WP-scoped advisory validator operating in the Orchestrator-provisioned validator worktree (`wtv-*` on `validate/WP-*` branch, `/.GOV/` junction to kernel). This form may inspect live coder progress, challenge vibe-coding/spec drift, and request steering through packet communications plus Orchestrator-owned ACP controls, but it is not the final merge authority.
+  - `Integration Validator` = orchestrator-managed final validator operating from `handshake_main` on branch `main` (no WP-specific worktree). This form owns final technical verdict, merge-to-`main` authority, and `sync-gov-to-main` responsibility for orchestrator-managed WPs unless the packet explicitly overrides it.
 - Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
 - For newly created repo-governed validator sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
@@ -279,7 +279,7 @@ Resume rule (hard, anti-babysit):
   - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Validator session):
   - `just wp-validator-worktree-add WP-{ID}` / `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - `just integration-validator-worktree-add WP-{ID}` / `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from handshake_main; no worktree-add needed)
   - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just steer-wp-validator-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
