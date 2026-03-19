@@ -2,7 +2,7 @@
 
 This file is a **derived snapshot** of Phase 1 sequencing inputs. It exists to prevent stale, vibe-driven ordering.
 
-- This file is NOT binding for "Done": the Master Spec + active task packets define "Done".
+- This file is NOT binding for "Done": the Master Spec + active work packets define "Done".
 - File upkeep IS binding: it MUST stay in sync with governance sources (Orchestrator Protocol).
 
 ## Source of truth (do not contradict)

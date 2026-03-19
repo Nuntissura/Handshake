@@ -4,7 +4,7 @@
 Handshake uses Work Packets (WPs) as execution units, but the Master Spec Main Body must remain stable and WP-free. This registry is the **single source of truth** for mapping:
 
 - **Base WP IDs** (stable planning identifiers used by Roadmap/Task Board), to
-- **Active Task Packet files** (the concrete packet to implement/validate), including any `-vN` revisions.
+- **Active work packet files** (the concrete packet to implement/validate), including any `-vN` revisions.
 
 This avoids retroactively embedding WP IDs into the Master Spec and prevents drift when packets are revised (v2/v3/v4) after audits.
 
@@ -18,7 +18,7 @@ Packet lifecycle truth lives in the packet or stub metadata itself. This registr
   - Base IDs **do not** include packet revision suffixes.
   - Base IDs are the preferred identifiers for Roadmap pointers and Task Board tracking.
 
-- **Packet Revision**: A revised task packet for the same Base WP, named `WP-{phase}-{name}-v{N}` (e.g., `WP-1-Workflow-Engine-v4`).  
+- **Packet Revision**: A revised work packet for the same Base WP, named `WP-{phase}-{name}-v{N}` (e.g., `WP-1-Workflow-Engine-v4`).  
   - Naming rule is governed by Handshake Codex v1.4 `[CX-580C]` (no date/time stamps; use `-vN`).
   - **Legacy exception:** historical packets may contain date stamps (e.g., `-20251228`). Do not create new date-stamped packet IDs; convert future revisions to `-vN`.
 
@@ -33,7 +33,7 @@ Packet lifecycle truth lives in the packet or stub metadata itself. This registr
 
 1. **Roadmap points to Base WP IDs** (not packet revisions).  
 2. **Task Board tracks projections of packet truth** (Base IDs and/or packet revisions). This registry resolves the Base WP ??? Active Packet mapping when `-vN` revisions exist.
-3. **Task packets live in** `.GOV/task_packets/`. **Stubs live in** `.GOV/task_packets/stubs/`.
+3. **work packets live in** `.GOV/task_packets/`. **Stubs live in** `.GOV/task_packets/stubs/`.
 4. If a packet must change due to audit/spec drift:
    - Create a **new packet revision** `...-v{N}` (do not edit locked history).
    - Mark the older packet as **Superseded** on `.GOV/roles_shared/records/TASK_BOARD.md`.
@@ -45,7 +45,7 @@ Packet lifecycle truth lives in the packet or stub metadata itself. This registr
 
 - When running `just pre-work`, `just post-work`, `just gate-check`, validator scripts, etc., use the **Active Packet WP_ID** (the filename stem), not the Base WP ID.
   - Example: if Active Packet is `.GOV/task_packets/WP-1-Workflow-Engine-v4.md`, run `just pre-work WP-1-Workflow-Engine-v4`.
-- If the Active Packet is a stub under `.GOV/task_packets/stubs/`, it is **not executable**: activate it first (Technical Refinement Block ??? USER_SIGNATURE ??? create official task packet).
+- If the Active Packet is a stub under `.GOV/task_packets/stubs/`, it is **not executable**: activate it first (Technical Refinement Block ??? USER_SIGNATURE ??? create official work packet).
 
 ---
 

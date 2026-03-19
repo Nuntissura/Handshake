@@ -78558,7 +78558,7 @@ Hard invariants:
         "src/backend/handshake_core/src/storage/loom.rs"
       ],
       "gap_stub_ids": [
-        "WP-1-Loom-Storage-Portability-v2",
+        "WP-1-Loom-Storage-Portability-v3",
         "WP-1-Loom-Preview-VideoPosterFrames-v1",
         "WP-1-Media-Downloader-Loom-Bridge-v1",
         "WP-1-Video-Archive-Loom-Integration-v1",
