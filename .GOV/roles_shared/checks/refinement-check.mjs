@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { GOV_ROOT_REPO_REL } from '../scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, resolveRefinementPath } from '../scripts/lib/runtime-paths.mjs';
 
 const SPEC_CURRENT_PATH = path.join(GOV_ROOT_REPO_REL, 'spec', 'SPEC_CURRENT.md');
 const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'TASK_BOARD.md');
@@ -25,7 +25,7 @@ export function resolveSpecCurrent() {
 }
 
 export function defaultRefinementPath(wpId) {
-  return path.join(GOV_ROOT_REPO_REL, 'refinements', `${wpId}.md`);
+  return resolveRefinementPath(wpId) || path.join(GOV_ROOT_REPO_REL, 'refinements', `${wpId}.md`);
 }
 
 export function isAsciiOnly(s) {

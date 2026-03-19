@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
-import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const wpId = process.argv[2];
 if (!wpId) {
@@ -21,7 +21,8 @@ if (!wpId) {
   process.exit(1);
 }
 
-const packetRel = path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
+const resolved = resolveWorkPacketPath(wpId);
+const packetRel = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
 if (!fs.existsSync(packetRel)) {
   console.error(`FAIL: Work packet not found: ${packetRel}`);
   process.exit(1);

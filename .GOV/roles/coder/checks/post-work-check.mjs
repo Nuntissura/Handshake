@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { execSync } from 'child_process';
-import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, resolveRefinementPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const usage = () => [
   'Usage: node post-work-check.mjs WP-{ID} [options]',
@@ -669,7 +669,7 @@ if (useStaged && workingFiles.length > stagedFiles.length) {
     `${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`,
     `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
     packetPath.replace(/\\/g, '/'),
-    `${GOV_ROOT_REPO_REL}/refinements/${WP_ID}.md`,
+    resolveRefinementPath(WP_ID) || `${GOV_ROOT_REPO_REL}/refinements/${WP_ID}.md`,
   ].filter(Boolean));
 
   const isAllowlistedUnstaged = (p) =>
@@ -697,7 +697,7 @@ if (manifests) {
     `${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`,
     `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
     packetPath.replace(/\\/g, '/'),
-    `${GOV_ROOT_REPO_REL}/refinements/${WP_ID}.md`,
+    resolveRefinementPath(WP_ID) || `${GOV_ROOT_REPO_REL}/refinements/${WP_ID}.md`,
   ].filter(Boolean));
 
   const outOfScope = changedFiles

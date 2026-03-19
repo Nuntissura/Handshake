@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import crypto from "node:crypto";
-import { GOV_ROOT_REPO_REL } from "./runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "./runtime-paths.mjs";
 
 export const ORCHESTRATOR_GATES_PATH = path.join(
   GOV_ROOT_REPO_REL,
@@ -83,7 +83,7 @@ export function inferWpIdFromBranch(branch) {
 }
 
 export function packetPath(wpId) {
-  return path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  return resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
 }
 
 export function packetExists(wpId) {
@@ -333,8 +333,10 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
     issues.push(`Assigned worktree branch mismatch: expected ${expectedBranch}, got ${actualBranch}`);
   }
 
-  const packetPath = path.join(worktreeAbs, GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
-  const referencePacketPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  const resolvedPacket = resolveWorkPacketPath(wpId);
+  const packetPathRel = resolvedPacket?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  const packetPath = path.join(worktreeAbs, packetPathRel);
+  const referencePacketPath = path.join(repoRoot, packetPathRel);
   if (!exists(packetPath)) {
     issues.push(`Assigned worktree is missing the official packet: ${packetPath}`);
   } else if (exists(referencePacketPath)) {
