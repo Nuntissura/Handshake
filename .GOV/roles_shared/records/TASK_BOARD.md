@@ -19,7 +19,7 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - In Progress: `- **[WP_ID]** - [IN_PROGRESS]`
 - Done: `- **[WP_ID]** - [VALIDATED|FAIL|OUTDATED_ONLY]`
 - Superseded: `- **[WP_ID]** - [SUPERSEDED]`
-Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the task packet to avoid drift/noise.
+Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the work packet to avoid drift/noise.
 
 **Additional recommended entry format (not currently enforced):**
 - Ready for Dev: `- **[WP_ID]** - [READY_FOR_DEV]`
@@ -29,7 +29,7 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 
 **Backlog stubs (pre-activation):**
 - Track not-yet-activated work as STUB items (no USER_SIGNATURE yet). Details live in `.GOV/task_packets/stubs/`.
-- Stubs MUST be activated into official task packets before any coding starts (see `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).
+- Stubs MUST be activated into official work packets before any coding starts (see `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).
 - Base WP to active packet mapping (v2/v3/v4 and stub revisions) is tracked in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
 - Only the registry-mapped active packet or stub for a `BASE_WP_ID` may remain non-superseded. Any older packet or older stub with the same `BASE_WP_ID` must move to `## Superseded (Archive)`.
 
@@ -43,7 +43,7 @@ Rules:
 - This section is informational for visibility across branches (who is working on what).
 - Do NOT use `[IN_PROGRESS]` here (that token is reserved for the script-checked `## In Progress` list).
 - Validator maintains this section on `main` via small docs-only "status sync" commits.
-- Status sync commits MUST NOT move WPs to `## Done` or set `[VALIDATED|FAIL|OUTDATED_ONLY]` tokens; those require the canonical Validator report appended to the task packet `## VALIDATION_REPORTS`.
+- Status sync commits MUST NOT move WPs to `## Done` or set `[VALIDATED|FAIL|OUTDATED_ONLY]` tokens; those require the canonical Validator report appended to the work packet `## VALIDATION_REPORTS`.
 
 Entry format (recommended):
 - `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
@@ -172,7 +172,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 
 ## In Progress
 
-Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
 
 

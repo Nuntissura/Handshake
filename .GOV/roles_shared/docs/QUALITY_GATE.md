@@ -7,12 +7,12 @@ Purpose: reduce coding errors by standard checks and clear risk tiers.
 **[CX-620, CX-587]** Before any implementation work starts, Gate 0 MUST pass.
 
 **For Orchestrator Agents:**
-- Task packet MUST exist in `.GOV/task_packets/WP-{ID}.md`
-- All task packet fields MUST be filled (no `{placeholders}`)
+- work packet MUST exist in `.GOV/task_packets/WP-{ID}.md`
+- All work packet fields MUST be filled (no `{placeholders}`)
 - Verification: `just pre-work WP-{ID}` MUST pass
 
 **For Coder Agents:**
-- Task packet MUST be verified before writing any code
+- work packet MUST be verified before writing any code
 - If no packet found, work MUST be BLOCKED immediately
 - Bootstrap protocol MUST be followed (read START_HERE, SPEC_CURRENT, packet)
 - BOOTSTRAP block MUST be output before first code change
@@ -35,7 +35,7 @@ Purpose: reduce coding errors by standard checks and clear risk tiers.
 
 If uncertain, choose the higher tier.
 
-## Task packet fields (required)
+## work packet fields (required)
 - RISK_TIER (LOW/MEDIUM/HIGH)
 - TEST_PLAN (commands + manual steps, or "None" with reason)
 - ROLLBACK_HINT (how to revert if needed)
@@ -56,10 +56,10 @@ If uncertain, choose the higher tier.
 
 **Required:**
 - All TEST_PLAN commands MUST have been run
-- Validation results MUST be documented in the task packet (logger only if explicitly requested)
+- Validation results MUST be documented in the work packet (logger only if explicitly requested)
 - Git status MUST show changes (work actually done)
 - For MEDIUM/HIGH: Manual validator review must be complete before marking Done
-- Task packet MUST capture current status/result
+- work packet MUST capture current status/result
 - Verification: `just post-work WP-{ID}` MUST pass
 
 **Enforcement:** Gate 1 is automated via validation scripts. Failure exits 1 and blocks commit.
@@ -77,4 +77,4 @@ just validate-workflow WP-{ID}  # Runs pre-work, validate, post-work
 5) Docs drift: update `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`, `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` if behavior/entrypoints changed.
 
 Scaffolding: for new components or API endpoints, prefer `just new-react-component <Name>` or `just new-api-endpoint <name>` to keep structure consistent.
-For MEDIUM/HIGH tasks adding new components or endpoints, scaffolds are required unless explicitly waived; record the reason in the task packet and run `just scaffold-check` before merge.
+For MEDIUM/HIGH tasks adding new components or endpoints, scaffolds are required unless explicitly waived; record the reason in the work packet and run `just scaffold-check` before merge.

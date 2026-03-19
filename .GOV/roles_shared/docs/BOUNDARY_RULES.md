@@ -16,7 +16,7 @@ Authoritative LAW: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]).
 - role protocols and active governance tooling
 - gate definitions + validator/orchestrator state
 - governance implementation (`.GOV/roles/**`, `.GOV/roles_shared/**`)
-- task packets + refinements + templates
+- work packets + refinements + templates
 - governance logs and operator materials
 - non-authoritative historical/reference material under `.GOV/reference/`
 

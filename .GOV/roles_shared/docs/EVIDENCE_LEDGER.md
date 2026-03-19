@@ -15,7 +15,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 
 ## Canonical evidence location (HARD)
 
-The canonical evidence for a WP lives INSIDE the WP task packet (append-only):
+The canonical evidence for a WP lives INSIDE the WP work packet (append-only):
 - Path: `/.GOV/task_packets/{WP_ID}.md`
   - `## EVIDENCE` (commands, proof lines, hashes, artifacts)
   - `## VALIDATION_REPORTS` (Validator report + verdict)
@@ -35,7 +35,7 @@ Codex authority: [CX-657] CANONICAL_EVIDENCE_IN_PACKET (HARD).
 - Purpose: leak-safe metadata exports of role decisions, approvals/waivers, and tooling results (no raw bodies).
 - Verified by: `just role-mailbox-export-check`
 
-The Role Mailbox stores metadata/hashes and pointers. Raw outputs stay in the task packet evidence (and/or pasted to chat when needed).
+The Role Mailbox stores metadata/hashes and pointers. Raw outputs stay in the work packet evidence (and/or pasted to chat when needed).
 
 ---
 
@@ -43,7 +43,7 @@ The Role Mailbox stores metadata/hashes and pointers. Raw outputs stay in the ta
 
 For every command that can block/proceed (examples: `just pre-work`, `just post-work`, `just validator-dal-audit`, `cargo test`):
 
-A) In the task packet under `## EVIDENCE`, append:
+A) In the work packet under `## EVIDENCE`, append:
 - COMMAND: (exact)
 - EXIT_CODE: (int)
 - WORKTREE_DIR / BRANCH: (exact)
@@ -57,4 +57,4 @@ B) Optionally also write a matching Role Mailbox entry containing the same OUTPU
 
 ## Non-agentic (human-run)
 
-Same as above, but the Role Mailbox is optional. The task packet remains canonical evidence.
+Same as above, but the Role Mailbox is optional. The work packet remains canonical evidence.

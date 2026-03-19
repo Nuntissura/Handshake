@@ -9,7 +9,7 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 - **Folder-placement law:** `.GOV/codex/Handshake_Codex_v1.4.md` + `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/coder/CODER_PROTOCOL.md` + `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`.
 - **Spec EOF appendices:** Master Spec Â§12 (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance, Interaction Matrix). These blocks are spec-internal and kept at end-of-file; `just gov-check` enforces presence + parseability.
 - **WP Traceability:** `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP â†’ Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
-- **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
+- **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + work packets. Handshake logger is for milestones/hard bugs when requested.
 - **Shared tooling guardrails:** `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (shared tooling memory: short append-only `Do` / `Don't` / `Why` / `Context` notes for all roles).
 - **Architecture & debug:** `.GOV/roles_shared/docs/ARCHITECTURE.md` and `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`.
 - **Session/runtime law:** `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md` plus the packet-declared external `WP_COMMUNICATION_DIR`.
@@ -19,8 +19,8 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 **[CX-503, CX-580-623]** This repository is designed for AI-autonomous software engineering. Human users may not have coding expertise and rely on deterministic workflow enforcement.
 
 **Two agent roles:**
-1. **Orchestrator** â€” Creates task packets, delegates work, manages workflow
-2. **Coder/Debugger** â€” Implements work per task packet scope
+1. **Orchestrator** â€” Creates work packets, delegates work, manages workflow
+2. **Coder/Debugger** â€” Implements work per work packet scope
 
 **Mandatory protocols:**
 - **Orchestrators:** Read `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` before delegating
@@ -29,7 +29,7 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 
 **Workflow enforcement commands:**
 ```bash
-# Orchestrator: Create task packet from template
+# Orchestrator: Create work packet from template
 just create-task-packet WP-{phase}-{name}
 
 # Orchestrator: Verify packet complete before delegation
@@ -53,7 +53,7 @@ just gov-check
 - Verification: `just gov-check`
 - If any product path is touched (`/src/`, `/app/`, `/tests/`): STOP and require a WP + Gate 0/1 (`just pre-work WP-{ID}` / `just post-work WP-{ID}`)
 
-**Gate 0 (Pre-Work):** Task packet MUST exist and pass `just pre-work WP-{ID}` before implementation starts. If blocked, STOP and request help.
+**Gate 0 (Pre-Work):** work packet MUST exist and pass `just pre-work WP-{ID}` before implementation starts. If blocked, STOP and request help.
 
 **Gate 1 (Post-Work):** All validation MUST pass `just post-work WP-{ID}` before commit. If blocked, fix issues and re-run.
 
@@ -130,7 +130,7 @@ Troubleshooting:
 - Port conflict (11434): `netstat -ano | findstr 11434`
 - If `just dev` reports an Ollama preflight error, confirm `OLLAMA_URL` and that `ollama serve` is running.
 
-For task packets: include scope, expected behavior, in-scope paths, DONE_MEANS, BOOTSTRAP block (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP), and these commands.
+For work packets: include scope, expected behavior, in-scope paths, DONE_MEANS, BOOTSTRAP block (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP), and these commands.
 
 CI expectation: run `just validate`; manual validator review is required for MEDIUM/HIGH risk work.
 
@@ -145,5 +145,5 @@ CI expectation: run `just validate`; manual validator review is required for MED
 - Debug runbook: `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
 - Current spec + governance: `.GOV/spec/SPEC_CURRENT.md`
 - Quality gate (risk tiers + required checks): `.GOV/roles_shared/docs/QUALITY_GATE.md`
-- Task packet template: `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+- work packet template: `.GOV/templates/TASK_PACKET_TEMPLATE.md`
 - Workflow template for reuse: `.GOV/templates/AI_WORKFLOW_TEMPLATE.md`
