@@ -274,7 +274,7 @@ function traceabilityPacketPathAtRepo(repoRoot, baseWpId) {
 }
 
 function resolveSpecSnapshotAtRepo(repoRoot) {
-  const specCurrentPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "SPEC_CURRENT.md");
+  const specCurrentPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "spec", "SPEC_CURRENT.md");
   if (!exists(specCurrentPath)) {
     return { ok: false, error: `Missing ${specCurrentPath}` };
   }
@@ -284,7 +284,7 @@ function resolveSpecSnapshotAtRepo(repoRoot) {
     return { ok: false, error: `Could not resolve spec filename from ${specCurrentPath}` };
   }
   const specFileName = match[0];
-  const specFilePath = path.join(repoRoot, specFileName);
+  const specFilePath = path.join(path.dirname(specCurrentPath), specFileName);
   if (!exists(specFilePath)) {
     return { ok: false, error: `Resolved spec file does not exist: ${specFilePath}` };
   }
@@ -347,10 +347,14 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
 
   const currentPrepare = lastPrepareEntryAtRepo(repoRoot, wpId);
   const worktreePrepare = lastPrepareEntryAtRepo(worktreeAbs, wpId);
-  if (!worktreePrepare) {
+  // ORCHESTRATOR_GATES.json is orchestrator-private runtime state excluded from
+  // gov-to-main sync, so WP worktrees legitimately lack it — only flag a mismatch
+  // when the worktree *does* have a PREPARE record that disagrees with the reference.
+  if (!worktreePrepare && !currentPrepare) {
     issues.push("Assigned worktree does not contain the current PREPARE record");
   } else if (
-    currentPrepare
+    worktreePrepare
+    && currentPrepare
     && (
       String(worktreePrepare.branch || "").trim() !== String(currentPrepare.branch || "").trim()
       || String(worktreePrepare.worktree_dir || "").trim() !== String(currentPrepare.worktree_dir || "").trim()
