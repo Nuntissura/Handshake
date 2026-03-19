@@ -266,11 +266,11 @@ if (action === 'append') {
         ]);
     }
 
-    // Verify task packet exists
+    // Verify work packet exists
     const resolved = resolveWorkPacketPath(wpId);
     const packetPath = resolved?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`;
     if (!fs.existsSync(packetPath)) {
-        fail(`Task packet not found: ${packetPath}`);
+        fail(`Work packet not found: ${packetPath}`);
     }
 
     let session = getSession(state, wpId);
