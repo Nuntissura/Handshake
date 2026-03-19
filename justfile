@@ -401,10 +401,15 @@ wp-traceability-set base_wp_id active_wp_id:
 
 # Orchestrator wrapper: create WP worktree + PREPARE record + task packet from the signature bundle.
 # Optional workflow lane / execution owner args are accepted for legacy recovery only.
-orchestrator-prepare-and-packet wp-id workflow_lane="" execution_lane="":
+# After creation: commits governance on gov_kernel + creates backup snapshot [CX-212F].
+orchestrator-prepare-and-packet wp-id workflow_lane="" execution_lane="" label="pre-wp-launch":
 	@just worktree-add {{wp-id}}
 	@just record-prepare {{wp-id}} {{workflow_lane}} {{execution_lane}}
 	@just create-task-packet {{wp-id}}
+	@echo "[ORCHESTRATOR] Committing governance checkpoint on gov_kernel..."
+	@cd ../wt-gov-kernel && git add -A && git diff --cached --quiet || git commit -m "gov: checkpoint packet+refinement+micro-tasks [{{wp-id}}]"
+	@echo "[ORCHESTRATOR] Creating backup snapshot before coder launch..."
+	@just backup-snapshot "{{label}}"
 
 # Orchestrator wrapper: create WP worktree + task packet when PREPARE is already recorded
 # (for example, retrying packet creation after a previous blocked attempt).

@@ -77,16 +77,18 @@
 - Only the Primary Coder may use coder sub-agents, and only when the packet explicitly records operator approval.
 - Shared launch/watch contract: `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`.
 
-### Governance kernel architecture [CX-212B/C/D]
-- The governance kernel worktree (`wt-gov-kernel`, branch `gov_kernel`) is the single canonical `/.GOV/` source. It contains ONLY `/.GOV/` and git-required files. No product code lives here.
-- `handshake_main` (branch `main`) has a real `/.GOV/` copy as a stable backup. This copy is synced from the kernel by the Integration Validator before pushing to `origin/main` using `just sync-gov-to-main`.
+### Governance kernel architecture [CX-212B/C/D/F]
+- **Live junction model:** `/.GOV/` in every non-main worktree is a junction (symlink) to `../wt-gov-kernel/.GOV`. Edits to any `/.GOV/` file are live and immediately visible to all worktrees. There is no branch isolation for governance files.
+- **Commit rule [CX-212F]:** `/.GOV/` files are NEVER committed on feature branches (`feat/WP-*`). Governance changes are committed on `gov_kernel` by the orchestrator. Only non-`/.GOV/` files (product code: `src/`, `app/`, `tests/`) are committed on feature branches.
+- The governance kernel worktree (`wt-gov-kernel`, branch `gov_kernel`) contains ONLY `/.GOV/` and git-required files. No product code.
+- `handshake_main` (branch `main`) has a real `/.GOV/` copy as a stable backup, synced from the kernel by the Integration Validator before push using `just sync-gov-to-main`.
 - `wt-orchestrator` (branch `role_orchestrator`) has `/.GOV/` as a junction to `../wt-gov-kernel/.GOV`.
-- Coder worktrees (`wtc-*`) are created from `main`, then their inherited `/.GOV/` is replaced with a junction to `../wt-gov-kernel/.GOV` by the worktree creation script.
+- Coder worktrees (`wtc-*`) are created from `main`, then their inherited `/.GOV/` is replaced with a junction by the worktree creation script.
 - WP worktree budget: 1 per WP (coder only). WP Validator operates from the coder worktree; Integration Validator from `handshake_main`.
 - The Orchestrator MAY write to the governance kernel. During active multi-session steering, prefer deferring governance edits to reduce cognitive load.
 - Coders and WP Validators read governance through their junction and MUST NOT edit `/.GOV/` directly.
 - Sync responsibilities:
-  - Orchestrator: edits `/.GOV/` in the kernel; does NOT sync to main.
+  - Orchestrator: edits `/.GOV/` in the kernel, commits on `gov_kernel`; does NOT sync to main.
   - Integration Validator: runs `just sync-gov-to-main` before pushing to `origin/main`.
-  - Coders/WP Validators: read governance through their junction; do NOT edit `/.GOV/` directly.
+  - Coders/WP Validators: read governance through their junction; do NOT edit or commit `/.GOV/` files.
 </INSTRUCTIONS>
