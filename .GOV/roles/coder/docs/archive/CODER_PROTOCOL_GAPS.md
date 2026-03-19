@@ -1,4 +1,6 @@
-﻿# CODER_PROTOCOL_GAPS: Path to 9.9/10
+﻿> **ARCHIVED** — Historical gap analysis. Many gaps have been addressed in the live protocol. Not current workflow law.
+
+# CODER_PROTOCOL_GAPS: Path to 91/100
 
 **Current Grade:** B+ (82/100)
 **Target Grade:** A+ (91/100)

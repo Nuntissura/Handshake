@@ -51,7 +51,7 @@ See also:
 ## Product Runtime Root (Current Default)
 
 - External build, test, and tool outputs stay under `../Handshake Artifacts/`.
-- Product runtime state should default to the external sibling root `../Handshake Runtime/`.
+- Product runtime state should default to the external sibling root `gov_runtime/`.
 - Do not treat repo-root `data/` or `.handshake/` as the template for new runtime work.
 
 ## Current Execution Policy (Additional LAW)
@@ -64,12 +64,12 @@ See also:
   - reasoning: `EXTRA_HIGH`
   - config: `model_reasoning_effort=xhigh`
 - Repo-governed Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is the VS Code bridge using the external repo-governance runtime root (default repo-relative from a repo worktree: `../../Handshake Runtime/repo-governance/roles_shared/`):
-  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
-  - `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`
+- Primary launch path is the VS Code bridge using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
+  - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
+  - `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
 - Primary steering path is the governed session-control ledgers under that same external repo-governance runtime root:
-  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
-  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+  - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+  - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
 - CLI escalation is allowed only after 2 plugin failures or timeouts for the same role/WP session unless the Operator explicitly waives that policy.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)

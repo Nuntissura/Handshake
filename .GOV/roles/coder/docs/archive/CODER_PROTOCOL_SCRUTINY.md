@@ -1,4 +1,6 @@
-﻿# CODER_PROTOCOL SCRUTINY [Context-Informed Analysis]
+﻿> **ARCHIVED** — Historical analysis. Many findings have been incorporated into the live protocol. Not current workflow law.
+
+# CODER_PROTOCOL SCRUTINY [Context-Informed Analysis]
 
 **Analysis Date:** 2025-12-25
 **Scope:** Compare CODER_PROTOCOL (585 lines) against ORCHESTRATOR_PROTOCOL (A+ grade, 2,100+ lines) and VALIDATOR_PROTOCOL standards

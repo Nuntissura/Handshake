@@ -1,7 +1,9 @@
-# CODER_IMPLEMENTATION_ROADMAP: Path to 9.9/10
+> **ARCHIVED** — Historical implementation roadmap. Many items have been incorporated into the live protocol. Not current workflow law.
+
+# CODER_IMPLEMENTATION_ROADMAP: Path to 91/100
 
 **Current Grade:** B+ (82/100)
-**Target Grade:** A+ (99/100)
+**Target Grade:** A+ (91/100)
 **Work Type:** Protocol additions + clarifications (no code changes)
 **Model Tier:** Cheap/Standard
 

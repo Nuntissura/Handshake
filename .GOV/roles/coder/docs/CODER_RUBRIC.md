@@ -1,4 +1,7 @@
-﻿# CODER RUBRIC: Internal Quality Standard [CX-620-625]
+﻿> **DEPRECATED** — This is the v1 rubric. The live binding rubric is **CODER_RUBRIC_V2.md** in this directory.
+> This file is retained as historical reference only. Do not use it for self-evaluation or acceptance criteria.
+
+# CODER RUBRIC (v1, DEPRECATED): Internal Quality Standard [CX-620-625]
 
 **Purpose:** Define what a PERFECT Coder looks like. Use this for self-evaluation before requesting commit.
 

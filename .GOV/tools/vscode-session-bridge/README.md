@@ -34,10 +34,10 @@ Thin VS Code extension bridge for Handshake repo-governed session orchestration.
    - `Handshake: Open Session Registry`
 
 ## Runtime Contract
-- Queue file: default repo-relative `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
-- Registry file: default repo-relative `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`
-- Steering notice ledger: default repo-relative `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
-- Steering detail log root: default repo-relative `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_OUTPUTS/`
+- Queue file: default repo-relative `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
+- Registry file: default repo-relative `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
+- Steering notice ledger: default repo-relative `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- Steering detail log root: default repo-relative `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/`
 - Preferred host: `VSCODE_EXTENSION_TERMINAL`
 - Fallback law lives in repo scripts, not here.
 - Wake/notice contract: launch queue + registry for bootstrap, `SESSION_CONTROL_RESULTS.jsonl` plus `SESSION_CONTROL_OUTPUTS/` for ACP steering notices, and packet runtime status for validator/operator wake-ups.

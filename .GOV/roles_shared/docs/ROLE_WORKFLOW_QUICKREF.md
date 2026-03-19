@@ -56,8 +56,8 @@ Product-scanning / product-boundary enforcement:
 - When available, prefer VS Code integrated terminals for multi-session work instead of many floating desktop terminals.
 - Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs assume `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
 - Repo-governed role-session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`).
-- Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
+- Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
+- Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session.
 - Recommended VS Code tabs:
   - `ORCH`

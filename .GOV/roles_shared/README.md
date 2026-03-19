@@ -27,7 +27,7 @@ Authoritative folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the 
 
 ## Shared Records
 
-- `records/TASK_BOARD.md` (SPEC_CURRENT.md moved to `.GOV/spec/SPEC_CURRENT.md`)
+- `records/TASK_BOARD.md`
 - `records/WP_TRACEABILITY_REGISTRY.md`
 - `records/BUILD_ORDER.md`
 - `records/SIGNATURE_AUDIT.md`
@@ -37,7 +37,7 @@ Authoritative folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the 
 ## Shared Runtime
 
 - External repo-governance runtime root:
-  - default repo-relative from a repo worktree: `../../Handshake Runtime/repo-governance/roles_shared/`
+  - default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`
   - overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`
 - external `roles_shared/ROLE_SESSION_REGISTRY.json`
 - external `roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
