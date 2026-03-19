@@ -3,7 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { GOV_ROOT_REPO_REL } from '../scripts/lib/runtime-paths.mjs';
 
-const SPEC_CURRENT_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'SPEC_CURRENT.md');
+const SPEC_CURRENT_PATH = path.join(GOV_ROOT_REPO_REL, 'spec', 'SPEC_CURRENT.md');
 const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'TASK_BOARD.md');
 
 export function resolveSpecCurrent() {
@@ -16,7 +16,7 @@ export function resolveSpecCurrent() {
     throw new Error(`Could not resolve spec filename from ${SPEC_CURRENT_PATH}`);
   }
   const specFileName = m[0];
-  const specFilePath = path.join(specFileName);
+  const specFilePath = path.join(path.dirname(SPEC_CURRENT_PATH), specFileName);
   if (!fs.existsSync(specFilePath)) {
     throw new Error(`Resolved spec file does not exist: ${specFilePath}`);
   }

@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja190320260923 | Orchestrator | 2026-03-19 09:23 | Task packet creation: WP-1-Structured-Collaboration-Schema-Registry-v3 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Structured-Collaboration-Schema-Registry-v3.md ). |
+| ilja190320260922 | Orchestrator | 2026-03-19 09:22 | Task packet creation: WP-1-Loom-Storage-Portability-v3 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Loom-Storage-Portability-v3.md ). |
 | ilja160320262020 | Orchestrator | 2026-03-16 20:20 | Task packet creation: WP-1-Loom-Storage-Portability-v2 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Loom-Storage-Portability-v2.md ). |
 | ilja160320262019 | Orchestrator | 2026-03-16 20:19 | Task packet creation: WP-1-Structured-Collaboration-Schema-Registry-v2 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Structured-Collaboration-Schema-Registry-v2.md ). |
 | ilja140320260134 | Orchestrator | 2026-03-14 01:34 | Task packet creation: WP-1-Loom-Storage-Portability-v1 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Loom-Storage-Portability-v1.md ). |
