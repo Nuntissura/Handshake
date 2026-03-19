@@ -373,7 +373,7 @@ if (action === 'sign') {
         const verMatch = resolved.specFileName.match(/v([0-9.]+)\.md/);
         const specVer = verMatch ? `v${verMatch[1]}` : resolved.specFileName;
 
-        const row = `| ${signature} | Orchestrator | ${dateTime} | Task packet creation: ${wpId} | ${specVer} | Approved after Technical Refinement (see ${refinementPath.replace(/\\\\/g, '/')} ). |`;
+        const row = `| ${signature} | Orchestrator | ${dateTime} | Work packet creation: ${wpId} | ${specVer} | Approved after Technical Refinement (see ${refinementPath.replace(/\\\\/g, '/')} ). |`;
         const updatedAudit = v2InsertSignatureAuditRow(audit, row);
         if (!updatedAudit) {
             v2Fail('SIGNATURE_AUDIT format changed; cannot append deterministically.');
@@ -548,7 +548,7 @@ if (action === 'prepare') {
         operatorAction: 'NONE',
         gateRan: `just record-prepare ${wpId} ${workflowLane} ${executionLane} ${branch} ${worktreeDir}`,
         result: 'PASS',
-        why: 'WP worktree/branch + workflow lane + execution owner recorded; task packet creation is now unblocked.',
+        why: 'WP worktree/branch + workflow lane + execution owner recorded; work packet creation is now unblocked.',
         gateOutputLines: [
             `[ORCHESTRATOR GATE] Prepared ${wpId} for development.`,
             `- workflow_lane: ${workflowLane}`,

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Task packet stub generator
+ * Work packet stub generator
  *
  * Creates a backlog-only stub under `.GOV/task_packets/stubs/` from the canonical template:
  * - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
