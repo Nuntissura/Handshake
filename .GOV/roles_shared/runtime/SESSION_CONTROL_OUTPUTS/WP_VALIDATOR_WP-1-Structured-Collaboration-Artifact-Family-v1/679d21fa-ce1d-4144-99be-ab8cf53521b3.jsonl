@@ -1,4 +1,0 @@
-{"type":"thread.started","thread_id":"019ce468-8c58-74e3-aab1-9483731e01e3"}
-{"type":"turn.started"}
-{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"broker-restarted-ok"}}
-{"type":"turn.completed","usage":{"input_tokens":905910,"cached_input_tokens":723712,"output_tokens":7931}}

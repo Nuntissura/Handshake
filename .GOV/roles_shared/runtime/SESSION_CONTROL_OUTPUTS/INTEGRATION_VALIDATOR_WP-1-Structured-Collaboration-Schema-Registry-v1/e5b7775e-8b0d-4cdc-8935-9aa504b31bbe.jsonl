@@ -1,6 +1,0 @@
-{"timestamp":"2026-03-14T20:31:01.018Z","type":"control.requested","session_id":"INTEGRATION_VALIDATOR:WP-1-Structured-Collaboration-Schema-Registry-v1","command_id":"e5b7775e-8b0d-4cdc-8935-9aa504b31bbe","command_kind":"START_SESSION"}
-{"timestamp":"2026-03-14T20:31:02.611Z","type":"thread.started","thread_id":"019cee0b-95a7-7872-b1bf-717ddfd72c39"}
-{"timestamp":"2026-03-14T20:31:03.116Z","type":"turn.started"}
-{"timestamp":"2026-03-14T20:31:08.630Z","type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Role locked to `INTEGRATION_VALIDATOR`.\n\nI’ll operate as final technical and merge authority for this workspace, with a review-first posture and no coder sub-agents. Send the WP, branch/diff, or validation task you want assessed."}}
-{"timestamp":"2026-03-14T20:31:08.659Z","type":"turn.completed","usage":{"input_tokens":13472,"cached_input_tokens":3456,"output_tokens":258}}
-{"timestamp":"2026-03-14T20:31:08.941Z","type":"process.closed","exit_code":0}
