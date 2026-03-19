@@ -66,7 +66,7 @@ if (!packetExists(wpId)) {
     next: "STOP",
     confidence,
     confidenceDetail,
-    state: "Task packet is missing; coder work cannot resume deterministically.",
+    state: "work packet is missing; coder work cannot resume deterministically.",
     findings: [`Expected packet: ${packetPath(wpId).replace(/\\/g, "/")}`],
     nextCommands: [
       `cat ORCHESTRATOR_GATES.json (in gov_runtime)`,
