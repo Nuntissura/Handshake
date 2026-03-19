@@ -12,9 +12,9 @@
 - Default: one WP = one feature branch (e.g., `feat/WP-{ID}`).
 - When more than one coder/WP is active concurrently, use `git worktree` per active WP (separate working directories). Do NOT share a single working tree across concurrent WPs.
 - `main` is the only canonical integrated branch on disk and on GitHub.
-- Permanent protected role/user branches and their corresponding permanent worktrees must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`.
-- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
-- `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches. They may diverge from `main`.
+- Permanent protected role/user branches and their corresponding permanent worktrees must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `gov_kernel`.
+- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`.
+- `user_ilja`, `role_orchestrator`, and `gov_kernel` on GitHub are backup branches, not integration branches. They may diverge from `main`.
 - Before any destructive or state-hiding local git action (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed branch state to its matching GitHub backup branch.
 - Before deleting local branches/worktrees or doing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Role startup now includes `just backup-status` so Codex can see whether local/NAS backup roots are configured and whether recent immutable snapshots exist. Treat that visibility as safety context, not as authorization to skip destructive-op approvals.
@@ -22,9 +22,9 @@
 - For clearer language going forward, use these exact terms:
   - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
   - `remote branch` or `GitHub branch`: a branch at `origin/<name>`, for example `origin/main`
-  - `worktree`: a directory on disk, for example `handshake_main` or `wt-validator`
+  - `worktree`: a directory on disk, for example `handshake_main` or `wt-gov-kernel`
   - `canonical branch`: always `main`
-  - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/role_validator`
+  - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/gov_kernel`
 - Broad requests like "clean up branches" or "sync everything" are insufficient. Present a deterministic list of exact actions + exact targets first. For that most recently presented list, the only valid approval replies are `approved` or `proceed`. If the action/target list changes, ask again.
 - Use `just enumerate-cleanup-targets` to print current exact targets and proposed cleanup actions.
 - Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the action/target list has been presented. Never delete worktree directories directly with `rm`, `del`, or `Remove-Item`.
@@ -36,7 +36,7 @@
   - `/.GOV/**`
   - `/.github/**`
   - `/justfile`
-  - `/Handshake Codex v1.4.md`
+  - `/.GOV/codex/Handshake_Codex_v1.4.md`
   - `/AGENTS.md`
 - Hard rule: if any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), STOP and require a WP.
 - Minimum verification for governance-only changes: `just gov-check`.
@@ -47,7 +47,7 @@
   - `.GOV/refinements/WP-{ID}.md`
 
 ### WP communication artifacts
-- Official packets may define `WP_COMMUNICATION_DIR` under the external repo-governance runtime root (default repo-relative from a worktree: `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`; overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`).
+- Official packets may define `WP_COMMUNICATION_DIR` under the external repo-governance runtime root (default repo-relative from a worktree: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`; overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`).
 - These files are governance-only collaboration helpers:
   - `THREAD.md` for append-only freeform discussion
   - `RUNTIME_STATUS.json` for liveness, validator-trigger, waiting-state, next-actor watch state, and bounded loop counters
@@ -57,7 +57,7 @@
 - These richer artifacts apply to both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED` workflow lanes.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not improvise role-local inboxes.
 - When available, prefer VS Code integrated terminals as the host for multi-session role work. Use `just operator-monitor` as the overview surface instead of treating role-local terminal buffers as authority.
-- Repo-governed multi-session launch is plugin-first: queue VS Code bridge requests through the external repo-governance launch queue (default repo-relative: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`), project current state in the external session registry (`../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`), and keep heartbeat as fallback only.
+- Repo-governed multi-session launch is plugin-first: queue VS Code bridge requests through the external repo-governance launch queue (default repo-relative: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`), project current state in the external session registry (`../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`), and keep heartbeat as fallback only.
 - Only the Orchestrator may start repo-governed Coder, WP Validator, and Integration Validator sessions. Coder/Validator sessions may resume work, but they do not self-start a fresh repo-governed session.
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts.
 - For newly created stubs/packets, repo-governed CLI session policy is explicit: primary model `gpt-5.4`, fallback `gpt-5.2`, reasoning strength `EXTRA_HIGH`, launcher config `model_reasoning_effort=xhigh`.
@@ -76,4 +76,17 @@
 - Validator duties are non-agentic, but repo governance may run multiple validator CLI sessions concurrently when they are scoped as WP Validator and Integration Validator sessions.
 - Only the Primary Coder may use coder sub-agents, and only when the packet explicitly records operator approval.
 - Shared launch/watch contract: `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`.
+
+### Governance kernel architecture [CX-212B/C/D]
+- The governance kernel worktree (`wt-gov-kernel`, branch `gov_kernel`) is the single canonical `/.GOV/` source. It contains ONLY `/.GOV/` and git-required files. No product code lives here.
+- `handshake_main` (branch `main`) has a real `/.GOV/` copy as a stable backup. This copy is synced from the kernel by the Integration Validator before pushing to `origin/main` using `just sync-gov-to-main`.
+- `wt-orchestrator` (branch `role_orchestrator`) has `/.GOV/` as a junction to `../wt-gov-kernel/.GOV`.
+- Coder worktrees (`wtc-*`) are created from `main`, then their inherited `/.GOV/` is replaced with a junction to `../wt-gov-kernel/.GOV` by the worktree creation script.
+- WP worktree budget: 1 per WP (coder only). WP Validator operates from the coder worktree; Integration Validator from `handshake_main`.
+- The Orchestrator MAY write to the governance kernel. During active multi-session steering, prefer deferring governance edits to reduce cognitive load.
+- Coders and WP Validators read governance through their junction and MUST NOT edit `/.GOV/` directly.
+- Sync responsibilities:
+  - Orchestrator: edits `/.GOV/` in the kernel; does NOT sync to main.
+  - Integration Validator: runs `just sync-gov-to-main` before pushing to `origin/main`.
+  - Coders/WP Validators: read governance through their junction; do NOT edit `/.GOV/` directly.
 </INSTRUCTIONS>
