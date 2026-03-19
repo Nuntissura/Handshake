@@ -56,9 +56,9 @@
 - `/AGENTS.md`
 Minimum verification for governance-only changes: `just gov-check`. If any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), a WP is required and Gate 0/1 applies (`just pre-work WP-{ID}` / `just post-work WP-{ID}`).
 
-[CX-112] HARD_PERMANENT_BRANCHES_AND_WORKTREES (HARD): The permanent branches `main`, `user_ilja`, `role_orchestrator`, and `role_validator`, and their corresponding permanent role worktrees, are protected governance assets. The assistant MUST NOT delete them locally or remotely.
+[CX-112] HARD_PERMANENT_BRANCHES_AND_WORKTREES (HARD): The permanent branches `main`, `user_ilja`, `role_orchestrator`, and `gov_kernel`, and their corresponding permanent worktrees (`handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`), are protected governance assets. The assistant MUST NOT delete them locally or remotely.
 
-[CX-113] HARD_MAIN_CANONICAL_BACKUP_MODEL (HARD): `main` is the sole canonical integrated branch on disk and on GitHub. Role/user branches (`user_ilja`, `role_orchestrator`, `role_validator`) are backup branches. They MAY diverge from `main` and MUST NOT be treated as canonical integration targets.
+[CX-113] HARD_MAIN_CANONICAL_BACKUP_MODEL (HARD): `main` is the sole canonical integrated branch on disk and on GitHub. Role/user branches (`user_ilja`, `role_orchestrator`, `gov_kernel`) are backup branches. They MAY diverge from `main` and MUST NOT be treated as canonical integration targets.
 
 [CX-114] HARD_BACKUP_PUSH_BEFORE_DESTRUCTIVE_LOCAL_GIT (HARD): Before any destructive or state-hiding local git action on a role/user/WP branch (including merges into local `main`, branch deletion, worktree removal, reset/clean/switch, or any operation that could discard easy access to the previous branch-local state), the assistant MUST first preserve the committed state by pushing that branch to its matching GitHub backup branch.
 
