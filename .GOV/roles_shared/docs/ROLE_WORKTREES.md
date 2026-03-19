@@ -19,8 +19,8 @@ Recommended structure:
     wt-ilja/               # Operator role worktree (branch: user_ilja)
     wt-orchestrator/       # Orchestrator role worktree (branch: role_orchestrator)
     wt-gov-kernel/         # Governance kernel worktree (branch: gov_kernel)
-    wt-WP-.../             # Coder WP worktrees (branch: feat/WP-...)
-    wt-WPV-WP-.../         # WP Validator worktrees (branch: validate/WP-...)
+    wtc-.../               # Coder WP worktrees (branch: feat/WP-...)
+    # WP Validator operates from the coder worktree (no separate worktree) [CX-212D]
     # Integration Validator operates from handshake_main on branch main [CX-212D]
 ```
 
@@ -60,7 +60,7 @@ If you are an AI assistant operating in this repo:
 
 Notes:
 - CODER agents MUST work only in the WP-assigned worktree/branch created and recorded by the Orchestrator. They must not "pick" a worktree.
-- WP Validator sessions SHOULD use `validate/WP-...` + `../wt-WPV-WP-...`.
+- WP Validator sessions operate from the coder worktree (`wtc-*` on `feat/WP-*`), diffs against `main` [CX-212D].
 - Integration Validator sessions operate from `handshake_main` on branch `main` [CX-212D].
 - WP Validator and Integration Validator local lanes do not mint separate GitHub WP backup branches. Coder, WP Validator, and Integration Validator reuse the single packet-declared WP backup branch on GitHub.
 - WP assignment is recorded in `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` as a `PREPARE` entry (via `just record-prepare ...`) with `branch` and `worktree_dir`.
@@ -117,9 +117,7 @@ WP worktrees (Orchestrator action, not Coder):
 - If the signature was recorded without the full workflow tuple (legacy recovery), the only remaining operator decision is the missing workflow lane and/or coder lane; do not ask again for branch/worktree authorization.
 - Create a WP worktree/branch:
   - `just worktree-add WP-{ID}`
-- Create the validator worktrees/branches for the same WP:
-  - `just wp-validator-worktree-add WP-{ID}`
-  - `just integration-validator-worktree-add WP-{ID}`
+- Validator worktrees [CX-212D]: WP Validator uses the coder worktree; Integration Validator uses handshake_main. No separate worktree creation needed.
 - Launch the repo-governed CLI sessions:
   - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`

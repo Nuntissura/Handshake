@@ -446,17 +446,17 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 ## Worktree Budget (HARD RULE)
 
-- Maximum WP-specific worktrees per WP: 2 (1 coder + 1 WP validator).
-- The Integration Validator operates from `handshake_main` on branch `main` — no WP-specific worktree [CX-212D].
+- Maximum WP-specific worktrees per WP: 1 (coder only) [CX-212D].
+- The WP Validator operates from the coder worktree (`wtc-*` on `feat/WP-*`) — reads product code there, diffs against `main`, writes governance through the `.GOV/` junction.
+- The Integration Validator operates from `handshake_main` on branch `main` — no WP-specific worktree.
 - Do not create ad-hoc temp worktrees (detached checkouts, merge worktrees, revalidation worktrees) outside the governed naming scheme.
-- If validation or merge requires a clean checkout, reuse the existing WP validator worktree. Do not create additional worktrees.
 - After a WP reaches VALIDATED or MERGED, require governed cleanup of WP-specific worktrees before starting new WPs.
 - All worktrees must be created under the shared worktree root so `just enumerate-cleanup-targets` can find them. Off-root worktree creation is forbidden.
 - `worktree-concurrency-check` enforces this budget as part of `gov-check`.
 
 ## WP Worktree Creation Rules [CX-212D] (HARD RULE)
 
-- WP worktrees (`wtc-*`, `wtv-*`) are created from `main` but MUST NOT retain a git-tracked `/.GOV/` directory.
+- WP worktrees (`wtc-*`) are created from `main` but MUST NOT retain a git-tracked `/.GOV/` directory.
 - After `git worktree add`, the creation script MUST:
   1. Remove the inherited `/.GOV/` directory from the new worktree.
   2. Create a junction (`mklink /J` on Windows, symlink on Unix) from `/.GOV/` to `../wt-gov-kernel/.GOV`.

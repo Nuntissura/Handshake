@@ -58,8 +58,8 @@
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next WP-1-Loom-Storage-Portability-v3
 <!-- Validator roles keep distinct local branches/worktrees, but they mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
-- WP_VALIDATOR_LOCAL_BRANCH: validate/WP-1-Loom-Storage-Portability-v3
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtv-ea3403da81
+- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Loom-Storage-Portability-v3
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-a99223a9e5
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Loom-Storage-Portability-v3
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Loom-Storage-Portability-v3
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup

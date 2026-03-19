@@ -57,7 +57,7 @@ const actorBranch = gitTrim('rev-parse --abbrev-ref HEAD');
 const actorAllowed =
   actorBranch === 'role_validator' ||
   actorBranch === 'main' ||
-  actorBranch.startsWith('validate/') ||
+  actorBranch.startsWith('feat/') ||
   actorBranch.startsWith('user_') ||
   (actorBranch === 'role_orchestrator' && workflowLane === 'ORCHESTRATOR_MANAGED');
 if (!actorAllowed) {

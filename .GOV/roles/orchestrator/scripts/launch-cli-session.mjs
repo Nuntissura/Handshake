@@ -85,7 +85,7 @@ function resolveRoleConfig(roleName, workPacketId) {
       title: `WPVAL ${workPacketId}`,
       startupCommand: roleStartupCommand("WP_VALIDATOR"),
       nextCommand: roleNextCommand("WP_VALIDATOR", workPacketId),
-      focus: "advisory technical review, steering, and packet-scoped validation receipts",
+      focus: "advisory technical review, steering, and packet-scoped validation receipts (operates from coder worktree, diffs against main)",
     };
   }
   if (roleName === "INTEGRATION_VALIDATOR") {

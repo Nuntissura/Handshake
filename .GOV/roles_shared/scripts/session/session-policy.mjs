@@ -183,11 +183,13 @@ export function defaultCoderWorktreeDir(wpId) {
 }
 
 export function defaultWpValidatorBranch(wpId) {
-  return `validate/${wpId}`;
+  // WP validator operates from the coder worktree — same branch as coder [CX-212D].
+  return defaultCoderBranch(wpId);
 }
 
 export function defaultWpValidatorWorktreeDir(wpId) {
-  return deterministicWorktreeDir("wtv", "WP_VALIDATOR", wpId);
+  // WP validator operates from the coder worktree — no separate worktree [CX-212D].
+  return defaultCoderWorktreeDir(wpId);
 }
 
 export function defaultIntegrationValidatorBranch(wpId) {

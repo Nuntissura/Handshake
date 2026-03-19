@@ -147,9 +147,9 @@ function main() {
       matchedPaths.set(normalizedPath, wpId);
     }
 
-    // Worktree budget: max 2 WP-specific worktrees per WP (1 coder + 1 WP validator).
-    // Integration validator operates from handshake_main — no WP-specific worktree [CX-212D].
-    const MAX_WP_WORKTREES = 2;
+    // Worktree budget: max 1 WP-specific worktree per WP (coder only) [CX-212D].
+    // WP Validator operates from the coder worktree; Integration Validator from handshake_main.
+    const MAX_WP_WORKTREES = 1;
     const wpSpecificWorktrees = worktrees.filter((entry) => {
       const branch = normalizeBranch(entry.branch);
       return branch.includes(wpId);
