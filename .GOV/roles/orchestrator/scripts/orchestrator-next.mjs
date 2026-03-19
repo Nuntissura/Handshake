@@ -142,7 +142,7 @@ function summarizeResumeState(state, wpId) {
     reason = "Signature recorded; WP prepare record missing.";
   } else if (!currentPacketExists) {
     stage = "PACKET_CREATE";
-    reason = "Prepare recorded; task packet file does not exist yet.";
+    reason = "Prepare recorded; work packet file does not exist yet.";
   } else if (syncState && !syncState.ok) {
     stage = "STATUS_SYNC";
     reason = syncState.issues[0] || "Assigned WP worktree is stale.";
@@ -377,7 +377,7 @@ function main() {
     printLifecycle({ wpId, stage: "PACKET_CREATE", next: "PRE_WORK" });
     printOperatorAction("NONE");
     printConfidence(confidence.level, confidence.detail);
-    printState("Prepare recorded; task packet file does not exist yet.");
+    printState("Prepare recorded; work packet file does not exist yet.");
     const nextCommands = [`just create-task-packet ${wpId}`];
     if (!/^HYDRATED_RESEARCH_V1$/i.test(refinementParsed?.refinementEnforcementProfile || "")) {
       nextCommands.push(`# Fill legacy packet placeholders (UI/stub metadata, SCOPE, TEST_PLAN, DONE_MEANS, BOOTSTRAP, SPEC_ANCHOR).`);
@@ -394,7 +394,7 @@ function main() {
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorAction("NONE");
     printConfidence(confidence.level, confidence.detail);
-    printState("Task packet exists, but the assigned WP worktree is stale and coder handoff is blocked.");
+    printState("Work packet exists, but the assigned WP worktree is stale and coder handoff is blocked.");
     printFindings([
       `Assigned worktree: ${syncState.worktreeAbs || "<missing>"}`,
       `Expected branch: ${syncState.expectedBranch || "<missing>"}`,

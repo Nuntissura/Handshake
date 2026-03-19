@@ -523,7 +523,7 @@ if (action === 'prepare') {
 
     v2AssertBranchExists(branch);
     if (!v2WorktreeHasBranch(branch)) {
-        v2Fail('WP worktree not found for branch (required before task packet creation).', [
+        v2Fail('WP worktree not found for branch (required before work packet creation).', [
             `branch=${branch}`,
             'Create it first with: just worktree-add ' + wpId,
         ]);

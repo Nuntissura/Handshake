@@ -151,7 +151,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 
 ## Deterministic Manifest & Gate (Current Workflow)
 
-- Every task packet must preserve the deterministic validation manifest from `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
+- Every work packet must preserve the deterministic validation manifest from `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
 - `just pre-work WP-{ID}` is the blocking packet-integrity gate before handoff.
 - `just post-work WP-{ID}` is the deterministic closure gate before done/commit claims.
 - For validator PASS clearance on orchestrator-managed WPs, prefer `just validator-handoff-check WP-{ID}` so validation runs against the PREPARE worktree source of truth.
