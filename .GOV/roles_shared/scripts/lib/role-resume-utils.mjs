@@ -2,15 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import crypto from "node:crypto";
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "./runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, GOVERNANCE_RUNTIME_ROOT_REPO_REL, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "./runtime-paths.mjs";
 
-export const ORCHESTRATOR_GATES_PATH = path.join(
-  GOV_ROOT_REPO_REL,
-  "roles",
-  "orchestrator",
-  "runtime",
-  "ORCHESTRATOR_GATES.json",
-);
+export const ORCHESTRATOR_GATES_PATH = resolveOrchestratorGatesPath();
 export const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
 export const TERMINAL_TASK_BOARD_STATUSES = ["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"];
 export const IMPLICIT_ORCHESTRATOR_RESUME_LOOKBACK_HOURS = 168;
@@ -293,7 +287,9 @@ function resolveSpecSnapshotAtRepo(repoRoot) {
 }
 
 function lastPrepareEntryAtRepo(repoRoot, wpId) {
-  const gatesPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
+  const newPath = path.join(repoRoot, GOVERNANCE_RUNTIME_ROOT_REPO_REL, "ORCHESTRATOR_GATES.json");
+  const legacyPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
+  const gatesPath = exists(newPath) ? newPath : legacyPath;
   if (!exists(gatesPath)) return null;
   let state = {};
   try {

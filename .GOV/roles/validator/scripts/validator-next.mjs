@@ -238,7 +238,7 @@ if (!packetExists(wpId)) {
     state: "Task packet is missing; Validator cannot resume deterministically.",
     findings: [`Expected packet: ${packetPath(wpId).replace(/\\/g, "/")}`],
     nextCommands: [
-      `cat ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
+      `cat ORCHESTRATOR_GATES.json (in gov_runtime)`,
       `just orchestrator-next ${wpId}`,
     ],
   });

@@ -12,9 +12,9 @@ import {
     EXECUTION_OWNER_RANGE_HELP,
     normalizeExecutionOwner,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
-import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
-const STATE_FILE = `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`;
+const STATE_FILE = resolveOrchestratorGatesPath();
 
 function loadState() {
     if (!fs.existsSync(STATE_FILE)) {

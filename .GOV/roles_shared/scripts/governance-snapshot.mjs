@@ -16,7 +16,7 @@ import crypto from 'crypto';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { listValidatorGateStateFiles } from './lib/validator-gate-paths.mjs';
-import { GOV_ROOT_REPO_REL } from './lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath } from './lib/runtime-paths.mjs';
 
 export const SCHEMA_VERSION = 'hsk.product_governance_snapshot@0.1';
 export const DEFAULT_OUTPUT_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/runtime/PRODUCT_GOVERNANCE_SNAPSHOT.json`;
@@ -74,7 +74,7 @@ export const computeWhitelistedInputRelPaths = () => {
     `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`,
     `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`,
     `${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`,
-    `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
+    resolveOrchestratorGatesPath(),
   ].map(normalizeRelPath);
 
   const validatorGateJsons = listValidatorGateJsonRelPaths();
@@ -257,7 +257,7 @@ export const buildProductGovernanceSnapshot = ({ includeHeadSha = false } = {}) 
   const taskBoardText = readTextStrict(`${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`);
   const traceabilityText = readTextStrict(`${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`);
   const signatureAuditText = readTextStrict(`${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`);
-  const orchestratorGatesText = readTextStrict(`${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`);
+  const orchestratorGatesText = readTextStrict(resolveOrchestratorGatesPath());
 
   const taskBoardEntries = parseTaskBoardEntries(taskBoardText);
   const traceabilityMappings = parseTraceabilityMappings(traceabilityText);

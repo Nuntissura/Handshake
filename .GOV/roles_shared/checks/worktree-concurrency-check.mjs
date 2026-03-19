@@ -2,9 +2,10 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { EXECUTION_OWNER_RANGE_HELP } from "../scripts/session/session-policy.mjs";
+import { resolveOrchestratorGatesPath } from "../scripts/lib/runtime-paths.mjs";
 
 const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
-const ORCH_GATES_PATH = ".GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json";
+const ORCH_GATES_PATH = resolveOrchestratorGatesPath();
 
 function runGit(args) {
   return execFileSync("git", args, { stdio: "pipe" }).toString().trim();

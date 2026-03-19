@@ -73,7 +73,7 @@ import {
   SESSION_HOST_PREFERENCE,
   SESSION_LAUNCH_POLICY,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
-import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const WP_ID = process.argv[2];
 const allowOverwriteExisting = process.argv.includes('--overwrite-existing') || process.env.ALLOW_PACKET_OVERWRITE === '1';
@@ -294,7 +294,7 @@ try {
 let signatureGate = null;
 let prepareGate = null;
 try {
-  const gatesPath = path.join(GOV_ROOT_REPO_REL, 'roles', 'orchestrator', 'runtime', 'ORCHESTRATOR_GATES.json');
+  const gatesPath = resolveOrchestratorGatesPath();
   const gates = JSON.parse(fs.readFileSync(gatesPath, 'utf8'));
   const logs = Array.isArray(gates.gate_logs) ? gates.gate_logs : [];
   const lastSig = [...logs].reverse().find((l) => l.wpId === WP_ID && l.type === 'SIGNATURE');
@@ -415,10 +415,10 @@ try {
     result: 'BLOCKED',
     why: 'Unable to verify signature in ORCHESTRATOR_GATES.json; cannot proceed deterministically.',
     gateOutputLines: [
-      `BLOCKED: Unable to verify signature in ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json.`,
+      `BLOCKED: Unable to verify signature in ORCHESTRATOR_GATES.json.`,
     ],
     nextCommands: [
-      `cat ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
+      `cat ORCHESTRATOR_GATES.json`,
     ],
   });
   process.exit(1);
