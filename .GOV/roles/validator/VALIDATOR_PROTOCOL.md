@@ -363,7 +363,18 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - Confirm the work packet has `**Status:** In Progress` and claim fields filled (CODER_MODEL, CODER_REASONING_STRENGTH) before accepting any skeleton or implementation progression. [CX-212D] Bootstrap claim is verified by field content, not by a commit on the feature branch.
 - Enforce [CX-GATE-001]: if the Coder included SKELETON content in the BOOTSTRAP turn, treat it as invalid phase merging; require a new, separate SKELETON turn/commit after explicit Operator authorization.
 
-0A) Handoff Quality Gate
+0A) Micro Task Early Review (WP Validator)
+- When micro tasks exist (`.GOV/task_packets/WP-{ID}/MT-*.md`), the WP Validator reviews completed MTs as the coder works — do not wait for all MTs to be done.
+- For each MT where `CODER STATUS: DONE`:
+  - Read the MT file and verify the evidence (file:line proof, tests run)
+  - Check the implementation against the clause and the master spec
+  - Set `VALIDATOR STATUS: CONFIRMED` if the evidence is sufficient
+  - Set `VALIDATOR STATUS: NEEDS_REVISION` with `DIRECTION` guidance if the evidence is insufficient or the implementation misses the clause
+  - Write a `REVIEW_RESPONSE` receipt via `just wp-receipt-append` targeting the Coder
+- This early review catches spec drift and shallow implementations before the coder claims the WP as done.
+- When ALL MTs are `VALIDATOR STATUS: CONFIRMED`, proceed to the wholesale handoff review (0A below).
+
+0B) Handoff Quality Gate
 - Before treating a coder handoff as review-ready, inspect `## STATUS_HANDOFF` rather than trusting a chat summary alone.
 - If `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, require the standard handoff core plus all rubric-proof fields:
   - `Current WP_STATUS`

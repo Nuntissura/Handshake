@@ -385,13 +385,15 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 
 ### 3. Delegation and Monitoring
 
+- Before launching coder sessions, `just orchestrator-prepare-and-packet WP-{ID}` commits the work packet, refinement, and micro tasks on `gov_kernel` and creates a backup snapshot.
+- Micro tasks (one per CLAUSE_CLOSURE_MATRIX row) are generated in the WP folder (`.GOV/task_packets/WP-{ID}/MT-001.md`, etc.) during packet creation.
 - Use only the packet-declared communication artifacts for shared session/runtime coordination.
 - The Orchestrator remains workflow authority after delegation:
   - starts governed sessions
-  - steers them
-  - notices blockers
+  - steers on blockers only (not continuous polling)
   - keeps packet/runtime/thread artifacts current
 - The Orchestrator does not implement the WP and does not issue technical verdicts.
+- The coder works through micro tasks in order and writes evidence per MT. The WP Validator reviews completed MTs early and provides direction. The Orchestrator intervenes only on blockers — the MT checklist IS the execution plan.
 
 ### 4. Status Sync and Closure Claims
 

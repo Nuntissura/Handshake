@@ -399,8 +399,14 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 
 ## Active Workflow Adjustment [2025-12-28]
 - Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
-- At start: set the work packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH` through the `.GOV/` junction (edits land in the governance kernel). For newly created repo-governed packets, claim `gpt-5.4` + `EXTRA_HIGH`, or `gpt-5.2` + `EXTRA_HIGH` only when the primary model is unavailable. [CX-212D] Do NOT commit `.GOV/` files on your feature branch — the orchestrator commits governance changes on `gov_kernel`.
-- **Evidence Management:** You MAY append test logs, command outputs, and proof of work to the `## EVIDENCE` section of the task packet.
+- At start: set the work packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH` through the `.GOV/` junction (edits land in the governance kernel). For newly created repo-governed packets, claim `gpt-5.4` + `EXTRA_HIGH`, or `gpt-5.2` + `EXTRA_HIGH` only when the primary model is unavailable. [CX-212F] Do NOT commit `.GOV/` files on your feature branch — the orchestrator commits governance changes on `gov_kernel`.
+- **Micro Task Workflow:** Work through micro tasks (`.GOV/task_packets/WP-{ID}/MT-001.md`, `MT-002.md`, etc.) in order. For each MT:
+  1. Set `CODER STATUS: IN_PROGRESS`
+  2. Implement the clause described in the MT
+  3. Set `CODER STATUS: DONE` with file:line evidence in `EVIDENCE` and commands in `TESTS_RUN`
+  4. Write a `CLAUSE_COMPLETE` receipt via `just wp-receipt-append` targeting the WP Validator
+  5. Continue to the next MT (do not wait for validator response unless DEPENDS_ON blocks you)
+- **Evidence Management:** Write proof per micro task, not one dump at the end. You MAY also append to `## EVIDENCE` in the work packet for aggregate evidence.
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
 - **Status Updates:** Update the `## STATUS_HANDOFF` section with a real self-audit, not a generic "tests passing" note. When `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, include both the standard handoff core and the rubric-proof fields.
 - Compare your implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` is missing the relevant integrated context or remote drift is the subject of the WP.
