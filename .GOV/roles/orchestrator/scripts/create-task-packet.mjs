@@ -223,7 +223,7 @@ if (!refinementValidation.ok) {
 
 userSignature = refinementValidation.parsed.signature;
 
-// HARD GATE: if refinement indicates enrichment is needed, do not create a task packet.
+// HARD GATE: if refinement indicates enrichment is needed, do not create a work packet.
 try {
   const refinementContent = fs.readFileSync(refinementPath, 'utf8');
   const m = refinementContent.match(/^\s*-\s*ENRICHMENT_NEEDED\s*:\s*(YES|NO)\s*$/mi);
@@ -537,7 +537,7 @@ if (fs.existsSync(filePath)) {
       result: 'FAIL',
       why: 'Task packet file already exists; generator will not overwrite it.',
       gateOutputLines: [
-        `FAIL: Task packet already exists: ${filePath.replace(/\\/g, '/')}`,
+        `FAIL: Work packet already exists: ${filePath.replace(/\\/g, '/')}`,
       ],
       nextCommands: [
         `cat ${filePath.replace(/\\/g, '/')}`,

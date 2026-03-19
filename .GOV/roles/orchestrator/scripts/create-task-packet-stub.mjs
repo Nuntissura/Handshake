@@ -57,7 +57,7 @@ if (!fs.existsSync(stubsDir)) {
 
 const filePath = path.join(stubsDir, `${WP_ID}.md`);
 if (fs.existsSync(filePath)) {
-  console.error(`Task packet stub already exists: ${filePath.replace(/\\/g, "/")}`);
+  console.error(`Work packet stub already exists: ${filePath.replace(/\\/g, "/")}`);
   process.exit(1);
 }
 
