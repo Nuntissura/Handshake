@@ -47,7 +47,7 @@ See also:
 - `.GOV/codex/Handshake_Codex_v1.4.md`
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 
-**Governance Kernel [CX-212B/C/D]:** All `/.GOV/` paths in this protocol refer to the logical governance root. Scripts resolve through `HANDSHAKE_GOV_ROOT` env var (default: local `/.GOV/`). When a governance kernel worktree is configured, justfile and scripts execute from the shared kernel. The governance kernel worktree contains ONLY `/.GOV/` and git-required files — no product code. The orchestrator MAY write governance edits to the kernel directly. During active multi-session steering (coder/validator sessions consuming tokens), prefer deferring governance edits to reduce cognitive load — this is operator discipline, not a hard ban. Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's responsibility before pushing to `origin/main`; the Orchestrator MUST NOT run `sync-gov-to-main`.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's responsibility before pushing to `origin/main`; the Orchestrator MUST NOT run `sync-gov-to-main`. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Product Runtime Root (Current Default)
 

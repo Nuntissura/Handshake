@@ -60,7 +60,7 @@ You receive a task packet from the Orchestrator. You implement exactly what it s
 
 See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
-**Governance Kernel [CX-212B/C/D]:** All `/.GOV/` paths in this protocol refer to the logical governance root. Scripts resolve through `HANDSHAKE_GOV_ROOT` env var (default: local `/.GOV/`). When a governance kernel worktree is configured, justfile and scripts execute from the shared kernel rather than the local `.GOV/` copy. The governance kernel worktree contains ONLY `/.GOV/` and git-required files — no product code. Coders and WP Validators read governance through their junction and MUST NOT edit `/.GOV/` directly.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel` by the orchestrator, NEVER on feature branches [CX-212F]. Coders commit only product code (`src/`, `app/`, `tests/`) on `feat/WP-*`. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Product Runtime Root (Current Default)
 
