@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import path from "node:path";
-import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
 import {
   formatSpecDebtRow,
   loadSpecDebtRegistry,
@@ -46,7 +46,8 @@ if (!clauseSelector) fail("Clause selector must not be empty");
 if (!notes) fail("Notes must not be empty");
 if (!/^(YES|NO)$/.test(blocking)) fail("Blocking flag must be YES or NO");
 
-const packetPath = path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+const resolved = resolveWorkPacketPath(wpId);
+const packetPath = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
 const packetText = readPacket(packetPath);
 const clauseRows = parseClauseRows(packetText);
 if (clauseRows.length === 0) {

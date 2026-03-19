@@ -74,6 +74,37 @@ export function govRootRelPath(...segments) {
   return normalizePath(path.join(GOV_ROOT_REPO_REL, ...segments));
 }
 
+/**
+ * Resolve work packet path — supports both folder structure and flat file.
+ * Folder: .GOV/task_packets/WP-{ID}/packet.md (new)
+ * Flat:   .GOV/task_packets/WP-{ID}.md (legacy)
+ * Returns { packetPath, packetDir, isFolder } or null if not found.
+ */
+export function resolveWorkPacketPath(wpId) {
+  const folderPath = govRootRelPath("task_packets", wpId, "packet.md");
+  const flatPath = govRootRelPath("task_packets", `${wpId}.md`);
+  if (fs.existsSync(folderPath)) {
+    return { packetPath: folderPath, packetDir: govRootRelPath("task_packets", wpId), isFolder: true };
+  }
+  if (fs.existsSync(flatPath)) {
+    return { packetPath: flatPath, packetDir: govRootRelPath("task_packets"), isFolder: false };
+  }
+  return null;
+}
+
+/**
+ * Resolve refinement path — supports both folder structure and flat file.
+ * Folder: .GOV/task_packets/WP-{ID}/refinement.md (new, co-located)
+ * Flat:   .GOV/refinements/WP-{ID}.md (legacy)
+ */
+export function resolveRefinementPath(wpId) {
+  const folderPath = govRootRelPath("task_packets", wpId, "refinement.md");
+  const flatPath = govRootRelPath("refinements", `${wpId}.md`);
+  if (fs.existsSync(folderPath)) return folderPath;
+  if (fs.existsSync(flatPath)) return flatPath;
+  return null;
+}
+
 export function resolveGovernanceRuntimeRoot(overrideValue = "") {
   const directValue = String(
     overrideValue

@@ -26,7 +26,7 @@ import {
   SESSION_CONTROL_RESULTS_FILE,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { TOPOLOGY_REGISTRY_JSON_PATH } from "../../../roles_shared/scripts/topology/git-topology-lib.mjs";
-import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveRefinementPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 const TRACEABILITY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
@@ -799,7 +799,7 @@ function parsePacketRecord(packetPath, prepareAssignment = null) {
 }
 
 function refinementPathForWp(wpId) {
-  const candidate = normalize(path.join(GOV_ROOT_REPO_REL, "refinements", `${wpId}.md`));
+  const candidate = normalize(resolveRefinementPath(wpId) || path.join(GOV_ROOT_REPO_REL, "refinements", `${wpId}.md`));
   return fs.existsSync(candidate) ? candidate : "";
 }
 

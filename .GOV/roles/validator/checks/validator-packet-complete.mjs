@@ -4,7 +4,7 @@
  * Ensures required fields are present and sane.
  */
 import { readFileSync } from "node:fs";
-import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { packetUsesStructuredValidationReport, packetRequiresSpecClauseMap } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { validateClauseReportConsistency, validatePacketClosureMonitoring } from "../../../roles_shared/scripts/lib/packet-closure-monitor-lib.mjs";
 import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/semantic-proof-lib.mjs";
@@ -15,7 +15,8 @@ if (!wpId) {
   process.exit(1);
 }
 
-const packetPath = `${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`;
+const resolved = resolveWorkPacketPath(wpId);
+const packetPath = resolved?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`;
 
 function fail(msg) {
   console.error(`validator-packet-complete: FAIL - ${msg}`);

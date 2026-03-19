@@ -54,7 +54,7 @@
 
 See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
-**Governance Kernel [CX-212B/C/D]:** All `/.GOV/` paths in this protocol refer to the logical governance root. Scripts resolve through `HANDSHAKE_GOV_ROOT` env var (default: local `/.GOV/`). When a governance kernel worktree is configured, justfile and scripts execute from the shared kernel rather than the local `.GOV/` copy. The governance kernel worktree contains ONLY `/.GOV/` and git-required files — no product code. The Integration Validator is responsible for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. The Integration Validator is responsible for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Product Runtime Root (Current Default)
 
@@ -310,18 +310,14 @@ Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match
 When multiple Coders work in separate WP branches/worktrees, branch-local Task Boards drift. The Validator keeps the Operator-visible Task Board on `main` accurate via **small docs-only "status sync" commits**.
 
 ### Bootstrap Status Sync (Coder starts WP)
-1. Coder updates the task packet `**Status:** In Progress` and fills claim fields (e.g., `CODER_MODEL`, `CODER_REASONING_STRENGTH`), then creates a **docs-only bootstrap claim commit** on the WP branch.
-   - Hard rule: the bootstrap claim commit MUST NOT include `## SKELETON` content, product code changes, or any later-phase material. BOOTSTRAP and SKELETON remain separate turns/commits [CX-GATE-001].
-2. Coder sends the Validator: `WP_ID`, bootstrap commit SHA, `branch`, `worktree_dir`, and current HEAD short SHA (and Coder ID if more than one Coder is active).
-3. Validator verifies the bootstrap commit is **docs-only**:
-   - Allowed: `.GOV/task_packets/{WP_ID}.md` (and other governance docs only if explicitly requested).
-   - Forbidden: any changes under `src/`, `app/`, or `tests/` (treat as FAIL; do not merge).
-   - Note: governance/tooling changes under `.GOV/roles/**` or `.GOV/roles_shared/**` are allowed in general, but MUST NOT be included in a WP bootstrap status sync commit (keep bootstrap commits docs-only).
-4. Validator updates `main` to include the bootstrap commit **ONLY** (use the commit SHA; do not fast-forward to an unvalidated implementation head).
-5. Validator updates `.GOV/roles_shared/records/TASK_BOARD.md` on `main`:
+[CX-212D] Coders do not commit `.GOV/` files on feature branches. Work packet edits happen through the governance kernel junction and are committed on `gov_kernel` by the orchestrator.
+1. Coder updates the work packet `**Status:** In Progress` and fills claim fields (e.g., `CODER_MODEL`, `CODER_REASONING_STRENGTH`) through the junction. The orchestrator commits these changes on `gov_kernel`.
+2. Coder sends the Validator: `WP_ID`, `branch`, `worktree_dir`, and current HEAD short SHA (and Coder ID if more than one Coder is active).
+3. Validator reads the work packet directly (via junction) to verify claim fields are filled and status is In Progress.
+4. Validator updates `.GOV/roles_shared/records/TASK_BOARD.md` (via junction, committed on `gov_kernel` or synced to main via `sync-gov-to-main`):
    - Move the WP entry to `## In Progress` using the script-checked line format: `- **[{WP_ID}]** - [IN_PROGRESS]`.
    - Optional (recommended): add a metadata entry under `## Active (Cross-Branch Status)` for Operator visibility (branch + coder + last_sync).
-6. Announce status sync in chat (no verdict implied).
+5. Announce status sync in chat (no verdict implied).
 
 **Rule:** Status sync commits are not validation verdicts. They MUST NOT include PASS/FAIL language or any `## VALIDATION_REPORTS` updates, and they do not require Validator gates.
 
@@ -364,10 +360,21 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 0) BOOTSTRAP Verification
 - Confirm Coder outputted BOOTSTRAP block per CODER_PROTOCOL [CX-577, CX-622]; if missing/incomplete, halt and request completion before proceeding.
 - Verify BOOTSTRAP fields match task packet (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
-- Confirm the WP branch contains `docs: bootstrap claim [WP-{ID}]` before accepting any skeleton or implementation progression.
+- Confirm the work packet has `**Status:** In Progress` and claim fields filled (CODER_MODEL, CODER_REASONING_STRENGTH) before accepting any skeleton or implementation progression. [CX-212D] Bootstrap claim is verified by field content, not by a commit on the feature branch.
 - Enforce [CX-GATE-001]: if the Coder included SKELETON content in the BOOTSTRAP turn, treat it as invalid phase merging; require a new, separate SKELETON turn/commit after explicit Operator authorization.
 
-0A) Handoff Quality Gate
+0A) Micro Task Early Review (WP Validator)
+- When micro tasks exist (`.GOV/task_packets/WP-{ID}/MT-*.md`), the WP Validator reviews completed MTs as the coder works — do not wait for all MTs to be done.
+- For each MT where `CODER STATUS: DONE`:
+  - Read the MT file and verify the evidence (file:line proof, tests run)
+  - Check the implementation against the clause and the master spec
+  - Set `VALIDATOR STATUS: CONFIRMED` if the evidence is sufficient
+  - Set `VALIDATOR STATUS: NEEDS_REVISION` with `DIRECTION` guidance if the evidence is insufficient or the implementation misses the clause
+  - Write a `REVIEW_RESPONSE` receipt via `just wp-receipt-append` targeting the Coder
+- This early review catches spec drift and shallow implementations before the coder claims the WP as done.
+- When ALL MTs are `VALIDATOR STATUS: CONFIRMED`, proceed to the wholesale handoff review (0A below).
+
+0B) Handoff Quality Gate
 - Before treating a coder handoff as review-ready, inspect `## STATUS_HANDOFF` rather than trusting a chat summary alone.
 - If `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, require the standard handoff core plus all rubric-proof fields:
   - `Current WP_STATUS`

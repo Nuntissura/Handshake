@@ -27,7 +27,7 @@ import {
   taskBoardStatus,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { EXECUTION_OWNER_RANGE_HELP } from "../../../roles_shared/scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const STATE_FILE = `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`;
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
@@ -99,7 +99,7 @@ function summarizeResumeState(state, wpId) {
   const lastPrepare = lastLog(state, wpId, "PREPARE");
 
   const refinementPath = defaultRefinementPath(wpId);
-  const currentPacketPath = path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`).replace(/\\/g, "/");
+  const currentPacketPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`)).replace(/\\/g, "/");
   const refinementExists = exists(refinementPath);
   const currentPacketExists = exists(currentPacketPath);
   const boardStatus = taskBoardStatus(wpId) || "<none>";
@@ -240,7 +240,7 @@ function main() {
 
   const boardStatus = taskBoardStatus(wpId);
   if (boardStatus && ["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"].includes(boardStatus)) {
-    const packetPath = path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`).replace(/\\/g, "/");
+    const packetPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`)).replace(/\\/g, "/");
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorAction("NONE");
     printConfidence(inferred.source === "explicit" ? "HIGH" : "MEDIUM", inferred.source);
@@ -268,7 +268,7 @@ function main() {
   const lastPrepare = lastLog(state, wpId, "PREPARE");
 
   const refinementPath = defaultRefinementPath(wpId);
-  const packetPath = path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`).replace(/\\/g, "/");
+  const packetPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`)).replace(/\\/g, "/");
 
   const refinementExists = exists(refinementPath);
   const packetExists = exists(packetPath);

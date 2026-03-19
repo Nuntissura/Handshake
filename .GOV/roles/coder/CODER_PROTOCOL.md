@@ -33,9 +33,9 @@ You receive a task packet from the Orchestrator. You implement exactly what it s
 - A Coder may push only the assigned WP backup branch recorded in the task packet.
 - Treat the assigned WP backup branch as the WP phase-boundary recovery branch for coder work. It should hold the latest committed restart-safe WP state at the key workflow checkpoints you create or consume.
 - Minimum recovery milestones for the WP backup branch are:
-  - docs-only bootstrap claim commit
-  - docs-only skeleton checkpoint commit
+  - skeleton checkpoint marker commit (`just coder-skeleton-checkpoint WP-{ID}` — empty commit, no `.GOV/` files)
   - skeleton approval commit present on the WP branch before implementation continues
+  - [CX-212D] Work packet and refinement safety lives in `gov_kernel`, not on the feature branch
 - Before destructive or state-hiding local git actions on the WP branch (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the assigned WP backup branch on GitHub.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Startup must surface `just backup-status` so backup configuration and recent immutable snapshots are visible before coding proceeds. This is safety context only, not a bypass for destructive-op approvals.
@@ -60,7 +60,7 @@ You receive a task packet from the Orchestrator. You implement exactly what it s
 
 See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
-**Governance Kernel [CX-212B/C/D]:** All `/.GOV/` paths in this protocol refer to the logical governance root. Scripts resolve through `HANDSHAKE_GOV_ROOT` env var (default: local `/.GOV/`). When a governance kernel worktree is configured, justfile and scripts execute from the shared kernel rather than the local `.GOV/` copy. The governance kernel worktree contains ONLY `/.GOV/` and git-required files — no product code. Coders and WP Validators read governance through their junction and MUST NOT edit `/.GOV/` directly.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel` by the orchestrator, NEVER on feature branches [CX-212F]. Coders commit only product code (`src/`, `app/`, `tests/`) on `feat/WP-*`. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Product Runtime Root (Current Default)
 
@@ -399,8 +399,14 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 
 ## Active Workflow Adjustment [2025-12-28]
 - Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
-- At start: set the task packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH`, and make a docs-only bootstrap commit on your WP branch (so the Validator can status-sync `main`). For newly created repo-governed packets, claim `gpt-5.4` + `EXTRA_HIGH`, or `gpt-5.2` + `EXTRA_HIGH` only when the primary model is unavailable.
-- **Evidence Management:** You MAY append test logs, command outputs, and proof of work to the `## EVIDENCE` section of the task packet.
+- At start: set the work packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH` through the `.GOV/` junction (edits land in the governance kernel). For newly created repo-governed packets, claim `gpt-5.4` + `EXTRA_HIGH`, or `gpt-5.2` + `EXTRA_HIGH` only when the primary model is unavailable. [CX-212F] Do NOT commit `.GOV/` files on your feature branch — the orchestrator commits governance changes on `gov_kernel`.
+- **Micro Task Workflow:** Work through micro tasks (`.GOV/task_packets/WP-{ID}/MT-001.md`, `MT-002.md`, etc.) in order. For each MT:
+  1. Set `CODER STATUS: IN_PROGRESS`
+  2. Implement the clause described in the MT
+  3. Set `CODER STATUS: DONE` with file:line evidence in `EVIDENCE` and commands in `TESTS_RUN`
+  4. Write a `CLAUSE_COMPLETE` receipt via `just wp-receipt-append` targeting the WP Validator
+  5. Continue to the next MT (do not wait for validator response unless DEPENDS_ON blocks you)
+- **Evidence Management:** Write proof per micro task, not one dump at the end. You MAY also append to `## EVIDENCE` in the work packet for aggregate evidence.
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
 - **Status Updates:** Update the `## STATUS_HANDOFF` section with a real self-audit, not a generic "tests passing" note. When `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, include both the standard handoff core and the rubric-proof fields.
 - Compare your implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` is missing the relevant integrated context or remote drift is the subject of the WP.
@@ -706,17 +712,7 @@ Goal: make "work started" visible to the Operator on `main` **without** blocking
 - Update `## STATUS_HANDOFF` with a 1-line "Started" note
 - Do NOT add any SKELETON content yet (keep `## SKELETON` placeholders until the separate SKELETON phase turn/commit per [CX-GATE-001]).
 
-**Then create a docs-only bootstrap commit on your WP branch:**
-```bash
-git status -sb
-git add .GOV/task_packets/WP-{ID}.md
-git commit -m "docs: bootstrap claim [WP-{ID}]"
-```
-
-**Immediately push the committed bootstrap checkpoint to the assigned WP backup branch:**
-```bash
-just backup-push feat/WP-{ID} feat/WP-{ID}
-```
+**[CX-212D] Do NOT commit `.GOV/` files on your feature branch.** The work packet edits you made above are written through the `.GOV/` junction and land in the governance kernel. The orchestrator commits them on `gov_kernel`.
 
 For `PACKET_FORMAT_VERSION >= 2026-03-15`, this bootstrap claim checkpoint is mechanically enforced before the docs-only skeleton checkpoint helper will proceed.
 
@@ -843,19 +839,13 @@ just coder-skeleton-checkpoint WP-{ID}
 
 Manual fallback:
 ```bash
-git status -sb
-git add .GOV/task_packets/WP-{ID}.md
-git commit -m "docs: skeleton checkpoint [WP-{ID}]"
+just coder-skeleton-checkpoint WP-{ID}
 ```
 
-**Immediately push the committed skeleton checkpoint to the assigned WP backup branch:**
-```bash
-just backup-push feat/WP-{ID} feat/WP-{ID}
-```
+[CX-212D] This creates an empty commit marker on the feature branch. The `## SKELETON` content lives in the work packet (governance kernel, via junction) — do NOT `git add` `.GOV/` files.
 
 STOP: request skeleton approval (Operator/Validator runs: `just skeleton-approved WP-{ID}`).
 After the approval commit exists (`docs: skeleton approved [WP-{ID}]`):
-- push the WP branch again so the backup branch also includes the approval checkpoint
 - re-run `just pre-work WP-{ID}`
 - then proceed to implementation
 

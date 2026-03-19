@@ -22,7 +22,7 @@ import {
     validatorGatePath,
     resolveValidatorGatePath,
 } from '../../../roles_shared/scripts/lib/validator-gate-paths.mjs';
-import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const MIN_GATE_INTERVAL_SECONDS = 5; // Minimum time between gates to prevent automation momentum
 
@@ -267,7 +267,8 @@ if (action === 'append') {
     }
 
     // Verify task packet exists
-    const packetPath = `${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`;
+    const resolved = resolveWorkPacketPath(wpId);
+    const packetPath = resolved?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`;
     if (!fs.existsSync(packetPath)) {
         fail(`Task packet not found: ${packetPath}`);
     }

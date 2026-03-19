@@ -47,7 +47,7 @@ See also:
 - `.GOV/codex/Handshake_Codex_v1.4.md`
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 
-**Governance Kernel [CX-212B/C/D]:** All `/.GOV/` paths in this protocol refer to the logical governance root. Scripts resolve through `HANDSHAKE_GOV_ROOT` env var (default: local `/.GOV/`). When a governance kernel worktree is configured, justfile and scripts execute from the shared kernel. The governance kernel worktree contains ONLY `/.GOV/` and git-required files — no product code. The orchestrator MAY write governance edits to the kernel directly. During active multi-session steering (coder/validator sessions consuming tokens), prefer deferring governance edits to reduce cognitive load — this is operator discipline, not a hard ban. Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's responsibility before pushing to `origin/main`; the Orchestrator MUST NOT run `sync-gov-to-main`.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's responsibility before pushing to `origin/main`; the Orchestrator MUST NOT run `sync-gov-to-main`. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Product Runtime Root (Current Default)
 
@@ -321,9 +321,11 @@ If any of those are stale or missing, report `STAGE: STATUS_SYNC` and fix the as
 
 ## Safety Commit Gate (HARD RULE)
 
-Immediately after creating a WP task packet and refinement and obtaining `USER_SIGNATURE`, create a checkpoint commit on the WP branch containing:
+Immediately after creating a WP work packet and refinement and obtaining `USER_SIGNATURE`, create a checkpoint commit on the `gov_kernel` branch containing:
 - `.GOV/task_packets/WP-{ID}.md`
 - `.GOV/refinements/WP-{ID}.md`
+
+[CX-212D] Work packets and refinements are committed on `gov_kernel`, not on WP feature branches. Coders do not commit `.GOV/` files on `feat/WP-*` branches — the governance kernel is the single source of truth, accessed via junction.
 
 ## Current Orchestrator Workflow (Authoritative)
 
@@ -383,13 +385,15 @@ Immediately after creating a WP task packet and refinement and obtaining `USER_S
 
 ### 3. Delegation and Monitoring
 
+- Before launching coder sessions, `just orchestrator-prepare-and-packet WP-{ID}` commits the work packet, refinement, and micro tasks on `gov_kernel` and creates a backup snapshot.
+- Micro tasks (one per CLAUSE_CLOSURE_MATRIX row) are generated in the WP folder (`.GOV/task_packets/WP-{ID}/MT-001.md`, etc.) during packet creation.
 - Use only the packet-declared communication artifacts for shared session/runtime coordination.
 - The Orchestrator remains workflow authority after delegation:
   - starts governed sessions
-  - steers them
-  - notices blockers
+  - steers on blockers only (not continuous polling)
   - keeps packet/runtime/thread artifacts current
 - The Orchestrator does not implement the WP and does not issue technical verdicts.
+- The coder works through micro tasks in order and writes evidence per MT. The WP Validator reviews completed MTs early and provides direction. The Orchestrator intervenes only on blockers — the MT checklist IS the execution plan.
 
 ### 4. Status Sync and Closure Claims
 

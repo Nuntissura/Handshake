@@ -14,7 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const wpId = process.argv[2];
 if (!wpId) {
@@ -49,7 +49,8 @@ function parseSingleField(text, label) {
 }
 
 function workflowLaneForPacket(wpId) {
-  const packetPath = path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
+  const resolved = resolveWorkPacketPath(wpId);
+  const packetPath = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
   try {
     const packetText = ensureTrailingNewline(fs.readFileSync(packetPath, 'utf8'));
     return parseSingleField(packetText, 'WORKFLOW_LANE').toUpperCase();

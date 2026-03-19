@@ -170,16 +170,30 @@ export function defaultCoderBranch(wpId) {
   return `feat/${wpId}`;
 }
 
-function deterministicWorktreeDir(prefix, roleKey, wpId) {
-  const digest = createHash("sha1")
-    .update(`${roleKey}:${String(wpId || "").trim()}`)
-    .digest("hex")
-    .slice(0, 10);
-  return normalizePath(path.join("..", `${prefix}-${digest}`));
+function shortWorktreeName(prefix, wpId) {
+  // Convert "WP-1-Structured-Collaboration-Schema-Registry-v3" to "schema-registry-v3"
+  // Drop "WP-{N}-" prefix, take last meaningful segments, lowercase.
+  const id = String(wpId || "").trim();
+  const withoutWpPrefix = id.replace(/^WP-\d+-/i, "");
+  const parts = withoutWpPrefix.split("-").filter(Boolean);
+  // Keep version suffix if present (e.g. "v3")
+  const versionIdx = parts.findLastIndex((p) => /^v\d+$/i.test(p));
+  let shortParts;
+  if (versionIdx >= 0 && parts.length > 3) {
+    // Take last 2 meaningful parts before version + version
+    const meaningful = parts.slice(0, versionIdx);
+    shortParts = [...meaningful.slice(-2), parts[versionIdx]];
+  } else if (parts.length > 3) {
+    shortParts = parts.slice(-3);
+  } else {
+    shortParts = parts;
+  }
+  const name = shortParts.join("-").toLowerCase();
+  return normalizePath(path.join("..", `${prefix}-${name}`));
 }
 
 export function defaultCoderWorktreeDir(wpId) {
-  return deterministicWorktreeDir("wtc", "CODER", wpId);
+  return shortWorktreeName("wtc", wpId);
 }
 
 export function defaultWpValidatorBranch(wpId) {

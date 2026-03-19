@@ -9,7 +9,7 @@ import {
   defaultWpValidatorBranch,
   defaultWpValidatorWorktreeDir,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const role = String(process.argv[2] || "").trim().toUpperCase();
 const wpId = String(process.argv[3] || "").trim();
@@ -66,7 +66,8 @@ function loadPrepareBaseBranch(wpIdValue) {
 }
 
 function loadPacketBaseBranch(wpIdValue) {
-  const packetPath = path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpIdValue}.md`);
+  const resolved = resolveWorkPacketPath(wpIdValue);
+  const packetPath = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpIdValue}.md`);
   if (!fs.existsSync(packetPath)) return "";
   try {
     const packetText = fs.readFileSync(packetPath, "utf8");
