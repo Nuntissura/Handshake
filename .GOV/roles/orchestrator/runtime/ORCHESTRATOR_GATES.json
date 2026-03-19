@@ -1830,6 +1830,60 @@
       "branch": "feat/WP-1-Loom-Storage-Portability-v2",
       "worktree_dir": "../wtc-9302cdcbcd",
       "timestamp": "2026-03-16T19:22:48.258Z"
+    },
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v3",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Loom-Storage-Portability-v3.md",
+      "spec_target_resolved": ".GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md",
+      "spec_target_sha1": "48a826af4092c8773cdd7ca17ddc2e22491196d1",
+      "timestamp": "2026-03-19T08:27:35.272Z"
+    },
+    {
+      "wpId": "WP-1-Structured-Collaboration-Schema-Registry-v3",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Structured-Collaboration-Schema-Registry-v3.md",
+      "spec_target_resolved": ".GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md",
+      "spec_target_sha1": "48a826af4092c8773cdd7ca17ddc2e22491196d1",
+      "timestamp": "2026-03-19T08:28:40.701Z"
+    },
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja190320260922",
+      "workflow_lane": "ORCHESTRATOR_MANAGED",
+      "execution_lane": "Coder-B",
+      "timestamp": "2026-03-19T08:31:22.022Z",
+      "refinement_path": ".GOV/refinements/WP-1-Loom-Storage-Portability-v3.md"
+    },
+    {
+      "wpId": "WP-1-Structured-Collaboration-Schema-Registry-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja190320260923",
+      "workflow_lane": "ORCHESTRATOR_MANAGED",
+      "execution_lane": "Coder-A",
+      "timestamp": "2026-03-19T08:31:33.228Z",
+      "refinement_path": ".GOV/refinements/WP-1-Structured-Collaboration-Schema-Registry-v3.md"
+    },
+    {
+      "wpId": "WP-1-Structured-Collaboration-Schema-Registry-v3",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "workflow_lane": "ORCHESTRATOR_MANAGED",
+      "execution_lane": "Coder-A",
+      "branch": "feat/WP-1-Structured-Collaboration-Schema-Registry-v3",
+      "worktree_dir": "../wtc-32aa9f34d9",
+      "timestamp": "2026-03-19T08:32:01.784Z"
+    },
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v3",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "workflow_lane": "ORCHESTRATOR_MANAGED",
+      "execution_lane": "Coder-B",
+      "branch": "feat/WP-1-Loom-Storage-Portability-v3",
+      "worktree_dir": "../wtc-a99223a9e5",
+      "timestamp": "2026-03-19T08:32:30.503Z"
     }
   ]
 }
