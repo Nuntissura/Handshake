@@ -118,7 +118,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - `/.GOV/docs/` is for repo-level governance docs that do not belong to a single role bundle or the shared bundle. Temporary/non-authoritative material belongs only in a clearly named scratch subfolder and must not affect workflow execution unless explicitly designated.
 - `/.GOV/operator/` is the Operator's private folder and is non-authoritative unless the Operator explicitly designates a specific file for the current task.
 
-Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Objective: block merges unless evidence proves the work meets the spec, codex, and task packet requirements. Core principle: "Evidence or Death" â€” if it is not mapped to a file:line, it does not exist. No rubber-stamping.
+Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Objective: block merges unless evidence proves the work meets the spec, codex, and work packet requirements. Core principle: "Evidence or Death" â€” if it is not mapped to a file:line, it does not exist. No rubber-stamping.
 
 Governance/workflow/tooling note: changes limited to `.GOV/`, `.github/`, `justfile`, `AGENTS.md`, and `.GOV/codex/Handshake_Codex_v1.4.md` are considered governance surface and may be maintained without creating a Work Packet, as long as no Handshake product code (`src/`, `app/`, `tests/`) is modified. In practice, role-owned implementation lives under `.GOV/roles/**`, repo-shared implementation lives under `.GOV/roles_shared/**`, and root `.GOV/scripts/` is retired as a live implementation surface.
 
@@ -153,14 +153,14 @@ Minimum verification for governance-only changes: `just gov-check`.
     - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --show-toplevel` and `git -C "<worktree_dir>" status -sb`.
     - **Tooling note:** in agent/automation environments, each command may run in an isolated shell; directory changes (`cd` / `Set-Location`) may not persist. Prefer explicit workdir or `git -C "<worktree_dir>" ...` so you cannot accidentally read/validate the wrong tree.
     - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" pre-work <WP_ID>`; do not trust the role worktree copy if it disagrees.
-    - If the task packet/spec is missing or stale in the role worktree, treat that as drift; read from the WP worktree (per PREPARE) as the source of truth.
+    - If the work packet/spec is missing or stale in the role worktree, treat that as drift; read from the WP worktree (per PREPARE) as the source of truth.
     - If the PREPARE record or WP worktree is missing: STOP and request the Orchestrator/Operator to provide/create it; do not guess paths.
-- Inputs required: task packet (STATUS not empty), .GOV/spec/SPEC_CURRENT.md, applicable spec slices, current diff.
-- WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
+- Inputs required: work packet (STATUS not empty), .GOV/spec/SPEC_CURRENT.md, applicable spec slices, current diff.
+- WP Traceability check (blocking when variants exist): confirm the work packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
 - Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer â†’ Master Spec Main Body (SPEC_TARGET) â†’ repo code. Do NOT validate only â€œwhat changed in v{N}â€. If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
 - When running Validator commands/scripts, use the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
 - If a WP exists only as a stub (e.g., `.GOV/task_packets/stubs/WP-*.md`) and no official packet exists in `.GOV/task_packets/`, STOP and return FAIL [CX-573] (not yet activated for validation).
-- If task packet is missing or incomplete, return FAIL with reason [CX-573].
+- If work packet is missing or incomplete, return FAIL with reason [CX-573].
 - Preserve User Context sections in packets (do not edit/remove) [CX-654].
 - Spec integrity regression check: SPEC_CURRENT must point to the latest spec and must not drop required sections (e.g., storage portability A2.3.12). If regression or missing sections are detected, verdict = FAIL and spec version bump is required before proceeding.
 - Roadmap Coverage Matrix gate (Spec Â§7.6.1; Codex [CX-598A]): SPEC_TARGET must include the section-level Coverage Matrix; missing/duplicate/mismatched rows are a governance drift FAIL.
@@ -321,7 +321,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 
 **Rule:** Status sync commits are not validation verdicts. They MUST NOT include PASS/FAIL language or any `## VALIDATION_REPORTS` updates, and they do not require Validator gates.
 
-**Closure rule:** Only after `verdict: PASS` may the Validator set the task packet `**Status:** Done`, move the Task Board entry to `## Done` with `[VALIDATED]`, sync `.GOV/roles_shared/records/BUILD_ORDER.md` (via `just build-order-sync`), and reconcile any remaining activation-state drift for the Base WP before merge.
+**Closure rule:** Only after `verdict: PASS` may the Validator set the work packet `**Status:** Done`, move the Task Board entry to `## Done` with `[VALIDATED]`, sync `.GOV/roles_shared/records/BUILD_ORDER.md` (via `just build-order-sync`), and reconcile any remaining activation-state drift for the Base WP before merge.
 
 **PASS closure visibility rule (MANDATORY):**
 - After a WP receives `verdict: PASS`, the Validator MUST update `.GOV/roles_shared/records/TASK_BOARD.md` before merging the WP to `main`.
@@ -341,7 +341,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - Require evidence that `just validator-handoff-check WP-{ID}` ran and passed before PASS commit clearance. This helper runs `pre-work`, `cargo-clean`, and committed `post-work` against the PREPARE worktree source of truth. If absent or failing, verdict = FAIL until fixed.
 - Require evidence that `just post-work WP-{ID}` ran and passed for the validated committed target (directly or via `validator-handoff-check`). If absent or failing, verdict = FAIL until fixed.
 - Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates staged/working changes when present, and on a clean tree validates a deterministic range:
-  - If the task packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
+  - If the work packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
   - Else if `merge-base(main, HEAD)` differs from `HEAD`: `merge-base(main, HEAD)..HEAD`
   - Else: the last commit (`HEAD^..HEAD`)
   It can also validate a specific commit via `--rev <sha>`.
@@ -352,14 +352,14 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 
 If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the WP spans a trust boundary (e.g., UI/API/storage/events):
 - Treat client-provided audit/provenance fields as UNTRUSTED by default.
-- Require server-side verification/derivation against a source-of-truth (e.g., stored job output) unless the task packet contains an explicit user waiver.
+- Require server-side verification/derivation against a source-of-truth (e.g., stored job output) unless the work packet contains an explicit user waiver.
 - Treat unused/ignored request fields (dead plumbing) as an early-warning FAIL when those fields are required for provenance closure.
 - Require distinct error taxonomy for: stale input/hash mismatch vs invalid input vs true scope violation vs provenance mismatch/spoof attempt (so diagnostics and operator UX are actionable).
 
 ## Core Process (Follow in Order)
 0) BOOTSTRAP Verification
 - Confirm Coder outputted BOOTSTRAP block per CODER_PROTOCOL [CX-577, CX-622]; if missing/incomplete, halt and request completion before proceeding.
-- Verify BOOTSTRAP fields match task packet (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
+- Verify BOOTSTRAP fields match work packet (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
 - Confirm the work packet has `**Status:** In Progress` and claim fields filled (CODER_MODEL, CODER_REASONING_STRENGTH) before accepting any skeleton or implementation progression. [CX-212D] Bootstrap claim is verified by field content, not by a commit on the feature branch.
 - Enforce [CX-GATE-001]: if the Coder included SKELETON content in the BOOTSTRAP turn, treat it as invalid phase merging; require a new, separate SKELETON turn/commit after explicit Operator authorization.
 
@@ -395,7 +395,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - If those fields are missing, generic, or evasive, do not treat the WP as technically ready; return it for completion and downgrade governance/code-review confidence accordingly.
 
 1) Spec Extraction
-- List every MUST/SHOULD from the task packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
+- List every MUST/SHOULD from the work packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
 - Definition of â€œrequirementâ€: any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
 - Copy identifiers (anchors, bullet labels) to keep traceability. No assumptions from memory.
 - Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/spec/SPEC_CURRENT.md).
@@ -480,7 +480,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - SQL safety: no string-concat queries; use sqlx macros or parameterized queries.
 - Build hygiene: flag large/untracked build artifacts or missing .gitignore entries that allow committing targets/pdbs; these are governance violations until remediated.
 - **Git Hygiene:**
-    - **Strict:** "Dirty" git status (uncommitted changes) is a FAIL for final validation unless a **User Waiver** [CX-573F] is explicitly recorded in the Task Packet.
+    - **Strict:** "Dirty" git status (uncommitted changes) is a FAIL for final validation unless a **User Waiver** [CX-573F] is explicitly recorded in the Work Packet.
     - **Artifacts:** FAIL if *ignored* build artifacts (e.g., `target/`, `node_modules/`) are tracked or committed.
     - **Scope:** Ensure changes are restricted to the WP's `IN_SCOPE_PATHS`.
     - **Committed-handoff rule (preferred for orchestrator-managed WPs):** Run `just validator-handoff-check {WP_ID}`. This validates the PREPARE worktree source of truth with `pre-work`, `cargo-clean`, and committed `post-work`, and records commit-clearance evidence for `validator-gate-commit`.
@@ -496,12 +496,12 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 ## Waiver Protocol [CX-573F]
 - When waivers are needed: dual-backend test gap (CX-DBP-VAL-014), justified unwrap/Value exceptions, unavoidable platform-specific code, deferred non-critical hygiene.
 - Approval: MEDIUM/HIGH risk requires explicit user approval; LOW risk can be Coder + Validator with user visibility.
-- Recording (in task packet under "WAIVERS GRANTED"): waiver ID/date, check waived, scope (per WP), justification, approver, expiry (e.g., Phase 1 completion or specific WP).
+- Recording (in work packet under "WAIVERS GRANTED"): waiver ID/date, check waived, scope (per WP), justification, approver, expiry (e.g., Phase 1 completion or specific WP).
 - Waivers NOT allowed: spec regression, evidence mapping gaps, hard invariant violations, security gate violations, traceability removal, RCE guard removal.
 - Absent waiver for a required check = FAIL. Expired waivers at phase boundary must be revalidated or removed.
 
 ## Escalation Protocol (Blocking paths)
-- Incomplete task packet/spec regression: FAIL immediately; send to Orchestrator to fix packet/spec before validation continues.
+- Incomplete work packet/spec regression: FAIL immediately; send to Orchestrator to fix packet/spec before validation continues.
 - Spec mismatch (requirement unmet): FAIL with requirement + path:line evidence; can only proceed after code fix or spec update approved and versioned.
 - Test flake/unreproducible failure: request full output; attempt re-run. If still inconsistent, FAIL and return to Coder to stabilize.
 - Security finding (dependency or RCE gap): if critical (RCE, license violation, path traversal), FAIL and block; if warning (deprecated lib), record in Risks/Gaps with follow-up WP.
@@ -520,9 +520,9 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - `just validator-coverage-gaps` (sanity check that tests exist/guard the change)
 - `just validator-traceability` (trace_id/job_id presence in governed mutation paths)
 - `just validator-git-hygiene` or `just validator-hygiene-full` (artifact and .gitignore checks)
-- TEST_PLAN commands from the task packet (must be run or explicitly waived by the user)
+- TEST_PLAN commands from the work packet (must be run or explicitly waived by the user)
 - If applicable: run or verify at least one targeted test that would fail if the new logic is removed; note command/output.
-- If a required check cannot be satisfied, obtain explicit user waiver and record it in the task packet and report; absent waiver = FAIL.
+- If a required check cannot be satisfied, obtain explicit user waiver and record it in the work packet and report; absent waiver = FAIL.
 
 ## Verdict (Binary)
 - PASS: Every requirement mapped to evidence, hygiene clean, tests verified (or explicitly waived by user), DAL audit clean when applicable, heuristic/code-quality review acceptable, and phase-gate satisfied when progressing.
@@ -644,7 +644,7 @@ State is tracked per WP in `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.js
 ### Gate 1: WP APPEND (Records verdict; non-blocking)
 1. Validator completes all checks and generates the full VALIDATION REPORT.
 2. If verdict = PASS, before recording Gate 1 the Validator MUST update the WP closure state on the WP branch:
-   - set task packet `**Status:** Done`
+   - set work packet `**Status:** Done`
    - update `.GOV/roles_shared/records/TASK_BOARD.md` to `## Done` / `[VALIDATED]`
    - sync `.GOV/roles_shared/records/BUILD_ORDER.md` via `just build-order-sync`
 3. Validator appends the VALIDATION REPORT to `.GOV/task_packets/{WP_ID}.md` (APPEND-ONLY per [CX-WP-001]).
@@ -836,14 +836,14 @@ Split-Verdict Rules:
 - If tests pass but spec proof is incomplete, keep `TEST_VERDICT=PASS` and downgrade `SPEC_ALIGNMENT_VERDICT`.
 - If the environment blocked full proof, record that in `ENVIRONMENT_VERDICT` instead of narrating an unconditional PASS.
  
-Task Packet Update (APPEND-ONLY):
+Work Packet Update (APPEND-ONLY):
 - [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL) MUST be APPENDED to the end of the `.GOV/task_packets/{WP_ID}.md` file. OVERWRITING IS FORBIDDEN.
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
-- STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL using the template below, but only after `verdict: PASS` may the Validator set task packet `**Status:** Done`, move TASK_BOARD to Done/Validated, and sync BUILD_ORDER (`just build-order-sync`). **DO NOT OVERWRITE User Context or previous history [CX-654].**
-- For non-PASS governed verdicts or `DISPOSITION=OUTDATED_ONLY`, append the report but do not perform normal Done/Validated PASS closure updates on task packet/TASK_BOARD/BUILD_ORDER unless the governed lane explicitly records the outdated-only closure path.
+- STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL using the template below, but only after `verdict: PASS` may the Validator set work packet `**Status:** Done`, move TASK_BOARD to Done/Validated, and sync BUILD_ORDER (`just build-order-sync`). **DO NOT OVERWRITE User Context or previous history [CX-654].**
+- For non-PASS governed verdicts or `DISPOSITION=OUTDATED_ONLY`, append the report but do not perform normal Done/Validated PASS closure updates on work packet/TASK_BOARD/BUILD_ORDER unless the governed lane explicitly records the outdated-only closure path.
 - TASK_BOARD update (merge-visible requirement): for PASS, the Validator MUST update `.GOV/roles_shared/records/TASK_BOARD.md` on the WP branch before merge using `just task-board-set WP-{ID} DONE_VALIDATED`, and the closure commit MUST carry that update so merge + fast-forward makes the validated state visible in all role worktrees.
 - TASK_BOARD update (on `main`): after merge, the canonical main-branch Task Board must already show the validated WP entry from that closure commit. Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.
-- Board consistency (on `main`): task packet `**Status:**` is source of truth; reconcile the Task Board to match packet reality before declaring PASS. Unresolved mismatch = FAIL pending correction.
+- Board consistency (on `main`): work packet `**Status:**` is source of truth; reconcile the Task Board to match packet reality before declaring PASS. Unresolved mismatch = FAIL pending correction.
 - Activation consistency (merge-visible requirement): when validating an official packet, reconcile `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` and remove any stale `## Stub Backlog` entry for that Active Packet before merge; then run `just build-order-sync` and `just gov-check` so the official activation state is visible on `main` immediately after merge.
 ```
 

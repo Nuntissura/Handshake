@@ -96,7 +96,7 @@ function isClosedStatus(status) {
 }
 
 if (!fs.existsSync(PACKETS_DIR)) {
-  fail("Task packet directory missing", [PACKETS_DIR.replace(/\\/g, "/")]);
+  fail("Work packet directory missing", [PACKETS_DIR.replace(/\\/g, "/")]);
 }
 
 const files = fs.readdirSync(PACKETS_DIR).filter((name) => name.endsWith(".md") && name !== "README.md");
