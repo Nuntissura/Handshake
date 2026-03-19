@@ -1,7 +1,7 @@
 # Role Bundles
 
 This README is navigational only.
-Authoritative role folder law lives in `Handshake Codex v1.4.md` plus the active role protocol for the role you are working in.
+Authoritative role folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the active role protocol for the role you are working in.
 
 Each role now has a local bundle README that groups:
 

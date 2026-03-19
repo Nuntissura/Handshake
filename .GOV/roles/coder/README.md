@@ -1,7 +1,7 @@
 # Coder Bundle
 
 This README is navigational only.
-Authoritative folder-placement law for the Coder bundle lives in `Handshake Codex v1.4.md` plus `CODER_PROTOCOL.md`.
+Authoritative folder-placement law for the Coder bundle lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus `CODER_PROTOCOL.md`.
 
 ## Primary Live Docs
 

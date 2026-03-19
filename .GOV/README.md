@@ -3,7 +3,7 @@
 This folder is the governed control plane for Handshake.
 
 This README is navigational only.
-Authoritative folder-placement law lives in `Handshake Codex v1.4.md` plus the active role protocols.
+Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the active role protocols.
 
 ## Ownership Model
 
@@ -44,7 +44,7 @@ Authoritative folder-placement law lives in `Handshake Codex v1.4.md` plus the a
 
 ## Primary Authority
 
-- `Handshake Codex v1.4.md`
+- `.GOV/codex/Handshake_Codex_v1.4.md`
 - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
 - `.GOV/roles/coder/CODER_PROTOCOL.md`
 - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`

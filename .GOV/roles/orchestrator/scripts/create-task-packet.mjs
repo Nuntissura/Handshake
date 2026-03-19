@@ -243,7 +243,7 @@ try {
         'Do NOT create/lock a WP packet while a Main Body or appendix spec update is required.',
       ],
       nextCommands: [
-        `# Run the spec update workflow (new spec version file + update ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md).`,
+        `# Run the spec update workflow (new spec version file + update ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md).`,
         '# If the refinement expanded appendices (primitive index, feature registry, UI guidance, interaction matrix), land those changes in the new spec version first.',
         '# Create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
       ],
@@ -796,10 +796,10 @@ if (isHydratedProfile) {
   template = replaceSection(template, 'AUTHORITY', `
 ## AUTHORITY
 - SPEC_BASELINE: ${specBaseline} (recorded_at: ${timestamp})
-- SPEC_TARGET: ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
+- SPEC_TARGET: ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
 - SPEC_ADD_MARKER_TARGET: ${specAddMarkerTarget}
 - SPEC_ANCHOR_PRIMARY: ${primarySpecAnchor}
-- Codex: Handshake Codex v1.4.md
+- Codex: ${GOV_ROOT_REPO_REL}/codex/Handshake_Codex_v1.4.md
 - Task Board: ${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md
 - WP Traceability: ${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
 `);
@@ -1052,7 +1052,7 @@ ${formatList(hydration.riskMap)}
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md -> ${specBaseline}
+- **Spec Target Resolved**: ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> ${specBaseline}
 - **Notes**:
 `);
 

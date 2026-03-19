@@ -7,7 +7,7 @@ This file is a **derived snapshot** of Phase 1 sequencing inputs. It exists to p
 
 ## Source of truth (do not contradict)
 
-- Master Spec pointer: `.GOV/roles_shared/records/SPEC_CURRENT.md` (resolves to `Handshake_Master_Spec_vXX.XXX.md`)
+- Master Spec pointer: `.GOV/spec/SPEC_CURRENT.md` (resolves to `Handshake_Master_Spec_vXX.XXX.md`)
 - Status tokens: `.GOV/roles_shared/records/TASK_BOARD.md`
 - Base->Active mapping: `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
 - Per-WP ordering metadata: the Active Packet file (official packet or stub) `BUILD_ORDER_*` fields

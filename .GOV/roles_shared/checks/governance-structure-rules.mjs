@@ -39,7 +39,6 @@ export const rolesSharedRootRules = {
     ["GIT_TOPOLOGY_REGISTRY.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/GIT_TOPOLOGY_REGISTRY.md`],
     ["OSS_REGISTER.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/OSS_REGISTER.md`],
     ["SIGNATURE_AUDIT.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`],
-    ["SPEC_CURRENT.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md`],
     ["SPEC_DEBT_REGISTRY.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_DEBT_REGISTRY.md`],
     ["TASK_BOARD.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`],
     ["WP_TRACEABILITY_REGISTRY.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`],

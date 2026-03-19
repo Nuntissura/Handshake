@@ -13,7 +13,7 @@
 
 **Why:** Handshake is complex software. Treating roadmap bullets as requirements (instead of pointers) leads to surface-level compliance, technical debt, and project failure.
 
-This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against the current Master Spec (see `.GOV/roles_shared/records/SPEC_CURRENT.md`).
+This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against the current Master Spec (see `.GOV/spec/SPEC_CURRENT.md`).
 
 **Task Board entry format (enforced for In Progress/Done/Superseded via `just task-board-check`):**
 - In Progress: `- **[WP_ID]** - [IN_PROGRESS]`

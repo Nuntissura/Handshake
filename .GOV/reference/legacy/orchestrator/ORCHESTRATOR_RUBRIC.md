@@ -86,7 +86,7 @@ Is user request clearly covered in Master Spec Main Body?
 **Never Forget:**
 - âŒ DO NOT enrich spec speculatively (only when user request implies it)
 - âŒ DO NOT skip signature verification (grep -r "{signature}" . to prevent reuse)
-- âŒ DO NOT forget to update .GOV/roles_shared/records/SPEC_CURRENT.md pointer
+- âŒ DO NOT forget to update .GOV/spec/SPEC_CURRENT.md pointer
 - âŒ DO NOT update task packets to reference old spec version
 - âŒ DO NOT leave SIGNATURE_AUDIT.md blank
 

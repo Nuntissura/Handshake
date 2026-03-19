@@ -10,10 +10,10 @@ All paths in this map are repo-relative and must remain drive-agnostic.
 ## Always (Session Start / Context Check)
 
 Read-only (evidence/context):
-- `Handshake Codex v1.4.md`
+- `.GOV/codex/Handshake_Codex_v1.4.md`
 - `AGENTS.md`
 - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
-- `.GOV/roles_shared/records/SPEC_CURRENT.md`
+- `.GOV/spec/SPEC_CURRENT.md`
 - `.GOV/roles_shared/records/TASK_BOARD.md`
 - `.GOV/task_packets/WP-*.md` (when validating a specific WP)
 
@@ -26,7 +26,7 @@ Git metadata (read-only, via `git ...`):
 
 `just gov-check` (no product scan):
 - Reads:
-  - `Handshake Codex v1.4.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
   - `AGENTS.md`
   - `.GOV/roles/**`
   - `.GOV/roles_shared/**`

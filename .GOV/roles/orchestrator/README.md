@@ -1,7 +1,7 @@
 # Orchestrator Bundle
 
 This README is navigational only.
-Authoritative folder-placement law for the Orchestrator bundle lives in `Handshake Codex v1.4.md` plus `ORCHESTRATOR_PROTOCOL.md`.
+Authoritative folder-placement law for the Orchestrator bundle lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus `ORCHESTRATOR_PROTOCOL.md`.
 
 ## Primary Docs
 

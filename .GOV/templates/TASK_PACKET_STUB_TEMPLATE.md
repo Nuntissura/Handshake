@@ -28,7 +28,7 @@ Rules:
 - BUILD_ORDER_RISK_TIER: <pending> (LOW | MEDIUM | HIGH)
 - BUILD_ORDER_DEPENDS_ON: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
 - BUILD_ORDER_BLOCKS: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
-- SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md
+- SPEC_TARGET: .GOV/spec/SPEC_CURRENT.md
 - SESSION_START_AUTHORITY: {{SESSION_START_AUTHORITY}}
 - SESSION_HOST_PREFERENCE: {{SESSION_HOST_PREFERENCE}}
 - SESSION_HOST_FALLBACK: {{SESSION_HOST_FALLBACK}}

@@ -6,7 +6,7 @@ This file defines the **hard boundary** between:
 
 These rules exist to prevent the product from accidentally depending on the evolving governance workspace.
 
-Authoritative LAW: `Handshake Codex v1.4.md` ([CX-211], [CX-212]).
+Authoritative LAW: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]).
 
 ---
 

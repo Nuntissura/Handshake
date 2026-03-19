@@ -1,12 +1,12 @@
 ﻿# Handshake Project: Start Here
 
 Navigation entrypoint only.
-Product authority: Master Spec (see `.GOV/roles_shared/records/SPEC_CURRENT.md`)
-Governance placement law: `Handshake Codex v1.4.md` plus the active role protocols
+Product authority: Master Spec (see `.GOV/spec/SPEC_CURRENT.md`)
+Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active role protocols
 ---
 ## Canonical sources
-- **Spec:** `.GOV/roles_shared/records/SPEC_CURRENT.md` (points to the current Handshake master spec).
-- **Folder-placement law:** `Handshake Codex v1.4.md` + `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/coder/CODER_PROTOCOL.md` + `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`.
+- **Spec:** `.GOV/spec/SPEC_CURRENT.md` (points to the current Handshake master spec).
+- **Folder-placement law:** `.GOV/codex/Handshake_Codex_v1.4.md` + `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/coder/CODER_PROTOCOL.md` + `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`.
 - **Spec EOF appendices:** Master Spec Â§12 (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance, Interaction Matrix). These blocks are spec-internal and kept at end-of-file; `just gov-check` enforces presence + parseability.
 - **WP Traceability:** `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP â†’ Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
@@ -49,7 +49,7 @@ just gov-check
 ```
 
 **Governance-only maintenance (no WP required) [CX-111]:**
-- Allowed scope (planned diff must be strictly limited to these governance surfaces): `/.GOV/**`, `/.github/**`, `/justfile`, `/Handshake Codex v1.4.md`, `/AGENTS.md`
+- Allowed scope (planned diff must be strictly limited to these governance surfaces): `/.GOV/**`, `/.github/**`, `/justfile`, `/.GOV/codex/Handshake_Codex_v1.4.md`, `/AGENTS.md`
 - Verification: `just gov-check`
 - If any product path is touched (`/src/`, `/app/`, `/tests/`): STOP and require a WP + Gate 0/1 (`just pre-work WP-{ID}` / `just post-work WP-{ID}`)
 
@@ -80,7 +80,7 @@ Quick reference:
 - `.GOV/operator/` â€” operator-private notes, drafts, and diaries; non-authoritative unless the Operator explicitly designates a specific file for the current task.
 - `log_archive/` â€” historical logger drops.
 - `.GOV/roles_shared/docs/OWNERSHIP.md` â€” path/area owners for routing reviews.
-- Root files: `Handshake_Master_Spec_v*.md`, `Handshake Codex v1.4.md`, `Handshake_logger_*`, phase/plan docs.
+- Root files: `Handshake_Master_Spec_v*.md`, `.GOV/codex/Handshake_Codex_v1.4.md`, `Handshake_logger_*`, phase/plan docs.
 - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, and `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` â€” AI role workflow protocols.
 
 ## How to run
@@ -143,7 +143,7 @@ CI expectation: run `just validate`; manual validator review is required for MED
 ## More context
 - Architecture table: `.GOV/roles_shared/docs/ARCHITECTURE.md`
 - Debug runbook: `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
-- Current spec + governance: `.GOV/roles_shared/records/SPEC_CURRENT.md`
+- Current spec + governance: `.GOV/spec/SPEC_CURRENT.md`
 - Quality gate (risk tiers + required checks): `.GOV/roles_shared/docs/QUALITY_GATE.md`
 - Task packet template: `.GOV/templates/TASK_PACKET_TEMPLATE.md`
 - Workflow template for reuse: `.GOV/templates/AI_WORKFLOW_TEMPLATE.md`

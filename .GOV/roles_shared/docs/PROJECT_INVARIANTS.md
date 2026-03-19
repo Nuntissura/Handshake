@@ -16,7 +16,7 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 ## 2) Naming policy
 
 - MASTER_SPEC_PATTERN: `Handshake_Master_Spec_vNN.NNN.md` (repo root)
-- CODEX_FILENAME: `Handshake Codex v1.4.md` (repo root)
+- CODEX_FILENAME: `.GOV/codex/Handshake_Codex_v1.4.md` (repo root)
 - CODEX_PATTERN: `Handshake Codex vX.Y.md` (repo root)
 
 ## 3) Canonical governance workspace (repo)

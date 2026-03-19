@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const SPEC_CURRENT_PATH = ".GOV/roles_shared/records/SPEC_CURRENT.md";
+const SPEC_CURRENT_PATH = ".GOV/spec/SPEC_CURRENT.md";
 const STUB_DIR = ".GOV/task_packets/stubs";
 const PHASE_HEADING = "### 7.6.3 Phase 1";
 const NEXT_PHASE_HEADING = "### 7.6.4 Phase 2";

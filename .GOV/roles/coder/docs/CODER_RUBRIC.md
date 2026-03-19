@@ -84,7 +84,7 @@ TASK_TYPE: {DEBUG|FEATURE|REFACTOR|HYGIENE}
 
 FILES_TO_OPEN: {verify you read all}
 - .GOV/roles_shared/docs/START_HERE.md
-- .GOV/roles_shared/records/SPEC_CURRENT.md
+- .GOV/spec/SPEC_CURRENT.md
 - .GOV/roles_shared/docs/ARCHITECTURE.md
 - {5-15 implementation files from packet BOOTSTRAP}
 

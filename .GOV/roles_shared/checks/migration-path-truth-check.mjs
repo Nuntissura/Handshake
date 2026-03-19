@@ -52,7 +52,7 @@ const repoRoot = path.resolve(resolveRepoRoot());
 process.chdir(repoRoot);
 
 const roots = [
-  path.join(repoRoot, "Handshake Codex v1.4.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "codex", "Handshake_Codex_v1.4.md"),
   path.join(repoRoot, "AGENTS.md"),
   path.join(repoRoot, "justfile"),
   path.join(repoRoot, ".github"),

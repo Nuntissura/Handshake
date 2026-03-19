@@ -19,7 +19,7 @@ function requireFileExists(filePath) {
 
 // Canonical governance surfaces required by role/agentic protocols.
 [
-  "Handshake Codex v1.4.md",
+  path.join(GOV_ROOT_REPO_REL, "codex", "Handshake_Codex_v1.4.md"),
   "justfile",
   path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md"),
   path.join(GOV_ROOT_REPO_REL, "roles", "coder", "CODER_PROTOCOL.md"),
