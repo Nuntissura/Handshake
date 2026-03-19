@@ -63,9 +63,8 @@ export const rolesSharedRootRules = {
 
 export const roleRootRules = {
   orchestrator: {
-    runtime: new Map([
-      ["ORCHESTRATOR_GATES.json", `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`],
-    ]),
+    // ORCHESTRATOR_GATES.json moved to gov_runtime/ (not git-tracked) [CX-212D]
+    runtime: new Map([]),
   },
   validator: {
     legacy: new Map([

@@ -133,6 +133,16 @@ function relWithinGovernanceRuntime(...segments) {
   return normalizePath(path.join(GOVERNANCE_RUNTIME_ROOT_REPO_REL, ...segments));
 }
 
+/**
+ * Resolve ORCHESTRATOR_GATES.json path.
+ * Checks gov_runtime first (new location), falls back to .GOV/ (legacy).
+ */
+export function resolveOrchestratorGatesPath() {
+  const runtimePath = relWithinGovernanceRuntime("ORCHESTRATOR_GATES.json");
+  if (fs.existsSync(runtimePath)) return runtimePath;
+  return govRootRelPath("roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
+}
+
 export function repoRelativeGovernanceRuntimePath(...segments) {
   return relWithinGovernanceRuntime(...segments);
 }

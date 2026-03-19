@@ -59,7 +59,7 @@ import {
   sessionPluginRequestsFileForPacketVersion,
   sessionRegistryFileForPacketVersion,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
-import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const WP_ID = process.argv[2];
 
@@ -291,7 +291,7 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   try {
-    const gatesPath = path.join(GOV_ROOT_REPO_REL, 'roles', 'orchestrator', 'runtime', 'ORCHESTRATOR_GATES.json');
+    const gatesPath = resolveOrchestratorGatesPath();
     const gates = JSON.parse(fs.readFileSync(gatesPath, 'utf8'));
     const logs = Array.isArray(gates?.gate_logs) ? gates.gate_logs : [];
     lastPrepare = [...logs].reverse().find((l) => l?.wpId === WP_ID && l?.type === 'PREPARE') || null;
@@ -300,7 +300,7 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   if (!lastPrepare) {
-    const msg = `Missing PREPARE record in ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A..Coder-Z} ...)`;
+    const msg = `Missing PREPARE record in ${GOV_ROOT_REPO_REL}/ORCHESTRATOR_GATES.json (in gov_runtime or .GOV/roles/orchestrator/runtime/) for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A..Coder-Z} ...)`;
     if (enforceWorktreeGate) {
       errors.push(msg);
       console.log('FAIL: ' + msg);

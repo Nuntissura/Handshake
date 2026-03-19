@@ -9,7 +9,7 @@ import {
   defaultWpValidatorBranch,
   defaultWpValidatorWorktreeDir,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const role = String(process.argv[2] || "").trim().toUpperCase();
 const wpId = String(process.argv[3] || "").trim();
@@ -53,7 +53,7 @@ function parseSingleField(text, label) {
 }
 
 function loadPrepareBaseBranch(wpIdValue) {
-  const gatesPath = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
+  const gatesPath = resolveOrchestratorGatesPath();
   if (!fs.existsSync(gatesPath)) return "";
   try {
     const parsed = JSON.parse(fs.readFileSync(gatesPath, "utf8"));

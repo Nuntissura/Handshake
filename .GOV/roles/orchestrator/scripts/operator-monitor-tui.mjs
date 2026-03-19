@@ -26,12 +26,12 @@ import {
   SESSION_CONTROL_RESULTS_FILE,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { TOPOLOGY_REGISTRY_JSON_PATH } from "../../../roles_shared/scripts/topology/git-topology-lib.mjs";
-import { GOV_ROOT_REPO_REL, resolveRefinementPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath, resolveRefinementPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 const TRACEABILITY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 const TOPOLOGY_PATH = TOPOLOGY_REGISTRY_JSON_PATH;
-const ORCHESTRATOR_GATES_PATH = `${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`;
+const ORCHESTRATOR_GATES_PATH = resolveOrchestratorGatesPath();
 const SESSION_CONTROL_REQUESTS_PATH = SESSION_CONTROL_REQUESTS_FILE;
 const SESSION_CONTROL_RESULTS_PATH = SESSION_CONTROL_RESULTS_FILE;
 const SESSION_CONTROL_BROKER_STATE_PATH = SESSION_CONTROL_BROKER_STATE_FILE;
