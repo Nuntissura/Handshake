@@ -8,7 +8,7 @@ This doc is a compact index of the role-governed workflow so the Operator can qu
 
 ## Drive-Agnostic Rules (Repo Governance)
 
-- Authority: `Handshake Codex v1.4.md` [CX-109], [CX-110].
+- Authority: `.GOV/codex/Handshake_Codex_v1.4.md` [CX-109], [CX-110].
 - Role worktree layout is defined in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` using placeholders:
   - `<HANDSHAKE_ROOT>` (example: `/workspace/handshake`)
   - `<HANDSHAKE_WORKTREES>` = `<HANDSHAKE_ROOT>/Handshake Worktrees`
@@ -81,7 +81,7 @@ Product-scanning / product-boundary enforcement:
 ## Role: Orchestrator
 
 Authoritative inputs:
-- `.GOV/roles_shared/records/SPEC_CURRENT.md` (current binding spec pointer)
+- `.GOV/spec/SPEC_CURRENT.md` (current binding spec pointer)
 - `.GOV/roles_shared/records/TASK_BOARD.md`
 - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
 - `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` (mechanical gate state)

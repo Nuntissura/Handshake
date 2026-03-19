@@ -786,7 +786,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   }
   if (resolved) {
     const resolvedLine = getSingleField(content, 'SPEC_TARGET_RESOLVED');
-    const expectedResolvedLine = `${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md -> ${resolved.specFileName}`;
+    const expectedResolvedLine = `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> ${resolved.specFileName}`;
     if (resolvedLine !== expectedResolvedLine) {
       errors.push(`SPEC_TARGET_RESOLVED mismatch: expected "${expectedResolvedLine}", got "${resolvedLine || '<missing>'}"`);
     }

@@ -9,7 +9,7 @@ This document defines how evidence is recorded so Validator audits do not rely o
 - This ledger is GOVERNANCE-ONLY.
 - Handshake product runtime (code under `/src/`, `/app/`, `/tests/`) MUST NOT read from or write to `/.GOV/`.
 
-See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
+See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
 ---
 

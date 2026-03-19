@@ -31739,7 +31739,7 @@ Kernel rule: precedence MUST be explicit, stable, and enforceable.
 Recommended precedence order (highest â†’ lowest):
 1. Platform/system constraints (sandbox, secrets, tool limits).
 2. Project Codex (`<PROJECT> Codex vX.Y.md`).
-3. Master Spec (`<PROJECT>_Master_Spec_vNN.NNN.md`) + `.GOV/roles_shared/records/SPEC_CURRENT.md`.
+3. Master Spec (`<PROJECT>_Master_Spec_vNN.NNN.md`) + `.GOV/spec/SPEC_CURRENT.md`.
 4. Role protocols (`.GOV/roles/*/*_PROTOCOL.md`).
 5. Repo-local guardrails (`AGENTS.md`).
 6. Work authorization artifacts (task packets / refinements / board).
@@ -31760,7 +31760,7 @@ Roles are capability envelopes, not personas:
 Kernel objective: a fresh agent can reconstruct â€œwhat is trueâ€ by opening a small stable set of files.
 
 Required artifacts (canonical locations):
-- `.GOV/roles_shared/records/SPEC_CURRENT.md`: single pointer to the current authoritative Master Spec.
+- `.GOV/spec/SPEC_CURRENT.md`: single pointer to the current authoritative Master Spec.
 - `.GOV/roles_shared/records/TASK_BOARD.md`: global execution state SSoT (minimal entries; details live in packets).
 - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`: Base WP â†’ Active Packet mapping (prevents revision ambiguity).
 - `.GOV/refinements/<WP_ID>.md`: Technical Refinement Block artifact (ASCII-only; spec anchors; enrichment decision; approval evidence).
@@ -31940,7 +31940,7 @@ These templates MUST be rendered with project-specific values (no Handshake-hard
 | `deny.toml` | Supply-chain policy config for cargo-deny (license/advisory/bans/sources). |
 | `.github/workflows/ci.yml` | CI parity: runs the same (or stricter) mechanical gates as local. |
 | `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md` | Project-specific invariants (identity, naming, layout profile, tool paths). REQUIRED for Governance Pack instantiation. |
-| `.GOV/roles_shared/records/SPEC_CURRENT.md` | Authoritative pointer to the current Master Spec and Governance Reference (drift guard target). |
+| `.GOV/spec/SPEC_CURRENT.md` | Authoritative pointer to the current Master Spec and Governance Reference (drift guard target). |
 | `.GOV/roles_shared/docs/START_HERE.md` | Navigation pack for humans and agents (canonical entry point + workflow commands). |
 | `.GOV/roles_shared/docs/ARCHITECTURE.md` | Module/area map and allowed dependency boundaries (architecture drift control). |
 | `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` | Debug runbook (first-5-minutes flow + CI triage map). |
@@ -32835,7 +32835,7 @@ The following patterns are explicitly documented as anti-patterns that Handshake
 [CX-400] SPEC_PRIMARY: When Master Spec or subsystem specs are provided, they are the primary reference for product and architecture.
 [CX-401] SPEC_OVERRULE_PRIORS: Provided specs SHOULD override model priors and generic "best practices" if they conflict.
 
-[CX-402] SPEC_CURRENT_POINTER: If multiple versions of the Master Spec exist in the repo, assistants MUST treat `.GOV/roles_shared/records/SPEC_CURRENT.md` as the canonical pointer to the current Master Spec for the active workline/session.
+[CX-402] SPEC_CURRENT_POINTER: If multiple versions of the Master Spec exist in the repo, assistants MUST treat `.GOV/spec/SPEC_CURRENT.md` as the canonical pointer to the current Master Spec for the active workline/session.
 
 [CX-405] SPEC_PROPOSAL_GATE: Before applying any changes to the Master Spec (LAW_2) or Codex (LAW_1), the assistant MUST present a "Spec Proposal" summary to the user.
 
@@ -32948,7 +32948,7 @@ The following patterns are explicitly documented as anti-patterns that Handshake
 
 ### 6.8 Bootstrap Navigation Protocol (Non-Negotiable)
 
-[CX-574] BOOTSTRAP_READ_SET: Before proposing changes, debugging, or reviewing, the assistant MUST read: `.GOV/roles_shared/docs/START_HERE.md` and `.GOV/roles_shared/records/SPEC_CURRENT.md` (and the current logger if bootloader is active).
+[CX-574] BOOTSTRAP_READ_SET: Before proposing changes, debugging, or reviewing, the assistant MUST read: `.GOV/roles_shared/docs/START_HERE.md` and `.GOV/spec/SPEC_CURRENT.md` (and the current logger if bootloader is active).
 [CX-575] BOOTSTRAP_TASK_TYPE: The assistant MUST classify the task as one of: `DEBUG | FEATURE | REVIEW | REFACTOR | HYGIENE`.
 [CX-576] BOOTSTRAP_FOLLOWUP_READ: After classification, the assistant MUST read the matching guide:
 - DEBUG -> `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
@@ -32962,7 +32962,7 @@ The following patterns are explicitly documented as anti-patterns that Handshake
 [CX-577A] BOOTSTRAP_TEMPLATE: The BOOTSTRAP block SHOULD follow this shape:
 ```
 BOOTSTRAP
-- FILES_TO_OPEN: .GOV/roles_shared/docs/START_HERE.md; .GOV/roles_shared/records/SPEC_CURRENT.md; .GOV/roles_shared/docs/ARCHITECTURE.md; .GOV/roles_shared/docs/RUNBOOK_DEBUG.md; <feature/debug-specific paths>
+- FILES_TO_OPEN: .GOV/roles_shared/docs/START_HERE.md; .GOV/spec/SPEC_CURRENT.md; .GOV/roles_shared/docs/ARCHITECTURE.md; .GOV/roles_shared/docs/RUNBOOK_DEBUG.md; <feature/debug-specific paths>
 - SEARCH_TERMS: "<key symbol>"; "<error>"; "<command>"; "<feature name>"
 - RUN_COMMANDS: pnpm -C {{FRONTEND_ROOT_DIR}} tauri dev; pnpm -C {{FRONTEND_ROOT_DIR}} test; cargo test --manifest-path {{BACKEND_CARGO_TOML}}; (add task-specific)
 - RISK_MAP: "<risk> -> <subsystem>"; "<risk> -> <subsystem>"
@@ -33014,7 +33014,7 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 [CX-585A] MANDATORY_SPEC_REFINEMENT (THE STRATEGIC PAUSE): The Orchestrator MUST use the "Refinement Loop" to ensure the Master Spec reflects the detailed design/requirements of the task BEFORE delegation.
 - **Spec-Version Lock:** The Orchestrator is **FORBIDDEN** from outputting a final Task Packet for delegation unless it has **first** created a new version of the Master Spec (`v02.xx+1`) that explicitly defines the technical approach (env vars, signatures, constraints).
 - **The Strategic Pause:** This pause exists to allow the user (non-coder) to enrich the Main Body, especially if methods or software choices deviate from the original plan. Document these shifts in the Main Body for hygiene and provenance.
-- **Pointer Update:** `.GOV/roles_shared/records/SPEC_CURRENT.md` MUST point to this new version.
+- **Pointer Update:** `.GOV/spec/SPEC_CURRENT.md` MUST point to this new version.
 - **Delegation Block:** If the Spec does not contain the exact requirements, delegation is BLOCKED. We do not "implement then specify"; we "specify then implement".
 
 [CX-585B] RED_HAT_REVIEW: During the "Proposed" phase, the Orchestrator MUST perform a "Red Hat" review (looking for risks, security flaws, architectural debt) and refine the task packet to address them.
@@ -33027,7 +33027,7 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 
 [CX-585G] REFINEMENT_BLOCK_IN_CHAT (HARD): Before requesting any USER_SIGNATURE or delegating work, the Orchestrator MUST paste the full Technical Refinement Block into the chat for explicit user review/approval. Writing it only to disk (e.g., `.GOV/refinements/*.md`) is insufficient.
 
-[CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/roles_shared/records/SPEC_CURRENT.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`, `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`, `.GOV/roles_shared/docs/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
+[CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/spec/SPEC_CURRENT.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`, `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`, `.GOV/roles_shared/docs/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
 
 [CX-587] ORCH_PRE_WORK_CHECK: Before delegating, the orchestrator SHOULD run (or instruct the coder to run): `just pre-work {WP_ID}` to verify the packet is complete and system is ready for work.
 
@@ -33113,7 +33113,7 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 [CX-801] KNOWN_DEVIATIONS_SECTION: A `KNOWN_DEVIATIONS` section MAY be added by the user to document intentional gaps between codex and reality; assistants SHOULD treat that section as overriding older conflicting rules.
 
 [CX-810] KNOWN_DEVIATION_APP_LAYOUT: Repos may deviate from codex layout guidance. If codex guidance conflicts with the repo's observed layout (e.g., frontend under `{{FRONTEND_ROOT_DIR}}/` and shell under `{{FRONTEND_SRC_DIR}}-tauri/`), assistants MUST follow the observed layout and document the deviation in `.GOV/roles_shared/docs/ARCHITECTURE.md`.
-[CX-811] KNOWN_DEVIATION_MULTI_SPECS: The repo may contain multiple `{{PROJECT_PREFIX}}_Master_Spec_v*.md` versions at root. `.GOV/roles_shared/records/SPEC_CURRENT.md` is the authoritative pointer for current work.
+[CX-811] KNOWN_DEVIATION_MULTI_SPECS: The repo may contain multiple `{{PROJECT_PREFIX}}_Master_Spec_v*.md` versions at root. `.GOV/spec/SPEC_CURRENT.md` is the authoritative pointer for current work.
 [CX-812] KNOWN_DEVIATION_DOC_SPLIT: `/.GOV/` is canonical operational guidance; `/.GOV/operator/docs_local/` is staging/drafts; root-level `*.md` may contain governance/history.
 
 ---
@@ -33238,7 +33238,7 @@ test:
 
 # Fail if any required docs are missing (navigation pack + past work index)
 docs-check:
-	node -e "['.GOV/roles_shared/docs/START_HERE.md', '.GOV/roles_shared/records/SPEC_CURRENT.md', '.GOV/roles_shared/docs/ARCHITECTURE.md', '.GOV/roles_shared/docs/RUNBOOK_DEBUG.md', '.GOV/roles_shared/PAST_WORK_INDEX.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node -e "['.GOV/roles_shared/docs/START_HERE.md', '.GOV/spec/SPEC_CURRENT.md', '.GOV/roles_shared/docs/ARCHITECTURE.md', '.GOV/roles_shared/docs/RUNBOOK_DEBUG.md', '.GOV/roles_shared/PAST_WORK_INDEX.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
 
 # Format backend Rust
 fmt:
@@ -33413,7 +33413,7 @@ validator-gate-reset wp-id *confirm:
 Intent: Deterministic line-ending policy for governance artifacts (drift control).
 ````text
 .gitattributes text eol=lf
-.GOV/roles_shared/records/SPEC_CURRENT.md text eol=lf
+.GOV/spec/SPEC_CURRENT.md text eol=lf
 .GOV/roles_shared/docs/START_HERE.md text eol=lf
 .GOV/roles_shared/records/TASK_BOARD.md text eol=lf
 .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md text eol=lf
@@ -33517,7 +33517,7 @@ jobs:
       - name: Docs check
         run: |
           test -s .GOV/roles_shared/docs/START_HERE.md
-          test -s .GOV/roles_shared/records/SPEC_CURRENT.md
+          test -s .GOV/spec/SPEC_CURRENT.md
           test -s .GOV/roles_shared/docs/ARCHITECTURE.md
           test -s .GOV/roles_shared/docs/RUNBOOK_DEBUG.md
           test -s .GOV/roles_shared/PAST_WORK_INDEX.md
@@ -33724,7 +33724,7 @@ It is the single place where project-specific identity, naming, layout, and tool
 
 ````
 
-###### Template File: `.GOV/roles_shared/records/SPEC_CURRENT.md`
+###### Template File: `.GOV/spec/SPEC_CURRENT.md`
 Intent: Authoritative pointer to the current Master Spec and Governance Reference (drift guard target).
 ````md
 # SPEC_CURRENT
@@ -33748,10 +33748,10 @@ Intent: Navigation pack for humans and agents (canonical entry point + workflow 
 ````md
 # {{PROJECT_DISPLAY_NAME}} Project: Start Here
 
-Authority: Master Spec (see `.GOV/roles_shared/records/SPEC_CURRENT.md`).
+Authority: Master Spec (see `.GOV/spec/SPEC_CURRENT.md`).
 ---
 ## Canonical sources
-- **Spec:** `.GOV/roles_shared/records/SPEC_CURRENT.md` (points to the current master spec; see `.GOV/roles_shared/records/SPEC_CURRENT.md`)..
+- **Spec:** `.GOV/spec/SPEC_CURRENT.md` (points to the current master spec; see `.GOV/spec/SPEC_CURRENT.md`)..
 - **WP Traceability:** `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP â†’ Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
 - **Governance guardrails:** `{{PROJECT_DISPLAY_NAME}} Codex v{{CODEX_VERSION}}` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + task packets. {{PROJECT_DISPLAY_NAME}} logger is for milestones/hard bugs when requested.
 - **Architecture & debug:** `.GOV/roles_shared/docs/ARCHITECTURE.md` and `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`.
@@ -33852,7 +33852,7 @@ CI expectation: run `just validate`; manual validator review is required for MED
 ## More context
 - Architecture table: `.GOV/roles_shared/docs/ARCHITECTURE.md`
 - Debug runbook: `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
-- Current spec + governance: `.GOV/roles_shared/records/SPEC_CURRENT.md`
+- Current spec + governance: `.GOV/spec/SPEC_CURRENT.md`
 - Quality gate (risk tiers + required checks): `.GOV/roles_shared/docs/QUALITY_GATE.md`
 - Task packet template: `.GOV/templates/TASK_PACKET_TEMPLATE.md`
 - Workflow template for reuse: `.GOV/templates/AI_WORKFLOW_TEMPLATE.md`
@@ -33896,7 +33896,7 @@ Intent: Debug runbook (first-5-minutes flow + CI triage map).
 > **WARNING for AI Agents:** Commands like `pnpm -C {{FRONTEND_ROOT_DIR}} tauri dev` or `just dev` start a long-running development server. They MUST NOT be executed with a blocking tool (like `run_shell_command`). These commands should be run in a separate, dedicated terminal by the user or as a true background process.
 - Repro fast: `pnpm -C {{FRONTEND_ROOT_DIR}} tauri dev` (frontend + Tauri) and keep terminal output visible; note console errors.
 - Check backend health while reproing: `cargo run --bin {{BACKEND_CRATE_NAME}}` (or rely on the Tauri spawn) and watch `data/logs/{{BACKEND_CRATE_NAME}}.log`.
-- Confirm branch/spec alignment: skim `.GOV/roles_shared/records/SPEC_CURRENT.md` for the exact feature expectation before changing code.
+- Confirm branch/spec alignment: skim `.GOV/spec/SPEC_CURRENT.md` for the exact feature expectation before changing code.
 - Isolate layer: decide if the failure is UI, IPC, backend, or data; jump to the matching section below.
 - Run the smallest relevant test: `pnpm -C {{FRONTEND_ROOT_DIR}} test <pattern>` for UI, `cargo test --manifest-path {{BACKEND_CARGO_TOML}}` for backend.
 
@@ -33916,7 +33916,7 @@ Intent: Debug runbook (first-5-minutes flow + CI triage map).
 | Build/test fails | `justfile`, package configs (`{{FRONTEND_ROOT_DIR}}/package.json`, `{{BACKEND_CARGO_TOML}}`) | Re-run `pnpm -C {{FRONTEND_ROOT_DIR}} test`, `cargo test --manifest-path {{BACKEND_CARGO_TOML}}` |
 
 ## If you only remember one thing
-- Use `rg "<feature or error string>" {{FRONTEND_SRC_DIR}} {{BACKEND_CRATE_DIR}}` to jump to the owning layer, then open the matching file and cross-check the expected behavior in `.GOV/roles_shared/records/SPEC_CURRENT.md`.
+- Use `rg "<feature or error string>" {{FRONTEND_SRC_DIR}} {{BACKEND_CRATE_DIR}}` to jump to the owning layer, then open the matching file and cross-check the expected behavior in `.GOV/spec/SPEC_CURRENT.md`.
 - When adding new repeatable errors, assign a code/tag like `{{ISSUE_PREFIX}}-####` and note it here with the primary entrypoint to triage.
 
 ## Debugging a failed CI check
@@ -33982,7 +33982,7 @@ Intent: Machine-checkable shared work memory (WP lifecycle; STUB/IN_PROGRESS/DON
 
 **Why:** {{PROJECT_DISPLAY_NAME}} is complex software. Treating roadmap bullets as requirements (instead of pointers) leads to surface-level compliance, technical debt, and project failure.
 
-This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against the current Master Spec (see `.GOV/roles_shared/records/SPEC_CURRENT.md`).
+This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against the current Master Spec (see `.GOV/spec/SPEC_CURRENT.md`).
 
 **Task Board entry format (enforced for In Progress/Done/Superseded via `just task-board-check`):**
 - In Progress: `- **[WP_ID]** - [IN_PROGRESS]`
@@ -34221,7 +34221,7 @@ Intent: Central registry of consumed USER_SIGNATURE tokens (anti-replay / audit 
    **Authority:** Master Spec v02.85, Strategic Pause approval [ilja251225032800]
    ```
 
-5. **Update .GOV/roles_shared/records/SPEC_CURRENT.md** to new version if enrichment occurred
+5. **Update .GOV/spec/SPEC_CURRENT.md** to new version if enrichment occurred
 
 ---
 
@@ -34502,7 +34502,7 @@ Intent: Orchestrator role protocol (refinement loop, signature gate, delegation 
 ### [PRIORITY_3] Deterministic Enforcement [CX-585A/C]
 - Spec-Version Lock: Master Spec immutable during phase execution
 - Signature Gate: Zero implementation without technical refinement pause
-- If spec change needed: run the Spec Enrichment workflow (new spec version file + update `.GOV/roles_shared/records/SPEC_CURRENT.md`) under a one-time user signature and record it in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`. Do NOT edit locked task packets to "catch up" to the new spec; keep history immutable and create a NEW remediation WP only if new-spec deltas require new code changes.
+- If spec change needed: run the Spec Enrichment workflow (new spec version file + update `.GOV/spec/SPEC_CURRENT.md`) under a one-time user signature and record it in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`. Do NOT edit locked task packets to "catch up" to the new spec; keep history immutable and create a NEW remediation WP only if new-spec deltas require new code changes.
 - Historical completion policy: if Validator returns **OUTDATED_ONLY** (baseline-correct but spec evolved), keep the WP archived as Done/Validated history and create a NEW remediation WP only if current-spec deltas are actually needed. Do not churn the original WP back into Ready for Dev for drift-only.
 
 ### [PRIORITY_4] Phase 1 Closure Gate [CX-585D]
@@ -34588,7 +34588,7 @@ Coder worktree rule:
 
 ### Step 1: Spec Currency Verification âœ‹ STOP
 ```bash
-cat .GOV/roles_shared/records/SPEC_CURRENT.md
+cat .GOV/spec/SPEC_CURRENT.md
 just validator-spec-regression
 ```
 - [ ] SPEC_CURRENT.md is current
@@ -34732,7 +34732,7 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
 
 
 **Hard enforcement rule (procedure; repo-enforced):**
-- If the refinement concludes **ENRICHMENT_NEEDED=YES** (or otherwise identifies unresolved ambiguity requiring new normative text), the Orchestrator MUST STOP. Do NOT record a WP packet signature and do NOT create/lock a task packet. Complete Spec Enrichment first (new spec version + update `.GOV/roles_shared/records/SPEC_CURRENT.md`), then create a NEW WP variant anchored to the updated spec with a fresh one-time signature.
+- If the refinement concludes **ENRICHMENT_NEEDED=YES** (or otherwise identifies unresolved ambiguity requiring new normative text), the Orchestrator MUST STOP. Do NOT record a WP packet signature and do NOT create/lock a task packet. Complete Spec Enrichment first (new spec version + update `.GOV/spec/SPEC_CURRENT.md`), then create a NEW WP variant anchored to the updated spec with a fresh one-time signature.
 
 **Step 2: Enrich Master Spec (after user approval)**
 If gaps found:
@@ -34741,7 +34741,7 @@ If gaps found:
 3. Copy: Entire current spec
 4. Add: Required sections/clarifications (using the Proposed Spec Enrichment text)
 5. Add: CHANGELOG entry with reason for update
-6. Update: .GOV/roles_shared/records/SPEC_CURRENT.md to point to new version
+6. Update: .GOV/spec/SPEC_CURRENT.md to point to new version
 
 **Step 3: Update all workflow files to reference new spec**
 
@@ -34752,7 +34752,7 @@ Orchestrator MUST update these files to point to new spec version:
 - .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md: Update spec version references
 - .GOV/roles_shared/docs/START_HERE.md: Update spec version references
 - .GOV/roles_shared/docs/ARCHITECTURE.md: Update spec anchors if changed
-- .GOV/roles_shared/records/SPEC_CURRENT.md: Point to the new spec (authoritative)
+- .GOV/spec/SPEC_CURRENT.md: Point to the new spec (authoritative)
 
 Do NOT mass-edit historical/signed task packets to "catch up" to new governance/spec. Signed packets are immutable; create new variants/remediation WPs instead.
 ```
@@ -34978,7 +34978,7 @@ grep -r "{signature}" .
 
 **Prevention:** Verify SPEC_ANCHOR exists in Master Spec BEFORE locking:
 ```bash
-grep -n "Â§X\.X\.X" .GOV/roles_shared/records/SPEC_CURRENT.md
+grep -n "Â§X\.X\.X" .GOV/spec/SPEC_CURRENT.md
 # Should return non-zero (section exists)
 ```
 
@@ -35472,7 +35472,7 @@ ROLLBACK_HINT: Undo changes if needed
 **What "complete" means:**
 
 **Sub-field 10A: FILES_TO_OPEN (5-15 files)**
-- âœ… Always include: `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/roles_shared/records/SPEC_CURRENT.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`
+- âœ… Always include: `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/spec/SPEC_CURRENT.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`
 - âœ… Then: 5-15 implementation files (exact paths)
 - âœ… Order matters: context first, implementation last
 
@@ -35509,7 +35509,7 @@ ROLLBACK_HINT: Undo changes if needed
 ## Bootstrap (Coder Work Plan)
 - **FILES_TO_OPEN**:
   * .GOV/roles_shared/docs/START_HERE.md (repository overview)
-  * .GOV/roles_shared/records/SPEC_CURRENT.md (current spec version)
+  * .GOV/spec/SPEC_CURRENT.md (current spec version)
   * .GOV/roles_shared/docs/ARCHITECTURE.md (storage architecture)
   * {{BACKEND_SRC_DIR}}/lib.rs (module structure)
   * {{BACKEND_SRC_DIR}}/api/mod.rs (API layer)
@@ -35724,7 +35724,7 @@ Use this template:
 ## Bootstrap (Coder Work Plan)
 - **FILES_TO_OPEN**:
   * .GOV/roles_shared/docs/START_HERE.md
-  * .GOV/roles_shared/records/SPEC_CURRENT.md
+  * .GOV/spec/SPEC_CURRENT.md
   * .GOV/roles_shared/docs/ARCHITECTURE.md
   * {5-10 implementation-specific files}
 - **SEARCH_TERMS**:
@@ -35745,7 +35745,7 @@ Use this template:
 
 ## Authority
 - **SPEC_BASELINE**: {{PROJECT_PREFIX}}_Master_Spec_vXX.XX.md (spec at packet creation time; provenance)
-- **SPEC_TARGET**: .GOV/roles_shared/records/SPEC_CURRENT.md (binding spec for closure/revalidation; resolved at validation time)
+- **SPEC_TARGET**: .GOV/spec/SPEC_CURRENT.md (binding spec for closure/revalidation; resolved at validation time)
 - **SPEC_ANCHOR**: {master spec section(s) / anchors}
 - **Codex**: {{CODEX_FILENAME}}
 - **Task Board**: .GOV/roles_shared/records/TASK_BOARD.md
@@ -35829,7 +35829,7 @@ You are a Coder agent. Before writing code:
 
 Authority docs:
 - .GOV/roles_shared/docs/START_HERE.md
-- .GOV/roles_shared/records/SPEC_CURRENT.md
+- .GOV/spec/SPEC_CURRENT.md
 - .GOV/roles_shared/docs/ARCHITECTURE.md
 - {{CODEX_FILENAME}}
 
@@ -36287,7 +36287,7 @@ When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **
 **MANDATORY:** Add `## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]` to the new packet and include, at minimum:
 - `BASE_WP_ID` and the new `WP_ID` being created.
 - Roadmap pointer(s) (if applicable) AND the governing Master Spec Main Body anchors for â€œDoneâ€.
-- `SPEC_TARGET` resolved at creation time (from `.GOV/roles_shared/records/SPEC_CURRENT.md`).
+- `SPEC_TARGET` resolved at creation time (from `.GOV/spec/SPEC_CURRENT.md`).
 - A list of ALL known prior packet files for the Base WP (v1/v2/...) and their statuses (Superseded/FAIL/Historical/etc.).
 - A requirement map showing every governing Main Body MUST/SHOULD translated to current repo evidence:
   - `SPEC_ANCHOR` (exact clause ID)
@@ -36296,7 +36296,7 @@ When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **
   - If anything is missing: declare GAP and STOP (create a remediation WP or initiate spec enrichment).
 
 **Suggested commands (examples):**
-- `cat .GOV/roles_shared/records/SPEC_CURRENT.md`
+- `cat .GOV/spec/SPEC_CURRENT.md`
 - `rg -n "<forbidden symbols>" src/`
 - `git blame -n -L <line>,<line> <path>`
 - `git log --oneline --decorate -- <path>`
@@ -36306,7 +36306,7 @@ When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **
 ## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
 - BASE_WP_ID: WP-1-...
 - WP_ID: WP-1-...-vN
-- SPEC_TARGET: {{PROJECT_PREFIX}}_Master_Spec_vXX.XXX.md (from .GOV/roles_shared/records/SPEC_CURRENT.md)
+- SPEC_TARGET: {{PROJECT_PREFIX}}_Master_Spec_vXX.XXX.md (from .GOV/spec/SPEC_CURRENT.md)
 - Roadmap pointer: Â§7.6.x (pointer only; Main Body is authority)
 - Prior packets:
   - .GOV/task_packets/WP-1-....md (status: ...)
@@ -37139,7 +37139,7 @@ git commit -m "docs: bootstrap claim [WP-{ID}]"
 **Read these files in order:**
 
 1. **.GOV/roles_shared/docs/START_HERE.md** - Repo map, commands, how to run
-2. **.GOV/roles_shared/records/SPEC_CURRENT.md** - Current master spec pointer
+2. **.GOV/spec/SPEC_CURRENT.md** - Current master spec pointer
 3. **Task packet** - Your specific work scope
 4. **Task-specific docs:**
    - FEATURE/REFACTOR â†’ `.GOV/roles_shared/docs/ARCHITECTURE.md`
@@ -37170,7 +37170,7 @@ TASK_TYPE: {DEBUG|FEATURE|REFACTOR|HYGIENE}
 
 FILES_TO_OPEN:
 - .GOV/roles_shared/docs/START_HERE.md
-- .GOV/roles_shared/records/SPEC_CURRENT.md
+- .GOV/spec/SPEC_CURRENT.md
 - .GOV/roles_shared/docs/ARCHITECTURE.md (or RUNBOOK_DEBUG.md)
 - {from task packet BOOTSTRAP}
 - {5-15 implementation files}
@@ -38332,7 +38332,7 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
   - Source of truth: `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
   - Required verification (run at session start and whenever context is unclear): `pwd`, `git rev-parse --show-toplevel`, `git rev-parse --abbrev-ref HEAD`, `git worktree list`.
   - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
-- Inputs required: task packet (STATUS not empty), .GOV/roles_shared/records/SPEC_CURRENT.md, applicable spec slices, current diff.
+- Inputs required: task packet (STATUS not empty), .GOV/spec/SPEC_CURRENT.md, applicable spec slices, current diff.
 - WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
 - Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer â†’ Master Spec Main Body (SPEC_TARGET) â†’ repo code. Do NOT validate only â€œwhat changed in v{N}â€. If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
 - When running Validator commands/scripts, use the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
@@ -38385,11 +38385,11 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - List every MUST/SHOULD from the task packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
 - Definition of â€œrequirementâ€: any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
 - Copy identifiers (anchors, bullet labels) to keep traceability. No assumptions from memory.
-- Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/roles_shared/records/SPEC_CURRENT.md).
-- Resolve SPEC_TARGET at validation time (.GOV/roles_shared/records/SPEC_CURRENT.md -> {{PROJECT_PREFIX}}_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
+- Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/spec/SPEC_CURRENT.md).
+- Resolve SPEC_TARGET at validation time (.GOV/spec/SPEC_CURRENT.md -> {{PROJECT_PREFIX}}_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
 - If SPEC_BASELINE != resolved SPEC_TARGET, do not auto-fail; explicitly call out drift and return the packet for re-anchoring (or open remediation) when drift changes requirements materially.
 - If a WP is correct for its SPEC_BASELINE but SPEC_TARGET has evolved, use a distinct verdict: **OUTDATED_ONLY** (historically done; no protocol/code regression proven). Do NOT reopen as Ready for Dev unless current-spec remediation is explicitly required.
-- Spec changes are governed via Spec Enrichment (new spec version file + `.GOV/roles_shared/records/SPEC_CURRENT.md` update) under a one-time user signature recorded in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
+- Spec changes are governed via Spec Enrichment (new spec version file + `.GOV/spec/SPEC_CURRENT.md` update) under a one-time user signature recorded in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
 
 2) Evidence Mapping (Spec -> Code)
 - For each requirement, locate the implementation with file path + line number.
@@ -38694,9 +38694,9 @@ Each project MUST define a precedence order and keep it stable. A canonical orde
 2. **Project Codex** (`<PROJECT> Codex vX.Y.md`, repo root)
    - Behavioral constitution for agents and humans interacting with the repo.
    - Must include hard bans (destructive cleanup, unsafe sync) and a conflict/override protocol.
-3. **Master Spec** (`<PROJECT>_Master_Spec_vNN.NNN.md`, repo root) + pointer (`.GOV/roles_shared/records/SPEC_CURRENT.md`)
+3. **Master Spec** (`<PROJECT>_Master_Spec_vNN.NNN.md`, repo root) + pointer (`.GOV/spec/SPEC_CURRENT.md`)
    - The authoritative product/architecture specification.
-   - `.GOV/roles_shared/records/SPEC_CURRENT.md` MUST be the single pointer to the current spec file.
+   - `.GOV/spec/SPEC_CURRENT.md` MUST be the single pointer to the current spec file.
 4. **Role Protocols** (`.GOV/roles/*/*_PROTOCOL.md`)
    - Defines what each role may and may not do.
    - Must include a refinement/signature/packetization process if mechanical gates are used.
@@ -38843,7 +38843,7 @@ This kernel assumes these stable locations:
 - `<PROJECT>_Master_Spec_vNN.NNN.md` (repo root): authoritative spec versions.
 - `.GOV/` (governance surface; canonical)
   - `.GOV/roles_shared/docs/START_HERE.md` (entrypoint; optional but recommended)
-  - `.GOV/roles_shared/records/SPEC_CURRENT.md` (pointer to current Master Spec)
+  - `.GOV/spec/SPEC_CURRENT.md` (pointer to current Master Spec)
   - `.GOV/roles_shared/records/TASK_BOARD.md` (global execution state)
   - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet)
   - `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` (append-only signature log)
@@ -38859,7 +38859,7 @@ Projects MAY add additional governance modules (runbooks, ADRs, rubrics). They m
 
 ## C. Artifact contracts (required files)
 
-### C1) `.GOV/roles_shared/records/SPEC_CURRENT.md` (spec pointer)
+### C1) `.GOV/spec/SPEC_CURRENT.md` (spec pointer)
 Purpose:
 - Provides a single source of truth for the current authoritative Master Spec version.
 
@@ -39188,7 +39188,7 @@ These checks are not always required for kernel conformance, but they harden por
 - **Task board format check**: enforces strict, machine-parseable WP state lines.
 - **Task packet claim check**: when Status is `In Progress`, require Coder claim fields (model + reasoning strength) to be non-placeholder.
 - **Worktree concurrency check**: detect multiple active WPs in one worktree (project-defined heuristic).
-- **Spec-current check**: ensures `.GOV/roles_shared/records/SPEC_CURRENT.md` points to the newest spec version by version parsing policy.
+- **Spec-current check**: ensures `.GOV/spec/SPEC_CURRENT.md` points to the newest spec version by version parsing policy.
 - **Codex check**: detects forbidden patterns (architecture violations, unsafe APIs, debug prints) and codex drift across docs.
 
 
@@ -39221,7 +39221,7 @@ A fresh agent should be able to start by opening a small, stable set of files.
 
 Recommended minimum set:
 - Operator: `.GOV/roles_shared/records/TASK_BOARD.md` + the active packet(s) being approved.
-- Orchestrator: `.GOV/roles_shared/records/SPEC_CURRENT.md`, `.GOV/roles_shared/records/TASK_BOARD.md`, `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`, refinement + packet templates, and the target WP refinement/packet.
+- Orchestrator: `.GOV/spec/SPEC_CURRENT.md`, `.GOV/roles_shared/records/TASK_BOARD.md`, `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`, refinement + packet templates, and the target WP refinement/packet.
 - Coder: the activated packet + the referenced refinement + the in-scope code paths.
 - Validator: activated packet + refinement + spec target resolved + changed files + CI/test outputs + validator gate state.
 
@@ -39319,7 +39319,7 @@ Kernel rule:
 
 Minimum recommended CI checks:
 - Governance/doc presence checks (required navigation + pointer files).
-- Spec pointer correctness (`.GOV/roles_shared/records/SPEC_CURRENT.md` resolves).
+- Spec pointer correctness (`.GOV/spec/SPEC_CURRENT.md` resolves).
 - Task Board formatting check (machine-parseable state).
 - Codex checks (forbidden patterns; repo invariants).
 - Gate tooling checks (phase gate; pre-work/post-work where applicable).
@@ -39391,7 +39391,7 @@ Hazard:
 
 Mitigation (kernel recommendation):
 - Add a CI check that asserts referenced governance file names exist and match the latest version pointer(s).
-- Prefer pointers (`.GOV/roles_shared/records/SPEC_CURRENT.md`) over hardcoding version strings in many places.
+- Prefer pointers (`.GOV/spec/SPEC_CURRENT.md`) over hardcoding version strings in many places.
 
 ### 5.2 Template drift
 Hazard:
@@ -39420,8 +39420,8 @@ The system therefore treats drift as a first-class failure mode.
 
 Kernel rules:
 - Master Spec files MUST be versioned (`..._vNN.NNN.md`) and immutable once superseded (append-only history).
-- `.GOV/roles_shared/records/SPEC_CURRENT.md` MUST be the single authoritative pointer to the current Master Spec.
-- All enforcement scripts and protocols SHOULD resolve the spec via `.GOV/roles_shared/records/SPEC_CURRENT.md` rather than hardcoding filenames.
+- `.GOV/spec/SPEC_CURRENT.md` MUST be the single authoritative pointer to the current Master Spec.
+- All enforcement scripts and protocols SHOULD resolve the spec via `.GOV/spec/SPEC_CURRENT.md` rather than hardcoding filenames.
 
 Failure modes prevented:
 - â€œCoding against old specâ€ when multiple versions exist.
@@ -39452,8 +39452,8 @@ Failure mode prevented:
 
 Add a â€œdrift guardâ€ check in CI that detects:
 - Spec pointer drift:
-  - `.GOV/roles_shared/records/SPEC_CURRENT.md` points to a non-existent file
-  - `.GOV/roles_shared/records/SPEC_CURRENT.md` does not point to the latest spec by parsed version policy
+  - `.GOV/spec/SPEC_CURRENT.md` points to a non-existent file
+  - `.GOV/spec/SPEC_CURRENT.md` does not point to the latest spec by parsed version policy
 - Governance reference drift:
   - docs/CI/hooks reference a Codex filename that does not exist
   - scripts reference protocol files that moved/renamed
@@ -39511,7 +39511,7 @@ The governance system is explicit about precedence. The current implemented stac
 
 1. `{{CODEX_FILENAME}}` (repo root)
    - Defines repo invariants and allowed assistant behavior (including hard bans on destructive ops and git worktree/branch rewrites without explicit consent).
-2. Master Spec: `{{PROJECT_PREFIX}}_Master_Spec_v*.md` (repo root), with pointer file `.GOV/roles_shared/records/SPEC_CURRENT.md`
+2. Master Spec: `{{PROJECT_PREFIX}}_Master_Spec_v*.md` (repo root), with pointer file `.GOV/spec/SPEC_CURRENT.md`
    - Product intent + architecture + normative requirements; "Main Body first" discipline is enforced mechanically.
 3. Protocol layer in `.GOV/roles/`
    - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (Orchestrator behavior and signature/refinement workflow)
@@ -39571,7 +39571,7 @@ This section describes the key governance artifacts and how they gate each other
 Why: enables a fresh model (or human) to orient quickly and deterministically without reading the whole repo.
 
 ### 3.2 Spec pointer and spec drift guard
-- `.GOV/roles_shared/records/SPEC_CURRENT.md`: the single pointer to the current authoritative Master Spec.
+- `.GOV/spec/SPEC_CURRENT.md`: the single pointer to the current authoritative Master Spec.
 - `.GOV/scripts/spec-current-check.mjs`: enforces that SPEC_CURRENT points to the latest `{{PROJECT_PREFIX}}_Master_Spec_v*.md` file by parsed version.
 
 Why: prevents silent spec drift and "coding against an old spec".
@@ -39713,11 +39713,11 @@ This table is intentionally explicit because these commands are the "mechanical 
 
 | Command | Implementation | Reads | Writes |
 |---|---|---|---|
-| `just record-refinement {WP_ID}` | `.GOV/scripts/validation/orchestrator_gates.mjs refine` | refinement file, `.GOV/roles_shared/records/SPEC_CURRENT.md` (+ spec file) | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` |
+| `just record-refinement {WP_ID}` | `.GOV/scripts/validation/orchestrator_gates.mjs refine` | refinement file, `.GOV/spec/SPEC_CURRENT.md` (+ spec file) | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` |
 | `just record-signature {WP_ID} {sig}` | `.GOV/scripts/validation/orchestrator_gates.mjs sign` | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, refinement file, `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`, repo grep for one-time signature | refinement file (sets APPROVED + signature), `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`, `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` |
 | `just worktree-add {WP_ID}` | `.GOV/scripts/worktree-add.mjs` | git refs/worktree list | creates branch/worktree dir on disk (git operation) |
 | `just record-prepare {WP_ID} ...` | `.GOV/scripts/validation/orchestrator_gates.mjs prepare` | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, git branch exists, `git worktree list --porcelain` | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` |
-| `just create-task-packet {WP_ID}` | `.GOV/scripts/create-task-packet.mjs` | refinement file, `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`, `.GOV/templates/TASK_PACKET_TEMPLATE.md`, `.GOV/roles_shared/records/SPEC_CURRENT.md` | `.GOV/task_packets/{WP_ID}.md` (or creates refinement scaffold and exits BLOCKED) |
+| `just create-task-packet {WP_ID}` | `.GOV/scripts/create-task-packet.mjs` | refinement file, `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`, `.GOV/templates/TASK_PACKET_TEMPLATE.md`, `.GOV/spec/SPEC_CURRENT.md` | `.GOV/task_packets/{WP_ID}.md` (or creates refinement scaffold and exits BLOCKED) |
 | `just gate-check {WP_ID}` | `.GOV/scripts/validation/gate-check.mjs` | `.GOV/task_packets/{WP_ID}.md` | none |
 | `just pre-work {WP_ID}` | `gate-check` + `.GOV/scripts/validation/pre-work-check.mjs` | packet + refinement + signature audit; `.GOV/scripts/validation/cor701-spec.json`; git object DB for checkpoint commit gate | may create `.GOV/task_packets/` dir if missing |
 | `just post-work {WP_ID}` | `gate-check` + `.GOV/scripts/validation/post-work-check.mjs` | packet; git diff/index/worktree files; spec schema `cor701-spec.json` | none |
@@ -39799,7 +39799,7 @@ Carry context through artifacts, not chat memory:
 
 This allows a new model to pick up work by reading:
 - `.GOV/roles_shared/docs/START_HERE.md`
-- `.GOV/roles_shared/records/SPEC_CURRENT.md`
+- `.GOV/spec/SPEC_CURRENT.md`
 - the task packet
 - the refinement
 
@@ -39958,7 +39958,7 @@ Generated from repo file listing; grouped by directory. This is the "no file lef
 - `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
 - `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
 - `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`
-- `.GOV/roles_shared/records/SPEC_CURRENT.md`
+- `.GOV/spec/SPEC_CURRENT.md`
 - `.GOV/roles_shared/docs/START_HERE.md`
 - `.GOV/roles_shared/records/TASK_BOARD.md`
 - `docs/TASK_PACKET_TEMPLATE.md` (compat shim; canonical under `.GOV/templates/`)
@@ -40147,7 +40147,7 @@ Copy this into each new task packet and fill all fields.
 Requirements:
 - Keep packets ASCII-only (required by deterministic gates).
 - Use SPEC_BASELINE for provenance (spec at creation time).
-- Use SPEC_TARGET as the authoritative spec for closure/revalidation (usually .GOV/roles_shared/records/SPEC_CURRENT.md).
+- Use SPEC_TARGET as the authoritative spec for closure/revalidation (usually .GOV/spec/SPEC_CURRENT.md).
 - WP_ID and filename MUST NOT include date/time stamps; use `-v{N}` for revisions (e.g., `WP-1-Tokenization-Service-v3`).
 - If multiple packets exist for the same Base WP, update `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet).
 
@@ -40206,7 +40206,7 @@ git revert <commit-sha>
 
 ## AUTHORITY
 - SPEC_BASELINE: {{SPEC_BASELINE}} (recorded_at: {{DATE_ISO}})
-- SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
+- SPEC_TARGET: .GOV/spec/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
 - SPEC_ANCHOR: {{SPEC_ANCHOR}}
 - Codex: {{CODEX_FILENAME}}
 - Task Board: .GOV/roles_shared/records/TASK_BOARD.md
@@ -40221,7 +40221,7 @@ git revert <commit-sha>
 ## BOOTSTRAP
 - FILES_TO_OPEN:
   - .GOV/roles_shared/docs/START_HERE.md
-  - .GOV/roles_shared/records/SPEC_CURRENT.md
+  - .GOV/spec/SPEC_CURRENT.md
   - .GOV/roles_shared/docs/ARCHITECTURE.md
   - path/to/file
 - SEARCH_TERMS:
@@ -40270,7 +40270,7 @@ git revert <commit-sha>
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> {{PROJECT_PREFIX}}_Master_Spec_vXX.XX.md
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> {{PROJECT_PREFIX}}_Master_Spec_vXX.XX.md
 - **Notes**:
 
 ## STATUS_HANDOFF
@@ -40310,7 +40310,7 @@ Rules:
 - BASE_WP_ID: {{WP_ID}} (stable ID without `-vN`; equals WP_ID for stubs; if WP_ID includes `-vN`, override to the base ID)
 - CREATED_AT: {{DATE_ISO}}
 - STUB_STATUS: STUB (NOT READY FOR DEV)
-- SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md
+- SPEC_TARGET: .GOV/spec/SPEC_CURRENT.md
 - ROADMAP_POINTER: {{ROADMAP_POINTER}}
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - {{SPEC_ANCHOR_1}}
@@ -40364,7 +40364,7 @@ Requirements (HARD):
 ### METADATA
 - WP_ID: {{WP_ID}}
 - CREATED_AT: {{DATE_ISO}}
-- SPEC_TARGET_RESOLVED: .GOV/roles_shared/records/SPEC_CURRENT.md -> {{SPEC_TARGET_RESOLVED}}
+- SPEC_TARGET_RESOLVED: .GOV/spec/SPEC_CURRENT.md -> {{SPEC_TARGET_RESOLVED}}
 - SPEC_TARGET_SHA1: {{SPEC_TARGET_SHA1}}
 - USER_REVIEW_STATUS: PENDING
 - USER_SIGNATURE: <pending>
@@ -40439,7 +40439,7 @@ This document is intended to be copied into other projects as a starting point. 
 
 ## What we did (summary)
 - Created a canonical navigation pack in `/.GOV/roles_shared/` so any model can orient fast.
-- Added an explicit spec pointer (`.GOV/roles_shared/records/SPEC_CURRENT.md`) and a check to prevent drift.
+- Added an explicit spec pointer (`.GOV/spec/SPEC_CURRENT.md`) and a check to prevent drift.
 - Established a debug runbook with a first-5-minutes flow and CI failure triage.
 - Added ownership + agent registry so reviews and traceability have a target.
 - Introduced a Quality Gate with risk tiers and required validation commands.
@@ -40454,7 +40454,7 @@ This document is intended to be copied into other projects as a starting point. 
 - Debuggability: stable log anchors and runbooks shorten incident triage.
 
 ## Canonical inputs and precedence (template)
-1) `.GOV/roles_shared/records/SPEC_CURRENT.md` (points to current master spec)
+1) `.GOV/spec/SPEC_CURRENT.md` (points to current master spec)
 2) Codex (repo root)
 3) Task Board (`.GOV/roles_shared/records/TASK_BOARD.md`) + task packet for the WP
 4) Logger (optional; milestones/hard bugs only, root or `log_archive/`)
@@ -40465,7 +40465,7 @@ This document is intended to be copied into other projects as a starting point. 
 | File | Purpose | Why it matters |
 | --- | --- | --- |
 | `.GOV/roles_shared/docs/START_HERE.md` | Entry point + commands | Fast orientation for new models |
-| `.GOV/roles_shared/records/SPEC_CURRENT.md` | Canonical spec pointer | Prevents spec drift |
+| `.GOV/spec/SPEC_CURRENT.md` | Canonical spec pointer | Prevents spec drift |
 | `.GOV/roles_shared/docs/ARCHITECTURE.md` | Module map + allowed deps | Avoids architectural entropy |
 | `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` | Debug flow + log map | Consistent incident handling |
 | `.GOV/roles_shared/PAST_WORK_INDEX.md` | Links to old work | Prevents archaeology guesswork |
@@ -40483,7 +40483,7 @@ This document is intended to be copied into other projects as a starting point. 
 
 ## Task lifecycle (deterministic flow)
 1) Orchestrator produces a task packet using `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
-2) Coder reads `.GOV/roles_shared/docs/START_HERE.md` + `.GOV/roles_shared/records/SPEC_CURRENT.md`.
+2) Coder reads `.GOV/roles_shared/docs/START_HERE.md` + `.GOV/spec/SPEC_CURRENT.md`.
 3) Coder classifies task: DEBUG / FEATURE / REVIEW / REFACTOR / HYGIENE.
 4) Coder reads `.GOV/roles_shared/docs/ARCHITECTURE.md` or `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` based on type.
 5) Implement change using scaffolds if adding components/endpoints.
@@ -40536,7 +40536,7 @@ Task Board + task packet act as the micro-log; the {{PROJECT_DISPLAY_NAME}} logg
 
 ## How to reuse this template in a new repo
 1) Copy the navigation pack files listed above into the new repo.
-2) Create a codex and point `.GOV/roles_shared/records/SPEC_CURRENT.md` to the master spec.
+2) Create a codex and point `.GOV/spec/SPEC_CURRENT.md` to the master spec.
 3) Populate `.GOV/roles_shared/docs/ARCHITECTURE.md` with real entrypoints.
 4) Add `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` with log locations and first-5-minutes flow.
 5) Add scaffolding scripts and wire `justfile` targets.
@@ -40957,7 +40957,7 @@ try {
     console.error(`BLOCKED: ${WP_ID} refinement declares ENRICHMENT_NEEDED=YES.`);
     console.error('Do NOT create/lock a WP packet while enrichment is required.');
     console.error('Next steps (spec-agnostic):');
-    console.error('- Run the spec enrichment workflow (new spec version file + update .GOV/roles_shared/records/SPEC_CURRENT.md).');
+    console.error('- Run the spec enrichment workflow (new spec version file + update .GOV/spec/SPEC_CURRENT.md).');
     console.error('- Create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).');
     process.exit(1);
   }
@@ -41457,7 +41457,7 @@ const latest = parsed[parsed.length - 1].name;
 
 const specCurrentPath = path.join(repoRoot, "docs", "SPEC_CURRENT.md");
 if (!fs.existsSync(specCurrentPath)) {
-  console.error(".GOV/roles_shared/records/SPEC_CURRENT.md not found.");
+  console.error(".GOV/spec/SPEC_CURRENT.md not found.");
   process.exit(1);
 }
 
@@ -42298,7 +42298,7 @@ if (action === 'refine') {
         wpId,
         type: 'REFINEMENT',
         refinement_path: refinementPath.replace(/\\/g, '/'),
-        spec_target_resolved: resolved ? `.GOV/roles_shared/records/SPEC_CURRENT.md -> ${resolved.specFileName}` : '.GOV/roles_shared/records/SPEC_CURRENT.md -> <unresolved>',
+        spec_target_resolved: resolved ? `.GOV/spec/SPEC_CURRENT.md -> ${resolved.specFileName}` : '.GOV/spec/SPEC_CURRENT.md -> <unresolved>',
         spec_target_sha1: resolved ? resolved.sha1 : '<unresolved>',
         timestamp: new Date().toISOString(),
         turn_token: String(Date.now()),
@@ -42351,7 +42351,7 @@ if (action === 'sign') {
         const enrichmentNeeded = (m?.[1] || '').toUpperCase();
         if (enrichmentNeeded === 'YES') {
             v2Fail('Refinement declares ENRICHMENT_NEEDED=YES; packet signature is forbidden.', [
-                'Run the spec enrichment workflow first (new spec version + update .GOV/roles_shared/records/SPEC_CURRENT.md).',
+                'Run the spec enrichment workflow first (new spec version + update .GOV/spec/SPEC_CURRENT.md).',
                 'Then create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
             ]);
         }
@@ -43549,7 +43549,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   }
   if (resolved) {
     const resolvedLine = getSingleField(content, 'SPEC_TARGET_RESOLVED');
-    const expectedResolvedLine = `.GOV/roles_shared/records/SPEC_CURRENT.md -> ${resolved.specFileName}`;
+    const expectedResolvedLine = `.GOV/spec/SPEC_CURRENT.md -> ${resolved.specFileName}`;
     if (resolvedLine !== expectedResolvedLine) {
       errors.push(`SPEC_TARGET_RESOLVED mismatch: expected "${expectedResolvedLine}", got "${resolvedLine || '<missing>'}"`);
     }
@@ -44584,7 +44584,7 @@ Intent: Mechanical governance gate (see filename + internal docstrings).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const specPointerPath = ".GOV/roles_shared/records/SPEC_CURRENT.md";
+const specPointerPath = ".GOV/spec/SPEC_CURRENT.md";
 // Phase/safety-critical anchors that must exist in the current spec.
 const requiredAnchors = [
   "2.3.12", // storage portability pillars
@@ -45250,7 +45250,7 @@ TASK_TYPE: {DEBUG|FEATURE|REFACTOR|HYGIENE}
 
 FILES_TO_OPEN: {verify you read all}
 - .GOV/roles_shared/docs/START_HERE.md
-- .GOV/roles_shared/records/SPEC_CURRENT.md
+- .GOV/spec/SPEC_CURRENT.md
 - .GOV/roles_shared/docs/ARCHITECTURE.md
 - {5-15 implementation files from packet BOOTSTRAP}
 
@@ -45993,7 +45993,7 @@ Is user request clearly covered in Master Spec Main Body?
 **Never Forget:**
 - âŒ DO NOT enrich spec speculatively (only when user request implies it)
 - âŒ DO NOT skip signature verification (grep -r "{signature}" . to prevent reuse)
-- âŒ DO NOT forget to update .GOV/roles_shared/records/SPEC_CURRENT.md pointer
+- âŒ DO NOT forget to update .GOV/spec/SPEC_CURRENT.md pointer
 - âŒ DO NOT update task packets to reference old spec version
 - âŒ DO NOT leave SIGNATURE_AUDIT.md blank
 
@@ -46902,7 +46902,7 @@ Provide a deterministic, leak-safe snapshot of the current governance state for 
 
 **Definition**  
 A "Product Governance Snapshot" is a machine-readable JSON export derived ONLY from canonical governance artifacts (no repo scan; no extras):
-- `.GOV/roles_shared/records/SPEC_CURRENT.md`
+- `.GOV/spec/SPEC_CURRENT.md`
 - resolved spec file referenced inside it (e.g., `Handshake_Master_Spec_v02.125.md`)
 - `.GOV/roles_shared/records/TASK_BOARD.md`
 - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`

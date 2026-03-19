@@ -20,8 +20,8 @@ This is optional background reading. It is not the authoritative governance entr
 ## Start Here
 
 - Product/governance entrypoint: [`.GOV/roles_shared/docs/START_HERE.md`](./.GOV/roles_shared/docs/START_HERE.md)
-- Repo law and placement rules: [`Handshake Codex v1.4.md`](./Handshake%20Codex%20v1.4.md)
-- Current product spec pointer: [`.GOV/roles_shared/records/SPEC_CURRENT.md`](./.GOV/roles_shared/records/SPEC_CURRENT.md)
+- Repo law and placement rules: [`.GOV/codex/Handshake_Codex_v1.4.md`](./Handshake%20Codex%20v1.4.md)
+- Current product spec pointer: [`.GOV/spec/SPEC_CURRENT.md`](./.GOV/spec/SPEC_CURRENT.md)
 
 ---
 

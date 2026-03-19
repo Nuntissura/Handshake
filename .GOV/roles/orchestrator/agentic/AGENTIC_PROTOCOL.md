@@ -39,9 +39,9 @@ Rationale: makes multi-agent provenance auditable even if chat context is trunca
 ## 2) Artifact-first continuity (HARD)
 
 Every sub-agent instruction MUST include the canonical artifact set:
-- `Handshake Codex v1.4.md`
+- `.GOV/codex/Handshake_Codex_v1.4.md`
 - `/.GOV/roles/<role>/*_PROTOCOL.md` (role protocol)
-- `/.GOV/roles_shared/records/SPEC_CURRENT.md` (+ the referenced Master Spec file)
+- `/.GOV/spec/SPEC_CURRENT.md` (+ the referenced Master Spec file)
 - Active task packet in `/.GOV/task_packets/{WP_ID}.md`
 - Refinement in `/.GOV/refinements/{WP_ID}.md` (if applicable)
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
@@ -86,9 +86,9 @@ When delegating to an agent, use this exact structure:
 - Worktree + branch: <dir> + <branch>
 
 2) Canonical artifacts (paths):
-- Codex: `Handshake Codex v1.4.md`
+- Codex: `.GOV/codex/Handshake_Codex_v1.4.md`
 - Role protocol: `/.GOV/roles/<role>/*_PROTOCOL.md`
-- Spec pointer: `/.GOV/roles_shared/records/SPEC_CURRENT.md`
+- Spec pointer: `/.GOV/spec/SPEC_CURRENT.md`
 - Task packet: `/.GOV/task_packets/<WP_ID>.md`
 - Refinement: `/.GOV/refinements/<WP_ID>.md` (if any)
 

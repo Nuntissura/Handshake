@@ -4,7 +4,7 @@
 > **WARNING for AI Agents:** Commands like `pnpm -C app tauri dev` or `just dev` start a long-running development server. They MUST NOT be executed with a blocking tool (like `run_shell_command`). These commands should be run in a separate, dedicated terminal by the user or as a true background process.
 - Repro fast: `pnpm -C app tauri dev` (frontend + Tauri) and keep terminal output visible; note console errors.
 - Check backend health while reproing: `cargo run --bin handshake_core` (or rely on the Tauri spawn) and watch `data/logs/handshake_core.log`.
-- Confirm branch/spec alignment: skim `.GOV/roles_shared/records/SPEC_CURRENT.md` for the exact feature expectation before changing code.
+- Confirm branch/spec alignment: skim `.GOV/spec/SPEC_CURRENT.md` for the exact feature expectation before changing code.
 - Isolate layer: decide if the failure is UI, IPC, backend, or data; jump to the matching section below.
 - Run the smallest relevant test: `pnpm -C app test <pattern>` for UI, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` for backend.
 
@@ -24,7 +24,7 @@
 | Build/test fails | `justfile`, package configs (`app/package.json`, Rust `Cargo.toml`) | Re-run `pnpm -C app test`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` |
 
 ## If you only remember one thing
-- Use `rg "<feature or error string>" app/src src/backend/handshake_core` to jump to the owning layer, then open the matching file and cross-check the expected behavior in `.GOV/roles_shared/records/SPEC_CURRENT.md`.
+- Use `rg "<feature or error string>" app/src src/backend/handshake_core` to jump to the owning layer, then open the matching file and cross-check the expected behavior in `.GOV/spec/SPEC_CURRENT.md`.
 - When adding new repeatable errors, assign a code/tag like `HSK-####` and note it here with the primary entrypoint to triage.
 
 ## Debugging a failed CI check

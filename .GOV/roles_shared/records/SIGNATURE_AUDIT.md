@@ -138,11 +138,11 @@
 | ilja120120260049 | Orchestrator | 2026-01-12 00:49 | Task packet creation: WP-1-Migration-Framework-v2 | v02.106 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Migration-Framework-v2.md ). |
 | ilja110120262355 | Orchestrator | 2026-01-11 23:55 | Spec update: v02.106 migration governance (heavy per-file replay safety + Phase 1 down migrations) | v02.106 | Clarified CX-DBP-022 (replay-safe migrations) and required concrete down migrations; updated migration acceptance criteria. |
 | ilja110120260038 | Orchestrator | 2026-01-11 00:38 | Spec update: v02.105 Roadmap Coverage Matrix phase allocation + roadmap sync | v02.105 | Phase 0 closed: removed P0 allocations; removed UNSCHEDULED; updated roadmap text to reference/enforce the matrix. |
-| ilja100120262214 | Orchestrator | 2026-01-10 22:14 | Spec update: v02.104 Roadmap Coverage Matrix (section-level determinism) | v02.104 | Added §7.6.1 Coverage Matrix + hard rules; updated .GOV/roles_shared/records/SPEC_CURRENT.md and role protocols/codex for enforcement. |
+| ilja100120262214 | Orchestrator | 2026-01-10 22:14 | Spec update: v02.104 Roadmap Coverage Matrix (section-level determinism) | v02.104 | Added §7.6.1 Coverage Matrix + hard rules; updated .GOV/spec/SPEC_CURRENT.md and role protocols/codex for enforcement. |
 | ilja090120262335 | Orchestrator | 2026-01-09 23:35 | Task packet creation: WP-1-AppState-Refactoring-v3 | v02.103 | Approved after Technical Refinement (see .GOV/refinements/WP-1-AppState-Refactoring-v3.md ). |
 | ilja090120261951 | Orchestrator | 2026-01-09 19:51 | Task packet creation: WP-1-Storage-Abstraction-Layer-v3 | v02.103 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Storage-Abstraction-Layer-v3.md ). |
 | ilja080120262313 | Orchestrator | 2026-01-08 23:13 | Spec update: v02.103 intent audit + roadmap/taskboard/stubs sync | v02.103 | Added roadmap pointer for ANS-001 response behavior contract; clarified phase closure preamble; updated SPEC_CURRENT + TASK_BOARD + stubs. |
-| ilja080120262305 | Orchestrator | 2026-01-08 23:05 | Spec update: v02.102 roadmap audit + governance sync | v02.102 | Approved roadmap additions + TASK_BOARD/stub updates; updates `.GOV/roles_shared/records/SPEC_CURRENT.md` pointer. |
+| ilja080120262305 | Orchestrator | 2026-01-08 23:05 | Spec update: v02.102 roadmap audit + governance sync | v02.102 | Approved roadmap additions + TASK_BOARD/stub updates; updates `.GOV/spec/SPEC_CURRENT.md` pointer. |
 | ilja070120260018 | Orchestrator | 2026-01-07 00:18 | Task packet creation: WP-1-ACE-Validators-v4 | v02.101 | Approved after Technical Refinement (see .GOV/refinements/WP-1-ACE-Validators-v4.md ). |
 | ilja070120260227 | Validator | 2026-01-07 02:27 | Scope expansion approval: WP-1-ACE-Validators-v4 | v02.101 | User-approved scope expansion recorded in packet/refinement. |
 | ilja070120261338 | Validator | 2026-01-07 13:38 | Waiver approval: WAIVER-ACE-VAL-V4-002/003 | v02.101 | User approved nondeterminism waivers for Instant::now and Utc::now in ACE logging. |
@@ -154,7 +154,7 @@
 | ilja010120262218 | Orchestrator | 2026-01-01 22:18 | Task packet creation: WP-1-Terminal-LAW-v3 | v02.100 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Terminal-LAW-v3.md ). |
 | ilja010120261528 | Orchestrator | 2026-01-01 15:28 | Task packet creation: WP-1-OSS-Register-Enforcement-v1 | v02.100 | Approved after Technical Refinement (see .GOV/refinements/WP-1-OSS-Register-Enforcement-v1.md ). |
 | ilja010120261446 | Orchestrator | 2026-01-01 14:46 | Task packet creation: WP-1-Flight-Recorder-v3 | v02.100 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Flight-Recorder-v3.md ). |
-| ilja010120260602 | Orchestrator | 2026-01-01 06:02 | Spec Enrichment v02.100 (TokenizationService sync/async bridge) | v02.100 | Approved update to Handshake_Master_Spec_v02.100.md changelog + .GOV/roles_shared/records/SPEC_CURRENT.md for the TokenizationService telemetry sync/async bridge requirement. |
+| ilja010120260602 | Orchestrator | 2026-01-01 06:02 | Spec Enrichment v02.100 (TokenizationService sync/async bridge) | v02.100 | Approved update to Handshake_Master_Spec_v02.100.md changelog + .GOV/spec/SPEC_CURRENT.md for the TokenizationService telemetry sync/async bridge requirement. |
 | ilja010120260219 | Orchestrator | 2026-01-01 02:19 | Task packet creation: WP-1-Tokenization-Service-v3 | v02.99 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Tokenization-Service-v3.md ). |
 | ilja311220252043 | Orchestrator | 2025-12-31 20:43 | Task packet creation: WP-1-Security-Gates-v3 | v02.99 | Remediation: protocol-clean packet (ASCII + COR-701 manifest) and remove unwrap in terminal redaction; revalidate against SPEC_CURRENT v02.99. |
 | ilja311220251916 | Orchestrator | 2025-12-31 19:16 | Task packet creation: WP-1-Gate-Check-Tool-v2 | v02.99 | Remediation: harden gate-check to avoid false positives and unblock pre/post-work. |
@@ -215,7 +215,7 @@
    **Authority:** Master Spec v02.85, Strategic Pause approval [ilja251225032800]
    ```
 
-5. **Update .GOV/roles_shared/records/SPEC_CURRENT.md** to new version if enrichment occurred
+5. **Update .GOV/spec/SPEC_CURRENT.md** to new version if enrichment occurred
 
 ---
 

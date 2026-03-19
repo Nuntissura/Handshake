@@ -36,7 +36,7 @@
   - `/.GOV/**`
   - `/.github/**`
   - `/justfile`
-  - `/Handshake Codex v1.4.md`
+  - `/.GOV/codex/Handshake_Codex_v1.4.md`
   - `/AGENTS.md`
 - Hard rule: if any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), STOP and require a WP.
 - Minimum verification for governance-only changes: `just gov-check`.

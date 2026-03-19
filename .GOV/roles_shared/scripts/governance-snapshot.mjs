@@ -47,9 +47,9 @@ const shaHex = (algorithm, buf) => crypto.createHash(algorithm).update(buf).dige
 
 export const resolveSpecFileRelPathFromSpecCurrent = (specCurrentText) => {
   const text = specCurrentText ?? '';
-  const bold = text.match(/\*\*(Handshake_Master_Spec_v[0-9]+\.[0-9]+\.md)\*\*/);
+  const bold = text.match(/\*\*([^\*]*Handshake_Master_Spec_v[0-9]+\.[0-9]+\.md)\*\*/);
   if (bold?.[1]) return normalizeRelPath(bold[1]);
-  const plain = text.match(/\bHandshake_Master_Spec_v[0-9]+\.[0-9]+\.md\b/);
+  const plain = text.match(/\b(?:\.GOV\/spec\/)?Handshake_Master_Spec_v[0-9]+\.[0-9]+\.md\b/);
   if (plain?.[0]) return normalizeRelPath(plain[0]);
   throw new Error('SPEC_CURRENT_UNPARSEABLE: no Handshake_Master_Spec_vNN.NNN.md found');
 };
@@ -59,7 +59,7 @@ const listValidatorGateJsonRelPaths = () => {
 };
 
 export const computeWhitelistedInputRelPaths = () => {
-  const specCurrentRel = `${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md`;
+  const specCurrentRel = `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md`;
   const specCurrentAbs = absFromRel(specCurrentRel);
   if (!fs.existsSync(specCurrentAbs)) {
     throw new Error(`INPUT_MISSING: ${specCurrentRel}`);

@@ -2,7 +2,7 @@
 
 This directory holds cross-role truth and the shared implementation surfaces that multiple roles rely on.
 
-Authoritative folder law lives in `Handshake Codex v1.4.md` plus the active role protocols. This README is navigational only.
+Authoritative folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the active role protocols. This README is navigational only.
 
 ## Shared Bucket Map
 
@@ -27,8 +27,7 @@ Authoritative folder law lives in `Handshake Codex v1.4.md` plus the active role
 
 ## Shared Records
 
-- `records/SPEC_CURRENT.md`
-- `records/TASK_BOARD.md`
+- `records/TASK_BOARD.md` (SPEC_CURRENT.md moved to `.GOV/spec/SPEC_CURRENT.md`)
 - `records/WP_TRACEABILITY_REGISTRY.md`
 - `records/BUILD_ORDER.md`
 - `records/SIGNATURE_AUDIT.md`

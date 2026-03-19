@@ -40,13 +40,19 @@
 
 [CX-109] HARD_DRIVE_AGNOSTIC_GOVERNANCE (HARD): Repo governance (scripts, gate state, and role workflows) MUST be drive-agnostic. Governance instructions and state MUST NOT depend on machine-local absolute paths (drive letters or UNC). Any recorded worktree path (e.g., `worktree_dir`) MUST be repo-relative (example: `../wt-WP-...`) and tooling MUST enforce this.
 
+[CX-109A] HARD_NO_SPACES_IN_NAMES (HARD): Handshake products MUST NOT create files or folders with blank spaces in their names. Use `_` (underscore) or `-` (hyphen) instead. Existing files with spaces are legacy and SHOULD be renamed when touched during normal WP work. All new files and folders MUST comply immediately.
+
+[CX-109B] HARD_DISK_AGNOSTIC_PATHS (HARD): All file and folder names created by Handshake products and governance tooling MUST be disk-agnostic (no drive letters, no OS-specific path separators in stored names, no characters that are invalid on common filesystems). Paths recorded in governance state MUST be repo-relative.
+
+[CX-109C] HARD_RENAME_REFERENCE_SCAN (HARD): When any governance file or folder is renamed or relocated, the renaming party MUST perform a repo-wide scan of `.GOV/`, `AGENTS.md`, `justfile`, and all active scripts/checks for stale references and update them in the same commit. Historical task packets, refinements, and audits are excluded (evidence snapshots).
+
 [CX-110] HARD_TOOLING_CONFLICT_STANCE (HARD): If tooling output/instructions conflict with this codex or the role protocols in `/.GOV/roles/`, STOP. Do not "follow the tool" to violate LAW. Escalate to the Operator and prefer fixing the tool to match LAW over bypassing checks.
 
 [CX-111] HARD_GOVERNANCE_NO_WP_REQUIRED (HARD): Governance/workflow/tooling-only maintenance does NOT require a Work Packet or USER_SIGNATURE when the planned diff is strictly limited to governance surface files:
 - `/.GOV/**`
 - `/.github/**`
 - `/justfile`
-- `/Handshake Codex v1.4.md`
+- `/.GOV/codex/Handshake_Codex_v1.4.md`
 - `/AGENTS.md`
 Minimum verification for governance-only changes: `just gov-check`. If any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), a WP is required and Gate 0/1 applies (`just pre-work WP-{ID}` / `just post-work WP-{ID}`).
 
@@ -205,7 +211,7 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 [CX-400] SPEC_PRIMARY: When Master Spec or subsystem specs are provided, they are the primary reference for product and architecture.
 [CX-401] SPEC_OVERRULE_PRIORS: Provided specs SHOULD override model priors and generic "best practices" if they conflict.
 
-[CX-402] SPEC_CURRENT_POINTER: If multiple versions of the Master Spec exist in the repo, assistants MUST treat `.GOV/roles_shared/records/SPEC_CURRENT.md` as the canonical pointer to the current Master Spec for the active workline/session.
+[CX-402] SPEC_CURRENT_POINTER: If multiple versions of the Master Spec exist in the repo, assistants MUST treat `.GOV/spec/SPEC_CURRENT.md` as the canonical pointer to the current Master Spec for the active workline/session.
 
 [CX-405] SPEC_PROPOSAL_GATE: Before applying any changes to the Master Spec (LAW_2) or Codex (LAW_1), the assistant MUST present a "Spec Proposal" summary to the user.
 
@@ -318,7 +324,7 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 
 ### 6.8 Bootstrap Navigation Protocol (Non-Negotiable)
 
-[CX-574] BOOTSTRAP_READ_SET: Before proposing changes, debugging, or reviewing, the assistant MUST read: `.GOV/roles_shared/docs/START_HERE.md` and `.GOV/roles_shared/records/SPEC_CURRENT.md` (and the current logger if bootloader is active).
+[CX-574] BOOTSTRAP_READ_SET: Before proposing changes, debugging, or reviewing, the assistant MUST read: `.GOV/roles_shared/docs/START_HERE.md` and `.GOV/spec/SPEC_CURRENT.md` (and the current logger if bootloader is active).
 [CX-575] BOOTSTRAP_TASK_TYPE: The assistant MUST classify the task as one of: `DEBUG | FEATURE | REVIEW | REFACTOR | HYGIENE`.
 [CX-576] BOOTSTRAP_FOLLOWUP_READ: After classification, the assistant MUST read the matching guide:
 - DEBUG -> `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
@@ -332,7 +338,7 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 [CX-577A] BOOTSTRAP_TEMPLATE: The BOOTSTRAP block SHOULD follow this shape:
 ```
 BOOTSTRAP
-- FILES_TO_OPEN: .GOV/roles_shared/docs/START_HERE.md; .GOV/roles_shared/records/SPEC_CURRENT.md; .GOV/roles_shared/docs/ARCHITECTURE.md; .GOV/roles_shared/docs/RUNBOOK_DEBUG.md; <feature/debug-specific paths>
+- FILES_TO_OPEN: .GOV/roles_shared/docs/START_HERE.md; .GOV/spec/SPEC_CURRENT.md; .GOV/roles_shared/docs/ARCHITECTURE.md; .GOV/roles_shared/docs/RUNBOOK_DEBUG.md; <feature/debug-specific paths>
 - SEARCH_TERMS: "<key symbol>"; "<error>"; "<command>"; "<feature name>"
 - RUN_COMMANDS: pnpm -C app tauri dev; pnpm -C app test; cargo test --manifest-path src/backend/handshake_core/Cargo.toml; (add task-specific)
 - RISK_MAP: "<risk> -> <subsystem>"; "<risk> -> <subsystem>"
@@ -386,7 +392,7 @@ Clarification: governance/workflow/tooling surface lives in `justfile`, `/.GOV/r
 [CX-585A] MANDATORY_SPEC_REFINEMENT (THE STRATEGIC PAUSE): The Orchestrator MUST use the Refinement Loop before delegation so the task has a diff-scoped proof plan, spec anchors, risk framing, and packet hydration data.
 - **Spec-Version Lock:** A Master Spec version bump is REQUIRED only when refinement changes durable product law, architecture, primitives, shared contracts, or other Main Body truth that should survive beyond the packet. If the current spec already covers the work, do not force a version bump just to delegate routine implementation.
 - **The Strategic Pause:** This pause exists to let the user/operator enrich or redirect the task before code is written. Use it to clarify real contract changes, not to create spec churn for routine execution details that already fit existing law.
-- **Pointer Update:** When a spec version bump does occur, `.GOV/roles_shared/records/SPEC_CURRENT.md` MUST point to the new version.
+- **Pointer Update:** When a spec version bump does occur, `.GOV/spec/SPEC_CURRENT.md` MUST point to the new version.
 - **Appendices stay current (Spec Appendix 12):** When a spec version bump happens, update the in-spec index/matrices if impacted:
   - HS-APPX-FEATURE-REGISTRY (index)
   - HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX
@@ -413,7 +419,7 @@ Clarification: governance/workflow/tooling surface lives in `justfile`, `/.GOV/r
 - LICENSE/IP note for any code-level reuse
 - SPEC_IMPACT (if this changes the intended primitives/techniques/UI surface, delegation is BLOCKED until the Master Spec is enriched per [CX-585A])
 
-[CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/roles_shared/records/SPEC_CURRENT.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`, `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`, `.GOV/roles_shared/docs/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
+[CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/spec/SPEC_CURRENT.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`, `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`, `.GOV/roles_shared/docs/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
 
 [CX-587] ORCH_PRE_WORK_CHECK: Before delegating, the orchestrator SHOULD run (or instruct the coder to run): `just pre-work {WP_ID}` to verify the packet is complete and system is ready for work.
 
@@ -533,7 +539,7 @@ Clarification: governance/workflow/tooling surface lives in `justfile`, `/.GOV/r
 [CX-801] KNOWN_DEVIATIONS_SECTION: A `KNOWN_DEVIATIONS` section MAY be added by the user to document intentional gaps between codex and reality; assistants SHOULD treat that section as overriding older conflicting rules.
 
 [CX-810] KNOWN_DEVIATION_APP_LAYOUT: The repo currently includes `/app/` (Tauri app). If codex layout guidance conflicts with observed `/app/src` + `/app/src-tauri`, assistants MUST follow the observed layout and document the deviation in `.GOV/roles_shared/docs/ARCHITECTURE.md`.
-[CX-811] KNOWN_DEVIATION_MULTI_SPECS: The repo may contain multiple `Handshake_Master_Spec_v*.md` versions at root. `.GOV/roles_shared/records/SPEC_CURRENT.md` is the authoritative pointer for current work.
+[CX-811] KNOWN_DEVIATION_MULTI_SPECS: The repo may contain multiple `Handshake_Master_Spec_v*.md` versions in `.GOV/spec/` (current) and `.GOV/spec/history/` (prior). `.GOV/spec/SPEC_CURRENT.md` is the authoritative pointer for current work.
 [CX-812] KNOWN_DEVIATION_DOC_SPLIT: `/.GOV/` is canonical operational guidance; `/.GOV/operator/` is operator-private and non-authoritative unless explicitly designated; root-level `*.md` may contain governance/history.
 
 ---

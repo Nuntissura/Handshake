@@ -194,7 +194,7 @@ if (action === 'refine') {
         wpId,
         type: 'REFINEMENT',
         refinement_path: refinementPath.replace(/\\/g, '/'),
-        spec_target_resolved: resolved ? `${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md -> ${resolved.specFileName}` : `${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md -> <unresolved>`,
+        spec_target_resolved: resolved ? `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> ${resolved.specFileName}` : `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> <unresolved>`,
         spec_target_sha1: resolved ? resolved.sha1 : '<unresolved>',
         timestamp: new Date().toISOString(),
     });
@@ -293,7 +293,7 @@ if (action === 'sign') {
         const enrichmentNeeded = (m?.[1] || '').toUpperCase();
         if (enrichmentNeeded === 'YES') {
             v2Fail('Refinement declares ENRICHMENT_NEEDED=YES; packet signature is forbidden.', [
-                `Run the spec enrichment workflow first (new spec version + update ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md).`,
+                `Run the spec enrichment workflow first (new spec version + update ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md).`,
                 'Then create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
             ]);
         }

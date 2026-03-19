@@ -29,13 +29,14 @@ function compareVersions(a, b) {
 }
 
 function findLatestSpec(repoRoot) {
-  const files = fs.readdirSync(repoRoot).filter((name) => /^Handshake_Master_Spec_v\d+\.\d+\.md$/.test(name));
+  const specDir = path.join(repoRoot, GOV_ROOT_REPO_REL, "spec");
+  const files = fs.readdirSync(specDir).filter((name) => /^Handshake_Master_Spec_v\d+\.\d+\.md$/.test(name));
   const parsed = files
     .map((name) => ({ name, version: parseVersion(name) }))
     .filter((entry) => entry.version)
     .sort((a, b) => compareVersions(a.version, b.version));
   if (parsed.length === 0) {
-    throw new Error("No Handshake_Master_Spec_v*.md files found");
+    throw new Error(`No Handshake_Master_Spec_v*.md files found in ${GOV_ROOT_REPO_REL}/spec/`);
   }
   return parsed[parsed.length - 1].name;
 }
@@ -53,7 +54,7 @@ process.chdir(repoRoot);
 const latestSpec = findLatestSpec(repoRoot);
 const errors = [];
 
-const specCurrentPath = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "SPEC_CURRENT.md");
+const specCurrentPath = path.join(GOV_ROOT_REPO_REL, "spec", "SPEC_CURRENT.md");
 const buildOrderPath = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "BUILD_ORDER.md");
 const pastWorkIndexPath = path.join(GOV_ROOT_REPO_REL, "reference", "PAST_WORK_INDEX.md");
 
@@ -73,8 +74,8 @@ if (!pastWorkIndex.includes(latestSpec)) {
 if (/current governance and operating rules\.\s*$/mi.test(pastWorkIndex) && /Handshake Codex v0\./i.test(pastWorkIndex)) {
   errors.push(`${pastWorkIndexPath.replace(/\\/g, "/")} still labels an old Codex version as current governance`);
 }
-if (!pastWorkIndex.includes("Handshake Codex v1.4.md")) {
-  errors.push(`${pastWorkIndexPath.replace(/\\/g, "/")} must reference Handshake Codex v1.4.md as the current governance reference`);
+if (!pastWorkIndex.includes("Handshake_Codex_v1.4.md")) {
+  errors.push(`${pastWorkIndexPath.replace(/\\/g, "/")} must reference Handshake_Codex_v1.4.md as the current governance reference`);
 }
 
 if (errors.length > 0) {

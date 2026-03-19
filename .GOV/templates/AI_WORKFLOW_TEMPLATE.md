@@ -6,7 +6,7 @@ This document is intended to be copied into other projects as a starting point. 
 
 ## What we did (summary)
 - Created a canonical navigation pack in `.GOV/` so any model can orient fast.
-- Added an explicit spec pointer (`.GOV/roles_shared/records/SPEC_CURRENT.md`) and a check to prevent drift.
+- Added an explicit spec pointer (`.GOV/spec/SPEC_CURRENT.md`) and a check to prevent drift.
 - Established a debug runbook with a first-5-minutes flow and CI failure triage.
 - Added ownership + agent registry so reviews and traceability have a target.
 - Introduced a Quality Gate with risk tiers and required validation commands.
@@ -21,7 +21,7 @@ This document is intended to be copied into other projects as a starting point. 
 - Debuggability: stable log anchors and runbooks shorten incident triage.
 
 ## Canonical inputs and precedence (template)
-1) `.GOV/roles_shared/records/SPEC_CURRENT.md` (points to current master spec)
+1) `.GOV/spec/SPEC_CURRENT.md` (points to current master spec)
 2) Codex (repo root)
 3) Task Board (`.GOV/roles_shared/records/TASK_BOARD.md`) + task packet for the WP
 4) Logger (optional; milestones/hard bugs only, root or `log_archive/`)
@@ -32,7 +32,7 @@ This document is intended to be copied into other projects as a starting point. 
 | File | Purpose | Why it matters |
 | --- | --- | --- |
 | `.GOV/roles_shared/docs/START_HERE.md` | Entry point + commands | Fast orientation for new models |
-| `.GOV/roles_shared/records/SPEC_CURRENT.md` | Canonical spec pointer | Prevents spec drift |
+| `.GOV/spec/SPEC_CURRENT.md` | Canonical spec pointer | Prevents spec drift |
 | `.GOV/roles_shared/docs/ARCHITECTURE.md` | Module map + allowed deps | Avoids architectural entropy |
 | `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` | Debug flow + log map | Consistent incident handling |
 | `.GOV/roles_shared/docs/QUALITY_GATE.md` | Risk tiers + required checks | Sets minimum hygiene |
@@ -49,7 +49,7 @@ This document is intended to be copied into other projects as a starting point. 
 
 ## Task lifecycle (deterministic flow)
 1) Orchestrator produces a task packet using `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
-2) Coder reads `.GOV/roles_shared/docs/START_HERE.md` + `.GOV/roles_shared/records/SPEC_CURRENT.md`.
+2) Coder reads `.GOV/roles_shared/docs/START_HERE.md` + `.GOV/spec/SPEC_CURRENT.md`.
 3) Coder classifies task: DEBUG / FEATURE / REVIEW / REFACTOR / HYGIENE.
 4) Coder reads `.GOV/roles_shared/docs/ARCHITECTURE.md` or `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` based on type.
 5) Implement change using scaffolds if adding components/endpoints.
@@ -102,7 +102,7 @@ Task Board + task packet act as the micro-log; the Handshake logger is for miles
 
 ## How to reuse this template in a new repo
 1) Copy the navigation pack files listed above into the new repo.
-2) Create a codex and point `.GOV/roles_shared/records/SPEC_CURRENT.md` to the master spec.
+2) Create a codex and point `.GOV/spec/SPEC_CURRENT.md` to the master spec.
 3) Populate `.GOV/roles_shared/docs/ARCHITECTURE.md` with real entrypoints.
 4) Add `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` with log locations and first-5-minutes flow.
 5) Add scaffolding scripts and wire `justfile` targets.

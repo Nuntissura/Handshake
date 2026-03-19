@@ -43,7 +43,7 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
 - `/.GOV/operator/` is Operator-private and non-authoritative unless the Operator explicitly designates a file for the current task.
 
 See also:
-- `Handshake Codex v1.4.md`
+- `.GOV/codex/Handshake_Codex_v1.4.md`
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 
 **Governance Kernel [CX-212B/C]:** All `/.GOV/` paths in this protocol refer to the logical governance root. Scripts resolve through `HANDSHAKE_GOV_ROOT` env var (default: local `/.GOV/`). When a governance kernel worktree is configured, justfile and scripts execute from the shared kernel. The managing orchestrator reads from the kernel but MUST NOT write to it; governance edits require a separate model session.
@@ -80,12 +80,12 @@ See also:
 
 ## Tooling Conflict Stance [CX-110] (HARD)
 
-- If tool output conflicts with this protocol or `Handshake Codex v1.4.md`, stop and escalate to the Operator.
+- If tool output conflicts with this protocol or `.GOV/codex/Handshake_Codex_v1.4.md`, stop and escalate to the Operator.
 - Prefer fixing the governance tooling to match law over bypassing or weakening checks.
 
 ## Governance Folder Structure (Authoritative Placement Rules)
 
-This section plus `Handshake Codex v1.4.md` are the authoritative placement rules for Orchestrator-owned governance surfaces. READMEs and onboarding files are navigational only.
+This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative placement rules for Orchestrator-owned governance surfaces. READMEs and onboarding files are navigational only.
 
 - `/.GOV/roles/orchestrator/` is for artifacts owned and actively used only by the Orchestrator role.
 - Fixed role-local subfolders:
@@ -368,7 +368,7 @@ Immediately after creating a WP task packet and refinement and obtaining `USER_S
   - either the full `## TECHNICAL_REFINEMENT (MASTER SPEC)` block
   - or enough current Master Spec anchors to prove the Orchestrator understands the relevant roadmap items, stubs, and WP context
 - `just record-refinement WP-{ID}` must pass first.
-- If the refinement concludes `ENRICHMENT_NEEDED=YES`, unresolved ambiguity, or mandatory appendix/main-body sync, stop packet creation, advance the spec correctly, update `/.GOV/roles_shared/records/SPEC_CURRENT.md`, and only then create a new active packet against the updated spec.
+- If the refinement concludes `ENRICHMENT_NEEDED=YES`, unresolved ambiguity, or mandatory appendix/main-body sync, stop packet creation, advance the spec correctly, update `/.GOV/spec/SPEC_CURRENT.md`, and only then create a new active packet against the updated spec.
 
 ### 2. Signature Bundle, Prepare, and Packet Creation
 

@@ -20,7 +20,7 @@ try {
 
 const bannerRef = governanceRef
   ? `Governance Reference: ${governanceRef.codexFilename}`
-  : `Governance Reference: UNRESOLVED (see ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md)`;
+  : `Governance Reference: UNRESOLVED (see ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md)`;
 
 console.log(`\ndY"? CI Traceability Check (${bannerRef})...\n`);
 
@@ -57,8 +57,8 @@ const governanceOnlyPathAllowlist = [
   p => p.startsWith('.claude/'),
   p => p === 'justfile',
   p => p === 'AGENTS.md',
-  p => p === 'Handshake Codex v1.4.md',
-  p => /^Handshake_Master_Spec_.*\.md$/.test(p),
+  p => p === '.GOV/codex/Handshake_Codex_v1.4.md',
+  p => /^\.GOV\/spec\/Handshake_Master_Spec_.*\.md$/.test(p),
   p => /^Handshake_logger_.*\.md$/.test(p),
 ];
 
@@ -162,21 +162,21 @@ if (loggerFiles.length === 0) {
   console.log(`  â„¹ï¸  Logger present: ${loggerFiles[0]} (milestones/hard bugs only)`);
 }
 
-// Check 4: Governance Reference exists (derived from .GOV/roles_shared/records/SPEC_CURRENT.md)
-console.log(`\nCheck 4: Governance Reference exists (from ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md)`);
+// Check 4: Governance Reference exists (derived from .GOV/spec/SPEC_CURRENT.md)
+console.log(`\nCheck 4: Governance Reference exists (from ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md)`);
 try {
   const ref = governanceRef || resolveGovernanceReference();
   if (!fs.existsSync(ref.codexPathAbs)) {
     errors.push(
-      `Governance Reference file not found: ${ref.codexFilename} (resolved from ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md)`
+      `Governance Reference file not found: ${ref.codexFilename} (resolved from ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md)`
     );
     console.log(`Æ’?O FAIL: Governance Reference missing: ${ref.codexFilename}`);
   } else {
     console.log(`  Æ’o. ${ref.codexFilename} exists`);
   }
 } catch (err) {
-  errors.push(`Could not resolve Governance Reference from ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md: ${err.message}`);
-  console.log(`Æ’?O FAIL: Could not resolve Governance Reference from ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md`);
+  errors.push(`Could not resolve Governance Reference from ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md: ${err.message}`);
+  console.log(`Æ’?O FAIL: Could not resolve Governance Reference from ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md`);
 }
 
 // Check 5: Protocol files exist
@@ -221,6 +221,6 @@ if (errors.length === 0 && warnings.length === 0) {
     warnings.forEach((warn, i) => console.log(`  ${i + 1}. ${warn}`));
   }
   console.log('\nFix these issues to pass CI traceability check.');
-  console.log(`See: ${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_CURRENT.md`);
+  console.log(`See: ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md`);
   process.exit(1);
 }
