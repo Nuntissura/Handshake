@@ -65,10 +65,10 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake Artifacts/` (for example the external Cargo target dir).
-- Product runtime state SHOULD default to the external sibling root `../Handshake Runtime/`, not a folder inside the repo worktree.
+- Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
 - This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
 - Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the current WP is explicitly remediating them.
-- Do not introduce new repo-root runtime output paths in product code when a new output can be placed under `../Handshake Runtime/` instead.
+- Do not introduce new repo-root runtime output paths in product code when a new output can be placed under `gov_runtime/` instead.
 - If current product code still hardcodes repo-root runtime outputs, record that as legacy in the packet/refinement rather than silently expanding the pattern.
 
 ## Agentic Mode (Additional LAW)
@@ -260,8 +260,8 @@ Resume rule (hard, anti-babysit):
 - When available, prefer VS Code integrated terminals for coder sessions so the Operator can monitor active WPs alongside `just operator-monitor`.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. For newly created repo-governed sessions, claim/launch explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
 - Fresh repo-governed coder session start is `ORCHESTRATOR_ONLY`. Do not self-start a new repo-governed coder session.
-- Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative from a repo worktree: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`).
-- Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
+- Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
+- Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - The Coder does not own the steering lane. The Orchestrator owns `START_SESSION`, `SEND_PROMPT`, and `CANCEL_SESSION`; coder-side requests for pause, repair, or cancel must go through `THREAD.md`, `RECEIPTS.jsonl`, or an explicit operator/orchestrator instruction.
 - The external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger is the settled steering ledger; the matching external `SESSION_CONTROL_OUTPUTS/` directory holds the per-command ACP event logs that the Operator monitor can surface.
 - If the plugin path has failed twice and the Orchestrator opens a CLI escalation window, continue there; do not open your own untracked session.

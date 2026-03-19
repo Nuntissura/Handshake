@@ -92,7 +92,7 @@ export function resolveGovernanceRuntimeRoot(overrideValue = "") {
     return path.resolve(productRuntimeRoot, "repo-governance");
   }
 
-  return path.resolve(WORKSPACE_ROOT, "..", "Handshake Runtime", "repo-governance");
+  return path.resolve(WORKSPACE_ROOT, "gov_runtime");
 }
 
 export const GOVERNANCE_RUNTIME_ROOT_ABS = resolveGovernanceRuntimeRoot();

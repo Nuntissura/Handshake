@@ -85,7 +85,7 @@ function resolveGovernanceRuntimeRoot(repoRoot) {
   ).trim();
   if (productRuntimeRoot) return path.resolve(productRuntimeRoot, "repo-governance");
 
-  return path.resolve(repoRoot, "..", "..", "Handshake Runtime", "repo-governance");
+  return path.resolve(repoRoot, "..", "gov_runtime");
 }
 
 function governanceRuntimeFile(repoRoot, ...segments) {

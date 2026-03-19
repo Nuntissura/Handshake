@@ -162,17 +162,17 @@ The following artifacts remain authoritative:
 - active packet or stub: scope, lifecycle, acceptance, and final packet truth
 - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`: active artifact mapping per base WP
 - `.GOV/roles_shared/records/TASK_BOARD.md` on canonical branch `main`: canonical portfolio board
-- packet-declared external repo-governance `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`
+- packet-declared external repo-governance `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`
   - `THREAD.md`
   - `RUNTIME_STATUS.json`
   - `RECEIPTS.jsonl`
 
 The following artifacts are projections, not work-scope authority:
 
-- `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`
-- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
-- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
-- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_OUTPUTS/`
+- `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
+- `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+- `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/`
 - ACP adapter runtime metadata under `.GOV/tools/handshake-acp-bridge/`
 
 If packet truth and session-control artifacts disagree, the packet wins.
@@ -265,16 +265,16 @@ The TUI reads repo projections. It does not own orchestration.
 
 ### Governed Session-Control Surfaces
 
-- `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`
-- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
-- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
-- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_OUTPUTS/`
+- `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
+- `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+- `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/`
 
 These remain the repo audit trail for ACP-backed control.
 
 ### Legacy Launch Surface
 
-- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
+- `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
 
 This becomes compatibility and bootstrap only. It is no longer the preferred steering surface.
 

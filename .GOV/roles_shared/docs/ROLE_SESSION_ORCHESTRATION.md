@@ -2,7 +2,7 @@
 
 This file is the shared law for repo-governed multi-session launch behavior.
 
-Default external repo-governance runtime root from a repo worktree: `../../Handshake Runtime/repo-governance/roles_shared/`. This root may be overridden via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`.
+Default external repo-governance runtime root from a repo worktree: `../gov_runtime/roles_shared/`. This root may be overridden via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`.
 
 ## Core Rule
 - Only the Orchestrator may start repo-governed Coder, WP Validator, and Integration Validator sessions.
@@ -13,18 +13,18 @@ Default external repo-governance runtime root from a repo worktree: `../../Hands
 - Preferred host: `VSCODE_EXTENSION_TERMINAL`
 - Bridge: `handshake.handshake-session-bridge`
 - Bridge command: `handshakeSessionBridge.processLaunchQueue`
-- Launch queue: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
-- Session registry: `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`
+- Launch queue: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
+- Session registry: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
 - Launch/bootstrap only: terminal creation, governed command dispatch, and bridge acknowledgment/failure projection.
 
 ## Primary steering lane
 - Control mode: `STEERABLE`
 - Control transport: `CODEX_EXEC_RESUME_JSON`
 - Control protocol: `HANDSHAKE_ACP_STDIO_V1`
-- Control requests: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
-- Control results: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
-- Per-command event logs: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_OUTPUTS/`
-- Broker state: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
+- Control requests: `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+- Control results: `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- Per-command event logs: `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/`
+- Broker state: `../gov_runtime/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
 - Session steering is ACP-backed and thread-based: the Orchestrator starts a governed Codex thread once through the Handshake ACP bridge, then resumes that same thread with governed prompts.
 - A persistent Handshake ACP broker owns the active-run table, timeout settlement, and cancellation delivery for governed prompts. The wrapper client talks to that broker; it does not own command completion.
 - `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows carry a target-command reference. Close rows clear the steerable thread registration for that governed role/WP session and settle through the same append-only request/result ledgers.
@@ -41,17 +41,17 @@ Default external repo-governance runtime root from a repo worktree: `../../Hands
 - Primary wake channel: `VS_CODE_FILE_WATCH`
 - Fallback wake channel: `WP_HEARTBEAT`
 - Launch/bootstrap watch surfaces:
-  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
-  - `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`
+  - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
+  - `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
 - Steering watch/notice surfaces:
-  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
-  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
-  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_OUTPUTS/`
-  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
+  - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+  - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+  - `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/`
+  - `../gov_runtime/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
 - WP collaboration watch surfaces:
-  - `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/**/RUNTIME_STATUS.json`
-  - `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/**/RECEIPTS.jsonl`
-  - `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/**/THREAD.md`
+  - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/**/RUNTIME_STATUS.json`
+  - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/**/RECEIPTS.jsonl`
+  - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/**/THREAD.md`
 - The VS Code bridge handles launch/bootstrap dispatch plus operator-facing notices. The ACP broker owns steering state, result settlement, and per-command output logs.
 - `just operator-monitor` is the ACP-aware read-only operator viewport: it merges canonical task-board source/drift, broker status, session registry state, control results/output activity, packet thread/receipt activity, and packet/runtime visibility.
 - `just operator-admin` is the explicit admin-mode console for governed lifecycle actions. It remains non-authoritative and must invoke the same governed scripts the Orchestrator would run directly.

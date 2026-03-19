@@ -58,7 +58,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake Artifacts/`.
-- Product runtime state SHOULD default to the external sibling root `../Handshake Runtime/`, not a folder inside the repo worktree.
+- Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
 - This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
 - Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the WP is explicitly remediating them.
 - New product work that introduces fresh repo-root runtime output paths without an explicit reason should be treated as runtime-placement drift and challenged in validation.
@@ -74,8 +74,8 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
 - For newly created repo-governed validator sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
 - Fresh repo-governed validator session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is `VSCODE_EXTENSION_TERMINAL` via the external repo-governance launch queue + session registry (default repo-relative from a repo worktree: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`).
-- Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
+- Primary launch path is `VSCODE_EXTENSION_TERMINAL` via the external repo-governance launch queue + session registry (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
+- Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - Validator sessions do not own the steering lane. Only the Orchestrator starts, resumes, or cancels governed validator sessions; validators request repair, pause, or cancel through packet communications or an explicit orchestrator instruction.
 - The external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger is the settled steering ledger; the matching external `SESSION_CONTROL_OUTPUTS/` directory holds the per-command ACP event logs that the Operator monitor can surface.
 - Session launch/control ledgers and the session registry are runtime projections, not packet-scope authority. Treat them as operator/runtime evidence only; use the PREPARE worktree plus packet/WP-communications truth for validation decisions.

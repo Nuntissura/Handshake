@@ -53,7 +53,7 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 
 ## 7) Product runtime paths (Handshake defaults)
 
-- PRODUCT_RUNTIME_ROOT_DIR (external default): `../Handshake Runtime/`
+- PRODUCT_RUNTIME_ROOT_DIR (external default): `gov_runtime/`
 - LEGACY_REPO_RUNTIME_DIRS (transitional): `data/`, `.handshake/`
 
 ## 8) Product-owned runtime governance state (default)
