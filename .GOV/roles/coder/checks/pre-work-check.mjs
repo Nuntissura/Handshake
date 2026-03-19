@@ -397,24 +397,24 @@ if (!fs.existsSync(taskPacketDir)) {
   const usesSemanticProofProfile = /^DIFF_SCOPED_SEMANTIC_V1$/i.test(semanticProofProfile || '');
 
   if (isModernPacket && usesStructuredValidationReport && requiresRefinementGate) {
+    // [CX-212D] Bootstrap claim: verify the work packet has claim fields filled.
+    // With the junction model, coders do not commit .GOV/ files on feature branches.
+    // The work packet lives in the governance kernel and is read via junction.
     console.log('\nCheck 2.6AA: Bootstrap claim checkpoint');
     const coderModel = parseSingleField(packetContent, 'CODER_MODEL');
     const coderStrength = parseSingleField(packetContent, 'CODER_REASONING_STRENGTH');
-    const hasBootstrapClaim = hasCommitByExactSubject(`docs: bootstrap claim [${WP_ID}]`);
-    const hasSkeletonCheckpoint = hasCommitByExactSubject(`docs: skeleton checkpoint [${WP_ID}]`);
     const bootstrapIsRequired =
       /\bin progress\b/i.test(statusLine)
-      || hasSkeletonCheckpoint
       || !looksPlaceholder(coderModel)
       || !looksPlaceholder(coderStrength);
 
-    if (bootstrapIsRequired && !hasBootstrapClaim) {
+    if (bootstrapIsRequired && (looksPlaceholder(coderModel) || looksPlaceholder(coderStrength))) {
       errors.push(
-        `Missing docs-only bootstrap claim commit for ${WP_ID}. Expected commit subject: docs: bootstrap claim [${WP_ID}]`
+        `Bootstrap claim incomplete for ${WP_ID}: CODER_MODEL and CODER_REASONING_STRENGTH must be filled in the work packet.`
       );
-      console.log(`FAIL: Missing bootstrap claim commit docs: bootstrap claim [${WP_ID}]`);
+      console.log(`FAIL: Bootstrap claim fields not filled for ${WP_ID}`);
     } else if (bootstrapIsRequired) {
-      console.log(`PASS: Bootstrap claim commit present for ${WP_ID}`);
+      console.log(`PASS: Bootstrap claim fields present for ${WP_ID}`);
     } else {
       console.log('PASS: Bootstrap claim not required yet (packet still pre-claim / Ready for Dev).');
     }
@@ -1044,21 +1044,18 @@ if (!fs.existsSync(taskPacketDir)) {
       }
     }
 
-    // Safety checkpoint gate: packet + refinement must be committed before development starts.
-    // This prevents untracked/uncommitted WP artifacts from being lost during accidental clean/reset operations.
-    console.log('\nCheck 2.8: WP checkpoint commit gate');
-    try {
-      execSync(`git cat-file -e HEAD:${packetPath.replace(/\\/g, '/')}`, { stdio: 'ignore' });
-    } catch {
-      errors.push(`Task packet is not committed yet (checkpoint required): ${packetPath.replace(/\\/g, '/')}`);
-      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} ${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
+    // [CX-212D] Safety checkpoint: verify packet + refinement exist on disk (via junction to gov kernel).
+    // Coders do not commit .GOV/ files on feature branches. The orchestrator commits these on gov_kernel.
+    console.log('\nCheck 2.8: WP checkpoint file gate');
+    if (!fs.existsSync(packetPath)) {
+      errors.push(`Work packet file does not exist: ${packetPath.replace(/\\/g, '/')}`);
+    } else {
+      console.log(`PASS: Work packet exists: ${packetPath.replace(/\\/g, '/')}`);
     }
-
-    try {
-      execSync(`git cat-file -e HEAD:${refinementFile.replace(/\\/g, '/')}`, { stdio: 'ignore' });
-    } catch {
-      errors.push(`Refinement file is not committed yet (checkpoint required): ${refinementFile.replace(/\\/g, '/')}`);
-      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} ${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md ${GOV_ROOT_REPO_REL}/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
+    if (!fs.existsSync(refinementFile)) {
+      errors.push(`Refinement file does not exist: ${refinementFile.replace(/\\/g, '/')}`);
+    } else {
+      console.log(`PASS: Refinement exists: ${refinementFile.replace(/\\/g, '/')}`);
     }
   } else {
     console.log('\nCheck 2.7: Technical Refinement gate (skipped for Done/Validated packets)');

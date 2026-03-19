@@ -321,9 +321,11 @@ If any of those are stale or missing, report `STAGE: STATUS_SYNC` and fix the as
 
 ## Safety Commit Gate (HARD RULE)
 
-Immediately after creating a WP task packet and refinement and obtaining `USER_SIGNATURE`, create a checkpoint commit on the WP branch containing:
+Immediately after creating a WP work packet and refinement and obtaining `USER_SIGNATURE`, create a checkpoint commit on the `gov_kernel` branch containing:
 - `.GOV/task_packets/WP-{ID}.md`
 - `.GOV/refinements/WP-{ID}.md`
+
+[CX-212D] Work packets and refinements are committed on `gov_kernel`, not on WP feature branches. Coders do not commit `.GOV/` files on `feat/WP-*` branches — the governance kernel is the single source of truth, accessed via junction.
 
 ## Current Orchestrator Workflow (Authoritative)
 

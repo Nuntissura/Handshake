@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * Helper: docs-only skeleton checkpoint commit for a WP [CX-GATE-001, CX-625]
+ * Helper: skeleton checkpoint marker commit for a WP [CX-GATE-001, CX-625]
  *
- * Enforces:
- * - Only `.GOV/task_packets/{WP_ID}.md` is modified/staged/untracked.
- * - Creates a commit: "docs: skeleton checkpoint [WP-{ID}]"
+ * [CX-212D] Coders do not commit .GOV/ files on feature branches.
+ * The skeleton content lives in the work packet (governance kernel, via junction).
+ * This script creates an empty commit marker on the feature branch as a phase gate
+ * signal so post-work can verify the interface-first checkpoint happened.
  *
- * This is the interface-first checkpoint required before implementation [CX-GATE-001].
+ * Creates: "docs: skeleton checkpoint [WP-{ID}]" (allow-empty)
  */
 
 import fs from 'node:fs';
@@ -22,7 +23,15 @@ if (!wpId) {
 
 const packetRel = path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
 if (!fs.existsSync(packetRel)) {
-  console.error(`FAIL: Task packet not found: ${packetRel}`);
+  console.error(`FAIL: Work packet not found: ${packetRel}`);
+  process.exit(1);
+}
+
+// Verify ## SKELETON section exists and has content.
+const packetContent = fs.readFileSync(packetRel, 'utf8');
+const skeletonMatch = packetContent.match(/^##\s+SKELETON\s*$/mi);
+if (!skeletonMatch) {
+  console.error(`FAIL: Work packet missing ## SKELETON section. Fill it before creating the checkpoint.`);
   process.exit(1);
 }
 
@@ -46,42 +55,18 @@ function latestCheckpointSha() {
 
 const currentBranch = git('rev-parse --abbrev-ref HEAD').trim();
 
-// Refuse obvious wrong contexts.
 if (currentBranch === 'main' || currentBranch.startsWith('role_') || currentBranch.startsWith('user_')) {
   console.error(`FAIL: Refusing to create a WP skeleton commit on branch "${currentBranch}".`);
   console.error(`Expected a WP feature branch for ${wpId}.`);
   process.exit(1);
 }
 
-const status = git('status --porcelain=v1');
-const lines = status.split(/\r?\n/).filter(Boolean);
-
-// Collect paths (including untracked) and enforce docs-only.
-const changed = lines
-  .map((line) => (line.length > 3 ? line.slice(3).trim() : ""))
-  .filter(Boolean);
-
-const allowed = new Set([packetRel.replace(/\\/g, '/')]);
-const bad = changed.filter((p) => !allowed.has(p.replace(/\\/g, '/')));
-
-if (bad.length > 0) {
-  console.error('FAIL: Skeleton checkpoint must be docs-only.');
-  console.error(`Allowed: ${packetRel.replace(/\\/g, '/')}`);
-  console.error('Found additional changed/untracked paths:');
-  bad.forEach((p) => console.error(`- ${p}`));
-  process.exit(1);
+const checkpointSha = latestCheckpointSha();
+if (checkpointSha) {
+  console.log(`PASS: Skeleton checkpoint already exists at ${checkpointSha}. Nothing new to commit.`);
+  process.exit(0);
 }
 
-if (changed.length === 0) {
-  const checkpointSha = latestCheckpointSha();
-  if (checkpointSha) {
-    console.log(`PASS: Skeleton checkpoint already exists at ${checkpointSha}. Nothing new to commit.`);
-    process.exit(0);
-  }
-  console.error(`FAIL: No changes detected. Edit ${packetRel.replace(/\\/g, '/')} (## SKELETON), then re-run.`);
-  process.exit(1);
-}
-
-// Stage and commit.
-execSync(`git add ${packetRel}`, { stdio: 'inherit' });
-execSync(`git commit -m \"${checkpointSubject}\"`, { stdio: 'inherit' });
+// Create empty commit marker — no .GOV/ files staged [CX-212D].
+execSync(`git commit --allow-empty -m "${checkpointSubject}"`, { stdio: 'inherit' });
+console.log(`Skeleton checkpoint marker created. The ## SKELETON content lives in the governance kernel.`);

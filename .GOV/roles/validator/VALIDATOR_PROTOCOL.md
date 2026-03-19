@@ -310,18 +310,14 @@ Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match
 When multiple Coders work in separate WP branches/worktrees, branch-local Task Boards drift. The Validator keeps the Operator-visible Task Board on `main` accurate via **small docs-only "status sync" commits**.
 
 ### Bootstrap Status Sync (Coder starts WP)
-1. Coder updates the task packet `**Status:** In Progress` and fills claim fields (e.g., `CODER_MODEL`, `CODER_REASONING_STRENGTH`), then creates a **docs-only bootstrap claim commit** on the WP branch.
-   - Hard rule: the bootstrap claim commit MUST NOT include `## SKELETON` content, product code changes, or any later-phase material. BOOTSTRAP and SKELETON remain separate turns/commits [CX-GATE-001].
-2. Coder sends the Validator: `WP_ID`, bootstrap commit SHA, `branch`, `worktree_dir`, and current HEAD short SHA (and Coder ID if more than one Coder is active).
-3. Validator verifies the bootstrap commit is **docs-only**:
-   - Allowed: `.GOV/task_packets/{WP_ID}.md` (and other governance docs only if explicitly requested).
-   - Forbidden: any changes under `src/`, `app/`, or `tests/` (treat as FAIL; do not merge).
-   - Note: governance/tooling changes under `.GOV/roles/**` or `.GOV/roles_shared/**` are allowed in general, but MUST NOT be included in a WP bootstrap status sync commit (keep bootstrap commits docs-only).
-4. Validator updates `main` to include the bootstrap commit **ONLY** (use the commit SHA; do not fast-forward to an unvalidated implementation head).
-5. Validator updates `.GOV/roles_shared/records/TASK_BOARD.md` on `main`:
+[CX-212D] Coders do not commit `.GOV/` files on feature branches. Work packet edits happen through the governance kernel junction and are committed on `gov_kernel` by the orchestrator.
+1. Coder updates the work packet `**Status:** In Progress` and fills claim fields (e.g., `CODER_MODEL`, `CODER_REASONING_STRENGTH`) through the junction. The orchestrator commits these changes on `gov_kernel`.
+2. Coder sends the Validator: `WP_ID`, `branch`, `worktree_dir`, and current HEAD short SHA (and Coder ID if more than one Coder is active).
+3. Validator reads the work packet directly (via junction) to verify claim fields are filled and status is In Progress.
+4. Validator updates `.GOV/roles_shared/records/TASK_BOARD.md` (via junction, committed on `gov_kernel` or synced to main via `sync-gov-to-main`):
    - Move the WP entry to `## In Progress` using the script-checked line format: `- **[{WP_ID}]** - [IN_PROGRESS]`.
    - Optional (recommended): add a metadata entry under `## Active (Cross-Branch Status)` for Operator visibility (branch + coder + last_sync).
-6. Announce status sync in chat (no verdict implied).
+5. Announce status sync in chat (no verdict implied).
 
 **Rule:** Status sync commits are not validation verdicts. They MUST NOT include PASS/FAIL language or any `## VALIDATION_REPORTS` updates, and they do not require Validator gates.
 
@@ -364,7 +360,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 0) BOOTSTRAP Verification
 - Confirm Coder outputted BOOTSTRAP block per CODER_PROTOCOL [CX-577, CX-622]; if missing/incomplete, halt and request completion before proceeding.
 - Verify BOOTSTRAP fields match task packet (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
-- Confirm the WP branch contains `docs: bootstrap claim [WP-{ID}]` before accepting any skeleton or implementation progression.
+- Confirm the work packet has `**Status:** In Progress` and claim fields filled (CODER_MODEL, CODER_REASONING_STRENGTH) before accepting any skeleton or implementation progression. [CX-212D] Bootstrap claim is verified by field content, not by a commit on the feature branch.
 - Enforce [CX-GATE-001]: if the Coder included SKELETON content in the BOOTSTRAP turn, treat it as invalid phase merging; require a new, separate SKELETON turn/commit after explicit Operator authorization.
 
 0A) Handoff Quality Gate
