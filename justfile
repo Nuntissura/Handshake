@@ -116,7 +116,7 @@ sync-all-role-worktrees:
 	node {{GOV_ROOT}}/roles_shared/scripts/topology/sync-all-role-worktrees.mjs
 
 # Copy governance kernel .GOV/ into the main worktree and auto-commit.
-# RESPONSIBILITY: Integration Validator only, before pushing to origin/main [CX-212D].
+# RESPONSIBILITY: Integration Validator by default; Orchestrator may run it under explicit Operator instruction [CX-212D].
 sync-gov-to-main:
 	node {{GOV_ROOT}}/roles_shared/scripts/topology/sync-gov-to-main.mjs
 
