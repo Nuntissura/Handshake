@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
@@ -78,11 +78,11 @@ function checkLines(lines) {
   // Semantic guard: if a WP is marked Done on the task board and the packet is in the
   // modern format (PACKET_FORMAT_VERSION present), it must include a Validator verdict line.
   // This prevents "status sync" commits from marking VALIDATED without the canonical packet report.
-  const packetDir = path.join(GOV_ROOT_REPO_REL, "task_packets");
   const semanticViolations = [];
   for (const entry of doneEntries) {
-    const packetPath = path.join(packetDir, `${entry.wpId}.md`);
-    if (!fs.existsSync(packetPath)) {
+    const resolved = resolveWorkPacketPath(entry.wpId);
+    const packetPath = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${entry.wpId}.md`);
+    if (!resolved || !fs.existsSync(packetPath)) {
       semanticViolations.push(
         `${TASK_BOARD_PATH}:${entry.lineNumber}: Done WP has no task packet file: ${packetPath.replace(/\\/g, "/")}`
       );
@@ -106,4 +106,3 @@ function checkLines(lines) {
 const content = readTaskBoard();
 checkLines(content.split(/\r?\n/));
 console.log("task-board-check ok");
-

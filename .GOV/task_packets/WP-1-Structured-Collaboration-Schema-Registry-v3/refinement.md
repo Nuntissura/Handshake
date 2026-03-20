@@ -340,11 +340,12 @@ Requirements (HARD):
 - BUILD_ORDER_DEPENDS_ON: WP-1-Structured-Collaboration-Artifact-Family
 - BUILD_ORDER_BLOCKS: WP-1-Project-Profile-Extension-Registry, WP-1-Markdown-Mirror-Sync-Drift-Guard, WP-1-Dev-Command-Center-Structured-Artifact-Viewer
 - SPEC_ANCHOR_PRIMARY: Handshake_Master_Spec_v02.178.md Base structured schema and project-profile extension contract [ADD v02.168]
-- WHAT: Implement structured diagnostic output for schema validation, add missing TaskBoardEntryRecordV1 fields (task_board_id, lane_id, display_order, view_ids), enforce updated_at in base envelope, prove validate_summary_detail_pair runtime integration, and verify RoleMailboxThreadLineV1 field completeness.
+- WHAT: Implement structured diagnostic output for schema validation, add missing TaskBoardEntryRecordV1 fields (task_board_id, lane_id, display_order, view_ids), enforce updated_at in base envelope, prove validate_summary_detail_pair runtime integration, preserve legacy-compatible micro-task progress payload shape at the locus storage boundary, and verify RoleMailboxThreadLineV1 field completeness.
 - WHY: v2 passed validator but operator code inspection against spec v02.178 revealed string-only validation errors, missing board-projection fields, no updated_at enforcement, unproven summary/detail runtime integration, and incomplete ThreadLine fields. This v3 closes those concrete spec compliance gaps.
 - IN_SCOPE_PATHS:
   - src/backend/handshake_core/src/locus/types.rs
   - src/backend/handshake_core/src/locus/task_board.rs
+  - src/backend/handshake_core/src/storage/locus_sqlite.rs
   - src/backend/handshake_core/src/runtime_governance.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/role_mailbox.rs
@@ -385,6 +386,7 @@ Requirements (HARD):
   - .GOV/spec/Handshake_Master_Spec_v02.178.md
   - src/backend/handshake_core/src/locus/types.rs
   - src/backend/handshake_core/src/locus/task_board.rs
+  - src/backend/handshake_core/src/storage/locus_sqlite.rs
   - src/backend/handshake_core/src/runtime_governance.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/role_mailbox.rs

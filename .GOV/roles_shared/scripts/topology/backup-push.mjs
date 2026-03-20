@@ -36,8 +36,27 @@ function currentBranch() {
   return runGit(["branch", "--show-current"]);
 }
 
+function relevantDirtyPaths() {
+  const output = runGit(["status", "--porcelain=v1", "--untracked-files=all"]);
+  if (!output) return [];
+  const isGovJunctionNoise = (path) => /^\.?GOV\//.test(path);
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map((line) => line.slice(3).trim())
+    .map((rawPath) => {
+      const arrowIndex = rawPath.indexOf(" -> ");
+      const normalized = (arrowIndex >= 0 ? rawPath.slice(arrowIndex + 4) : rawPath)
+        .replace(/^"(.*)"$/, "$1")
+        .replace(/\\/g, "/");
+      return normalized;
+    })
+    .filter((path) => path && !isGovJunctionNoise(path));
+}
+
 function workingTreeDirty() {
-  return runGit(["status", "--porcelain=v1"]).length > 0;
+  return relevantDirtyPaths().length > 0;
 }
 
 function main() {
@@ -50,8 +69,11 @@ function main() {
   }
 
   if (workingTreeDirty()) {
+    const dirtyPaths = relevantDirtyPaths();
     fail("Working tree is dirty; backup push only captures committed state.", [
+      `Relevant dirty paths after .GOV filter: ${dirtyPaths.length ? dirtyPaths.join(", ") : "<none>"}`,
       "Commit the intended snapshot first.",
+      "Ignored dirt filter: .GOV/ junction churn is excluded for WP feature-branch safety pushes.",
       `Then run: just backup-push ${localBranch} ${remoteBranch}`,
     ]);
   }

@@ -32,6 +32,25 @@ function gitTrim(args, opts) {
   return (git(args, opts) || '').trim();
 }
 
+function relevantDirtyPaths(cwd) {
+  const output = gitTrim('status --porcelain=v1 --untracked-files=all', { cwd });
+  if (!output) return [];
+  const isGovJunctionNoise = (entry) => /^\.?GOV\//.test(entry);
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map((line) => line.slice(3).trim())
+    .map((rawPath) => {
+      const arrowIndex = rawPath.indexOf(' -> ');
+      const normalized = (arrowIndex >= 0 ? rawPath.slice(arrowIndex + 4) : rawPath)
+        .replace(/^"(.*)"$/, '$1')
+        .replace(/\\/g, '/');
+      return normalized;
+    })
+    .filter((entry) => entry && !isGovJunctionNoise(entry));
+}
+
 function die(msg) {
   console.error(msg);
   process.exit(1);
@@ -113,11 +132,12 @@ if (!wpWorktree?.path) {
 
 const wpWorktreePath = wpWorktree.path;
 
-const dirty = gitTrim('status --porcelain=v1', { cwd: wpWorktreePath });
-if (dirty) {
+const dirtyPaths = relevantDirtyPaths(wpWorktreePath);
+if (dirtyPaths.length > 0) {
   die(
     `FAIL: Refusing to approve skeleton while WP worktree is dirty: ${wpWorktreePath}\n` +
-      `Ask the Coder to clean/commit/stash their changes, then re-run: just skeleton-approved ${wpId}`,
+      `Relevant dirty paths: ${dirtyPaths.join(', ')}\n` +
+      `Ask the Coder to clean/commit/stash their product-file changes, then re-run: just skeleton-approved ${wpId}`,
   );
 }
 

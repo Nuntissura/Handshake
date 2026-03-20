@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { execSync } from 'child_process';
-import { GOV_ROOT_REPO_REL, resolveRefinementPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, resolveRefinementPath, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const usage = () => [
   'Usage: node post-work-check.mjs WP-{ID} [options]',
@@ -248,9 +248,21 @@ const parseDiffHunks = (targetPath, { staged, baseRev, headRev }) => {
   }
 };
 
-const taskPacketDir = `${GOV_ROOT_REPO_REL}/task_packets`;
-const packetPath = `${taskPacketDir}/${WP_ID}.md`;
-const packetContent = readFileIfExists(packetPath);
+const GOV_DISPLAY_ROOT = '.GOV';
+const toDisplayGovPath = (value) => {
+  const normalized = path.normalize(String(value || '')).replace(/\\/g, '/');
+  const govRootNormalized = path.normalize(GOV_ROOT_REPO_REL).replace(/\\/g, '/');
+  if (normalized === govRootNormalized) return GOV_DISPLAY_ROOT;
+  if (normalized.startsWith(`${govRootNormalized}/`)) {
+    return `${GOV_DISPLAY_ROOT}${normalized.slice(govRootNormalized.length)}`;
+  }
+  return normalized;
+};
+
+const resolvedPacket = resolveWorkPacketPath(WP_ID);
+const packetPathActual = resolvedPacket?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${WP_ID}.md`;
+const packetPath = toDisplayGovPath(packetPathActual);
+const packetContent = readFileIfExists(packetPathActual);
 
 const parseMergeBaseSha = (content) => {
   if (!content) return null;
@@ -281,6 +293,7 @@ const parseInScopePaths = (content) => {
 
 const requiresManifest = (filePath) => {
   const p = filePath.replace(/\\/g, '/');
+  if (p.startsWith(`${GOV_DISPLAY_ROOT}/`)) return false;
   if (p.startsWith(`${GOV_ROOT_REPO_REL}/`)) return false;
   return true;
 };
@@ -665,15 +678,18 @@ if (useStaged && workingFiles.length > stagedFiles.length) {
   // Avoid warning noise for validator-only governance state.
   const stagedSet = new Set(stagedFiles.map((p) => p.replace(/\\/g, '/')));
   const allowlistedUnstaged = new Set([
-    `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`,
-    `${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`,
+    `${GOV_DISPLAY_ROOT}/roles_shared/records/TASK_BOARD.md`,
+    `${GOV_DISPLAY_ROOT}/roles_shared/records/SIGNATURE_AUDIT.md`,
     `ORCHESTRATOR_GATES.json`,
-    packetPath.replace(/\\/g, '/'),
-    resolveRefinementPath(WP_ID) || `${GOV_ROOT_REPO_REL}/refinements/${WP_ID}.md`,
+    packetPath,
+    toDisplayGovPath(resolveRefinementPath(WP_ID) || `${GOV_ROOT_REPO_REL}/refinements/${WP_ID}.md`),
   ].filter(Boolean));
 
   const isAllowlistedUnstaged = (p) =>
-    allowlistedUnstaged.has(p)
+    p.startsWith(`${GOV_DISPLAY_ROOT}/`)
+    || p.startsWith(`${GOV_ROOT_REPO_REL}/`)
+    || p.startsWith(`${GOV_DISPLAY_ROOT}/roles_shared/runtime/validator_gates/`)
+    || allowlistedUnstaged.has(p)
     || p.startsWith(`${GOV_ROOT_REPO_REL}/roles_shared/runtime/validator_gates/`);
 
   const hasRelevantUnstaged = workingFiles
@@ -693,15 +709,17 @@ if (manifests) {
   // Validate scope (best-effort): changed files must be subset of IN_SCOPE_PATHS (plus allowed governance files),
   // unless a waiver is present. This only applies to the evaluated diff set (staged preferred).
   const allowlisted = new Set([
-    `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`,
-    `${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`,
+    `${GOV_DISPLAY_ROOT}/roles_shared/records/TASK_BOARD.md`,
+    `${GOV_DISPLAY_ROOT}/roles_shared/records/SIGNATURE_AUDIT.md`,
     `ORCHESTRATOR_GATES.json`,
-    packetPath.replace(/\\/g, '/'),
-    resolveRefinementPath(WP_ID) || `${GOV_ROOT_REPO_REL}/refinements/${WP_ID}.md`,
+    packetPath,
+    toDisplayGovPath(resolveRefinementPath(WP_ID) || `${GOV_ROOT_REPO_REL}/refinements/${WP_ID}.md`),
   ].filter(Boolean));
 
   const outOfScope = changedFiles
     .map((p) => p.replace(/\\/g, '/'))
+    .filter((p) => !p.startsWith(`${GOV_DISPLAY_ROOT}/`))
+    .filter((p) => !p.startsWith(`${GOV_ROOT_REPO_REL}/`))
     .filter((p) => !allowlisted.has(p))
     .filter((p) => (inScopePaths.length > 0 ? !inScopePaths.includes(p) : false));
 

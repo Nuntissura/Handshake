@@ -135,7 +135,8 @@ if (ok) {
     process.stdout.write(`- STOP: Await skeleton approval (${skeletonApprover} runs: just skeleton-approved ${wpId})\n`);
     process.stdout.write(`- After approval commit exists: re-run just pre-work ${wpId}\n`);
   } else if (blockedOnBootstrapClaim) {
-    process.stdout.write(`- Create the required docs-only bootstrap claim commit: git commit -m "docs: bootstrap claim [${wpId}]"\n`);
+    process.stdout.write(`- Create the required docs-only bootstrap claim commit: node .GOV/roles/coder/checks/coder-bootstrap-claim.mjs ${wpId}\n`);
+    process.stdout.write(`- Preserve the checkpoint remotely: just backup-push feat/${wpId} feat/${wpId}\n`);
     process.stdout.write(`- Re-run: just pre-work ${wpId}\n`);
   } else {
     process.stdout.write(`- Review the failures above.\n`);
@@ -144,4 +145,3 @@ if (ok) {
 }
 
 process.exit(ok ? 0 : 1);
-

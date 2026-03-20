@@ -110,8 +110,8 @@ if (!bootstrapClaim) {
   printFindings(commonFindings);
   printNextCommands([
     `cat ${packetPath(wpId).replace(/\\/g, "/")}`,
-    `git add ${packetPath(wpId).replace(/\\/g, "/")}`,
-    `git commit -m "docs: bootstrap claim [${wpId}]"`,
+    `node .GOV/roles/coder/checks/coder-bootstrap-claim.mjs ${wpId}`,
+    `just backup-push feat/${wpId} feat/${wpId}`,
   ]);
   process.exit(0);
 }
@@ -206,6 +206,5 @@ printNextCommands([
   "# Continue implementation within IN_SCOPE_PATHS.",
   postWorkCommand,
 ]);
-
 
 

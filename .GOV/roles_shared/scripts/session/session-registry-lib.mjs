@@ -66,6 +66,27 @@ function removeFileIfPresent(filePath) {
   }
 }
 
+function renameWithRetrySync(sourcePath, destPath, {
+  attempts = 40,
+  delayMs = 50,
+} = {}) {
+  let lastError = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      fs.renameSync(sourcePath, destPath);
+      return;
+    } catch (error) {
+      if (!["EPERM", "EBUSY", "EACCES"].includes(error?.code)) {
+        throw error;
+      }
+      lastError = error;
+      if (attempt === attempts - 1) break;
+      sleepSync(delayMs);
+    }
+  }
+  throw lastError;
+}
+
 function normalizeActiveHost(value) {
   const token = normalizeActiveHostValue(value);
   if (SESSION_ACTIVE_HOST_VALUES.includes(token)) return token;
@@ -137,8 +158,13 @@ export function readJsonFile(filePath, fallbackValue) {
 export function writeJsonFile(filePath, value) {
   ensureParentDir(filePath);
   const tmpPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
-  fs.writeFileSync(tmpPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-  fs.renameSync(tmpPath, filePath);
+  try {
+    fs.writeFileSync(tmpPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    renameWithRetrySync(tmpPath, filePath);
+  } catch (error) {
+    removeFileIfPresent(tmpPath);
+    throw error;
+  }
 }
 
 export function parseJsonlFile(filePath) {

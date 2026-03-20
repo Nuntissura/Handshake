@@ -1,0 +1,56 @@
+{
+  "validation_sessions": {
+    "WP-1-Loom-Storage-Portability-v3": {
+      "wpId": "WP-1-Loom-Storage-Portability-v3",
+      "verdict": "PASS",
+      "status": "USER_ACKNOWLEDGED",
+      "started": "2026-03-20T14:25:41.670Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "PASS",
+          "timestamp": "2026-03-20T14:25:41.670Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-03-20T14:33:28.689Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-03-20T14:33:55.859Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-03-20T14:34:24.264Z"
+        }
+      ],
+      "completed": "2026-03-20T14:34:24.264Z"
+    }
+  },
+  "archived_sessions": [],
+  "committed_validation_evidence": {
+    "WP-1-Loom-Storage-Portability-v3": {
+      "wp_id": "WP-1-Loom-Storage-Portability-v3",
+      "status": "PASS",
+      "validated_at": "2026-03-20T14:30:36.428Z",
+      "source_truth": "PREPARE_WORKTREE",
+      "prepare_branch": "feat/WP-1-Loom-Storage-Portability-v3",
+      "prepare_worktree_dir": "../wtc-storage-portability-v3",
+      "prepare_worktree_sync_warnings": [],
+      "committed_validation_mode": "COMMITTED_REV",
+      "committed_validation_target": "HEAD",
+      "target_head_sha": "7aa995b0dd2a2fca5bb713dd12ce400a9a0a1214",
+      "pre_work_status": "PASS",
+      "cargo_clean_required": false,
+      "cargo_clean_status": "PASS",
+      "post_work_status": "PASS",
+      "pre_work_command": "just pre-work WP-1-Loom-Storage-Portability-v3",
+      "cargo_clean_command": "just cargo-clean",
+      "post_work_command": "just post-work WP-1-Loom-Storage-Portability-v3 --rev HEAD",
+      "pre_work_output": "GATE_OUTPUT [CX-GATE-UX-001]\n\nChecking Phase Gate for WP-1-Loom-Storage-Portability-v3...\n? GATE PASS: Workflow sequence verified.\n\n\nPre-work validation for WP-1-Loom-Storage-Portability-v3...\n\nCheck 1: work packet file exists\nPASS: Found ../wt-gov-kernel/.GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.md\n\nCheck 1.5: Worktree + branch preflight [CX-WT-001]\nPASS: Branch matches PREPARE (feat/WP-1-Loom-Storage-Portability-v3)\nPASS: Worktree_dir matches PREPARE (../wtc-storage-portability-v3)\n\nCheck 2: work packet structure\nPASS: All required fields present\n\nCheck 2.6AA: Bootstrap claim checkpoint\nPASS: Bootstrap claim fields present for WP-1-Loom-Storage-Portability-v3\n\nCheck 2.6BC: Session policy\n\nCheck 2.6C: UI/UX rubric + stub tracking\n\nCheck 2.6D: Clause closure monitoring\n\nCheck 2.6E: Semantic proof assets\n\nCheck 2.7: Technical Refinement gate\nPASS: Refinement file exists and is approved/signed\nCheck 2.7A: Packet/refinement hydration drift\n\nCheck 2.8: WP checkpoint file gate\nPASS: Work packet exists: ../wt-gov-kernel/.GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.md\nPASS: Refinement exists: .GOV/task_packets/WP-1-Loom-Storage-Portability-v3/refinement.md\n\nCheck 3: Deterministic manifest template\nPASS: Manifest fields present\nPASS: Gates checklist present\n\n==================================================\nPre-work validation PASSED\n\nYou may proceed with the workflow (SKELETON -> approval -> implementation).\n\nCODER_HANDOFF [CX-HANDOFF-001]\n- WP_ID: WP-1-Loom-Storage-Portability-v3\n- BASE_WP_ID: WP-1-Loom-Storage-Portability\n- Status: In Progress\n- RISK_TIER: HIGH\n- MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)\n- SPEC_CURRENT_RESOLVED: Handshake_Master_Spec_v02.178.md\n- work packet: ../wt-gov-kernel/.GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.md\n- Refinement: .GOV/task_packets/WP-1-Loom-Storage-Portability-v3/refinement.md\n- Worktree_dir (repo-relative): ../wtc-storage-portability-v3\n- Branch: feat/WP-1-Loom-Storage-Portability-v3\n- Coder: Coder-B\n- Sub-agent delegation: DISALLOWED\n- Sub-agent reasoning assumption: LOW (HARD)\n- Operator approval evidence: N/A\n\nCODER_START_COMMANDS [CX-HANDOFF-001]\n```bash\n# Re-validate WP gates in your environment (also verifies branch/worktree vs PREPARE):\njust pre-work WP-1-Loom-Storage-Portability-v3\n```\n\nIN_SCOPE_PATHS [CX-HANDOFF-001]\n- src/backend/handshake_core/src/storage/mod.rs\n- src/backend/handshake_core/src/storage/loom.rs\n- src/backend/handshake_core/src/storage/sqlite.rs\n- src/backend/handshake_core/src/storage/postgres.rs\n- src/backend/handshake_core/src/api/loom.rs\n- src/backend/handshake_core/src/loom_fs.rs\n- src/backend/handshake_core/src/storage/tests.rs\n- src/backend/handshake_core/tests/storage_conformance.rs\n- src/backend/handshake_core/migrations/\n\nOUT_OF_SCOPE [CX-HANDOFF-001]\n- structured-collaboration schema registry and mailbox export schema work\n- frontend Loom viewer UX and preview-surface layout changes\n- preview job protocol redesign or broad workflow-runtime refactors\n- downloader-to-Loom and video-archive bridge behavior beyond the base portability contract\n- capability-registry publication logic unrelated to Loom storage parity\n\nDONE_MEANS [CX-HANDOFF-001]\n- `traverse_graph` trait method exists on Storage trait with SQLite (recursive CTE) and PostgreSQL implementations meeting spec performance targets (<100ms 3-hop on 10K blocks SQLite, <50ms PostgreSQL).\n- `recompute_block_metrics` and `recompute_all_metrics` trait methods exist on Storage trait with both backend implementations.\n- `get_backlinks` and `get_outgoing_edges` trait methods exist as separate directional edge queries on Storage trait with both backend implementations.\n- PostgreSQL `search_loom_blocks` supports graph-relationship filtering (tags, mentions, backlink depth) per LM-SEARCH-002.\n- `LoomSourceAnchor` round-trip tests prove export/replay durability across both backends in shared conformance suite.\n- Shared Loom conformance tests cover graph traversal, metrics recomputation, directional edges, graph-filtered search, and source-anchor round-trips.\n- No unrelated product families are touched; changes stay inside Loom storage/API/test surface.\n\nTEST_PLAN (verbatim) [CX-HANDOFF-001]\n```bash\ncargo test -p handshake_core loom\n  cargo test -p handshake_core --test storage_conformance\n  just gov-check\n```\n\nGATE_STATUS [CX-GATE-UX-001]\n- PHASE: BOOTSTRAP\n- GATE_RAN: just pre-work WP-1-Loom-Storage-Portability-v3\n- RESULT: PASS\n- WHY: Pre-work checks passed.\n\nNEXT_COMMANDS [CX-GATE-UX-001]\n- Proceed to implementation (skeleton approved).",
+      "cargo_clean_output": "cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir \"../Handshake Artifacts/handshake-cargo-target\"\n     Removed 882 files, 6.0GiB total",
+      "post_work_output": "GATE_OUTPUT [CX-GATE-UX-001]\n\nChecking Phase Gate for WP-1-Loom-Storage-Portability-v3...\n? GATE PASS: Workflow sequence verified.\n\n\nPost-work validation for WP-1-Loom-Storage-Portability-v3 (deterministic manifest + gates)...\n\nCheck 1: Validation manifest present\n\nDiff selection: range (single-commit --rev (rev^..rev))\nGit range: 8c4055a487428ef7c957ed57611f1e55c23bae9d..7aa995b0dd2a2fca5bb713dd12ce400a9a0a1214\n\nCheck 2: Manifest fields\n\nCheck 3: File integrity (per manifest entry)\n\nCheck 4: Git status\n\n==================================================\nPost-work validation PASSED (deterministic manifest gate; not tests)\n\nYou may proceed with commit.\nwarning: in the working copy of '.GOV/templates/WP_RUNTIME_STATUS_TEMPLATE.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/api/jobs.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/flight_recorder/mod.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/llm/guard.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/llm/mod.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/llm/registry.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/mcp/client.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/mcp/gate.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/mcp/transport/reconnect.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/mex/conformance.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/mex/runtime.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/role_mailbox.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/src/storage/loom.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/tests/mcp_e2e_tests.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/tests/mcp_gate_tests.rs', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/backend/handshake_core/tests/model_session_scheduler_tests.rs', LF will be replaced by CRLF the next time Git touches it\n\n? ROLE_MAILBOX_EXPORT_GATE PASS\n\nGATE_STATUS [CX-GATE-UX-001]\n- PHASE: POST_WORK\n- GATE_RAN: just post-work WP-1-Loom-Storage-Portability-v3 --rev HEAD\n- RESULT: PASS\n- WHY: Post-work checks passed.\n\nNEXT_COMMANDS [CX-GATE-UX-001]\n- You may proceed with commit."
+    }
+  }
+}
