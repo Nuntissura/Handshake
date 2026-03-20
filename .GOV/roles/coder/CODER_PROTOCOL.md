@@ -714,7 +714,11 @@ Goal: make "work started" visible to the Operator on `main` **without** blocking
 
 **[CX-212D] Do NOT commit `.GOV/` files on your feature branch.** The work packet edits you made above are written through the `.GOV/` junction and land in the governance kernel. The orchestrator commits them on `gov_kernel`.
 
-For `PACKET_FORMAT_VERSION >= 2026-03-15`, this bootstrap claim checkpoint is mechanically enforced before the docs-only skeleton checkpoint helper will proceed.
+For `PACKET_FORMAT_VERSION >= 2026-03-15`, this bootstrap claim checkpoint is mechanically enforced before the docs-only skeleton checkpoint helper will proceed. Use:
+
+```bash
+node .GOV/roles/coder/checks/coder-bootstrap-claim.mjs WP-{ID}
+```
 
 **Notify the Validator** with the commit hash. The Validator will:
 - Merge the docs-only bootstrap claim commit into `main` (commit SHA only; do not fast-forward to unvalidated implementation)

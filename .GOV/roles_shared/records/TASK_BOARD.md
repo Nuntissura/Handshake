@@ -62,10 +62,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
-- **[WP-1-Structured-Collaboration-Schema-Registry-v3]** - [READY_FOR_DEV]
-
-- **[WP-1-Loom-Storage-Portability-v3]** - [READY_FOR_DEV]
-
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -174,10 +170,9 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
-
-
-
 ## Done
+- **[WP-1-Structured-Collaboration-Schema-Registry-v3]** - [VALIDATED]
+- **[WP-1-Loom-Storage-Portability-v3]** - [VALIDATED]
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
 - **[WP-1-Front-End-Memory-System-v1]** - [VALIDATED]
 - **[WP-1-Unified-Tool-Surface-Contract-v1]** - [VALIDATED]

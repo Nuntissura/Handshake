@@ -268,6 +268,8 @@ function reconcileOrphanedRuns() {
     if (existingResults.has(run.command_id)) continue;
     const request = requests.get(run.command_id);
     if (!request) continue;
+    const { registry } = loadSessionRegistry(repoRoot);
+    const session = registry.sessions.find((entry) => entry.session_key === request.session_key) || null;
     const outputFile = defaultSessionOutputFile(repoRoot, request.session_key, request.command_id);
     appendOutputEvent(outputFile, {
       type: "broker.repair",

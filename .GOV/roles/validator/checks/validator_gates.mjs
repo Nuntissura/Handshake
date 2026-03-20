@@ -71,10 +71,12 @@ function saveWpState(wpId, state) {
     const archived = Array.isArray(state?.archived_sessions)
         ? state.archived_sessions.filter((s) => s?.wpId === wpId)
         : [];
+    const committedEvidence = state?.committed_validation_evidence?.[wpId] || null;
 
     const toWrite = normalizeState({
         validation_sessions: session ? { [wpId]: session } : {},
         archived_sessions: archived,
+        committed_validation_evidence: committedEvidence ? { [wpId]: committedEvidence } : {},
     });
 
     fs.writeFileSync(perFile, `${JSON.stringify(toWrite, null, 2)}\n`);

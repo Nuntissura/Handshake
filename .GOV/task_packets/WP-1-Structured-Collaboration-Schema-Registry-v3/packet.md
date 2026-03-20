@@ -29,8 +29,8 @@
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -83,7 +83,7 @@
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** Done
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -122,7 +122,7 @@
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v3/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v3/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v3/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: wp_validator:wp-1-structured-collaboration-schema-registry-v3
 - INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
@@ -131,18 +131,18 @@
 - PACKET_FORMAT_VERSION: 2026-03-18
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
-Blockers: Prior v3 ACP bootstrap was abandoned after the assigned feature branch/worktree were torn down; no live coder or validator session remains. Fresh PREPARE plus canonical worktree recreation is required before delegation can restart.
-Next: Wait for Operator restart instruction, then recreate the canonical worktree and re-run PREPARE before coder launch.
+Verdict: PASS
+Blockers: NONE. Committed handoff validation passed at `23f4c9a`, validator gates are closed PASS, and the Schema Registry product scope is integrated on `main` via selective commit `fe998e1`.
+Next: NONE. WP is closed; downstream structured-collaboration packets may treat this dependency as DONE.
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: [ADD v02.168] Base envelope MUST expose updated_at | CODE_SURFACES: locus/types.rs (ensure_schema_registry_fields_work_packet, ensure_schema_registry_fields_micro_task) | TESTS: cargo test -p handshake_core schema_registry updated_at | EXAMPLES: Golden structured diagnostic payload JSON for schema version mismatch, Golden TaskBoardEntryRecordV1 JSON with all spec-required fields, Golden TrackedWorkPacket JSON with updated_at in base envelope, Golden RoleMailboxThreadLineV1 JSONL line with transcription_links array | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: [ADD v02.168] Task Board projection rows SHOULD include task_board_id, lane_id, display_order, view_ids | CODE_SURFACES: locus/task_board.rs (TaskBoardEntryRecordV1), workflows.rs (board emission) | TESTS: cargo test -p handshake_core task_board_entry | EXAMPLES: Golden structured diagnostic payload JSON for schema version mismatch, Golden TaskBoardEntryRecordV1 JSON with all spec-required fields, Golden TrackedWorkPacket JSON with updated_at in base envelope, Golden RoleMailboxThreadLineV1 JSONL line with transcription_links array | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: [ADD v02.168] Deterministic machine-readable validation for unknown/incompatible schemas | CODE_SURFACES: locus/types.rs (validate_structured_collaboration_record, validate_profile_extension) | TESTS: cargo test -p handshake_core validation_diagnostics | EXAMPLES: Golden structured diagnostic payload JSON for schema version mismatch, Golden TaskBoardEntryRecordV1 JSON with all spec-required fields, Golden TrackedWorkPacket JSON with updated_at in base envelope, Golden RoleMailboxThreadLineV1 JSONL line with transcription_links array | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: [ADD v02.168] Summary/detail shared record_id, project_profile_kind, authority_refs | CODE_SURFACES: workflows.rs (artifact emission), runtime_governance.rs | TESTS: cargo test -p handshake_core summary_detail_integration | EXAMPLES: Golden structured diagnostic payload JSON for schema version mismatch, Golden TaskBoardEntryRecordV1 JSON with all spec-required fields, Golden TrackedWorkPacket JSON with updated_at in base envelope, Golden RoleMailboxThreadLineV1 JSONL line with transcription_links array | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: RoleMailboxThreadLineV1 field completeness including transcription_links | CODE_SURFACES: role_mailbox.rs, api/role_mailbox.rs | TESTS: cargo test -p handshake_core role_mailbox thread_line | EXAMPLES: Golden structured diagnostic payload JSON for schema version mismatch, Golden TaskBoardEntryRecordV1 JSON with all spec-required fields, Golden TrackedWorkPacket JSON with updated_at in base envelope, Golden RoleMailboxThreadLineV1 JSONL line with transcription_links array | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: [ADD v02.168] Base envelope MUST expose updated_at | CODE_SURFACES: locus/types.rs (ensure_schema_registry_fields_work_packet, ensure_schema_registry_fields_micro_task) | TESTS: cargo test -p handshake_core schema_registry updated_at | EXAMPLES: Golden structured diagnostic payload JSON for schema version mismatch, Golden TaskBoardEntryRecordV1 JSON with all spec-required fields, Golden TrackedWorkPacket JSON with updated_at in base envelope, Golden RoleMailboxThreadLineV1 JSONL line with transcription_links array | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: [ADD v02.168] Task Board projection rows SHOULD include task_board_id, lane_id, display_order, view_ids | CODE_SURFACES: locus/task_board.rs (TaskBoardEntryRecordV1), workflows.rs (board emission) | TESTS: cargo test -p handshake_core task_board_entry | EXAMPLES: Golden structured diagnostic payload JSON for schema version mismatch, Golden TaskBoardEntryRecordV1 JSON with all spec-required fields, Golden TrackedWorkPacket JSON with updated_at in base envelope, Golden RoleMailboxThreadLineV1 JSONL line with transcription_links array | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: [ADD v02.168] Deterministic machine-readable validation for unknown/incompatible schemas | CODE_SURFACES: locus/types.rs (validate_structured_collaboration_record, validate_profile_extension) | TESTS: cargo test -p handshake_core validation_diagnostics | EXAMPLES: Golden structured diagnostic payload JSON for schema version mismatch, Golden TaskBoardEntryRecordV1 JSON with all spec-required fields, Golden TrackedWorkPacket JSON with updated_at in base envelope, Golden RoleMailboxThreadLineV1 JSONL line with transcription_links array | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: [ADD v02.168] Summary/detail shared record_id, project_profile_kind, authority_refs | CODE_SURFACES: workflows.rs (artifact emission), runtime_governance.rs, storage/locus_sqlite.rs (locus progress serialization) | TESTS: cargo test -p handshake_core summary_detail_integration | EXAMPLES: Golden structured diagnostic payload JSON for schema version mismatch, Golden TaskBoardEntryRecordV1 JSON with all spec-required fields, Golden TrackedWorkPacket JSON with updated_at in base envelope, Golden RoleMailboxThreadLineV1 JSONL line with transcription_links array | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: RoleMailboxThreadLineV1 field completeness including transcription_links | CODE_SURFACES: role_mailbox.rs, api/role_mailbox.rs | TESTS: cargo test -p handshake_core role_mailbox thread_line | EXAMPLES: Golden structured diagnostic payload JSON for schema version mismatch, Golden TaskBoardEntryRecordV1 JSON with all spec-required fields, Golden TrackedWorkPacket JSON with updated_at in base envelope, Golden RoleMailboxThreadLineV1 JSONL line with transcription_links array | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -153,6 +153,7 @@ Next: Wait for Operator restart instruction, then recreate the canonical worktre
 - HOT_FILES:
   - src/backend/handshake_core/src/locus/types.rs
   - src/backend/handshake_core/src/locus/task_board.rs
+  - src/backend/handshake_core/src/storage/locus_sqlite.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/role_mailbox.rs
   - src/backend/handshake_core/src/api/role_mailbox.rs
@@ -610,11 +611,12 @@ interface RoleMailboxIndexV1 {
 - GUI_ENGINEERING_TRICKS_TO_CARRY:
   - NONE
 ## SCOPE
-- What: Implement structured diagnostic output for schema validation, add missing TaskBoardEntryRecordV1 fields (task_board_id, lane_id, display_order, view_ids), enforce updated_at in base envelope, prove validate_summary_detail_pair runtime integration, and verify RoleMailboxThreadLineV1 field completeness.
+- What: Implement structured diagnostic output for schema validation, add missing TaskBoardEntryRecordV1 fields (task_board_id, lane_id, display_order, view_ids), enforce updated_at in base envelope, prove validate_summary_detail_pair runtime integration, preserve legacy-compatible micro-task progress payload shape at the locus storage boundary, and verify RoleMailboxThreadLineV1 field completeness.
 - Why: v2 passed validator but operator code inspection against spec v02.178 revealed string-only validation errors, missing board-projection fields, no updated_at enforcement, unproven summary/detail runtime integration, and incomplete ThreadLine fields. This v3 closes those concrete spec compliance gaps.
 - IN_SCOPE_PATHS:
   - src/backend/handshake_core/src/locus/types.rs
   - src/backend/handshake_core/src/locus/task_board.rs
+  - src/backend/handshake_core/src/storage/locus_sqlite.rs
   - src/backend/handshake_core/src/runtime_governance.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/role_mailbox.rs
@@ -693,6 +695,7 @@ git revert <commit-sha>
   - .GOV/spec/Handshake_Master_Spec_v02.178.md
   - src/backend/handshake_core/src/locus/types.rs
   - src/backend/handshake_core/src/locus/task_board.rs
+  - src/backend/handshake_core/src/storage/locus_sqlite.rs
   - src/backend/handshake_core/src/runtime_governance.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/role_mailbox.rs
@@ -729,9 +732,9 @@ rg -n "schema_id|schema_version|project_profile_kind|mirror_state|updated_at|tas
   - "summary/detail validation integration test is fragile" -> "false confidence in runtime coverage if test is too narrow"
   - "runtime and governance mailbox paths remain conflated" -> "the packet validates the wrong authority surface and hides real product regressions"
 ## SKELETON
-- Proposed interfaces/types/contracts:
-- Open questions:
-- Notes:
+- Proposed interfaces/types/contracts: Keep `validate_structured_collaboration_record()` as the shared base-envelope enforcement point, require `updated_at` there, and keep work-packet/micro-task producer parity in runtime artifact emission so both packet and summary/detail outputs expose the same base-envelope freshness field. Extend the test surface with a negative-path regression for missing `updated_at`, then continue later MTs through structured diagnostics, Task Board projection completeness, summary/detail shared-field parity, and RoleMailbox thread-line completeness.
+- Open questions: The MT wording still references `ensure_schema_registry_fields_work_packet` / `ensure_schema_registry_fields_micro_task`, but the live enforcement surface appears to be `validate_structured_collaboration_record(...)` plus the runtime artifact emitters in `workflows.rs`. Keep the implementation anchored to the live enforcement path unless a stricter spec/code anchor emerges during implementation.
+- Notes: First executable MT is `MT-001 [ADD v02.168] Base envelope MUST expose updated_at`. Validator tripwires for the first pass are producer parity, negative-path proof, and preventing `updated_at` from drifting into profile-extension-only handling.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
@@ -751,70 +754,157 @@ rg -n "schema_id|schema_version|project_profile_kind|mirror_state|updated_at|tas
 - VALIDATOR_ASSERTIONS:
   - Validate the packet-scoped spec anchors, in-scope files, and deterministic evidence recorded during implementation.
 ## IMPLEMENTATION
-- (Coder fills after the docs-only skeleton checkpoint commit exists.)
+- Added runtime structured-collaboration backfill on emitted work-packet and micro-task artifacts so the shared base envelope is normalized before summary/detail artifacts are written, including a guaranteed `updated_at` on tracked work packets and packet/summary parity validation on the live emission path.
+- Reworked task-board structured projection output to the spec-facing contract: entry/index/view records now keep required arrays serialized, use the canonical `default` view id, emit `rows` and `lane_ids` instead of the old `entries`/`lanes` shape, and validate runtime authority refs before artifact write.
+- Extended the micro-task executor regression surface with explicit positive/negative-path checks for work-packet `updated_at`, task-board artifact existence, and task-board row/view field coverage (`task_board_id`, `lane_id`, `display_order`, `view_ids`, `lane_ids`).
+- Re-audited the Role Mailbox thread-line clause against the current branch head. No product diff was required there because the existing export/runtime path already preserves `transcription_links` and the current `role_mailbox_tests` still prove that contract.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Captured deterministic COR-701 LF-blob SHA pairs for every staged product file with `just cor701-sha ...`.
+- Re-ran targeted Rust tests from `src/backend/handshake_core` and stored full logs under `.handshake/logs/WP-1-Structured-Collaboration-Schema-Registry-v3/`.
+- Kept the product diff scoped to the 4 packet-tracked files in `../wtc-schema-registry-v3`; governance edits remain in the shared kernel and are not part of the feature-branch product change set.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Target File**: `src/backend/handshake_core/src/locus/types.rs`
+- **Start**: 164
+- **End**: 249
+- **Line Delta**: 0
+- **Pre-SHA1**: `a6e4ffbdcee4d31ed15272ea03d99d8f5f88d3af`
+- **Post-SHA1**: `ce48d67cf815ac8bfb8c11184b5b4f301f4750b2`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Focused schema-registry integration tests plus role-mailbox exact checks
+- **Artifacts**: `.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.md`; `.handshake/logs/WP-1-Structured-Collaboration-Schema-Registry-v3/micro_task_executor_tests.log`
+- **Timestamp**: 2026-03-20T14:38:57.2258683+01:00
+- **Operator**: Orchestrator
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Keeps empty `authority_refs` / `evidence_refs` materialized on structured summaries and legacy packet artifacts so validator-facing base-envelope fields stay explicit.
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1598
+- **End**: 11768
+- **Line Delta**: 97
+- **Pre-SHA1**: `89b7c353688f43a33b4cb6c19c3ab7b370c56599`
+- **Post-SHA1**: `a77b1a14aad10787f4fb5b4c8347de5b8ec484e2`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Focused schema-registry integration tests plus role-mailbox exact checks
+- **Artifacts**: `.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.md`; `.handshake/logs/WP-1-Structured-Collaboration-Schema-Registry-v3/micro_task_executor_tests.log`
+- **Timestamp**: 2026-03-20T14:38:57.2258683+01:00
+- **Operator**: Orchestrator
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Restores legacy packet-detail emission for work packets and micro-tasks while preserving the shared-envelope runtime backfill and validation path.
+- **Target File**: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Start**: 23
+- **End**: 1388
+- **Line Delta**: 113
+- **Pre-SHA1**: `cf81e812af85938904cb23f6e1383098d546a9ad`
+- **Post-SHA1**: `0c396ecceeec0e74dc726aaa887e95c9d74d8af5`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by focused schema-registry integration tests and machine-readable diagnostic exact tests
+- **Artifacts**: `.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.md`; `.handshake/logs/WP-1-Structured-Collaboration-Schema-Registry-v3/micro_task_executor_tests.log`
+- **Timestamp**: 2026-03-20T14:38:57.2258683+01:00
+- **Operator**: Orchestrator
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Adds legacy-artifact deserialization assertions plus exact regression proof for summary/detail packet compatibility and structured validation diagnostics.
+- **Target File**: `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Start**: 14
+- **End**: 1134
+- **Line Delta**: 119
+- **Pre-SHA1**: `3cd7ba131365f6ba78462737cdabee571cda95d2`
+- **Post-SHA1**: `a3bdbe81c302f8fdbefd260bff808c12b2181ee8`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by the full `micro_task_executor_tests` suite, which exercised the bind/unbind and lifecycle progress APIs against the restored legacy-compatible micro-task artifact view.
+- **Artifacts**: `.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.md`; `.handshake/logs/WP-1-Structured-Collaboration-Schema-Registry-v3/micro_task_executor_tests.log`
+- **Timestamp**: 2026-03-20T17:24:11.0000000+01:00
+- **Operator**: Orchestrator
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Restores the locus progress/bind-session boundary to emit a legacy-compatible tracked micro-task artifact shape, including explicit `summary_ref`, workflow fields, and empty `active_session_ids` arrays when no session remains bound.
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
-- Next step / handoff hint:
+- Current WP_STATUS: Done; committed handoff validation passed at `23f4c9a`, validator gates are closed PASS, the branch is pushed to `origin/feat/WP-1-Structured-Collaboration-Schema-Registry-v3`, and the finalized Schema Registry product scope is integrated on `main` via selective commit `fe998e1`.
+- What changed in this update: Implemented runtime structured-collaboration backfill for emitted work-packet artifacts, corrected task-board projection contract details (`rows`, `lane_ids`, canonical `default` view id), and added targeted negative/positive-path regression coverage for `updated_at` and task-board artifacts.
+- Requirements / clauses self-audited: `[ADD v02.168] Base envelope MUST expose updated_at` -> staged diff plus negative-path proof added; `[ADD v02.168] Task Board projection rows SHOULD include task_board_id, lane_id, display_order, view_ids` -> staged struct/emission/test alignment added; `[ADD v02.168] Deterministic machine-readable validation for unknown/incompatible schemas` -> current validation path re-used and task-board/work-packet runtime validation tightened on live emission; `[ADD v02.168] Summary/detail shared record_id, project_profile_kind, authority_refs` -> live emission path now builds packet/summary from the same normalized tracked record; `RoleMailboxThreadLineV1 field completeness including transcription_links` -> re-audited on branch head through existing runtime/tests, no product diff required.
+- Checks actually run: `cargo test --test micro_task_executor_tests -- --nocapture`; `cargo test --test role_mailbox_tests -- --nocapture`
+- Known gaps / weak spots: The packet does not add a new dedicated unit test named exactly after every clause; some proof is integration-style and the Role Mailbox clause still relies on existing branch-head coverage rather than a fresh diff in that surface.
+- Heuristic risks / maintainability concerns: `workflows.rs` now owns more structured-artifact normalization and validation logic, so future emitters can drift again if they bypass `apply_runtime_structured_work_packet_registry(...)` / `apply_runtime_structured_micro_task_registry(...)`.
+- Validator focus request: Adversarially test missing `updated_at`, task-board projection contract drift (`default` vs `by_status`, `rows`/`lane_ids` vs legacy `entries`/`lanes`), and summary/detail parity for `record_id`, `project_profile_kind`, and `authority_refs`; also confirm the Role Mailbox completeness clause is still live on current branch head.
+- Rubric contract understanding proof: This packet is not closed by green tests alone; a pass requires file:line evidence for each diff-scoped clause plus at least one negative-path proof on the shared structured-collaboration contract.
+- Rubric scope discipline proof: The staged product diff is limited to 4 packet-tracked files under `src/backend/handshake_core`; Role Mailbox proof references branch-head code/tests only and does not widen the implementation diff.
+- Rubric baseline comparison: Before this diff, emitted tracked work packets could miss a fresh base-envelope `updated_at` on artifact write and task-board structured projections still serialized legacy `entries`/`lanes` with `by_status`; after this diff, emitted artifacts and tests align to `updated_at`, `rows`, `lane_ids`, `view_ids`, and `default`.
+- Rubric end-to-end proof: `locus_create_and_close_wp_emit_structured_work_packet_packet_and_summary` now proves emitted packet artifacts carry RFC3339 `updated_at` and fail negative-path validation when that field is removed; `locus_sync_task_board_emits_structured_index_and_view` proves the generated task-board artifacts exist and expose the spec-required projection fields.
+- Rubric architecture fit self-review: The change stays on the shared runtime artifact-emission and structured-validation path instead of adding packet-local schema exceptions or test-only shape shims.
+- Rubric heuristic quality self-review: The strongest design risk is centralizing more contract logic in `workflows.rs`; the compensating guard is that the tests now assert both emitted artifact shape and validator rejection of missing required envelope data.
+- Rubric anti-gaming / counterfactual check: If `tracked_wp.updated_at = Utc::now()` at `src/backend/handshake_core/src/locus/types.rs:1223` or `apply_runtime_structured_work_packet_registry(...)` in `src/backend/handshake_core/src/workflows.rs:11586` is removed, the `updated_at` assertions at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:749` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:791` fail. If task-board emission falls back to legacy `entries`/`lanes` or `by_status`, the assertions at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:934`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:942`, and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:957` fail.
+- Next step / handoff hint: NONE. WP is closed; downstream structured-collaboration packets may now consume the completed schema-registry contract.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+  - REQUIREMENT: "[ADD v02.168] Base envelope MUST expose updated_at"
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1223; src/backend/handshake_core/src/workflows.rs:11586; src/backend/handshake_core/tests/micro_task_executor_tests.rs:749; src/backend/handshake_core/tests/micro_task_executor_tests.rs:791`
+  - REQUIREMENT: "[ADD v02.168] Task Board projection rows SHOULD include task_board_id, lane_id, display_order, view_ids"
+  - EVIDENCE: `src/backend/handshake_core/src/locus/task_board.rs:44; src/backend/handshake_core/src/locus/task_board.rs:46; src/backend/handshake_core/src/locus/task_board.rs:47; src/backend/handshake_core/src/locus/task_board.rs:49; src/backend/handshake_core/src/workflows.rs:3588; src/backend/handshake_core/src/workflows.rs:3590; src/backend/handshake_core/src/workflows.rs:3591; src/backend/handshake_core/src/workflows.rs:3592; src/backend/handshake_core/tests/micro_task_executor_tests.rs:934; src/backend/handshake_core/tests/micro_task_executor_tests.rs:938; src/backend/handshake_core/tests/micro_task_executor_tests.rs:942; src/backend/handshake_core/tests/micro_task_executor_tests.rs:945`
+  - REQUIREMENT: "[ADD v02.168] Deterministic machine-readable validation for unknown/incompatible schemas"
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1138; src/backend/handshake_core/src/workflows.rs:3647; src/backend/handshake_core/src/workflows.rs:3673; src/backend/handshake_core/src/workflows.rs:3692`
+  - REQUIREMENT: "[ADD v02.168] Summary/detail shared record_id, project_profile_kind, authority_refs"
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11609; src/backend/handshake_core/src/workflows.rs:11630; src/backend/handshake_core/tests/micro_task_executor_tests.rs:765`
+  - REQUIREMENT: "RoleMailboxThreadLineV1 field completeness including transcription_links"
+  - EVIDENCE: `src/backend/handshake_core/src/role_mailbox.rs:252; src/backend/handshake_core/src/role_mailbox.rs:533; src/backend/handshake_core/src/role_mailbox.rs:933; src/backend/handshake_core/tests/role_mailbox_tests.rs:289; src/backend/handshake_core/tests/role_mailbox_tests.rs:359`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Structured-Collaboration-Schema-Registry-v3/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+  - COMMAND: `cargo test --test micro_task_executor_tests -- --nocapture`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Structured-Collaboration-Schema-Registry-v3/micro_task_executor_tests.log`
+  - LOG_SHA256: `445FEB30D252E6578CBD0951EC9A5291D9707F935F472D7192FC6DB188E4E004`
+  - PROOF_LINES: `test locus_register_mts_emits_structured_micro_task_packet_and_summary ... ok`; `test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 82.87s`
+  - COMMAND: `cargo test --test role_mailbox_tests -- --nocapture`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Structured-Collaboration-Schema-Registry-v3/role_mailbox_tests.log`
+  - LOG_SHA256: `128D79962FEABB71F947CDBBEC755F04EA470A97AF572E076988B00DE9AEECCD`
+  - PROOF_LINES: `test role_mailbox_index_api_returns_valid_structured_export ... ok`; `test role_mailbox_create_message_emits_events_and_export ... ok`; `test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.74s`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -877,3 +967,136 @@ rg -n "schema_id|schema_version|project_profile_kind|mirror_state|updated_at|tas
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+### WP_VALIDATOR Advisory Report - 2026-03-20T13:56:53.0696714+01:00
+- REVIEW_SCOPE: Advisory diff-scoped review of commit `59ae3393f6b37b9b2c3712ee8930ad73fe67d0de` versus first parent `317c09d7134ad86475e19732313ea8d285f45888`, with current packet as authority
+- VALIDATION_CONTEXT: OK
+- GOVERNANCE_VERDICT: PASS
+- TEST_VERDICT: PASS
+- CODE_REVIEW_VERDICT: PARTIAL
+- HEURISTIC_REVIEW_VERDICT: PARTIAL
+- SPEC_ALIGNMENT_VERDICT: PARTIAL
+- ENVIRONMENT_VERDICT: PASS
+- DISPOSITION: NONE
+- LEGAL_VERDICT: PASS
+- SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+- VALIDATOR_RISK_TIER: HIGH
+- ADVISORY_VERDICT: PARTIAL
+- FINDINGS_COUNT: 1
+- CLAUSES_REVIEWED:
+  - `[ADD v02.168] Base envelope MUST expose updated_at` -> `src/backend/handshake_core/src/locus/types.rs:1068`, `src/backend/handshake_core/src/locus/types.rs:1223`, `src/backend/handshake_core/src/workflows.rs:11586`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:780`
+  - `[ADD v02.168] Task Board projection rows SHOULD include task_board_id, lane_id, display_order, view_ids` -> `src/backend/handshake_core/src/locus/task_board.rs:44`, `src/backend/handshake_core/src/locus/task_board.rs:70`, `src/backend/handshake_core/src/workflows.rs:3558`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:925`
+  - `[ADD v02.168] Deterministic machine-readable validation for unknown/incompatible schemas` -> `src/backend/handshake_core/src/locus/types.rs:1030`, `src/backend/handshake_core/src/locus/types.rs:1629`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1399`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1434`
+  - `[ADD v02.168] Summary/detail shared record_id, project_profile_kind, authority_refs` -> `src/backend/handshake_core/src/locus/types.rs:1138`, `src/backend/handshake_core/src/workflows.rs:11624`, `src/backend/handshake_core/src/workflows.rs:11718`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:809`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1289`
+  - `RoleMailboxThreadLineV1 field completeness including transcription_links` -> `src/backend/handshake_core/src/role_mailbox.rs:933`, `src/backend/handshake_core/src/api/role_mailbox.rs:35`, `src/backend/handshake_core/src/locus/types.rs:1128`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:261`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:541`
+- NOT_PROVEN:
+  - The commit does not fully prove packet-detail compatibility beyond the shared structured-collaboration envelope after replacing `TrackedWorkPacketArtifactV1` / `TrackedMicroTaskArtifactV1` serialization with raw `TrackedWorkPacket` / `TrackedMicroTask` writes in `src/backend/handshake_core/src/workflows.rs:3385` and `src/backend/handshake_core/src/workflows.rs:3412`; validator-owned coverage in this handoff does not pin the removed legacy packet fields.
+- MAIN_BODY_GAPS:
+  - Canonical detail artifact compatibility outside the shared envelope is still under-proven after the serializer swap in `src/backend/handshake_core/src/workflows.rs:3385` and `src/backend/handshake_core/src/workflows.rs:3412`; this packet closes the shared-envelope clauses, but not the broader historical packet-detail field surface.
+- QUALITY_RISKS:
+  - `src/backend/handshake_core/src/workflows.rs:3385-3443` changes the emitted packet JSON contract materially while legacy artifact types and helpers remain on disk at `src/backend/handshake_core/src/locus/types.rs:185-264` and `src/backend/handshake_core/src/workflows.rs:2573-3322`; the branch now has two competing packet-shape stories and no validator-owned golden/consumer test covering the dropped legacy fields.
+- DIFF_ATTACK_SURFACES:
+  - Work-packet packet emission changed from dedicated artifact struct serialization to raw tracked-record serialization.
+  - Micro-task packet emission changed from dedicated artifact struct serialization to raw tracked-record serialization.
+  - Task-board projection contract changed from legacy `entries` / `lanes` + `by_status` semantics to `rows` / `lane_ids` + `default` view semantics.
+  - Runtime authority-scope enforcement now sits on emitted structured artifact refs for work packets, micro-tasks, and task-board projections.
+  - Full-packet closure still depends on an unchanged Role Mailbox clause proven on current branch head rather than in this diff.
+- INDEPENDENT_CHECKS_RUN:
+  - `cargo test --test micro_task_executor_tests locus_create_and_close_wp_emit_structured_work_packet_packet_and_summary -- --exact --nocapture` => passed; emitted work-packet artifact carried RFC3339 `updated_at`, and the test's validator-owned negative path rejected a packet with `updated_at` removed.
+  - `cargo test --test micro_task_executor_tests locus_sync_task_board_emits_structured_index_and_view -- --exact --nocapture` => passed; emitted task-board index/view artifacts validated with `rows`, `lane_ids`, `view_ids`, and canonical `default` view id.
+  - `cargo test --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary -- --exact --nocapture` => passed; micro-task packet and summary still form a valid structured-collaboration pair after the emitter rewrite.
+  - `cargo test --test micro_task_executor_tests locus_register_mts_returns_machine_readable_validation_for_unknown_schema_version -- --exact --nocapture` => passed; machine-readable `schema_version_mismatch` diagnostics were observed on the micro-task registration path.
+  - `cargo test --test micro_task_executor_tests locus_register_mts_returns_machine_readable_validation_for_incompatible_profile_extension -- --exact --nocapture` => passed; machine-readable `incompatible_profile_extension` diagnostics were observed on the micro-task registration path.
+  - `cargo test --test role_mailbox_tests role_mailbox_create_message_emits_events_and_export -- --exact --nocapture` => passed; branch-head mailbox export still emitted thread lines with `transcription_links`.
+  - `cargo test --test role_mailbox_tests role_mailbox_index_api_returns_valid_structured_export -- --exact --nocapture` => passed; branch-head mailbox index export still validated as structured output.
+  - `rg -n 'by_status|default_view_id\\(|task_board_view:' src/backend/handshake_core` => only the new `default_view_id` producer path remained in-repo; no stale `by_status` consumer surfaced under `src/backend/handshake_core`.
+- COUNTERFACTUAL_CHECKS:
+  - If `src/backend/handshake_core/src/workflows.rs:11586` `apply_runtime_structured_work_packet_registry(...)` were bypassed or removed, the emitted work-packet detail/summary pair would lose backfill and join-validation guarantees, and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:780-815` would fail.
+  - If `src/backend/handshake_core/src/workflows.rs:3490` `emit_task_board_projection_artifacts(...)` reverted to legacy `entries` / `lanes` output or `src/backend/handshake_core/src/locus/task_board.rs:167` changed view-id semantics inconsistently, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:911-965` would fail and `src/backend/handshake_core/src/locus/types.rs:1093-1111` would reject the emitted shape.
+  - If `src/backend/handshake_core/src/role_mailbox.rs:933-957` stopped mapping `transcription_links` into exported thread lines, `src/backend/handshake_core/tests/role_mailbox_tests.rs:359` would fail and `src/backend/handshake_core/src/locus/types.rs:1128-1129` would reject the export.
+- BOUNDARY_PROBES:
+  - Producer/validator boundary: `src/backend/handshake_core/src/workflows.rs:3558-3707` emits task-board entry/index/view JSON and immediately validates it through `src/backend/handshake_core/src/locus/types.rs:1030-1111`; the focused exact task-board test confirmed both sides agree on `rows`, `lane_ids`, and `view_ids`.
+  - Detail/summary boundary: `src/backend/handshake_core/src/workflows.rs:11604-11646` and `src/backend/handshake_core/src/workflows.rs:11718-11740` feed emitted detail + summary JSON through `src/backend/handshake_core/src/locus/types.rs:1138-1179`; the focused exact work-packet and micro-task tests confirmed join parity on `record_id`, `project_profile_kind`, and `authority_refs`.
+- NEGATIVE_PATH_CHECKS:
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs:786-800` removes `updated_at` from emitted work-packet JSON; validation fails with `MissingField` on `updated_at`.
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1399-1427` forces an unknown schema version; validation fails with machine-readable `schema_version_mismatch`.
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1434-1468` forces an incompatible profile extension; validation fails with machine-readable `incompatible_profile_extension`.
+- INDEPENDENT_FINDINGS:
+  - The packet's five named clauses are independently reproducible on current head with validator-owned focused probes; the handoff is not relying solely on the coder's broad binary-level test runs.
+  - The task-board contract propagation looks internally clean under `src/backend/handshake_core`; no stale `by_status` consumer or `lanes` / `entries` task-board reader remained in the searched product code.
+  - The diff also performs a broader packet-emitter contract pivot than the packet clauses themselves demand, and that broader compatibility surface is not pinned by dedicated validator-owned consumer or golden tests.
+- RESIDUAL_UNCERTAINTY:
+  - This is a `HIGH`-risk serialized-output packet, and the review did not find validator-owned coverage proving that any out-of-tree or historical packet readers tolerate the switch from legacy artifact structs to raw tracked-record serialization.
+  - The exact tests here prove current in-repo producers and validators agree; they do not eliminate risk for previously emitted packet-detail fields that are no longer serialized.
+- SPEC_CLAUSE_MAP:
+  - `[ADD v02.168] Base envelope MUST expose updated_at` -> `src/backend/handshake_core/src/locus/types.rs:1068`; `src/backend/handshake_core/src/locus/types.rs:1223`; `src/backend/handshake_core/src/workflows.rs:11586-11646`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:780-800`
+  - `[ADD v02.168] Task Board projection rows SHOULD include task_board_id, lane_id, display_order, view_ids` -> `src/backend/handshake_core/src/locus/task_board.rs:44-49`; `src/backend/handshake_core/src/locus/task_board.rs:70-99`; `src/backend/handshake_core/src/workflows.rs:3558-3644`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:925-965`
+  - `[ADD v02.168] Deterministic machine-readable validation for unknown/incompatible schemas` -> `src/backend/handshake_core/src/locus/types.rs:1030-1072`; `src/backend/handshake_core/src/locus/types.rs:1629-1675`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1399-1468`
+  - `[ADD v02.168] Summary/detail shared record_id, project_profile_kind, authority_refs` -> `src/backend/handshake_core/src/locus/types.rs:1138-1179`; `src/backend/handshake_core/src/workflows.rs:11624-11646`; `src/backend/handshake_core/src/workflows.rs:11718-11740`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:809-815`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1289-1295`
+  - `RoleMailboxThreadLineV1 field completeness including transcription_links` -> `src/backend/handshake_core/src/role_mailbox.rs:933-957`; `src/backend/handshake_core/src/api/role_mailbox.rs:35-114`; `src/backend/handshake_core/src/locus/types.rs:1128-1129`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:261-359`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:541-565`
+- NEGATIVE_PROOF:
+  - The packet does not fully prove canonical detail-artifact compatibility beyond the shared structured-collaboration envelope after `src/backend/handshake_core/src/workflows.rs:3385-3443` and `src/backend/handshake_core/src/workflows.rs:3412-3443` switched packet writes away from `TrackedWorkPacketArtifactV1` / `TrackedMicroTaskArtifactV1`; the legacy packet artifact types and related helper surface remain declared at `src/backend/handshake_core/src/locus/types.rs:185-264` and `src/backend/handshake_core/src/workflows.rs:2573-3322`, but no validator-owned compatibility test in this handoff proves the dropped legacy packet fields are safe to remove from emitted JSON.
+
+### WP_VALIDATOR Advisory Report - 2026-03-20T15:20:42.5401475+01:00 - commit 23f4c9a
+- REVIEW_SCOPE: Advisory diff-scoped review of commit `23f4c9ae148780e7c1a5728091fa41af7eb58325` versus first parent `59ae3393f6b37b9b2c3712ee8930ad73fe67d0de`, with the current packet, signed refinement, and committed PREPARE worktree as authority.
+- VALIDATION_CONTEXT: OK
+- GOVERNANCE_VERDICT: PASS
+- TEST_VERDICT: PASS
+- CODE_REVIEW_VERDICT: PASS
+- HEURISTIC_REVIEW_VERDICT: PASS
+- SPEC_ALIGNMENT_VERDICT: PASS
+- ENVIRONMENT_VERDICT: PASS
+- DISPOSITION: NONE
+- LEGAL_VERDICT: PASS
+- SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+- VALIDATOR_RISK_TIER: HIGH
+- ADVISORY_VERDICT: PASS
+- FINDINGS_COUNT: 0
+- CLAUSES_REVIEWED:
+  - `[ADD v02.168] Base envelope MUST expose updated_at` -> `src/backend/handshake_core/src/locus/types.rs:1200`; `src/backend/handshake_core/src/locus/types.rs:1223`; `src/backend/handshake_core/src/locus/types.rs:1294`; `src/backend/handshake_core/src/workflows.rs:3391-3428`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:756`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1192-1198`
+  - `[ADD v02.168] Task Board projection rows SHOULD include task_board_id, lane_id, display_order, view_ids` -> `src/backend/handshake_core/src/locus/task_board.rs:44-49`; `src/backend/handshake_core/src/locus/task_board.rs:70-97`; `src/backend/handshake_core/src/locus/task_board.rs:167`; `src/backend/handshake_core/src/locus/types.rs:1093-1110`; `src/backend/handshake_core/src/workflows.rs:3508-3646`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:984-1011`
+  - `[ADD v02.168] Deterministic machine-readable validation for unknown/incompatible schemas` -> `src/backend/handshake_core/src/locus/types.rs:1055-1057`; `src/backend/handshake_core/src/locus/types.rs:1422`; `src/backend/handshake_core/src/locus/types.rs:1664-1672`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1539`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1580`
+  - `[ADD v02.168] Summary/detail shared record_id, project_profile_kind, authority_refs` -> `src/backend/handshake_core/src/workflows.rs:3391-3428`; `src/backend/handshake_core/src/workflows.rs:4686-4778`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:171-238`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:1132`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:763-769`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1198-1204`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1356-1361`
+  - `RoleMailboxThreadLineV1 field completeness including transcription_links` -> `src/backend/handshake_core/src/role_mailbox.rs:252`; `src/backend/handshake_core/src/role_mailbox.rs:533-535`; `src/backend/handshake_core/src/role_mailbox.rs:933-957`; `src/backend/handshake_core/src/api/role_mailbox.rs:35-114`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:289`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:359`
+- NOT_PROVEN:
+  - NONE
+- MAIN_BODY_GAPS:
+  - NONE
+- QUALITY_RISKS:
+  - NONE
+- DIFF_ATTACK_SURFACES:
+  - Legacy-compatible packet/detail emission for work packets and micro-tasks after the emitter rewrite.
+  - Locus storage progress serialization for micro-task bind/unbind and lifecycle views.
+  - Task-board projection contract (`rows`, `lane_ids`, `view_ids`, `default`) across emitters and validators.
+  - Role Mailbox structured export completeness for `transcription_links`.
+- INDEPENDENT_CHECKS_RUN:
+  - `just validator-handoff-check WP-1-Structured-Collaboration-Schema-Registry-v3` => PASS; reran committed `pre-work` and `post-work --rev HEAD` against `23f4c9a`, confirming the refined scope and final four-file repair diff.
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests -- --nocapture` => PASS; 20 tests passed, including the bind/unbind, lifecycle occupancy, task-board, summary/detail, and machine-readable diagnostic surfaces touched by the repair.
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_tests -- --nocapture` => PASS; 6 tests passed, including structured export and message creation with `transcription_links`.
+  - `rg -n "tracked_mt_progress_metadata|build_structured_work_packet_packet|build_structured_micro_task_packet|default_view_id|transcription_links" src/backend/handshake_core/src/storage/locus_sqlite.rs src/backend/handshake_core/src/workflows.rs src/backend/handshake_core/src/locus/task_board.rs src/backend/handshake_core/src/role_mailbox.rs src/backend/handshake_core/src/api/role_mailbox.rs` => confirmed the restored packet/detail compatibility lives on both the artifact-emission boundary and the locus progress boundary, with no stale task-board or mailbox field names in the touched surfaces.
+- COUNTERFACTUAL_CHECKS:
+  - If `src/backend/handshake_core/src/storage/locus_sqlite.rs:171-238` `tracked_mt_progress_metadata(...)` were removed or stopped reinserting empty `active_session_ids`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1198-1256` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1722-1728` would fail on the progress payload contract.
+  - If `src/backend/handshake_core/src/workflows.rs:3400` or `src/backend/handshake_core/src/workflows.rs:3428` reverted back to raw tracked-record serialization, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:763-769`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1198-1204`; and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1356-1361` would lose the legacy artifact deserialization proof.
+  - If `src/backend/handshake_core/src/locus/task_board.rs:44-49` or `src/backend/handshake_core/src/workflows.rs:3591-3646` drifted back to legacy task-board fields, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:984-1011` would fail and `src/backend/handshake_core/src/locus/types.rs:1093-1110` would reject the emitted projection.
+  - If `src/backend/handshake_core/src/role_mailbox.rs:933-957` stopped exporting `transcription_links`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:359` would fail and `src/backend/handshake_core/src/locus/types.rs:1128-1129` would reject the export.
+- BOUNDARY_PROBES:
+  - Artifact emitter -> validator boundary: `src/backend/handshake_core/src/workflows.rs:3391-3428` now emits legacy-compatible packet detail JSON that still carries the shared structured-collaboration envelope, and the full `micro_task_executor_tests` suite proved those payloads are accepted by the in-repo validators and readers.
+  - Locus storage -> consumer boundary: `src/backend/handshake_core/src/storage/locus_sqlite.rs:171-238` and `src/backend/handshake_core/src/storage/locus_sqlite.rs:1132` project tracked micro-task state back into the legacy-compatible artifact shape consumed by `locus_get_mt_progress_v1`, including explicit empty `active_session_ids`.
+- NEGATIVE_PATH_CHECKS:
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs:850` confirms that removing `updated_at` from emitted work-packet JSON yields a `MissingField` validation failure.
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1539` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1580` confirm machine-readable `schema_version_mismatch` and `incompatible_profile_extension` failures on the repaired registration path.
+- INDEPENDENT_FINDINGS:
+  - The earlier packet-detail compatibility gap is closed on current head: emitted work-packet and micro-task packets remain deserializable as `TrackedWorkPacketArtifactV1` / `TrackedMicroTaskArtifactV1`, and the locus progress API now projects the same micro-task artifact shape.
+  - The widened repair stayed inside the structured-collaboration runtime boundary; no Loom, frontend, or unrelated runtime family surface had to change to recover the contract.
+  - Task-board projection and Role Mailbox completeness remain green on current head after the compatibility repair.
+- RESIDUAL_UNCERTAINTY:
+  - This remains a `HIGH`-risk shared serialization surface, so post-merge spotchecks across downstream artifact readers are still prudent even after the committed diff-scoped PASS.
+  - This review is in-repo and diff-scoped; it does not prove behavior for out-of-tree consumers beyond the current repository surface.
+- SPEC_CLAUSE_MAP:
+  - `[ADD v02.168] Base envelope MUST expose updated_at` -> `src/backend/handshake_core/src/locus/types.rs:1200`; `src/backend/handshake_core/src/locus/types.rs:1223`; `src/backend/handshake_core/src/locus/types.rs:1294`; `src/backend/handshake_core/src/workflows.rs:3391-3428`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:756`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1192-1198`
+  - `[ADD v02.168] Task Board projection rows SHOULD include task_board_id, lane_id, display_order, view_ids` -> `src/backend/handshake_core/src/locus/task_board.rs:44-49`; `src/backend/handshake_core/src/locus/task_board.rs:70-97`; `src/backend/handshake_core/src/locus/task_board.rs:167`; `src/backend/handshake_core/src/locus/types.rs:1093-1110`; `src/backend/handshake_core/src/workflows.rs:3508-3646`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:984-1011`
+  - `[ADD v02.168] Deterministic machine-readable validation for unknown/incompatible schemas` -> `src/backend/handshake_core/src/locus/types.rs:1055-1057`; `src/backend/handshake_core/src/locus/types.rs:1422`; `src/backend/handshake_core/src/locus/types.rs:1664-1672`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1539`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1580`
+  - `[ADD v02.168] Summary/detail shared record_id, project_profile_kind, authority_refs` -> `src/backend/handshake_core/src/workflows.rs:3391-3428`; `src/backend/handshake_core/src/workflows.rs:4686-4778`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:171-238`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:1132`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:763-769`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1198-1204`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1356-1361`
+  - `RoleMailboxThreadLineV1 field completeness including transcription_links` -> `src/backend/handshake_core/src/role_mailbox.rs:252`; `src/backend/handshake_core/src/role_mailbox.rs:533-535`; `src/backend/handshake_core/src/role_mailbox.rs:933-957`; `src/backend/handshake_core/src/api/role_mailbox.rs:35-114`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:289`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:359`
+- NEGATIVE_PROOF:
+  - Out-of-scope project-profile registry publication remains open: the broader registry/product contract tracked under `WP-1-Project-Profile-Extension-Registry` is not closed by this packet, which only proves compatibility hooks, structured diagnostics, and current artifact/runtime boundaries.

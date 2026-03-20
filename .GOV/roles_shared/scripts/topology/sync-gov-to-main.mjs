@@ -12,6 +12,7 @@
  * governance/main sync execution.
  *
  * Usage: node .GOV/roles_shared/scripts/topology/sync-gov-to-main.mjs
+ *        node .GOV/roles_shared/scripts/topology/sync-gov-to-main.mjs --main-worktree <abs-or-rel-path>
  *        just sync-gov-to-main
  */
 
@@ -37,12 +38,28 @@ function fail(message) {
   process.exit(1);
 }
 
+function parseMainWorktreeOverride(argv) {
+  for (let i = 2; i < argv.length; i += 1) {
+    if (argv[i] === "--main-worktree") {
+      const value = argv[i + 1];
+      if (!value || value.startsWith("--")) {
+        fail("Expected a path after --main-worktree");
+      }
+      return path.resolve(value);
+    }
+  }
+
+  const envValue = process.env.HANDSHAKE_MAIN_WORKTREE_OVERRIDE?.trim();
+  return envValue ? path.resolve(envValue) : null;
+}
+
 // --- Resolve paths ---
 
 const mainSpec = WORKTREE_SPECS.find((s) => s.canonical);
 if (!mainSpec) fail("No canonical worktree found in WORKTREE_SPECS");
 
-const mainWorktreeAbs = absFromRepo(mainSpec.rel_path);
+const mainWorktreeOverrideAbs = parseMainWorktreeOverride(process.argv);
+const mainWorktreeAbs = mainWorktreeOverrideAbs || absFromRepo(mainSpec.rel_path);
 const mainGovAbs = path.join(mainWorktreeAbs, ".GOV");
 
 const kernelSpec = WORKTREE_SPECS.find((s) => s.role === "GOV_KERNEL");
@@ -70,13 +87,16 @@ if (dirtyInRepo(mainWorktreeAbs)) {
 
 console.log(`${PREFIX} kernel .GOV/: ${kernelGovAbs}`);
 console.log(`${PREFIX} main .GOV/:   ${mainGovAbs}`);
+if (mainWorktreeOverrideAbs) {
+  console.log(`${PREFIX} main worktree override: ${mainWorktreeOverrideAbs}`);
+}
 
 // --- Copy governance kernel to main using robocopy ---
 
 // Directories to exclude from mirror (stay main-local):
-//   Audits   — audit outputs belong in main, not the kernel
-//   operator — operator-private workspace
-//   runtime  — machine-written state (matches at any depth)
+//   Audits   - audit outputs belong in main, not the kernel
+//   operator - operator-private workspace
+//   runtime  - machine-written state (matches at any depth)
 const excludeDirs = ["Audits", "operator", "runtime"];
 
 const robocopyArgs = [
@@ -96,7 +116,7 @@ const robocopyArgs = [
   ...excludeDirs,
 ];
 
-console.log(`${PREFIX} mirroring kernel .GOV/ → main .GOV/ (excluding: ${excludeDirs.join(", ")})`);
+console.log(`${PREFIX} mirroring kernel .GOV/ -> main .GOV/ (excluding: ${excludeDirs.join(", ")})`);
 
 const robocopyResult = spawnSync("robocopy", robocopyArgs, { stdio: "inherit" });
 if (typeof robocopyResult.status === "number" && robocopyResult.status >= 8) {
@@ -128,7 +148,7 @@ runGitInRepo(mainWorktreeAbs, ["add", ".GOV/"]);
 
 const statusOutput = runGitInRepo(mainWorktreeAbs, ["status", "--porcelain=v1"]);
 if (!statusOutput.trim()) {
-  console.log(`${PREFIX} no changes detected — main .GOV/ already matches kernel`);
+  console.log(`${PREFIX} no changes detected - main .GOV/ already matches kernel`);
   process.exit(0);
 }
 
@@ -137,4 +157,4 @@ const commitMessage = `gov: sync governance kernel ${shortSha}`;
 
 runGitInherit(mainWorktreeAbs, ["commit", "-m", commitMessage]);
 console.log(`${PREFIX} committed on main: ${commitMessage}`);
-console.log(`${PREFIX} done — push main when ready: git -C ${mainSpec.rel_path} push origin main`);
+console.log(`${PREFIX} done - push main when ready: git -C ${mainWorktreeAbs} push origin main`);

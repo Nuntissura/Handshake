@@ -29,8 +29,8 @@
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -83,7 +83,7 @@
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** Done
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -122,7 +122,7 @@
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v3/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v3/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v3/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: wp_validator:wp-1-loom-storage-portability-v3
 - INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
@@ -131,19 +131,19 @@
 - PACKET_FORMAT_VERSION: 2026-03-18
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
-Blockers: Prior v3 ACP bootstrap was abandoned after the assigned feature branch/worktree were torn down; no live coder or validator session remains. Fresh PREPARE plus canonical worktree recreation is required before delegation can restart.
-Next: Wait for Operator restart instruction, then recreate the canonical worktree and re-run PREPARE before coder launch.
+Verdict: PASS
+Blockers: NONE. Committed handoff validation passed at `7aa995b`, validator gates are closed PASS, and the Loom product scope is integrated on `main` via selective commit `e867469`.
+Next: NONE. WP is closed; downstream Loom packets may treat this dependency as DONE.
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: [LM-GRAPH-001] Graph traversal with recursive CTEs on both backends | CODE_SURFACES: storage/mod.rs (trait), sqlite.rs, postgres.rs | TESTS: storage_conformance::loom_traverse_graph_depth_limit, storage_conformance::loom_traverse_graph_cycle_detection | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: [LM-SEARCH-002] PostgreSQL search filterable by graph relationships | CODE_SURFACES: storage/loom.rs (LoomSearchFilters), postgres.rs (search_loom_blocks) | TESTS: storage_conformance::loom_search_graph_filter_postgres | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: 2.3.13.7 get_backlinks and get_outgoing_edges | CODE_SURFACES: storage/mod.rs (trait), sqlite.rs, postgres.rs | TESTS: storage_conformance::loom_directional_edge_queries | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: 2.3.13.7 recompute_block_metrics and recompute_all_metrics | CODE_SURFACES: storage/mod.rs (trait), sqlite.rs, postgres.rs | TESTS: storage_conformance::loom_metrics_recompute_idempotent | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: [CX-DBP-011] Portable schema and migrations | CODE_SURFACES: migrations/ | TESTS: cargo test -p handshake_core loom migration | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: 2.3.13.7 LoomSourceAnchor export/replay durability | CODE_SURFACES: storage/loom.rs, sqlite.rs, postgres.rs | TESTS: storage_conformance::loom_source_anchor_round_trip | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: [LM-GRAPH-001] Graph traversal with recursive CTEs on both backends | CODE_SURFACES: storage/mod.rs (trait), sqlite.rs, postgres.rs | TESTS: storage_conformance::loom_traverse_graph_depth_limit, storage_conformance::loom_traverse_graph_cycle_detection | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: [LM-SEARCH-002] PostgreSQL search filterable by graph relationships | CODE_SURFACES: storage/loom.rs (LoomSearchFilters), postgres.rs (search_loom_blocks) | TESTS: storage_conformance::loom_search_graph_filter_postgres | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: 2.3.13.7 get_backlinks and get_outgoing_edges | CODE_SURFACES: storage/mod.rs (trait), sqlite.rs, postgres.rs | TESTS: storage_conformance::loom_directional_edge_queries | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: 2.3.13.7 recompute_block_metrics and recompute_all_metrics | CODE_SURFACES: storage/mod.rs (trait), sqlite.rs, postgres.rs | TESTS: storage_conformance::loom_metrics_recompute_idempotent | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: [CX-DBP-011] Portable schema and migrations | CODE_SURFACES: migrations/ | TESTS: cargo test -p handshake_core loom migration | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: 2.3.13.7 LoomSourceAnchor export/replay durability | CODE_SURFACES: storage/loom.rs, sqlite.rs, postgres.rs | TESTS: storage_conformance::loom_source_anchor_round_trip | EXAMPLES: Golden traverse_graph result for a known 3-hop graph on 10+ blocks, Golden LoomSourceAnchor JSON that must round-trip identically through both backends, Golden LoomSearchFilters with graph-relationship fields for PostgreSQL-specific test | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -702,9 +702,9 @@ rg -n "traverse_graph|recompute_block_metrics|recompute_all_metrics|get_backlink
   - "LM-SEARCH-002 graph-filtered search widens Postgres search beyond portable contract" -> "Postgres-only search semantics become de facto requirement"
   - "the remediation pass drifts into unrelated runtime families" -> "the packet loses file-lock isolation and repeats the earlier live-smoke scope failure"
 ## SKELETON
-- Proposed interfaces/types/contracts:
-- Open questions:
-- Notes:
+- Proposed interfaces/types/contracts: Add a portable Loom graph-traversal method to the storage trait, implement it with recursive CTEs on both SQLite and PostgreSQL, and extend the shared Loom conformance suite to prove depth limits, cycle handling, and edge-type filtering across both backends before moving to later MTs for graph-filtered search, directional edge queries, metrics recomputation, migrations, and LoomSourceAnchor durability.
+- Open questions: The first MT establishes the traversal contract, but duplicates, cycle revisit policy, and result ordering must be kept deterministic across both SQL backends so later search/filter features build on the same semantics.
+- Notes: First executable MT is `MT-001 [LM-GRAPH-001] Graph traversal with recursive CTEs on both backends`. Keep the first pass storage-only; do not spread into unrelated Loom viewer or preview-runtime surfaces.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
@@ -724,70 +724,213 @@ rg -n "traverse_graph|recompute_block_metrics|recompute_all_metrics|get_backlink
 - VALIDATOR_ASSERTIONS:
   - Validate the packet-scoped spec anchors, in-scope files, and deterministic evidence recorded during implementation.
 ## IMPLEMENTATION
-- (Coder fills after the docs-only skeleton checkpoint commit exists.)
+- Added the missing portable Loom graph-contract methods to the shared storage trait and implemented them on both SQLite and PostgreSQL: `get_backlinks`, `get_outgoing_edges`, `traverse_graph`, `recompute_block_metrics`, and `recompute_all_metrics`.
+- Added `backlink_depth` to the public Loom search filters/API contract, added graph-traversal + metrics-recompute endpoints in `api/loom.rs`, and clamped graph depth at the API boundary so recursive search/traversal stays bounded.
+- Reworked the new backend traversal filters to use parameterized edge-type filters on both SQLite and PostgreSQL rather than string-built `IN (...)` clauses.
+- Added shared conformance helpers/tests for graph depth limiting, cycle detection, edge-type filtering, directional edge queries, metrics recomputation, and LoomSourceAnchor export/replay durability across both backends.
+- Added explicit 10K-block, 3-hop traversal performance probes on both backends and wired them into `tests/storage_conformance.rs` so the packet's `<100ms` SQLite / `<50ms` PostgreSQL target is exercised directly.
+- Tightened the PostgreSQL search test input so the negative-path assertion proves the intended behavior: depth-1 filtering must not match an indirect tag path, while depth-3 may.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Captured deterministic COR-701 LF-blob SHA pairs for every staged product file with `just cor701-sha ...`.
+- Re-ran the Loom-scoped library, migration, API route, SQLite/PostgreSQL conformance, and SQLite/PostgreSQL traversal-performance commands from `src/backend/handshake_core`, storing full logs under `.handshake/logs/WP-1-Loom-Storage-Portability-v3/`.
+- Kept the repair diff staged to 5 product files while preserving the earlier WP branch work; cumulative WP scope now spans 7 tracked Loom files including the new explicit traversal-performance test target.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Target File**: `src/backend/handshake_core/src/api/loom.rs`
+- **Start**: 1
+- **End**: 1508
+- **Line Delta**: 408
+- **Pre-SHA1**: `5c27b06d591058c14795ecefd1cafe3affcd5b18`
+- **Post-SHA1**: `1c4f67e690bfaec4790e5b14669342de41206bad`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by Loom-scoped Rust test runs plus the dedicated `graph_traversal_and_metrics_routes_work` API test
+- **Artifacts**: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.md`; `.handshake/logs/WP-1-Loom-Storage-Portability-v3/loom_lib.log`; `.handshake/logs/WP-1-Loom-Storage-Portability-v3/loom_api_routes.log`
+- **Timestamp**: 2026-03-20T13:21:49.9252887+01:00
+- **Operator**: Orchestrator
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Adds graph traversal + metrics recompute endpoints, clamps recursive depth at the API boundary, and proves the route surface with a dedicated handler-level test.
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 2104
+- **End**: 2183
+- **Line Delta**: -7
+- **Pre-SHA1**: `b7785113422f232f97a30d2b3e455cfebfa8a250`
+- **Post-SHA1**: `d1b3b82d78a9fe77716cb7762449b8c2cc6ace88`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by Loom-scoped Rust test runs including real PostgreSQL conformance
+- **Artifacts**: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.md`; `.handshake/logs/WP-1-Loom-Storage-Portability-v3/storage_conformance_postgres.log`
+- **Timestamp**: 2026-03-20T13:21:49.9252887+01:00
+- **Operator**: Orchestrator
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Keeps the PostgreSQL traversal behavior but replaces raw string-built edge-type SQL with parameterized array binding for the recursive CTE path.
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 2579
+- **End**: 2667
+- **Line Delta**: 11
+- **Pre-SHA1**: `3f08f1d9c74a08ae920709ee123bd333dffc3e7f`
+- **Post-SHA1**: `1b2af0d384fc9bd7d5f04679cb60a63c062bed59`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by Loom-scoped Rust test runs including SQLite conformance
+- **Artifacts**: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.md`; `.handshake/logs/WP-1-Loom-Storage-Portability-v3/storage_conformance_sqlite.log`
+- **Timestamp**: 2026-03-20T13:21:49.9252887+01:00
+- **Operator**: Orchestrator
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Mirrors the same traversal-filter hardening on SQLite by binding edge-type filters through `json_each(...)` instead of raw string interpolation.
+- **Target File**: `src/backend/handshake_core/src/storage/tests.rs`
+- **Start**: 21
+- **End**: 2225
+- **Line Delta**: 218
+- **Pre-SHA1**: `4f08a9f76a9951f27abf5b4fa5a11dcb4624cb24`
+- **Post-SHA1**: `be0a61ca3a6f05cc015729a901ab952d911e5b6f`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by Loom-scoped Rust test runs including SQLite/PostgreSQL conformance and explicit traversal-performance probes
+- **Artifacts**: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.md`; `.handshake/logs/WP-1-Loom-Storage-Portability-v3/storage_conformance_sqlite.log`; `.handshake/logs/WP-1-Loom-Storage-Portability-v3/storage_conformance_postgres.log`; `.handshake/logs/WP-1-Loom-Storage-Portability-v3/loom_perf_sqlite.log`; `.handshake/logs/WP-1-Loom-Storage-Portability-v3/loom_perf_postgres.log`
+- **Timestamp**: 2026-03-20T13:21:49.9252887+01:00
+- **Operator**: Orchestrator
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Adds the 10K-block traversal performance fixture/probe while retaining the shared graph, metrics, and source-anchor conformance coverage.
+- **Target File**: `src/backend/handshake_core/tests/storage_conformance.rs`
+- **Start**: 1
+- **End**: 80
+- **Line Delta**: 24
+- **Pre-SHA1**: `654cec765edf820ee71d4b3663823110f9341632`
+- **Post-SHA1**: `a3dd58a5209abdaf7647622d0320dcda44b6131a`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by dedicated SQLite/PostgreSQL traversal-performance targets
+- **Artifacts**: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.md`; `.handshake/logs/WP-1-Loom-Storage-Portability-v3/loom_perf_sqlite.log`; `.handshake/logs/WP-1-Loom-Storage-Portability-v3/loom_perf_postgres.log`
+- **Timestamp**: 2026-03-20T14:21:00+01:00
+- **Operator**: Orchestrator
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Exposes the 10K-block traversal probes as explicit integration-test targets for both backends.
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
-- Next step / handoff hint:
+- Current WP_STATUS: Done; committed handoff validation passed at `7aa995b`, validator gates are closed PASS, the branch is pushed to `origin/feat/WP-1-Loom-Storage-Portability-v3`, and the finalized Loom product scope is integrated on `main` via selective commit `e867469`.
+- What changed in this update: Added graph traversal + metrics recompute endpoints in `api/loom.rs`, clamped recursive depth at the API boundary, replaced raw string-built traversal edge-type SQL with parameterized filters on both backends, and added explicit 10K-block traversal-performance probes plus dedicated test targets for SQLite and PostgreSQL.
+- Requirements / clauses self-audited: `[LM-GRAPH-001]` -> shared trait + both backend recursive CTE implementations remain intact, API traversal surface now exists, and 10K-block timing probes are added; `[LM-SEARCH-002]` -> API/filter contract keeps `backlink_depth`, now bounded at the API entry point, and PostgreSQL recursive graph filtering remains proven; `2.3.13.7 get_backlinks and get_outgoing_edges` -> unchanged backend/query proof remains valid; `2.3.13.7 recompute_block_metrics and recompute_all_metrics` -> API recompute endpoints now exercise the backend methods directly; `[CX-DBP-011] Portable schema and migrations` -> migration portability remains green; `2.3.13.7 LoomSourceAnchor export/replay durability` -> prior conformance proof remains green.
+- Checks actually run: `cargo test loom --lib -- --nocapture`; `cargo test migration --lib -- --nocapture`; `cargo test graph_traversal_and_metrics_routes_work --lib -- --nocapture`; `cargo test --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture`; `$env:POSTGRES_TEST_URL='postgres://fastfocus:fastfocus@127.0.0.1:55434/fastfocus'; cargo test --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture`; `cargo test --test storage_conformance sqlite_loom_traversal_performance_target -- --exact --nocapture`; `$env:POSTGRES_TEST_URL='postgres://fastfocus:fastfocus@127.0.0.1:55434/fastfocus'; cargo test --test storage_conformance postgres_loom_traversal_performance_target -- --exact --nocapture`
+- Known gaps / weak spots: The traversal performance proof is a warmed median-of-three probe on a deterministic 10K-block chain fixture, not a full production benchmark matrix. It closes the packet threshold directly, but broader real-world graph-shape variance still lives outside this WP.
+- Heuristic risks / maintainability concerns: The recursive traversal/search logic now lives in two backend-specific implementations; semantic drift between SQLite and PostgreSQL is the main long-term risk, so the shared conformance helpers are now the critical guardrail.
+- Validator focus request: Re-run adversarial review on the new API route surface (`traverse_loom_graph`, `recompute_loom_block_metrics`, `recompute_all_loom_metrics`), recursion depth fences, parameterized edge-type filtering parity, and the explicit 10K-block timing probe on both backends.
+- Rubric contract understanding proof: This packet closes a backend portability contract, not a single backend feature. A pass requires parity proof across both storage engines plus evidence that the recursive SQL remains bounded, deterministic, and spec-portable.
+- Rubric scope discipline proof: The staged repair diff is limited to 5 product files, and the cumulative WP branch scope remains within 7 Loom-tracked files including the new traversal-performance test target. No unrelated product files were staged for this repair commit.
+- Rubric baseline comparison: Before this repair, the branch still lacked API endpoints for traversal/metrics recompute, accepted unbounded recursive depth through the public API, and had no explicit 10K-block timing proof for the packet threshold. After this repair, those gaps are closed in product code and tests.
+- Rubric end-to-end proof: The handler-level API test now creates Loom blocks/edges, traverses the graph through the new route, forces stale metrics, and proves both block-scoped and workspace-scoped recomputation restore derived counts; the dedicated SQLite/PostgreSQL traversal-performance tests prove the 3-hop 10K-block threshold directly.
+- Rubric architecture fit self-review: The change extends the shared storage abstraction first and wires backend-specific SQL underneath it, which matches the packet's portability-first architecture instead of hiding behavior in API-local helpers.
+- Rubric heuristic quality self-review: The remaining maintainability risk is keeping the two backend traversal SQL paths aligned. The compensating guard is now stronger: both the shared conformance suite and the explicit 10K-block performance probes exercise the same contract on both providers, and the traversal filter inputs are parameterized rather than string-built.
+- Rubric anti-gaming / counterfactual check: If `src/backend/handshake_core/src/api/loom.rs:933` `traverse_loom_graph(...)` or `src/backend/handshake_core/src/api/loom.rs:967` / `:986` recompute handlers are removed, `graph_traversal_and_metrics_routes_work` fails. If `src/backend/handshake_core/src/storage/tests.rs:1313` `loom_traverse_graph_meets_performance_target(...)` or `src/backend/handshake_core/tests/storage_conformance.rs:56` / `:64` are removed, the packet no longer carries any explicit 10K-block timing proof. If the new parameter binding at `src/backend/handshake_core/src/storage/postgres.rs:2121` or `src/backend/handshake_core/src/storage/sqlite.rs:2603` is reverted to string interpolation, the repaired traversal filter hardening is lost.
+- Next step / handoff hint: NONE. WP is closed; downstream Loom packets may now consume the completed storage portability contract.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+  - REQUIREMENT: "[LM-GRAPH-001] Graph traversal with recursive CTEs on both backends"
+  - EVIDENCE: `src/backend/handshake_core/src/storage/mod.rs:1684; src/backend/handshake_core/src/storage/postgres.rs:2093; src/backend/handshake_core/src/storage/sqlite.rs:2568; src/backend/handshake_core/src/storage/tests.rs:849; src/backend/handshake_core/src/storage/tests.rs:918; src/backend/handshake_core/src/storage/tests.rs:955`
+  - REQUIREMENT: "API endpoints for graph traversal and metrics recomputation in api/loom.rs"
+  - EVIDENCE: `src/backend/handshake_core/src/api/loom.rs:86; src/backend/handshake_core/src/api/loom.rs:121; src/backend/handshake_core/src/api/loom.rs:125; src/backend/handshake_core/src/api/loom.rs:933; src/backend/handshake_core/src/api/loom.rs:967; src/backend/handshake_core/src/api/loom.rs:986; src/backend/handshake_core/src/api/loom.rs:1319`
+  - REQUIREMENT: "[LM-SEARCH-002] PostgreSQL search filterable by graph relationships"
+  - EVIDENCE: `src/backend/handshake_core/src/api/loom.rs:1017; src/backend/handshake_core/src/api/loom.rs:1042; src/backend/handshake_core/src/storage/loom.rs:358; src/backend/handshake_core/src/storage/postgres.rs:2710; src/backend/handshake_core/src/storage/postgres.rs:2737; src/backend/handshake_core/src/storage/postgres.rs:2756; src/backend/handshake_core/src/storage/postgres.rs:2779; src/backend/handshake_core/src/storage/tests.rs:1044; src/backend/handshake_core/src/storage/tests.rs:1062`
+  - REQUIREMENT: "2.3.13.7 get_backlinks and get_outgoing_edges"
+  - EVIDENCE: `src/backend/handshake_core/src/storage/mod.rs:1674; src/backend/handshake_core/src/storage/mod.rs:1679; src/backend/handshake_core/src/storage/postgres.rs:2025; src/backend/handshake_core/src/storage/postgres.rs:2059; src/backend/handshake_core/src/storage/sqlite.rs:2496; src/backend/handshake_core/src/storage/sqlite.rs:2532; src/backend/handshake_core/src/storage/tests.rs:1014; src/backend/handshake_core/src/storage/tests.rs:1015`
+  - REQUIREMENT: "2.3.13.7 recompute_block_metrics and recompute_all_metrics"
+  - EVIDENCE: `src/backend/handshake_core/src/storage/mod.rs:1691; src/backend/handshake_core/src/storage/mod.rs:1696; src/backend/handshake_core/src/api/loom.rs:967; src/backend/handshake_core/src/api/loom.rs:986; src/backend/handshake_core/src/storage/postgres.rs:2196; src/backend/handshake_core/src/storage/postgres.rs:2242; src/backend/handshake_core/src/storage/sqlite.rs:2665; src/backend/handshake_core/src/storage/sqlite.rs:2711; src/backend/handshake_core/src/api/loom.rs:1450; src/backend/handshake_core/src/api/loom.rs:1470`
+  - REQUIREMENT: "[CX-DBP-011] Portable schema and migrations"
+  - EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2093; src/backend/handshake_core/src/storage/sqlite.rs:2568; src/backend/handshake_core/src/storage/tests.rs:1759`
+  - REQUIREMENT: "`traverse_graph` performance targets (<100ms SQLite, <50ms PostgreSQL on 3-hop / 10K blocks)"
+  - EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:27; src/backend/handshake_core/src/storage/tests.rs:1313; src/backend/handshake_core/src/storage/tests.rs:1336; src/backend/handshake_core/src/storage/tests.rs:1348; src/backend/handshake_core/tests/storage_conformance.rs:56; src/backend/handshake_core/tests/storage_conformance.rs:64`
+  - REQUIREMENT: "2.3.13.7 LoomSourceAnchor export/replay durability"
+  - EVIDENCE: `src/backend/handshake_core/src/storage/loom.rs:274; src/backend/handshake_core/src/storage/postgres.rs:308; src/backend/handshake_core/src/storage/sqlite.rs:334; src/backend/handshake_core/src/storage/tests.rs:1082; src/backend/handshake_core/src/storage/tests.rs:1127; src/backend/handshake_core/src/storage/tests.rs:1381`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v3/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+  - COMMAND: `cargo test loom --lib -- --nocapture`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v3/loom_lib.log`
+  - LOG_SHA256: `1CFDC7E6CB03EC4F7E0FCBA4F54952650DAE33493AF28A0643A3643D1C1FC838`
+  - PROOF_LINES: `test api::loom::tests::graph_traversal_and_metrics_routes_work ... ok`; `test api::loom::tests::view_and_search_emit_events ... ok`; `test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 200 filtered out; finished in 0.83s`
+  - COMMAND: `cargo test migration --lib -- --nocapture`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v3/migration_lib.log`
+  - LOG_SHA256: `09BC50A6E63EDAB7EB742F06202CC065BA7DA555C6DC218A8856826A7E080915`
+  - PROOF_LINES: `test storage::tests::migrations_are_replay_safe_postgres ... ok`; `test storage::tests::migrations_are_replay_safe_sqlite ... ok`; `test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 200 filtered out; finished in 0.03s`
+  - COMMAND: `cargo test graph_traversal_and_metrics_routes_work --lib -- --nocapture`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v3/loom_api_routes.log`
+  - LOG_SHA256: `2125DF16A84C9C15F8BB5125B2180E37CEFFC251DFB76510AC9714B9AED8749F`
+  - PROOF_LINES: `test api::loom::tests::graph_traversal_and_metrics_routes_work ... ok`; `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 206 filtered out; finished in 0.27s`
+  - COMMAND: `cargo test --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v3/storage_conformance_sqlite.log`
+  - LOG_SHA256: `4974E306E73E033AFCDAAED0156D17426CD31648F7B030AB815BB4CD5133F593`
+  - PROOF_LINES: `test sqlite_loom_storage_conformance ... ok`; `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.06s`
+  - COMMAND: `$env:POSTGRES_TEST_URL='postgres://fastfocus:fastfocus@127.0.0.1:55434/fastfocus'; cargo test --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v3/storage_conformance_postgres.log`
+  - LOG_SHA256: `A6AA0A7480AD1FC31128CE0ED705770A1E6D78F2A29D2E1488E5BFE29C0728D8`
+  - PROOF_LINES: `test postgres_loom_storage_conformance ... ok`; `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 23.50s`
+  - COMMAND: `cargo test --test storage_conformance sqlite_loom_traversal_performance_target -- --exact --nocapture`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v3/loom_perf_sqlite.log`
+  - LOG_SHA256: `CC0A5FC913AB2FE95B08523C2B0CF6ECDEE1AFC87CA59D2D09A188499A590904`
+  - PROOF_LINES: `test sqlite_loom_traversal_performance_target ... ok`; `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 1.58s`
+  - COMMAND: `$env:POSTGRES_TEST_URL='postgres://fastfocus:fastfocus@127.0.0.1:55434/fastfocus'; cargo test --test storage_conformance postgres_loom_traversal_performance_target -- --exact --nocapture`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v3/loom_perf_postgres.log`
+  - LOG_SHA256: `B619CE07056BD1E574C778EAB55E095540B3EA660CE211DE916B8846B32DA625`
+  - PROOF_LINES: `test postgres_loom_traversal_performance_target ... ok`; `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 38.45s`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -850,3 +993,140 @@ rg -n "traverse_graph|recompute_block_metrics|recompute_all_metrics|get_backlink
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+### WP_VALIDATOR Advisory Report - 2026-03-20T13:50:26.6877986+01:00 - commit 8c4055a
+- VALIDATION_CONTEXT: OK
+- GOVERNANCE_VERDICT: PARTIAL
+- TEST_VERDICT: PASS
+- CODE_REVIEW_VERDICT: PARTIAL
+- HEURISTIC_REVIEW_VERDICT: PARTIAL
+- SPEC_ALIGNMENT_VERDICT: PARTIAL
+- ENVIRONMENT_VERDICT: PASS
+- DISPOSITION: NONE
+- LEGAL_VERDICT: PASS
+- SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+- COMMIT_REVIEWED: `8c4055a487428ef7c957ed57611f1e55c23bae9d`
+- BASELINE_REVIEWED: first parent of `8c4055a`
+- CLAUSES_REVIEWED:
+  - `[LM-GRAPH-001] Graph traversal with recursive CTEs on both backends` -> `src/backend/handshake_core/src/storage/mod.rs:1684-1690` declares the trait method; `src/backend/handshake_core/src/storage/sqlite.rs:2568-2662` and `src/backend/handshake_core/src/storage/postgres.rs:2093-2193` implement recursive CTE traversal with cycle guards; `src/backend/handshake_core/src/storage/tests.rs:849-976` proves depth limit, cycle suppression, and edge-type filtering. Performance target proof remains unclosed.
+  - `[LM-SEARCH-002] PostgreSQL search filterable by graph relationships` -> `src/backend/handshake_core/src/api/loom.rs:835-869` threads `backlink_depth`; `src/backend/handshake_core/src/storage/loom.rs:348-359` extends `LoomSearchFilters`; `src/backend/handshake_core/src/storage/postgres.rs:2710-2793` applies the recursive filter; `src/backend/handshake_core/src/storage/tests.rs:1038-1074` proves direct-vs-indirect tag behavior on PostgreSQL.
+  - `2.3.13.7 get_backlinks and get_outgoing_edges` -> `src/backend/handshake_core/src/storage/mod.rs:1674-1683`, `src/backend/handshake_core/src/storage/sqlite.rs:2496-2566`, `src/backend/handshake_core/src/storage/postgres.rs:2025-2090`, and `src/backend/handshake_core/src/storage/tests.rs:979-1025`.
+  - `2.3.13.7 recompute_block_metrics and recompute_all_metrics` -> `src/backend/handshake_core/src/storage/mod.rs:1691-1696`, `src/backend/handshake_core/src/storage/sqlite.rs:2665-2744`, `src/backend/handshake_core/src/storage/postgres.rs:2196-2275`, and `src/backend/handshake_core/src/storage/tests.rs:808-846`.
+  - `[CX-DBP-011] Portable schema and migrations` -> no migration files changed in `8c4055a`; recursive SQL additions stay in storage adapters, and the targeted portability test `cargo test --lib storage::tests::loom_migration_schema_is_portable_sqlite -- --exact --nocapture` passed.
+  - `2.3.13.7 LoomSourceAnchor export/replay durability` -> `src/backend/handshake_core/src/storage/tests.rs:1077-1149` verifies JSON export/replay plus storage readback via `get_outgoing_edges`; backend edge readers are `src/backend/handshake_core/src/storage/sqlite.rs:2496-2566` and `src/backend/handshake_core/src/storage/postgres.rs:2025-2090`.
+- NOT_PROVEN:
+  - `packet.md:616` requires `traverse_graph` to meet explicit performance targets (`<100ms` SQLite, `<50ms` PostgreSQL for 3-hop/10K-block traversal). The reviewed diff and tests prove functional correctness, not timing.
+  - `packet.md:393` requires API endpoints for graph traversal and metrics recomputation in `api/loom.rs`. The reviewed diff only adds `backlink_depth` to search query handling; no traversal/metrics routes were added.
+- MAIN_BODY_GAPS:
+  - The explicit `traverse_graph` performance target remains unproven against the packet/spec threshold.
+- QUALITY_RISKS:
+  - `src/backend/handshake_core/src/storage/postgres.rs:2104-2176` and `src/backend/handshake_core/src/storage/sqlite.rs:2579-2651` build `edge_type_filter` by formatting enum strings into raw SQL. Current values are enum-bounded by `src/backend/handshake_core/src/storage/loom.rs:208-239`, but the pattern is brittle for future edge-type expansion and harder to audit than parameterized composition.
+  - `src/backend/handshake_core/src/api/loom.rs:845-868` and `src/backend/handshake_core/src/storage/postgres.rs:2710-2793` accept any `u32` `backlink_depth` with no packet-defined clamp, leaving worst-case recursive search cost unmeasured.
+- VALIDATOR_RISK_TIER: HIGH
+- DIFF_ATTACK_SURFACES:
+  - Producer/consumer drift between HTTP query params, `LoomSearchFilters`, and PostgreSQL recursive search behavior.
+  - Trait expansion drift between `storage/mod.rs`, `sqlite.rs`, and `postgres.rs`.
+  - Recursive CTE depth/cycle handling on both backends.
+  - Persistence/readback drift for `LoomSourceAnchor` across create, fetch, export, and replay.
+  - Portable-SQL claims versus backend-specific SQL construction.
+- INDEPENDENT_CHECKS_RUN:
+  - `cargo test --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture` with `POSTGRES_TEST_URL=postgres://fastfocus:fastfocus@127.0.0.1:55434/fastfocus` => PASS; independently exercised PostgreSQL graph traversal, directional edge queries, metrics recomputation, graph-filter negative path, and source-anchor round trip.
+  - `cargo test --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture` => PASS; independently exercised the same Loom conformance surface on SQLite.
+  - `cargo test --lib storage::tests::loom_migration_schema_is_portable_sqlite -- --exact --nocapture` => PASS; no portability regression was introduced in the SQLite migration contract.
+  - `rg -n "LoomSearchFilters \\{" src/backend/handshake_core` plus line inspection => `backlink_depth` has one product producer (`src/backend/handshake_core/src/api/loom.rs:863-869`), the contract struct (`src/backend/handshake_core/src/storage/loom.rs:348-359`), and the PostgreSQL consumer (`src/backend/handshake_core/src/storage/postgres.rs:2710-2793`); no stale constructor omission was found.
+  - `rg -n "100ms|50ms|benchmark|bench|Instant::now\\(|elapsed\\(|loom_traverse_graph" src/backend/handshake_core/src src/backend/handshake_core/tests` => no traversal-specific timing assertion or benchmark exists, so the packet's performance clause is not independently proven.
+- COUNTERFACTUAL_CHECKS:
+  - If `src/backend/handshake_core/src/storage/postgres.rs:2710-2793` stopped threading `backlink_depth` into the recursive `EXISTS` filter, the PostgreSQL-only negative path at `src/backend/handshake_core/src/storage/tests.rs:1038-1054` would no longer distinguish direct from indirect tag matches.
+  - If the cycle guards in `src/backend/handshake_core/src/storage/sqlite.rs:2613-2616` or `src/backend/handshake_core/src/storage/postgres.rs:2138-2141` were removed, the cycle test at `src/backend/handshake_core/src/storage/tests.rs:918-950` would re-emit the starting block or loop through the AI-suggested back edge.
+  - If the new trait methods at `src/backend/handshake_core/src/storage/mod.rs:1674-1696` existed without backend implementations, the conformance calls at `src/backend/handshake_core/src/storage/tests.rs:855-975`, `1014-1015`, `1127`, and `1466-1764` would fail per backend.
+  - If `src/backend/handshake_core/src/storage/tests.rs:1126-1139` did not read the replayed edge back through `get_outgoing_edges`, the new directional-edge surface would not prove that stored source anchors survive the writer/reader boundary.
+- BOUNDARY_PROBES:
+  - HTTP query -> contract struct -> backend query: inspected `src/backend/handshake_core/src/api/loom.rs:835-869`, `src/backend/handshake_core/src/storage/loom.rs:348-359`, and `src/backend/handshake_core/src/storage/postgres.rs:2710-2793` to confirm `backlink_depth` crosses the producer/consumer boundary without silent drop.
+  - Edge write -> edge read -> JSON replay: inspected `src/backend/handshake_core/src/storage/tests.rs:1110-1145` plus backend edge readers `src/backend/handshake_core/src/storage/sqlite.rs:2496-2566` and `src/backend/handshake_core/src/storage/postgres.rs:2025-2090` to confirm `source_anchor` survives storage and retrieval.
+- NEGATIVE_PATH_CHECKS:
+  - PostgreSQL negative path rerun: `postgres_loom_storage_conformance` passed while `src/backend/handshake_core/src/storage/tests.rs:1038-1054` requires `backlink_depth: Some(1)` to return no result for an indirect tag path.
+  - Static absence probe: repo search found no traversal benchmark/timing assertion, which is negative evidence against the explicit performance closure claim in `packet.md:616`.
+- INDEPENDENT_FINDINGS:
+  - The six packet clauses are implemented at the storage/test layer and independently exercised on both backends.
+  - The PostgreSQL-only graph-filter feature is wired end-to-end from the API parameter layer into the recursive search query.
+  - The reviewed diff proves behavioral portability far better than v2, but it still does not prove the explicit performance acceptance threshold.
+  - The packet handoff brief still overstates API-surface closure; `api/loom.rs` only gained search-param plumbing in this diff.
+- RESIDUAL_UNCERTAINTY:
+  - The packet requires traversal timing targets on 10K-block graphs, but no benchmark or timing harness was reviewed, so production-scale performance remains unknown.
+  - `backlink_depth` has no upper bound in the reviewed API/query path, so hostile or accidental large-depth recursive queries remain unmeasured.
+  - The source-anchor proof is conformance-level JSON export/replay, not a full external artifact export/import workflow.
+- SPEC_CLAUSE_MAP:
+  - `[LM-GRAPH-001] Graph traversal with recursive CTEs on both backends` => `src/backend/handshake_core/src/storage/mod.rs:1684-1690`, `src/backend/handshake_core/src/storage/sqlite.rs:2568-2662`, `src/backend/handshake_core/src/storage/postgres.rs:2093-2193`, `src/backend/handshake_core/src/storage/tests.rs:849-976`
+  - `[LM-SEARCH-002] PostgreSQL search filterable by graph relationships` => `src/backend/handshake_core/src/api/loom.rs:835-869`, `src/backend/handshake_core/src/storage/loom.rs:348-359`, `src/backend/handshake_core/src/storage/postgres.rs:2710-2793`, `src/backend/handshake_core/src/storage/tests.rs:1038-1074`
+  - `2.3.13.7 get_backlinks and get_outgoing_edges` => `src/backend/handshake_core/src/storage/mod.rs:1674-1683`, `src/backend/handshake_core/src/storage/sqlite.rs:2496-2566`, `src/backend/handshake_core/src/storage/postgres.rs:2025-2090`, `src/backend/handshake_core/src/storage/tests.rs:979-1025`
+  - `2.3.13.7 recompute_block_metrics and recompute_all_metrics` => `src/backend/handshake_core/src/storage/mod.rs:1691-1696`, `src/backend/handshake_core/src/storage/sqlite.rs:2665-2744`, `src/backend/handshake_core/src/storage/postgres.rs:2196-2275`, `src/backend/handshake_core/src/storage/tests.rs:808-846`
+  - `[CX-DBP-011] Portable schema and migrations` => `src/backend/handshake_core/src/storage/tests.rs:1759-1764` plus validator-owned check `cargo test --lib storage::tests::loom_migration_schema_is_portable_sqlite -- --exact --nocapture`
+  - `2.3.13.7 LoomSourceAnchor export/replay durability` => `src/backend/handshake_core/src/storage/tests.rs:1077-1149`, `src/backend/handshake_core/src/storage/sqlite.rs:2496-2566`, `src/backend/handshake_core/src/storage/postgres.rs:2025-2090`
+- NEGATIVE_PROOF:
+  - `packet.md:616` requires `traverse_graph` implementations "meeting spec performance targets (<100ms 3-hop on 10K blocks SQLite, <50ms PostgreSQL)". The reviewed diff and tests contain functional traversal assertions only (`src/backend/handshake_core/src/storage/tests.rs:849-976`) and no benchmark/timing proof, so that acceptance clause is not fully implemented/proven.
+  - `packet.md:393` requires API endpoints for graph traversal and metrics recomputation in `api/loom.rs`. The reviewed route table at `src/backend/handshake_core/src/api/loom.rs:72-90` still exposes blocks, edges, import/assets, views, and search only; commit `8c4055a` adds `backlink_depth` to search query handling at `src/backend/handshake_core/src/api/loom.rs:845-868`, but no traversal/metrics endpoints.
+
+### WP_VALIDATOR Advisory Report - 2026-03-20T15:20:41.5401475+01:00 - commit 7aa995b
+- REVIEW_SCOPE: Advisory diff-scoped review of commit `7aa995b0dd2a2fca5bb713dd12ce400a9a0a1214` versus first parent `8c4055a487428ef7c957ed57611f1e55c23bae9d`, with the current packet and committed PREPARE worktree as authority.
+- VALIDATION_CONTEXT: OK
+- GOVERNANCE_VERDICT: PASS
+- TEST_VERDICT: PASS
+- CODE_REVIEW_VERDICT: PASS
+- HEURISTIC_REVIEW_VERDICT: PASS
+- SPEC_ALIGNMENT_VERDICT: PASS
+- ENVIRONMENT_VERDICT: PASS
+- DISPOSITION: NONE
+- LEGAL_VERDICT: PASS
+- SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+- VALIDATOR_RISK_TIER: HIGH
+- ADVISORY_VERDICT: PASS
+- FINDINGS_COUNT: 0
+- CLAUSES_REVIEWED:
+  - `[LM-GRAPH-001] Graph traversal with recursive CTEs on both backends` -> `src/backend/handshake_core/src/api/loom.rs:121`; `src/backend/handshake_core/src/api/loom.rs:933`; `src/backend/handshake_core/src/storage/postgres.rs:2098-2135`; `src/backend/handshake_core/src/storage/sqlite.rs:2573-2624`; `src/backend/handshake_core/src/storage/tests.rs:1313`; `src/backend/handshake_core/tests/storage_conformance.rs:56`; `src/backend/handshake_core/tests/storage_conformance.rs:64`
+  - `[LM-SEARCH-002] PostgreSQL search filterable by graph relationships` -> `src/backend/handshake_core/src/storage/loom.rs:360`; `src/backend/handshake_core/src/api/loom.rs:1017-1042`; `src/backend/handshake_core/src/storage/postgres.rs:2703-2775`; `src/backend/handshake_core/src/storage/tests.rs:1046-1064`
+  - `2.3.13.7 get_backlinks and get_outgoing_edges` -> `src/backend/handshake_core/src/storage/mod.rs:1674-1679`; `src/backend/handshake_core/src/storage/postgres.rs:2025-2059`; `src/backend/handshake_core/src/storage/sqlite.rs:2496-2532`; `src/backend/handshake_core/src/storage/tests.rs:1016-1017`
+  - `2.3.13.7 recompute_block_metrics and recompute_all_metrics` -> `src/backend/handshake_core/src/api/loom.rs:967-993`; `src/backend/handshake_core/src/storage/mod.rs:1691-1696`; `src/backend/handshake_core/src/storage/postgres.rs:2189-2235`; `src/backend/handshake_core/src/storage/sqlite.rs:2676-2722`; `src/backend/handshake_core/src/storage/tests.rs:822-842`
+  - `[CX-DBP-011] Portable schema and migrations` -> `src/backend/handshake_core/src/storage/tests.rs:3136-3148`; `src/backend/handshake_core/src/storage/tests.rs:3215-3239`; `src/backend/handshake_core/tests/storage_conformance.rs:32`; `src/backend/handshake_core/tests/storage_conformance.rs:40`
+  - `2.3.13.7 LoomSourceAnchor export/replay durability` -> `src/backend/handshake_core/src/storage/loom.rs:293-305`; `src/backend/handshake_core/src/storage/tests.rs:1079-1149`; `src/backend/handshake_core/src/storage/sqlite.rs:2496-2532`; `src/backend/handshake_core/src/storage/postgres.rs:2025-2059`
+- NOT_PROVEN:
+  - NONE
+- MAIN_BODY_GAPS:
+  - NONE
+- QUALITY_RISKS:
+  - NONE
+- DIFF_ATTACK_SURFACES:
+  - HTTP route exposure for traversal plus block-scoped and workspace-scoped metrics recomputation.
+  - Recursive-depth bounding at the API boundary for both traversal and graph-filtered search.
+  - Backend SQL hardening for edge-type traversal filters on PostgreSQL and SQLite.
+  - Shared-storage conformance and explicit 10K-block traversal target coverage.
+- INDEPENDENT_CHECKS_RUN:
+  - `just validator-handoff-check WP-1-Loom-Storage-Portability-v3` => PASS; reran committed `pre-work` and `post-work --rev HEAD` against `7aa995b`, confirming the manifest now matches the final five-file repair diff.
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib api::loom::tests::graph_traversal_and_metrics_routes_work -- --exact --nocapture` => PASS; exercised `traverse_loom_graph`, `recompute_loom_block_metrics`, and `recompute_all_loom_metrics` on the final committed API surface.
+  - `$env:POSTGRES_TEST_URL='postgres://fastfocus:fastfocus@127.0.0.1:55434/fastfocus'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture` => PASS; re-exercised PostgreSQL graph traversal, directional edge queries, metrics recomputation, backlink-depth negative path, and LoomSourceAnchor round-trip on the final head.
+  - `rg -n "MAX_LOOM_GRAPH_DEPTH|traverse_loom_graph|recompute_loom_block_metrics|recompute_all_loom_metrics|ANY\\(\\$4::TEXT\\[\\]\\)|json_each\\(\\$4\\)" src/backend/handshake_core/src/api/loom.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/storage/sqlite.rs` => confirmed route exposure, depth clamp at the API boundary, and parameterized edge-type filters on both backends.
+- COUNTERFACTUAL_CHECKS:
+  - If `src/backend/handshake_core/src/api/loom.rs:791` or `src/backend/handshake_core/src/api/loom.rs:1040-1042` stopped clamping depth to `MAX_LOOM_GRAPH_DEPTH`, the oversize-depth request at `src/backend/handshake_core/src/api/loom.rs:1496` would stop proving bounded traversal/search behavior.
+  - If `src/backend/handshake_core/src/api/loom.rs:933`; `src/backend/handshake_core/src/api/loom.rs:967`; or `src/backend/handshake_core/src/api/loom.rs:986` were removed, `api::loom::tests::graph_traversal_and_metrics_routes_work` would fail on the missing route handlers.
+  - If `src/backend/handshake_core/src/storage/postgres.rs:2121-2135` or `src/backend/handshake_core/src/storage/sqlite.rs:2603-2624` reverted away from bound edge-type filters, traversal filter hardening and backend parity would be lost even though the rest of the recursive CTE shape remained.
+- BOUNDARY_PROBES:
+  - HTTP route -> storage trait -> backend traversal: `src/backend/handshake_core/src/api/loom.rs:933-1042` feeds the trait methods at `src/backend/handshake_core/src/storage/mod.rs:1674-1696`, which land in the backend CTE implementations at `src/backend/handshake_core/src/storage/postgres.rs:2098-2235` and `src/backend/handshake_core/src/storage/sqlite.rs:2573-2722`.
+  - Storage write -> readback -> replay boundary: `src/backend/handshake_core/src/storage/tests.rs:1079-1149` confirms that `source_anchor` written with a Loom edge survives retrieval through `get_outgoing_edges` and export/replay on both providers.
+- NEGATIVE_PATH_CHECKS:
+  - PostgreSQL negative-path rerun: `postgres_loom_storage_conformance` passed while `src/backend/handshake_core/src/storage/tests.rs:1046-1064` requires `backlink_depth: Some(1)` to reject an indirect tag path.
+  - Oversize-depth API probe: `src/backend/handshake_core/src/api/loom.rs:1496` exercises a request above `MAX_LOOM_GRAPH_DEPTH` and still passes through the clamped traversal/search path.
+- INDEPENDENT_FINDINGS:
+  - The repair commit closes the two earlier partial findings: the traversal/metrics API routes now exist, and the committed post-work manifest now matches the actual five-file repair diff.
+  - The backend traversal filter hardening is real on both providers; the final code binds filter values instead of formatting raw edge-type SQL.
+  - The final head keeps the portability contract concentrated inside the shared storage abstraction and conformance surface rather than scattering backend-specific behavior into API-local shims.
+- RESIDUAL_UNCERTAINTY:
+  - This remains a `HIGH`-risk shared storage surface, so post-merge spotchecks on both providers are still prudent even after the committed diff-scoped PASS.
+  - I did not rerun every 10K-block performance probe in the validator pass; the packet already carries committed evidence for those exact targets, and this validator rerun focused on the repaired API and backend-hardening surfaces.
+- SPEC_CLAUSE_MAP:
+  - `[LM-GRAPH-001] Graph traversal with recursive CTEs on both backends` -> `src/backend/handshake_core/src/api/loom.rs:121`; `src/backend/handshake_core/src/api/loom.rs:933`; `src/backend/handshake_core/src/storage/postgres.rs:2098-2135`; `src/backend/handshake_core/src/storage/sqlite.rs:2573-2624`; `src/backend/handshake_core/src/storage/tests.rs:1313`; `src/backend/handshake_core/tests/storage_conformance.rs:56`; `src/backend/handshake_core/tests/storage_conformance.rs:64`
+  - `[LM-SEARCH-002] PostgreSQL search filterable by graph relationships` -> `src/backend/handshake_core/src/storage/loom.rs:360`; `src/backend/handshake_core/src/api/loom.rs:1017-1042`; `src/backend/handshake_core/src/storage/postgres.rs:2703-2775`; `src/backend/handshake_core/src/storage/tests.rs:1046-1064`
+  - `2.3.13.7 get_backlinks and get_outgoing_edges` -> `src/backend/handshake_core/src/storage/mod.rs:1674-1679`; `src/backend/handshake_core/src/storage/postgres.rs:2025-2059`; `src/backend/handshake_core/src/storage/sqlite.rs:2496-2532`; `src/backend/handshake_core/src/storage/tests.rs:1016-1017`
+  - `2.3.13.7 recompute_block_metrics and recompute_all_metrics` -> `src/backend/handshake_core/src/api/loom.rs:967-993`; `src/backend/handshake_core/src/storage/mod.rs:1691-1696`; `src/backend/handshake_core/src/storage/postgres.rs:2189-2235`; `src/backend/handshake_core/src/storage/sqlite.rs:2676-2722`; `src/backend/handshake_core/src/storage/tests.rs:822-842`
+  - `[CX-DBP-011] Portable schema and migrations` -> `src/backend/handshake_core/src/storage/tests.rs:3136-3148`; `src/backend/handshake_core/src/storage/tests.rs:3215-3239`; `src/backend/handshake_core/tests/storage_conformance.rs:32`; `src/backend/handshake_core/tests/storage_conformance.rs:40`
+  - `2.3.13.7 LoomSourceAnchor export/replay durability` -> `src/backend/handshake_core/src/storage/loom.rs:293-305`; `src/backend/handshake_core/src/storage/tests.rs:1079-1149`; `src/backend/handshake_core/src/storage/sqlite.rs:2496-2532`; `src/backend/handshake_core/src/storage/postgres.rs:2025-2059`
+- NEGATIVE_PROOF:
+  - Out-of-scope downstream Loom bridge requirements remain open: this packet proves storage/API portability only and does not implement the later downloader/archive bridge behavior tracked under `WP-1-Media-Downloader-Loom-Bridge` and `WP-1-Video-Archive-Loom-Integration`.
