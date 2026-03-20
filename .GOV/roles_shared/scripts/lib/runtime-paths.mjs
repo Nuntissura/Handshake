@@ -92,6 +92,22 @@ export function resolveWorkPacketPath(wpId) {
   return null;
 }
 
+export function workPacketPath(wpId) {
+  return resolveWorkPacketPath(wpId)?.packetPath || govRootRelPath("task_packets", `${wpId}.md`);
+}
+
+export function inferWpIdFromPacketPath(packetPath) {
+  const normalized = normalizePath(packetPath);
+  if (!normalized) return "";
+  const baseName = path.posix.basename(normalized);
+  if (/^packet\.md$/i.test(baseName)) {
+    const parentName = path.posix.basename(path.posix.dirname(normalized));
+    return /^WP-/.test(parentName) ? parentName : "";
+  }
+  const wpId = baseName.replace(/\.md$/i, "");
+  return /^WP-/.test(wpId) ? wpId : "";
+}
+
 /**
  * Resolve refinement path — supports both folder structure and flat file.
  * Folder: .GOV/task_packets/WP-{ID}/refinement.md (new, co-located)
@@ -138,7 +154,7 @@ function relWithinGovernanceRuntime(...segments) {
  * Checks gov_runtime first (new location), falls back to .GOV/ (legacy).
  */
 export function resolveOrchestratorGatesPath() {
-  const runtimePath = relWithinGovernanceRuntime("ORCHESTRATOR_GATES.json");
+  const runtimePath = relWithinGovernanceRuntime("roles_shared", "ORCHESTRATOR_GATES.json");
   if (fs.existsSync(runtimePath)) return runtimePath;
   return govRootRelPath("roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
 }

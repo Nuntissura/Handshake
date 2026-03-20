@@ -20,7 +20,7 @@
 - Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `gov_kernel`.
 - Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`.
 - `user_ilja`, `role_orchestrator`, and `gov_kernel` on GitHub are backup branches, not integration branches. They may diverge from `main`.
-- `role_orchestrator` and `gov_kernel` MUST NOT be merged into `main`. Non-`.GOV/` orchestrator changes reach `main` by file copy. `.GOV/` changes reach `main` through `just sync-gov-to-main` (Integration Validator responsibility) [CX-212D, CX-113].
+- `role_orchestrator` and `gov_kernel` MUST NOT be merged into `main`. Non-`.GOV/` orchestrator changes reach `main` by file copy. `.GOV/` changes reach `main` through `just sync-gov-to-main` (Integration Validator default responsibility; Orchestrator may execute only under explicit Operator instruction) [CX-212D, CX-113].
 - Matching backup pushes are allowed safety operations. For Validator work this means pushing the assigned WP backup branch when preserving committed state before destructive local operations.
 - The packet-declared WP backup branch is the shared remote WP backup branch for Coder, WP Validator, and Integration Validator. Any validator form may push that packet-declared branch when preserving WP-scoped committed state, but validators must not improvise separate validator-only remote WP backup branches.
 - Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
@@ -54,12 +54,12 @@
 
 See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
-**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. The Integration Validator is responsible for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. The Integration Validator is the default owner for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`, but the Orchestrator may execute that mechanical sync/push path when explicitly instructed by the Operator. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
-- The Integration Validator MUST verify `../Handshake Artifacts/` is clean of stale artifacts before pushing to `origin/main`.
+- The Integration Validator, or the Orchestrator when explicitly instructed to perform the `origin/main` push, MUST verify `../Handshake Artifacts/` is clean of stale artifacts before pushing to `origin/main`.
 - Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
 - This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
 - Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the WP is explicitly remediating them.
@@ -71,7 +71,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 - Validator work currently has three governance forms:
   - `Classical Validator` = manual-relay / non-orchestrator-managed validator operating from `handshake_main` on branch `main`. This form may own final validation closure and merge-to-`main` authority when no orchestrator-managed Integration Validator lane exists.
   - `WP Validator` = orchestrator-managed, WP-scoped advisory validator operating from the coder worktree (`wtc-*` on `feat/WP-*` branch, `/.GOV/` junction to kernel). Reads product code in the coder worktree, diffs against `main` for before/after comparison, writes governance through the `.GOV/` junction. This form may inspect live coder progress, challenge vibe-coding/spec drift, and request steering through packet communications plus Orchestrator-owned ACP controls, but it is not the final merge authority.
-  - `Integration Validator` = orchestrator-managed final validator operating from `handshake_main` on branch `main` (no WP-specific worktree). This form owns final technical verdict, merge-to-`main` authority, and `sync-gov-to-main` responsibility for orchestrator-managed WPs unless the packet explicitly overrides it.
+  - `Integration Validator` = orchestrator-managed final validator operating from `handshake_main` on branch `main` (no WP-specific worktree). This form owns final technical verdict, merge-to-`main` authority, and the default `sync-gov-to-main` responsibility for orchestrator-managed WPs unless the packet explicitly overrides it.
 - Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
 - For newly created repo-governed validator sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
@@ -232,7 +232,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
 - `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`
-- `.GOV/task_packets/WP-*.md`
+- `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`
 - `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json` (when present)
 
 Resume rule (hard, anti-babysit):
@@ -329,7 +329,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - The Task Board update MUST be carried in the same WP branch closure flow as the PASS report append / packet `**Status:** Done` update, so that the eventual merge to `main` and fast-forward of role worktrees makes the closed `[VALIDATED]` state visible everywhere immediately.
 - If the WP packet says `Done`/`PASS` but the Task Board still shows `READY_FOR_DEV` or `IN_PROGRESS`, closure is incomplete and the Validator MUST fix the Task Board before merge.
 - Activation-state reconciliation is part of PASS closure, not an optional cleanup:
-  - If `.GOV/task_packets/{WP_ID}.md` is an official packet, `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` MUST point the Base WP to that official packet path, not a stub path.
+  - If `.GOV/task_packets/{WP_ID}.md` or `.GOV/task_packets/{WP_ID}/packet.md` is an official packet, `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` MUST point the Base WP to that official packet path, not a stub path.
   - `.GOV/roles_shared/records/TASK_BOARD.md` MUST NOT keep that Active Packet under `## Stub Backlog (Not Activated)`.
   - `.GOV/roles_shared/records/BUILD_ORDER.md` MUST be regenerated from the reconciled Task Board + traceability state via `just build-order-sync`.
 - Required final verification before merge/push of `main`: `just gov-check`
@@ -647,7 +647,7 @@ State is tracked per WP in `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.js
    - set work packet `**Status:** Done`
    - update `.GOV/roles_shared/records/TASK_BOARD.md` to `## Done` / `[VALIDATED]`
    - sync `.GOV/roles_shared/records/BUILD_ORDER.md` via `just build-order-sync`
-3. Validator appends the VALIDATION REPORT to `.GOV/task_packets/{WP_ID}.md` (APPEND-ONLY per [CX-WP-001]).
+3. Validator appends the VALIDATION REPORT to the active official packet path (`.GOV/task_packets/{WP_ID}.md` or `.GOV/task_packets/{WP_ID}/packet.md`) (APPEND-ONLY per [CX-WP-001]).
 4. Validator runs: `just validator-gate-append {WP_ID} {PASS|FAIL}`
 5. Validator does **not** paste the full report to chat yet.
 
@@ -756,7 +756,7 @@ Validation Claims (do not collapse into a single PASS):
 - VALIDATOR_RISK_TIER: LOW | MEDIUM | HIGH
 
 Scope Inputs:
-- Task Packet: .GOV/task_packets/{WP_ID}.md (status: {status})
+- Task Packet: .GOV/task_packets/{WP_ID}/packet.md (or legacy `.GOV/task_packets/{WP_ID}.md`) (status: {status})
 - Spec: {spec version/anchors}
 
 Files Checked:
@@ -837,7 +837,7 @@ Split-Verdict Rules:
 - If the environment blocked full proof, record that in `ENVIRONMENT_VERDICT` instead of narrating an unconditional PASS.
  
 Work Packet Update (APPEND-ONLY):
-- [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL) MUST be APPENDED to the end of the `.GOV/task_packets/{WP_ID}.md` file. OVERWRITING IS FORBIDDEN.
+- [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL) MUST be APPENDED to the end of the active official packet file (`.GOV/task_packets/{WP_ID}.md` or `.GOV/task_packets/{WP_ID}/packet.md`). OVERWRITING IS FORBIDDEN.
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
 - STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL using the template below, but only after `verdict: PASS` may the Validator set work packet `**Status:** Done`, move TASK_BOARD to Done/Validated, and sync BUILD_ORDER (`just build-order-sync`). **DO NOT OVERWRITE User Context or previous history [CX-654].**
 - For non-PASS governed verdicts or `DISPOSITION=OUTDATED_ONLY`, append the report but do not perform normal Done/Validated PASS closure updates on work packet/TASK_BOARD/BUILD_ORDER unless the governed lane explicitly records the outdated-only closure path.

@@ -29,7 +29,7 @@
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: Coder-A
+- CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed>
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
@@ -59,7 +59,7 @@
 - CODER_RESUME_COMMAND: just coder-next WP-1-Structured-Collaboration-Schema-Registry-v3
 <!-- Validator roles keep distinct local branches/worktrees, but they mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
 - WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Structured-Collaboration-Schema-Registry-v3
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-32aa9f34d9
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-schema-registry-v3
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Structured-Collaboration-Schema-Registry-v3
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Structured-Collaboration-Schema-Registry-v3
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
@@ -104,7 +104,7 @@
 - STUB_WP_IDS: NONE
 <!-- Allowed: comma-separated WP-... IDs | NONE. Must match refinement metadata STUB_WP_IDS. -->
 - LOCAL_BRANCH: feat/WP-1-Structured-Collaboration-Schema-Registry-v3
-- LOCAL_WORKTREE_DIR: ../wtc-32aa9f34d9
+- LOCAL_WORKTREE_DIR: ../wtc-schema-registry-v3
 - REMOTE_BACKUP_BRANCH: feat/WP-1-Structured-Collaboration-Schema-Registry-v3
 - REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Structured-Collaboration-Schema-Registry-v3
 - REMOTE_BACKUP_LIFECYCLE: TEMPORARY
@@ -132,8 +132,8 @@
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
-Blockers: NONE
-Next: N/A
+Blockers: Prior v3 ACP bootstrap was abandoned after the assigned feature branch/worktree were torn down; no live coder or validator session remains. Fresh PREPARE plus canonical worktree recreation is required before delegation can restart.
+Next: Wait for Operator restart instruction, then recreate the canonical worktree and re-run PREPARE before coder launch.
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
@@ -232,7 +232,7 @@ Next: N/A
 - NOTE: Set `SUB_AGENT_DELEGATION: ALLOWED` only with explicit Operator approval; when ALLOWED, replace `OPERATOR_APPROVAL_EVIDENCE` with the exact approval line from chat.
 
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
-- REFINEMENT_FILE: .GOV/refinements/WP-1-Structured-Collaboration-Schema-Registry-v3.md
+- REFINEMENT_FILE: .GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/refinement.md
 - Rule: Task packet creation is blocked until refinement is complete and signed.
 
 ## SPEC_CONTEXT_WINDOWS (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
@@ -672,10 +672,21 @@ git revert <commit-sha>
 - Task Board: .GOV/roles_shared/records/TASK_BOARD.md
 - WP Traceability: .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
 ## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
-- Required when `WP_ID` includes `-v{N}`.
-- List every prior packet for `BASE_WP_ID` (filenames/paths) and state what is preserved vs changed.
-- Hard rule: Do not drop prior requirements; carry them forward explicitly.
-- If this is not a revision packet, write: `N/A`.
+- Roadmap/spec/repo audit basis:
+  - Base WP traceability anchor: `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` marks `WP-1-Structured-Collaboration-Schema-Registry-v3` as the active remediation packet for `WP-1-Structured-Collaboration-Schema-Registry`.
+  - Governing Main Body scope is unchanged across variants: shared structured-collaboration envelope, project-profile extension compatibility, summary/detail identity joins, task-board projection schema, and role-mailbox thread/index schema obligations remain mandatory.
+  - Current repo-code audit baseline for v3 is the signed refinement plus direct inspection of current `main`/merge-base state; prior validator PASS claims are treated as non-authoritative where code/spec inspection disproved closure.
+- Prior packet: `.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v1.md`
+  - Preserved into v3: the base WP intent to make the shared structured-collaboration registry authoritative across Work Packet, Micro-Task, Task Board, and Role Mailbox artifact families.
+  - Preserved into v3: the requirement that summary/detail artifacts, profile extensions, and mailbox exports validate against one shared contract rather than ad hoc emitter-specific rules.
+  - Changed in v3: v1 closure claims are no longer trusted as sufficient proof because later direct code inspection found missing structured diagnostics, missing `updated_at` enforcement, missing task-board fields, missing summary/detail runtime integration proof, and incomplete mailbox thread-line proof.
+- Prior packet: `.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v2.md`
+  - Preserved into v3: the remediation posture against the v1 false-closeout and the shared-surface focus on `locus/types.rs`, task-board projections, workflow/runtime artifact emission, and mailbox artifacts.
+  - Changed in v3: the missing requirements are promoted into explicit clause-closure rows and semantic-proof assets so the coder/validator cannot rely on narrative pass claims alone.
+  - Changed in v3: the signed refinement narrows the active repo-code gap set to five concrete unclosed obligations: machine-readable schema diagnostics, `TaskBoardEntryRecordV1` spec fields, base-envelope `updated_at`, summary/detail integration proof on real emission paths, and `RoleMailboxThreadLineV1` completeness including `transcription_links`.
+- Carry-forward verdict:
+  - No prior governing requirement is dropped in v3.
+  - v3 supersedes v1/v2 closure claims but preserves their valid scope while replacing under-proven or incorrect completion assumptions with explicit current-main gap statements and test/example obligations.
 
 ## BOOTSTRAP
 - FILES_TO_OPEN:

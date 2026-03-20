@@ -59,7 +59,11 @@ import {
   sessionPluginRequestsFileForPacketVersion,
   sessionRegistryFileForPacketVersion,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
-import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import {
+  GOV_ROOT_REPO_REL,
+  resolveOrchestratorGatesPath,
+  workPacketPath,
+} from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const WP_ID = process.argv[2];
 
@@ -73,6 +77,7 @@ console.log(`\nPre-work validation for ${WP_ID}...\n`);
 const errors = [];
 const warnings = [];
 const spec = JSON.parse(fs.readFileSync(path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'cor701-spec.json'), 'utf8'));
+const resolvedPacketPath = workPacketPath(WP_ID);
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
@@ -257,23 +262,21 @@ function hasCommitByExactSubject(subject) {
 // Check 1: work packet file exists
 console.log('Check 1: work packet file exists');
 const taskPacketDir = `${GOV_ROOT_REPO_REL}/task_packets`;
-const packetFilename = `${WP_ID}.md`;
 
 let packetContent = '';
-let packetPath = '';
+let packetPath = resolvedPacketPath;
 let lastPrepare = null;
 
 if (!fs.existsSync(taskPacketDir)) {
   errors.push(`work packet directory not found: ${taskPacketDir}`);
   console.log(`FAIL: Missing directory ${taskPacketDir}`);
 } else {
-  packetPath = path.join(taskPacketDir, packetFilename);
   if (!fs.existsSync(packetPath)) {
-    errors.push(`No exact work packet file found for ${WP_ID}: expected ${taskPacketDir}/${packetFilename}`);
-    console.log(`FAIL: Missing ${packetFilename}`);
+    errors.push(`No work packet file found for ${WP_ID}: expected ${resolvedPacketPath}`);
+    console.log(`FAIL: Missing ${path.basename(packetPath)}`);
   } else {
     packetContent = fs.readFileSync(packetPath, 'utf8');
-    console.log(`PASS: Found ${packetFilename}`);
+    console.log(`PASS: Found ${packetPath.replace(/\\/g, '/')}`);
   }
 
   // Check 1.5: Worktree + branch preflight (mechanical guard against wrong-worktree edits)
@@ -1124,7 +1127,9 @@ if (errors.length === 0) {
     const riskTier = parseSingleField(packetContent, 'RISK_TIER') || '<missing>';
     const baseWpId = parseSingleField(packetContent, 'BASE_WP_ID') || '<missing>';
     const mergeBaseSha = parseSingleField(packetContent, 'MERGE_BASE_SHA') || '<missing>';
-    const refinementFile = defaultRefinementPath(WP_ID).replace(/\\/g, '/');
+    const refinementFile =
+      ((packetContent.match(/^\s*-\s*REFINEMENT_FILE\s*:\s*(.+)\s*$/mi) || [])[1]?.trim()
+        || defaultRefinementPath(WP_ID)).replace(/\\/g, '/');
 
     const inScope = extractIndentedListAfterLabel(packetContent, 'IN_SCOPE_PATHS', { stopLabels: ['OUT_OF_SCOPE'] });
     const outOfScope = extractIndentedListAfterLabel(packetContent, 'OUT_OF_SCOPE', { stopLabels: [] });

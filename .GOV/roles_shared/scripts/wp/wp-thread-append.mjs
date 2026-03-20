@@ -4,11 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalize } from "../lib/wp-communications-lib.mjs";
-import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
+import { workPacketPath } from "../lib/runtime-paths.mjs";
 import { appendWpReceipt } from "./wp-receipt-append.mjs";
 import { appendWpNotification, resolveTargetRoleFromMention } from "./wp-notification-append.mjs";
-
-const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -38,7 +36,7 @@ function nullableCliString(value) {
 }
 
 function loadThreadContext(wpId) {
-  const packetPath = path.join(PACKETS_DIR, `${wpId}.md`);
+  const packetPath = workPacketPath(wpId);
   if (!fs.existsSync(packetPath)) {
     throw new Error(`Official packet not found: ${normalize(packetPath)}`);
   }

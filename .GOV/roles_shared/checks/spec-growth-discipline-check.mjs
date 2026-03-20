@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 function resolveRepoRoot() {
   try {
@@ -28,15 +29,19 @@ function compareVersions(a, b) {
 }
 
 function findLatestSpec(repoRoot) {
-  const files = fs.readdirSync(repoRoot).filter((name) => /^Handshake_Master_Spec_v\d+\.\d+\.md$/.test(name));
+  const specDir = path.join(repoRoot, GOV_ROOT_REPO_REL, "spec");
+  const files = fs.readdirSync(specDir).filter((name) => /^Handshake_Master_Spec_v\d+\.\d+\.md$/.test(name));
   const parsed = files
     .map((name) => ({ name, version: parseVersion(name) }))
     .filter((entry) => entry.version)
     .sort((a, b) => compareVersions(a.version, b.version));
   if (parsed.length === 0) {
-    throw new Error("No Handshake_Master_Spec_v*.md files found");
+    throw new Error(`No Handshake_Master_Spec_v*.md files found in ${GOV_ROOT_REPO_REL}/spec`);
   }
-  return parsed[parsed.length - 1];
+  return {
+    ...parsed[parsed.length - 1],
+    specDir,
+  };
 }
 
 function main() {
@@ -52,7 +57,7 @@ function main() {
     return;
   }
 
-  const specPath = path.join(repoRoot, latest.name);
+  const specPath = path.join(latest.specDir, latest.name);
   const specText = fs.readFileSync(specPath, "utf8");
   const currentAddMarker = `[ADD ${latestTag}]`;
   const appendicesStart = [

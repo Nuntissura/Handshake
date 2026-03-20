@@ -26,7 +26,7 @@ import {
   taskBoardStatus,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { listValidatorGateStateFiles, resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
-import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 function freshnessBoost(timestampMs) {
   const ageHours = Math.max(0, (Date.now() - timestampMs) / (1000 * 60 * 60));
@@ -89,15 +89,23 @@ function collectValidationReadyPackets() {
 
   const candidates = [];
   for (const entry of fs.readdirSync(taskPacketDir, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+    let filePath = "";
+    if (entry.isDirectory()) {
+      if (!entry.name.startsWith("WP-")) continue;
+      filePath = path.join(taskPacketDir, entry.name, "packet.md");
+      if (!fs.existsSync(filePath)) continue;
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      filePath = path.join(taskPacketDir, entry.name);
+    } else {
+      continue;
+    }
 
-    const wpId = entry.name.replace(/\.md$/i, "");
-    if (!wpId.startsWith("WP-")) continue;
+    const wpId = inferWpIdFromPacketPath(filePath);
+    if (!wpId) continue;
 
     const boardStatus = taskBoardStatus(wpId);
     if (isTerminalTaskBoardStatus(boardStatus)) continue;
 
-    const filePath = path.join(taskPacketDir, entry.name);
     const packetContent = loadPacket(wpId);
     const currentWpStatus = parseCurrentWpStatus(packetContent);
     const packetStatus = parseStatus(packetContent);
@@ -394,6 +402,5 @@ printNextCommands([
   `cat ${packetPath(wpId).replace(/\\/g, "/")}`,
   `just validator-gate-status ${wpId}`,
 ]);
-
 
 

@@ -10,9 +10,7 @@ import {
   NOTIFICATION_CURSOR_FILE_NAME,
   ROUTABLE_ROLE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
-import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
-
-const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
+import { workPacketPath } from "../lib/runtime-paths.mjs";
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -21,7 +19,7 @@ function parseSingleField(text, label) {
 }
 
 function resolveCommDir(wpId) {
-  const packetPath = path.join(PACKETS_DIR, `${wpId}.md`);
+  const packetPath = workPacketPath(wpId);
   if (fs.existsSync(packetPath)) {
     const text = fs.readFileSync(packetPath, "utf8");
     const commDir = parseSingleField(text, "WP_COMMUNICATION_DIR");

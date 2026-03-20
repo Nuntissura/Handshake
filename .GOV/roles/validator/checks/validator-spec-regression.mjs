@@ -3,7 +3,7 @@
  * Spec regression check: ensure SPEC_CURRENT points to existing spec and required anchors are present.
  */
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const specPointerPath = ".GOV/spec/SPEC_CURRENT.md";
 // Phase/safety-critical anchors that must exist in the current spec.
@@ -28,12 +28,15 @@ function main() {
     fail(`cannot read ${specPointerPath}: ${err.message}`);
   }
 
-  const match = specPointer.match(/\*\*(Handshake_Master_Spec_[^*]+)\*\*/);
+  const match = specPointer.match(/\*\*([^*\r\n]*Handshake_Master_Spec_[^*]+)\*\*/);
   if (!match) {
     fail("SPEC_CURRENT does not reference a Master Spec filename.");
   }
-  const specFile = match[1];
-  const specPath = join(specFile); // specs live at repo root
+  const specRef = match[1].trim();
+  const specFile = specRef.split("/").pop();
+  const specPath = specRef.startsWith(".GOV/")
+    ? join(specRef)
+    : join(dirname(specPointerPath), specRef);
 
   let spec;
   try {
@@ -52,4 +55,3 @@ function main() {
 }
 
 main();
-

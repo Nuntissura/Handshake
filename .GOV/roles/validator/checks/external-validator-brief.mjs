@@ -9,6 +9,7 @@ import {
   loadJson,
   loadOrchestratorGateLogs,
   loadPacket,
+  packetPath,
   packetExists,
   lastGateLog,
   parseClaimField,
@@ -191,7 +192,7 @@ const gitContext = currentGitContext();
 const repoRoot = gitContext.topLevel || process.cwd();
 
 if (!packetExists(parsed.wpId)) {
-  console.error(`[EXTERNAL_VALIDATOR_BRIEF] Task packet not found: .GOV/task_packets/${parsed.wpId}.md`);
+  console.error(`[EXTERNAL_VALIDATOR_BRIEF] Task packet not found: ${packetPath(parsed.wpId)}`);
   process.exit(1);
 }
 

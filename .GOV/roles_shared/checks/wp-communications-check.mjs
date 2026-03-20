@@ -16,7 +16,7 @@ import {
   validateRuntimeStatus,
 } from "../scripts/lib/wp-communications-lib.mjs";
 import { packetUsesExternalGovernanceRuntime } from "../scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 
 const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
@@ -36,10 +36,21 @@ const violations = [];
 ensureSchemaFilesExist();
 
 if (fs.existsSync(PACKETS_DIR)) {
-  const files = fs.readdirSync(PACKETS_DIR).filter((name) => name.endsWith(".md"));
-  for (const name of files) {
-    const wpId = name.slice(0, -3);
-    const packetPath = path.join(PACKETS_DIR, name);
+  const entries = fs.readdirSync(PACKETS_DIR, { withFileTypes: true });
+  for (const entry of entries) {
+    let wpId = "";
+    let packetPath = "";
+    if (entry.isDirectory()) {
+      if (!entry.name.startsWith("WP-")) continue;
+      wpId = entry.name;
+      packetPath = path.join(PACKETS_DIR, entry.name, "packet.md");
+      if (!fs.existsSync(packetPath)) continue;
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      wpId = entry.name.slice(0, -3);
+      packetPath = path.join(PACKETS_DIR, entry.name);
+    } else {
+      continue;
+    }
     const text = fs.readFileSync(packetPath, "utf8");
 
     const communicationDir = parseSingleField(text, "WP_COMMUNICATION_DIR");
@@ -123,7 +134,7 @@ for (const root of allCommunicationRoots()) {
       violations.push(`${root}/${entry.name}: unexpected directory in WP communication root`);
       continue;
     }
-    const packetPath = path.join(PACKETS_DIR, `${entry.name}.md`);
+    const packetPath = resolveWorkPacketPath(entry.name)?.packetPath || path.join(PACKETS_DIR, `${entry.name}.md`);
     if (!fs.existsSync(packetPath)) {
       violations.push(`${root}/${entry.name}: orphan communication folder with no matching official packet`);
       continue;
@@ -147,4 +158,3 @@ if (violations.length > 0) {
 }
 
 console.log("wp-communications-check ok");
-

@@ -57,10 +57,10 @@
 - ROLE_SESSION_REASONING_CONFIG_VALUE: xhigh
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next WP-1-Loom-Storage-Portability-v1
-- WP_VALIDATOR_LOCAL_BRANCH: validate/WP-1-Loom-Storage-Portability-v1
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtv-09be9cc587
-- WP_VALIDATOR_REMOTE_BACKUP_BRANCH: validate/WP-1-Loom-Storage-Portability-v1
-- WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/validate/WP-1-Loom-Storage-Portability-v1
+- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Loom-Storage-Portability-v1
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-storage-portability-v1
+- WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Loom-Storage-Portability-v1
+- WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Loom-Storage-Portability-v1
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
 - WP_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-Loom-Storage-Portability-v1
 - INTEGRATION_VALIDATOR_LOCAL_BRANCH: integrate/WP-1-Loom-Storage-Portability-v1

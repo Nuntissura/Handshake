@@ -19,7 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { GOV_ROOT_REPO_REL } from "./lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath } from "./lib/runtime-paths.mjs";
 
 const BUILD_ORDER_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md`;
 const SPEC_CURRENT_PATH = `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md`;
@@ -63,9 +63,7 @@ function normalizePath(p) {
 }
 
 function packetIdFromPath(packetPath) {
-  const p = normalizePath(packetPath);
-  const last = p.split("/").filter(Boolean).pop() || "";
-  return last.endsWith(".md") ? last.slice(0, -3) : last;
+  return inferWpIdFromPacketPath(normalizePath(packetPath));
 }
 
 function parseSpecTarget(specCurrentContent) {
@@ -561,4 +559,3 @@ if (!sameContent) {
 } else {
   console.log(`build-order-sync ok: ${BUILD_ORDER_PATH} already up to date`);
 }
-

@@ -238,11 +238,15 @@ export function validateRuntimeStatus(data) {
   if (!isNonEmptyString(data.base_wp_id) || !/^WP-/.test(data.base_wp_id)) errors.push("base_wp_id must start with WP-");
   const taskPacketPrefix = GOV_ROOT_REPO_REL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const taskPacketFallback = "\\.GOV";
+  const normalizedTaskPacket = normalize(data.task_packet);
+  const matchesPacketPath = (prefix) =>
+    new RegExp(`^${prefix}/task_packets/WP-.*\\.md$`).test(normalizedTaskPacket)
+    || new RegExp(`^${prefix}/task_packets/WP-[^/]+/packet\\.md$`).test(normalizedTaskPacket);
   if (!isNonEmptyString(data.task_packet) || !(
-    new RegExp(`^${taskPacketPrefix}/task_packets/WP-.*\\.md$`).test(normalize(data.task_packet))
-    || new RegExp(`^${taskPacketFallback}/task_packets/WP-.*\\.md$`).test(normalize(data.task_packet))
+    matchesPacketPath(taskPacketPrefix)
+    || matchesPacketPath(taskPacketFallback)
   )) {
-    errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md`);
+    errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md or ${GOV_ROOT_REPO_REL}/task_packets/WP-*/packet.md`);
   }
   const currentPaths = communicationPathsForWp(data.wp_id);
   const legacyPaths = legacyCommunicationPathsForWp(data.wp_id);

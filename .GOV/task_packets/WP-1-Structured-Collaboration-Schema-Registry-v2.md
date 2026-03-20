@@ -40,8 +40,8 @@
 - CLI_SESSION_TOOL: codex
 - SESSION_PLUGIN_BRIDGE_ID: handshake.handshake-session-bridge
 - SESSION_PLUGIN_BRIDGE_COMMAND: handshakeSessionBridge.processLaunchQueue
-- SESSION_PLUGIN_REQUESTS_FILE: ../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl
-- SESSION_REGISTRY_FILE: ../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json
+- SESSION_PLUGIN_REQUESTS_FILE: ../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl
+- SESSION_REGISTRY_FILE: ../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json
 - SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION: 2
 - SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS: 20
 - SESSION_WATCH_POLICY: EVENT_WATCH_PRIMARY_HEARTBEAT_FALLBACK
@@ -58,8 +58,8 @@
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next WP-1-Structured-Collaboration-Schema-Registry-v2
 <!-- Validator roles keep distinct local branches/worktrees, but they mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
-- WP_VALIDATOR_LOCAL_BRANCH: validate/WP-1-Structured-Collaboration-Schema-Registry-v2
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtv-8f3226d62e
+- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Structured-Collaboration-Schema-Registry-v2
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-schema-registry-v2
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Structured-Collaboration-Schema-Registry-v2
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Structured-Collaboration-Schema-Registry-v2
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
@@ -117,10 +117,10 @@
 - MAX_CODER_REVISION_CYCLES: 3
 - MAX_VALIDATOR_REVIEW_CYCLES: 3
 - MAX_RELAY_ESCALATION_CYCLES: 2
-- WP_COMMUNICATION_DIR: ../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v2
-- WP_THREAD_FILE: ../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v2/THREAD.md
-- WP_RUNTIME_STATUS_FILE: ../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v2/RUNTIME_STATUS.json
-- WP_RECEIPTS_FILE: ../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v2/RECEIPTS.jsonl
+- WP_COMMUNICATION_DIR: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v2
+- WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v2/THREAD.md
+- WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v2/RUNTIME_STATUS.json
+- WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v2/RECEIPTS.jsonl
 - WP_VALIDATOR_OF_RECORD: <unassigned>
 - INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
 - SECONDARY_VALIDATOR_SESSIONS: NONE

@@ -29,7 +29,7 @@
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: Coder-B
+- CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed>
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
@@ -59,7 +59,7 @@
 - CODER_RESUME_COMMAND: just coder-next WP-1-Loom-Storage-Portability-v3
 <!-- Validator roles keep distinct local branches/worktrees, but they mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
 - WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Loom-Storage-Portability-v3
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-a99223a9e5
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-storage-portability-v3
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Loom-Storage-Portability-v3
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Loom-Storage-Portability-v3
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
@@ -104,7 +104,7 @@
 - STUB_WP_IDS: NONE
 <!-- Allowed: comma-separated WP-... IDs | NONE. Must match refinement metadata STUB_WP_IDS. -->
 - LOCAL_BRANCH: feat/WP-1-Loom-Storage-Portability-v3
-- LOCAL_WORKTREE_DIR: ../wtc-a99223a9e5
+- LOCAL_WORKTREE_DIR: ../wtc-storage-portability-v3
 - REMOTE_BACKUP_BRANCH: feat/WP-1-Loom-Storage-Portability-v3
 - REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Loom-Storage-Portability-v3
 - REMOTE_BACKUP_LIFECYCLE: TEMPORARY
@@ -132,8 +132,8 @@
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
-Blockers: NONE
-Next: N/A
+Blockers: Prior v3 ACP bootstrap was abandoned after the assigned feature branch/worktree were torn down; no live coder or validator session remains. Fresh PREPARE plus canonical worktree recreation is required before delegation can restart.
+Next: Wait for Operator restart instruction, then recreate the canonical worktree and re-run PREPARE before coder launch.
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
@@ -231,7 +231,7 @@ Next: N/A
 - NOTE: Set `SUB_AGENT_DELEGATION: ALLOWED` only with explicit Operator approval; when ALLOWED, replace `OPERATOR_APPROVAL_EVIDENCE` with the exact approval line from chat.
 
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
-- REFINEMENT_FILE: .GOV/refinements/WP-1-Loom-Storage-Portability-v3.md
+- REFINEMENT_FILE: .GOV/task_packets/WP-1-Loom-Storage-Portability-v3/refinement.md
 - Rule: Task packet creation is blocked until refinement is complete and signed.
 
 ## SPEC_CONTEXT_WINDOWS (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
@@ -647,10 +647,21 @@ git revert <commit-sha>
 - Task Board: .GOV/roles_shared/records/TASK_BOARD.md
 - WP Traceability: .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
 ## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
-- Required when `WP_ID` includes `-v{N}`.
-- List every prior packet for `BASE_WP_ID` (filenames/paths) and state what is preserved vs changed.
-- Hard rule: Do not drop prior requirements; carry them forward explicitly.
-- If this is not a revision packet, write: `N/A`.
+- Roadmap/spec/repo audit basis:
+  - Base WP traceability anchor: `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` marks `WP-1-Loom-Storage-Portability-v3` as the active remediation packet for `WP-1-Loom-Storage-Portability`.
+  - Governing Main Body scope is unchanged across variants: portable Loom storage trait behavior, portable schema/migrations, backend-parity search/view semantics, source-anchor durability, and dual-backend conformance remain mandatory.
+  - Current repo-code audit baseline for v3 is the signed refinement plus direct inspection of current `main`/merge-base state; prior validator PASS claims are treated as non-authoritative where code/spec inspection disproved closure.
+- Prior packet: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v1.md`
+  - Preserved into v3: the base WP intent to make Loom storage semantics portable across SQLite-now / PostgreSQL-ready backends without redefining canonical search, edge, or source-anchor meaning.
+  - Preserved into v3: the packet family focus on storage trait, backend adapters, API surface, filesystem artifact layout, migrations, and conformance tests.
+  - Changed in v3: v1 closure claims are no longer trusted as sufficient proof because later direct code inspection found missing graph-traversal and metrics APIs plus unproven portability obligations.
+- Prior packet: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v2.md`
+  - Preserved into v3: the remediation posture against the v1 false-closeout and the shared-surface emphasis on storage trait boundaries, migration portability, and backend conformance tests.
+  - Changed in v3: the missing requirements are promoted into explicit clause-closure rows and semantic-proof assets so the coder/validator must prove parity instead of relying on generic Loom test passes.
+  - Changed in v3: the signed refinement narrows the active repo-code gap set to six concrete unclosed obligations: `traverse_graph`, `recompute_block_metrics`, `recompute_all_metrics`, `get_backlinks`, `get_outgoing_edges`, PostgreSQL graph-filtered search per `LM-SEARCH-002`, and LoomSourceAnchor round-trip proof across backends/export-replay.
+- Carry-forward verdict:
+  - No prior governing requirement is dropped in v3.
+  - v3 supersedes v1/v2 closure claims but preserves their valid scope while replacing under-proven or incorrect completion assumptions with explicit current-main gap statements and test/example obligations.
 
 ## BOOTSTRAP
 - FILES_TO_OPEN:

@@ -287,7 +287,7 @@ function resolveSpecSnapshotAtRepo(repoRoot) {
 }
 
 function lastPrepareEntryAtRepo(repoRoot, wpId) {
-  const newPath = path.join(repoRoot, GOVERNANCE_RUNTIME_ROOT_REPO_REL, "ORCHESTRATOR_GATES.json");
+  const newPath = path.join(repoRoot, GOVERNANCE_RUNTIME_ROOT_REPO_REL, "roles_shared", "ORCHESTRATOR_GATES.json");
   const legacyPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
   const gatesPath = exists(newPath) ? newPath : legacyPath;
   if (!exists(gatesPath)) return null;

@@ -51,17 +51,33 @@ function toAbsNormalized(filePath) {
   return normalizePath(path.resolve(repoRoot, String(filePath || "")));
 }
 
+function resolveExternalLegacyCandidate(rawPath) {
+  const legacyPrefix = normalizePath(`${LEGACY_SHARED_GOV_RUNTIME_ROOT}/`);
+  const legacyAbsoluteMarker = normalizePath(`/${LEGACY_SHARED_GOV_RUNTIME_ROOT}/`);
+  let suffix = "";
+
+  if (rawPath.startsWith(legacyPrefix)) {
+    suffix = rawPath.slice(legacyPrefix.length);
+  } else {
+    const absoluteMarkerIndex = rawPath.indexOf(legacyAbsoluteMarker);
+    if (absoluteMarkerIndex >= 0) {
+      suffix = rawPath.slice(absoluteMarkerIndex + legacyAbsoluteMarker.length);
+    }
+  }
+
+  if (!suffix) return "";
+  const suffixSegments = suffix.split("/").filter(Boolean);
+  if (suffixSegments.length === 0) return "";
+  return normalizePath(governanceRuntimeAbsPath("roles_shared", ...suffixSegments));
+}
+
 function resolveOutputLogPath(filePath) {
   const raw = normalizePath(filePath || "");
   if (!raw) return "";
 
-  const legacyPrefix = normalizePath(`${LEGACY_SHARED_GOV_RUNTIME_ROOT}/`);
-  if (raw.startsWith(legacyPrefix)) {
-    const suffixSegments = raw.slice(legacyPrefix.length).split("/").filter(Boolean);
-    const externalCandidate = normalizePath(governanceRuntimeAbsPath("roles_shared", ...suffixSegments));
-    if (fs.existsSync(externalCandidate)) {
-      return externalCandidate;
-    }
+  const externalCandidate = resolveExternalLegacyCandidate(raw);
+  if (externalCandidate && fs.existsSync(externalCandidate)) {
+    return externalCandidate;
   }
 
   return toAbsNormalized(filePath);

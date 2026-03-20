@@ -250,7 +250,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
 - `ORCHESTRATOR_GATES.json (in gov_runtime)`
-- `.GOV/task_packets/WP-*.md`
+- `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`
 
 Resume rule (hard, anti-babysit):
 - After `just coder-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
@@ -495,7 +495,7 @@ Complete ALL steps before writing code. If any step fails, STOP and request help
 ### Step 1: Verify work packet Exists âœ‹ STOP
 
 **Check that orchestrator provided:**
-- [ ] work packet path mentioned (e.g., `.GOV/task_packets/WP-*.md`)
+- [ ] work packet path mentioned (e.g., `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`)
 - [ ] WP_ID in handoff message
 - [ ] "Orchestrator checklist complete" confirmation
 - [ ] Packet is an official work packet in `.GOV/task_packets/` (NOT a stub in `.GOV/task_packets/stubs/`)
@@ -504,7 +504,7 @@ Complete ALL steps before writing code. If any step fails, STOP and request help
 
 **Method 1: Check for file**
 ```bash
-ls -la .GOV/task_packets/WP-*.md
+ls -la .GOV/task_packets/WP-*.md .GOV/task_packets/WP-*/packet.md
 ```
 
 **Method 2: Check handoff message**
@@ -1545,7 +1545,7 @@ Now work is done.
 **Commands:**
 ```bash
 # Verify packet exists
-ls .GOV/task_packets/WP-*.md
+ls .GOV/task_packets/WP-*.md .GOV/task_packets/WP-*/packet.md
 
 # Read packet
 cat .GOV/task_packets/WP-{ID}-*.md

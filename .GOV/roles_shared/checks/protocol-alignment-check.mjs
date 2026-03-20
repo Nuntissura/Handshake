@@ -58,6 +58,11 @@ const ACTIVE_SURFACE_PATHS = [
 ];
 
 function resolveRepoRoot() {
+  const injectedRepoRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
+  if (injectedRepoRoot) {
+    return injectedRepoRoot;
+  }
+
   try {
     const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
       encoding: "utf8",

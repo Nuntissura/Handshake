@@ -47,7 +47,7 @@ See also:
 - `.GOV/codex/Handshake_Codex_v1.4.md`
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 
-**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's responsibility before pushing to `origin/main`; the Orchestrator MUST NOT run `sync-gov-to-main`. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's default responsibility before pushing to `origin/main`, but the Orchestrator MAY execute that mechanical sync/push path when the Operator explicitly instructs it to do so under [CX-212D]. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Product Runtime Root (Current Default)
 
@@ -162,7 +162,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - When more than one Coder is active, use one worktree per active WP.
 - Treat each active WP's `IN_SCOPE_PATHS` as an exclusive file-lock set.
 - Coders may commit freely on their WP branch.
-- Validators own final validation-backed merge authority to `main`.
+- Validators own final validation-backed merge authority to `main` for product changes. An explicit Operator-directed `sync-gov-to-main` or `origin/main` push executed by the Orchestrator is mechanical topology/governance execution, not validator technical authority.
 
 ## Worktree + Branch Gate [CX-WT-001] (BLOCKING)
 
@@ -471,8 +471,9 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 ## Gov-to-Main Sync Responsibility [CX-212D] (HARD RULE)
 
 - `just sync-gov-to-main` copies the governance kernel `/.GOV/` into `handshake_main` and auto-commits.
-- This is the Integration Validator's responsibility, to be run before pushing to `origin/main`.
-- The Orchestrator MUST NOT run `sync-gov-to-main`.
+- This is the Integration Validator's default responsibility, to be run before pushing to `origin/main`.
+- The Orchestrator MAY run `just sync-gov-to-main` and push `origin/main` only when explicitly instructed by the Operator.
+- That Orchestrator exception is mechanical execution only. It does not grant final technical verdict authority or permission to invent a new product merge decision.
 - The `main` worktree retains a real (non-junction) `/.GOV/` copy as a stable backup.
 
 ## Notification System (HARD RULE — Message Delivery)

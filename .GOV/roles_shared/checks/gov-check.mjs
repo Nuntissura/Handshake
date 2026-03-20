@@ -19,6 +19,7 @@ function resolveRepoRoot() {
 }
 
 const repoRoot = path.resolve(resolveRepoRoot());
+process.env.HANDSHAKE_ACTIVE_REPO_ROOT = repoRoot;
 process.chdir(repoRoot);
 
 // Governance-only checks (no product source scanning).

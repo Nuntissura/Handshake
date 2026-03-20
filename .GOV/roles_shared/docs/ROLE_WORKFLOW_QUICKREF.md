@@ -125,7 +125,7 @@ Primary commands:
 
 Role rule:
 - The Orchestrator is one non-agentic coordinator CLI session. It coordinates and launches repo-governed CLI sessions, but does not spawn Orchestrator or Validator helper agents.
-- The Orchestrator is workflow authority. It does not become final technical or merge authority.
+- The Orchestrator is workflow authority. It does not become final technical authority, but it may execute `just sync-gov-to-main` and `origin/main` push when the Operator explicitly instructs it to do so; that mechanical execution does not replace validator technical authority.
 
 ## Role: Coder
 
