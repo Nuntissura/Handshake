@@ -141,6 +141,18 @@ for (const root of allCommunicationRoots()) {
     }
     const packetText = fs.readFileSync(packetPath, "utf8");
     const communicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
+    const packetFormatVersion = parseSingleField(packetText, "PACKET_FORMAT_VERSION");
+    const authoritativeDir = normalize(
+      packetUsesExternalGovernanceRuntime(packetFormatVersion)
+        ? communicationPathsForWp(entry.name).dir
+        : legacyCommunicationPathsForWp(entry.name).dir
+    );
+    const currentDir = normalize(path.join(root, entry.name));
+
+    if (currentDir !== authoritativeDir) {
+      continue;
+    }
+
     if (!communicationDir) {
       violations.push(`${root}/${entry.name}: communication folder exists but matching packet does not declare WP communication metadata`);
     }
