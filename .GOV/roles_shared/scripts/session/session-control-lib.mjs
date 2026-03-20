@@ -23,6 +23,7 @@ import {
   roleNextCommand,
   roleStartupCommand,
 } from "./session-policy.mjs";
+import { workPacketPath } from "../lib/runtime-paths.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
@@ -134,6 +135,7 @@ export function selectModel(modelSelector) {
 }
 
 export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
+  const authorityPacketPath = workPacketPath(wpId);
   const commonLines = [
     `ROLE LOCK: You are the ${role}. Do not change roles unless explicitly reassigned.`,
     `WP_ID: ${wpId}`,
@@ -147,7 +149,7 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
   if (role === "CODER") {
     roleLines = [
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not create a WP, choose a task, or start implementation without an assigned packet.`,
-      `AUTHORITY: AGENTS.md + .GOV/roles/coder/CODER_PROTOCOL.md + startup output + .GOV/task_packets/${wpId}.md`,
+      `AUTHORITY: AGENTS.md + .GOV/roles/coder/CODER_PROTOCOL.md + startup output + ${authorityPacketPath}`,
       `FOCUS: only the assigned WP in the assigned WP worktree.`,
       `FLOW: \`just pre-work ${wpId}\` -> skeleton approval when required -> implementation -> \`just post-work ${wpId}\` -> Validator handoff.`,
       `BRANCH RULE: never merge \`main\`; only use the assigned WP backup branch when the packet allows it.`,
@@ -159,7 +161,7 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
   } else if (role === "WP_VALIDATOR") {
     roleLines = [
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation, cleanup, merge, or status sync without a specific task.`,
-      `AUTHORITY: AGENTS.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + .GOV/task_packets/${wpId}.md`,
+      `AUTHORITY: AGENTS.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + ${authorityPacketPath}`,
       `FOCUS: validate evidence in the assigned WP worktree, not intent.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then report findings.`,
       `DIRECT COMMUNICATION (MANDATORY): You MUST use \`just wp-thread-append ${wpId} WP_VALIDATOR <your-session> "<message>" @coder\` to communicate directly with the coder. Do not relay messages through the Orchestrator. Use \`just wp-receipt-append\` for structured receipts (REVIEW_RESPONSE, SPEC_GAP, VALIDATOR_QUERY).`,
@@ -171,7 +173,7 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
   } else if (role === "INTEGRATION_VALIDATOR") {
     roleLines = [
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation, cleanup, merge, or status sync without a specific task.`,
-      `AUTHORITY: AGENTS.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + .GOV/task_packets/${wpId}.md`,
+      `AUTHORITY: AGENTS.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + ${authorityPacketPath}`,
       `FOCUS: validate evidence in the assigned WP worktree, not intent. You own final technical verdict and merge-to-main authority.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then close or merge validated work.`,
       `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Do not trust WP validator summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
@@ -181,7 +183,7 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
     ];
   } else {
     roleLines = [
-      `AUTHORITY: AGENTS.md + startup output + the role protocol + .GOV/task_packets/${wpId}.md`,
+      `AUTHORITY: AGENTS.md + startup output + the role protocol + ${authorityPacketPath}`,
       `FOCUS: ${roleConfig.focus}.`,
     ];
   }

@@ -15,9 +15,7 @@ import {
   ACTIVE_ROLE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
 import { appendWpReceipt } from "./wp-receipt-append.mjs";
-import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
-
-const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
+import { workPacketPath } from "../lib/runtime-paths.mjs";
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -41,7 +39,7 @@ function parseIntegerField(text, label, fallback) {
 }
 
 function requirePacketContext(wpId) {
-  const packetPath = path.join(PACKETS_DIR, `${wpId}.md`);
+  const packetPath = workPacketPath(wpId);
   if (!fs.existsSync(packetPath)) {
     throw new Error(`Official packet not found: ${normalize(packetPath)}`);
   }

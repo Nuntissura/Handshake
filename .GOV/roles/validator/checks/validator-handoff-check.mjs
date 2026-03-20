@@ -8,6 +8,7 @@ import {
   loadOrchestratorGateLogs,
   lastGateLog,
   loadPacket,
+  packetPath,
   packetExists,
   parseClaimField,
   parseMergeBaseSha,
@@ -187,7 +188,7 @@ const workflowAuthority = parseClaimField(packetContentForContext, "WORKFLOW_AUT
 const expectedGovernanceBranch = authorityRoleToBranch(workflowAuthority);
 
 if (!packetExists(parsed.wpId)) {
-  hardFail("Task packet not found", [`${GOV_ROOT_REPO_REL}/task_packets/${parsed.wpId}.md`]);
+  hardFail("Task packet not found", [packetPath(parsed.wpId)]);
 }
 
 const logs = loadOrchestratorGateLogs();
@@ -303,5 +304,4 @@ if (nonBlockingSyncWarnings.length > 0) {
     console.log(`    - ${warning}`);
   }
 }
-
 

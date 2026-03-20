@@ -38,7 +38,7 @@ import {
   settleTimedOutPluginRequests,
   mutateSessionRegistrySync,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
-import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, workPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const role = String(process.argv[2] || "").trim().toUpperCase();
 const wpId = String(process.argv[3] || "").trim();
@@ -104,6 +104,7 @@ function resolveRoleConfig(roleName, workPacketId) {
 const roleConfig = resolveRoleConfig(role, wpId);
 if (!roleConfig) fail(`Unknown role: ${role}`);
 const selectedModel = requestedModel === "FALLBACK" ? ROLE_SESSION_FALLBACK_MODEL : ROLE_SESSION_PRIMARY_MODEL;
+const packetAuthorityPath = workPacketPath(wpId);
 
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const currentBranch = runGit(["branch", "--show-current"]);
@@ -125,7 +126,7 @@ const prompt = [
   `BRANCH: ${roleConfig.branch}`,
   `FIRST COMMAND: ${roleConfig.startupCommand}`,
   `AFTER STARTUP: ${roleConfig.nextCommand}`,
-  `AUTHORITY: AGENTS.md + startup output + the role protocol + ${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`,
+  `AUTHORITY: AGENTS.md + startup output + the role protocol + ${packetAuthorityPath}`,
   `FOCUS: ${roleConfig.focus}.`,
   `MODEL POLICY: selected ${selectedModel}; primary ${ROLE_SESSION_PRIMARY_MODEL} with ${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}; fallback ${ROLE_SESSION_FALLBACK_MODEL} with the same reasoning value if primary is unavailable.`,
   `REPO POLICY: do not switch to Codex model aliases for repo-governed sessions.`,
@@ -393,4 +394,3 @@ printOnly(
   "PRINT",
 );
 printSessionSummary();
-

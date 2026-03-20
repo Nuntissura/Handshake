@@ -2,7 +2,7 @@
   "schema_version": "wp_runtime_status@1",
   "wp_id": "{{WP_ID}}",
   "base_wp_id": "{{BASE_WP_ID}}",
-  "task_packet": ".GOV/task_packets/{{WP_ID}}.md",
+  "task_packet": "{{TASK_PACKET_PATH}}",
   "communication_dir": "{{WP_COMMUNICATION_DIR}}",
   "thread_file": "{{WP_THREAD_FILE}}",
   "runtime_status_file": "{{WP_RUNTIME_STATUS_FILE}}",

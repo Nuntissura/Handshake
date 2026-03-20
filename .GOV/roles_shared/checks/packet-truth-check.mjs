@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { inferWpIdFromPacketPath } from "../scripts/lib/runtime-paths.mjs";
 
 const TRACE_REGISTRY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
 const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
@@ -16,9 +17,7 @@ function normalizePath(value) {
 }
 
 function packetIdFromPath(packetPath) {
-  const normalized = normalizePath(packetPath);
-  const last = normalized.split("/").filter(Boolean).pop() || "";
-  return last.endsWith(".md") ? last.slice(0, -3) : last;
+  return inferWpIdFromPacketPath(normalizePath(packetPath));
 }
 
 function parseSingleField(text, label) {
@@ -108,9 +107,20 @@ function expectedBoardTokens(statusKind, isStub) {
 function readPacketInventory(dir, kind) {
   const entries = [];
   if (!fs.existsSync(dir)) return entries;
-  for (const name of fs.readdirSync(dir).filter((file) => file.endsWith(".md") && file !== "README.md")) {
-    const filePath = `${dir}/${name}`.replace(/\\/g, "/");
-    const packetId = name.slice(0, -3);
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    let filePath = "";
+    let packetId = "";
+    if (entry.isDirectory()) {
+      if (kind !== "official" || !entry.name.startsWith("WP-")) continue;
+      filePath = `${dir}/${entry.name}/packet.md`.replace(/\\/g, "/");
+      if (!fs.existsSync(filePath)) continue;
+      packetId = entry.name;
+    } else if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md") {
+      filePath = `${dir}/${entry.name}`.replace(/\\/g, "/");
+      packetId = entry.name.slice(0, -3);
+    } else {
+      continue;
+    }
     const text = fs.readFileSync(filePath, "utf8");
     entries.push({
       kind,

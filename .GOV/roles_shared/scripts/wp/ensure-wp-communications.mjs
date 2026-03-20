@@ -22,9 +22,8 @@ import {
   EXECUTION_OWNER_VALUES,
   AGENTIC_MODE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
-import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, workPacketPath } from "../lib/runtime-paths.mjs";
 
-const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 const THREAD_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_COMMUNICATION_THREAD_TEMPLATE.md");
 const RUNTIME_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_RUNTIME_STATUS_TEMPLATE.json");
 const RECEIPTS_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_RECEIPTS_TEMPLATE.jsonl");
@@ -86,7 +85,7 @@ export function ensureWpCommunications({
     throw new Error("WP_ID is required");
   }
 
-  const packetPath = path.join(PACKETS_DIR, `${WP_ID}.md`);
+  const packetPath = workPacketPath(WP_ID);
   let packetText = "";
   if (fs.existsSync(packetPath)) {
     packetText = fs.readFileSync(packetPath, "utf8");
@@ -188,6 +187,7 @@ export function ensureWpCommunications({
     "{{LOCAL_WORKTREE_DIR}}": LOCAL_WORKTREE_DIR,
     "{{AGENTIC_MODE}}": AGENTIC_MODE,
     "{{PACKET_STATUS}}": PACKET_STATUS,
+    "{{TASK_PACKET_PATH}}": normalize(packetPath),
     "{{WP_COMMUNICATION_DIR}}": normalize(wpCommDir),
     "{{WP_THREAD_FILE}}": normalize(threadPath),
     "{{WP_RUNTIME_STATUS_FILE}}": normalize(runtimeStatusPath),

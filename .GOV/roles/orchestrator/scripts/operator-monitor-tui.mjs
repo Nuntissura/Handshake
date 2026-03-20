@@ -26,7 +26,13 @@ import {
   SESSION_CONTROL_RESULTS_FILE,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { TOPOLOGY_REGISTRY_JSON_PATH } from "../../../roles_shared/scripts/topology/git-topology-lib.mjs";
-import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath, resolveRefinementPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import {
+  GOV_ROOT_REPO_REL,
+  inferWpIdFromPacketPath,
+  resolveOrchestratorGatesPath,
+  resolveRefinementPath,
+  resolveWorkPacketPath,
+} from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 const TRACEABILITY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
@@ -303,7 +309,8 @@ function parseTraceabilityRegistry() {
     const [baseWpId, activePacket] = parts;
     if (!/^WP-/.test(baseWpId) || !activePacket.startsWith(`${GOV_ROOT_REPO_REL}/`)) continue;
     byBaseWpId.set(baseWpId, activePacket);
-    byWpId.set(path.basename(activePacket, ".md"), activePacket);
+    const activeWpId = inferWpIdFromPacketPath(activePacket);
+    if (activeWpId) byWpId.set(activeWpId, activePacket);
   }
   return { byBaseWpId, byWpId };
 }
@@ -463,8 +470,8 @@ function loadBoardSourceInfo() {
 
 function resolvePacketPath(wpId, traceability) {
   if (traceability.byWpId.has(wpId)) return traceability.byWpId.get(wpId);
-  const official = normalize(path.join(PACKETS_DIR, `${wpId}.md`));
-  if (fs.existsSync(official)) return official;
+  const official = resolveWorkPacketPath(wpId)?.packetPath || "";
+  if (official && fs.existsSync(official)) return normalize(official);
   const stub = normalize(path.join(PACKET_STUBS_DIR, `${wpId}.md`));
   if (fs.existsSync(stub)) return stub;
   if (traceability.byBaseWpId.has(wpId)) return traceability.byBaseWpId.get(wpId);
@@ -702,7 +709,7 @@ function loadPendingNotifications(communicationDir) {
 function parsePacketRecord(packetPath, prepareAssignment = null) {
   if (!packetPath || !fs.existsSync(packetPath)) return null;
   const packetText = readText(packetPath);
-  const wpId = path.basename(packetPath, ".md");
+  const wpId = inferWpIdFromPacketPath(packetPath) || path.basename(packetPath, ".md");
   const baseWpId = parseSingleField(packetText, "BASE_WP_ID") || wpId;
   const runtimePath = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   const receiptsPath = parseSingleField(packetText, "WP_RECEIPTS_FILE");

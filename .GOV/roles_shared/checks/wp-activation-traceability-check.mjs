@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 
 const TRACE_REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
@@ -30,9 +30,19 @@ function parseRegistryTable(content) {
 
 function listRevisionPacketIds() {
   if (!fs.existsSync(TASK_PACKETS_DIR)) return [];
-  const files = fs.readdirSync(TASK_PACKETS_DIR).filter((name) => name.endsWith(".md"));
-  return files
-    .map((name) => name.slice(0, -3))
+  const packetIds = [];
+  for (const entry of fs.readdirSync(TASK_PACKETS_DIR, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (!entry.name.startsWith("WP-")) continue;
+      if (!fs.existsSync(`${TASK_PACKETS_DIR}/${entry.name}/packet.md`)) continue;
+      packetIds.push(entry.name);
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(".md")) {
+      packetIds.push(entry.name.slice(0, -3));
+    }
+  }
+  return packetIds
     .filter((wpId) => /-v\d+$/.test(wpId));
 }
 
@@ -41,9 +51,7 @@ function baseWpIdFromPacketId(wpId) {
 }
 
 function packetIdFromPath(packetPath) {
-  const parts = packetPath.split("/");
-  const last = parts[parts.length - 1] || "";
-  return last.endsWith(".md") ? last.slice(0, -3) : last;
+  return inferWpIdFromPacketPath(packetPath);
 }
 
 function isStubPacketPath(packetPath) {
@@ -83,7 +91,9 @@ const violations = [];
 for (const [baseWpId, wpIds] of baseToRevisionPackets.entries()) {
   const registryRow = registry.get(baseWpId);
   if (!registryRow) {
-    const examples = wpIds.map((id) => `${GOV_ROOT_REPO_REL}/task_packets/${id}.md`).slice(0, 3);
+    const examples = wpIds
+      .map((id) => resolveWorkPacketPath(id)?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${id}.md`)
+      .slice(0, 3);
     violations.push(
       `${TRACE_REGISTRY_PATH}: missing Baseâ†’Active mapping for ${baseWpId} (examples: ${examples.join(", ")})`
     );
@@ -94,7 +104,7 @@ for (const [baseWpId, wpIds] of baseToRevisionPackets.entries()) {
   const activePacketId = packetIdFromPath(activePacketPath);
 
   if (isStubPacketPath(activePacketPath)) {
-    const expectedOfficial = `${TASK_PACKETS_DIR}/${activePacketId}.md`;
+    const expectedOfficial = resolveWorkPacketPath(activePacketId)?.packetPath || `${TASK_PACKETS_DIR}/${activePacketId}.md`;
     if (exists(expectedOfficial)) {
       violations.push(
         `${TRACE_REGISTRY_PATH}:${registryRow.lineNumber}: ${baseWpId} still points to stub (${activePacketPath}) but official packet exists (${expectedOfficial})`
@@ -123,5 +133,3 @@ if (violations.length > 0) {
 }
 
 console.log("wp-activation-traceability-check ok");
-
-

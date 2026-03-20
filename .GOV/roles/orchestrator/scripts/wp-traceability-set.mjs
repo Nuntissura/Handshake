@@ -5,13 +5,13 @@
  * Updates `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` without manual table editing.
  *
  * Behavior:
- * - Prefers official packet path if present: `.GOV/task_packets/<ACTIVE>.md`
+ * - Prefers official packet path if present: `.GOV/task_packets/<ACTIVE>.md` or `.GOV/task_packets/<ACTIVE>/packet.md`
  * - Otherwise falls back to stub path if present: `.GOV/task_packets/stubs/<ACTIVE>.md`
  */
 
 import fs from "node:fs";
 import path from "node:path";
-import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 const OFFICIAL_DIR = `${GOV_ROOT_REPO_REL}/task_packets`;
@@ -52,12 +52,12 @@ function exists(p) {
 }
 
 function resolvePacketPath(activeWpId) {
-  const official = path.join(OFFICIAL_DIR, `${activeWpId}.md`).replace(/\\/g, "/");
-  if (exists(official)) return official;
+  const official = resolveWorkPacketPath(activeWpId)?.packetPath || "";
+  if (official && exists(official)) return official;
   const stub = path.join(STUB_DIR, `${activeWpId}.md`).replace(/\\/g, "/");
   if (exists(stub)) return stub;
   fail("Active packet file not found (official or stub)", [
-    `tried=${official}`,
+    `tried=${official || path.join(OFFICIAL_DIR, `${activeWpId}.md`).replace(/\\/g, "/")}`,
     `tried=${stub}`,
   ]);
 }
@@ -136,4 +136,3 @@ function main() {
 }
 
 main();
-

@@ -18,7 +18,7 @@ import {
   defaultWpValidatorWorktreeDir,
   SESSION_REGISTRY_FILE,
 } from "../session/session-policy.mjs";
-import { loadJson, loadPacket, packetExists, parseClaimField } from "../lib/role-resume-utils.mjs";
+import { loadJson, loadPacket, packetExists, packetPath, parseClaimField } from "../lib/role-resume-utils.mjs";
 import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 
 const WORKTREE_CLEANUP_TOKEN_SCHEMA = "hsk.worktree_cleanup_token@1";
@@ -198,7 +198,7 @@ function buildPowerShellScript({
 function main() {
   const { wpId, role } = parseArgs();
   if (!packetExists(wpId)) {
-    fail("Task packet not found", [`packet=${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`]);
+    fail("Task packet not found", [`packet=${packetPath(wpId)}`]);
   }
 
   const packetContent = loadPacket(wpId);

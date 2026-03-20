@@ -22,15 +22,20 @@ function readText(filePath) {
 
 function parseCurrentSpecTarget() {
   const specCurrent = readText(SPEC_CURRENT_PATH);
-  const match = specCurrent.match(/Handshake_Master_Spec_(v\d+(?:\.\d+)*)\.md/);
+  const match = specCurrent.match(/\b((?:\.GOV\/spec\/)?Handshake_Master_Spec_(v\d+(?:\.\d+)*)\.md)\b/);
   if (!match) {
     fail("Unable to parse SPEC_CURRENT target", [
       `${SPEC_CURRENT_PATH}: expected Handshake_Master_Spec_vXX.XXX.md`,
     ]);
   }
+  const rawSpecPath = match[1];
+  const resolvedSpecPath = rawSpecPath.startsWith(".GOV/")
+    ? rawSpecPath
+    : path.join(path.dirname(SPEC_CURRENT_PATH), rawSpecPath).replace(/\\/g, "/");
   return {
-    versionTag: match[1],
-    fileName: `Handshake_Master_Spec_${match[1]}.md`,
+    versionTag: match[2],
+    fileName: `Handshake_Master_Spec_${match[2]}.md`,
+    specPath: resolvedSpecPath,
   };
 }
 
@@ -147,7 +152,7 @@ function collectCoverageFromStubs(versionTag) {
 
 function main() {
   const currentSpec = parseCurrentSpecTarget();
-  const specContent = readText(currentSpec.fileName);
+  const specContent = readText(currentSpec.specPath);
   const specLines = specContent.split(/\r?\n/);
   const phaseRange = findPhaseRange(specLines);
   const phaseAddLines = collectPhase1CurrentVersionAddLines(
