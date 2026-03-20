@@ -126,6 +126,31 @@ struct LoomBlockSearchRow {
 }
 
 #[derive(sqlx::FromRow)]
+struct LoomTraversalRow {
+    depth: i64,
+    block_id: String,
+    workspace_id: String,
+    content_type: String,
+    document_id: Option<String>,
+    asset_id: Option<String>,
+    title: Option<String>,
+    original_filename: Option<String>,
+    content_hash: Option<String>,
+    pinned: i64,
+    journal_date: Option<String>,
+    created_at: chrono::DateTime<chrono::Utc>,
+    updated_at: chrono::DateTime<chrono::Utc>,
+    imported_at: Option<chrono::DateTime<chrono::Utc>>,
+    backlink_count: i64,
+    mention_count: i64,
+    tag_count: i64,
+    derived_json: String,
+    preview_status: String,
+    thumbnail_asset_id: Option<String>,
+    proxy_asset_id: Option<String>,
+}
+
+#[derive(sqlx::FromRow)]
 struct LoomEdgeRow {
     edge_id: String,
     workspace_id: String,
@@ -266,6 +291,34 @@ impl SqliteDatabase {
             proxy_asset_id: row.proxy_asset_id,
         })?;
         Ok(LoomBlockSearchResult { block, score })
+    }
+
+    fn map_loom_traversal_row(&self, row: LoomTraversalRow) -> StorageResult<(LoomBlock, u32)> {
+        let depth = u32::try_from(row.depth)
+            .map_err(|_| StorageError::Validation("invalid loom traversal depth"))?;
+        let block = self.map_loom_block_row(LoomBlockRow {
+            block_id: row.block_id,
+            workspace_id: row.workspace_id,
+            content_type: row.content_type,
+            document_id: row.document_id,
+            asset_id: row.asset_id,
+            title: row.title,
+            original_filename: row.original_filename,
+            content_hash: row.content_hash,
+            pinned: row.pinned,
+            journal_date: row.journal_date,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            imported_at: row.imported_at,
+            backlink_count: row.backlink_count,
+            mention_count: row.mention_count,
+            tag_count: row.tag_count,
+            derived_json: row.derived_json,
+            preview_status: row.preview_status,
+            thumbnail_asset_id: row.thumbnail_asset_id,
+            proxy_asset_id: row.proxy_asset_id,
+        })?;
+        Ok((block, depth))
     }
 
     fn map_loom_edge_row(&self, row: LoomEdgeRow) -> StorageResult<LoomEdge> {
@@ -2438,6 +2491,268 @@ impl super::Database for SqliteDatabase {
         rows.into_iter()
             .map(|row| self.map_loom_edge_row(row))
             .collect()
+    }
+
+    async fn get_backlinks(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<Vec<LoomEdge>> {
+        let rows: Vec<LoomEdgeRow> = sqlx::query_as(
+            r#"
+            SELECT
+                edge_id,
+                workspace_id,
+                source_block_id,
+                target_block_id,
+                edge_type,
+                created_by,
+                created_at,
+                crdt_site_id,
+                source_document_id,
+                source_text_block_id,
+                offset_start,
+                offset_end
+            FROM loom_edges
+            WHERE workspace_id = $1
+              AND target_block_id = $2
+            ORDER BY created_at ASC, edge_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| self.map_loom_edge_row(row))
+            .collect()
+    }
+
+    async fn get_outgoing_edges(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<Vec<LoomEdge>> {
+        let rows: Vec<LoomEdgeRow> = sqlx::query_as(
+            r#"
+            SELECT
+                edge_id,
+                workspace_id,
+                source_block_id,
+                target_block_id,
+                edge_type,
+                created_by,
+                created_at,
+                crdt_site_id,
+                source_document_id,
+                source_text_block_id,
+                offset_start,
+                offset_end
+            FROM loom_edges
+            WHERE workspace_id = $1
+              AND source_block_id = $2
+            ORDER BY created_at ASC, edge_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| self.map_loom_edge_row(row))
+            .collect()
+    }
+
+    async fn traverse_graph(
+        &self,
+        workspace_id: &str,
+        start_block_id: &str,
+        max_depth: u32,
+        edge_types: &[LoomEdgeType],
+    ) -> StorageResult<Vec<(LoomBlock, u32)>> {
+        if max_depth == 0 {
+            return Ok(Vec::new());
+        }
+
+        let edge_type_filter = (!edge_types.is_empty()).then(|| {
+            serde_json::to_string(
+                &edge_types
+                    .iter()
+                    .map(|edge_type| edge_type.as_str())
+                    .collect::<Vec<_>>(),
+            )
+            .map_err(|_| StorageError::Validation("invalid loom traversal edge filter"))
+        });
+        let edge_type_filter = edge_type_filter.transpose()?;
+
+        let sql = r#"
+            WITH RECURSIVE reachable(block_id, depth, path) AS (
+                SELECT
+                    e.target_block_id,
+                    1 AS depth,
+                    CAST('|' || e.source_block_id || '|' || e.target_block_id || '|' AS TEXT) AS path
+                FROM loom_edges e
+                WHERE e.workspace_id = $1
+                  AND e.source_block_id = $2
+                  AND (
+                    $4 IS NULL
+                    OR EXISTS (
+                        SELECT 1
+                        FROM json_each($4) edge_filter
+                        WHERE edge_filter.value = e.edge_type
+                    )
+                  )
+
+                UNION ALL
+
+                SELECT
+                    e.target_block_id,
+                    r.depth + 1,
+                    r.path || e.target_block_id || '|'
+                FROM loom_edges e
+                JOIN reachable r
+                  ON e.source_block_id = r.block_id
+                WHERE e.workspace_id = $1
+                  AND r.depth < $3
+                  AND instr(r.path, '|' || e.target_block_id || '|') = 0
+                  AND (
+                    $4 IS NULL
+                    OR EXISTS (
+                        SELECT 1
+                        FROM json_each($4) edge_filter
+                        WHERE edge_filter.value = e.edge_type
+                    )
+                  )
+            ),
+            dedup AS (
+                SELECT block_id, MIN(depth) AS depth
+                FROM reachable
+                GROUP BY block_id
+            )
+            SELECT
+                d.depth,
+                b.block_id,
+                b.workspace_id,
+                b.content_type,
+                b.document_id,
+                b.asset_id,
+                b.title,
+                b.original_filename,
+                b.content_hash,
+                b.pinned,
+                b.journal_date,
+                b.created_at,
+                b.updated_at,
+                b.imported_at,
+                b.backlink_count,
+                b.mention_count,
+                b.tag_count,
+                b.derived_json,
+                b.preview_status,
+                b.thumbnail_asset_id,
+                b.proxy_asset_id
+            FROM dedup d
+            JOIN loom_blocks b
+              ON b.workspace_id = $1
+             AND b.block_id = d.block_id
+            ORDER BY d.depth ASC, b.block_id ASC
+            "#;
+
+        let rows: Vec<LoomTraversalRow> = sqlx::query_as(sql)
+            .bind(workspace_id)
+            .bind(start_block_id)
+            .bind(max_depth as i64)
+            .bind(edge_type_filter)
+            .fetch_all(&self.pool)
+            .await?;
+
+        rows.into_iter()
+            .map(|row| self.map_loom_traversal_row(row))
+            .collect()
+    }
+
+    async fn recompute_block_metrics(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<()> {
+        let res = sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET
+                mention_count = (
+                    SELECT COUNT(*)
+                    FROM loom_edges
+                    WHERE workspace_id = $1
+                      AND source_block_id = $2
+                      AND edge_type = 'mention'
+                ),
+                tag_count = (
+                    SELECT COUNT(*)
+                    FROM loom_edges
+                    WHERE workspace_id = $1
+                      AND source_block_id = $2
+                      AND edge_type = 'tag'
+                ),
+                backlink_count = (
+                    SELECT COUNT(*)
+                    FROM loom_edges
+                    WHERE workspace_id = $1
+                      AND target_block_id = $2
+                      AND edge_type IN ('mention', 'tag')
+                )
+            WHERE workspace_id = $1
+              AND block_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(&self.pool)
+        .await?;
+
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("loom_block"));
+        }
+
+        Ok(())
+    }
+
+    async fn recompute_all_metrics(&self, workspace_id: &str) -> StorageResult<()> {
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks AS b
+            SET
+                mention_count = (
+                    SELECT COUNT(*)
+                    FROM loom_edges e
+                    WHERE e.workspace_id = b.workspace_id
+                      AND e.source_block_id = b.block_id
+                      AND e.edge_type = 'mention'
+                ),
+                tag_count = (
+                    SELECT COUNT(*)
+                    FROM loom_edges e
+                    WHERE e.workspace_id = b.workspace_id
+                      AND e.source_block_id = b.block_id
+                      AND e.edge_type = 'tag'
+                ),
+                backlink_count = (
+                    SELECT COUNT(*)
+                    FROM loom_edges e
+                    WHERE e.workspace_id = b.workspace_id
+                      AND e.target_block_id = b.block_id
+                      AND e.edge_type IN ('mention', 'tag')
+                )
+            WHERE b.workspace_id = $1
+            "#,
+        )
+        .bind(workspace_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }
 
     async fn query_loom_view(

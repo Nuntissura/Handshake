@@ -354,6 +354,8 @@ pub struct LoomSearchFilters {
     pub tag_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mention_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backlink_depth: Option<u32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

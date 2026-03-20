@@ -19,10 +19,12 @@ use sqlx::Connection;
 use sqlx::Row;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::time::Instant;
 use uuid::Uuid;
 
 #[cfg(test)]
 const NIL_EDIT_EVENT_ID: &str = "00000000-0000-0000-0000-000000000000";
+const LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS: usize = 10_000;
 
 #[cfg(test)]
 fn postgres_test_url() -> Option<String> {
@@ -569,6 +571,786 @@ fn sorted_view_groups(resp: &LoomViewResponse) -> BTreeMap<String, Vec<String>> 
         .collect()
 }
 
+fn loom_traversal_signature(results: &[(LoomBlock, u32)]) -> Vec<(String, u32)> {
+    results
+        .iter()
+        .map(|(block, depth)| (block.block_id.clone(), *depth))
+        .collect()
+}
+
+async fn create_test_loom_block(
+    db: &Arc<dyn super::Database>,
+    ctx: &WriteContext,
+    workspace_id: &str,
+    content_type: LoomBlockContentType,
+    document_id: Option<&str>,
+    title: &str,
+    full_text_index: &str,
+) -> StorageResult<LoomBlock> {
+    db.create_loom_block(
+        ctx,
+        NewLoomBlock {
+            block_id: None,
+            workspace_id: workspace_id.to_string(),
+            content_type,
+            document_id: document_id.map(str::to_string),
+            asset_id: None,
+            title: Some(title.to_string()),
+            original_filename: None,
+            content_hash: None,
+            pinned: false,
+            journal_date: None,
+            imported_at: None,
+            derived: super::LoomBlockDerived {
+                full_text_index: Some(full_text_index.to_string()),
+                ..Default::default()
+            },
+        },
+    )
+    .await
+}
+
+struct LoomGraphFixture {
+    start_block_id: String,
+    mid_block_id: String,
+    leaf_block_id: String,
+    tag_block_id: String,
+}
+
+async fn build_loom_graph_fixture(
+    db: &Arc<dyn super::Database>,
+    ctx: &WriteContext,
+    workspace_id: &str,
+    document_id: &str,
+) -> StorageResult<LoomGraphFixture> {
+    let graph_start = create_test_loom_block(
+        db,
+        ctx,
+        workspace_id,
+        LoomBlockContentType::Note,
+        Some(document_id),
+        "Graph Start",
+        "graph depth start",
+    )
+    .await?;
+    let graph_mid = create_test_loom_block(
+        db,
+        ctx,
+        workspace_id,
+        LoomBlockContentType::Note,
+        Some(document_id),
+        "Graph Mid",
+        "graph depth mid",
+    )
+    .await?;
+    let graph_leaf = create_test_loom_block(
+        db,
+        ctx,
+        workspace_id,
+        LoomBlockContentType::Note,
+        Some(document_id),
+        "Graph Leaf",
+        "graph depth leaf",
+    )
+    .await?;
+    let graph_tag = create_test_loom_block(
+        db,
+        ctx,
+        workspace_id,
+        LoomBlockContentType::TagHub,
+        None,
+        "Graph Deep Tag",
+        "graph deep tag",
+    )
+    .await?;
+
+    db.create_loom_edge(
+        ctx,
+        NewLoomEdge {
+            edge_id: None,
+            workspace_id: workspace_id.to_string(),
+            source_block_id: graph_start.block_id.clone(),
+            target_block_id: graph_mid.block_id.clone(),
+            edge_type: LoomEdgeType::Mention,
+            created_by: LoomEdgeCreatedBy::User,
+            crdt_site_id: None,
+            source_anchor: None,
+        },
+    )
+    .await?;
+    db.create_loom_edge(
+        ctx,
+        NewLoomEdge {
+            edge_id: None,
+            workspace_id: workspace_id.to_string(),
+            source_block_id: graph_mid.block_id.clone(),
+            target_block_id: graph_leaf.block_id.clone(),
+            edge_type: LoomEdgeType::Parent,
+            created_by: LoomEdgeCreatedBy::User,
+            crdt_site_id: None,
+            source_anchor: None,
+        },
+    )
+    .await?;
+    db.create_loom_edge(
+        ctx,
+        NewLoomEdge {
+            edge_id: None,
+            workspace_id: workspace_id.to_string(),
+            source_block_id: graph_leaf.block_id.clone(),
+            target_block_id: graph_tag.block_id.clone(),
+            edge_type: LoomEdgeType::Tag,
+            created_by: LoomEdgeCreatedBy::User,
+            crdt_site_id: None,
+            source_anchor: None,
+        },
+    )
+    .await?;
+    db.create_loom_edge(
+        ctx,
+        NewLoomEdge {
+            edge_id: None,
+            workspace_id: workspace_id.to_string(),
+            source_block_id: graph_leaf.block_id.clone(),
+            target_block_id: graph_start.block_id.clone(),
+            edge_type: LoomEdgeType::AiSuggested,
+            created_by: LoomEdgeCreatedBy::Ai,
+            crdt_site_id: None,
+            source_anchor: None,
+        },
+    )
+    .await?;
+
+    Ok(LoomGraphFixture {
+        start_block_id: graph_start.block_id,
+        mid_block_id: graph_mid.block_id,
+        leaf_block_id: graph_leaf.block_id,
+        tag_block_id: graph_tag.block_id,
+    })
+}
+
+async fn overwrite_loom_block_metrics(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+    block_id: &str,
+    mention_count: i64,
+    tag_count: i64,
+    backlink_count: i64,
+) -> StorageResult<()> {
+    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET mention_count = $1, tag_count = $2, backlink_count = $3
+            WHERE workspace_id = $4 AND block_id = $5
+            "#,
+        )
+        .bind(mention_count)
+        .bind(tag_count)
+        .bind(backlink_count)
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(sqlite.pool())
+        .await?;
+        return Ok(());
+    }
+
+    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET mention_count = $1, tag_count = $2, backlink_count = $3
+            WHERE workspace_id = $4 AND block_id = $5
+            "#,
+        )
+        .bind(mention_count as i32)
+        .bind(tag_count as i32)
+        .bind(backlink_count as i32)
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(postgres.pool())
+        .await?;
+        return Ok(());
+    }
+
+    Err(StorageError::Validation("unsupported loom metrics backend"))
+}
+
+async fn zero_workspace_loom_metrics(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+) -> StorageResult<()> {
+    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET mention_count = 0, tag_count = 0, backlink_count = 0
+            WHERE workspace_id = $1
+            "#,
+        )
+        .bind(workspace_id)
+        .execute(sqlite.pool())
+        .await?;
+        return Ok(());
+    }
+
+    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET mention_count = 0, tag_count = 0, backlink_count = 0
+            WHERE workspace_id = $1
+            "#,
+        )
+        .bind(workspace_id)
+        .execute(postgres.pool())
+        .await?;
+        return Ok(());
+    }
+
+    Err(StorageError::Validation("unsupported loom metrics backend"))
+}
+
+async fn loom_metrics_recompute_idempotent(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+    portable_note_id: &str,
+    mention_target_id: &str,
+    tag_hub_id: &str,
+) -> StorageResult<()> {
+    overwrite_loom_block_metrics(db, workspace_id, portable_note_id, 99, 98, 97).await?;
+    db.recompute_block_metrics(workspace_id, portable_note_id)
+        .await?;
+
+    let portable_note = db.get_loom_block(workspace_id, portable_note_id).await?;
+    assert_eq!(portable_note.derived.mention_count, 1);
+    assert_eq!(portable_note.derived.tag_count, 1);
+    assert_eq!(portable_note.derived.backlink_count, 0);
+
+    zero_workspace_loom_metrics(db, workspace_id).await?;
+    db.recompute_all_metrics(workspace_id).await?;
+
+    let portable_note = db.get_loom_block(workspace_id, portable_note_id).await?;
+    let mention_target = db.get_loom_block(workspace_id, mention_target_id).await?;
+    let tag_hub = db.get_loom_block(workspace_id, tag_hub_id).await?;
+    assert_eq!(portable_note.derived.mention_count, 1);
+    assert_eq!(portable_note.derived.tag_count, 1);
+    assert_eq!(portable_note.derived.backlink_count, 0);
+    assert_eq!(mention_target.derived.backlink_count, 1);
+    assert_eq!(tag_hub.derived.backlink_count, 2);
+
+    db.recompute_all_metrics(workspace_id).await?;
+    let portable_note_again = db.get_loom_block(workspace_id, portable_note_id).await?;
+    assert_eq!(portable_note_again.derived.mention_count, 1);
+    assert_eq!(portable_note_again.derived.tag_count, 1);
+    assert_eq!(portable_note_again.derived.backlink_count, 0);
+
+    Ok(())
+}
+
+async fn loom_traverse_graph_depth_limit(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+    graph: &LoomGraphFixture,
+) -> StorageResult<()> {
+    let depth_one = db
+        .traverse_graph(
+            workspace_id,
+            &graph.start_block_id,
+            1,
+            &[
+                LoomEdgeType::Mention,
+                LoomEdgeType::Parent,
+                LoomEdgeType::Tag,
+                LoomEdgeType::AiSuggested,
+            ],
+        )
+        .await?;
+    assert_eq!(
+        loom_traversal_signature(&depth_one),
+        vec![(graph.mid_block_id.clone(), 1)]
+    );
+
+    let depth_two = db
+        .traverse_graph(
+            workspace_id,
+            &graph.start_block_id,
+            2,
+            &[
+                LoomEdgeType::Mention,
+                LoomEdgeType::Parent,
+                LoomEdgeType::Tag,
+                LoomEdgeType::AiSuggested,
+            ],
+        )
+        .await?;
+    assert_eq!(
+        loom_traversal_signature(&depth_two),
+        vec![
+            (graph.mid_block_id.clone(), 1),
+            (graph.leaf_block_id.clone(), 2),
+        ]
+    );
+
+    let depth_three = db
+        .traverse_graph(
+            workspace_id,
+            &graph.start_block_id,
+            3,
+            &[
+                LoomEdgeType::Mention,
+                LoomEdgeType::Parent,
+                LoomEdgeType::Tag,
+                LoomEdgeType::AiSuggested,
+            ],
+        )
+        .await?;
+    assert_eq!(
+        loom_traversal_signature(&depth_three),
+        vec![
+            (graph.mid_block_id.clone(), 1),
+            (graph.leaf_block_id.clone(), 2),
+            (graph.tag_block_id.clone(), 3),
+        ]
+    );
+
+    Ok(())
+}
+
+async fn loom_traverse_graph_cycle_detection(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+    graph: &LoomGraphFixture,
+) -> StorageResult<()> {
+    let traversed = db
+        .traverse_graph(
+            workspace_id,
+            &graph.start_block_id,
+            8,
+            &[
+                LoomEdgeType::Mention,
+                LoomEdgeType::Parent,
+                LoomEdgeType::Tag,
+                LoomEdgeType::AiSuggested,
+            ],
+        )
+        .await?;
+    let signature = loom_traversal_signature(&traversed);
+    assert_eq!(
+        signature,
+        vec![
+            (graph.mid_block_id.clone(), 1),
+            (graph.leaf_block_id.clone(), 2),
+            (graph.tag_block_id.clone(), 3),
+        ]
+    );
+    assert!(
+        !signature
+            .iter()
+            .any(|(block_id, _)| block_id == &graph.start_block_id),
+        "cycle traversal must not re-emit the starting block"
+    );
+
+    Ok(())
+}
+
+async fn loom_traverse_graph_edge_type_filter(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+    graph: &LoomGraphFixture,
+) -> StorageResult<()> {
+    let mention_parent_only = db
+        .traverse_graph(
+            workspace_id,
+            &graph.start_block_id,
+            3,
+            &[LoomEdgeType::Mention, LoomEdgeType::Parent],
+        )
+        .await?;
+    assert_eq!(
+        loom_traversal_signature(&mention_parent_only),
+        vec![
+            (graph.mid_block_id.clone(), 1),
+            (graph.leaf_block_id.clone(), 2),
+        ]
+    );
+
+    Ok(())
+}
+
+async fn loom_directional_edge_queries(
+    db: &Arc<dyn super::Database>,
+    ctx: &WriteContext,
+    workspace_id: &str,
+    document_id: &str,
+    target_block_id: &str,
+    outgoing_edge_ids: &[String],
+) -> StorageResult<()> {
+    let incoming_source = create_test_loom_block(
+        db,
+        ctx,
+        workspace_id,
+        LoomBlockContentType::Note,
+        Some(document_id),
+        "Incoming Edge Source",
+        "incoming edge source",
+    )
+    .await?;
+
+    let incoming_edge = db
+        .create_loom_edge(
+            ctx,
+            NewLoomEdge {
+                edge_id: None,
+                workspace_id: workspace_id.to_string(),
+                source_block_id: incoming_source.block_id,
+                target_block_id: target_block_id.to_string(),
+                edge_type: LoomEdgeType::AiSuggested,
+                created_by: LoomEdgeCreatedBy::Ai,
+                crdt_site_id: None,
+                source_anchor: None,
+            },
+        )
+        .await?;
+
+    let backlinks = db.get_backlinks(workspace_id, target_block_id).await?;
+    let outgoing = db.get_outgoing_edges(workspace_id, target_block_id).await?;
+
+    assert_eq!(
+        sorted_strings(backlinks.iter().map(|edge| edge.edge_id.clone())),
+        vec![incoming_edge.edge_id]
+    );
+    assert_eq!(
+        sorted_strings(outgoing.iter().map(|edge| edge.edge_id.clone())),
+        sorted_strings(outgoing_edge_ids.iter().cloned())
+    );
+
+    Ok(())
+}
+
+async fn loom_search_graph_filter_postgres(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+    graph: &LoomGraphFixture,
+) -> StorageResult<()> {
+    if !db.as_any().is::<PostgresDatabase>() {
+        return Ok(());
+    }
+
+    let direct_only = db
+        .search_loom_blocks(
+            workspace_id,
+            "graph depth start",
+            LoomSearchFilters {
+                tag_ids: vec![graph.tag_block_id.clone()],
+                backlink_depth: Some(1),
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    assert!(
+        direct_only.is_empty(),
+        "depth-1 graph filtering should not match indirect tag paths"
+    );
+
+    let graph_filtered = db
+        .search_loom_blocks(
+            workspace_id,
+            "graph depth start",
+            LoomSearchFilters {
+                tag_ids: vec![graph.tag_block_id.clone()],
+                backlink_depth: Some(3),
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    assert_eq!(
+        loom_search_ids(&graph_filtered),
+        vec![graph.start_block_id.clone()]
+    );
+
+    Ok(())
+}
+
+async fn loom_source_anchor_round_trip(
+    db: &Arc<dyn super::Database>,
+    ctx: &WriteContext,
+    workspace_id: &str,
+    document_id: &str,
+    anchor: &LoomSourceAnchor,
+) -> StorageResult<()> {
+    let exported_anchor_json = serde_json::to_string(anchor)
+        .map_err(|_| StorageError::Validation("invalid source anchor export"))?;
+    let replayed_anchor: LoomSourceAnchor = serde_json::from_str(&exported_anchor_json)
+        .map_err(|_| StorageError::Validation("invalid source anchor replay"))?;
+
+    let replay_source = create_test_loom_block(
+        db,
+        ctx,
+        workspace_id,
+        LoomBlockContentType::Note,
+        Some(document_id),
+        "Anchor Replay Source",
+        "anchor replay source",
+    )
+    .await?;
+    let replay_target = create_test_loom_block(
+        db,
+        ctx,
+        workspace_id,
+        LoomBlockContentType::Note,
+        Some(document_id),
+        "Anchor Replay Target",
+        "anchor replay target",
+    )
+    .await?;
+
+    let replayed_edge = db
+        .create_loom_edge(
+            ctx,
+            NewLoomEdge {
+                edge_id: None,
+                workspace_id: workspace_id.to_string(),
+                source_block_id: replay_source.block_id.clone(),
+                target_block_id: replay_target.block_id.clone(),
+                edge_type: LoomEdgeType::AiSuggested,
+                created_by: LoomEdgeCreatedBy::Ai,
+                crdt_site_id: None,
+                source_anchor: Some(replayed_anchor.clone()),
+            },
+        )
+        .await?;
+
+    let stored_edge = db
+        .get_outgoing_edges(workspace_id, &replay_source.block_id)
+        .await?
+        .into_iter()
+        .find(|edge| edge.edge_id == replayed_edge.edge_id)
+        .ok_or(StorageError::NotFound("loom_edge"))?;
+    let stored_anchor = stored_edge
+        .source_anchor
+        .clone()
+        .ok_or(StorageError::NotFound("loom_source_anchor"))?;
+    assert_eq!(stored_anchor.document_id, anchor.document_id);
+    assert_eq!(stored_anchor.block_id, anchor.block_id);
+    assert_eq!(stored_anchor.offset_start, anchor.offset_start);
+    assert_eq!(stored_anchor.offset_end, anchor.offset_end);
+
+    let exported_edge_json = serde_json::to_string(&stored_edge)
+        .map_err(|_| StorageError::Validation("invalid loom edge export"))?;
+    let replayed_edge_again: super::LoomEdge = serde_json::from_str(&exported_edge_json)
+        .map_err(|_| StorageError::Validation("invalid loom edge replay"))?;
+    let replayed_anchor_again = replayed_edge_again
+        .source_anchor
+        .ok_or(StorageError::NotFound("loom_source_anchor"))?;
+    assert_eq!(replayed_anchor_again.document_id, anchor.document_id);
+    assert_eq!(replayed_anchor_again.block_id, anchor.block_id);
+    assert_eq!(replayed_anchor_again.offset_start, anchor.offset_start);
+    assert_eq!(replayed_anchor_again.offset_end, anchor.offset_end);
+
+    Ok(())
+}
+
+async fn insert_loom_traversal_perf_fixture(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+) -> StorageResult<String> {
+    let created_at = Utc::now();
+    let derived_json = serde_json::to_string(&super::LoomBlockDerived::default())?;
+    let start_block_id = "perf-block-00000".to_string();
+
+    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
+        let mut tx = sqlite.pool().begin().await?;
+        for idx in 0..LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS {
+            let block_id = format!("perf-block-{idx:05}");
+            sqlx::query(
+                r#"
+                INSERT INTO loom_blocks (
+                    block_id,
+                    workspace_id,
+                    content_type,
+                    title,
+                    pinned,
+                    last_actor_kind,
+                    edit_event_id,
+                    created_at,
+                    updated_at,
+                    backlink_count,
+                    mention_count,
+                    tag_count,
+                    derived_json,
+                    preview_status
+                )
+                VALUES (
+                    $1, $2, 'note', $3, 0, 'SYSTEM',
+                    '00000000-0000-0000-0000-000000000000',
+                    $4, $4, 0, 0, 0, $5, 'none'
+                )
+                "#,
+            )
+            .bind(&block_id)
+            .bind(workspace_id)
+            .bind(format!("Perf Block {idx}"))
+            .bind(created_at)
+            .bind(&derived_json)
+            .execute(&mut *tx)
+            .await?;
+
+            if idx > 0 {
+                sqlx::query(
+                    r#"
+                    INSERT INTO loom_edges (
+                        edge_id,
+                        workspace_id,
+                        source_block_id,
+                        target_block_id,
+                        edge_type,
+                        created_by,
+                        last_actor_kind,
+                        edit_event_id,
+                        created_at
+                    )
+                    VALUES (
+                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
+                        '00000000-0000-0000-0000-000000000000',
+                        $5
+                    )
+                    "#,
+                )
+                .bind(format!("perf-edge-{idx:05}"))
+                .bind(workspace_id)
+                .bind(format!("perf-block-{:05}", idx - 1))
+                .bind(&block_id)
+                .bind(created_at)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+        tx.commit().await?;
+        return Ok(start_block_id);
+    }
+
+    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
+        let mut tx = postgres.pool().begin().await?;
+        for idx in 0..LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS {
+            let block_id = format!("perf-block-{idx:05}");
+            sqlx::query(
+                r#"
+                INSERT INTO loom_blocks (
+                    block_id,
+                    workspace_id,
+                    content_type,
+                    title,
+                    pinned,
+                    last_actor_kind,
+                    edit_event_id,
+                    created_at,
+                    updated_at,
+                    backlink_count,
+                    mention_count,
+                    tag_count,
+                    derived_json,
+                    preview_status
+                )
+                VALUES (
+                    $1, $2, 'note', $3, 0, 'SYSTEM',
+                    '00000000-0000-0000-0000-000000000000',
+                    $4, $4, 0, 0, 0, $5, 'none'
+                )
+                "#,
+            )
+            .bind(&block_id)
+            .bind(workspace_id)
+            .bind(format!("Perf Block {idx}"))
+            .bind(created_at)
+            .bind(&derived_json)
+            .execute(&mut *tx)
+            .await?;
+
+            if idx > 0 {
+                sqlx::query(
+                    r#"
+                    INSERT INTO loom_edges (
+                        edge_id,
+                        workspace_id,
+                        source_block_id,
+                        target_block_id,
+                        edge_type,
+                        created_by,
+                        last_actor_kind,
+                        edit_event_id,
+                        created_at
+                    )
+                    VALUES (
+                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
+                        '00000000-0000-0000-0000-000000000000',
+                        $5
+                    )
+                    "#,
+                )
+                .bind(format!("perf-edge-{idx:05}"))
+                .bind(workspace_id)
+                .bind(format!("perf-block-{:05}", idx - 1))
+                .bind(&block_id)
+                .bind(created_at)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+        tx.commit().await?;
+        return Ok(start_block_id);
+    }
+
+    Err(StorageError::Validation(
+        "unsupported loom traversal performance backend",
+    ))
+}
+
+async fn loom_traverse_graph_meets_performance_target(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+) -> StorageResult<()> {
+    let start_block_id = insert_loom_traversal_perf_fixture(db, workspace_id).await?;
+    let expected = vec![
+        ("perf-block-00001".to_string(), 1),
+        ("perf-block-00002".to_string(), 2),
+        ("perf-block-00003".to_string(), 3),
+    ];
+
+    let warmed = db
+        .traverse_graph(workspace_id, &start_block_id, 3, &[LoomEdgeType::Mention])
+        .await?;
+    assert_eq!(loom_traversal_signature(&warmed), expected);
+
+    let limit_ms = if db.as_any().is::<SqliteDatabase>() {
+        100_u128
+    } else {
+        50_u128
+    };
+    let mut samples_ms = Vec::new();
+    for _ in 0..3 {
+        let started = Instant::now();
+        let traversed = db
+            .traverse_graph(workspace_id, &start_block_id, 3, &[LoomEdgeType::Mention])
+            .await?;
+        let elapsed_ms = started.elapsed().as_millis();
+        assert_eq!(loom_traversal_signature(&traversed), expected);
+        samples_ms.push(elapsed_ms);
+    }
+    samples_ms.sort_unstable();
+    let median_ms = samples_ms[samples_ms.len() / 2];
+    assert!(
+        median_ms <= limit_ms,
+        "expected 3-hop traverse_graph median <= {limit_ms}ms on {LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS} blocks, observed samples {samples_ms:?}"
+    );
+
+    Ok(())
+}
+
 #[allow(dead_code)]
 pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> StorageResult<()> {
     db.ping().await?;
@@ -882,6 +1664,15 @@ pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> Stora
         .await?;
     assert_eq!(file_block_loaded.derived.tag_count, 1);
 
+    loom_metrics_recompute_idempotent(
+        &db,
+        &workspace.id,
+        &portable_note.block_id,
+        &mention_target.block_id,
+        &tag_hub.block_id,
+    )
+    .await?;
+
     let note_edges = db
         .list_loom_edges_for_block(&workspace.id, &portable_note.block_id)
         .await?;
@@ -1162,6 +1953,22 @@ pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> Stora
         "literal wildcard characters must not broad-match by backend"
     );
 
+    let graph_fixture = build_loom_graph_fixture(&db, &ctx, &workspace.id, &document.id).await?;
+    loom_traverse_graph_depth_limit(&db, &workspace.id, &graph_fixture).await?;
+    loom_traverse_graph_cycle_detection(&db, &workspace.id, &graph_fixture).await?;
+    loom_traverse_graph_edge_type_filter(&db, &workspace.id, &graph_fixture).await?;
+    loom_search_graph_filter_postgres(&db, &workspace.id, &graph_fixture).await?;
+    loom_directional_edge_queries(
+        &db,
+        &ctx,
+        &workspace.id,
+        &document.id,
+        &portable_note.block_id,
+        &[tag_edge.edge_id.clone(), mention_edge.edge_id.clone()],
+    )
+    .await?;
+    loom_source_anchor_round_trip(&db, &ctx, &workspace.id, &document.id, &anchor).await?;
+
     let removed_edge = db
         .delete_loom_edge(&ctx, &workspace.id, &mention_edge.edge_id)
         .await?;
@@ -1393,6 +2200,26 @@ pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> Stora
         Err(StorageError::NotFound("loom_block"))
     ));
 
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub async fn run_loom_traversal_performance_probe(
+    db: Arc<dyn super::Database>,
+) -> StorageResult<()> {
+    db.ping().await?;
+
+    let ctx = WriteContext::human(Some("loom-perf".into()));
+    let workspace = db
+        .create_workspace(
+            &ctx,
+            NewWorkspace {
+                name: format!("loom-perf-ws-{}", Uuid::new_v4()),
+            },
+        )
+        .await?;
+
+    loom_traverse_graph_meets_performance_target(&db, &workspace.id).await?;
     Ok(())
 }
 

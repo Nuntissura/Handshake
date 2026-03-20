@@ -1671,6 +1671,29 @@ pub trait Database: Send + Sync + std::any::Any {
         workspace_id: &str,
         block_id: &str,
     ) -> StorageResult<Vec<LoomEdge>>;
+    async fn get_backlinks(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<Vec<LoomEdge>>;
+    async fn get_outgoing_edges(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<Vec<LoomEdge>>;
+    async fn traverse_graph(
+        &self,
+        workspace_id: &str,
+        start_block_id: &str,
+        max_depth: u32,
+        edge_types: &[LoomEdgeType],
+    ) -> StorageResult<Vec<(LoomBlock, u32)>>;
+    async fn recompute_block_metrics(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<()>;
+    async fn recompute_all_metrics(&self, workspace_id: &str) -> StorageResult<()>;
 
     async fn query_loom_view(
         &self,

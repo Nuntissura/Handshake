@@ -31,9 +31,8 @@ pub struct PostgresDatabase {
     guard: Arc<dyn StorageGuard>,
 }
 
-#[cfg(test)]
 impl PostgresDatabase {
-    pub fn pool(&self) -> &PgPool {
+    pub(crate) fn pool(&self) -> &PgPool {
         &self.pool
     }
 }
@@ -2023,6 +2022,252 @@ impl super::Database for PostgresDatabase {
         rows.into_iter().map(map_loom_edge).collect()
     }
 
+    async fn get_backlinks(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<Vec<LoomEdge>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                edge_id,
+                workspace_id,
+                source_block_id,
+                target_block_id,
+                edge_type,
+                created_by,
+                created_at,
+                crdt_site_id,
+                source_document_id,
+                source_text_block_id,
+                offset_start,
+                offset_end
+            FROM loom_edges
+            WHERE workspace_id = $1
+              AND target_block_id = $2
+            ORDER BY created_at ASC, edge_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(map_loom_edge).collect()
+    }
+
+    async fn get_outgoing_edges(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<Vec<LoomEdge>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                edge_id,
+                workspace_id,
+                source_block_id,
+                target_block_id,
+                edge_type,
+                created_by,
+                created_at,
+                crdt_site_id,
+                source_document_id,
+                source_text_block_id,
+                offset_start,
+                offset_end
+            FROM loom_edges
+            WHERE workspace_id = $1
+              AND source_block_id = $2
+            ORDER BY created_at ASC, edge_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(map_loom_edge).collect()
+    }
+
+    async fn traverse_graph(
+        &self,
+        workspace_id: &str,
+        start_block_id: &str,
+        max_depth: u32,
+        edge_types: &[LoomEdgeType],
+    ) -> StorageResult<Vec<(LoomBlock, u32)>> {
+        if max_depth == 0 {
+            return Ok(Vec::new());
+        }
+
+        let edge_type_filter = (!edge_types.is_empty()).then(|| {
+            edge_types
+                .iter()
+                .map(|edge_type| edge_type.as_str().to_string())
+                .collect::<Vec<_>>()
+        });
+
+        let rows = sqlx::query(
+            r#"
+            WITH RECURSIVE reachable(block_id, depth, path) AS (
+                SELECT
+                    e.target_block_id,
+                    1 AS depth,
+                    ARRAY[e.source_block_id, e.target_block_id]::TEXT[] AS path
+                FROM loom_edges e
+                WHERE e.workspace_id = $1
+                  AND e.source_block_id = $2
+                  AND ($4::TEXT[] IS NULL OR e.edge_type = ANY($4::TEXT[]))
+
+                UNION ALL
+
+                SELECT
+                    e.target_block_id,
+                    r.depth + 1,
+                    r.path || e.target_block_id
+                FROM loom_edges e
+                JOIN reachable r
+                  ON e.source_block_id = r.block_id
+                WHERE e.workspace_id = $1
+                  AND r.depth < $3
+                  AND NOT e.target_block_id = ANY(r.path)
+                  AND ($4::TEXT[] IS NULL OR e.edge_type = ANY($4::TEXT[]))
+            ),
+            dedup AS (
+                SELECT block_id, MIN(depth) AS depth
+                FROM reachable
+                GROUP BY block_id
+            )
+            SELECT
+                d.depth,
+                b.block_id,
+                b.workspace_id,
+                b.content_type,
+                b.document_id,
+                b.asset_id,
+                b.title,
+                b.original_filename,
+                b.content_hash,
+                b.pinned,
+                b.journal_date,
+                b.created_at,
+                b.updated_at,
+                b.imported_at,
+                b.backlink_count,
+                b.mention_count,
+                b.tag_count,
+                b.derived_json,
+                b.preview_status,
+                b.thumbnail_asset_id,
+                b.proxy_asset_id
+            FROM dedup d
+            JOIN loom_blocks b
+              ON b.workspace_id = $1
+             AND b.block_id = d.block_id
+            ORDER BY d.depth ASC, b.block_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(start_block_id)
+        .bind(max_depth as i32)
+        .bind(edge_type_filter)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let depth: i32 = row.get("depth");
+                let depth = u32::try_from(depth)
+                    .map_err(|_| StorageError::Validation("invalid loom traversal depth"))?;
+                let block = map_loom_block(row)?;
+                Ok((block, depth))
+            })
+            .collect()
+    }
+
+    async fn recompute_block_metrics(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<()> {
+        let res = sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET
+                mention_count = (
+                    SELECT COUNT(*)::INT
+                    FROM loom_edges
+                    WHERE workspace_id = $1
+                      AND source_block_id = $2
+                      AND edge_type = 'mention'
+                ),
+                tag_count = (
+                    SELECT COUNT(*)::INT
+                    FROM loom_edges
+                    WHERE workspace_id = $1
+                      AND source_block_id = $2
+                      AND edge_type = 'tag'
+                ),
+                backlink_count = (
+                    SELECT COUNT(*)::INT
+                    FROM loom_edges
+                    WHERE workspace_id = $1
+                      AND target_block_id = $2
+                      AND edge_type IN ('mention', 'tag')
+                )
+            WHERE workspace_id = $1
+              AND block_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(&self.pool)
+        .await?;
+
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("loom_block"));
+        }
+
+        Ok(())
+    }
+
+    async fn recompute_all_metrics(&self, workspace_id: &str) -> StorageResult<()> {
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks AS b
+            SET
+                mention_count = (
+                    SELECT COUNT(*)::INT
+                    FROM loom_edges e
+                    WHERE e.workspace_id = b.workspace_id
+                      AND e.source_block_id = b.block_id
+                      AND e.edge_type = 'mention'
+                ),
+                tag_count = (
+                    SELECT COUNT(*)::INT
+                    FROM loom_edges e
+                    WHERE e.workspace_id = b.workspace_id
+                      AND e.source_block_id = b.block_id
+                      AND e.edge_type = 'tag'
+                ),
+                backlink_count = (
+                    SELECT COUNT(*)::INT
+                    FROM loom_edges e
+                    WHERE e.workspace_id = b.workspace_id
+                      AND e.target_block_id = b.block_id
+                      AND e.edge_type IN ('mention', 'tag')
+                )
+            WHERE b.workspace_id = $1
+            "#,
+        )
+        .bind(workspace_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     async fn query_loom_view(
         &self,
         workspace_id: &str,
@@ -2455,28 +2700,90 @@ impl super::Database for PostgresDatabase {
             qb.push("a.mime = ").push_bind(mime);
         }
 
+        let backlink_depth = filters.backlink_depth.unwrap_or(1);
+
         if !filters.tag_ids.is_empty() {
             push_clause(&mut qb);
-            qb.push(
-                "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'tag' AND e.target_block_id IN (",
-            );
-            let mut separated = qb.separated(", ");
-            for tag_id in &filters.tag_ids {
-                separated.push_bind(tag_id);
+            if backlink_depth <= 1 {
+                qb.push(
+                    "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'tag' AND e.target_block_id IN (",
+                );
+                let mut separated = qb.separated(", ");
+                for tag_id in &filters.tag_ids {
+                    separated.push_bind(tag_id);
+                }
+                separated.push_unseparated("))");
+            } else {
+                qb.push(
+                    "EXISTS (WITH RECURSIVE reachable(block_id, depth, edge_type, path) AS (\
+                        SELECT e.target_block_id, 1, e.edge_type, ARRAY[e.source_block_id, e.target_block_id]::TEXT[] \
+                        FROM loom_edges e \
+                        WHERE e.workspace_id = b.workspace_id \
+                          AND e.source_block_id = b.block_id \
+                        UNION ALL \
+                        SELECT e.target_block_id, r.depth + 1, e.edge_type, r.path || e.target_block_id \
+                        FROM loom_edges e \
+                        JOIN reachable r ON e.source_block_id = r.block_id \
+                        WHERE e.workspace_id = b.workspace_id \
+                          AND r.depth < ",
+                );
+                qb.push_bind(backlink_depth as i32);
+                qb.push(
+                    " \
+                          AND NOT e.target_block_id = ANY(r.path) \
+                    ) \
+                    SELECT 1 FROM reachable r \
+                    WHERE r.edge_type = 'tag' \
+                      AND r.block_id IN (",
+                );
+                let mut separated = qb.separated(", ");
+                for tag_id in &filters.tag_ids {
+                    separated.push_bind(tag_id);
+                }
+                separated.push_unseparated("))");
             }
-            separated.push_unseparated("))");
         }
 
         if !filters.mention_ids.is_empty() {
             push_clause(&mut qb);
-            qb.push(
-                "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'mention' AND e.target_block_id IN (",
-            );
-            let mut separated = qb.separated(", ");
-            for mention_id in &filters.mention_ids {
-                separated.push_bind(mention_id);
+            if backlink_depth <= 1 {
+                qb.push(
+                    "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'mention' AND e.target_block_id IN (",
+                );
+                let mut separated = qb.separated(", ");
+                for mention_id in &filters.mention_ids {
+                    separated.push_bind(mention_id);
+                }
+                separated.push_unseparated("))");
+            } else {
+                qb.push(
+                    "EXISTS (WITH RECURSIVE reachable(block_id, depth, edge_type, path) AS (\
+                        SELECT e.target_block_id, 1, e.edge_type, ARRAY[e.source_block_id, e.target_block_id]::TEXT[] \
+                        FROM loom_edges e \
+                        WHERE e.workspace_id = b.workspace_id \
+                          AND e.source_block_id = b.block_id \
+                        UNION ALL \
+                        SELECT e.target_block_id, r.depth + 1, e.edge_type, r.path || e.target_block_id \
+                        FROM loom_edges e \
+                        JOIN reachable r ON e.source_block_id = r.block_id \
+                        WHERE e.workspace_id = b.workspace_id \
+                          AND r.depth < ",
+                );
+                qb.push_bind(backlink_depth as i32);
+                qb.push(
+                    " \
+                          AND NOT e.target_block_id = ANY(r.path) \
+                    ) \
+                    SELECT 1 FROM reachable r \
+                    WHERE r.edge_type = 'mention' \
+                      AND r.block_id IN (",
+                );
+                let mut separated = qb.separated(", ");
+                for mention_id in &filters.mention_ids {
+                    separated.push_bind(mention_id);
+                }
+                separated.push_unseparated("))");
             }
-            separated.push_unseparated("))");
         }
 
         qb.push(" ORDER BY b.updated_at DESC, b.block_id ASC ");

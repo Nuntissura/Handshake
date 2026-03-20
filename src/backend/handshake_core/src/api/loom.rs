@@ -1,11 +1,9 @@
-use crate::flight_recorder::{
-    FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
-};
+use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::loom_fs::{loom_asset_blob_path, resolve_handshake_root};
 use crate::models::ErrorResponse;
 use crate::storage::{
-    artifacts, Asset, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate,
-    LoomEdge, LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomViewFilters, LoomViewResponse,
+    artifacts, Asset, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, LoomEdge,
+    LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomViewFilters, LoomViewResponse,
     LoomViewType, NewAsset, NewLoomBlock, NewLoomEdge, PreviewStatus, StorageError, WriteContext,
 };
 use crate::AppState;
@@ -16,8 +14,8 @@ use axum::{
     routing::{delete, get, post},
     Json, Router,
 };
-use chrono::{DateTime, Utc};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -26,6 +24,9 @@ use uuid::Uuid;
 
 type ApiError = (StatusCode, Json<ErrorResponse>);
 type ApiResult<T> = Result<T, ApiError>;
+
+const DEFAULT_LOOM_GRAPH_DEPTH: u32 = 3;
+const MAX_LOOM_GRAPH_DEPTH: u32 = 8;
 
 fn bad_request(code: &'static str) -> ApiError {
     (StatusCode::BAD_REQUEST, Json(ErrorResponse { error: code }))
@@ -70,19 +71,34 @@ async fn ensure_workspace_exists(state: &AppState, workspace_id: &str) -> ApiRes
 pub fn routes(state: AppState) -> Router {
     Router::new()
         // Loom blocks
-        .route("/workspaces/:workspace_id/loom/blocks", post(create_loom_block))
+        .route(
+            "/workspaces/:workspace_id/loom/blocks",
+            post(create_loom_block),
+        )
         .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id",
-            get(get_loom_block).patch(patch_loom_block).delete(delete_loom_block),
+            get(get_loom_block)
+                .patch(patch_loom_block)
+                .delete(delete_loom_block),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/blocks/:block_id/metrics/recompute",
+            post(recompute_loom_block_metrics),
         )
         // Loom edges
-        .route("/workspaces/:workspace_id/loom/edges", post(create_loom_edge))
+        .route(
+            "/workspaces/:workspace_id/loom/edges",
+            post(create_loom_edge),
+        )
         .route(
             "/workspaces/:workspace_id/loom/edges/:edge_id",
             delete(delete_loom_edge),
         )
         // Import + assets
-        .route("/workspaces/:workspace_id/loom/import", post(import_loom_asset))
+        .route(
+            "/workspaces/:workspace_id/loom/import",
+            post(import_loom_asset),
+        )
         .route(
             "/workspaces/:workspace_id/assets/:asset_id",
             get(get_asset_metadata),
@@ -100,7 +116,18 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/views/:view_type",
             get(query_loom_view),
         )
-        .route("/workspaces/:workspace_id/loom/search", get(search_loom_blocks))
+        .route(
+            "/workspaces/:workspace_id/loom/graph/traverse",
+            get(traverse_loom_graph),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/metrics/recompute",
+            post(recompute_all_loom_metrics),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/search",
+            get(search_loom_blocks),
+        )
         .with_state(state)
 }
 
@@ -295,8 +322,12 @@ async fn ensure_edge_target_exists(
         Err(StorageError::NotFound(_)) => {
             let (content_type, title) = match edge_type {
                 LoomEdgeType::Mention => (LoomBlockContentType::Note, target_title),
-                LoomEdgeType::Tag | LoomEdgeType::SubTag => (LoomBlockContentType::TagHub, target_title),
-                LoomEdgeType::Parent | LoomEdgeType::AiSuggested => (LoomBlockContentType::Note, target_title),
+                LoomEdgeType::Tag | LoomEdgeType::SubTag => {
+                    (LoomBlockContentType::TagHub, target_title)
+                }
+                LoomEdgeType::Parent | LoomEdgeType::AiSuggested => {
+                    (LoomBlockContentType::Note, target_title)
+                }
             };
 
             let title = title.ok_or_else(|| bad_request("HSK-400-LOOM-TARGET-TITLE-REQUIRED"))?;
@@ -362,7 +393,9 @@ async fn create_loom_edge(
     }
 
     if let Some(anchor) = &payload.source_anchor {
-        if anchor.offset_start < 0 || anchor.offset_end < 0 || anchor.offset_end < anchor.offset_start
+        if anchor.offset_start < 0
+            || anchor.offset_end < 0
+            || anchor.offset_end < anchor.offset_start
         {
             return Err(bad_request("HSK-400-LOOM-INVALID-SOURCE-ANCHOR"));
         }
@@ -602,7 +635,10 @@ async fn import_loom_asset(
 
     let capability_profile_id = state
         .capability_registry
-        .profile_for_job_request(crate::storage::JobKind::LoomPreviewGenerate.as_str(), "hsk.loom.preview_generate@v1")
+        .profile_for_job_request(
+            crate::storage::JobKind::LoomPreviewGenerate.as_str(),
+            "hsk.loom.preview_generate@v1",
+        )
         .map_err(|e| internal_error(e))?;
     let job = crate::jobs::create_job(
         &state,
@@ -657,7 +693,12 @@ async fn get_asset_content(
         .await
         .map_err(map_storage_error)?;
     let handshake_root = resolve_handshake_root().map_err(internal_error)?;
-    let path = loom_asset_blob_path(&handshake_root, &workspace_id, &asset.kind, &asset.content_hash);
+    let path = loom_asset_blob_path(
+        &handshake_root,
+        &workspace_id,
+        &asset.kind,
+        &asset.content_hash,
+    );
 
     let bytes = std::fs::read(&path).map_err(internal_error)?;
 
@@ -697,7 +738,12 @@ async fn get_asset_thumbnail(
         .map_err(map_storage_error)?;
 
     let handshake_root = resolve_handshake_root().map_err(internal_error)?;
-    let path = loom_asset_blob_path(&handshake_root, &workspace_id, &thumb.kind, &thumb.content_hash);
+    let path = loom_asset_blob_path(
+        &handshake_root,
+        &workspace_id,
+        &thumb.kind,
+        &thumb.content_hash,
+    );
     let bytes = std::fs::read(&path).map_err(internal_error)?;
 
     let mut response = Response::new(axum::body::Body::from(bytes));
@@ -737,6 +783,30 @@ fn split_ids(value: Option<String>) -> Vec<String> {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect()
+}
+
+fn clamp_loom_graph_depth(value: Option<u32>) -> u32 {
+    value
+        .unwrap_or(DEFAULT_LOOM_GRAPH_DEPTH)
+        .clamp(1, MAX_LOOM_GRAPH_DEPTH)
+}
+
+fn parse_loom_edge_types(value: Option<String>) -> ApiResult<Vec<LoomEdgeType>> {
+    let raw = value.unwrap_or_default();
+    let mut edge_types = Vec::new();
+    for token in raw
+        .split(',')
+        .map(|item| item.trim())
+        .filter(|item| !item.is_empty())
+    {
+        let edge_type = token
+            .parse::<LoomEdgeType>()
+            .map_err(|_| bad_request("HSK-400-LOOM-EDGE-TYPE"))?;
+        if !edge_types.contains(&edge_type) {
+            edge_types.push(edge_type);
+        }
+    }
+    Ok(edge_types)
 }
 
 fn count_view_filters(filters: &LoomViewFilters) -> u32 {
@@ -806,7 +876,13 @@ async fn query_loom_view(
     let start = Instant::now();
     let resp = state
         .storage
-        .query_loom_view(&workspace_id, view_type.clone(), filters.clone(), limit, offset)
+        .query_loom_view(
+            &workspace_id,
+            view_type.clone(),
+            filters.clone(),
+            limit,
+            offset,
+        )
         .await
         .map_err(map_storage_error)?;
     let duration_ms = start.elapsed().as_millis() as u64;
@@ -831,6 +907,102 @@ async fn query_loom_view(
 }
 
 #[derive(Debug, Deserialize, Default)]
+struct LoomGraphTraverseQueryParams {
+    start_block_id: Option<String>,
+    #[serde(default)]
+    max_depth: Option<u32>,
+    #[serde(default)]
+    edge_types: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct LoomGraphTraversalNode {
+    block: LoomBlock,
+    depth: u32,
+}
+
+#[derive(Debug, Serialize)]
+struct LoomMetricsRecomputeResponse {
+    status: &'static str,
+    scope: &'static str,
+    workspace_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    block_id: Option<String>,
+}
+
+async fn traverse_loom_graph(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(query): Query<LoomGraphTraverseQueryParams>,
+) -> ApiResult<Json<Vec<LoomGraphTraversalNode>>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+
+    let start_block_id = query
+        .start_block_id
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| bad_request("HSK-400-LOOM-START-BLOCK-REQUIRED"))?;
+    state
+        .storage
+        .get_loom_block(&workspace_id, &start_block_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    let max_depth = clamp_loom_graph_depth(query.max_depth);
+    let edge_types = parse_loom_edge_types(query.edge_types)?;
+    let traversed = state
+        .storage
+        .traverse_graph(&workspace_id, &start_block_id, max_depth, &edge_types)
+        .await
+        .map_err(map_storage_error)?;
+
+    Ok(Json(
+        traversed
+            .into_iter()
+            .map(|(block, depth)| LoomGraphTraversalNode { block, depth })
+            .collect(),
+    ))
+}
+
+async fn recompute_loom_block_metrics(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+) -> ApiResult<Json<LoomMetricsRecomputeResponse>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    state
+        .storage
+        .recompute_block_metrics(&workspace_id, &block_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    Ok(Json(LoomMetricsRecomputeResponse {
+        status: "ok",
+        scope: "block",
+        workspace_id,
+        block_id: Some(block_id),
+    }))
+}
+
+async fn recompute_all_loom_metrics(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+) -> ApiResult<Json<LoomMetricsRecomputeResponse>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    state
+        .storage
+        .recompute_all_metrics(&workspace_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    Ok(Json(LoomMetricsRecomputeResponse {
+        status: "ok",
+        scope: "workspace",
+        workspace_id,
+        block_id: None,
+    }))
+}
+
+#[derive(Debug, Deserialize, Default)]
 struct LoomSearchQueryParams {
     q: Option<String>,
     #[serde(default)]
@@ -841,6 +1013,8 @@ struct LoomSearchQueryParams {
     tag_ids: Option<String>,
     #[serde(default)]
     mention_ids: Option<String>,
+    #[serde(default)]
+    backlink_depth: Option<u32>,
     #[serde(default)]
     limit: Option<u32>,
     #[serde(default)]
@@ -863,6 +1037,9 @@ async fn search_loom_blocks(
         mime: query.mime,
         tag_ids: split_ids(query.tag_ids),
         mention_ids: split_ids(query.mention_ids),
+        backlink_depth: query
+            .backlink_depth
+            .map(|depth| depth.min(MAX_LOOM_GRAPH_DEPTH)),
     };
 
     let limit = query.limit.unwrap_or(50).min(500);
@@ -976,18 +1153,54 @@ mod tests {
     async fn create_workspace(state: &AppState) -> Result<String, Box<dyn std::error::Error>> {
         let ws = state
             .storage
-            .create_workspace(&WriteContext::human(None), NewWorkspace {
-                name: "Test".to_string(),
-            })
+            .create_workspace(
+                &WriteContext::human(None),
+                NewWorkspace {
+                    name: "Test".to_string(),
+                },
+            )
             .await?;
         Ok(ws.id)
+    }
+
+    async fn set_loom_metrics_for_block(
+        state: &AppState,
+        workspace_id: &str,
+        block_id: &str,
+        mention_count: i64,
+        tag_count: i64,
+        backlink_count: i64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let sqlite = state
+            .storage
+            .as_any()
+            .downcast_ref::<SqliteDatabase>()
+            .ok_or("sqlite storage expected")?;
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET mention_count = $1, tag_count = $2, backlink_count = $3
+            WHERE workspace_id = $4 AND block_id = $5
+            "#,
+        )
+        .bind(mention_count)
+        .bind(tag_count)
+        .bind(backlink_count)
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(sqlite.pool())
+        .await?;
+        Ok(())
     }
 
     #[tokio::test]
     async fn import_dedup_emits_fr_evt_loom_006() -> Result<(), Box<dyn std::error::Error>> {
         let _lock = ENV_LOCK.lock().unwrap();
         let temp = TempDir::new()?;
-        let _env = EnvVarGuard::set("HANDSHAKE_WORKSPACE_ROOT", temp.path().to_string_lossy().as_ref());
+        let _env = EnvVarGuard::set(
+            "HANDSHAKE_WORKSPACE_ROOT",
+            temp.path().to_string_lossy().as_ref(),
+        );
 
         let state = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
@@ -1019,7 +1232,10 @@ mod tests {
         assert!(second.0.dedup_hit);
         assert!(second.0.existing_block_id.is_some());
 
-        let events = state.flight_recorder.list_events(EventFilter::default()).await?;
+        let events = state
+            .flight_recorder
+            .list_events(EventFilter::default())
+            .await?;
         let events: Vec<_> = events
             .into_iter()
             .filter(|e| e.event_type.to_string() == "loom_dedup_hit")
@@ -1077,7 +1293,10 @@ mod tests {
             code: body.error.to_string(),
         })?;
 
-        let all_events = state.flight_recorder.list_events(EventFilter::default()).await?;
+        let all_events = state
+            .flight_recorder
+            .list_events(EventFilter::default())
+            .await?;
         let view_events: Vec<_> = all_events
             .iter()
             .filter(|e| e.event_type.to_string() == "loom_view_queried")
@@ -1092,6 +1311,198 @@ mod tests {
             !search_events.is_empty(),
             "expected loom_search_executed event"
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn graph_traversal_and_metrics_routes_work() -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let workspace_id = create_workspace(&state).await?;
+
+        let start_block = create_loom_block(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(CreateLoomBlockRequest {
+                block_id: None,
+                content_type: LoomBlockContentType::Note,
+                document_id: None,
+                asset_id: None,
+                title: Some("Graph Start".to_string()),
+                pinned: None,
+                journal_date: None,
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?
+        .0;
+
+        let middle_block = create_loom_block(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(CreateLoomBlockRequest {
+                block_id: None,
+                content_type: LoomBlockContentType::Note,
+                document_id: None,
+                asset_id: None,
+                title: Some("Graph Middle".to_string()),
+                pinned: None,
+                journal_date: None,
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?
+        .0;
+
+        let tag_block = create_loom_block(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(CreateLoomBlockRequest {
+                block_id: None,
+                content_type: LoomBlockContentType::TagHub,
+                document_id: None,
+                asset_id: None,
+                title: Some("Graph Tag".to_string()),
+                pinned: None,
+                journal_date: None,
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?
+        .0;
+
+        let _mention_edge = create_loom_edge(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(CreateLoomEdgeRequest {
+                edge_id: None,
+                source_block_id: start_block.block_id.clone(),
+                target_block_id: middle_block.block_id.clone(),
+                edge_type: LoomEdgeType::Mention,
+                created_by: LoomEdgeCreatedBy::User,
+                crdt_site_id: None,
+                source_anchor: None,
+                target_title: None,
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+
+        let _tag_edge = create_loom_edge(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(CreateLoomEdgeRequest {
+                edge_id: None,
+                source_block_id: middle_block.block_id.clone(),
+                target_block_id: tag_block.block_id.clone(),
+                edge_type: LoomEdgeType::Tag,
+                created_by: LoomEdgeCreatedBy::User,
+                crdt_site_id: None,
+                source_anchor: None,
+                target_title: None,
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+
+        let traversed = traverse_loom_graph(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Query(LoomGraphTraverseQueryParams {
+                start_block_id: Some(start_block.block_id.clone()),
+                max_depth: Some(3),
+                edge_types: Some("mention,tag".to_string()),
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+        assert_eq!(
+            traversed
+                .0
+                .iter()
+                .map(|node| (node.block.block_id.clone(), node.depth))
+                .collect::<Vec<_>>(),
+            vec![
+                (middle_block.block_id.clone(), 1),
+                (tag_block.block_id.clone(), 2),
+            ]
+        );
+
+        set_loom_metrics_for_block(&state, &workspace_id, &start_block.block_id, 0, 0, 9).await?;
+        let recomputed_block = recompute_loom_block_metrics(
+            State(state.clone()),
+            Path((workspace_id.clone(), start_block.block_id.clone())),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+        assert_eq!(recomputed_block.0.scope, "block");
+        let refreshed_start = state
+            .storage
+            .get_loom_block(&workspace_id, &start_block.block_id)
+            .await?;
+        assert_eq!(refreshed_start.derived.mention_count, 1);
+        assert_eq!(refreshed_start.derived.tag_count, 0);
+        assert_eq!(refreshed_start.derived.backlink_count, 0);
+
+        set_loom_metrics_for_block(&state, &workspace_id, &middle_block.block_id, 0, 0, 0).await?;
+        let recomputed_workspace =
+            recompute_all_loom_metrics(State(state.clone()), Path(workspace_id.clone()))
+                .await
+                .map_err(|(status, Json(body))| LoomApiTestCallError {
+                    status,
+                    code: body.error.to_string(),
+                })?;
+        assert_eq!(recomputed_workspace.0.scope, "workspace");
+
+        let refreshed_middle = state
+            .storage
+            .get_loom_block(&workspace_id, &middle_block.block_id)
+            .await?;
+        let refreshed_tag = state
+            .storage
+            .get_loom_block(&workspace_id, &tag_block.block_id)
+            .await?;
+        assert_eq!(refreshed_middle.derived.mention_count, 0);
+        assert_eq!(refreshed_middle.derived.tag_count, 1);
+        assert_eq!(refreshed_middle.derived.backlink_count, 1);
+        assert_eq!(refreshed_tag.derived.backlink_count, 1);
+
+        let clamped = search_loom_blocks(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Query(LoomSearchQueryParams {
+                q: Some("Graph Start".to_string()),
+                backlink_depth: Some(MAX_LOOM_GRAPH_DEPTH + 50),
+                ..Default::default()
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+        assert_eq!(clamped.0.len(), 1);
 
         Ok(())
     }
