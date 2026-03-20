@@ -31,9 +31,9 @@ pub struct TaskBoardEntryRecordV1 {
     pub project_profile_kind: ProjectProfileKind,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub authority_refs: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub evidence_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror_contract: Option<MarkdownMirrorContractV1>,
@@ -61,9 +61,9 @@ pub struct TaskBoardIndexV1 {
     pub project_profile_kind: ProjectProfileKind,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub authority_refs: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub evidence_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror_contract: Option<MarkdownMirrorContractV1>,
@@ -71,15 +71,8 @@ pub struct TaskBoardIndexV1 {
     pub generated_at: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub view_ids: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub entries: Vec<TaskBoardEntryRecordV1>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TaskBoardViewLaneV1 {
-    pub lane_id: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub entries: Vec<TaskBoardEntryRecordV1>,
+    #[serde(default)]
+    pub rows: Vec<TaskBoardEntryRecordV1>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -91,17 +84,19 @@ pub struct TaskBoardViewV1 {
     pub project_profile_kind: ProjectProfileKind,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub authority_refs: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub evidence_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror_contract: Option<MarkdownMirrorContractV1>,
     pub task_board_id: String,
     pub view_id: String,
     pub generated_at: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub lanes: Vec<TaskBoardViewLaneV1>,
+    #[serde(default)]
+    pub lane_ids: Vec<String>,
+    #[serde(default)]
+    pub rows: Vec<TaskBoardEntryRecordV1>,
 }
 
 impl TaskBoardSections {
@@ -170,7 +165,7 @@ pub fn lane_id_for_status(status: TaskBoardStatus) -> &'static str {
 }
 
 pub fn default_view_id() -> &'static str {
-    "by_status"
+    "default"
 }
 
 fn parse_entry_line(line: &str) -> Option<(String, String)> {

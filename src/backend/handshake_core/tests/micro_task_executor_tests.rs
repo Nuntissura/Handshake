@@ -20,7 +20,8 @@ use handshake_core::workflows::{
     locus::{
         validate_structured_collaboration_record, validate_structured_collaboration_summary_join,
         StructuredCollaborationRecordFamily, StructuredCollaborationValidationCode,
-        StructuredCollaborationValidationResult,
+        StructuredCollaborationValidationResult, TrackedMicroTaskArtifactV1,
+        TrackedWorkPacketArtifactV1,
     },
     start_workflow_for_job, ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig,
 };
@@ -746,11 +747,27 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
         packet_json.get("schema_id").and_then(Value::as_str),
         Some("hsk.tracked_work_packet@1")
     );
+    let packet_updated_at = packet_json
+        .get("updated_at")
+        .and_then(Value::as_str)
+        .expect("tracked work packet updated_at");
+    assert!(
+        chrono::DateTime::parse_from_rfc3339(packet_updated_at).is_ok(),
+        "tracked work packet updated_at should be RFC3339, got {packet_updated_at}"
+    );
+    let packet_metadata = packet_json
+        .get("metadata")
+        .and_then(Value::as_object)
+        .expect("tracked work packet metadata");
     assert_eq!(
-        packet_json
-            .get("summary_record_path")
-            .and_then(Value::as_str),
+        packet_json.get("summary_ref").and_then(Value::as_str),
         Some(".handshake/gov/work_packets/WP-TEST/summary.json")
+    );
+    let legacy_packet: TrackedWorkPacketArtifactV1 =
+        serde_json::from_value(packet_json.clone()).expect("legacy work-packet artifact");
+    assert_eq!(
+        legacy_packet.summary_ref,
+        ".handshake/gov/work_packets/WP-TEST/summary.json"
     );
     assert_eq!(
         packet_json
@@ -759,6 +776,47 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
             .and_then(|items| items.first())
             .and_then(Value::as_str),
         Some(".handshake/gov/work_packets/WP-TEST/packet.json")
+    );
+    assert_eq!(
+        packet_json
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(Value::as_str),
+        packet_json
+            .get("governance")
+            .and_then(|value| value.get("task_packet_path"))
+            .and_then(Value::as_str)
+    );
+    assert_eq!(
+        packet_metadata
+            .get("structured_collaboration_summary_path")
+            .and_then(Value::as_str),
+        Some(".handshake/gov/work_packets/WP-TEST/summary.json")
+    );
+    let packet_summary = packet_metadata
+        .get("structured_collaboration_summary")
+        .and_then(Value::as_object)
+        .expect("tracked work packet embedded summary");
+    assert_eq!(
+        packet_summary.get("record_id").and_then(Value::as_str),
+        Some("WP-TEST")
+    );
+    assert_eq!(
+        packet_summary.get("status").and_then(Value::as_str),
+        summary_json.get("status").and_then(Value::as_str)
+    );
+    assert_eq!(
+        packet_summary
+            .get("title_or_objective")
+            .and_then(Value::as_str),
+        summary_json
+            .get("title_or_objective")
+            .and_then(Value::as_str)
+    );
+    assert_eq!(
+        packet_summary.get("next_action").and_then(Value::as_str),
+        summary_json.get("next_action").and_then(Value::as_str)
     );
     assert_eq!(
         summary_json.get("schema_id").and_then(Value::as_str),
@@ -775,6 +833,23 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
         &packet_json,
     );
     assert!(packet_validation.ok, "{packet_validation:?}");
+    let mut packet_json_missing_updated_at = packet_json.clone();
+    packet_json_missing_updated_at
+        .as_object_mut()
+        .expect("packet json object")
+        .remove("updated_at");
+    let missing_updated_at_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::WorkPacketPacket,
+        &packet_json_missing_updated_at,
+    );
+    assert!(!missing_updated_at_validation.ok);
+    assert!(missing_updated_at_validation.issues.iter().any(|issue| {
+        matches!(
+            issue.code,
+            StructuredCollaborationValidationCode::MissingField
+        ) && issue.field == "updated_at"
+    }));
     let summary_validation = validate_runtime_structured_record(
         &root,
         StructuredCollaborationRecordFamily::WorkPacketSummary,
@@ -859,6 +934,16 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
         .join("task_board")
         .join("views")
         .join("default.json");
+    assert!(
+        index_path.exists(),
+        "missing task-board index artifact at {}",
+        index_path.display()
+    );
+    assert!(
+        view_path.exists(),
+        "missing task-board view artifact at {}",
+        view_path.display()
+    );
     let index_json: Value = serde_json::from_slice(&std::fs::read(&index_path)?)?;
     let view_json: Value = serde_json::from_slice(&std::fs::read(&view_path)?)?;
     assert_eq!(
@@ -896,14 +981,58 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
         Some("WP-TEST")
     );
     assert_eq!(
+        first_row.get("task_board_id").and_then(Value::as_str),
+        Some(".handshake/gov/TASK_BOARD.md")
+    );
+    assert_eq!(
         first_row.get("lane_id").and_then(Value::as_str),
         Some("ready")
+    );
+    assert_eq!(
+        first_row.get("display_order").and_then(Value::as_u64),
+        Some(0)
+    );
+    let first_row_view_ids = first_row
+        .get("view_ids")
+        .and_then(Value::as_array)
+        .expect("task-board row view_ids");
+    assert_eq!(
+        first_row_view_ids
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>(),
+        vec!["default"]
+    );
+    assert_eq!(
+        view_json
+            .get("lane_ids")
+            .and_then(Value::as_array)
+            .map(|lane_ids| {
+                lane_ids
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>()
+            }),
+        Some(vec![
+            "stub",
+            "ready",
+            "in_progress",
+            "blocked",
+            "gated",
+            "done",
+            "cancelled",
+        ])
     );
 
     let packet_path = gov_root
         .join("work_packets")
         .join("WP-TEST")
         .join("packet.json");
+    assert!(
+        packet_path.exists(),
+        "missing work-packet artifact at {}",
+        packet_path.display()
+    );
     let packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
     assert_eq!(
         packet_json.get("status").and_then(Value::as_str),
@@ -1066,10 +1195,14 @@ async fn locus_bind_session_normalizes_and_deduplicates_session_ids(
         "tracked micro-task updated_at should be RFC3339, got {tracked_mt_updated_at}"
     );
     assert_eq!(
-        tracked_mt
-            .get("summary_record_path")
-            .and_then(Value::as_str),
+        tracked_mt.get("summary_ref").and_then(Value::as_str),
         Some(".handshake/gov/micro_tasks/WP-TEST/MT-SESSION/summary.json")
+    );
+    let legacy_micro_task: TrackedMicroTaskArtifactV1 =
+        serde_json::from_value(tracked_mt.clone()).expect("legacy micro-task artifact");
+    assert_eq!(
+        legacy_micro_task.summary_ref,
+        ".handshake/gov/micro_tasks/WP-TEST/MT-SESSION/summary.json"
     );
     assert_eq!(
         tracked_mt
@@ -1182,6 +1315,14 @@ async fn locus_register_mts_emits_structured_micro_task_packet_and_summary(
         packet_json.get("schema_id").and_then(Value::as_str),
         Some("hsk.tracked_micro_task@1")
     );
+    let packet_updated_at = packet_json
+        .get("updated_at")
+        .and_then(Value::as_str)
+        .expect("tracked micro-task updated_at");
+    assert!(
+        chrono::DateTime::parse_from_rfc3339(packet_updated_at).is_ok(),
+        "tracked micro-task updated_at should be RFC3339, got {packet_updated_at}"
+    );
     assert_eq!(
         summary_json.get("schema_id").and_then(Value::as_str),
         Some("hsk.structured_collaboration_summary@1")
@@ -1196,6 +1337,54 @@ async fn locus_register_mts_emits_structured_micro_task_packet_and_summary(
             .filter_map(Value::as_str)
             .collect::<Vec<_>>(),
         vec!["sess-artifacts"]
+    );
+    assert_eq!(
+        packet_json
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(Value::as_str),
+        Some(".handshake/gov/micro_tasks/WP-TEST/MT-ARTIFACTS/summary.json")
+    );
+    let packet_metadata = packet_json
+        .get("metadata")
+        .and_then(Value::as_object)
+        .expect("tracked micro-task metadata");
+    let legacy_packet: TrackedMicroTaskArtifactV1 =
+        serde_json::from_value(packet_json.clone()).expect("legacy micro-task packet");
+    assert_eq!(
+        legacy_packet.summary_ref,
+        ".handshake/gov/micro_tasks/WP-TEST/MT-ARTIFACTS/summary.json"
+    );
+    assert_eq!(
+        packet_metadata
+            .get("structured_collaboration_summary_path")
+            .and_then(Value::as_str),
+        Some(".handshake/gov/micro_tasks/WP-TEST/MT-ARTIFACTS/summary.json")
+    );
+    let packet_summary = packet_metadata
+        .get("structured_collaboration_summary")
+        .and_then(Value::as_object)
+        .expect("tracked micro-task embedded summary");
+    assert_eq!(
+        packet_summary.get("record_id").and_then(Value::as_str),
+        Some("MT-ARTIFACTS")
+    );
+    assert_eq!(
+        packet_summary.get("status").and_then(Value::as_str),
+        summary_json.get("status").and_then(Value::as_str)
+    );
+    assert_eq!(
+        packet_summary
+            .get("title_or_objective")
+            .and_then(Value::as_str),
+        summary_json
+            .get("title_or_objective")
+            .and_then(Value::as_str)
+    );
+    assert_eq!(
+        packet_summary.get("next_action").and_then(Value::as_str),
+        summary_json.get("next_action").and_then(Value::as_str)
     );
 
     let packet_validation = validate_runtime_structured_record(

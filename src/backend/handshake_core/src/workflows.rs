@@ -1477,6 +1477,7 @@ async fn execute_locus_sync_task_board(
             status_change_entries,
             unknown_wp_ids,
         )) => {
+            let mut output = output;
             for (wp_id, from_status, to_status, token) in &status_change_entries {
                 record_event_required(
                     state,
@@ -1585,6 +1586,45 @@ async fn execute_locus_sync_task_board(
                 .with_workflow_id(workflow_run_id.to_string()),
             )
             .await?;
+
+            let sqlite = sqlite_database_for_structured_work_packet_projection(db)?;
+            let mut work_packet_artifacts_written = 0u64;
+            let mut structured_projection_written = false;
+            let validation_result = if dry_run {
+                locus::StructuredCollaborationValidationResult::success(
+                    locus::StructuredCollaborationRecordFamily::TaskBoardIndex,
+                )
+            } else {
+                let wp_ids = sqlx::query_scalar::<_, String>(
+                    "SELECT wp_id FROM work_packets ORDER BY wp_id ASC",
+                )
+                .fetch_all(sqlite.pool())
+                .await
+                .map_err(StorageError::from)?;
+                for wp_id in wp_ids {
+                    if let Some(work_packet) =
+                        load_tracked_work_packet_for_artifacts(sqlite.pool(), &wp_id).await?
+                    {
+                        emit_work_packet_artifacts(&runtime_governance_paths, &work_packet)?;
+                        work_packet_artifacts_written =
+                            work_packet_artifacts_written.saturating_add(1);
+                    }
+                }
+                structured_projection_written = true;
+                emit_task_board_projection_artifacts(sqlite.pool(), &runtime_governance_paths)
+                    .await?
+            };
+            if let Some(map) = output.as_object_mut() {
+                map.insert(
+                    "structured_projection_written".to_string(),
+                    json!(structured_projection_written),
+                );
+                map.insert(
+                    "work_packet_artifacts_written".to_string(),
+                    json!(work_packet_artifacts_written),
+                );
+                map.insert("validation_result".to_string(), json!(validation_result));
+            }
 
             Ok(output)
         }
@@ -3347,77 +3387,20 @@ fn emit_work_packet_artifacts(
     ensure_dir(&work_packet_dir, "work packet artifact dir")?;
 
     let note_refs = emit_work_packet_notes(runtime_paths, work_packet)?;
-    let authority_refs = work_packet_authority_refs(work_packet);
-    let evidence_refs = work_packet_evidence_refs(work_packet);
-    let (workflow_state_family, queue_reason_code) = work_packet_workflow_state(work_packet.status);
-    let summary_ref = runtime_paths.work_packet_summary_display(&work_packet.wp_id);
-    let summary = locus::StructuredCollaborationSummaryV1 {
-        schema_id: STRUCTURED_SUMMARY_SCHEMA_ID.to_string(),
-        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
-        record_id: work_packet.wp_id.clone(),
-        record_kind: "work_packet_summary".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-        updated_at: work_packet.updated_at.to_rfc3339(),
-        mirror_state: locus::MirrorSyncState::CanonicalOnly,
-        authority_refs: authority_refs.clone(),
-        evidence_refs: evidence_refs.clone(),
-        mirror_contract: None,
-        workflow_state_family,
-        queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
-        status: work_packet_status_string(work_packet.status).to_string(),
-        title_or_objective: work_packet.title.clone(),
-        blockers: work_packet_blockers(work_packet),
-        next_action: next_action_for_work_packet(workflow_state_family),
-        summary_ref: None,
-    };
+    let mut tracked_wp = work_packet.clone();
+    apply_runtime_structured_work_packet_registry(runtime_paths, &mut tracked_wp)?;
+    let summary = build_structured_work_packet_summary(&tracked_wp);
+    tracked_wp.metadata["structured_collaboration_summary"] =
+        serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     write_json_atomic(
         runtime_paths.workspace_root(),
-        &runtime_paths.work_packet_summary_path(&work_packet.wp_id),
+        &runtime_paths.work_packet_summary_path(&tracked_wp.wp_id),
         &summary,
     )?;
-
-    let packet = locus::TrackedWorkPacketArtifactV1 {
-        schema_id: WORK_PACKET_ARTIFACT_SCHEMA_ID.to_string(),
-        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
-        record_id: work_packet.wp_id.clone(),
-        record_kind: "work_packet".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-        updated_at: work_packet.updated_at.to_rfc3339(),
-        mirror_state: locus::MirrorSyncState::CanonicalOnly,
-        authority_refs,
-        evidence_refs,
-        mirror_contract: None,
-        workflow_state_family,
-        queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
-        summary_ref,
-        note_refs,
-        wp_id: work_packet.wp_id.clone(),
-        version: work_packet.version,
-        title: work_packet.title.clone(),
-        description: work_packet.description.clone(),
-        status: work_packet.status,
-        priority: work_packet.priority,
-        governance: work_packet.governance.clone(),
-        kind: work_packet.kind,
-        labels: work_packet.labels.clone(),
-        assignee: work_packet.assignee.clone(),
-        reporter: work_packet.reporter.clone(),
-        micro_tasks: work_packet.micro_tasks.clone(),
-        created_at: work_packet.created_at,
-        started_at: work_packet.started_at,
-        completed_at: work_packet.completed_at,
-        due_at: work_packet.due_at,
-        notes: work_packet.notes.clone(),
-        metadata: work_packet.metadata.clone(),
-        vector_clock: work_packet.vector_clock.clone(),
-        tombstone: work_packet.tombstone.clone(),
-    };
-
+    let packet = build_structured_work_packet_packet(runtime_paths, &tracked_wp, note_refs);
     write_json_atomic(
         runtime_paths.workspace_root(),
-        &runtime_paths.work_packet_packet_path(&work_packet.wp_id),
+        &runtime_paths.work_packet_packet_path(&tracked_wp.wp_id),
         &packet,
     )?;
 
@@ -3431,77 +3414,21 @@ fn emit_micro_task_artifacts(
     let micro_task_dir = runtime_paths.micro_task_dir(&micro_task.wp_id, &micro_task.mt_id);
     ensure_dir(&micro_task_dir, "micro-task artifact dir")?;
 
-    let authority_refs = micro_task_authority_refs(micro_task);
-    let evidence_refs = micro_task_evidence_refs(micro_task);
-    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state(micro_task.status);
-    let summary_ref =
-        runtime_paths.micro_task_summary_display(&micro_task.wp_id, &micro_task.mt_id);
-    let updated_at = micro_task_updated_at(micro_task);
-
-    let summary = locus::StructuredCollaborationSummaryV1 {
-        schema_id: STRUCTURED_SUMMARY_SCHEMA_ID.to_string(),
-        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
-        record_id: format!("{}:{}", micro_task.wp_id, micro_task.mt_id),
-        record_kind: "micro_task_summary".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-        updated_at: updated_at.clone(),
-        mirror_state: locus::MirrorSyncState::CanonicalOnly,
-        authority_refs: authority_refs.clone(),
-        evidence_refs: evidence_refs.clone(),
-        mirror_contract: None,
-        workflow_state_family,
-        queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
-        status: micro_task_status_string(micro_task.status).to_string(),
-        title_or_objective: micro_task.name.clone(),
-        blockers: micro_task_blockers(micro_task),
-        next_action: next_action_for_micro_task(workflow_state_family),
-        summary_ref: None,
-    };
+    let mut tracked_mt = micro_task.clone();
+    let wp_id = tracked_mt.wp_id.clone();
+    apply_runtime_structured_micro_task_registry(runtime_paths, &wp_id, &mut tracked_mt)?;
+    let summary = build_structured_micro_task_summary(&tracked_mt);
+    tracked_mt.metadata["structured_collaboration_summary"] =
+        serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     write_json_atomic(
         runtime_paths.workspace_root(),
-        &runtime_paths.micro_task_summary_path(&micro_task.wp_id, &micro_task.mt_id),
+        &runtime_paths.micro_task_summary_path(&tracked_mt.wp_id, &tracked_mt.mt_id),
         &summary,
     )?;
-
-    let packet = locus::TrackedMicroTaskArtifactV1 {
-        schema_id: MICRO_TASK_ARTIFACT_SCHEMA_ID.to_string(),
-        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
-        record_id: format!("{}:{}", micro_task.wp_id, micro_task.mt_id),
-        record_kind: "micro_task".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-        updated_at: summary.updated_at.clone(),
-        mirror_state: locus::MirrorSyncState::CanonicalOnly,
-        authority_refs,
-        evidence_refs,
-        mirror_contract: None,
-        workflow_state_family,
-        queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
-        summary_ref,
-        mt_id: micro_task.mt_id.clone(),
-        wp_id: micro_task.wp_id.clone(),
-        name: micro_task.name.clone(),
-        scope: micro_task.scope.clone(),
-        files: micro_task.files.clone(),
-        done_criteria: micro_task.done_criteria.clone(),
-        status: micro_task.status,
-        active_session_ids: micro_task.active_session_ids.clone(),
-        iterations: micro_task.iterations.clone(),
-        current_iteration: micro_task.current_iteration,
-        max_iterations: micro_task.max_iterations,
-        validation_result: micro_task.validation_result.clone(),
-        escalation: micro_task.escalation.clone(),
-        started_at: micro_task.started_at,
-        completed_at: micro_task.completed_at,
-        duration_ms: micro_task.duration_ms,
-        depends_on: micro_task.depends_on.clone(),
-        metadata: micro_task.metadata.clone(),
-    };
-
+    let packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
     write_json_atomic(
         runtime_paths.workspace_root(),
-        &runtime_paths.micro_task_packet_path(&micro_task.wp_id, &micro_task.mt_id),
+        &runtime_paths.micro_task_packet_path(&tracked_mt.wp_id, &tracked_mt.mt_id),
         &packet,
     )?;
 
@@ -3566,7 +3493,7 @@ fn task_board_mirror_contract(
 async fn emit_task_board_projection_artifacts(
     pool: &SqlitePool,
     runtime_paths: &RuntimeGovernancePaths,
-) -> Result<(), WorkflowError> {
+) -> Result<locus::StructuredCollaborationValidationResult, WorkflowError> {
     let rows = sqlx::query_as::<_, (String, String, String, String)>(
         r#"
         SELECT wp_id, task_board_status, metadata, updated_at
@@ -3649,16 +3576,13 @@ async fn emit_task_board_projection_artifacts(
         let (workflow_state_family, queue_reason_code) = task_board_workflow_state(status);
         entries.push(locus::task_board::TaskBoardEntryRecordV1 {
             schema_id: TASK_BOARD_ENTRY_SCHEMA_ID.to_string(),
-            schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
+            schema_version: locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
             record_id: format!("task_board_entry:{wp_id}"),
             record_kind: "task_board_entry".to_string(),
             project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
             updated_at,
             mirror_state,
-            authority_refs: vec![
-                format!("locus:work_packet:{wp_id}"),
-                runtime_paths.work_packet_packet_display(&wp_id),
-            ],
+            authority_refs: vec![runtime_paths.work_packet_packet_display(&wp_id)],
             evidence_refs: Vec::new(),
             mirror_contract: mirror_contract.clone(),
             workflow_state_family,
@@ -3677,23 +3601,22 @@ async fn emit_task_board_projection_artifacts(
 
     let index = locus::task_board::TaskBoardIndexV1 {
         schema_id: TASK_BOARD_INDEX_SCHEMA_ID.to_string(),
-        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
+        schema_version: locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
         record_id: "task_board_index".to_string(),
         record_kind: "task_board_index".to_string(),
         project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
         updated_at: generated_at.clone(),
         mirror_state,
-        authority_refs: vec!["locus:task_board".to_string()],
+        authority_refs: vec![runtime_paths.task_board_index_display()],
         evidence_refs: Vec::new(),
         mirror_contract: mirror_contract.clone(),
         task_board_id: task_board_id.clone(),
         generated_at: generated_at.clone(),
         view_ids: vec![view_id.clone()],
-        entries: entries.clone(),
+        rows: entries.clone(),
     };
 
-    let mut lanes: Vec<locus::task_board::TaskBoardViewLaneV1> = Vec::new();
-    for status in [
+    let lane_ids = [
         locus::TaskBoardStatus::Unknown,
         locus::TaskBoardStatus::Ready,
         locus::TaskBoardStatus::InProgress,
@@ -3701,35 +3624,97 @@ async fn emit_task_board_projection_artifacts(
         locus::TaskBoardStatus::Gated,
         locus::TaskBoardStatus::Done,
         locus::TaskBoardStatus::Cancelled,
-    ] {
-        let lane_id = locus::task_board::lane_id_for_status(status).to_string();
-        let lane_entries = entries
-            .iter()
-            .filter(|entry| entry.lane_id == lane_id)
-            .cloned()
-            .collect::<Vec<_>>();
-        lanes.push(locus::task_board::TaskBoardViewLaneV1 {
-            lane_id,
-            entries: lane_entries,
-        });
-    }
+    ]
+    .into_iter()
+    .map(|status| locus::task_board::lane_id_for_status(status).to_string())
+    .collect::<Vec<_>>();
 
     let view = locus::task_board::TaskBoardViewV1 {
         schema_id: TASK_BOARD_VIEW_SCHEMA_ID.to_string(),
-        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
+        schema_version: locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
         record_id: format!("task_board_view:{view_id}"),
         record_kind: "task_board_view".to_string(),
         project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
         updated_at: generated_at.clone(),
         mirror_state,
-        authority_refs: vec!["locus:task_board".to_string()],
+        authority_refs: vec![runtime_paths.task_board_view_display(&view_id)],
         evidence_refs: Vec::new(),
         mirror_contract,
         task_board_id,
         view_id: view_id.clone(),
         generated_at,
-        lanes,
+        lane_ids,
+        rows: entries.clone(),
     };
+
+    let mut validation = locus::StructuredCollaborationValidationResult::success(
+        locus::StructuredCollaborationRecordFamily::TaskBoardIndex,
+    );
+    for entry in &entries {
+        let entry_value =
+            serde_json::to_value(entry).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        let mut entry_validation = locus::validate_structured_collaboration_record(
+            locus::StructuredCollaborationRecordFamily::TaskBoardEntry,
+            &entry_value,
+        );
+        let invalid_entry_authority_refs =
+            runtime_paths.invalid_runtime_authority_refs(&entry.authority_refs);
+        if !invalid_entry_authority_refs.is_empty() {
+            entry_validation.push_issue(
+                locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
+                "authority_refs",
+                Some(runtime_paths.governance_root_display()),
+                Some(invalid_entry_authority_refs.join(",")),
+                "task-board entry authority_refs must stay within the product-runtime .handshake/gov boundary",
+            );
+        }
+        validation.merge(entry_validation);
+    }
+
+    let index_value =
+        serde_json::to_value(&index).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut index_validation = locus::validate_structured_collaboration_record(
+        locus::StructuredCollaborationRecordFamily::TaskBoardIndex,
+        &index_value,
+    );
+    let invalid_index_authority_refs =
+        runtime_paths.invalid_runtime_authority_refs(&index.authority_refs);
+    if !invalid_index_authority_refs.is_empty() {
+        index_validation.push_issue(
+            locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
+            "authority_refs",
+            Some(runtime_paths.governance_root_display()),
+            Some(invalid_index_authority_refs.join(",")),
+            "task-board index authority_refs must stay within the product-runtime .handshake/gov boundary",
+        );
+    }
+    validation.merge(index_validation);
+
+    let view_value =
+        serde_json::to_value(&view).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut view_validation = locus::validate_structured_collaboration_record(
+        locus::StructuredCollaborationRecordFamily::TaskBoardView,
+        &view_value,
+    );
+    let invalid_view_authority_refs =
+        runtime_paths.invalid_runtime_authority_refs(&view.authority_refs);
+    if !invalid_view_authority_refs.is_empty() {
+        view_validation.push_issue(
+            locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
+            "authority_refs",
+            Some(runtime_paths.governance_root_display()),
+            Some(invalid_view_authority_refs.join(",")),
+            "task-board view authority_refs must stay within the product-runtime .handshake/gov boundary",
+        );
+    }
+    validation.merge(view_validation);
+    if !validation.ok {
+        return Err(WorkflowError::Terminal(
+            serde_json::to_string(&validation).unwrap_or_else(|_| {
+                "structured collaboration validation failed for task-board projection".to_string()
+            }),
+        ));
+    }
 
     ensure_dir(
         &runtime_paths.task_board_projection_dir(),
@@ -3750,7 +3735,7 @@ async fn emit_task_board_projection_artifacts(
         &view,
     )?;
 
-    Ok(())
+    Ok(validation)
 }
 
 async fn materialize_structured_collaboration_artifacts(
@@ -4698,6 +4683,51 @@ fn build_structured_work_packet_summary(
     )
 }
 
+fn build_structured_work_packet_packet(
+    runtime_paths: &RuntimeGovernancePaths,
+    tracked_wp: &locus::TrackedWorkPacket,
+    note_refs: Vec<String>,
+) -> locus::TrackedWorkPacketArtifactV1 {
+    let (workflow_state_family, queue_reason_code) = work_packet_workflow_state(tracked_wp.status);
+    locus::TrackedWorkPacketArtifactV1 {
+        schema_id: tracked_wp.schema_id.clone(),
+        schema_version: tracked_wp.schema_version.clone(),
+        record_id: tracked_wp.record_id.clone(),
+        record_kind: tracked_wp.record_kind.clone(),
+        project_profile_kind: tracked_wp.project_profile_kind,
+        updated_at: tracked_wp.updated_at.to_rfc3339(),
+        mirror_state: tracked_wp.mirror_state,
+        authority_refs: tracked_wp.authority_refs.clone(),
+        evidence_refs: tracked_wp.evidence_refs.clone(),
+        mirror_contract: None,
+        workflow_state_family,
+        queue_reason_code,
+        allowed_action_ids: allowed_action_ids(workflow_state_family),
+        summary_ref: runtime_paths.work_packet_summary_display(&tracked_wp.wp_id),
+        note_refs,
+        wp_id: tracked_wp.wp_id.clone(),
+        version: tracked_wp.version,
+        title: tracked_wp.title.clone(),
+        description: tracked_wp.description.clone(),
+        status: tracked_wp.status,
+        priority: tracked_wp.priority,
+        governance: tracked_wp.governance.clone(),
+        kind: tracked_wp.kind,
+        labels: tracked_wp.labels.clone(),
+        assignee: tracked_wp.assignee.clone(),
+        reporter: tracked_wp.reporter.clone(),
+        micro_tasks: tracked_wp.micro_tasks.clone(),
+        created_at: tracked_wp.created_at,
+        started_at: tracked_wp.started_at,
+        completed_at: tracked_wp.completed_at,
+        due_at: tracked_wp.due_at,
+        notes: tracked_wp.notes.clone(),
+        metadata: tracked_wp.metadata.clone(),
+        vector_clock: tracked_wp.vector_clock.clone(),
+        tombstone: tracked_wp.tombstone.clone(),
+    }
+}
+
 fn build_structured_micro_task_summary(
     tracked_mt: &locus::TrackedMicroTask,
 ) -> locus::StructuredCollaborationSummaryRecord {
@@ -4713,6 +4743,47 @@ fn build_structured_micro_task_summary(
         tracked_mt.project_profile_kind,
         tracked_mt.mirror_state,
     )
+}
+
+fn build_structured_micro_task_packet(
+    runtime_paths: &RuntimeGovernancePaths,
+    tracked_mt: &locus::TrackedMicroTask,
+) -> locus::TrackedMicroTaskArtifactV1 {
+    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state(tracked_mt.status);
+    locus::TrackedMicroTaskArtifactV1 {
+        schema_id: tracked_mt.schema_id.clone(),
+        schema_version: tracked_mt.schema_version.clone(),
+        record_id: tracked_mt.record_id.clone(),
+        record_kind: tracked_mt.record_kind.clone(),
+        project_profile_kind: tracked_mt.project_profile_kind,
+        updated_at: tracked_mt.updated_at.to_rfc3339(),
+        mirror_state: tracked_mt.mirror_state,
+        authority_refs: tracked_mt.authority_refs.clone(),
+        evidence_refs: tracked_mt.evidence_refs.clone(),
+        mirror_contract: None,
+        workflow_state_family,
+        queue_reason_code,
+        allowed_action_ids: allowed_action_ids(workflow_state_family),
+        summary_ref: runtime_paths.micro_task_summary_display(&tracked_mt.wp_id, &tracked_mt.mt_id),
+        mt_id: tracked_mt.mt_id.clone(),
+        wp_id: tracked_mt.wp_id.clone(),
+        name: tracked_mt.name.clone(),
+        scope: tracked_mt.scope.clone(),
+        files: tracked_mt.files.clone(),
+        done_criteria: tracked_mt.done_criteria.clone(),
+        status: tracked_mt.status,
+        active_session_ids: tracked_mt.active_session_ids.clone(),
+        iterations: tracked_mt.iterations.clone(),
+        current_iteration: tracked_mt.current_iteration,
+        max_iterations: tracked_mt.max_iterations,
+        validation_result: tracked_mt.validation_result.clone(),
+        escalation: tracked_mt.escalation.clone(),
+        started_at: tracked_mt.started_at,
+        completed_at: tracked_mt.completed_at,
+        duration_ms: tracked_mt.duration_ms,
+        depends_on: tracked_mt.depends_on.clone(),
+        metadata: tracked_mt.metadata.clone(),
+    }
 }
 
 fn structured_work_packet_status(status: locus::WorkPacketStatus) -> &'static str {
@@ -11601,6 +11672,86 @@ fn normalize_locus_register_mts_params(
     Ok(params)
 }
 
+fn apply_runtime_structured_work_packet_registry(
+    runtime_paths: &RuntimeGovernancePaths,
+    tracked_wp: &mut locus::TrackedWorkPacket,
+) -> Result<(), WorkflowError> {
+    let packet_display = runtime_paths.work_packet_packet_display(&tracked_wp.wp_id);
+    let summary_display = runtime_paths.work_packet_summary_display(&tracked_wp.wp_id);
+    let evidence_refs = tracked_wp
+        .governance
+        .task_packet_path
+        .as_deref()
+        .map(|path| vec![path.trim().to_string()])
+        .filter(|refs| !refs.is_empty())
+        .unwrap_or_else(|| vec![summary_display.clone()]);
+    locus::backfill_tracked_work_packet_registry_fields(
+        tracked_wp,
+        summary_display.clone(),
+        vec![packet_display.clone()],
+        evidence_refs,
+    );
+    if !tracked_wp.metadata.is_object() {
+        tracked_wp.metadata = json!({});
+    }
+    tracked_wp.metadata["structured_collaboration_summary_path"] =
+        Value::String(summary_display.clone());
+
+    let summary = build_structured_work_packet_summary(tracked_wp);
+    let summary_value =
+        serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let detail_value =
+        serde_json::to_value(&*tracked_wp).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut validation = locus::validate_structured_collaboration_record(
+        locus::StructuredCollaborationRecordFamily::WorkPacketPacket,
+        &detail_value,
+    );
+    let invalid_detail_authority_refs =
+        runtime_paths.invalid_runtime_authority_refs(&tracked_wp.authority_refs);
+    if !invalid_detail_authority_refs.is_empty() {
+        validation.push_issue(
+            locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
+            "authority_refs",
+            Some(runtime_paths.governance_root_display()),
+            Some(invalid_detail_authority_refs.join(",")),
+            "work-packet authority_refs must stay within the product-runtime .handshake/gov boundary",
+        );
+    }
+    let mut summary_validation = locus::validate_structured_collaboration_summary_join(
+        locus::StructuredCollaborationRecordFamily::WorkPacketPacket,
+        &detail_value,
+        locus::StructuredCollaborationRecordFamily::WorkPacketSummary,
+        &summary_value,
+    );
+    let summary_authority_refs =
+        structured_collaboration_string_vec(summary_value.get("authority_refs"));
+    let invalid_summary_authority_refs =
+        runtime_paths.invalid_runtime_authority_refs(&summary_authority_refs);
+    if !invalid_summary_authority_refs.is_empty() {
+        summary_validation.push_issue(
+            locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
+            "authority_refs",
+            Some(runtime_paths.governance_root_display()),
+            Some(invalid_summary_authority_refs.join(",")),
+            "work-packet summary authority_refs must stay within the product-runtime .handshake/gov boundary",
+        );
+    }
+    validation.merge(summary_validation);
+
+    tracked_wp.metadata["structured_collaboration_summary"] = summary_value;
+    tracked_wp.metadata["structured_collaboration_validation"] =
+        serde_json::to_value(&validation).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if validation.ok {
+        Ok(())
+    } else {
+        Err(WorkflowError::Terminal(
+            serde_json::to_string(&validation).unwrap_or_else(|_| {
+                "structured collaboration validation failed for work-packet registry".to_string()
+            }),
+        ))
+    }
+}
+
 fn apply_runtime_structured_micro_task_registry(
     runtime_paths: &RuntimeGovernancePaths,
     wp_id: &str,
@@ -11608,12 +11759,13 @@ fn apply_runtime_structured_micro_task_registry(
 ) -> Result<(), WorkflowError> {
     let packet_display = runtime_paths.micro_task_packet_display(wp_id, &tracked_mt.mt_id);
     let summary_display = runtime_paths.micro_task_summary_display(wp_id, &tracked_mt.mt_id);
+    let evidence_refs = vec![summary_display.clone()];
     locus::backfill_tracked_micro_task_registry_fields(
         tracked_mt,
         packet_display.clone(),
         summary_display.clone(),
         vec![packet_display.clone()],
-        Vec::new(),
+        evidence_refs,
     );
     if !tracked_mt.metadata.is_object() {
         tracked_mt.metadata = json!({});

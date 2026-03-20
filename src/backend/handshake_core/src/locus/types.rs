@@ -161,9 +161,9 @@ pub struct StructuredCollaborationSummaryV1 {
     pub project_profile_kind: ProjectProfileKind,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub authority_refs: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub evidence_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror_contract: Option<MarkdownMirrorContractV1>,
@@ -190,9 +190,9 @@ pub struct TrackedWorkPacketArtifactV1 {
     pub project_profile_kind: ProjectProfileKind,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub authority_refs: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub evidence_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror_contract: Option<MarkdownMirrorContractV1>,
@@ -244,9 +244,9 @@ pub struct TrackedMicroTaskArtifactV1 {
     pub project_profile_kind: ProjectProfileKind,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub authority_refs: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub evidence_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror_contract: Option<MarkdownMirrorContractV1>,
@@ -1220,6 +1220,7 @@ pub fn seed_tracked_work_packet_registry_fields(
     .record_kind
     .to_string();
     tracked_wp.project_profile_kind = ProjectProfileKind::SoftwareDelivery;
+    tracked_wp.updated_at = Utc::now();
     tracked_wp.mirror_state = MirrorSyncState::CanonicalOnly;
     tracked_wp.authority_refs = authority_refs;
     tracked_wp.evidence_refs = evidence_refs;

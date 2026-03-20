@@ -11,7 +11,8 @@ use crate::workflows::locus::types::{
     LocusQueryReadyParams, LocusRecordIterationParams, LocusRegisterMtsParams,
     LocusRemoveDependencyParams, LocusStartMtParams, LocusUnbindSessionParams, LocusUpdateWpParams,
     MicroTaskIterationOutcome, MicroTaskStatus, RoutingPolicy, TaskBoardStatus, TrackedMicroTask,
-    WorkPacketPhase, WorkPacketStatus,
+    TrackedMicroTaskArtifactV1, WorkPacketPhase, WorkPacketStatus, WorkflowQueueReasonCode,
+    WorkflowStateFamily,
 };
 
 fn sqlite_db(db: &dyn Database) -> StorageResult<&SqliteDatabase> {
@@ -117,6 +118,121 @@ fn work_packet_status_str(status: WorkPacketStatus) -> &'static str {
         WorkPacketStatus::Done => "done",
         WorkPacketStatus::Cancelled => "cancelled",
     }
+}
+
+fn micro_task_workflow_state(
+    status: MicroTaskStatus,
+) -> (WorkflowStateFamily, WorkflowQueueReasonCode) {
+    match status {
+        MicroTaskStatus::Pending => (
+            WorkflowStateFamily::Ready,
+            WorkflowQueueReasonCode::ReadyForLocalSmallModel,
+        ),
+        MicroTaskStatus::InProgress => (
+            WorkflowStateFamily::Active,
+            WorkflowQueueReasonCode::ReadyForLocalSmallModel,
+        ),
+        MicroTaskStatus::Completed => (
+            WorkflowStateFamily::Done,
+            WorkflowQueueReasonCode::ValidationWait,
+        ),
+        MicroTaskStatus::Failed => (
+            WorkflowStateFamily::Blocked,
+            WorkflowQueueReasonCode::BlockedError,
+        ),
+        MicroTaskStatus::Blocked => (
+            WorkflowStateFamily::Blocked,
+            WorkflowQueueReasonCode::BlockedMissingContext,
+        ),
+        MicroTaskStatus::Skipped => (
+            WorkflowStateFamily::Canceled,
+            WorkflowQueueReasonCode::BlockedPolicy,
+        ),
+    }
+}
+
+fn allowed_action_ids(family: WorkflowStateFamily) -> Vec<String> {
+    let actions = match family {
+        WorkflowStateFamily::Intake => &["triage", "prioritize"][..],
+        WorkflowStateFamily::Ready => &["start", "assign"],
+        WorkflowStateFamily::Active => &["update", "complete", "pause"],
+        WorkflowStateFamily::Waiting => &["resume", "escalate"],
+        WorkflowStateFamily::Review => &["review", "request_changes"],
+        WorkflowStateFamily::Approval => &["approve", "reject"],
+        WorkflowStateFamily::Validation => &["validate", "repair"],
+        WorkflowStateFamily::Blocked => &["unblock", "escalate"],
+        WorkflowStateFamily::Done => &["archive", "reopen"],
+        WorkflowStateFamily::Canceled => &["archive", "reopen"],
+        WorkflowStateFamily::Archived => &[],
+    };
+    actions.iter().map(|action| (*action).to_string()).collect()
+}
+
+fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
+    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state(tracked_mt.status);
+    let summary_ref = tracked_mt
+        .summary_record_path
+        .clone()
+        .or_else(|| {
+            tracked_mt
+                .metadata
+                .get("structured_collaboration_summary_path")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        })
+        .unwrap_or_default();
+
+    let mut artifact_json = serde_json::to_value(TrackedMicroTaskArtifactV1 {
+        schema_id: tracked_mt.schema_id.clone(),
+        schema_version: tracked_mt.schema_version.clone(),
+        record_id: tracked_mt.record_id.clone(),
+        record_kind: tracked_mt.record_kind.clone(),
+        project_profile_kind: tracked_mt.project_profile_kind,
+        updated_at: tracked_mt.updated_at.to_rfc3339(),
+        mirror_state: tracked_mt.mirror_state,
+        authority_refs: tracked_mt.authority_refs.clone(),
+        evidence_refs: tracked_mt.evidence_refs.clone(),
+        mirror_contract: None,
+        workflow_state_family,
+        queue_reason_code,
+        allowed_action_ids: allowed_action_ids(workflow_state_family),
+        summary_ref,
+        mt_id: tracked_mt.mt_id.clone(),
+        wp_id: tracked_mt.wp_id.clone(),
+        name: tracked_mt.name.clone(),
+        scope: tracked_mt.scope.clone(),
+        files: tracked_mt.files.clone(),
+        done_criteria: tracked_mt.done_criteria.clone(),
+        status: tracked_mt.status,
+        active_session_ids: tracked_mt.active_session_ids.clone(),
+        iterations: tracked_mt.iterations.clone(),
+        current_iteration: tracked_mt.current_iteration,
+        max_iterations: tracked_mt.max_iterations,
+        validation_result: tracked_mt.validation_result.clone(),
+        escalation: tracked_mt.escalation.clone(),
+        started_at: tracked_mt.started_at,
+        completed_at: tracked_mt.completed_at,
+        duration_ms: tracked_mt.duration_ms,
+        depends_on: tracked_mt.depends_on.clone(),
+        metadata: tracked_mt.metadata.clone(),
+    })
+    .unwrap_or_else(|_| tracked_mt.metadata.clone());
+
+    if let Some(obj) = artifact_json.as_object_mut() {
+        obj.insert(
+            "active_session_ids".to_string(),
+            Value::Array(
+                tracked_mt
+                    .active_session_ids
+                    .iter()
+                    .cloned()
+                    .map(Value::String)
+                    .collect(),
+            ),
+        );
+    }
+
+    artifact_json
 }
 
 fn task_board_status_str(status: TaskBoardStatus) -> &'static str {
@@ -1012,7 +1128,10 @@ async fn get_mt_progress(
         return Err(StorageError::NotFound("micro_task"));
     };
 
-    let metadata_json: Value = serde_json::from_str(&metadata).unwrap_or_else(|_| json!({}));
+    let metadata_json: Value = match serde_json::from_str::<TrackedMicroTask>(&metadata) {
+        Ok(tracked_mt) => tracked_mt_progress_metadata(&tracked_mt),
+        Err(_) => serde_json::from_str(&metadata).unwrap_or_else(|_| json!({})),
+    };
 
     Ok(json!({
         "mt_id": mt_id,
