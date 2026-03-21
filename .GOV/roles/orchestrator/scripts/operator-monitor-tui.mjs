@@ -8,6 +8,10 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { appendWpThreadEntry } from "../../../roles_shared/scripts/wp/wp-thread-append.mjs";
 import {
+  communicationMonitorState,
+  evaluateWpCommunicationHealth,
+} from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import {
   normalize,
   NOTIFICATIONS_FILE_NAME,
   NOTIFICATION_CURSOR_FILE_NAME,
@@ -596,6 +600,58 @@ function reviewPressureChip(record) {
   return paint(text, count >= 3 ? STATE_COLORS.blocked : STATE_COLORS.waiting, { bold: true });
 }
 
+function communicationHealthChip(record) {
+  const state = String(record.communicationHealthState || "COMM_NA").trim().toUpperCase();
+  const labelMap = {
+    COMM_NA: "OFF",
+    COMM_MISCONFIGURED: "MISCFG",
+    COMM_MISSING_KICKOFF: "KICKOFF",
+    COMM_WAITING_FOR_INTENT: "INTENT",
+    COMM_WAITING_FOR_HANDOFF: "HANDOFF",
+    COMM_WAITING_FOR_REVIEW: "REVIEW",
+    COMM_BLOCKED_OPEN_ITEMS: "BLOCKED",
+    COMM_OK: "OK",
+    COMM_STALE: "STALE",
+  };
+  const colorMap = {
+    COMM_NA: STATE_COLORS.none,
+    COMM_MISCONFIGURED: STATE_COLORS.blocked,
+    COMM_MISSING_KICKOFF: STATE_COLORS.blocked,
+    COMM_WAITING_FOR_INTENT: STATE_COLORS.waiting,
+    COMM_WAITING_FOR_HANDOFF: STATE_COLORS.waiting,
+    COMM_WAITING_FOR_REVIEW: STATE_COLORS.waiting,
+    COMM_BLOCKED_OPEN_ITEMS: STATE_COLORS.blocked,
+    COMM_OK: STATE_COLORS.working,
+    COMM_STALE: "\x1b[38;5;208m",
+  };
+  const text = `COMM:${labelMap[state] || state.replace(/^COMM_/, "")}`;
+  return paint(
+    text,
+    colorMap[state] || STATUS_COLORS.OTHER,
+    { bold: !["COMM_NA"].includes(state), dim: state === "COMM_NA" }
+  );
+}
+
+function communicationHealthStateText(record) {
+  const state = String(record.communicationHealthState || "COMM_NA").trim().toUpperCase();
+  const labelMap = {
+    COMM_NA: "NA",
+    COMM_MISCONFIGURED: "MISCONFIGURED",
+    COMM_MISSING_KICKOFF: "MISSING_KICKOFF",
+    COMM_WAITING_FOR_INTENT: "WAITING_FOR_INTENT",
+    COMM_WAITING_FOR_HANDOFF: "WAITING_FOR_HANDOFF",
+    COMM_WAITING_FOR_REVIEW: "WAITING_FOR_REVIEW",
+    COMM_BLOCKED_OPEN_ITEMS: "BLOCKED_OPEN_ITEMS",
+    COMM_OK: "OK",
+    COMM_STALE: "STALE",
+  };
+  return labelMap[state] || state.replace(/^COMM_/, "");
+}
+
+function communicationHealthLine(record) {
+  return `comm=${communicationHealthStateText(record)} | ${record.packetRecord?.communicationHealthEvaluation?.message || "No communication health summary."}`;
+}
+
 function notificationChip(record) {
   const pending = record.packetRecord?.pendingNotifications || { total: 0 };
   const count = pending.total || 0;
@@ -721,6 +777,9 @@ function parsePacketRecord(packetPath, prepareAssignment = null) {
     packetKind: packetPath.includes("/stubs/") ? "STUB" : "OFFICIAL",
     packetStatus: parsePacketStatus(packetText),
     workflowLane: parseSingleField(packetText, "WORKFLOW_LANE") || "<missing>",
+    packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION") || "",
+    communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT") || "",
+    communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE") || "",
     executionOwner: parseSingleField(packetText, "EXECUTION_OWNER") || "<missing>",
     localBranch: parseSingleField(packetText, "LOCAL_BRANCH") || "<pending>",
     localWorktreeDir: parseSingleField(packetText, "LOCAL_WORKTREE_DIR") || "<pending>",
@@ -791,6 +850,17 @@ function parsePacketRecord(packetPath, prepareAssignment = null) {
   record.openReviewItems = Array.isArray(record.runtime?.open_review_items) ? record.runtime.open_review_items : [];
   record.reviewReceipts = (record.receipts || []).filter((entry) => REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(String(entry.receipt_kind || "").trim().toUpperCase()));
   record.lastReviewReceipt = record.reviewReceipts.at(-1) || null;
+  record.communicationHealthEvaluation = evaluateWpCommunicationHealth({
+    wpId: record.wpId,
+    stage: "STATUS",
+    packetPath: record.packetPath,
+    workflowLane: record.workflowLane,
+    packetFormatVersion: record.packetFormatVersion,
+    communicationContract: record.communicationContract,
+    communicationHealthGate: record.communicationHealthGate,
+    receipts: record.receipts || [],
+    runtimeStatus: record.runtime || { open_review_items: [] },
+  });
   record.lastActivityAt = [
     record.runtime?.last_event_at || null,
     record.lastThreadEntry?.timestamp || null,
@@ -996,6 +1066,7 @@ function loadMonitorModel() {
     if (packetRecord) {
       packetRecord.lastActivityAt = lastActivityAt;
     }
+    const stale = Boolean(packetRecord?.runtime?.stale_after && new Date(packetRecord.runtime.stale_after) < new Date());
     return {
       ...entry,
       packetPath,
@@ -1016,7 +1087,8 @@ function loadMonitorModel() {
       currentBoardEntry,
       currentBoardMatchesSelected,
       lastActivityAt,
-      stale: Boolean(packetRecord?.runtime?.stale_after && new Date(packetRecord.runtime.stale_after) < new Date()),
+      stale,
+      communicationHealthState: communicationMonitorState(packetRecord?.communicationHealthEvaluation, { stale }),
     };
   });
   records.sort((left, right) => {
@@ -1192,7 +1264,8 @@ function renderList(records, selectedIndex, width, height, listHasFocus) {
       roleLaneChip(record, "INTEGRATION_VALIDATOR"),
     ].join(" ");
     const notifChip = notificationChip(record);
-    const line = `${marker}${stale}${drift}${worktreeFlag} ${record.wpId} ${boardBadge(record.boardSection)} ${reviewChip}${notifChip ? ` ${notifChip}` : ""} ${laneSummary} ${paint(latest, STATE_COLORS.ready, { dim: true })} ${latestReview}`;
+    const commChip = communicationHealthChip(record);
+    const line = `${marker}${stale}${drift}${worktreeFlag} ${record.wpId} ${boardBadge(record.boardSection)} ${reviewChip} ${commChip}${notifChip ? ` ${notifChip}` : ""} ${laneSummary} ${paint(latest, STATE_COLORS.ready, { dim: true })} ${latestReview}`;
     if (globalIndex === selectedIndex) {
       const selectedLine = truncateVisible(line, width);
       rows.push(listHasFocus ? `\x1b[7m${selectedLine}\x1b[0m` : `\x1b[1m${selectedLine}\x1b[0m`);
@@ -1234,6 +1307,7 @@ function buildDetailLines(record, width, detailView, uiState) {
       + ` | waiting_on=${runtime.waiting_on}${runtime.waiting_on_session ? ` (${runtime.waiting_on_session})` : ""}`
     );
     lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"} | open_reviews=${record.packetRecord?.openReviewItems?.length || 0}`);
+    lines.push(communicationHealthLine(record));
   } else {
     lines.push("runtime=<none>");
   }
@@ -1432,6 +1506,7 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
       + ` | waiting_on=${runtime.waiting_on}${runtime.waiting_on_session ? ` (${runtime.waiting_on_session})` : ""}`
     );
     lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"} | open_reviews=${record.packetRecord?.openReviewItems?.length || 0}`);
+    lines.push(communicationHealthLine(record));
   } else {
     lines.push("runtime=<none>");
   }
@@ -1557,7 +1632,7 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
     lines.push(`docs=${docArtifacts.map((artifact) => artifact.label).join(", ") || "<none>"} | comms=${commsArtifacts.map((artifact) => artifact.label).join(", ") || "<none>"}`);
     lines.push("");
     lines.push("ROLE LANES");
-    lines.push(`  ${roleLaneChip(record, "CODER")}  ${roleLaneChip(record, "WP_VALIDATOR")}  ${roleLaneChip(record, "INTEGRATION_VALIDATOR")}  ${reviewPressureChip(record)}`);
+    lines.push(`  ${roleLaneChip(record, "CODER")}  ${roleLaneChip(record, "WP_VALIDATOR")}  ${roleLaneChip(record, "INTEGRATION_VALIDATOR")}  ${reviewPressureChip(record)}  ${communicationHealthChip(record)}`);
     lines.push("");
     const pendingNotifs = record.packetRecord?.pendingNotifications || { total: 0, byRole: {} };
     lines.push("PENDING NOTIFICATIONS");

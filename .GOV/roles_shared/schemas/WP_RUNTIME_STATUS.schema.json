@@ -353,6 +353,8 @@
           },
           "receipt_kind": {
             "enum": [
+              "VALIDATOR_KICKOFF",
+              "CODER_HANDOFF",
               "VALIDATOR_QUERY",
               "REVIEW_REQUEST",
               "SPEC_GAP"

@@ -28,6 +28,11 @@ import {
   validateSemanticProofAssets,
 } from '../../../roles_shared/scripts/lib/semantic-proof-lib.mjs';
 import {
+  DIRECT_REVIEW_CONTRACT_VERSION,
+  DIRECT_REVIEW_HEALTH_GATE,
+  DIRECT_REVIEW_PACKET_FORMAT_VERSION,
+} from '../../../roles_shared/scripts/lib/wp-communications-lib.mjs';
+import {
   CLI_ESCALATION_HOST_DEFAULT,
   CLI_SESSION_TOOL,
   CODEX_MODEL_ALIASES_ALLOWED,
@@ -386,6 +391,7 @@ if (!fs.existsSync(taskPacketDir)) {
     || (packetContent.match(/^\s*Status:\s*(.+)\s*$/mi) || [])[1]
     || '';
   const statusNorm = statusLine.trim().toLowerCase();
+  const workflowLane = parseSingleField(packetContent, 'WORKFLOW_LANE');
   if (!statusLine) {
     errors.push('Missing canonical **Status:** field');
   }
@@ -585,6 +591,31 @@ if (!fs.existsSync(taskPacketDir)) {
       if (integrationBackupUrl !== legacyIntegrationRemoteBackupUrl) {
         errors.push(`INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL must remain ${legacyIntegrationRemoteBackupUrl} for packets with PACKET_FORMAT_VERSION < 2026-03-16 (got: ${integrationBackupUrl || '<missing>'})`);
       }
+    }
+  }
+
+  if (
+    isModernPacket
+    && isVersionAtLeast(packetFormatVersion, DIRECT_REVIEW_PACKET_FORMAT_VERSION)
+    && requiresRefinementGate
+    && /^ORCHESTRATOR_MANAGED$/i.test(workflowLane || '')
+  ) {
+    console.log('\nCheck 2.6BD: Direct review communication contract');
+
+    const communicationContract = parseSingleField(packetContent, 'COMMUNICATION_CONTRACT');
+    const communicationHealthGate = parseSingleField(packetContent, 'COMMUNICATION_HEALTH_GATE');
+
+    if (communicationContract !== DIRECT_REVIEW_CONTRACT_VERSION) {
+      errors.push(
+        `COMMUNICATION_CONTRACT missing/invalid for orchestrator-managed packets with PACKET_FORMAT_VERSION >= ${DIRECT_REVIEW_PACKET_FORMAT_VERSION} `
+        + `(expected ${DIRECT_REVIEW_CONTRACT_VERSION}; got: ${communicationContract || '<missing>'})`
+      );
+    }
+    if (communicationHealthGate !== DIRECT_REVIEW_HEALTH_GATE) {
+      errors.push(
+        `COMMUNICATION_HEALTH_GATE missing/invalid for orchestrator-managed packets with PACKET_FORMAT_VERSION >= ${DIRECT_REVIEW_PACKET_FORMAT_VERSION} `
+        + `(expected ${DIRECT_REVIEW_HEALTH_GATE}; got: ${communicationHealthGate || '<missing>'})`
+      );
     }
   }
 

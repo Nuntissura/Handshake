@@ -1,0 +1,27 @@
+{
+  "description": "manual relay packet does not use the direct review contract",
+  "input": {
+    "wpId": "WP-test-manual-relay",
+    "stage": "STATUS",
+    "packetPath": ".GOV/task_packets/WP-test-manual-relay/packet.md",
+    "workflowLane": "MANUAL_RELAY",
+    "packetFormatVersion": "2026-03-21",
+    "communicationContract": "",
+    "communicationHealthGate": "",
+    "receipts": [],
+    "runtimeStatus": {
+      "open_review_items": []
+    }
+  },
+  "expected": {
+    "applicable": false,
+    "ok": true,
+    "state": "COMM_NA"
+  },
+  "monitor": [
+    {
+      "stale": false,
+      "state": "COMM_NA"
+    }
+  ]
+}

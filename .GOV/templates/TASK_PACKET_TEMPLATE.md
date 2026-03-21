@@ -143,6 +143,10 @@ Requirements:
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
+- COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1
+<!-- Required for WORKFLOW_LANE=ORCHESTRATOR_MANAGED packets with PACKET_FORMAT_VERSION >= 2026-03-21. -->
+- COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING
+<!-- Required for WORKFLOW_LANE=ORCHESTRATOR_MANAGED packets with PACKET_FORMAT_VERSION >= 2026-03-21. -->
 - USER_SIGNATURE: {{USER_SIGNATURE}}
 - PACKET_FORMAT_VERSION: {{PACKET_FORMAT_VERSION}}
 
@@ -202,6 +206,15 @@ Next: N/A
   - append-only deterministic receipt ledger
   - one JSON object per line
   - use for assignment, status, heartbeat, steering, repair, validation, and handoff receipts
+- DIRECT REVIEW CONTRACT:
+  - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` packets with `PACKET_FORMAT_VERSION >= 2026-03-21`, `COMMUNICATION_CONTRACT` MUST be `DIRECT_REVIEW_V1` and `COMMUNICATION_HEALTH_GATE` MUST be `HANDOFF_VERDICT_BLOCKING`.
+  - Required structured receipts for the coder <-> WP validator lane:
+    - `VALIDATOR_KICKOFF` (`WP_VALIDATOR -> CODER`)
+    - `CODER_INTENT` (`CODER -> WP_VALIDATOR`, correlated to kickoff)
+    - `CODER_HANDOFF` (`CODER -> WP_VALIDATOR`)
+    - `VALIDATOR_REVIEW` (`WP_VALIDATOR -> CODER`, correlated to handoff)
+  - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
+  - `just wp-communication-health-check WP-{ID} KICKOFF|HANDOFF|VERDICT` is the machine gate for this contract.
 - SESSION START + WAKE RULE:
   - only `WORKFLOW_AUTHORITY` may start repo-governed Coder, WP Validator, and Integration Validator sessions
   - primary launch path is `SESSION_HOST_PREFERENCE` via `SESSION_PLUGIN_BRIDGE_ID`

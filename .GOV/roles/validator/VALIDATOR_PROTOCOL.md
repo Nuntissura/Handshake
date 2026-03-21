@@ -260,6 +260,14 @@ Resume rule (hard, anti-babysit):
   - stale-session visibility
   - next expected actor
 - Use `RECEIPTS.jsonl` for deterministic validation-start, validation-query, status-sync, repair, and handoff receipts.
+- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` packets with `PACKET_FORMAT_VERSION >= 2026-03-21`, the required direct-review contract is:
+  - `VALIDATOR_KICKOFF` from `WP_VALIDATOR -> CODER`
+  - `CODER_INTENT` from `CODER -> WP_VALIDATOR`, correlated to kickoff
+  - `CODER_HANDOFF` from `CODER -> WP_VALIDATOR`
+  - `VALIDATOR_REVIEW` from `WP_VALIDATOR -> CODER`, correlated to handoff
+- `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
+- Before taking a coder handoff as review-ready on those packets, `just wp-communication-health-check WP-{ID} HANDOFF` must pass.
+- Before PASS commit clearance on those packets, `just wp-communication-health-check WP-{ID} VERDICT` must pass.
 - Validator authority is layered:
   - `Classical Validator` = manual-relay / non-orchestrator-managed closure authority when the repo is using the classical validator lane
   - `WP Validator` = advisory technical reviewer for the WP; may inspect current coder work and request steering through packet communications plus Orchestrator-owned ACP controls
@@ -271,10 +279,13 @@ Resume rule (hard, anti-babysit):
   - `just wp-thread-append WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
   - `just wp-heartbeat WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
   - `just wp-receipt-append WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
+  - `just wp-validator-kickoff WP-{ID} <session> <coder_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+  - `just wp-validator-review WP-{ID} <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-validator-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-review-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-spec-gap WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
   - `just wp-spec-confirmation WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
+  - `just wp-communication-health-check WP-{ID} STATUS|KICKOFF|HANDOFF|VERDICT`
   - `just session-registry-status [WP-{ID}]`
   - `just check-notifications WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR` (check pending messages from coders/orchestrator)
   - `just ack-notifications WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session>` (acknowledge pending notifications after reading)
