@@ -16,7 +16,11 @@ import crypto from 'crypto';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { listValidatorGateStateFiles } from './lib/validator-gate-paths.mjs';
-import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath } from './lib/runtime-paths.mjs';
+import {
+  GOVERNANCE_RUNTIME_ROOT_REPO_REL,
+  GOV_ROOT_REPO_REL,
+  resolveOrchestratorGatesPath,
+} from './lib/runtime-paths.mjs';
 
 export const SCHEMA_VERSION = 'hsk.product_governance_snapshot@0.1';
 export const DEFAULT_OUTPUT_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/runtime/PRODUCT_GOVERNANCE_SNAPSHOT.json`;
@@ -29,13 +33,23 @@ const compareStrings = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
 const toPosixRelPath = (p) => p.replace(/\\/g, '/').replace(/^\.\//, '');
 
+const isWithinBase = (candidateAbs, baseAbs) => {
+  const rel = path.relative(baseAbs, candidateAbs);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+};
+
+const GOVERNANCE_RUNTIME_ROOT_ABS = path.resolve(REPO_ROOT, GOVERNANCE_RUNTIME_ROOT_REPO_REL);
+
 const normalizeRelPath = (relPath) => {
   const raw = (relPath ?? '').trim();
   if (!raw) throw new Error('INVALID_PATH: empty');
   if (path.isAbsolute(raw)) throw new Error(`INVALID_PATH: absolute paths are forbidden (${raw})`);
 
   const normalized = toPosixRelPath(path.normalize(raw));
-  if (normalized.startsWith('..')) {
+  const abs = path.resolve(REPO_ROOT, normalized);
+  const isRepoPath = isWithinBase(abs, REPO_ROOT);
+  const isGovernanceRuntimePath = isWithinBase(abs, GOVERNANCE_RUNTIME_ROOT_ABS);
+  if (!isRepoPath && !isGovernanceRuntimePath) {
     throw new Error(`INVALID_PATH: path escapes repo root (${relPath})`);
   }
   return normalized;
@@ -382,4 +396,3 @@ const main = () => {
 
 const isDirect = path.resolve(process.argv[1] || '') === path.resolve(SCRIPT_PATH);
 if (isDirect) main();
-

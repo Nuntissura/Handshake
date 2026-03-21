@@ -287,9 +287,7 @@ function resolveSpecSnapshotAtRepo(repoRoot) {
 }
 
 function lastPrepareEntryAtRepo(repoRoot, wpId) {
-  const newPath = path.join(repoRoot, GOVERNANCE_RUNTIME_ROOT_REPO_REL, "roles_shared", "ORCHESTRATOR_GATES.json");
-  const legacyPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
-  const gatesPath = exists(newPath) ? newPath : legacyPath;
+  const gatesPath = path.join(repoRoot, GOVERNANCE_RUNTIME_ROOT_REPO_REL, "roles_shared", "ORCHESTRATOR_GATES.json");
   if (!exists(gatesPath)) return null;
   let state = {};
   try {
@@ -345,7 +343,7 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
 
   const currentPrepare = lastPrepareEntryAtRepo(repoRoot, wpId);
   const worktreePrepare = lastPrepareEntryAtRepo(worktreeAbs, wpId);
-  // ORCHESTRATOR_GATES.json is orchestrator-private runtime state excluded from
+  // ORCHESTRATOR_GATES.json is external governance runtime state excluded from
   // gov-to-main sync, so WP worktrees legitimately lack it — only flag a mismatch
   // when the worktree *does* have a PREPARE record that disagrees with the reference.
   if (!worktreePrepare && !currentPrepare) {

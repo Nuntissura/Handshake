@@ -308,7 +308,7 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   if (!lastPrepare) {
-    const msg = `Missing PREPARE record in ${GOV_ROOT_REPO_REL}/ORCHESTRATOR_GATES.json (in gov_runtime or .GOV/roles/orchestrator/runtime/) for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A..Coder-Z} ...)`;
+    const msg = `Missing PREPARE record in ../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A..Coder-Z} ...)`;
     if (enforceWorktreeGate) {
       errors.push(msg);
       console.log('FAIL: ' + msg);

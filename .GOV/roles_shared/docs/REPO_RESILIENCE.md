@@ -16,6 +16,7 @@ This document defines the repo-resilience layer for Handshake governance.
 - `just backup-status`
 - `just backup-snapshot-nas [label]`
 - `just sync-all-role-worktrees`
+- `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"`
 - `just sync-gov-to-main`
 - `just enumerate-cleanup-targets`
 - `just delete-local-worktree <worktree_id> "<approval>"`
@@ -26,6 +27,9 @@ This document defines the repo-resilience layer for Handshake governance.
 
 - `main` is the only canonical integrated branch.
 - `user_ilja`, `role_orchestrator`, and `gov_kernel` are backup branches on GitHub.
+- Permanent non-main worktrees (`wt-ilja`, `wt-orchestrator`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- `just sync-all-role-worktrees` is limited to refreshing the local `main` branch across the permanent worktrees when they are clean.
+- `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` is the governed helper for refreshing a permanent non-main role/user worktree from local `main`. It safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Worktree deletion must go through `just delete-local-worktree`. Never fall back to `Remove-Item`, `rm`, `del`, or other direct filesystem deletion for worktree paths.
 - For orchestrator-managed WP closeout, prefer the generated single-target cleanup script flow:

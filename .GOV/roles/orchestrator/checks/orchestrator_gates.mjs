@@ -24,6 +24,7 @@ function loadState() {
 }
 
 function saveState(state) {
+    fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
     fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
@@ -564,5 +565,4 @@ if (action === 'prepare') {
 }
 
 v2Fail('Unknown action. Expected: refine|sign|prepare');
-
 

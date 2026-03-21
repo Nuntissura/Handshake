@@ -150,13 +150,14 @@ function relWithinGovernanceRuntime(...segments) {
 }
 
 /**
- * Resolve ORCHESTRATOR_GATES.json path.
- * Checks gov_runtime first (new location), falls back to .GOV/ (legacy).
+ * Live ORCHESTRATOR_GATES.json authority lives in the external governance runtime root.
+ * The repo-local .GOV path is legacy residue only and must not receive live writes.
  */
+export const SHARED_GOV_ORCHESTRATOR_GATES_FILE = relWithinGovernanceRuntime("roles_shared", "ORCHESTRATOR_GATES.json");
+export const LEGACY_ORCHESTRATOR_GATES_FILE = govRootRelPath("roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
+
 export function resolveOrchestratorGatesPath() {
-  const runtimePath = relWithinGovernanceRuntime("roles_shared", "ORCHESTRATOR_GATES.json");
-  if (fs.existsSync(runtimePath)) return runtimePath;
-  return govRootRelPath("roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
+  return SHARED_GOV_ORCHESTRATOR_GATES_FILE;
 }
 
 export function repoRelativeGovernanceRuntimePath(...segments) {

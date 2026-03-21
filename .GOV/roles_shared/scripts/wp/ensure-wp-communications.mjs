@@ -143,14 +143,26 @@ export function ensureWpCommunications({
   requireTemplateFile(RECEIPTS_TEMPLATE);
 
   fs.mkdirSync(COMM_ROOT, { recursive: true });
-  const paths = declaredCommunicationDir && declaredThreadFile && declaredRuntimeStatusFile && declaredReceiptsFile
-    ? {
+  const expectedPaths = communicationPathsForWp(WP_ID);
+  if (declaredCommunicationDir || declaredThreadFile || declaredRuntimeStatusFile || declaredReceiptsFile) {
+    const declaredPaths = {
       dir: normalize(declaredCommunicationDir),
       threadFile: normalize(declaredThreadFile),
       runtimeStatusFile: normalize(declaredRuntimeStatusFile),
       receiptsFile: normalize(declaredReceiptsFile),
+    };
+    if (
+      declaredPaths.dir !== expectedPaths.dir
+      || declaredPaths.threadFile !== expectedPaths.threadFile
+      || declaredPaths.runtimeStatusFile !== expectedPaths.runtimeStatusFile
+      || declaredPaths.receiptsFile !== expectedPaths.receiptsFile
+    ) {
+      throw new Error(
+        `Packet ${WP_ID} declares legacy or non-authoritative WP communication paths. Expected ${expectedPaths.dir} and matching THREAD/RUNTIME_STATUS/RECEIPTS files.`,
+      );
     }
-    : communicationPathsForWp(WP_ID);
+  }
+  const paths = expectedPaths;
   const wpCommDir = paths.dir;
   fs.mkdirSync(wpCommDir, { recursive: true });
 

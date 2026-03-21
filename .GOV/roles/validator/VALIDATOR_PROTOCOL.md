@@ -158,7 +158,7 @@ Minimum verification for governance-only changes: `just gov-check`.
     ```
   - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
   - **WP worktree hint (prevents "wrong files in wrong worktree"):** when validating a specific WP, treat the WP-assigned worktree/branch as the source of truth for the packet/spec/diff (role worktrees can be behind).
-    - Locate the WP worktree/branch via `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
+    - Locate the WP worktree/branch via `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
     - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --show-toplevel` and `git -C "<worktree_dir>" status -sb`.
     - **Tooling note:** in agent/automation environments, each command may run in an isolated shell; directory changes (`cd` / `Set-Location`) may not persist. Prefer explicit workdir or `git -C "<worktree_dir>" ...` so you cannot accidentally read/validate the wrong tree.
     - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" pre-work <WP_ID>`; do not trust the role worktree copy if it disagrees.
@@ -240,7 +240,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
-- `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`
+- `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`
 - `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`
 - `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json` (when present)
 

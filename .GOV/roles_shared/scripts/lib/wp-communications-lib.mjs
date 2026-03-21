@@ -268,27 +268,21 @@ export function validateRuntimeStatus(data) {
     errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md or ${GOV_ROOT_REPO_REL}/task_packets/WP-*/packet.md`);
   }
   const currentPaths = communicationPathsForWp(data.wp_id);
-  const legacyPaths = legacyCommunicationPathsForWp(data.wp_id);
   const declaredCommDir = normalize(data.communication_dir);
   const declaredThreadFile = normalize(data.thread_file);
   const declaredRuntimeStatusFile = normalize(data.runtime_status_file);
   const declaredReceiptsFile = normalize(data.receipts_file);
-  const usesCurrentRoot = declaredCommDir === currentPaths.dir;
-  const expectedPaths = usesCurrentRoot ? currentPaths : legacyPaths;
 
-  if (!isNonEmptyString(data.communication_dir) || (
-    declaredCommDir !== currentPaths.dir
-    && declaredCommDir !== legacyPaths.dir
-  )) {
-    errors.push(`communication_dir must point to ${currentPaths.dir} or ${legacyPaths.dir}`);
+  if (!isNonEmptyString(data.communication_dir) || declaredCommDir !== currentPaths.dir) {
+    errors.push(`communication_dir must point to ${currentPaths.dir}`);
   }
-  if (!isNonEmptyString(data.thread_file) || declaredThreadFile !== expectedPaths.threadFile) {
+  if (!isNonEmptyString(data.thread_file) || declaredThreadFile !== currentPaths.threadFile) {
     errors.push("thread_file must point to THREAD.md in the declared WP communication directory");
   }
-  if (!isNonEmptyString(data.runtime_status_file) || declaredRuntimeStatusFile !== expectedPaths.runtimeStatusFile) {
+  if (!isNonEmptyString(data.runtime_status_file) || declaredRuntimeStatusFile !== currentPaths.runtimeStatusFile) {
     errors.push("runtime_status_file must point to RUNTIME_STATUS.json in the declared WP communication directory");
   }
-  if (!isNonEmptyString(data.receipts_file) || declaredReceiptsFile !== expectedPaths.receiptsFile) {
+  if (!isNonEmptyString(data.receipts_file) || declaredReceiptsFile !== currentPaths.receiptsFile) {
     errors.push("receipts_file must point to RECEIPTS.jsonl in the declared WP communication directory");
   }
   if (!WORKFLOW_LANE_VALUES.includes(data.workflow_lane)) errors.push(`workflow_lane invalid (${data.workflow_lane})`);
