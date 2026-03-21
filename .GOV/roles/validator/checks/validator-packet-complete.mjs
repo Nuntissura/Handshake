@@ -5,7 +5,11 @@
  */
 import { readFileSync } from "node:fs";
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
-import { packetUsesStructuredValidationReport, packetRequiresSpecClauseMap } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import {
+  packetRequiresCompletionLayerVerdicts,
+  packetRequiresSpecClauseMap,
+  packetUsesStructuredValidationReport,
+} from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { validateClauseReportConsistency, validatePacketClosureMonitoring } from "../../../roles_shared/scripts/lib/packet-closure-monitor-lib.mjs";
 import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/semantic-proof-lib.mjs";
 
@@ -237,6 +241,7 @@ if (packetFormatVersion) {
   const usesRigorV2Report = /^SPLIT_DIFF_SCOPED_RIGOR_V2$/i.test(validatorReportProfile);
   const usesRigorV3Report = /^SPLIT_DIFF_SCOPED_RIGOR_V3$/i.test(validatorReportProfile);
   const usesHeuristicRigorReport = usesRigorV2Report || usesRigorV3Report;
+  const usesCompletionLayerVerdicts = packetRequiresCompletionLayerVerdicts(packetFormatVersion);
 
   if (closureStatus && packetUsesStructuredValidationReport(packetFormatVersion)) {
     if (usesClauseClosureMonitor) {
@@ -277,6 +282,15 @@ if (packetFormatVersion) {
     if (usesRigorV3Report) {
       requiredSingleFields.push("VALIDATOR_RISK_TIER");
     }
+    if (usesCompletionLayerVerdicts) {
+      requiredSingleFields.push(
+        "WORKFLOW_VALIDITY",
+        "SCOPE_VALIDITY",
+        "PROOF_COMPLETENESS",
+        "INTEGRATION_READINESS",
+        "DOMAIN_GOAL_COMPLETION",
+      );
+    }
 
     for (const label of requiredSingleFields) {
       const re = new RegExp(`^\\s*${label}\\s*:\\s*(.+)\\s*$`, "im");
@@ -289,8 +303,8 @@ if (packetFormatVersion) {
     if (!hasLine(/^##\s*VALIDATION_REPORTS\b/im)) {
       fail("VALIDATION_REPORTS heading missing");
     }
-    if (!/^\s*Verdict\s*:\s*(PASS|FAIL|OUTDATED_ONLY)\b/im.test(validationReports)) {
-      fail("VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|OUTDATED_ONLY");
+    if (!/^\s*Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED)\b/im.test(validationReports)) {
+      fail("VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED");
     }
     if (!hasListItemAfterLabel(validationReports, "CLAUSES_REVIEWED")) {
       fail("CLAUSES_REVIEWED missing/placeholder list items in VALIDATION_REPORTS for closed packet");
@@ -342,6 +356,16 @@ if (packetFormatVersion) {
     const heuristicReviewVerdict = heuristicReviewVerdictMatch ? (heuristicReviewVerdictMatch[1] || "").trim().toUpperCase() : "";
     const legalVerdictMatch = validationReports.match(/^\s*LEGAL_VERDICT\s*:\s*(.+)\s*$/im);
     const legalVerdict = legalVerdictMatch ? (legalVerdictMatch[1] || "").trim().toUpperCase() : "";
+    const topLevelVerdictMatch = validationReports.match(/^\s*Verdict\s*:\s*(.+)\s*$/im);
+    const topLevelVerdict = topLevelVerdictMatch ? (topLevelVerdictMatch[1] || "").trim().toUpperCase() : "";
+    const validationContextMatch = validationReports.match(/^\s*VALIDATION_CONTEXT\s*:\s*(.+)\s*$/im);
+    const validationContext = validationContextMatch ? (validationContextMatch[1] || "").trim().toUpperCase() : "";
+    const governanceVerdictMatch = validationReports.match(/^\s*GOVERNANCE_VERDICT\s*:\s*(.+)\s*$/im);
+    const governanceVerdict = governanceVerdictMatch ? (governanceVerdictMatch[1] || "").trim().toUpperCase() : "";
+    const environmentVerdictMatch = validationReports.match(/^\s*ENVIRONMENT_VERDICT\s*:\s*(.+)\s*$/im);
+    const environmentVerdict = environmentVerdictMatch ? (environmentVerdictMatch[1] || "").trim().toUpperCase() : "";
+    const dispositionMatch = validationReports.match(/^\s*DISPOSITION\s*:\s*(.+)\s*$/im);
+    const disposition = dispositionMatch ? (dispositionMatch[1] || "").trim().toUpperCase() : "";
     const mainBodyGaps = extractListItemsAfterLabel(validationReports, "MAIN_BODY_GAPS");
     const qualityRisks = extractListItemsAfterLabel(validationReports, "QUALITY_RISKS");
     const attackSurfaces = extractListItemsAfterLabel(validationReports, "DIFF_ATTACK_SURFACES");
@@ -352,6 +376,42 @@ if (packetFormatVersion) {
     const negativePathChecks = extractListItemsAfterLabel(validationReports, "NEGATIVE_PATH_CHECKS");
     if (usesHeuristicRigorReport && specAlignmentVerdict === "PASS" && !hasOnlyNoneList(mainBodyGaps)) {
       fail("SPEC_ALIGNMENT_VERDICT=PASS requires MAIN_BODY_GAPS to be exactly '- NONE'");
+    }
+    if (usesCompletionLayerVerdicts) {
+      const workflowValidityMatch = validationReports.match(/^\s*WORKFLOW_VALIDITY\s*:\s*(.+)\s*$/im);
+      const workflowValidity = workflowValidityMatch ? (workflowValidityMatch[1] || "").trim().toUpperCase() : "";
+      const scopeValidityMatch = validationReports.match(/^\s*SCOPE_VALIDITY\s*:\s*(.+)\s*$/im);
+      const scopeValidity = scopeValidityMatch ? (scopeValidityMatch[1] || "").trim().toUpperCase() : "";
+      const proofCompletenessMatch = validationReports.match(/^\s*PROOF_COMPLETENESS\s*:\s*(.+)\s*$/im);
+      const proofCompleteness = proofCompletenessMatch ? (proofCompletenessMatch[1] || "").trim().toUpperCase() : "";
+      const integrationReadinessMatch = validationReports.match(/^\s*INTEGRATION_READINESS\s*:\s*(.+)\s*$/im);
+      const integrationReadiness = integrationReadinessMatch ? (integrationReadinessMatch[1] || "").trim().toUpperCase() : "";
+      const domainGoalCompletionMatch = validationReports.match(/^\s*DOMAIN_GOAL_COMPLETION\s*:\s*(.+)\s*$/im);
+      const domainGoalCompletion = domainGoalCompletionMatch ? (domainGoalCompletionMatch[1] || "").trim().toUpperCase() : "";
+
+      if (workflowValidity === "VALID" && validationContext !== "OK") {
+        fail("WORKFLOW_VALIDITY=VALID requires VALIDATION_CONTEXT=OK");
+      }
+      if (workflowValidity === "VALID" && governanceVerdict !== "PASS") {
+        fail("WORKFLOW_VALIDITY=VALID requires GOVERNANCE_VERDICT=PASS");
+      }
+      if (proofCompleteness === "PROVEN" && !hasOnlyNoneList(notProvenItems)) {
+        fail("PROOF_COMPLETENESS=PROVEN requires NOT_PROVEN to be exactly '- NONE'");
+      }
+      if (legalVerdict === "PASS" && proofCompleteness !== "PROVEN") {
+        fail("LEGAL_VERDICT=PASS requires PROOF_COMPLETENESS=PROVEN");
+      }
+      if (topLevelVerdict === "PASS") {
+        if (validationContext !== "OK") fail("Verdict=PASS requires VALIDATION_CONTEXT=OK");
+        if (workflowValidity !== "VALID") fail("Verdict=PASS requires WORKFLOW_VALIDITY=VALID");
+        if (scopeValidity !== "IN_SCOPE") fail("Verdict=PASS requires SCOPE_VALIDITY=IN_SCOPE");
+        if (proofCompleteness !== "PROVEN") fail("Verdict=PASS requires PROOF_COMPLETENESS=PROVEN");
+        if (integrationReadiness !== "READY") fail("Verdict=PASS requires INTEGRATION_READINESS=READY");
+        if (domainGoalCompletion !== "COMPLETE") fail("Verdict=PASS requires DOMAIN_GOAL_COMPLETION=COMPLETE");
+        if (legalVerdict !== "PASS") fail("Verdict=PASS requires LEGAL_VERDICT=PASS");
+        if (environmentVerdict !== "PASS") fail("Verdict=PASS requires ENVIRONMENT_VERDICT=PASS");
+        if (disposition !== "NONE") fail("Verdict=PASS requires DISPOSITION=NONE");
+      }
     }
     if (usesHeuristicRigorReport && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(qualityRisks)) {
       fail("HEURISTIC_REVIEW_VERDICT=PASS requires QUALITY_RISKS to be exactly '- NONE'");

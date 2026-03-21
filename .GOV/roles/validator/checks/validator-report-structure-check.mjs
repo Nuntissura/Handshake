@@ -1,6 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { packetUsesStructuredValidationReport, packetRequiresSpecClauseMap } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import {
+  packetRequiresCompletionLayerVerdicts,
+  packetRequiresSpecClauseMap,
+  packetUsesStructuredValidationReport,
+} from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
@@ -111,6 +115,7 @@ for (const name of files) {
   const requiresRigorV2 = /^SPLIT_DIFF_SCOPED_RIGOR_V2$/i.test(reportProfile);
   const requiresRigorV3 = /^SPLIT_DIFF_SCOPED_RIGOR_V3$/i.test(reportProfile);
   const requiresHeuristicRigor = requiresRigorV2 || requiresRigorV3;
+  const requiresCompletionLayerVerdicts = packetRequiresCompletionLayerVerdicts(packetFormatVersion);
 
   const status = parseStatus(text);
   if (!isClosedStatus(status)) continue;
@@ -138,6 +143,15 @@ for (const name of files) {
   if (requiresRigorV3) {
     requiredFields.push("VALIDATOR_RISK_TIER");
   }
+  if (requiresCompletionLayerVerdicts) {
+    requiredFields.push(
+      "WORKFLOW_VALIDITY",
+      "SCOPE_VALIDITY",
+      "PROOF_COMPLETENESS",
+      "INTEGRATION_READINESS",
+      "DOMAIN_GOAL_COMPLETION",
+    );
+  }
 
   for (const label of requiredFields) {
     const value = parseSectionField(reports, label);
@@ -146,8 +160,8 @@ for (const name of files) {
     }
   }
 
-  if (!/^\s*Verdict\s*:\s*(PASS|FAIL|OUTDATED_ONLY)\b/im.test(reports)) {
-    violations.push(`${rel}: VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|OUTDATED_ONLY`);
+  if (!/^\s*Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED)\b/im.test(reports)) {
+    violations.push(`${rel}: VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED`);
   }
 
   const clausesReviewed = extractListItemsAfterLabel(reports, "CLAUSES_REVIEWED");
@@ -203,6 +217,63 @@ for (const name of files) {
     }
   }
 
+  const topLevelVerdict = parseSectionField(reports, "Verdict").toUpperCase();
+  const validationContext = parseSectionField(reports, "VALIDATION_CONTEXT").toUpperCase();
+  const governanceVerdict = parseSectionField(reports, "GOVERNANCE_VERDICT").toUpperCase();
+  const environmentVerdict = parseSectionField(reports, "ENVIRONMENT_VERDICT").toUpperCase();
+  const disposition = parseSectionField(reports, "DISPOSITION").toUpperCase();
+  const legalVerdict = parseSectionField(reports, "LEGAL_VERDICT").toUpperCase();
+
+  if (requiresCompletionLayerVerdicts) {
+    const workflowValidity = parseSectionField(reports, "WORKFLOW_VALIDITY").toUpperCase();
+    const scopeValidity = parseSectionField(reports, "SCOPE_VALIDITY").toUpperCase();
+    const proofCompleteness = parseSectionField(reports, "PROOF_COMPLETENESS").toUpperCase();
+    const integrationReadiness = parseSectionField(reports, "INTEGRATION_READINESS").toUpperCase();
+    const domainGoalCompletion = parseSectionField(reports, "DOMAIN_GOAL_COMPLETION").toUpperCase();
+
+    if (workflowValidity === "VALID" && validationContext !== "OK") {
+      violations.push(`${rel}: WORKFLOW_VALIDITY=VALID requires VALIDATION_CONTEXT=OK`);
+    }
+    if (workflowValidity === "VALID" && governanceVerdict !== "PASS") {
+      violations.push(`${rel}: WORKFLOW_VALIDITY=VALID requires GOVERNANCE_VERDICT=PASS`);
+    }
+    if (proofCompleteness === "PROVEN" && !hasOnlyNoneList(notProven)) {
+      violations.push(`${rel}: PROOF_COMPLETENESS=PROVEN requires NOT_PROVEN to be exactly "- NONE"`);
+    }
+    if (legalVerdict === "PASS" && proofCompleteness !== "PROVEN") {
+      violations.push(`${rel}: LEGAL_VERDICT=PASS requires PROOF_COMPLETENESS=PROVEN`);
+    }
+    if (topLevelVerdict === "PASS") {
+      if (validationContext !== "OK") {
+        violations.push(`${rel}: Verdict=PASS requires VALIDATION_CONTEXT=OK`);
+      }
+      if (workflowValidity !== "VALID") {
+        violations.push(`${rel}: Verdict=PASS requires WORKFLOW_VALIDITY=VALID`);
+      }
+      if (scopeValidity !== "IN_SCOPE") {
+        violations.push(`${rel}: Verdict=PASS requires SCOPE_VALIDITY=IN_SCOPE`);
+      }
+      if (proofCompleteness !== "PROVEN") {
+        violations.push(`${rel}: Verdict=PASS requires PROOF_COMPLETENESS=PROVEN`);
+      }
+      if (integrationReadiness !== "READY") {
+        violations.push(`${rel}: Verdict=PASS requires INTEGRATION_READINESS=READY`);
+      }
+      if (domainGoalCompletion !== "COMPLETE") {
+        violations.push(`${rel}: Verdict=PASS requires DOMAIN_GOAL_COMPLETION=COMPLETE`);
+      }
+      if (legalVerdict !== "PASS") {
+        violations.push(`${rel}: Verdict=PASS requires LEGAL_VERDICT=PASS`);
+      }
+      if (environmentVerdict !== "PASS") {
+        violations.push(`${rel}: Verdict=PASS requires ENVIRONMENT_VERDICT=PASS`);
+      }
+      if (disposition !== "NONE") {
+        violations.push(`${rel}: Verdict=PASS requires DISPOSITION=NONE`);
+      }
+    }
+  }
+
   const heuristicReviewVerdict = parseSectionField(reports, "HEURISTIC_REVIEW_VERDICT").toUpperCase();
   if (requiresHeuristicRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(qualityRisks)) {
     violations.push(`${rel}: HEURISTIC_REVIEW_VERDICT=PASS requires QUALITY_RISKS to be exactly "- NONE"`);
@@ -242,7 +313,6 @@ for (const name of files) {
       violations.push(`${rel}: VALIDATOR_RISK_TIER=${validatorRiskTier} requires NEGATIVE_PATH_CHECKS`);
     }
 
-    const legalVerdict = parseSectionField(reports, "LEGAL_VERDICT").toUpperCase();
     if (legalVerdict === "PASS") {
       if (attackSurfaces.length === 0) {
         violations.push(`${rel}: LEGAL_VERDICT=PASS requires DIFF_ATTACK_SURFACES`);
