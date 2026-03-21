@@ -94,10 +94,9 @@ if (mainWorktreeOverrideAbs) {
 // --- Copy governance kernel to main using robocopy ---
 
 // Directories to exclude from mirror (stay main-local):
-//   Audits   - audit outputs belong in main, not the kernel
 //   operator - operator-private workspace
 //   runtime  - machine-written state (matches at any depth)
-const excludeDirs = ["Audits", "operator", "runtime"];
+const excludeDirs = ["operator", "runtime"];
 
 const robocopyArgs = [
   kernelGovAbs,
