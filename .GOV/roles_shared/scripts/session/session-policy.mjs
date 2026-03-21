@@ -16,7 +16,7 @@ import {
 } from "../lib/runtime-paths.mjs";
 import { ACP_BUILD_ID } from "./acp-build-id.mjs";
 
-export const PACKET_FORMAT_VERSION = "2026-03-18";
+export const PACKET_FORMAT_VERSION = "2026-03-21";
 export const STUB_FORMAT_VERSION = "2026-03-16";
 export const SESSION_POLICY_PACKET_MIN_VERSION = "2026-03-12";
 export const SESSION_POLICY_STUB_MIN_VERSION = "2026-03-12";

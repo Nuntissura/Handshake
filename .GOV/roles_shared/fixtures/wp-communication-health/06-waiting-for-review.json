@@ -1,0 +1,53 @@
+{
+  "description": "coder handoff exists but validator review has not answered it yet",
+  "input": {
+    "wpId": "WP-test-waiting-for-review",
+    "stage": "VERDICT",
+    "packetPath": ".GOV/task_packets/WP-test-waiting-for-review/packet.md",
+    "workflowLane": "ORCHESTRATOR_MANAGED",
+    "packetFormatVersion": "2026-03-21",
+    "communicationContract": "DIRECT_REVIEW_V1",
+    "communicationHealthGate": "HANDOFF_VERDICT_BLOCKING",
+    "receipts": [
+      {
+        "timestamp_utc": "2026-03-21T10:00:00Z",
+        "receipt_kind": "VALIDATOR_KICKOFF",
+        "actor_role": "WP_VALIDATOR",
+        "target_role": "CODER",
+        "correlation_id": "kick-1",
+        "summary": "Tripwires and clause checklist posted."
+      },
+      {
+        "timestamp_utc": "2026-03-21T10:05:00Z",
+        "receipt_kind": "CODER_INTENT",
+        "actor_role": "CODER",
+        "target_role": "WP_VALIDATOR",
+        "correlation_id": "kick-1",
+        "ack_for": "kick-1",
+        "summary": "Proof plan and tests declared."
+      },
+      {
+        "timestamp_utc": "2026-03-21T11:00:00Z",
+        "receipt_kind": "CODER_HANDOFF",
+        "actor_role": "CODER",
+        "target_role": "WP_VALIDATOR",
+        "correlation_id": "handoff-1",
+        "summary": "Committed handoff with weak spots posted."
+      }
+    ],
+    "runtimeStatus": {
+      "open_review_items": []
+    }
+  },
+  "expected": {
+    "applicable": true,
+    "ok": false,
+    "state": "COMM_WAITING_FOR_REVIEW"
+  },
+  "monitor": [
+    {
+      "stale": false,
+      "state": "COMM_WAITING_FOR_REVIEW"
+    }
+  ]
+}

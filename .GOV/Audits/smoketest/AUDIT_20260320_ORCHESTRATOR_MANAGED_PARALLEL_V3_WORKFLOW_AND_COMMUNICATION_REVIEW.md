@@ -475,3 +475,43 @@ Bottom line:
 - it should not yet be treated as proof that the orchestrator-managed parallel workflow is low-friction or sufficiently decentralized
 
 The next target should not be "more features." It should be "the same quality of delivery with much less Orchestrator steering."
+
+---
+
+## 8. POST-AUDIT REMEDIATION UPDATE - 2026-03-21
+
+Since this audit, the first three communication remediations from Section 6.4 have been implemented on governance-only surfaces.
+
+### 8.1 Landed changes
+
+- Introduced a hard direct-review contract for new orchestrator-managed packets with `PACKET_FORMAT_VERSION >= 2026-03-21`.
+- Added explicit packet fields `COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1` and `COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING`.
+- Added new structured receipt kinds for the required coder <-> WP validator lane:
+  - `VALIDATOR_KICKOFF`
+  - `CODER_INTENT`
+  - `CODER_HANDOFF`
+  - `VALIDATOR_REVIEW`
+- Added first-class helper commands for those receipts plus a machine gate:
+  - `just wp-validator-kickoff`
+  - `just wp-coder-intent`
+  - `just wp-coder-handoff`
+  - `just wp-validator-review`
+  - `just wp-communication-health-check WP-{ID} {KICKOFF|HANDOFF|VERDICT}`
+- Wired the communication health gate into real stop points:
+  - coder `post-work`
+  - validator `validator-handoff-check`
+  - PASS commit clearance in `validator_gates`
+- Updated governed startup prompts and role protocols so structured review helpers are now the default path and `wp-thread-append` is explicitly soft coordination only.
+
+### 8.2 Effect on the audit findings
+
+- This directly addresses Finding 2.3 by turning coder/WP-validator traffic into a machine-checked workflow requirement instead of a soft instruction.
+- It reduces Orchestrator relay pressure by giving both sides one canonical structured exchange path plus blocking gates at handoff and verdict boundaries.
+- It keeps migration risk bounded by applying the new contract only to new orchestrator-managed packets. Older packets remain readable and do not retro-fail because of the new law.
+- It does not yet solve launch reliability, live `.GOV` junction noise, or richer monitor/test surfacing. Those remain open follow-up items.
+
+### 8.3 Verification
+
+- `node --check` passed for all changed governance scripts.
+- `just gov-check` passed after the remediation landed.
+- `just wp-communication-health-check WP-1-Structured-Collaboration-Schema-Registry-v3 STATUS` passed with the expected "contract not applicable" result because that packet predates the new contract (`2026-03-18`).

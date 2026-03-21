@@ -17,6 +17,7 @@
  */
 
 import fs from 'fs';
+import { spawnSync } from 'child_process';
 import {
     ensureValidatorGateDir,
     validatorGatePath,
@@ -91,6 +92,17 @@ function fail(msg, details = []) {
 function success(msg, details = []) {
     console.log(`[VALIDATOR GATE] ${msg}`);
     details.forEach((d) => console.log(`  ${d}`));
+}
+
+function runNode(args) {
+    const result = spawnSync(process.execPath, args, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return {
+        code: typeof result.status === 'number' ? result.status : 1,
+        output: `${result.stdout || ''}${result.stderr || ''}`.trim(),
+    };
 }
 
 function assertWpId(id) {
@@ -384,6 +396,17 @@ if (action === 'commit') {
             committedEvidence
                 ? `Latest committed evidence status: ${committedEvidence.status}`
                 : 'No committed validation evidence is recorded for this WP.'
+        ]);
+    }
+
+    const communicationHealth = runNode([
+        `${GOV_ROOT_REPO_REL}/roles_shared/checks/wp-communication-health-check.mjs`,
+        wpId,
+        'VERDICT',
+    ]);
+    if (communicationHealth.code !== 0) {
+        fail(`Cannot commit: ${wpId} is missing verdict-ready direct review communication evidence`, [
+            ...communicationHealth.output.split(/\r?\n/).filter(Boolean),
         ]);
     }
 

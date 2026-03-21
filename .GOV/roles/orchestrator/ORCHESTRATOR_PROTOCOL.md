@@ -436,7 +436,7 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 During active WP execution (any WP is IN_PROGRESS with live coder or validator sessions):
 
 - Issue only steering commands and status checks. Do not write audits, summaries, explanations, or postmortem reasoning until all active WPs reach a verdict boundary (PASS, FAIL, or explicit STOP).
-- Do not relay messages between coder and validator. Coders and WP validators MUST communicate directly via `just wp-thread-append` and `just wp-receipt-append`. The orchestrator is not a message broker.
+- Do not relay messages between coder and validator. Coders and WP validators MUST communicate directly, and for the required review lane they MUST use the structured direct-review helpers (`just wp-validator-kickoff`, `just wp-coder-intent`, `just wp-coder-handoff`, `just wp-validator-review`). `just wp-thread-append` is for soft coordination only. The orchestrator is not a message broker.
 - Do not narrate recovery steps. Fix blockers silently and continue steering.
 - Do not write audit prose mid-run. Audits and reviews belong after the run reaches a stable state, not while active sessions are consuming tokens.
 
@@ -445,8 +445,15 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 ## Direct Coder <-> WP Validator Communication (HARD RULE)
 
 - The orchestrator MUST instruct both coder and WP validator to communicate directly at session start. This is already embedded in `buildStartupPrompt()`.
-- Before a coder can mark handoff-ready, at least one `REVIEW_REQUEST` or `HANDOFF` receipt from coder to validator must exist in the WP communications folder.
-- Before a WP validator can issue PASS, at least one `REVIEW_RESPONSE`, `SPEC_GAP`, or `VALIDATOR_QUERY` receipt from validator to coder must exist in the WP communications folder.
+- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` packets with `PACKET_FORMAT_VERSION >= 2026-03-21`, the packet MUST declare `COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1` and `COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING`.
+- Required structured receipts for that contract are:
+  - `VALIDATOR_KICKOFF` (`WP_VALIDATOR -> CODER`)
+  - `CODER_INTENT` (`CODER -> WP_VALIDATOR`, correlated to kickoff)
+  - `CODER_HANDOFF` (`CODER -> WP_VALIDATOR`)
+  - `VALIDATOR_REVIEW` (`WP_VALIDATOR -> CODER`, correlated to handoff)
+- Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
+- Before validator handoff review begins, `just wp-communication-health-check WP-{ID} HANDOFF` MUST pass.
+- Before PASS commit clearance, `just wp-communication-health-check WP-{ID} VERDICT` MUST pass.
 - The orchestrator should monitor WP communications to verify direct traffic is happening, and steer correction if it is not.
 
 ## Worktree Budget (HARD RULE)

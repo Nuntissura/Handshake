@@ -1,0 +1,77 @@
+{
+  "description": "full exchange exists but verdict is blocked while open review items remain",
+  "input": {
+    "wpId": "WP-test-open-items",
+    "stage": "VERDICT",
+    "packetPath": ".GOV/task_packets/WP-test-open-items/packet.md",
+    "workflowLane": "ORCHESTRATOR_MANAGED",
+    "packetFormatVersion": "2026-03-21",
+    "communicationContract": "DIRECT_REVIEW_V1",
+    "communicationHealthGate": "HANDOFF_VERDICT_BLOCKING",
+    "receipts": [
+      {
+        "timestamp_utc": "2026-03-21T10:00:00Z",
+        "receipt_kind": "VALIDATOR_KICKOFF",
+        "actor_role": "WP_VALIDATOR",
+        "target_role": "CODER",
+        "correlation_id": "kick-1",
+        "summary": "Tripwires and clause checklist posted."
+      },
+      {
+        "timestamp_utc": "2026-03-21T10:05:00Z",
+        "receipt_kind": "CODER_INTENT",
+        "actor_role": "CODER",
+        "target_role": "WP_VALIDATOR",
+        "correlation_id": "kick-1",
+        "ack_for": "kick-1",
+        "summary": "Proof plan and tests declared."
+      },
+      {
+        "timestamp_utc": "2026-03-21T11:00:00Z",
+        "receipt_kind": "CODER_HANDOFF",
+        "actor_role": "CODER",
+        "target_role": "WP_VALIDATOR",
+        "correlation_id": "handoff-1",
+        "summary": "Committed handoff with weak spots posted."
+      },
+      {
+        "timestamp_utc": "2026-03-21T11:20:00Z",
+        "receipt_kind": "VALIDATOR_REVIEW",
+        "actor_role": "WP_VALIDATOR",
+        "target_role": "CODER",
+        "correlation_id": "handoff-1",
+        "ack_for": "handoff-1",
+        "summary": "Advisory review posted with one unresolved issue."
+      }
+    ],
+    "runtimeStatus": {
+      "open_review_items": [
+        {
+          "correlation_id": "followup-1",
+          "receipt_kind": "SPEC_GAP",
+          "summary": "One spec gap remains unresolved.",
+          "opened_by_role": "WP_VALIDATOR",
+          "opened_by_session": "wpval-1",
+          "target_role": "CODER",
+          "target_session": "coder-1",
+          "spec_anchor": "Spec 4.2",
+          "packet_row_ref": "CLAUSE_ROWS[2]",
+          "requires_ack": true,
+          "opened_at": "2026-03-21T11:21:00Z",
+          "updated_at": "2026-03-21T11:21:00Z"
+        }
+      ]
+    }
+  },
+  "expected": {
+    "applicable": true,
+    "ok": false,
+    "state": "COMM_BLOCKED_OPEN_ITEMS"
+  },
+  "monitor": [
+    {
+      "stale": false,
+      "state": "COMM_BLOCKED_OPEN_ITEMS"
+    }
+  ]
+}

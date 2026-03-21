@@ -48,6 +48,8 @@ process.stdout.write('\n');
 const gateCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'gate-check.mjs');
 const postWorkCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles', 'coder', 'checks', 'post-work-check.mjs');
 const roleMailboxPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'role_mailbox_export_check.mjs');
+const communicationHealthPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'wp-communication-health-check.mjs');
+let communicationHealthOk = true;
 
 const gate = run(process.execPath, [gateCheckPath, wpId]);
 process.stdout.write(ensureTrailingNewline(gate.out.trimEnd()));
@@ -76,6 +78,18 @@ if (roleMailbox.code !== 0) {
 
 process.stdout.write('\n');
 
+const communicationHealth = run(process.execPath, [communicationHealthPath, wpId, 'KICKOFF']);
+process.stdout.write(ensureTrailingNewline(communicationHealth.out.trimEnd()));
+if (communicationHealth.code !== 0) {
+  ok = false;
+  communicationHealthOk = false;
+  if (why === 'Post-work checks passed.') {
+    why = 'Direct review communication contract is not satisfied.';
+  }
+}
+
+process.stdout.write('\n');
+
 printBlockHeader('GATE_STATUS', 'CX-GATE-UX-001');
 process.stdout.write(`- PHASE: POST_WORK\n`);
 process.stdout.write(`- GATE_RAN: just post-work ${wpId}${extraArgs.length ? ' ' + extraArgs.join(' ') : ''}\n`);
@@ -86,11 +100,14 @@ process.stdout.write('\n');
 printBlockHeader('NEXT_COMMANDS', 'CX-GATE-UX-001');
 if (ok) {
   process.stdout.write(`- You may proceed with commit.\n`);
+  process.stdout.write(`- Record the structured coder handoff before notifying the validator: just wp-coder-handoff ${wpId} <coder-session> <validator-session> "<summary>"\n`);
 } else {
   process.stdout.write(`- Review the failures above.\n`);
+  if (!communicationHealthOk) {
+    process.stdout.write(`- Complete the direct review contract, then re-run: just wp-communication-health-check ${wpId} KICKOFF\n`);
+  }
   process.stdout.write(`- Fix issues, then re-run: just post-work ${wpId}\n`);
 }
 
 process.exit(ok ? 0 : 1);
-
 

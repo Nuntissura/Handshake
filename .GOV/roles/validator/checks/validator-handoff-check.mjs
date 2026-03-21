@@ -239,6 +239,22 @@ const worktreePacketPath = path.join(worktreeAbs, packetPathRel);
 const packetContent = fs.existsSync(worktreePacketPath)
   ? fs.readFileSync(worktreePacketPath, "utf8")
   : fs.readFileSync(packetPathRel, "utf8");
+const communicationHealthCheckPath = path.join(
+  GOV_ROOT_REPO_REL,
+  "roles_shared",
+  "checks",
+  "wp-communication-health-check.mjs",
+);
+const communicationHealth = runInWorktree(repoRoot, process.execPath, [
+  communicationHealthCheckPath,
+  parsed.wpId,
+  "HANDOFF",
+]);
+if (communicationHealth.code !== 0) {
+  hardFail("Direct review communication contract is not ready for validator handoff", [
+    ...communicationHealth.output.split(/\r?\n/).filter(Boolean),
+  ]);
+}
 const committedTarget = selectCommittedTarget(syncState.worktreeAbs, packetContent, parsed);
 let targetHeadSha = committedTarget.targetHeadSha;
 try {
@@ -304,4 +320,3 @@ if (nonBlockingSyncWarnings.length > 0) {
     console.log(`    - ${warning}`);
   }
 }
-

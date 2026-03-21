@@ -1,0 +1,27 @@
+{
+  "description": "orchestrator-managed packet without any kickoff is blocked immediately",
+  "input": {
+    "wpId": "WP-test-missing-kickoff",
+    "stage": "STATUS",
+    "packetPath": ".GOV/task_packets/WP-test-missing-kickoff/packet.md",
+    "workflowLane": "ORCHESTRATOR_MANAGED",
+    "packetFormatVersion": "2026-03-21",
+    "communicationContract": "DIRECT_REVIEW_V1",
+    "communicationHealthGate": "HANDOFF_VERDICT_BLOCKING",
+    "receipts": [],
+    "runtimeStatus": {
+      "open_review_items": []
+    }
+  },
+  "expected": {
+    "applicable": true,
+    "ok": false,
+    "state": "COMM_MISSING_KICKOFF"
+  },
+  "monitor": [
+    {
+      "stale": false,
+      "state": "COMM_MISSING_KICKOFF"
+    }
+  ]
+}
