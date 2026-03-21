@@ -60,6 +60,9 @@ gov-check:
 	just docs-check
 	node {{GOV_ROOT}}/roles_shared/checks/gov-check.mjs
 
+gov-shared-tests:
+	node --test {{GOV_ROOT}}/roles_shared/tests/*.test.mjs
+
 # Run gov-check and auto-route failures as notifications to the responsible WP coder(s)
 gov-check-feedback wp-id='' session='orchestrator':
 	@node {{GOV_ROOT}}/roles/orchestrator/scripts/gov-check-feedback.mjs {{wp-id}} --session={{session}}
@@ -431,6 +434,9 @@ ensure-wp-communications wp-id:
 wp-communications-check:
 	@node {{GOV_ROOT}}/roles_shared/checks/wp-communications-check.mjs
 
+wp-communication-health-check wp-id stage='STATUS':
+	@node {{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs {{wp-id}} {{stage}}
+
 wp-thread-append wp-id actor-role actor-session message target='' target-role='' target-session='' correlation-id='' requires-ack='false' ack-for='' spec-anchor='' packet-row-ref='':
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-thread-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} "{{message}}" "{{target}}" "{{target-role}}" "{{target-session}}" "{{correlation-id}}" {{requires-ack}} "{{ack-for}}" "{{spec-anchor}}" "{{packet-row-ref}}"
 
@@ -447,6 +453,18 @@ wp-receipt-append wp-id actor-role actor-session receipt-kind summary state-befo
 
 wp-heartbeat wp-id actor-role actor-session current-phase runtime-status next-expected-actor waiting-on validator-trigger='NONE' last-event='' worktree-dir='' next-expected-session='' waiting-on-session='':
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-heartbeat.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{current-phase}} {{runtime-status}} {{next-expected-actor}} "{{waiting-on}}" {{validator-trigger}} "{{last-event}}" "{{worktree-dir}}" "{{next-expected-session}}" "{{waiting-on-session}}"
+
+wp-validator-kickoff wp-id actor-session target-session summary correlation-id='' spec-anchor='' packet-row-ref='':
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_KICKOFF {{wp-id}} WP_VALIDATOR {{actor-session}} CODER "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}"
+
+wp-coder-intent wp-id actor-session target-session summary correlation-id spec-anchor='' packet-row-ref='' ack-for='':
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs CODER_INTENT {{wp-id}} CODER {{actor-session}} WP_VALIDATOR "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}" "{{ack-for}}"
+
+wp-coder-handoff wp-id actor-session target-session summary correlation-id='' spec-anchor='' packet-row-ref='':
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs CODER_HANDOFF {{wp-id}} CODER {{actor-session}} WP_VALIDATOR "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}"
+
+wp-validator-review wp-id actor-session target-session summary correlation-id spec-anchor='' packet-row-ref='' ack-for='':
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_REVIEW {{wp-id}} WP_VALIDATOR {{actor-session}} CODER "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}" "{{ack-for}}"
 
 wp-validator-query wp-id actor-role actor-session target-session summary correlation-id='' spec-anchor='' packet-row-ref='':
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_QUERY {{wp-id}} {{actor-role}} {{actor-session}} WP_VALIDATOR "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}"
