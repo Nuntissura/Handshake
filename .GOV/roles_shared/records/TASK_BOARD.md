@@ -21,6 +21,11 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - Superseded: `- **[WP_ID]** - [SUPERSEDED]`
 Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the work packet to avoid drift/noise.
 
+**Phase 1 closure note:**
+- Historical `## Done` entries record closure under the governance/workflow that existed at the time.
+- They do **not** by themselves grant final Phase 1 signoff or prove current implementation quality.
+- End-of-Phase-1 revalidation will be tracked on this board when that effort begins; until then, treat historical `Done` as prior closure state, not final Phase 1 approval.
+
 **Additional recommended entry format (not currently enforced):**
 - Ready for Dev: `- **[WP_ID]** - [READY_FOR_DEV]`
 - Stub Backlog: `- **[WP_ID]** - [STUB]`
