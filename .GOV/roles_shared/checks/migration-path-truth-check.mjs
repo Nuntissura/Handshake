@@ -109,6 +109,14 @@ const staleChecks = [
     regex: new RegExp(`${govRootEscaped}\\/scripts\\/`),
   },
   {
+    label: "repo-local WP communication runtime path",
+    regex: new RegExp(`${govRootEscaped}\\/roles_shared\\/runtime\\/WP_COMMUNICATIONS\\/`),
+  },
+  {
+    label: "repo-local orchestrator gates runtime path",
+    regex: new RegExp(`${govRootEscaped}\\/roles\\/orchestrator(?:\\/runtime)?\\/ORCHESTRATOR_GATES\\.json`),
+  },
+  {
     label: "stale validator gate state path",
     regex: new RegExp(`${govRootEscaped}\\/validator_gates\\/`),
   },
@@ -131,7 +139,6 @@ for (const filePath of files) {
     rel.startsWith(`${GOV_ROOT_REPO_REL}/refinements/`) ||
     rel.startsWith(`${GOV_ROOT_REPO_REL}/Audits/`) ||
     rel.startsWith(`${GOV_ROOT_REPO_REL}/operator/`) ||
-    rel.startsWith(`${GOV_ROOT_REPO_REL}/roles_shared/runtime/WP_COMMUNICATIONS/`) ||
     rel.startsWith(`${GOV_ROOT_REPO_REL}/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/`)
   ) {
     continue;

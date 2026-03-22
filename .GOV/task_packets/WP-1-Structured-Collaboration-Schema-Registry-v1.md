@@ -109,10 +109,10 @@
 - MAX_CODER_REVISION_CYCLES: 3
 - MAX_VALIDATOR_REVIEW_CYCLES: 3
 - MAX_RELAY_ESCALATION_CYCLES: 2
-- WP_COMMUNICATION_DIR: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1
-- WP_THREAD_FILE: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/THREAD.md
-- WP_RUNTIME_STATUS_FILE: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RUNTIME_STATUS.json
-- WP_RECEIPTS_FILE: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RECEIPTS.jsonl
+- WP_COMMUNICATION_DIR: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1
+- WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/THREAD.md
+- WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RUNTIME_STATUS.json
+- WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RECEIPTS.jsonl
 - WP_VALIDATOR_OF_RECORD: <unassigned>
 - INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
 - SECONDARY_VALIDATOR_SESSIONS: NONE

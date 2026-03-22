@@ -1,6 +1,7 @@
 import {
   DIRECT_REVIEW_CONTRACT_VERSION,
   DIRECT_REVIEW_HEALTH_GATE,
+  FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
 } from "./wp-communications-lib.mjs";
 
@@ -12,6 +13,7 @@ export const COMMUNICATION_MONITOR_STATE_VALUES = [
   "COMM_WAITING_FOR_INTENT",
   "COMM_WAITING_FOR_HANDOFF",
   "COMM_WAITING_FOR_REVIEW",
+  "COMM_WAITING_FOR_FINAL_REVIEW",
   "COMM_BLOCKED_OPEN_ITEMS",
   "COMM_OK",
   "COMM_STALE",
@@ -73,6 +75,19 @@ function receiptFilter(receipts, { receiptKind, actorRole, targetRole }) {
   );
 }
 
+function receiptKindsFilter(receipts, { receiptKinds, actorRole, targetRole }) {
+  const allowedKinds = new Set((receiptKinds || []).map((value) => normalizeReceiptKind(value)));
+  return (receipts || []).filter((entry) =>
+    allowedKinds.has(normalizeReceiptKind(entry.receipt_kind))
+    && normalizeRole(entry.actor_role) === actorRole
+    && normalizeRole(entry.target_role) === targetRole
+  );
+}
+
+function requiresFinalAuthorityDirectReview(packetFormatVersion = "") {
+  return isVersionAtLeast(packetFormatVersion, FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION);
+}
+
 function buildBaseDetails({
   wpId = "",
   stage = "STATUS",
@@ -82,6 +97,8 @@ function buildBaseDetails({
   coderIntents = [],
   coderHandoffs = [],
   validatorReviews = [],
+  integrationFinalOpenReceipts = [],
+  integrationFinalResolutionReceipts = [],
   openReviewItems = [],
 } = {}) {
   return [
@@ -93,6 +110,8 @@ function buildBaseDetails({
     `coder_intents=${coderIntents.length}`,
     `coder_handoffs=${coderHandoffs.length}`,
     `validator_reviews=${validatorReviews.length}`,
+    `integration_final_open=${integrationFinalOpenReceipts.length}`,
+    `integration_final_resolution=${integrationFinalResolutionReceipts.length}`,
     `open_review_items=${openReviewItems.length}`,
   ];
 }
@@ -192,6 +211,31 @@ export function evaluateWpCommunicationHealth({
 
   const kickoffIntentPair = latestMatchingPair(validatorKickoffs, coderIntents);
   const handoffReviewPair = latestMatchingPair(coderHandoffs, validatorReviews);
+  const integrationFinalOpenReceipts = [
+    ...receiptKindsFilter(receipts, {
+      receiptKinds: ["CODER_HANDOFF", "REVIEW_REQUEST"],
+      actorRole: "CODER",
+      targetRole: "INTEGRATION_VALIDATOR",
+    }),
+    ...receiptKindsFilter(receipts, {
+      receiptKinds: ["VALIDATOR_QUERY", "REVIEW_REQUEST", "SPEC_GAP"],
+      actorRole: "INTEGRATION_VALIDATOR",
+      targetRole: "CODER",
+    }),
+  ];
+  const integrationFinalResolutionReceipts = [
+    ...receiptKindsFilter(receipts, {
+      receiptKinds: ["VALIDATOR_REVIEW", "VALIDATOR_RESPONSE", "REVIEW_RESPONSE", "SPEC_CONFIRMATION"],
+      actorRole: "INTEGRATION_VALIDATOR",
+      targetRole: "CODER",
+    }),
+    ...receiptKindsFilter(receipts, {
+      receiptKinds: ["REVIEW_RESPONSE", "SPEC_CONFIRMATION", "VALIDATOR_RESPONSE"],
+      actorRole: "CODER",
+      targetRole: "INTEGRATION_VALIDATOR",
+    }),
+  ];
+  const integrationFinalPair = latestMatchingPair(integrationFinalOpenReceipts, integrationFinalResolutionReceipts);
   const details = buildBaseDetails({
     wpId,
     stage: normalizedStage,
@@ -201,6 +245,8 @@ export function evaluateWpCommunicationHealth({
     coderIntents,
     coderHandoffs,
     validatorReviews,
+    integrationFinalOpenReceipts,
+    integrationFinalResolutionReceipts,
     openReviewItems,
   });
   const counts = {
@@ -208,11 +254,14 @@ export function evaluateWpCommunicationHealth({
     coderIntents: coderIntents.length,
     coderHandoffs: coderHandoffs.length,
     validatorReviews: validatorReviews.length,
+    integrationFinalOpenReceipts: integrationFinalOpenReceipts.length,
+    integrationFinalResolutionReceipts: integrationFinalResolutionReceipts.length,
     openReviewItems: openReviewItems.length,
   };
   const correlations = {
     kickoff: kickoffIntentPair?.openReceipt?.correlation_id || null,
     handoff: handoffReviewPair?.openReceipt?.correlation_id || null,
+    finalReview: integrationFinalPair?.openReceipt?.correlation_id || null,
   };
 
   if (normalizedStage === "STATUS") {
@@ -272,6 +321,17 @@ export function evaluateWpCommunicationHealth({
             `open_review_item=${entry.receipt_kind}:${entry.correlation_id}:${entry.summary}`
           ),
         ],
+        counts,
+        correlations,
+      });
+    }
+    if (requiresFinalAuthorityDirectReview(packetFormatVersion) && !integrationFinalPair) {
+      return result({
+        applicable: true,
+        ok: false,
+        state: "COMM_WAITING_FOR_FINAL_REVIEW",
+        message: "Waiting on direct coder <-> integration-validator final review exchange",
+        details,
         counts,
         correlations,
       });
@@ -353,6 +413,18 @@ export function evaluateWpCommunicationHealth({
       ok: false,
       state: "COMM_WAITING_FOR_REVIEW",
       message: "Waiting on WP validator review reply",
+      details,
+      counts,
+      correlations,
+    });
+  }
+
+  if (requiresFinalAuthorityDirectReview(packetFormatVersion) && !integrationFinalPair) {
+    return result({
+      applicable: true,
+      ok: false,
+      state: "COMM_WAITING_FOR_FINAL_REVIEW",
+      message: "Waiting on direct coder <-> integration-validator final review exchange",
       details,
       counts,
       correlations,

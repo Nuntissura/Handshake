@@ -70,19 +70,19 @@
     },
     "communication_dir": {
       "type": "string",
-      "pattern": "^(?:\\.GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-.*|(?:\\.\\.?/.*)?roles_shared/WP_COMMUNICATIONS/WP-.*)$"
+      "pattern": "^(?:\\.\\.?/.*)?roles_shared/WP_COMMUNICATIONS/WP-.*$"
     },
     "thread_file": {
       "type": "string",
-      "pattern": "^(?:\\.GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-.*/THREAD\\.md|(?:\\.\\.?/.*)?roles_shared/WP_COMMUNICATIONS/WP-.*/THREAD\\.md)$"
+      "pattern": "^(?:\\.\\.?/.*)?roles_shared/WP_COMMUNICATIONS/WP-.*/THREAD\\.md$"
     },
     "runtime_status_file": {
       "type": "string",
-      "pattern": "^(?:\\.GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-.*/RUNTIME_STATUS\\.json|(?:\\.\\.?/.*)?roles_shared/WP_COMMUNICATIONS/WP-.*/RUNTIME_STATUS\\.json)$"
+      "pattern": "^(?:\\.\\.?/.*)?roles_shared/WP_COMMUNICATIONS/WP-.*/RUNTIME_STATUS\\.json$"
     },
     "receipts_file": {
       "type": "string",
-      "pattern": "^(?:\\.GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-.*/RECEIPTS\\.jsonl|(?:\\.\\.?/.*)?roles_shared/WP_COMMUNICATIONS/WP-.*/RECEIPTS\\.jsonl)$"
+      "pattern": "^(?:\\.\\.?/.*)?roles_shared/WP_COMMUNICATIONS/WP-.*/RECEIPTS\\.jsonl$"
     },
     "workflow_lane": {
       "enum": [

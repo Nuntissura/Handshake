@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  allCommunicationRoots,
   COMM_ROOT,
   communicationPathsForWp,
   ensureSchemaFilesExist,
@@ -15,7 +14,6 @@ import {
   validateReceipt,
   validateRuntimeStatus,
 } from "../scripts/lib/wp-communications-lib.mjs";
-import { packetUsesExternalGovernanceRuntime } from "../scripts/session/session-policy.mjs";
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 
 const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
@@ -57,8 +55,6 @@ if (fs.existsSync(PACKETS_DIR)) {
     const threadFile = parseSingleField(text, "WP_THREAD_FILE");
     const runtimeStatusFile = parseSingleField(text, "WP_RUNTIME_STATUS_FILE");
     const receiptsFile = parseSingleField(text, "WP_RECEIPTS_FILE");
-    const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
-
     const declared = [communicationDir, threadFile, runtimeStatusFile, receiptsFile].filter(Boolean);
     if (declared.length === 0) continue;
 
@@ -67,9 +63,7 @@ if (fs.existsSync(PACKETS_DIR)) {
       continue;
     }
 
-    const expected = packetUsesExternalGovernanceRuntime(packetFormatVersion)
-      ? communicationPathsForWp(wpId)
-      : legacyCommunicationPathsForWp(wpId);
+    const expected = communicationPathsForWp(wpId);
     const expectedDir = expected.dir;
     const expectedThread = expected.threadFile;
     const expectedRuntime = expected.runtimeStatusFile;
@@ -122,46 +116,53 @@ if (fs.existsSync(PACKETS_DIR)) {
         violations.push(`${packetPath}: ${RECEIPTS_FILE_NAME} parse/validation failure -> ${error.message}`);
       }
     }
+
+    const legacyDir = legacyCommunicationPathsForWp(wpId).dir;
+    if (fs.existsSync(legacyDir)) {
+      violations.push(`${packetPath}: repo-local legacy communication directory still exists -> ${legacyDir}`);
+    }
   }
 }
 
-for (const root of allCommunicationRoots()) {
-  if (!fs.existsSync(root)) continue;
-  const entries = fs.readdirSync(root, { withFileTypes: true });
+if (fs.existsSync(COMM_ROOT)) {
+  const entries = fs.readdirSync(COMM_ROOT, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     if (!entry.name.startsWith("WP-")) {
-      violations.push(`${root}/${entry.name}: unexpected directory in WP communication root`);
+      violations.push(`${COMM_ROOT}/${entry.name}: unexpected directory in WP communication root`);
       continue;
     }
     const packetPath = resolveWorkPacketPath(entry.name)?.packetPath || path.join(PACKETS_DIR, `${entry.name}.md`);
     if (!fs.existsSync(packetPath)) {
-      violations.push(`${root}/${entry.name}: orphan communication folder with no matching official packet`);
+      violations.push(`${COMM_ROOT}/${entry.name}: orphan communication folder with no matching official packet`);
       continue;
     }
     const packetText = fs.readFileSync(packetPath, "utf8");
     const communicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
-    const packetFormatVersion = parseSingleField(packetText, "PACKET_FORMAT_VERSION");
-    const authoritativeDir = normalize(
-      packetUsesExternalGovernanceRuntime(packetFormatVersion)
-        ? communicationPathsForWp(entry.name).dir
-        : legacyCommunicationPathsForWp(entry.name).dir
-    );
-    const currentDir = normalize(path.join(root, entry.name));
+    const authoritativeDir = normalize(communicationPathsForWp(entry.name).dir);
+    const currentDir = normalize(path.join(COMM_ROOT, entry.name));
 
     if (currentDir !== authoritativeDir) {
       continue;
     }
 
     if (!communicationDir) {
-      violations.push(`${root}/${entry.name}: communication folder exists but matching packet does not declare WP communication metadata`);
+      violations.push(`${COMM_ROOT}/${entry.name}: communication folder exists but matching packet does not declare WP communication metadata`);
     }
     for (const requiredName of [THREAD_FILE_NAME, RUNTIME_STATUS_FILE_NAME, RECEIPTS_FILE_NAME]) {
-      const requiredPath = path.join(root, entry.name, requiredName);
+      const requiredPath = path.join(COMM_ROOT, entry.name, requiredName);
       if (!fs.existsSync(requiredPath)) {
-        violations.push(`${root}/${entry.name}: missing required artifact ${requiredName}`);
+        violations.push(`${COMM_ROOT}/${entry.name}: missing required artifact ${requiredName}`);
       }
     }
+  }
+}
+
+const legacyRoot = legacyCommunicationPathsForWp("WP-LEGACY").dir.replace(/\/WP-LEGACY$/, "");
+if (fs.existsSync(legacyRoot)) {
+  const entries = fs.readdirSync(legacyRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    violations.push(`${legacyRoot}/${entry.name}: repo-local WP communication runtime residue detected; live artifacts must live under ${COMM_ROOT}`);
   }
 }
 

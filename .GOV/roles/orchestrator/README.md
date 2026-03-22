@@ -13,8 +13,8 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `.GOV/co
 
 ## Current Runtime State
 
-- `runtime/ORCHESTRATOR_GATES.json`
-  - live orchestrator runtime state
+- external repo-governance `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`
+  - live orchestrator gate state
 - `checks/orchestrator_gates.mjs`
 - `scripts/create-task-packet.mjs`
 - `scripts/create-task-packet-stub.mjs`
