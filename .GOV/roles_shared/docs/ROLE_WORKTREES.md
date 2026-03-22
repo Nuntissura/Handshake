@@ -38,6 +38,7 @@ If you are an AI assistant operating in this repo:
 - IMPORTANT: Codex [CX-108] blocks rewrite/hide operations such as `git stash`, `git checkout`, `git switch`, `git merge`, `git rebase`, `git reset`, and `git clean` unless explicitly authorized in the same turn.
 - Exception (WP auto-continue): when the Orchestrator has already recorded a PASS signature gate for a specific WP and the next deterministic step is `just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID}`, the Orchestrator MUST create that missing WP worktree/branch automatically. Do not bounce that routine post-signature setup back to the Operator for a second approval.
 - `main` is the canonical integrated branch. `user_ilja` and `role_orchestrator` on GitHub are backup branches and may diverge from `main`.
+- Permanent non-main worktrees (`wt-ilja`, `wt-orchestrator`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - Before destructive or state-hiding local git actions on a role/user/WP branch, push the current committed state to the matching GitHub backup branch.
 - For WPs, the matching GitHub backup branch should be treated as the phase-boundary recovery branch, not just a pre-destruction safety sink.
 - Minimum WP recovery milestones to preserve remotely are:
@@ -63,9 +64,12 @@ Notes:
 - WP Validator sessions operate from the coder worktree (`wtc-*` on `feat/WP-*`), diffs against `main` [CX-212D].
 - Integration Validator sessions operate from `handshake_main` on branch `main` [CX-212D].
 - WP Validator and Integration Validator local lanes do not mint separate GitHub WP backup branches. Coder, WP Validator, and Integration Validator reuse the single packet-declared WP backup branch on GitHub.
-- WP assignment is recorded in `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` as a `PREPARE` entry (via `just record-prepare ...`) with `branch` and `worktree_dir`.
+- WP assignment is recorded in `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` as a `PREPARE` entry (via `just record-prepare ...`) with `branch` and `worktree_dir`.
 - ORCHESTRATOR/VALIDATOR role work (governance/validation work outside a specific WP worktree) uses the dedicated role worktrees above.
 - Permanent role/user branches are backup branches on GitHub. Their purpose is recoverability, not integration. They may be ahead of, equal to, or behind `main`.
+- Refreshing a permanent non-main worktree has two distinct paths:
+  - `just sync-all-role-worktrees` refreshes the local `main` branch across the permanent worktrees when all are clean.
+  - `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` resets the checked-out permanent role/user branch to local `main` after a safety push + immutable snapshot, then repairs the `.GOV/` junction.
 - A WP backup branch is temporary. Its URL may stop resolving after Operator-approved cleanup and that later 404 must not become a governance failure.
 
 ## Verification Commands (run at session start)
@@ -79,11 +83,11 @@ Notes:
 Why this gate exists (CX-WT-001):
 - Prevent work in the wrong directory/branch (especially accidental `main` or role-branch edits).
 - Enforce WP isolation via dedicated worktrees/branches (no shared working trees across active WPs).
-- Provide a verifiable snapshot for Operator/Validator using `.GOV/roles_shared/docs/ROLE_WORKTREES.md` + `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` (`PREPARE` entries).
+- Provide a verifiable snapshot for Operator/Validator using `.GOV/roles_shared/docs/ROLE_WORKTREES.md` + `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` (`PREPARE` entries).
 
 Next actions (CX-WT-001):
 - If correct: proceed with the next protocol step (BOOTSTRAP / packet work).
-- If incorrect/uncertain: STOP and ask Orchestrator/Operator to provide/create the correct worktree/branch (and record `PREPARE` in `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` for WP work).
+- If incorrect/uncertain: STOP and ask Orchestrator/Operator to provide/create the correct worktree/branch (and record `PREPARE` in `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` for WP work).
 
 ## Creation Commands
 
@@ -129,6 +133,6 @@ WP worktrees (Orchestrator action, not Coder):
 - Keep reusing that same WP backup branch at each recovery milestone so a clean restart can begin from the latest lawful WP phase boundary instead of a dirty local tree.
 - Before deleting a WP worktree or WP backup branch after approval:
   - `just backup-snapshot`
-- Record the execution owner (writes `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`):
+- Record the execution owner (writes `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`):
   - Prefer repo-relative `worktree_dir` values (example: `../wt-WP-{ID}`) to avoid drive-specific paths and quoting issues.
   - `just record-prepare WP-{ID} {Coder-A..Coder-Z} [branch] [worktree_dir]`

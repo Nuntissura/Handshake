@@ -7,6 +7,10 @@ import {
     validateRefinementFile,
 } from '../../../roles_shared/checks/refinement-check.mjs';
 import {
+    preparePacketTruthState,
+    preparedWorktreeSyncState,
+} from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
+import {
     defaultCoderBranch,
     defaultCoderWorktreeDir,
     EXECUTION_OWNER_RANGE_HELP,
@@ -24,7 +28,16 @@ function loadState() {
 }
 
 function saveState(state) {
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+    fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+    const tempPath = `${STATE_FILE}.tmp-${process.pid}-${Date.now()}`;
+    try {
+        fs.writeFileSync(tempPath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+        fs.renameSync(tempPath, STATE_FILE);
+    } finally {
+        if (fs.existsSync(tempPath)) {
+            fs.unlinkSync(tempPath);
+        }
+    }
 }
 
 const action = process.argv[2];
@@ -172,6 +185,14 @@ function v2IsLegacyOrchestratorAgentic(raw) {
     if (!value) return false;
     const upper = value.toUpperCase().replace(/[\s_]+/g, '-');
     return upper === 'ORCHESTRATOR-AGENTIC' || upper === 'ORCH-AGENTIC' || upper === 'AGENTIC';
+}
+
+function v2PrepareMatches(left, right) {
+    if (!left || !right) return false;
+    return String(left.workflow_lane || '').trim() === String(right.workflow_lane || '').trim()
+        && String(left.execution_lane || left.coder_id || '').trim() === String(right.execution_lane || right.coder_id || '').trim()
+        && String(left.branch || '').trim() === String(right.branch || '').trim()
+        && String(left.worktree_dir || '').trim().replace(/\\/g, '/') === String(right.worktree_dir || '').trim().replace(/\\/g, '/');
 }
 
 if (action === 'refine') {
@@ -529,7 +550,7 @@ if (action === 'prepare') {
         ]);
     }
 
-    state.gate_logs.push({
+    const candidatePrepare = {
         wpId,
         type: 'PREPARE',
         coder_id: executionLane,
@@ -537,9 +558,52 @@ if (action === 'prepare') {
         execution_lane: executionLane,
         branch,
         worktree_dir: worktreeDir.replace(/\\/g, '/'),
-        timestamp: new Date().toISOString(),
-    });
-    saveState(state);
+    };
+    const packetTruth = preparePacketTruthState(wpId, candidatePrepare, process.cwd());
+    if (packetTruth.packetPresent && !packetTruth.ok) {
+        v2Fail('PREPARE conflicts with the existing official packet authority.', packetTruth.issues);
+    }
+    if (packetTruth.packetPresent && lastPrepare) {
+        const currentSyncState = preparedWorktreeSyncState(wpId, lastPrepare, process.cwd());
+        if (!currentSyncState.ok) {
+            v2Fail('Current PREPARE / worktree truth is already stale; repair STATUS_SYNC before appending another PREPARE.', [
+                ...currentSyncState.issues,
+                `Run: just orchestrator-next ${wpId}`,
+            ]);
+        }
+    }
+
+    const stateToPersist = {
+        ...state,
+        gate_logs: [
+            ...(Array.isArray(state.gate_logs) ? state.gate_logs : []),
+            {
+                ...candidatePrepare,
+                timestamp: new Date().toISOString(),
+            },
+        ],
+    };
+    saveState(stateToPersist);
+
+    const persistedState = loadState();
+    const persistedPrepare = [...(Array.isArray(persistedState.gate_logs) ? persistedState.gate_logs : [])]
+        .reverse()
+        .find((entry) => entry?.wpId === wpId && entry?.type === 'PREPARE') || null;
+    if (!persistedPrepare || !v2PrepareMatches(persistedPrepare, candidatePrepare)) {
+        v2Fail('PREPARE write could not be verified after save.', [
+            `state_file=${STATE_FILE.replace(/\\/g, '/')}`,
+            `wp_id=${wpId}`,
+        ]);
+    }
+    if (packetTruth.packetPresent) {
+        const persistedSyncState = preparedWorktreeSyncState(wpId, persistedPrepare, process.cwd());
+        if (!persistedSyncState.ok) {
+            v2Fail('PREPARE write left split packet/runtime/worktree truth; repair STATUS_SYNC before continuing.', [
+                ...persistedSyncState.issues,
+                `Run: just orchestrator-next ${wpId}`,
+            ]);
+        }
+    }
 
     v2PrintGateBlocks({
         wpId,
@@ -564,5 +628,3 @@ if (action === 'prepare') {
 }
 
 v2Fail('Unknown action. Expected: refine|sign|prepare');
-
-

@@ -287,9 +287,7 @@ function resolveSpecSnapshotAtRepo(repoRoot) {
 }
 
 function lastPrepareEntryAtRepo(repoRoot, wpId) {
-  const newPath = path.join(repoRoot, GOVERNANCE_RUNTIME_ROOT_REPO_REL, "roles_shared", "ORCHESTRATOR_GATES.json");
-  const legacyPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
-  const gatesPath = exists(newPath) ? newPath : legacyPath;
+  const gatesPath = path.join(repoRoot, GOVERNANCE_RUNTIME_ROOT_REPO_REL, "roles_shared", "ORCHESTRATOR_GATES.json");
   if (!exists(gatesPath)) return null;
   let state = {};
   try {
@@ -307,6 +305,83 @@ export function resolvePrepareWorktreeAbs(prepareEntry, referenceRepoRoot) {
   return path.isAbsolute(worktreeDir)
     ? path.resolve(worktreeDir)
     : path.resolve(referenceRepoRoot || process.cwd(), worktreeDir);
+}
+
+function isPendingAuthorityValue(value) {
+  const normalized = String(value || "").trim();
+  return normalized === "" || normalized === "<pending>" || normalized === "<missing>";
+}
+
+export function normalizeComparableRepoPath(value, referenceRepoRoot) {
+  const normalized = String(value || "").trim();
+  if (!normalized || isPendingAuthorityValue(normalized)) return "";
+  const absolute = path.isAbsolute(normalized)
+    ? path.resolve(normalized)
+    : path.resolve(referenceRepoRoot || currentGitContext().topLevel || process.cwd(), normalized);
+  return process.platform === "win32" ? absolute.toLowerCase() : absolute;
+}
+
+export function comparePrepareAgainstPacketTruth(packetContent, prepareEntry, referenceRepoRoot) {
+  const workflowLane = parseClaimField(packetContent, "WORKFLOW_LANE");
+  const executionOwner = parseClaimField(packetContent, "EXECUTION_OWNER");
+  const localBranch = parseClaimField(packetContent, "LOCAL_BRANCH");
+  const localWorktreeDir = parseClaimField(packetContent, "LOCAL_WORKTREE_DIR");
+  const prepareWorkflowLane = String(prepareEntry?.workflow_lane || "").trim();
+  const prepareExecutionOwner = String(prepareEntry?.execution_lane || prepareEntry?.coder_id || "").trim();
+  const prepareBranch = String(prepareEntry?.branch || "").trim();
+  const prepareWorktreeDir = String(prepareEntry?.worktree_dir || "").trim();
+  const issues = [];
+
+  if (!isPendingAuthorityValue(workflowLane) && prepareWorkflowLane && workflowLane !== prepareWorkflowLane) {
+    issues.push(`Official packet WORKFLOW_LANE conflicts with PREPARE: expected ${workflowLane}, got ${prepareWorkflowLane}`);
+  }
+  if (!isPendingAuthorityValue(executionOwner) && prepareExecutionOwner && executionOwner !== prepareExecutionOwner) {
+    issues.push(`Official packet EXECUTION_OWNER conflicts with PREPARE: expected ${executionOwner}, got ${prepareExecutionOwner}`);
+  }
+  if (!isPendingAuthorityValue(localBranch) && prepareBranch && localBranch !== prepareBranch) {
+    issues.push(`Official packet LOCAL_BRANCH conflicts with PREPARE: expected ${localBranch}, got ${prepareBranch}`);
+  }
+
+  const packetWorktreeAbs = normalizeComparableRepoPath(localWorktreeDir, referenceRepoRoot);
+  const prepareWorktreeAbs = normalizeComparableRepoPath(prepareWorktreeDir, referenceRepoRoot);
+  if (packetWorktreeAbs && prepareWorktreeAbs && packetWorktreeAbs !== prepareWorktreeAbs) {
+    issues.push(`Official packet LOCAL_WORKTREE_DIR conflicts with PREPARE: expected ${localWorktreeDir}, got ${prepareWorktreeDir}`);
+  }
+
+  return {
+    ok: issues.length === 0,
+    workflowLane,
+    executionOwner,
+    localBranch,
+    localWorktreeDir,
+    prepareWorkflowLane,
+    prepareExecutionOwner,
+    prepareBranch,
+    prepareWorktreeDir,
+    issues,
+  };
+}
+
+export function preparePacketTruthState(wpId, prepareEntry, referenceRepoRoot) {
+  const filePath = packetPath(wpId);
+  const packetContent = loadPacket(wpId);
+  if (!packetContent) {
+    return {
+      ok: true,
+      wpId,
+      packetPresent: false,
+      packetPath: filePath,
+      issues: [],
+    };
+  }
+
+  const comparison = comparePrepareAgainstPacketTruth(packetContent, prepareEntry, referenceRepoRoot);
+  return {
+    ...comparison,
+    wpId,
+    packetPresent: true,
+    packetPath: filePath,
+  };
 }
 
 export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot) {
@@ -345,7 +420,7 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
 
   const currentPrepare = lastPrepareEntryAtRepo(repoRoot, wpId);
   const worktreePrepare = lastPrepareEntryAtRepo(worktreeAbs, wpId);
-  // ORCHESTRATOR_GATES.json is orchestrator-private runtime state excluded from
+  // ORCHESTRATOR_GATES.json is external governance runtime state excluded from
   // gov-to-main sync, so WP worktrees legitimately lack it — only flag a mismatch
   // when the worktree *does* have a PREPARE record that disagrees with the reference.
   if (!worktreePrepare && !currentPrepare) {

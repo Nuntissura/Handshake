@@ -33,17 +33,23 @@ for (const spec of WORKTREE_SPECS) {
   runGitInherit(absDir, ["fetch", "origin"]);
 
   if (localBranchExists(absDir, "main")) {
-    runGitInherit(absDir, ["checkout", "main"]);
+    if (originalBranch !== "main") {
+      runGitInherit(absDir, ["checkout", "main"]);
+    }
     runGitInherit(absDir, ["merge", "--ff-only", "origin/main"]);
+  } else {
+    console.log(`[SYNC_ALL_ROLE_WORKTREES] skip local main refresh for ${spec.id}: no local main branch`);
   }
 
-  if (localBranchExists(absDir, spec.local_branch)) {
-    runGitInherit(absDir, ["checkout", spec.local_branch]);
-    runGitInherit(absDir, ["merge", "--ff-only", spec.remote_branch]);
-  }
-
-  if (localBranchExists(absDir, originalBranch)) {
+  if (originalBranch && originalBranch !== "main" && localBranchExists(absDir, originalBranch)) {
     runGitInherit(absDir, ["checkout", originalBranch]);
+  }
+
+  if (["OPERATOR", "ORCHESTRATOR"].includes(spec.role)) {
+    console.log(
+      `[SYNC_ALL_ROLE_WORKTREES] note: ${spec.id} role branch ${spec.local_branch} was left unchanged; `
+      + `use just reseed-permanent-worktree-from-main ${spec.id} "<approval>" to reseed it from local main`
+    );
   }
 
   console.log(`[SYNC_ALL_ROLE_WORKTREES] ok: ${spec.id}`);

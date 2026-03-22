@@ -2,6 +2,13 @@
 
 MANDATORY - The Orchestrator is the workflow authority. This file defines the current orchestrator-managed governance workflow. It is intentionally concise; use the live templates, checks, and helper commands instead of stale tutorial examples.
 
+## Why Governance Correctness Matters
+
+- Repo governance is a live prototype of the future Handshake control plane for autonomous parallel work across local and cloud models.
+- The Orchestrator is therefore protecting control-plane correctness, not just moving tasks forward.
+- Treat split authority, false-ready state, collapsed PASS claims, and missing direct coder-validator exchange as product-grade harness defects, not workflow inconvenience.
+- Prefer stop, repair, and explicit non-pass states over compensating with manual relay, interpretive narration, or optimistic status rounding.
+
 ## Safety: Data-Loss Prevention (HARD RULE)
 
 - This repo is not disposable. Untracked files may contain critical work.
@@ -20,6 +27,7 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
 - Permanent protected branches: `main`, `user_ilja`, `role_orchestrator`, `gov_kernel`.
 - Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`.
 - `user_ilja` and `role_orchestrator` on GitHub are backup branches, not integration branches.
+- Permanent non-main worktrees (`wt-ilja`, `wt-orchestrator`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - `role_orchestrator` MUST NOT be merged into `main` — its `.GOV/` is a junction (files absent from git tracking) which creates irreconcilable conflicts. Non-`.GOV/` changes (`AGENTS.md`, `justfile`) reach `main` by file copy + commit on main. `.GOV/` changes reach `main` through `just sync-gov-to-main` [CX-212D].
 - Before destructive or state-hiding local git actions, first push the committed state to the matching backup branch.
 - Before deleting local branches or worktrees, create an immutable snapshot with `just backup-snapshot`.
@@ -34,7 +42,8 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
 - Use `just enumerate-cleanup-targets` before asking for approval so the exact targets are visible.
 - Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the list has been presented.
 - If `git worktree remove` fails, stop. Do not fall back to manual filesystem cleanup.
-- Use `just sync-all-role-worktrees` only when the permanent local clones are clean.
+- Use `just sync-all-role-worktrees` only to refresh the local `main` branch across the permanent worktrees when they are clean. It is not the reseed path for `wt-ilja` or `wt-orchestrator`.
+- Use `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` when a permanent non-main role/user worktree must be refreshed from local `main`. This helper safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
 
 ## Repo Boundary Rules (HARD)
 
@@ -47,7 +56,7 @@ See also:
 - `.GOV/codex/Handshake_Codex_v1.4.md`
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 
-**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's default responsibility before pushing to `origin/main`, but the Orchestrator MAY execute that mechanical sync/push path when the Operator explicitly instructs it to do so under [CX-212D]. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's default responsibility before pushing to `origin/main`, but the Orchestrator MAY execute that mechanical sync/push path when the Operator explicitly instructs it to do so under [CX-212D]. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Product Runtime Root (Current Default)
 
@@ -136,6 +145,8 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 ### Packet Truth [CX-573B]
 
 - The packet is the authoritative workflow contract.
+- The Orchestrator must maintain one authoritative workflow truth across packet, runtime, task board, session, and worktree state.
+- If those surfaces diverge, correct the truth before more execution proceeds.
 - Ongoing steering must stay in packet, runtime, and thread artifacts rather than ad hoc side channels.
 
 ### Dependency Discipline [CX-573E]
@@ -451,6 +462,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
   - `CODER_INTENT` (`CODER -> WP_VALIDATOR`, correlated to kickoff)
   - `CODER_HANDOFF` (`CODER -> WP_VALIDATOR`)
   - `VALIDATOR_REVIEW` (`WP_VALIDATOR -> CODER`, correlated to handoff)
+- For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
 - Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
 - Before validator handoff review begins, `just wp-communication-health-check WP-{ID} HANDOFF` MUST pass.
 - Before PASS commit clearance, `just wp-communication-health-check WP-{ID} VERDICT` MUST pass.

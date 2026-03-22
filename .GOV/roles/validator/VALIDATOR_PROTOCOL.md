@@ -2,6 +2,13 @@
 
 **MANDATORY** - Validator must read this before performing any Validator actions (audit, review, remediation, or repo operations)
 
+## Why Governance Correctness Matters
+
+- Repo governance is a live prototype of the future Handshake control plane for autonomous mass-parallel work.
+- The Validator is the independent critic in that prototype. A false PASS is worse than delay because it teaches the control plane to accept weak proof.
+- Treat weak proof, split authority, and workflow defects that hide uncertainty as product-grade defects, not only governance defects.
+- Prefer `NOT_PROVEN`, `PARTIAL`, `BLOCKED`, or `PENDING` when the evidence ceiling is real instead of rounding up to PASS.
+
 ## Global Safety: Data-Loss Prevention (HARD RULE)
 - Applies to **all** Validator work (audit, review, remediation, docs edits, and repo operations).
 - This repo is **not** a disposable workspace. Untracked files may be critical work (e.g., WPs/refinements).
@@ -20,6 +27,7 @@
 - Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `gov_kernel`.
 - Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`.
 - `user_ilja`, `role_orchestrator`, and `gov_kernel` on GitHub are backup branches, not integration branches. They may diverge from `main`.
+- Permanent non-main worktrees (`wt-ilja`, `wt-orchestrator`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - `role_orchestrator` and `gov_kernel` MUST NOT be merged into `main`. Non-`.GOV/` orchestrator changes reach `main` by file copy. `.GOV/` changes reach `main` through `just sync-gov-to-main` (Integration Validator default responsibility; Orchestrator may execute only under explicit Operator instruction) [CX-212D, CX-113].
 - Matching backup pushes are allowed safety operations. For Validator work this means pushing the assigned WP backup branch when preserving committed state before destructive local operations.
 - The packet-declared WP backup branch is the shared remote WP backup branch for Coder, WP Validator, and Integration Validator. Any validator form may push that packet-declared branch when preserving WP-scoped committed state, but validators must not improvise separate validator-only remote WP backup branches.
@@ -43,7 +51,8 @@
   - The generated script is hard-bound to one exact local worktree, consumes the baked Operator approval text plus the matching worktree cleanup token, and may only remove that local worktree via `git worktree remove`.
   - Cleanup script generation is blocked unless the target worktree is clean and still matches the recorded branch/HEAD.
   - Generated cleanup scripts do not delete remote WP backup branches.
-- Use `just sync-all-role-worktrees` to fast-forward the permanent local clones when all are clean.
+- Use `just sync-all-role-worktrees` only to refresh the local `main` branch across the permanent worktrees when they are clean. It is not the reseed path for `wt-ilja` or `wt-orchestrator`.
+- Use `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` when a permanent non-main role/user worktree must be refreshed from local `main`. This helper safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
 
 ## Repo Boundary Rules (HARD)
 
@@ -54,7 +63,7 @@
 
 See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
-**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. The Integration Validator is the default owner for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`, but the Orchestrator may execute that mechanical sync/push path when explicitly instructed by the Operator. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The Integration Validator is the default owner for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`, but the Orchestrator may execute that mechanical sync/push path when explicitly instructed by the Operator. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Product Runtime Root (Current Default)
 
@@ -149,7 +158,7 @@ Minimum verification for governance-only changes: `just gov-check`.
     ```
   - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
   - **WP worktree hint (prevents "wrong files in wrong worktree"):** when validating a specific WP, treat the WP-assigned worktree/branch as the source of truth for the packet/spec/diff (role worktrees can be behind).
-    - Locate the WP worktree/branch via `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
+    - Locate the WP worktree/branch via `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
     - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --show-toplevel` and `git -C "<worktree_dir>" status -sb`.
     - **Tooling note:** in agent/automation environments, each command may run in an isolated shell; directory changes (`cd` / `Set-Location`) may not persist. Prefer explicit workdir or `git -C "<worktree_dir>" ...` so you cannot accidentally read/validate the wrong tree.
     - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" pre-work <WP_ID>`; do not trust the role worktree copy if it disagrees.
@@ -231,7 +240,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
-- `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`
+- `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`
 - `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`
 - `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json` (when present)
 
@@ -265,6 +274,7 @@ Resume rule (hard, anti-babysit):
   - `CODER_INTENT` from `CODER -> WP_VALIDATOR`, correlated to kickoff
   - `CODER_HANDOFF` from `CODER -> WP_VALIDATOR`
   - `VALIDATOR_REVIEW` from `WP_VALIDATOR -> CODER`, correlated to handoff
+  - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
 - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
 - Before taking a coder handoff as review-ready on those packets, `just wp-communication-health-check WP-{ID} HANDOFF` must pass.
 - Before PASS commit clearance on those packets, `just wp-communication-health-check WP-{ID} VERDICT` must pass.
@@ -621,6 +631,12 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - `DISPOSITION: NONE | OUTDATED_ONLY`
   - `LEGAL_VERDICT: PASS | FAIL | PENDING`
   - `SPEC_CONFIDENCE: NONE | PARTIAL_DIFF_SCOPED | REVIEWED_DIFF_SCOPED | POST_MERGE_RECHECKED`
+- For `PACKET_FORMAT_VERSION >= 2026-03-22`, also append the universal completion-layer fields:
+  - `WORKFLOW_VALIDITY: VALID | INVALID | PARTIAL | BLOCKED | NOT_RUN`
+  - `SCOPE_VALIDITY: IN_SCOPE | OUT_OF_SCOPE | PARTIAL | BLOCKED | NOT_RUN`
+  - `PROOF_COMPLETENESS: PROVEN | NOT_PROVEN | PARTIAL | BLOCKED | NOT_RUN`
+  - `INTEGRATION_READINESS: READY | NOT_READY | PARTIAL | BLOCKED | NOT_RUN`
+  - `DOMAIN_GOAL_COMPLETION: COMPLETE | INCOMPLETE | PARTIAL | BLOCKED | NOT_RUN`
 - `LEGAL_VERDICT` remains the only legal top-line verdict field.
 - `SPEC_ALIGNMENT_VERDICT` is not implied by passing tests or governance gates.
 - If environment/tooling blocked full proof, reflect that explicitly with `ENVIRONMENT_VERDICT` and downgrade `SPEC_ALIGNMENT_VERDICT` rather than narrating a generic PASS.
@@ -642,6 +658,11 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - `RESIDUAL_UNCERTAINTY:` with explicit remaining uncertainty; `- NONE` is illegal for `VALIDATOR_RISK_TIER=HIGH`
 - `VALIDATOR_RISK_TIER` is validator-assigned and MUST NOT be lower than the packet `RISK_TIER`.
 - `LEGAL_VERDICT=PASS` is legal only when `DIFF_ATTACK_SURFACES`, `INDEPENDENT_CHECKS_RUN`, and `COUNTERFACTUAL_CHECKS` are all present and non-empty.
+- `Verdict: PASS` is legal only when `VALIDATION_CONTEXT=OK`, `WORKFLOW_VALIDITY=VALID`, `SCOPE_VALIDITY=IN_SCOPE`, `PROOF_COMPLETENESS=PROVEN`, `INTEGRATION_READINESS=READY`, `DOMAIN_GOAL_COMPLETION=COMPLETE`, and `LEGAL_VERDICT=PASS`.
+- If `PROOF_COMPLETENESS` is anything other than `PROVEN`, the top-line verdict MUST NOT be `PASS`; use `NOT_PROVEN`, `FAIL`, `BLOCKED`, or `OUTDATED_ONLY` honestly.
+- `PROOF_COMPLETENESS=PROVEN` is legal only when `NOT_PROVEN` is exactly `- NONE`.
+- `WORKFLOW_VALIDITY=VALID` is legal only when `VALIDATION_CONTEXT=OK` and `GOVERNANCE_VERDICT=PASS`.
+- `LEGAL_VERDICT=PASS` is legal only when `PROOF_COMPLETENESS=PROVEN`.
 - `VALIDATOR_RISK_TIER=HIGH` requires at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - `VALIDATOR_RISK_TIER=MEDIUM|HIGH` requires at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - The lightest valid counterfactual step is still mandatory: one sentence per key changed code path in the form "if X were removed or altered, Y would break", where `X` names a concrete file, symbol, or code path.
@@ -749,7 +770,7 @@ FLOW DIAGRAM:
 ## Report Template
 ```
 VALIDATION REPORT â€” {WP_ID}
-Verdict: PASS | FAIL | OUTDATED_ONLY
+Verdict: PASS | FAIL | NOT_PROVEN | OUTDATED_ONLY | BLOCKED
 
 Validation Claims (do not collapse into a single PASS):
 - GATES_PASS (deterministic manifest gate on the committed handoff state, typically via `just validator-handoff-check {WP_ID}`; not tests): PASS | FAIL
@@ -764,6 +785,11 @@ Validation Claims (do not collapse into a single PASS):
 - DISPOSITION: NONE | OUTDATED_ONLY
 - LEGAL_VERDICT: PASS | FAIL | PENDING
 - SPEC_CONFIDENCE: NONE | PARTIAL_DIFF_SCOPED | REVIEWED_DIFF_SCOPED | POST_MERGE_RECHECKED
+- WORKFLOW_VALIDITY: VALID | INVALID | PARTIAL | BLOCKED | NOT_RUN
+- SCOPE_VALIDITY: IN_SCOPE | OUT_OF_SCOPE | PARTIAL | BLOCKED | NOT_RUN
+- PROOF_COMPLETENESS: PROVEN | NOT_PROVEN | PARTIAL | BLOCKED | NOT_RUN
+- INTEGRATION_READINESS: READY | NOT_READY | PARTIAL | BLOCKED | NOT_RUN
+- DOMAIN_GOAL_COMPLETION: COMPLETE | INCOMPLETE | PARTIAL | BLOCKED | NOT_RUN
 - VALIDATOR_RISK_TIER: LOW | MEDIUM | HIGH
 
 Scope Inputs:

@@ -114,9 +114,13 @@ backup-status:
 backup-snapshot-nas label="manual":
 	node {{GOV_ROOT}}/roles_shared/scripts/topology/backup-snapshot.mjs --label "{{label}}" --require-nas
 
-# Fast-forward the permanent local clones from their matching remotes when all are clean.
+# Refresh the local main branch across the permanent worktrees when all are clean.
 sync-all-role-worktrees:
 	node {{GOV_ROOT}}/roles_shared/scripts/topology/sync-all-role-worktrees.mjs
+
+# Governed reseed for a permanent non-main role/user worktree from local main.
+reseed-permanent-worktree-from-main worktree_id approval label="":
+	node {{GOV_ROOT}}/roles_shared/scripts/topology/reseed-permanent-worktree-from-main.mjs {{worktree_id}} --approve "{{approval}}" --label "{{label}}"
 
 # Copy governance kernel .GOV/ into the main worktree and auto-commit.
 # RESPONSIBILITY: Integration Validator by default; Orchestrator may run it under explicit Operator instruction [CX-212D].
@@ -333,6 +337,7 @@ close-wp-branch wp-id remote="" approval="":
 orchestrator-preflight:
 	@just hard-gate-wt-001
 	@just gov-check
+	@just orchestrator-startup-truth-check
 	@just validator-spec-regression
 
 # Validator preflight (condensed): worktree context + governance integrity + spec regression.
@@ -383,6 +388,10 @@ record-signature wp-id signature workflow_lane="" execution_lane="":
 # If omitted, workflow lane / execution owner are inferred from the signed bundle.
 record-prepare wp-id workflow_lane="" execution_lane="" branch="" worktree_dir="":
 	@node {{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs prepare {{wp-id}} {{workflow_lane}} {{execution_lane}} {{branch}} {{worktree_dir}}
+
+# Orchestrator startup gate: fail if active packet/task-board/runtime/worktree authority is split.
+orchestrator-startup-truth-check:
+	@node {{GOV_ROOT}}/roles/orchestrator/checks/orchestrator-startup-truth-check.mjs
 
 # Orchestrator helper (read-only): infer next steps for a WP from gates + file state.
 orchestrator-next wp-id="":

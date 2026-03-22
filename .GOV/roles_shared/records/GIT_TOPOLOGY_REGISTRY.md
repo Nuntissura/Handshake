@@ -12,8 +12,8 @@ This file is a deterministic governance registry for the permanent Handshake che
 | ID | ROLE | REL_PATH | LOCAL_BRANCH | REMOTE_BRANCH | CANONICAL | DESCRIPTION |
 | --- | --- | --- | --- | --- | --- | --- |
 | handshake_main | CANONICAL | ../handshake_main | main | origin/main | YES | Canonical integrated checkout on disk |
-| wt-ilja | OPERATOR | ../wt-ilja | user_ilja | origin/user_ilja | NO | Operator backup worktree |
-| wt-orchestrator | ORCHESTRATOR | ../wt-orchestrator | role_orchestrator | origin/role_orchestrator | NO | Orchestrator backup worktree |
+| wt-ilja | OPERATOR | ../wt-ilja | user_ilja | origin/user_ilja | NO | Operator worktree derived from main; remote branch is backup only |
+| wt-orchestrator | ORCHESTRATOR | ../wt-orchestrator | role_orchestrator | origin/role_orchestrator | NO | Orchestrator worktree derived from main; remote branch is backup only |
 | wt-gov-kernel | GOV_KERNEL | ../wt-gov-kernel | gov_kernel | origin/gov_kernel | NO | Governance kernel worktree (canonical .GOV/ source) |
 
 ## HELPER_COMMANDS
@@ -21,6 +21,7 @@ This file is a deterministic governance registry for the permanent Handshake che
 - backup_snapshot: just backup-snapshot
 - backup_status: just backup-status
 - sync_all_role_worktrees: just sync-all-role-worktrees
+- reseed_permanent_worktree_from_main: just reseed-permanent-worktree-from-main
 - enumerate_cleanup_targets: just enumerate-cleanup-targets
 - delete_local_worktree: just delete-local-worktree
 - ensure_permanent_backup_branches: just ensure-permanent-backup-branches

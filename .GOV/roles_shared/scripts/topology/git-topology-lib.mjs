@@ -28,7 +28,7 @@ export const WORKTREE_SPECS = [
     remote_branch: "origin/user_ilja",
     role: "OPERATOR",
     canonical: false,
-    description: "Operator backup worktree",
+    description: "Operator worktree derived from main; remote branch is backup only",
   },
   {
     id: "wt-orchestrator",
@@ -37,7 +37,7 @@ export const WORKTREE_SPECS = [
     remote_branch: "origin/role_orchestrator",
     role: "ORCHESTRATOR",
     canonical: false,
-    description: "Orchestrator backup worktree",
+    description: "Orchestrator worktree derived from main; remote branch is backup only",
   },
   {
     id: "wt-gov-kernel",
@@ -198,6 +198,7 @@ export function buildTopologyRegistry() {
       backup_snapshot: "just backup-snapshot",
       backup_status: "just backup-status",
       sync_all_role_worktrees: "just sync-all-role-worktrees",
+      reseed_permanent_worktree_from_main: "just reseed-permanent-worktree-from-main",
       enumerate_cleanup_targets: "just enumerate-cleanup-targets",
       delete_local_worktree: "just delete-local-worktree",
       ensure_permanent_backup_branches: "just ensure-permanent-backup-branches",
@@ -240,6 +241,7 @@ export function renderTopologyRegistryMd(registry) {
     `- backup_snapshot: ${registry.helper_commands.backup_snapshot}`,
     `- backup_status: ${registry.helper_commands.backup_status}`,
     `- sync_all_role_worktrees: ${registry.helper_commands.sync_all_role_worktrees}`,
+    `- reseed_permanent_worktree_from_main: ${registry.helper_commands.reseed_permanent_worktree_from_main}`,
     `- enumerate_cleanup_targets: ${registry.helper_commands.enumerate_cleanup_targets}`,
     `- delete_local_worktree: ${registry.helper_commands.delete_local_worktree}`,
     `- ensure_permanent_backup_branches: ${registry.helper_commands.ensure_permanent_backup_branches}`,
