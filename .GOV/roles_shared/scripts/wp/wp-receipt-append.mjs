@@ -7,12 +7,19 @@ import {
   deriveAuthorityKinds,
   normalize,
   parseJsonFile,
+  parseJsonlFile,
   REVIEW_OPEN_RECEIPT_KIND_VALUES,
   REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
+  REVIEW_TRACKED_RECEIPT_KIND_VALUES,
   validateReceipt,
   validateRuntimeStatus,
 } from "../lib/wp-communications-lib.mjs";
+import {
+  deriveWpCommunicationAutoRoute,
+  evaluateWpCommunicationHealth,
+} from "../lib/wp-communication-health-lib.mjs";
 import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { appendWpNotification } from "./wp-notification-append.mjs";
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -30,6 +37,20 @@ function parseBooleanLike(value) {
   const raw = String(value ?? "").trim();
   if (!raw) return false;
   return ["1", "true", "yes", "y"].includes(raw.toLowerCase());
+}
+
+function normalizeRole(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function normalizeSession(value) {
+  const raw = String(value || "").trim();
+  return raw || null;
+}
+
+function sameRouteTarget(leftRole, leftSession, rightRole, rightSession) {
+  return normalizeRole(leftRole) === normalizeRole(rightRole)
+    && normalizeSession(leftSession) === normalizeSession(rightSession);
 }
 
 function updateOpenReviewItems(runtimeStatus, entry) {
@@ -95,7 +116,54 @@ function loadPacketContext(wpId) {
     threadFile: normalize(threadFile),
     branch: branch ? normalize(branch) : null,
     worktreeDir: worktreeDir ? normalize(worktreeDir) : null,
+    workflowLane: parseSingleField(packetText, "WORKFLOW_LANE") || "",
+    packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION") || "",
+    communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT") || "",
+    communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE") || "",
   };
+}
+
+function appendReviewNotifications({ wpId, entry, autoRoute }) {
+  const targets = [];
+  const explicitTargetRole = normalizeRole(entry?.target_role);
+  const explicitTargetSession = normalizeSession(entry?.target_session);
+
+  if (explicitTargetRole && explicitTargetRole !== normalizeRole(entry?.actor_role)) {
+    targets.push({
+      targetRole: explicitTargetRole,
+      targetSession: explicitTargetSession,
+      sourceKind: entry.receipt_kind,
+      summary: `${entry.receipt_kind}: ${entry.summary}`,
+    });
+  }
+
+  if (autoRoute?.notification?.targetRole) {
+    const routeTargetRole = normalizeRole(autoRoute.notification.targetRole);
+    const routeTargetSession = normalizeSession(autoRoute.notification.targetSession);
+    const duplicatesExplicit = sameRouteTarget(routeTargetRole, routeTargetSession, explicitTargetRole, explicitTargetSession);
+    if (!duplicatesExplicit && routeTargetRole !== normalizeRole(entry?.actor_role)) {
+      targets.push({
+        targetRole: routeTargetRole,
+        targetSession: routeTargetSession,
+        sourceKind: "AUTO_ROUTE",
+        summary: autoRoute.notification.summary,
+      });
+    }
+  }
+
+  for (const target of targets) {
+    appendWpNotification({
+      wpId,
+      sourceKind: target.sourceKind,
+      sourceRole: entry.actor_role,
+      sourceSession: entry.actor_session,
+      targetRole: target.targetRole,
+      targetSession: target.targetSession,
+      correlationId: entry.correlation_id ?? null,
+      summary: target.summary,
+      timestamp: entry.timestamp_utc,
+    });
+  }
 }
 
 export function appendWpReceipt({
@@ -127,6 +195,7 @@ export function appendWpReceipt({
   const runtimeStatus = context.runtimeStatusFile && fs.existsSync(context.runtimeStatusFile)
     ? parseJsonFile(context.runtimeStatusFile)
     : null;
+  const reviewTrackedReceipt = REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(String(receiptKind || "").trim().toUpperCase());
   const { authorityKind, validatorRoleKind } = deriveAuthorityKinds({
     actorRole,
     actorSession,
@@ -165,10 +234,41 @@ export function appendWpReceipt({
     throw new Error(`Receipt validation failed: ${errors.join("; ")}`);
   }
 
+  let autoRoute = null;
   if (runtimeStatus) {
     updateOpenReviewItems(runtimeStatus, entry);
     runtimeStatus.last_event = `receipt_${entry.receipt_kind.toLowerCase()}`;
     runtimeStatus.last_event_at = entry.timestamp_utc;
+    if (reviewTrackedReceipt) {
+      const receipts = parseJsonlFile(context.receiptsFile);
+      const evaluation = evaluateWpCommunicationHealth({
+        wpId: WP_ID,
+        stage: "STATUS",
+        packetPath: context.packetPath,
+        workflowLane: context.workflowLane || runtimeStatus.workflow_lane || "",
+        packetFormatVersion: context.packetFormatVersion || "",
+        communicationContract: context.communicationContract || "",
+        communicationHealthGate: context.communicationHealthGate || "",
+        receipts: [...receipts, entry],
+        runtimeStatus,
+      });
+      autoRoute = deriveWpCommunicationAutoRoute({
+        evaluation,
+        runtimeStatus,
+        latestReceipt: entry,
+      });
+      if (autoRoute.applicable) {
+        runtimeStatus.next_expected_actor = autoRoute.nextExpectedActor;
+        runtimeStatus.next_expected_session = autoRoute.nextExpectedSession;
+        runtimeStatus.waiting_on = autoRoute.waitingOn;
+        runtimeStatus.waiting_on_session = autoRoute.waitingOnSession;
+        runtimeStatus.validator_trigger = autoRoute.validatorTrigger;
+        runtimeStatus.validator_trigger_reason = autoRoute.validatorTriggerReason;
+        runtimeStatus.ready_for_validation = autoRoute.readyForValidation;
+        runtimeStatus.ready_for_validation_reason = autoRoute.readyForValidationReason;
+        runtimeStatus.attention_required = autoRoute.attentionRequired;
+      }
+    }
     const runtimeErrors = validateRuntimeStatus(runtimeStatus);
     if (runtimeErrors.length > 0) {
       throw new Error(`Runtime status validation failed after receipt append: ${runtimeErrors.join("; ")}`);
@@ -177,6 +277,9 @@ export function appendWpReceipt({
   }
 
   fs.appendFileSync(context.receiptsFile, `${JSON.stringify(entry)}\n`, "utf8");
+  if (reviewTrackedReceipt) {
+    appendReviewNotifications({ wpId: WP_ID, entry, autoRoute });
+  }
   return { context, entry };
 }
 

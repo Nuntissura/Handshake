@@ -17,6 +17,8 @@ Repo-shared scripts live here.
   - shared implementation libraries
 - `debt/`
   - governed spec-debt commands
+- `audit/`
+  - generated audit skeletons from packet/runtime/gate/session evidence
 - `session/`
   - session policy, broker, registry, and ACP bridge helpers
 - `topology/`

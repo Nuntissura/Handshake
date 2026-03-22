@@ -33,6 +33,7 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 ## Fallback Law
 - Primary launch path is plugin-first.
 - A CLI escalation window is allowed only after the same role/WP session has recorded 2 plugin failures or timeouts.
+- If plugin/bridge instability reaches 2 failures across the governed batch, the session registry flips the batch into explicit CLI escalation mode and new `AUTO` launches should stop retrying the plugin path until the batch is deliberately reset with `node .GOV/roles/orchestrator/scripts/session-reset-batch-launch-mode.mjs "<reason>"`.
 - Default escalation host: `SYSTEM_TERMINAL`
 - Legacy compatibility: `WINDOWS_TERMINAL` is accepted as an older token, but new packets/protocol examples should use `SYSTEM_TERMINAL`.
 - Manual `PRINT` output is a repair/debug surface, not the preferred runtime.

@@ -13,6 +13,7 @@ import {
   markSessionThreadObserved,
   markSessionCommandResult,
   markSessionCommandRunning,
+  writeJsonFile,
 } from "../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
   buildSessionControlResult,
@@ -54,8 +55,7 @@ function readJson(filePath, fallbackValue) {
 }
 
 function writeJson(filePath, value) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  writeJsonFile(filePath, value);
 }
 
 function isProcessAlive(pid) {

@@ -9,6 +9,10 @@ const REGISTRY_LOCK_FILE_NAME = "ROLE_SESSION_REGISTRY.lock";
 const REGISTRY_LOCK_WAIT_MS = 5000;
 const REGISTRY_LOCK_STALE_MS = 60000;
 const REGISTRY_LOCK_POLL_MS = 50;
+const LAUNCH_BATCH_MODE_PLUGIN_FIRST = "PLUGIN_FIRST";
+const LAUNCH_BATCH_MODE_CLI_ESCALATION = "CLI_ESCALATION_BATCH";
+const LAUNCH_BATCH_SCOPE = "REPO_GOVERNED_BATCH";
+const BATCH_FAILURE_THRESHOLD = 2;
 
 function nowIso() {
   return new Date().toISOString();
@@ -161,16 +165,39 @@ function defaultRegistry(repoRoot) {
     session_wake_channel_fallback: "WP_HEARTBEAT",
     session_plugin_max_retries_before_escalation: 2,
     session_plugin_attempt_timeout_seconds: 20,
+    launch_batch_mode: LAUNCH_BATCH_MODE_PLUGIN_FIRST,
+    launch_batch_scope: LAUNCH_BATCH_SCOPE,
+    launch_batch_plugin_failure_count: 0,
+    launch_batch_switched_at: "",
+    launch_batch_switch_reason: "",
+    launch_batch_last_reset_at: "",
     sessions: [],
     processed_requests: []
   };
 }
 
+function ensureBatchLaunchFields(registry) {
+  const mode = String(registry.launch_batch_mode || "").trim().toUpperCase();
+  registry.launch_batch_mode = mode === LAUNCH_BATCH_MODE_CLI_ESCALATION
+    ? LAUNCH_BATCH_MODE_CLI_ESCALATION
+    : LAUNCH_BATCH_MODE_PLUGIN_FIRST;
+  registry.launch_batch_scope = registry.launch_batch_scope || LAUNCH_BATCH_SCOPE;
+  registry.launch_batch_plugin_failure_count = Number.isInteger(registry.launch_batch_plugin_failure_count)
+    && registry.launch_batch_plugin_failure_count >= 0
+    ? registry.launch_batch_plugin_failure_count
+    : 0;
+  registry.launch_batch_switched_at = registry.launch_batch_switched_at || "";
+  registry.launch_batch_switch_reason = registry.launch_batch_switch_reason || "";
+  registry.launch_batch_last_reset_at = registry.launch_batch_last_reset_at || "";
+  return registry;
+}
+
 function loadRegistry(repoRoot) {
-  return readJson(registryPath(repoRoot), defaultRegistry(repoRoot));
+  return ensureBatchLaunchFields(readJson(registryPath(repoRoot), defaultRegistry(repoRoot)));
 }
 
 function saveRegistry(repoRoot, registry) {
+  ensureBatchLaunchFields(registry);
   registry.updated_at = nowIso();
   writeJson(registryPath(repoRoot), registry);
 }
@@ -301,6 +328,26 @@ function upsertSession(registry, request, patch) {
   return session;
 }
 
+function recordBatchPluginFailure(registry, session, requestId, status, error) {
+  ensureBatchLaunchFields(registry);
+  registry.launch_batch_plugin_failure_count += 1;
+  if (
+    registry.launch_batch_plugin_failure_count < BATCH_FAILURE_THRESHOLD
+    || registry.launch_batch_mode === LAUNCH_BATCH_MODE_CLI_ESCALATION
+  ) {
+    return;
+  }
+  registry.launch_batch_mode = LAUNCH_BATCH_MODE_CLI_ESCALATION;
+  registry.launch_batch_switched_at = nowIso();
+  registry.launch_batch_switch_reason = [
+    `plugin instability reached ${registry.launch_batch_plugin_failure_count}/${BATCH_FAILURE_THRESHOLD}`,
+    session?.session_key ? `session ${session.session_key}` : "",
+    requestId ? `request ${requestId}` : "",
+    status ? `status ${status}` : "",
+    error ? `error ${error}` : "",
+  ].filter(Boolean).join(" | ");
+}
+
 function validateRequest(request) {
   const errors = [];
   if (request.schema_id !== "hsk.session_launch_request@1") errors.push("schema_id mismatch");
@@ -366,6 +413,7 @@ async function processLaunchQueue() {
         session.last_error = session.plugin_last_error;
         session.runtime_state = session.plugin_failure_count >= 2 ? "CLI_ESCALATION_READY" : "UNSTARTED";
         session.cli_escalation_allowed = session.plugin_failure_count >= 2;
+        recordBatchPluginFailure(registry, session, request.request_id, "PLUGIN_FAILED", session.plugin_last_error);
         upsertProcessedRequest(registry, request.request_id, "PLUGIN_FAILED", {
           error: session.plugin_last_error
         });
@@ -395,6 +443,7 @@ async function processLaunchQueue() {
         session.runtime_state = session.plugin_failure_count >= 2 ? "CLI_ESCALATION_READY" : "UNSTARTED";
         session.cli_escalation_allowed = session.plugin_failure_count >= 2;
         session.last_event_at = nowIso();
+        recordBatchPluginFailure(registry, session, request.request_id, "PLUGIN_FAILED", session.plugin_last_error);
         upsertProcessedRequest(registry, request.request_id, "PLUGIN_FAILED", {
           error: session.plugin_last_error
         });

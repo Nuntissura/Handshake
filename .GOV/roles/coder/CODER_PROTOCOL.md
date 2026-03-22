@@ -260,6 +260,11 @@ This prints the inferred WP stage + the minimal next commands based on:
 - `ORCHESTRATOR_GATES.json (in gov_runtime)`
 - `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`
 
+Noise-control rule:
+- In coder worktrees, `/.GOV/` is a live shared governance junction, not the coder authority surface.
+- Treat raw `.GOV` git status noise as read-only background unless the filtered resume helper or packet-specific gates point to an explicit governed companion file you must read.
+- Prefer `just coder-next` and packet-scoped commands over generic repo-wide `.GOV` inspection when resuming after compaction or drift.
+
 Resume rule (hard, anti-babysit):
 - After `just coder-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
 - Immediately run `just coder-next` (or `just coder-next WP-{ID}` when the WP is known).
@@ -298,6 +303,7 @@ Resume rule (hard, anti-babysit):
   - `CODER_HANDOFF` from `CODER -> WP_VALIDATOR`
   - `VALIDATOR_REVIEW` from `WP_VALIDATOR -> CODER`, correlated to handoff
   - For `PACKET_FORMAT_VERSION >= 2026-03-22`, before `VERDICT` can pass the Coder must also complete one direct review exchange with `INTEGRATION_VALIDATOR` recorded in receipts with matching `correlation_id` / `ack_for`.
+- Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Use the governed helpers; do not hand-edit around this routing.
 - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
 - Before claiming validator-ready handoff on those packets, `just wp-communication-health-check WP-{ID} KICKOFF` must pass.
 - Before final PASS clearance on `PACKET_FORMAT_VERSION >= 2026-03-22`, `just wp-communication-health-check WP-{ID} VERDICT` will fail unless that direct `CODER <-> INTEGRATION_VALIDATOR` review exchange exists.

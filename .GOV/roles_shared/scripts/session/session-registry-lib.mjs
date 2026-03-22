@@ -2,6 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import {
+  SESSION_BATCH_MODE_CLI_ESCALATION,
+  SESSION_BATCH_MODE_PLUGIN_FIRST,
+  SESSION_BATCH_MODE_VALUES,
+  SESSION_BATCH_SCOPE,
   SESSION_ACTIVE_HOST_NONE,
   SESSION_ACTIVE_HOST_VALUES,
   SESSION_ACTIVE_TERMINAL_KIND_NONE,
@@ -45,6 +49,19 @@ const SESSION_REGISTRY_LOCK_FILE_NAME = "ROLE_SESSION_REGISTRY.lock";
 const SESSION_REGISTRY_LOCK_WAIT_MS = 5000;
 const SESSION_REGISTRY_LOCK_STALE_MS = 60000;
 const SESSION_REGISTRY_LOCK_POLL_MS = 50;
+const ATOMIC_WRITE_TEMP_FILE_STALE_MS = 5 * 60 * 1000;
+const ACTIVE_BATCH_RUNTIME_STATES = new Set([
+  "PLUGIN_REQUESTED",
+  "TERMINAL_COMMAND_DISPATCHED",
+  "PLUGIN_CONFIRMED",
+  "CLI_ESCALATION_READY",
+  "CLI_ESCALATION_USED",
+  "STARTING",
+  "READY",
+  "COMMAND_RUNNING",
+  "ACTIVE",
+  "WAITING",
+]);
 
 function nowIso() {
   return new Date().toISOString();
@@ -58,11 +75,43 @@ function ensureParentDir(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 }
 
+function ledgerLockPath(filePath) {
+  return `${filePath}.lock`;
+}
+
 function removeFileIfPresent(filePath) {
   try {
     fs.unlinkSync(filePath);
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
+  }
+}
+
+function cleanupAtomicWriteTemps(filePath, { currentTempPath = "" } = {}) {
+  const targetDir = path.dirname(filePath);
+  const targetBase = path.basename(filePath);
+  let entries = [];
+  try {
+    entries = fs.readdirSync(targetDir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  const currentTempBase = currentTempPath ? path.basename(currentTempPath) : "";
+  const nowMs = Date.now();
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    if (!entry.name.startsWith(`${targetBase}.`) || !entry.name.endsWith(".tmp")) continue;
+    if (currentTempBase && entry.name === currentTempBase) continue;
+    const candidate = path.join(targetDir, entry.name);
+    let stats;
+    try {
+      stats = fs.statSync(candidate);
+    } catch {
+      continue;
+    }
+    if ((nowMs - stats.mtimeMs) < ATOMIC_WRITE_TEMP_FILE_STALE_MS) continue;
+    removeFileIfPresent(candidate);
   }
 }
 
@@ -123,6 +172,60 @@ function normalizeSessionRecord(session) {
   return session;
 }
 
+function normalizeRegistryBatchState(registry) {
+  if (!registry || typeof registry !== "object") return registry;
+  const currentMode = String(registry.launch_batch_mode || "").trim().toUpperCase();
+  registry.launch_batch_mode = SESSION_BATCH_MODE_VALUES.includes(currentMode)
+    ? currentMode
+    : SESSION_BATCH_MODE_PLUGIN_FIRST;
+  registry.launch_batch_scope = registry.launch_batch_scope || SESSION_BATCH_SCOPE;
+  registry.launch_batch_plugin_failure_count = Number.isInteger(registry.launch_batch_plugin_failure_count)
+    && registry.launch_batch_plugin_failure_count >= 0
+    ? registry.launch_batch_plugin_failure_count
+    : 0;
+  registry.launch_batch_switched_at = registry.launch_batch_switched_at || "";
+  registry.launch_batch_switch_reason = registry.launch_batch_switch_reason || "";
+  registry.launch_batch_last_reset_at = registry.launch_batch_last_reset_at || "";
+  return registry;
+}
+
+function recordBatchPluginFailure(registry, {
+  requestId = "",
+  sessionKey: failedSessionKey = "",
+  error = "",
+  status = "",
+} = {}) {
+  normalizeRegistryBatchState(registry);
+  registry.launch_batch_plugin_failure_count += 1;
+  const threshold = SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION;
+  if (
+    registry.launch_batch_plugin_failure_count < threshold
+    || registry.launch_batch_mode === SESSION_BATCH_MODE_CLI_ESCALATION
+  ) {
+    return;
+  }
+
+  registry.launch_batch_mode = SESSION_BATCH_MODE_CLI_ESCALATION;
+  registry.launch_batch_switched_at = nowIso();
+  const reasonParts = [
+    `plugin instability reached ${registry.launch_batch_plugin_failure_count}/${threshold}`,
+    failedSessionKey ? `session ${failedSessionKey}` : "",
+    requestId ? `request ${requestId}` : "",
+    status ? `status ${status}` : "",
+    error ? `error ${error}` : "",
+  ].filter(Boolean);
+  registry.launch_batch_switch_reason = reasonParts.join(" | ");
+}
+
+export function resetBatchLaunchMode(registry, reason = "manual reset") {
+  normalizeRegistryBatchState(registry);
+  registry.launch_batch_mode = SESSION_BATCH_MODE_PLUGIN_FIRST;
+  registry.launch_batch_plugin_failure_count = 0;
+  registry.launch_batch_last_reset_at = nowIso();
+  registry.launch_batch_switch_reason = reason ? String(reason) : "";
+  registry.launch_batch_switched_at = "";
+}
+
 export function defaultRegistry() {
   return {
     schema_id: ROLE_SESSION_REGISTRY_SCHEMA_ID,
@@ -145,6 +248,12 @@ export function defaultRegistry() {
     session_wake_channel_fallback: SESSION_WAKE_CHANNEL_FALLBACK,
     session_plugin_max_retries_before_escalation: SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION,
     session_plugin_attempt_timeout_seconds: SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
+    launch_batch_mode: SESSION_BATCH_MODE_PLUGIN_FIRST,
+    launch_batch_scope: SESSION_BATCH_SCOPE,
+    launch_batch_plugin_failure_count: 0,
+    launch_batch_switched_at: "",
+    launch_batch_switch_reason: "",
+    launch_batch_last_reset_at: "",
     sessions: [],
     processed_requests: [],
   };
@@ -155,16 +264,23 @@ export function readJsonFile(filePath, fallbackValue) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-export function writeJsonFile(filePath, value) {
+function writeJsonFileUnlocked(filePath, value) {
   ensureParentDir(filePath);
   const tmpPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
   try {
+    cleanupAtomicWriteTemps(filePath, { currentTempPath: tmpPath });
     fs.writeFileSync(tmpPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
     renameWithRetrySync(tmpPath, filePath);
+    cleanupAtomicWriteTemps(filePath);
   } catch (error) {
     removeFileIfPresent(tmpPath);
     throw error;
   }
+}
+
+export function writeJsonFile(filePath, value, { lockPath = "" } = {}) {
+  const targetLockPath = lockPath || ledgerLockPath(filePath);
+  return withFileLockSync(targetLockPath, () => writeJsonFileUnlocked(filePath, value));
 }
 
 export function parseJsonlFile(filePath) {
@@ -177,21 +293,31 @@ export function parseJsonlFile(filePath) {
   return lines.map((line) => JSON.parse(line));
 }
 
-export function appendJsonlLine(filePath, value) {
-  ensureParentDir(filePath);
-  fs.appendFileSync(filePath, `${JSON.stringify(value)}\n`, "utf8");
+export function appendJsonlLine(filePath, value, { lockPath = "" } = {}) {
+  const targetLockPath = lockPath || ledgerLockPath(filePath);
+  return withFileLockSync(targetLockPath, () => {
+    ensureParentDir(filePath);
+    fs.appendFileSync(filePath, `${JSON.stringify(value)}\n`, "utf8");
+  });
 }
 
 export function loadSessionRegistry(repoRoot) {
   const filePath = path.resolve(repoRoot, SESSION_REGISTRY_FILE);
   const registry = readJsonFile(filePath, defaultRegistry());
+  normalizeRegistryBatchState(registry);
   registry.sessions = Array.isArray(registry.sessions) ? registry.sessions.map((session) => normalizeSessionRecord(session)) : [];
   registry.processed_requests = Array.isArray(registry.processed_requests) ? registry.processed_requests : [];
   return { filePath, registry };
 }
 
 export function saveSessionRegistry(repoRoot, registry) {
+  const lockPath = sessionRegistryLockPath(repoRoot);
+  return withFileLockSync(lockPath, () => saveSessionRegistryUnlocked(repoRoot, registry));
+}
+
+function saveSessionRegistryUnlocked(repoRoot, registry) {
   const filePath = path.resolve(repoRoot, SESSION_REGISTRY_FILE);
+  normalizeRegistryBatchState(registry);
   const next = {
     ...defaultRegistry(),
     ...registry,
@@ -199,7 +325,7 @@ export function saveSessionRegistry(repoRoot, registry) {
     sessions: Array.isArray(registry.sessions) ? registry.sessions.map((session) => normalizeSessionRecord(session)) : [],
     processed_requests: Array.isArray(registry.processed_requests) ? registry.processed_requests : [],
   };
-  writeJsonFile(filePath, next);
+  writeJsonFileUnlocked(filePath, next);
   return filePath;
 }
 
@@ -260,7 +386,7 @@ export function mutateSessionRegistrySync(repoRoot, mutator) {
   return withFileLockSync(lockPath, () => {
     const { registry } = loadSessionRegistry(repoRoot);
     const result = mutator(registry);
-    saveSessionRegistry(repoRoot, registry);
+    saveSessionRegistryUnlocked(repoRoot, registry);
     return result;
   });
 }
@@ -402,7 +528,7 @@ export function queuePluginLaunch(repoRoot, registry, request) {
   session.runtime_state = "PLUGIN_REQUESTED";
   session.last_event_at = request.created_at;
   appendJsonlLine(path.resolve(repoRoot, SESSION_PLUGIN_REQUESTS_FILE), request);
-  saveSessionRegistry(repoRoot, registry);
+  saveSessionRegistryUnlocked(repoRoot, registry);
   return session;
 }
 
@@ -458,6 +584,12 @@ export function markPluginResult(registry, session, requestId, status, details =
       : "UNSTARTED";
     session.plugin_last_error = details.error || status;
     session.last_error = details.error || status;
+    recordBatchPluginFailure(registry, {
+      requestId,
+      sessionKey: session.session_key,
+      error: details.error || status,
+      status,
+    });
   }
 
   session.cli_escalation_allowed = session.plugin_failure_count >= SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION;
@@ -611,6 +743,23 @@ export function registrySessionSummary(session) {
   };
 }
 
+export function registryBatchLaunchSummary(registry) {
+  normalizeRegistryBatchState(registry);
+  return {
+    launch_batch_mode: registry.launch_batch_mode,
+    launch_batch_scope: registry.launch_batch_scope,
+    launch_batch_plugin_failure_count: registry.launch_batch_plugin_failure_count,
+    launch_batch_switched_at: registry.launch_batch_switched_at || "",
+    launch_batch_switch_reason: registry.launch_batch_switch_reason || "",
+    launch_batch_last_reset_at: registry.launch_batch_last_reset_at || "",
+    batch_cli_escalation_active: registry.launch_batch_mode === SESSION_BATCH_MODE_CLI_ESCALATION,
+  };
+}
+
+export function registryHasActiveBatchSessions(registry) {
+  return (registry.sessions || []).some((session) => ACTIVE_BATCH_RUNTIME_STATES.has(String(session?.runtime_state || "").trim().toUpperCase()));
+}
+
 export function ensureSessionStateFiles(repoRoot) {
   const registryPath = saveSessionRegistry(repoRoot, loadSessionRegistry(repoRoot).registry);
   ensureParentDir(path.resolve(repoRoot, SESSION_PLUGIN_REQUESTS_FILE));
@@ -635,14 +784,36 @@ export function ensureSessionStateFiles(repoRoot) {
 export function validateRegistryShape(registry) {
   const errors = [];
   if (!registry || typeof registry !== "object") errors.push("registry must be an object");
+  normalizeRegistryBatchState(registry);
   if (registry.schema_id !== ROLE_SESSION_REGISTRY_SCHEMA_ID) errors.push(`schema_id must be ${ROLE_SESSION_REGISTRY_SCHEMA_ID}`);
   if (registry.schema_version !== ROLE_SESSION_REGISTRY_SCHEMA_VERSION) errors.push(`schema_version must be ${ROLE_SESSION_REGISTRY_SCHEMA_VERSION}`);
   if (registry.session_control_mode !== SESSION_CONTROL_MODE) errors.push(`session_control_mode must be ${SESSION_CONTROL_MODE}`);
+  if (normalizePath(registry.session_plugin_requests_file || "") !== normalizePath(SESSION_PLUGIN_REQUESTS_FILE)) {
+    errors.push(`session_plugin_requests_file must be ${SESSION_PLUGIN_REQUESTS_FILE}`);
+  }
   if (registry.session_control_transport_primary !== SESSION_CONTROL_TRANSPORT_PRIMARY) {
     errors.push(`session_control_transport_primary must be ${SESSION_CONTROL_TRANSPORT_PRIMARY}`);
   }
   if (registry.session_control_protocol_primary !== SESSION_CONTROL_PROTOCOL_PRIMARY) {
     errors.push(`session_control_protocol_primary must be ${SESSION_CONTROL_PROTOCOL_PRIMARY}`);
+  }
+  if (normalizePath(registry.session_control_requests_file || "") !== normalizePath(SESSION_CONTROL_REQUESTS_FILE)) {
+    errors.push(`session_control_requests_file must be ${SESSION_CONTROL_REQUESTS_FILE}`);
+  }
+  if (normalizePath(registry.session_control_results_file || "") !== normalizePath(SESSION_CONTROL_RESULTS_FILE)) {
+    errors.push(`session_control_results_file must be ${SESSION_CONTROL_RESULTS_FILE}`);
+  }
+  if (normalizePath(registry.session_control_output_dir || "") !== normalizePath(SESSION_CONTROL_OUTPUT_DIR)) {
+    errors.push(`session_control_output_dir must be ${SESSION_CONTROL_OUTPUT_DIR}`);
+  }
+  if (!SESSION_BATCH_MODE_VALUES.includes(registry.launch_batch_mode)) {
+    errors.push(`launch_batch_mode must be one of ${SESSION_BATCH_MODE_VALUES.join(" | ")}`);
+  }
+  if (registry.launch_batch_scope !== SESSION_BATCH_SCOPE) {
+    errors.push(`launch_batch_scope must be ${SESSION_BATCH_SCOPE}`);
+  }
+  if (!Number.isInteger(registry.launch_batch_plugin_failure_count) || registry.launch_batch_plugin_failure_count < 0) {
+    errors.push("launch_batch_plugin_failure_count must be a non-negative integer");
   }
   if (!Array.isArray(registry.sessions)) errors.push("sessions must be an array");
   if (!Array.isArray(registry.processed_requests)) errors.push("processed_requests must be an array");

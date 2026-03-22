@@ -27,6 +27,11 @@ function normalizeReceiptKind(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+function normalizeSession(value) {
+  const raw = String(value || "").trim();
+  return raw || null;
+}
+
 function isVersionAtLeast(current, minimum) {
   const currentValue = String(current || "").trim();
   const minimumValue = String(minimum || "").trim();
@@ -465,4 +470,222 @@ export function communicationMonitorState(evaluation, { stale = false } = {}) {
   return COMMUNICATION_MONITOR_STATE_VALUES.includes(evaluation.state)
     ? evaluation.state
     : (evaluation.ok ? "COMM_OK" : "COMM_MISCONFIGURED");
+}
+
+function mostRecentActiveSessionForRole(runtimeStatus, role) {
+  const ROLE = normalizeRole(role);
+  const sessions = Array.isArray(runtimeStatus?.active_role_sessions) ? runtimeStatus.active_role_sessions : [];
+  return sessions
+    .filter((entry) =>
+      normalizeRole(entry?.role) === ROLE
+      && normalizeSession(entry?.session_id)
+      && String(entry?.state || "").trim().toLowerCase() !== "completed"
+    )
+    .sort((left, right) => String(right?.last_heartbeat_at || "").localeCompare(String(left?.last_heartbeat_at || "")))[0]
+    ?.session_id || null;
+}
+
+function sessionForRole(runtimeStatus, role, preferredSession = null) {
+  const ROLE = normalizeRole(role);
+  const explicitSession = normalizeSession(preferredSession);
+  if (explicitSession) return explicitSession;
+  if (ROLE === "WP_VALIDATOR") {
+    return normalizeSession(runtimeStatus?.wp_validator_of_record) || mostRecentActiveSessionForRole(runtimeStatus, ROLE);
+  }
+  if (ROLE === "INTEGRATION_VALIDATOR") {
+    return normalizeSession(runtimeStatus?.integration_validator_of_record) || mostRecentActiveSessionForRole(runtimeStatus, ROLE);
+  }
+  return mostRecentActiveSessionForRole(runtimeStatus, ROLE);
+}
+
+function route({
+  state,
+  nextExpectedActor,
+  nextExpectedSession = null,
+  waitingOn,
+  waitingOnSession = null,
+  validatorTrigger = "NONE",
+  validatorTriggerReason = null,
+  readyForValidation = false,
+  readyForValidationReason = null,
+  attentionRequired = false,
+  notificationSummary = null,
+} = {}) {
+  return {
+    applicable: true,
+    state,
+    nextExpectedActor,
+    nextExpectedSession: normalizeSession(nextExpectedSession),
+    waitingOn,
+    waitingOnSession: normalizeSession(waitingOnSession),
+    validatorTrigger,
+    validatorTriggerReason: validatorTrigger === "NONE" ? null : validatorTriggerReason,
+    readyForValidation: Boolean(readyForValidation),
+    readyForValidationReason: readyForValidation ? readyForValidationReason : null,
+    attentionRequired: Boolean(attentionRequired),
+    notificationSummary: notificationSummary ? String(notificationSummary).trim() : null,
+  };
+}
+
+function sameRouteTarget(leftRole, leftSession, rightRole, rightSession) {
+  return normalizeRole(leftRole) === normalizeRole(rightRole)
+    && normalizeSession(leftSession) === normalizeSession(rightSession);
+}
+
+export function deriveWpCommunicationAutoRoute({
+  evaluation,
+  runtimeStatus = {},
+  latestReceipt = null,
+} = {}) {
+  if (!evaluation?.applicable) {
+    return {
+      applicable: false,
+      state: "COMM_NA",
+      nextExpectedActor: null,
+      nextExpectedSession: null,
+      waitingOn: null,
+      waitingOnSession: null,
+      validatorTrigger: "NONE",
+      validatorTriggerReason: null,
+      readyForValidation: false,
+      readyForValidationReason: null,
+      attentionRequired: false,
+      notification: null,
+    };
+  }
+
+  const latestTargetRole = normalizeRole(latestReceipt?.target_role);
+  const latestTargetSession = normalizeSession(latestReceipt?.target_session);
+  const coderSession = sessionForRole(runtimeStatus, "CODER", latestTargetRole === "CODER" ? latestTargetSession : null);
+  const wpValidatorSession = sessionForRole(runtimeStatus, "WP_VALIDATOR", latestTargetRole === "WP_VALIDATOR" ? latestTargetSession : null);
+  const integrationValidatorSession = sessionForRole(
+    runtimeStatus,
+    "INTEGRATION_VALIDATOR",
+    latestTargetRole === "INTEGRATION_VALIDATOR" ? latestTargetSession : null,
+  );
+  const openReviewItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
+
+  let projection;
+  switch (evaluation.state) {
+    case "COMM_MISCONFIGURED":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "ORCHESTRATOR",
+        waitingOn: "COMMUNICATION_CONTRACT_REPAIR",
+        attentionRequired: true,
+        notificationSummary: "AUTO_ROUTE: communication contract misconfigured; orchestrator repair required",
+      });
+      break;
+    case "COMM_MISSING_KICKOFF":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "WP_VALIDATOR",
+        nextExpectedSession: wpValidatorSession,
+        waitingOn: "VALIDATOR_KICKOFF",
+        validatorTrigger: "BLOCKED_NEEDS_VALIDATOR",
+        validatorTriggerReason: "WP validator kickoff is still missing",
+        attentionRequired: true,
+        notificationSummary: "AUTO_ROUTE: WP validator kickoff required",
+      });
+      break;
+    case "COMM_WAITING_FOR_INTENT":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "CODER",
+        nextExpectedSession: coderSession,
+        waitingOn: "CODER_INTENT",
+        notificationSummary: "AUTO_ROUTE: coder intent reply required",
+      });
+      break;
+    case "COMM_WAITING_FOR_HANDOFF":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "CODER",
+        nextExpectedSession: coderSession,
+        waitingOn: "CODER_HANDOFF",
+        notificationSummary: "AUTO_ROUTE: coder handoff required",
+      });
+      break;
+    case "COMM_WAITING_FOR_REVIEW":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "WP_VALIDATOR",
+        nextExpectedSession: wpValidatorSession,
+        waitingOn: "WP_VALIDATOR_REVIEW",
+        waitingOnSession: wpValidatorSession,
+        validatorTrigger: "HANDOFF_READY",
+        validatorTriggerReason: "Coder handoff recorded; WP validator review required",
+        readyForValidation: true,
+        readyForValidationReason: "Coder handoff recorded; WP validator review required",
+        notificationSummary: "AUTO_ROUTE: WP validator review required after coder handoff",
+      });
+      break;
+    case "COMM_WAITING_FOR_FINAL_REVIEW":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "CODER",
+        nextExpectedSession: coderSession,
+        waitingOn: "FINAL_REVIEW_EXCHANGE",
+        notificationSummary: "AUTO_ROUTE: coder must initiate the final direct review exchange with Integration Validator",
+      });
+      break;
+    case "COMM_BLOCKED_OPEN_ITEMS": {
+      const nextItem = openReviewItems[0] || null;
+      const targetRole = normalizeRole(nextItem?.target_role) || "ORCHESTRATOR";
+      const targetSession = sessionForRole(runtimeStatus, targetRole, nextItem?.target_session ?? null);
+      const needsValidator = targetRole === "WP_VALIDATOR" || targetRole === "INTEGRATION_VALIDATOR" || targetRole === "VALIDATOR";
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: targetRole,
+        nextExpectedSession: targetSession,
+        waitingOn: nextItem?.receipt_kind ? `OPEN_REVIEW_ITEM_${normalizeReceiptKind(nextItem.receipt_kind)}` : "OPEN_REVIEW_ITEM",
+        waitingOnSession: targetSession,
+        validatorTrigger: needsValidator ? "BLOCKED_NEEDS_VALIDATOR" : "NONE",
+        validatorTriggerReason: needsValidator && nextItem
+          ? `${normalizeReceiptKind(nextItem.receipt_kind)} requires ${targetRole} response`
+          : null,
+        attentionRequired: true,
+        notificationSummary: nextItem
+          ? `AUTO_ROUTE: open review item ${normalizeReceiptKind(nextItem.receipt_kind)} awaits ${targetRole}`
+          : "AUTO_ROUTE: open review items still block verdict",
+      });
+      break;
+    }
+    case "COMM_OK":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "ORCHESTRATOR",
+        waitingOn: "VERDICT_PROGRESSION",
+        notificationSummary: "AUTO_ROUTE: direct review lane complete; orchestrator verdict progression ready",
+      });
+      break;
+    default:
+      projection = route({
+        state: evaluation.state || "COMM_MISCONFIGURED",
+        nextExpectedActor: "ORCHESTRATOR",
+        waitingOn: "COMMUNICATION_REPAIR",
+        attentionRequired: true,
+        notificationSummary: "AUTO_ROUTE: communication state requires orchestrator repair",
+      });
+      break;
+  }
+
+  const notificationTargetRole = projection.nextExpectedActor;
+  const notificationTargetSession = projection.nextExpectedSession;
+  const notification = projection.notificationSummary
+    && notificationTargetRole
+    && notificationTargetRole !== "NONE"
+    && normalizeRole(latestReceipt?.actor_role) !== notificationTargetRole
+    && !sameRouteTarget(notificationTargetRole, notificationTargetSession, latestTargetRole, latestTargetSession)
+      ? {
+        targetRole: notificationTargetRole,
+        targetSession: notificationTargetSession,
+        summary: projection.notificationSummary,
+      }
+      : null;
+
+  return {
+    ...projection,
+    notification,
+  };
 }

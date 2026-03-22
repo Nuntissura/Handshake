@@ -463,6 +463,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
   - `CODER_HANDOFF` (`CODER -> WP_VALIDATOR`)
   - `VALIDATOR_REVIEW` (`WP_VALIDATOR -> CODER`, correlated to handoff)
 - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
+- Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Watch that projected route; do not replace it with manual narrative steering unless a real repair is required.
 - Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
 - Before validator handoff review begins, `just wp-communication-health-check WP-{ID} HANDOFF` MUST pass.
 - Before PASS commit clearance, `just wp-communication-health-check WP-{ID} VERDICT` MUST pass.

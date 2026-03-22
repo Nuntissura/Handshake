@@ -7,6 +7,11 @@ import {
   ROLE_SESSION_REASONING_REQUIRED,
 } from "../scripts/session/session-policy.mjs";
 import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import {
+  hasConcreteScopeEntries,
+  hasScopeOverlap,
+  parsePacketScopeList,
+} from "../scripts/lib/scope-surface-lib.mjs";
 
 // Canonical governance workspace packets live under `/.GOV/task_packets/`.
 // Legacy compatibility bundles must not be treated as governance SSoT.
@@ -58,19 +63,24 @@ function checkPacket(filePath) {
   const text = fs.readFileSync(filePath, "utf8");
   const status = parseStatus(text);
   const statusNorm = status.toLowerCase();
-  if (!/in\s*progress/.test(statusNorm)) return;
+  const isClaimedPacket = /in\s*progress/.test(statusNorm);
+  const isStartablePacket = /ready\s*for\s*dev|in\s*progress/.test(statusNorm);
+  if (!isStartablePacket) return;
 
   const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
   const coderModel = parseSingleField(text, "CODER_MODEL");
   const coderStrength = parseSingleField(text, "CODER_REASONING_STRENGTH");
   const enforceSessionPolicy = packetUsesSessionPolicy(packetFormatVersion);
+  const enforceScopeContract = Boolean(packetFormatVersion);
+  const inScopePaths = parsePacketScopeList(text, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
+  const outOfScopePaths = parsePacketScopeList(text, "OUT_OF_SCOPE");
 
   const rel = filePath.split(path.sep).join("/");
   const errors = [];
 
-  if (isPlaceholder(coderModel)) {
+  if (isClaimedPacket && isPlaceholder(coderModel)) {
     errors.push(`${rel}: CODER_MODEL is required when Status is In Progress`);
-  } else if (enforceSessionPolicy) {
+  } else if (isClaimedPacket && enforceSessionPolicy) {
     if (isDisallowedCodexModelAlias(coderModel)) {
       errors.push(`${rel}: CODER_MODEL must use the repo-approved GPT model ids, not Codex model aliases (got: ${coderModel})`);
     } else if (!isAllowedPrimaryOrFallbackModel(coderModel)) {
@@ -78,9 +88,9 @@ function checkPacket(filePath) {
     }
   }
 
-  if (isPlaceholder(coderStrength)) {
+  if (isClaimedPacket && isPlaceholder(coderStrength)) {
     errors.push(`${rel}: CODER_REASONING_STRENGTH is required when Status is In Progress`);
-  } else {
+  } else if (isClaimedPacket) {
     const token = extractStrengthToken(coderStrength);
     const norm = normalizeStrength(token);
     const allowed = new Set(["low", "medium", "high", "extrahigh"]);
@@ -95,20 +105,51 @@ function checkPacket(filePath) {
     }
   }
 
+  if (enforceScopeContract && !hasConcreteScopeEntries(inScopePaths)) {
+    errors.push(`${rel}: IN_SCOPE_PATHS must list at least one concrete write surface when Status is Ready for Dev or In Progress`);
+  }
+  if (enforceScopeContract && !/OUT_OF_SCOPE/i.test(text)) {
+    errors.push(`${rel}: OUT_OF_SCOPE section is required when Status is Ready for Dev or In Progress`);
+  }
+  const overlap = hasScopeOverlap(inScopePaths, outOfScopePaths);
+  if (enforceScopeContract && overlap) {
+    errors.push(
+      `${rel}: IN_SCOPE_PATHS and OUT_OF_SCOPE overlap (${overlap.left} <-> ${overlap.right})`
+    );
+  }
+
   if (errors.length > 0) fail("Coder claim fields missing/invalid", errors);
+}
+
+function collectPacketFiles(rootDir) {
+  const results = [];
+  const stack = [{ dir: rootDir, nested: false }];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current?.dir) continue;
+    for (const entry of fs.readdirSync(current.dir, { withFileTypes: true })) {
+      const full = path.join(current.dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "stubs") continue;
+        stack.push({ dir: full, nested: true });
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      if (entry.name === "README.md") continue;
+      if ((!current.nested && entry.name.endsWith(".md")) || entry.name === "packet.md") {
+        results.push(full);
+      }
+    }
+  }
+  return results;
 }
 
 function main() {
   if (!fs.existsSync(TASK_PACKETS_DIR)) return;
-  const files = fs
-    .readdirSync(TASK_PACKETS_DIR)
-    .filter((name) => name.endsWith(".md"))
-    .map((name) => path.join(TASK_PACKETS_DIR, name));
+  const files = collectPacketFiles(TASK_PACKETS_DIR);
 
   for (const filePath of files) checkPacket(filePath);
   console.log("task-packet-claim-check ok");
 }
 
 main();
-
-

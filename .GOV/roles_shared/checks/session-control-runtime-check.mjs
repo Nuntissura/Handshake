@@ -13,7 +13,6 @@ import {
   normalizePath,
 } from "../scripts/session/session-policy.mjs";
 import {
-  governanceRuntimeAbsPath,
   LEGACY_SHARED_GOV_RUNTIME_ROOT,
 } from "../scripts/lib/runtime-paths.mjs";
 import {
@@ -51,36 +50,22 @@ function toAbsNormalized(filePath) {
   return normalizePath(path.resolve(repoRoot, String(filePath || "")));
 }
 
-function resolveExternalLegacyCandidate(rawPath) {
+function isLegacyRepoRuntimePath(filePath) {
+  const raw = normalizePath(filePath || "");
+  if (!raw) return false;
   const legacyPrefix = normalizePath(`${LEGACY_SHARED_GOV_RUNTIME_ROOT}/`);
   const legacyAbsoluteMarker = normalizePath(`/${LEGACY_SHARED_GOV_RUNTIME_ROOT}/`);
-  let suffix = "";
-
-  if (rawPath.startsWith(legacyPrefix)) {
-    suffix = rawPath.slice(legacyPrefix.length);
-  } else {
-    const absoluteMarkerIndex = rawPath.indexOf(legacyAbsoluteMarker);
-    if (absoluteMarkerIndex >= 0) {
-      suffix = rawPath.slice(absoluteMarkerIndex + legacyAbsoluteMarker.length);
-    }
-  }
-
-  if (!suffix) return "";
-  const suffixSegments = suffix.split("/").filter(Boolean);
-  if (suffixSegments.length === 0) return "";
-  return normalizePath(governanceRuntimeAbsPath("roles_shared", ...suffixSegments));
+  return raw.startsWith(legacyPrefix) || raw.includes(legacyAbsoluteMarker);
 }
 
 function resolveOutputLogPath(filePath) {
-  const raw = normalizePath(filePath || "");
-  if (!raw) return "";
-
-  const externalCandidate = resolveExternalLegacyCandidate(raw);
-  if (externalCandidate && fs.existsSync(externalCandidate)) {
-    return externalCandidate;
-  }
-
   return toAbsNormalized(filePath);
+}
+
+function isWithinExpectedOutputDir(filePath) {
+  const outputPath = resolveOutputLogPath(filePath);
+  const outputDir = normalizePath(outputDirPath);
+  return outputPath === outputDir || outputPath.startsWith(`${outputDir}/`);
 }
 
 function isProcessAlive(pid) {
@@ -271,6 +256,11 @@ for (const result of results) resultById.set(result.command_id, result);
 
 for (const request of requests) {
   const session = sessionByKey.get(request.session_key);
+  if (isLegacyRepoRuntimePath(request.output_jsonl_file)) {
+    invariantErrors.push(`request ${request.command_id} still points at legacy repo-local runtime output ${request.output_jsonl_file}`);
+  } else if (!isWithinExpectedOutputDir(request.output_jsonl_file)) {
+    invariantErrors.push(`request ${request.command_id} output_jsonl_file is outside ${SESSION_CONTROL_OUTPUT_DIR}`);
+  }
   if (!session) {
     invariantErrors.push(`request ${request.command_id} references missing session ${request.session_key}`);
     continue;
@@ -310,6 +300,11 @@ for (const request of requests) {
 
 for (const result of results) {
   const request = requestById.get(result.command_id);
+  if (isLegacyRepoRuntimePath(result.output_jsonl_file)) {
+    invariantErrors.push(`result ${result.command_id} still points at legacy repo-local runtime output ${result.output_jsonl_file}`);
+  } else if (!isWithinExpectedOutputDir(result.output_jsonl_file)) {
+    invariantErrors.push(`result ${result.command_id} output_jsonl_file is outside ${SESSION_CONTROL_OUTPUT_DIR}`);
+  }
   if (!request) {
     invariantErrors.push(`result ${result.command_id} has no matching request`);
     continue;
@@ -359,6 +354,11 @@ if (brokerState?.active_runs?.length) {
   }
   for (const run of brokerState.active_runs) {
     brokerRunById.set(run.command_id, run);
+    if (isLegacyRepoRuntimePath(run.output_jsonl_file)) {
+      invariantErrors.push(`broker active run ${run.command_id} still points at legacy repo-local runtime output ${run.output_jsonl_file}`);
+    } else if (!isWithinExpectedOutputDir(run.output_jsonl_file)) {
+      invariantErrors.push(`broker active run ${run.command_id} output_jsonl_file is outside ${SESSION_CONTROL_OUTPUT_DIR}`);
+    }
     const request = requestById.get(run.command_id);
     if (!request) {
       invariantErrors.push(`broker active run ${run.command_id} has no matching request`);
@@ -442,6 +442,13 @@ for (const session of registry.sessions || []) {
   const lastCommandOutputExists = normalizePath(session.last_command_output_file || "")
     ? fs.existsSync(lastCommandOutputPath)
     : false;
+  if (normalizePath(session.last_command_output_file || "")) {
+    if (isLegacyRepoRuntimePath(session.last_command_output_file)) {
+      invariantErrors.push(`session ${session.session_key} last_command_output_file still points at legacy repo-local runtime output ${session.last_command_output_file}`);
+    } else if (!isWithinExpectedOutputDir(session.last_command_output_file)) {
+      invariantErrors.push(`session ${session.session_key} last_command_output_file is outside ${SESSION_CONTROL_OUTPUT_DIR}`);
+    }
+  }
 
   if (session.last_command_status === "RUNNING") {
     if (normalizePath(session.last_command_output_file || "") && !lastCommandOutputExists) {

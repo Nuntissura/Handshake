@@ -215,6 +215,7 @@ Next: N/A
     - `CODER_HANDOFF` (`CODER -> WP_VALIDATOR`)
     - `VALIDATOR_REVIEW` (`WP_VALIDATOR -> CODER`, correlated to handoff)
   - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with a shared `correlation_id` / `ack_for` chain.
+  - Review-tracked receipt appends auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`.
   - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
   - `just wp-communication-health-check WP-{ID} KICKOFF|HANDOFF|VERDICT` is the machine gate for this contract.
 - SESSION START + WAKE RULE:
@@ -373,6 +374,9 @@ Next: N/A
 ## SCOPE
 - What:
 - Why:
+- Rule: `IN_SCOPE_PATHS` must list the concrete write surfaces for this WP (exact files or narrow directories).
+- Rule: root governance files (`justfile`, `AGENTS.md`, `.github/**`) count as ordinary scope surfaces and must be listed explicitly if touched.
+- Rule: general `.GOV/**` drift is not WP implementation scope on feature branches; governance edits are committed on `gov_kernel`.
 - IN_SCOPE_PATHS:
   - path/to/file
 - OUT_OF_SCOPE:
