@@ -185,6 +185,79 @@ This includes:
 
 This separation exists to keep runtime coordination state from being confused with version-controlled implementation truth.
 
+### 4.5 Orchestrator-Managed Workflow And ACP
+
+The governance supports more than one workflow lane, but its most structured lane is the Orchestrator-managed workflow.
+
+In that lane, the Orchestrator does not merely prepare packets and wait. It actively governs session startup, session routing, and workflow progression across the packet lifecycle.
+
+The live session model has two parts.
+
+First, there is a governed launch layer.
+
+This is responsible for:
+- starting packet-scoped role sessions
+- recording launch attempts
+- projecting current session state into a shared registry
+- making startup behavior observable instead of implicit
+
+Second, there is a governed control layer built around an ACP-style thread model.
+
+In practical terms, this means the system treats a governed role session as a resumable controlled thread rather than a disposable terminal prompt. The Orchestrator can:
+- start a session
+- send a governed prompt into that session
+- cancel a governed run
+- close the session when it is no longer needed
+
+Those actions are not treated as informal chat events. They are recorded as append-only control requests and control results, with per-command event logs for deeper inspection.
+
+This matters because the workflow is trying to make orchestration machine-readable.
+
+Instead of relying on:
+- someone remembering which terminal is alive
+- informal chat saying "the validator has been told"
+- ad hoc relaying between roles
+
+the system tries to record:
+- which governed role session exists
+- which packet it belongs to
+- whether it was launched successfully
+- what command is active
+- whether it completed, failed, or was cancelled
+
+The launch bridge and the ACP-style control lane do different jobs.
+
+The launch bridge is mainly a bootstrap transport. It gets the governed session started in a host environment.
+
+The ACP-style control lane is the ongoing steering path. It is the part that allows the Orchestrator to continue interacting with an already-started governed session in a structured and resumable way.
+
+This distinction is important because terminal dispatch by itself is not treated as proof that useful governed work is happening. The stronger evidence is:
+- governed control state
+- packet-scoped receipts
+- packet runtime-state movement
+- actual packet-scoped communication activity
+
+The packet still remains the authority for work truth.
+
+The Orchestrator-managed ACP/session system does not replace the packet. It does not decide scope, acceptance, or verdict. Instead, it provides the transport and control layer that allows the workflow to coordinate multiple packet-scoped role sessions without turning the Orchestrator into an informal human message relay.
+
+The intended effect is:
+- startup is governed
+- steering is governed
+- wake-ups are governed
+- session state is inspectable
+- workflow routing becomes more automatic
+
+At the same time, packet-scoped communication artifacts remain the collaboration authority for the work item itself. The Orchestrator-managed control lane is therefore best understood as workflow transport and control, not as the source of technical truth.
+
+Because infrastructure can fail, the governance also defines a fallback rule.
+
+The normal path is plugin-first governed startup. If plugin or bridge instability crosses a defined threshold, the workflow can switch to an explicit command-line escalation mode. More recently, that logic has been strengthened so repeated instability can switch the whole governed batch into CLI escalation mode rather than rediscovering the same launch failure packet by packet.
+
+For external review, the most important point is this:
+
+the Orchestrator-managed workflow and ACP-style control lane are how this governance turns multi-session AI work from an informal terminal habit into a governed, inspectable, replayable coordination system.
+
 ## 5. Roles And Their Responsibilities
 
 The governance uses a multi-role model with explicit authority boundaries.
