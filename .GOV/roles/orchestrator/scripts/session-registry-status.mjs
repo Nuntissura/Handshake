@@ -3,6 +3,7 @@ import {
   loadSessionControlResults,
   loadSessionLaunchRequests,
   loadSessionRegistry,
+  registryBatchLaunchSummary,
   registrySessionSummary,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 
@@ -10,6 +11,7 @@ const repoRoot = process.cwd();
 const wpIdFilter = String(process.argv[2] || "").trim();
 
 const { registry } = loadSessionRegistry(repoRoot);
+const batchSummary = registryBatchLaunchSummary(registry);
 const { requests } = loadSessionLaunchRequests(repoRoot);
 const { requests: controlRequests } = loadSessionControlRequests(repoRoot);
 const { results: controlResults } = loadSessionControlResults(repoRoot);
@@ -25,6 +27,14 @@ console.log(`- total_processed_requests: ${registry.processed_requests.length}`)
 console.log(`- total_launch_requests: ${requests.length}`);
 console.log(`- total_control_requests: ${controlRequests.length}`);
 console.log(`- total_control_results: ${controlResults.length}`);
+console.log(`- launch_batch_mode: ${batchSummary.launch_batch_mode}`);
+console.log(`- launch_batch_plugin_failure_count: ${batchSummary.launch_batch_plugin_failure_count}`);
+if (batchSummary.launch_batch_switched_at) {
+  console.log(`- launch_batch_switched_at: ${batchSummary.launch_batch_switched_at}`);
+}
+if (batchSummary.launch_batch_switch_reason) {
+  console.log(`- launch_batch_switch_reason: ${batchSummary.launch_batch_switch_reason}`);
+}
 
 if (sessions.length === 0) {
   console.log("- matching_sessions: 0");
@@ -70,4 +80,3 @@ for (const session of sessions) {
   }
   console.log(`  updated_at: ${session.updated_at || "<none>"}`);
 }
-

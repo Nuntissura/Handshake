@@ -22,7 +22,7 @@ import {
   validateReceipt,
   validateRuntimeStatus,
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
-import { loadSessionRegistry, registrySessionSummary } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { loadSessionRegistry, registryBatchLaunchSummary, registrySessionSummary } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import {
   SESSION_CONTROL_BROKER_STATE_FILE,
@@ -329,9 +329,15 @@ function parseSessionRegistry() {
       entries.push(summary);
       byWpId.set(summary.wp_id, entries);
     }
-    return byWpId;
+    return {
+      byWpId,
+      batchSummary: registryBatchLaunchSummary(registry),
+    };
   } catch {
-    return new Map();
+    return {
+      byWpId: new Map(),
+      batchSummary: null,
+    };
   }
 }
 
@@ -1008,13 +1014,14 @@ function loadMonitorModel() {
   const selectedBoardSource = canonicalBoardEntries.length > 0 ? "CANONICAL_MAIN" : "CURRENT_WORKTREE";
   const canonicalByWpId = new Map(canonicalBoardEntries.map((entry) => [entry.wpId, entry]));
   const sessionRegistry = parseSessionRegistry();
+  const sessionRegistryByWpId = sessionRegistry.byWpId;
   const controlRequests = parseSessionControlRequests();
   const controlResults = parseSessionControlResults();
   const brokerState = parseBrokerState();
   const records = selectedBoardEntries.map((entry) => {
     const packetPath = resolvePacketPath(entry.wpId, traceability);
     const packetRecord = parsePacketRecord(packetPath, prepareAssignments.get(entry.wpId) || null);
-    const registrySessions = [...(sessionRegistry.get(entry.wpId) || [])]
+    const registrySessions = [...(sessionRegistryByWpId.get(entry.wpId) || [])]
       .sort((left, right) => String(left.updated_at || "").localeCompare(String(right.updated_at || "")));
     const wpControlRequests = [...(controlRequests.get(entry.wpId) || [])]
       .sort((left, right) => String(left.created_at || "").localeCompare(String(right.created_at || "")));

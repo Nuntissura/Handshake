@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import {
+  SESSION_BATCH_MODE_CLI_ESCALATION,
   CLI_ESCALATION_HOST_DEFAULT,
   CLI_ESCALATION_HOST_LEGACY_ALIAS,
   CLI_SESSION_TOOL,
@@ -34,6 +35,7 @@ import {
   markPluginResult,
   pendingRequestStatus,
   queuePluginLaunch,
+  registryBatchLaunchSummary,
   registrySessionSummary,
   settleTimedOutPluginRequests,
   mutateSessionRegistrySync,
@@ -226,11 +228,14 @@ const sessionDescriptor = {
   reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
   reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
 };
-let sessionSummary = mutateSessionRegistrySync(repoRoot, (registry) => {
+let { sessionSummary, batchSummary } = mutateSessionRegistrySync(repoRoot, (registry) => {
   const { requests } = loadSessionLaunchRequests(repoRoot);
   settleTimedOutPluginRequests(registry, requests);
   const session = getOrCreateSessionRecord(registry, sessionDescriptor);
-  return registrySessionSummary(session);
+  return {
+    sessionSummary: registrySessionSummary(session),
+    batchSummary: registryBatchLaunchSummary(registry),
+  };
 });
 
 function printSessionSummary() {
@@ -240,6 +245,14 @@ function printSessionSummary() {
   console.log(`[LAUNCH_CLI_SESSION] plugin_failure_count=${sessionSummary.plugin_failure_count}`);
   console.log(`[LAUNCH_CLI_SESSION] plugin_last_result=${sessionSummary.plugin_last_result}`);
   console.log(`[LAUNCH_CLI_SESSION] cli_escalation_allowed=${sessionSummary.cli_escalation_allowed ? "YES" : "NO"}`);
+  console.log(`[LAUNCH_CLI_SESSION] launch_batch_mode=${batchSummary.launch_batch_mode}`);
+  console.log(`[LAUNCH_CLI_SESSION] launch_batch_plugin_failure_count=${batchSummary.launch_batch_plugin_failure_count}`);
+  if (batchSummary.launch_batch_switched_at) {
+    console.log(`[LAUNCH_CLI_SESSION] launch_batch_switched_at=${batchSummary.launch_batch_switched_at}`);
+  }
+  if (batchSummary.launch_batch_switch_reason) {
+    console.log(`[LAUNCH_CLI_SESSION] launch_batch_switch_reason=${batchSummary.launch_batch_switch_reason}`);
+  }
 }
 
 function queueVsCodePluginLaunch() {
@@ -247,6 +260,14 @@ function queueVsCodePluginLaunch() {
     const { requests } = loadSessionLaunchRequests(repoRoot);
     settleTimedOutPluginRequests(registry, requests);
     const session = getOrCreateSessionRecord(registry, sessionDescriptor);
+    const currentBatchSummary = registryBatchLaunchSummary(registry);
+    if (currentBatchSummary.batch_cli_escalation_active) {
+      return {
+        status: "batch_cli",
+        summary: registrySessionSummary(session),
+        batchSummary: currentBatchSummary,
+      };
+    }
     const pending = session.plugin_last_request_id ? pendingRequestStatus(registry, session.plugin_last_request_id) : null;
     const lastRequestAtMs = Date.parse(session.plugin_last_request_at || "");
     const hasFreshPendingRequest =
@@ -258,6 +279,7 @@ function queueVsCodePluginLaunch() {
       return {
         status: "pending",
         summary: registrySessionSummary(session),
+        batchSummary: registryBatchLaunchSummary(registry),
         requestId: session.plugin_last_request_id,
       };
     }
@@ -280,10 +302,17 @@ function queueVsCodePluginLaunch() {
     return {
       status: "queued",
       summary: registrySessionSummary(session),
+      batchSummary: registryBatchLaunchSummary(registry),
       requestId: request.request_id,
     };
   });
   sessionSummary = result.summary;
+  batchSummary = result.batchSummary;
+  if (result.status === "batch_cli") {
+    console.log("[LAUNCH_CLI_SESSION] plugin launch is disabled for the current governed batch");
+    printSessionSummary();
+    return;
+  }
   if (result.status === "pending") {
     console.log(`[LAUNCH_CLI_SESSION] plugin launch request still pending for ${SESSION_PLUGIN_BRIDGE_ID}`);
     console.log(`[LAUNCH_CLI_SESSION] request_id=${result.requestId}`);
@@ -300,7 +329,9 @@ function queueVsCodePluginLaunch() {
 }
 
 function cliEscalationGatePassed() {
-  return sessionSummary.cli_escalation_allowed || sessionSummary.plugin_failure_count >= SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION;
+  return batchSummary.batch_cli_escalation_active
+    || sessionSummary.cli_escalation_allowed
+    || sessionSummary.plugin_failure_count >= SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION;
 }
 
 function isSystemTerminalMode(host) {
@@ -308,7 +339,7 @@ function isSystemTerminalMode(host) {
 }
 
 function maybeRecordCliEscalation(hostKind) {
-  sessionSummary = mutateSessionRegistrySync(repoRoot, (registry) => {
+  ({ sessionSummary, batchSummary } = mutateSessionRegistrySync(repoRoot, (registry) => {
     const session = getOrCreateSessionRecord(registry, sessionDescriptor);
     const pending = session.plugin_last_request_id ? pendingRequestStatus(registry, session.plugin_last_request_id) : null;
     if (!pending && session.plugin_last_request_id) {
@@ -318,14 +349,17 @@ function maybeRecordCliEscalation(hostKind) {
       });
     } else {
       session.runtime_state = "CLI_ESCALATION_USED";
-      session.active_host = hostKind;
+      session.active_host = SESSION_HOST_FALLBACK;
       session.active_terminal_title = roleConfig.title;
       session.active_terminal_kind = hostKind;
       session.cli_escalation_used = true;
       session.last_event_at = new Date().toISOString();
     }
-    return registrySessionSummary(session);
-  });
+    return {
+      sessionSummary: registrySessionSummary(session),
+      batchSummary: registryBatchLaunchSummary(registry),
+    };
+  }));
 }
 
 if (requestedHost === "PRINT") {
@@ -341,7 +375,9 @@ if (requestedHost === "AUTO" || requestedHost === "VSCODE_PLUGIN" || requestedHo
   }
   if (requestedHost !== "AUTO") {
     printOnly(
-      `Plugin launch has already failed ${session.plugin_failure_count} time(s); CLI escalation is now allowed and should be used from AUTO/CURRENT/${CLI_ESCALATION_HOST_DEFAULT}`,
+      batchSummary.launch_batch_mode === SESSION_BATCH_MODE_CLI_ESCALATION
+        ? `Batch launch mode is ${SESSION_BATCH_MODE_CLI_ESCALATION}; use AUTO/CURRENT/${CLI_ESCALATION_HOST_DEFAULT} until the governed batch is reset`
+        : `Plugin launch has already failed ${sessionSummary.plugin_failure_count} time(s); CLI escalation is now allowed and should be used from AUTO/CURRENT/${CLI_ESCALATION_HOST_DEFAULT}`,
       "PRINT",
     );
     printSessionSummary();

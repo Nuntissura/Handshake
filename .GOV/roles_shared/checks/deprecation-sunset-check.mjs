@@ -40,15 +40,18 @@ const requiredFields = [
   "CANONICAL_REPLACEMENT",
   "OWNER",
   "NEW_DEPENDENCIES_ALLOWED",
+  "WHY_THIS_EXISTS",
+  "SUPERSEDED_BY",
+  "DELETION_CONDITION",
   "SUNSET_TRIGGER",
   "REMOVAL_ACTION",
 ];
 
 const allowedStatuses = new Set(["ACTIVE_COMPAT", "REMOVED"]);
-const requiredLegacySurfaces = new Set(["`WINDOWS_TERMINAL`"]);
+const requiredLegacySurfaces = new Set(["`WINDOWS_TERMINAL`", "`.GOV/roles_shared/runtime/*`"]);
 const conditionallyRequiredLegacySurfaces = [
   {
-    surface: `\`${GOV_ROOT_REPO_REL}/roles/validator/VALIDATOR_GATES.json\``,
+    surface: "`.GOV/roles/validator/VALIDATOR_GATES.json`",
     filePath: path.join(repoRoot, GOV_ROOT_REPO_REL, "roles", "validator", "VALIDATOR_GATES.json"),
   },
 ];

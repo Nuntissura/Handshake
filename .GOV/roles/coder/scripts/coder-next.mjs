@@ -22,6 +22,10 @@ import {
   printState,
   sectionHasMaterialContent,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
+import {
+  classifyWpChangedPath,
+  deriveWpScopeContract,
+} from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
 
 function resolveWpId() {
   const provided = String(process.argv[2] || "").trim();
@@ -57,6 +61,42 @@ function resolveWpId() {
   });
 }
 
+function parseChangedPaths(statusPorcelain) {
+  return String(statusPorcelain || "")
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map((line) => line.slice(3).split(" -> ").at(-1)?.trim() || "")
+    .filter(Boolean);
+}
+
+function summarizeDirtyTree(statusPorcelain, scopeContract) {
+  const changedPaths = parseChangedPaths(statusPorcelain);
+  const summary = {
+    changedPaths,
+    dirty: changedPaths.length > 0,
+    governanceJunction: [],
+    governanceCompanion: [],
+    inScope: [],
+    outOfScope: [],
+  };
+
+  for (const changedPath of changedPaths) {
+    const classification = classifyWpChangedPath(changedPath, scopeContract);
+    if (classification.kind === "GOVERNANCE_JUNCTION_DRIFT") {
+      summary.governanceJunction.push(classification.path);
+    } else if (classification.kind === "GOVERNANCE_COMPANION") {
+      summary.governanceCompanion.push(classification.path);
+    } else if (classification.allowed) {
+      summary.inScope.push(classification.path);
+    } else {
+      summary.outOfScope.push(`${classification.path} (${classification.kind})`);
+    }
+  }
+
+  return summary;
+}
+
 const { wpId, gitContext, confidence, confidenceDetail } = resolveWpId();
 
 if (!packetExists(wpId)) {
@@ -86,11 +126,31 @@ const skeletonApproved = hasCommitSubject(`^docs: skeleton approved \\[${escapeR
 const implementationFilled = sectionHasMaterialContent(packetContent, "IMPLEMENTATION");
 const hygieneFilled = sectionHasMaterialContent(packetContent, "HYGIENE");
 const validationFilled = sectionHasMaterialContent(packetContent, "VALIDATION");
-const dirtyTree = Boolean(gitContext.statusPorcelain);
+const scopeContract = deriveWpScopeContract({ wpId, packetContent });
+const dirtySummary = summarizeDirtyTree(gitContext.statusPorcelain, scopeContract);
+const dirtyTree = dirtySummary.dirty;
 const postWorkCommand = buildPostWorkCommand(wpId, packetContent);
 const currentWpStatusLower = currentWpStatus.toLowerCase();
 const skeletonApprover =
   workflowLane === "ORCHESTRATOR_MANAGED" ? "Orchestrator/Validator/Operator" : "Validator/Operator";
+const dirtyTreeFinding = !dirtyTree
+  ? "Working tree dirty: no"
+  : dirtySummary.outOfScope.length > 0
+    ? `Working tree dirty: yes (${dirtySummary.outOfScope.length} out-of-scope path(s) require correction)`
+    : dirtySummary.governanceJunction.length > 0
+      ? `Working tree dirty: yes (shared .GOV junction drift only across ${dirtySummary.governanceJunction.length} path(s))`
+      : `Working tree dirty: yes (${dirtySummary.inScope.length + dirtySummary.governanceCompanion.length} packet-scoped path(s))`;
+const dirtyNoiseFindings = [
+  dirtySummary.governanceJunction.length > 0
+    ? `Shared .GOV junction drift: ${dirtySummary.governanceJunction.length} path(s) treated as read-only noise by default`
+    : "",
+  dirtySummary.governanceCompanion.length > 0
+    ? `Governance companion paths touched: ${dirtySummary.governanceCompanion.length} (${dirtySummary.governanceCompanion.slice(0, 3).join(", ")})`
+    : "",
+  dirtySummary.outOfScope.length > 0
+    ? `Out-of-scope changes detected: ${dirtySummary.outOfScope.slice(0, 3).join(", ")}`
+    : "",
+].filter(Boolean);
 
 const commonFindings = [
   `Current branch: ${gitContext.branch || "<unknown>"}`,
@@ -167,7 +227,8 @@ if (implementationFilled && hygieneFilled && (validationFilled || !dirtyTree)) {
   printState("Implementation and hygiene evidence exist; resume at post-work closure.");
   printFindings([
     ...commonFindings,
-    `Working tree dirty: ${dirtyTree ? "yes" : "no"}`,
+    dirtyTreeFinding,
+    ...dirtyNoiseFindings,
   ]);
   printNextCommands([
     "just cargo-clean",
@@ -183,7 +244,8 @@ if (implementationFilled) {
   printState("Implementation is present; resume at hygiene/evidence capture before post-work.");
   printFindings([
     ...commonFindings,
-    `Working tree dirty: ${dirtyTree ? "yes" : "no"}`,
+    dirtyTreeFinding,
+    ...dirtyNoiseFindings,
   ]);
   printNextCommands([
     `just pre-work ${wpId}`,
@@ -199,12 +261,12 @@ printConfidence(confidence, confidenceDetail);
 printState("Skeleton is approved and no handoff markers are present; implementation may continue.");
 printFindings([
   ...commonFindings,
-  `Working tree dirty: ${dirtyTree ? "yes" : "no"}`,
+  dirtyTreeFinding,
+  ...dirtyNoiseFindings,
 ]);
 printNextCommands([
   `just pre-work ${wpId}`,
   "# Continue implementation within IN_SCOPE_PATHS.",
   postWorkCommand,
 ]);
-
 

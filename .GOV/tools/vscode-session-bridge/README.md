@@ -42,6 +42,7 @@ Thin VS Code extension bridge for Handshake repo-governed session orchestration.
 - Fallback law lives in repo scripts, not here.
 - Wake/notice contract: launch queue + registry for bootstrap, `SESSION_CONTROL_RESULTS.jsonl` plus `SESSION_CONTROL_OUTPUTS/` for ACP steering notices, and packet runtime status for validator/operator wake-ups.
 - The richer ACP-aware oversight surface is `just operator-monitor`; this extension is not the operator authority surface.
+- When repeated plugin failures hit the governed batch threshold, the shared session registry records `CLI_ESCALATION_BATCH`; at that point new `AUTO` launches should use explicit CLI escalation instead of rediscovering plugin failure per session.
 
 ## Safety
 - Only requests with `launch_authority=ORCHESTRATOR_ONLY` are accepted.

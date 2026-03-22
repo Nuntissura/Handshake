@@ -260,6 +260,11 @@ This prints the inferred WP stage + the minimal next commands based on:
 - `ORCHESTRATOR_GATES.json (in gov_runtime)`
 - `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`
 
+Noise-control rule:
+- In coder worktrees, `/.GOV/` is a live shared governance junction, not the coder authority surface.
+- Treat raw `.GOV` git status noise as read-only background unless the filtered resume helper or packet-specific gates point to an explicit governed companion file you must read.
+- Prefer `just coder-next` and packet-scoped commands over generic repo-wide `.GOV` inspection when resuming after compaction or drift.
+
 Resume rule (hard, anti-babysit):
 - After `just coder-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
 - Immediately run `just coder-next` (or `just coder-next WP-{ID}` when the WP is known).

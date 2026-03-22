@@ -24,6 +24,12 @@
     "session_wake_channel_fallback",
     "session_plugin_max_retries_before_escalation",
     "session_plugin_attempt_timeout_seconds",
+    "launch_batch_mode",
+    "launch_batch_scope",
+    "launch_batch_plugin_failure_count",
+    "launch_batch_switched_at",
+    "launch_batch_switch_reason",
+    "launch_batch_last_reset_at",
     "sessions",
     "processed_requests"
   ],
@@ -93,6 +99,28 @@
     "session_plugin_attempt_timeout_seconds": {
       "type": "integer",
       "minimum": 5
+    },
+    "launch_batch_mode": {
+      "enum": [
+        "PLUGIN_FIRST",
+        "CLI_ESCALATION_BATCH"
+      ]
+    },
+    "launch_batch_scope": {
+      "const": "REPO_GOVERNED_BATCH"
+    },
+    "launch_batch_plugin_failure_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "launch_batch_switched_at": {
+      "type": "string"
+    },
+    "launch_batch_switch_reason": {
+      "type": "string"
+    },
+    "launch_batch_last_reset_at": {
+      "type": "string"
     },
     "sessions": {
       "type": "array",
@@ -165,6 +193,7 @@
           },
           "cli_escalation_host": {
             "enum": [
+              "SYSTEM_TERMINAL",
               "WINDOWS_TERMINAL",
               "CURRENT",
               "PRINT"
@@ -295,6 +324,7 @@
             "enum": [
               "NONE",
               "VSCODE_EXTENSION_TERMINAL",
+              "SYSTEM_TERMINAL",
               "WINDOWS_TERMINAL",
               "CURRENT",
               "PRINT"

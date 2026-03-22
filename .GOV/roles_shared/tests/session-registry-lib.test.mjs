@@ -8,7 +8,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   appendJsonlLine,
   defaultRegistry,
+  getOrCreateSessionRecord,
+  markPluginResult,
   parseJsonlFile,
+  registryBatchLaunchSummary,
+  resetBatchLaunchMode,
   saveSessionRegistry,
   sessionRegistryLockPath,
 } from "../scripts/session/session-registry-lib.mjs";
@@ -102,4 +106,34 @@ test("appendJsonlLine preserves all entries across concurrent writers", async ()
   } finally {
     removeTree(repoRoot);
   }
+});
+
+test("batch launch mode flips after repeated plugin failures and can be reset", () => {
+  const registry = defaultRegistry();
+  const session = getOrCreateSessionRecord(registry, {
+    wp_id: "WP-TEST",
+    role: "CODER",
+    local_branch: "feat/WP-TEST",
+    local_worktree_dir: "../wtc-test",
+    terminal_title: "CODER WP-TEST",
+  });
+
+  markPluginResult(registry, session, "req-1", "PLUGIN_FAILED", { error: "bridge failed once" });
+  let batchSummary = registryBatchLaunchSummary(registry);
+  assert.equal(batchSummary.launch_batch_mode, "PLUGIN_FIRST");
+  assert.equal(batchSummary.launch_batch_plugin_failure_count, 1);
+
+  markPluginResult(registry, session, "req-2", "PLUGIN_TIMED_OUT", { error: "bridge timed out twice" });
+  batchSummary = registryBatchLaunchSummary(registry);
+  assert.equal(batchSummary.launch_batch_mode, "CLI_ESCALATION_BATCH");
+  assert.equal(batchSummary.launch_batch_plugin_failure_count, 2);
+  assert.equal(Boolean(batchSummary.launch_batch_switched_at), true);
+  assert.match(batchSummary.launch_batch_switch_reason, /plugin instability reached 2\/2/i);
+
+  resetBatchLaunchMode(registry, "new governed batch");
+  batchSummary = registryBatchLaunchSummary(registry);
+  assert.equal(batchSummary.launch_batch_mode, "PLUGIN_FIRST");
+  assert.equal(batchSummary.launch_batch_plugin_failure_count, 0);
+  assert.equal(Boolean(batchSummary.launch_batch_last_reset_at), true);
+  assert.equal(batchSummary.launch_batch_switch_reason, "new governed batch");
 });
