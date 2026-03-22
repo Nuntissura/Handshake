@@ -180,7 +180,6 @@ export function deriveWpScopeContract({ wpId, packetContent }) {
     refinementPath,
     `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`,
     `${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`,
-    `${GOV_ROOT_REPO_REL}/roles_shared/runtime/validator_gates/${wpId}.json`,
   ].map(normalizeRepoPath).filter(Boolean);
   const governanceCompanionPaths = new Set();
   for (const candidate of companionCandidates) {

@@ -2,7 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import {
+  GOV_ROOT_REPO_REL,
+  LEGACY_SHARED_GOV_VALIDATOR_GATES_ROOT,
+} from "../scripts/lib/runtime-paths.mjs";
 
 function resolveRepoRoot() {
   try {
@@ -115,6 +118,10 @@ const staleChecks = [
   {
     label: "repo-local orchestrator gates runtime path",
     regex: new RegExp(`${govRootEscaped}\\/roles\\/orchestrator(?:\\/runtime)?\\/ORCHESTRATOR_GATES\\.json`),
+  },
+  {
+    label: "repo-local validator gate runtime path",
+    regex: new RegExp(LEGACY_SHARED_GOV_VALIDATOR_GATES_ROOT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
   },
   {
     label: "stale validator gate state path",

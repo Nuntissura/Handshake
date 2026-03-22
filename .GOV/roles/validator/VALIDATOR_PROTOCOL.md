@@ -242,7 +242,7 @@ This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
 - `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`
 - `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`
-- `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json` (when present)
+- `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json` (when present)
 
 Resume rule (hard, anti-babysit):
 - After `just validator-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
@@ -597,7 +597,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - ACP runtime note for orchestrator-managed WPs:
     - `wt-orchestrator` should no longer be dirtied by ACP/session/topology/WP-communication projections, because those runtime artifacts now default to the external repo-governance runtime root.
     - Dirty files limited to these surfaces are runtime-state evidence first, not automatic proof of governance failure:
-      - `.GOV/roles_shared/runtime/validator_gates/WP-{ID}.json`
+      - `../gov_runtime/roles_shared/validator_gates/WP-{ID}.json`
     - Before treating `wt-orchestrator` dirt as a governance defect, inspect ACP state with:
       - `just handshake-acp-broker-status`
       - `just session-registry-status WP-{ID}`
@@ -671,7 +671,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 ## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 
 The validation process MUST halt only at Gate 3 (final report presentation). All other gates are state recording/unlocks and must still be run in order.
-State is tracked per WP in `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
+State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
 (Legacy: `.GOV/reference/legacy/validator/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions; new validations should not write to it.)
 
 ### Gate 1: WP APPEND (Records verdict; non-blocking)

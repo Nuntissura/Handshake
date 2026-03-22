@@ -11,7 +11,7 @@ Authoritative folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the 
 - `records/`
   - authoritative shared ledgers, registries, and pointers
 - `runtime/`
-  - repo-local machine-written governance state that intentionally remains versioned in-repo
+  - repo-local machine-written governance state that intentionally remains versioned in-repo (currently governance snapshots and archive-only runtime reference material)
 - `exports/`
   - canonical shared export surfaces
 - `schemas/`
@@ -45,7 +45,7 @@ Authoritative folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the 
 - external `roles_shared/SESSION_CONTROL_RESULTS.jsonl`
 - external `roles_shared/SESSION_CONTROL_OUTPUTS/`
 - external `roles_shared/WP_COMMUNICATIONS/`
+- external `roles_shared/validator_gates/`
 - `runtime/PRODUCT_GOVERNANCE_SNAPSHOT.json`
-- `runtime/validator_gates/`
 
 Historical/reference studies no longer belong in this directory root. Shared non-authoritative reference material belongs under `.GOV/reference/`.
