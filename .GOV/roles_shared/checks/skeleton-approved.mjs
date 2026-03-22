@@ -8,7 +8,7 @@
  *
  * Enforcement:
  * - Refuses to run unless invoked from `role_validator` (legacy), `main`,
- *   a `feat/` or `user_*` branch, or `role_orchestrator` when ORCHESTRATOR_MANAGED.
+ *   a `feat/` or `user_*` branch, or `gov_kernel` when ORCHESTRATOR_MANAGED.
  * - Locates the WP worktree for `feat/{WP_ID}` and creates an allow-empty commit:
  *     "docs: skeleton approved [WP-{ID}]"
  */
@@ -79,7 +79,7 @@ const actorAllowed =
   actorBranch === 'main' ||
   actorBranch.startsWith('feat/') ||
   actorBranch.startsWith('user_') ||
-  (actorBranch === 'role_orchestrator' && workflowLane === 'ORCHESTRATOR_MANAGED');
+  (actorBranch === 'gov_kernel' && workflowLane === 'ORCHESTRATOR_MANAGED');
 if (!actorAllowed) {
   const approverHint =
     workflowLane === 'ORCHESTRATOR_MANAGED'

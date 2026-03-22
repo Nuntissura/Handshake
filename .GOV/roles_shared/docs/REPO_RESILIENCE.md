@@ -6,7 +6,7 @@ This document defines the repo-resilience layer for Handshake governance.
 
 - Prevent branch/worktree deletions from becoming unrecoverable events.
 - Preserve both committed git history and working-file snapshots outside the repo tree.
-- Keep permanent topology deterministic across `handshake_main`, `wt-ilja`, `wt-orchestrator`, and `wt-gov-kernel`.
+- Keep permanent topology deterministic across `handshake_main`, `wt-ilja`, and `wt-gov-kernel`.
 - Keep offline backups safe from mass-deletion sync by using append-only timestamped snapshots instead of destructive mirrors.
 
 ## Commands
@@ -26,8 +26,8 @@ This document defines the repo-resilience layer for Handshake governance.
 ## Policy
 
 - `main` is the only canonical integrated branch.
-- `user_ilja`, `role_orchestrator`, and `gov_kernel` are backup branches on GitHub.
-- Permanent non-main worktrees (`wt-ilja`, `wt-orchestrator`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- `user_ilja` and `gov_kernel` are backup branches on GitHub.
+- Permanent non-main worktrees (`wt-ilja`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - `just sync-all-role-worktrees` is limited to refreshing the local `main` branch across the permanent worktrees when they are clean.
 - `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` is the governed helper for refreshing a permanent non-main role/user worktree from local `main`. It safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
@@ -128,5 +128,4 @@ GitHub branch protection remains recommended for:
 
 - `main`
 - `user_ilja`
-- `role_orchestrator`
 - `gov_kernel`

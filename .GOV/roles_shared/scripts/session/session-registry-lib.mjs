@@ -705,9 +705,9 @@ export function markSessionCommandResult(session, result) {
 
 export function assertOrchestratorLaunchAuthority(currentBranch) {
   const branch = String(currentBranch || "").trim();
-  if (branch !== "role_orchestrator") {
+  if (branch !== "gov_kernel") {
     throw new Error(
-      `Repo-governed session launch is ORCHESTRATOR_ONLY. Current branch must be role_orchestrator (got: ${branch || "<unknown>"})`,
+      `Repo-governed session launch is ORCHESTRATOR_ONLY. Current branch must be gov_kernel (got: ${branch || "<unknown>"})`,
     );
   }
 }

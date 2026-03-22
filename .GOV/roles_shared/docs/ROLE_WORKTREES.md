@@ -17,7 +17,6 @@ Recommended structure:
   Handshake Worktrees/
     handshake_main/        # main repo checkout (branch: main)
     wt-ilja/               # Operator role worktree (branch: user_ilja)
-    wt-orchestrator/       # Orchestrator role worktree (branch: role_orchestrator)
     wt-gov-kernel/         # Governance kernel worktree (branch: gov_kernel)
     wtc-.../               # Coder WP worktrees (branch: feat/WP-...)
     # WP Validator operates from the coder worktree (no separate worktree) [CX-212D]
@@ -37,8 +36,8 @@ If you are an AI assistant operating in this repo:
 - If the required worktree/branch does not exist, you MUST STOP and request the Orchestrator/Operator to create it (see "Creation commands").
 - IMPORTANT: Codex [CX-108] blocks rewrite/hide operations such as `git stash`, `git checkout`, `git switch`, `git merge`, `git rebase`, `git reset`, and `git clean` unless explicitly authorized in the same turn.
 - Exception (WP auto-continue): when the Orchestrator has already recorded a PASS signature gate for a specific WP and the next deterministic step is `just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID}`, the Orchestrator MUST create that missing WP worktree/branch automatically. Do not bounce that routine post-signature setup back to the Operator for a second approval.
-- `main` is the canonical integrated branch. `user_ilja` and `role_orchestrator` on GitHub are backup branches and may diverge from `main`.
-- Permanent non-main worktrees (`wt-ilja`, `wt-orchestrator`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- `main` is the canonical integrated branch. `user_ilja` and `gov_kernel` on GitHub are backup branches and may diverge from `main`.
+- Permanent non-main worktrees (`wt-ilja`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - Before destructive or state-hiding local git actions on a role/user/WP branch, push the current committed state to the matching GitHub backup branch.
 - For WPs, the matching GitHub backup branch should be treated as the phase-boundary recovery branch, not just a pre-destruction safety sink.
 - Minimum WP recovery milestones to preserve remotely are:
@@ -47,7 +46,7 @@ If you are an AI assistant operating in this repo:
   - docs-only skeleton checkpoint
   - skeleton approval checkpoint before implementation resumes
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
-- Permanent protected branches/worktrees that must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `gov_kernel`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`.
+- Permanent protected branches/worktrees that must never be deleted by Codex: `main`, `user_ilja`, `gov_kernel`, `wt-ilja`, `wt-gov-kernel`.
 - Use `.GOV/roles_shared/records/GIT_TOPOLOGY_REGISTRY.md` + `.GOV/roles_shared/docs/REPO_RESILIENCE.md` as the deterministic reference for the permanent checkout layout and backup commands.
 
 ## Role Worktrees (Default)
@@ -55,8 +54,7 @@ If you are an AI assistant operating in this repo:
 | Role | Worktree directory | Branch | GitHub backup branch |
 | --- | --- | --- |
 | OPERATOR (human) | `<HANDSHAKE_WORKTREES>/wt-ilja` | `user_ilja` | `origin/user_ilja` |
-| ORCHESTRATOR | `<HANDSHAKE_WORKTREES>/wt-orchestrator` | `role_orchestrator` | `origin/role_orchestrator` |
-| GOV_KERNEL | `<HANDSHAKE_WORKTREES>/wt-gov-kernel` | `gov_kernel` | `origin/gov_kernel` |
+| ORCHESTRATOR / GOV_KERNEL | `<HANDSHAKE_WORKTREES>/wt-gov-kernel` | `gov_kernel` | `origin/gov_kernel` |
 | CODER (agent) | WP-assigned worktree only (no default) | WP branch only (no default) | matching WP backup branch on GitHub |
 
 Notes:
@@ -65,7 +63,7 @@ Notes:
 - Integration Validator sessions operate from `handshake_main` on branch `main` [CX-212D].
 - WP Validator and Integration Validator local lanes do not mint separate GitHub WP backup branches. Coder, WP Validator, and Integration Validator reuse the single packet-declared WP backup branch on GitHub.
 - WP assignment is recorded in `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` as a `PREPARE` entry (via `just record-prepare ...`) with `branch` and `worktree_dir`.
-- ORCHESTRATOR/VALIDATOR role work (governance/validation work outside a specific WP worktree) uses the dedicated role worktrees above.
+- Orchestrator governance work uses `wt-gov-kernel` on `gov_kernel`. Integration Validator works from `handshake_main` on `main`.
 - Permanent role/user branches are backup branches on GitHub. Their purpose is recoverability, not integration. They may be ahead of, equal to, or behind `main`.
 - Refreshing a permanent non-main worktree has two distinct paths:
   - `just sync-all-role-worktrees` refreshes the local `main` branch across the permanent worktrees when all are clean.
@@ -102,17 +100,15 @@ From the main repo working tree (`<HANDSHAKE_WORKTREES>/handshake_main`):
 - Create an immutable out-of-repo snapshot:
   - `just backup-snapshot`
 
-- Create ORCHESTRATOR worktree:
-  - If `origin/role_orchestrator` exists:
-    - `git worktree add -b role_orchestrator ../wt-orchestrator origin/role_orchestrator`
-  - Legacy fallback (if `origin/user_orchestrator` exists):
-    - `git worktree add -b role_orchestrator ../wt-orchestrator origin/user_orchestrator`
-  - Otherwise:
-    - `git worktree add -b role_orchestrator ../wt-orchestrator main`
 - Create OPERATOR worktree:
   - `git worktree add -b user_ilja ../wt-ilja main`
+- Ensure ORCHESTRATOR governance kernel worktree exists:
+  - If `origin/gov_kernel` exists:
+    - `git worktree add -b gov_kernel ../wt-gov-kernel origin/gov_kernel`
+  - Otherwise:
+    - `git worktree add -b gov_kernel ../wt-gov-kernel main`
 - After creating a permanent role/user branch locally, push it once to the matching GitHub backup branch and set upstream:
-  - `git -C ../wt-orchestrator push -u origin role_orchestrator`
+  - `git -C ../wt-gov-kernel push -u origin gov_kernel`
   - `git -C ../wt-ilja push -u origin user_ilja`
 
 WP worktrees (Orchestrator action, not Coder):

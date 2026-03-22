@@ -47,12 +47,12 @@ function normalizeRole(value) {
 
 function authorityRoleToBranch(authorityRole) {
   const normalized = normalizeRole(authorityRole);
-  if (normalized === "ORCHESTRATOR") return "role_orchestrator";
+  if (normalized === "ORCHESTRATOR") return "gov_kernel";
   if (normalized === "VALIDATOR" || normalized === "WP_VALIDATOR" || normalized === "INTEGRATION_VALIDATOR") {
-    return "role_orchestrator";
+    return "gov_kernel";
   }
   if (normalized === "OPERATOR") return "user_ilja";
-  return "role_orchestrator";
+  return "gov_kernel";
 }
 
 function ensureStateDir() {

@@ -219,7 +219,7 @@ Responsibilities:
 - stream session updates back to the caller
 - expose cancellation and inspection semantics
 - run as a persistent broker so active runs, timeouts, and cancels are owned by one governed process instead of per-call wrappers
-- require a repo-scoped auth token plus `ORCHESTRATOR` / `role_orchestrator` initialization claims before any non-bootstrap ACP method is accepted
+- require a repo-scoped auth token plus `ORCHESTRATOR` / `gov_kernel` initialization claims before any non-bootstrap ACP method is accepted
 - publish broker build/auth identity so governed clients can reject stale broker instances after governance changes
 
 This layer is transport and runtime control, not policy.
@@ -430,7 +430,7 @@ The TUI should give direct read-only visibility into:
 
 During a live WP, the most canonical portfolio board is still the task board on `main`.
 
-The operator monitor may run from another worktree such as `wt-orchestrator`. The viewport must therefore:
+The operator monitor may run from another worktree such as `wt-gov-kernel`. The viewport must therefore:
 
 - use the canonical `main` board for counts, filter buckets, and WP list selection whenever that canonical board is available
 - use the current worktree board as the mirror comparison surface

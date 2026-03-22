@@ -18,7 +18,7 @@ function gitList(args) {
 }
 
 const branch = gitTrim(["rev-parse", "--abbrev-ref", "HEAD"]);
-const governanceOnlyBranches = new Set(["gov_kernel", "role_orchestrator"]);
+const governanceOnlyBranches = new Set(["gov_kernel"]);
 
 if (!governanceOnlyBranches.has(branch)) {
   console.log("role-worktree-surface-check skipped");
