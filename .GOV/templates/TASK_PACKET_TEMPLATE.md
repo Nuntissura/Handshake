@@ -214,6 +214,7 @@ Next: N/A
     - `CODER_INTENT` (`CODER -> WP_VALIDATOR`, correlated to kickoff)
     - `CODER_HANDOFF` (`CODER -> WP_VALIDATOR`)
     - `VALIDATOR_REVIEW` (`WP_VALIDATOR -> CODER`, correlated to handoff)
+  - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with a shared `correlation_id` / `ack_for` chain.
   - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
   - `just wp-communication-health-check WP-{ID} KICKOFF|HANDOFF|VERDICT` is the machine gate for this contract.
 - SESSION START + WAKE RULE:

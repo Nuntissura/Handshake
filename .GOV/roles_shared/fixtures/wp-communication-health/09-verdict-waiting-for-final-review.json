@@ -1,0 +1,62 @@
+{
+  "description": "new-format packets stay blocked at verdict until integration validator has a direct review exchange with the coder",
+  "input": {
+    "wpId": "WP-test-verdict-waiting-for-final-review",
+    "stage": "VERDICT",
+    "packetPath": ".GOV/task_packets/WP-test-verdict-waiting-for-final-review/packet.md",
+    "workflowLane": "ORCHESTRATOR_MANAGED",
+    "packetFormatVersion": "2026-03-22",
+    "communicationContract": "DIRECT_REVIEW_V1",
+    "communicationHealthGate": "HANDOFF_VERDICT_BLOCKING",
+    "receipts": [
+      {
+        "timestamp_utc": "2026-03-22T10:00:00Z",
+        "receipt_kind": "VALIDATOR_KICKOFF",
+        "actor_role": "WP_VALIDATOR",
+        "target_role": "CODER",
+        "correlation_id": "kick-1",
+        "summary": "Tripwires and clause checklist posted."
+      },
+      {
+        "timestamp_utc": "2026-03-22T10:05:00Z",
+        "receipt_kind": "CODER_INTENT",
+        "actor_role": "CODER",
+        "target_role": "WP_VALIDATOR",
+        "correlation_id": "kick-1",
+        "ack_for": "kick-1",
+        "summary": "Proof plan and tests declared."
+      },
+      {
+        "timestamp_utc": "2026-03-22T11:00:00Z",
+        "receipt_kind": "CODER_HANDOFF",
+        "actor_role": "CODER",
+        "target_role": "WP_VALIDATOR",
+        "correlation_id": "handoff-1",
+        "summary": "Committed handoff with weak spots posted."
+      },
+      {
+        "timestamp_utc": "2026-03-22T11:20:00Z",
+        "receipt_kind": "VALIDATOR_REVIEW",
+        "actor_role": "WP_VALIDATOR",
+        "target_role": "CODER",
+        "correlation_id": "handoff-1",
+        "ack_for": "handoff-1",
+        "summary": "Advisory review posted; no unresolved WP-validator issues remain."
+      }
+    ],
+    "runtimeStatus": {
+      "open_review_items": []
+    }
+  },
+  "expected": {
+    "applicable": true,
+    "ok": false,
+    "state": "COMM_WAITING_FOR_FINAL_REVIEW"
+  },
+  "monitor": [
+    {
+      "stale": false,
+      "state": "COMM_WAITING_FOR_FINAL_REVIEW"
+    }
+  ]
+}

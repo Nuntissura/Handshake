@@ -297,8 +297,10 @@ Resume rule (hard, anti-babysit):
   - `CODER_INTENT` from `CODER -> WP_VALIDATOR`, correlated to kickoff
   - `CODER_HANDOFF` from `CODER -> WP_VALIDATOR`
   - `VALIDATOR_REVIEW` from `WP_VALIDATOR -> CODER`, correlated to handoff
+  - For `PACKET_FORMAT_VERSION >= 2026-03-22`, before `VERDICT` can pass the Coder must also complete one direct review exchange with `INTEGRATION_VALIDATOR` recorded in receipts with matching `correlation_id` / `ack_for`.
 - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
 - Before claiming validator-ready handoff on those packets, `just wp-communication-health-check WP-{ID} KICKOFF` must pass.
+- Before final PASS clearance on `PACKET_FORMAT_VERSION >= 2026-03-22`, `just wp-communication-health-check WP-{ID} VERDICT` will fail unless that direct `CODER <-> INTEGRATION_VALIDATOR` review exchange exists.
 - Authority split for coder coordination:
   - Orchestrator = workflow authority
   - WP Validator = advisory technical reviewer for this WP
