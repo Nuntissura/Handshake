@@ -45,6 +45,7 @@ const SESSION_REGISTRY_LOCK_FILE_NAME = "ROLE_SESSION_REGISTRY.lock";
 const SESSION_REGISTRY_LOCK_WAIT_MS = 5000;
 const SESSION_REGISTRY_LOCK_STALE_MS = 60000;
 const SESSION_REGISTRY_LOCK_POLL_MS = 50;
+const ATOMIC_WRITE_TEMP_FILE_STALE_MS = 5 * 60 * 1000;
 
 function nowIso() {
   return new Date().toISOString();
@@ -58,11 +59,43 @@ function ensureParentDir(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 }
 
+function ledgerLockPath(filePath) {
+  return `${filePath}.lock`;
+}
+
 function removeFileIfPresent(filePath) {
   try {
     fs.unlinkSync(filePath);
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
+  }
+}
+
+function cleanupAtomicWriteTemps(filePath, { currentTempPath = "" } = {}) {
+  const targetDir = path.dirname(filePath);
+  const targetBase = path.basename(filePath);
+  let entries = [];
+  try {
+    entries = fs.readdirSync(targetDir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  const currentTempBase = currentTempPath ? path.basename(currentTempPath) : "";
+  const nowMs = Date.now();
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    if (!entry.name.startsWith(`${targetBase}.`) || !entry.name.endsWith(".tmp")) continue;
+    if (currentTempBase && entry.name === currentTempBase) continue;
+    const candidate = path.join(targetDir, entry.name);
+    let stats;
+    try {
+      stats = fs.statSync(candidate);
+    } catch {
+      continue;
+    }
+    if ((nowMs - stats.mtimeMs) < ATOMIC_WRITE_TEMP_FILE_STALE_MS) continue;
+    removeFileIfPresent(candidate);
   }
 }
 
@@ -155,16 +188,23 @@ export function readJsonFile(filePath, fallbackValue) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-export function writeJsonFile(filePath, value) {
+function writeJsonFileUnlocked(filePath, value) {
   ensureParentDir(filePath);
   const tmpPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
   try {
+    cleanupAtomicWriteTemps(filePath, { currentTempPath: tmpPath });
     fs.writeFileSync(tmpPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
     renameWithRetrySync(tmpPath, filePath);
+    cleanupAtomicWriteTemps(filePath);
   } catch (error) {
     removeFileIfPresent(tmpPath);
     throw error;
   }
+}
+
+export function writeJsonFile(filePath, value, { lockPath = "" } = {}) {
+  const targetLockPath = lockPath || ledgerLockPath(filePath);
+  return withFileLockSync(targetLockPath, () => writeJsonFileUnlocked(filePath, value));
 }
 
 export function parseJsonlFile(filePath) {
@@ -177,9 +217,12 @@ export function parseJsonlFile(filePath) {
   return lines.map((line) => JSON.parse(line));
 }
 
-export function appendJsonlLine(filePath, value) {
-  ensureParentDir(filePath);
-  fs.appendFileSync(filePath, `${JSON.stringify(value)}\n`, "utf8");
+export function appendJsonlLine(filePath, value, { lockPath = "" } = {}) {
+  const targetLockPath = lockPath || ledgerLockPath(filePath);
+  return withFileLockSync(targetLockPath, () => {
+    ensureParentDir(filePath);
+    fs.appendFileSync(filePath, `${JSON.stringify(value)}\n`, "utf8");
+  });
 }
 
 export function loadSessionRegistry(repoRoot) {
@@ -191,6 +234,11 @@ export function loadSessionRegistry(repoRoot) {
 }
 
 export function saveSessionRegistry(repoRoot, registry) {
+  const lockPath = sessionRegistryLockPath(repoRoot);
+  return withFileLockSync(lockPath, () => saveSessionRegistryUnlocked(repoRoot, registry));
+}
+
+function saveSessionRegistryUnlocked(repoRoot, registry) {
   const filePath = path.resolve(repoRoot, SESSION_REGISTRY_FILE);
   const next = {
     ...defaultRegistry(),
@@ -199,7 +247,7 @@ export function saveSessionRegistry(repoRoot, registry) {
     sessions: Array.isArray(registry.sessions) ? registry.sessions.map((session) => normalizeSessionRecord(session)) : [],
     processed_requests: Array.isArray(registry.processed_requests) ? registry.processed_requests : [],
   };
-  writeJsonFile(filePath, next);
+  writeJsonFileUnlocked(filePath, next);
   return filePath;
 }
 
@@ -260,7 +308,7 @@ export function mutateSessionRegistrySync(repoRoot, mutator) {
   return withFileLockSync(lockPath, () => {
     const { registry } = loadSessionRegistry(repoRoot);
     const result = mutator(registry);
-    saveSessionRegistry(repoRoot, registry);
+    saveSessionRegistryUnlocked(repoRoot, registry);
     return result;
   });
 }
@@ -402,7 +450,7 @@ export function queuePluginLaunch(repoRoot, registry, request) {
   session.runtime_state = "PLUGIN_REQUESTED";
   session.last_event_at = request.created_at;
   appendJsonlLine(path.resolve(repoRoot, SESSION_PLUGIN_REQUESTS_FILE), request);
-  saveSessionRegistry(repoRoot, registry);
+  saveSessionRegistryUnlocked(repoRoot, registry);
   return session;
 }
 
@@ -638,11 +686,23 @@ export function validateRegistryShape(registry) {
   if (registry.schema_id !== ROLE_SESSION_REGISTRY_SCHEMA_ID) errors.push(`schema_id must be ${ROLE_SESSION_REGISTRY_SCHEMA_ID}`);
   if (registry.schema_version !== ROLE_SESSION_REGISTRY_SCHEMA_VERSION) errors.push(`schema_version must be ${ROLE_SESSION_REGISTRY_SCHEMA_VERSION}`);
   if (registry.session_control_mode !== SESSION_CONTROL_MODE) errors.push(`session_control_mode must be ${SESSION_CONTROL_MODE}`);
+  if (normalizePath(registry.session_plugin_requests_file || "") !== normalizePath(SESSION_PLUGIN_REQUESTS_FILE)) {
+    errors.push(`session_plugin_requests_file must be ${SESSION_PLUGIN_REQUESTS_FILE}`);
+  }
   if (registry.session_control_transport_primary !== SESSION_CONTROL_TRANSPORT_PRIMARY) {
     errors.push(`session_control_transport_primary must be ${SESSION_CONTROL_TRANSPORT_PRIMARY}`);
   }
   if (registry.session_control_protocol_primary !== SESSION_CONTROL_PROTOCOL_PRIMARY) {
     errors.push(`session_control_protocol_primary must be ${SESSION_CONTROL_PROTOCOL_PRIMARY}`);
+  }
+  if (normalizePath(registry.session_control_requests_file || "") !== normalizePath(SESSION_CONTROL_REQUESTS_FILE)) {
+    errors.push(`session_control_requests_file must be ${SESSION_CONTROL_REQUESTS_FILE}`);
+  }
+  if (normalizePath(registry.session_control_results_file || "") !== normalizePath(SESSION_CONTROL_RESULTS_FILE)) {
+    errors.push(`session_control_results_file must be ${SESSION_CONTROL_RESULTS_FILE}`);
+  }
+  if (normalizePath(registry.session_control_output_dir || "") !== normalizePath(SESSION_CONTROL_OUTPUT_DIR)) {
+    errors.push(`session_control_output_dir must be ${SESSION_CONTROL_OUTPUT_DIR}`);
   }
   if (!Array.isArray(registry.sessions)) errors.push("sessions must be an array");
   if (!Array.isArray(registry.processed_requests)) errors.push("processed_requests must be an array");
