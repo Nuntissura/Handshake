@@ -10,6 +10,11 @@ import path from 'path';
 import crypto from 'crypto';
 import { execSync } from 'child_process';
 import { GOV_ROOT_REPO_REL, resolveRefinementPath, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import {
+  classifyWpChangedPath,
+  deriveWpScopeContract,
+  normalizeRepoPath,
+} from '../../../roles_shared/scripts/lib/scope-surface-lib.mjs';
 
 const usage = () => [
   'Usage: node post-work-check.mjs WP-{ID} [options]',
@@ -263,6 +268,7 @@ const resolvedPacket = resolveWorkPacketPath(WP_ID);
 const packetPathActual = resolvedPacket?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${WP_ID}.md`;
 const packetPath = toDisplayGovPath(packetPathActual);
 const packetContent = readFileIfExists(packetPathActual);
+const scopeContract = deriveWpScopeContract({ wpId: WP_ID, packetContent });
 
 const parseMergeBaseSha = (content) => {
   if (!content) return null;
@@ -271,25 +277,6 @@ const parseMergeBaseSha = (content) => {
 };
 
 const PACKET_MERGE_BASE_SHA = parseMergeBaseSha(packetContent);
-
-const parseInScopePaths = (content) => {
-  if (!content) return [];
-  const lines = content.split('\n');
-  const idx = lines.findIndex((l) => /^\s*-\s*IN_SCOPE_PATHS\s*:\s*$/i.test(l));
-  if (idx === -1) return [];
-  const results = [];
-  for (let i = idx + 1; i < lines.length; i += 1) {
-    const line = lines[i];
-    if (/^\s*-\s*[A-Z0-9_]+\s*:/.test(line)) break; // next top-level metadata-ish bullet
-    if (/^\s*##\s+/.test(line)) break;
-    const m = line.match(/^\s*-\s+(.+)\s*$/) || line.match(/^\s{2,}-\s+(.+)\s*$/);
-    if (!m) continue;
-    const value = m[1].trim().replace(/^`|`$/g, '');
-    if (!value || value.toLowerCase() === 'path/to/file') continue;
-    results.push(path.normalize(value).replace(/\\/g, '/'));
-  }
-  return Array.from(new Set(results));
-};
 
 const requiresManifest = (filePath) => {
   const p = filePath.replace(/\\/g, '/');
@@ -309,6 +296,15 @@ const getStagedFiles = () => {
   }
 };
 
+const getUntrackedFiles = () => {
+  try {
+    const out = gitTrim('git ls-files --others --exclude-standard');
+    return out ? out.split('\n').filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+};
+
 const getWorkingFiles = () => {
   try {
     // --diff-filter=d excludes deleted files (same rationale as above)
@@ -318,6 +314,8 @@ const getWorkingFiles = () => {
     return [];
   }
 };
+
+const uniquePaths = (paths) => Array.from(new Set((paths || []).map((value) => normalizeRepoPath(value)).filter(Boolean)));
 
 const parseValidationManifests = (content) => {
   if (!content) return null;
@@ -553,9 +551,9 @@ if (isModernPacket) {
   }
 }
 
-const inScopePaths = parseInScopePaths(packetContent);
 const stagedFiles = getStagedFiles();
-const workingFiles = getWorkingFiles();
+const untrackedFiles = getUntrackedFiles();
+const workingFiles = uniquePaths([...getWorkingFiles(), ...untrackedFiles]);
 
 const getRangeFiles = (baseRev, headRev) => {
   try {
@@ -610,7 +608,8 @@ const evaluation = resolveEvaluation();
 const useStaged = evaluation.mode === 'staged';
 const useRange = evaluation.mode === 'range' && evaluation.baseRev && evaluation.headRev;
 const rangeFiles = useRange ? getRangeFiles(evaluation.baseRev, evaluation.headRev) : [];
-const changedFiles = useStaged ? stagedFiles : (evaluation.mode === 'worktree' ? workingFiles : rangeFiles);
+const changedFiles = uniquePaths(useStaged ? stagedFiles : (evaluation.mode === 'worktree' ? workingFiles : rangeFiles));
+const branchLocalChangedFiles = uniquePaths([...stagedFiles, ...workingFiles]);
 
 // Phase gate: product code changes require a docs-only skeleton checkpoint commit.
 // This is intentionally mechanical to prevent "vibecoding" ahead of interface checkpointing [CX-GATE-001].
@@ -641,8 +640,7 @@ const hasSkeletonApprovedCommit = (wpId) => {
 
 const hasSkeletonCheckpoint = hasSkeletonCheckpointCommit(WP_ID);
 const hasSkeletonApproved = hasSkeletonApprovedCommit(WP_ID);
-const productChanged = changedFiles
-  .map((p) => p.replace(/\\/g, '/'))
+const productChanged = branchLocalChangedFiles
   .filter((p) => p.startsWith('src/') || p.startsWith('app/') || p.startsWith('tests/'));
 
 if (productChanged.length > 0 && !hasSkeletonCheckpoint) {
@@ -706,27 +704,50 @@ if (useStaged && workingFiles.length > stagedFiles.length) {
 if (manifests) {
   console.log('\nCheck 2: Manifest fields');
   const shaRegex = /^[a-f0-9]{40}$/i;
-  // Validate scope (best-effort): changed files must be subset of IN_SCOPE_PATHS (plus allowed governance files),
-  // unless a waiver is present. This only applies to the evaluated diff set (staged preferred).
-  const allowlisted = new Set([
-    `${GOV_DISPLAY_ROOT}/roles_shared/records/TASK_BOARD.md`,
-    `${GOV_DISPLAY_ROOT}/roles_shared/records/SIGNATURE_AUDIT.md`,
-    `ORCHESTRATOR_GATES.json`,
-    packetPath,
-    toDisplayGovPath(resolveRefinementPath(WP_ID) || `${GOV_ROOT_REPO_REL}/refinements/${WP_ID}.md`),
-  ].filter(Boolean));
+  const evaluatedScopeViolations = [];
+  const branchLocalScopeViolations = [];
+  const junctionDriftWarnings = [];
 
-  const outOfScope = changedFiles
-    .map((p) => p.replace(/\\/g, '/'))
-    .filter((p) => !p.startsWith(`${GOV_DISPLAY_ROOT}/`))
-    .filter((p) => !p.startsWith(`${GOV_ROOT_REPO_REL}/`))
-    .filter((p) => !allowlisted.has(p))
-    .filter((p) => (inScopePaths.length > 0 ? !inScopePaths.includes(p) : false));
+  for (const changedFile of changedFiles) {
+    const classification = classifyWpChangedPath(changedFile, scopeContract);
+    if (classification.kind === 'GOVERNANCE_JUNCTION_DRIFT') {
+      junctionDriftWarnings.push(classification.path);
+      continue;
+    }
+    if (!classification.allowed) {
+      evaluatedScopeViolations.push(`${classification.kind}: ${classification.path}`);
+    }
+  }
 
-  if (outOfScope.length > 0 && !hasGitWaiver) {
-    errors.push(`Out-of-scope files changed (stage only WP files or record waiver [CX-573F]): ${outOfScope.join(', ')}`);
-  } else if (outOfScope.length > 0 && hasGitWaiver) {
-    warnings.push(`Out-of-scope files changed but waiver present [CX-573F]: ${outOfScope.join(', ')}`);
+  for (const changedFile of branchLocalChangedFiles) {
+    const classification = classifyWpChangedPath(changedFile, scopeContract);
+    if (classification.kind === 'GOVERNANCE_JUNCTION_DRIFT') {
+      junctionDriftWarnings.push(classification.path);
+      continue;
+    }
+    if (!classification.allowed) {
+      branchLocalScopeViolations.push(`${classification.kind}: ${classification.path}`);
+    }
+  }
+
+  const uniqueEvaluatedViolations = Array.from(new Set(evaluatedScopeViolations));
+  const uniqueBranchLocalViolations = Array.from(new Set(branchLocalScopeViolations));
+  const uniqueJunctionWarnings = Array.from(new Set(junctionDriftWarnings));
+
+  if (uniqueEvaluatedViolations.length > 0 && !hasGitWaiver) {
+    errors.push(`Out-of-scope files in the evaluated diff: ${uniqueEvaluatedViolations.join(', ')}`);
+  } else if (uniqueEvaluatedViolations.length > 0 && hasGitWaiver) {
+    warnings.push(`Out-of-scope files in the evaluated diff but waiver present [CX-573F]: ${uniqueEvaluatedViolations.join(', ')}`);
+  }
+
+  if (uniqueBranchLocalViolations.length > 0 && !hasGitWaiver) {
+    errors.push(`Branch-local scope drift detected outside the evaluated diff: ${uniqueBranchLocalViolations.join(', ')}`);
+  } else if (uniqueBranchLocalViolations.length > 0 && hasGitWaiver) {
+    warnings.push(`Branch-local scope drift detected but waiver present [CX-573F]: ${uniqueBranchLocalViolations.join(', ')}`);
+  }
+
+  if (uniqueJunctionWarnings.length > 0) {
+    warnings.push(`Shared .GOV junction drift visible in this worktree (not counted as WP evidence): ${uniqueJunctionWarnings.join(', ')}`);
   }
 
   // Require manifest coverage for all non-docs changed files.

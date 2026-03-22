@@ -373,6 +373,9 @@ Next: N/A
 ## SCOPE
 - What:
 - Why:
+- Rule: `IN_SCOPE_PATHS` must list the concrete write surfaces for this WP (exact files or narrow directories).
+- Rule: root governance files (`justfile`, `AGENTS.md`, `.github/**`) count as ordinary scope surfaces and must be listed explicitly if touched.
+- Rule: general `.GOV/**` drift is not WP implementation scope on feature branches; governance edits are committed on `gov_kernel`.
 - IN_SCOPE_PATHS:
   - path/to/file
 - OUT_OF_SCOPE:

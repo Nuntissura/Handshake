@@ -69,6 +69,13 @@ import {
   resolveOrchestratorGatesPath,
   workPacketPath,
 } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import {
+  classifyWpChangedPath,
+  deriveWpScopeContract,
+  hasConcreteScopeEntries,
+  hasScopeOverlap,
+  parsePacketScopeList,
+} from '../../../roles_shared/scripts/lib/scope-surface-lib.mjs';
 
 const WP_ID = process.argv[2];
 
@@ -264,6 +271,25 @@ function hasCommitByExactSubject(subject) {
   }
 }
 
+function gitList(command) {
+  try {
+    const output = execSync(command, { encoding: 'utf8' }).trim();
+    return output ? output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function uniquePaths(paths) {
+  return Array.from(new Set((paths || []).map((value) => String(value || '').replace(/\\/g, '/')).filter(Boolean)));
+}
+
+function getBranchLocalChangedFiles() {
+  const tracked = gitList('git diff --name-only HEAD --diff-filter=d');
+  const untracked = gitList('git ls-files --others --exclude-standard');
+  return uniquePaths([...tracked, ...untracked]);
+}
+
 // Check 1: work packet file exists
 console.log('Check 1: work packet file exists');
 const taskPacketDir = `${GOV_ROOT_REPO_REL}/task_packets`;
@@ -271,6 +297,7 @@ const taskPacketDir = `${GOV_ROOT_REPO_REL}/task_packets`;
 let packetContent = '';
 let packetPath = resolvedPacketPath;
 let lastPrepare = null;
+let scopeContract = null;
 
 if (!fs.existsSync(taskPacketDir)) {
   errors.push(`work packet directory not found: ${taskPacketDir}`);
@@ -404,6 +431,60 @@ if (!fs.existsSync(taskPacketDir)) {
   const usesClauseClosureMonitor = /^CLAUSE_MONITOR_V1$/i.test(clauseClosureMonitorProfile || '');
   const semanticProofProfile = parseSingleField(packetContent, 'SEMANTIC_PROOF_PROFILE');
   const usesSemanticProofProfile = /^DIFF_SCOPED_SEMANTIC_V1$/i.test(semanticProofProfile || '');
+  scopeContract = deriveWpScopeContract({ wpId: WP_ID, packetContent });
+
+  console.log('\nCheck 2.6AB: Scope surface contract');
+  if (requiresRefinementGate && !hasConcreteScopeEntries(scopeContract.inScopePaths)) {
+    errors.push('IN_SCOPE_PATHS must list at least one concrete write surface');
+  } else if (scopeContract.inScopePaths.length > 0) {
+    console.log(`PASS: IN_SCOPE_PATHS declares ${scopeContract.inScopePaths.length} concrete write surface(s)`);
+  }
+
+  if (requiresRefinementGate && !/OUT_OF_SCOPE/i.test(packetContent)) {
+    errors.push('OUT_OF_SCOPE section is required for active packets');
+  } else {
+    console.log('PASS: OUT_OF_SCOPE section present');
+  }
+
+  const scopeOverlap = hasScopeOverlap(scopeContract.inScopePaths, scopeContract.outOfScopePaths);
+  if (scopeOverlap) {
+    errors.push(`IN_SCOPE_PATHS and OUT_OF_SCOPE overlap (${scopeOverlap.left} <-> ${scopeOverlap.right})`);
+  } else {
+    console.log('PASS: IN_SCOPE_PATHS and OUT_OF_SCOPE do not overlap');
+  }
+
+  console.log('\nCheck 2.6AC: Branch-local scope drift');
+  const branchLocalChangedFiles = getBranchLocalChangedFiles();
+  const scopeDriftFailures = [];
+  const junctionDriftWarnings = [];
+  const inScopeLocalChanges = [];
+  for (const changedFile of branchLocalChangedFiles) {
+    const classification = classifyWpChangedPath(changedFile, scopeContract);
+    if (classification.kind === 'IN_SCOPE') {
+      inScopeLocalChanges.push(classification.path);
+      continue;
+    }
+    if (classification.kind === 'GOVERNANCE_COMPANION') continue;
+    if (classification.kind === 'GOVERNANCE_JUNCTION_DRIFT') {
+      junctionDriftWarnings.push(classification.path);
+      continue;
+    }
+    scopeDriftFailures.push(`${classification.kind}: ${classification.path}`);
+  }
+
+  if (scopeDriftFailures.length > 0) {
+    errors.push(`Branch-local out-of-scope edits detected before work starts: ${scopeDriftFailures.join(', ')}`);
+  } else {
+    console.log('PASS: No branch-local out-of-scope edits detected');
+  }
+  if (junctionDriftWarnings.length > 0) {
+    warnings.push(
+      `Shared .GOV junction drift visible in this worktree (not counted as WP scope evidence): ${junctionDriftWarnings.join(', ')}`
+    );
+  }
+  if (inScopeLocalChanges.length > 0) {
+    console.log(`INFO: Existing in-scope local changes detected: ${inScopeLocalChanges.join(', ')}`);
+  }
 
   if (isModernPacket && usesStructuredValidationReport && requiresRefinementGate) {
     // [CX-212D] Bootstrap claim: verify the work packet has claim fields filled.
@@ -1162,8 +1243,8 @@ if (errors.length === 0) {
       ((packetContent.match(/^\s*-\s*REFINEMENT_FILE\s*:\s*(.+)\s*$/mi) || [])[1]?.trim()
         || defaultRefinementPath(WP_ID)).replace(/\\/g, '/');
 
-    const inScope = extractIndentedListAfterLabel(packetContent, 'IN_SCOPE_PATHS', { stopLabels: ['OUT_OF_SCOPE'] });
-    const outOfScope = extractIndentedListAfterLabel(packetContent, 'OUT_OF_SCOPE', { stopLabels: [] });
+    const inScope = parsePacketScopeList(packetContent, 'IN_SCOPE_PATHS', { stopLabels: ['OUT_OF_SCOPE'] });
+    const outOfScope = parsePacketScopeList(packetContent, 'OUT_OF_SCOPE');
     const doneMeans = extractBulletListAfterHeading(packetContent, 'DONE_MEANS');
     const testPlan = extractFencedBlockAfterHeading(packetContent, 'TEST_PLAN');
 
@@ -1214,6 +1295,10 @@ if (errors.length === 0) {
       console.log('\nOUT_OF_SCOPE [CX-HANDOFF-001]');
       outOfScope.forEach((p) => console.log(`- ${p}`));
     }
+
+    console.log('\nWRITE_SURFACE_RULES [CX-HANDOFF-001]');
+    console.log('- Root governance files (`justfile`, `AGENTS.md`, `.github/**`) are out of scope unless explicitly listed in IN_SCOPE_PATHS.');
+    console.log(`- General \`${GOV_ROOT_REPO_REL}/**\` drift is not WP implementation evidence on feature branches because .GOV is a live junction; only packet companion paths are tolerated.`);
 
     if (doneMeans.length > 0) {
       console.log('\nDONE_MEANS [CX-HANDOFF-001]');
