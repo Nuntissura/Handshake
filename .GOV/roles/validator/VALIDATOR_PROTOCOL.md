@@ -275,6 +275,7 @@ Resume rule (hard, anti-babysit):
   - `CODER_HANDOFF` from `CODER -> WP_VALIDATOR`
   - `VALIDATOR_REVIEW` from `WP_VALIDATOR -> CODER`, correlated to handoff
   - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
+- Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Use the governed helpers; do not hand-edit around this routing.
 - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
 - Before taking a coder handoff as review-ready on those packets, `just wp-communication-health-check WP-{ID} HANDOFF` must pass.
 - Before PASS commit clearance on those packets, `just wp-communication-health-check WP-{ID} VERDICT` must pass.

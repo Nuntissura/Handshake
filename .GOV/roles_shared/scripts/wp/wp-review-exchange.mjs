@@ -9,7 +9,6 @@ import {
 } from "../lib/wp-communications-lib.mjs";
 import { appendWpReceipt } from "./wp-receipt-append.mjs";
 import { appendWpThreadEntry } from "./wp-thread-append.mjs";
-import { appendWpNotification } from "./wp-notification-append.mjs";
 
 const SUPPORTED_RECEIPT_KINDS = [
   ...REVIEW_OPEN_RECEIPT_KIND_VALUES,
@@ -119,6 +118,7 @@ export function recordReviewExchange({
     }),
     target: buildTargetLabel(TARGET_ROLE, TARGET_SESSION),
     recordReceipt: false,
+    emitNotification: false,
     targetRole: TARGET_ROLE,
     targetSession: TARGET_SESSION,
     correlationId: CORRELATION_ID,
@@ -142,18 +142,6 @@ export function recordReviewExchange({
     specAnchor: SPEC_ANCHOR,
     packetRowRef: PACKET_ROW_REF,
     refs: [threadResult.threadFile],
-  });
-
-  appendWpNotification({
-    wpId: WP_ID,
-    sourceKind: RECEIPT_KIND,
-    sourceRole: ACTOR_ROLE,
-    sourceSession: ACTOR_SESSION,
-    targetRole: TARGET_ROLE,
-    targetSession: TARGET_SESSION,
-    correlationId: CORRELATION_ID,
-    summary: `${RECEIPT_KIND}: ${SUMMARY}`,
-    timestamp: receiptResult.entry.timestamp_utc,
   });
 
   return {

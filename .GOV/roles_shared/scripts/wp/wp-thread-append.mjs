@@ -58,6 +58,7 @@ export function appendWpThreadEntry({
   message,
   target = "",
   recordReceipt = true,
+  emitNotification = true,
   targetRole = null,
   targetSession = null,
   correlationId = null,
@@ -118,7 +119,7 @@ export function appendWpThreadEntry({
   }
 
   const resolvedTargetRole = TARGET_ROLE || resolveTargetRoleFromMention(TARGET);
-  if (resolvedTargetRole) {
+  if (emitNotification && resolvedTargetRole) {
     appendWpNotification({
       wpId: WP_ID,
       sourceKind: "THREAD_MESSAGE",
