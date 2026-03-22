@@ -12,10 +12,10 @@
 - Default: one WP = one feature branch (e.g., `feat/WP-{ID}`).
 - When more than one coder/WP is active concurrently, use `git worktree` per active WP (separate working directories). Do NOT share a single working tree across concurrent WPs.
 - `main` is the only canonical integrated branch on disk and on GitHub.
-- Permanent protected role/user branches and their corresponding permanent worktrees must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `gov_kernel`.
-- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`.
-- `user_ilja`, `role_orchestrator`, and `gov_kernel` on GitHub are backup branches, not integration branches. They may diverge from `main`.
-- Permanent non-main worktrees (`wt-ilja`, `wt-orchestrator`, `wtc-*`) get their non-`.GOV/` base from local `main`. Their matching GitHub branches are safety copies, not the source of product-code or root-file refresh.
+- Permanent protected role/user branches and their corresponding permanent worktrees must never be deleted by Codex: `main`, `user_ilja`, `gov_kernel`.
+- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-gov-kernel`.
+- `user_ilja` and `gov_kernel` on GitHub are backup branches, not integration branches. They may diverge from `main`.
+- Permanent non-main worktrees (`wt-ilja`, `wtc-*`) get their non-`.GOV/` base from local `main`. Their matching GitHub branches are safety copies, not the source of product-code or root-file refresh.
 - Before any destructive or state-hiding local git action (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed branch state to its matching GitHub backup branch.
 - Before deleting local branches/worktrees or doing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Role startup now includes `just backup-status` so Codex can see whether local/NAS backup roots are configured and whether recent immutable snapshots exist. Treat that visibility as safety context, not as authorization to skip destructive-op approvals.
@@ -30,8 +30,9 @@
 - Use `just enumerate-cleanup-targets` to print current exact targets and proposed cleanup actions.
 - Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the action/target list has been presented. Never delete worktree directories directly with `rm`, `del`, or `Remove-Item`.
 - If `git worktree remove` fails, STOP. Do not switch to manual filesystem cleanup inside the shared worktree root.
-- Use `just sync-all-role-worktrees` only to refresh the local `main` branch across the permanent worktrees when all are clean. It is not the helper for reseeding `wt-ilja` or `wt-orchestrator` from `main`.
-- Use `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` for governed refresh of a permanent non-main role/user worktree from local `main`. This safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
+- Use `just sync-all-role-worktrees` only to refresh the local `main` branch across the permanent worktrees when all are clean. It is not the helper for reseeding `wt-ilja` from `main`.
+- Use `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` for governed refresh of the permanent Operator worktree from local `main`. This safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
+- Root-level repo control files inherited from `main`, currently `AGENTS.md` and the root `justfile`, are main-only authoring surfaces. Do not author or commit them from `wt-ilja`, `wt-gov-kernel`, or any `wtc-*` WP worktree. Exception: `wt-gov-kernel` may carry a governance-only kernel launcher `justfile`; that file is not the canonical root `justfile`.
 
 ### Governance-only work (no WP required)
 - Governance/workflow/tooling-only maintenance does NOT require a Work Packet or USER_SIGNATURE when the planned diff is strictly limited to governance surface files:
@@ -82,9 +83,9 @@
 ### Governance kernel architecture [CX-212B/C/D/F]
 - **Live junction model:** `/.GOV/` in every non-main worktree is a junction (symlink) to `../wt-gov-kernel/.GOV`. Edits to any `/.GOV/` file are live and immediately visible to all worktrees. There is no branch isolation for governance files.
 - **Commit rule [CX-212F]:** `/.GOV/` files are NEVER committed on feature branches (`feat/WP-*`). Governance changes are committed on `gov_kernel` by the orchestrator. Only non-`/.GOV/` files (product code: `src/`, `app/`, `tests/`) are committed on feature branches.
-- The governance kernel worktree (`wt-gov-kernel`, branch `gov_kernel`) contains ONLY `/.GOV/` and git-required files. No product code.
+- The governance kernel worktree (`wt-gov-kernel`, branch `gov_kernel`) is the Orchestrator's default live execution surface. It contains `/.GOV/`, git-required files, and may carry a governance-only kernel launcher `justfile`. It must not contain product code.
 - `handshake_main` (branch `main`) has a real `/.GOV/` copy as a stable backup, synced from the kernel by the Integration Validator by default, or by the Orchestrator when explicitly instructed by the Operator, using `just sync-gov-to-main`.
-- `wt-ilja` (branch `user_ilja`) and `wt-orchestrator` (branch `role_orchestrator`) are permanent non-main worktrees created from `main`, so product code and root-level LLM files (`justfile`, `AGENTS.md`) come from `main`. Their inherited `/.GOV/` is then replaced with a junction to `../wt-gov-kernel/.GOV`.
+- `wt-ilja` (branch `user_ilja`) is the permanent non-main user worktree created from `main`, so product code and root-level LLM files (`justfile`, `AGENTS.md`) come from `main`. Its inherited `/.GOV/` is then replaced with a junction to `../wt-gov-kernel/.GOV`.
 - Coder worktrees (`wtc-*`) follow the same pattern: create from `main`, then replace inherited `/.GOV/` with a junction by the worktree creation script.
 - WP worktree budget: 1 per WP (coder only). WP Validator operates from the coder worktree; Integration Validator from `handshake_main`.
 - The Orchestrator MAY write to the governance kernel. During active multi-session steering, prefer deferring governance edits to reduce cognitive load.
