@@ -4,8 +4,8 @@ This file is a deterministic governance registry for the permanent Handshake che
 
 - SCHEMA_VERSION: hsk.git_topology_registry@0.1
 - CANONICAL_BRANCH: main
-- PROTECTED_LOCAL_BRANCHES: main, user_ilja, role_orchestrator, gov_kernel
-- PROTECTED_REMOTE_BRANCHES: origin/main, origin/user_ilja, origin/role_orchestrator, origin/gov_kernel
+- PROTECTED_LOCAL_BRANCHES: main, user_ilja, gov_kernel
+- PROTECTED_REMOTE_BRANCHES: origin/main, origin/user_ilja, origin/gov_kernel
 
 ## PROTECTED_WORKTREES
 
@@ -13,8 +13,7 @@ This file is a deterministic governance registry for the permanent Handshake che
 | --- | --- | --- | --- | --- | --- | --- |
 | handshake_main | CANONICAL | ../handshake_main | main | origin/main | YES | Canonical integrated checkout on disk |
 | wt-ilja | OPERATOR | ../wt-ilja | user_ilja | origin/user_ilja | NO | Operator worktree derived from main; remote branch is backup only |
-| wt-orchestrator | ORCHESTRATOR | ../wt-orchestrator | role_orchestrator | origin/role_orchestrator | NO | Orchestrator worktree derived from main; remote branch is backup only |
-| wt-gov-kernel | GOV_KERNEL | ../wt-gov-kernel | gov_kernel | origin/gov_kernel | NO | Governance kernel worktree (canonical .GOV/ source) |
+| wt-gov-kernel | GOV_KERNEL | ../wt-gov-kernel | gov_kernel | origin/gov_kernel | NO | Orchestrator governance kernel worktree (canonical .GOV/ source) |
 
 ## HELPER_COMMANDS
 

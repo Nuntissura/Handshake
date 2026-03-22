@@ -3,6 +3,11 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 function resolveRepoRoot() {
+  const injectedRepoRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
+  if (injectedRepoRoot) {
+    return injectedRepoRoot;
+  }
+
   try {
     const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
       encoding: "utf8",
@@ -19,7 +24,9 @@ function resolveRepoRoot() {
 }
 
 const repoRoot = path.resolve(resolveRepoRoot());
-process.env.HANDSHAKE_ACTIVE_REPO_ROOT = repoRoot;
+if (!String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim()) {
+  process.env.HANDSHAKE_ACTIVE_REPO_ROOT = repoRoot;
+}
 process.chdir(repoRoot);
 
 // Governance-only checks (no product source scanning).

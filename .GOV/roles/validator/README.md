@@ -13,7 +13,7 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 
 ## Current / Legacy Gate State
 
-- `.GOV/roles_shared/runtime/validator_gates/`
+- external `../gov_runtime/roles_shared/validator_gates/`
   - current per-WP validator gate state
 - `.GOV/reference/legacy/validator/VALIDATOR_GATES.json`
   - migrated read-only legacy archive for older sessions
@@ -41,7 +41,7 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 
 - `.GOV/roles_shared/checks/README.md`
 - `.GOV/roles_shared/scripts/README.md`
-- `.GOV/roles_shared/runtime/validator_gates/`
+- external `../gov_runtime/roles_shared/validator_gates/`
 - `.GOV/task_packets/`
 - `.GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md`
 - external repo-governance `roles_shared/WP_COMMUNICATIONS/`

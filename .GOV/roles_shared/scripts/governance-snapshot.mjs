@@ -20,6 +20,7 @@ import {
   GOVERNANCE_RUNTIME_ROOT_REPO_REL,
   GOV_ROOT_REPO_REL,
   resolveOrchestratorGatesPath,
+  SHARED_GOV_VALIDATOR_GATES_ROOT,
 } from './lib/runtime-paths.mjs';
 
 export const SCHEMA_VERSION = 'hsk.product_governance_snapshot@0.1';
@@ -280,7 +281,7 @@ export const buildProductGovernanceSnapshot = ({ includeHeadSha = false } = {}) 
   const orchestratorGateSummary = summarizeOrchestratorGates(orchestratorGatesText);
 
   const validatorGatePaths = inputsRelPaths
-    .filter((p) => p.startsWith(`${GOV_ROOT_REPO_REL}/roles_shared/runtime/validator_gates/`) && p.toLowerCase().endsWith('.json'))
+    .filter((p) => p.startsWith(normalizeRelPath(SHARED_GOV_VALIDATOR_GATES_ROOT)) && p.toLowerCase().endsWith('.json'))
     .map(normalizeRelPath)
     .sort(compareStrings);
 

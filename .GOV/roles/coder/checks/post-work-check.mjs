@@ -686,9 +686,8 @@ if (useStaged && workingFiles.length > stagedFiles.length) {
   const isAllowlistedUnstaged = (p) =>
     p.startsWith(`${GOV_DISPLAY_ROOT}/`)
     || p.startsWith(`${GOV_ROOT_REPO_REL}/`)
-    || p.startsWith(`${GOV_DISPLAY_ROOT}/roles_shared/runtime/validator_gates/`)
     || allowlistedUnstaged.has(p)
-    || p.startsWith(`${GOV_ROOT_REPO_REL}/roles_shared/runtime/validator_gates/`);
+    ;
 
   const hasRelevantUnstaged = workingFiles
     .map((p) => p.replace(/\\/g, '/'))

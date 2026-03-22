@@ -89,6 +89,6 @@ Git metadata (read-only, via `git ...`):
 
 `just validator-gate-present|acknowledge|append|commit|status|reset WP-...`:
 - Reads:
-  - `.GOV/roles_shared/runtime/validator_gates/WP-....json` (per-WP gate state, if present)
+  - `../gov_runtime/roles_shared/validator_gates/WP-....json` (per-WP gate state, if present)
 - Writes:
-  - `.GOV/roles_shared/runtime/validator_gates/WP-....json`
+  - `../gov_runtime/roles_shared/validator_gates/WP-....json`

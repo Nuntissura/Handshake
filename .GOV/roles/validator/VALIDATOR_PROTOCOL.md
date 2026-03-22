@@ -24,11 +24,11 @@
 ## Permanent Branch + Backup Model (HARD)
 
 - `main` is the only canonical integrated branch on disk and on GitHub.
-- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `gov_kernel`.
-- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-gov-kernel`.
-- `user_ilja`, `role_orchestrator`, and `gov_kernel` on GitHub are backup branches, not integration branches. They may diverge from `main`.
-- Permanent non-main worktrees (`wt-ilja`, `wt-orchestrator`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
-- `role_orchestrator` and `gov_kernel` MUST NOT be merged into `main`. Non-`.GOV/` orchestrator changes reach `main` by file copy. `.GOV/` changes reach `main` through `just sync-gov-to-main` (Integration Validator default responsibility; Orchestrator may execute only under explicit Operator instruction) [CX-212D, CX-113].
+- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `gov_kernel`.
+- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-gov-kernel`.
+- `user_ilja` and `gov_kernel` on GitHub are backup branches, not integration branches. They may diverge from `main`.
+- Permanent non-main worktrees (`wt-ilja`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- `gov_kernel` MUST NOT be merged into `main`. `.GOV/` changes reach `main` through `just sync-gov-to-main` (Integration Validator default responsibility; Orchestrator may execute only under explicit Operator instruction) [CX-212D, CX-113].
 - Matching backup pushes are allowed safety operations. For Validator work this means pushing the assigned WP backup branch when preserving committed state before destructive local operations.
 - The packet-declared WP backup branch is the shared remote WP backup branch for Coder, WP Validator, and Integration Validator. Any validator form may push that packet-declared branch when preserving WP-scoped committed state, but validators must not improvise separate validator-only remote WP backup branches.
 - Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
@@ -36,11 +36,11 @@
 - Startup must surface `just backup-status` so backup configuration and recent immutable snapshots are visible before validation proceeds. This is safety context only, not a bypass for destructive-op approvals.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact actions + exact targets, and ask for approval on that presented list.
 - For clearer language going forward, use these exact terms:
-  - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_orchestrator`
+  - `local branch`: a branch ref in a local checkout on disk, for example `main` or `gov_kernel`
   - `remote branch` or `GitHub branch`: a branch at `origin/<name>`, for example `origin/main`
-  - `worktree`: a directory on disk, for example `handshake_main` or `wt-orchestrator`
+  - `worktree`: a directory on disk, for example `handshake_main` or `wt-gov-kernel`
   - `canonical branch`: always `main`
-  - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/role_orchestrator`
+  - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/gov_kernel`
 - Broad requests like "clean up branches" or "sync everything" are insufficient for destructive or branch-moving work. Present a deterministic list of exact actions + exact targets first. For that most recently presented list, the only valid approval replies are `approved` or `proceed`. If the list changes, ask again.
 - Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
 - Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the list has been presented. Never use direct filesystem deletion on worktree paths.
@@ -51,7 +51,7 @@
   - The generated script is hard-bound to one exact local worktree, consumes the baked Operator approval text plus the matching worktree cleanup token, and may only remove that local worktree via `git worktree remove`.
   - Cleanup script generation is blocked unless the target worktree is clean and still matches the recorded branch/HEAD.
   - Generated cleanup scripts do not delete remote WP backup branches.
-- Use `just sync-all-role-worktrees` only to refresh the local `main` branch across the permanent worktrees when they are clean. It is not the reseed path for `wt-ilja` or `wt-orchestrator`.
+- Use `just sync-all-role-worktrees` only to refresh the local `main` branch across the permanent worktrees when they are clean. It is not the reseed path for `wt-ilja`.
 - Use `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` when a permanent non-main role/user worktree must be refreshed from local `main`. This helper safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
 
 ## Repo Boundary Rules (HARD)
@@ -242,7 +242,7 @@ This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
 - `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`
 - `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`
-- `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json` (when present)
+- `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json` (when present)
 
 Resume rule (hard, anti-babysit):
 - After `just validator-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
@@ -595,10 +595,10 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
     - merge or authorize merge in place of the Classical Validator or Integration Validator
   - Default write target for this mode is a chat report or a clearly labeled external revalidation report, not the normal governed-lane closure path.
   - ACP runtime note for orchestrator-managed WPs:
-    - `wt-orchestrator` should no longer be dirtied by ACP/session/topology/WP-communication projections, because those runtime artifacts now default to the external repo-governance runtime root.
+    - `wt-gov-kernel` is the live Orchestrator governance surface. ACP/session/topology/WP-communication projections should stay external under the repo-governance runtime root instead of dirtying the kernel checkout.
     - Dirty files limited to these surfaces are runtime-state evidence first, not automatic proof of governance failure:
-      - `.GOV/roles_shared/runtime/validator_gates/WP-{ID}.json`
-    - Before treating `wt-orchestrator` dirt as a governance defect, inspect ACP state with:
+      - `../gov_runtime/roles_shared/validator_gates/WP-{ID}.json`
+    - Before treating `wt-gov-kernel` dirt as a governance defect, inspect ACP state with:
       - `just handshake-acp-broker-status`
       - `just session-registry-status WP-{ID}`
       - `just external-validator-brief WP-{ID}`
@@ -606,7 +606,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 
 ## External Validator Split Report Contract
 - Before an external/classical validator starts on an orchestrator-managed WP, generate the target contract with `just external-validator-brief WP-{ID}`.
-- Governance target selection is derived from the packet-declared governance authority and workflow lane, not by assuming every case is `role_orchestrator`.
+- Governance target selection is derived from the packet-declared governance authority and workflow lane, not by assuming every case is a retired `role_orchestrator` surface.
 - External/classical validator reports for orchestrator-managed WPs MUST use these top fields:
   - `VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH`
   - `CODE_VERDICT: PASS | FAIL | NOT_RUN`
@@ -671,7 +671,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 ## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 
 The validation process MUST halt only at Gate 3 (final report presentation). All other gates are state recording/unlocks and must still be run in order.
-State is tracked per WP in `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
+State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
 (Legacy: `.GOV/reference/legacy/validator/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions; new validations should not write to it.)
 
 ### Gate 1: WP APPEND (Records verdict; non-blocking)

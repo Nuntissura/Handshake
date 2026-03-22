@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { comparePrepareAgainstPacketTruth } from "../scripts/lib/role-resume-utils.mjs";
 
-const REPO_ROOT = "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-orchestrator";
+const REPO_ROOT = "D:/Projects/LLM projects/Handshake/Handshake Worktrees/handshake_main";
 
 test("comparePrepareAgainstPacketTruth accepts matching packet and PREPARE authority", () => {
   const packet = [

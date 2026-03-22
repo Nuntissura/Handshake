@@ -177,7 +177,7 @@ async function callBrokerRpc({ broker, authToken, method, params = {}, timeoutMs
           expected_broker_build_id: SESSION_CONTROL_BROKER_BUILD_ID,
           expected_auth_mode: SESSION_CONTROL_BROKER_AUTH_MODE,
           authority_role: "ORCHESTRATOR",
-          authority_branch: "role_orchestrator",
+          authority_branch: "gov_kernel",
           client: {
             name: "handshake-governance",
             version: "1.0.0",
@@ -390,7 +390,7 @@ export async function callHandshakeAcpMethod({
             expected_broker_build_id: SESSION_CONTROL_BROKER_BUILD_ID,
             expected_auth_mode: SESSION_CONTROL_BROKER_AUTH_MODE,
             authority_role: "ORCHESTRATOR",
-            authority_branch: "role_orchestrator",
+            authority_branch: "gov_kernel",
           },
         });
       });

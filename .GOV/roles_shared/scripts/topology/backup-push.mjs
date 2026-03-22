@@ -19,7 +19,7 @@ function fail(message, details = []) {
 function usage() {
   fail("Usage: node .GOV/roles_shared/scripts/topology/backup-push.mjs [local_branch] [remote_branch]", [
     "Example (current branch -> same remote branch): node .GOV/roles_shared/scripts/topology/backup-push.mjs",
-    "Example (explicit): node .GOV/roles_shared/scripts/topology/backup-push.mjs role_orchestrator role_orchestrator",
+    "Example (explicit): node .GOV/roles_shared/scripts/topology/backup-push.mjs gov_kernel gov_kernel",
   ]);
 }
 

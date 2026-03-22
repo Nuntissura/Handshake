@@ -52,7 +52,7 @@ export const rolesSharedRootRules = {
     ["SESSION_CONTROL_RESULTS.jsonl", "../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl"],
     ["SESSION_LAUNCH_REQUESTS.jsonl", "../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl"],
     ["SESSION_CONTROL_OUTPUTS", "../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/"],
-    ["validator_gates", `${GOV_ROOT_REPO_REL}/roles_shared/runtime/validator_gates/`],
+    ["validator_gates", "../gov_runtime/roles_shared/validator_gates/"],
     ["WP_COMMUNICATIONS", "../gov_runtime/roles_shared/WP_COMMUNICATIONS/"],
   ]),
   duplicateTemplates: new Map([

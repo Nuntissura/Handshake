@@ -16,7 +16,7 @@ import {
   runGitInherit,
 } from "./git-topology-lib.mjs";
 
-const RESEEDABLE_WORKTREE_ROLES = new Set(["OPERATOR", "ORCHESTRATOR"]);
+const RESEEDABLE_WORKTREE_ROLES = new Set(["OPERATOR"]);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 function fail(message, details = []) {
@@ -30,7 +30,7 @@ function usage() {
     "Usage: node .GOV/roles_shared/scripts/topology/reseed-permanent-worktree-from-main.mjs <WORKTREE_ID> --approve \"approved|proceed\" [--label <snapshot-label>]",
     [
       "This helper safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local main, and repairs the .GOV junction.",
-      "Supported permanent worktrees: wt-ilja, wt-orchestrator",
+      "Supported permanent worktrees: wt-ilja",
     ],
   );
 }
@@ -129,7 +129,7 @@ function main() {
   if (!spec || !RESEEDABLE_WORKTREE_ROLES.has(spec.role)) {
     fail("Unsupported worktree_id for reseed helper", [
       `worktree_id=${worktreeId}`,
-      "supported=wt-ilja, wt-orchestrator",
+      "supported=wt-ilja",
     ]);
   }
 

@@ -830,8 +830,8 @@ function handleRequest(socket, message) {
       respondError(socket, id, -32001, "Handshake ACP broker authentication failed");
       return;
     }
-    if (authorityRole !== "ORCHESTRATOR" || authorityBranch !== "role_orchestrator") {
-      respondError(socket, id, -32002, "Handshake ACP broker requires ORCHESTRATOR authority on role_orchestrator");
+    if (authorityRole !== "ORCHESTRATOR" || authorityBranch !== "gov_kernel") {
+      respondError(socket, id, -32002, "Handshake ACP broker requires ORCHESTRATOR authority on gov_kernel");
       return;
     }
     if (expectedBuildId && expectedBuildId !== SESSION_CONTROL_BROKER_BUILD_ID) {
