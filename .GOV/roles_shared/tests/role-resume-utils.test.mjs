@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { comparePrepareAgainstPacketTruth } from "../scripts/lib/role-resume-utils.mjs";
 
-const REPO_ROOT = "D:/Projects/LLM projects/Handshake/Handshake Worktrees/handshake_main";
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../handshake_main");
 
 test("comparePrepareAgainstPacketTruth accepts matching packet and PREPARE authority", () => {
   const packet = [
