@@ -39,7 +39,27 @@ function resolveRepoRoot() {
 
 const repoRoot = path.resolve(resolveRepoRoot());
 const ROLEPACK_REL_PATH = "assets/atelier_rolepack_digital_production_studio_v1.json";
-const ROLEPACK_PATH = path.join(repoRoot, ROLEPACK_REL_PATH);
+
+function resolveCurrentRolepackPath() {
+  const candidates = [];
+
+  const injectedRepoRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
+  if (injectedRepoRoot) {
+    candidates.push(path.resolve(injectedRepoRoot, ROLEPACK_REL_PATH));
+  }
+
+  candidates.push(path.join(repoRoot, ROLEPACK_REL_PATH));
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return candidates[0] || path.join(repoRoot, ROLEPACK_REL_PATH);
+}
+
+const ROLEPACK_PATH = resolveCurrentRolepackPath();
 
 function fail(message, details = []) {
   console.error(`[ATELIER_ROLE_REGISTRY_CHECK] ${message}`);

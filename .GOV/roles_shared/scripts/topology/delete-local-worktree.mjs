@@ -215,7 +215,11 @@ function listDirtyPaths(absDir) {
 }
 
 function isSharedGovPath(value) {
-  return String(value || "").replace(/\\/g, "/").startsWith(".GOV/");
+  const normalized = String(value || "")
+    .replace(/\\/g, "/")
+    .trim()
+    .replace(/^"+|"+$/g, "");
+  return normalized.startsWith(".GOV/") || normalized.startsWith("GOV/");
 }
 
 function reducePathsForSelectiveStash(paths) {
@@ -536,7 +540,12 @@ function main() {
   }
 
   try {
-    execFileSync("git", ["-c", "core.longpaths=true", "worktree", "remove", absDir], {
+    const removeArgs = ["-c", "core.longpaths=true", "worktree", "remove"];
+    if (ignoreSharedGovJunctionDirt) {
+      removeArgs.push("--force");
+    }
+    removeArgs.push(absDir);
+    execFileSync("git", removeArgs, {
       cwd: REPO_ROOT,
       stdio: "inherit",
     });
