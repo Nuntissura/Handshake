@@ -49,6 +49,8 @@ function parseArgs() {
     role: "",
     precreatedSnapshotRoot: "",
     stashDirty: false,
+    allowProtectedWorktree: false,
+    ignoreSharedGovJunctionDirt: false,
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -107,6 +109,14 @@ function parseArgs() {
     }
     if (token === "--stash-dirty") {
       options.stashDirty = true;
+      continue;
+    }
+    if (token === "--allow-protected-worktree") {
+      options.allowProtectedWorktree = true;
+      continue;
+    }
+    if (token === "--ignore-shared-gov-junction-dirt") {
+      options.ignoreSharedGovJunctionDirt = true;
       continue;
     }
     fail("Unknown argument", [`arg=${token}`]);
@@ -185,6 +195,54 @@ function stashDirtyWorktree(absDir, worktreeId) {
     fail("Failed to create safety stash for dirty worktree", [
       `path=${absDir}`,
       `stash_message=${message}`,
+    ]);
+  }
+}
+
+function listDirtyPaths(absDir) {
+  const output = runGitInRepo(absDir, ["status", "--porcelain=v1"]);
+  const lines = output.split(/\r?\n/).map((line) => line.trimEnd()).filter(Boolean);
+  const paths = [];
+  for (const line of lines) {
+    const rawPath = line.slice(3).trim();
+    if (!rawPath) continue;
+    const resolvedPath = rawPath.includes("->")
+      ? rawPath.split("->").pop().trim()
+      : rawPath;
+    paths.push(resolvedPath.replace(/\\/g, "/"));
+  }
+  return paths;
+}
+
+function isSharedGovPath(value) {
+  return String(value || "").replace(/\\/g, "/").startsWith(".GOV/");
+}
+
+function reducePathsForSelectiveStash(paths) {
+  const reduced = new Set();
+  for (const rawPath of paths) {
+    const normalized = String(rawPath || "").replace(/\\/g, "/").trim();
+    if (!normalized) continue;
+    const top = normalized.split("/")[0];
+    reduced.add(top || normalized);
+  }
+  return [...reduced].sort();
+}
+
+function stashSelectedPaths(absDir, worktreeId, dirtyPaths) {
+  const selectedRoots = reducePathsForSelectiveStash(dirtyPaths);
+  if (selectedRoots.length === 0) return;
+  const message = `SAFETY: before delete local worktree ${worktreeId}`;
+  try {
+    execFileSync("git", ["-c", "core.longpaths=true", "stash", "push", "-u", "-m", message, "--", ...selectedRoots], {
+      cwd: absDir,
+      stdio: "inherit",
+    });
+  } catch {
+    fail("Failed to create selective safety stash for dirty worktree", [
+      `path=${absDir}`,
+      `stash_message=${message}`,
+      `selected_roots=${selectedRoots.join(", ")}`,
     ]);
   }
 }
@@ -375,10 +433,12 @@ function main() {
     role,
     precreatedSnapshotRoot,
     stashDirty,
+    allowProtectedWorktree,
+    ignoreSharedGovJunctionDirt,
   } = parseArgs();
   requireApproval(worktreeId, approval, approvalExact);
 
-  if (PROTECTED_WORKTREES.has(worktreeId)) {
+  if (!allowProtectedWorktree && PROTECTED_WORKTREES.has(worktreeId)) {
     fail("Refusing to delete a protected worktree", [`worktree_id=${worktreeId}`]);
   }
 
@@ -427,15 +487,29 @@ function main() {
     expectedHead,
   });
 
-  if (dirtyInRepo(absDir)) {
+  const dirtyPaths = listDirtyPaths(absDir);
+  const blockingDirtyPaths = ignoreSharedGovJunctionDirt
+    ? dirtyPaths.filter((entry) => !isSharedGovPath(entry))
+    : dirtyPaths;
+
+  if (blockingDirtyPaths.length > 0) {
     if (!stashDirty) {
       fail("Refusing to delete a dirty worktree", [
         `path=${absDir}`,
         "Commit, stash, or recover the changes first. Cleanup must not destroy dirty state.",
       ]);
     }
-    stashDirtyWorktree(absDir, worktreeId);
-    if (dirtyInRepo(absDir)) {
+    if (ignoreSharedGovJunctionDirt) {
+      stashSelectedPaths(absDir, worktreeId, blockingDirtyPaths);
+    } else {
+      stashDirtyWorktree(absDir, worktreeId);
+    }
+
+    const remainingDirtyPaths = listDirtyPaths(absDir);
+    const remainingBlockingDirtyPaths = ignoreSharedGovJunctionDirt
+      ? remainingDirtyPaths.filter((entry) => !isSharedGovPath(entry))
+      : remainingDirtyPaths;
+    if (remainingBlockingDirtyPaths.length > 0) {
       fail("Worktree remains dirty after safety stash", [
         `path=${absDir}`,
         "Manual recovery is required before deletion.",
@@ -444,7 +518,7 @@ function main() {
   }
 
   const currentBranch = currentBranchInRepo(absDir);
-  if (currentBranch && ["main", "user_ilja", "gov_kernel"].includes(currentBranch)) {
+  if (!allowProtectedWorktree && currentBranch && ["main", "user_ilja", "gov_kernel"].includes(currentBranch)) {
     fail("Refusing to delete a worktree checked out to a protected branch", [
       `path=${absDir}`,
       `branch=${currentBranch}`,
