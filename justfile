@@ -26,6 +26,9 @@ enumerate-cleanup-targets:
 delete-local-worktree worktree_id approval:
 	node {{GOV_ROOT}}/roles_shared/scripts/topology/delete-local-worktree.mjs {{worktree_id}} --approve "{{approval}}"
 
+retire-standalone-checkout checkout_id approval:
+	node {{GOV_ROOT}}/roles_shared/scripts/topology/retire-standalone-checkout.mjs {{checkout_id}} --approve "{{approval}}"
+
 worktree-add wp-id base="main" branch="" dir="":
 	node {{GOV_ROOT}}/roles_shared/scripts/topology/worktree-add.mjs {{wp-id}} {{base}} {{branch}} {{dir}}
 
