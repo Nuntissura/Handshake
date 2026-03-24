@@ -70,12 +70,16 @@ import {
   workPacketPath,
 } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 import {
+  collectBudgetCountedFiles,
   classifyWpChangedPath,
   deriveWpScopeContract,
   hasConcreteScopeEntries,
   hasScopeOverlap,
+  parsePacketScopeDiscipline,
   parsePacketScopeList,
+  scopeDisciplineRequiresEnforcement,
 } from '../../../roles_shared/scripts/lib/scope-surface-lib.mjs';
+import { evaluateCoderPacketGovernanceState } from '../scripts/lib/coder-governance-lib.mjs';
 
 const WP_ID = process.argv[2];
 
@@ -423,8 +427,21 @@ if (!fs.existsSync(taskPacketDir)) {
     errors.push('Missing canonical **Status:** field');
   }
 
+  const coderGovernanceState = evaluateCoderPacketGovernanceState({
+    wpId: WP_ID,
+    packetPath: resolvedPacketPath,
+    packetContent,
+    currentWpStatus: parseSingleField(packetContent, 'Current WP_STATUS'),
+  });
+  if (coderGovernanceState.legacyRemediationRequired) {
+    errors.push(
+      `Legacy remediation-required packet cannot restart coder workflow in-place: ${coderGovernanceState.message}`
+    );
+    console.log(`FAIL: ${coderGovernanceState.message}`);
+  }
+
   const isDoneLike = /\b(done|validated|complete)\b/i.test(statusLine);
-  const requiresRefinementGate = !isDoneLike; // pre-work implies active work; enforce unless explicitly Done/Validated.
+  const requiresRefinementGate = !isDoneLike || coderGovernanceState.legacyRemediationRequired;
   const isModernPacket = !!packetFormatVersion;
   const usesStructuredValidationReport = packetUsesStructuredValidationReport(packetFormatVersion);
   const clauseClosureMonitorProfile = parseSingleField(packetContent, 'CLAUSE_CLOSURE_MONITOR_PROFILE');
@@ -432,6 +449,8 @@ if (!fs.existsSync(taskPacketDir)) {
   const semanticProofProfile = parseSingleField(packetContent, 'SEMANTIC_PROOF_PROFILE');
   const usesSemanticProofProfile = /^DIFF_SCOPED_SEMANTIC_V1$/i.test(semanticProofProfile || '');
   scopeContract = deriveWpScopeContract({ wpId: WP_ID, packetContent });
+  const scopeDiscipline = parsePacketScopeDiscipline(packetContent);
+  const enforceScopeDiscipline = scopeDisciplineRequiresEnforcement(packetFormatVersion);
 
   console.log('\nCheck 2.6AB: Scope surface contract');
   if (requiresRefinementGate && !hasConcreteScopeEntries(scopeContract.inScopePaths)) {
@@ -451,6 +470,21 @@ if (!fs.existsSync(taskPacketDir)) {
     errors.push(`IN_SCOPE_PATHS and OUT_OF_SCOPE overlap (${scopeOverlap.left} <-> ${scopeOverlap.right})`);
   } else {
     console.log('PASS: IN_SCOPE_PATHS and OUT_OF_SCOPE do not overlap');
+  }
+
+  if (enforceScopeDiscipline && !scopeDiscipline.touchedFileBudgetValid) {
+    errors.push('TOUCHED_FILE_BUDGET must be an integer >= 1 for PACKET_FORMAT_VERSION >= 2026-03-23');
+  } else if (enforceScopeDiscipline) {
+    console.log(`PASS: TOUCHED_FILE_BUDGET = ${scopeDiscipline.touchedFileBudget}`);
+  }
+
+  if (enforceScopeDiscipline && !scopeDiscipline.broadToolAllowlistValid) {
+    const allowlistDetail = scopeDiscipline.invalidBroadToolTokens.includes('NONE_WITH_OTHERS')
+      ? 'NONE cannot be combined with other broad tool allowlist tokens'
+      : `invalid token(s): ${scopeDiscipline.invalidBroadToolTokens.join(', ')}`;
+    errors.push(`BROAD_TOOL_ALLOWLIST invalid: ${allowlistDetail}`);
+  } else if (enforceScopeDiscipline) {
+    console.log(`INFO: BROAD_TOOL_ALLOWLIST = ${scopeDiscipline.broadToolAllowlist.join(', ')}`);
   }
 
   console.log('\nCheck 2.6AC: Branch-local scope drift');
@@ -484,6 +518,14 @@ if (!fs.existsSync(taskPacketDir)) {
   }
   if (inScopeLocalChanges.length > 0) {
     console.log(`INFO: Existing in-scope local changes detected: ${inScopeLocalChanges.join(', ')}`);
+  }
+  if (enforceScopeDiscipline && scopeDiscipline.touchedFileBudgetValid) {
+    const branchLocalBudgetFiles = collectBudgetCountedFiles(branchLocalChangedFiles, scopeContract);
+    if (branchLocalBudgetFiles.length > scopeDiscipline.touchedFileBudget) {
+      errors.push(`Branch-local touched file budget already exceeded before work starts: ${branchLocalBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${branchLocalBudgetFiles.join(', ')})`);
+    } else {
+      console.log(`PASS: Branch-local touched file budget respected (${branchLocalBudgetFiles.length}/${scopeDiscipline.touchedFileBudget})`);
+    }
   }
 
   if (isModernPacket && usesStructuredValidationReport && requiresRefinementGate) {
@@ -1218,7 +1260,9 @@ if (errors.length === 0) {
 
   const status = parseStatus(packetContent) || '<missing>';
   const statusNorm = status.toLowerCase().replace(/[-_]/g, ' ');
-  const startAllowed = /ready\s*for\s*dev|in\s*progress/.test(statusNorm) && !/blocked|stub|done|validated/.test(statusNorm);
+  const startAllowed = !coderGovernanceState.legacyRemediationRequired
+    && /ready\s*for\s*dev|in\s*progress/.test(statusNorm)
+    && !/blocked|stub|done|validated/.test(statusNorm);
 
   console.log('');
   if (startAllowed) {

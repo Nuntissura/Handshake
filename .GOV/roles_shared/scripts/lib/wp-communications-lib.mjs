@@ -14,6 +14,7 @@ export const RUNTIME_STATUS_FILE_NAME = "RUNTIME_STATUS.json";
 export const RECEIPTS_FILE_NAME = "RECEIPTS.jsonl";
 export const NOTIFICATIONS_FILE_NAME = "NOTIFICATIONS.jsonl";
 export const NOTIFICATION_CURSOR_FILE_NAME = "NOTIFICATION_CURSOR.json";
+export const WP_COMMUNICATION_TRANSACTION_LOCK_SUFFIX = ".tx.lock";
 export const RUNTIME_STATUS_SCHEMA_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`;
 export const RECEIPT_SCHEMA_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/schemas/WP_RECEIPT.schema.json`;
 export const DIRECT_REVIEW_CONTRACT_VERSION = "DIRECT_REVIEW_V1";
@@ -117,6 +118,7 @@ export const REVIEW_RESOLUTION_RECEIPT_KIND_VALUES = [
   "SPEC_CONFIRMATION",
 ];
 export const REVIEW_TRACKED_RECEIPT_KIND_VALUES = [...REVIEW_OPEN_RECEIPT_KIND_VALUES, ...REVIEW_RESOLUTION_RECEIPT_KIND_VALUES];
+export const DIRECT_REVIEW_SESSION_ROLE_VALUES = ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
 
 const RFC3339_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
@@ -529,6 +531,20 @@ export function validateReceipt(entry) {
     if (!(typeof entry.target_role === "string" && ROUTABLE_ROLE_VALUES.includes(entry.target_role))) {
       errors.push(`target_role is required for ${entry.receipt_kind}`);
     }
+    if (
+      DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(String(entry.actor_role || "").trim().toUpperCase())
+      && DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(String(entry.target_role || "").trim().toUpperCase())
+      && !isNonEmptyString(entry.target_session)
+    ) {
+      errors.push(`target_session is required for ${entry.receipt_kind}`);
+    }
+  }
+  if (REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(entry.receipt_kind)) {
+    if (!isNonEmptyString(entry.ack_for)) {
+      errors.push(`ack_for is required for ${entry.receipt_kind}`);
+    } else if (isNonEmptyString(entry.correlation_id) && entry.ack_for !== entry.correlation_id) {
+      errors.push(`ack_for must match correlation_id for ${entry.receipt_kind}`);
+    }
   }
   if (!Array.isArray(entry.refs) || entry.refs.some((value) => !isNonEmptyString(value))) {
     errors.push("refs must be an array of non-empty strings");
@@ -549,6 +565,14 @@ function communicationPathsForRoot(root, wpId) {
 
 export function communicationPathsForWp(wpId) {
   return communicationPathsForRoot(COMM_ROOT, wpId);
+}
+
+export function communicationTransactionLockPathForWp(wpId) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId || !/^WP-/.test(normalizedWpId)) {
+    throw new Error("WP_ID is required");
+  }
+  return normalize(path.join(COMM_ROOT, `${normalizedWpId}${WP_COMMUNICATION_TRANSACTION_LOCK_SUFFIX}`));
 }
 
 export function legacyCommunicationPathsForWp(wpId) {

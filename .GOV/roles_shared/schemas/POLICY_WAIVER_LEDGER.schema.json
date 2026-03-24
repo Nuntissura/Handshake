@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/schemas/policy-waiver-ledger.schema.json",
+  "title": "Policy Waiver Ledger",
+  "type": "object",
+  "required": ["raw", "entries", "activeEntries", "activeCoverageTokens"],
+  "properties": {
+    "raw": {
+      "type": "string"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["waiverId", "status", "coverage", "raw"],
+        "properties": {
+          "waiverId": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "EXPIRED", "REVOKED", "CLOSED"]
+          },
+          "coverage": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "SCOPE",
+                "PROOF",
+                "INTEGRATION",
+                "DOMAIN",
+                "PROTECTED_SURFACE",
+                "TEST",
+                "ENVIRONMENT",
+                "HEURISTIC",
+                "SPEC",
+                "GOVERNANCE"
+              ]
+            }
+          },
+          "scope": { "type": "string" },
+          "justification": { "type": "string" },
+          "approver": { "type": "string" },
+          "expires": { "type": "string" },
+          "raw": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "activeEntries": {
+      "type": "array"
+    },
+    "activeCoverageTokens": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "SCOPE",
+          "PROOF",
+          "INTEGRATION",
+          "DOMAIN",
+          "PROTECTED_SURFACE",
+          "TEST",
+          "ENVIRONMENT",
+          "HEURISTIC",
+          "SPEC",
+          "GOVERNANCE"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
+}

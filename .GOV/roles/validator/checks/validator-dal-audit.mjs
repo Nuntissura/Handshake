@@ -5,6 +5,7 @@
  */
 import { execSync } from "node:child_process";
 import { readdirSync } from "node:fs";
+import { printValidatorContextMismatchAndExit, requireValidatorProductTargets } from "../scripts/lib/validator-product-targets-lib.mjs";
 
 const root = process.cwd();
 const backendSrc = "src/backend/handshake_core/src";
@@ -22,6 +23,19 @@ function runRg(pattern, paths, extraArgs = "") {
 }
 
 let failures = [];
+const targetContext = requireValidatorProductTargets("validator-dal-audit", [backendSrc, migrationsDir], {
+  extraDetails: ["This audit inspects product DAL/storage code and migrations only."],
+});
+const existingTargetSet = new Set(targetContext.existingTargets);
+if (!existingTargetSet.has(backendSrc)) {
+  printValidatorContextMismatchAndExit("validator-dal-audit", targetContext, [
+    `required_backend_source=${backendSrc}`,
+  ]);
+}
+if (!existingTargetSet.has(migrationsDir)) {
+  failures.push(`CX-DBP-VAL-013 (migration hygiene): migrations dir missing: ${migrationsDir}`);
+}
+const portabilityTargets = [backendSrc, migrationsDir].filter((target) => existingTargetSet.has(target));
 
 // CX-DBP-VAL-010: No direct DB access outside storage/
 {
@@ -37,7 +51,7 @@ let failures = [];
 {
   const patterns = ["\\?1", "strftime\\(", "CREATE TRIGGER"];
   const hits = patterns
-    .map((p) => runRg(p, [backendSrc, migrationsDir]))
+    .map((p) => runRg(p, portabilityTargets))
     .filter(Boolean)
     .join("\n");
   if (hits) {
@@ -88,7 +102,7 @@ try {
 
 // CX-DBP-VAL-014: Dual-backend readiness (presence of postgres/parameterization hints)
 {
-  const out = runRg("postgres|Postgres|PgPool|PgConnection", [backendSrc, migrationsDir]);
+  const out = runRg("postgres|Postgres|PgPool|PgConnection", portabilityTargets);
   if (!out) {
     failures.push("CX-DBP-VAL-014 (dual-backend readiness): no PostgreSQL hints/tests found; add or document gap.");
   }

@@ -48,7 +48,11 @@ const requiredFields = [
 ];
 
 const allowedStatuses = new Set(["ACTIVE_COMPAT", "REMOVED"]);
-const requiredLegacySurfaces = new Set(["`WINDOWS_TERMINAL`", "`.GOV/roles_shared/runtime/*`"]);
+const requiredLegacySurfaces = new Set([
+  "`WINDOWS_TERMINAL`",
+  "`.GOV/roles_shared/runtime/*`", // legacy compatibility runtime surface
+  "`.GOV/roles_shared/runtime/validator_gates/*`", // legacy compatibility validator-gate surface
+]);
 const conditionallyRequiredLegacySurfaces = [
   {
     surface: "`.GOV/roles/validator/VALIDATOR_GATES.json`",

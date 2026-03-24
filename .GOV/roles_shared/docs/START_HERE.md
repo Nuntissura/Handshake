@@ -13,6 +13,9 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 - **Shared tooling guardrails:** `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (shared tooling memory: short append-only `Do` / `Don't` / `Why` / `Context` notes for all roles).
 - **Architecture & debug:** `.GOV/roles_shared/docs/ARCHITECTURE.md` and `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`.
 - **Session/runtime law:** `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md` plus the packet-declared external `WP_COMMUNICATION_DIR`.
+- **Parallel ownership/worktree law:** `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
+- **Canonical command surface:** `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+- **Golden governed workflow examples:** `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
 
 ## AI Agent Workflow (Mandatory for AI-Autonomous Operation)
 
@@ -63,6 +66,8 @@ just gov-check
 
 Quick reference:
 - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md` (drive-agnostic role workflow + operator UX)
+- `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` (live `just` surface by workflow family)
+- `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md` (end-to-end governed examples)
 
 ## Repo map (open in an editor and `rg`)
 - `app/` â€” React + Tauri frontend; UI components live under `app/src/`.

@@ -1,9 +1,6 @@
 import fs from "node:fs";
-import path from "node:path";
 import { validateClauseReportConsistency, validatePacketClosureMonitoring } from "../scripts/lib/packet-closure-monitor-lib.mjs";
-import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
-
-const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
+import { listOfficialWorkPacketPaths } from "../scripts/lib/runtime-paths.mjs";
 
 function fail(message, details = []) {
   console.error(`[PACKET_CLOSURE_MONITOR_CHECK] ${message}`);
@@ -30,15 +27,10 @@ function isClosedStatus(status) {
   return /\b(done|validated)\b/i.test(String(status || ""));
 }
 
-if (!fs.existsSync(PACKETS_DIR)) {
-  fail("Task packet directory missing", [PACKETS_DIR.replace(/\\/g, "/")]);
-}
-
 const violations = [];
-const files = fs.readdirSync(PACKETS_DIR).filter((name) => name.endsWith(".md") && name !== "README.md");
+const files = listOfficialWorkPacketPaths();
 
-for (const name of files) {
-  const rel = path.join(PACKETS_DIR, name).replace(/\\/g, "/");
+for (const rel of files) {
   const text = fs.readFileSync(rel, "utf8");
   const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
   const closureMonitorProfile = parseSingleField(text, "CLAUSE_CLOSURE_MONITOR_PROFILE");
@@ -87,5 +79,3 @@ if (violations.length > 0) {
 }
 
 console.log("packet-closure-monitor-check ok");
-
-

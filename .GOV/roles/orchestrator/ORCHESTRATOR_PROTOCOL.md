@@ -150,6 +150,14 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - If those surfaces diverge, correct the truth before more execution proceeds.
 - Ongoing steering must stay in packet, runtime, and thread artifacts rather than ad hoc side channels.
 
+### Legacy Packet Remediation Policy
+
+- A historical packet flagged by the computed policy gate as `LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED` is a failed historical closure, not a live execution candidate.
+- Do not reopen, re-prepare, reassign, or "finish" that historical packet in place to satisfy newer workflow law.
+- Do not mutate a locked historical packet merely to make modern gates green.
+- If more work is required, create a new remediation packet or versioned packet variant and keep the historical packet as audit evidence.
+- If stale runtime/session/task-board projections still make the historical packet look active or resumable, reconcile those projections down to historical/closed truth before new execution continues.
+
 ### Dependency Discipline [CX-573E]
 
 - Identify blockers before work starts.
@@ -442,6 +450,7 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 
 - If a previously correct WP is later behind the current spec, treat `OUTDATED_ONLY` as archival history unless the new spec actually requires fresh code work.
 - If new work is needed, create a new remediation WP instead of reopening the old packet as if it were still active execution.
+- If the old packet is blocked by `LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED`, treat that as a historical failure that requires a new remediation packet/version rather than an in-place revive.
 
 ## Orchestrator Lean Mode (HARD RULE — Token Discipline)
 

@@ -476,6 +476,7 @@ Task state is managed by the agent currently holding the "ball":
 5. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
 
 **Historical Done rule:** If a packet is marked `**Status:** Done (Historical)` (or the board marks it as historical/outdated-only), do not reopen or modify it. If new-spec work is required, request a NEW remediation WP variant from the Orchestrator.
+**Legacy remediation rule:** If the computed policy gate reports a closed structured packet as remediation-required legacy state, do not restart BOOTSTRAP/SKELETON/IMPLEMENTATION in-place even if old branch markers are missing. Treat it as failed historical closure and request a NEW remediation WP variant.
 
 **Coder Mandate:** You are responsible for updating the work packet to `In Progress` (with claim fields) and producing the bootstrap commit. Operator-visible Task Board updates on `main` are handled by the Validator via status-sync commits.
 

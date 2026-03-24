@@ -456,12 +456,12 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
     };
     registry.sessions.push(session);
   } else {
-    session.local_branch = normalizePath(sessionDescriptor.local_branch || session.local_branch || "");
-    session.local_worktree_dir = normalizePath(sessionDescriptor.local_worktree_dir || session.local_worktree_dir || "");
+    session.local_branch = normalizePath(session.local_branch || sessionDescriptor.local_branch || "");
+    session.local_worktree_dir = normalizePath(session.local_worktree_dir || sessionDescriptor.local_worktree_dir || "");
     session.terminal_title = sessionDescriptor.terminal_title || session.terminal_title || terminalTitle(sessionDescriptor.role, sessionDescriptor.wp_id);
-    session.requested_model = sessionDescriptor.requested_model || session.requested_model || "";
-    session.reasoning_config_key = sessionDescriptor.reasoning_config_key || session.reasoning_config_key || "";
-    session.reasoning_config_value = sessionDescriptor.reasoning_config_value || session.reasoning_config_value || "";
+    session.requested_model = session.requested_model || sessionDescriptor.requested_model || "";
+    session.reasoning_config_key = session.reasoning_config_key || sessionDescriptor.reasoning_config_key || "";
+    session.reasoning_config_value = session.reasoning_config_value || sessionDescriptor.reasoning_config_value || "";
     normalizeSessionRecord(session);
   }
   return session;

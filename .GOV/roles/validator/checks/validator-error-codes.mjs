@@ -8,6 +8,10 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import {
+  printValidatorContextMismatchAndExit,
+  requireValidatorProductTargets,
+} from "../scripts/lib/validator-product-targets-lib.mjs";
 
 const targets = ["src/backend/handshake_core/src"];
 const waiverMarker = "WAIVER [CX-573E]";
@@ -48,10 +52,10 @@ function shouldExclude(relativePosixPath) {
   return false;
 }
 
-function collectTargetFiles() {
+function collectTargetFiles(targetRoots) {
   const files = [];
 
-  for (const target of targets) {
+  for (const target of targetRoots) {
     const targetAbs = path.resolve(process.cwd(), target);
     if (!fs.existsSync(targetAbs)) continue;
 
@@ -177,7 +181,15 @@ function scanPatternAcrossFiles(files, pattern, label) {
 }
 
 const findings = [];
-const files = collectTargetFiles();
+const targetContext = requireValidatorProductTargets("validator-error-codes", targets, {
+  extraDetails: ["This audit inspects Rust production source files only."],
+});
+const files = collectTargetFiles(targetContext.existingTargets);
+if (files.length === 0) {
+  printValidatorContextMismatchAndExit("validator-error-codes", targetContext, [
+    "No Rust production files were found in the resolved targets.",
+  ]);
+}
 
 for (const pat of stringErrorPatterns) {
   const out = scanPatternAcrossFiles(files, pat, "string-error");

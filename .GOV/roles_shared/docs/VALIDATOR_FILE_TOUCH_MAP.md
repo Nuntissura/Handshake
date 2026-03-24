@@ -15,7 +15,7 @@ Read-only (evidence/context):
 - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
 - `.GOV/spec/SPEC_CURRENT.md`
 - `.GOV/roles_shared/records/TASK_BOARD.md`
-- `.GOV/task_packets/WP-*.md` (when validating a specific WP)
+- `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md` (when validating a specific WP)
 
 Git metadata (read-only, via `git ...`):
 - `.git/*` (including worktree metadata under `.git/worktrees/*` when using worktrees)
@@ -39,14 +39,14 @@ Git metadata (read-only, via `git ...`):
 
 `just gate-check WP-...`:
 - Reads:
-  - `.GOV/task_packets/WP-....md`
+  - `.GOV/task_packets/WP-....md` or `.GOV/task_packets/WP-..../packet.md`
 - Writes: none
 
 `just post-work WP-...`:
 - Runs `just gate-check WP-...` first, then performs deterministic manifest checks.
 - Reads:
-  - `.GOV/task_packets/WP-....md`
-  - `.GOV/refinements/WP-....md`
+  - `.GOV/task_packets/WP-....md` or `.GOV/task_packets/WP-..../packet.md`
+  - `.GOV/refinements/WP-....md` or `.GOV/task_packets/WP-..../refinement.md`
   - `.GOV/roles_shared/checks/cor701-spec.json`
   - `.GOV/roles_shared/records/TASK_BOARD.md`
   - `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`

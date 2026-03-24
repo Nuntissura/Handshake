@@ -39,6 +39,16 @@ Rule:
 - Do not wait for a fresh "proceed" after a startup/preflight rerun unless the helper says a single explicit decision is required.
 - Read the helper's `CONFIDENCE: HIGH|MEDIUM|LOW` line as the inference strength for the resumed WP selection.
 
+## High-Signal Governance References
+
+- Final validator authority split: `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+- Direct-review contract and session-repair rules: `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+- Legacy packet remediation policy: `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+- Runtime placement and archival law: `.GOV/roles_shared/README.md`
+- Parallel ownership/worktree model: `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
+- Canonical command surface: `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+- Golden governed workflow examples: `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
+
 ## Governance vs Product Checks
 
 Governance-only (does not scan `src/` or `app/`):

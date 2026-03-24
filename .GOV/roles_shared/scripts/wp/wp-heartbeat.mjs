@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   addMinutes,
+  communicationTransactionLockPathForWp,
   deriveAuthorityKinds,
   normalize,
   parseJsonFile,
@@ -16,6 +17,7 @@ import {
 } from "../lib/wp-communications-lib.mjs";
 import { appendWpReceipt } from "./wp-receipt-append.mjs";
 import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -86,7 +88,7 @@ function nullableValue(value) {
   return raw;
 }
 
-export function recordWpHeartbeat({
+function recordWpHeartbeatCore({
   wpId,
   actorRole,
   actorSession,
@@ -168,7 +170,7 @@ export function recordWpHeartbeat({
     throw new Error(`Runtime status validation failed: ${runtimeErrors.join("; ")}`);
   }
 
-  fs.writeFileSync(runtimeStatusPath, `${JSON.stringify(runtime, null, 2)}\n`, "utf8");
+  writeJsonFile(runtimeStatusPath, runtime);
 
   const nextDescriptor = NEXT_EXPECTED_SESSION ? `${NEXT_EXPECTED_ACTOR}:${NEXT_EXPECTED_SESSION}` : NEXT_EXPECTED_ACTOR;
   const waitingDescriptor = WAITING_ON_SESSION ? `${WAITING_ON} (${WAITING_ON_SESSION})` : WAITING_ON;
@@ -186,9 +188,18 @@ export function recordWpHeartbeat({
     targetRole: runtime.next_expected_actor === "NONE" ? null : runtime.next_expected_actor,
     targetSession: runtime.next_expected_session,
     correlationId: `heartbeat:${WP_ID}:${ACTOR_SESSION}:${now}`,
-  });
+  }, { assumeTransactionLock: true });
 
   return { runtimeStatusPath, runtime, summary };
+}
+
+export function recordWpHeartbeat(args = {}, options = {}) {
+  const WP_ID = String(args?.wpId || "").trim();
+  const run = () => recordWpHeartbeatCore(args);
+  if (options.assumeTransactionLock || !WP_ID || !/^WP-/.test(WP_ID)) {
+    return run();
+  }
+  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), run);
 }
 
 function runCli() {

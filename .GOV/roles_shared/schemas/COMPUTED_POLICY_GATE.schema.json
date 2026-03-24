@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/schemas/computed-policy-gate.schema.json",
+  "title": "Computed Policy Gate Result",
+  "type": "object",
+  "required": [
+    "applicable",
+    "wpId",
+    "packetFormatVersion",
+    "status",
+    "outcome",
+    "policyInputs",
+    "artifacts",
+    "issues"
+  ],
+  "properties": {
+    "applicable": {
+      "type": "boolean"
+    },
+    "wpId": {
+      "type": "string"
+    },
+    "packetFormatVersion": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["PASS", "FAIL", "REVIEW_REQUIRED", "WAIVED", "BLOCKED"]
+    },
+    "policyInputs": {
+      "type": "object"
+    },
+    "artifacts": {
+      "type": "object",
+      "required": ["requirementRegistry", "diffClaims", "witnessMatrix", "protectedSurfaceRegistry", "waiverLedger"],
+      "properties": {
+        "requirementRegistry": {
+          "type": "array"
+        },
+        "diffClaims": {
+          "type": "object"
+        },
+        "witnessMatrix": {
+          "type": "array"
+        },
+        "protectedSurfaceRegistry": {
+          "type": ["object", "null"]
+        },
+        "waiverLedger": {
+          "$ref": "./POLICY_WAIVER_LEDGER.schema.json"
+        }
+      },
+      "additionalProperties": true
+    },
+    "issues": {
+      "type": "object",
+      "required": ["all", "fail", "reviewRequired", "blocked", "waived"],
+      "properties": {
+        "all": { "type": "array" },
+        "fail": { "type": "array" },
+        "reviewRequired": { "type": "array" },
+        "blocked": { "type": "array" },
+        "waived": { "type": "array" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+

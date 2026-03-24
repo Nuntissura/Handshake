@@ -16,7 +16,7 @@ function run(cmd) {
   try {
     execSync(cmd, { stdio: "inherit" });
   } catch (err) {
-    console.error(`validator-hygiene-full: FAIL â€” command failed: ${cmd}`);
+    console.error(`validator-hygiene-full: FAIL - command failed: ${cmd}`);
     process.exit(1);
   }
 }
@@ -25,4 +25,4 @@ for (const cmd of cmds) {
   run(cmd);
 }
 
-console.log("validator-hygiene-full: PASS â€” composite hygiene clean.");
+console.log("validator-hygiene-full: PASS - composite hygiene clean.");

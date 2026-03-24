@@ -2,10 +2,24 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { EXECUTION_OWNER_RANGE_HELP } from "../scripts/session/session-policy.mjs";
+import { loadSessionRegistry } from "../scripts/session/session-registry-lib.mjs";
+import { evaluateSessionGovernanceState } from "../scripts/session/session-governance-state-lib.mjs";
 import { resolveOrchestratorGatesPath } from "../scripts/lib/runtime-paths.mjs";
 
 const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 const ORCH_GATES_PATH = resolveOrchestratorGatesPath();
+const ACTIVE_SESSION_RUNTIME_STATES = new Set([
+  "PLUGIN_REQUESTED",
+  "TERMINAL_COMMAND_DISPATCHED",
+  "PLUGIN_CONFIRMED",
+  "CLI_ESCALATION_READY",
+  "CLI_ESCALATION_USED",
+  "STARTING",
+  "READY",
+  "COMMAND_RUNNING",
+  "ACTIVE",
+  "WAITING",
+]);
 
 function runGit(args) {
   return execFileSync("git", args, { stdio: "pipe" }).toString().trim();
@@ -101,19 +115,29 @@ function main() {
   }
 
   const taskBoard = fs.readFileSync(TASK_BOARD_PATH, "utf8");
+  const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
   const inProgressWpIds = listInProgressWps(taskBoard);
-  if (inProgressWpIds.length === 0) {
+  const { registry } = loadSessionRegistry(repoRoot);
+  const activeSessionWpIds = new Set();
+  for (const session of registry.sessions || []) {
+    const runtimeState = String(session?.runtime_state || "").trim().toUpperCase();
+    if (!ACTIVE_SESSION_RUNTIME_STATES.has(runtimeState)) continue;
+    const governance = evaluateSessionGovernanceState(repoRoot, session);
+    if (!governance.launchAllowed) continue;
+    if (governance.wpId) activeSessionWpIds.add(governance.wpId);
+  }
+  const wpIdsToCheck = [...new Set([...inProgressWpIds, ...activeSessionWpIds])];
+  if (wpIdsToCheck.length === 0) {
     console.log("worktree-concurrency-check ok");
     return;
   }
 
-  const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
   const worktrees = parseWorktreeList();
   const prepares = loadPrepareMap();
   const violations = [];
   const matchedPaths = new Map();
 
-  for (const wpId of inProgressWpIds) {
+  for (const wpId of wpIdsToCheck) {
     const prepare = prepares.get(wpId) || null;
     const expectedBranch = normalizeBranch(prepare?.branch || `feat/${wpId}`);
     const worktree = worktrees.find((entry) => normalizeBranch(entry.branch) === expectedBranch);
@@ -166,7 +190,7 @@ function main() {
 
   if (violations.length > 0) {
     fail("Concurrent WPs require dedicated per-WP worktree mappings (per protocols).", [
-      `In Progress WPs: ${inProgressWpIds.length}`,
+      `Tracked WPs: ${wpIdsToCheck.length}`,
       ...violations,
     ]);
   }
@@ -175,4 +199,3 @@ function main() {
 }
 
 main();
-

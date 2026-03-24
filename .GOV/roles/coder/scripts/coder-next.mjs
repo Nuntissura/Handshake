@@ -26,6 +26,7 @@ import {
   classifyWpChangedPath,
   deriveWpScopeContract,
 } from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
+import { evaluateCoderPacketGovernanceState } from "./lib/coder-governance-lib.mjs";
 
 function resolveWpId() {
   const provided = String(process.argv[2] || "").trim();
@@ -161,6 +162,39 @@ const commonFindings = [
   `Skeleton checkpoint: ${skeletonCheckpoint ? "present" : "missing"}`,
   `Skeleton approval: ${skeletonApproved ? "present" : "missing"}`,
 ];
+const coderGovernanceState = evaluateCoderPacketGovernanceState({
+  wpId,
+  packetPath: packetPath(wpId),
+  packetContent,
+  currentWpStatus,
+});
+
+if (!coderGovernanceState.allowResume) {
+  const stopCommands = coderGovernanceState.legacyRemediationRequired
+    ? [
+        `just validator-policy-gate ${wpId}`,
+        "# STOP: Request a NEW remediation WP variant from the Orchestrator.",
+      ]
+    : [
+        postWorkCommand,
+        "# STOP: Closed or validator-owned packet; do not resume coder implementation.",
+      ];
+  const operatorAction = coderGovernanceState.legacyRemediationRequired
+    ? "Request NEW remediation WP variant; do not resume closed legacy packet in-place."
+    : "NONE";
+
+  printLifecycle({ wpId, stage: "HANDOFF", next: "STOP" });
+  printOperatorAction(operatorAction);
+  printConfidence(confidence, confidenceDetail);
+  printState(coderGovernanceState.message);
+  printFindings([
+    ...commonFindings,
+    `Computed policy outcome: ${coderGovernanceState.computedPolicy.outcome}`,
+    `Computed policy applicability: ${coderGovernanceState.computedPolicy.applicability_reason || "APPLICABLE"}`,
+  ]);
+  printNextCommands(stopCommands);
+  process.exit(0);
+}
 
 if (!bootstrapClaim) {
   printLifecycle({ wpId, stage: "BOOTSTRAP", next: "BOOTSTRAP" });
@@ -199,23 +233,6 @@ if (!skeletonApproved) {
   printNextCommands([
     `# STOP: Await skeleton approval (${skeletonApprover} runs: just skeleton-approved ${wpId})`,
     `just pre-work ${wpId}`,
-  ]);
-  process.exit(0);
-}
-
-if (
-  currentWpStatusLower.includes("validator") ||
-  currentWpStatusLower.includes("validation") ||
-  currentWpStatusLower.includes("handoff")
-) {
-  printLifecycle({ wpId, stage: "HANDOFF", next: "STOP" });
-  printOperatorAction("NONE");
-  printConfidence(confidence, confidenceDetail);
-  printState("Packet already indicates Validator handoff; coder should not resume implementation.");
-  printFindings(commonFindings);
-  printNextCommands([
-    postWorkCommand,
-    `# STOP: Await Validator review/handoff.`,
   ]);
   process.exit(0);
 }
@@ -269,4 +286,3 @@ printNextCommands([
   "# Continue implementation within IN_SCOPE_PATHS.",
   postWorkCommand,
 ]);
-

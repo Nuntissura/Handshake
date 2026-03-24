@@ -80,6 +80,44 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - Launcher config: `model_reasoning_effort=xhigh`
 - Codex model aliases are not allowed in new repo-governed claim fields.
 
+## Direct-Review Contract (Current Law)
+
+- Applies to orchestrator-managed packets that declare packet-scoped communication surfaces under `../gov_runtime/roles_shared/WP_COMMUNICATIONS/`.
+- `THREAD.md` is soft coordination only. It does not satisfy a missing structured direct-review boundary.
+- `correlation_id` opens one governed review/request chain.
+- `ack_for` closes or answers that chain and must point back to the opener's `correlation_id`. Matching only the reply-side `correlation_id` is insufficient.
+- `target_session` is required whenever the direct-review boundary is session-targeted between `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR`.
+- Receipt pairing must preserve reversed role plus session continuity. Mixed-session chains do not satisfy the boundary even if the receipt kinds look correct.
+- Notification unread state and acknowledgment are session-scoped for session-targeted review traffic. Acknowledging one governed session must not clear another session's unread boundary notifications.
+
+Required review pairs:
+- `KICKOFF`: `VALIDATOR_KICKOFF` -> `CODER_INTENT`
+- `HANDOFF`: `CODER_HANDOFF` -> `VALIDATOR_REVIEW`
+- `VERDICT`: for `PACKET_FORMAT_VERSION >= 2026-03-22`, one direct coder <-> integration-validator review pair must exist before final verdict clearance
+
+Blocking rule:
+- If `just wp-communication-health-check WP-{ID} KICKOFF|HANDOFF|VERDICT` fails, treat the boundary as not proven. Do not compensate with narrative relay or manual interpretation.
+
+## Session-Control Repair Playbook (Shared)
+
+Use these rules when governed runtime/session truth drifts or looks stale.
+
+- If the packet is obsolete, terminal, superseded, or blocked by legacy remediation policy, do not resume or steer the old governed session. Close or retire the stale session projection instead.
+- If the assigned worktree no longer exists on disk, do not resume the governed session just because it still has a thread id. Repair the worktree/packet truth first or recreate the session through the Orchestrator.
+- If broker state looks stale, compare `just handshake-acp-broker-status` with `just session-registry-status` and packet/runtime truth before acting. Use `just handshake-acp-broker-stop` only when no governed runs are active.
+- If packet communication routing looks wrong, run `just wp-communication-health-check`, `just check-notifications`, and `just ack-notifications` with the explicit role/session identity before considering any deeper repair.
+- Do not hand-edit session-control ledgers, broker state, packet receipts, or packet notifications to "unstick" a session. Prefer the governed helpers or a controlled session close/recreate flow.
+- If session/runtime truth disagrees with packet truth, packet truth still wins for scope, verdict, and acceptance. Repair the runtime projection; do not rewrite packet truth to match stale runtime state.
+- `PRINT` launch output is a repair/debug surface only. It is not proof that a governed session is healthy or resumable.
+
+## Parallel Session Constraints (Current Law)
+
+- One governed role/WP session has at most one active ACP run at a time.
+- The ordinary orchestrator-managed WP shape is one governed `CODER` lane plus one governed `WP_VALIDATOR` lane, with `INTEGRATION_VALIDATOR` joining from `handshake_main` only for final validation/closure when required.
+- Packet-scoped direct review is session-targeted. Role identity alone is not enough once multiple governed sessions may exist in the batch.
+- The Orchestrator may run multiple governed sessions in parallel across different WPs, but it must not create parallel steerable lanes that collapse authority for the same role/WP pair.
+- If the repo is in an exceptional repair state with extra same-role sessions around one WP, only the governed role/WP lane tracked by the session registry and packet communications is authoritative.
+
 ## Operational Commands
 - Orchestrator-only launch/bootstrap commands:
   - `just launch-coder-session WP-{ID}`
@@ -107,4 +145,3 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - `just session-registry-status [WP-{ID}]`
 - `just operator-monitor`
 - `just operator-admin`
-- `just handshake-acp-bridge`

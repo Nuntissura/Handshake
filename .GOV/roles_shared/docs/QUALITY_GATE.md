@@ -7,7 +7,8 @@ Purpose: reduce coding errors by standard checks and clear risk tiers.
 **[CX-620, CX-587]** Before any implementation work starts, Gate 0 MUST pass.
 
 **For Orchestrator Agents:**
-- work packet MUST exist in `.GOV/task_packets/WP-{ID}.md`
+- work packet MUST exist at the authoritative packet path:
+  `.GOV/task_packets/WP-{ID}.md` for legacy flat packets, or `.GOV/task_packets/WP-{ID}/packet.md` for folder packets
 - All work packet fields MUST be filled (no `{placeholders}`)
 - Verification: `just pre-work WP-{ID}` MUST pass
 

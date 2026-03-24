@@ -6,6 +6,7 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { requireValidatorProductTargets } from "../scripts/lib/validator-product-targets-lib.mjs";
 
 const rustTargets = ["src/backend/handshake_core/src"];
 const frontendTargets = ["app/src"];
@@ -101,9 +102,15 @@ function filterOutCfgTestMatches(rgOut) {
 }
 
 const findings = [];
+const targetContext = requireValidatorProductTargets("validator-scan", [...rustTargets, ...frontendTargets], {
+  extraDetails: ["This scan inspects backend/frontend product sources only."],
+});
+const availableTargetSet = new Set(targetContext.existingTargets.map((target) => path.normalize(target)));
+const availableRustTargets = rustTargets.filter((target) => availableTargetSet.has(path.normalize(target)));
+const availableFrontendTargets = frontendTargets.filter((target) => availableTargetSet.has(path.normalize(target)));
 
 for (const pat of forbiddenRust) {
-  let out = runRg(pat, rustTargets, GLOB_RS);
+  let out = runRg(pat, availableRustTargets, GLOB_RS);
   out = filterOutCfgTestMatches(out);
   if (out) {
     findings.push(`FORBIDDEN_PATTERN (rust) "${pat}":\n${out}`);
@@ -111,14 +118,14 @@ for (const pat of forbiddenRust) {
 }
 
 for (const pat of forbiddenFrontend) {
-  const out = runRg(pat, frontendTargets, GLOB_FRONTEND);
+  const out = runRg(pat, availableFrontendTargets, GLOB_FRONTEND);
   if (out) {
     findings.push(`FORBIDDEN_PATTERN (frontend) "${pat}":\n${out}`);
   }
 }
 
 for (const pat of placeholderRust) {
-  let out = runRg(pat, rustTargets, GLOB_RS);
+  let out = runRg(pat, availableRustTargets, GLOB_RS);
   out = filterOutCfgTestMatches(out);
   if (out) {
     out = out
@@ -133,7 +140,7 @@ for (const pat of placeholderRust) {
 }
 
 for (const pat of placeholderFrontend) {
-  const out = runRg(pat, frontendTargets, GLOB_FRONTEND);
+  const out = runRg(pat, availableFrontendTargets, GLOB_FRONTEND);
   if (out) {
     findings.push(`PLACEHOLDER/MOCK (frontend) "${pat}":\n${out}`);
   }

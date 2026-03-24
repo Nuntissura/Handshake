@@ -137,3 +137,29 @@ test("batch launch mode flips after repeated plugin failures and can be reset", 
   assert.equal(Boolean(batchSummary.launch_batch_last_reset_at), true);
   assert.equal(batchSummary.launch_batch_switch_reason, "new governed batch");
 });
+
+test("getOrCreateSessionRecord preserves original authority fields for existing sessions", () => {
+  const registry = defaultRegistry();
+  const session = getOrCreateSessionRecord(registry, {
+    wp_id: "WP-TEST",
+    role: "CODER",
+    local_branch: "feat/WP-TEST-original",
+    local_worktree_dir: "../wt-original",
+    terminal_title: "CODER WP-TEST",
+    requested_model: "gpt-5.4",
+  });
+
+  const reopened = getOrCreateSessionRecord(registry, {
+    wp_id: "WP-TEST",
+    role: "CODER",
+    local_branch: "feat/WP-TEST-rewritten",
+    local_worktree_dir: "../wt-rewritten",
+    terminal_title: "CODER WP-TEST",
+    requested_model: "gpt-5.2",
+  });
+
+  assert.equal(reopened, session);
+  assert.equal(reopened.local_branch, "feat/WP-TEST-original");
+  assert.equal(reopened.local_worktree_dir, "../wt-original");
+  assert.equal(reopened.requested_model, "gpt-5.4");
+});

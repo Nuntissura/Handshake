@@ -7,14 +7,13 @@ import readline from "node:readline";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { appendWpThreadEntry } from "../../../roles_shared/scripts/wp/wp-thread-append.mjs";
+import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import {
   communicationMonitorState,
   evaluateWpCommunicationHealth,
 } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import {
   normalize,
-  NOTIFICATIONS_FILE_NAME,
-  NOTIFICATION_CURSOR_FILE_NAME,
   parseJsonFile as sharedParseJsonFile,
   parseJsonlFile as sharedParseJsonlFile,
   REVIEW_TRACKED_RECEIPT_KIND_VALUES,
@@ -734,36 +733,17 @@ function parsePrepareAssignments() {
   }
 }
 
-function loadPendingNotifications(communicationDir) {
+function loadPendingNotifications(wpId, communicationDir) {
   const result = { total: 0, byRole: {} };
-  if (!communicationDir) return result;
-  const notificationsPath = normalize(path.join(communicationDir, NOTIFICATIONS_FILE_NAME));
-  const cursorPath = normalize(path.join(communicationDir, NOTIFICATION_CURSOR_FILE_NAME));
-  if (!fs.existsSync(notificationsPath)) return result;
-  let notifications;
   try {
-    const text = readText(notificationsPath);
-    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-    notifications = lines.map((line) => { try { return JSON.parse(line); } catch { return null; } }).filter(Boolean);
+    if (!wpId || !communicationDir) return result;
+    const checks = Object.values(checkAllNotifications({ wpId }));
+    result.total = checks.reduce((sum, entry) => sum + Number(entry.pendingCount || 0), 0);
+    for (const entry of checks) {
+      result.byRole[entry.role] = Number(entry.pendingCount || 0);
+    }
   } catch {
     return result;
-  }
-  if (notifications.length === 0) return result;
-  let cursors = {};
-  try {
-    if (fs.existsSync(cursorPath)) {
-      const cursorData = JSON.parse(readText(cursorPath));
-      cursors = cursorData.cursors || {};
-    }
-  } catch { /* ignore */ }
-  for (const entry of notifications) {
-    const targetRole = String(entry.target_role || "").toUpperCase();
-    if (!targetRole) continue;
-    const roleCursor = cursors[targetRole];
-    const lastReadAt = roleCursor?.last_read_at || null;
-    if (lastReadAt && entry.timestamp_utc <= lastReadAt) continue;
-    result.total += 1;
-    result.byRole[targetRole] = (result.byRole[targetRole] || 0) + 1;
   }
   return result;
 }
@@ -876,7 +856,7 @@ function parsePacketRecord(packetPath, prepareAssignment = null) {
     .sort()
     .at(-1) || null;
 
-  record.pendingNotifications = loadPendingNotifications(record.communicationDir);
+  record.pendingNotifications = loadPendingNotifications(record.wpId, record.communicationDir);
 
   return record;
 }

@@ -4,13 +4,17 @@
  * Ensures required fields are present and sane.
  */
 import { readFileSync } from "node:fs";
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { workPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   packetRequiresCompletionLayerVerdicts,
   packetRequiresSpecClauseMap,
   packetUsesStructuredValidationReport,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { validateClauseReportConsistency, validatePacketClosureMonitoring } from "../../../roles_shared/scripts/lib/packet-closure-monitor-lib.mjs";
+import {
+  computedPolicyOutcomeAllowsClosure,
+  evaluateComputedPolicyGateFromPacketText,
+} from "../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
 import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/semantic-proof-lib.mjs";
 
 const wpId = process.argv[2];
@@ -19,8 +23,7 @@ if (!wpId) {
   process.exit(1);
 }
 
-const resolved = resolveWorkPacketPath(wpId);
-const packetPath = resolved?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`;
+const packetPath = workPacketPath(wpId);
 
 function fail(msg) {
   console.error(`validator-packet-complete: FAIL - ${msg}`);
@@ -242,8 +245,19 @@ if (packetFormatVersion) {
   const usesRigorV3Report = /^SPLIT_DIFF_SCOPED_RIGOR_V3$/i.test(validatorReportProfile);
   const usesHeuristicRigorReport = usesRigorV2Report || usesRigorV3Report;
   const usesCompletionLayerVerdicts = packetRequiresCompletionLayerVerdicts(packetFormatVersion);
+  let computedPolicy = null;
 
   if (closureStatus && packetUsesStructuredValidationReport(packetFormatVersion)) {
+    computedPolicy = evaluateComputedPolicyGateFromPacketText(text, {
+      wpId,
+      packetPath,
+      requireClosedStatus: true,
+    });
+    if (computedPolicy.legacy_remediation_required) {
+      const details = computedPolicy.issues.blocked.map((item) => `${item.code}: ${item.message}`);
+      fail(`legacy remediation required for closed structured packet${details.length > 0 ? ` (${details.join("; ")})` : ""}`);
+    }
+
     if (usesClauseClosureMonitor) {
       const closureMonitorValidation = validatePacketClosureMonitoring(text, {
         requireRows: true,
@@ -368,6 +382,7 @@ if (packetFormatVersion) {
     const disposition = dispositionMatch ? (dispositionMatch[1] || "").trim().toUpperCase() : "";
     const mainBodyGaps = extractListItemsAfterLabel(validationReports, "MAIN_BODY_GAPS");
     const qualityRisks = extractListItemsAfterLabel(validationReports, "QUALITY_RISKS");
+    const notProvenItems = extractListItemsAfterLabel(validationReports, "NOT_PROVEN");
     const attackSurfaces = extractListItemsAfterLabel(validationReports, "DIFF_ATTACK_SURFACES");
     const independentChecks = extractListItemsAfterLabel(validationReports, "INDEPENDENT_CHECKS_RUN");
     const counterfactualChecks = extractListItemsAfterLabel(validationReports, "COUNTERFACTUAL_CHECKS");
@@ -480,6 +495,15 @@ if (packetFormatVersion) {
       if (passConsistency.errors.length > 0) {
         fail(`SPEC pass closure monitoring invalid: ${passConsistency.errors.join("; ")}`);
       }
+    }
+
+    if (computedPolicy.applicable && !computedPolicyOutcomeAllowsClosure(computedPolicy)) {
+      const details = [
+        ...computedPolicy.issues.fail,
+        ...computedPolicy.issues.blocked,
+        ...computedPolicy.issues.reviewRequired,
+      ].map((item) => `${item.code}: ${item.message}`);
+      fail(`computed policy gate outcome ${computedPolicy.outcome}${details.length > 0 ? ` (${details.join("; ")})` : ""}`);
     }
   }
 }

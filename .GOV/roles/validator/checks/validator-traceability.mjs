@@ -7,6 +7,7 @@
  * Exits non-zero only if required fields are absent.
  */
 import { execSync } from "node:child_process";
+import { requireValidatorProductTargets } from "../scripts/lib/validator-product-targets-lib.mjs";
 
 const targets = process.argv.slice(2);
 const defaultTargets = [
@@ -15,7 +16,11 @@ const defaultTargets = [
   "src/backend/handshake_core/src/storage",
 ];
 
-const scopes = targets.length > 0 ? targets : defaultTargets;
+const scopeContext = requireValidatorProductTargets("validator-traceability", targets.length > 0 ? targets : defaultTargets, {
+  explicitTargets: targets.length > 0,
+  extraDetails: ["This audit inspects product workflow/api/storage paths only."],
+});
+const scopes = scopeContext.existingTargets;
 
 function runRg(pattern) {
   const cmd = `rg --hidden --no-heading --line-number "${pattern}" ${scopes.join(

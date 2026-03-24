@@ -8,6 +8,7 @@ export const ORCHESTRATOR_GATES_PATH = resolveOrchestratorGatesPath();
 export const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
 export const TERMINAL_TASK_BOARD_STATUSES = ["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"];
 export const IMPLICIT_ORCHESTRATOR_RESUME_LOOKBACK_HOURS = 168;
+export const ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES = ["READY_FOR_DEV", "IN_PROGRESS", "BLOCKED"];
 
 function safeExec(command) {
   try {
@@ -77,15 +78,28 @@ export function inferWpIdFromBranch(branch) {
 }
 
 export function packetPath(wpId) {
-  return resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  return packetPathAtRepo(wpId);
+}
+
+export function packetPathAtRepo(wpId, referenceRepoRoot = "") {
+  const packetPathRel = resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  return referenceRepoRoot ? path.join(referenceRepoRoot, packetPathRel) : packetPathRel;
 }
 
 export function packetExists(wpId) {
-  return exists(packetPath(wpId));
+  return packetExistsAtRepo(wpId);
+}
+
+export function packetExistsAtRepo(wpId, referenceRepoRoot = "") {
+  return exists(packetPathAtRepo(wpId, referenceRepoRoot));
 }
 
 export function loadPacket(wpId) {
-  const filePath = packetPath(wpId);
+  return loadPacketAtRepo(wpId);
+}
+
+export function loadPacketAtRepo(wpId, referenceRepoRoot = "") {
+  const filePath = packetPathAtRepo(wpId, referenceRepoRoot);
   return exists(filePath) ? readUtf8(filePath) : "";
 }
 
@@ -228,8 +242,16 @@ function isRecentImplicitResumeTimestamp(timestamp) {
 
 export function taskBoardEntries() {
   if (!exists(TASK_BOARD_PATH)) return [];
+  return taskBoardEntriesAtRepo();
+}
+
+export function taskBoardEntriesAtRepo(repoRoot = "") {
+  const taskBoardPath = repoRoot
+    ? path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md")
+    : TASK_BOARD_PATH;
+  if (!exists(taskBoardPath)) return [];
   const entries = [];
-  const content = readUtf8(TASK_BOARD_PATH);
+  const content = readUtf8(taskBoardPath);
   const pattern = /^- \*\*\[(WP-[^\]]+)\]\*\* - \[([^\]]+)\]/gm;
   let match = pattern.exec(content);
   while (match) {
@@ -363,8 +385,8 @@ export function comparePrepareAgainstPacketTruth(packetContent, prepareEntry, re
 }
 
 export function preparePacketTruthState(wpId, prepareEntry, referenceRepoRoot) {
-  const filePath = packetPath(wpId);
-  const packetContent = loadPacket(wpId);
+  const filePath = packetPathAtRepo(wpId, referenceRepoRoot);
+  const packetContent = loadPacketAtRepo(wpId, referenceRepoRoot);
   if (!packetContent) {
     return {
       ok: true,
@@ -497,6 +519,76 @@ export function activeOrchestratorCandidates(logs) {
       return isRecentImplicitResumeTimestamp(entry?.timestamp);
     })
     .sort((left, right) => String(right.timestamp || "").localeCompare(String(left.timestamp || "")));
+}
+
+function uniqueSorted(values) {
+  return [...new Set(values.filter(Boolean))].sort((left, right) => left.localeCompare(right));
+}
+
+export function workflowStartReadinessState({ repoRoot, gateLogs } = {}) {
+  const resolvedRepoRoot = repoRoot || currentGitContext().topLevel || process.cwd();
+  const logs = Array.isArray(gateLogs) ? gateLogs : loadOrchestratorGateLogs();
+  const activeBoardEntries = taskBoardEntriesAtRepo(resolvedRepoRoot)
+    .filter((entry) => ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES.includes(String(entry.status || "").trim().toUpperCase()));
+  const activeBoardWpIds = uniqueSorted(activeBoardEntries.map((entry) => entry.wpId));
+  const activeCandidateWpIds = uniqueSorted(activeOrchestratorCandidates(logs).map((entry) => entry.wpId));
+  const candidateWpIdSet = new Set(activeCandidateWpIds);
+  const wpIds = uniqueSorted([...activeBoardWpIds, ...activeCandidateWpIds]);
+  const violations = [];
+
+  for (const wpId of wpIds) {
+    const boardStatus = taskBoardStatusAtRepo(resolvedRepoRoot, wpId) || "<none>";
+    const prepareEntry = lastGateLog(logs, wpId, "PREPARE");
+    const hasPacket = packetExistsAtRepo(wpId, resolvedRepoRoot);
+    const boardSaysActive = ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES.includes(boardStatus);
+    const candidateSaysActive = candidateWpIdSet.has(wpId);
+    const requiresPreparedAuthority = boardStatus === "IN_PROGRESS" || candidateSaysActive;
+
+    if (boardSaysActive && !hasPacket) {
+      violations.push(`${wpId}: TASK_BOARD is ${boardStatus}, but the official packet is missing`);
+    }
+    if (requiresPreparedAuthority && !prepareEntry) {
+      violations.push(`${wpId}: TASK_BOARD is ${boardStatus}, but no PREPARE authority exists in ORCHESTRATOR_GATES`);
+    }
+    if (prepareEntry && !boardSaysActive && candidateSaysActive) {
+      violations.push(`${wpId}: PREPARE authority exists, but TASK_BOARD is ${boardStatus} instead of READY_FOR_DEV|IN_PROGRESS|BLOCKED`);
+    }
+    if (!prepareEntry || !requiresPreparedAuthority) continue;
+
+    const packetTruth = preparePacketTruthState(wpId, prepareEntry, resolvedRepoRoot);
+    if (!packetTruth.ok) {
+      for (const issue of packetTruth.issues) {
+        violations.push(`${wpId}: ${issue}`);
+      }
+    }
+
+    if (!packetTruth.packetPresent) {
+      const worktreeAbs = resolvePrepareWorktreeAbs(prepareEntry, resolvedRepoRoot);
+      if (!worktreeAbs) {
+        violations.push(`${wpId}: PREPARE is missing worktree_dir`);
+      } else if (!exists(worktreeAbs)) {
+        violations.push(`${wpId}: PREPARE points to a missing worktree: ${worktreeAbs}`);
+      }
+      continue;
+    }
+
+    const syncState = preparedWorktreeSyncState(wpId, prepareEntry, resolvedRepoRoot);
+    if (!syncState.ok) {
+      for (const issue of syncState.issues) {
+        violations.push(`${wpId}: ${issue}`);
+      }
+    }
+  }
+
+  return {
+    ok: violations.length === 0,
+    repoRoot: resolvedRepoRoot,
+    activeBoardWpIds,
+    activeCandidateWpIds,
+    checkedWps: wpIds.length,
+    wpIds,
+    violations,
+  };
 }
 
 export function inferOrchestratorWpId(logs, gitContext) {

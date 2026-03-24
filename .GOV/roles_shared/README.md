@@ -11,7 +11,9 @@ Authoritative folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the 
 - `records/`
   - authoritative shared ledgers, registries, and pointers
 - `runtime/`
-  - repo-local machine-written governance state that intentionally remains versioned in-repo (currently governance snapshots and archive-only runtime reference material)
+  - repo-local machine-written governance state that intentionally remains versioned in-repo
+  - allowed local exceptions are narrow: `runtime/PRODUCT_GOVERNANCE_SNAPSHOT.json` plus archive-only `runtime/validator_gates/`
+  - live launch/control/WP-communication/topology runtime must stay external under `../gov_runtime/roles_shared/`
 - `exports/`
   - canonical shared export surfaces
 - `schemas/`
@@ -39,6 +41,12 @@ Authoritative folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the 
 - External repo-governance runtime root:
   - default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`
   - overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`
+- Runtime classes:
+  - authoritative live runtime: external session registry, launch/control ledgers, packet communication ledgers, and live validator gate state under `../gov_runtime/roles_shared/`
+  - diagnostic runtime: broker state and per-command control output logs under the same external runtime root
+  - versioned repo-local exception: `runtime/PRODUCT_GOVERNANCE_SNAPSHOT.json`
+  - archive-only local reference: `runtime/validator_gates/`
+- Stale live runtime residue does not belong under `/.GOV/roles_shared/runtime/`. Remove it or move it out of the active runtime bucket; do not create new repo-local live runtime side channels.
 - external `roles_shared/ROLE_SESSION_REGISTRY.json`
 - external `roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
 - external `roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
@@ -47,5 +55,7 @@ Authoritative folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the 
 - external `roles_shared/WP_COMMUNICATIONS/`
 - external `roles_shared/validator_gates/`
 - `runtime/PRODUCT_GOVERNANCE_SNAPSHOT.json`
+- `runtime/validator_gates/`
+  - archive-only legacy reference; new live validator gate writes are forbidden here
 
 Historical/reference studies no longer belong in this directory root. Shared non-authoritative reference material belongs under `.GOV/reference/`.

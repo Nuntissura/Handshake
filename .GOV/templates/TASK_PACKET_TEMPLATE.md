@@ -381,9 +381,14 @@ Next: N/A
   - path/to/file
 - OUT_OF_SCOPE:
   - out/of/scope/path
+- TOUCHED_FILE_BUDGET: 1
+<!-- Max unique in-scope files allowed in the evaluated diff. Raise intentionally before coding if the packet truly needs broader edit spread. -->
+- BROAD_TOOL_ALLOWLIST: NONE
+<!-- Allowed: NONE | FORMATTER | CODEGEN | SEARCH_REPLACE | MIGRATION_REWRITE -->
 
 ## WAIVERS GRANTED
-- (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
+- (Record explicit user waivers here per [CX-573F]. Prefer pipe records so the computed policy gate can classify them deterministically.)
+- (Format: `- WAIVER_ID: CX-... | STATUS: ACTIVE | COVERS: SCOPE, PROOF, TEST, ENVIRONMENT, PROTECTED_SURFACE, HEURISTIC | SCOPE: <WP/local scope> | JUSTIFICATION: <why> | APPROVER: <user/operator> | EXPIRES: <date or condition>`.)
 - NONE
 
 ## QUALITY_GATE

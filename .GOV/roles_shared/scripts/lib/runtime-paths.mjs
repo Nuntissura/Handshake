@@ -74,6 +74,68 @@ export function govRootRelPath(...segments) {
   return normalizePath(path.join(GOV_ROOT_REPO_REL, ...segments));
 }
 
+export function listWorkPacketEntriesAt(taskPacketsRootAbs, taskPacketsRootRel, options = {}) {
+  const rootAbs = path.resolve(String(taskPacketsRootAbs || ""));
+  const rootRel = normalizePath(taskPacketsRootRel);
+  const skipDirNames = new Set(options.skipDirNames || []);
+  if (!rootAbs || !fs.existsSync(rootAbs)) return [];
+
+  const entries = [];
+  for (const dirent of fs.readdirSync(rootAbs, { withFileTypes: true })) {
+    if (dirent.isDirectory()) {
+      if (skipDirNames.has(dirent.name)) continue;
+      const packetPathAbs = path.join(rootAbs, dirent.name, "packet.md");
+      if (!fs.existsSync(packetPathAbs)) continue;
+      entries.push({
+        wpId: dirent.name,
+        packetPath: normalizePath(path.join(rootRel, dirent.name, "packet.md")),
+        packetDir: normalizePath(path.join(rootRel, dirent.name)),
+        isFolder: true,
+      });
+      continue;
+    }
+
+    if (!dirent.isFile()) continue;
+    if (!dirent.name.endsWith(".md") || dirent.name === "README.md") continue;
+    const wpId = dirent.name.replace(/\.md$/i, "");
+    if (!/^WP-/.test(wpId)) continue;
+    entries.push({
+      wpId,
+      packetPath: normalizePath(path.join(rootRel, dirent.name)),
+      packetDir: rootRel,
+      isFolder: false,
+    });
+  }
+
+  return entries.sort((left, right) =>
+    left.wpId.localeCompare(right.wpId)
+    || left.packetPath.localeCompare(right.packetPath)
+  );
+}
+
+export function listOfficialWorkPacketEntries() {
+  return listWorkPacketEntriesAt(
+    govRootAbsPath("task_packets"),
+    govRootRelPath("task_packets"),
+    { skipDirNames: ["stubs"] },
+  );
+}
+
+export function listOfficialWorkPacketPaths() {
+  return listOfficialWorkPacketEntries().map((entry) => entry.packetPath);
+}
+
+export function listStubWorkPacketEntries() {
+  return listWorkPacketEntriesAt(
+    govRootAbsPath("task_packets", "stubs"),
+    govRootRelPath("task_packets", "stubs"),
+  );
+}
+
+export function listStubWorkPacketPaths() {
+  return listStubWorkPacketEntries().map((entry) => entry.packetPath);
+}
+
 /**
  * Resolve work packet path — supports both folder structure and flat file.
  * Folder: .GOV/task_packets/WP-{ID}/packet.md (new)

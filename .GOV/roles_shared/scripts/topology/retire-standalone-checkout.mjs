@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import {
+  REPO_ROOT,
   WORKSPACE_ROOT,
   currentBranchInRepo,
   dirtyInRepo,
@@ -30,7 +31,7 @@ function usage() {
     "Usage: node .GOV/roles_shared/scripts/topology/retire-standalone-checkout.mjs <CHECKOUT_ID> --approve \"approved|proceed\" [--archive-root <path>] [--precreated-snapshot-root <path>] [--stash-dirty]",
     [
       "Present the exact retirement action + target list to the Operator and capture `approved` or `proceed` for that list before running this helper.",
-      "Example: node .GOV/roles_shared/scripts/topology/retire-standalone-checkout.mjs wt-orchestrator --approve approved --stash-dirty",
+      "Example: node .GOV/roles_shared/scripts/topology/retire-standalone-checkout.mjs wt-legacy-checkout --approve approved --stash-dirty",
     ],
   );
 }
@@ -121,8 +122,8 @@ function listRegisteredWorktrees(repoDir) {
 
 function createSafetySnapshot(checkoutId) {
   const label = `pre-retire-${checkoutId}`;
-  execFileSync(process.execPath, [path.join(WORKSPACE_ROOT, "wt-gov-kernel", ".GOV/roles_shared/scripts/topology/backup-snapshot.mjs"), "--label", label], {
-    cwd: path.resolve(WORKSPACE_ROOT, "wt-gov-kernel"),
+  execFileSync(process.execPath, [path.join(REPO_ROOT, ".GOV/roles_shared/scripts/topology/backup-snapshot.mjs"), "--label", label], {
+    cwd: REPO_ROOT,
     stdio: "inherit",
   });
 }

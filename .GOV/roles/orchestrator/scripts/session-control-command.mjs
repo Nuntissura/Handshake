@@ -24,6 +24,7 @@ import {
   SESSION_CONTROL_RUN_STALE_GRACE_SECONDS,
   SESSION_CONTROL_RUN_TIMEOUT_SECONDS,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
 import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const commandKind = String(process.argv[2] || "").trim().toUpperCase();
@@ -71,7 +72,6 @@ assertOrchestratorLaunchAuthority(currentBranch);
 const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
 
 const selectedModel = selectModel(requestedModel);
-ensureSessionStateFiles(repoRoot);
 const sessionDescriptor = {
   wp_id: wpId,
   role,
@@ -94,7 +94,30 @@ function ensureSessionRecord() {
   });
 }
 
+const startGovernance = commandKind === "START_SESSION"
+  ? evaluateSessionGovernanceState(repoRoot, sessionDescriptor)
+  : null;
+
+if (commandKind === "START_SESSION" && startGovernance && !startGovernance.launchAllowed) {
+  fail(
+    `Governed session ${role}:${wpId} cannot be started: ${startGovernance.launchBlockers.join("; ")}`,
+  );
+}
+
+ensureSessionStateFiles(repoRoot);
 let session = ensureSessionRecord();
+const governance = commandKind === "START_SESSION"
+  ? startGovernance
+  : evaluateSessionGovernanceState(repoRoot, {
+    ...sessionDescriptor,
+    ...session,
+  });
+
+if (commandKind === "SEND_PROMPT" && !governance.steeringAllowed) {
+  fail(
+    `Governed session ${session.session_key} cannot be steered: ${governance.steeringBlockers.join("; ")}`,
+  );
+}
 
 if (commandKind === "CANCEL_SESSION") {
   const targetCommandId = (session.last_command_status === "RUNNING" ? session.last_command_id : "") || session.last_command_id || "";

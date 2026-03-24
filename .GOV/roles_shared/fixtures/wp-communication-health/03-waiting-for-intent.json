@@ -15,7 +15,9 @@
         "actor_role": "WP_VALIDATOR",
         "target_role": "CODER",
         "correlation_id": "kick-1",
-        "summary": "Tripwires and clause checklist posted."
+        "summary": "Tripwires and clause checklist posted.",
+        "actor_session": "wpv-1",
+        "target_session": "coder-1"
       }
     ],
     "runtimeStatus": {

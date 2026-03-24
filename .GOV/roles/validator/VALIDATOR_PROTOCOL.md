@@ -93,6 +93,15 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
+## Final Validator Authority (Current Law)
+
+- For orchestrator-managed WPs, `WP_VALIDATOR` is an advisory technical reviewer only.
+- For orchestrator-managed WPs, `INTEGRATION_VALIDATOR` owns the final merge-ready technical verdict and merge-to-`main` authority unless the packet explicitly overrides that split.
+- `CLASSICAL_VALIDATOR` owns final closure only when the repo is intentionally using the classical / non-orchestrator-managed validator lane.
+- `WP_VALIDATOR` may inspect live coder progress, block weak proof, request repair, and append review evidence, but it must not stand in for `INTEGRATION_VALIDATOR` when final merge-ready authority is required.
+- Final merge-ready authority must be attributable to both validator role and governed session identity. If a gate artifact is role-blind or session-blind, do not treat that artifact alone as sufficient final-authority proof; reconcile it against the session registry, packet receipts, and packet runtime truth.
+- If any wrapper, gate, or runtime projection appears to let `WP_VALIDATOR` exercise final merge-ready authority for an orchestrator-managed WP, treat that as a governance defect and STOP.
+
 ## Drive-Agnostic Governance [CX-109] (HARD)
 
 - Treat all role workflow paths as repo-relative placeholders (see `.GOV/roles_shared/docs/ROLE_WORKTREES.md`).
@@ -250,6 +259,7 @@ Resume rule (hard, anti-babysit):
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
 - STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a sync/destructive action that still needs explicit authorization.
 - `just validator-startup` remains the universal validator startup command. It is necessary but not sufficient for independent external revalidation of an orchestrator-managed WP; that audit mode requires `just external-validator-brief WP-{ID}` immediately after startup and before any verdict work.
+- Legacy remediation rule (hard): if `just validator-next` or the computed policy gate reports `LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED`, treat the packet as a failed historical closure. Do not reopen validator gates, present PASS, merge, or sync it in place. Request a new remediation WP variant instead.
 
 ## WP Communication Folder (when the packet defines it)
 
@@ -284,6 +294,7 @@ Resume rule (hard, anti-babysit):
   - `WP Validator` = advisory technical reviewer for the WP; may inspect current coder work and request steering through packet communications plus Orchestrator-owned ACP controls
   - `Integration Validator` = final technical and merge authority for orchestrator-managed WPs
   - only the `Classical Validator` or `Integration Validator` may own the final merge-ready verdict unless the packet explicitly says otherwise
+  - a role-blind gate row is not enough by itself to prove final authority; use validator role plus governed session identity
 - Do not poll continuously. The Validator should wake on explicit packet assignment, `ready_for_validation=true`, `validator_trigger != NONE`, a validation handoff receipt, or an explicit operator/orchestrator instruction.
 - Update runtime status and append a receipt on validation start, validation query, blocker, verdict-ready handoff, completion, and every packet heartbeat interval only while actively validating.
 - Prefer deterministic helpers over hand-editing these files:
@@ -617,6 +628,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - `LEGAL_VERDICT` is the only legal top-line verdict field. `CODE_VERDICT`, `GOVERNANCE_VERDICT`, `ENVIRONMENT_VERDICT`, and `DISPOSITION` are split assessments/classifications only.
 - If the validator is in the wrong checkout or cannot access the committed PREPARE worktree source of truth, classify that as `VALIDATION_CONTEXT: CONTEXT_MISMATCH`, keep the blocked assessment at `NOT_RUN`, and use `LEGAL_VERDICT: PENDING` until the validation is rerun from the correct governance context.
 - A `CONTEXT_MISMATCH` is not, by itself, proof that the WP implementation failed.
+- If computed policy reports `LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED`, do not produce an external revalidation report for that packet. Treat it as a failed historical closure and request a new remediation WP variant instead.
 - If the WP remains correct for its baseline but SPEC_TARGET evolved materially, keep the legal verdict in `PASS | FAIL | PENDING` and set `DISPOSITION: OUTDATED_ONLY`.
 - `OUTDATED_ONLY` is a disposition, not a legal top-line verdict.
 

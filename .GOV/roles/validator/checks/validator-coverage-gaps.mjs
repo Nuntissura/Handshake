@@ -7,6 +7,7 @@
  * Exits non-zero if no tests are detected in the given targets.
  */
 import { execSync } from "node:child_process";
+import { requireValidatorProductTargets } from "../scripts/lib/validator-product-targets-lib.mjs";
 
 const targets = process.argv.slice(2);
 const defaultTargets = [
@@ -16,7 +17,11 @@ const defaultTargets = [
   "app/src",
 ];
 
-const scopes = targets.length > 0 ? targets : defaultTargets;
+const scopeContext = requireValidatorProductTargets("validator-coverage-gaps", targets.length > 0 ? targets : defaultTargets, {
+  explicitTargets: targets.length > 0,
+  extraDetails: ["This helper inspects product source/test paths only."],
+});
+const scopes = scopeContext.existingTargets;
 
 const patterns = [
   { label: "rust_tests", pattern: "#\\[test\\]" },

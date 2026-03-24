@@ -236,13 +236,43 @@ export async function inspectHandshakeAcpBroker(repoRoot) {
 
 export async function shutdownHandshakeAcpBroker(repoRoot, { force = false } = {}) {
   const inspected = await inspectHandshakeAcpBroker(repoRoot);
-  const { state, authToken, brokerIsAlive, brokerIsReachable } = inspected;
-  if (!brokerIsAlive || !brokerIsReachable) {
+  const { state, authToken, brokerIsAlive, brokerIsReachable, buildMatches } = inspected;
+  if (!brokerIsAlive) {
     return {
       status: "not_running",
       broker: state || null,
     };
   }
+
+  const activeRunCount = Array.isArray(state?.active_runs) ? state.active_runs.length : 0;
+  if (!buildMatches) {
+    if (activeRunCount > 0 && !force) {
+      return {
+        status: "build_mismatch_with_active_runs",
+        broker: state,
+      };
+    }
+    killProcessTree(state?.broker_pid || 0);
+    return {
+      status: "killed_mismatched_broker",
+      broker: state,
+    };
+  }
+
+  if (!brokerIsReachable) {
+    if (activeRunCount > 0 && !force) {
+      return {
+        status: "unreachable_with_active_runs",
+        broker: state,
+      };
+    }
+    killProcessTree(state?.broker_pid || 0);
+    return {
+      status: "killed_unreachable_broker",
+      broker: state,
+    };
+  }
+
   const result = await callBrokerRpc({
     broker: state,
     authToken,

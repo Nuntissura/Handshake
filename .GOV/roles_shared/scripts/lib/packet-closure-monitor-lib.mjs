@@ -38,9 +38,9 @@ function extractSectionAfterHeading(text, heading) {
 
 function extractListItemsAfterLabel(sectionText, label) {
   const lines = String(sectionText || '').split(/\r?\n/);
-  const labelRe = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*$`, 'i');
+  const labelRe = new RegExp(`^(?:-\\s*)?(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*$`, 'i');
   const headingRe = /^#{1,6}\s+\S/;
-  const nextLabelRe = /^\s*-\s*(?:\*\*)?[A-Z][A-Z0-9_ ()/.-]*(?:\*\*)?\s*:\s*$/;
+  const nextLabelRe = /^(?:-\s*)?(?:\*\*)?[A-Z][A-Z0-9_ ()/.-]*(?:\*\*)?\s*:\s*(?:.+)?$/;
   const labelIdx = lines.findIndex((line) => labelRe.test(line));
   if (labelIdx === -1) return [];
 
@@ -49,7 +49,7 @@ function extractListItemsAfterLabel(sectionText, label) {
     const line = lines[index];
     if (headingRe.test(line)) break;
     if (nextLabelRe.test(line)) break;
-    const match = line.match(/^\s{2,}-\s+(.+)\s*$/);
+    const match = line.match(/^\s*-\s+(.+)\s*$/);
     if (match) items.push((match[1] || '').trim());
   }
   return items;

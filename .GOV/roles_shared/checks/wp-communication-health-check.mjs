@@ -3,10 +3,12 @@
 import fs from "node:fs";
 import {
   COMMUNICATION_HEALTH_STAGE_VALUES,
+  evaluateWpCommunicationBoundary,
   evaluateWpCommunicationHealth,
 } from "../scripts/lib/wp-communication-health-lib.mjs";
 import { normalize, parseJsonFile, parseJsonlFile } from "../scripts/lib/wp-communications-lib.mjs";
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { checkAllNotifications } from "../scripts/wp/wp-check-notifications.mjs";
 
 function usage() {
   console.error(
@@ -64,6 +66,8 @@ const receipts = context.receiptsFile && fs.existsSync(context.receiptsFile)
 const runtimeStatus = context.runtimeStatusFile && fs.existsSync(context.runtimeStatusFile)
   ? parseJsonFile(context.runtimeStatusFile)
   : { open_review_items: [] };
+const latestReceipt = receipts.at(-1) || null;
+const pendingNotifications = Object.values(checkAllNotifications({ wpId })).flatMap((entry) => entry.notifications || []);
 
 const evaluation = evaluateWpCommunicationHealth({
   wpId,
@@ -77,4 +81,40 @@ const evaluation = evaluateWpCommunicationHealth({
   runtimeStatus,
 });
 
-printResult(evaluation);
+const statusEvaluation = stage === "STATUS"
+  ? evaluation
+  : evaluateWpCommunicationHealth({
+    wpId,
+    stage: "STATUS",
+    packetPath: context.packetPath,
+    workflowLane: context.workflowLane,
+    packetFormatVersion: context.packetFormatVersion,
+    communicationContract: context.communicationContract,
+    communicationHealthGate: context.communicationHealthGate,
+    receipts,
+    runtimeStatus,
+  });
+const boundary = evaluateWpCommunicationBoundary({
+  stage,
+  statusEvaluation,
+  runtimeStatus,
+  latestReceipt,
+  pendingNotifications,
+});
+
+printResult({
+  ...evaluation,
+  ok: evaluation.ok && boundary.ok,
+  message: !evaluation.ok
+    ? evaluation.message
+    : boundary.ok
+      ? evaluation.message
+      : "Direct review route projection or notification boundary is inconsistent",
+  details: [
+    ...(evaluation.details || []),
+    ...(boundary.issues || []),
+    ...((boundary.boundaryNotifications || []).map((entry) =>
+      `pending_notification=${entry.source_kind}:${entry.source_role}->${entry.target_role}:${entry.correlation_id || "<none>"}:${entry.summary}`
+    )),
+  ],
+});

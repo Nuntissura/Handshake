@@ -11,6 +11,8 @@ const LEGACY_SCOPE_PLACEHOLDERS = new Set([
   "PATH/TO/FILE",
   "OUT/OF/SCOPE/PATH",
 ]);
+export const SCOPE_DISCIPLINE_PACKET_MIN_VERSION = "2026-03-23";
+export const BROAD_TOOL_ALLOWLIST_VALUES = ["NONE", "FORMATTER", "CODEGEN", "SEARCH_REPLACE", "MIGRATION_REWRITE"];
 
 export function normalizeRepoPath(value) {
   let raw = String(value || "").trim().replace(/^`|`$/g, "");
@@ -94,6 +96,98 @@ export function normalizeScopeEntries(entries) {
     normalized.push(value);
   }
   return Array.from(new Set(normalized));
+}
+
+export function parsePacketSingleField(packetContent, label) {
+  const match = String(packetContent || "").match(
+    new RegExp(`^\\s*-\\s*(?:\\*\\*)?${escapeRegex(label)}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi"),
+  );
+  return match ? match[1].trim() : "";
+}
+
+export function isVersionAtLeast(current, minimum) {
+  const currentValue = String(current || "").trim();
+  const minimumValue = String(minimum || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(currentValue) || !/^\d{4}-\d{2}-\d{2}$/.test(minimumValue)) {
+    return false;
+  }
+  return currentValue >= minimumValue;
+}
+
+function parseBroadToolAllowlist(rawValue) {
+  const raw = String(rawValue || "").trim();
+  if (!raw) {
+    return {
+      raw,
+      values: [],
+      invalidTokens: [],
+      valid: false,
+    };
+  }
+
+  const tokens = raw
+    .split(",")
+    .map((value) => value.trim().toUpperCase())
+    .filter(Boolean);
+  const unique = Array.from(new Set(tokens));
+  if (unique.length === 0) {
+    return {
+      raw,
+      values: [],
+      invalidTokens: [],
+      valid: false,
+    };
+  }
+
+  const invalidTokens = unique.filter((token) => !BROAD_TOOL_ALLOWLIST_VALUES.includes(token));
+  if (invalidTokens.length > 0) {
+    return {
+      raw,
+      values: unique.filter((token) => BROAD_TOOL_ALLOWLIST_VALUES.includes(token)),
+      invalidTokens,
+      valid: false,
+    };
+  }
+
+  if (unique.includes("NONE") && unique.length > 1) {
+    return {
+      raw,
+      values: unique,
+      invalidTokens: ["NONE_WITH_OTHERS"],
+      valid: false,
+    };
+  }
+
+  return {
+    raw,
+    values: unique,
+    invalidTokens: [],
+    valid: true,
+  };
+}
+
+export function parsePacketScopeDiscipline(packetContent) {
+  const touchedFileBudgetRaw = parsePacketSingleField(packetContent, "TOUCHED_FILE_BUDGET");
+  const broadToolAllowlistRaw = parsePacketSingleField(packetContent, "BROAD_TOOL_ALLOWLIST");
+  const touchedFileBudget = Number.parseInt(touchedFileBudgetRaw, 10);
+  const hasTouchedFileBudget = Boolean(touchedFileBudgetRaw);
+  const touchedFileBudgetValid = hasTouchedFileBudget && Number.isInteger(touchedFileBudget) && touchedFileBudget >= 1;
+  const broadToolAllowlist = parseBroadToolAllowlist(broadToolAllowlistRaw);
+
+  return {
+    touchedFileBudgetRaw,
+    touchedFileBudget,
+    hasTouchedFileBudget,
+    touchedFileBudgetValid,
+    broadToolAllowlistRaw,
+    broadToolAllowlist: broadToolAllowlist.values,
+    broadToolAllowlistValid: broadToolAllowlist.valid,
+    invalidBroadToolTokens: broadToolAllowlist.invalidTokens,
+  };
+}
+
+export function scopeDisciplineRequiresEnforcement(packetFormatVersion) {
+  return isVersionAtLeast(packetFormatVersion, SCOPE_DISCIPLINE_PACKET_MIN_VERSION);
 }
 
 export function isPlaceholderScopeEntry(value) {
@@ -233,4 +327,15 @@ export function classifyWpChangedPath(filePath, scopeContract) {
   }
 
   return { path: normalized, kind: "OUT_OF_SCOPE", allowed: false };
+}
+
+export function collectBudgetCountedFiles(changedFiles, scopeContract) {
+  const counted = new Set();
+  for (const changedFile of changedFiles || []) {
+    const classification = classifyWpChangedPath(changedFile, scopeContract);
+    if (classification.kind === "IN_SCOPE") {
+      counted.add(classification.path);
+    }
+  }
+  return [...counted];
 }

@@ -1,8 +1,10 @@
 import {
+  DIRECT_REVIEW_SESSION_ROLE_VALUES,
   DIRECT_REVIEW_CONTRACT_VERSION,
   DIRECT_REVIEW_HEALTH_GATE,
   FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
+  REVIEW_TRACKED_RECEIPT_KIND_VALUES,
 } from "./wp-communications-lib.mjs";
 
 export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
@@ -57,7 +59,21 @@ function matchingReply(openReceipt, resolutionReceipts) {
   return resolutionReceipts.find((entry) => {
     const replyCorrelation = String(entry?.correlation_id || "").trim();
     const ackFor = String(entry?.ack_for || "").trim();
-    return replyCorrelation === correlationId || ackFor === correlationId;
+    const openActorRole = normalizeRole(openReceipt?.actor_role);
+    const openTargetRole = normalizeRole(openReceipt?.target_role);
+    const replyActorRole = normalizeRole(entry?.actor_role);
+    const replyTargetRole = normalizeRole(entry?.target_role);
+    if (replyCorrelation !== correlationId || ackFor !== correlationId) return false;
+    if (openActorRole !== replyTargetRole || openTargetRole !== replyActorRole) return false;
+    const directReviewSessions = DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(openActorRole)
+      && DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(openTargetRole);
+    if (!directReviewSessions) return true;
+    const openActorSession = normalizeSession(openReceipt?.actor_session);
+    const openTargetSession = normalizeSession(openReceipt?.target_session);
+    const replyActorSession = normalizeSession(entry?.actor_session);
+    const replyTargetSession = normalizeSession(entry?.target_session);
+    if (!openActorSession || !openTargetSession || !replyActorSession || !replyTargetSession) return false;
+    return openActorSession === replyTargetSession && openTargetSession === replyActorSession;
   }) || null;
 }
 
@@ -687,5 +703,124 @@ export function deriveWpCommunicationAutoRoute({
   return {
     ...projection,
     notification,
+  };
+}
+
+function nullableComparable(value) {
+  const raw = String(value ?? "").trim();
+  return raw || null;
+}
+
+function boundaryCorrelationId(statusEvaluation, runtimeStatus = {}) {
+  switch (String(statusEvaluation?.state || "").trim().toUpperCase()) {
+    case "COMM_WAITING_FOR_INTENT":
+    case "COMM_WAITING_FOR_HANDOFF":
+      return nullableComparable(statusEvaluation?.correlations?.kickoff);
+    case "COMM_WAITING_FOR_REVIEW":
+      return nullableComparable(statusEvaluation?.correlations?.handoff);
+    case "COMM_WAITING_FOR_FINAL_REVIEW":
+      return nullableComparable(statusEvaluation?.correlations?.finalReview);
+    case "COMM_BLOCKED_OPEN_ITEMS":
+      return nullableComparable(
+        Array.isArray(runtimeStatus?.open_review_items) && runtimeStatus.open_review_items.length > 0
+          ? runtimeStatus.open_review_items[0]?.correlation_id
+          : statusEvaluation?.correlations?.finalReview,
+      );
+    default:
+      return null;
+  }
+}
+
+function boundaryActorRequiresAck(actorRole) {
+  return ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(normalizeRole(actorRole));
+}
+
+function notificationMatchesBoundaryTarget(notification, actorRole, actorSession) {
+  const targetRole = normalizeRole(notification?.target_role);
+  const targetSession = normalizeSession(notification?.target_session);
+  const expectedRole = normalizeRole(actorRole);
+  const expectedSession = normalizeSession(actorSession);
+  if (targetRole !== expectedRole) return false;
+  if (!expectedSession || !targetSession) return true;
+  return targetSession === expectedSession;
+}
+
+function notificationMatchesBoundaryCorrelation(notification, correlationId) {
+  const expectedCorrelation = nullableComparable(correlationId);
+  if (!expectedCorrelation) return true;
+  const notificationCorrelation = nullableComparable(notification?.correlation_id);
+  return notificationCorrelation === expectedCorrelation;
+}
+
+function notificationMatchesBoundaryKind(notification) {
+  const sourceKind = normalizeReceiptKind(notification?.source_kind);
+  return REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(sourceKind) || sourceKind === "AUTO_ROUTE";
+}
+
+export function evaluateWpCommunicationBoundary({
+  stage = "STATUS",
+  statusEvaluation,
+  runtimeStatus = {},
+  latestReceipt = null,
+  pendingNotifications = [],
+} = {}) {
+  const normalizedStage = String(stage || "STATUS").trim().toUpperCase();
+  if (!statusEvaluation?.applicable) {
+    return {
+      applicable: false,
+      ok: true,
+      autoRoute: null,
+      boundaryNotifications: [],
+      issues: [],
+    };
+  }
+
+  const autoRoute = deriveWpCommunicationAutoRoute({
+    evaluation: statusEvaluation,
+    runtimeStatus,
+    latestReceipt,
+  });
+  const issues = [];
+
+  const compareField = (runtimeFieldName, expectedValue, formatter = (value) => nullableComparable(value)) => {
+    const actualValue = formatter(runtimeStatus?.[runtimeFieldName]);
+    const normalizedExpected = formatter(expectedValue);
+    if (actualValue !== normalizedExpected) {
+      issues.push(`runtime.${runtimeFieldName} expected ${normalizedExpected ?? "<null>"} but found ${actualValue ?? "<null>"}`);
+    }
+  };
+
+  compareField("next_expected_actor", autoRoute.nextExpectedActor, normalizeRole);
+  compareField("next_expected_session", autoRoute.nextExpectedSession, normalizeSession);
+  compareField("waiting_on", autoRoute.waitingOn, nullableComparable);
+  compareField("waiting_on_session", autoRoute.waitingOnSession, normalizeSession);
+  compareField("validator_trigger", autoRoute.validatorTrigger, nullableComparable);
+  compareField("validator_trigger_reason", autoRoute.validatorTriggerReason, nullableComparable);
+  compareField("ready_for_validation", autoRoute.readyForValidation, (value) => Boolean(value));
+  compareField("ready_for_validation_reason", autoRoute.readyForValidationReason, nullableComparable);
+  compareField("attention_required", autoRoute.attentionRequired, (value) => Boolean(value));
+
+  let boundaryNotifications = [];
+  if (normalizedStage !== "STATUS" && boundaryActorRequiresAck(autoRoute.nextExpectedActor)) {
+    const correlationId = boundaryCorrelationId(statusEvaluation, runtimeStatus);
+    boundaryNotifications = (pendingNotifications || []).filter((entry) =>
+      notificationMatchesBoundaryTarget(entry, autoRoute.nextExpectedActor, autoRoute.nextExpectedSession)
+      && notificationMatchesBoundaryCorrelation(entry, correlationId)
+      && notificationMatchesBoundaryKind(entry)
+    );
+    if (boundaryNotifications.length > 0) {
+      issues.push(
+        `Pending notifications for ${autoRoute.nextExpectedActor}${autoRoute.nextExpectedSession ? `:${autoRoute.nextExpectedSession}` : ""}`
+        + ` must be acknowledged before ${normalizedStage} can pass`,
+      );
+    }
+  }
+
+  return {
+    applicable: true,
+    ok: issues.length === 0,
+    autoRoute,
+    boundaryNotifications,
+    issues,
   };
 }

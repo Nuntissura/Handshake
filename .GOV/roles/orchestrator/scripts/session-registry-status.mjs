@@ -6,6 +6,7 @@ import {
   registryBatchLaunchSummary,
   registrySessionSummary,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
 
 const repoRoot = process.cwd();
 const wpIdFilter = String(process.argv[2] || "").trim();
@@ -42,11 +43,16 @@ if (sessions.length === 0) {
 }
 
 for (const session of sessions) {
+  const governance = evaluateSessionGovernanceState(repoRoot, session);
   console.log("");
   console.log(`- session_key: ${session.session_key}`);
   console.log(`  role: ${session.role}`);
   console.log(`  wp_id: ${session.wp_id}`);
   console.log(`  runtime_state: ${session.runtime_state}`);
+  console.log(`  task_board_status: ${governance.taskBoardStatus || "<missing>"}`);
+  console.log(`  packet_status: ${governance.packetStatus || "<missing>"}`);
+  console.log(`  local_worktree_exists: ${governance.localWorktreeExists ? "YES" : "NO"}`);
+  console.log(`  steering_allowed: ${governance.steeringAllowed ? "YES" : "NO"}`);
   console.log(`  control_mode: ${session.control_mode}`);
   console.log(`  control_protocol: ${session.control_protocol || "<none>"}`);
   console.log(`  control_transport: ${session.control_transport}`);
@@ -75,8 +81,11 @@ for (const session of sessions) {
     console.log("  note: legacy bridge ack; treat as terminal-only dispatch, not proof of an active CLI session");
   } else if (session.runtime_state === "COMMAND_RUNNING") {
     console.log("  note: governed broker owns the active run; cancellation is available through just session-cancel <ROLE> <WP_ID>");
-  } else if (session.runtime_state === "READY") {
+  } else if (session.runtime_state === "READY" && governance.steeringAllowed) {
     console.log("  note: steerable Codex thread is registered and can be resumed through the governed control lane");
+  } else if (session.runtime_state === "READY") {
+    const reason = governance.steeringBlockers.join("; ") || "steering is not allowed";
+    console.log(`  note: registered steerable thread is stale and should be closed before reuse (${reason})`);
   }
   console.log(`  updated_at: ${session.updated_at || "<none>"}`);
 }

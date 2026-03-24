@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   addMinutes,
   COMM_ROOT,
+  communicationTransactionLockPathForWp,
   communicationPathsForWp,
   ensureSchemaFilesExist,
   normalize,
@@ -23,6 +24,7 @@ import {
   AGENTIC_MODE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
 import { GOV_ROOT_REPO_REL, workPacketPath } from "../lib/runtime-paths.mjs";
+import { withFileLockSync } from "../session/session-registry-lib.mjs";
 
 const THREAD_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_COMMUNICATION_THREAD_TEMPLATE.md");
 const RUNTIME_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_RUNTIME_STATUS_TEMPLATE.json");
@@ -69,7 +71,7 @@ function requireTemplateFile(filePath) {
   }
 }
 
-export function ensureWpCommunications({
+function ensureWpCommunicationsCore({
   wpId,
   baseWpId,
   workflowLane,
@@ -251,6 +253,15 @@ export function ensureWpCommunications({
     runtimeStatusFile: normalize(runtimeStatusPath),
     receiptsFile: normalize(receiptsPath),
   };
+}
+
+export function ensureWpCommunications(args = {}, options = {}) {
+  const WP_ID = String(args?.wpId || "").trim();
+  const run = () => ensureWpCommunicationsCore(args);
+  if (options.assumeTransactionLock || !WP_ID || !/^WP-/.test(WP_ID)) {
+    return run();
+  }
+  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), run);
 }
 
 function runCli() {
