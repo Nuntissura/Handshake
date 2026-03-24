@@ -11,10 +11,15 @@ import crypto from 'crypto';
 import { execSync } from 'child_process';
 import { GOV_ROOT_REPO_REL, resolveRefinementPath, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 import {
+  collectBudgetCountedFiles,
   classifyWpChangedPath,
   deriveWpScopeContract,
   normalizeRepoPath,
+  parsePacketSingleField,
+  parsePacketScopeDiscipline,
+  scopeDisciplineRequiresEnforcement,
 } from '../../../roles_shared/scripts/lib/scope-surface-lib.mjs';
+import { resolveGitBaselineMergeBase } from '../scripts/lib/coder-governance-lib.mjs';
 
 const usage = () => [
   'Usage: node post-work-check.mjs WP-{ID} [options]',
@@ -48,15 +53,11 @@ const errors = [];
 const warnings = [];
 
 const gitTrim = (command) => execSync(command, { encoding: 'utf8' }).trim();
+const gitTrimQuiet = (command) => execSync(command, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 const gitBuffer = (command) => execSync(command);
 
 const resolveMergeBase = () => {
-  try {
-    const base = gitTrim('git merge-base main HEAD');
-    return base || null;
-  } catch {
-    return null;
-  }
+  return resolveGitBaselineMergeBase(gitTrimQuiet);
 };
 
 const readFileIfExists = (p) => {
@@ -108,7 +109,9 @@ const sha1VariantsForWorktreeFile = (p) => {
 // Use LF-normalized hash for worktree reads to avoid CRLF-based false negatives on Windows.
 const computeSha1 = (p) => sha1VariantsForWorktreeFile(p).lf;
 
-const MERGE_BASE = resolveMergeBase();
+const MERGE_BASE_INFO = resolveMergeBase();
+const MERGE_BASE = MERGE_BASE_INFO.base;
+const MERGE_BASE_REF = MERGE_BASE_INFO.ref;
 
 const resolveFirstParent = (rev) => {
   try {
@@ -269,6 +272,8 @@ const packetPathActual = resolvedPacket?.packetPath || `${GOV_ROOT_REPO_REL}/tas
 const packetPath = toDisplayGovPath(packetPathActual);
 const packetContent = readFileIfExists(packetPathActual);
 const scopeContract = deriveWpScopeContract({ wpId: WP_ID, packetContent });
+const scopeDiscipline = parsePacketScopeDiscipline(packetContent);
+const enforceScopeDiscipline = scopeDisciplineRequiresEnforcement(parsePacketSingleField(packetContent, 'PACKET_FORMAT_VERSION'));
 
 const parseMergeBaseSha = (content) => {
   if (!content) return null;
@@ -457,12 +462,6 @@ const extractSection = (content, heading) => {
 };
 
 const escapePacketRegex = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const parsePacketSingleField = (content, label) => {
-  if (!content) return '';
-  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${escapePacketRegex(label)}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
-  const match = content.match(re);
-  return match ? match[1].trim() : '';
-};
 const hasConcreteStatusField = (section, label) => {
   const re = new RegExp(`^\\s*-\\s*${escapePacketRegex(label)}\\s*:\\s*(.+)\\s*$`, 'mi');
   const match = String(section || '').match(re);
@@ -587,7 +586,7 @@ const resolveEvaluation = () => {
     try {
       const headSha = gitTrim('git rev-parse HEAD');
       if (MERGE_BASE !== headSha) {
-        return { mode: 'range', baseRev: MERGE_BASE, headRev: head, reason: 'clean tree; validate merge-base(main, HEAD)..HEAD' };
+        return { mode: 'range', baseRev: MERGE_BASE, headRev: head, reason: `clean tree; validate merge-base(${MERGE_BASE_REF}, HEAD)..HEAD` };
       }
     } catch {
       // ignore
@@ -598,7 +597,7 @@ const resolveEvaluation = () => {
     return { mode: 'range', baseRev: parent, headRev: head, reason: 'clean tree; validate last commit (HEAD^..HEAD)' };
   }
   if (MERGE_BASE) {
-    return { mode: 'range', baseRev: MERGE_BASE, headRev: head, reason: 'clean tree; fallback to merge-base(main, HEAD)..HEAD' };
+    return { mode: 'range', baseRev: MERGE_BASE, headRev: head, reason: `clean tree; fallback to merge-base(${MERGE_BASE_REF}, HEAD)..HEAD` };
   }
   errors.push('No staged/working changes and unable to resolve a git range (no parent commit and no merge-base).');
   return { mode: 'range', baseRev: null, headRev: null, reason: 'no range available' };
@@ -747,6 +746,36 @@ if (manifests) {
 
   if (uniqueJunctionWarnings.length > 0) {
     warnings.push(`Shared .GOV junction drift visible in this worktree (not counted as WP evidence): ${uniqueJunctionWarnings.join(', ')}`);
+  }
+
+  if (enforceScopeDiscipline) {
+    if (!scopeDiscipline.touchedFileBudgetValid) {
+      errors.push('TOUCHED_FILE_BUDGET must be an integer >= 1 for PACKET_FORMAT_VERSION >= 2026-03-23');
+    } else {
+      const evaluatedBudgetFiles = collectBudgetCountedFiles(changedFiles, scopeContract);
+      const branchLocalBudgetFiles = collectBudgetCountedFiles(branchLocalChangedFiles, scopeContract);
+      if (evaluatedBudgetFiles.length > scopeDiscipline.touchedFileBudget && !hasGitWaiver) {
+        errors.push(`Touched file budget exceeded in evaluated diff: ${evaluatedBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${evaluatedBudgetFiles.join(', ')})`);
+      } else if (evaluatedBudgetFiles.length > scopeDiscipline.touchedFileBudget && hasGitWaiver) {
+        warnings.push(`Touched file budget exceeded in evaluated diff but waiver present [CX-573F]: ${evaluatedBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${evaluatedBudgetFiles.join(', ')})`);
+      } else {
+        console.log(`PASS: touched file budget respected in evaluated diff (${evaluatedBudgetFiles.length}/${scopeDiscipline.touchedFileBudget})`);
+      }
+
+      if (branchLocalBudgetFiles.length > scopeDiscipline.touchedFileBudget && !hasGitWaiver) {
+        errors.push(`Touched file budget exceeded by branch-local scope drift: ${branchLocalBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${branchLocalBudgetFiles.join(', ')})`);
+      } else if (branchLocalBudgetFiles.length > scopeDiscipline.touchedFileBudget && hasGitWaiver) {
+        warnings.push(`Touched file budget exceeded by branch-local scope drift but waiver present [CX-573F]: ${branchLocalBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${branchLocalBudgetFiles.join(', ')})`);
+      }
+    }
+    if (!scopeDiscipline.broadToolAllowlistValid) {
+      const allowlistDetail = scopeDiscipline.invalidBroadToolTokens.includes('NONE_WITH_OTHERS')
+        ? 'NONE cannot be combined with other broad tool allowlist tokens'
+        : `invalid token(s): ${scopeDiscipline.invalidBroadToolTokens.join(', ')}`;
+      errors.push(`BROAD_TOOL_ALLOWLIST invalid: ${allowlistDetail}`);
+    } else {
+      console.log(`INFO: broad tool allowlist = ${(scopeDiscipline.broadToolAllowlist.length > 0 ? scopeDiscipline.broadToolAllowlist.join(', ') : 'NONE')}`);
+    }
   }
 
   // Require manifest coverage for all non-docs changed files.

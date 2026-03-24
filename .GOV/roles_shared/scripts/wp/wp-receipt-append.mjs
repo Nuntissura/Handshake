@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  communicationTransactionLockPathForWp,
   deriveAuthorityKinds,
   normalize,
   parseJsonFile,
@@ -19,6 +20,7 @@ import {
   evaluateWpCommunicationHealth,
 } from "../lib/wp-communication-health-lib.mjs";
 import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification } from "./wp-notification-append.mjs";
 
 function parseSingleField(text, label) {
@@ -162,11 +164,11 @@ function appendReviewNotifications({ wpId, entry, autoRoute }) {
       correlationId: entry.correlation_id ?? null,
       summary: target.summary,
       timestamp: entry.timestamp_utc,
-    });
+    }, { assumeTransactionLock: true });
   }
 }
 
-export function appendWpReceipt({
+function appendWpReceiptCore({
   wpId,
   actorRole,
   actorSession,
@@ -273,14 +275,23 @@ export function appendWpReceipt({
     if (runtimeErrors.length > 0) {
       throw new Error(`Runtime status validation failed after receipt append: ${runtimeErrors.join("; ")}`);
     }
-    fs.writeFileSync(context.runtimeStatusFile, `${JSON.stringify(runtimeStatus, null, 2)}\n`, "utf8");
+    writeJsonFile(context.runtimeStatusFile, runtimeStatus);
   }
 
-  fs.appendFileSync(context.receiptsFile, `${JSON.stringify(entry)}\n`, "utf8");
+  appendJsonlLine(context.receiptsFile, entry);
   if (reviewTrackedReceipt) {
     appendReviewNotifications({ wpId: WP_ID, entry, autoRoute });
   }
   return { context, entry };
+}
+
+export function appendWpReceipt(args = {}, options = {}) {
+  const WP_ID = String(args?.wpId || "").trim();
+  const run = () => appendWpReceiptCore(args);
+  if (options.assumeTransactionLock || !WP_ID || !/^WP-/.test(WP_ID)) {
+    return run();
+  }
+  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), run);
 }
 
 function runCli() {

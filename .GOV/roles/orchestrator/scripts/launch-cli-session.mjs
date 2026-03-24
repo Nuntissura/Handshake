@@ -7,19 +7,11 @@ import {
   CLI_ESCALATION_HOST_DEFAULT,
   CLI_ESCALATION_HOST_LEGACY_ALIAS,
   CLI_SESSION_TOOL,
-  defaultCoderBranch,
-  defaultCoderWorktreeDir,
-  defaultIntegrationValidatorBranch,
-  defaultIntegrationValidatorWorktreeDir,
-  defaultWpValidatorBranch,
-  defaultWpValidatorWorktreeDir,
   ROLE_SESSION_PRIMARY_MODEL,
   ROLE_SESSION_REASONING_CONFIG_KEY,
   ROLE_SESSION_REASONING_CONFIG_VALUE,
   ROLE_SESSION_FALLBACK_MODEL,
   SESSION_HOST_PREFERENCE,
-  roleNextCommand,
-  roleStartupCommand,
   SESSION_HOST_FALLBACK,
   SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
   SESSION_PLUGIN_BRIDGE_COMMAND,
@@ -40,7 +32,13 @@ import {
   settleTimedOutPluginRequests,
   mutateSessionRegistrySync,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
-import { GOV_ROOT_REPO_REL, workPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import {
+  buildStartupPrompt,
+  resolveRoleConfig,
+  selectModel,
+} from "../../../roles_shared/scripts/session/session-control-lib.mjs";
+import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
+import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const role = String(process.argv[2] || "").trim().toUpperCase();
 const wpId = String(process.argv[3] || "").trim();
@@ -69,49 +67,29 @@ function commandExists(command) {
   return result.status === 0;
 }
 
-function resolveRoleConfig(roleName, workPacketId) {
-  if (roleName === "CODER") {
-    return {
-      branch: defaultCoderBranch(workPacketId),
-      worktreeDir: defaultCoderWorktreeDir(workPacketId),
-      title: `CODER ${workPacketId}`,
-      startupCommand: roleStartupCommand("CODER"),
-      nextCommand: roleNextCommand("CODER", workPacketId),
-      focus: "implementation, governance paperwork, and coder-side delegation only when the packet allows it",
-    };
-  }
-  if (roleName === "WP_VALIDATOR") {
-    return {
-      branch: defaultWpValidatorBranch(workPacketId),
-      worktreeDir: defaultWpValidatorWorktreeDir(workPacketId),
-      title: `WPVAL ${workPacketId}`,
-      startupCommand: roleStartupCommand("WP_VALIDATOR"),
-      nextCommand: roleNextCommand("WP_VALIDATOR", workPacketId),
-      focus: "advisory technical review, steering, and packet-scoped validation receipts (operates from coder worktree, diffs against main)",
-    };
-  }
-  if (roleName === "INTEGRATION_VALIDATOR") {
-    return {
-      branch: defaultIntegrationValidatorBranch(workPacketId),
-      worktreeDir: defaultIntegrationValidatorWorktreeDir(workPacketId),
-      title: `INTVAL ${workPacketId}`,
-      startupCommand: roleStartupCommand("INTEGRATION_VALIDATOR"),
-      nextCommand: roleNextCommand("INTEGRATION_VALIDATOR", workPacketId),
-      focus: "final technical verdict, merge authority, sync-gov-to-main, and main/origin push (operates from handshake_main on branch main)",
-    };
-  }
-  return null;
-}
-
 const roleConfig = resolveRoleConfig(role, wpId);
 if (!roleConfig) fail(`Unknown role: ${role}`);
-const selectedModel = requestedModel === "FALLBACK" ? ROLE_SESSION_FALLBACK_MODEL : ROLE_SESSION_PRIMARY_MODEL;
-const packetAuthorityPath = workPacketPath(wpId);
+const selectedModel = selectModel(requestedModel);
 
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const currentBranch = runGit(["branch", "--show-current"]);
 assertOrchestratorLaunchAuthority(currentBranch);
 const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
+const sessionDescriptor = {
+  wp_id: wpId,
+  role,
+  local_branch: roleConfig.branch,
+  local_worktree_dir: roleConfig.worktreeDir,
+  terminal_title: roleConfig.title,
+  requested_model: selectedModel,
+  reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
+  reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
+};
+const governance = evaluateSessionGovernanceState(repoRoot, sessionDescriptor);
+
+if (!governance.launchAllowed) {
+  fail(`Governed session ${role}:${wpId} cannot be launched: ${governance.launchBlockers.join("; ")}`);
+}
 
 if (!fs.existsSync(absWorktreeDir)) {
   execFileSync(
@@ -121,19 +99,7 @@ if (!fs.existsSync(absWorktreeDir)) {
   );
 }
 
-const prompt = [
-  `ROLE LOCK: You are the ${role}.`,
-  `WP_ID: ${wpId}`,
-  `WORKTREE: ${roleConfig.worktreeDir}`,
-  `BRANCH: ${roleConfig.branch}`,
-  `FIRST COMMAND: ${roleConfig.startupCommand}`,
-  `AFTER STARTUP: ${roleConfig.nextCommand}`,
-  `AUTHORITY: AGENTS.md + startup output + the role protocol + ${packetAuthorityPath}`,
-  `FOCUS: ${roleConfig.focus}.`,
-  `MODEL POLICY: selected ${selectedModel}; primary ${ROLE_SESSION_PRIMARY_MODEL} with ${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}; fallback ${ROLE_SESSION_FALLBACK_MODEL} with the same reasoning value if primary is unavailable.`,
-  `REPO POLICY: do not switch to Codex model aliases for repo-governed sessions.`,
-  `REMINDER: the Orchestrator remains workflow authority; only the Integration Validator can own merge-to-main authority.`,
-].join("\n");
+const prompt = buildStartupPrompt({ role, wpId, roleConfig, selectedModel });
 
 const codexArgs = [
   "-m",
@@ -218,16 +184,6 @@ function printOnly(reason, resolvedHost) {
 }
 
 ensureSessionStateFiles(repoRoot);
-const sessionDescriptor = {
-  wp_id: wpId,
-  role,
-  local_branch: roleConfig.branch,
-  local_worktree_dir: roleConfig.worktreeDir,
-  terminal_title: roleConfig.title,
-  requested_model: selectedModel,
-  reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
-  reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
-};
 let { sessionSummary, batchSummary } = mutateSessionRegistrySync(repoRoot, (registry) => {
   const { requests } = loadSessionLaunchRequests(repoRoot);
   settleTimedOutPluginRequests(registry, requests);

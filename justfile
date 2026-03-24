@@ -3,6 +3,7 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NonInteractive", "-Command"
 
 GOV_ROOT := env_var_or_default('HANDSHAKE_GOV_ROOT', '.GOV')
 MAIN_ROOT := "../handshake_main"
+CARGO_TARGET_DIR := "../Handshake Artifacts/handshake-cargo-target"
 
 docs-check:
 	node -e "['{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md', '{{MAIN_ROOT}}/AGENTS.md', '{{GOV_ROOT}}/README.md', '{{GOV_ROOT}}/roles/README.md', '{{GOV_ROOT}}/roles_shared/README.md', '{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md', '{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles_shared/docs/START_HERE.md', '{{GOV_ROOT}}/spec/SPEC_CURRENT.md', '{{GOV_ROOT}}/roles_shared/docs/ARCHITECTURE.md', '{{GOV_ROOT}}/roles_shared/docs/RUNBOOK_DEBUG.md', '{{GOV_ROOT}}/roles_shared/docs/REPO_RESILIENCE.md', '{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md', '{{GOV_ROOT}}/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md', '{{GOV_ROOT}}/docs/vscode-session-bridge/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
@@ -38,6 +39,21 @@ build-order-sync:
 validator-spec-regression:
 	node {{GOV_ROOT}}/roles/validator/checks/validator-spec-regression.mjs
 
+gate-check wp-id:
+	node {{GOV_ROOT}}/roles_shared/checks/gate-check.mjs {{wp-id}}
+
+spec-eof-appendices-check:
+	node {{GOV_ROOT}}/roles_shared/checks/spec-eof-appendices-check.mjs
+
+validator-packet-complete wp-id:
+	node {{GOV_ROOT}}/roles/validator/checks/validator-packet-complete.mjs {{wp-id}}
+
+validator-policy-gate wp-id:
+	node {{GOV_ROOT}}/roles_shared/checks/computed-policy-gate-check.mjs {{wp-id}}
+
+post-run-audit-skeleton wp-id output="":
+	node {{GOV_ROOT}}/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs {{wp-id}} {{if output != "" { "--output " + output } else { "" }}}
+
 launch-coder-session wp-id host="AUTO" model="PRIMARY":
 	node {{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs CODER {{wp-id}} {{host}} {{model}}
 
@@ -46,6 +62,42 @@ launch-wp-validator-session wp-id host="AUTO" model="PRIMARY":
 
 launch-integration-validator-session wp-id host="AUTO" model="PRIMARY":
 	node {{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs INTEGRATION_VALIDATOR {{wp-id}} {{host}} {{model}}
+
+start-coder-session wp-id model="PRIMARY":
+	@just session-start CODER {{wp-id}} {{model}}
+
+start-wp-validator-session wp-id model="PRIMARY":
+	@just session-start WP_VALIDATOR {{wp-id}} {{model}}
+
+start-integration-validator-session wp-id model="PRIMARY":
+	@just session-start INTEGRATION_VALIDATOR {{wp-id}} {{model}}
+
+steer-coder-session wp-id prompt model="PRIMARY":
+	@just session-send CODER {{wp-id}} "{{prompt}}" {{model}}
+
+steer-wp-validator-session wp-id prompt model="PRIMARY":
+	@just session-send WP_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
+
+steer-integration-validator-session wp-id prompt model="PRIMARY":
+	@just session-send INTEGRATION_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
+
+cancel-coder-session wp-id:
+	@just session-cancel CODER {{wp-id}}
+
+cancel-wp-validator-session wp-id:
+	@just session-cancel WP_VALIDATOR {{wp-id}}
+
+cancel-integration-validator-session wp-id:
+	@just session-cancel INTEGRATION_VALIDATOR {{wp-id}}
+
+close-coder-session wp-id:
+	@just session-close CODER {{wp-id}}
+
+close-wp-validator-session wp-id:
+	@just session-close WP_VALIDATOR {{wp-id}}
+
+close-integration-validator-session wp-id:
+	@just session-close INTEGRATION_VALIDATOR {{wp-id}}
 
 coder-worktree-add wp-id branch="" dir="":
 	node {{GOV_ROOT}}/roles/orchestrator/scripts/role-session-worktree-add.mjs CODER {{wp-id}} {{branch}} {{dir}}
@@ -70,6 +122,15 @@ session-close role wp-id:
 
 session-registry-status wp-id="":
 	node {{GOV_ROOT}}/roles/orchestrator/scripts/session-registry-status.mjs {{wp-id}}
+
+session-control-runtime-check:
+	node {{GOV_ROOT}}/roles_shared/checks/session-control-runtime-check.mjs
+
+handshake-acp-broker-status:
+	node {{GOV_ROOT}}/roles/orchestrator/scripts/session-control-broker.mjs status
+
+handshake-acp-broker-stop:
+	node {{GOV_ROOT}}/roles/orchestrator/scripts/session-control-broker.mjs stop
 
 operator-monitor *args:
 	@node {{GOV_ROOT}}/roles/orchestrator/scripts/operator-monitor-tui.mjs {{args}}
@@ -152,8 +213,113 @@ orchestrator-next wp-id="":
 coder-next wp-id="":
 	@node {{GOV_ROOT}}/roles/coder/scripts/coder-next.mjs {{wp-id}}
 
+pre-work wp-id:
+	@node {{GOV_ROOT}}/roles/coder/checks/pre-work.mjs {{wp-id}}
+
+post-work wp-id *args:
+	@node {{GOV_ROOT}}/roles/coder/checks/post-work.mjs {{wp-id}} {{args}}
+
+coder-skeleton-checkpoint wp-id:
+	@node {{GOV_ROOT}}/roles/coder/checks/coder-skeleton-checkpoint.mjs {{wp-id}}
+
+skeleton-approved wp-id:
+	@node {{GOV_ROOT}}/roles_shared/checks/skeleton-approved.mjs {{wp-id}}
+
+backup-push local_branch="" remote_branch="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/topology/backup-push.mjs {{local_branch}} {{remote_branch}}
+
+validator-scan:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator-scan.mjs
+
+product-scan:
+	@just validator-scan
+
+validator-dal-audit:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator-dal-audit.mjs
+
+validator-git-hygiene:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator-git-hygiene.mjs
+
+cargo-clean:
+	cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "{{CARGO_TARGET_DIR}}"
+
+spec-debt-open wp-id clause notes blocking="NO":
+	@node {{GOV_ROOT}}/roles_shared/scripts/debt/spec-debt-open.mjs {{wp-id}} "{{clause}}" "{{notes}}" {{blocking}}
+
+spec-debt-sync wp-id:
+	@node {{GOV_ROOT}}/roles_shared/scripts/debt/spec-debt-sync.mjs {{wp-id}}
+
 validator-next wp-id="":
 	@node {{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs {{wp-id}}
+
+task-board-set wp-id status reason="":
+	@node {{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs {{wp-id}} {{status}} "{{reason}}"
+
+validator-handoff-check wp-id *args:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator-handoff-check.mjs {{wp-id}} {{args}}
+
+external-validator-brief wp-id *args:
+	@node {{GOV_ROOT}}/roles/validator/checks/external-validator-brief.mjs {{wp-id}} {{args}}
+
+validator-gate-append wp-id verdict:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator_gates.mjs append {{wp-id}} {{verdict}}
+
+validator-gate-commit wp-id:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator_gates.mjs commit {{wp-id}}
+
+validator-gate-present wp-id verdict="":
+	@node {{GOV_ROOT}}/roles/validator/checks/validator_gates.mjs present-report {{wp-id}} {{verdict}}
+
+validator-gate-acknowledge wp-id:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator_gates.mjs acknowledge {{wp-id}}
+
+validator-gate-status wp-id:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator_gates.mjs status {{wp-id}}
+
+validator-gate-reset wp-id confirm:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator_gates.mjs reset {{wp-id}} {{confirm}}
+
+validator-governance-snapshot:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator-governance-snapshot.mjs
+
+validator-report-structure-check:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator-report-structure-check.mjs
+
+validator-phase-gate phase="Phase-1":
+	@node {{GOV_ROOT}}/roles/validator/checks/validator-phase-gate.mjs {{phase}}
+
+validator-error-codes:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator-error-codes.mjs
+
+validator-coverage-gaps:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator-coverage-gaps.mjs
+
+validator-traceability:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator-traceability.mjs
+
+validator-hygiene-full:
+	@node {{GOV_ROOT}}/roles/validator/checks/validator-hygiene-full.mjs
+
+sync-all-role-worktrees:
+	@node {{GOV_ROOT}}/roles_shared/scripts/topology/sync-all-role-worktrees.mjs
+
+reseed-permanent-worktree-from-main worktree_id approval label="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/topology/reseed-permanent-worktree-from-main.mjs {{worktree_id}} --approve "{{approval}}" {{if label != "" { "--label \"" + label + "\"" } else { "" }}}
+
+generate-worktree-cleanup-script wp-id role:
+	@node {{GOV_ROOT}}/roles_shared/scripts/topology/generate-worktree-cleanup-script.mjs {{wp-id}} {{role}}
+
+close-wp-branch wp-id approval remote="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/topology/close-wp-branch.mjs {{wp-id}} {{remote}} --approve "{{approval}}"
+
+wp-heartbeat wp-id actor_role actor_session current_phase runtime_status next_expected_actor waiting_on validator_trigger="" last_event="" worktree_dir="" next_expected_session="" waiting_on_session="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-heartbeat.mjs {{wp-id}} {{actor_role}} {{actor_session}} {{current_phase}} {{runtime_status}} {{next_expected_actor}} "{{waiting_on}}" "{{validator_trigger}}" "{{last_event}}" "{{worktree_dir}}" "{{next_expected_session}}" "{{waiting_on_session}}"
+
+wp-validator-response wp-id actor_role actor_session coder_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} CODER {{coder_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}"
+
+wp-review-response wp-id actor_role actor_session target_role target_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs REVIEW_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}"
 
 record-refinement wp-id detail="":
 	@node {{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs refine {{wp-id}} "{{detail}}"
@@ -169,10 +335,45 @@ create-task-packet wp-id:
 	@node {{GOV_ROOT}}/roles/orchestrator/scripts/create-task-packet.mjs {{wp-id}}
 	@just build-order-sync
 
+wp-thread-append wp-id actor_role actor_session message target="" target_role="" target_session="" correlation_id="" requires_ack="" ack_for="" spec_anchor="" packet_row_ref="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-thread-append.mjs {{wp-id}} {{actor_role}} {{actor_session}} "{{message}}" "{{target}}" "{{target_role}}" "{{target_session}}" "{{correlation_id}}" "{{requires_ack}}" "{{ack_for}}" "{{spec_anchor}}" "{{packet_row_ref}}"
+
+wp-receipt-append wp-id actor_role actor_session receipt_kind summary state_before="" state_after="" target_role="" target_session="" correlation_id="" requires_ack="" ack_for="" spec_anchor="" packet_row_ref="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-receipt-append.mjs {{wp-id}} {{actor_role}} {{actor_session}} {{receipt_kind}} "{{summary}}" "{{state_before}}" "{{state_after}}" "{{target_role}}" "{{target_session}}" "{{correlation_id}}" "{{requires_ack}}" "{{ack_for}}" "{{spec_anchor}}" "{{packet_row_ref}}"
+
+wp-review-exchange receipt_kind wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" ack_for="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs {{receipt_kind}} {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}"
+
+wp-spec-gap wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="":
+	@just wp-review-exchange SPEC_GAP {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}"
+
+wp-spec-confirmation wp-id actor_role actor_session target_role target_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="":
+	@just wp-review-exchange SPEC_CONFIRMATION {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}"
+
+wp-validator-kickoff wp-id actor_session coder_session summary spec_anchor="" packet_row_ref="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_KICKOFF {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "" "{{spec_anchor}}" "{{packet_row_ref}}" ""
+
+wp-coder-intent wp-id actor_session validator_session summary correlation_id spec_anchor="" packet_row_ref="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs CODER_INTENT {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" ""
+
+wp-coder-handoff wp-id actor_session validator_session summary correlation_id="" spec_anchor="" packet_row_ref="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs CODER_HANDOFF {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" ""
+
+wp-validator-review wp-id actor_session coder_session summary correlation_id spec_anchor="" packet_row_ref="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_REVIEW {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" ""
+
+wp-communication-health-check wp-id stage="STATUS":
+	@node {{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs {{wp-id}} {{stage}}
+
+check-notifications wp-id role="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs {{wp-id}} {{role}}
+
+ack-notifications wp-id role session:
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs {{wp-id}} {{role}} --ack --session={{session}}
+
 orchestrator-prepare-and-packet wp-id workflow_lane="" execution_lane="" label="pre-wp-launch":
 	@just worktree-add {{wp-id}}
-	@just record-prepare {{wp-id}} {{workflow_lane}} {{execution_lane}}
-	@just create-task-packet {{wp-id}}
+	@node {{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs {{wp-id}} {{workflow_lane}} {{execution_lane}}
 	@echo "[ORCHESTRATOR] Committing governance checkpoint on gov_kernel..."
 	@git add -A
 	@git diff --cached --quiet || git commit -m "gov: checkpoint packet+refinement+micro-tasks [{{wp-id}}]"

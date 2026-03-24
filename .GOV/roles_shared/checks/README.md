@@ -18,6 +18,7 @@ Repo-shared checks live here.
 - `session-policy-check.mjs`
 - `session-launch-runtime-check.mjs`
 - `session-control-runtime-check.mjs`
+- `workflow-start-readiness-check.mjs`
 - `worktree-concurrency-check.mjs`
 - `wp-communications-check.mjs`
 - `wp-activation-traceability-check.mjs`
@@ -26,6 +27,7 @@ Repo-shared checks live here.
 
 - `packet-closure-monitor-check.mjs`
 - `semantic-proof-check.mjs`
+- `computed-policy-gate-check.mjs`
 - `spec-debt-registry-check.mjs`
 - `spec-eof-appendices-check.mjs`
 - `spec-governance-reference-check.mjs`
@@ -43,5 +45,6 @@ Repo-shared checks live here.
 - `atelier_role_registry_check.mjs`
 - `drive-agnostic-check.mjs`
 - `migration-path-truth-check.mjs`
+- `prevention-ladder-check.mjs`
 - `governance-structure-check.mjs`
 - `lifecycle-ux-check.mjs`

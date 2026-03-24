@@ -23,7 +23,17 @@ import {
     validatorGatePath,
     resolveValidatorGatePath,
 } from '../../../roles_shared/scripts/lib/validator-gate-paths.mjs';
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, workPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import {
+    currentGitContext,
+    loadPacket,
+    packetPath as resolvePacketPath,
+} from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
+import {
+    evaluateValidatorPacketGovernanceState,
+    evaluateValidatorPassAuthority,
+    resolveValidatorActorContext,
+} from '../scripts/lib/validator-governance-lib.mjs';
 
 const MIN_GATE_INTERVAL_SECONDS = 5; // Minimum time between gates to prevent automation momentum
 
@@ -115,6 +125,89 @@ function getSession(state, wpId) {
     return state?.validation_sessions?.[wpId] || null;
 }
 
+function validatorGovernanceStateForWp(wpId, sessionStatus = '') {
+    const packetContent = loadPacket(wpId);
+    return evaluateValidatorPacketGovernanceState({
+        wpId,
+        packetPath: resolvePacketPath(wpId),
+        packetContent,
+        sessionStatus,
+    });
+}
+
+function currentValidatorActorContextForWp(wpId) {
+    return resolveValidatorActorContext({
+        repoRoot: process.cwd(),
+        wpId,
+        packetContent: loadPacket(wpId),
+        gitContext: currentGitContext(),
+    });
+}
+
+function ensurePassAuthorityForWp(wpId, session = null, stage = 'PASS gate') {
+    const packetContent = loadPacket(wpId);
+    const actorContext = currentValidatorActorContextForWp(wpId);
+    const authorityCheck = evaluateValidatorPassAuthority({
+        packetContent,
+        actorContext,
+    });
+    const contextDetails = [
+        `resolved_validator_role=${actorContext.actorRole || 'UNKNOWN'}`,
+        `actor_branch=${actorContext.actorBranch || '<unknown>'}`,
+        `actor_worktree_dir=${actorContext.actorWorktreeDir || '<unknown>'}`,
+        `resolution_source=${actorContext.source || 'UNRESOLVED'}`,
+    ];
+    if (!authorityCheck.ok) {
+        fail(`Cannot advance ${stage} for ${wpId}`, [
+            ...authorityCheck.issues,
+            ...contextDetails,
+        ]);
+    }
+    if (session?.validator_role && session.validator_role !== actorContext.actorRole) {
+        fail(`Cannot advance ${stage} for ${wpId}`, [
+            `Existing PASS gate session belongs to ${session.validator_role}; current lane resolved to ${actorContext.actorRole}.`,
+            ...contextDetails,
+        ]);
+    }
+    if (
+        session?.validator_session_key
+        && actorContext.actorSessionKey
+        && session.validator_session_key !== actorContext.actorSessionKey
+    ) {
+        fail(`Cannot advance ${stage} for ${wpId}`, [
+            `Existing PASS gate session belongs to ${session.validator_session_key}; current lane resolved to ${actorContext.actorSessionKey}.`,
+            ...contextDetails,
+        ]);
+    }
+    if (
+        session?.validator_session_id
+        && actorContext.actorSessionId
+        && session.validator_session_id !== actorContext.actorSessionId
+    ) {
+        fail(`Cannot advance ${stage} for ${wpId}`, [
+            `Existing PASS gate session belongs to ${session.validator_session_id}; current lane resolved to ${actorContext.actorSessionId}.`,
+            ...contextDetails,
+        ]);
+    }
+    return {
+        actorContext,
+        authority: authorityCheck.authority,
+    };
+}
+
+function failIfLegacyRemediationRequired(wpId, sessionStatus = '') {
+    const governanceState = validatorGovernanceStateForWp(wpId, sessionStatus);
+    if (governanceState.legacyRemediationRequired) {
+        fail(`Cannot advance validator gates for ${wpId}`, [
+            governanceState.message,
+            `Computed policy outcome: ${governanceState.computedPolicy.outcome}`,
+            `Applicability: ${governanceState.computedPolicy.applicability_reason || 'APPLICABLE'}`,
+            'Request a new remediation WP variant instead of reusing this closed packet.'
+        ]);
+    }
+    return governanceState;
+}
+
 function checkMomentum(session, gateName) {
     if (!session || !session.gates || session.gates.length === 0) return;
 
@@ -144,6 +237,7 @@ if (action === 'present-report') {
     const state = loadWpState(wpId);
     const session = getSession(state, wpId);
     const verdictArg = extraArg?.trim() ? extraArg.trim().toUpperCase() : null;
+    failIfLegacyRemediationRequired(wpId, session?.status || '');
 
     if (!session) {
         fail(`No validation session for ${wpId}`, [
@@ -201,6 +295,10 @@ if (action === 'present-report') {
         }
     }
 
+    if (session.verdict === 'PASS') {
+        ensurePassAuthorityForWp(wpId, session, 'final report presentation');
+    }
+
     checkMomentum(session, 'REPORT_PRESENTED');
 
     session.status = 'REPORT_PRESENTED';
@@ -228,6 +326,7 @@ if (action === 'acknowledge') {
 
     const state = loadWpState(wpId);
     const session = getSession(state, wpId);
+    failIfLegacyRemediationRequired(wpId, session?.status || '');
     if (!session) {
         fail(`No validation session for ${wpId}`, [
             `Run: just validator-gate-append ${wpId} {PASS|FAIL}`
@@ -238,6 +337,10 @@ if (action === 'acknowledge') {
         fail(`Cannot acknowledge: ${wpId} is in state ${session.status}`, [
             'Expected state: REPORT_PRESENTED'
         ]);
+    }
+
+    if (session.verdict === 'PASS') {
+        ensurePassAuthorityForWp(wpId, session, 'final acknowledgment');
     }
 
     checkMomentum(session, 'USER_ACKNOWLEDGED');
@@ -281,13 +384,13 @@ if (action === 'append') {
     }
 
     // Verify work packet exists
-    const resolved = resolveWorkPacketPath(wpId);
-    const packetPath = resolved?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`;
+    const packetPath = workPacketPath(wpId);
     if (!fs.existsSync(packetPath)) {
         fail(`Work packet not found: ${packetPath}`);
     }
 
     let session = getSession(state, wpId);
+    failIfLegacyRemediationRequired(wpId, session?.status || '');
     const nowIso = new Date().toISOString();
     if (!session) {
         if (!verdictArg) {
@@ -296,10 +399,23 @@ if (action === 'append') {
             ]);
         }
 
+        let actorAuthority = null;
+        if (verdictArg === 'PASS') {
+            actorAuthority = ensurePassAuthorityForWp(wpId, null, 'PASS append');
+        }
+
         session = {
             wpId,
             verdict: verdictArg,
             status: 'WP_APPENDED',
+            validator_role: actorAuthority?.actorContext?.actorRole || '',
+            validator_session_key: actorAuthority?.actorContext?.actorSessionKey || '',
+            validator_session_id: actorAuthority?.actorContext?.actorSessionId || '',
+            validator_thread_id: actorAuthority?.actorContext?.actorThreadId || '',
+            validator_branch: actorAuthority?.actorContext?.actorBranch || '',
+            validator_worktree_dir: actorAuthority?.actorContext?.actorWorktreeDir || '',
+            technical_authority: actorAuthority?.authority?.technicalAuthority || '',
+            merge_authority: actorAuthority?.authority?.mergeAuthority || '',
             started: nowIso,
             gates: [{
                 gate: 'WP_APPENDED',
@@ -359,6 +475,7 @@ if (action === 'commit') {
 
     const state = loadWpState(wpId);
     const session = getSession(state, wpId);
+    failIfLegacyRemediationRequired(wpId, session?.status || '');
     if (!session) {
         fail(`No validation session for ${wpId}`, [
             `Run: just validator-gate-append ${wpId} PASS`
@@ -388,6 +505,16 @@ if (action === 'commit') {
         ]);
     }
 
+    const actorAuthority = ensurePassAuthorityForWp(wpId, session, 'PASS commit clearance');
+    session.validator_role = session.validator_role || actorAuthority.actorContext.actorRole || '';
+    session.validator_session_key = session.validator_session_key || actorAuthority.actorContext.actorSessionKey || '';
+    session.validator_session_id = session.validator_session_id || actorAuthority.actorContext.actorSessionId || '';
+    session.validator_thread_id = session.validator_thread_id || actorAuthority.actorContext.actorThreadId || '';
+    session.validator_branch = session.validator_branch || actorAuthority.actorContext.actorBranch || '';
+    session.validator_worktree_dir = session.validator_worktree_dir || actorAuthority.actorContext.actorWorktreeDir || '';
+    session.technical_authority = session.technical_authority || actorAuthority.authority.technicalAuthority || '';
+    session.merge_authority = session.merge_authority || actorAuthority.authority.mergeAuthority || '';
+
     const committedEvidence = state?.committed_validation_evidence?.[wpId] || null;
     if (!committedEvidence || committedEvidence.status !== 'PASS') {
         fail(`Cannot commit: ${wpId} is missing committed handoff validation evidence`, [
@@ -407,6 +534,16 @@ if (action === 'commit') {
     if (communicationHealth.code !== 0) {
         fail(`Cannot commit: ${wpId} is missing verdict-ready direct review communication evidence`, [
             ...communicationHealth.output.split(/\r?\n/).filter(Boolean),
+        ]);
+    }
+
+    const computedPolicy = runNode([
+        `${GOV_ROOT_REPO_REL}/roles_shared/checks/computed-policy-gate-check.mjs`,
+        wpId,
+    ]);
+    if (computedPolicy.code !== 0) {
+        fail(`Cannot commit: ${wpId} failed the computed policy gate`, [
+            ...computedPolicy.output.split(/\r?\n/).filter(Boolean),
         ]);
     }
 
@@ -438,8 +575,16 @@ if (action === 'status') {
 
     const state = loadWpState(wpId);
     const session = getSession(state, wpId);
+    const governanceState = validatorGovernanceStateForWp(wpId, session?.status || '');
     if (!session) {
         console.log(`[VALIDATOR GATE STATUS] No session for ${wpId}`);
+        if (governanceState.legacyRemediationRequired) {
+            console.log(`  Governance outcome: ${governanceState.computedPolicy.outcome}`);
+            console.log(`  Governance applicability: ${governanceState.computedPolicy.applicability_reason || 'APPLICABLE'}`);
+            console.log('  Governance block: legacy remediation required');
+            console.log('  Next: BLOCKED - request new remediation WP variant; do not merge or reopen this packet in-place');
+            process.exit(0);
+        }
         console.log('  Gates: (none)');
         process.exit(0);
     }
@@ -450,6 +595,22 @@ if (action === 'status') {
     console.log(`  Started: ${session.started}`);
     if (session.completed) {
         console.log(`  Completed: ${session.completed}`);
+    }
+    if (governanceState.legacyRemediationRequired) {
+        console.log(`  Governance outcome: ${governanceState.computedPolicy.outcome}`);
+        console.log(`  Governance applicability: ${governanceState.computedPolicy.applicability_reason || 'APPLICABLE'}`);
+        console.log('  Governance block: legacy remediation required');
+    }
+    if (session.validator_role || session.validator_session_id || session.validator_session_key) {
+        console.log('  Validator lane:');
+        console.log(`    Role: ${session.validator_role || '<unknown>'}`);
+        console.log(`    Session key: ${session.validator_session_key || '<none>'}`);
+        console.log(`    Session id: ${session.validator_session_id || '<none>'}`);
+        console.log(`    Thread id: ${session.validator_thread_id || '<none>'}`);
+        console.log(`    Branch: ${session.validator_branch || '<unknown>'}`);
+        console.log(`    Worktree: ${session.validator_worktree_dir || '<unknown>'}`);
+        console.log(`    Technical authority: ${session.technical_authority || '<unspecified>'}`);
+        console.log(`    Merge authority: ${session.merge_authority || '<unspecified>'}`);
     }
     const committedEvidence = state?.committed_validation_evidence?.[wpId] || null;
     if (committedEvidence) {
@@ -483,7 +644,9 @@ if (action === 'status') {
             ? '(PASS - merge/push allowed)'
             : '(FAIL - remediation allowed)'
     };
-    console.log(`  Next: ${nextActions[session.status] || 'unknown'}`);
+    console.log(`  Next: ${governanceState.legacyRemediationRequired
+        ? 'BLOCKED - request new remediation WP variant; do not merge or reopen this packet in-place'
+        : (nextActions[session.status] || 'unknown')}`);
     process.exit(0);
 }
 

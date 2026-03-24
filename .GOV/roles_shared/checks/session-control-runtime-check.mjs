@@ -21,6 +21,7 @@ import {
   loadSessionRegistry,
   validateRegistryShape,
 } from "../scripts/session/session-registry-lib.mjs";
+import { evaluateSessionGovernanceState } from "../scripts/session/session-governance-state-lib.mjs";
 import {
   validateSessionControlRequestShape,
   validateSessionControlResultShape,
@@ -483,6 +484,14 @@ for (const session of registry.sessions || []) {
 
   if (session.startup_proof_state === "READY" && !session.session_thread_id) {
     invariantErrors.push(`session ${session.session_key} is READY without a session_thread_id`);
+  }
+  if (session.runtime_state === "READY") {
+    const governance = evaluateSessionGovernanceState(repoRoot, session);
+    if (!governance.steeringAllowed) {
+      invariantErrors.push(
+        `session ${session.session_key} is READY but steering is blocked: ${governance.steeringBlockers.join("; ")}`,
+      );
+    }
   }
   if (session.runtime_state === "CLOSED" && session.session_thread_id) {
     invariantErrors.push(`session ${session.session_key} is CLOSED but still has a session_thread_id`);

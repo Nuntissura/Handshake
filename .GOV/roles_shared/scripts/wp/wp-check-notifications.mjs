@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  communicationTransactionLockPathForWp,
   communicationPathsForWp,
   normalize,
   NOTIFICATIONS_FILE_NAME,
@@ -11,6 +12,7 @@ import {
   ROUTABLE_ROLE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
 import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -38,7 +40,66 @@ function loadCursor(cursorPath) {
 }
 
 function saveCursor(cursorPath, cursorData) {
-  fs.writeFileSync(cursorPath, `${JSON.stringify(cursorData, null, 2)}\n`, "utf8");
+  writeJsonFile(cursorPath, cursorData);
+}
+
+function normalizeSession(value) {
+  const raw = String(value || "").trim();
+  return raw || null;
+}
+
+function cursorKey(role, session = null) {
+  const ROLE = String(role || "").trim().toUpperCase();
+  const SESSION = normalizeSession(session);
+  return SESSION ? `${ROLE}:${SESSION}` : ROLE;
+}
+
+function cursorEntry(cursorData, role, session = null) {
+  const cursors = cursorData?.cursors && typeof cursorData.cursors === "object"
+    ? cursorData.cursors
+    : {};
+  return cursors[cursorKey(role, session)] || null;
+}
+
+function notificationLastReadAt(cursorData, notification) {
+  const role = String(notification?.target_role || "").trim().toUpperCase();
+  const session = normalizeSession(notification?.target_session);
+  if (!role) return null;
+
+  if (session) {
+    const sessionCursor = cursorEntry(cursorData, role, session);
+    if (sessionCursor?.last_read_at) return sessionCursor.last_read_at;
+
+    const legacyRoleCursor = cursorEntry(cursorData, role);
+    if (legacyRoleCursor?.last_read_at && normalizeSession(legacyRoleCursor?.last_read_by_session) === session) {
+      return legacyRoleCursor.last_read_at;
+    }
+    return null;
+  }
+
+  return cursorEntry(cursorData, role)?.last_read_at || null;
+}
+
+function filterPendingNotifications(allNotifications, cursorData, role, session = null) {
+  const ROLE = String(role || "").trim().toUpperCase();
+  const SESSION = normalizeSession(session);
+  return allNotifications.filter((entry) => {
+    if (String(entry.target_role || "").toUpperCase() !== ROLE) return false;
+    const targetSession = normalizeSession(entry?.target_session);
+    if (SESSION && targetSession && targetSession !== SESSION) return false;
+    const lastReadAt = notificationLastReadAt(cursorData, entry);
+    if (lastReadAt && entry.timestamp_utc <= lastReadAt) return false;
+    return true;
+  });
+}
+
+function ensureCursorStorage(cursorData) {
+  if (!cursorData.schema_version) {
+    cursorData.schema_version = "wp_notification_cursor@1";
+  }
+  if (!cursorData.cursors || typeof cursorData.cursors !== "object") {
+    cursorData.cursors = {};
+  }
 }
 
 function loadNotifications(notificationsPath) {
@@ -54,9 +115,10 @@ function loadNotifications(notificationsPath) {
   }).filter(Boolean);
 }
 
-export function checkNotifications({ wpId, role, ack = false, session = null } = {}) {
+function checkNotificationsCore({ wpId, role, ack = false, session = null } = {}) {
   const WP_ID = String(wpId || "").trim();
   const ROLE = String(role || "").trim().toUpperCase();
+  const SESSION = normalizeSession(session);
 
   if (!WP_ID || !/^WP-/.test(WP_ID)) {
     throw new Error("WP_ID is required");
@@ -71,14 +133,9 @@ export function checkNotifications({ wpId, role, ack = false, session = null } =
 
   const allNotifications = loadNotifications(notificationsPath);
   const cursorData = loadCursor(cursorPath);
-  const roleCursor = cursorData.cursors?.[ROLE] || null;
-  const lastReadAt = roleCursor?.last_read_at || null;
-
-  const pending = allNotifications.filter((entry) => {
-    if (String(entry.target_role || "").toUpperCase() !== ROLE) return false;
-    if (lastReadAt && entry.timestamp_utc <= lastReadAt) return false;
-    return true;
-  });
+  const pending = filterPendingNotifications(allNotifications, cursorData, ROLE, SESSION);
+  const roleLastReadAt = cursorEntry(cursorData, ROLE)?.last_read_at || null;
+  const sessionLastReadAt = SESSION ? cursorEntry(cursorData, ROLE, SESSION)?.last_read_at || null : null;
 
   const byKind = {};
   for (const entry of pending) {
@@ -89,36 +146,72 @@ export function checkNotifications({ wpId, role, ack = false, session = null } =
   const result = {
     wpId: WP_ID,
     role: ROLE,
+    session: SESSION,
     pendingCount: pending.length,
     byKind,
     notifications: pending,
-    lastReadAt,
+    lastReadAt: SESSION ? sessionLastReadAt : roleLastReadAt,
+    roleLastReadAt,
+    sessionLastReadAt,
     cursorPath,
     notificationsPath,
   };
 
-  if (ack && pending.length > 0) {
-    const latestTimestamp = pending.reduce(
-      (latest, entry) => (entry.timestamp_utc > latest ? entry.timestamp_utc : latest),
-      "",
-    );
-    if (!cursorData.schema_version) {
-      cursorData.schema_version = "wp_notification_cursor@1";
+  if (ack) {
+    if (!SESSION) {
+      throw new Error("SESSION is required when acknowledging notifications");
     }
-    if (!cursorData.cursors) {
-      cursorData.cursors = {};
+    if (pending.length > 0) {
+      ensureCursorStorage(cursorData);
+      const acknowledgedAt = new Date().toISOString();
+      const targetedPending = pending.filter((entry) => normalizeSession(entry?.target_session) === SESSION);
+      const untargetedPending = pending.filter((entry) => !normalizeSession(entry?.target_session));
+      const latestTargetedTimestamp = targetedPending.reduce(
+        (latest, entry) => (entry.timestamp_utc > latest ? entry.timestamp_utc : latest),
+        "",
+      );
+      const latestUntargetedTimestamp = untargetedPending.reduce(
+        (latest, entry) => (entry.timestamp_utc > latest ? entry.timestamp_utc : latest),
+        "",
+      );
+
+      if (latestTargetedTimestamp) {
+        cursorData.cursors[cursorKey(ROLE, SESSION)] = {
+          last_read_at: latestTargetedTimestamp,
+          last_read_by_session: SESSION,
+          acknowledged_at: acknowledgedAt,
+        };
+      }
+      if (latestUntargetedTimestamp) {
+        cursorData.cursors[cursorKey(ROLE)] = {
+          last_read_at: latestUntargetedTimestamp,
+          last_read_by_session: SESSION,
+          acknowledged_at: acknowledgedAt,
+        };
+      }
+
+      saveCursor(cursorPath, cursorData);
+      result.acknowledged = true;
+      result.newCursorAt = [latestTargetedTimestamp, latestUntargetedTimestamp]
+        .filter(Boolean)
+        .sort()
+        .at(-1) || null;
+    } else {
+      result.acknowledged = false;
+      result.newCursorAt = null;
     }
-    cursorData.cursors[ROLE] = {
-      last_read_at: latestTimestamp,
-      last_read_by_session: session || null,
-      acknowledged_at: new Date().toISOString(),
-    };
-    saveCursor(cursorPath, cursorData);
-    result.acknowledged = true;
-    result.newCursorAt = latestTimestamp;
   }
 
   return result;
+}
+
+export function checkNotifications(args = {}, options = {}) {
+  const WP_ID = String(args?.wpId || "").trim();
+  const run = () => checkNotificationsCore(args);
+  if (options.assumeTransactionLock || !WP_ID || !/^WP-/.test(WP_ID)) {
+    return run();
+  }
+  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), run);
 }
 
 export function checkAllNotifications({ wpId } = {}) {
@@ -127,14 +220,16 @@ export function checkAllNotifications({ wpId } = {}) {
     throw new Error("WP_ID is required");
   }
 
-  const results = {};
-  for (const role of ROUTABLE_ROLE_VALUES) {
-    const check = checkNotifications({ wpId: WP_ID, role });
-    if (check.pendingCount > 0) {
-      results[role] = check;
+  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), () => {
+    const results = {};
+    for (const role of ROUTABLE_ROLE_VALUES) {
+      const check = checkNotifications({ wpId: WP_ID, role }, { assumeTransactionLock: true });
+      if (check.pendingCount > 0) {
+        results[role] = check;
+      }
     }
-  }
-  return results;
+    return results;
+  });
 }
 
 function runCli() {

@@ -8,9 +8,12 @@ import {
 } from "../scripts/session/session-policy.mjs";
 import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 import {
+  BROAD_TOOL_ALLOWLIST_VALUES,
   hasConcreteScopeEntries,
   hasScopeOverlap,
+  parsePacketScopeDiscipline,
   parsePacketScopeList,
+  scopeDisciplineRequiresEnforcement,
 } from "../scripts/lib/scope-surface-lib.mjs";
 
 // Canonical governance workspace packets live under `/.GOV/task_packets/`.
@@ -72,8 +75,10 @@ function checkPacket(filePath) {
   const coderStrength = parseSingleField(text, "CODER_REASONING_STRENGTH");
   const enforceSessionPolicy = packetUsesSessionPolicy(packetFormatVersion);
   const enforceScopeContract = Boolean(packetFormatVersion);
+  const enforceScopeDiscipline = scopeDisciplineRequiresEnforcement(packetFormatVersion);
   const inScopePaths = parsePacketScopeList(text, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
   const outOfScopePaths = parsePacketScopeList(text, "OUT_OF_SCOPE");
+  const scopeDiscipline = parsePacketScopeDiscipline(text);
 
   const rel = filePath.split(path.sep).join("/");
   const errors = [];
@@ -116,6 +121,16 @@ function checkPacket(filePath) {
     errors.push(
       `${rel}: IN_SCOPE_PATHS and OUT_OF_SCOPE overlap (${overlap.left} <-> ${overlap.right})`
     );
+  }
+
+  if (enforceScopeDiscipline && !scopeDiscipline.touchedFileBudgetValid) {
+    errors.push(`${rel}: TOUCHED_FILE_BUDGET must be an integer >= 1 for PACKET_FORMAT_VERSION >= 2026-03-23`);
+  }
+  if (enforceScopeDiscipline && !scopeDiscipline.broadToolAllowlistValid) {
+    const detail = scopeDiscipline.invalidBroadToolTokens.includes("NONE_WITH_OTHERS")
+      ? "NONE cannot be combined with other broad tool allowlist tokens"
+      : `invalid token(s): ${scopeDiscipline.invalidBroadToolTokens.join(", ")}; allowed: ${BROAD_TOOL_ALLOWLIST_VALUES.join("|")}`;
+    errors.push(`${rel}: BROAD_TOOL_ALLOWLIST is invalid (${detail})`);
   }
 
   if (errors.length > 0) fail("Coder claim fields missing/invalid", errors);

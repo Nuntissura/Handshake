@@ -15,7 +15,9 @@
         "actor_role": "WP_VALIDATOR",
         "target_role": "CODER",
         "correlation_id": "kick-1",
-        "summary": "Tripwires and clause checklist posted."
+        "summary": "Tripwires and clause checklist posted.",
+        "actor_session": "wpv-1",
+        "target_session": "coder-1"
       },
       {
         "timestamp_utc": "2026-03-21T10:05:00Z",
@@ -24,7 +26,9 @@
         "target_role": "WP_VALIDATOR",
         "correlation_id": "kick-1",
         "ack_for": "kick-1",
-        "summary": "Proof plan and tests declared."
+        "summary": "Proof plan and tests declared.",
+        "actor_session": "coder-1",
+        "target_session": "wpv-1"
       }
     ],
     "runtimeStatus": {

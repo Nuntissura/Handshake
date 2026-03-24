@@ -5,9 +5,7 @@ import {
   packetRequiresSpecClauseMap,
   packetUsesStructuredValidationReport,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
-
-const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
+import { GOV_ROOT_REPO_REL, listOfficialWorkPacketPaths } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 function fail(message, details = []) {
   console.error(`[VALIDATOR_REPORT_STRUCTURE_CHECK] ${message}`);
@@ -99,15 +97,13 @@ function isClosedStatus(status) {
   return /\b(done|validated)\b/i.test(String(status || ""));
 }
 
-if (!fs.existsSync(PACKETS_DIR)) {
-  fail("Work packet directory missing", [PACKETS_DIR.replace(/\\/g, "/")]);
+const files = listOfficialWorkPacketPaths();
+if (files.length === 0) {
+  fail("No official work packets found", [path.join(GOV_ROOT_REPO_REL, "task_packets").replace(/\\/g, "/")]);
 }
-
-const files = fs.readdirSync(PACKETS_DIR).filter((name) => name.endsWith(".md") && name !== "README.md");
 const violations = [];
 
-for (const name of files) {
-  const rel = path.join(PACKETS_DIR, name).replace(/\\/g, "/");
+for (const rel of files) {
   const text = fs.readFileSync(rel, "utf8");
   const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
   if (!packetUsesStructuredValidationReport(packetFormatVersion)) continue;

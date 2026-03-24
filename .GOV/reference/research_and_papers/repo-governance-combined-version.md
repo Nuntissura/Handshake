@@ -1230,3 +1230,250 @@ The verification stack provides the machinery.
 The governance law decides when the machinery is sufficient.
 
 The policy engine, not the prose, decides whether the work is accepted.
+
+---
+
+## 27. Handshake repo-specific implementation delta
+
+This paper is intentionally general. The Handshake repo needed a repo-local implementation layer because the observed failure mode was not only weak proof, but weak workflow truth across packet, runtime, task board, session, communication, and worktree state.
+
+The practical result is that Handshake did not just "adopt the paper." It implemented a governance kernel shaped for orchestrator-managed parallel work with multiple governed roles, external runtime ledgers, packet-scoped direct review, and worktree-level authority.
+
+### 27.1 What Handshake implemented from this paper
+
+#### 27.1.1 Startup truth as a hard gate
+
+Handshake implemented a startup/workflow-readiness hard gate rather than trusting optimistic startup narration.
+
+Technical shape:
+- shared readiness evaluation across packet state, task-board state, runtime state, session state, communication state, and worktree state
+- folder-aware packet inventory so live packet layouts are not skipped by repo-wide checks
+- stale or obsolete governed sessions demoted instead of advertised as resumable truth
+- startup blocked when authority roots, worktree targets, or communication state disagree materially
+
+Reason:
+- the audit escape was not only a proof problem; it was also a false-ready problem
+- a repo doing parallel governed work cannot tolerate split truth at startup because every later gate inherits that lie
+
+#### 27.1.2 Transactional activation instead of partial activation
+
+Handshake implemented transactional `prepare -> packet -> status sync` behavior for orchestrator-managed activation.
+
+Technical shape:
+- staged write / snapshot / restore flow across packet state, task board, traceability, build order, and communication bootstrap
+- `orchestrator-prepare-and-packet` treated as one coordinated state transition rather than a sequence of loosely coupled side effects
+- rollback on downstream failure instead of leaving fake progress behind
+
+Reason:
+- partial activation creates governance debt immediately
+- if one surface says "active" while another still says "not started," the Orchestrator becomes a manual repair system
+
+#### 27.1.3 Direct review as a governed boundary
+
+Handshake implemented direct coder <-> validator review as a machine-checked workflow boundary.
+
+Technical shape:
+- packet-scoped receipts, notifications, runtime route projection, and communication health checks
+- required `correlation_id`, `ack_for`, and `target_session` fields for direct-review receipts
+- `next_expected_actor`, waiting state, and unread boundary notifications derived from governed artifacts
+- handoff and verdict blocked when the required review pair is missing or malformed
+
+Reason:
+- narrative review claims were too easy to game
+- orchestrator-managed parallel work needs direct-review proof that survives multiple simultaneous coder and validator sessions
+
+#### 27.1.4 Computed closure instead of narrated closure
+
+Handshake implemented a deterministic closure gate rather than trusting validator prose.
+
+Technical shape:
+- final closure computed from packet requirement/evidence structures, diff claims, witness coverage, protected-surface state, and waivers
+- structured outcomes such as `PASS`, `FAIL`, `REVIEW_REQUIRED`, `WAIVED`, and `BLOCKED`
+- pre-threshold structured legacy packets explicitly blocked as remediation-required instead of silently skipped
+
+Reason:
+- the main audit finding was that visible completion could outrun defended completion
+- once closure is computed, the model cannot create authority just by sounding confident
+
+#### 27.1.5 Scope and anti-spill enforcement
+
+Handshake implemented enforceable scope controls around edit breadth and broad tools.
+
+Technical shape:
+- touched-file budgets
+- broad-tool allowlists
+- post-work spill detection
+- packet-claim enforcement for scope declarations
+
+Reason:
+- one way LLMs game governance is by satisfying the visible packet contract while editing too broadly or using tools that outrun the intended proof surface
+
+#### 27.1.6 Prevention-ladder and legacy-cleanup promotion
+
+Handshake implemented a repo-local mistake-book/prevention-ladder pattern instead of leaving audit escapes as prose only.
+
+Technical shape:
+- named escape classes
+- compatibility shim ledger
+- deprecation sunset planning
+- post-run audit skeleton generation
+- runtime placement checks and migration-path truth checks
+
+Reason:
+- repeated escape shapes should become governed assets, not institutional memory
+- real repositories accumulate historical compatibility surfaces that can poison live authority unless explicitly bounded
+
+### 27.2 What Handshake added that this paper did not cover
+
+The paper describes the anti-gaming model, but Handshake had to add several implementation layers because the repo operates with governed LLM sessions, dedicated worktrees, and packet-scoped communication artifacts.
+
+#### 27.2.1 Externalized live runtime
+
+The paper does not define a repo/external-runtime split. Handshake does.
+
+Technical shape:
+- live session/control/communication runtime under `../gov_runtime/roles_shared/*`
+- only narrow repo-local exceptions retained under `/.GOV/roles_shared/runtime/`
+- runtime placement checks to stop live authority from drifting back into the governance kernel
+
+Reason:
+- the kernel should stay reviewable, versioned, and resistant to runtime poisoning
+- live mutable runtime state should not masquerade as repo-governed source of truth
+
+#### 27.2.2 ACP broker and governed session-control plane
+
+The paper does not describe a brokered multi-session control plane. Handshake needed one.
+
+Technical shape:
+- governed session registry
+- governed launch/control request and output ledgers
+- ACP broker status / stop / control surfaces
+- role-bound startup prompts and governed resume commands
+- worktree-aware session truth and stale-session demotion
+
+Reason:
+- Handshake runs multiple coders and validators in parallel
+- the control plane itself therefore becomes a governance subject, not just a convenience layer
+
+#### 27.2.3 Packet-scoped communication subsystem
+
+The paper says direct review should be machine-checkable, but it does not specify a concrete communication substrate. Handshake built one.
+
+Technical shape:
+- per-packet thread, receipt, notification, and runtime-status artifacts
+- per-WP communication transaction locking
+- route projection from governed receipts
+- session-aware notification cursors
+- operator-facing communication health views
+
+Reason:
+- in a parallel packet system, direct review is not one message; it is a bounded governed conversation with routing, unread state, and replay/audit value
+
+#### 27.2.4 Session identity as part of proof
+
+The paper talks about roles; Handshake had to go further and govern sessions.
+
+Technical shape:
+- receipt pairing and notification acknowledgment keyed by role plus session identity where direct review is session-targeted
+- mixed-session receipt chains treated as invalid
+- unread state and route health computed at the session level, not only the role level
+
+Reason:
+- role-only pairing is not strong enough once there can be multiple coders or multiple WP validators active at once
+
+#### 27.2.5 Packet-layout migration handling
+
+The paper does not discuss packet-file layout migration. Handshake had to govern it.
+
+Technical shape:
+- shared packet inventory that understands flat historical packets and folder packets
+- schema and checker alignment during migration
+- explicit handling for legacy packet versions instead of blind compatibility
+
+Reason:
+- otherwise repo-wide checks silently skip the active packet shape and report a false green
+
+#### 27.2.6 Command-surface coherence as governance
+
+The paper does not cover protocol-doc drift versus executable command drift. Handshake had to.
+
+Technical shape:
+- restored `just` command surfaces for coder, validator, and orchestrator workflows
+- command-surface tests that compare documented commands against live recipes
+- health sweeps that treat dead wrapper commands as governance defects
+
+Reason:
+- in this repo, a stale command is not only documentation debt; it is an execution hazard
+- if protocols name commands that do not exist, operator and role behavior diverges from law
+
+### 27.3 Useful Handshake governance that already existed before this refactor
+
+This refactor was able to land quickly because the repo already had several governance assets worth keeping.
+
+#### 27.3.1 Split completion layers and `NOT_PROVEN`
+
+Handshake already had the right intuition that completion is layered and that "not proven" is not the same as "passed."
+
+Technical value:
+- split verdict fields created a place to attach computed closure later
+- `NOT_PROVEN` created a native home for partial defense instead of forcing false binary PASS/FAIL prose
+
+#### 27.3.2 Structured task packets
+
+The repo already had a strong task-packet culture.
+
+Technical value:
+- declared workflow state
+- structured claims and evidence sections
+- clause and semantic-proof scaffolding
+- traceability hooks
+
+This mattered because the refactor could strengthen packet law rather than invent a new artifact family.
+
+#### 27.3.3 Dedicated role protocols and worktree discipline
+
+Handshake already treated Orchestrator, Coder, and Validator as governed roles instead of generic prompts.
+
+Technical value:
+- role-local protocols
+- dedicated worktree conventions
+- explicit startup/resume habits
+- PREPARE and packet authority paths
+
+This made it possible to turn existing workflow conventions into executable checks.
+
+#### 27.3.4 Validator gate sequence
+
+The repo already had a stronger-than-average validator gate flow around append / commit / present / acknowledge.
+
+Technical value:
+- there was already a location where merge authority could be tightened
+- the refactor therefore extended an existing gate instead of introducing a separate approval system
+
+#### 27.3.5 Existing audit culture
+
+Handshake already had audits, audit triggers, and a willingness to revisit "validated" work after deeper review.
+
+Technical value:
+- the repo was already generating the evidence needed to seed prevention assets
+- the governance refactor could therefore be grounded in concrete failure modes rather than abstract fear
+
+### 27.4 Repo-specific operating principle
+
+For Handshake specifically, the practical operating principle is not only:
+
+- no unclaimed code
+- no unwitnessed requirement
+- no PASS from models
+
+It is also:
+
+- no split workflow truth
+- no session-blind review proof in parallel work
+- no live runtime authority hiding inside the governance kernel
+- no dead command surface in a role protocol
+- no historical packet treated as healthy simply because it once validated
+
+The paper supplies the model.
+
+The repo-specific implementation supplies the control plane, authority boundaries, runtime law, and migration law required to make that model survive real orchestrated LLM work.

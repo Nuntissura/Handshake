@@ -1,6 +1,7 @@
 # Deprecation Sunset Plan
 
 Active compatibility surfaces must be recorded here until removed.
+Operational shim ownership lives in `.GOV/roles_shared/records/COMPATIBILITY_SHIM_LEDGER.md`; keep the entries aligned.
 
 ## ENTRY
 - LEGACY_SURFACE: `WINDOWS_TERMINAL`
@@ -45,7 +46,7 @@ Active compatibility surfaces must be recorded here until removed.
 - OWNER: `VALIDATOR`
 - NEW_DEPENDENCIES_ALLOWED: `NO`
 - WHY_THIS_EXISTS: `older validator sessions wrote one shared gate file, which made active authority and historical evidence hard to separate`
-- SUPERSEDED_BY: `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json` plus the legacy archive at .GOV/reference/legacy/validator/VALIDATOR_GATES.json`
+- SUPERSEDED_BY: `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json` plus the legacy archive at `.GOV/reference/legacy/validator/VALIDATOR_GATES.json`
 - DELETION_CONDITION: `all active validator tooling reads per-WP gate files only and the old shared file remains historical reference material only`
 - SUNSET_TRIGGER: `all active validator tooling reads per-WP gate files only and no live authority surface requires the legacy archive path outside explicitly marked reference material`
 - REMOVAL_ACTION: `legacy root archive removed; preserved historical copy at .GOV/reference/legacy/validator/VALIDATOR_GATES.json and removed active workflow dependencies on the old root path`

@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import path from "node:path";
 import {
   buildRemoteBackupUrl,
   CLI_ESCALATION_HOST_DEFAULT,
@@ -22,6 +21,8 @@ import {
   ROLE_SESSION_REASONING_CONFIG_VALUE,
   ROLE_SESSION_REASONING_REQUIRED,
   ROLE_SESSION_RUNTIME,
+  SESSION_POLICY_PACKET_MIN_VERSION,
+  SESSION_POLICY_STUB_MIN_VERSION,
   SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
   SESSION_PLUGIN_BRIDGE_COMMAND,
   SESSION_PLUGIN_BRIDGE_ID,
@@ -41,10 +42,7 @@ import {
   stubUsesSessionPolicy,
   SPEC_CLAUSE_MAP_MIN_VERSION,
 } from "../scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
-
-const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
-const STUBS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets", "stubs");
+import { inferWpIdFromPacketPath, listOfficialWorkPacketPaths, listStubWorkPacketPaths } from "../scripts/lib/runtime-paths.mjs";
 
 function fail(message, details = []) {
   console.error(`[SESSION_POLICY_CHECK] ${message}`);
@@ -102,26 +100,20 @@ function checkMirrorField(errors, rel, text, label, sourceLabel) {
   }
 }
 
-function listMarkdownFiles(dirPath) {
-  if (!fs.existsSync(dirPath)) return [];
-  return fs
-    .readdirSync(dirPath)
-    .filter((name) => name.endsWith(".md"))
-    .map((name) => path.join(dirPath, name));
-}
-
 function checkPacket(filePath) {
   const text = fs.readFileSync(filePath, "utf8");
-  const rel = filePath.split(path.sep).join("/");
+  const rel = filePath.replace(/\\/g, "/");
   const version = parseSingleField(text, "PACKET_FORMAT_VERSION");
   if (!packetUsesSessionPolicy(version)) return;
 
-  const wpId = parseSingleField(text, "WP_ID") || path.basename(filePath, ".md");
+  const wpId = parseSingleField(text, "WP_ID") || inferWpIdFromPacketPath(filePath);
   const errors = [];
-  const allowedPacketVersions = new Set(["2026-03-12", "2026-03-15", "2026-03-16", PACKET_FORMAT_VERSION]);
+  const versionInSupportedPacketRange = version >= SESSION_POLICY_PACKET_MIN_VERSION && version <= PACKET_FORMAT_VERSION;
 
-  if (!allowedPacketVersions.has(version)) {
-    errors.push(`${rel}: PACKET_FORMAT_VERSION must be one of ${Array.from(allowedPacketVersions).join(" | ")} (got: ${version || "<missing>"})`);
+  if (!versionInSupportedPacketRange) {
+    errors.push(
+      `${rel}: PACKET_FORMAT_VERSION must be within ${SESSION_POLICY_PACKET_MIN_VERSION}..${PACKET_FORMAT_VERSION} (got: ${version || "<missing>"})`
+    );
   }
   checkExpected(errors, rel, text, "SESSION_START_AUTHORITY", SESSION_START_AUTHORITY);
   checkExpected(errors, rel, text, "SESSION_HOST_PREFERENCE", SESSION_HOST_PREFERENCE);
@@ -214,14 +206,16 @@ function checkPacket(filePath) {
 
 function checkStub(filePath) {
   const text = fs.readFileSync(filePath, "utf8");
-  const rel = filePath.split(path.sep).join("/");
+  const rel = filePath.replace(/\\/g, "/");
   const version = parseSingleField(text, "STUB_FORMAT_VERSION");
   if (!stubUsesSessionPolicy(version)) return;
 
   const errors = [];
-  const allowedStubVersions = new Set(["2026-03-12", STUB_FORMAT_VERSION]);
-  if (!allowedStubVersions.has(version)) {
-    errors.push(`${rel}: STUB_FORMAT_VERSION must be one of ${Array.from(allowedStubVersions).join(" | ")} (got: ${version || "<missing>"})`);
+  const versionInSupportedStubRange = version >= SESSION_POLICY_STUB_MIN_VERSION && version <= STUB_FORMAT_VERSION;
+  if (!versionInSupportedStubRange) {
+    errors.push(
+      `${rel}: STUB_FORMAT_VERSION must be within ${SESSION_POLICY_STUB_MIN_VERSION}..${STUB_FORMAT_VERSION} (got: ${version || "<missing>"})`
+    );
   }
   checkExpected(errors, rel, text, "SESSION_START_AUTHORITY", SESSION_START_AUTHORITY);
   checkExpected(errors, rel, text, "SESSION_HOST_PREFERENCE", SESSION_HOST_PREFERENCE);
@@ -251,7 +245,7 @@ function checkStub(filePath) {
   if (errors.length > 0) fail("Stub session policy violations found", errors);
 }
 
-for (const filePath of listMarkdownFiles(PACKETS_DIR)) checkPacket(filePath);
-for (const filePath of listMarkdownFiles(STUBS_DIR)) checkStub(filePath);
+for (const filePath of listOfficialWorkPacketPaths()) checkPacket(filePath);
+for (const filePath of listStubWorkPacketPaths()) checkStub(filePath);
 
 console.log("session-policy-check ok");

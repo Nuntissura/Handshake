@@ -1,119 +1,70 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 import {
-  classifyWpChangedPath,
+  collectBudgetCountedFiles,
   deriveWpScopeContract,
-  hasScopeOverlap,
-  isGovernanceOnlyPath,
-  matchesScopeEntry,
-  normalizeRepoPath,
-  parsePacketScopeList,
+  parsePacketScopeDiscipline,
+  scopeDisciplineRequiresEnforcement,
 } from "../scripts/lib/scope-surface-lib.mjs";
 
-test("parsePacketScopeList supports metadata bullets", () => {
-  const packet = `
-- IN_SCOPE_PATHS:
-  - src/backend/handshake_core/src/locus/types.rs
-  - tests/scope_guard.rs
-- OUT_OF_SCOPE:
-  - app/src
-`;
+function packetFixture(scopeBlock = "") {
+  return `# Task Packet: WP-TEST-SCOPE-v1
 
-  assert.deepEqual(parsePacketScopeList(packet, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] }), [
-    "src/backend/handshake_core/src/locus/types.rs",
-    "tests/scope_guard.rs",
+## METADATA
+- WP_ID: WP-TEST-SCOPE-v1
+- PACKET_FORMAT_VERSION: 2026-03-23
+
+## SCOPE
+- IN_SCOPE_PATHS:
+  - src/backend/feature
+  - src/backend/shared.rs
+- OUT_OF_SCOPE:
+  - tests/
+- TOUCHED_FILE_BUDGET: 3
+- BROAD_TOOL_ALLOWLIST: FORMATTER, SEARCH_REPLACE
+
+${scopeBlock}`.trim();
+}
+
+test("parsePacketScopeDiscipline parses file budget and broad tool allowlist", () => {
+  const parsed = parsePacketScopeDiscipline(packetFixture());
+
+  assert.equal(parsed.touchedFileBudget, 3);
+  assert.equal(parsed.touchedFileBudgetValid, true);
+  assert.deepEqual(parsed.broadToolAllowlist, ["FORMATTER", "SEARCH_REPLACE"]);
+  assert.equal(parsed.broadToolAllowlistValid, true);
+});
+
+test("parsePacketScopeDiscipline rejects NONE mixed with other allowlist tokens", () => {
+  const parsed = parsePacketScopeDiscipline(packetFixture().replace("FORMATTER, SEARCH_REPLACE", "NONE, FORMATTER"));
+
+  assert.equal(parsed.broadToolAllowlistValid, false);
+  assert.deepEqual(parsed.invalidBroadToolTokens, ["NONE_WITH_OTHERS"]);
+});
+
+test("collectBudgetCountedFiles counts only in-scope implementation files", () => {
+  const scopeContract = deriveWpScopeContract({
+    wpId: "WP-TEST-SCOPE-v1",
+    packetContent: packetFixture(),
+  });
+
+  const counted = collectBudgetCountedFiles([
+    "src/backend/feature/a.rs",
+    "src/backend/feature/b.rs",
+    "src/backend/shared.rs",
+    "tests/feature_tests.rs",
+    ".GOV/task_packets/WP-TEST-SCOPE-v1/packet.md",
+    "justfile",
+  ], scopeContract);
+
+  assert.deepEqual(counted, [
+    "src/backend/feature/a.rs",
+    "src/backend/feature/b.rs",
+    "src/backend/shared.rs",
   ]);
-  assert.deepEqual(parsePacketScopeList(packet, "OUT_OF_SCOPE"), ["app/src"]);
 });
 
-test("parsePacketScopeList supports heading style lists", () => {
-  const packet = `
-### IN_SCOPE_PATHS
-- src/backend/handshake_core/src/storage
-- app/src/routes
-
-### OUT_OF_SCOPE
-- tests
-`;
-
-  assert.deepEqual(parsePacketScopeList(packet, "IN_SCOPE_PATHS"), [
-    "src/backend/handshake_core/src/storage",
-    "app/src/routes",
-  ]);
-  assert.deepEqual(parsePacketScopeList(packet, "OUT_OF_SCOPE"), ["tests"]);
-});
-
-test("matchesScopeEntry handles file and directory scopes", () => {
-  assert.equal(matchesScopeEntry("src/backend/handshake_core/src/storage/mod.rs", "src/backend/handshake_core/src/storage"), true);
-  assert.equal(matchesScopeEntry("src/backend/handshake_core/src/storage/mod.rs", "src/backend/handshake_core/src/storage/"), true);
-  assert.equal(matchesScopeEntry("src/backend/handshake_core/src/storage/mod.rs", "src/backend/handshake_core/src/locus"), false);
-});
-
-test("hasScopeOverlap catches conflicting in-scope/out-of-scope entries", () => {
-  assert.deepEqual(
-    hasScopeOverlap(["src/backend/handshake_core/src/storage"], ["src/backend/handshake_core/src/storage/mod.rs"]),
-    {
-      left: "src/backend/handshake_core/src/storage",
-      right: "src/backend/handshake_core/src/storage/mod.rs",
-    },
-  );
-});
-
-test("classifyWpChangedPath separates in-scope, root governance, and junction drift", () => {
-  const packet = `
-- IN_SCOPE_PATHS:
-  - src/backend/handshake_core/src/storage
-- OUT_OF_SCOPE:
-  - app/src
-`;
-  const contract = deriveWpScopeContract({
-    wpId: "WP-1-Scope-Hardening-v1",
-    packetContent: packet,
-  });
-
-  assert.deepEqual(classifyWpChangedPath("src/backend/handshake_core/src/storage/mod.rs", contract), {
-    path: "src/backend/handshake_core/src/storage/mod.rs",
-    kind: "IN_SCOPE",
-    allowed: true,
-  });
-  assert.deepEqual(classifyWpChangedPath("justfile", contract), {
-    path: "justfile",
-    kind: "ROOT_GOVERNANCE_OUT_OF_SCOPE",
-    allowed: false,
-  });
-  assert.deepEqual(classifyWpChangedPath(".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md", contract), {
-    path: ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
-    kind: "GOVERNANCE_JUNCTION_DRIFT",
-    allowed: false,
-  });
-});
-
-test("classifyWpChangedPath keeps general .GOV paths out of WP scope even if listed", () => {
-  const packet = `
-- IN_SCOPE_PATHS:
-  - .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md
-- OUT_OF_SCOPE:
-  - NONE
-`;
-  const contract = deriveWpScopeContract({
-    wpId: "WP-1-Scope-Hardening-v1",
-    packetContent: packet,
-  });
-
-  assert.deepEqual(classifyWpChangedPath(".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md", contract), {
-    path: ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
-    kind: "GOVERNANCE_JUNCTION_DRIFT",
-    allowed: false,
-  });
-});
-
-test("governance helper recognizes root governance-only surfaces", () => {
-  assert.equal(isGovernanceOnlyPath("justfile"), true);
-  assert.equal(isGovernanceOnlyPath("AGENTS.md"), true);
-  assert.equal(isGovernanceOnlyPath(".github/workflows/ci.yml"), true);
-  assert.equal(isGovernanceOnlyPath("src/backend/handshake_core/src/lib.rs"), false);
-});
-
-test("normalizeRepoPath strips local prefixes and slashes", () => {
-  assert.equal(normalizeRepoPath("./src\\backend\\handshake_core\\src\\lib.rs"), "src/backend/handshake_core/src/lib.rs");
+test("scopeDisciplineRequiresEnforcement gates only new packet versions", () => {
+  assert.equal(scopeDisciplineRequiresEnforcement("2026-03-22"), false);
+  assert.equal(scopeDisciplineRequiresEnforcement("2026-03-23"), true);
 });

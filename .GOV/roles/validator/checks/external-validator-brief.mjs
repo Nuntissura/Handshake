@@ -17,6 +17,7 @@ import {
   resolvePrepareWorktreeAbs,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import { evaluateValidatorPacketGovernanceState } from "../scripts/lib/validator-governance-lib.mjs";
 
 function usage() {
   console.error("Usage: node .GOV/roles/validator/checks/external-validator-brief.mjs WP-{ID} [--json]");
@@ -152,12 +153,16 @@ function formatText(brief) {
     `- STARTUP_SEQUENCE: ${brief.startup_sequence.join(" -> ")}`,
     `- HANDOFF_COMMAND: ${brief.handoff_target.command}`,
     `- GOVERNANCE_COMMAND: ${brief.governance_target.command}`,
-    `- LEGAL_VERDICTS: PASS | FAIL | PENDING`,
-    `- DISPOSITIONS: NONE | OUTDATED_ONLY`,
-    `- SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT`,
+    `- LEGAL_VERDICTS: ${brief.legal_verdicts.join(" | ")}`,
+    `- DISPOSITIONS: ${brief.dispositions.join(" | ")}`,
+    `- SPLIT_FIELDS: ${brief.split_fields.join(" | ")}`,
     `- RUNTIME_LEDGER_RULE: session ledgers/output logs are operator/runtime evidence only; they are not packet-scope implementation authority`,
     `- WRITE_TARGET_RULE: independent external revalidation of an orchestrator-managed WP writes a chat report or clearly labeled external revalidation report only; it must not run validator-gate-*, mutate closure state, or replace Classical Validator / Integration Validator merge authority`,
   ];
+  if (brief.policy_outcome) lines.push(`- POLICY_OUTCOME: ${brief.policy_outcome}`);
+  if (brief.policy_applicability) lines.push(`- POLICY_APPLICABILITY: ${brief.policy_applicability}`);
+  if (brief.legacy_remediation_required) lines.push("- LEGACY_REMEDIATION_REQUIRED: YES");
+  if (brief.blocked_reason) lines.push(`- BLOCKED_REASON: ${brief.blocked_reason}`);
 
   if (brief.context_notes.length > 0) {
     lines.push("- CONTEXT_NOTES:");
@@ -174,15 +179,21 @@ function formatText(brief) {
     for (const command of brief.optional_commands) lines.push(`  - ${command}`);
   }
 
-  lines.push("- REPORT_TEMPLATE:");
-  lines.push("  - VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH");
-  lines.push("  - CODE_VERDICT: PASS | FAIL | NOT_RUN");
-  lines.push("  - GOVERNANCE_VERDICT: PASS | FAIL | NOT_RUN");
-  lines.push("  - ENVIRONMENT_VERDICT: PASS | FAIL | NOT_RUN");
-  lines.push("  - DISPOSITION: NONE | OUTDATED_ONLY");
-  lines.push("  - LEGAL_VERDICT: PASS | FAIL | PENDING");
-  lines.push("  - RULE: strings like accept/approved/technical pass are not legal verdicts");
-  lines.push("  - RULE: use DISPOSITION=OUTDATED_ONLY when SPEC_TARGET has evolved but no code/protocol regression is proven");
+  if (!brief.legacy_remediation_required) {
+    lines.push("- REPORT_TEMPLATE:");
+    lines.push("  - VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH");
+    lines.push("  - CODE_VERDICT: PASS | FAIL | NOT_RUN");
+    lines.push("  - GOVERNANCE_VERDICT: PASS | FAIL | NOT_RUN");
+    lines.push("  - ENVIRONMENT_VERDICT: PASS | FAIL | NOT_RUN");
+    lines.push("  - DISPOSITION: NONE | OUTDATED_ONLY");
+    lines.push("  - LEGAL_VERDICT: PASS | FAIL | PENDING");
+    lines.push("  - RULE: strings like accept/approved/technical pass are not legal verdicts");
+    lines.push("  - RULE: use DISPOSITION=OUTDATED_ONLY when SPEC_TARGET has evolved but no code/protocol regression is proven");
+  } else {
+    lines.push("- BLOCKED_RULE:");
+    lines.push("  - Do not produce an external revalidation verdict for this packet.");
+    lines.push("  - Request a new remediation WP variant instead of revalidating or reopening this historical closure.");
+  }
 
   return `${lines.join("\n")}\n`;
 }
@@ -197,6 +208,11 @@ if (!packetExists(parsed.wpId)) {
 }
 
 const packetContent = loadPacket(parsed.wpId);
+const validatorGovernanceState = evaluateValidatorPacketGovernanceState({
+  wpId: parsed.wpId,
+  packetPath: packetPath(parsed.wpId),
+  packetContent,
+});
 const workflowLane = parseClaimField(packetContent, "WORKFLOW_LANE") || "<missing>";
 const governanceTarget = resolveGovernanceTarget(packetContent, repoRoot, workflowLane);
 const packetBranch = parseClaimField(packetContent, "LOCAL_BRANCH") || "<missing>";
@@ -250,24 +266,53 @@ const codeTargetHint = mergeBaseSha
 
 const requiredCommands = [];
 const optionalCommands = [];
-pushUnique(requiredCommands, "just validator-startup");
-pushUnique(requiredCommands, `just external-validator-brief ${parsed.wpId}`);
-pushUnique(requiredCommands, `just validator-handoff-check ${parsed.wpId}`);
-pushUnique(requiredCommands, "just gov-check");
-pushUnique(requiredCommands, `just post-work ${parsed.wpId}${mergeBaseSha ? ` --range ${mergeBaseSha}..HEAD` : ""}`);
-pushUnique(optionalCommands, "just cargo-clean");
-pushUnique(
-  contextNotes,
-  "Optional hygiene commands do not determine legal PASS/FAIL unless the packet explicitly makes them product-critical.",
-);
+let validationMode = "EXTERNAL_INDEPENDENT_REVALIDATION";
+let legalVerdicts = ["PASS", "FAIL", "PENDING"];
+let dispositions = ["NONE", "OUTDATED_ONLY"];
+let splitFields = [
+  "VALIDATION_CONTEXT",
+  "CODE_VERDICT",
+  "GOVERNANCE_VERDICT",
+  "ENVIRONMENT_VERDICT",
+  "DISPOSITION",
+  "LEGAL_VERDICT",
+];
+let blockedReason = "";
+
+if (validatorGovernanceState.legacyRemediationRequired) {
+  validationMode = "LEGACY_REMEDIATION_BLOCKED";
+  blockedReason = validatorGovernanceState.message;
+  pushUnique(contextNotes, blockedReason);
+  pushUnique(contextNotes, "This packet is a failed historical closure and must not be externally revalidated in place.");
+  pushUnique(requiredCommands, `just validator-policy-gate ${parsed.wpId}`);
+  pushUnique(requiredCommands, `just validator-packet-complete ${parsed.wpId}`);
+  legalVerdicts = [];
+  dispositions = [];
+  splitFields = [];
+} else {
+  pushUnique(requiredCommands, "just validator-startup");
+  pushUnique(requiredCommands, `just external-validator-brief ${parsed.wpId}`);
+  pushUnique(requiredCommands, `just validator-handoff-check ${parsed.wpId}`);
+  pushUnique(requiredCommands, "just gov-check");
+  pushUnique(requiredCommands, `just post-work ${parsed.wpId}${mergeBaseSha ? ` --range ${mergeBaseSha}..HEAD` : ""}`);
+  pushUnique(optionalCommands, "just cargo-clean");
+  pushUnique(
+    contextNotes,
+    "Optional hygiene commands do not determine legal PASS/FAIL unless the packet explicitly makes them product-critical.",
+  );
+}
 
 const brief = {
   schema_id: "hsk.external_validator_brief@1",
   schema_version: "external_validator_brief_v2",
   wp_id: parsed.wpId,
-  validation_mode: "EXTERNAL_INDEPENDENT_REVALIDATION",
+  validation_mode: validationMode,
   workflow_lane: workflowLane,
   validation_context: validationContext,
+  policy_outcome: validatorGovernanceState.computedPolicy.outcome,
+  policy_applicability: validatorGovernanceState.computedPolicy.applicability_reason || "APPLICABLE",
+  legacy_remediation_required: validatorGovernanceState.legacyRemediationRequired,
+  blocked_reason: blockedReason,
   code_target: {
     branch: packetBranch,
     packet_worktree_dir: packetWorktreeDir,
@@ -284,16 +329,9 @@ const brief = {
     command: `just validator-handoff-check ${parsed.wpId}`,
   },
   startup_sequence: ["just validator-startup", `just external-validator-brief ${parsed.wpId}`],
-  legal_verdicts: ["PASS", "FAIL", "PENDING"],
-  dispositions: ["NONE", "OUTDATED_ONLY"],
-  split_fields: [
-    "VALIDATION_CONTEXT",
-    "CODE_VERDICT",
-    "GOVERNANCE_VERDICT",
-    "ENVIRONMENT_VERDICT",
-    "DISPOSITION",
-    "LEGAL_VERDICT",
-  ],
+  legal_verdicts: legalVerdicts,
+  dispositions,
+  split_fields: splitFields,
   required_commands: requiredCommands,
   optional_commands: optionalCommands,
   context_notes: contextNotes,

@@ -38,6 +38,7 @@ import {
   WORKFLOW_LANE_VALUES,
 } from '../../../roles_shared/scripts/lib/wp-communications-lib.mjs';
 import { preparedWorktreeSyncState } from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
+import { normalizeScopeEntries } from '../../../roles_shared/scripts/lib/scope-surface-lib.mjs';
 import {
   buildRemoteBackupUrl,
   CLI_ESCALATION_HOST_DEFAULT,
@@ -651,6 +652,10 @@ const formatSourceLog = (sources) => formatList(
     return `[${kind}] ${title} | ${date} | Retrieved: ${retrievedAt} | ${url} | Why: ${why}`;
   }),
 );
+const deriveTouchedFileBudget = (...pathGroups) => {
+  const entries = normalizeScopeEntries(pathGroups.flat());
+  return String(Math.max(1, entries.length || 0));
+};
 const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
 const isVersionAtLeast = (isoDate, minIsoDate) => isIsoDate(isoDate) && isIsoDate(minIsoDate) && isoDate >= minIsoDate;
 const deriveAddMarkerTarget = (specFileName) => {
@@ -793,6 +798,8 @@ template = replaceSingleField(template, 'CODER_MODEL', executionLane || '<unclai
 template = replaceSingleField(template, 'CODER_REASONING_STRENGTH', '<unclaimed>');
 template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'DISALLOWED');
 template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', 'N/A');
+template = replaceSingleField(template, 'TOUCHED_FILE_BUDGET', '1');
+template = replaceSingleField(template, 'BROAD_TOOL_ALLOWLIST', 'NONE');
 
 let clauseClosureRows = [];
 if (isHydratedProfile) {
@@ -808,6 +815,12 @@ if (isHydratedProfile) {
   template = replaceSingleField(template, 'UI_UX_APPLICABLE', refinementData.uiApplicable || 'NO');
   template = replaceSingleField(template, 'UI_UX_VERDICT', refinementData.uiVerdict || 'OK');
   template = replaceSingleField(template, 'STUB_WP_IDS', refinementData.stubWpIdsRaw || 'NONE');
+  template = replaceSingleField(
+    template,
+    'TOUCHED_FILE_BUDGET',
+    deriveTouchedFileBudget(hydration.inScopePaths || [], refinementData.coderHotFiles || []),
+  );
+  template = replaceSingleField(template, 'BROAD_TOOL_ALLOWLIST', 'NONE');
   const primarySpecAnchor =
     (hydration.specAnchorPrimary || '').trim()
     || String(refinementData.specAnchors?.[0]?.specAnchor || '').trim()

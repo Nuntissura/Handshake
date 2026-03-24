@@ -27,6 +27,12 @@ import {
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { listValidatorGateStateFiles, resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import {
+  buildValidatorReadyCommands,
+  evaluateValidatorPacketGovernanceState,
+  evaluateValidatorPassAuthority,
+  resolveValidatorActorContext,
+} from "./lib/validator-governance-lib.mjs";
 
 function freshnessBoost(timestampMs) {
   const ageHours = Math.max(0, (Date.now() - timestampMs) / (1000 * 60 * 60));
@@ -61,6 +67,17 @@ function collectPendingSessions() {
 
     const boardStatus = taskBoardStatus(wpId);
     if (isTerminalTaskBoardStatus(boardStatus)) continue;
+    const packetContent = loadPacket(wpId);
+    if (!packetContent) continue;
+    const validatorGovernanceState = evaluateValidatorPacketGovernanceState({
+      wpId,
+      packetPath: packetPath(wpId),
+      packetContent,
+      currentWpStatus: parseCurrentWpStatus(packetContent),
+      taskBoardStatus: boardStatus,
+      sessionStatus: session.status,
+    });
+    if (!validatorGovernanceState.allowValidationResume) continue;
 
     const timestamp = Date.parse(
       String(session.gates?.[session.gates.length - 1]?.timestamp || session.started || ""),
@@ -107,6 +124,14 @@ function collectValidationReadyPackets() {
     if (isTerminalTaskBoardStatus(boardStatus)) continue;
 
     const packetContent = loadPacket(wpId);
+    const validatorGovernanceState = evaluateValidatorPacketGovernanceState({
+      wpId,
+      packetPath: packetPath(wpId),
+      packetContent,
+      currentWpStatus: parseCurrentWpStatus(packetContent),
+      taskBoardStatus: boardStatus,
+    });
+    if (!validatorGovernanceState.allowValidationResume) continue;
     const currentWpStatus = parseCurrentWpStatus(packetContent);
     const packetStatus = parseStatus(packetContent);
     if (!isValidationReadyStatus(currentWpStatus) && !/^done$/i.test(packetStatus)) continue;
@@ -259,42 +284,127 @@ const currentWpStatusLower = currentWpStatus.toLowerCase();
 const boardStatus = taskBoardStatus(wpId) || "<none>";
 const postWorkCommand = buildPostWorkCommand(wpId, packetContent);
 const session = loadValidationSession(wpId);
+const validatorGovernanceState = evaluateValidatorPacketGovernanceState({
+  wpId,
+  packetPath: packetPath(wpId),
+  packetContent,
+  currentWpStatus,
+  taskBoardStatus: boardStatus,
+  sessionStatus: session?.status || "",
+});
+const validatorActorContext = resolveValidatorActorContext({
+  repoRoot: gitContext.topLevel || process.cwd(),
+  wpId,
+  packetContent,
+  gitContext,
+});
+const passAuthorityCheck = evaluateValidatorPassAuthority({
+  packetContent,
+  actorContext: validatorActorContext,
+});
 
-if (session) {
-  const verdict = normalizeVerdict(session.verdict);
-  const findings = [
+if (!validatorGovernanceState.allowValidationResume) {
+  printVerdict("BLOCKED");
+  printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
+  printOperatorAction("Request NEW remediation WP variant; do not merge/sync closed legacy packet in-place.");
+  printConfidence(confidence, confidenceDetail);
+  printState(validatorGovernanceState.message);
+  printFindings([
     `Current branch: ${gitContext.branch || "<unknown>"}`,
     `Packet status: ${packetStatus || "<missing>"}`,
     `Current WP_STATUS: ${currentWpStatus || "<empty>"}`,
     `Task Board status: ${boardStatus}`,
-    `Validator gate status: ${session.status}`,
-  ];
+    `Validator gate status: ${session?.status || "<none>"}`,
+    `Resolved validator lane: ${validatorActorContext.actorRole} (${validatorActorContext.source})`,
+    `Computed policy outcome: ${validatorGovernanceState.computedPolicy.outcome}`,
+    `Computed policy applicability: ${validatorGovernanceState.computedPolicy.applicability_reason || "APPLICABLE"}`,
+  ]);
+  printNextCommands([
+    `just validator-policy-gate ${wpId}`,
+    `just validator-packet-complete ${wpId}`,
+    "# STOP: Request NEW remediation WP variant; do not merge or reopen this packet in-place.",
+  ]);
+  process.exit(0);
+}
+
+if (session) {
+  const verdict = normalizeVerdict(session.verdict);
+const findings = [
+  `Current branch: ${gitContext.branch || "<unknown>"}`,
+  `Packet status: ${packetStatus || "<missing>"}`,
+  `Current WP_STATUS: ${currentWpStatus || "<empty>"}`,
+  `Task Board status: ${boardStatus}`,
+  `Validator gate status: ${session.status}`,
+  `Resolved validator lane: ${validatorActorContext.actorRole} (${validatorActorContext.source})`,
+];
 
   printVerdict(verdict);
 
   if (session.status === "WP_APPENDED") {
+    if (verdict === "PASS" && !passAuthorityCheck.ok) {
+      printVerdict("BLOCKED");
+      printLifecycle({ wpId, stage: "VALIDATION", next: "STOP" });
+      printOperatorAction("Route final PASS lane to INTEGRATION_VALIDATOR; WP_VALIDATOR cannot complete merge-ready authority.");
+      printConfidence(confidence, confidenceDetail);
+      printState("A PASS gate session exists, but the current validator lane does not satisfy final authority for this packet.");
+      printFindings([...findings, ...passAuthorityCheck.issues]);
+      printNextCommands([
+        `just validator-gate-status ${wpId}`,
+        `just session-registry-status ${wpId}`,
+        "# STOP: Resume the Integration Validator lane for final PASS authority.",
+      ]);
+      process.exit(0);
+    }
+
     printLifecycle({ wpId, stage: "VALIDATION", next: "VALIDATION" });
     printOperatorAction("NONE");
     printConfidence(confidence, confidenceDetail);
     printState(
       verdict === "PASS"
-        ? "Validation report was appended; commit clearance is the next required gate."
+        ? (
+          validatorActorContext.actorRole === "INTEGRATION_VALIDATOR"
+            ? "Integration Validator lane is active; committed handoff validation and final PASS clearance are the next required gates."
+            : "Validation report was appended; commit clearance is the next required gate."
+        )
         : "Validation report was appended; present the FAIL report before any remediation begins.",
     );
     printFindings(findings);
     printNextCommands([
       verdict === "PASS"
-        ? `just validator-gate-commit ${wpId}`
+        ? (
+          validatorActorContext.actorRole === "INTEGRATION_VALIDATOR"
+            ? `just validator-gate-commit ${wpId}`
+            : `just validator-gate-commit ${wpId}`
+        )
         : `just validator-gate-present ${wpId}`,
     ]);
     process.exit(0);
   }
 
   if (session.status === "COMMITTED") {
+    if (verdict === "PASS" && !passAuthorityCheck.ok) {
+      printVerdict("BLOCKED");
+      printLifecycle({ wpId, stage: "VALIDATION", next: "STOP" });
+      printOperatorAction("Route final PASS lane to INTEGRATION_VALIDATOR; current lane cannot present the final merge-ready report.");
+      printConfidence(confidence, confidenceDetail);
+      printState("PASS commit clearance is recorded, but the current validator lane does not satisfy final report authority.");
+      printFindings([...findings, ...passAuthorityCheck.issues]);
+      printNextCommands([
+        `just validator-gate-status ${wpId}`,
+        `just session-registry-status ${wpId}`,
+        "# STOP: Resume the Integration Validator lane for final report presentation.",
+      ]);
+      process.exit(0);
+    }
+
     printLifecycle({ wpId, stage: "VALIDATION", next: "VALIDATION" });
     printOperatorAction("NONE");
     printConfidence(confidence, confidenceDetail);
-    printState("PASS commit clearance is already recorded; present the final report to the user next.");
+    printState(
+      validatorActorContext.actorRole === "INTEGRATION_VALIDATOR"
+        ? "Integration Validator lane is active; present the final report to the user next."
+        : "PASS commit clearance is already recorded; present the final report to the user next.",
+    );
     printFindings(findings);
     printNextCommands([`just validator-gate-present ${wpId}`]);
     process.exit(0);
@@ -348,6 +458,7 @@ const findings = [
   `Packet status: ${packetStatus || "<missing>"}`,
   `Current WP_STATUS: ${currentWpStatus || "<empty>"}`,
   `Task Board status: ${boardStatus}`,
+  `Resolved validator lane: ${validatorActorContext.actorRole} (${validatorActorContext.source})`,
 ];
 
 if (["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"].includes(boardStatus)) {
@@ -371,13 +482,20 @@ if (
   printLifecycle({ wpId, stage: "VALIDATION", next: "VALIDATION" });
   printOperatorAction("NONE");
   printConfidence(confidence, confidenceDetail);
-  printState("Coder handoff markers indicate this WP is ready for Validator execution.");
+  printState(
+    validatorActorContext.actorRole === "INTEGRATION_VALIDATOR"
+      ? "Coder/WP-validator handoff markers indicate this WP is ready for final Integration Validator review."
+      : validatorActorContext.actorRole === "WP_VALIDATOR"
+        ? "Coder handoff markers indicate this WP is ready for WP Validator advisory review."
+        : "Coder handoff markers indicate this WP is ready for Validator execution.",
+  );
   printFindings(findings);
-  printNextCommands([
-    `just validator-handoff-check ${wpId}`,
-    `just pre-work ${wpId}  # local mirror sanity only`,
+  printNextCommands(buildValidatorReadyCommands({
+    wpId,
+    actorRole: validatorActorContext.actorRole,
+    actorSessionId: validatorActorContext.actorSessionId,
     postWorkCommand,
-  ]);
+  }));
   process.exit(0);
 }
 
@@ -402,5 +520,3 @@ printNextCommands([
   `cat ${packetPath(wpId).replace(/\\/g, "/")}`,
   `just validator-gate-status ${wpId}`,
 ]);
-
-

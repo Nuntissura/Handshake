@@ -4,12 +4,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  communicationTransactionLockPathForWp,
   communicationPathsForWp,
   normalize,
   NOTIFICATIONS_FILE_NAME,
   ROUTABLE_ROLE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
 import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { appendJsonlLine, withFileLockSync } from "../session/session-registry-lib.mjs";
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -30,7 +32,7 @@ function resolveNotificationsFile(wpId) {
   return normalize(path.join(paths.dir, NOTIFICATIONS_FILE_NAME));
 }
 
-export function appendWpNotification({
+function appendWpNotificationCore({
   wpId,
   sourceKind,
   sourceRole,
@@ -67,8 +69,17 @@ export function appendWpNotification({
     summary: String(summary || "").trim(),
   };
 
-  fs.appendFileSync(notificationsFile, `${JSON.stringify(entry)}\n`, "utf8");
+  appendJsonlLine(notificationsFile, entry);
   return entry;
+}
+
+export function appendWpNotification(args = {}, options = {}) {
+  const WP_ID = String(args?.wpId || "").trim();
+  const run = () => appendWpNotificationCore(args);
+  if (options.assumeTransactionLock || !WP_ID || !/^WP-/.test(WP_ID)) {
+    return run();
+  }
+  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), run);
 }
 
 function resolveTargetRoleFromMention(target) {

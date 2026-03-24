@@ -3,8 +3,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { normalize } from "../lib/wp-communications-lib.mjs";
+import { communicationTransactionLockPathForWp, normalize } from "../lib/wp-communications-lib.mjs";
 import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { withFileLockSync } from "../session/session-registry-lib.mjs";
 import { appendWpReceipt } from "./wp-receipt-append.mjs";
 import { appendWpNotification, resolveTargetRoleFromMention } from "./wp-notification-append.mjs";
 
@@ -51,7 +52,7 @@ function loadThreadContext(wpId) {
   return { packetPath: normalize(packetPath), threadFile: normalize(threadFile) };
 }
 
-export function appendWpThreadEntry({
+function appendWpThreadEntryCore({
   wpId,
   actorRole,
   actorSession,
@@ -115,7 +116,7 @@ export function appendWpThreadEntry({
       ackFor,
       specAnchor: SPEC_ANCHOR || null,
       packetRowRef: PACKET_ROW_REF || null,
-    });
+    }, { assumeTransactionLock: true });
   }
 
   const resolvedTargetRole = TARGET_ROLE || resolveTargetRoleFromMention(TARGET);
@@ -130,7 +131,7 @@ export function appendWpThreadEntry({
       correlationId: CORRELATION_ID || null,
       summary: `${ACTOR_ROLE} -> ${TARGET || resolvedTargetRole}: ${bodyLines[0]}`,
       timestamp,
-    });
+    }, { assumeTransactionLock: true });
   }
 
   return {
@@ -139,6 +140,15 @@ export function appendWpThreadEntry({
     summary: `${ACTOR_ROLE} -> ${TARGET || "thread"}: ${bodyLines[0]}`,
     receiptAppended: recordReceipt,
   };
+}
+
+export function appendWpThreadEntry(args = {}, options = {}) {
+  const WP_ID = String(args?.wpId || "").trim();
+  const run = () => appendWpThreadEntryCore(args);
+  if (options.assumeTransactionLock || !WP_ID || !/^WP-/.test(WP_ID)) {
+    return run();
+  }
+  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), run);
 }
 
 function runCli() {

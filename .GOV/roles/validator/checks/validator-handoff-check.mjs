@@ -21,6 +21,7 @@ import {
   resolveValidatorGatePath,
 } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { evaluateValidatorPacketGovernanceState } from "../scripts/lib/validator-governance-lib.mjs";
 
 function usage() {
   console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/checks/validator-handoff-check.mjs WP-{ID} [--rev <git-rev> | --range <base>..<head>]`);
@@ -191,6 +192,19 @@ if (!packetExists(parsed.wpId)) {
   hardFail("Task packet not found", [packetPath(parsed.wpId)]);
 }
 
+const validatorGovernanceStateForContext = evaluateValidatorPacketGovernanceState({
+  wpId: parsed.wpId,
+  packetPath: packetPath(parsed.wpId),
+  packetContent: packetContentForContext,
+});
+if (!validatorGovernanceStateForContext.allowValidationResume) {
+  hardFail("Committed handoff validation is blocked for this packet", [
+    validatorGovernanceStateForContext.message,
+    `computed_policy_outcome=${validatorGovernanceStateForContext.computedPolicy.outcome}`,
+    `computed_policy_applicability=${validatorGovernanceStateForContext.computedPolicy.applicability_reason || "APPLICABLE"}`,
+  ]);
+}
+
 const logs = loadOrchestratorGateLogs();
 const prepareEntry = lastGateLog(logs, parsed.wpId, "PREPARE");
 if (!prepareEntry) {
@@ -266,11 +280,11 @@ try {
 const preWork = runInWorktree(worktreeAbs, "just", ["pre-work", parsed.wpId]);
 const cargoClean = runInWorktree(worktreeAbs, "just", ["cargo-clean"]);
 const postWork = runInWorktree(worktreeAbs, "just", ["post-work", parsed.wpId, ...committedTarget.args]);
-const cargoCleanStatus = cargoClean.code === 0 ? "PASS" : "NON_BLOCKING_FAIL";
+const cargoCleanStatus = cargoClean.code === 0 ? "PASS" : "FAIL";
 
 const evidence = {
   wp_id: parsed.wpId,
-  status: preWork.code === 0 && postWork.code === 0 ? "PASS" : "FAIL",
+  status: preWork.code === 0 && cargoClean.code === 0 && postWork.code === 0 ? "PASS" : "FAIL",
   validated_at: new Date().toISOString(),
   source_truth: "PREPARE_WORKTREE",
   prepare_branch: String(prepareEntry.branch || "").trim(),
@@ -280,7 +294,7 @@ const evidence = {
   committed_validation_target: committedTarget.summary,
   target_head_sha: targetHeadSha,
   pre_work_status: preWork.code === 0 ? "PASS" : "FAIL",
-  cargo_clean_required: false,
+  cargo_clean_required: true,
   cargo_clean_status: cargoCleanStatus,
   post_work_status: postWork.code === 0 ? "PASS" : "FAIL",
   pre_work_command: `just pre-work ${parsed.wpId}`,
@@ -298,6 +312,7 @@ if (evidence.status !== "PASS") {
     `prepare_worktree_dir=${evidence.prepare_worktree_dir}`,
     `committed_validation_target=${evidence.committed_validation_target}`,
     `pre_work_status=${evidence.pre_work_status}`,
+    `cargo_clean_status=${evidence.cargo_clean_status}`,
     `post_work_status=${evidence.post_work_status}`,
     `evidence_file=${stateFilePath(parsed.wpId).replace(/\\/g, "/")}`,
   ]);
@@ -310,10 +325,6 @@ console.log(`  committed_validation_mode=${evidence.committed_validation_mode}`)
 console.log(`  committed_validation_target=${evidence.committed_validation_target}`);
 console.log(`  target_head_sha=${evidence.target_head_sha}`);
 console.log(`  evidence_file=${stateFilePath(parsed.wpId).replace(/\\/g, "/")}`);
-if (evidence.cargo_clean_status !== "PASS") {
-  console.log(`  cargo_clean_status=${evidence.cargo_clean_status}`);
-  console.log("  cargo_clean_note=non-blocking environment hygiene failure");
-}
 if (nonBlockingSyncWarnings.length > 0) {
   console.log("  sync_warnings=");
   for (const warning of nonBlockingSyncWarnings) {

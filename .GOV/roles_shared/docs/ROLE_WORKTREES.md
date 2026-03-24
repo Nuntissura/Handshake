@@ -70,6 +70,45 @@ Notes:
   - `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` resets the checked-out permanent role/user branch to local `main` after a safety push + immutable snapshot, then repairs the `.GOV/` junction.
 - A WP backup branch is temporary. Its URL may stop resolving after Operator-approved cleanup and that later 404 must not become a governance failure.
 
+## Parallel Ownership Model (Current Law)
+
+This repo is designed for parallel governed execution, but the parallel model is not "everyone edits everywhere."
+
+### Ownership lanes
+
+- `ORCHESTRATOR`: one governed coordinator lane for the repo, running from `wt-gov-kernel` on `gov_kernel`
+- `CODER`: one governed product-execution lane per active WP, running only from the WP-assigned worktree/branch
+- `WP_VALIDATOR`: one governed advisory validator lane per active WP, operating from the coder worktree for that WP
+- `INTEGRATION_VALIDATOR`: one governed final-validation lane running from `handshake_main` on `main`
+
+### Allowed parallel states
+
+- Multiple active WPs may run in parallel if each WP has its own recorded worktree/branch mapping.
+- Multiple coder sessions may run in parallel only when they are on different WPs with different worktrees.
+- Multiple `WP_VALIDATOR` lanes may run in parallel only when they are attached to different WPs.
+- `INTEGRATION_VALIDATOR` may run in parallel with active coder and `WP_VALIDATOR` lanes because it does not own a WP-specific worktree.
+
+### Blocked or invalid states
+
+- Two active WPs sharing the same WP-specific worktree.
+- Product edits from `wt-gov-kernel` or `wt-ilja`.
+- A separate validator-only WP worktree for ordinary `WP_VALIDATOR` work.
+- Treating `WP_VALIDATOR` as final merge authority for an orchestrator-managed WP.
+- Concurrent steering for the same governed role/WP session.
+
+### Same-WP lane rules
+
+- Current governed session-control law is one governed role/WP lane per role. For one WP, the ordinary governed shape is:
+  - one `CODER` lane
+  - one `WP_VALIDATOR` lane
+  - one `INTEGRATION_VALIDATOR` lane when final orchestrator-managed validation is needed
+- If extra same-role analysis sessions are opened outside that ordinary shape, they are diagnostic only unless the Orchestrator explicitly closes/rebinds the governed lane. They must not act like authoritative replacement lanes by appending authoritative receipts, clearing another session's notifications, or presenting final authority on their own.
+
+### File-lock rule
+
+- Treat each active WP's `IN_SCOPE_PATHS` as the exclusive product file-lock set for that WP.
+- Parallel work is valid only when those scope surfaces stay disjoint or when the packet/workflow explicitly coordinates the overlap.
+
 ## Verification Commands (run at session start)
 
 - `pwd`
