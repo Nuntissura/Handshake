@@ -4,6 +4,8 @@
 **Scope:** Governance-only refactor tracking for `/.GOV/`  
 **Authority:** `.GOV/roles_shared/docs/REPO_GOVERNANCE_REFACTOR_ROADMAP.md`
 
+**Closeout record:** `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_CLOSEOUT.md`
+
 ## Notes
 
 - This board tracks governance refactor items only.
