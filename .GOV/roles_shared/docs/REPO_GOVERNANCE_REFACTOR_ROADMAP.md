@@ -50,6 +50,7 @@ This refactor must stay inside the existing governance kernel structure. Do not 
 The matching governance-only task board for this roadmap lives at:
 
 - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- Implementation closeout lives at `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_CLOSEOUT.md`
 
 Status tokens used there:
 
