@@ -68,6 +68,10 @@ These are safe starting points for orientation and health checks.
 These mutate packet, board, traceability, or related governed surfaces.
 
 - `just record-refinement WP-{ID}`
+- Refinement visibility rule:
+  - the Operator must see the refinement in assistant-authored chat text before any signature request
+  - shell/tool output does not count as "shown in chat"
+  - if the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages before requesting approval
 - `just record-signature WP-{ID} <signature> <workflow_lane> <execution_lane>`
 - `just record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
   - `governance-write`

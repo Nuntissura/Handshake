@@ -27,6 +27,26 @@ test("comparePrepareAgainstPacketTruth accepts matching packet and PREPARE autho
   assert.deepEqual(result.issues, []);
 });
 
+test("comparePrepareAgainstPacketTruth accepts normalized execution owner aliases", () => {
+  const packet = [
+    "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+    "- EXECUTION_OWNER: CODER_A",
+    "- LOCAL_BRANCH: feat/WP-1-Example-v1",
+    "- LOCAL_WORKTREE_DIR: ../wtc-example-v1",
+  ].join("\n");
+  const prepare = {
+    workflow_lane: "ORCHESTRATOR_MANAGED",
+    execution_lane: "Coder-A",
+    branch: "feat/WP-1-Example-v1",
+    worktree_dir: "../wtc-example-v1",
+  };
+
+  const result = comparePrepareAgainstPacketTruth(packet, prepare, REPO_ROOT);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.issues, []);
+});
+
 test("comparePrepareAgainstPacketTruth flags packet/PREPARE authority drift", () => {
   const packet = [
     "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",

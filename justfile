@@ -376,6 +376,6 @@ orchestrator-prepare-and-packet wp-id workflow_lane="" execution_lane="" label="
 	@node {{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs {{wp-id}} {{workflow_lane}} {{execution_lane}}
 	@echo "[ORCHESTRATOR] Committing governance checkpoint on gov_kernel..."
 	@git add -A
-	@git diff --cached --quiet || git commit -m "gov: checkpoint packet+refinement+micro-tasks [{{wp-id}}]"
+	@git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "gov: checkpoint packet+refinement+micro-tasks [{{wp-id}}]" }
 	@echo "[ORCHESTRATOR] Creating backup snapshot before coder launch..."
 	@just backup-snapshot "{{label}}"

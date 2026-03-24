@@ -106,6 +106,7 @@ function main() {
 
   const absDir = path.resolve(repoRoot, dir);
   const registeredBeforePrune = findRegisteredWorktree(absDir);
+  const expectedBranchRef = `refs/heads/${branch}`;
 
   if (!fs.existsSync(absDir) && registeredBeforePrune) {
     console.log(`[WORKTREE_ADD] Pruning stale worktree metadata before add: ${absDir}`);
@@ -114,23 +115,40 @@ function main() {
 
   const registeredAfterPrune = findRegisteredWorktree(absDir);
 
-  if (fs.existsSync(absDir)) {
+  const reuseExistingWorktree = Boolean(
+    fs.existsSync(absDir)
+    && registeredAfterPrune
+    && registeredAfterPrune.branch === expectedBranchRef
+  );
+
+  if (fs.existsSync(absDir) && !reuseExistingWorktree) {
+    if (registeredAfterPrune) {
+      fail(
+        `Target directory already exists with mismatched registered branch: ${absDir} `
+        + `(expected ${expectedBranchRef}, got ${registeredAfterPrune.branch || "<detached>"})`
+      );
+    }
     fail(`Target directory already exists: ${absDir}`);
   }
-  if (registeredAfterPrune) {
+  if (registeredAfterPrune && !reuseExistingWorktree) {
     fail(
       `Target worktree path is still registered in git metadata after prune: ${absDir}. `
       + "Inspect `git worktree list --porcelain` and clear the stale registration before retrying."
     );
   }
 
-  const alreadyHaveBranch = isBranchPresent(branch);
-  if (alreadyHaveBranch) {
-    console.log(`[WORKTREE_ADD] Using existing branch: ${branch}`);
-    runGitInherit(["worktree", "add", absDir, branch]);
+  if (reuseExistingWorktree) {
+    console.log(`[WORKTREE_ADD] Reusing existing worktree: ${absDir}`);
+    console.log(`[WORKTREE_ADD] Registered branch: ${branch}`);
   } else {
-    console.log(`[WORKTREE_ADD] Creating branch ${branch} from ${base}`);
-    runGitInherit(["worktree", "add", "-b", branch, absDir, base]);
+    const alreadyHaveBranch = isBranchPresent(branch);
+    if (alreadyHaveBranch) {
+      console.log(`[WORKTREE_ADD] Using existing branch: ${branch}`);
+      runGitInherit(["worktree", "add", absDir, branch]);
+    } else {
+      console.log(`[WORKTREE_ADD] Creating branch ${branch} from ${base}`);
+      runGitInherit(["worktree", "add", "-b", branch, absDir, base]);
+    }
   }
 
   // --- Replace inherited .GOV/ with junction to governance kernel [CX-212D] ---

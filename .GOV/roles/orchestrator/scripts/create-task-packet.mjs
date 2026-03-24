@@ -794,12 +794,14 @@ template = replaceSingleField(template, 'EXECUTION_OWNER', normalizedExecutionOw
 template = replaceSingleField(template, 'AGENTIC_MODE', 'NO');
 template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'N/A');
 template = replaceSingleField(template, 'ORCHESTRATION_STARTED_AT_UTC', 'N/A');
-template = replaceSingleField(template, 'CODER_MODEL', executionLane || '<unclaimed>');
+template = replaceSingleField(template, 'CODER_MODEL', '<unclaimed>');
 template = replaceSingleField(template, 'CODER_REASONING_STRENGTH', '<unclaimed>');
 template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'DISALLOWED');
 template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', 'N/A');
 template = replaceSingleField(template, 'TOUCHED_FILE_BUDGET', '1');
 template = replaceSingleField(template, 'BROAD_TOOL_ALLOWLIST', 'NONE');
+let touchedFileBudget = '1';
+let broadToolAllowlist = 'NONE';
 
 let clauseClosureRows = [];
 if (isHydratedProfile) {
@@ -821,6 +823,8 @@ if (isHydratedProfile) {
     deriveTouchedFileBudget(hydration.inScopePaths || [], refinementData.coderHotFiles || []),
   );
   template = replaceSingleField(template, 'BROAD_TOOL_ALLOWLIST', 'NONE');
+  touchedFileBudget = deriveTouchedFileBudget(hydration.inScopePaths || [], refinementData.coderHotFiles || []);
+  broadToolAllowlist = 'NONE';
   const primarySpecAnchor =
     (hydration.specAnchorPrimary || '').trim()
     || String(refinementData.specAnchors?.[0]?.specAnchor || '').trim()
@@ -1003,6 +1007,10 @@ ${formatList(refinementData.guiEngineeringTricks)}
 ${formatList(hydration.inScopePaths)}
 - OUT_OF_SCOPE:
 ${formatList(hydration.outOfScope)}
+- TOUCHED_FILE_BUDGET: ${touchedFileBudget}
+<!-- Max unique in-scope files allowed in the evaluated diff. Raise intentionally before coding if the packet truly needs broader edit spread. -->
+- BROAD_TOOL_ALLOWLIST: ${broadToolAllowlist}
+<!-- Allowed: NONE | FORMATTER | CODEGEN | SEARCH_REPLACE | MIGRATION_REWRITE -->
 `);
 
   template = replaceSection(template, 'QUALITY_GATE', `

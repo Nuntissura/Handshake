@@ -67,6 +67,7 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -122,6 +123,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-ContextPack-Recorder-Visibility-v1]** - [STUB]
 - **[WP-1-Governance-Hooks-v2]** - [STUB]
 - **[WP-1-Governance-Workflow-Mirror-v1]** - [STUB]
+- **[WP-1-Loom-Storage-Portability-v4]** - [STUB]
 - **[WP-1-Workspace-Bundle-v2]** - [STUB]
 - **[WP-1-Semantic-Catalog-v2]** - [STUB]
 - **[WP-1-Metrics-Traces-v2]** - [STUB]
@@ -175,9 +177,9 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
+- **[WP-1-Structured-Collaboration-Schema-Registry-v4]** - [IN_PROGRESS]
+
 ## Done
-- **[WP-1-Structured-Collaboration-Schema-Registry-v3]** - [VALIDATED]
-- **[WP-1-Loom-Storage-Portability-v3]** - [VALIDATED]
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
 - **[WP-1-Front-End-Memory-System-v1]** - [VALIDATED]
 - **[WP-1-Unified-Tool-Surface-Contract-v1]** - [VALIDATED]
@@ -339,6 +341,8 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 - **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [SUPERSEDED]
 - **[WP-1-Structured-Collaboration-Schema-Registry-v2]** - [SUPERSEDED]
+- **[WP-1-Structured-Collaboration-Schema-Registry-v3]** - [SUPERSEDED]
 
 - **[WP-1-Loom-Storage-Portability-v1]** - [SUPERSEDED]
 - **[WP-1-Loom-Storage-Portability-v2]** - [SUPERSEDED]
+- **[WP-1-Loom-Storage-Portability-v3]** - [SUPERSEDED]

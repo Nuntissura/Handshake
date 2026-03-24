@@ -390,6 +390,9 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 - Show the refinement in chat before any signature request:
   - either the full `## TECHNICAL_REFINEMENT (MASTER SPEC)` block
   - or enough current Master Spec anchors to prove the Orchestrator understands the relevant roadmap items, stubs, and WP context
+  - terminal/tool output does NOT satisfy this requirement; the Operator does not see raw shell output in this environment
+  - the Orchestrator MUST paste the refinement as assistant-authored chat text
+  - if the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages and do not request approval or signature until the final chunk has been sent
 - `just record-refinement WP-{ID}` must pass first.
 - If the refinement concludes `ENRICHMENT_NEEDED=YES`, unresolved ambiguity, or mandatory appendix/main-body sync, stop packet creation, advance the spec correctly, update `/.GOV/spec/SPEC_CURRENT.md`, and only then create a new active packet against the updated spec.
 
@@ -397,6 +400,7 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 
 - Signature is never part of the refinement pass itself. Record it only in the next turn after the refinement / enrichment pass has been shown in chat.
 - This delay is intentional. It blocks automation momentum and forces visible spec-grounded reasoning before approval.
+- A claimed "shown in chat" refinement is invalid if it appeared only in command/tool output rather than assistant-authored chat text.
 - Record the signature bundle with `just record-signature ...`.
 - After signature PASS with `OPERATOR_ACTION: NONE`, continue directly to `just orchestrator-prepare-and-packet WP-{ID}`.
 - Use `.GOV/templates/TASK_PACKET_TEMPLATE.md`.

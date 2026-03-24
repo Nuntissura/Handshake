@@ -117,14 +117,10 @@
 - MAX_CODER_REVISION_CYCLES: 3
 - MAX_VALIDATOR_REVIEW_CYCLES: 3
 - MAX_RELAY_ESCALATION_CYCLES: 2
-- WP_COMMUNICATION_DIR: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v2
-- WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v2/THREAD.md
-- WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v2/RUNTIME_STATUS.json
-- WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v2/RECEIPTS.jsonl
 - WP_VALIDATOR_OF_RECORD: <unassigned>
 - INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
 - SECONDARY_VALIDATOR_SESSIONS: NONE
-- COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
+- COMMUNICATION_AUTHORITY: NONE (historical packet; live WP communication authority retired)
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
 - USER_SIGNATURE: ilja160320262020
 - PACKET_FORMAT_VERSION: 2026-03-16
