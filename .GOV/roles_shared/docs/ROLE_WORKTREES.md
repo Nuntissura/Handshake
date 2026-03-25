@@ -91,6 +91,7 @@ This repo is designed for parallel governed execution, but the parallel model is
 ### Blocked or invalid states
 
 - Two active WPs sharing the same WP-specific worktree.
+- Detached or convenience WP-adjacent check/postwork/validator clones that are not the packet-declared coder worktree.
 - Product edits from `wt-gov-kernel` or `wt-ilja`.
 - A separate validator-only WP worktree for ordinary `WP_VALIDATOR` work.
 - Treating `WP_VALIDATOR` as final merge authority for an orchestrator-managed WP.
