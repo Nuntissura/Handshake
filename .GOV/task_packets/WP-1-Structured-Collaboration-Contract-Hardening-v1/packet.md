@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_TEMPLATE
+# TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
 
@@ -100,7 +100,7 @@ Requirements:
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** In Progress
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -139,8 +139,8 @@ Requirements:
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Contract-Hardening-v1/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Contract-Hardening-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Contract-Hardening-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
-- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: 019d234a-da1a-76f1-8f9a-2da8df9ee610
+- INTEGRATION_VALIDATOR_OF_RECORD: 019d23d3-8baa-7081-8e8d-cc94b137819b
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
@@ -152,17 +152,17 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-03-23
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: VALIDATED_PASS
 Blockers: NONE
-Next: Await skeleton approval after the docs-only skeleton checkpoint.
+Next: NONE
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: [ADD v02.171] canonical Work Packet and Micro-Task records SHALL expose governed `allowed_action_ids` rather than ad hoc verbs | CODE_SURFACES: `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/storage/locus_sqlite.rs`, `src/backend/handshake_core/src/locus/types.rs` | TESTS: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests schema_registry` | EXAMPLES: Mutated Work Packet `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Micro-Task `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Task Board `index.json` row whose workflow-state triplet no longer matches linked backend truth, Mutated Role Mailbox `index.json` with multiline or oversized `subject_redacted`, Mutated Role Mailbox thread line with multiline or oversized `note_redacted` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: [ADD v02.171] Task Board rows SHOULD expose portable workflow-state and queue-reason semantics rather than board-status heuristics | CODE_SURFACES: `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/locus/task_board.rs`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs` | TESTS: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests task_board` | EXAMPLES: Mutated Work Packet `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Micro-Task `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Task Board `index.json` row whose workflow-state triplet no longer matches linked backend truth, Mutated Role Mailbox `index.json` with multiline or oversized `subject_redacted`, Mutated Role Mailbox thread line with multiline or oversized `note_redacted` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: RoleMailboxIndexV1 and RoleMailboxThreadLineV1 redacted fields MUST be bounded Secret-Redactor outputs | CODE_SURFACES: `src/backend/handshake_core/src/locus/types.rs`, `src/backend/handshake_core/src/role_mailbox.rs`, `src/backend/handshake_core/tests/role_mailbox_tests.rs` | TESTS: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_tests role_mailbox` | EXAMPLES: Mutated Work Packet `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Micro-Task `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Task Board `index.json` row whose workflow-state triplet no longer matches linked backend truth, Mutated Role Mailbox `index.json` with multiline or oversized `subject_redacted`, Mutated Role Mailbox thread line with multiline or oversized `note_redacted` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Mechanical gate (HARD) RoleMailboxExportGate must reject malformed export thread-line field sets | CODE_SURFACES: `src/backend/handshake_core/src/locus/types.rs`, `src/backend/handshake_core/src/role_mailbox.rs`, `src/backend/handshake_core/tests/role_mailbox_tests.rs` | TESTS: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_tests role_mailbox` | EXAMPLES: Mutated Work Packet `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Micro-Task `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Task Board `index.json` row whose workflow-state triplet no longer matches linked backend truth, Mutated Role Mailbox `index.json` with multiline or oversized `subject_redacted`, Mutated Role Mailbox thread line with multiline or oversized `note_redacted` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: [ADD v02.171] canonical Work Packet and Micro-Task records SHALL expose governed `allowed_action_ids` rather than ad hoc verbs | CODE_SURFACES: `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/storage/locus_sqlite.rs`, `src/backend/handshake_core/src/locus/types.rs` | TESTS: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests schema_registry` | EXAMPLES: Mutated Work Packet `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Micro-Task `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Task Board `index.json` row whose workflow-state triplet no longer matches linked backend truth, Mutated Role Mailbox `index.json` with multiline or oversized `subject_redacted`, Mutated Role Mailbox thread line with multiline or oversized `note_redacted` | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: [ADD v02.171] Task Board rows SHOULD expose portable workflow-state and queue-reason semantics rather than board-status heuristics | CODE_SURFACES: `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/locus/task_board.rs`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs` | TESTS: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests task_board` | EXAMPLES: Mutated Work Packet `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Micro-Task `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Task Board `index.json` row whose workflow-state triplet no longer matches linked backend truth, Mutated Role Mailbox `index.json` with multiline or oversized `subject_redacted`, Mutated Role Mailbox thread line with multiline or oversized `note_redacted` | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: RoleMailboxIndexV1 and RoleMailboxThreadLineV1 redacted fields MUST be bounded Secret-Redactor outputs | CODE_SURFACES: `src/backend/handshake_core/src/locus/types.rs`, `src/backend/handshake_core/src/role_mailbox.rs`, `src/backend/handshake_core/tests/role_mailbox_tests.rs` | TESTS: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_tests role_mailbox` | EXAMPLES: Mutated Work Packet `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Micro-Task `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Task Board `index.json` row whose workflow-state triplet no longer matches linked backend truth, Mutated Role Mailbox `index.json` with multiline or oversized `subject_redacted`, Mutated Role Mailbox thread line with multiline or oversized `note_redacted` | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Mechanical gate (HARD) RoleMailboxExportGate must reject malformed export thread-line field sets | CODE_SURFACES: `src/backend/handshake_core/src/locus/types.rs`, `src/backend/handshake_core/src/role_mailbox.rs`, `src/backend/handshake_core/tests/role_mailbox_tests.rs` | TESTS: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_tests role_mailbox` | EXAMPLES: Mutated Work Packet `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Micro-Task `packet.json` with an unregistered `allowed_action_ids[0]`, Mutated Task Board `index.json` row whose workflow-state triplet no longer matches linked backend truth, Mutated Role Mailbox `index.json` with multiline or oversized `subject_redacted`, Mutated Role Mailbox thread line with multiline or oversized `note_redacted` | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -717,7 +717,7 @@ cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_ta
 git revert <commit-sha>
 ```
 ## AUTHORITY
-- SPEC_BASELINE: Handshake_Master_Spec_vXX.XX.md (recorded_at: 2026-03-25T04:34:58.378Z)
+- SPEC_BASELINE: Handshake_Master_Spec_v02.178.md (recorded_at: 2026-03-25T04:34:58.378Z)
 - SPEC_TARGET: .GOV/spec/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
 - SPEC_ADD_MARKER_TARGET: [ADD v02.171]
 - SPEC_ANCHOR_PRIMARY: Handshake_Master_Spec_v02.178.md workflow-state, governed-action, Task Board projection, and RoleMailbox export-gate contracts [ADD v02.171]
@@ -812,62 +812,167 @@ rg -n "GovernedActionDescriptorV1|allowed_action_ids|task_board_workflow_state|s
   - Confirm Task Board rows preserve authoritative workflow semantics rather than recomputing them from `TaskBoardStatus` heuristics alone.
   - Confirm mailbox validation rejects malformed `subject_redacted` and `note_redacted` values while happy-path exports still validate.
 ## IMPLEMENTATION
-- (Coder fills after the docs-only skeleton checkpoint commit exists.)
+- Added governed action registry helpers and shared validation for `workflow_state_family`, `queue_reason_code`, and registered `allowed_action_ids`.
+- Preserved authoritative Task Board workflow-state truth at the projection boundary and added explicit row-vs-packet validation.
+- Emitted structured Work Packet and Micro-Task packet artifacts instead of writing the raw tracked structs directly, while preserving `profile_extension`.
+- Hardened mailbox redaction validation so existing `[REDACTED...]` markers are preserved only when the surrounding single-line text is still secret-free and the marker shape itself is valid.
+- Added negative-path tests for unregistered governed action ids, Task Board authoritative drift, malformed mailbox redacted fields, and single-line leak drift around valid redaction markers.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Reproduced the initial packet-emitter mismatch, fixed it, then fixed the follow-on `profile_extension` regression on the Micro-Task artifact path.
+- Ran the three scoped tripwire slices first, then reran the full `micro_task_executor_tests` file serially, then reran the full `handshake_core` crate serially with `CARGO_INCREMENTAL=0`.
+- Direct-review receipts now include validator kickoff and coder intent on the active kickoff correlation.
+- Reproduced the WP-validator mailbox finding against `canonical_redacted_secret_output()`, patched the redaction-marker handling, reran the scoped slices, and reran the full serialized crate proof.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Implementation WP**: Shared structured-collaboration contract hardening across governed action ids, Task Board authoritative workflow truth, mailbox redaction validation, and negative-path proof.
+
+- **Target File**: `src/backend/handshake_core/src/locus/task_board.rs`
+- **Start**: 1
+- **End**: 336
+- **Line Delta**: 74
+- **Pre-SHA1**: `bd4a8b681d5fb0793b3e01aedfd7e90082035488`
+- **Post-SHA1**: `399a261540d9b90b712a19985d1e6ef874d8f370`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
+- **Target File**: `src/backend/handshake_core/src/locus/types.rs`
+- **Start**: 1
+- **End**: 2355
+- **Line Delta**: 604
+- **Pre-SHA1**: `ce48d67cf815ac8bfb8c11184b5b4f301f4750b2`
+- **Post-SHA1**: `84fe208cbcd233e0014e1e691309d210f964d3a5`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
+- **Target File**: `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Start**: 1
+- **End**: 1055
+- **Line Delta**: -16
+- **Pre-SHA1**: `a3bdbe81c302f8fdbefd260bff808c12b2181ee8`
+- **Post-SHA1**: `fdbd874d806902db2138621902d784f689c17818`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 22660
+- **Line Delta**: -11
+- **Pre-SHA1**: `a77b1a14aad10787f4fb5b4c8347de5b8ec484e2`
+- **Post-SHA1**: `68d88fa6e602b5f6440a14b2e0d98b3769a91713`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
+- **Target File**: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Start**: 1
+- **End**: 2505
+- **Line Delta**: 212
+- **Pre-SHA1**: `0c396ecceeec0e74dc726aaa887e95c9d74d8af5`
+- **Post-SHA1**: `d309f54551798fc5e0bf30d833caef96749cd9f8`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
+- **Target File**: `src/backend/handshake_core/tests/role_mailbox_tests.rs`
+- **Start**: 1
+- **End**: 753
+- **Line Delta**: 134
+- **Pre-SHA1**: `96adf0cc0f9bb09cd622996d1036772af84c3f99`
+- **Post-SHA1**: `5c04a1778e88ff809211050e8fc05f853a8f6ea8`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
-- Next step / handoff hint:
+- Current WP_STATUS: Validated (PASS); repair commit `92d9032` cleared the WP-validator finding and the integration-validator merged the final product diff to `main` at `c6e8ba2bf23ff9061b20f83a31567a6e47b322fe`.
+- What changed in this update: Preserved the earlier governed action registry and Task Board contract hardening, then tightened `canonical_redacted_secret_output()` so valid redaction markers no longer whitelist surrounding leaked single-line text, and extended `role_mailbox_tests.rs` to prove both single-line leak drift and multiline drift are rejected.
+- Requirements / clauses self-audited: [ADD v02.171] governed `allowed_action_ids` on canonical Work Packet and Micro-Task records; [ADD v02.171] Task Board workflow-state and queue-reason semantics must remain authoritative; RoleMailbox redacted fields must be bounded Secret-Redactor outputs; malformed mailbox export thread-line field sets must be rejected deterministically.
+- Checks actually run: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests schema_registry` PASS; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests task_board` PASS; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_tests role_mailbox` PASS; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests -- --test-threads=1` PASS; `CARGO_INCREMENTAL=0 cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml` PASS; prior repair cycle also cleared `just wp-communication-health-check WP-1-Structured-Collaboration-Contract-Hardening-v1 KICKOFF` and `just post-work WP-1-Structured-Collaboration-Contract-Hardening-v1`, and both will be rerun on this repair diff before commit.
+- Known gaps / weak spots: No remaining product gap is known inside the signed WP scope. Non-blocking quality debt remains in pre-existing dead-code warnings inside `src/backend/handshake_core/src/workflows.rs`.
+- Heuristic risks / maintainability concerns: `locus/types.rs` now carries more contract-specific validation logic; `workflows.rs` and `locus_sqlite.rs` now share more responsibility for keeping emitted packet artifacts aligned with the validator; Task Board truth now depends on preserving packet-derived state rather than recomputing from display heuristics.
+- Validator focus request: Verify that governed action ids still come only from the shared registry path, that Task Board rows still fail if their workflow-state triplet drifts from the linked packet truth, and that mailbox redacted fields now reject single-line leaked text wrapped around valid `[REDACTED...]` markers in addition to multiline drift.
+- Rubric contract understanding proof: This WP is not satisfied by happy-path emitter success alone; it requires shared validator enforcement, authoritative producer-consumer alignment, and negative-path proof for the exact contract gaps identified in the smoke-test audit.
+- Rubric scope discipline proof: No Loom work, no new schema family, no UI changes, and no unrelated runtime/governance redesign were introduced. The diff stayed inside the six approved product files for this packet.
+- Rubric baseline comparison: Before the first implementation diff, runtime packet emitters still exposed ad hoc action semantics, Task Board workflow semantics could drift from packet truth, and mailbox redacted-field validation was too weak. The advisory review then found one remaining single-line mailbox leak hole around pre-existing `[REDACTED...]` markers. This repair closes that exact hole without widening scope.
+- Rubric end-to-end proof: Scoped tests prove rejected unregistered action ids, rejected Task Board authoritative drift, rejected single-line mailbox leak drift, rejected multiline mailbox drift, and green happy-path emission through the shared validator. The serialized full crate run also passed after the mailbox repair.
+- Rubric architecture fit self-review: The contract is enforced at the shared validator boundary and shared producer paths instead of by adding one-off checks only in tests or UI-facing helpers.
+- Rubric heuristic quality self-review: The strongest part is the producer-consumer alignment and mutation-based proof. The weakest part is that the packet/handoff governance surface lagged the finished code and had to be repaired after the product proof was already green.
+- Rubric anti-gaming / counterfactual check: If `validate_allowed_action_ids` were relaxed, `locus_schema_registry_rejects_unregistered_allowed_action_ids` would stop proving the registry-backed contract. If `validate_task_board_entry_authoritative_fields` or the projection merge were removed, `locus_task_board_validation_reports_authoritative_row_drift` would stop proving Task Board truth preservation. If the new redaction-marker masking and validation were removed, `role_mailbox_validation_reports_redacted_field_drift` would stop proving rejection of single-line mailbox leaks wrapped around valid markers.
+- Next step / handoff hint: CLOSED. WP-validator PASS is recorded on correlation `review:WP-1-Structured-Collaboration-Contract-Hardening-v1:validator_kickoff:mn5mpq3g:bd59af`, and the integration-validator PASS + merge is recorded on correlation `review:WP-1-Structured-Collaboration-Contract-Hardening-v1:integration_final:20260325t0709z`.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+  - REQUIREMENT: "[ADD v02.171] canonical Work Packet and Micro-Task records SHALL expose governed `allowed_action_ids` rather than ad hoc verbs"
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:285`, `src/backend/handshake_core/src/locus/types.rs:298`, `src/backend/handshake_core/src/locus/types.rs:1843`, `src/backend/handshake_core/src/workflows.rs:4671`, `src/backend/handshake_core/src/workflows.rs:4734`, `src/backend/handshake_core/src/storage/locus_sqlite.rs:154`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:940`
+  - REQUIREMENT: "[ADD v02.171] Task Board rows SHOULD expose portable workflow-state and queue-reason semantics rather than board-status heuristics"
+  - EVIDENCE: `src/backend/handshake_core/src/locus/task_board.rs:104`, `src/backend/handshake_core/src/workflows.rs:3441`, `src/backend/handshake_core/src/workflows.rs:3635`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:298`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1026`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1235`
+  - REQUIREMENT: "RoleMailboxIndexV1 and RoleMailboxThreadLineV1 redacted fields MUST be bounded Secret-Redactor outputs"
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:2034`, `src/backend/handshake_core/src/locus/types.rs:2062`, `src/backend/handshake_core/src/locus/types.rs:2070`, `src/backend/handshake_core/src/locus/types.rs:2107`, `src/backend/handshake_core/src/locus/types.rs:2132`, `src/backend/handshake_core/src/locus/types.rs:2156`, `src/backend/handshake_core/src/locus/types.rs:2188`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:499`
+  - REQUIREMENT: "Mechanical gate (HARD) RoleMailboxExportGate must reject malformed export thread-line field sets"
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1306`, `src/backend/handshake_core/src/locus/types.rs:1323`, `src/backend/handshake_core/src/locus/types.rs:2014`, `src/backend/handshake_core/src/locus/types.rs:2042`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:261`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:406`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:499`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
@@ -876,6 +981,46 @@ rg -n "GovernedActionDescriptorV1|allowed_action_ids|task_board_workflow_state|s
   - LOG_PATH: `.handshake/logs/WP-1-Structured-Collaboration-Contract-Hardening-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests schema_registry`
+- EXIT_CODE: 0
+- PROOF_LINES: `test locus_schema_registry_rejects_unregistered_allowed_action_ids ... ok`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests task_board`
+- EXIT_CODE: 0
+- PROOF_LINES: `test locus_sync_task_board_emits_structured_index_and_view ... ok`; `test locus_task_board_validation_reports_authoritative_row_drift ... ok`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_tests role_mailbox`
+- EXIT_CODE: 0
+- PROOF_LINES: `test role_mailbox_index_api_returns_valid_structured_export ... ok`; `test role_mailbox_validation_reports_redacted_field_drift ... ok`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests -- --test-threads=1`
+- EXIT_CODE: 0
+- PROOF_LINES: `test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
+
+- COMMAND: `CARGO_INCREMENTAL=0 cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml`
+- EXIT_CODE: 0
+- PROOF_LINES: `Finished test profile [unoptimized + debuginfo] target(s) in 8m 57s`; `Doc-tests handshake_core`
+
+- COMMAND: `just post-work WP-1-Structured-Collaboration-Contract-Hardening-v1`
+- EXIT_CODE: 0
+- PROOF_LINES: `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`; `You may proceed with commit.`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_tests role_mailbox`
+- EXIT_CODE: 0
+- PROOF_LINES: `test role_mailbox_validation_reports_redacted_field_drift ... ok`; `test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests schema_registry`
+- EXIT_CODE: 0
+- PROOF_LINES: `test locus_schema_registry_rejects_unregistered_allowed_action_ids ... ok`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests task_board`
+- EXIT_CODE: 0
+- PROOF_LINES: `test locus_sync_task_board_emits_structured_index_and_view ... ok`; `test locus_task_board_validation_reports_authoritative_row_drift ... ok`
+
+- COMMAND: `CARGO_INCREMENTAL=0 cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml`
+- EXIT_CODE: 0
+- PROOF_LINES: `test role_mailbox_validation_reports_redacted_field_drift ... ok`; `test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`; `Doc-tests handshake_core`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -949,3 +1094,93 @@ rg -n "GovernedActionDescriptorV1|allowed_action_ids|task_board_workflow_state|s
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+VALIDATION REPORT - WP-1-Structured-Collaboration-Contract-Hardening-v1
+Verdict: PASS
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: POST_MERGE_RECHECKED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+VALIDATOR_RISK_TIER: HIGH
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Structured-Collaboration-Contract-Hardening-v1/packet.md` (status at review time: `In Progress`)
+- Spec: `Handshake_Master_Spec_v02.178.md`
+- Reviewed diff: `e65516eec1063383a2f268e82fd22b53a4bc49ae..92d9032f497aa47cd0a8cb56df57e21d86a96c7f`
+- Merged main commit: `c6e8ba2bf23ff9061b20f83a31567a6e47b322fe`
+- Review receipts: `review:WP-1-Structured-Collaboration-Contract-Hardening-v1:validator_kickoff:mn5mpq3g:bd59af`; `review:WP-1-Structured-Collaboration-Contract-Hardening-v1:integration_final:20260325t0709z`
+
+CLAUSES_REVIEWED:
+- `[ADD v02.171] canonical Work Packet and Micro-Task records SHALL expose governed `allowed_action_ids` rather than ad hoc verbs` -> `src/backend/handshake_core/src/locus/types.rs:227`; `src/backend/handshake_core/src/locus/types.rs:285`; `src/backend/handshake_core/src/locus/types.rs:299`; `src/backend/handshake_core/src/locus/types.rs:1243`; `src/backend/handshake_core/src/locus/types.rs:1843`; `src/backend/handshake_core/src/locus/types.rs:1891`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:155`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:182`; `src/backend/handshake_core/src/workflows.rs:4676`; `src/backend/handshake_core/src/workflows.rs:4691`; `src/backend/handshake_core/src/workflows.rs:4738`; `src/backend/handshake_core/src/workflows.rs:4753`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:940`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:976`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1019`
+- `[ADD v02.171] Task Board rows SHOULD expose portable workflow-state and queue-reason semantics rather than board-status heuristics` -> `src/backend/handshake_core/src/locus/task_board.rs:104`; `src/backend/handshake_core/src/locus/task_board.rs:137`; `src/backend/handshake_core/src/locus/task_board.rs:153`; `src/backend/handshake_core/src/locus/task_board.rs:169`; `src/backend/handshake_core/src/workflows.rs:3531`; `src/backend/handshake_core/src/workflows.rs:3547`; `src/backend/handshake_core/src/workflows.rs:3561`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1177`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1181`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1185`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1275`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1283`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1287`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1291`
+- `RoleMailboxIndexV1 and RoleMailboxThreadLineV1 redacted fields MUST be bounded Secret-Redactor outputs` -> `src/backend/handshake_core/src/role_mailbox.rs:290`; `src/backend/handshake_core/src/role_mailbox.rs:727`; `src/backend/handshake_core/src/role_mailbox.rs:1003`; `src/backend/handshake_core/src/role_mailbox.rs:1101`; `src/backend/handshake_core/src/locus/types.rs:2034`; `src/backend/handshake_core/src/locus/types.rs:2062`; `src/backend/handshake_core/src/locus/types.rs:2070`; `src/backend/handshake_core/src/locus/types.rs:2107`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:499`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:553`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:567`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:590`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:604`
+- `Mechanical gate (HARD) RoleMailboxExportGate must reject malformed export thread-line field sets` -> `src/backend/handshake_core/src/role_mailbox.rs:177`; `src/backend/handshake_core/src/role_mailbox.rs:533`; `src/backend/handshake_core/src/locus/types.rs:1319`; `src/backend/handshake_core/src/locus/types.rs:1323`; `src/backend/handshake_core/src/locus/types.rs:2042`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:261`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:406`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:499`
+
+NOT_PROVEN:
+- NONE
+
+MAIN_BODY_GAPS:
+- NONE
+
+QUALITY_RISKS:
+- NONE
+
+DIFF_ATTACK_SURFACES:
+- Producer/validator drift between workflow emitters, SQLite micro-task progress metadata, and the shared `allowed_action_ids` legality checks.
+- Task Board row drift where projected `workflow_state_family`, `queue_reason_code`, or `allowed_action_ids` diverge from authoritative work-packet truth.
+- Mailbox redaction acceptance of leak-after-token or multiline malformed values that still look superficially redacted.
+- Thread-line export gate acceptance of malformed `transcription_links` or missing required transcription-link payloads.
+
+INDEPENDENT_CHECKS_RUN:
+- `git -C ../handshake_main rev-parse HEAD` => `c6e8ba2bf23ff9061b20f83a31567a6e47b322fe` on `main`, matching the integration-validator receipt.
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests locus_schema_registry_rejects_unregistered_allowed_action_ids` from `../handshake_main` => `test locus_schema_registry_rejects_unregistered_allowed_action_ids ... ok`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests locus_task_board_validation_reports_authoritative_row_drift` from `../handshake_main` => `test locus_task_board_validation_reports_authoritative_row_drift ... ok`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_tests role_mailbox_validation_reports_redacted_field_drift` from `../handshake_main` => `test role_mailbox_validation_reports_redacted_field_drift ... ok`
+
+COUNTERFACTUAL_CHECKS:
+- If `validate_allowed_action_ids()` in `src/backend/handshake_core/src/locus/types.rs:1843` stopped deriving its accepted set from `governed_action_descriptors_for_workflow_family()` in `src/backend/handshake_core/src/locus/types.rs:285`, the unregistered action-id mutations in `src/backend/handshake_core/tests/micro_task_executor_tests.rs:967` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1009` would stop failing.
+- If `validate_task_board_entry_authoritative_fields()` in `src/backend/handshake_core/src/locus/task_board.rs:104` stopped checking `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids`, the authoritative-row drift mutations at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1275-1291` would no longer prove Task Board truth preservation.
+- If `canonical_redacted_secret_output()` in `src/backend/handshake_core/src/locus/types.rs:2107` stopped masking and restoring valid redaction markers before redaction, the single-line leak-after-token mutations at `src/backend/handshake_core/tests/role_mailbox_tests.rs:553` and `src/backend/handshake_core/tests/role_mailbox_tests.rs:590` would pass again.
+
+BOUNDARY_PROBES:
+- Storage/producer probe: `src/backend/handshake_core/src/workflows.rs:4676-4753` and `src/backend/handshake_core/src/storage/locus_sqlite.rs:155-182` both now emit `allowed_action_ids` through the same governed-action registry path that `src/backend/handshake_core/src/locus/types.rs:1843-1908` validates.
+- Projection probe: `src/backend/handshake_core/src/workflows.rs:3531-3561` populates Task Board rows from authoritative workflow-state triplets, and `src/backend/handshake_core/src/locus/task_board.rs:104-169` rejects drift at the row boundary.
+- Mailbox boundary probe: `src/backend/handshake_core/src/role_mailbox.rs:290`, `src/backend/handshake_core/src/role_mailbox.rs:727`, `src/backend/handshake_core/src/role_mailbox.rs:1003`, and `src/backend/handshake_core/src/role_mailbox.rs:1101` emit bounded redacted fields that `src/backend/handshake_core/src/locus/types.rs:2034-2188` re-canonicalizes and validates.
+
+NEGATIVE_PATH_CHECKS:
+- Unregistered `allowed_action_ids` mutations are rejected for both Work Packet and Micro-Task artifacts at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:967-1019`.
+- Task Board row mutations that drift `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids` are rejected at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1275-1291`.
+- Role Mailbox single-line leak-after-token and multiline redacted-field mutations are rejected at `src/backend/handshake_core/tests/role_mailbox_tests.rs:553-604`.
+- Role Mailbox export-gate malformed thread-line payloads and missing required transcription links are rejected at `src/backend/handshake_core/tests/role_mailbox_tests.rs:261-420`.
+
+INDEPENDENT_FINDINGS:
+- The merged `main` code already closes the refinement-era governed-action gap: canonical emitters, the SQLite progress path, and the shared validator all use the registry-backed action-id contract.
+- The repaired mailbox path does not merely reject multiline drift; it now also rejects leaked single-line text wrapped around valid `[REDACTED...]` markers.
+- The final integrated tree on `main` matches the intended WP contract surface, and no extra product-file drift beyond the approved contract-hardening slice was needed for the targeted proof.
+
+RESIDUAL_UNCERTAINTY:
+- This closeout reran the three contract-hardening tripwire tests on `main`, but it did not rerun the entire `handshake_core` test suite from the merge-authority tree during status sync.
+- Dead-code warnings in `src/backend/handshake_core/src/workflows.rs:2573-3271` remain outside this WP's correctness scope and should be cleaned up separately.
+
+SPEC_CLAUSE_MAP:
+- `[ADD v02.171] canonical Work Packet and Micro-Task records SHALL expose governed `allowed_action_ids` rather than ad hoc verbs` -> `src/backend/handshake_core/src/locus/types.rs:227`; `src/backend/handshake_core/src/locus/types.rs:285`; `src/backend/handshake_core/src/locus/types.rs:299`; `src/backend/handshake_core/src/locus/types.rs:1843`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:155`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:182`; `src/backend/handshake_core/src/workflows.rs:4676`; `src/backend/handshake_core/src/workflows.rs:4738`
+- `[ADD v02.171] Task Board rows SHOULD expose portable workflow-state and queue-reason semantics rather than board-status heuristics` -> `src/backend/handshake_core/src/locus/task_board.rs:104`; `src/backend/handshake_core/src/locus/task_board.rs:169`; `src/backend/handshake_core/src/workflows.rs:3531`; `src/backend/handshake_core/src/workflows.rs:3561`
+- `RoleMailboxIndexV1 and RoleMailboxThreadLineV1 redacted fields MUST be bounded Secret-Redactor outputs` -> `src/backend/handshake_core/src/role_mailbox.rs:290`; `src/backend/handshake_core/src/role_mailbox.rs:1003`; `src/backend/handshake_core/src/role_mailbox.rs:1101`; `src/backend/handshake_core/src/locus/types.rs:2034`; `src/backend/handshake_core/src/locus/types.rs:2107`
+- `Mechanical gate (HARD) RoleMailboxExportGate must reject malformed export thread-line field sets` -> `src/backend/handshake_core/src/role_mailbox.rs:177`; `src/backend/handshake_core/src/role_mailbox.rs:533`; `src/backend/handshake_core/src/locus/types.rs:1319`; `src/backend/handshake_core/src/locus/types.rs:2042`
+
+NEGATIVE_PROOF:
+- The broader spec SHOULD that every state-changing operator or model action resolve through a registered `GovernedActionDescriptorV1` is still not fully implemented. `src/backend/handshake_core/src/workflows.rs:3172` and `src/backend/handshake_core/src/workflows.rs:3194` still synthesize prose `next_action` strings (`"triage work packet"`, `"start the next iteration"`, etc.) instead of resolving through the governed-action descriptor registry rooted at `src/backend/handshake_core/src/locus/types.rs:227-299`. That gap is outside this packet's signed scope, but it is a real remaining spec delta.
+
+REASON FOR PASS:
+- The signed WP scope is closed on the reviewed diff `e65516eec1063383a2f268e82fd22b53a4bc49ae..92d9032f497aa47cd0a8cb56df57e21d86a96c7f`, the integration-validator merged the final product change to `main` at `c6e8ba2bf23ff9061b20f83a31567a6e47b322fe`, and the post-merge tripwire tests for governed action-id legality, Task Board authoritative-row fidelity, and leak-safe mailbox export validation all passed from `main`.
