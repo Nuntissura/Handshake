@@ -15,6 +15,10 @@ import {
   parsePacketScopeList,
   scopeDisciplineRequiresEnforcement,
 } from "../scripts/lib/scope-surface-lib.mjs";
+import {
+  packetRequiresSignedScopeCompatibility,
+  validateSignedScopeCompatibilityTruth,
+} from "../scripts/lib/signed-scope-compatibility-lib.mjs";
 
 // Canonical governance workspace packets live under `/.GOV/task_packets/`.
 // Legacy compatibility bundles must not be treated as governance SSoT.
@@ -131,6 +135,13 @@ function checkPacket(filePath) {
       ? "NONE cannot be combined with other broad tool allowlist tokens"
       : `invalid token(s): ${scopeDiscipline.invalidBroadToolTokens.join(", ")}; allowed: ${BROAD_TOOL_ALLOWLIST_VALUES.join("|")}`;
     errors.push(`${rel}: BROAD_TOOL_ALLOWLIST is invalid (${detail})`);
+  }
+
+  if (packetRequiresSignedScopeCompatibility(packetFormatVersion)) {
+    const signedScopeCompatibilityTruth = validateSignedScopeCompatibilityTruth(text, {
+      packetPath: rel,
+    });
+    errors.push(...signedScopeCompatibilityTruth.errors);
   }
 
   if (errors.length > 0) fail("Coder claim fields missing/invalid", errors);

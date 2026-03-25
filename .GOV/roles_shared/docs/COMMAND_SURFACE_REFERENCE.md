@@ -58,6 +58,7 @@ These are safe starting points for orientation and health checks.
 - `just validator-next [WP-{ID}]`
   - `read-only`
   - role-specific resume helpers after startup/reset/compaction
+  - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, post-signature routine Operator interruptions are invalid; `just orchestrator-next` should print `OPERATOR_ACTION: NONE` unless a machine-visible `BLOCKER_CLASS` is present
 
 ## Minimal Live Read Set (Token Discipline)
 
@@ -69,6 +70,12 @@ After startup and assignment, roles should usually be able to operate from a sma
 - this command-surface reference when command choice is unclear
 
 Repeated full rereads of large governance protocols, repeated `just --list`-style command rediscovery, and repeated path/source-of-truth checks after context is already stable should be treated as ambiguity smells, not as normal diligence.
+
+For orchestrator-managed lanes after signature/prepare:
+
+- routine Operator asks such as "proceed", checkpoint approval, or generic approval relapse are invalid
+- real escalations must name one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`
+- legacy pre-launch repair may still surface `LEGACY_SIGNATURE_TUPLE_REPAIR` from `just orchestrator-next`
 
 If a role keeps needing those rereads:
 
@@ -254,9 +261,10 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
 - `just validator-policy-gate WP-{ID}`
     - `read-only`
     - primary validator gate surface
-    - `integration-validator-closeout-check` is the final-lane topology and atomic-closeout preflight for orchestrator-managed PASS closure
+    - `integration-validator-closeout-check` is the final-lane topology, atomic-closeout, and current-`main` signed-scope compatibility preflight for orchestrator-managed PASS closure
     - `wp-declared-topology-check` surfaces packet-declared vs actual linked-worktree truth for one WP and fails on undeclared auxiliary worktrees
   - for `PACKET_FORMAT_VERSION >= 2026-03-25`, `Done` means merge-pending PASS and `Validated (PASS)` requires recorded containment in local `main`
+  - for `PACKET_FORMAT_VERSION >= 2026-03-26`, PASS closure also requires recorded `CURRENT_MAIN_COMPATIBILITY_*` truth plus `PACKET_WIDENING_DECISION=NOT_REQUIRED`; adjacent shared-surface drift must route to a follow-on or superseding packet instead of ad hoc widening
 - `just external-validator-brief WP-{ID}`
   - `read-only`
   - classical/external validation contract summary

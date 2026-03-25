@@ -618,6 +618,11 @@ export function printOperatorAction(action) {
   console.log("");
 }
 
+export function printBlockerClass(blockerClass) {
+  console.log(`BLOCKER_CLASS: ${blockerClass || "NONE"}`);
+  console.log("");
+}
+
 export function printConfidence(confidence, detail = "") {
   if (!confidence) return;
   console.log(`CONFIDENCE: ${confidence}${detail ? ` (${detail})` : ""}`);
@@ -652,6 +657,7 @@ export function failWithContext({
   stage = "BOOTSTRAP",
   next = "STOP",
   operatorAction = "NONE",
+  blockerClass = "NONE",
   confidence = "LOW",
   confidenceDetail = "",
   state,
@@ -660,6 +666,7 @@ export function failWithContext({
 }) {
   printLifecycle({ wpId, stage, next });
   printOperatorAction(operatorAction);
+  printBlockerClass(blockerClass);
   printConfidence(confidence, confidenceDetail);
   printState(state);
   printFindings(findings);

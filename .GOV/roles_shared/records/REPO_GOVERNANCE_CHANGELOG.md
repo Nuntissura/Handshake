@@ -314,3 +314,46 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `justfile`
 - OUTCOME: auxiliary detached check/postwork/validator clones are now mechanically visible as topology violations, the global concurrency gate and final validator gates share the same topology law, and `just wp-declared-topology-check WP-{ID}` exposes the packet-declared topology for one WP directly
+
+### 2026.03.26.01 / GOV-CHANGE-20260326-01
+
+- STATUS: APPLIED
+- SUMMARY: blocked routine post-signature Operator interruption on orchestrator-managed lanes and made resume outputs name blocker classes explicitly
+- CHANGE_TYPE: OPERATOR_AUTONOMY_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles_shared/scripts/lib/role-resume-utils.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: governed role startup prompts now forbid routine post-signature Operator approval/proceed/checkpoint relapse on orchestrator-managed lanes, resume output carries machine-visible `BLOCKER_CLASS` state, and protocol alignment checks fail if that contract drifts
+
+### 2026.03.26.02 / GOV-CHANGE-20260326-02
+
+- STATUS: APPLIED
+- SUMMARY: added signed-scope compatibility truth and blocked ad hoc packet widening during final-lane closeout
+- CHANGE_TYPE: SCOPE_GOVERNANCE_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs`
+  - `.GOV/roles_shared/tests/signed-scope-compatibility-lib.test.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles/validator/checks/integration-validator-closeout-check.mjs`
+  - `.GOV/roles/validator/checks/validator-packet-complete.mjs`
+  - `.GOV/roles_shared/checks/task-packet-claim-check.mjs`
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: modern packets now carry explicit current-`main` compatibility and packet-widening truth, final-lane closeout fails on stale compatibility baselines or ungoverned adjacent scope drift, and new packets default to the stricter 2026-03-26 packet format
