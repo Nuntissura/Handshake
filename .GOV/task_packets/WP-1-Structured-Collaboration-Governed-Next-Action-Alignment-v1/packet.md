@@ -45,8 +45,8 @@ Requirements:
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -100,7 +100,7 @@ Requirements:
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: MEDIUM
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -139,8 +139,8 @@ Requirements:
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
-- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: 019d25e7-d493-7ee3-bd33-2ee9e9255ffb
+- INTEGRATION_VALIDATOR_OF_RECORD: 019d261f-74ee-7901-ad10-535d4203d89f
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
@@ -152,16 +152,16 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-03-23
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: VALIDATED_PASS
 Blockers: NONE
-Next: N/A
+Next: NONE
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: StructuredCollaborationSummaryV1 compact summary contract includes optional `next_action` | CODE_SURFACES: `structured_work_packet_next_action`, `structured_micro_task_next_action`, `default_structured_collaboration_summary_record` | TESTS: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests` | EXAMPLES: Ready Work Packet compact summary whose `next_action` resolves to a registered governed action id or is omitted, Pending Micro-Task compact summary whose `next_action` resolves to a registered governed action id, Mutated Work Packet summary payload with `next_action: "start_work_packet"` rejected as unregistered, Mutated Micro-Task summary payload with `next_action: "start_micro_task"` rejected as unregistered | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Every state-changing operator or model action SHOULD resolve through a registered GovernedActionDescriptorV1 | CODE_SURFACES: governed next-action mapping helper in `workflows.rs` and validator legality checks in `locus/types.rs` | TESTS: mutation-based rejection of unregistered `next_action` values in `micro_task_executor_tests` | EXAMPLES: Ready Work Packet compact summary whose `next_action` resolves to a registered governed action id or is omitted, Pending Micro-Task compact summary whose `next_action` resolves to a registered governed action id, Mutated Work Packet summary payload with `next_action: "start_work_packet"` rejected as unregistered, Mutated Micro-Task summary payload with `next_action: "start_micro_task"` rejected as unregistered | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Task Board and board-adjacent viewers SHOULD expose base-envelope next action before grouping metadata | CODE_SURFACES: residual `next_action_for_work_packet` and `next_action_for_micro_task` helpers in `workflows.rs` | TESTS: `rg` and summary assertions prove there is one governed next-action contract only | EXAMPLES: Ready Work Packet compact summary whose `next_action` resolves to a registered governed action id or is omitted, Pending Micro-Task compact summary whose `next_action` resolves to a registered governed action id, Mutated Work Packet summary payload with `next_action: "start_work_packet"` rejected as unregistered, Mutated Micro-Task summary payload with `next_action: "start_micro_task"` rejected as unregistered | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: StructuredCollaborationSummaryV1 compact summary contract includes optional `next_action` | CODE_SURFACES: `next_action_for_work_packet`, `next_action_for_micro_task`, `default_structured_collaboration_summary_record` | TESTS: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` | EXAMPLES: Ready Work Packet compact summary whose `next_action` resolves to a registered governed action id or is omitted, Pending Micro-Task compact summary whose `next_action` resolves to a registered governed action id, Mutated Work Packet summary payload with `next_action: "start_work_packet"` rejected as unregistered, Mutated Micro-Task summary payload with `next_action: "start_micro_task"` rejected as unregistered | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Every state-changing operator or model action SHOULD resolve through a registered GovernedActionDescriptorV1 | CODE_SURFACES: governed next-action mapping helper in `workflows.rs` and validator legality checks in `locus/types.rs` | TESTS: mutation-based rejection of unregistered and family-illegal `next_action` values in `micro_task_executor_tests`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` | EXAMPLES: Ready Work Packet compact summary whose `next_action` resolves to a registered governed action id or is omitted, Pending Micro-Task compact summary whose `next_action` resolves to a registered governed action id, Mutated Work Packet summary payload with `next_action: "start_work_packet"` rejected as unregistered, Mutated Work Packet summary payload with `next_action: "archive"` rejected as family-illegal, Mutated Micro-Task summary payload with `next_action: "start_micro_task"` rejected as unregistered, Mutated Micro-Task summary payload with `next_action: "archive"` rejected as family-illegal | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Task Board and board-adjacent viewers SHOULD expose base-envelope next action before grouping metadata | CODE_SURFACES: unified `next_action_for_work_packet` and `next_action_for_micro_task` helpers in `workflows.rs`; Task Board row `summary_ref` path in `workflows.rs` | TESTS: `rg` and summary assertions prove there is one governed next-action contract only; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests` | EXAMPLES: Ready Work Packet compact summary whose `next_action` resolves to a registered governed action id or is omitted, Pending Micro-Task compact summary whose `next_action` resolves to a registered governed action id, Mutated Work Packet summary payload with `next_action: "start_work_packet"` rejected as unregistered, Mutated Micro-Task summary payload with `next_action: "start_micro_task"` rejected as unregistered | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -568,8 +568,17 @@ rg -n "structured_work_packet_next_action|structured_micro_task_next_action|next
   - "validator still accepts any non-empty string" -> "false machine-readable PASS remains possible"
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `src/backend/handshake_core/src/workflows.rs`: add one canonical governed-summary mapping seam for in-scope compact summaries, centered on workflow-family legality instead of legacy summary tokens or prose helper text.
+  - `src/backend/handshake_core/src/workflows.rs`: change in-scope summary emitters so Work Packet and Micro-Task `next_action` serialize as `Option<_>` and only carry registered `GovernedActionDescriptorV1.action_id` values when a deterministic governed action exists.
+  - `src/backend/handshake_core/src/workflows.rs`: remove or align `next_action_for_work_packet` and `next_action_for_micro_task` so no shadow prose-only next-action contract remains available to downstream callers.
+  - `src/backend/handshake_core/src/locus/types.rs`: harden summary-record construction and validation so `next_action` is optional, but when present must be a registered governed action id for the record's `workflow_state_family`.
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs`: replace legacy compact-summary token expectations with governed action ids or omission, and add mutation-based rejection coverage for unregistered `next_action` values.
 - Open questions:
+  - Whether any currently emitted Work Packet or Micro-Task state should omit `next_action` because more than one governed action is valid and no deterministic single action is defensible.
+  - Whether any downstream consumer outside current tests still reads legacy compact-summary tokens such as `start_work_packet` or `start_micro_task`.
 - Notes:
+  - Keep scope limited to the three signed write surfaces.
+  - Do not reopen `allowed_action_ids`, Task Board field fidelity, mailbox export validation, or repo-governance runtime work.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
@@ -589,62 +598,119 @@ rg -n "structured_work_packet_next_action|structured_micro_task_next_action|next
 - VALIDATOR_ASSERTIONS:
   - Validate the packet-scoped spec anchors, in-scope files, and deterministic evidence recorded during implementation.
 ## IMPLEMENTATION
-- (Coder fills after the docs-only skeleton checkpoint commit exists.)
+- Authoritative merged product result is local `main` commit `154445243c0b28dc910454b97b0f7df2935529c7`.
+- WP history on the backup branch was:
+  - `bc85e15eb6958784838f606b0fe9f7e24b95251a` `docs: skeleton checkpoint [WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1]`
+  - `8046724bdbcdde1a68a1914a73b6fbc78eed41be` `docs: skeleton approved [WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1]`
+  - `2464fb5` initial family-aware validator repair on the signed three-file scope
+  - `d8ac5fc` replay of the signed three-file scope onto current `main`
+  - `0da6ea3` backup-branch compatibility repair that restored `profile_extension` parity for the branch lane while preserving the signed-scope summary/validator semantics
+- Integration authority did not raw-merge `0da6ea3`. It semantically integrated the exact signed-scope file state for:
+  - `src/backend/handshake_core/src/workflows.rs`
+  - `src/backend/handshake_core/src/locus/types.rs`
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- The canonical merged behavior now is:
+  - Work Packet and Micro-Task summaries serialize governed `next_action` ids or omit the field.
+  - Summary validation requires `workflow_state_family` and rejects unregistered or family-illegal `next_action` values.
+  - Runtime summary refresh paths reuse the same governed helper, so legacy token drift cannot re-enter through the Micro-Task registry refresh path.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Reproduced the WP-validator finding that registered but family-illegal `next_action` values could still pass the shared validator after the first handoff.
+- Repaired the validator boundary so `next_action` is optional, but when present it must be both registered and legal for the summary record's `workflow_state_family`.
+- Replayed the signed three-file patch onto current `main` and then resolved the branch-lane `profile_extension` parity issue without widening the final merged main diff.
+- Re-ran merge-authority proof directly on local `main` after semantic integration: the scoped `micro_task_executor_tests` file and the full `handshake_core` test suite both passed.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Implementation WP**: Governed compact-summary `next_action` alignment across summary emitters, shared validation, and negative-path proof on the canonical merged main diff.
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 24640
+- **Line Delta**: -17
+- **Pre-SHA1**: `68d88fa6e602b5f6440a14b2e0d98b3769a91713`
+- **Post-SHA1**: `89c23d387e0672644dc7c7f39409afdcfed11f42`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
+- **Target File**: `src/backend/handshake_core/src/locus/types.rs`
+- **Start**: 1
+- **End**: 2573
+- **Line Delta**: 217
+- **Pre-SHA1**: `84fe208cbcd233e0014e1e691309d210f964d3a5`
+- **Post-SHA1**: `61a23390950b1650a5eb8a248afe3fd8fc8eac46`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
+- **Target File**: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Start**: 1
+- **End**: 2976
+- **Line Delta**: 230
+- **Pre-SHA1**: `d309f54551798fc5e0bf30d833caef96749cd9f8`
+- **Post-SHA1**: `c4190eb106802a278c434e1655123a77a60fd274`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
-- Next step / handoff hint:
+- Current WP_STATUS: Validated (PASS); the authoritative merged product state is local `main` commit `154445243c0b28dc910454b97b0f7df2935529c7`.
+- What changed in this update: Replaced ad hoc summary `next_action` tokens with governed action ids or omission, enforced family-aware `next_action` legality in the shared validator, and added negative-path tests for unregistered and family-illegal summary drift on both Work Packet and Micro-Task paths.
+- Requirements / clauses self-audited: `StructuredCollaborationSummaryV1` compact summary `next_action` remains optional but governed; state-changing action hints now resolve through registered `GovernedActionDescriptorV1` ids inside the signed summary surfaces; board-adjacent preview paths no longer use shadow prose/token vocabularies.
+- Checks actually run: `just wp-communication-health-check WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1 VERDICT` PASS; `just validator-packet-complete WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1` PASS; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests` PASS on `../handshake_main`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` PASS on `../handshake_main`.
+- Known gaps / weak spots: No remaining defect is known inside the signed packet scope. Adjacent viewer/schema follow-on work may still be needed if Task Board rows are required to expose inline `next_action` instead of `summary_ref`-backed lookup.
+- Heuristic risks / maintainability concerns: The governed action mapping now depends on one shared helper in `workflows.rs` and one shared validator path in `locus/types.rs`; future emitters must reuse those seams rather than inventing new summary-local vocabularies.
+- Validator focus request: CLOSED. WP-validator PASS is recorded on `review:WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1:coder_handoff:mn6c3ebr:85f229`, and integration-validator PASS is recorded on `review:WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1:coder_handoff:mn6foaob:48d179`.
+- Rubric contract understanding proof: This packet is not satisfied by changing strings in one serializer. It required producer-consumer agreement: summary emission, runtime summary refresh, shared validation, and mutation-based proof against legacy and family-illegal values.
+- Rubric scope discipline proof: The authoritative merged diff on `main` stayed inside the three signed files even though the backup branch carried a broader compatibility repair during review.
+- Rubric baseline comparison: Before this WP, summaries could still advertise ad hoc tokens like `start_work_packet` or `start_micro_task`, and the validator did not reject registered-but-family-illegal values. After merge, only governed ids or omission remain live on the signed summary surfaces.
+- Rubric end-to-end proof: The merged `main` tree passed the full `micro_task_executor_tests` file and the full `handshake_core` suite after integration, and the direct review lane is complete through WP validator and integration validator receipts.
+- Rubric architecture fit self-review: The fix lands at the shared summary seams rather than UI-facing compensations or test-only assertions.
+- Rubric heuristic quality self-review: The strongest part is the family-aware validator proof. The weakest part is that semantic merge authority integrated the signed scope onto `main` while the packet/task-board/runtime truth lagged and had to be synchronized afterward.
+- Rubric anti-gaming / counterfactual check: If `governed_next_action_for_family()` were replaced with legacy tokens, the summary mutation tests would stop proving governed action semantics. If `validate_optional_governed_action_id()` stopped checking the record `workflow_state_family`, the `archive` negative-path probes would stop failing for ready-state summaries.
+- Next step / handoff hint: CLOSED. Sync packet/board/traceability/runtime truth, then retire the stale ACP role sessions for this WP.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+  - REQUIREMENT: "Every emitted in-scope compact-summary `next_action` value is either a registered `GovernedActionDescriptorV1.action_id` or omitted."
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3172`, `src/backend/handshake_core/src/workflows.rs:3176`, `src/backend/handshake_core/src/workflows.rs:3180`, `src/backend/handshake_core/src/workflows.rs:4647`, `src/backend/handshake_core/src/workflows.rs:4654`, `src/backend/handshake_core/src/workflows.rs:4712`, `src/backend/handshake_core/src/workflows.rs:4719`, `src/backend/handshake_core/src/locus/types.rs:1072`, `src/backend/handshake_core/src/locus/types.rs:1293`, `src/backend/handshake_core/src/locus/types.rs:1327`, `src/backend/handshake_core/src/locus/types.rs:1599`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:883`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1058`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1653`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1801`
+  - REQUIREMENT: "Summary validation and tests mechanically fail unregistered or drifted `next_action` values."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:2037`, `src/backend/handshake_core/src/locus/types.rs:2073`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1058`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1094`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1801`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1851`
+  - REQUIREMENT: "No live helper path in scope emits ad hoc token strings or prose-only next-action text."
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3172`, `src/backend/handshake_core/src/workflows.rs:3176`, `src/backend/handshake_core/src/workflows.rs:3180`, `src/backend/handshake_core/src/workflows.rs:4654`, `src/backend/handshake_core/src/workflows.rs:4719`, `src/backend/handshake_core/src/workflows.rs:11766`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
@@ -653,6 +719,26 @@ rg -n "structured_work_packet_next_action|structured_micro_task_next_action|next
   - LOG_PATH: `.handshake/logs/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+  - COMMAND: `just wp-communication-health-check WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1 VERDICT`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `N/A`
+  - LOG_SHA256: `N/A`
+  - PROOF_LINES: `[WP_COMMUNICATION_HEALTH] PASS: Direct review lane is complete`
+  - COMMAND: `just validator-packet-complete WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `N/A`
+  - LOG_SHA256: `N/A`
+  - PROOF_LINES: `validator-packet-complete: PASS - WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1 has required fields.`
+  - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `N/A`
+  - LOG_SHA256: `N/A`
+  - PROOF_LINES: `test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
+  - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `N/A`
+  - LOG_SHA256: `N/A`
+  - PROOF_LINES: `test result: ok. 207 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -726,3 +812,87 @@ rg -n "structured_work_packet_next_action|structured_micro_task_next_action|next
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+VALIDATION REPORT - WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1
+Verdict: PASS
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: POST_MERGE_RECHECKED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+VALIDATOR_RISK_TIER: MEDIUM
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/packet.md` (status lagged as `Ready for Dev` during merge-authority review and was corrected to `Validated (PASS)` in this closeout pass)
+- Spec: `Handshake_Master_Spec_v02.178.md`
+- Reviewed diff: `9f8bbb6fecab00a6df8dc9b1ea20d7ff085a637f..154445243c0b28dc910454b97b0f7df2935529c7`
+- Merged main commit: `154445243c0b28dc910454b97b0f7df2935529c7`
+- Review receipts: `review:WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1:validator_kickoff:mn6adpkf:af41af`; `review:WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1:coder_handoff:mn6foaob:48d179`
+
+CLAUSES_REVIEWED:
+- `StructuredCollaborationSummaryV1 compact summary contract includes optional `next_action`` -> `src/backend/handshake_core/src/locus/types.rs:1072`; `src/backend/handshake_core/src/locus/types.rs:1293`; `src/backend/handshake_core/src/locus/types.rs:1327`; `src/backend/handshake_core/src/locus/types.rs:1599`; `src/backend/handshake_core/src/workflows.rs:3172`; `src/backend/handshake_core/src/workflows.rs:3176`; `src/backend/handshake_core/src/workflows.rs:3180`; `src/backend/handshake_core/src/workflows.rs:4647`; `src/backend/handshake_core/src/workflows.rs:4654`; `src/backend/handshake_core/src/workflows.rs:4712`; `src/backend/handshake_core/src/workflows.rs:4719`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:883`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1058`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1653`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1801`
+- `Every state-changing operator or model action SHOULD resolve through a registered GovernedActionDescriptorV1` -> `src/backend/handshake_core/src/locus/types.rs:2037`; `src/backend/handshake_core/src/locus/types.rs:2073`; `src/backend/handshake_core/src/workflows.rs:3180`; `src/backend/handshake_core/src/workflows.rs:4654`; `src/backend/handshake_core/src/workflows.rs:4719`; `src/backend/handshake_core/src/workflows.rs:11766`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1094`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1851`
+- `Task Board and board-adjacent viewers SHOULD expose base-envelope next action before grouping metadata` -> `src/backend/handshake_core/src/workflows.rs:3172`; `src/backend/handshake_core/src/workflows.rs:3176`; `src/backend/handshake_core/src/workflows.rs:3180`; `src/backend/handshake_core/src/workflows.rs:3520`; `src/backend/handshake_core/src/workflows.rs:3541`; `src/backend/handshake_core/src/workflows.rs:4654`; `src/backend/handshake_core/src/workflows.rs:4719`
+
+NOT_PROVEN:
+- NONE
+
+MAIN_BODY_GAPS:
+- NONE
+
+QUALITY_RISKS:
+- NONE
+
+DIFF_ATTACK_SURFACES:
+- Summary emitter drift between Work Packet and Micro-Task compact summaries.
+- Shared validator drift that would allow registered but family-illegal `next_action` values.
+- Runtime registry refresh drift that could reintroduce legacy summary tokens after initial write.
+
+INDEPENDENT_CHECKS_RUN:
+- `git -C ../handshake_main rev-parse HEAD` => `154445243c0b28dc910454b97b0f7df2935529c7`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests` from `../handshake_main` => `test result: ok. 26 passed; 0 failed`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` from `../handshake_main` => `test result: ok. 207 passed; 0 failed`
+- `just wp-communication-health-check WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1 VERDICT` => `PASS`
+
+COUNTERFACTUAL_CHECKS:
+- If `governed_next_action_for_family()` in `src/backend/handshake_core/src/workflows.rs:3180` reverted to legacy token helpers, the summary mutations at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1058` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1801` would stop proving governed next-action semantics.
+- If `validate_optional_governed_action_id()` in `src/backend/handshake_core/src/locus/types.rs:2037` stopped checking `workflow_state_family`, the registered-but-family-illegal `archive` mutations at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1094` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1851` would pass.
+
+BOUNDARY_PROBES:
+- Producer/validator probe: `src/backend/handshake_core/src/workflows.rs:4647-4719` emits `workflow_state_family` plus governed `next_action`, and `src/backend/handshake_core/src/locus/types.rs:1293-1329` revalidates the same contract at the shared boundary.
+- Runtime refresh probe: `src/backend/handshake_core/src/workflows.rs:11758-11766` reuses `next_action_for_micro_task()` when refreshing Micro-Task summary metadata, so the runtime path cannot silently preserve legacy tokens while the initial write path is governed.
+
+NEGATIVE_PATH_CHECKS:
+- Work Packet summary mutation `next_action: "start_work_packet"` is rejected at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1058-1092`.
+- Work Packet summary mutation `next_action: "archive"` against a ready-state summary is rejected at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1094-1128`.
+- Micro-Task summary mutation `next_action: "start_micro_task"` is rejected at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1801-1849`.
+- Micro-Task summary mutation `next_action: "archive"` against a ready-state summary is rejected at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1851-1899`.
+
+INDEPENDENT_FINDINGS:
+- The merged `main` tree no longer carries any live ad hoc summary `next_action` token helpers in `workflows.rs`; only the negative-path tests still mention legacy strings.
+- The shared validator now treats `next_action` as optional but family-scoped when present, which closes the WP-validator finding that blocked the first handoff.
+
+RESIDUAL_UNCERTAINTY:
+- This closeout rechecked the merged backend summary and validator surfaces plus the full `handshake_core` suite, but it did not re-audit downstream viewer/UI consumption of `summary_ref` beyond the Task Board projection backend.
+- Semantic merge authority landed the signed-scope product diff on `main`, but the packet/task-board/runtime truth lagged until this closeout pass; that workflow gap is outside the product verdict and should be handled on the repo-governance lane.
+
+SPEC_CLAUSE_MAP:
+- `StructuredCollaborationSummaryV1 compact summary contract includes optional `next_action`` -> `src/backend/handshake_core/src/locus/types.rs:1072`; `src/backend/handshake_core/src/locus/types.rs:1293`; `src/backend/handshake_core/src/locus/types.rs:1327`; `src/backend/handshake_core/src/locus/types.rs:1599`; `src/backend/handshake_core/src/workflows.rs:4647`; `src/backend/handshake_core/src/workflows.rs:4712`
+- `Every state-changing operator or model action SHOULD resolve through a registered GovernedActionDescriptorV1` -> `src/backend/handshake_core/src/locus/types.rs:2037`; `src/backend/handshake_core/src/locus/types.rs:2073`; `src/backend/handshake_core/src/workflows.rs:3180`; `src/backend/handshake_core/src/workflows.rs:4654`; `src/backend/handshake_core/src/workflows.rs:4719`; `src/backend/handshake_core/src/workflows.rs:11766`
+- `Task Board and board-adjacent viewers SHOULD expose base-envelope next action before grouping metadata` -> `src/backend/handshake_core/src/workflows.rs:3172`; `src/backend/handshake_core/src/workflows.rs:3176`; `src/backend/handshake_core/src/workflows.rs:3520`; `src/backend/handshake_core/src/workflows.rs:3541`
+
+NEGATIVE_PROOF:
+- The broader Task Board viewer SHOULD is still not fully implemented inline. `src/backend/handshake_core/src/locus/task_board.rs:28-55` defines `TaskBoardEntryRecordV1` without a `next_action` field, and `src/backend/handshake_core/src/workflows.rs:3520-3541` emits Task Board rows with `summary_ref` only. Viewers can still resolve governed next action through the referenced summary, but the row record itself does not yet expose `next_action` directly. That is a real adjacent spec delta outside this packet's narrow compact-summary alignment scope.
+
+REASON FOR PASS:
+- The signed three-file scope is closed on merged local `main` commit `154445243c0b28dc910454b97b0f7df2935529c7`, the WP-validator family-legality finding was repaired before final authority, the integration-validator exercised merge authority against canonical `main`, and post-merge local proof on `main` passed for both `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests` and the full `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`.
