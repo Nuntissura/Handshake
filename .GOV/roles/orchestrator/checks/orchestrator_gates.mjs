@@ -495,6 +495,7 @@ if (action === 'prepare') {
     if (v2IsLegacyOrchestratorAgentic(arg1) || v2IsLegacyOrchestratorAgentic(arg2)) {
         v2Fail('Orchestrator-Agentic is legacy-only and cannot be used in current PREPARE records.', [
             'The Orchestrator remains non-agentic and single-session.',
+            'Use governed ACP/CLI session commands for coder/validator lanes. Helper agents may assist on governance/spec/runtime/orchestrator tasks, but they must not stand in as coder/validator lanes or write product code without explicit Operator approval recorded as SUB_AGENT_DELEGATION: ALLOWED with OPERATOR_APPROVAL_EVIDENCE.',
             `Usage: just record-prepare ${wpId} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE} [branch] [worktree_dir]`,
         ]);
     }

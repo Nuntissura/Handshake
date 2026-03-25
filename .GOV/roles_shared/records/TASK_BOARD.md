@@ -164,6 +164,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Role-Mailbox-Triage-Queue-Controls-v1]** - [STUB]
 - **[WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1]** - [STUB]
 - **[WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back-v1]** - [STUB]
+- **[WP-1-Structured-Collaboration-Contract-Hardening-v1]** - [STUB]
 
 
 - **[WP-1-Charts-Dashboards-Backfill-v1]** - [STUB]
@@ -177,7 +178,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
-- **[WP-1-Structured-Collaboration-Schema-Registry-v4]** - [IN_PROGRESS]
 
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
@@ -257,6 +257,8 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Structured-Collaboration-Artifact-Family-v1]** - [VALIDATED]
 
 
+
+- **[WP-1-Structured-Collaboration-Schema-Registry-v4]** - [VALIDATED]
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]

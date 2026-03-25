@@ -68,7 +68,11 @@ See also:
 ## Current Execution Policy (Additional LAW)
 
 - The Orchestrator role is one non-agentic coordinator CLI session.
-- The Orchestrator may coordinate and launch multiple external CLI sessions, but must not spawn helper agents to perform Orchestrator or Validator duties.
+- Orchestrator-managed execution MUST use governed ACP/CLI sessions (`launch-*`, `start-*`, `steer-*`, `session-send`) for Coder and Validator lanes.
+- The Orchestrator MAY use helper agents/subagents for governance work, spec enrichment/refinement, WP creation, ACP runtime work (including ACP bug fixes or behavior changes), product-code inspection, and other bounded Orchestrator duties.
+- Orchestrator-spawned helper agents are not Coder or Validator lanes. They must not stand in for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`, and they do not replace governed ACP/CLI sessions for those roles.
+- Orchestrator-spawned helper agents MUST NOT write or change product code unless the Operator gave explicit approval first and that approval is recorded in the work packet (`SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`).
+- Absent that explicit recorded approval, helper-agent product-code changes are forbidden even if the work is bounded, faster, or convenient.
 - New repo-governed sessions must be launched explicitly:
   - primary model: `gpt-5.4`
   - fallback: `gpt-5.2`
@@ -348,6 +352,28 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 [CX-212D] Work packets and refinements are committed on `gov_kernel`, not on WP feature branches. Coders do not commit `.GOV/` files on `feat/WP-*` branches — the governance kernel is the single source of truth, accessed via junction.
 
 ## Current Orchestrator Workflow (Authoritative)
+
+### 0. Repo Governance Maintenance (No WP)
+
+- Pure repo-governance maintenance does not use a Work Packet, refinement, signature, or packet lifecycle helpers.
+- Use this path only when the planned diff stays inside governance surfaces and does not touch Handshake product code or the Master Spec.
+- Authoritative records:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `.GOV/Audits/**` with stable `AUDIT_ID` and, for smoketest reviews, `SMOKETEST_REVIEW_ID`
+- Templates:
+  - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
+  - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+- Shared workflow reference:
+  - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
+- Minimum flow:
+  1. link or create the evidence document with stable IDs
+  2. open or update the governance task-board item
+  3. apply the governance change
+  4. record the applied changeset in the changelog
+  5. run `just gov-check`
+- If the planned change touches the Master Spec or any product path under `src/`, `app/`, or `tests/`, stop using this path and return to the normal refinement plus WP flow.
 
 ### 1. Refinement and Approval
 

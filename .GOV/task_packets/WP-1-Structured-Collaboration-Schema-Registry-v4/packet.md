@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_TEMPLATE
+# TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
 
@@ -100,7 +100,7 @@ Requirements:
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** In Progress
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -139,8 +139,8 @@ Requirements:
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v4/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v4/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v4/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
-- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: 019d223c-5d16-7722-98e8-a44a15218f79
+- INTEGRATION_VALIDATOR_OF_RECORD: 019d226b-7017-7182-b066-8dfe9ff8addc
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
@@ -152,17 +152,17 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-03-23
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: VALIDATED_PASS
 Blockers: NONE
-Next: N/A
+Next: NONE
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: [ADD v02.171] canonical Work Packet, Micro-Task, and Task Board records SHALL expose workflow_state_family, queue_reason_code, allowed_action_ids | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/locus/task_board.rs | TESTS: cargo test -p handshake_core schema_registry workflow_state | EXAMPLES: Mutated Work Packet `packet.json` missing `workflow_state_family`, Mutated Micro-Task `packet.json` missing `allowed_action_ids`, Mutated Task Board `index.json` with malformed `rows[0]`, Mutated Role Mailbox `index.json` with malformed `threads[0].created_at`, Mutated Role Mailbox thread line with invalid `body_ref`, `body_sha256`, or `transcription_links[0].target_sha256` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: [ADD v02.168] Task Board projections and Role Mailbox exports MUST remain field-equivalent at the base-envelope level and obey their nested structured record contracts | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs | TESTS: cargo test -p handshake_core task_board nested_validation; cargo test -p handshake_core role_mailbox nested_validation | EXAMPLES: Mutated Work Packet `packet.json` missing `workflow_state_family`, Mutated Micro-Task `packet.json` missing `allowed_action_ids`, Mutated Task Board `index.json` with malformed `rows[0]`, Mutated Role Mailbox `index.json` with malformed `threads[0].created_at`, Mutated Role Mailbox thread line with invalid `body_ref`, `body_sha256`, or `transcription_links[0].target_sha256` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: RoleMailboxIndexV1 and RoleMailboxThreadLineV1 typed timestamp, artifact-handle, and sha256 fields | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/role_mailbox.rs | TESTS: cargo test -p handshake_core role_mailbox structured_field_formats | EXAMPLES: Mutated Work Packet `packet.json` missing `workflow_state_family`, Mutated Micro-Task `packet.json` missing `allowed_action_ids`, Mutated Task Board `index.json` with malformed `rows[0]`, Mutated Role Mailbox `index.json` with malformed `threads[0].created_at`, Mutated Role Mailbox thread line with invalid `body_ref`, `body_sha256`, or `transcription_links[0].target_sha256` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Mechanical gate (HARD) RoleMailboxExportGate requires valid thread-line field sets and required transcription links | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs | TESTS: cargo test -p handshake_core role_mailbox export_gate_inputs | EXAMPLES: Mutated Work Packet `packet.json` missing `workflow_state_family`, Mutated Micro-Task `packet.json` missing `allowed_action_ids`, Mutated Task Board `index.json` with malformed `rows[0]`, Mutated Role Mailbox `index.json` with malformed `threads[0].created_at`, Mutated Role Mailbox thread line with invalid `body_ref`, `body_sha256`, or `transcription_links[0].target_sha256` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: [ADD v02.171] canonical Work Packet, Micro-Task, and Task Board records SHALL expose workflow_state_family, queue_reason_code, allowed_action_ids | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/locus/task_board.rs | TESTS: cargo test -p handshake_core schema_registry workflow_state | EXAMPLES: Mutated Work Packet `packet.json` missing `workflow_state_family`, Mutated Micro-Task `packet.json` missing `allowed_action_ids`, Mutated Task Board `index.json` with malformed `rows[0]`, Mutated Role Mailbox `index.json` with malformed `threads[0].created_at`, Mutated Role Mailbox thread line with invalid `body_ref`, `body_sha256`, or `transcription_links[0].target_sha256` | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: [ADD v02.168] Task Board projections and Role Mailbox exports MUST remain field-equivalent at the base-envelope level and obey their nested structured record contracts | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs | TESTS: cargo test -p handshake_core task_board nested_validation; cargo test -p handshake_core role_mailbox nested_validation | EXAMPLES: Mutated Work Packet `packet.json` missing `workflow_state_family`, Mutated Micro-Task `packet.json` missing `allowed_action_ids`, Mutated Task Board `index.json` with malformed `rows[0]`, Mutated Role Mailbox `index.json` with malformed `threads[0].created_at`, Mutated Role Mailbox thread line with invalid `body_ref`, `body_sha256`, or `transcription_links[0].target_sha256` | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: RoleMailboxIndexV1 and RoleMailboxThreadLineV1 typed timestamp, artifact-handle, and sha256 fields | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/role_mailbox.rs | TESTS: cargo test -p handshake_core role_mailbox structured_field_formats | EXAMPLES: Mutated Work Packet `packet.json` missing `workflow_state_family`, Mutated Micro-Task `packet.json` missing `allowed_action_ids`, Mutated Task Board `index.json` with malformed `rows[0]`, Mutated Role Mailbox `index.json` with malformed `threads[0].created_at`, Mutated Role Mailbox thread line with invalid `body_ref`, `body_sha256`, or `transcription_links[0].target_sha256` | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Mechanical gate (HARD) RoleMailboxExportGate requires valid thread-line field sets and required transcription links | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs | TESTS: cargo test -p handshake_core role_mailbox export_gate_inputs | EXAMPLES: Mutated Work Packet `packet.json` missing `workflow_state_family`, Mutated Micro-Task `packet.json` missing `allowed_action_ids`, Mutated Task Board `index.json` with malformed `rows[0]`, Mutated Role Mailbox `index.json` with malformed `threads[0].created_at`, Mutated Role Mailbox thread line with invalid `body_ref`, `body_sha256`, or `transcription_links[0].target_sha256` | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -756,9 +756,9 @@ rg -n "workflow_state_family|queue_reason_code|allowed_action_ids|updated_at|gen
   - "typed-field validation duplicates mailbox-local helpers poorly" -> "two conflicting validation dialects emerge for the same structured record"
   - "negative-path tests mutate the wrong layer" -> "green tests without proof that consumer-boundary payloads are actually protected"
 ## SKELETON
-- Proposed interfaces/types/contracts:
-- Open questions:
-- Notes:
+- Proposed interfaces/types/contracts: Keep `validate_structured_collaboration_record()` in `src/backend/handshake_core/src/locus/types.rs` as the single shared enforcement point and harden it with small helper checks for the required workflow-state triplet (`workflow_state_family`, `queue_reason_code`, `allowed_action_ids`), RFC3339 timestamp strings, lowercase 64-hex sha256 strings, artifact-handle strings, and recursive object-array validation for Task Board `rows[]`, Role Mailbox `threads[]`, and `transcription_links[]`. Keep `src/backend/handshake_core/src/workflows.rs` and `src/backend/handshake_core/src/locus/task_board.rs` limited to projection/emitter parity fixes only if the stricter validator exposes a current artifact mismatch. Keep `src/backend/handshake_core/src/role_mailbox.rs` limited to staying aligned with the shared typed validators and export-gate expectations; no new schema ids, no new record families, and no Loom or `.GOV` redesign.
+- Open questions: Decide whether the artifact-handle check should be implemented as a narrow shared validator in `locus/types.rs` or by extracting/reusing the existing mailbox parser in `src/backend/handshake_core/src/role_mailbox.rs` so the shared validator and mailbox-local parsing cannot drift. Confirm whether the MT-004 transcription-link requirement can be enforced directly from `message_type` inside `validate_structured_collaboration_record()`; if that coupling is too mailbox-specific, keep the fallback wrapper in `role_mailbox.rs` as small as possible and scoped only to exported `RoleMailboxThreadLine` records.
+- Notes: `MT-001` maps to `src/backend/handshake_core/src/locus/types.rs` first, with `src/backend/handshake_core/src/workflows.rs` and `src/backend/handshake_core/src/locus/task_board.rs` touched only if emitted Work Packet, Micro-Task, or Task Board artifacts need parity fixes after the validator starts requiring the workflow-state triplet. `MT-002` maps to recursive nested-array validation in `src/backend/handshake_core/src/locus/types.rs`, plus mutation-based regressions in `src/backend/handshake_core/tests/micro_task_executor_tests.rs` and `src/backend/handshake_core/tests/role_mailbox_tests.rs` that corrupt Task Board `rows[]`, mailbox `threads[]`, and mailbox `transcription_links[]` at the exported JSON boundary. `MT-003` maps to typed-field rejection for `updated_at`, `generated_at`, `created_at`, `body_ref`, and `body_sha256`, keeping `src/backend/handshake_core/src/role_mailbox.rs` aligned only where shared helper reuse or export-gate parity requires it. `MT-004` maps to `src/backend/handshake_core/tests/role_mailbox_tests.rs` proof that malformed thread-line field sets and missing required transcription links are rejected while existing happy-path exports still validate. Planned product write scope for implementation remains capped at these six files: `src/backend/handshake_core/src/locus/types.rs`, `src/backend/handshake_core/src/locus/task_board.rs`, `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/role_mailbox.rs`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs`, and `src/backend/handshake_core/tests/role_mailbox_tests.rs`.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
@@ -781,67 +781,176 @@ rg -n "workflow_state_family|queue_reason_code|allowed_action_ids|updated_at|gen
 - (Coder fills after the docs-only skeleton checkpoint commit exists.)
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Re-ran `just pre-work WP-1-Structured-Collaboration-Schema-Registry-v4` before implementation.
+- Kept product scope to five files inside the allowed six-file budget:
+  - `src/backend/handshake_core/src/locus/types.rs`
+  - `src/backend/handshake_core/src/role_mailbox.rs`
+  - `src/backend/handshake_core/src/workflows.rs`
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+  - `src/backend/handshake_core/tests/role_mailbox_tests.rs`
+- Reused the existing Task Board entry contract from `locus/types.rs` instead of widening into `src/backend/handshake_core/src/locus/task_board.rs`.
+- Established the direct-review kickoff lane before closeout:
+  - `VALIDATOR_KICKOFF` correlation id `review:WP-1-Structured-Collaboration-Schema-Registry-v4:validator_kickoff:mn59jdg9:7af6c1`
+  - matching `CODER_INTENT`
+  - `just wp-communication-health-check WP-1-Structured-Collaboration-Schema-Registry-v4 KICKOFF` now passes
+- The remaining closeout blocker is packet companion completeness for `just post-work`; product implementation and targeted proof commands are already recorded below.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Implementation WP**: Shared structured-collaboration validator hardening, runtime packet-emitter alignment, and negative-path smoke-test proof for the schema-registry v4 recovery pass.
+
+- **Target File**: `src/backend/handshake_core/src/locus/types.rs`
+- **Start**: 1
+- **End**: 2521
+- **Line Delta**: 769
+- **Pre-SHA1**: `ce48d67cf815ac8bfb8c11184b5b4f301f4750b2`
+- **Post-SHA1**: `68c54ae60f0ae6f0035878aa298ab7cef4e825b3`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
+- **Target File**: `src/backend/handshake_core/src/role_mailbox.rs`
+- **Start**: 1
+- **End**: 1754
+- **Line Delta**: -28
+- **Pre-SHA1**: `0546b534dfc11d5ab263a2124805f65dc675d817`
+- **Post-SHA1**: `faf624d2a2545618ede7d13d8b9540f0c4a5cd05`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 24678
+- **Line Delta**: 10
+- **Pre-SHA1**: `a77b1a14aad10787f4fb5b4c8347de5b8ec484e2`
+- **Post-SHA1**: `4204fc89de6239a73aa0939b4738ac36d961f177`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
+- **Target File**: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Start**: 1
+- **End**: 2704
+- **Line Delta**: 170
+- **Pre-SHA1**: `0c396ecceeec0e74dc726aaa887e95c9d74d8af5`
+- **Post-SHA1**: `d20f11f7179ace346875143a1cbb88884b2c07c0`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+
+- **Target File**: `src/backend/handshake_core/tests/role_mailbox_tests.rs`
+- **Start**: 1
+- **End**: 779
+- **Line Delta**: 159
+- **Pre-SHA1**: `96adf0cc0f9bb09cd622996d1036772af84c3f99`
+- **Post-SHA1**: `da7badb32b6aff33293d830f5a51d8da87b163a8`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
-- Next step / handoff hint:
+- Current WP_STATUS: Validated (PASS). Follow-up commit `511dc5e` has WP-validator PASS, the final integration-validator PASS is recorded on the direct-review lane, and the governed final report is appended in this packet.
+- What changed in this update: Hardened shared structured validation in `locus/types.rs`, aligned runtime work-packet and micro-task packet emitters in `workflows.rs`, reused shared sha256/artifact-handle parsing in `role_mailbox.rs`, and added exported-JSON mutation proof in the two existing smoke-test files.
+- Requirements / clauses self-audited: [ADD v02.171] workflow-state triplet required on canonical Work Packet, Micro-Task, and Task Board records; [ADD v02.168] nested Task Board rows and Role Mailbox threads/transcription links validated at the shared boundary; typed RFC3339/artifact-handle/sha256 semantics for mailbox exports; RoleMailboxExportGate negative-path proof preserved.
+- Checks actually run: `cargo test -p handshake_core --test micro_task_executor_tests schema_registry` PASS; `cargo test -p handshake_core --test micro_task_executor_tests task_board` PASS; `cargo test -p handshake_core --test role_mailbox_tests role_mailbox` PASS; `cargo test -p handshake_core` FAIL in unrelated broad targets with environment-level `rlib`/artifact availability errors; `just wp-communication-health-check WP-1-Structured-Collaboration-Schema-Registry-v4 KICKOFF` PASS; `just post-work WP-1-Structured-Collaboration-Schema-Registry-v4 --range f85d767d8ae8a56121f224f6e12ed2df6f973d6b..511dc5e` PASS.
+- Known gaps / weak spots: broad crate-wide cargo coverage is still blocked by this machine's environment outside the touched seams; final integration-validator authority review is still pending; `task_board.rs` remained untouched because the shared validator and runtime emitter adjustments were sufficient.
+- Heuristic risks / maintainability concerns: `locus/types.rs` now carries a larger concentration of family-specific validation helpers; `workflows.rs` changes the runtime packet serialization path and should be checked for accidental divergence between tracked structs and emitted packet artifacts.
+- Validator focus request: review commit `511dc5e` for queue-reason vocabulary alignment at the shared validator and emitter boundary; verify that emitted work-packet and micro-task packet artifacts now validate as structured packet records, not legacy tracked structs; inspect prefixed nested-path diagnostics for `rows[]`, `threads[]`, and `transcription_links[]`.
+- Rubric contract understanding proof: The signed packet requires spec-tight shared validation and mutation-based exported-JSON proof. Happy-path emitter output alone is not sufficient closure for this WP.
+- Rubric scope discipline proof: No Loom work, no new schema ids, no `.GOV` runtime redesign, and no `task_board.rs` edit were introduced. The change stayed inside the shared validator, runtime packet emitters, mailbox alignment, and the two approved proof files.
+- Rubric baseline comparison: v3 smoke coverage let missing workflow-state fields, malformed nested rows/threads, and malformed typed mailbox strings pass the shared validator. This diff closes those exact gaps and keeps the happy-path exports green in the targeted test slices.
+- Rubric end-to-end proof: The smoke tests now mutate emitted `packet.json`, Task Board `index/view` JSON, mailbox `index.json`, and mailbox thread-line JSONL payloads after generation, then assert that the shared validator rejects the malformed artifacts at the consumer boundary.
+- Rubric architecture fit self-review: Shared validator strictness remains centralized in `locus/types.rs`; `role_mailbox.rs` only reuses the shared sha256/artifact parser helpers and `workflows.rs` only aligns runtime emitters with the already-existing packet builders.
+- Rubric heuristic quality self-review: The implementation is explicit and auditable, but the helper surface in `locus/types.rs` is materially larger and should receive close review for future drift or over-specialization.
+- Rubric anti-gaming / counterfactual check: If `validate_workflow_state_triplet()` were removed, missing workflow-state fields on Work Packet and Micro-Task packet exports would pass again. If `validate_role_mailbox_threads()` or `validate_role_mailbox_transcription_links()` were removed, malformed nested mailbox payloads would still serialize while failing only in downstream consumers.
+- Next step / handoff hint: Record the final direct coder <-> integration-validator review exchange on commit `511dc5e`, then have the integration validator append the final report and verdict.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+  - REQUIREMENT: "`validate_structured_collaboration_record()` rejects missing `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids` on canonical Work Packet, Micro-Task, and Task Board records."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1130,1147,1823; src/backend/handshake_core/tests/micro_task_executor_tests.rs:853,1467`
+  - REQUIREMENT: "Task Board `rows[]`, Role Mailbox `threads[]`, and `transcription_links[]` are validated per element shape rather than only by outer-array presence."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1161,1168,1172,1184,1898,1919,2134; src/backend/handshake_core/tests/micro_task_executor_tests.rs:1013; src/backend/handshake_core/tests/role_mailbox_tests.rs:486,557`
+  - REQUIREMENT: "Shared structured validation rejects malformed RFC3339 timestamps, malformed artifact-handle strings, and malformed sha256 strings on the relevant record families."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1587,1702,1733,2192; src/backend/handshake_core/src/role_mailbox.rs:739,917,1084; src/backend/handshake_core/tests/role_mailbox_tests.rs:557`
+  - REQUIREMENT: "Regression tests prove the above failures on mutated exported JSON, not only on happy-path emitters. Existing happy-path smoke tests continue to pass after validator hardening."
+  - EVIDENCE: `src/backend/handshake_core/tests/micro_task_executor_tests.rs:722,853,1013,1333,1467; src/backend/handshake_core/tests/role_mailbox_tests.rs:486,557`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
   - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
+  - EXIT_CODE: <int>
   - LOG_PATH: `.handshake/logs/WP-1-Structured-Collaboration-Schema-Registry-v4/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+  - COMMAND: `cargo test -p handshake_core --test micro_task_executor_tests schema_registry`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 5.42s`
+  - COMMAND: `cargo test -p handshake_core --test micro_task_executor_tests task_board`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 5.19s`
+  - COMMAND: `cargo test -p handshake_core --test role_mailbox_tests role_mailbox`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.00s`
+  - COMMAND: `cargo test -p handshake_core`
+  - EXIT_CODE: 1
+  - PROOF_LINES: `error: crate sqlx_sqlite required to be available in rlib format, but was not found in this form`; `error: could not compile handshake_core (test "model_swap_events_tests") due to 1 previous error`
+  - COMMAND: `just wp-communication-health-check WP-1-Structured-Collaboration-Schema-Registry-v4 KICKOFF`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `[WP_COMMUNICATION_HEALTH] PASS: Kickoff exchange is complete`
+  - COMMAND: `just post-work WP-1-Structured-Collaboration-Schema-Registry-v4 --range f85d767d8ae8a56121f224f6e12ed2df6f973d6b..511dc5e`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `Post-work validation PASSED (deterministic manifest gate; not tests)`; `PASS: touched file budget respected in evaluated diff (5/6)`; `ROLE_MAILBOX_EXPORT_GATE PASS`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -915,3 +1024,95 @@ rg -n "workflow_state_family|queue_reason_code|allowed_action_ids|updated_at|gen
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+VALIDATION REPORT - WP-1-Structured-Collaboration-Schema-Registry-v4
+Verdict: PASS
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+VALIDATOR_RISK_TIER: HIGH
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v4/packet.md` (status at review time: `In Progress`)
+- Spec: `Handshake_Master_Spec_v02.178.md`
+- Reviewed diff: `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..511dc5e`
+
+CLAUSES_REVIEWED:
+- `[ADD v02.171] canonical Work Packet, Micro-Task, and Task Board records SHALL expose workflow_state_family, queue_reason_code, allowed_action_ids` -> `src/backend/handshake_core/src/locus/types.rs:1232`; `src/backend/handshake_core/src/locus/types.rs:1249`; `src/backend/handshake_core/src/locus/types.rs:1929`; `src/backend/handshake_core/src/workflows.rs:3052`; `src/backend/handshake_core/src/workflows.rs:3087`; `src/backend/handshake_core/src/workflows.rs:3118`; `src/backend/handshake_core/src/workflows.rs:3576`; `src/backend/handshake_core/src/workflows.rs:4694`; `src/backend/handshake_core/src/workflows.rs:4755`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:875`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:897`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1041`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1075`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1530`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1552`
+- `[ADD v02.168] Task Board projections and Role Mailbox exports MUST remain field-equivalent at the base-envelope level and obey their nested structured record contracts` -> `src/backend/handshake_core/src/locus/types.rs:1263`; `src/backend/handshake_core/src/locus/types.rs:1270`; `src/backend/handshake_core/src/locus/types.rs:1274`; `src/backend/handshake_core/src/locus/types.rs:2004`; `src/backend/handshake_core/src/locus/types.rs:2025`; `src/backend/handshake_core/src/locus/types.rs:2248`; `src/backend/handshake_core/src/role_mailbox.rs:1617`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1041`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1075`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:486`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:557`
+- `RoleMailboxIndexV1 and RoleMailboxThreadLineV1 typed timestamp, artifact-handle, and sha256 fields` -> `src/backend/handshake_core/src/locus/types.rs:1223`; `src/backend/handshake_core/src/locus/types.rs:1279`; `src/backend/handshake_core/src/locus/types.rs:1283`; `src/backend/handshake_core/src/locus/types.rs:1284`; `src/backend/handshake_core/src/locus/types.rs:1693`; `src/backend/handshake_core/src/locus/types.rs:1808`; `src/backend/handshake_core/src/locus/types.rs:1839`; `src/backend/handshake_core/src/locus/types.rs:2248`; `src/backend/handshake_core/src/locus/types.rs:2310`; `src/backend/handshake_core/src/locus/types.rs:2315`; `src/backend/handshake_core/src/locus/types.rs:2325`; `src/backend/handshake_core/src/role_mailbox.rs:917`; `src/backend/handshake_core/src/role_mailbox.rs:921`; `src/backend/handshake_core/src/role_mailbox.rs:930`; `src/backend/handshake_core/src/role_mailbox.rs:1084`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:486`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:557`
+- `Mechanical gate (HARD) RoleMailboxExportGate requires valid thread-line field sets and required transcription links` -> `src/backend/handshake_core/src/locus/types.rs:2248`; `src/backend/handshake_core/src/role_mailbox.rs:1617`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:557`
+
+NOT_PROVEN:
+- NONE
+
+MAIN_BODY_GAPS:
+- NONE
+
+QUALITY_RISKS:
+- NONE
+
+DIFF_ATTACK_SURFACES:
+- Producer/consumer drift between `workflows.rs` status-to-queue mappings and `locus/types.rs` accepted `queue_reason_code` vocabulary.
+- Partial nested validation where Task Board `rows[]`, Role Mailbox `threads[]`, or `transcription_links[]` could remain only outer-array checked.
+- Typed-string drift where mailbox exports serialize timestamps, artifact handles, or sha256 fields differently from the shared validator.
+- Backward-compatibility logic reintroducing legacy queue-reason wire names at serialization boundaries.
+
+INDEPENDENT_CHECKS_RUN:
+- `git -C '..\\handshake_main' diff --name-only f85d767d8ae8a56121f224f6e12ed2df6f973d6b..511dc5e -- src/backend/handshake_core` => exactly five product files are in scope from the integration-validator worktree: `src/locus/types.rs`, `src/role_mailbox.rs`, `src/workflows.rs`, `tests/micro_task_executor_tests.rs`, `tests/role_mailbox_tests.rs`.
+- `git -C '..\\handshake_main' grep -n "WorkflowQueueReasonCode::NeedsTriage\\|WorkflowQueueReasonCode::HumanReviewWait\\|WorkflowQueueReasonCode::DecisionWait\\|WorkflowQueueReasonCode::Completed\\|WorkflowQueueReasonCode::ReadyForLocalSmallModel\\|WorkflowQueueReasonCode::RetryScheduled\\|WorkflowQueueReasonCode::EscalationWait\\|WorkflowQueueReasonCode::Rejected\\|WorkflowQueueReasonCode::Canceled" 511dc5e -- src/backend/handshake_core/src/workflows.rs` => canonical Phase 1 queue-reason variants drive the emitter mappings at `src/backend/handshake_core/src/workflows.rs:3058-3148`.
+- `git -C '..\\handshake_main' grep -n "new_untriaged\\|ready_for_human\\|review_wait\\|timer_wait\\|blocked_missing_context\\|blocked_policy\\|blocked_capability\\|blocked_error" 511dc5e -- src/backend/handshake_core/src/workflows.rs` => no matches; legacy wire names are absent from the emitter path after `511dc5e`.
+- `git -C '..\\handshake_main' grep -n "validate_workflow_state_triplet\\|validate_task_board_rows\\|validate_role_mailbox_threads\\|validate_role_mailbox_transcription_links\\|require_rfc3339_string\\|require_artifact_handle_string\\|require_lowercase_sha256_string" 511dc5e -- src/backend/handshake_core/src/locus/types.rs` => the shared validator wires the workflow-state triplet, recursive row/thread/link validation, RFC3339 checks, artifact-handle parsing, and lowercase-sha256 enforcement into the canonical families.
+- `git -C '..\\handshake_main' grep -n "parse_artifact_handle_string\\|is_lowercase_sha256_hex\\|validate_runtime_mailbox_record" 511dc5e -- src/backend/handshake_core/src/role_mailbox.rs` => mailbox export/load paths reuse the same artifact-handle and sha helpers consumed by the shared validator.
+- `cargo test -p handshake_core --test micro_task_executor_tests locus_sync_task_board_emits_structured_index_and_view -- --exact` and `cargo test -p handshake_core --test role_mailbox_tests role_mailbox_export_gate_inputs_reject_malformed_thread_line_fields -- --exact` from `..\\wtc-schema-registry-v4-postwork\\src\\backend\\handshake_core` => BLOCKED before test execution by local `libduckdb-sys` / MSVC compile failures on this host; this affects independent re-run confidence, not the already-recorded targeted green evidence in the WP lanes.
+
+COUNTERFACTUAL_CHECKS:
+- If `validate_workflow_state_triplet()` in `src/backend/handshake_core/src/locus/types.rs:1929` were removed from the Work Packet, Micro-Task, or Task Board branches at `src/backend/handshake_core/src/locus/types.rs:1232` and `src/backend/handshake_core/src/locus/types.rs:1249`, missing `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids` would pass again.
+- If `WorkflowQueueReasonCode::as_str()` and `WorkflowQueueReasonCode::from_wire()` in `src/backend/handshake_core/src/locus/types.rs:205` and `src/backend/handshake_core/src/locus/types.rs:256` stopped canonicalizing legacy values, the shared validator and serialized packet artifacts would drift back into the v3 queue-reason mismatch.
+- If `work_packet_workflow_state()`, `micro_task_workflow_state()`, or `task_board_workflow_state()` in `src/backend/handshake_core/src/workflows.rs:3052`, `src/backend/handshake_core/src/workflows.rs:3087`, and `src/backend/handshake_core/src/workflows.rs:3118` switched back to legacy reason variants, emitted artifacts would regress immediately because `validate_workflow_queue_reason_code()` now accepts only the canonical Phase 1 set.
+- If `validate_role_mailbox_threads()` or `validate_role_mailbox_transcription_links()` in `src/backend/handshake_core/src/locus/types.rs:2025` and `src/backend/handshake_core/src/locus/types.rs:2248` were bypassed, malformed nested mailbox exports would fall back to outer-array-only acceptance again.
+
+BOUNDARY_PROBES:
+- Integration-validator topology probe: `..\\handshake_main` now resolves commit `511dc5e` and sees the exact five-file product diff, so final review ran against the merge-authority worktree rather than trusting only the coder checkout.
+- Producer/consumer queue-reason probe: `src/backend/handshake_core/src/workflows.rs:3052-3148`, `src/backend/handshake_core/src/workflows.rs:3576`, `src/backend/handshake_core/src/workflows.rs:4694`, and `src/backend/handshake_core/src/workflows.rs:4755` were checked side by side with `src/backend/handshake_core/src/locus/types.rs:205`, `src/backend/handshake_core/src/locus/types.rs:230`, `src/backend/handshake_core/src/locus/types.rs:256`, and `src/backend/handshake_core/src/locus/types.rs:1971`; emitters serialize canonical values, while deserialization remains backward-compatible for legacy wire names.
+- Mailbox producer/validator probe: `src/backend/handshake_core/src/role_mailbox.rs:917`, `src/backend/handshake_core/src/role_mailbox.rs:921`, `src/backend/handshake_core/src/role_mailbox.rs:930`, and `src/backend/handshake_core/src/role_mailbox.rs:1617` were compared against `src/backend/handshake_core/src/locus/types.rs:1274`, `src/backend/handshake_core/src/locus/types.rs:1283`, `src/backend/handshake_core/src/locus/types.rs:1284`, and `src/backend/handshake_core/src/locus/types.rs:2248`; artifact-handle and sha semantics are aligned across the export/read/validate boundary.
+
+NEGATIVE_PATH_CHECKS:
+- Work Packet and Micro-Task packet mutation proof removes `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids`, then asserts shared-validator rejection at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:875` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1530`.
+- Task Board mutation proof removes `rows[0].allowed_action_ids`, corrupts `rows[0].updated_at`, and injects legacy `rows[0].queue_reason_code`, then asserts shared-validator rejection at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1041` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1075`.
+- Role Mailbox mutation proof corrupts `threads[0].created_at`, `threads[0].subject_sha256`, `threads[0].thread_file`, and thread-line artifact/sha fields, then asserts shared-validator rejection at `src/backend/handshake_core/tests/role_mailbox_tests.rs:486` and `src/backend/handshake_core/tests/role_mailbox_tests.rs:557`.
+- Validator-owned exact cargo re-runs were attempted from a clean sibling worktree and failed before test execution because of host toolchain instability in `libduckdb-sys`; this is recorded as environment uncertainty, not as an unresolved diff-local negative path.
+
+INDEPENDENT_FINDINGS:
+- `511dc5e` closes the concrete WP-validator finding for queue-reason vocabulary drift; legacy names remain only in backward-compatible `from_wire()` parsing and in negative-path tests, not in emitter mappings.
+- The shared validator now recurses into Task Board rows and mailbox thread/link payloads with prefixed field paths, which closes the precise v3 blind spot the audit identified.
+- Role Mailbox no longer invents separate artifact-handle or sha parsing rules on the read path; it reuses the shared helpers that the validator also enforces.
+- No hidden sixth product file or post-WP-validator product change surfaced in the integration worktree review.
+
+RESIDUAL_UNCERTAINTY:
+- This final lane could not independently re-run the exact Rust tests on the local host because `libduckdb-sys` / MSVC compilation failed before test execution; runtime confidence therefore relies on the already-recorded targeted green evidence plus diff/code inspection rather than a fresh final-lane test rerun.
+- The broader spec requirement that `allowed_action_ids` reference registered `GovernedActionDescriptorV1` records is not closed by this WP and remains an adjacent follow-on concern outside the signed diff scope.
+
+SPEC_CLAUSE_MAP:
+- `workflow-state triplet is required on canonical Work Packet, Micro-Task, and Task Board records` -> `src/backend/handshake_core/src/locus/types.rs:1232`; `src/backend/handshake_core/src/locus/types.rs:1249`; `src/backend/handshake_core/src/locus/types.rs:1929`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:875`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1530`
+- `queue-reason vocabulary matches the Phase 1 base reasons at validator and emitter boundaries` -> `src/backend/handshake_core/src/locus/types.rs:205`; `src/backend/handshake_core/src/locus/types.rs:230`; `src/backend/handshake_core/src/locus/types.rs:256`; `src/backend/handshake_core/src/locus/types.rs:1971`; `src/backend/handshake_core/src/workflows.rs:3052`; `src/backend/handshake_core/src/workflows.rs:3087`; `src/backend/handshake_core/src/workflows.rs:3118`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:897`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1075`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1552`
+- `Task Board rows, mailbox threads, and transcription links are validated by nested element shape rather than outer-array presence only` -> `src/backend/handshake_core/src/locus/types.rs:1263`; `src/backend/handshake_core/src/locus/types.rs:1270`; `src/backend/handshake_core/src/locus/types.rs:1274`; `src/backend/handshake_core/src/locus/types.rs:2004`; `src/backend/handshake_core/src/locus/types.rs:2025`; `src/backend/handshake_core/src/locus/types.rs:2248`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1041`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:486`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:557`
+- `Role Mailbox typed RFC3339, artifact-handle, and sha256 semantics hold at export and validation boundaries` -> `src/backend/handshake_core/src/locus/types.rs:1223`; `src/backend/handshake_core/src/locus/types.rs:1279`; `src/backend/handshake_core/src/locus/types.rs:1283`; `src/backend/handshake_core/src/locus/types.rs:1284`; `src/backend/handshake_core/src/locus/types.rs:1693`; `src/backend/handshake_core/src/locus/types.rs:1808`; `src/backend/handshake_core/src/locus/types.rs:1839`; `src/backend/handshake_core/src/role_mailbox.rs:917`; `src/backend/handshake_core/src/role_mailbox.rs:921`; `src/backend/handshake_core/src/role_mailbox.rs:930`; `src/backend/handshake_core/src/role_mailbox.rs:1617`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:486`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:557`
+
+NEGATIVE_PROOF:
+- `Handshake_Master_Spec_v02.178.md:61033` says `allowed_action_ids` MUST reference registered `GovernedActionDescriptorV1` records, but this WP still emits ad hoc action strings from `src/backend/handshake_core/src/workflows.rs:3153` and the validator only enforces string-array presence at `src/backend/handshake_core/src/locus/types.rs:1935`. That broader registry-backed action contract remains outside this packet's signed remediation scope.
+
+REASON FOR PASS:
+- The signed v4 scope is now fully closed on the committed diff `511dc5e`: canonical records expose the workflow-state triplet, the shared validator rejects malformed nested Task Board and Role Mailbox payloads, typed mailbox strings are enforced at the shared boundary, and queue-reason emission/validation matches the signed Phase 1 vocabulary. The only remaining uncertainty is host-specific compile instability during final-lane re-runs, which does not reopen a diff-scoped contract gap.

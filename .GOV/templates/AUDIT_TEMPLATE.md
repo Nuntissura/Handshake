@@ -1,7 +1,10 @@
 # Audit Template (Code vs Master Spec)
 
+For workflow-proof or smoketest reviews that must link into repo-governance task-board and changelog records, prefer `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`.
+
 ## METADATA
 - AUDIT_ID: <AUDIT-YYYYMMDD-<short-name>>
+- SMOKETEST_REVIEW_ID: <SMOKETEST-REVIEW-YYYYMMDD-<short-name> or N/A>
 - DATE_UTC: <YYYY-MM-DDTHH:MM:SSZ>
 - AUDITOR: <name/role>
 - SPEC_CURRENT_POINTER: .GOV/spec/SPEC_CURRENT.md
@@ -17,6 +20,10 @@
   - <WP-...>
 - OUT_OF_SCOPE:
   - <explicit exclusions>
+- RELATED_GOVERNANCE_ITEMS:
+  - <RGF-... or NONE>
+- RELATED_CHANGESETS:
+  - <GOV-CHANGE-... or NONE>
 
 ## METHOD (EVIDENCE-BASED)
 
@@ -88,4 +95,3 @@ Keep this short and reproducible:
 ## DECISIONS / NOTES
 
 - <decisions taken, open questions, links to PRs/commits>
-

@@ -136,9 +136,20 @@ If the assignment is governance/workflow/tooling-only and the planned diff is st
 
 Hard rules:
 - DO NOT modify Handshake product code in `src/`, `app/`, or `tests/`.
+- DO NOT modify the Master Spec under this path.
 - List the intended changed paths before editing.
 - Provide a rollback hint.
 - Run verification commands appropriate to the change (at minimum: `just gov-check`) and record outputs.
+- Use the shared governance-maintenance workflow and records:
+  - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `.GOV/Audits/**` with stable `AUDIT_ID` and, for smoketest reviews, `SMOKETEST_REVIEW_ID`
+- Use these templates when creating new governance records:
+  - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
+  - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+- If `AGENTS.md` or the canonical root `justfile` must change, do that work from `handshake_main` on local `main`, not from `wt-gov-kernel` or a WP worktree.
 
 ---
 
