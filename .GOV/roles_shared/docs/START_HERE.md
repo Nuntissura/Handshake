@@ -30,6 +30,13 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 - **Coders:** Read `.GOV/roles/coder/CODER_PROTOCOL.md` before writing any code
 - **Validators:** Read `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` before reviewing, validating, or merging
 
+**Operator-facing scope split (required in chat):**
+- Always separate `Handshake (Product)` from `Repo Governance`.
+- `Handshake (Product)` includes product code, product tests, Master Spec requirements, and product WPs, even when the topic is governed actions, workflow semantics, queue law, or other product-governance contracts.
+- `Repo Governance` includes `/.GOV/**`, ACP/session/runtime ledgers, role protocols, governance task-board/changelog/audits, and root control-file maintenance.
+- If only one lane applies, still name both lanes and state `NONE` for the other lane.
+- Do not use the word `governance` by itself when the actual work is product code; say `Handshake (Product)` explicitly.
+
 **Workflow enforcement commands:**
 ```bash
 # Orchestrator: Create work packet from template

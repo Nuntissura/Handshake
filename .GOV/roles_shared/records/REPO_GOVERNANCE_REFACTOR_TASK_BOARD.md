@@ -37,9 +37,11 @@
 ## Audit Linkage Convention
 
 - Governance maintenance items and changelog entries must link by stable audit IDs, not by Work Packet IDs.
-- Current smoke-review driver:
+- Current smoke-review drivers:
   - `AUDIT_ID: AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW`
   - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4`
+  - `AUDIT_ID: AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW`
+  - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260325-CONTRACT-HARDENING-V1`
 - Historical comparison driver:
   - `AUDIT_ID: AUDIT-20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT`
 
@@ -49,10 +51,11 @@
 |---|---|---|---|---|---|---|
 | RGF-01 | DONE | Chat-Visible Refinement Proof | - | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4` | `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `roles/orchestrator/checks/orchestrator_gates.mjs` | signature cannot be requested until the full refinement block has been emitted as assistant-authored chat text |
 | RGF-02 | DONE | Orchestrator Helper-Agent Product-Code Boundary | RGF-01 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4` | `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `roles/orchestrator/checks/orchestrator_gates.mjs` | helper agents cannot write product code unless explicit operator approval is recorded in packet fields |
-| RGF-03 | READY | Merge Progression Truth and Main Containment Gate | - | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4` | final review gates, closeout scripts, `TASK_BOARD.md`, runtime status surfaces | a validated PASS cannot close while the approved commit is absent from `main` unless status explicitly remains awaiting integration |
-| RGF-04 | READY | Integration-Validator Topology Preflight and Atomic Closeout | RGF-03 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4` | ACP broker control/status, final review scripts, session registry reconciliation | final review either finishes coherently or fails before partial closeout truth is written |
-| RGF-05 | READY | Session-Control Self-Settlement and Orphan Prevention | RGF-04 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4` | `SESSION_CONTROL_REQUESTS.jsonl`, `SESSION_CONTROL_RESULTS.jsonl`, broker outputs, repair helpers | every control request lands exactly one terminal result and orphaned rejected prompts stop requiring manual truth repair |
+| RGF-03 | READY | Merge Progression Truth and Main Containment Gate | - | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` + `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | final review gates, closeout scripts, `TASK_BOARD.md`, runtime status surfaces | a validated PASS cannot close while the approved commit is absent from `main` unless status explicitly remains awaiting integration |
+| RGF-04 | READY | Integration-Validator Topology Preflight and Atomic Closeout | RGF-03 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` + `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | ACP broker control/status, final review scripts, session registry reconciliation | final review either finishes coherently or fails before partial closeout truth is written |
+| RGF-05 | READY | Session-Control Self-Settlement and Orphan Prevention | RGF-04 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` + `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | `SESSION_CONTROL_REQUESTS.jsonl`, `SESSION_CONTROL_RESULTS.jsonl`, broker outputs, repair helpers | every control request lands exactly one terminal result and orphaned rejected prompts stop requiring manual truth repair |
 | RGF-06 | PLANNED | Historical Failure vs Live Smoketest Modeling | RGF-03 | `AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT` + `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` | `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, smoke-review naming, changelog linkage | failed historical closure and active smoketest lineage can coexist without split truth |
+| RGF-07 | DONE | Operator-Facing Scope Split Discipline | - | `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles/coder/CODER_PROTOCOL.md`, `roles/validator/VALIDATOR_PROTOCOL.md`, `roles_shared/docs/START_HERE.md`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `../handshake_main/AGENTS.md` | operator-facing answers now explicitly split `Handshake (Product)` from `Repo Governance`, and governance-themed product code is no longer mislabeled as repo governance |
 
 ## Refactor Sequence (Historical)
 

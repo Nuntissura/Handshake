@@ -13,6 +13,8 @@
 
 - AUDIT_ID: `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW`
 - SMOKETEST_REVIEW_ID: `SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4`
+- AUDIT_ID: `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW`
+- SMOKETEST_REVIEW_ID: `SMOKETEST-REVIEW-20260325-CONTRACT-HARDENING-V1`
 - HISTORICAL_COMPARISON_AUDIT_ID: `AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT`
 
 ## Entries
@@ -65,3 +67,54 @@
   - `RGF-05`
   - `RGF-06`
 - OUTCOME: governance remediation now tracks by stable item IDs and changeset IDs instead of improvised Work-Packet-like handling
+
+### 2026.03.25.4 / GOV-CHANGE-20260325-04
+
+- STATUS: APPLIED
+- SUMMARY: added a dedicated contract-hardening smoketest closeout review and upgraded the smoketest template to capture lineage, runtime truth, and merge containment explicitly
+- CHANGE_TYPE: RECORDKEEPING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW`
+  - `SMOKETEST-REVIEW-20260325-CONTRACT-HARDENING-V1`
+  - `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW`
+- SURFACES:
+  - `.GOV/Audits/smoketest/AUDIT_20260325_CONTRACT_HARDENING_V1_SMOKETEST_CLOSEOUT_REVIEW.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
+- OUTCOME: future smoketest reviews now have a stronger default structure for predecessor linkage, failure inventory, role review, ACP-runtime truth, remaining adjacent debt, and command-log evidence
+
+### 2026.03.25.5 / GOV-CHANGE-20260325-05
+
+- STATUS: APPLIED
+- SUMMARY: made predecessor-to-successor improvement comparison a required smoketest-review element
+- CHANGE_TYPE: REVIEW_DISCIPLINE_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW`
+  - `SMOKETEST-REVIEW-20260325-CONTRACT-HARDENING-V1`
+  - `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW`
+- SURFACES:
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
+  - `.GOV/Audits/smoketest/AUDIT_20260325_CONTRACT_HARDENING_V1_SMOKETEST_CLOSEOUT_REVIEW.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: follow-on smoketest reviews must now state exactly what improved relative to the previous smoketest, which makes recovery and closeout runs easier to compare and harder to overstate
+
+### 2026.03.25.6 / GOV-CHANGE-20260325-06
+
+- STATUS: APPLIED
+- SUMMARY: required explicit `Handshake (Product)` versus `Repo Governance` scope splits in operator-facing chat and role guidance
+- CHANGE_TYPE: OPERATOR_UX_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW`
+- SURFACES:
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/START_HERE.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `../handshake_main/AGENTS.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: operator-facing reasoning now distinguishes product code/spec/WP work from repo-governance/ACP/protocol work, even when the domain language is governance-themed

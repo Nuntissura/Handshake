@@ -357,6 +357,12 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 
 - Pure repo-governance maintenance does not use a Work Packet, refinement, signature, or packet lifecycle helpers.
 - Use this path only when the planned diff stays inside governance surfaces and does not touch Handshake product code or the Master Spec.
+- Operator-facing scope split rule:
+  - In chat, always separate `Handshake (Product)` from `Repo Governance`.
+  - `Handshake (Product)` includes product code, product tests, Master Spec requirements, and product WPs, even when the topic is governed actions, routing law, workflow semantics, or other product-governance contracts.
+  - `Repo Governance` includes `/.GOV/**`, ACP/session/runtime ledgers, role protocols, governance task-board/changelog/audits, and root control-file maintenance.
+  - If only one lane applies, still name both lanes and state `NONE` for the other lane.
+  - Never call product-code contract work "repo governance" just because the domain is governance-themed.
 - Authoritative records:
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`

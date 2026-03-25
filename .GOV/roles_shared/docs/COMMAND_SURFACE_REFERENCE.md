@@ -22,6 +22,18 @@ just --list
 - `governance-write`: mutates governed files under `/.GOV/`
 - `product-scan`: reads product code and is expected to run from the appropriate product worktree context
 
+## Operator-facing scope split
+
+Use this split in chat every time scope, remediation, or next steps are discussed:
+
+- `Handshake (Product)`
+  - product code, product tests, Master Spec requirements, product WPs
+  - includes product-governance contract work such as governed actions, queue law, workflow-state semantics, or runtime contract enforcement when the diff touches `src/`, `app/`, `tests/`, or the Master Spec
+- `Repo Governance`
+  - `/.GOV/**`, ACP/session/runtime ledgers, role protocols, governance task-board/changelog/audits, root control-file maintenance
+  - this lane does not use a WP when the planned diff stays governance-only
+- If only one lane applies, still name both lanes and state `NONE` for the other lane.
+
 ## Governance health and read-only status
 
 These are safe starting points for orientation and health checks.
