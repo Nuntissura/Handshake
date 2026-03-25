@@ -43,6 +43,15 @@
   - `/AGENTS.md`
 - Hard rule: if any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), STOP and require a WP.
 - Minimum verification for governance-only changes: `just gov-check`.
+- Use `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md` for the no-WP governance record flow.
+- Governance-maintenance records:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `.GOV/Audits/**` with stable `AUDIT_ID` and, for smoketest or workflow-proof reviews, `SMOKETEST_REVIEW_ID`
+- Governance-maintenance templates:
+  - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
+  - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
 
 ### Safety commit gate (prevents packet/refinement loss)
 - After creating a WP work packet + refinement and obtaining `USER_SIGNATURE`, the orchestrator creates a checkpoint commit on `gov_kernel` (not on the feature branch) [CX-212F].
