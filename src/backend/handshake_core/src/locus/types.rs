@@ -1,7 +1,9 @@
+use crate::ace::ArtifactHandle;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use uuid::Uuid;
 
 pub type Iso8601Timestamp = DateTime<Utc>;
 pub type VectorClock = Value;
@@ -125,6 +127,25 @@ pub enum WorkflowStateFamily {
     Archived,
 }
 
+impl WorkflowStateFamily {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim() {
+            "intake" => Some(Self::Intake),
+            "ready" => Some(Self::Ready),
+            "active" => Some(Self::Active),
+            "waiting" => Some(Self::Waiting),
+            "review" => Some(Self::Review),
+            "approval" => Some(Self::Approval),
+            "validation" => Some(Self::Validation),
+            "blocked" => Some(Self::Blocked),
+            "done" => Some(Self::Done),
+            "canceled" => Some(Self::Canceled),
+            "archived" => Some(Self::Archived),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkflowQueueReasonCode {
@@ -142,6 +163,28 @@ pub enum WorkflowQueueReasonCode {
     BlockedPolicy,
     BlockedCapability,
     BlockedError,
+}
+
+impl WorkflowQueueReasonCode {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim() {
+            "new_untriaged" => Some(Self::NewUntriaged),
+            "dependency_wait" => Some(Self::DependencyWait),
+            "ready_for_local_small_model" => Some(Self::ReadyForLocalSmallModel),
+            "ready_for_cloud_model" => Some(Self::ReadyForCloudModel),
+            "ready_for_human" => Some(Self::ReadyForHuman),
+            "review_wait" => Some(Self::ReviewWait),
+            "approval_wait" => Some(Self::ApprovalWait),
+            "validation_wait" => Some(Self::ValidationWait),
+            "mailbox_response_wait" => Some(Self::MailboxResponseWait),
+            "timer_wait" => Some(Self::TimerWait),
+            "blocked_missing_context" => Some(Self::BlockedMissingContext),
+            "blocked_policy" => Some(Self::BlockedPolicy),
+            "blocked_capability" => Some(Self::BlockedCapability),
+            "blocked_error" => Some(Self::BlockedError),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -937,6 +980,16 @@ impl StructuredCollaborationValidationResult {
         }
         self.issues.extend(other.issues);
     }
+
+    pub fn merge_prefixed(&mut self, prefix: &str, other: Self) {
+        if !other.ok {
+            self.ok = false;
+        }
+        self.issues.extend(other.issues.into_iter().map(|mut issue| {
+            issue.field = prefixed_field(prefix, &issue.field);
+            issue
+        }));
+    }
 }
 
 pub fn structured_collaboration_schema_descriptor(
@@ -1065,7 +1118,7 @@ pub fn validate_structured_collaboration_record(
         &mut result,
     );
     validate_project_profile_kind(obj.get("project_profile_kind"), &mut result);
-    require_non_empty_string(obj.get("updated_at"), "updated_at", &mut result);
+    require_rfc3339_string(obj.get("updated_at"), "updated_at", &mut result);
     validate_mirror_state(obj.get("mirror_state"), &mut result);
     require_string_array(obj.get("authority_refs"), "authority_refs", &mut result);
     require_string_array(obj.get("evidence_refs"), "evidence_refs", &mut result);
@@ -1074,6 +1127,7 @@ pub fn validate_structured_collaboration_record(
     match family {
         StructuredCollaborationRecordFamily::WorkPacketPacket
         | StructuredCollaborationRecordFamily::MicroTaskPacket => {
+            validate_workflow_state_triplet(obj, &mut result);
             if let Some(summary_path) = obj.get("summary_record_path") {
                 require_non_empty_string(Some(summary_path), "summary_record_path", &mut result);
             }
@@ -1090,6 +1144,7 @@ pub fn validate_structured_collaboration_record(
             require_non_empty_string(obj.get("next_action"), "next_action", &mut result);
         }
         StructuredCollaborationRecordFamily::TaskBoardEntry => {
+            validate_workflow_state_triplet(obj, &mut result);
             require_non_empty_string(obj.get("task_board_id"), "task_board_id", &mut result);
             require_non_empty_string(obj.get("work_packet_id"), "work_packet_id", &mut result);
             require_non_empty_string(obj.get("lane_id"), "lane_id", &mut result);
@@ -1101,31 +1156,34 @@ pub fn validate_structured_collaboration_record(
         }
         StructuredCollaborationRecordFamily::TaskBoardIndex => {
             require_non_empty_string(obj.get("task_board_id"), "task_board_id", &mut result);
+            require_rfc3339_string(obj.get("generated_at"), "generated_at", &mut result);
             require_string_array(obj.get("view_ids"), "view_ids", &mut result);
-            require_value_array(obj.get("rows"), "rows", &mut result);
+            validate_task_board_rows(obj.get("rows"), "rows", &mut result);
         }
         StructuredCollaborationRecordFamily::TaskBoardView => {
             require_non_empty_string(obj.get("task_board_id"), "task_board_id", &mut result);
             require_non_empty_string(obj.get("view_id"), "view_id", &mut result);
+            require_rfc3339_string(obj.get("generated_at"), "generated_at", &mut result);
             require_string_array(obj.get("lane_ids"), "lane_ids", &mut result);
-            require_value_array(obj.get("rows"), "rows", &mut result);
+            validate_task_board_rows(obj.get("rows"), "rows", &mut result);
         }
         StructuredCollaborationRecordFamily::RoleMailboxIndex => {
-            require_non_empty_string(obj.get("generated_at"), "generated_at", &mut result);
-            require_value_array(obj.get("threads"), "threads", &mut result);
+            require_rfc3339_string(obj.get("generated_at"), "generated_at", &mut result);
+            validate_role_mailbox_threads(obj.get("threads"), "threads", &mut result);
         }
         StructuredCollaborationRecordFamily::RoleMailboxThreadLine => {
             require_non_empty_string(obj.get("message_id"), "message_id", &mut result);
             require_non_empty_string(obj.get("thread_id"), "thread_id", &mut result);
-            require_non_empty_string(obj.get("created_at"), "created_at", &mut result);
+            require_rfc3339_string(obj.get("created_at"), "created_at", &mut result);
             require_non_empty_string(obj.get("from_role"), "from_role", &mut result);
             require_string_array(obj.get("to_roles"), "to_roles", &mut result);
             require_non_empty_string(obj.get("message_type"), "message_type", &mut result);
-            require_non_empty_string(obj.get("body_ref"), "body_ref", &mut result);
-            require_non_empty_string(obj.get("body_sha256"), "body_sha256", &mut result);
-            require_string_array(obj.get("attachments"), "attachments", &mut result);
-            require_value_array(
+            require_artifact_handle_string(obj.get("body_ref"), "body_ref", &mut result);
+            require_lowercase_sha256_string(obj.get("body_sha256"), "body_sha256", &mut result);
+            require_artifact_handle_string_array(obj.get("attachments"), "attachments", &mut result);
+            validate_role_mailbox_transcription_links(
                 obj.get("transcription_links"),
+                obj.get("message_type"),
                 "transcription_links",
                 &mut result,
             );
@@ -1133,6 +1191,34 @@ pub fn validate_structured_collaboration_record(
     }
 
     result
+}
+
+pub(crate) fn is_lowercase_sha256_hex(value: &str) -> bool {
+    let value = value.trim();
+    if value.len() != 64 {
+        return false;
+    }
+
+    value
+        .chars()
+        .all(|c| c.is_ascii_digit() || matches!(c, 'a'..='f'))
+}
+
+pub(crate) fn parse_artifact_handle_string(value: &str) -> Result<ArtifactHandle, String> {
+    let trimmed = value.trim();
+    let mut parts = trimmed.splitn(3, ':');
+    let tag = parts.next().unwrap_or_default();
+    let id_part = parts.next().unwrap_or_default();
+    let path_part = parts.next().unwrap_or_default();
+
+    if tag != "artifact" || id_part.is_empty() || path_part.is_empty() {
+        return Err("invalid artifact handle string".to_string());
+    }
+
+    let artifact_id = Uuid::parse_str(id_part)
+        .map_err(|e| format!("invalid artifact handle uuid: {e}"))?;
+
+    Ok(ArtifactHandle::new(artifact_id, path_part.to_string()))
 }
 
 pub fn validate_structured_collaboration_summary_join(
@@ -1406,6 +1492,14 @@ fn json_type_name(value: &Value) -> &'static str {
     }
 }
 
+fn prefixed_field(prefix: &str, field: &str) -> String {
+    if field.is_empty() || field == "$" {
+        prefix.to_string()
+    } else {
+        format!("{prefix}.{field}")
+    }
+}
+
 fn validate_expected_string(
     value: Option<&Value>,
     field: &str,
@@ -1476,6 +1570,75 @@ fn require_non_empty_string(
     }
 }
 
+fn validate_optional_non_empty_string(
+    value: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let Some(value) = value else {
+        return;
+    };
+    if value.is_null() {
+        return;
+    }
+    require_non_empty_string(Some(value), field, result);
+}
+
+fn require_rfc3339_string(
+    value: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    match value {
+        Some(Value::String(actual)) if !actual.trim().is_empty() => {
+            if DateTime::parse_from_rfc3339(actual).is_err() {
+                result.push_issue(
+                    StructuredCollaborationValidationCode::InvalidFieldValue,
+                    field,
+                    Some("RFC3339 timestamp".to_string()),
+                    Some(actual.clone()),
+                    format!("{field} must be a valid RFC3339 timestamp"),
+                );
+            }
+        }
+        Some(Value::String(actual)) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            field,
+            Some("RFC3339 timestamp".to_string()),
+            Some(actual.clone()),
+            format!("{field} must not be empty"),
+        ),
+        Some(other) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            field,
+            Some("string".to_string()),
+            Some(json_type_name(other).to_string()),
+            format!("{field} must be a string"),
+        ),
+        None => result.push_issue(
+            StructuredCollaborationValidationCode::MissingField,
+            field,
+            Some("RFC3339 timestamp".to_string()),
+            None,
+            format!("{field} is required"),
+        ),
+    }
+}
+
+fn validate_optional_rfc3339_string(
+    value: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let Some(value) = value else {
+        return;
+    };
+    if value.is_null() {
+        return;
+    }
+    require_rfc3339_string(Some(value), field, result);
+}
+
 fn require_string_array(
     value: Option<&Value>,
     field: &str,
@@ -1536,6 +1699,103 @@ fn require_value_array(
     }
 }
 
+fn require_lowercase_sha256_string(
+    value: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    match value {
+        Some(Value::String(actual)) if is_lowercase_sha256_hex(actual) => {}
+        Some(Value::String(actual)) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            field,
+            Some("64-char lowercase sha256 hex".to_string()),
+            Some(actual.clone()),
+            format!("{field} must be a 64-char lowercase sha256 hex string"),
+        ),
+        Some(other) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            field,
+            Some("string".to_string()),
+            Some(json_type_name(other).to_string()),
+            format!("{field} must be a string"),
+        ),
+        None => result.push_issue(
+            StructuredCollaborationValidationCode::MissingField,
+            field,
+            Some("64-char lowercase sha256 hex".to_string()),
+            None,
+            format!("{field} is required"),
+        ),
+    }
+}
+
+fn require_artifact_handle_string(
+    value: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    match value {
+        Some(Value::String(actual)) => {
+            if let Err(error) = parse_artifact_handle_string(actual) {
+                result.push_issue(
+                    StructuredCollaborationValidationCode::InvalidFieldValue,
+                    field,
+                    Some("artifact:<uuid>:<path>".to_string()),
+                    Some(actual.clone()),
+                    format!("{field} must be a valid artifact handle string ({error})"),
+                );
+            }
+        }
+        Some(other) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            field,
+            Some("string".to_string()),
+            Some(json_type_name(other).to_string()),
+            format!("{field} must be a string"),
+        ),
+        None => result.push_issue(
+            StructuredCollaborationValidationCode::MissingField,
+            field,
+            Some("artifact:<uuid>:<path>".to_string()),
+            None,
+            format!("{field} is required"),
+        ),
+    }
+}
+
+fn require_artifact_handle_string_array(
+    value: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    match value {
+        Some(Value::Array(items)) => {
+            for (index, item) in items.iter().enumerate() {
+                require_artifact_handle_string(
+                    Some(item),
+                    format!("{field}[{index}]").as_str(),
+                    result,
+                );
+            }
+        }
+        Some(other) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            field,
+            Some("array".to_string()),
+            Some(json_type_name(other).to_string()),
+            format!("{field} must be an array"),
+        ),
+        None => result.push_issue(
+            StructuredCollaborationValidationCode::MissingField,
+            field,
+            Some("array".to_string()),
+            None,
+            format!("{field} is required"),
+        ),
+    }
+}
+
 fn require_u64_like(
     value: Option<&Value>,
     field: &str,
@@ -1558,6 +1818,389 @@ fn require_u64_like(
             format!("{field} is required"),
         ),
     }
+}
+
+fn validate_workflow_state_triplet(
+    obj: &serde_json::Map<String, Value>,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    validate_workflow_state_family(obj.get("workflow_state_family"), result);
+    validate_workflow_queue_reason_code(obj.get("queue_reason_code"), result);
+    require_string_array(obj.get("allowed_action_ids"), "allowed_action_ids", result);
+}
+
+fn validate_workflow_state_family(
+    value: Option<&Value>,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    match value {
+        Some(Value::String(actual)) => {
+            if WorkflowStateFamily::parse(actual).is_none() {
+                result.push_issue(
+                    StructuredCollaborationValidationCode::InvalidFieldValue,
+                    "workflow_state_family",
+                    Some("known workflow_state_family".to_string()),
+                    Some(actual.clone()),
+                    "workflow_state_family is not one of the registry-supported values",
+                );
+            }
+        }
+        Some(other) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            "workflow_state_family",
+            Some("string".to_string()),
+            Some(json_type_name(other).to_string()),
+            "workflow_state_family must be a string",
+        ),
+        None => result.push_issue(
+            StructuredCollaborationValidationCode::MissingField,
+            "workflow_state_family",
+            Some("string".to_string()),
+            None,
+            "workflow_state_family is required",
+        ),
+    }
+}
+
+fn validate_workflow_queue_reason_code(
+    value: Option<&Value>,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    match value {
+        Some(Value::String(actual)) => {
+            if WorkflowQueueReasonCode::parse(actual).is_none() {
+                result.push_issue(
+                    StructuredCollaborationValidationCode::InvalidFieldValue,
+                    "queue_reason_code",
+                    Some("known queue_reason_code".to_string()),
+                    Some(actual.clone()),
+                    "queue_reason_code is not one of the registry-supported values",
+                );
+            }
+        }
+        Some(other) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            "queue_reason_code",
+            Some("string".to_string()),
+            Some(json_type_name(other).to_string()),
+            "queue_reason_code must be a string",
+        ),
+        None => result.push_issue(
+            StructuredCollaborationValidationCode::MissingField,
+            "queue_reason_code",
+            Some("string".to_string()),
+            None,
+            "queue_reason_code is required",
+        ),
+    }
+}
+
+fn validate_task_board_rows(
+    value: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let Some(Value::Array(items)) = value else {
+        require_value_array(value, field, result);
+        return;
+    };
+
+    for (index, item) in items.iter().enumerate() {
+        result.merge_prefixed(
+            format!("{field}[{index}]").as_str(),
+            validate_structured_collaboration_record(
+                StructuredCollaborationRecordFamily::TaskBoardEntry,
+                item,
+            ),
+        );
+    }
+}
+
+fn validate_role_mailbox_threads(
+    value: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let Some(Value::Array(items)) = value else {
+        require_value_array(value, field, result);
+        return;
+    };
+
+    for (index, item) in items.iter().enumerate() {
+        validate_role_mailbox_thread_entry(
+            item,
+            format!("{field}[{index}]").as_str(),
+            result,
+        );
+    }
+}
+
+fn validate_role_mailbox_thread_entry(
+    value: &Value,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let Some(obj) = value.as_object() else {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            field,
+            Some("object".to_string()),
+            Some(json_type_name(value).to_string()),
+            format!("{field} must be an object"),
+        );
+        return;
+    };
+
+    let thread_id = obj
+        .get("thread_id")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+
+    require_non_empty_string(obj.get("thread_id"), &prefixed_field(field, "thread_id"), result);
+    require_rfc3339_string(obj.get("created_at"), &prefixed_field(field, "created_at"), result);
+    validate_optional_rfc3339_string(
+        obj.get("closed_at"),
+        &prefixed_field(field, "closed_at"),
+        result,
+    );
+    require_string_array(
+        obj.get("participants"),
+        &prefixed_field(field, "participants"),
+        result,
+    );
+    validate_role_mailbox_thread_context(
+        obj.get("context"),
+        &prefixed_field(field, "context"),
+        result,
+    );
+    require_non_empty_string(
+        obj.get("subject_redacted"),
+        &prefixed_field(field, "subject_redacted"),
+        result,
+    );
+    require_lowercase_sha256_string(
+        obj.get("subject_sha256"),
+        &prefixed_field(field, "subject_sha256"),
+        result,
+    );
+    require_u64_like(
+        obj.get("message_count"),
+        &prefixed_field(field, "message_count"),
+        result,
+    );
+    validate_role_mailbox_thread_file(
+        obj.get("thread_file"),
+        thread_id.as_deref(),
+        &prefixed_field(field, "thread_file"),
+        result,
+    );
+}
+
+fn validate_role_mailbox_thread_context(
+    value: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let Some(value) = value else {
+        result.push_issue(
+            StructuredCollaborationValidationCode::MissingField,
+            field,
+            Some("object".to_string()),
+            None,
+            format!("{field} is required"),
+        );
+        return;
+    };
+
+    let Some(obj) = value.as_object() else {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            field,
+            Some("object".to_string()),
+            Some(json_type_name(value).to_string()),
+            format!("{field} must be an object"),
+        );
+        return;
+    };
+
+    validate_optional_non_empty_string(obj.get("spec_id"), &prefixed_field(field, "spec_id"), result);
+    validate_optional_non_empty_string(
+        obj.get("work_packet_id"),
+        &prefixed_field(field, "work_packet_id"),
+        result,
+    );
+    validate_optional_non_empty_string(
+        obj.get("task_board_id"),
+        &prefixed_field(field, "task_board_id"),
+        result,
+    );
+    validate_governance_mode(
+        obj.get("governance_mode"),
+        &prefixed_field(field, "governance_mode"),
+        result,
+    );
+    validate_optional_non_empty_string(
+        obj.get("project_id"),
+        &prefixed_field(field, "project_id"),
+        result,
+    );
+}
+
+fn validate_governance_mode(
+    value: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    match value {
+        Some(Value::String(actual))
+            if matches!(actual.as_str(), "gov_strict" | "gov_standard" | "gov_light") => {}
+        Some(Value::String(actual)) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            field,
+            Some("known governance_mode".to_string()),
+            Some(actual.clone()),
+            format!("{field} must be a known governance_mode"),
+        ),
+        Some(other) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            field,
+            Some("string".to_string()),
+            Some(json_type_name(other).to_string()),
+            format!("{field} must be a string"),
+        ),
+        None => result.push_issue(
+            StructuredCollaborationValidationCode::MissingField,
+            field,
+            Some("string".to_string()),
+            None,
+            format!("{field} is required"),
+        ),
+    }
+}
+
+fn validate_role_mailbox_thread_file(
+    value: Option<&Value>,
+    thread_id: Option<&str>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    match value {
+        Some(Value::String(actual)) if !actual.trim().is_empty() => {
+            let expected = thread_id.map(|id| format!("threads/{id}.jsonl"));
+            if let Some(expected) = expected {
+                if actual != &expected {
+                    result.push_issue(
+                        StructuredCollaborationValidationCode::InvalidFieldValue,
+                        field,
+                        Some(expected),
+                        Some(actual.clone()),
+                        format!("{field} must match the canonical thread file path"),
+                    );
+                }
+            } else if !actual.starts_with("threads/") || !actual.ends_with(".jsonl") {
+                result.push_issue(
+                    StructuredCollaborationValidationCode::InvalidFieldValue,
+                    field,
+                    Some("threads/<thread_id>.jsonl".to_string()),
+                    Some(actual.clone()),
+                    format!("{field} must be a thread export JSONL path"),
+                );
+            }
+        }
+        Some(Value::String(actual)) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            field,
+            Some("threads/<thread_id>.jsonl".to_string()),
+            Some(actual.clone()),
+            format!("{field} must not be empty"),
+        ),
+        Some(other) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            field,
+            Some("string".to_string()),
+            Some(json_type_name(other).to_string()),
+            format!("{field} must be a string"),
+        ),
+        None => result.push_issue(
+            StructuredCollaborationValidationCode::MissingField,
+            field,
+            Some("threads/<thread_id>.jsonl".to_string()),
+            None,
+            format!("{field} is required"),
+        ),
+    }
+}
+
+fn validate_role_mailbox_transcription_links(
+    value: Option<&Value>,
+    message_type: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let Some(Value::Array(items)) = value else {
+        require_value_array(value, field, result);
+        return;
+    };
+
+    let requires_links = message_type
+        .and_then(Value::as_str)
+        .map(role_mailbox_message_type_requires_transcription_links)
+        .unwrap_or(false);
+    if requires_links && items.is_empty() {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            field,
+            Some("non-empty array".to_string()),
+            Some("[]".to_string()),
+            "transcription_links must be non-empty for this message_type",
+        );
+    }
+
+    for (index, item) in items.iter().enumerate() {
+        validate_role_mailbox_transcription_link(
+            item,
+            format!("{field}[{index}]").as_str(),
+            result,
+        );
+    }
+}
+
+fn role_mailbox_message_type_requires_transcription_links(message_type: &str) -> bool {
+    matches!(
+        message_type.trim(),
+        "scope_change_approval" | "waiver_approval" | "validation_finding"
+    )
+}
+
+fn validate_role_mailbox_transcription_link(
+    value: &Value,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let Some(obj) = value.as_object() else {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            field,
+            Some("object".to_string()),
+            Some(json_type_name(value).to_string()),
+            format!("{field} must be an object"),
+        );
+        return;
+    };
+
+    require_non_empty_string(obj.get("target_kind"), &prefixed_field(field, "target_kind"), result);
+    require_artifact_handle_string(obj.get("target_ref"), &prefixed_field(field, "target_ref"), result);
+    require_lowercase_sha256_string(
+        obj.get("target_sha256"),
+        &prefixed_field(field, "target_sha256"),
+        result,
+    );
+    require_non_empty_string(obj.get("note_redacted"), &prefixed_field(field, "note_redacted"), result);
+    require_lowercase_sha256_string(
+        obj.get("note_sha256"),
+        &prefixed_field(field, "note_sha256"),
+        result,
+    );
 }
 
 fn validate_project_profile_kind(

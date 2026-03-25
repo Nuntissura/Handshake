@@ -4226,9 +4226,11 @@ async fn emit_runtime_structured_work_packet_artifacts(
     let summary_path = runtime_paths.work_packet_summary_path(wp_id);
     let tracked_wp =
         load_tracked_work_packet_from_sqlite(runtime_paths, db, wp_id, kind_hint).await?;
-    let detail_value =
-        serde_json::to_value(&tracked_wp).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let summary = build_structured_work_packet_summary(&tracked_wp);
+    let note_refs = emit_work_packet_notes(runtime_paths, &tracked_wp)?;
+    let packet = build_structured_work_packet_packet(runtime_paths, &tracked_wp, note_refs);
+    let detail_value =
+        serde_json::to_value(&packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let summary_value =
         serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
 
@@ -4237,7 +4239,7 @@ async fn emit_runtime_structured_work_packet_artifacts(
         &detail_value,
     );
     let invalid_detail_authority_refs =
-        runtime_paths.invalid_runtime_authority_refs(&tracked_wp.authority_refs);
+        runtime_paths.invalid_runtime_authority_refs(&packet.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
         validation.push_issue(
             locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
@@ -4276,7 +4278,7 @@ async fn emit_runtime_structured_work_packet_artifacts(
         ));
     }
 
-    write_json_atomic(&workspace_root, &packet_path, &tracked_wp)?;
+    write_json_atomic(&workspace_root, &packet_path, &packet)?;
     write_json_atomic(&workspace_root, &summary_path, &summary)?;
     Ok(())
 }
@@ -4299,14 +4301,15 @@ async fn emit_runtime_structured_micro_task_artifacts(
     tracked_mt.metadata["structured_collaboration_summary_path"] = Value::String(summary_display);
     tracked_mt.metadata["structured_collaboration_summary"] = summary_value.clone();
 
+    let mut packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
     let detail_value =
-        serde_json::to_value(&tracked_mt).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        serde_json::to_value(&packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         &detail_value,
     );
     let invalid_detail_authority_refs =
-        runtime_paths.invalid_runtime_authority_refs(&tracked_mt.authority_refs);
+        runtime_paths.invalid_runtime_authority_refs(&packet.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
         validation.push_issue(
             locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
@@ -4337,7 +4340,7 @@ async fn emit_runtime_structured_micro_task_artifacts(
         );
     }
     validation.merge(summary_validation);
-    tracked_mt.metadata["structured_collaboration_validation"] =
+    packet.metadata["structured_collaboration_validation"] =
         serde_json::to_value(&validation).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     if !validation.ok {
         return Err(WorkflowError::Terminal(
@@ -4347,7 +4350,7 @@ async fn emit_runtime_structured_micro_task_artifacts(
         ));
     }
 
-    write_json_atomic(&workspace_root, &packet_path, &tracked_mt)?;
+    write_json_atomic(&workspace_root, &packet_path, &packet)?;
     write_json_atomic(&workspace_root, &summary_path, &summary)?;
     Ok(())
 }
@@ -11700,14 +11703,20 @@ fn apply_runtime_structured_work_packet_registry(
     let summary = build_structured_work_packet_summary(tracked_wp);
     let summary_value =
         serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let note_refs = tracked_wp
+        .notes
+        .iter()
+        .map(|note| runtime_paths.work_packet_note_display(&tracked_wp.wp_id, &note.note_id))
+        .collect::<Vec<_>>();
+    let packet = build_structured_work_packet_packet(runtime_paths, tracked_wp, note_refs);
     let detail_value =
-        serde_json::to_value(&*tracked_wp).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        serde_json::to_value(&packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::WorkPacketPacket,
         &detail_value,
     );
     let invalid_detail_authority_refs =
-        runtime_paths.invalid_runtime_authority_refs(&tracked_wp.authority_refs);
+        runtime_paths.invalid_runtime_authority_refs(&packet.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
         validation.push_issue(
             locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
@@ -11794,14 +11803,15 @@ fn apply_runtime_structured_micro_task_registry(
             .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     }
 
+    let packet = build_structured_micro_task_packet(runtime_paths, tracked_mt);
     let detail_value =
-        serde_json::to_value(&*tracked_mt).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        serde_json::to_value(&packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         &detail_value,
     );
     let invalid_detail_authority_refs =
-        runtime_paths.invalid_runtime_authority_refs(&tracked_mt.authority_refs);
+        runtime_paths.invalid_runtime_authority_refs(&packet.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
         validation.push_issue(
             locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,

@@ -18,6 +18,7 @@ use crate::flight_recorder::{
 };
 use crate::runtime_governance::RuntimeGovernancePaths;
 use crate::workflows::locus::{
+    is_lowercase_sha256_hex, parse_artifact_handle_string,
     validate_structured_collaboration_record, StructuredCollaborationRecordFamily,
     StructuredCollaborationValidationCode,
 };
@@ -323,17 +324,6 @@ fn is_safe_token(value: &str, max_len: usize) -> bool {
     value
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | ':' | '.' | '/'))
-}
-
-fn is_sha256_hex(value: &str) -> bool {
-    let value = value.trim();
-    if value.len() != 64 {
-        return false;
-    }
-
-    value
-        .chars()
-        .all(|c| c.is_ascii_digit() || matches!(c, 'a'..='f'))
 }
 
 fn ensure_advisory_not_solo(
@@ -746,7 +736,7 @@ impl RoleMailbox {
                 "message_id must be a safe id".to_string(),
             ));
         }
-        if !is_sha256_hex(&req.link.target_sha256) {
+        if !is_lowercase_sha256_hex(&req.link.target_sha256) {
             return Err(RoleMailboxError::InvalidInput(
                 "target_sha256 must be a 64-char lowercase hex sha256".to_string(),
             ));
@@ -923,11 +913,12 @@ impl RoleMailbox {
             }
         };
 
-        let body_ref = parse_artifact_handle_string(&row.6)?;
+        let body_ref =
+            parse_artifact_handle_string(&row.6).map_err(RoleMailboxError::InvalidInput)?;
         let attachments: Vec<String> = serde_json::from_str(&row.8)?;
         let attachments = attachments
             .iter()
-            .map(|v| parse_artifact_handle_string(v))
+            .map(|v| parse_artifact_handle_string(v).map_err(RoleMailboxError::InvalidInput))
             .collect::<Result<Vec<_>, _>>()?;
 
         let transcription_links: Vec<ExportTranscriptionLinkV1> = serde_json::from_str(&row.10)?;
@@ -936,7 +927,8 @@ impl RoleMailbox {
             .map(|link| {
                 Ok(TranscriptionLink {
                     target_kind: parse_transcription_target_kind(&link.target_kind)?,
-                    target_ref: parse_artifact_handle_string(&link.target_ref)?,
+                    target_ref: parse_artifact_handle_string(&link.target_ref)
+                        .map_err(RoleMailboxError::InvalidInput)?,
                     target_sha256: link.target_sha256,
                     note: link.note_redacted,
                 })
@@ -1089,7 +1081,7 @@ impl RoleMailbox {
         &self,
         link: &TranscriptionLink,
     ) -> Result<ExportTranscriptionLinkV1, RoleMailboxError> {
-        if !is_sha256_hex(&link.target_sha256) {
+        if !is_lowercase_sha256_hex(&link.target_sha256) {
             return Err(RoleMailboxError::InvalidInput(
                 "transcription target_sha256 must be a 64-char lowercase hex sha256".to_string(),
             ));
@@ -1685,26 +1677,6 @@ fn parse_transcription_target_kind(
             "invalid transcription_target_kind: {other}"
         ))),
     }
-}
-
-fn parse_artifact_handle_string(value: &str) -> Result<ArtifactHandle, RoleMailboxError> {
-    let trimmed = value.trim();
-    let mut parts = trimmed.splitn(3, ':');
-    let tag = parts.next().unwrap_or_default();
-    let id_part = parts.next().unwrap_or_default();
-    let path_part = parts.next().unwrap_or_default();
-
-    if tag != "artifact" || id_part.is_empty() || path_part.is_empty() {
-        return Err(RoleMailboxError::InvalidInput(
-            "invalid artifact handle string".to_string(),
-        ));
-    }
-
-    let artifact_id = Uuid::parse_str(id_part).map_err(|e| {
-        RoleMailboxError::InvalidInput(format!("invalid artifact handle uuid: {e}"))
-    })?;
-
-    Ok(ArtifactHandle::new(artifact_id, path_part.to_string()))
 }
 
 fn canonical_json_bytes(value: &Value) -> Vec<u8> {

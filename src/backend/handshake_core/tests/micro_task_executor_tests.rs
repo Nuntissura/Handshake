@@ -719,7 +719,7 @@ async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_
 }
 
 #[tokio::test]
-async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summary(
+async fn schema_registry_create_and_close_wp_emit_structured_work_packet_packet_and_summary(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _test_guard = test_guard();
     let dir = tempdir()?;
@@ -850,6 +850,46 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
             StructuredCollaborationValidationCode::MissingField
         ) && issue.field == "updated_at"
     }));
+    let mut packet_json_invalid_updated_at = packet_json.clone();
+    packet_json_invalid_updated_at["updated_at"] = json!("not-rfc3339");
+    let invalid_updated_at_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::WorkPacketPacket,
+        &packet_json_invalid_updated_at,
+    );
+    assert!(!invalid_updated_at_validation.ok);
+    assert!(invalid_updated_at_validation.issues.iter().any(|issue| {
+        matches!(
+            issue.code,
+            StructuredCollaborationValidationCode::InvalidFieldValue
+        ) && issue.field == "updated_at"
+    }));
+    let mut packet_json_missing_workflow_triplet = packet_json.clone();
+    let packet_json_missing_workflow_triplet_obj = packet_json_missing_workflow_triplet
+        .as_object_mut()
+        .expect("packet json object");
+    packet_json_missing_workflow_triplet_obj.remove("workflow_state_family");
+    packet_json_missing_workflow_triplet_obj.remove("queue_reason_code");
+    packet_json_missing_workflow_triplet_obj.remove("allowed_action_ids");
+    let missing_workflow_triplet_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::WorkPacketPacket,
+        &packet_json_missing_workflow_triplet,
+    );
+    assert!(!missing_workflow_triplet_validation.ok);
+    for field in [
+        "workflow_state_family",
+        "queue_reason_code",
+        "allowed_action_ids",
+    ] {
+        assert!(missing_workflow_triplet_validation
+            .issues
+            .iter()
+            .any(|issue| matches!(
+                issue.code,
+                StructuredCollaborationValidationCode::MissingField
+            ) && issue.field == field));
+    }
     let summary_validation = validate_runtime_structured_record(
         &root,
         StructuredCollaborationRecordFamily::WorkPacketSummary,
@@ -970,6 +1010,37 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
         &view_json,
     );
     assert!(view_validation.ok, "{view_validation:?}");
+    let mut index_json_missing_row_action_ids = index_json.clone();
+    index_json_missing_row_action_ids["rows"][0]
+        .as_object_mut()
+        .expect("task-board row object")
+        .remove("allowed_action_ids");
+    let missing_row_action_ids_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::TaskBoardIndex,
+        &index_json_missing_row_action_ids,
+    );
+    assert!(!missing_row_action_ids_validation.ok);
+    assert!(missing_row_action_ids_validation.issues.iter().any(|issue| {
+        matches!(
+            issue.code,
+            StructuredCollaborationValidationCode::MissingField
+        ) && issue.field == "rows[0].allowed_action_ids"
+    }));
+    let mut view_json_invalid_row_updated_at = view_json.clone();
+    view_json_invalid_row_updated_at["rows"][0]["updated_at"] = json!("not-rfc3339");
+    let invalid_row_updated_at_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::TaskBoardView,
+        &view_json_invalid_row_updated_at,
+    );
+    assert!(!invalid_row_updated_at_validation.ok);
+    assert!(invalid_row_updated_at_validation.issues.iter().any(|issue| {
+        matches!(
+            issue.code,
+            StructuredCollaborationValidationCode::InvalidFieldValue
+        ) && issue.field == "rows[0].updated_at"
+    }));
 
     let first_row = index_json
         .get("rows")
@@ -1259,7 +1330,7 @@ async fn locus_bind_session_normalizes_and_deduplicates_session_ids(
 }
 
 #[tokio::test]
-async fn locus_register_mts_emits_structured_micro_task_packet_and_summary(
+async fn schema_registry_register_mts_emits_structured_micro_task_packet_and_summary(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _test_guard = test_guard();
     let dir = tempdir()?;
@@ -1393,6 +1464,32 @@ async fn locus_register_mts_emits_structured_micro_task_packet_and_summary(
         &packet_json,
     );
     assert!(packet_validation.ok, "{packet_validation:?}");
+    let mut packet_json_missing_workflow_triplet = packet_json.clone();
+    let packet_json_missing_workflow_triplet_obj = packet_json_missing_workflow_triplet
+        .as_object_mut()
+        .expect("tracked micro-task packet object");
+    packet_json_missing_workflow_triplet_obj.remove("workflow_state_family");
+    packet_json_missing_workflow_triplet_obj.remove("queue_reason_code");
+    packet_json_missing_workflow_triplet_obj.remove("allowed_action_ids");
+    let missing_workflow_triplet_validation = validate_runtime_structured_record(
+        dir.path(),
+        StructuredCollaborationRecordFamily::MicroTaskPacket,
+        &packet_json_missing_workflow_triplet,
+    );
+    assert!(!missing_workflow_triplet_validation.ok);
+    for field in [
+        "workflow_state_family",
+        "queue_reason_code",
+        "allowed_action_ids",
+    ] {
+        assert!(missing_workflow_triplet_validation
+            .issues
+            .iter()
+            .any(|issue| matches!(
+                issue.code,
+                StructuredCollaborationValidationCode::MissingField
+            ) && issue.field == field));
+    }
     let summary_validation = validate_runtime_structured_record(
         dir.path(),
         StructuredCollaborationRecordFamily::MicroTaskSummary,
