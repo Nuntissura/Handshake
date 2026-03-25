@@ -3055,31 +3055,31 @@ fn work_packet_workflow_state(
     match status {
         locus::WorkPacketStatus::Unknown => (
             locus::WorkflowStateFamily::Intake,
-            locus::WorkflowQueueReasonCode::NeedsTriage,
+            locus::WorkflowQueueReasonCode::NewUntriaged,
         ),
         locus::WorkPacketStatus::Ready => (
             locus::WorkflowStateFamily::Ready,
-            locus::WorkflowQueueReasonCode::HumanReviewWait,
+            locus::WorkflowQueueReasonCode::ReadyForHuman,
         ),
         locus::WorkPacketStatus::InProgress => (
             locus::WorkflowStateFamily::Active,
-            locus::WorkflowQueueReasonCode::HumanReviewWait,
+            locus::WorkflowQueueReasonCode::ReadyForHuman,
         ),
         locus::WorkPacketStatus::Blocked => (
             locus::WorkflowStateFamily::Blocked,
-            locus::WorkflowQueueReasonCode::DecisionWait,
+            locus::WorkflowQueueReasonCode::BlockedMissingContext,
         ),
         locus::WorkPacketStatus::Gated => (
             locus::WorkflowStateFamily::Approval,
-            locus::WorkflowQueueReasonCode::DecisionWait,
+            locus::WorkflowQueueReasonCode::ApprovalWait,
         ),
         locus::WorkPacketStatus::Done => (
             locus::WorkflowStateFamily::Done,
-            locus::WorkflowQueueReasonCode::Completed,
+            locus::WorkflowQueueReasonCode::ValidationWait,
         ),
         locus::WorkPacketStatus::Cancelled => (
             locus::WorkflowStateFamily::Canceled,
-            locus::WorkflowQueueReasonCode::Canceled,
+            locus::WorkflowQueueReasonCode::BlockedPolicy,
         ),
     }
 }
@@ -3098,73 +3098,21 @@ fn micro_task_workflow_state(
         ),
         locus::MicroTaskStatus::Completed => (
             locus::WorkflowStateFamily::Done,
-            locus::WorkflowQueueReasonCode::Completed,
+            locus::WorkflowQueueReasonCode::ValidationWait,
         ),
         locus::MicroTaskStatus::Failed => (
             locus::WorkflowStateFamily::Blocked,
-            locus::WorkflowQueueReasonCode::RetryScheduled,
+            locus::WorkflowQueueReasonCode::BlockedError,
         ),
         locus::MicroTaskStatus::Blocked => (
             locus::WorkflowStateFamily::Blocked,
-            locus::WorkflowQueueReasonCode::EscalationWait,
+            locus::WorkflowQueueReasonCode::BlockedMissingContext,
         ),
         locus::MicroTaskStatus::Skipped => (
             locus::WorkflowStateFamily::Canceled,
-            locus::WorkflowQueueReasonCode::Rejected,
+            locus::WorkflowQueueReasonCode::BlockedPolicy,
         ),
     }
-}
-
-fn task_board_workflow_state(
-    status: locus::TaskBoardStatus,
-) -> (locus::WorkflowStateFamily, locus::WorkflowQueueReasonCode) {
-    match status {
-        locus::TaskBoardStatus::Unknown => (
-            locus::WorkflowStateFamily::Intake,
-            locus::WorkflowQueueReasonCode::NeedsTriage,
-        ),
-        locus::TaskBoardStatus::Ready => (
-            locus::WorkflowStateFamily::Ready,
-            locus::WorkflowQueueReasonCode::HumanReviewWait,
-        ),
-        locus::TaskBoardStatus::InProgress => (
-            locus::WorkflowStateFamily::Active,
-            locus::WorkflowQueueReasonCode::HumanReviewWait,
-        ),
-        locus::TaskBoardStatus::Blocked => (
-            locus::WorkflowStateFamily::Blocked,
-            locus::WorkflowQueueReasonCode::DecisionWait,
-        ),
-        locus::TaskBoardStatus::Gated => (
-            locus::WorkflowStateFamily::Approval,
-            locus::WorkflowQueueReasonCode::DecisionWait,
-        ),
-        locus::TaskBoardStatus::Done => (
-            locus::WorkflowStateFamily::Done,
-            locus::WorkflowQueueReasonCode::Completed,
-        ),
-        locus::TaskBoardStatus::Cancelled => (
-            locus::WorkflowStateFamily::Canceled,
-            locus::WorkflowQueueReasonCode::Canceled,
-        ),
-    }
-}
-
-fn allowed_action_ids(family: locus::WorkflowStateFamily) -> Vec<String> {
-    let actions: &[&str] = match family {
-        locus::WorkflowStateFamily::Intake => &["triage", "prioritize"],
-        locus::WorkflowStateFamily::Ready => &["start", "assign"],
-        locus::WorkflowStateFamily::Active => &["update", "complete", "pause"],
-        locus::WorkflowStateFamily::Waiting => &["resume", "escalate"],
-        locus::WorkflowStateFamily::Review => &["review", "request_changes"],
-        locus::WorkflowStateFamily::Approval => &["approve", "reject"],
-        locus::WorkflowStateFamily::Validation => &["validate", "repair"],
-        locus::WorkflowStateFamily::Blocked => &["unblock", "escalate"],
-        locus::WorkflowStateFamily::Done => &["archive", "reopen"],
-        locus::WorkflowStateFamily::Canceled => &["archive", "reopen"],
-        locus::WorkflowStateFamily::Archived => &[],
-    };
-    actions.iter().map(|action| (*action).to_string()).collect()
 }
 
 fn work_packet_blockers(work_packet: &locus::TrackedWorkPacket) -> Vec<String> {
@@ -3494,9 +3442,9 @@ async fn emit_task_board_projection_artifacts(
     pool: &SqlitePool,
     runtime_paths: &RuntimeGovernancePaths,
 ) -> Result<locus::StructuredCollaborationValidationResult, WorkflowError> {
-    let rows = sqlx::query_as::<_, (String, String, String, String)>(
+    let rows = sqlx::query_as::<_, (String, String, String, String, String)>(
         r#"
-        SELECT wp_id, task_board_status, metadata, updated_at
+        SELECT wp_id, status, task_board_status, metadata, updated_at
         FROM work_packets
         ORDER BY updated_at ASC, wp_id ASC
         "#,
@@ -3513,8 +3461,8 @@ async fn emit_task_board_projection_artifacts(
 
     let entry_seeds: Vec<Value> = rows
         .iter()
-        .map(|(wp_id, status_raw, metadata_raw, updated_at)| {
-            let status = parse_task_board_status_db_global(status_raw);
+        .map(|(wp_id, _work_packet_status_raw, task_board_status_raw, metadata_raw, updated_at)| {
+            let status = parse_task_board_status_db_global(task_board_status_raw);
             let metadata: Value = serde_json::from_str(metadata_raw).unwrap_or_else(|_| json!({}));
             let token = metadata
                 .get("task_board_token")
@@ -3531,9 +3479,9 @@ async fn emit_task_board_projection_artifacts(
         .collect();
     let canonical_hash = json_sha256(&entry_seeds)?;
 
-    for (wp_id, status_raw, metadata_raw, updated_at) in &rows {
+    for (wp_id, _work_packet_status_raw, task_board_status_raw, metadata_raw, updated_at) in &rows {
         generated_at = generated_at.max(updated_at.clone());
-        let status = parse_task_board_status_db_global(status_raw);
+        let status = parse_task_board_status_db_global(task_board_status_raw);
         let metadata: Value = serde_json::from_str(metadata_raw).unwrap_or_else(|_| json!({}));
         let token = metadata
             .get("task_board_token")
@@ -3558,8 +3506,15 @@ async fn emit_task_board_projection_artifacts(
     )?;
 
     let mut entries: Vec<locus::task_board::TaskBoardEntryRecordV1> = Vec::new();
-    for (wp_id, status_raw, metadata_raw, updated_at) in rows {
-        let status = parse_task_board_status_db_global(&status_raw);
+    let mut authoritative_entry_truths: Vec<(
+        String,
+        locus::WorkflowStateFamily,
+        locus::WorkflowQueueReasonCode,
+        Vec<String>,
+    )> = Vec::new();
+    for (wp_id, work_packet_status_raw, task_board_status_raw, metadata_raw, updated_at) in rows {
+        let status = parse_task_board_status_db_global(&task_board_status_raw);
+        let work_packet_status = parse_work_packet_status_value(&work_packet_status_raw)?;
         let metadata: Value = serde_json::from_str(&metadata_raw).unwrap_or_else(|_| json!({}));
         let token = metadata
             .get("task_board_token")
@@ -3573,8 +3528,10 @@ async fn emit_task_board_projection_artifacts(
             *next = next.saturating_add(1);
             current
         };
-        let (workflow_state_family, queue_reason_code) = task_board_workflow_state(status);
-        entries.push(locus::task_board::TaskBoardEntryRecordV1 {
+        let (workflow_state_family, queue_reason_code) = work_packet_workflow_state(work_packet_status);
+        let allowed_action_ids =
+            locus::governed_action_ids_for_workflow_family(workflow_state_family);
+        let entry = locus::task_board::TaskBoardEntryRecordV1 {
             schema_id: TASK_BOARD_ENTRY_SCHEMA_ID.to_string(),
             schema_version: locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
             record_id: format!("task_board_entry:{wp_id}"),
@@ -3587,7 +3544,7 @@ async fn emit_task_board_projection_artifacts(
             mirror_contract: mirror_contract.clone(),
             workflow_state_family,
             queue_reason_code,
-            allowed_action_ids: allowed_action_ids(workflow_state_family),
+            allowed_action_ids: allowed_action_ids.clone(),
             task_board_id: task_board_id.clone(),
             work_packet_id: wp_id.clone(),
             lane_id,
@@ -3596,7 +3553,14 @@ async fn emit_task_board_projection_artifacts(
             token,
             status: task_board_status_string(status).to_string(),
             summary_ref: runtime_paths.work_packet_summary_display(&wp_id),
-        });
+        };
+        authoritative_entry_truths.push((
+            wp_id.clone(),
+            workflow_state_family,
+            queue_reason_code,
+            allowed_action_ids,
+        ));
+        entries.push(entry);
     }
 
     let index = locus::task_board::TaskBoardIndexV1 {
@@ -3650,7 +3614,7 @@ async fn emit_task_board_projection_artifacts(
     let mut validation = locus::StructuredCollaborationValidationResult::success(
         locus::StructuredCollaborationRecordFamily::TaskBoardIndex,
     );
-    for entry in &entries {
+    for (entry, authoritative_truth) in entries.iter().zip(authoritative_entry_truths.iter()) {
         let entry_value =
             serde_json::to_value(entry).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
         let mut entry_validation = locus::validate_structured_collaboration_record(
@@ -3668,6 +3632,15 @@ async fn emit_task_board_projection_artifacts(
                 "task-board entry authority_refs must stay within the product-runtime .handshake/gov boundary",
             );
         }
+        entry_validation.merge(
+            locus::task_board::validate_task_board_entry_authoritative_fields(
+                entry,
+                &authoritative_truth.0,
+                authoritative_truth.1,
+                authoritative_truth.2,
+                &authoritative_truth.3,
+            ),
+        );
         validation.merge(entry_validation);
     }
 
@@ -4224,13 +4197,18 @@ async fn emit_runtime_structured_work_packet_artifacts(
     let workspace_root = runtime_paths.workspace_root().to_path_buf();
     let packet_path = runtime_paths.work_packet_packet_path(wp_id);
     let summary_path = runtime_paths.work_packet_summary_path(wp_id);
-    let tracked_wp =
+    let summary_display = runtime_paths.work_packet_summary_display(wp_id);
+    let mut tracked_wp =
         load_tracked_work_packet_from_sqlite(runtime_paths, db, wp_id, kind_hint).await?;
-    let summary = build_structured_work_packet_summary(&tracked_wp);
     let note_refs = emit_work_packet_notes(runtime_paths, &tracked_wp)?;
-    let packet = build_structured_work_packet_packet(runtime_paths, &tracked_wp, note_refs);
-    let detail_value =
-        serde_json::to_value(&packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    tracked_wp.metadata["structured_collaboration_summary_path"] = Value::String(summary_display);
+    let summary = build_structured_work_packet_summary(&tracked_wp);
+    tracked_wp.metadata["structured_collaboration_summary"] =
+        serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut detail_packet =
+        build_structured_work_packet_packet(runtime_paths, &tracked_wp, note_refs.clone());
+    let detail_value = serde_json::to_value(&detail_packet)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let summary_value =
         serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
 
@@ -4239,7 +4217,7 @@ async fn emit_runtime_structured_work_packet_artifacts(
         &detail_value,
     );
     let invalid_detail_authority_refs =
-        runtime_paths.invalid_runtime_authority_refs(&packet.authority_refs);
+        runtime_paths.invalid_runtime_authority_refs(&tracked_wp.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
         validation.push_issue(
             locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
@@ -4270,6 +4248,8 @@ async fn emit_runtime_structured_work_packet_artifacts(
         );
     }
     validation.merge(summary_validation);
+    tracked_wp.metadata["structured_collaboration_validation"] =
+        serde_json::to_value(&validation).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     if !validation.ok {
         return Err(WorkflowError::Terminal(
             serde_json::to_string(&validation).unwrap_or_else(|_| {
@@ -4278,7 +4258,8 @@ async fn emit_runtime_structured_work_packet_artifacts(
         ));
     }
 
-    write_json_atomic(&workspace_root, &packet_path, &packet)?;
+    detail_packet = build_structured_work_packet_packet(runtime_paths, &tracked_wp, note_refs);
+    write_json_atomic(&workspace_root, &packet_path, &detail_packet)?;
     write_json_atomic(&workspace_root, &summary_path, &summary)?;
     Ok(())
 }
@@ -4301,15 +4282,15 @@ async fn emit_runtime_structured_micro_task_artifacts(
     tracked_mt.metadata["structured_collaboration_summary_path"] = Value::String(summary_display);
     tracked_mt.metadata["structured_collaboration_summary"] = summary_value.clone();
 
-    let mut packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
-    let detail_value =
-        serde_json::to_value(&packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut detail_packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
+    let detail_value = serde_json::to_value(&detail_packet)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         &detail_value,
     );
     let invalid_detail_authority_refs =
-        runtime_paths.invalid_runtime_authority_refs(&packet.authority_refs);
+        runtime_paths.invalid_runtime_authority_refs(&tracked_mt.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
         validation.push_issue(
             locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
@@ -4340,7 +4321,7 @@ async fn emit_runtime_structured_micro_task_artifacts(
         );
     }
     validation.merge(summary_validation);
-    packet.metadata["structured_collaboration_validation"] =
+    tracked_mt.metadata["structured_collaboration_validation"] =
         serde_json::to_value(&validation).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     if !validation.ok {
         return Err(WorkflowError::Terminal(
@@ -4350,7 +4331,8 @@ async fn emit_runtime_structured_micro_task_artifacts(
         ));
     }
 
-    write_json_atomic(&workspace_root, &packet_path, &packet)?;
+    detail_packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
+    write_json_atomic(&workspace_root, &packet_path, &detail_packet)?;
     write_json_atomic(&workspace_root, &summary_path, &summary)?;
     Ok(())
 }
@@ -4703,9 +4685,10 @@ fn build_structured_work_packet_packet(
         authority_refs: tracked_wp.authority_refs.clone(),
         evidence_refs: tracked_wp.evidence_refs.clone(),
         mirror_contract: None,
+        profile_extension: tracked_wp.profile_extension.clone(),
         workflow_state_family,
         queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
+        allowed_action_ids: locus::governed_action_ids_for_workflow_family(workflow_state_family),
         summary_ref: runtime_paths.work_packet_summary_display(&tracked_wp.wp_id),
         note_refs,
         wp_id: tracked_wp.wp_id.clone(),
@@ -4764,9 +4747,10 @@ fn build_structured_micro_task_packet(
         authority_refs: tracked_mt.authority_refs.clone(),
         evidence_refs: tracked_mt.evidence_refs.clone(),
         mirror_contract: None,
+        profile_extension: tracked_mt.profile_extension.clone(),
         workflow_state_family,
         queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
+        allowed_action_ids: locus::governed_action_ids_for_workflow_family(workflow_state_family),
         summary_ref: runtime_paths.micro_task_summary_display(&tracked_mt.wp_id, &tracked_mt.mt_id),
         mt_id: tracked_mt.mt_id.clone(),
         wp_id: tracked_mt.wp_id.clone(),
@@ -11701,22 +11685,17 @@ fn apply_runtime_structured_work_packet_registry(
         Value::String(summary_display.clone());
 
     let summary = build_structured_work_packet_summary(tracked_wp);
+    let detail_packet = build_structured_work_packet_packet(runtime_paths, tracked_wp, Vec::new());
     let summary_value =
         serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    let note_refs = tracked_wp
-        .notes
-        .iter()
-        .map(|note| runtime_paths.work_packet_note_display(&tracked_wp.wp_id, &note.note_id))
-        .collect::<Vec<_>>();
-    let packet = build_structured_work_packet_packet(runtime_paths, tracked_wp, note_refs);
     let detail_value =
-        serde_json::to_value(&packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::WorkPacketPacket,
         &detail_value,
     );
     let invalid_detail_authority_refs =
-        runtime_paths.invalid_runtime_authority_refs(&packet.authority_refs);
+        runtime_paths.invalid_runtime_authority_refs(&tracked_wp.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
         validation.push_issue(
             locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,
@@ -11803,15 +11782,15 @@ fn apply_runtime_structured_micro_task_registry(
             .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     }
 
-    let packet = build_structured_micro_task_packet(runtime_paths, tracked_mt);
+    let detail_packet = build_structured_micro_task_packet(runtime_paths, tracked_mt);
     let detail_value =
-        serde_json::to_value(&packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         &detail_value,
     );
     let invalid_detail_authority_refs =
-        runtime_paths.invalid_runtime_authority_refs(&packet.authority_refs);
+        runtime_paths.invalid_runtime_authority_refs(&tracked_mt.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
         validation.push_issue(
             locus::StructuredCollaborationValidationCode::AuthorityScopeMismatch,

@@ -18,10 +18,11 @@ use handshake_core::storage::{
 };
 use handshake_core::workflows::{
     locus::{
+        task_board::validate_task_board_entry_authoritative_fields,
         validate_structured_collaboration_record, validate_structured_collaboration_summary_join,
         StructuredCollaborationRecordFamily, StructuredCollaborationValidationCode,
         StructuredCollaborationValidationResult, TrackedMicroTaskArtifactV1,
-        TrackedWorkPacketArtifactV1,
+        TrackedWorkPacketArtifactV1, WorkflowQueueReasonCode, WorkflowStateFamily,
     },
     start_workflow_for_job, ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig,
 };
@@ -279,6 +280,54 @@ fn validate_runtime_structured_record(
         );
     }
     validation
+}
+
+fn json_string_array_field(value: &Value, field: &str) -> Vec<String> {
+    value.get(field)
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|item| item.to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn validate_task_board_row_against_packet_truth(
+    row: &Value,
+    packet: &Value,
+) -> StructuredCollaborationValidationResult {
+    let entry = serde_json::from_value(row.clone()).expect("task-board entry record");
+    let expected_work_packet_id = packet
+        .get("wp_id")
+        .and_then(Value::as_str)
+        .expect("work-packet id in packet")
+        .to_string();
+    let expected_workflow_state_family: WorkflowStateFamily = serde_json::from_value(
+        packet
+            .get("workflow_state_family")
+            .cloned()
+            .expect("workflow_state_family in packet"),
+    )
+    .expect("workflow_state_family enum");
+    let expected_queue_reason_code: WorkflowQueueReasonCode = serde_json::from_value(
+        packet
+            .get("queue_reason_code")
+            .cloned()
+            .expect("queue_reason_code in packet"),
+    )
+    .expect("queue_reason_code enum");
+    let expected_allowed_action_ids = json_string_array_field(packet, "allowed_action_ids");
+
+    validate_task_board_entry_authoritative_fields(
+        &entry,
+        &expected_work_packet_id,
+        expected_workflow_state_family,
+        expected_queue_reason_code,
+        &expected_allowed_action_ids,
+    )
 }
 
 async fn seed_locus_work_packet(
@@ -719,7 +768,7 @@ async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_
 }
 
 #[tokio::test]
-async fn schema_registry_create_and_close_wp_emit_structured_work_packet_packet_and_summary(
+async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summary(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _test_guard = test_guard();
     let dir = tempdir()?;
@@ -826,10 +875,6 @@ async fn schema_registry_create_and_close_wp_emit_structured_work_packet_packet_
         summary_json.get("status").and_then(Value::as_str),
         Some("stub")
     );
-    assert_eq!(
-        packet_json.get("queue_reason_code").and_then(Value::as_str),
-        Some("needs_triage")
-    );
 
     let packet_validation = validate_runtime_structured_record(
         &root,
@@ -853,60 +898,6 @@ async fn schema_registry_create_and_close_wp_emit_structured_work_packet_packet_
             issue.code,
             StructuredCollaborationValidationCode::MissingField
         ) && issue.field == "updated_at"
-    }));
-    let mut packet_json_invalid_updated_at = packet_json.clone();
-    packet_json_invalid_updated_at["updated_at"] = json!("not-rfc3339");
-    let invalid_updated_at_validation = validate_runtime_structured_record(
-        &root,
-        StructuredCollaborationRecordFamily::WorkPacketPacket,
-        &packet_json_invalid_updated_at,
-    );
-    assert!(!invalid_updated_at_validation.ok);
-    assert!(invalid_updated_at_validation.issues.iter().any(|issue| {
-        matches!(
-            issue.code,
-            StructuredCollaborationValidationCode::InvalidFieldValue
-        ) && issue.field == "updated_at"
-    }));
-    let mut packet_json_missing_workflow_triplet = packet_json.clone();
-    let packet_json_missing_workflow_triplet_obj = packet_json_missing_workflow_triplet
-        .as_object_mut()
-        .expect("packet json object");
-    packet_json_missing_workflow_triplet_obj.remove("workflow_state_family");
-    packet_json_missing_workflow_triplet_obj.remove("queue_reason_code");
-    packet_json_missing_workflow_triplet_obj.remove("allowed_action_ids");
-    let missing_workflow_triplet_validation = validate_runtime_structured_record(
-        &root,
-        StructuredCollaborationRecordFamily::WorkPacketPacket,
-        &packet_json_missing_workflow_triplet,
-    );
-    assert!(!missing_workflow_triplet_validation.ok);
-    for field in [
-        "workflow_state_family",
-        "queue_reason_code",
-        "allowed_action_ids",
-    ] {
-        assert!(missing_workflow_triplet_validation
-            .issues
-            .iter()
-            .any(|issue| matches!(
-                issue.code,
-                StructuredCollaborationValidationCode::MissingField
-            ) && issue.field == field));
-    }
-    let mut packet_json_legacy_queue_reason = packet_json.clone();
-    packet_json_legacy_queue_reason["queue_reason_code"] = json!("new_untriaged");
-    let legacy_queue_reason_validation = validate_runtime_structured_record(
-        &root,
-        StructuredCollaborationRecordFamily::WorkPacketPacket,
-        &packet_json_legacy_queue_reason,
-    );
-    assert!(!legacy_queue_reason_validation.ok);
-    assert!(legacy_queue_reason_validation.issues.iter().any(|issue| {
-        matches!(
-            issue.code,
-            StructuredCollaborationValidationCode::InvalidFieldValue
-        ) && issue.field == "queue_reason_code"
     }));
     let summary_validation = validate_runtime_structured_record(
         &root,
@@ -938,15 +929,95 @@ async fn schema_registry_create_and_close_wp_emit_structured_work_packet_packet_
         Some("DONE")
     );
     assert_eq!(
-        closed_packet_json
-            .get("queue_reason_code")
-            .and_then(Value::as_str),
-        Some("completed")
-    );
-    assert_eq!(
         closed_summary_json.get("status").and_then(Value::as_str),
         Some("done")
     );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_schema_registry_rejects_unregistered_allowed_action_ids(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let gov_root = root.join(".handshake").join("gov");
+    std::fs::create_dir_all(&gov_root)?;
+    std::fs::write(
+        gov_root.join("TASK_BOARD.md"),
+        concat!(
+            "# Task Board\n\n",
+            "## Ready for Dev\n",
+            "- **[WP-TEST]** - [ready]\n"
+        ),
+    )?;
+
+    let _ = run_locus_job(&state, "locus_sync_task_board_v1", json!({})).await?;
+
+    let packet_path = gov_root
+        .join("work_packets")
+        .join("WP-TEST")
+        .join("packet.json");
+    let mut work_packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
+    work_packet_json["allowed_action_ids"][0] = Value::String("not_registered".to_string());
+    let work_packet_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::WorkPacketPacket,
+        &work_packet_json,
+    );
+    assert!(!work_packet_validation.ok);
+    assert!(work_packet_validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
+            && issue.field == "allowed_action_ids[0]"
+    }));
+
+    run_locus_job(
+        &state,
+        "locus_register_mts_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "micro_tasks": [base_tracked_micro_task_value("MT-SCHEMA-REGISTRY")],
+        }),
+    )
+    .await?;
+
+    let micro_task_packet_path = gov_root
+        .join("micro_tasks")
+        .join("WP-TEST")
+        .join("MT-SCHEMA-REGISTRY")
+        .join("packet.json");
+    let micro_task_packet_json: Value =
+        serde_json::from_slice(&std::fs::read(&micro_task_packet_path)?)?;
+    let mt_progress = run_locus_job(
+        &state,
+        "locus_get_mt_progress_v1",
+        json!({ "mt_id": "MT-SCHEMA-REGISTRY" }),
+    )
+    .await?;
+    let progress_metadata = mt_progress.get("metadata").expect("micro-task progress metadata");
+    assert_eq!(
+        progress_metadata.get("allowed_action_ids"),
+        micro_task_packet_json.get("allowed_action_ids")
+    );
+
+    let mut mutated_micro_task_packet_json = micro_task_packet_json.clone();
+    mutated_micro_task_packet_json["allowed_action_ids"][0] =
+        Value::String("not_registered".to_string());
+    let micro_task_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::MicroTaskPacket,
+        &mutated_micro_task_packet_json,
+    );
+    assert!(!micro_task_validation.ok);
+    assert!(micro_task_validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
+            && issue.field == "allowed_action_ids[0]"
+    }));
 
     Ok(())
 }
@@ -1034,60 +1105,6 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
         &view_json,
     );
     assert!(view_validation.ok, "{view_validation:?}");
-    let mut index_json_missing_row_action_ids = index_json.clone();
-    index_json_missing_row_action_ids["rows"][0]
-        .as_object_mut()
-        .expect("task-board row object")
-        .remove("allowed_action_ids");
-    let missing_row_action_ids_validation = validate_runtime_structured_record(
-        &root,
-        StructuredCollaborationRecordFamily::TaskBoardIndex,
-        &index_json_missing_row_action_ids,
-    );
-    assert!(!missing_row_action_ids_validation.ok);
-    assert!(missing_row_action_ids_validation
-        .issues
-        .iter()
-        .any(|issue| {
-            matches!(
-                issue.code,
-                StructuredCollaborationValidationCode::MissingField
-            ) && issue.field == "rows[0].allowed_action_ids"
-        }));
-    let mut view_json_invalid_row_updated_at = view_json.clone();
-    view_json_invalid_row_updated_at["rows"][0]["updated_at"] = json!("not-rfc3339");
-    let invalid_row_updated_at_validation = validate_runtime_structured_record(
-        &root,
-        StructuredCollaborationRecordFamily::TaskBoardView,
-        &view_json_invalid_row_updated_at,
-    );
-    assert!(!invalid_row_updated_at_validation.ok);
-    assert!(invalid_row_updated_at_validation
-        .issues
-        .iter()
-        .any(|issue| {
-            matches!(
-                issue.code,
-                StructuredCollaborationValidationCode::InvalidFieldValue
-            ) && issue.field == "rows[0].updated_at"
-        }));
-    let mut index_json_legacy_row_queue_reason = index_json.clone();
-    index_json_legacy_row_queue_reason["rows"][0]["queue_reason_code"] = json!("ready_for_human");
-    let legacy_row_queue_reason_validation = validate_runtime_structured_record(
-        &root,
-        StructuredCollaborationRecordFamily::TaskBoardIndex,
-        &index_json_legacy_row_queue_reason,
-    );
-    assert!(!legacy_row_queue_reason_validation.ok);
-    assert!(legacy_row_queue_reason_validation
-        .issues
-        .iter()
-        .any(|issue| {
-            matches!(
-                issue.code,
-                StructuredCollaborationValidationCode::InvalidFieldValue
-            ) && issue.field == "rows[0].queue_reason_code"
-        }));
 
     let first_row = index_json
         .get("rows")
@@ -1105,10 +1122,6 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
     assert_eq!(
         first_row.get("lane_id").and_then(Value::as_str),
         Some("ready")
-    );
-    assert_eq!(
-        first_row.get("queue_reason_code").and_then(Value::as_str),
-        Some("human_review_wait")
     );
     assert_eq!(
         first_row.get("display_order").and_then(Value::as_u64),
@@ -1161,9 +1174,19 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
         Some("ready")
     );
     assert_eq!(
-        packet_json.get("queue_reason_code").and_then(Value::as_str),
-        Some("human_review_wait")
+        first_row.get("workflow_state_family").and_then(Value::as_str),
+        packet_json.get("workflow_state_family").and_then(Value::as_str)
     );
+    assert_eq!(
+        first_row.get("queue_reason_code").and_then(Value::as_str),
+        packet_json.get("queue_reason_code").and_then(Value::as_str)
+    );
+    assert_eq!(
+        first_row.get("allowed_action_ids"),
+        packet_json.get("allowed_action_ids")
+    );
+    let row_truth_validation = validate_task_board_row_against_packet_truth(first_row, &packet_json);
+    assert!(row_truth_validation.ok, "{row_truth_validation:?}");
 
     Ok(())
 }
@@ -1203,6 +1226,69 @@ async fn locus_sync_task_board_validation_reports_authority_scope_drift(
     assert!(validation.issues.iter().any(|issue| {
         issue.code == StructuredCollaborationValidationCode::AuthorityScopeMismatch
             && issue.field == "authority_refs"
+    }));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_task_board_validation_reports_authoritative_row_drift(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let gov_root = root.join(".handshake").join("gov");
+    std::fs::create_dir_all(&gov_root)?;
+    std::fs::write(
+        gov_root.join("TASK_BOARD.md"),
+        concat!(
+            "# Task Board\n\n",
+            "## Ready for Dev\n",
+            "- **[WP-TEST]** - [ready]\n"
+        ),
+    )?;
+
+    let _ = run_locus_job(&state, "locus_sync_task_board_v1", json!({})).await?;
+
+    let index_path = gov_root.join("task_board").join("index.json");
+    let packet_path = gov_root
+        .join("work_packets")
+        .join("WP-TEST")
+        .join("packet.json");
+    let index_json: Value = serde_json::from_slice(&std::fs::read(&index_path)?)?;
+    let packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
+    let base_row = index_json
+        .get("rows")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .cloned()
+        .ok_or("missing task-board row")?;
+
+    let base_validation = validate_task_board_row_against_packet_truth(&base_row, &packet_json);
+    assert!(base_validation.ok, "{base_validation:?}");
+
+    let mut drifted_row = base_row;
+    drifted_row["workflow_state_family"] = json!("blocked");
+    drifted_row["queue_reason_code"] = json!("blocked_policy");
+    drifted_row["allowed_action_ids"] = json!(["not_registered"]);
+
+    let drift_validation = validate_task_board_row_against_packet_truth(&drifted_row, &packet_json);
+    assert!(!drift_validation.ok);
+    assert!(drift_validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
+            && issue.field == "workflow_state_family"
+    }));
+    assert!(drift_validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
+            && issue.field == "queue_reason_code"
+    }));
+    assert!(drift_validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
+            && issue.field == "allowed_action_ids"
     }));
 
     Ok(())
@@ -1385,7 +1471,7 @@ async fn locus_bind_session_normalizes_and_deduplicates_session_ids(
 }
 
 #[tokio::test]
-async fn schema_registry_register_mts_emits_structured_micro_task_packet_and_summary(
+async fn locus_register_mts_emits_structured_micro_task_packet_and_summary(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _test_guard = test_guard();
     let dir = tempdir()?;
@@ -1453,10 +1539,6 @@ async fn schema_registry_register_mts_emits_structured_micro_task_packet_and_sum
         summary_json.get("schema_id").and_then(Value::as_str),
         Some("hsk.structured_collaboration_summary@1")
     );
-    assert_eq!(
-        packet_json.get("queue_reason_code").and_then(Value::as_str),
-        Some("ready_for_local_small_model")
-    );
     let active_session_ids = packet_json
         .get("active_session_ids")
         .and_then(Value::as_array)
@@ -1523,46 +1605,6 @@ async fn schema_registry_register_mts_emits_structured_micro_task_packet_and_sum
         &packet_json,
     );
     assert!(packet_validation.ok, "{packet_validation:?}");
-    let mut packet_json_missing_workflow_triplet = packet_json.clone();
-    let packet_json_missing_workflow_triplet_obj = packet_json_missing_workflow_triplet
-        .as_object_mut()
-        .expect("tracked micro-task packet object");
-    packet_json_missing_workflow_triplet_obj.remove("workflow_state_family");
-    packet_json_missing_workflow_triplet_obj.remove("queue_reason_code");
-    packet_json_missing_workflow_triplet_obj.remove("allowed_action_ids");
-    let missing_workflow_triplet_validation = validate_runtime_structured_record(
-        dir.path(),
-        StructuredCollaborationRecordFamily::MicroTaskPacket,
-        &packet_json_missing_workflow_triplet,
-    );
-    assert!(!missing_workflow_triplet_validation.ok);
-    for field in [
-        "workflow_state_family",
-        "queue_reason_code",
-        "allowed_action_ids",
-    ] {
-        assert!(missing_workflow_triplet_validation
-            .issues
-            .iter()
-            .any(|issue| matches!(
-                issue.code,
-                StructuredCollaborationValidationCode::MissingField
-            ) && issue.field == field));
-    }
-    let mut packet_json_legacy_queue_reason = packet_json.clone();
-    packet_json_legacy_queue_reason["queue_reason_code"] = json!("blocked_error");
-    let legacy_queue_reason_validation = validate_runtime_structured_record(
-        dir.path(),
-        StructuredCollaborationRecordFamily::MicroTaskPacket,
-        &packet_json_legacy_queue_reason,
-    );
-    assert!(!legacy_queue_reason_validation.ok);
-    assert!(legacy_queue_reason_validation.issues.iter().any(|issue| {
-        matches!(
-            issue.code,
-            StructuredCollaborationValidationCode::InvalidFieldValue
-        ) && issue.field == "queue_reason_code"
-    }));
     let summary_validation = validate_runtime_structured_record(
         dir.path(),
         StructuredCollaborationRecordFamily::MicroTaskSummary,

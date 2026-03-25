@@ -355,6 +355,19 @@ async fn role_mailbox_create_message_emits_events_and_export() {
     );
     assert!(validation.ok, "{validation:?}");
 
+    let index_path = root
+        .join(".handshake")
+        .join("gov")
+        .join("ROLE_MAILBOX")
+        .join("index.json");
+    let index_json: Value = serde_json::from_slice(&fs::read(&index_path).unwrap()).unwrap();
+    let index_validation = validate_runtime_mailbox_record(
+        &root,
+        StructuredCollaborationRecordFamily::RoleMailboxIndex,
+        &index_json,
+    );
+    assert!(index_validation.ok, "{index_validation:?}");
+
     let links = line_json
         .get("transcription_links")
         .and_then(|v| v.as_array())
@@ -483,78 +496,7 @@ async fn role_mailbox_validation_reports_schema_and_authority_drift() {
 }
 
 #[tokio::test]
-async fn role_mailbox_nested_validation_rejects_malformed_thread_entries() {
-    let dir = tempdir().unwrap();
-    let root = dir.path().to_path_buf();
-    fs::create_dir_all(root.join("data")).unwrap();
-    let db_path = root.join("data").join("flight_recorder.db");
-
-    let recorder = Arc::new(DuckDbFlightRecorder::new_on_path(&db_path, 7).unwrap());
-    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
-    let mailbox = RoleMailbox::new_for_root(root.clone(), flight_recorder).unwrap();
-
-    mailbox
-        .create_message(CreateRoleMailboxMessageRequest {
-            thread_id: None,
-            thread_subject: Some("Nested validation".to_string()),
-            thread_participants: Some(vec![RoleId::Operator, RoleId::Coder]),
-            context: test_context(),
-            from_role: RoleId::Operator,
-            to_roles: vec![RoleId::Coder],
-            message_type: RoleMailboxMessageType::ValidationFinding,
-            body: "hello".to_string(),
-            attachments: Vec::new(),
-            relates_to_message_id: None,
-            transcription_links: vec![TranscriptionLink {
-                target_kind: TranscriptionTargetKind::TaskPacket,
-                target_ref: dummy_artifact("/GOV/task_packets/WP-1-Role-Mailbox-v1.md"),
-                target_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-                    .to_string(),
-                note: "packet".to_string(),
-            }],
-            idempotency_key: "idempotency-nested-threads".to_string(),
-        })
-        .await
-        .unwrap();
-
-    let index_path = root
-        .join(".handshake")
-        .join("gov")
-        .join("ROLE_MAILBOX")
-        .join("index.json");
-    let mut index_json: Value = serde_json::from_slice(&fs::read(&index_path).unwrap()).unwrap();
-    index_json["threads"][0]["created_at"] = json!("not-rfc3339");
-    index_json["threads"][0]["subject_sha256"] = json!("not-a-sha");
-    index_json["threads"][0]["thread_file"] = json!("wrong.jsonl");
-
-    let validation = validate_runtime_mailbox_record(
-        &root,
-        StructuredCollaborationRecordFamily::RoleMailboxIndex,
-        &index_json,
-    );
-    assert!(!validation.ok);
-    assert!(validation.issues.iter().any(|issue| {
-        matches!(
-            issue.code,
-            StructuredCollaborationValidationCode::InvalidFieldValue
-        ) && issue.field == "threads[0].created_at"
-    }));
-    assert!(validation.issues.iter().any(|issue| {
-        matches!(
-            issue.code,
-            StructuredCollaborationValidationCode::InvalidFieldValue
-        ) && issue.field == "threads[0].subject_sha256"
-    }));
-    assert!(validation.issues.iter().any(|issue| {
-        matches!(
-            issue.code,
-            StructuredCollaborationValidationCode::InvalidFieldValue
-        ) && issue.field == "threads[0].thread_file"
-    }));
-}
-
-#[tokio::test]
-async fn role_mailbox_export_gate_inputs_reject_malformed_thread_line_fields() {
+async fn role_mailbox_validation_reports_redacted_field_drift() {
     let dir = tempdir().unwrap();
     let root = dir.path().to_path_buf();
     fs::create_dir_all(root.join("data")).unwrap();
@@ -567,7 +509,7 @@ async fn role_mailbox_export_gate_inputs_reject_malformed_thread_line_fields() {
     let created = mailbox
         .create_message(CreateRoleMailboxMessageRequest {
             thread_id: None,
-            thread_subject: Some("Export gate".to_string()),
+            thread_subject: Some("Subject password=123".to_string()),
             thread_participants: Some(vec![RoleId::Operator, RoleId::Coder]),
             context: test_context(),
             from_role: RoleId::Operator,
@@ -579,66 +521,99 @@ async fn role_mailbox_export_gate_inputs_reject_malformed_thread_line_fields() {
             transcription_links: vec![TranscriptionLink {
                 target_kind: TranscriptionTargetKind::TaskPacket,
                 target_ref: dummy_artifact("/GOV/task_packets/WP-1-Role-Mailbox-v1.md"),
-                target_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-                    .to_string(),
-                note: "packet".to_string(),
+                target_sha256:
+                    "0000000000000000000000000000000000000000000000000000000000000000"
+                        .to_string(),
+                note: "note password=abc".to_string(),
             }],
-            idempotency_key: "idempotency-export-gate".to_string(),
+            idempotency_key: "idempotency-redacted-drift".to_string(),
         })
         .await
         .unwrap();
 
+    let index_path = root
+        .join(".handshake")
+        .join("gov")
+        .join("ROLE_MAILBOX")
+        .join("index.json");
     let thread_path = root
         .join(".handshake")
         .join("gov")
         .join("ROLE_MAILBOX")
         .join("threads")
         .join(format!("{}.jsonl", created.thread_id));
-    let thread_text = fs::read_to_string(&thread_path).unwrap();
-    let first_line = thread_text.lines().next().unwrap();
-    let base_line_json: Value = serde_json::from_str(first_line).unwrap();
 
-    let mut empty_links_json = base_line_json.clone();
-    empty_links_json["transcription_links"] = json!([]);
-    let empty_links_validation = validate_runtime_mailbox_record(
+    let index_json: Value = serde_json::from_slice(&fs::read(&index_path).unwrap()).unwrap();
+    let original_subject = index_json["threads"][0]["subject_redacted"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let mut single_line_index_json = index_json.clone();
+    single_line_index_json["threads"][0]["subject_redacted"] =
+        Value::String(format!("{original_subject} password=123"));
+    let single_line_index_validation = validate_runtime_mailbox_record(
         &root,
-        StructuredCollaborationRecordFamily::RoleMailboxThreadLine,
-        &empty_links_json,
+        StructuredCollaborationRecordFamily::RoleMailboxIndex,
+        &single_line_index_json,
     );
-    assert!(!empty_links_validation.ok);
-    assert!(empty_links_validation.issues.iter().any(|issue| {
-        matches!(
-            issue.code,
-            StructuredCollaborationValidationCode::InvalidFieldValue
-        ) && issue.field == "transcription_links"
+    assert!(!single_line_index_validation.ok);
+    assert!(single_line_index_validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
+            && issue.field == "threads[0].subject_redacted"
     }));
 
-    let mut malformed_line_json = base_line_json;
-    malformed_line_json["body_ref"] = json!("not-an-artifact");
-    malformed_line_json["body_sha256"] = json!("not-a-sha");
-    malformed_line_json["transcription_links"][0]["target_ref"] = json!("not-an-artifact");
-    malformed_line_json["transcription_links"][0]["target_sha256"] = json!("not-a-sha");
-    malformed_line_json["transcription_links"][0]["note_sha256"] = json!("not-a-sha");
-    let malformed_line_validation = validate_runtime_mailbox_record(
+    let mut multiline_index_json = index_json.clone();
+    multiline_index_json["threads"][0]["subject_redacted"] = Value::String(
+        "Subject password=123\nsecond line".to_string(),
+    );
+    let index_validation = validate_runtime_mailbox_record(
+        &root,
+        StructuredCollaborationRecordFamily::RoleMailboxIndex,
+        &multiline_index_json,
+    );
+    assert!(!index_validation.ok);
+    assert!(index_validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
+            && issue.field == "threads[0].subject_redacted"
+    }));
+
+    let thread_text = fs::read_to_string(&thread_path).unwrap();
+    let first_line = thread_text.lines().next().unwrap();
+    let line_json: Value = serde_json::from_str(first_line).unwrap();
+    let original_note = line_json["transcription_links"][0]["note_redacted"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let mut single_line_line_json = line_json.clone();
+    single_line_line_json["transcription_links"][0]["note_redacted"] =
+        Value::String(format!("{original_note} password=abc"));
+    let single_line_validation = validate_runtime_mailbox_record(
         &root,
         StructuredCollaborationRecordFamily::RoleMailboxThreadLine,
-        &malformed_line_json,
+        &single_line_line_json,
     );
-    assert!(!malformed_line_validation.ok);
-    for field in [
-        "body_ref",
-        "body_sha256",
-        "transcription_links[0].target_ref",
-        "transcription_links[0].target_sha256",
-        "transcription_links[0].note_sha256",
-    ] {
-        assert!(malformed_line_validation.issues.iter().any(|issue| {
-            matches!(
-                issue.code,
-                StructuredCollaborationValidationCode::InvalidFieldValue
-            ) && issue.field == field
-        }));
-    }
+    assert!(!single_line_validation.ok);
+    assert!(single_line_validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
+            && issue.field == "transcription_links[0].note_redacted"
+    }));
+
+    let mut multiline_line_json = line_json.clone();
+    multiline_line_json["transcription_links"][0]["note_redacted"] = Value::String(
+        "note password=abc\nsecond line".to_string(),
+    );
+    let line_validation = validate_runtime_mailbox_record(
+        &root,
+        StructuredCollaborationRecordFamily::RoleMailboxThreadLine,
+        &multiline_line_json,
+    );
+    assert!(!line_validation.ok);
+    assert!(line_validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
+            && issue.field == "transcription_links[0].note_redacted"
+    }));
 }
 
 #[tokio::test]

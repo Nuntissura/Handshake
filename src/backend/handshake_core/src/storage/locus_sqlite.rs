@@ -5,14 +5,14 @@ use sqlx::{Sqlite, SqlitePool};
 use std::collections::HashSet;
 
 use crate::workflows::locus::types::{
-    DependencyType, LocusAddDependencyParams, LocusBindSessionParams, LocusCloseWpParams,
-    LocusCompleteMtParams, LocusCreateWpParams, LocusDeleteWpParams, LocusGateKind,
-    LocusGateWpParams, LocusGetMtProgressParams, LocusGetWpStatusParams, LocusOperation,
-    LocusQueryReadyParams, LocusRecordIterationParams, LocusRegisterMtsParams,
-    LocusRemoveDependencyParams, LocusStartMtParams, LocusUnbindSessionParams, LocusUpdateWpParams,
-    MicroTaskIterationOutcome, MicroTaskStatus, RoutingPolicy, TaskBoardStatus, TrackedMicroTask,
-    TrackedMicroTaskArtifactV1, WorkPacketPhase, WorkPacketStatus, WorkflowQueueReasonCode,
-    WorkflowStateFamily,
+    governed_action_ids_for_workflow_family, DependencyType, LocusAddDependencyParams,
+    LocusBindSessionParams, LocusCloseWpParams, LocusCompleteMtParams, LocusCreateWpParams,
+    LocusDeleteWpParams, LocusGateKind, LocusGateWpParams, LocusGetMtProgressParams,
+    LocusGetWpStatusParams, LocusOperation, LocusQueryReadyParams, LocusRecordIterationParams,
+    LocusRegisterMtsParams, LocusRemoveDependencyParams, LocusStartMtParams,
+    LocusUnbindSessionParams, LocusUpdateWpParams, MicroTaskIterationOutcome, MicroTaskStatus,
+    RoutingPolicy, TaskBoardStatus, TrackedMicroTask, TrackedMicroTaskArtifactV1,
+    WorkPacketPhase, WorkPacketStatus, WorkflowQueueReasonCode, WorkflowStateFamily,
 };
 
 fn sqlite_db(db: &dyn Database) -> StorageResult<&SqliteDatabase> {
@@ -151,23 +151,6 @@ fn micro_task_workflow_state(
     }
 }
 
-fn allowed_action_ids(family: WorkflowStateFamily) -> Vec<String> {
-    let actions = match family {
-        WorkflowStateFamily::Intake => &["triage", "prioritize"][..],
-        WorkflowStateFamily::Ready => &["start", "assign"],
-        WorkflowStateFamily::Active => &["update", "complete", "pause"],
-        WorkflowStateFamily::Waiting => &["resume", "escalate"],
-        WorkflowStateFamily::Review => &["review", "request_changes"],
-        WorkflowStateFamily::Approval => &["approve", "reject"],
-        WorkflowStateFamily::Validation => &["validate", "repair"],
-        WorkflowStateFamily::Blocked => &["unblock", "escalate"],
-        WorkflowStateFamily::Done => &["archive", "reopen"],
-        WorkflowStateFamily::Canceled => &["archive", "reopen"],
-        WorkflowStateFamily::Archived => &[],
-    };
-    actions.iter().map(|action| (*action).to_string()).collect()
-}
-
 fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
     let (workflow_state_family, queue_reason_code) = micro_task_workflow_state(tracked_mt.status);
     let summary_ref = tracked_mt
@@ -193,9 +176,10 @@ fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
         authority_refs: tracked_mt.authority_refs.clone(),
         evidence_refs: tracked_mt.evidence_refs.clone(),
         mirror_contract: None,
+        profile_extension: tracked_mt.profile_extension.clone(),
         workflow_state_family,
         queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
+        allowed_action_ids: governed_action_ids_for_workflow_family(workflow_state_family),
         summary_ref,
         mt_id: tracked_mt.mt_id.clone(),
         wp_id: tracked_mt.wp_id.clone(),
