@@ -18,11 +18,12 @@ use handshake_core::storage::{
 };
 use handshake_core::workflows::{
     locus::{
-        task_board::validate_task_board_entry_authoritative_fields,
+        is_governed_action_id_allowed_for_workflow_family, is_registered_governed_action_id,
         validate_structured_collaboration_record, validate_structured_collaboration_summary_join,
-        StructuredCollaborationRecordFamily, StructuredCollaborationValidationCode,
-        StructuredCollaborationValidationResult, TrackedMicroTaskArtifactV1,
-        TrackedWorkPacketArtifactV1, WorkflowQueueReasonCode, WorkflowStateFamily,
+        validate_task_board_entry_authoritative_fields, StructuredCollaborationRecordFamily,
+        StructuredCollaborationValidationCode, StructuredCollaborationValidationResult,
+        TrackedMicroTaskArtifactV1, TrackedWorkPacketArtifactV1, WorkflowQueueReasonCode,
+        WorkflowStateFamily,
     },
     start_workflow_for_job, ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig,
 };
@@ -283,7 +284,8 @@ fn validate_runtime_structured_record(
 }
 
 fn json_string_array_field(value: &Value, field: &str) -> Vec<String> {
-    value.get(field)
+    value
+        .get(field)
         .and_then(Value::as_array)
         .map(|items| {
             items
@@ -818,6 +820,7 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
         legacy_packet.summary_ref,
         ".handshake/gov/work_packets/WP-TEST/summary.json"
     );
+    assert!(legacy_packet.profile_extension.is_none());
     assert_eq!(
         packet_json
             .get("authority_refs")
@@ -874,6 +877,33 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
     assert_eq!(
         summary_json.get("status").and_then(Value::as_str),
         Some("stub")
+    );
+    assert_eq!(
+        summary_json
+            .get("workflow_state_family")
+            .and_then(Value::as_str),
+        Some("intake")
+    );
+    assert!(
+        summary_json
+            .get("next_action")
+            .and_then(Value::as_str)
+            .map(is_registered_governed_action_id)
+            .unwrap_or(true),
+        "work packet summary next_action must be a registered governed action id or be omitted"
+    );
+    assert!(
+        summary_json
+            .get("next_action")
+            .and_then(Value::as_str)
+            .map(|action_id| {
+                is_governed_action_id_allowed_for_workflow_family(
+                    WorkflowStateFamily::Intake,
+                    action_id,
+                )
+            })
+            .unwrap_or(true),
+        "work packet summary next_action must be allowed for workflow_state_family=intake or be omitted"
     );
 
     let packet_validation = validate_runtime_structured_record(
@@ -999,7 +1029,9 @@ async fn locus_schema_registry_rejects_unregistered_allowed_action_ids(
         json!({ "mt_id": "MT-SCHEMA-REGISTRY" }),
     )
     .await?;
-    let progress_metadata = mt_progress.get("metadata").expect("micro-task progress metadata");
+    let progress_metadata = mt_progress
+        .get("metadata")
+        .expect("micro-task progress metadata");
     assert_eq!(
         progress_metadata.get("allowed_action_ids"),
         micro_task_packet_json.get("allowed_action_ids")
@@ -1017,6 +1049,78 @@ async fn locus_schema_registry_rejects_unregistered_allowed_action_ids(
     assert!(micro_task_validation.issues.iter().any(|issue| {
         issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
             && issue.field == "allowed_action_ids[0]"
+    }));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_written_work_packet_summary_validation_rejects_unregistered_next_action(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let _state = setup_state(llm_client).await?;
+
+    let summary_path = root
+        .join(".handshake")
+        .join("gov")
+        .join("work_packets")
+        .join("WP-TEST")
+        .join("summary.json");
+    let mut summary_json: Value = serde_json::from_slice(&std::fs::read(&summary_path)?)?;
+    summary_json["next_action"] = json!("start_work_packet");
+    std::fs::write(&summary_path, serde_json::to_vec_pretty(&summary_json)?)?;
+
+    let written_summary_json: Value = serde_json::from_slice(&std::fs::read(&summary_path)?)?;
+    let validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::WorkPacketSummary,
+        &written_summary_json,
+    );
+    assert!(!validation.ok);
+    assert!(validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
+            && issue.field == "next_action"
+            && issue.actual.as_deref() == Some("start_work_packet")
+    }));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_written_work_packet_summary_validation_rejects_family_illegal_next_action(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let _state = setup_state(llm_client).await?;
+
+    let summary_path = root
+        .join(".handshake")
+        .join("gov")
+        .join("work_packets")
+        .join("WP-TEST")
+        .join("summary.json");
+    let mut summary_json: Value = serde_json::from_slice(&std::fs::read(&summary_path)?)?;
+    summary_json["next_action"] = json!("archive");
+    std::fs::write(&summary_path, serde_json::to_vec_pretty(&summary_json)?)?;
+
+    let written_summary_json: Value = serde_json::from_slice(&std::fs::read(&summary_path)?)?;
+    let validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::WorkPacketSummary,
+        &written_summary_json,
+    );
+    assert!(!validation.ok);
+    assert!(validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::InvalidFieldValue
+            && issue.field == "next_action"
+            && issue.actual.as_deref() == Some("archive")
     }));
 
     Ok(())
@@ -1174,8 +1278,12 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
         Some("ready")
     );
     assert_eq!(
-        first_row.get("workflow_state_family").and_then(Value::as_str),
-        packet_json.get("workflow_state_family").and_then(Value::as_str)
+        first_row
+            .get("workflow_state_family")
+            .and_then(Value::as_str),
+        packet_json
+            .get("workflow_state_family")
+            .and_then(Value::as_str)
     );
     assert_eq!(
         first_row.get("queue_reason_code").and_then(Value::as_str),
@@ -1185,7 +1293,8 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
         first_row.get("allowed_action_ids"),
         packet_json.get("allowed_action_ids")
     );
-    let row_truth_validation = validate_task_board_row_against_packet_truth(first_row, &packet_json);
+    let row_truth_validation =
+        validate_task_board_row_against_packet_truth(first_row, &packet_json);
     assert!(row_truth_validation.ok, "{row_truth_validation:?}");
 
     Ok(())
@@ -1539,6 +1648,25 @@ async fn locus_register_mts_emits_structured_micro_task_packet_and_summary(
         summary_json.get("schema_id").and_then(Value::as_str),
         Some("hsk.structured_collaboration_summary@1")
     );
+    assert_eq!(
+        summary_json
+            .get("workflow_state_family")
+            .and_then(Value::as_str),
+        Some("active")
+    );
+    assert!(
+        summary_json
+            .get("next_action")
+            .and_then(Value::as_str)
+            .map(|action_id| {
+                is_governed_action_id_allowed_for_workflow_family(
+                    WorkflowStateFamily::Active,
+                    action_id,
+                )
+            })
+            .unwrap_or(true),
+        "micro-task summary next_action must be allowed for workflow_state_family=active or be omitted"
+    );
     let active_session_ids = packet_json
         .get("active_session_ids")
         .and_then(Value::as_array)
@@ -1568,6 +1696,7 @@ async fn locus_register_mts_emits_structured_micro_task_packet_and_summary(
         legacy_packet.summary_ref,
         ".handshake/gov/micro_tasks/WP-TEST/MT-ARTIFACTS/summary.json"
     );
+    assert!(legacy_packet.profile_extension.is_none());
     assert_eq!(
         packet_metadata
             .get("structured_collaboration_summary_path")
@@ -1669,6 +1798,106 @@ async fn locus_written_micro_task_summary_validation_reports_authority_scope_dri
 }
 
 #[tokio::test]
+async fn locus_register_mts_rejects_unregistered_summary_next_action(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let _env = WorkspaceEnvGuard::activate(dir.path());
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let mut tracked_mt = base_tracked_micro_task_value("MT-NEXT-ACTION-DRIFT");
+    tracked_mt["metadata"]["structured_collaboration_summary"] = json!({
+        "schema_id": "hsk.structured_collaboration_summary@1",
+        "schema_version": "1",
+        "record_id": "MT-NEXT-ACTION-DRIFT",
+        "record_kind": "micro_task",
+        "project_profile_kind": "generic",
+        "workflow_state_family": "ready",
+        "status": "pending",
+        "title_or_objective": "Micro Task MT-NEXT-ACTION-DRIFT",
+        "blockers": [],
+        "next_action": "start_micro_task",
+        "updated_at": "2026-03-14T00:00:00Z",
+        "authority_refs": [".handshake/gov/micro_tasks/WP-TEST/MT-NEXT-ACTION-DRIFT/packet.json"],
+        "evidence_refs": [],
+    });
+
+    let validation = run_locus_job_expect_validation_failure(
+        &state,
+        "locus_register_mts_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "micro_tasks": [tracked_mt],
+        }),
+    )
+    .await?;
+
+    assert_eq!(validation.get("ok").and_then(Value::as_bool), Some(false));
+    let issues = validation
+        .get("issues")
+        .and_then(Value::as_array)
+        .expect("validation issues");
+    assert!(issues.iter().any(|issue| {
+        issue.get("code").and_then(Value::as_str) == Some("invalid_field_value")
+            && issue.get("field").and_then(Value::as_str) == Some("next_action")
+            && issue.get("actual").and_then(Value::as_str) == Some("start_micro_task")
+    }));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_register_mts_rejects_family_illegal_summary_next_action(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let _env = WorkspaceEnvGuard::activate(dir.path());
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let mut tracked_mt = base_tracked_micro_task_value("MT-FAMILY-NEXT-ACTION-DRIFT");
+    tracked_mt["metadata"]["structured_collaboration_summary"] = json!({
+        "schema_id": "hsk.structured_collaboration_summary@1",
+        "schema_version": "1",
+        "record_id": "MT-FAMILY-NEXT-ACTION-DRIFT",
+        "record_kind": "micro_task",
+        "project_profile_kind": "generic",
+        "workflow_state_family": "ready",
+        "status": "pending",
+        "title_or_objective": "Micro Task MT-FAMILY-NEXT-ACTION-DRIFT",
+        "blockers": [],
+        "next_action": "archive",
+        "updated_at": "2026-03-14T00:00:00Z",
+        "authority_refs": [".handshake/gov/micro_tasks/WP-TEST/MT-FAMILY-NEXT-ACTION-DRIFT/packet.json"],
+        "evidence_refs": [],
+    });
+
+    let validation = run_locus_job_expect_validation_failure(
+        &state,
+        "locus_register_mts_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "micro_tasks": [tracked_mt],
+        }),
+    )
+    .await?;
+
+    assert_eq!(validation.get("ok").and_then(Value::as_bool), Some(false));
+    let issues = validation
+        .get("issues")
+        .and_then(Value::as_array)
+        .expect("validation issues");
+    assert!(issues.iter().any(|issue| {
+        issue.get("code").and_then(Value::as_str) == Some("invalid_field_value")
+            && issue.get("field").and_then(Value::as_str) == Some("next_action")
+            && issue.get("actual").and_then(Value::as_str) == Some("archive")
+    }));
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn locus_register_mts_returns_machine_readable_validation_for_summary_detail_drift(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _test_guard = test_guard();
@@ -1684,10 +1913,11 @@ async fn locus_register_mts_returns_machine_readable_validation_for_summary_deta
         "record_id": "MT-OTHER",
         "record_kind": "micro_task",
         "project_profile_kind": "generic",
+        "workflow_state_family": "ready",
         "status": "pending",
         "title_or_objective": "Micro Task MT-DRIFT",
         "blockers": [],
-        "next_action": "start_micro_task",
+        "next_action": "start",
         "updated_at": "2026-03-14T00:00:00Z",
         "authority_refs": [".handshake/gov/micro_tasks/WP-TEST/MT-DRIFT/packet.json"],
         "evidence_refs": [],
