@@ -357,3 +357,19 @@
   - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: modern packets now carry explicit current-`main` compatibility and packet-widening truth, final-lane closeout fails on stale compatibility baselines or ungoverned adjacent scope drift, and new packets default to the stricter 2026-03-26 packet format
+
+### 2026.03.26.03 / GOV-CHANGE-20260326-03
+
+- STATUS: APPLIED
+- SUMMARY: added terminal closeout projection sync so task-board terminal moves reject packet drift and immediately refresh runtime projection truth
+- CHANGE_TYPE: CLOSEOUT_TRUTH_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
+  - `.GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs`
+  - `.GOV/roles/orchestrator/scripts/task-board-set.mjs`
+  - `.GOV/roles_shared/scripts/lib/merge-progression-truth-lib.mjs`
+  - `.GOV/roles_shared/tests/merge-progression-truth-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: terminal Task Board moves now fail if packet status disagrees with the requested board state, runtime projection fields are refreshed immediately from packet truth on those transitions, and merge-progression checks now detect lagging runtime `current_packet_status`

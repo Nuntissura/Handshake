@@ -33,6 +33,7 @@ test("Done on new-format packets requires merge-pending truth", () => {
   const packetText = buildPacket();
   const result = validateMergeProgressionTruth(packetText, {
     runtimeStatusData: {
+      current_packet_status: "Done",
       main_containment_status: "MERGE_PENDING",
       merged_main_commit: null,
       main_containment_verified_at_utc: null,
@@ -50,6 +51,7 @@ test("Validated (PASS) on new-format packets requires containment proof and reco
   });
   const result = validateMergeProgressionTruth(packetText, {
     runtimeStatusData: {
+      current_packet_status: "Validated (PASS)",
       main_containment_status: "CONTAINED_IN_MAIN",
       merged_main_commit: "abc1234",
       main_containment_verified_at_utc: "2026-03-25T12:00:00Z",
@@ -68,6 +70,7 @@ test("Validated (PASS) fails when the recorded merged commit is not proven conta
   });
   const result = validateMergeProgressionTruth(packetText, {
     runtimeStatusData: {
+      current_packet_status: "Validated (PASS)",
       main_containment_status: "CONTAINED_IN_MAIN",
       merged_main_commit: "abc1234",
       main_containment_verified_at_utc: "2026-03-25T12:00:00Z",
@@ -85,10 +88,30 @@ test("Legacy packet versions bypass merge progression truth enforcement", () => 
   });
   const result = validateMergeProgressionTruth(packetText, {
     runtimeStatusData: {
+      current_packet_status: "Done",
       main_containment_status: "NOT_STARTED",
       merged_main_commit: null,
       main_containment_verified_at_utc: null,
     },
   });
   assert.deepEqual(result.errors, []);
+});
+
+test("merge progression truth fails when runtime current_packet_status lags packet status", () => {
+  const packetText = buildPacket({
+    status: "Validated (PASS)",
+    mainContainmentStatus: "CONTAINED_IN_MAIN",
+    mergedMainCommit: "abc1234",
+    mainContainmentVerifiedAtUtc: "2026-03-25T12:00:00Z",
+  });
+  const result = validateMergeProgressionTruth(packetText, {
+    runtimeStatusData: {
+      current_packet_status: "Done",
+      main_containment_status: "CONTAINED_IN_MAIN",
+      merged_main_commit: "abc1234",
+      main_containment_verified_at_utc: "2026-03-25T12:00:00Z",
+    },
+    mainContainmentVerifier: () => ({ ok: true, reason: "contained in main" }),
+  });
+  assert.match(result.errors.join("\n"), /current_packet_status .* must match packet Status/i);
 });

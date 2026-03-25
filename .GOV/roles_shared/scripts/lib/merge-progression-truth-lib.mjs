@@ -264,12 +264,20 @@ export function validateMergeProgressionTruth(
   }
 
   if (runtime && typeof runtime === "object") {
+    const runtimePacketStatus = String(runtime.current_packet_status || "").trim();
     const runtimeContainmentStatus = String(runtime.main_containment_status || "").trim().toUpperCase();
     const runtimeMergedMainCommit = runtime.merged_main_commit === null ? "NONE" : normalizeNoneLike(runtime.merged_main_commit);
     const runtimeVerifiedAt = runtime.main_containment_verified_at_utc === null
       ? "NONE"
       : normalizeNoneLike(runtime.main_containment_verified_at_utc);
 
+    if (!runtimePacketStatus) {
+      errors.push("WP runtime status surface must record current_packet_status");
+    } else if (runtimePacketStatus !== parsed.status) {
+      errors.push(
+        `WP runtime status current_packet_status (${runtimePacketStatus}) must match packet Status (${parsed.status})`,
+      );
+    }
     if (!runtimeContainmentStatus) {
       errors.push("WP runtime status surface must record main_containment_status");
     } else if (runtimeContainmentStatus !== parsed.mainContainmentStatus) {

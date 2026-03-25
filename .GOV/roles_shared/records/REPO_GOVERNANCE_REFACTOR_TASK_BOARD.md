@@ -63,6 +63,10 @@
 | RGF-10 | DONE | Declared Topology Enforcement and Auxiliary Worktree Rejection | RGF-04 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | worktree helpers, topology checks, cleanup surfaces, worktree budget enforcement | declared WP topology is now machine-checked, undeclared auxiliary worktrees fail topology/closeout checks, and a direct per-WP topology inspection command exists |
 | RGF-11 | DONE | Orchestrator-Managed Mid-Run Approval Relapse Guard | RGF-09 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | startup prompts, orchestrator-next flow, approval/signature gates, lifecycle checks | startup prompts now forbid routine post-signature Operator interruption on orchestrator-managed lanes, `just orchestrator-next` emits machine-visible `BLOCKER_CLASS` state, and only explicit blocker classes remain legal escalation paths |
 | RGF-12 | DONE | Signed-Scope Compatibility Preflight and Governed Packet-Widening Policy | RGF-04 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | final review preflight, packet scope metadata, integration-validator flow, scope-governance helpers | final-lane closeout now requires recorded current-`main` compatibility truth, stale compatibility baselines fail preflight, and adjacent shared-surface widening must route to a follow-on or superseding packet instead of ad hoc scope drift |
+| RGF-13 | PLANNED | Operator Rule Restatement Invalidity and Lane Reset | RGF-09, RGF-11 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | workflow-invalidity helpers, orchestrator monitor surfaces, lifecycle reset law | if the Operator has to restate a core orchestrator-managed lane rule, the run records a dedicated invalidity/reset condition instead of continuing as normal |
+| RGF-14 | DONE | Terminal Closeout Projection Sync | RGF-03, RGF-04, RGF-05, RGF-12 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | `task-board-set`, runtime projection helpers, merge-progression truth checks | terminal Task Board transitions now reject packet-truth mismatches and sync packet/runtime closeout projections immediately so final truth lags less |
+| RGF-15 | PLANNED | Command Family Simplification and Wrong-Tool Rejection | RGF-08, RGF-11 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | command surface, helper wrappers, wrong-lane rejection rules, startup prompts | the live command surface narrows further and obviously wrong helper families fail earlier |
+| RGF-16 | PLANNED | Final-Lane Authority Context Bundle | RGF-10, RGF-12 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | final-lane brief/resume helpers, authority context surfaces, source-of-truth summaries | integration/final review can open one canonical context bundle instead of repeating path and authority inspection |
 
 ## Refactor Sequence (Historical)
 
@@ -79,6 +83,10 @@
 2. `RGF-10`
 3. `RGF-11`
 4. `RGF-12`
+5. `RGF-13`
+6. `RGF-14`
+7. `RGF-15`
+8. `RGF-16`
 
 ## Explicit Holds
 
