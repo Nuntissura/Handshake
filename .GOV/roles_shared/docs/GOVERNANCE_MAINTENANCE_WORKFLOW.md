@@ -50,6 +50,7 @@ If the planned change touches product code or the Master Spec, stop and use the 
 2. Open or update the evidence document.
    - Give the audit or review a stable `AUDIT_ID`.
    - If it is a smoketest review, also assign a stable `SMOKETEST_REVIEW_ID`.
+   - If it follows an earlier smoketest review, include a short explicit subsection named `What Improved vs Previous Smoketest` so recovery and closeout passes stay directly comparable.
 3. Open or update the governance item.
    - Add or update the row in `REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`.
    - Record dependencies, evidence IDs, primary surfaces, and the exit signal.
