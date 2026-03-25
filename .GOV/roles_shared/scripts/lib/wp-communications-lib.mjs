@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { EXECUTION_OWNER_VALUES } from "../session/session-policy.mjs";
+import { MAIN_CONTAINMENT_STATUS_VALUES } from "./merge-progression-truth-lib.mjs";
 import {
   GOV_ROOT_REPO_REL,
   LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT,
@@ -246,7 +247,14 @@ export function validateRuntimeStatus(data) {
     "last_backup_push_sha",
   ];
 
-  const optionalKeys = ["next_expected_session", "waiting_on_session", "open_review_items"];
+  const optionalKeys = [
+    "next_expected_session",
+    "waiting_on_session",
+    "open_review_items",
+    "main_containment_status",
+    "merged_main_commit",
+    "main_containment_verified_at_utc",
+  ];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in data)) errors.push(`missing key: ${key}`);
@@ -302,6 +310,17 @@ export function validateRuntimeStatus(data) {
   if (!AGENTIC_MODE_VALUES.includes(data.agentic_mode)) errors.push(`agentic_mode invalid (${data.agentic_mode})`);
   if (!PACKET_STATUS_VALUES.includes(data.current_packet_status)) {
     errors.push(`current_packet_status invalid (${data.current_packet_status})`);
+  }
+  if ("main_containment_status" in data) {
+    if (data.main_containment_status !== null && !MAIN_CONTAINMENT_STATUS_VALUES.includes(data.main_containment_status)) {
+      errors.push(`main_containment_status invalid (${data.main_containment_status})`);
+    }
+  }
+  if ("merged_main_commit" in data && !isNullableSha(data.merged_main_commit)) {
+    errors.push(`merged_main_commit invalid (${data.merged_main_commit})`);
+  }
+  if ("main_containment_verified_at_utc" in data && !isNullableRfc3339Utc(data.main_containment_verified_at_utc)) {
+    errors.push(`main_containment_verified_at_utc invalid (${data.main_containment_verified_at_utc})`);
   }
   if (!RUNTIME_STATUS_VALUES.includes(data.runtime_status)) errors.push(`runtime_status invalid (${data.runtime_status})`);
   if (!isNonEmptyString(data.current_phase) || !/^[A-Z][A-Z0-9_]*$/.test(data.current_phase)) {

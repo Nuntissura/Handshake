@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import { inferWpIdFromPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { parseMergeProgressionTruth } from "../scripts/lib/merge-progression-truth-lib.mjs";
+import { packetRequiresMergeContainmentTruth } from "../scripts/session/session-policy.mjs";
 
 const TRACE_REGISTRY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
 const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
@@ -104,6 +106,20 @@ function expectedBoardTokens(statusKind, isStub) {
   return new Set();
 }
 
+function expectedBoardTokensForPacket(packet) {
+  if (packet.kind === "stub") return new Set(["STUB"]);
+
+  const mergeTruth = parseMergeProgressionTruth(packet.packetText);
+  if (
+    packetRequiresMergeContainmentTruth(mergeTruth.packetFormatVersion)
+    && normalizedStatusKind(packet.status) === "DONE"
+  ) {
+    return new Set(["MERGE_PENDING"]);
+  }
+
+  return expectedBoardTokens(normalizedStatusKind(packet.status), false);
+}
+
 function readPacketInventory(dir, kind) {
   const entries = [];
   if (!fs.existsSync(dir)) return entries;
@@ -178,7 +194,7 @@ for (const [baseWpId, registryRow] of registryRows.entries()) {
       `${TASK_BOARD_PATH}: missing projection entry for active packet ${activePacket.packetId} (BASE_WP_ID=${baseWpId})`
     );
   } else {
-    const expected = expectedBoardTokens(normalizedStatusKind(activePacket.status), activePacket.kind === "stub");
+    const expected = expectedBoardTokensForPacket(activePacket);
     if (expected.size === 0) {
       violations.push(
         `${activePacket.filePath}: cannot derive Task Board projection from packet status "${activePacket.status}" for active packet ${activePacket.packetId}`

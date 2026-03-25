@@ -234,6 +234,7 @@ export function buildValidatorReadyCommands({
       `just ack-notifications ${wpId} INTEGRATION_VALIDATOR ${session}`,
       `just wp-communication-health-check ${wpId} VERDICT`,
       `just validator-handoff-check ${wpId}`,
+      `just integration-validator-closeout-check ${wpId}`,
     ];
   }
   if (role === "WP_VALIDATOR") {

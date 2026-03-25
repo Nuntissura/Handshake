@@ -178,6 +178,33 @@
       "type": "string",
       "minLength": 1
     },
+    "main_containment_status": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "NOT_STARTED",
+        "MERGE_PENDING",
+        "CONTAINED_IN_MAIN",
+        "NOT_REQUIRED",
+        null
+      ]
+    },
+    "merged_main_commit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-fA-F]{7,40}$"
+    },
+    "main_containment_verified_at_utc": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
     "runtime_status": {
       "enum": [
         "submitted",

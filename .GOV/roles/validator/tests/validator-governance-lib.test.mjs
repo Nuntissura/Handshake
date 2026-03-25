@@ -194,5 +194,6 @@ test("integration-validator ready commands emphasize final review and verdict he
     "just ack-notifications WP-TEST-VALIDATOR-v1 INTEGRATION_VALIDATOR intval:test",
     "just wp-communication-health-check WP-TEST-VALIDATOR-v1 VERDICT",
     "just validator-handoff-check WP-TEST-VALIDATOR-v1",
+    "just integration-validator-closeout-check WP-TEST-VALIDATOR-v1",
   ]);
 });

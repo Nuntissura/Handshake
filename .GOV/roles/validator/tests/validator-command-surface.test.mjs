@@ -14,6 +14,7 @@ test("justfile exposes the live validator command surface referenced by validato
   const justfile = fs.readFileSync(JUSTFILE_PATH, "utf8");
   const requiredRecipes = [
     "validator-handoff-check",
+    "integration-validator-closeout-check",
     "external-validator-brief",
     "gate-check",
     "spec-eof-appendices-check",

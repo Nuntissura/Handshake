@@ -24,6 +24,10 @@ Packet lifecycle truth lives in the packet or stub metadata itself. This registr
 
 - **Active Packet**: The single packet file that is currently authoritative for implementation/validation of a Base WP.
 
+- **Historical Failed Packet**: A prior packet revision whose earlier closure or PASS claim is no longer accepted as trustworthy under current audit or governance law.
+
+- **Live Smoketest Baseline**: A historical failed packet that must still remain visible as the comparison baseline for a current recovery or proof run. This does not reopen execution on the historical packet itself.
+
 - **Superseded Packet**: A prior packet revision that is no longer authoritative. Superseded packets are immutable history; do not ???catch them up???.
   - Deterministic rule: if two or more official packets share the same `BASE_WP_ID`, the packet listed here is the active one; all others are older history and must appear under `## Superseded (Archive)` on `.GOV/roles_shared/records/TASK_BOARD.md`.
 
@@ -38,6 +42,10 @@ Packet lifecycle truth lives in the packet or stub metadata itself. This registr
    - Create a **new packet revision** `...-v{N}` (do not edit locked history).
    - Mark the older packet as **Superseded** on `.GOV/roles_shared/records/TASK_BOARD.md`.
    - Update this registry to point the Base WP to the new Active Packet.
+5. If a historical packet remains relevant as a live smoketest baseline after being judged incomplete or false-closed:
+   - keep the new recovery packet as the **Active Packet**
+   - keep the historical packet under `## Superseded (Archive)` on the Task Board
+   - also record the pair under `## Historical Failure + Live Smoketest Lineage` so failed historical closure and live smoketest lineage remain separate modeled truths
 
 **Registry update is mandatory whenever more than one packet exists for the same Base WP.** If mapping is missing or ambiguous, the WP is governance-blocked until resolved.
 
@@ -176,7 +184,7 @@ Format:
 | WP-1-Loom-Preview-VideoPosterFrames | .GOV/task_packets/stubs/WP-1-Loom-Preview-VideoPosterFrames-v1.md | Stub Backlog (Not Activated): WP-1-Loom-Preview-VideoPosterFrames-v1 | stub (audit remediation); Tier-1 video poster frames per ThumbnailSpec |
 | WP-1-ASR-Transcribe-Media | .GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.md | Stub Backlog (Not Activated): WP-1-ASR-Transcribe-Media-v1 | stub (audit remediation); local-first ASR transcription job wiring |
 | WP-1-Video-Archive-Loom-Integration | .GOV/task_packets/stubs/WP-1-Video-Archive-Loom-Integration-v1.md | Stub Backlog (Not Activated): WP-1-Video-Archive-Loom-Integration-v1 | stub (Operator request); Loom/Lens/ASR integration for large video libraries |
-| WP-1-Loom-Storage-Portability | .GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v4.md | Stub Backlog (Not Activated): WP-1-Loom-Storage-Portability-v4 | active=WP-1-Loom-Storage-Portability-v4; v3 is blocked legacy history after AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT; supersedes historical packets/stubs: WP-1-Loom-Storage-Portability-v3, WP-1-Loom-Storage-Portability-v2, WP-1-Loom-Storage-Portability-v1 |
+| WP-1-Loom-Storage-Portability | .GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v4.md | Stub Backlog (Not Activated): WP-1-Loom-Storage-Portability-v4 | active=WP-1-Loom-Storage-Portability-v4; historical failure/live smoketest lineage is modeled below; supersedes historical packets/stubs: WP-1-Loom-Storage-Portability-v3, WP-1-Loom-Storage-Portability-v2, WP-1-Loom-Storage-Portability-v1 |
 | WP-1-Inbox-Role-Mailbox-Alignment | .GOV/task_packets/stubs/WP-1-Inbox-Role-Mailbox-Alignment-v1.md | Stub Backlog (Not Activated): WP-1-Inbox-Role-Mailbox-Alignment-v1 | stub (spec v02.120); new roadmap item |
 | WP-1-Autonomous-Governance-Protocol | .GOV/task_packets/WP-1-Autonomous-Governance-Protocol-v2.md | Done: WP-1-Autonomous-Governance-Protocol-v2 | active=WP-1-Autonomous-Governance-Protocol-v2; activated from stub .GOV/task_packets/stubs/WP-1-Autonomous-Governance-Protocol-v1.md; anchored to spec v02.132 |
 | WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry | .GOV/task_packets/stubs/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1.md | Stub Backlog (Not Activated): WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 | stub (spec v02.122); new Phase 1 roadmap addition |
@@ -208,7 +216,7 @@ Format:
 | WP-1-Structured-Collaboration-Artifact-Family | .GOV/task_packets/WP-1-Structured-Collaboration-Artifact-Family-v1.md | Done: WP-1-Structured-Collaboration-Artifact-Family-v1 | active=WP-1-Structured-Collaboration-Artifact-Family-v1; activated from stub .GOV/task_packets/stubs/WP-1-Structured-Collaboration-Artifact-Family-v1.md |
 | WP-1-Structured-Collaboration-Contract-Hardening | .GOV/task_packets/WP-1-Structured-Collaboration-Contract-Hardening-v1/packet.md | Done: WP-1-Structured-Collaboration-Contract-Hardening-v1 | active=WP-1-Structured-Collaboration-Contract-Hardening-v1; activated from stub .GOV/task_packets/stubs/WP-1-Structured-Collaboration-Contract-Hardening-v1.md; closes remaining Master Spec contract gaps from AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW; smoketest closeout recorded in AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW / SMOKETEST-REVIEW-20260325-CONTRACT-HARDENING-V1; merged to main at c6e8ba2bf23ff9061b20f83a31567a6e47b322fe |
 | WP-1-Structured-Collaboration-Governed-Next-Action-Alignment | .GOV/task_packets/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/packet.md | Done: WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1 | active=WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1; activated from stub .GOV/task_packets/stubs/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1.md; closes governed compact-summary `next_action` alignment after AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW; merged to main at 154445243c0b28dc910454b97b0f7df2935529c7 |
-| WP-1-Structured-Collaboration-Schema-Registry | .GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v4/packet.md | Stub Backlog (Not Activated): WP-1-Structured-Collaboration-Schema-Registry-v4 | active=WP-1-Structured-Collaboration-Schema-Registry-v4; v3 is blocked legacy history after AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT; supersedes historical packets/stubs: WP-1-Structured-Collaboration-Schema-Registry-v3, WP-1-Structured-Collaboration-Schema-Registry-v2, WP-1-Structured-Collaboration-Schema-Registry-v1 |
+| WP-1-Structured-Collaboration-Schema-Registry | .GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v4/packet.md | Done: WP-1-Structured-Collaboration-Schema-Registry-v4 | active=WP-1-Structured-Collaboration-Schema-Registry-v4; historical failure/live smoketest lineage is modeled below; supersedes historical packets/stubs: WP-1-Structured-Collaboration-Schema-Registry-v3, WP-1-Structured-Collaboration-Schema-Registry-v2, WP-1-Structured-Collaboration-Schema-Registry-v1 |
 | WP-1-Project-Profile-Extension-Registry | .GOV/task_packets/stubs/WP-1-Project-Profile-Extension-Registry-v1.md | Stub Backlog (Not Activated): WP-1-Project-Profile-Extension-Registry-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Project-Agnostic-Workflow-State-Registry | .GOV/task_packets/stubs/WP-1-Project-Agnostic-Workflow-State-Registry-v1.md | Stub Backlog (Not Activated): WP-1-Project-Agnostic-Workflow-State-Registry-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Workflow-Transition-Automation-Registry | .GOV/task_packets/stubs/WP-1-Workflow-Transition-Automation-Registry-v1.md | Stub Backlog (Not Activated): WP-1-Workflow-Transition-Automation-Registry-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
@@ -229,3 +237,12 @@ Format:
 | WP-1-Project-Brain-Runtime-Backfill | .GOV/task_packets/stubs/WP-1-Project-Brain-Runtime-Backfill-v1.md | Stub Backlog (Not Activated): WP-1-Project-Brain-Runtime-Backfill-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-LLM-Provider-Registry | .GOV/task_packets/WP-1-LLM-Provider-Registry-v1.md | Done: WP-1-LLM-Provider-Registry-v1 | active=WP-1-LLM-Provider-Registry-v1; activated from stub .GOV/task_packets/stubs/WP-1-LLM-Provider-Registry-v1.md |
 | WP-1-Spec-Appendices-Backfill | .GOV/task_packets/WP-1-Spec-Appendices-Backfill-v1.md | Done: WP-1-Spec-Appendices-Backfill-v1 | active=WP-1-Spec-Appendices-Backfill-v1; canonical appendix and matrix backfill passes validated through v02.178 |
+
+## Historical Failure + Live Smoketest Lineage
+
+Use this section when a historical packet must remain visible as a failed closure and as the baseline for a current or future smoketest recovery line. The active recovery packet still lives in the main registry above.
+
+| Base WP ID | Historical Failed Packet | Historical Classification | Live Smoketest Status | Active Recovery Packet | Driver Audit | Latest Smoketest Review |
+|-----------:|--------------------------|---------------------------|----------------------|------------------------|--------------|-------------------------|
+| WP-1-Structured-Collaboration-Schema-Registry | WP-1-Structured-Collaboration-Schema-Registry-v3 | FAILED_HISTORICAL_CLOSURE | LIVE_SMOKETEST_BASELINE_RECOVERED | WP-1-Structured-Collaboration-Schema-Registry-v4 | AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT | SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4 |
+| WP-1-Loom-Storage-Portability | WP-1-Loom-Storage-Portability-v3 | FAILED_HISTORICAL_CLOSURE | LIVE_SMOKETEST_BASELINE_PENDING | WP-1-Loom-Storage-Portability-v4 | AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT | NONE |

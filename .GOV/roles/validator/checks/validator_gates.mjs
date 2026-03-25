@@ -438,6 +438,9 @@ if (action === 'append') {
                 '[NEXT] Record committed handoff validation against the PREPARE worktree source of truth:',
                 `[NEXT] Run: just validator-handoff-check ${wpId}`,
                 '',
+                '[NEXT] Preflight the integration-validator final lane before PASS commit clearance:',
+                `[NEXT] Run: just integration-validator-closeout-check ${wpId}`,
+                '',
                 '[NEXT] After the committed handoff check passes, record PASS commit clearance:',
                 `[NEXT] Run: just validator-gate-commit ${wpId}`
             ]);
@@ -534,6 +537,16 @@ if (action === 'commit') {
     if (communicationHealth.code !== 0) {
         fail(`Cannot commit: ${wpId} is missing verdict-ready direct review communication evidence`, [
             ...communicationHealth.output.split(/\r?\n/).filter(Boolean),
+        ]);
+    }
+
+    const closeoutPreflight = runNode([
+        `${GOV_ROOT_REPO_REL}/roles/validator/checks/integration-validator-closeout-check.mjs`,
+        wpId,
+    ]);
+    if (closeoutPreflight.code !== 0) {
+        fail(`Cannot commit: ${wpId} failed integration-validator closeout preflight`, [
+            ...closeoutPreflight.output.split(/\r?\n/).filter(Boolean),
         ]);
     }
 

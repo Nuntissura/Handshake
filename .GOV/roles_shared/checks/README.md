@@ -9,6 +9,7 @@ Repo-shared checks live here.
 - `refinement-check.mjs`
 - `task-board-check.mjs`
 - `packet-truth-check.mjs`
+- `historical-smoketest-lineage-check.mjs`
 - `task-packet-claim-check.mjs`
 - `build-order-check.mjs`
 - `topology-registry-check.mjs`

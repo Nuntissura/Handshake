@@ -98,6 +98,16 @@ See also:
 - If tool output conflicts with this protocol or `.GOV/codex/Handshake_Codex_v1.4.md`, stop and escalate to the Operator.
 - Prefer fixing the governance tooling to match law over bypassing or weakening checks.
 
+## Read-Amplification and Ambiguity Discipline
+
+- After startup and assignment, default to the minimal live read set:
+  - startup output
+  - the active packet
+  - active WP communications and notifications
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` when a command choice is unclear
+- Repeated full rereads of large governance protocols, repeated command-surface rediscovery, repeated `just --list`-style inspection, and repeated path/source-of-truth checks after context is already stable are ambiguity signals, not neutral diligence.
+- If the Orchestrator needs that repeated rereading to keep a run moving, treat it as governance debt and capture it in the next smoketest review under the ambiguity scan.
+
 ## Governance Folder Structure (Authoritative Placement Rules)
 
 This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative placement rules for Orchestrator-owned governance surfaces. READMEs and onboarding files are navigational only.
@@ -179,6 +189,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - `just pre-work WP-{ID}` is the blocking packet-integrity gate before handoff.
 - `just post-work WP-{ID}` is the deterministic closure gate before done/commit claims.
 - For validator PASS clearance on orchestrator-managed WPs, prefer `just validator-handoff-check WP-{ID}` so validation runs against the PREPARE worktree source of truth.
+- Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just integration-validator-closeout-check WP-{ID}`. If that preflight fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth.
 
 ## Branching & Concurrency
 
@@ -294,7 +305,7 @@ Resume rule:
 
 ## Deterministic Helpers
 
-- `just task-board-set WP-{ID} READY_FOR_DEV|IN_PROGRESS|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|STUB|BLOCKED|SUPERSEDED ["reason"]`
+- `just task-board-set WP-{ID} READY_FOR_DEV|IN_PROGRESS|DONE_MERGE_PENDING|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|STUB|BLOCKED|SUPERSEDED ["reason"]`
 - `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID`
 - `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
@@ -456,7 +467,8 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 - The packet is authoritative for scope, mutable closure monitoring, and validation truth.
 - `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, and `BUILD_ORDER.md` are projections and must reconcile to packet truth.
 - Orchestrator owns planning visibility and blockers.
-- Validator-owned completion states on `main` remain packet-backed only: `[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`.
+- Validator-owned completion states on `main` remain packet-backed only: `[MERGE_PENDING]`, `[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`.
+- For `PACKET_FORMAT_VERSION >= 2026-03-25`, `Done` means validator PASS is recorded but merge-to-main containment is still pending. `Validated (PASS)` is reserved for packets whose approved closure commit is already contained in local `main`.
 - Do not narrate a WP as fully correct or spec-aligned unless the packet's validator report and split verdicts explicitly support that claim.
 - Treat `CLAUSE_CLOSURE_MATRIX`, `SPEC_DEBT_STATUS`, `SHARED_SURFACE_MONITORING`, and `SEMANTIC_PROOF_ASSETS` as live closure truth.
 
@@ -481,6 +493,7 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 - If a locked packet points at the wrong clause or wrong scope, create a correcting variant or superseding packet.
 - Do not add in-place errata to a locked packet merely because the correction feels small.
 - If Task Board or traceability projections drift from packet truth, repair the projections to match the packet.
+- For governed role-session runtime truth, prefer the broker and `session-*` helpers before any manual repair. Recoverable missing terminal result rows now self-settle through the governed runtime path; if that path does not converge, treat it as a real runtime defect rather than editing ledgers by hand.
 
 ### Spec Drift After Validation
 

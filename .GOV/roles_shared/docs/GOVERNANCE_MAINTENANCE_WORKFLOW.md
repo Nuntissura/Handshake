@@ -42,6 +42,7 @@ If the planned change touches product code or the Master Spec, stop and use the 
 - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
 - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
 - `.GOV/templates/AUDIT_TEMPLATE.md`
+- `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`
 
 ## Workflow
 
@@ -50,7 +51,10 @@ If the planned change touches product code or the Master Spec, stop and use the 
 2. Open or update the evidence document.
    - Give the audit or review a stable `AUDIT_ID`.
    - If it is a smoketest review, also assign a stable `SMOKETEST_REVIEW_ID`.
+   - If the review is driven by a failed historical packet that still remains the live smoketest baseline, record `HISTORICAL_BASELINE_PACKET`, `ACTIVE_RECOVERY_PACKET`, and `LINEAGE_STATUS`, then sync the lineage model in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` and `.GOV/roles_shared/records/TASK_BOARD.md`.
    - If it follows an earlier smoketest review, include a short explicit subsection named `What Improved vs Previous Smoketest` so recovery and closeout passes stay directly comparable.
+   - Every smoketest review, closeout review, workflow-proof review, or workflow comparison audit must include the required `Post-Smoketest Improvement Rubric` section using `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`.
+   - Every such review must also include the required `Silent Failures, Command Surface Misuse, and Ambiguity Scan` section. Treat repeated governance-document rereads, repeated command discovery, repeated wrong-tool usage, and repeated path/source-of-truth checks as explicit evidence of ambiguity and token-cost waste.
 3. Open or update the governance item.
    - Add or update the row in `REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`.
    - Record dependencies, evidence IDs, primary surfaces, and the exit signal.

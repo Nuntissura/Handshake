@@ -40,6 +40,8 @@ await import("./packet-closure-monitor-check.mjs");
 await import("./semantic-proof-check.mjs");
 await import("./computed-policy-gate-check.mjs");
 await import("./packet-truth-check.mjs");
+await import("./merge-progression-truth-check.mjs");
+await import("./historical-smoketest-lineage-check.mjs");
 await import("./wp-communications-check.mjs");
 await import("./build-order-check.mjs");
 await import("./task-packet-claim-check.mjs");

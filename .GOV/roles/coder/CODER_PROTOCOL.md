@@ -106,6 +106,16 @@ Sub-agent delegation note (HARD):
 - Do not bypass gates to "make progress"; prefer fixing governance/tooling first.
 - Treat governance weakness that hides proof gaps as a product-grade defect in the harness, not as acceptable process debt.
 
+## Read-Amplification and Ambiguity Discipline
+
+- After startup and assignment, default to the minimal live read set:
+  - startup output
+  - the active packet
+  - active WP thread and notifications
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` when a command choice is unclear
+- Repeated full rereads of large governance protocols, repeated command-surface rediscovery, and repeated worktree/path/source-of-truth checks after context is already stable should be treated as ambiguity signals, not as normal coding diligence.
+- If that churn keeps happening, call it out in handoff evidence or review notes instead of silently normalizing it.
+
 ## Governance Folder Structure (Authoritative Placement Rules)
 
 This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative placement rules for Coder-owned governance surfaces. README and onboarding files are navigational only.
@@ -488,7 +498,7 @@ Task state is managed by the agent currently holding the "ball":
 2. **Coder**: Starts work -> Updates work packet to `In Progress` + pushes a docs-only bootstrap commit.
    - Pushes it to the assigned WP backup branch on GitHub so the WP has a clean restart point before later local merges/cleanup.
 3. **Validator**: Status-syncs `.GOV/roles_shared/records/TASK_BOARD.md` on `main` (updates `## Active (Cross-Branch Status)` for Operator visibility).
-4. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
+4. **Validator**: Approves work -> Moves to `Done` / `[MERGE_PENDING]` during validation, then promotes to `Validated (PASS)` / `[VALIDATED]` only after main containment is real.
 5. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
 
 **Historical Done rule:** If a packet is marked `**Status:** Done (Historical)` (or the board marks it as historical/outdated-only), do not reopen or modify it. If new-spec work is required, request a NEW remediation WP variant from the Orchestrator.
