@@ -175,10 +175,11 @@ Do not use helper agents/subagents for Coder or Validator duties, and do not let
   - `runtime-write`
   - retire steerable thread registration for that lane
 - Generic wrappers:
-  - `just session-start <ROLE> WP-{ID} [PRIMARY|FALLBACK]`
-  - `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
-  - `just session-cancel <ROLE> WP-{ID}`
-  - `just session-close <ROLE> WP-{ID}`
+- `just session-start <ROLE> WP-{ID} [PRIMARY|FALLBACK]`
+- `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
+- `just session-cancel <ROLE> WP-{ID}`
+- `just session-close <ROLE> WP-{ID}`
+    - these governed helpers now attempt deterministic self-settlement for their own request ids when a broker dispatch or wait path returns without a terminal result row
 
 ## Packet communication surface
 

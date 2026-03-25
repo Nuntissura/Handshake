@@ -19,6 +19,7 @@ import {
   resolveRoleConfig,
   selectModel,
 } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
+import { settleRecoverableSessionControlResults } from "../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
 import { callHandshakeAcpMethod } from "../../../roles_shared/scripts/session/handshake-acp-client.mjs";
 import {
   SESSION_CONTROL_RUN_STALE_GRACE_SECONDS,
@@ -168,12 +169,31 @@ if (commandKind === "CANCEL_SESSION") {
         },
       };
     } else {
-      fail(`Broker cancel dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
+      settleRecoverableSessionControlResults(repoRoot, { commandIds: [request.command_id, targetCommandId].filter(Boolean) });
+      const recoveredResult = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id);
+      if (recoveredResult) {
+        acpResponse = {
+          result: {
+            command_id: recoveredResult.command_id,
+            session_id: recoveredResult.session_key,
+            status: String(recoveredResult.cancel_status || recoveredResult.status || "").toLowerCase(),
+            output_jsonl_file: recoveredResult.output_jsonl_file || request.output_jsonl_file,
+            error: recoveredResult.error || "",
+            run_id: recoveredResult.target_command_id || targetCommandId,
+          },
+        };
+      } else {
+        fail(`Broker cancel dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
+      }
     }
   }
 
   const response = acpResponse.result || {};
-  const settledCancel = await waitForSettledResult(repoRoot, request.command_id);
+  let settledCancel = await waitForSettledResult(repoRoot, request.command_id);
+  if (!settledCancel) {
+    settleRecoverableSessionControlResults(repoRoot, { commandIds: [request.command_id, targetCommandId].filter(Boolean) });
+    settledCancel = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id) || null;
+  }
   if (!settledCancel) {
     fail(`Cancel request ${request.command_id} did not settle within 30s`);
   }
@@ -190,7 +210,11 @@ if (commandKind === "CANCEL_SESSION") {
   if (settledCancel.error) console.log(`[SESSION_CONTROL] error=${settledCancel.error}`);
 
   if ((settledCancel.cancel_status || response.status) === "cancellation_requested") {
-    const settledTarget = await waitForSettledResult(repoRoot, targetCommandId);
+    let settledTarget = await waitForSettledResult(repoRoot, targetCommandId);
+    if (!settledTarget) {
+      settleRecoverableSessionControlResults(repoRoot, { commandIds: [targetCommandId].filter(Boolean) });
+      settledTarget = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === targetCommandId) || null;
+    }
     if (!settledTarget) {
       fail(`Cancellation requested for ${targetCommandId}, but the target run did not settle within 30s`);
     }
@@ -243,12 +267,31 @@ if (commandKind === "CLOSE_SESSION") {
         },
       };
     } else {
-      fail(`Broker close dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
+      settleRecoverableSessionControlResults(repoRoot, { commandIds: [request.command_id] });
+      const recoveredResult = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id);
+      if (recoveredResult) {
+        acpResponse = {
+          result: {
+            command_id: recoveredResult.command_id,
+            session_id: recoveredResult.session_key,
+            status: String(recoveredResult.status || "").toLowerCase(),
+            output_jsonl_file: recoveredResult.output_jsonl_file || request.output_jsonl_file,
+            error: recoveredResult.error || "",
+            thread_id: recoveredResult.thread_id || "",
+          },
+        };
+      } else {
+        fail(`Broker close dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
+      }
     }
   }
 
   const response = acpResponse.result || {};
-  const settledClose = await waitForSettledResult(repoRoot, request.command_id);
+  let settledClose = await waitForSettledResult(repoRoot, request.command_id);
+  if (!settledClose) {
+    settleRecoverableSessionControlResults(repoRoot, { commandIds: [request.command_id] });
+    settledClose = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id) || null;
+  }
   if (!settledClose) {
     fail(`Close request ${request.command_id} did not settle within 30s`);
   }
@@ -331,7 +374,24 @@ try {
       },
     };
   } else {
-    fail(`Broker dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
+    settleRecoverableSessionControlResults(repoRoot, { commandIds: [request.command_id] });
+    const recoveredResult = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id);
+    if (recoveredResult) {
+      acpResponse = {
+        result: {
+          command_id: recoveredResult.command_id,
+          session_id: recoveredResult.session_key,
+          thread_id: recoveredResult.thread_id || "",
+          status: String(recoveredResult.status || "").toLowerCase(),
+          output_jsonl_file: recoveredResult.output_jsonl_file || request.output_jsonl_file,
+          last_agent_message: recoveredResult.last_agent_message || "",
+          error: recoveredResult.error || "",
+          duration_ms: recoveredResult.duration_ms || 0,
+        },
+      };
+    } else {
+      fail(`Broker dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
+    }
   }
 }
 

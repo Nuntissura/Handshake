@@ -55,7 +55,7 @@
 | RGF-02 | DONE | Orchestrator Helper-Agent Product-Code Boundary | RGF-01 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4` | `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `roles/orchestrator/checks/orchestrator_gates.mjs` | helper agents cannot write product code unless explicit operator approval is recorded in packet fields |
 | RGF-03 | DONE | Merge Progression Truth and Main Containment Gate | - | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` + `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | final review gates, closeout scripts, `TASK_BOARD.md`, runtime status surfaces | a validated PASS cannot close while the approved commit is absent from `main` unless status explicitly remains awaiting integration |
 | RGF-04 | DONE | Integration-Validator Topology Preflight and Atomic Closeout | RGF-03 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` + `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | ACP broker control/status, final review scripts, session registry reconciliation | final review either finishes coherently or fails before partial closeout truth is written |
-| RGF-05 | READY | Session-Control Self-Settlement and Orphan Prevention | RGF-04 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` + `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | `SESSION_CONTROL_REQUESTS.jsonl`, `SESSION_CONTROL_RESULTS.jsonl`, broker outputs, repair helpers | every control request lands exactly one terminal result and orphaned rejected prompts stop requiring manual truth repair |
+| RGF-05 | DONE | Session-Control Self-Settlement and Orphan Prevention | RGF-04 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` + `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | `SESSION_CONTROL_REQUESTS.jsonl`, `SESSION_CONTROL_RESULTS.jsonl`, broker outputs, repair helpers | every control request lands exactly one terminal result and orphaned rejected prompts stop requiring manual truth repair |
 | RGF-06 | PLANNED | Historical Failure vs Live Smoketest Modeling | RGF-03 | `AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT` + `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` | `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, smoke-review naming, changelog linkage | failed historical closure and active smoketest lineage can coexist without split truth |
 | RGF-07 | DONE | Operator-Facing Scope Split Discipline | - | `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles/coder/CODER_PROTOCOL.md`, `roles/validator/VALIDATOR_PROTOCOL.md`, `roles_shared/docs/START_HERE.md`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `../handshake_main/AGENTS.md` | operator-facing answers now explicitly split `Handshake (Product)` from `Repo Governance`, and governance-themed product code is no longer mislabeled as repo governance |
 | RGF-08 | DONE | Minimal Live Read Set and Startup Prompt Anti-Rediscovery Discipline | RGF-07 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | `roles_shared/scripts/session/session-control-lib.mjs`, `roles_shared/checks/protocol-alignment-check.mjs`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, role protocols, `SMOKETEST_REVIEW_TEMPLATE.md` | governed startup prompts now carry a minimal live read set, repeated protocol rereads/command rediscovery are treated as ambiguity signals, and protocol-alignment checks enforce the prompt contract |
@@ -75,12 +75,11 @@
 
 ## Follow-On Sequence
 
-1. `RGF-05`
-2. `RGF-06`
-3. `RGF-09`
-4. `RGF-10`
-5. `RGF-11`
-6. `RGF-12`
+1. `RGF-06`
+2. `RGF-09`
+3. `RGF-10`
+4. `RGF-11`
+5. `RGF-12`
 
 ## Explicit Holds
 

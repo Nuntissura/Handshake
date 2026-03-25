@@ -230,3 +230,22 @@
   - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: orchestrator-managed final review now has a machine-checked preflight for topology safety and WP-scoped atomic closeout, and PASS commit clearance fails before partial closure truth can be written when that preflight is not satisfied
+
+### 2026.03.25.13 / GOV-CHANGE-20260325-13
+
+- STATUS: APPLIED
+- SUMMARY: added deterministic session-control self-settlement so recoverable orphaned requests gain exactly one terminal result row without manual ledger repair
+- CHANGE_TYPE: ACP_RUNTIME_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW`
+  - `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-control-self-settle-lib.mjs`
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles_shared/tests/session-control-self-settle-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: broker startup and governed session-control helpers now auto-recover missing terminal result rows for recoverable orphan cases, which reduces manual runtime truth repair and makes `SESSION_CONTROL_REQUESTS` -> `SESSION_CONTROL_RESULTS` convergence machine-driven

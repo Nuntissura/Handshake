@@ -493,6 +493,7 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 - If a locked packet points at the wrong clause or wrong scope, create a correcting variant or superseding packet.
 - Do not add in-place errata to a locked packet merely because the correction feels small.
 - If Task Board or traceability projections drift from packet truth, repair the projections to match the packet.
+- For governed role-session runtime truth, prefer the broker and `session-*` helpers before any manual repair. Recoverable missing terminal result rows now self-settle through the governed runtime path; if that path does not converge, treat it as a real runtime defect rather than editing ledgers by hand.
 
 ### Spec Drift After Validation
 

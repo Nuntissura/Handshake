@@ -22,6 +22,7 @@ import {
   runCodexThreadCommand,
   validateSessionControlRequestShape,
 } from "../../roles_shared/scripts/session/session-control-lib.mjs";
+import { settleRecoverableSessionControlResults } from "../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
 import {
   SESSION_ACTIVE_TERMINAL_KIND_NONE,
   SESSION_CONTROL_BROKER_AUTH_MODE,
@@ -299,6 +300,12 @@ function reconcileOrphanedRuns() {
       appendJsonlLine(resultsPath, result);
     }
   }
+}
+
+function reconcileRecoverableRequests() {
+  settleRecoverableSessionControlResults(repoRoot, {
+    brokerState: loadBrokerState(),
+  });
 }
 
 function validateGovernedRequest(request, expectedCommandKind) {
@@ -943,6 +950,7 @@ function shutdown() {
 
 ensureSessionStateFiles(repoRoot);
 reconcileOrphanedRuns();
+reconcileRecoverableRequests();
 
 const prior = loadBrokerState();
 if (prior.broker_pid && prior.broker_pid !== process.pid && isProcessAlive(prior.broker_pid)) {
