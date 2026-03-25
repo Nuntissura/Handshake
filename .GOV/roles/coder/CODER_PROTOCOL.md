@@ -40,8 +40,8 @@ You receive a work packet from the Orchestrator. You implement exactly what it s
 - A Coder may push only the assigned WP backup branch recorded in the work packet.
 - Treat the assigned WP backup branch as the WP phase-boundary recovery branch for coder work. It should hold the latest committed restart-safe WP state at the key workflow checkpoints you create or consume.
 - Minimum recovery milestones for the WP backup branch are:
-  - skeleton checkpoint marker commit (`just coder-skeleton-checkpoint WP-{ID}` — empty commit, no `.GOV/` files)
-  - skeleton approval commit present on the WP branch before implementation continues
+  - skeleton checkpoint marker commit (`just coder-skeleton-checkpoint WP-{ID}` — empty commit, no `.GOV/` files) for `MANUAL_RELAY` lanes only
+  - skeleton approval commit present on the WP branch before implementation continues for `MANUAL_RELAY` lanes only
   - [CX-212D] Work packet and refinement safety lives in `gov_kernel`, not on the feature branch
 - Before destructive or state-hiding local git actions on the WP branch (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the assigned WP backup branch on GitHub.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
@@ -521,6 +521,7 @@ Hard gate (ANTI-VIBECODE — no unreviewed, unscoped, or approval-skipping code 
 
 Forbidden: any product code changes (`src/`, `app/`, `tests/`) before a docs-only skeleton checkpoint commit exists on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
 Forbidden: any product code changes (`src/`, `app/`, `tests/`) without a skeleton approval commit on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
+For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, this checkpoint/approval subflow is forbidden. Do not run `just coder-skeleton-checkpoint` or `just skeleton-approved`; those commands now record `WORKFLOW_INVALIDITY` and fail. In orchestrator-managed lanes, `just pre-work` leads directly from BOOTSTRAP into IMPLEMENTATION.
 1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.
 2. **SKELETON Phase**: Update the work packet `## SKELETON` section with proposed Traits/Structs/SQL headers, output the SKELETON block, and create a docs-only skeleton checkpoint commit.
 3. **SKELETON APPROVAL Gate** (Operator/Validator only): STOP. Wait for `just skeleton-approved WP-{ID}` to be run (creates `docs: skeleton approved [WP-{ID}]` commit on the WP branch).
@@ -766,7 +767,7 @@ Goal: make "work started" visible to the Operator on `main` **without** blocking
 
 **[CX-212D] Do NOT commit `.GOV/` files on your feature branch.** The work packet edits you made above are written through the `.GOV/` junction and land in the governance kernel. The orchestrator commits them on `gov_kernel`.
 
-For `PACKET_FORMAT_VERSION >= 2026-03-15`, this bootstrap claim checkpoint is mechanically enforced before the docs-only skeleton checkpoint helper will proceed. Use:
+For `MANUAL_RELAY` packets with `PACKET_FORMAT_VERSION >= 2026-03-15`, this bootstrap claim checkpoint is mechanically enforced before the docs-only skeleton checkpoint helper will proceed. Use:
 
 ```bash
 node .GOV/roles/coder/checks/coder-bootstrap-claim.mjs WP-{ID}
@@ -851,7 +852,9 @@ RISK_MAP:
 
 ---
 
-### Step 5.5: Output SKELETON Block + Skeleton Checkpoint Commit âœ‹ STOP
+### Step 5.5: Output SKELETON Block + Skeleton Checkpoint Commit âœ‹ STOP (`MANUAL_RELAY` only)
+
+For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, skip this subflow entirely. Do not run the checkpoint/approval helpers; continue within the governed ACP lane after `just pre-work` passes.
 
 **Purpose:** Make the proposed interfaces/types/contracts explicit and get approval before implementation (per [CX-GATE-001], [CX-625]).
 
@@ -883,11 +886,11 @@ PROPOSED_CONTRACTS:
 OPEN_QUESTIONS:
 - {question 1, if any}
 
-NEXT: Create a docs-only skeleton checkpoint commit. STOP. Await Operator/Validator approval via: just skeleton-approved WP-{ID}. Then re-run just pre-work WP-{ID} and proceed to implementation.
+NEXT: For `MANUAL_RELAY`, create a docs-only skeleton checkpoint commit. STOP. Await Operator/Validator approval via: just skeleton-approved WP-{ID}. Then re-run just pre-work WP-{ID} and proceed to implementation.
 ========================================
 ```
 
-**Then create a docs-only skeleton checkpoint commit on your WP branch:**
+**Then create a docs-only skeleton checkpoint commit on your WP branch (`MANUAL_RELAY` only):**
 Recommended (safer, enforced docs-only):
 ```bash
 just coder-skeleton-checkpoint WP-{ID}
@@ -900,7 +903,7 @@ just coder-skeleton-checkpoint WP-{ID}
 
 [CX-212D] This creates an empty commit marker on the feature branch. The `## SKELETON` content lives in the work packet (governance kernel, via junction) — do NOT `git add` `.GOV/` files.
 
-STOP: request skeleton approval (Operator/Validator runs: `just skeleton-approved WP-{ID}`).
+STOP (`MANUAL_RELAY` only): request skeleton approval (Operator/Validator runs: `just skeleton-approved WP-{ID}`).
 After the approval commit exists (`docs: skeleton approved [WP-{ID}]`):
 - re-run `just pre-work WP-{ID}`
 - then proceed to implementation

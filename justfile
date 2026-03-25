@@ -344,6 +344,9 @@ wp-thread-append wp-id actor_role actor_session message target="" target_role=""
 wp-receipt-append wp-id actor_role actor_session receipt_kind summary state_before="" state_after="" target_role="" target_session="" correlation_id="" requires_ack="" ack_for="" spec_anchor="" packet_row_ref="":
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-receipt-append.mjs {{wp-id}} {{actor_role}} {{actor_session}} {{receipt_kind}} "{{summary}}" "{{state_before}}" "{{state_after}}" "{{target_role}}" "{{target_session}}" "{{correlation_id}}" "{{requires_ack}}" "{{ack_for}}" "{{spec_anchor}}" "{{packet_row_ref}}"
 
+wp-invalidity-flag wp-id actor_role actor_session invalidity_code summary spec_anchor="" packet_row_ref="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-invalidity-flag.mjs {{wp-id}} {{actor_role}} {{actor_session}} {{invalidity_code}} "{{summary}}" "{{spec_anchor}}" "{{packet_row_ref}}"
+
 wp-review-exchange receipt_kind wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" ack_for="":
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs {{receipt_kind}} {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}"
 

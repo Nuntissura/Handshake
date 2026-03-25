@@ -194,6 +194,9 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 - `just wp-receipt-append ...`
   - `runtime-write`
   - low-level deterministic receipt append
+- `just wp-invalidity-flag WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <INVALIDITY_CODE> ...`
+  - `runtime-write`
+  - records a machine-visible `WORKFLOW_INVALIDITY` receipt and routes attention back to the Orchestrator
 - `just wp-validator-kickoff ...`
 - `just wp-coder-intent ...`
 - `just wp-coder-handoff ...`
@@ -228,7 +231,8 @@ These are typically run from the WP-assigned worktree.
 - `just coder-skeleton-checkpoint WP-{ID}`
 - `just skeleton-approved WP-{ID}`
   - `governance-write`
-  - docs-only phase-boundary helpers
+  - docs-only phase-boundary helpers for `MANUAL_RELAY` only
+  - forbidden on `ORCHESTRATOR_MANAGED`; those invocations now fail and record `WORKFLOW_INVALIDITY`
 - `just product-scan`
 - `just validator-dal-audit`
 - `just validator-git-hygiene`

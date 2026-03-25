@@ -605,3 +605,36 @@ test("health check rejects resolution receipts with mismatched ack_for", () => {
   assert.equal(evaluation.ok, false);
   assert.equal(evaluation.state, "COMM_WAITING_FOR_INTENT");
 });
+
+test("workflow invalidity receipts block communication health and route back to orchestrator", () => {
+  const input = baseInput({
+    receipts: [
+      {
+        receipt_kind: "WORKFLOW_INVALIDITY",
+        workflow_invalidity_code: "ORCHESTRATOR_MANAGED_CHECKPOINT_RELAPSE",
+        actor_role: "ORCHESTRATOR",
+        actor_session: "orch-1",
+        target_role: "ORCHESTRATOR",
+        target_session: null,
+        correlation_id: null,
+        ack_for: null,
+        summary: "Manual checkpoint helper was invoked for an orchestrator-managed WP",
+        timestamp_utc: "2026-03-22T10:00:00Z",
+      },
+    ],
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+
+  assert.equal(evaluation.ok, false);
+  assert.equal(evaluation.state, "COMM_WORKFLOW_INVALID");
+  assert.match(evaluation.details.join("\n"), /latest_invalidity_code=ORCHESTRATOR_MANAGED_CHECKPOINT_RELAPSE/);
+  assert.equal(route.nextExpectedActor, "ORCHESTRATOR");
+  assert.equal(route.waitingOn, "WORKFLOW_INVALIDITY");
+  assert.equal(route.attentionRequired, true);
+});

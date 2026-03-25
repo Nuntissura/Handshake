@@ -120,6 +120,7 @@ const packetContent = loadPacket(wpId);
 const packetStatus = parseStatus(packetContent);
 const currentWpStatus = parseCurrentWpStatus(packetContent);
 const workflowLane = parseClaimField(packetContent, "WORKFLOW_LANE").toUpperCase();
+const usesSkeletonCheckpointGate = workflowLane !== "ORCHESTRATOR_MANAGED";
 const coderModel = parseClaimField(packetContent, "CODER_MODEL");
 const bootstrapClaim = hasCommitSubject(`^docs: bootstrap claim \\[${escapeRegex(wpId)}\\]$`);
 const skeletonCheckpoint = hasCommitSubject(`^docs: skeleton checkpoint \\[${escapeRegex(wpId)}\\]$`);
@@ -159,8 +160,8 @@ const commonFindings = [
   `Current WP_STATUS: ${currentWpStatus || "<empty>"}`,
   `Workflow lane: ${workflowLane || "<missing>"}`,
   `Bootstrap claim commit: ${bootstrapClaim ? "present" : "missing"}`,
-  `Skeleton checkpoint: ${skeletonCheckpoint ? "present" : "missing"}`,
-  `Skeleton approval: ${skeletonApproved ? "present" : "missing"}`,
+  `Skeleton checkpoint: ${usesSkeletonCheckpointGate ? (skeletonCheckpoint ? "present" : "missing") : "N/A (forbidden on ORCHESTRATOR_MANAGED)"}`,
+  `Skeleton approval: ${usesSkeletonCheckpointGate ? (skeletonApproved ? "present" : "missing") : "N/A (forbidden on ORCHESTRATOR_MANAGED)"}`,
 ];
 const coderGovernanceState = evaluateCoderPacketGovernanceState({
   wpId,
@@ -210,7 +211,7 @@ if (!bootstrapClaim) {
   process.exit(0);
 }
 
-if (!skeletonCheckpoint) {
+if (usesSkeletonCheckpointGate && !skeletonCheckpoint) {
   printLifecycle({ wpId, stage: "SKELETON", next: "SKELETON" });
   printOperatorAction("NONE");
   printConfidence(confidence, confidenceDetail);
@@ -224,7 +225,7 @@ if (!skeletonCheckpoint) {
   process.exit(0);
 }
 
-if (!skeletonApproved) {
+if (usesSkeletonCheckpointGate && !skeletonApproved) {
   printLifecycle({ wpId, stage: "SKELETON", next: "STOP" });
   printOperatorAction(`${skeletonApprover} must create skeleton approval commit for ${wpId}`);
   printConfidence(confidence, confidenceDetail);
@@ -275,7 +276,11 @@ if (implementationFilled) {
 printLifecycle({ wpId, stage: "IMPLEMENTATION", next: "HYGIENE" });
 printOperatorAction("NONE");
 printConfidence(confidence, confidenceDetail);
-printState("Skeleton is approved and no handoff markers are present; implementation may continue.");
+printState(
+  usesSkeletonCheckpointGate
+    ? "Skeleton is approved and no handoff markers are present; implementation may continue."
+    : "Bootstrap is claimed and the orchestrator-managed lane is active; implementation may continue."
+);
 printFindings([
   ...commonFindings,
   dirtyTreeFinding,

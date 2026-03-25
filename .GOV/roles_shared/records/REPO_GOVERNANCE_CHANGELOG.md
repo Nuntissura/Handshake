@@ -268,3 +268,29 @@
   - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: historical failed packets can now remain visible as live smoketest lineage anchors without overloading stub/backlog or superseded truth, and `gov-check` enforces the modeled linkage
+
+### 2026.03.25.15 / GOV-CHANGE-20260325-15
+
+- STATUS: APPLIED
+- SUMMARY: added machine-visible orchestrator-managed workflow invalidity receipts and blocked manual checkpoint relapse on those lanes
+- CHANGE_TYPE: WORKFLOW_INVALIDITY_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-invalidity-flag.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles/validator/checks/validator-packet-complete.mjs`
+  - `.GOV/roles/coder/checks/pre-work.mjs`
+  - `.GOV/roles/coder/checks/post-work-check.mjs`
+  - `.GOV/roles/coder/scripts/coder-next.mjs`
+  - `.GOV/roles/coder/checks/coder-skeleton-checkpoint.mjs`
+  - `.GOV/roles_shared/checks/skeleton-approved.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: orchestrator-managed WPs now emit a structured `WORKFLOW_INVALIDITY` state for invalid procedure, communication-health and validator closeout can fail on that ledgered state, and manual skeleton checkpoint/approval commands are no longer silently tolerated on those lanes

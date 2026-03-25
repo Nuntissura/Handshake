@@ -4,7 +4,9 @@ import {
   DIRECT_REVIEW_HEALTH_GATE,
   FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
+  latestWorkflowInvalidityReceipt,
   REVIEW_TRACKED_RECEIPT_KIND_VALUES,
+  workflowInvalidityReceipts,
 } from "./wp-communications-lib.mjs";
 
 export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
@@ -17,6 +19,7 @@ export const COMMUNICATION_MONITOR_STATE_VALUES = [
   "COMM_WAITING_FOR_REVIEW",
   "COMM_WAITING_FOR_FINAL_REVIEW",
   "COMM_BLOCKED_OPEN_ITEMS",
+  "COMM_WORKFLOW_INVALID",
   "COMM_OK",
   "COMM_STALE",
 ];
@@ -121,6 +124,7 @@ function buildBaseDetails({
   integrationFinalOpenReceipts = [],
   integrationFinalResolutionReceipts = [],
   openReviewItems = [],
+  workflowInvalidities = [],
 } = {}) {
   return [
     `wp_id=${wpId || "<unknown>"}`,
@@ -134,6 +138,7 @@ function buildBaseDetails({
     `integration_final_open=${integrationFinalOpenReceipts.length}`,
     `integration_final_resolution=${integrationFinalResolutionReceipts.length}`,
     `open_review_items=${openReviewItems.length}`,
+    `workflow_invalidities=${workflowInvalidities.length}`,
   ];
 }
 
@@ -209,6 +214,8 @@ export function evaluateWpCommunicationHealth({
   }
 
   const openReviewItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
+  const workflowInvalidities = workflowInvalidityReceipts(receipts);
+  const latestWorkflowInvalidity = latestWorkflowInvalidityReceipt(workflowInvalidities);
   const validatorKickoffs = receiptFilter(receipts, {
     receiptKind: "VALIDATOR_KICKOFF",
     actorRole: "WP_VALIDATOR",
@@ -269,8 +276,10 @@ export function evaluateWpCommunicationHealth({
     integrationFinalOpenReceipts,
     integrationFinalResolutionReceipts,
     openReviewItems,
+    workflowInvalidities,
   });
   const counts = {
+    workflowInvalidities: workflowInvalidities.length,
     validatorKickoffs: validatorKickoffs.length,
     coderIntents: coderIntents.length,
     coderHandoffs: coderHandoffs.length,
@@ -284,6 +293,22 @@ export function evaluateWpCommunicationHealth({
     handoff: handoffReviewPair?.openReceipt?.correlation_id || null,
     finalReview: integrationFinalPair?.openReceipt?.correlation_id || null,
   };
+
+  if (workflowInvalidities.length > 0) {
+    return result({
+      applicable: true,
+      ok: false,
+      state: "COMM_WORKFLOW_INVALID",
+      message: "Workflow invalidity was recorded for this orchestrator-managed WP",
+      details: [
+        ...details,
+        `latest_invalidity_code=${latestWorkflowInvalidity?.workflow_invalidity_code || "<missing>"}`,
+        `latest_invalidity_summary=${latestWorkflowInvalidity?.summary || "<missing>"}`,
+      ],
+      counts,
+      correlations,
+    });
+  }
 
   if (normalizedStage === "STATUS") {
     if (validatorKickoffs.length === 0) {
@@ -667,6 +692,15 @@ export function deriveWpCommunicationAutoRoute({
       });
       break;
     }
+    case "COMM_WORKFLOW_INVALID":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "ORCHESTRATOR",
+        waitingOn: "WORKFLOW_INVALIDITY",
+        attentionRequired: true,
+        notificationSummary: "AUTO_ROUTE: workflow invalidity flagged; orchestrator repair required",
+      });
+      break;
     case "COMM_OK":
       projection = route({
         state: evaluation.state,

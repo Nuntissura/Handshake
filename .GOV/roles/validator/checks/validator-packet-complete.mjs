@@ -17,6 +17,7 @@ import {
 } from "../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
 import { validateMergeProgressionTruth } from "../../../roles_shared/scripts/lib/merge-progression-truth-lib.mjs";
 import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/semantic-proof-lib.mjs";
+import { parseJsonlFile, workflowInvalidityReceipts } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 
 const wpId = process.argv[2];
 if (!wpId) {
@@ -62,6 +63,16 @@ function parseSingleField(label) {
     if (m) return (m[1] ?? "").trim();
   }
   return "";
+}
+
+function loadWorkflowInvalidityEntries() {
+  const receiptsFile = parseSingleField("WP_RECEIPTS_FILE");
+  if (!receiptsFile) return [];
+  try {
+    return workflowInvalidityReceipts(parseJsonlFile(receiptsFile));
+  } catch (error) {
+    fail(`cannot read workflow invalidity receipts from ${receiptsFile}: ${error.message}`);
+  }
 }
 
 function hasNonPlaceholderListItemAfterLabel(label) {
@@ -201,6 +212,8 @@ if (!hasLine(/USER_SIGNATURE/i) && !hasLine(/User Signature Locked/i)) {
 
 // Newer template-only requirements (avoid breaking legacy packets).
 const packetFormatVersion = parseSingleField("PACKET_FORMAT_VERSION");
+const workflowInvalidityEntries = loadWorkflowInvalidityEntries();
+const latestWorkflowInvalidity = workflowInvalidityEntries.at(-1) || null;
 if (packetFormatVersion) {
   if (isPlaceholder(packetFormatVersion)) {
     fail("PACKET_FORMAT_VERSION present but placeholder");
@@ -396,6 +409,11 @@ if (packetFormatVersion) {
     const residualUncertainty = extractListItemsAfterLabel(validationReports, "RESIDUAL_UNCERTAINTY");
     const boundaryProbes = extractListItemsAfterLabel(validationReports, "BOUNDARY_PROBES");
     const negativePathChecks = extractListItemsAfterLabel(validationReports, "NEGATIVE_PATH_CHECKS");
+    if (workflowInvalidityEntries.length > 0 && topLevelVerdict === "PASS") {
+      fail(
+        `Verdict=PASS prohibited when WORKFLOW_INVALIDITY receipts exist (${latestWorkflowInvalidity?.workflow_invalidity_code || "UNKNOWN"}: ${latestWorkflowInvalidity?.summary || "<missing>"})`
+      );
+    }
     if (usesHeuristicRigorReport && specAlignmentVerdict === "PASS" && !hasOnlyNoneList(mainBodyGaps)) {
       fail("SPEC_ALIGNMENT_VERDICT=PASS requires MAIN_BODY_GAPS to be exactly '- NONE'");
     }
@@ -416,6 +434,18 @@ if (packetFormatVersion) {
       }
       if (workflowValidity === "VALID" && governanceVerdict !== "PASS") {
         fail("WORKFLOW_VALIDITY=VALID requires GOVERNANCE_VERDICT=PASS");
+      }
+      if (workflowInvalidityEntries.length > 0) {
+        if (workflowValidity === "VALID") {
+          fail(
+            `WORKFLOW_VALIDITY=VALID prohibited when WORKFLOW_INVALIDITY receipts exist (${latestWorkflowInvalidity?.workflow_invalidity_code || "UNKNOWN"}: ${latestWorkflowInvalidity?.summary || "<missing>"})`
+          );
+        }
+        if (governanceVerdict === "PASS") {
+          fail(
+            `GOVERNANCE_VERDICT=PASS prohibited when WORKFLOW_INVALIDITY receipts exist (${latestWorkflowInvalidity?.workflow_invalidity_code || "UNKNOWN"}: ${latestWorkflowInvalidity?.summary || "<missing>"})`
+          );
+        }
       }
       if (proofCompleteness === "PROVEN" && !hasOnlyNoneList(notProvenItems)) {
         fail("PROOF_COMPLETENESS=PROVEN requires NOT_PROVEN to be exactly '- NONE'");
