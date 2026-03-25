@@ -98,6 +98,7 @@ export function parseTaskBoardHistoricalBaselines(taskBoardText) {
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed.startsWith("-")) continue;
+    if (trimmed === "---") continue;
     const match = trimmed.match(entryRe);
     if (!match) {
       entries.push({ malformed: true, raw: trimmed });
