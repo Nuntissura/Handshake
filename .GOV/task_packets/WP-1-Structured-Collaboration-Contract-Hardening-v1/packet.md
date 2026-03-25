@@ -45,8 +45,8 @@ Requirements:
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -100,7 +100,7 @@ Requirements:
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** In Progress
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -154,7 +154,7 @@ Requirements:
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
 Blockers: NONE
-Next: N/A
+Next: Await skeleton approval after the docs-only skeleton checkpoint.
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
@@ -761,26 +761,56 @@ rg -n "GovernedActionDescriptorV1|allowed_action_ids|task_board_workflow_state|s
   - "Mailbox redaction proof can look green on happy-path data while malformed fields still pass" -> "export gate remains weaker than the spec requires"
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `src/backend/handshake_core/src/locus/types.rs`: add one shared governed-action registry helper that resolves `WorkflowStateFamily` to emitted `GovernedActionDescriptorV1.action_id` values, and use the same helper path to validate `allowed_action_ids` on Work Packet, Micro-Task, and Task Board record families.
+  - `src/backend/handshake_core/src/locus/types.rs`: harden `validate_structured_collaboration_record()` so `allowed_action_ids` fail when malformed or unregistered, and so `RoleMailboxIndexV1.threads[].subject_redacted` plus `RoleMailboxThreadLineV1.transcription_links[].note_redacted` must be bounded single-line Secret-Redactor outputs rather than only non-empty strings.
+  - `src/backend/handshake_core/src/workflows.rs`: replace the local ad hoc `allowed_action_ids()` mapper and status-only Task Board projection path so `TrackedWorkPacketArtifactV1`, `TrackedMicroTaskArtifactV1`, and `TaskBoardEntryRecordV1` all emit authoritative `workflow_state_family`, `queue_reason_code`, and governed `allowed_action_ids`.
+  - `src/backend/handshake_core/src/storage/locus_sqlite.rs`: remove the duplicate SQLite-only ad hoc `allowed_action_ids()` emitter and route `tracked_mt_progress_metadata()` through the same shared governed-action helper used by the main workflow emitters.
+  - `src/backend/handshake_core/src/locus/task_board.rs`: keep `TaskBoardEntryRecordV1` as the typed contract surface for preserved workflow semantics; only touch this file if a narrow helper or serde contract adjustment is required to keep projection rows authoritative instead of heuristic.
+  - `src/backend/handshake_core/src/role_mailbox.rs`: keep export emission on the existing redactor path, but harden `validate_runtime_mailbox_record()` so malformed redacted fields are rejected before Role Mailbox index/thread exports are accepted as canonical.
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs`: add mutation-driven negative tests for unregistered `allowed_action_ids` on Work Packet and Micro-Task artifacts plus Task Board workflow-state drift against linked backend truth.
+  - `src/backend/handshake_core/tests/role_mailbox_tests.rs`: add negative-path export tests for multiline, oversized, or otherwise malformed `subject_redacted` and `note_redacted` values at the shared mailbox validation boundary.
 - Open questions:
+  - Whether Task Board sync can lift authoritative workflow semantics directly from linked structured artifacts/metadata, or whether a narrow carry-forward field must be added to avoid recomputing from `TaskBoardStatus`.
+  - Whether the shared governed-action helper can live fully in `locus/types.rs` without introducing an unwanted dependency edge into `locus/task_board.rs`.
+  - Whether any current mailbox fixtures rely on tolerated redacted-field shapes that will need explicit negative-path coverage rather than emitter changes.
 - Notes:
+  - Stay within the 7-file touched budget and keep the change limited to governed action id emission/validation, Task Board workflow fidelity, mailbox export-gate hardening, and negative-path proof.
+  - Do not reopen the already-closed schema-registry-v4 scope around timestamp/hash typing, nested object presence, or unrelated Loom portability work unless the in-scope code proves a direct regression.
+  - Planned implementation order: shared helper/validator hardening first, producer adoption second, Task Board authority preservation third, negative-path tests last, then the packet test plan.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
-- END_TO_END_CLOSURE_PLAN_APPLICABLE: NO
-- TRUST_BOUNDARY: N/A
+- END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
+- TRUST_BOUNDARY: authoritative workflow/runtime records and mailbox export rows -> canonical structured-collaboration JSON artifacts consumed by Task Board, mailbox, and model-routing surfaces
 - SERVER_SOURCES_OF_TRUTH:
-  - NONE
+  - `TrackedWorkPacket` and `TrackedMicroTask` artifact builders in `src/backend/handshake_core/src/workflows.rs`
+  - SQLite-backed `tracked_mt_progress_metadata()` in `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+  - Task Board projection rows emitted during `locus_sync_task_board_v1`
+  - Role Mailbox thread/index export assembly in `src/backend/handshake_core/src/role_mailbox.rs`
 - REQUIRED_PROVENANCE_FIELDS:
-  - NONE
+  - `workflow_state_family`
+  - `queue_reason_code`
+  - `allowed_action_ids`
+  - `authority_refs`
+  - `subject_redacted` plus `subject_sha256`
+  - `note_redacted` plus `note_sha256`
 - VERIFICATION_PLAN:
-  - Record end-to-end trust/provenance requirements only if this WP introduces a cross-boundary apply path.
+  - Prove Work Packet, Micro-Task, Task Board, and SQLite-backed progress metadata outputs all source `allowed_action_ids` from one shared governed-action registry helper.
+  - Add mutation tests that make `allowed_action_ids` unregistered and assert shared validation fails on Work Packet, Micro-Task, and Task Board records.
+  - Add a Task Board drift proof that mismatched `workflow_state_family`, `queue_reason_code`, or `allowed_action_ids` values fail against linked backend truth.
+  - Add mailbox mutation tests that introduce multiline, oversized, or otherwise malformed `subject_redacted` and `note_redacted` values and assert the mailbox export validation boundary fails.
+  - Run the packet test plan after implementation: schema registry tripwire, task board tripwire, mailbox tripwire, then the full `handshake_core` test suite.
 - ERROR_TAXONOMY_PLAN:
-  - N/A for initial coder handoff.
+  - Treat unregistered governed actions as structured-collaboration validation failures, not UI-only warnings.
+  - Treat Task Board projection drift as a record-validation failure at the consumer boundary.
+  - Treat malformed redacted mailbox fields as RoleMailbox export-gate failures before file acceptance.
 - UI_GUARDRAILS:
-  - N/A for initial coder handoff.
+  - Backend-only WP; no UI contract changes are planned, and board lane labels must remain downstream display concerns rather than new sources of truth.
 - VALIDATOR_ASSERTIONS:
-  - Validate the packet-scoped spec anchors, in-scope files, and deterministic evidence recorded during implementation.
+  - Confirm no local ad hoc `allowed_action_ids()` helper survives in `workflows.rs` or `locus_sqlite.rs`.
+  - Confirm Task Board rows preserve authoritative workflow semantics rather than recomputing them from `TaskBoardStatus` heuristics alone.
+  - Confirm mailbox validation rejects malformed `subject_redacted` and `note_redacted` values while happy-path exports still validate.
 ## IMPLEMENTATION
 - (Coder fills after the docs-only skeleton checkpoint commit exists.)
 
