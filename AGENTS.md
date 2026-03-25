@@ -42,6 +42,12 @@
   - `/.GOV/codex/Handshake_Codex_v1.4.md`
   - `/AGENTS.md`
 - Hard rule: if any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), STOP and require a WP.
+- Operator-facing scope split rule:
+  - Always separate `Handshake (Product)` from `Repo Governance` in chat.
+  - `Handshake (Product)` includes product code, product tests, Master Spec requirements, and product WPs, even when the topic is governed actions, workflow law, or other product-governance contracts.
+  - `Repo Governance` includes `/.GOV/**`, ACP/session/runtime ledgers, role protocols, governance task-board/changelog/audits, and root control-file maintenance.
+  - If only one lane applies, still name both lanes and state `NONE` for the other lane.
+  - Do not use `governance` alone for product-code contract work.
 - Minimum verification for governance-only changes: `just gov-check`.
 - Use `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md` for the no-WP governance record flow.
 - Governance-maintenance records:
