@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_TEMPLATE
+# TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
 
@@ -720,22 +720,22 @@ rg -n "structured_work_packet_next_action|structured_micro_task_next_action|next
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
   - COMMAND: `just wp-communication-health-check WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1 VERDICT`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `N/A`
   - LOG_SHA256: `N/A`
   - PROOF_LINES: `[WP_COMMUNICATION_HEALTH] PASS: Direct review lane is complete`
   - COMMAND: `just validator-packet-complete WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `N/A`
   - LOG_SHA256: `N/A`
   - PROOF_LINES: `validator-packet-complete: PASS - WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1 has required fields.`
   - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `N/A`
   - LOG_SHA256: `N/A`
   - PROOF_LINES: `test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
   - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `N/A`
   - LOG_SHA256: `N/A`
   - PROOF_LINES: `test result: ok. 207 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
