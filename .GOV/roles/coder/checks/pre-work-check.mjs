@@ -1260,7 +1260,13 @@ if (errors.length === 0) {
 
   const status = parseStatus(packetContent) || '<missing>';
   const statusNorm = status.toLowerCase().replace(/[-_]/g, ' ');
-  const startAllowed = !coderGovernanceState.legacyRemediationRequired
+  const finalCoderGovernanceState = evaluateCoderPacketGovernanceState({
+    wpId: WP_ID,
+    packetPath: resolvedPacketPath,
+    packetContent,
+    currentWpStatus: parseSingleField(packetContent, 'Current WP_STATUS'),
+  });
+  const startAllowed = !finalCoderGovernanceState.legacyRemediationRequired
     && /ready\s*for\s*dev|in\s*progress/.test(statusNorm)
     && !/blocked|stub|done|validated/.test(statusNorm);
 

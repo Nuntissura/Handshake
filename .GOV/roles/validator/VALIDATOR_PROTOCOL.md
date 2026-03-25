@@ -140,6 +140,18 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
 
 Governance/workflow/tooling note: changes limited to `.GOV/`, `.github/`, `justfile`, `AGENTS.md`, and `.GOV/codex/Handshake_Codex_v1.4.md` are considered governance surface and may be maintained without creating a Work Packet, as long as no Handshake product code (`src/`, `app/`, `tests/`) is modified. In practice, role-owned implementation lives under `.GOV/roles/**`, repo-shared implementation lives under `.GOV/roles_shared/**`, and root `.GOV/scripts/` is retired as a live implementation surface. Root-level repo control files still have a stricter authoring rule: `AGENTS.md` and the root `justfile` must be edited and committed in `handshake_main` on local `main`. The Integration Validator may do that from `main`; a WP Validator or any validator operating from a non-main worktree must not author or commit those files there.
 
+Use this governance-maintenance record flow:
+- shared workflow: `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
+- task board: `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- changelog: `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- templates:
+  - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
+  - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+- audits: use stable `AUDIT_ID` values and add `SMOKETEST_REVIEW_ID` for smoketest or workflow-proof reviews
+
+Do not create a WP for pure repo-governance maintenance. If the planned diff touches the Master Spec or product code, stop and use the normal refinement plus WP path instead.
+
 Minimum verification for governance-only changes: `just gov-check`.
 
 ## Pre-Flight (Blocking)

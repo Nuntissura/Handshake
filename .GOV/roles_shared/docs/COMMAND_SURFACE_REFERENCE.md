@@ -63,11 +63,37 @@ These are safe starting points for orientation and health checks.
   - `read-only`
   - print worktree/branch verification block for chat
 
+## Governance maintenance (no WP)
+
+Use this flow only for repo-governance maintenance that stays out of product code and the Master Spec.
+
+- Working records:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `.GOV/Audits/**` with stable `AUDIT_ID` and, for smoketest reviews, `SMOKETEST_REVIEW_ID`
+- Working templates:
+  - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
+  - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+- Shared workflow note:
+  - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
+- Commands:
+  - `just gov-check`
+    - `read-only`
+    - mandatory verification before claiming governance-maintenance completion
+  - `just build-order-sync`
+    - `governance-write`
+    - required only when governance changes affect `TASK_BOARD.md` or `WP_TRACEABILITY_REGISTRY.md`
+
 ## Packet activation and governance state writes
 
 These mutate packet, board, traceability, or related governed surfaces.
 
 - `just record-refinement WP-{ID}`
+- Refinement visibility rule:
+  - the Operator must see the refinement in assistant-authored chat text before any signature request
+  - shell/tool output does not count as "shown in chat"
+  - if the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages before requesting approval
 - `just record-signature WP-{ID} <signature> <workflow_lane> <execution_lane>`
 - `just record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
   - `governance-write`
@@ -89,6 +115,9 @@ These mutate packet, board, traceability, or related governed surfaces.
 ## Session launch and steering (Orchestrator-only)
 
 These mutate governed runtime state and should not be run from inside Coder or Validator sessions.
+For Orchestrator-managed WPs, this ACP/CLI session surface is the required normal delegation path.
+Helper agents/subagents may assist on governance/spec/runtime/orchestrator tasks, but they are not Coder or Validator lanes.
+Do not use helper agents/subagents for Coder or Validator duties, and do not let them write product code, unless the Operator explicitly approved that path and the packet records `SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`.
 
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} ...`

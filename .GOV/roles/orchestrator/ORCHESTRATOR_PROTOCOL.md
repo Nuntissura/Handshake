@@ -68,7 +68,11 @@ See also:
 ## Current Execution Policy (Additional LAW)
 
 - The Orchestrator role is one non-agentic coordinator CLI session.
-- The Orchestrator may coordinate and launch multiple external CLI sessions, but must not spawn helper agents to perform Orchestrator or Validator duties.
+- Orchestrator-managed execution MUST use governed ACP/CLI sessions (`launch-*`, `start-*`, `steer-*`, `session-send`) for Coder and Validator lanes.
+- The Orchestrator MAY use helper agents/subagents for governance work, spec enrichment/refinement, WP creation, ACP runtime work (including ACP bug fixes or behavior changes), product-code inspection, and other bounded Orchestrator duties.
+- Orchestrator-spawned helper agents are not Coder or Validator lanes. They must not stand in for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`, and they do not replace governed ACP/CLI sessions for those roles.
+- Orchestrator-spawned helper agents MUST NOT write or change product code unless the Operator gave explicit approval first and that approval is recorded in the work packet (`SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`).
+- Absent that explicit recorded approval, helper-agent product-code changes are forbidden even if the work is bounded, faster, or convenient.
 - New repo-governed sessions must be launched explicitly:
   - primary model: `gpt-5.4`
   - fallback: `gpt-5.2`
@@ -349,6 +353,28 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 
 ## Current Orchestrator Workflow (Authoritative)
 
+### 0. Repo Governance Maintenance (No WP)
+
+- Pure repo-governance maintenance does not use a Work Packet, refinement, signature, or packet lifecycle helpers.
+- Use this path only when the planned diff stays inside governance surfaces and does not touch Handshake product code or the Master Spec.
+- Authoritative records:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `.GOV/Audits/**` with stable `AUDIT_ID` and, for smoketest reviews, `SMOKETEST_REVIEW_ID`
+- Templates:
+  - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
+  - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+- Shared workflow reference:
+  - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
+- Minimum flow:
+  1. link or create the evidence document with stable IDs
+  2. open or update the governance task-board item
+  3. apply the governance change
+  4. record the applied changeset in the changelog
+  5. run `just gov-check`
+- If the planned change touches the Master Spec or any product path under `src/`, `app/`, or `tests/`, stop using this path and return to the normal refinement plus WP flow.
+
 ### 1. Refinement and Approval
 
 - Pure repo-governance work does not require a Work Packet, refinement, or signature. Refinement / enrichment is required only when work touches product code or the Master Spec.
@@ -390,6 +416,9 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 - Show the refinement in chat before any signature request:
   - either the full `## TECHNICAL_REFINEMENT (MASTER SPEC)` block
   - or enough current Master Spec anchors to prove the Orchestrator understands the relevant roadmap items, stubs, and WP context
+  - terminal/tool output does NOT satisfy this requirement; the Operator does not see raw shell output in this environment
+  - the Orchestrator MUST paste the refinement as assistant-authored chat text
+  - if the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages and do not request approval or signature until the final chunk has been sent
 - `just record-refinement WP-{ID}` must pass first.
 - If the refinement concludes `ENRICHMENT_NEEDED=YES`, unresolved ambiguity, or mandatory appendix/main-body sync, stop packet creation, advance the spec correctly, update `/.GOV/spec/SPEC_CURRENT.md`, and only then create a new active packet against the updated spec.
 
@@ -397,6 +426,7 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 
 - Signature is never part of the refinement pass itself. Record it only in the next turn after the refinement / enrichment pass has been shown in chat.
 - This delay is intentional. It blocks automation momentum and forces visible spec-grounded reasoning before approval.
+- A claimed "shown in chat" refinement is invalid if it appeared only in command/tool output rather than assistant-authored chat text.
 - Record the signature bundle with `just record-signature ...`.
 - After signature PASS with `OPERATOR_ACTION: NONE`, continue directly to `just orchestrator-prepare-and-packet WP-{ID}`.
 - Use `.GOV/templates/TASK_PACKET_TEMPLATE.md`.

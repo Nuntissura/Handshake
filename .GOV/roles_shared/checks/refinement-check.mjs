@@ -2035,7 +2035,16 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
             const actualStatus = taskBoardStatuses.get(row.artifact);
             if (!actualStatus) {
               errors.push(`${group.label} references ${row.artifact} but it is missing from ${TASK_BOARD_PATH.replace(/\\/g, '/')}`);
-            } else if (actualStatus !== row.boardStatus) {
+            } else if (
+              !(
+                group.label === 'MATCHED_STUBS'
+                && row.artifact === parsed.wpId
+                && row.intent === 'SAME'
+                && ['READY_FOR_DEV', 'IN_PROGRESS', 'BLOCKED'].includes(actualStatus)
+                && row.boardStatus === 'STUB'
+              )
+              && actualStatus !== row.boardStatus
+            ) {
               errors.push(`${group.label} ${row.artifact} BoardStatus drifted from TASK_BOARD: expected ${actualStatus}, got ${row.boardStatus}`);
             }
           }

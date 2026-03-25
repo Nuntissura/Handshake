@@ -233,7 +233,8 @@ if (action === 'refine') {
             `[ORCHESTRATOR GATE] Technical Refinement recorded for ${wpId}.`,
         ],
         nextCommands: [
-            `# Paste the FULL Technical Refinement Block from ${GOV_ROOT_REPO_REL}/refinements/${wpId}.md in chat (verbatim; no summary).`,
+            `# Paste the FULL Technical Refinement Block from ${GOV_ROOT_REPO_REL}/refinements/${wpId}.md in chat as assistant-authored text (verbatim; no summary). Tool/terminal output does NOT count.`,
+            `# If the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages and wait until the final chunk before any approval ask.`,
             `# When approved, set USER_APPROVAL_EVIDENCE in the refinement file to: APPROVE REFINEMENT ${wpId}`,
             `# Do NOT ask for or consume a signature until that verbatim block has been shown in chat.`,
             `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
@@ -494,6 +495,7 @@ if (action === 'prepare') {
     if (v2IsLegacyOrchestratorAgentic(arg1) || v2IsLegacyOrchestratorAgentic(arg2)) {
         v2Fail('Orchestrator-Agentic is legacy-only and cannot be used in current PREPARE records.', [
             'The Orchestrator remains non-agentic and single-session.',
+            'Use governed ACP/CLI session commands for coder/validator lanes. Helper agents may assist on governance/spec/runtime/orchestrator tasks, but they must not stand in as coder/validator lanes or write product code without explicit Operator approval recorded as SUB_AGENT_DELEGATION: ALLOWED with OPERATOR_APPROVAL_EVIDENCE.',
             `Usage: just record-prepare ${wpId} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE} [branch] [worktree_dir]`,
         ]);
     }

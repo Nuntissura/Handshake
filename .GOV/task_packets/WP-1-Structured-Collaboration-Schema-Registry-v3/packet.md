@@ -83,7 +83,7 @@
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Done
+- **Status:** Blocked
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -131,9 +131,9 @@
 - PACKET_FORMAT_VERSION: 2026-03-18
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PASS
-Blockers: NONE. Committed handoff validation passed at `23f4c9a`, validator gates are closed PASS, and the Schema Registry product scope is integrated on `main` via selective commit `fe998e1`.
-Next: NONE. WP is closed; downstream structured-collaboration packets may treat this dependency as DONE.
+Verdict: FAIL
+Blockers: LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED. The 2026-03-21 product-vs-spec audit found the v3 closure under-proved on shared validator enforcement, and current governance law treats this packet as blocked historical evidence rather than live validated closure.
+Next: NONE. Do not resume or re-prepare this packet in place. Remediation, if required, moves to `WP-1-Structured-Collaboration-Schema-Registry-v4`.
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
@@ -1100,3 +1100,83 @@ rg -n "schema_id|schema_version|project_profile_kind|mirror_state|updated_at|tas
   - `RoleMailboxThreadLineV1 field completeness including transcription_links` -> `src/backend/handshake_core/src/role_mailbox.rs:252`; `src/backend/handshake_core/src/role_mailbox.rs:533-535`; `src/backend/handshake_core/src/role_mailbox.rs:933-957`; `src/backend/handshake_core/src/api/role_mailbox.rs:35-114`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:289`; `src/backend/handshake_core/tests/role_mailbox_tests.rs:359`
 - NEGATIVE_PROOF:
   - Out-of-scope project-profile registry publication remains open: the broader registry/product contract tracked under `WP-1-Project-Profile-Extension-Registry` is not closed by this packet, which only proves compatibility hooks, structured diagnostics, and current artifact/runtime boundaries.
+
+VALIDATION REPORT - WP-1-Structured-Collaboration-Schema-Registry-v3
+Verdict: FAIL
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: FAIL
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: FAIL
+HEURISTIC_REVIEW_VERDICT: FAIL
+SPEC_ALIGNMENT_VERDICT: FAIL
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: FAIL
+SPEC_CONFIDENCE: POST_MERGE_RECHECKED
+WORKFLOW_VALIDITY: INVALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: NOT_PROVEN
+INTEGRATION_READINESS: NOT_READY
+DOMAIN_GOAL_COMPLETION: PARTIAL
+VALIDATOR_RISK_TIER: HIGH
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.md` (status: `Blocked`)
+- Spec: `Handshake_Master_Spec_v02.178.md`
+- Governance basis: `AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT.md`
+
+CLAUSES_REVIEWED:
+- `[ADD v02.171/v02.178] canonical workflow-state fields on Work Packet, Micro-Task, and Task Board records` -> `src/backend/handshake_core/src/locus/types.rs`; `src/backend/handshake_core/src/locus/task_board.rs`; `src/backend/handshake_core/src/workflows.rs`
+- `Role Mailbox export contract and nested payload shape` -> `src/backend/handshake_core/src/role_mailbox.rs`; `src/backend/handshake_core/src/api/role_mailbox.rs`; `src/backend/handshake_core/src/locus/types.rs`
+- `machine-readable structured validation path` -> `src/backend/handshake_core/tests/micro_task_executor_tests.rs`; `src/backend/handshake_core/tests/role_mailbox_tests.rs`
+
+NOT_PROVEN:
+- `validate_structured_collaboration_record(...)` does not fully enforce `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids` for every canonical record family claimed by the packet.
+- Nested Task Board `rows[]`, Role Mailbox `threads[]`, and `transcription_links[]` are not validated deeply enough to justify spec-tight closure.
+- Timestamp and other constrained string contracts remain weaker than the typed guarantees claimed by the spec.
+
+MAIN_BODY_GAPS:
+- Shared validator enforcement is shallower than the current Master Spec for the workflow-state contract.
+- Nested structured payload conformance is not fully defended against malformed stored state.
+
+QUALITY_RISKS:
+- Happy-path emitter correctness still outruns validator hardness on a shared serialization surface.
+- Future drift can remove workflow-state fields or nested payload shape without immediate validator rejection.
+
+DIFF_ATTACK_SURFACES:
+- Shared validator enforcement in `locus/types.rs`
+- Task Board projection emission and validation
+- Role Mailbox export validation and nested payload handling
+
+INDEPENDENT_CHECKS_RUN:
+- `cargo test --test role_mailbox_tests role_mailbox_validation_reports_schema_and_authority_drift -- --exact --nocapture` => PASS during the audit, but it did not cover the missing nested-shape enforcement gaps
+- `cargo test --test micro_task_executor_tests locus_register_mts_returns_machine_readable_validation_for_unknown_schema_version -- --exact --nocapture` => PASS during the audit, but it did not prove the missing workflow-field enforcement
+- Direct code inspection against `Handshake_Master_Spec_v02.178.md` => found the unresolved validator-enforcement gaps recorded above
+
+COUNTERFACTUAL_CHECKS:
+- If `workflow_state_family` is removed from a Work Packet, Micro-Task, or Task Board artifact, the current shared validator path can still accept the drifted record.
+- If mailbox export contains malformed `transcription_links[]` items, the current export gate can still accept array-shaped but spec-invalid payloads.
+
+BOUNDARY_PROBES:
+- Emitted Task Board and mailbox payloads were compared against the shared validator branches in `src/backend/handshake_core/src/locus/types.rs` and showed outer-envelope checks that stop short of full nested-contract enforcement.
+
+NEGATIVE_PATH_CHECKS:
+- Existing negative-path tests for schema-version mismatch and incompatible profile extension passed, but the audit found no validator-owned negative-path proof for missing workflow-state fields or malformed nested mailbox/task-board payload items.
+
+INDEPENDENT_FINDINGS:
+- The v3 work materially improved emitted artifacts on the happy path.
+- The remaining failure shape is contract-enforcement weakness, not complete feature absence.
+
+RESIDUAL_UNCERTAINTY:
+- This was a scoped audit of the v3 integrated product surfaces, not a full repo-wide structured-collaboration revalidation.
+- Shared-surface downstream readers may still hide additional compatibility risk beyond the audited in-repo code paths.
+
+SPEC_CLAUSE_MAP:
+- `workflow-state fields on canonical records` -> `src/backend/handshake_core/src/locus/types.rs`; `src/backend/handshake_core/src/locus/task_board.rs`; `src/backend/handshake_core/src/workflows.rs`
+- `Role Mailbox nested export contract` -> `src/backend/handshake_core/src/role_mailbox.rs`; `src/backend/handshake_core/src/api/role_mailbox.rs`; `src/backend/handshake_core/src/locus/types.rs`
+
+NEGATIVE_PROOF:
+- The packet does not fully prove the current-spec validator contract for required workflow-state fields and nested payload conformance, so the historical PASS-shaped closure is not valid under current governance law.
+
+REASON FOR FAIL:
+- Governance reclassification on 2026-03-24: this packet is retained as historical audit evidence only. It must not be resumed or treated as validated closure because the 2026-03-21 audit found unresolved proof gaps on the shared validator/export surface, and current governance law requires a newer remediation packet revision for any further work.

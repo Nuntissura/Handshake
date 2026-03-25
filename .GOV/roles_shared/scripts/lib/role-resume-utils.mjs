@@ -3,6 +3,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import crypto from "node:crypto";
 import { GOV_ROOT_REPO_REL, GOVERNANCE_RUNTIME_ROOT_REPO_REL, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "./runtime-paths.mjs";
+import { executionOwnerToPacketValue } from "../session/session-policy.mjs";
 
 export const ORCHESTRATOR_GATES_PATH = resolveOrchestratorGatesPath();
 export const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
@@ -350,6 +351,7 @@ export function comparePrepareAgainstPacketTruth(packetContent, prepareEntry, re
   const localWorktreeDir = parseClaimField(packetContent, "LOCAL_WORKTREE_DIR");
   const prepareWorkflowLane = String(prepareEntry?.workflow_lane || "").trim();
   const prepareExecutionOwner = String(prepareEntry?.execution_lane || prepareEntry?.coder_id || "").trim();
+  const normalizedPrepareExecutionOwner = executionOwnerToPacketValue(prepareExecutionOwner) || prepareExecutionOwner;
   const prepareBranch = String(prepareEntry?.branch || "").trim();
   const prepareWorktreeDir = String(prepareEntry?.worktree_dir || "").trim();
   const issues = [];
@@ -357,7 +359,7 @@ export function comparePrepareAgainstPacketTruth(packetContent, prepareEntry, re
   if (!isPendingAuthorityValue(workflowLane) && prepareWorkflowLane && workflowLane !== prepareWorkflowLane) {
     issues.push(`Official packet WORKFLOW_LANE conflicts with PREPARE: expected ${workflowLane}, got ${prepareWorkflowLane}`);
   }
-  if (!isPendingAuthorityValue(executionOwner) && prepareExecutionOwner && executionOwner !== prepareExecutionOwner) {
+  if (!isPendingAuthorityValue(executionOwner) && prepareExecutionOwner && executionOwner !== normalizedPrepareExecutionOwner) {
     issues.push(`Official packet EXECUTION_OWNER conflicts with PREPARE: expected ${executionOwner}, got ${prepareExecutionOwner}`);
   }
   if (!isPendingAuthorityValue(localBranch) && prepareBranch && localBranch !== prepareBranch) {

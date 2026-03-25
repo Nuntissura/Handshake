@@ -83,7 +83,7 @@
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Done
+- **Status:** Blocked
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -131,9 +131,9 @@
 - PACKET_FORMAT_VERSION: 2026-03-18
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PASS
-Blockers: NONE. Committed handoff validation passed at `7aa995b`, validator gates are closed PASS, and the Loom product scope is integrated on `main` via selective commit `e867469`.
-Next: NONE. WP is closed; downstream Loom packets may treat this dependency as DONE.
+Verdict: FAIL
+Blockers: LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED. The 2026-03-21 product-vs-spec audit did not find a fresh Loom defect comparable to the Schema Registry gaps, but it also did not support keeping this v3 packet as live validated closure under current governance law.
+Next: NONE. Do not resume or re-prepare this packet in place. Any future Loom portability remediation moves to `WP-1-Loom-Storage-Portability-v4`.
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
@@ -1130,3 +1130,82 @@ rg -n "traverse_graph|recompute_block_metrics|recompute_all_metrics|get_backlink
   - `2.3.13.7 LoomSourceAnchor export/replay durability` -> `src/backend/handshake_core/src/storage/loom.rs:293-305`; `src/backend/handshake_core/src/storage/tests.rs:1079-1149`; `src/backend/handshake_core/src/storage/sqlite.rs:2496-2532`; `src/backend/handshake_core/src/storage/postgres.rs:2025-2059`
 - NEGATIVE_PROOF:
   - Out-of-scope downstream Loom bridge requirements remain open: this packet proves storage/API portability only and does not implement the later downloader/archive bridge behavior tracked under `WP-1-Media-Downloader-Loom-Bridge` and `WP-1-Video-Archive-Loom-Integration`.
+
+VALIDATION REPORT - WP-1-Loom-Storage-Portability-v3
+Verdict: FAIL
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: FAIL
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PARTIAL
+HEURISTIC_REVIEW_VERDICT: PARTIAL
+SPEC_ALIGNMENT_VERDICT: FAIL
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: FAIL
+SPEC_CONFIDENCE: POST_MERGE_RECHECKED
+WORKFLOW_VALIDITY: INVALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: NOT_PROVEN
+INTEGRATION_READINESS: NOT_READY
+DOMAIN_GOAL_COMPLETION: PARTIAL
+VALIDATOR_RISK_TIER: HIGH
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.md` (status: `Blocked`)
+- Spec: `Handshake_Master_Spec_v02.178.md`
+- Governance basis: `AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT.md`
+
+CLAUSES_REVIEWED:
+- `[LM-GRAPH-001] graph traversal and backend portability surfaces` -> `src/backend/handshake_core/src/storage/mod.rs`; `src/backend/handshake_core/src/storage/sqlite.rs`; `src/backend/handshake_core/src/storage/postgres.rs`
+- `LM-SEARCH-002 and source-anchor durability` -> `src/backend/handshake_core/src/storage/loom.rs`; `src/backend/handshake_core/src/api/loom.rs`; `src/backend/handshake_core/src/storage/tests.rs`
+- `dual-backend conformance evidence` -> `src/backend/handshake_core/tests/storage_conformance.rs`
+
+NOT_PROVEN:
+- The 2026-03-21 audit did not re-prove full Loom portability closure; it only found no fresh concrete Loom failure in the audited slice.
+- Historical v3 closure remains blocked by current workflow law because it predates the completion-layer threshold and cannot stand as PASS-shaped closure in place.
+
+MAIN_BODY_GAPS:
+- Full current-spec portability closure was not re-established during the governance hardening pass.
+- The packet’s historical closure claim is broader than the narrower audited evidence now relied on.
+
+QUALITY_RISKS:
+- The old v3 packet narrative compresses narrower audited evidence into a stronger closure claim than current governance allows.
+- Further remediation could create speculative churn unless the next packet is narrowed to concrete current-main gaps only.
+
+DIFF_ATTACK_SURFACES:
+- Storage trait parity between SQLite and PostgreSQL
+- Graph traversal/search boundary from API to backend query
+- Source-anchor export/replay durability across backend readers
+
+INDEPENDENT_CHECKS_RUN:
+- `cargo test --test storage_conformance postgres_loom_storage_conformance -- --exact --nocapture` => PASS during the audit on the reviewed PostgreSQL slice
+- `cargo test --test storage_conformance sqlite_loom_storage_conformance -- --exact --nocapture` => PASS during the audit on the reviewed SQLite slice
+- Direct audit review of the integrated Loom route/storage surface => no fresh Loom defect isolated, but full closure remained narrower than the packet narrative
+
+COUNTERFACTUAL_CHECKS:
+- If recursive traversal or directional edge readers drift between `storage/mod.rs`, `sqlite.rs`, and `postgres.rs`, the dual-backend conformance surface would stop proving portability.
+- If the API/search boundary stops carrying graph-filter semantics into the backend query path, the PostgreSQL-specific graph-filter proof would collapse.
+
+BOUNDARY_PROBES:
+- The audit inspected the API -> storage-trait -> backend-query path for graph traversal/search and the storage write -> readback -> replay path for Loom source anchors.
+
+NEGATIVE_PATH_CHECKS:
+- Existing negative-path coverage for graph-filter depth behavior and cycle handling passed in the audited slice, but the audit did not elevate that narrower proof into a fresh full-portability PASS.
+
+INDEPENDENT_FINDINGS:
+- The audited Loom slice looked materially real rather than narrative-only.
+- The governance failure here is primarily proof-shape and closure-authority drift, not a newly isolated Loom implementation collapse.
+
+RESIDUAL_UNCERTAINTY:
+- This was not a full renewed dual-backend portability signoff.
+- Future refinement must decide whether the next Loom packet is code remediation, proof-only closure, or explicit archival handling.
+
+SPEC_CLAUSE_MAP:
+- `graph traversal and directional edge portability` -> `src/backend/handshake_core/src/storage/mod.rs`; `src/backend/handshake_core/src/storage/sqlite.rs`; `src/backend/handshake_core/src/storage/postgres.rs`
+- `graph-filter search and source-anchor durability` -> `src/backend/handshake_core/src/api/loom.rs`; `src/backend/handshake_core/src/storage/loom.rs`; `src/backend/handshake_core/src/storage/tests.rs`
+
+NEGATIVE_PROOF:
+- The governance kernel no longer accepts the old v3 closure shape as sufficient proof of current-spec completion; a new remediation/proof packet is required before Loom portability can be presented as current validated closure again.
+
+REASON FOR FAIL:
+- Governance reclassification on 2026-03-24: this packet is retained as historical audit evidence only. It must not be resumed or treated as validated closure because the current workflow law blocks legacy PASS-shaped closure in place, and the 2026-03-21 audit provided only a narrower “no fresh Loom failure found” judgment rather than a new full-closure signoff.

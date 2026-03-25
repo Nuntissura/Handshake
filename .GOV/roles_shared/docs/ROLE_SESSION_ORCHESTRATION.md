@@ -27,6 +27,9 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - Broker state: `../gov_runtime/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
 - Session steering is ACP-backed and thread-based: the Orchestrator starts a governed Codex thread once through the Handshake ACP bridge, then resumes that same thread with governed prompts.
 - A persistent Handshake ACP broker owns the active-run table, timeout settlement, and cancellation delivery for governed prompts. The wrapper client talks to that broker; it does not own command completion.
+- Orchestrator-managed workflow uses these governed ACP/CLI sessions as the only normal delegation surface for Coder and Validator lanes.
+- Helper agents/subagents may assist the Orchestrator on governance/spec/runtime/orchestrator tasks, but they are not Coder or Validator lanes.
+- Do not use helper agents/subagents to perform Coder or Validator duties, and do not let them write product code, unless the Operator explicitly approved that path and the work packet records `SUB_AGENT_DELEGATION: ALLOWED` plus the exact `OPERATOR_APPROVAL_EVIDENCE`.
 - `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows carry a target-command reference. Close rows clear the steerable thread registration for that governed role/WP session and settle through the same append-only request/result ledgers.
 - The registry `session_thread_id` is the steering identity for that role/WP session.
 
