@@ -272,7 +272,7 @@ Requirements (HARD):
   - NONE
 - UI_ACCESSIBILITY_NOTES:
   - NONE
-- UI_UX_VERDICT: NOT_APPLICABLE
+- UI_UX_VERDICT: OK
 
 ### GUI_IMPLEMENTATION_ADVICE_RUBRIC (research-backed GUI implementation advice)
 - Rule: separate hidden interaction requirements and implementation tricks from the concrete UI surface checklist. Inspect reference products/repos/design systems/papers when possible, capture hidden semantics, state models, accessibility/keyboard behavior, tooltip-vs-inline strategy, and spell out what Handshake should copy or adapt.

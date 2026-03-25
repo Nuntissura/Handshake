@@ -116,7 +116,7 @@ Requirements:
 <!-- Allowed: comma-separated Base WP IDs | NONE. Use Base IDs only (no -vN). -->
 - UI_UX_APPLICABLE: NO
 <!-- Allowed: YES | NO. YES => packet must include ## UI_UX_SPEC with concrete controls + tooltips. -->
-- UI_UX_VERDICT: NOT_APPLICABLE
+- UI_UX_VERDICT: OK
 <!-- Allowed: OK | NEEDS_STUBS | UNKNOWN -->
 - STUB_WP_IDS: NONE
 <!-- Allowed: comma-separated WP-... IDs | NONE. Must match refinement metadata STUB_WP_IDS. -->
