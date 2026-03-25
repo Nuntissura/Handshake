@@ -78333,7 +78333,7 @@ Hard invariants:
         "WP-1-Markdown-Mirror-Sync-Drift-Guard-v1",
         "WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1",
         "WP-1-Dev-Command-Center-Layout-Projection-Registry-v1",
-        "WP-1-Structured-Collaboration-Schema-Registry-v3",
+        "WP-1-Structured-Collaboration-Contract-Hardening-v1",
         "WP-1-Project-Profile-Extension-Registry-v1",
         "WP-1-Project-Agnostic-Workflow-State-Registry-v1",
         "WP-1-Workflow-Transition-Automation-Registry-v1",
@@ -78517,7 +78517,7 @@ Hard invariants:
         "WP-1-Locus-Debug-Bundle-Bridge-v1",
         "WP-1-Structured-Collaboration-Artifact-Family-v1",
         "WP-1-Markdown-Mirror-Sync-Drift-Guard-v1",
-        "WP-1-Structured-Collaboration-Schema-Registry-v3",
+        "WP-1-Structured-Collaboration-Contract-Hardening-v1",
         "WP-1-Project-Profile-Extension-Registry-v1",
         "WP-1-Project-Agnostic-Workflow-State-Registry-v1",
         "WP-1-Workflow-Transition-Automation-Registry-v1",
@@ -78558,7 +78558,7 @@ Hard invariants:
         "src/backend/handshake_core/src/storage/loom.rs"
       ],
       "gap_stub_ids": [
-        "WP-1-Loom-Storage-Portability-v3",
+        "WP-1-Loom-Storage-Portability-v4",
         "WP-1-Loom-Preview-VideoPosterFrames-v1",
         "WP-1-Media-Downloader-Loom-Bridge-v1",
         "WP-1-Video-Archive-Loom-Integration-v1",
@@ -78737,7 +78737,7 @@ Hard invariants:
         "WP-1-MTE-Summaries-v1",
         "WP-1-Structured-Collaboration-Artifact-Family-v1",
         "WP-1-Markdown-Mirror-Sync-Drift-Guard-v1",
-        "WP-1-Structured-Collaboration-Schema-Registry-v3",
+        "WP-1-Structured-Collaboration-Contract-Hardening-v1",
         "WP-1-Project-Profile-Extension-Registry-v1",
         "WP-1-Project-Agnostic-Workflow-State-Registry-v1",
         "WP-1-Workflow-Transition-Automation-Registry-v1",
@@ -78980,7 +78980,7 @@ Hard invariants:
         "WP-1-Role-Mailbox-Debug-Bundle-Bridge-v1",
         "WP-1-Structured-Collaboration-Artifact-Family-v1",
         "WP-1-Markdown-Mirror-Sync-Drift-Guard-v1",
-        "WP-1-Structured-Collaboration-Schema-Registry-v3",
+        "WP-1-Structured-Collaboration-Contract-Hardening-v1",
         "WP-1-Project-Profile-Extension-Registry-v1",
         "WP-1-Project-Agnostic-Workflow-State-Registry-v1",
         "WP-1-Workflow-Transition-Automation-Registry-v1",
@@ -79241,7 +79241,7 @@ Hard invariants:
         "WP-1-Dev-Command-Center-Layout-Projection-Registry-v1",
         "WP-1-Structured-Collaboration-Artifact-Family-v1",
         "WP-1-Markdown-Mirror-Sync-Drift-Guard-v1",
-        "WP-1-Structured-Collaboration-Schema-Registry-v3",
+        "WP-1-Structured-Collaboration-Contract-Hardening-v1",
         "WP-1-Project-Profile-Extension-Registry-v1",
         "WP-1-Project-Agnostic-Workflow-State-Registry-v1",
         "WP-1-Workflow-Transition-Automation-Registry-v1",
@@ -79373,7 +79373,7 @@ Hard invariants:
         "WP-1-Work-Profiles-v1",
         "WP-1-Structured-Collaboration-Artifact-Family-v1",
         "WP-1-Markdown-Mirror-Sync-Drift-Guard-v1",
-        "WP-1-Structured-Collaboration-Schema-Registry-v3",
+        "WP-1-Structured-Collaboration-Contract-Hardening-v1",
         "WP-1-Project-Profile-Extension-Registry-v1",
         "WP-1-Project-Agnostic-Workflow-State-Registry-v1",
         "WP-1-Workflow-Transition-Automation-Registry-v1",
@@ -83753,4 +83753,3 @@ Hard invariants:
 }
 ```
 <!-- HS_APPENDIX:END id=HS-APPX-INTERACTION-MATRIX -->
-
