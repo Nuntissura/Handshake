@@ -597,6 +597,9 @@ validator-hygiene-full:
 validator-handoff-check wp-id *args:
 	@node {{GOV_ROOT}}/roles/validator/checks/validator-handoff-check.mjs {{wp-id}} {{args}}
 
+integration-validator-closeout-check wp-id:
+	@node {{GOV_ROOT}}/roles/validator/checks/integration-validator-closeout-check.mjs {{wp-id}}
+
 external-validator-brief wp-id *args:
 	@node {{GOV_ROOT}}/roles/validator/checks/external-validator-brief.mjs {{wp-id}} {{args}}
 
