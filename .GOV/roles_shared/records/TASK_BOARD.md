@@ -17,9 +17,11 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 
 **Task Board entry format (enforced for In Progress/Done/Superseded via `just task-board-check`):**
 - In Progress: `- **[WP_ID]** - [IN_PROGRESS]`
-- Done: `- **[WP_ID]** - [VALIDATED|FAIL|OUTDATED_ONLY]`
+- Done: `- **[WP_ID]** - [MERGE_PENDING|VALIDATED|FAIL|OUTDATED_ONLY]`
 - Superseded: `- **[WP_ID]** - [SUPERSEDED]`
 Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the work packet to avoid drift/noise.
+
+`[MERGE_PENDING]` means validator PASS has been appended and the packet is waiting on merge-to-main containment; `[VALIDATED]` is reserved for packets whose approved closure commit is already contained in local `main`.
 
 **Phase 1 closure note:**
 - Historical `## Done` entries record closure under the governance/workflow that existed at the time.

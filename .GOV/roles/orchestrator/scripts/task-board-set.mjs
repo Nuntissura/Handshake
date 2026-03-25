@@ -59,6 +59,8 @@ function buildLine(wpId, status, reason) {
       return `${base} - [IN_PROGRESS]`;
     case "DONE_VALIDATED":
       return `${base} - [VALIDATED]`;
+    case "DONE_MERGE_PENDING":
+      return `${base} - [MERGE_PENDING]`;
     case "DONE_FAIL":
       return `${base} - [FAIL]`;
     case "DONE_OUTDATED_ONLY":
@@ -70,7 +72,7 @@ function buildLine(wpId, status, reason) {
     default:
       fail("Unknown status", [
         `got=${status}`,
-        "allowed: READY_FOR_DEV|STUB|IN_PROGRESS|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|BLOCKED|SUPERSEDED",
+        "allowed: READY_FOR_DEV|STUB|IN_PROGRESS|DONE_MERGE_PENDING|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|BLOCKED|SUPERSEDED",
       ]);
   }
 }
@@ -84,6 +86,7 @@ function sectionForStatus(status) {
     case "IN_PROGRESS":
       return /^##\s+In Progress\s*$/;
     case "DONE_VALIDATED":
+    case "DONE_MERGE_PENDING":
     case "DONE_FAIL":
     case "DONE_OUTDATED_ONLY":
       return /^##\s+Done\s*$/;

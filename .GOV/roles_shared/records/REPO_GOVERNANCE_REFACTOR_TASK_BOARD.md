@@ -42,6 +42,8 @@
   - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4`
   - `AUDIT_ID: AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW`
   - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260325-CONTRACT-HARDENING-V1`
+  - `AUDIT_ID: AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+  - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW`
 - Historical comparison driver:
   - `AUDIT_ID: AUDIT-20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT`
 
@@ -51,11 +53,16 @@
 |---|---|---|---|---|---|---|
 | RGF-01 | DONE | Chat-Visible Refinement Proof | - | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4` | `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `roles/orchestrator/checks/orchestrator_gates.mjs` | signature cannot be requested until the full refinement block has been emitted as assistant-authored chat text |
 | RGF-02 | DONE | Orchestrator Helper-Agent Product-Code Boundary | RGF-01 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4` | `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `roles/orchestrator/checks/orchestrator_gates.mjs` | helper agents cannot write product code unless explicit operator approval is recorded in packet fields |
-| RGF-03 | READY | Merge Progression Truth and Main Containment Gate | - | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` + `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | final review gates, closeout scripts, `TASK_BOARD.md`, runtime status surfaces | a validated PASS cannot close while the approved commit is absent from `main` unless status explicitly remains awaiting integration |
+| RGF-03 | DONE | Merge Progression Truth and Main Containment Gate | - | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` + `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | final review gates, closeout scripts, `TASK_BOARD.md`, runtime status surfaces | a validated PASS cannot close while the approved commit is absent from `main` unless status explicitly remains awaiting integration |
 | RGF-04 | READY | Integration-Validator Topology Preflight and Atomic Closeout | RGF-03 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` + `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | ACP broker control/status, final review scripts, session registry reconciliation | final review either finishes coherently or fails before partial closeout truth is written |
 | RGF-05 | READY | Session-Control Self-Settlement and Orphan Prevention | RGF-04 | `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` + `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | `SESSION_CONTROL_REQUESTS.jsonl`, `SESSION_CONTROL_RESULTS.jsonl`, broker outputs, repair helpers | every control request lands exactly one terminal result and orphaned rejected prompts stop requiring manual truth repair |
 | RGF-06 | PLANNED | Historical Failure vs Live Smoketest Modeling | RGF-03 | `AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT` + `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW` | `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, smoke-review naming, changelog linkage | failed historical closure and active smoketest lineage can coexist without split truth |
 | RGF-07 | DONE | Operator-Facing Scope Split Discipline | - | `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW` | `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles/coder/CODER_PROTOCOL.md`, `roles/validator/VALIDATOR_PROTOCOL.md`, `roles_shared/docs/START_HERE.md`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `../handshake_main/AGENTS.md` | operator-facing answers now explicitly split `Handshake (Product)` from `Repo Governance`, and governance-themed product code is no longer mislabeled as repo governance |
+| RGF-08 | DONE | Minimal Live Read Set and Startup Prompt Anti-Rediscovery Discipline | RGF-07 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | `roles_shared/scripts/session/session-control-lib.mjs`, `roles_shared/checks/protocol-alignment-check.mjs`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, role protocols, `SMOKETEST_REVIEW_TEMPLATE.md` | governed startup prompts now carry a minimal live read set, repeated protocol rereads/command rediscovery are treated as ambiguity signals, and protocol-alignment checks enforce the prompt contract |
+| RGF-09 | PLANNED | Orchestrator-Managed Invalidity Rules | RGF-06 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | lifecycle gates, orchestrator protocol, closeout/status rules, smoketest review law | operator restatement of core lane rules, false-green states, and other workflow-invalid conditions become explicit machine-visible invalidity states rather than narrative concerns |
+| RGF-10 | PLANNED | Declared Topology Enforcement and Auxiliary Worktree Rejection | RGF-04 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | worktree helpers, topology checks, cleanup surfaces, worktree budget enforcement | undeclared WP-adjacent worktrees and off-protocol convenience checkouts are blocked or fail closure automatically |
+| RGF-11 | PLANNED | Orchestrator-Managed Mid-Run Approval Relapse Guard | RGF-09 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | startup prompts, orchestrator-next flow, approval/signature gates, lifecycle checks | after signature, orchestrator-managed lanes cannot request routine operator approvals or skeleton checkpoints unless a real blocker class is recorded |
+| RGF-12 | PLANNED | Signed-Scope Compatibility Preflight and Governed Packet-Widening Policy | RGF-04 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | final review preflight, packet scope metadata, integration-validator flow, scope-governance helpers | current-`main` compatibility is checked before final authority starts, and any unavoidable adjacent shared-surface scope expansion follows a governed explicit path rather than ad hoc widening |
 
 ## Refactor Sequence (Historical)
 
@@ -68,10 +75,13 @@
 
 ## Follow-On Sequence
 
-1. `RGF-03`
-2. `RGF-04`
-3. `RGF-05`
-4. `RGF-06`
+1. `RGF-04`
+2. `RGF-05`
+3. `RGF-06`
+4. `RGF-09`
+5. `RGF-10`
+6. `RGF-11`
+7. `RGF-12`
 
 ## Explicit Holds
 

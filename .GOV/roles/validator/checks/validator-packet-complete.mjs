@@ -15,6 +15,7 @@ import {
   computedPolicyOutcomeAllowsClosure,
   evaluateComputedPolicyGateFromPacketText,
 } from "../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
+import { validateMergeProgressionTruth } from "../../../roles_shared/scripts/lib/merge-progression-truth-lib.mjs";
 import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/semantic-proof-lib.mjs";
 
 const wpId = process.argv[2];
@@ -272,6 +273,12 @@ if (packetFormatVersion) {
       if (semanticProofValidation.errors.length > 0) {
         fail(`semantic proof assets invalid for closed packet: ${semanticProofValidation.errors.join("; ")}`);
       }
+    }
+    const mergeProgressionTruth = validateMergeProgressionTruth(text, {
+      packetPath,
+    });
+    if (mergeProgressionTruth.errors.length > 0) {
+      fail(`merge progression truth invalid for closed packet: ${mergeProgressionTruth.errors.join("; ")}`);
     }
 
     const validationReports = extractSectionAfterHeading("VALIDATION_REPORTS");

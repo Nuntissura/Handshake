@@ -9,7 +9,7 @@ export const ORCHESTRATOR_GATES_PATH = resolveOrchestratorGatesPath();
 export const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
 export const TERMINAL_TASK_BOARD_STATUSES = ["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"];
 export const IMPLICIT_ORCHESTRATOR_RESUME_LOOKBACK_HOURS = 168;
-export const ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES = ["READY_FOR_DEV", "IN_PROGRESS", "BLOCKED"];
+export const ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES = ["READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "MERGE_PENDING"];
 
 function safeExec(command) {
   try {

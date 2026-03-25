@@ -26,7 +26,7 @@ function sectionKeyFromHeading(headingLine) {
 }
 
 function checkLines(lines) {
-  const doneRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[(VALIDATED|FAIL|OUTDATED_ONLY)\]\s*$/;
+  const doneRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[(MERGE_PENDING|VALIDATED|FAIL|OUTDATED_ONLY)\]\s*$/;
   const supersededRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[SUPERSEDED\]\s*$/;
   const inProgressRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[IN_PROGRESS\]\s*$/;
 
@@ -48,7 +48,7 @@ function checkLines(lines) {
 
     if (active === "DONE" && !doneRe.test(line)) {
       violations.push(
-        `${TASK_BOARD_PATH}:${lineNumber}: Done entries must be \`- **[WP_ID]** - [VALIDATED|FAIL|OUTDATED_ONLY]\`: ${line.trim()}`
+        `${TASK_BOARD_PATH}:${lineNumber}: Done entries must be \`- **[WP_ID]** - [MERGE_PENDING|VALIDATED|FAIL|OUTDATED_ONLY]\`: ${line.trim()}`
       );
       continue;
     }

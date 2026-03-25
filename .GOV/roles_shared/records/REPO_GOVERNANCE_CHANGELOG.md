@@ -15,6 +15,8 @@
 - SMOKETEST_REVIEW_ID: `SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4`
 - AUDIT_ID: `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW`
 - SMOKETEST_REVIEW_ID: `SMOKETEST-REVIEW-20260325-CONTRACT-HARDENING-V1`
+- AUDIT_ID: `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+- SMOKETEST_REVIEW_ID: `SMOKETEST-REVIEW-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW`
 - HISTORICAL_COMPARISON_AUDIT_ID: `AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT`
 
 ## Entries
@@ -118,3 +120,92 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
 - OUTCOME: operator-facing reasoning now distinguishes product code/spec/WP work from repo-governance/ACP/protocol work, even when the domain language is governance-themed
+
+### 2026.03.25.7 / GOV-CHANGE-20260325-07
+
+- STATUS: APPLIED
+- SUMMARY: formalized a mandatory post-smoketest improvement rubric for workflow smoothness, Master Spec gap reduction, and token-cost pressure
+- CHANGE_TYPE: REVIEW_DISCIPLINE_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+  - `SMOKETEST-REVIEW-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW`
+- SURFACES:
+  - `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
+  - `.GOV/Audits/smoketest/AUDIT_20260325_ORCHESTRATOR_MANAGED_WP_WORKFLOW_REVIEW.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: future smoketest reviews must now state whether the workflow got smoother, whether the real Master Spec gap list got smaller, and whether the run got cheaper in operator/token cost, with a named next structural fix for each target
+
+### 2026.03.25.8 / GOV-CHANGE-20260325-08
+
+- STATUS: APPLIED
+- SUMMARY: expanded smoketest reviews and live role guidance to treat silent failures, wrong command usage, ambiguity, and governance-document churn as explicit workflow signals
+- CHANGE_TYPE: REVIEW_DISCIPLINE_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+  - `SMOKETEST-REVIEW-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW`
+- SURFACES:
+  - `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/Audits/smoketest/AUDIT_20260325_ORCHESTRATOR_MANAGED_WP_WORKFLOW_REVIEW.md`
+- OUTCOME: future reviews and role guidance now treat false greens, wrong tool-family choices, ambiguous task/path truth, and repeated governance-document or command-surface rereads as explicit evidence of workflow ambiguity and avoidable token burn
+
+### 2026.03.25.9 / GOV-CHANGE-20260325-09
+
+- STATUS: APPLIED
+- SUMMARY: moved minimal live-read-set and anti-rediscovery guidance into governed startup prompts and made the smoketest template more self-sufficient
+- CHANGE_TYPE: TOKEN_DISCIPLINE_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+  - `SMOKETEST-REVIEW-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: coder, validator, and integration-validator startup prompts now carry the minimal live read set directly, repeated protocol rereads or command rediscovery are explicitly treated as ambiguity signals, and the smoketest template remains usable even when the separate rubric document is not open
+
+### 2026.03.25.10 / GOV-CHANGE-20260325-10
+
+- STATUS: APPLIED
+- SUMMARY: added the remaining post-smoketest workflow concerns as sequenced governance items after `RGF-06`
+- CHANGE_TYPE: PLANNING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+  - `SMOKETEST-REVIEW-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-09`
+  - `RGF-10`
+  - `RGF-11`
+  - `RGF-12`
+- OUTCOME: the remaining concerns around invalidity rules, undeclared auxiliary worktrees, mid-run approval relapse, and signed-scope/current-main compatibility now exist as explicit sequenced governance work instead of only audit prose
+
+### 2026.03.25.11 / GOV-CHANGE-20260325-11
+
+- STATUS: APPLIED
+- SUMMARY: split validator PASS closure from main containment so `Done` becomes merge-pending and `Validated (PASS)` requires local `main` containment proof
+- CHANGE_TYPE: WORKFLOW_TRUTH_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW`
+  - `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW`
+- SURFACES:
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/roles_shared/scripts/lib/merge-progression-truth-lib.mjs`
+  - `.GOV/roles_shared/checks/merge-progression-truth-check.mjs`
+  - `.GOV/roles_shared/checks/packet-truth-check.mjs`
+  - `.GOV/roles_shared/checks/task-board-check.mjs`
+  - `.GOV/roles/validator/checks/validator-packet-complete.mjs`
+  - `.GOV/roles/orchestrator/scripts/task-board-set.mjs`
+  - `.GOV/roles_shared/records/TASK_BOARD.md`
+- OUTCOME: packets on the new format can no longer claim `Validated (PASS)` until the approved closure commit is recorded and proven to be contained in local `main`; Task Board and runtime truth now distinguish `[MERGE_PENDING]` from `[VALIDATED]`

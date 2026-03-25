@@ -16,7 +16,7 @@ import {
 } from "../lib/runtime-paths.mjs";
 import { ACP_BUILD_ID } from "./acp-build-id.mjs";
 
-export const PACKET_FORMAT_VERSION = "2026-03-23";
+export const PACKET_FORMAT_VERSION = "2026-03-25";
 export const STUB_FORMAT_VERSION = "2026-03-16";
 export const SESSION_POLICY_PACKET_MIN_VERSION = "2026-03-12";
 export const SESSION_POLICY_STUB_MIN_VERSION = "2026-03-12";
@@ -26,6 +26,7 @@ export const STRUCTURED_VALIDATION_REPORT_MIN_VERSION = "2026-03-15";
 export const SHARED_REMOTE_WP_BACKUP_PACKET_MIN_VERSION = "2026-03-16";
 export const SPEC_CLAUSE_MAP_MIN_VERSION = "2026-03-18";
 export const COMPLETION_LAYER_VERDICTS_MIN_VERSION = "2026-03-22";
+export const MERGE_CONTAINMENT_PACKET_MIN_VERSION = "2026-03-25";
 
 export const SESSION_START_AUTHORITY = "ORCHESTRATOR_ONLY";
 export const SESSION_HOST_PREFERENCE = "VSCODE_EXTENSION_TERMINAL";
@@ -300,6 +301,11 @@ export function packetRequiresSpecClauseMap(packetFormatVersion) {
 export function packetRequiresCompletionLayerVerdicts(packetFormatVersion) {
   const version = String(packetFormatVersion || "").trim();
   return version >= COMPLETION_LAYER_VERDICTS_MIN_VERSION;
+}
+
+export function packetRequiresMergeContainmentTruth(packetFormatVersion) {
+  const version = String(packetFormatVersion || "").trim();
+  return version >= MERGE_CONTAINMENT_PACKET_MIN_VERSION;
 }
 
 export function stubUsesSessionPolicy(stubFormatVersion) {

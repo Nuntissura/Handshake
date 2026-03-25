@@ -59,6 +59,22 @@ These are safe starting points for orientation and health checks.
   - `read-only`
   - role-specific resume helpers after startup/reset/compaction
 
+## Minimal Live Read Set (Token Discipline)
+
+After startup and assignment, roles should usually be able to operate from a small live read set:
+
+- startup output
+- the assigned packet
+- the active WP thread / notifications
+- this command-surface reference when command choice is unclear
+
+Repeated full rereads of large governance protocols, repeated `just --list`-style command rediscovery, and repeated path/source-of-truth checks after context is already stable should be treated as ambiguity smells, not as normal diligence.
+
+If a role keeps needing those rereads:
+
+- prefer tightening the startup prompt, packet, command surface, or helper command
+- record the churn in the next smoketest review under `Silent Failures, Command Surface Misuse, and Ambiguity Scan`
+
 ## Startup and preflight
 
 - `just orchestrator-startup`
@@ -117,6 +133,8 @@ These mutate packet, board, traceability, or related governed surfaces.
   - `governance-write`
   - transactional prepare + packet creation + sync flow
 - `just task-board-set WP-{ID} <STATUS> ["reason"]`
+  - use `DONE_MERGE_PENDING` after validator PASS append but before merge-to-main containment
+  - use `DONE_VALIDATED` only after the approved closure commit is actually contained in local `main`
 - `just build-order-sync`
   - `governance-write`
   - projection updates
@@ -229,6 +247,7 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
 - `just validator-policy-gate WP-{ID}`
   - `read-only`
   - primary validator gate surface
+  - for `PACKET_FORMAT_VERSION >= 2026-03-25`, `Done` means merge-pending PASS and `Validated (PASS)` requires recorded containment in local `main`
 - `just external-validator-brief WP-{ID}`
   - `read-only`
   - classical/external validation contract summary

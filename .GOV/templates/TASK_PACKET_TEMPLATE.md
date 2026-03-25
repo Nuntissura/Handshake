@@ -102,6 +102,12 @@ Requirements:
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
 - **Status:** Ready for Dev
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
+- MAIN_CONTAINMENT_STATUS: NOT_STARTED
+<!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
+- MERGED_MAIN_COMMIT: NONE
+<!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+<!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
 - RISK_TIER: <pending>
 <!-- Allowed: LOW | MEDIUM | HIGH -->
 - BUILD_ORDER_DOMAIN: <pending>
@@ -530,6 +536,23 @@ git revert <commit-sha>
 - Rubric anti-gaming / counterfactual check:
 - Next step / handoff hint:
 
+## MERGE_PROGRESSION_TRUTH
+- For `PACKET_FORMAT_VERSION >= 2026-03-25`, PASS closure is two-step and must stay explicit:
+  - validator PASS append before merge-to-main:
+    - set `**Status:** Done`
+    - set `MAIN_CONTAINMENT_STATUS: MERGE_PENDING`
+    - keep `MERGED_MAIN_COMMIT: NONE`
+    - keep `MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A`
+    - project Task Board `## Done` token as `[MERGE_PENDING]`
+  - after merge-to-main authority finishes and local `main` actually contains the approved closure commit:
+    - set `**Status:** Validated (PASS)`
+    - set `MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN`
+    - record `MERGED_MAIN_COMMIT: <main-contained sha>`
+    - record `MAIN_CONTAINMENT_VERIFIED_AT_UTC: <RFC3339 UTC>`
+    - project Task Board `## Done` token as `[VALIDATED]`
+- `Validated (FAIL)` and `Validated (OUTDATED_ONLY)` must use `MAIN_CONTAINMENT_STATUS: NOT_REQUIRED`.
+- Historical packet variants older than `PACKET_FORMAT_VERSION 2026-03-25` keep their legacy closure semantics and must not be rewritten in place only to satisfy this newer merge-progression model.
+
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
@@ -547,6 +570,16 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+- For `PACKET_FORMAT_VERSION >= 2026-03-25`, merge progression truth is part of closure law:
+  - `**Status:** Done` means PASS is recorded but main containment is still pending and requires:
+    - `MAIN_CONTAINMENT_STATUS: MERGE_PENDING`
+    - `MERGED_MAIN_COMMIT: NONE`
+    - `MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A`
+  - `**Status:** Validated (PASS)` is reserved for closures already contained in local `main` and requires:
+    - `MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN`
+    - `MERGED_MAIN_COMMIT: <main-contained sha>`
+    - `MAIN_CONTAINMENT_VERIFIED_AT_UTC: <RFC3339 UTC>`
+  - `Validated (FAIL)` and `Validated (OUTDATED_ONLY)` require `MAIN_CONTAINMENT_STATUS: NOT_REQUIRED`
 - For `PACKET_FORMAT_VERSION >= 2026-03-15`, every appended governed validation report MUST include these top fields:
   - `VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH`
   - `GOVERNANCE_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`

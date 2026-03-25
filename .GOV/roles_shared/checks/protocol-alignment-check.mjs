@@ -30,6 +30,7 @@ const CREATE_TASK_PACKET_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestra
 const LAUNCH_CLI_SESSION_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "launch-cli-session.mjs");
 const SESSION_CONTROL_COMMAND_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
 const SESSION_CONTROL_CANCEL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-cancel.mjs");
+const SESSION_CONTROL_LIB_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "scripts", "session", "session-control-lib.mjs");
 const ROLE_SESSION_WORKTREE_ADD_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs");
 const PRE_WORK_CHECK_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "coder", "checks", "pre-work-check.mjs");
 const SESSION_POLICY_CHECK_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "checks", "session-policy-check.mjs");
@@ -48,6 +49,7 @@ const ACTIVE_SURFACE_PATHS = [
   LAUNCH_CLI_SESSION_PATH,
   SESSION_CONTROL_COMMAND_PATH,
   SESSION_CONTROL_CANCEL_PATH,
+  SESSION_CONTROL_LIB_PATH,
   ROLE_SESSION_WORKTREE_ADD_PATH,
   PRE_WORK_CHECK_PATH,
   SESSION_POLICY_CHECK_PATH,
@@ -156,6 +158,7 @@ const createTaskPacket = contents.get(CREATE_TASK_PACKET_PATH);
 const launchCliSession = contents.get(LAUNCH_CLI_SESSION_PATH);
 const sessionControlCommand = contents.get(SESSION_CONTROL_COMMAND_PATH);
 const sessionControlCancel = contents.get(SESSION_CONTROL_CANCEL_PATH);
+const sessionControlLib = contents.get(SESSION_CONTROL_LIB_PATH);
 const roleSessionWorktreeAdd = contents.get(ROLE_SESSION_WORKTREE_ADD_PATH);
 const preWorkCheck = contents.get(PRE_WORK_CHECK_PATH);
 const sessionPolicyCheck = contents.get(SESSION_POLICY_CHECK_PATH);
@@ -255,6 +258,15 @@ requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just valid
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-wp-validator-session");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-integration-validator-session");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "shared remote WP backup branch");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "## Read-Amplification and Ambiguity Discipline");
+requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "## Read-Amplification and Ambiguity Discipline");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "## Read-Amplification and Ambiguity Discipline");
+requireSubstring(errors, LAUNCH_CLI_SESSION_PATH, launchCliSession, "buildStartupPrompt");
+requireSubstring(errors, SESSION_CONTROL_COMMAND_PATH, sessionControlCommand, "buildStartupPrompt");
+requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "MINIMAL LIVE READ SET (MANDATORY):");
+requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, ".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md");
+requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "ANTI-REDISCOVERY RULE:");
+requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "just --list");
 
 // Scripts must expose the current role/command contract and point at active paths.
 requireRegex(
