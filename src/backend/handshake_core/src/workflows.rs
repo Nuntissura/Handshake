@@ -3055,31 +3055,31 @@ fn work_packet_workflow_state(
     match status {
         locus::WorkPacketStatus::Unknown => (
             locus::WorkflowStateFamily::Intake,
-            locus::WorkflowQueueReasonCode::NewUntriaged,
+            locus::WorkflowQueueReasonCode::NeedsTriage,
         ),
         locus::WorkPacketStatus::Ready => (
             locus::WorkflowStateFamily::Ready,
-            locus::WorkflowQueueReasonCode::ReadyForHuman,
+            locus::WorkflowQueueReasonCode::HumanReviewWait,
         ),
         locus::WorkPacketStatus::InProgress => (
             locus::WorkflowStateFamily::Active,
-            locus::WorkflowQueueReasonCode::ReadyForHuman,
+            locus::WorkflowQueueReasonCode::HumanReviewWait,
         ),
         locus::WorkPacketStatus::Blocked => (
             locus::WorkflowStateFamily::Blocked,
-            locus::WorkflowQueueReasonCode::BlockedMissingContext,
+            locus::WorkflowQueueReasonCode::DecisionWait,
         ),
         locus::WorkPacketStatus::Gated => (
             locus::WorkflowStateFamily::Approval,
-            locus::WorkflowQueueReasonCode::ApprovalWait,
+            locus::WorkflowQueueReasonCode::DecisionWait,
         ),
         locus::WorkPacketStatus::Done => (
             locus::WorkflowStateFamily::Done,
-            locus::WorkflowQueueReasonCode::ValidationWait,
+            locus::WorkflowQueueReasonCode::Completed,
         ),
         locus::WorkPacketStatus::Cancelled => (
             locus::WorkflowStateFamily::Canceled,
-            locus::WorkflowQueueReasonCode::BlockedPolicy,
+            locus::WorkflowQueueReasonCode::Canceled,
         ),
     }
 }
@@ -3098,19 +3098,19 @@ fn micro_task_workflow_state(
         ),
         locus::MicroTaskStatus::Completed => (
             locus::WorkflowStateFamily::Done,
-            locus::WorkflowQueueReasonCode::ValidationWait,
+            locus::WorkflowQueueReasonCode::Completed,
         ),
         locus::MicroTaskStatus::Failed => (
             locus::WorkflowStateFamily::Blocked,
-            locus::WorkflowQueueReasonCode::BlockedError,
+            locus::WorkflowQueueReasonCode::RetryScheduled,
         ),
         locus::MicroTaskStatus::Blocked => (
             locus::WorkflowStateFamily::Blocked,
-            locus::WorkflowQueueReasonCode::BlockedMissingContext,
+            locus::WorkflowQueueReasonCode::EscalationWait,
         ),
         locus::MicroTaskStatus::Skipped => (
             locus::WorkflowStateFamily::Canceled,
-            locus::WorkflowQueueReasonCode::BlockedPolicy,
+            locus::WorkflowQueueReasonCode::Rejected,
         ),
     }
 }
@@ -3121,31 +3121,31 @@ fn task_board_workflow_state(
     match status {
         locus::TaskBoardStatus::Unknown => (
             locus::WorkflowStateFamily::Intake,
-            locus::WorkflowQueueReasonCode::NewUntriaged,
+            locus::WorkflowQueueReasonCode::NeedsTriage,
         ),
         locus::TaskBoardStatus::Ready => (
             locus::WorkflowStateFamily::Ready,
-            locus::WorkflowQueueReasonCode::ReadyForHuman,
+            locus::WorkflowQueueReasonCode::HumanReviewWait,
         ),
         locus::TaskBoardStatus::InProgress => (
             locus::WorkflowStateFamily::Active,
-            locus::WorkflowQueueReasonCode::ReadyForHuman,
+            locus::WorkflowQueueReasonCode::HumanReviewWait,
         ),
         locus::TaskBoardStatus::Blocked => (
             locus::WorkflowStateFamily::Blocked,
-            locus::WorkflowQueueReasonCode::BlockedMissingContext,
+            locus::WorkflowQueueReasonCode::DecisionWait,
         ),
         locus::TaskBoardStatus::Gated => (
             locus::WorkflowStateFamily::Approval,
-            locus::WorkflowQueueReasonCode::ApprovalWait,
+            locus::WorkflowQueueReasonCode::DecisionWait,
         ),
         locus::TaskBoardStatus::Done => (
             locus::WorkflowStateFamily::Done,
-            locus::WorkflowQueueReasonCode::ValidationWait,
+            locus::WorkflowQueueReasonCode::Completed,
         ),
         locus::TaskBoardStatus::Cancelled => (
             locus::WorkflowStateFamily::Canceled,
-            locus::WorkflowQueueReasonCode::BlockedPolicy,
+            locus::WorkflowQueueReasonCode::Canceled,
         ),
     }
 }

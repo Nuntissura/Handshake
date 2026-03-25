@@ -826,6 +826,10 @@ async fn schema_registry_create_and_close_wp_emit_structured_work_packet_packet_
         summary_json.get("status").and_then(Value::as_str),
         Some("stub")
     );
+    assert_eq!(
+        packet_json.get("queue_reason_code").and_then(Value::as_str),
+        Some("needs_triage")
+    );
 
     let packet_validation = validate_runtime_structured_record(
         &root,
@@ -890,6 +894,20 @@ async fn schema_registry_create_and_close_wp_emit_structured_work_packet_packet_
                 StructuredCollaborationValidationCode::MissingField
             ) && issue.field == field));
     }
+    let mut packet_json_legacy_queue_reason = packet_json.clone();
+    packet_json_legacy_queue_reason["queue_reason_code"] = json!("new_untriaged");
+    let legacy_queue_reason_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::WorkPacketPacket,
+        &packet_json_legacy_queue_reason,
+    );
+    assert!(!legacy_queue_reason_validation.ok);
+    assert!(legacy_queue_reason_validation.issues.iter().any(|issue| {
+        matches!(
+            issue.code,
+            StructuredCollaborationValidationCode::InvalidFieldValue
+        ) && issue.field == "queue_reason_code"
+    }));
     let summary_validation = validate_runtime_structured_record(
         &root,
         StructuredCollaborationRecordFamily::WorkPacketSummary,
@@ -918,6 +936,12 @@ async fn schema_registry_create_and_close_wp_emit_structured_work_packet_packet_
             .and_then(|value| value.get("task_board_status"))
             .and_then(Value::as_str),
         Some("DONE")
+    );
+    assert_eq!(
+        closed_packet_json
+            .get("queue_reason_code")
+            .and_then(Value::as_str),
+        Some("completed")
     );
     assert_eq!(
         closed_summary_json.get("status").and_then(Value::as_str),
@@ -1021,12 +1045,15 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
         &index_json_missing_row_action_ids,
     );
     assert!(!missing_row_action_ids_validation.ok);
-    assert!(missing_row_action_ids_validation.issues.iter().any(|issue| {
-        matches!(
-            issue.code,
-            StructuredCollaborationValidationCode::MissingField
-        ) && issue.field == "rows[0].allowed_action_ids"
-    }));
+    assert!(missing_row_action_ids_validation
+        .issues
+        .iter()
+        .any(|issue| {
+            matches!(
+                issue.code,
+                StructuredCollaborationValidationCode::MissingField
+            ) && issue.field == "rows[0].allowed_action_ids"
+        }));
     let mut view_json_invalid_row_updated_at = view_json.clone();
     view_json_invalid_row_updated_at["rows"][0]["updated_at"] = json!("not-rfc3339");
     let invalid_row_updated_at_validation = validate_runtime_structured_record(
@@ -1035,12 +1062,32 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
         &view_json_invalid_row_updated_at,
     );
     assert!(!invalid_row_updated_at_validation.ok);
-    assert!(invalid_row_updated_at_validation.issues.iter().any(|issue| {
-        matches!(
-            issue.code,
-            StructuredCollaborationValidationCode::InvalidFieldValue
-        ) && issue.field == "rows[0].updated_at"
-    }));
+    assert!(invalid_row_updated_at_validation
+        .issues
+        .iter()
+        .any(|issue| {
+            matches!(
+                issue.code,
+                StructuredCollaborationValidationCode::InvalidFieldValue
+            ) && issue.field == "rows[0].updated_at"
+        }));
+    let mut index_json_legacy_row_queue_reason = index_json.clone();
+    index_json_legacy_row_queue_reason["rows"][0]["queue_reason_code"] = json!("ready_for_human");
+    let legacy_row_queue_reason_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::TaskBoardIndex,
+        &index_json_legacy_row_queue_reason,
+    );
+    assert!(!legacy_row_queue_reason_validation.ok);
+    assert!(legacy_row_queue_reason_validation
+        .issues
+        .iter()
+        .any(|issue| {
+            matches!(
+                issue.code,
+                StructuredCollaborationValidationCode::InvalidFieldValue
+            ) && issue.field == "rows[0].queue_reason_code"
+        }));
 
     let first_row = index_json
         .get("rows")
@@ -1058,6 +1105,10 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
     assert_eq!(
         first_row.get("lane_id").and_then(Value::as_str),
         Some("ready")
+    );
+    assert_eq!(
+        first_row.get("queue_reason_code").and_then(Value::as_str),
+        Some("human_review_wait")
     );
     assert_eq!(
         first_row.get("display_order").and_then(Value::as_u64),
@@ -1108,6 +1159,10 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
     assert_eq!(
         packet_json.get("status").and_then(Value::as_str),
         Some("ready")
+    );
+    assert_eq!(
+        packet_json.get("queue_reason_code").and_then(Value::as_str),
+        Some("human_review_wait")
     );
 
     Ok(())
@@ -1398,6 +1453,10 @@ async fn schema_registry_register_mts_emits_structured_micro_task_packet_and_sum
         summary_json.get("schema_id").and_then(Value::as_str),
         Some("hsk.structured_collaboration_summary@1")
     );
+    assert_eq!(
+        packet_json.get("queue_reason_code").and_then(Value::as_str),
+        Some("ready_for_local_small_model")
+    );
     let active_session_ids = packet_json
         .get("active_session_ids")
         .and_then(Value::as_array)
@@ -1490,6 +1549,20 @@ async fn schema_registry_register_mts_emits_structured_micro_task_packet_and_sum
                 StructuredCollaborationValidationCode::MissingField
             ) && issue.field == field));
     }
+    let mut packet_json_legacy_queue_reason = packet_json.clone();
+    packet_json_legacy_queue_reason["queue_reason_code"] = json!("blocked_error");
+    let legacy_queue_reason_validation = validate_runtime_structured_record(
+        dir.path(),
+        StructuredCollaborationRecordFamily::MicroTaskPacket,
+        &packet_json_legacy_queue_reason,
+    );
+    assert!(!legacy_queue_reason_validation.ok);
+    assert!(legacy_queue_reason_validation.issues.iter().any(|issue| {
+        matches!(
+            issue.code,
+            StructuredCollaborationValidationCode::InvalidFieldValue
+        ) && issue.field == "queue_reason_code"
+    }));
     let summary_validation = validate_runtime_structured_record(
         dir.path(),
         StructuredCollaborationRecordFamily::MicroTaskSummary,

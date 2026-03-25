@@ -1,6 +1,6 @@
 use crate::ace::ArtifactHandle;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -146,8 +146,30 @@ impl WorkflowStateFamily {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+const WORKFLOW_QUEUE_REASON_CODE_VALUES: &[&str] = &[
+    "needs_triage",
+    "dependency_wait",
+    "mailbox_response_wait",
+    "mailbox_snoozed",
+    "human_review_wait",
+    "decision_wait",
+    "approval_wait",
+    "validation_wait",
+    "escalation_wait",
+    "mailbox_expired",
+    "dead_letter_remediation",
+    "operator_pause",
+    "policy_block",
+    "resource_unavailable",
+    "retry_scheduled",
+    "ready_for_local_small_model",
+    "ready_for_cloud_model",
+    "completed",
+    "rejected",
+    "canceled",
+];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorkflowQueueReasonCode {
     NewUntriaged,
     DependencyWait,
@@ -163,27 +185,106 @@ pub enum WorkflowQueueReasonCode {
     BlockedPolicy,
     BlockedCapability,
     BlockedError,
+    NeedsTriage,
+    HumanReviewWait,
+    DecisionWait,
+    EscalationWait,
+    PolicyBlock,
+    ResourceUnavailable,
+    RetryScheduled,
+    MailboxSnoozed,
+    MailboxExpired,
+    DeadLetterRemediation,
+    OperatorPause,
+    Completed,
+    Rejected,
+    Canceled,
 }
 
 impl WorkflowQueueReasonCode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::NewUntriaged | Self::NeedsTriage => "needs_triage",
+            Self::DependencyWait => "dependency_wait",
+            Self::ReadyForLocalSmallModel => "ready_for_local_small_model",
+            Self::ReadyForCloudModel => "ready_for_cloud_model",
+            Self::ReadyForHuman | Self::ReviewWait | Self::HumanReviewWait => "human_review_wait",
+            Self::BlockedMissingContext | Self::DecisionWait => "decision_wait",
+            Self::ApprovalWait => "approval_wait",
+            Self::ValidationWait => "validation_wait",
+            Self::MailboxResponseWait => "mailbox_response_wait",
+            Self::TimerWait | Self::MailboxSnoozed => "mailbox_snoozed",
+            Self::EscalationWait => "escalation_wait",
+            Self::BlockedPolicy | Self::PolicyBlock => "policy_block",
+            Self::BlockedCapability | Self::ResourceUnavailable => "resource_unavailable",
+            Self::BlockedError | Self::RetryScheduled => "retry_scheduled",
+            Self::MailboxExpired => "mailbox_expired",
+            Self::DeadLetterRemediation => "dead_letter_remediation",
+            Self::OperatorPause => "operator_pause",
+            Self::Completed => "completed",
+            Self::Rejected => "rejected",
+            Self::Canceled => "canceled",
+        }
+    }
+
     pub fn parse(value: &str) -> Option<Self> {
         match value.trim() {
-            "new_untriaged" => Some(Self::NewUntriaged),
+            "needs_triage" => Some(Self::NeedsTriage),
             "dependency_wait" => Some(Self::DependencyWait),
             "ready_for_local_small_model" => Some(Self::ReadyForLocalSmallModel),
             "ready_for_cloud_model" => Some(Self::ReadyForCloudModel),
-            "ready_for_human" => Some(Self::ReadyForHuman),
-            "review_wait" => Some(Self::ReviewWait),
+            "human_review_wait" => Some(Self::HumanReviewWait),
+            "decision_wait" => Some(Self::DecisionWait),
             "approval_wait" => Some(Self::ApprovalWait),
             "validation_wait" => Some(Self::ValidationWait),
             "mailbox_response_wait" => Some(Self::MailboxResponseWait),
-            "timer_wait" => Some(Self::TimerWait),
-            "blocked_missing_context" => Some(Self::BlockedMissingContext),
-            "blocked_policy" => Some(Self::BlockedPolicy),
-            "blocked_capability" => Some(Self::BlockedCapability),
-            "blocked_error" => Some(Self::BlockedError),
+            "mailbox_snoozed" => Some(Self::MailboxSnoozed),
+            "escalation_wait" => Some(Self::EscalationWait),
+            "mailbox_expired" => Some(Self::MailboxExpired),
+            "dead_letter_remediation" => Some(Self::DeadLetterRemediation),
+            "operator_pause" => Some(Self::OperatorPause),
+            "policy_block" => Some(Self::PolicyBlock),
+            "resource_unavailable" => Some(Self::ResourceUnavailable),
+            "retry_scheduled" => Some(Self::RetryScheduled),
+            "completed" => Some(Self::Completed),
+            "rejected" => Some(Self::Rejected),
+            "canceled" => Some(Self::Canceled),
             _ => None,
         }
+    }
+
+    fn from_wire(value: &str) -> Option<Self> {
+        match value.trim() {
+            "new_untriaged" => Some(Self::NeedsTriage),
+            "ready_for_human" | "review_wait" => Some(Self::HumanReviewWait),
+            "timer_wait" => Some(Self::MailboxSnoozed),
+            "blocked_missing_context" => Some(Self::DecisionWait),
+            "blocked_policy" => Some(Self::PolicyBlock),
+            "blocked_capability" => Some(Self::ResourceUnavailable),
+            "blocked_error" => Some(Self::RetryScheduled),
+            other => Self::parse(other),
+        }
+    }
+}
+
+impl Serialize for WorkflowQueueReasonCode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for WorkflowQueueReasonCode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        Self::from_wire(&value).ok_or_else(|| {
+            serde::de::Error::unknown_variant(value.as_str(), WORKFLOW_QUEUE_REASON_CODE_VALUES)
+        })
     }
 }
 
@@ -985,10 +1086,11 @@ impl StructuredCollaborationValidationResult {
         if !other.ok {
             self.ok = false;
         }
-        self.issues.extend(other.issues.into_iter().map(|mut issue| {
-            issue.field = prefixed_field(prefix, &issue.field);
-            issue
-        }));
+        self.issues
+            .extend(other.issues.into_iter().map(|mut issue| {
+                issue.field = prefixed_field(prefix, &issue.field);
+                issue
+            }));
     }
 }
 
@@ -1180,7 +1282,11 @@ pub fn validate_structured_collaboration_record(
             require_non_empty_string(obj.get("message_type"), "message_type", &mut result);
             require_artifact_handle_string(obj.get("body_ref"), "body_ref", &mut result);
             require_lowercase_sha256_string(obj.get("body_sha256"), "body_sha256", &mut result);
-            require_artifact_handle_string_array(obj.get("attachments"), "attachments", &mut result);
+            require_artifact_handle_string_array(
+                obj.get("attachments"),
+                "attachments",
+                &mut result,
+            );
             validate_role_mailbox_transcription_links(
                 obj.get("transcription_links"),
                 obj.get("message_type"),
@@ -1215,8 +1321,8 @@ pub(crate) fn parse_artifact_handle_string(value: &str) -> Result<ArtifactHandle
         return Err("invalid artifact handle string".to_string());
     }
 
-    let artifact_id = Uuid::parse_str(id_part)
-        .map_err(|e| format!("invalid artifact handle uuid: {e}"))?;
+    let artifact_id =
+        Uuid::parse_str(id_part).map_err(|e| format!("invalid artifact handle uuid: {e}"))?;
 
     Ok(ArtifactHandle::new(artifact_id, path_part.to_string()))
 }
@@ -1927,11 +2033,7 @@ fn validate_role_mailbox_threads(
     };
 
     for (index, item) in items.iter().enumerate() {
-        validate_role_mailbox_thread_entry(
-            item,
-            format!("{field}[{index}]").as_str(),
-            result,
-        );
+        validate_role_mailbox_thread_entry(item, format!("{field}[{index}]").as_str(), result);
     }
 }
 
@@ -1956,8 +2058,16 @@ fn validate_role_mailbox_thread_entry(
         .and_then(Value::as_str)
         .map(str::to_string);
 
-    require_non_empty_string(obj.get("thread_id"), &prefixed_field(field, "thread_id"), result);
-    require_rfc3339_string(obj.get("created_at"), &prefixed_field(field, "created_at"), result);
+    require_non_empty_string(
+        obj.get("thread_id"),
+        &prefixed_field(field, "thread_id"),
+        result,
+    );
+    require_rfc3339_string(
+        obj.get("created_at"),
+        &prefixed_field(field, "created_at"),
+        result,
+    );
     validate_optional_rfc3339_string(
         obj.get("closed_at"),
         &prefixed_field(field, "closed_at"),
@@ -2023,7 +2133,11 @@ fn validate_role_mailbox_thread_context(
         return;
     };
 
-    validate_optional_non_empty_string(obj.get("spec_id"), &prefixed_field(field, "spec_id"), result);
+    validate_optional_non_empty_string(
+        obj.get("spec_id"),
+        &prefixed_field(field, "spec_id"),
+        result,
+    );
     validate_optional_non_empty_string(
         obj.get("work_packet_id"),
         &prefixed_field(field, "work_packet_id"),
@@ -2188,14 +2302,26 @@ fn validate_role_mailbox_transcription_link(
         return;
     };
 
-    require_non_empty_string(obj.get("target_kind"), &prefixed_field(field, "target_kind"), result);
-    require_artifact_handle_string(obj.get("target_ref"), &prefixed_field(field, "target_ref"), result);
+    require_non_empty_string(
+        obj.get("target_kind"),
+        &prefixed_field(field, "target_kind"),
+        result,
+    );
+    require_artifact_handle_string(
+        obj.get("target_ref"),
+        &prefixed_field(field, "target_ref"),
+        result,
+    );
     require_lowercase_sha256_string(
         obj.get("target_sha256"),
         &prefixed_field(field, "target_sha256"),
         result,
     );
-    require_non_empty_string(obj.get("note_redacted"), &prefixed_field(field, "note_redacted"), result);
+    require_non_empty_string(
+        obj.get("note_redacted"),
+        &prefixed_field(field, "note_redacted"),
+        result,
+    );
     require_lowercase_sha256_string(
         obj.get("note_sha256"),
         &prefixed_field(field, "note_sha256"),

@@ -1246,8 +1246,8 @@ impl RoleMailbox {
         actor: String,
     ) -> Result<RoleMailboxExportSummary, RoleMailboxError> {
         fs::create_dir_all(&self.export_dir)?;
-        let runtime_paths =
-            RuntimeGovernancePaths::from_workspace_root(self.root_dir.clone()).map_err(|e| {
+        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(self.root_dir.clone())
+            .map_err(|e| {
                 RoleMailboxError::InvalidInput(format!(
                     "failed to resolve runtime governance paths: {e}"
                 ))
