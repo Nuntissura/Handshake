@@ -89,7 +89,8 @@
         "VALIDATION_START",
         "VALIDATION_STATUS_SYNC",
         "STEERING",
-        "REPAIR"
+        "REPAIR",
+        "WORKFLOW_INVALIDITY"
       ]
     },
     "summary": {
@@ -167,6 +168,13 @@
         "string",
         "null"
       ]
+    },
+    "workflow_invalidity_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Z0-9_]+$"
     },
     "refs": {
       "type": "array",

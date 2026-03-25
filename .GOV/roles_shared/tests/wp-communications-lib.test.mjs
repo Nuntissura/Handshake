@@ -135,6 +135,34 @@ function reviewResolutionReceiptFixture(overrides = {}) {
   };
 }
 
+function workflowInvalidityReceiptFixture(overrides = {}) {
+  return {
+    schema_version: "wp_receipt@1",
+    timestamp_utc: "2026-03-24T10:00:00Z",
+    wp_id: "WP-TEST-RUNTIME-v1",
+    actor_role: "ORCHESTRATOR",
+    actor_session: "orch-1",
+    actor_authority_kind: "WORKFLOW_AUTHORITY",
+    validator_role_kind: null,
+    receipt_kind: "WORKFLOW_INVALIDITY",
+    summary: "Manual checkpoint helper was invoked for an orchestrator-managed WP",
+    branch: "gov_kernel",
+    worktree_dir: "../wt-gov-kernel",
+    state_before: null,
+    state_after: "WORKFLOW_INVALID",
+    target_role: "ORCHESTRATOR",
+    target_session: null,
+    correlation_id: null,
+    requires_ack: false,
+    ack_for: null,
+    spec_anchor: "CX-GATE-001",
+    packet_row_ref: null,
+    workflow_invalidity_code: "ORCHESTRATOR_MANAGED_CHECKPOINT_RELAPSE",
+    refs: [".GOV/task_packets/WP-TEST-RUNTIME-v1/packet.md"],
+    ...overrides,
+  };
+}
+
 test("validateReceipt requires target_session for direct-review receipts", () => {
   const errors = validateReceipt(reviewResolutionReceiptFixture({
     target_session: null,
@@ -147,4 +175,16 @@ test("validateReceipt requires ack_for to match correlation_id for resolution re
     ack_for: "wrong-correlation",
   }));
   assert.match(errors.join("\n"), /ack_for must match correlation_id for VALIDATOR_REVIEW/);
+});
+
+test("validateReceipt accepts WORKFLOW_INVALIDITY receipts with a machine code", () => {
+  const errors = validateReceipt(workflowInvalidityReceiptFixture());
+  assert.deepEqual(errors, []);
+});
+
+test("validateReceipt requires workflow_invalidity_code for WORKFLOW_INVALIDITY receipts", () => {
+  const errors = validateReceipt(workflowInvalidityReceiptFixture({
+    workflow_invalidity_code: null,
+  }));
+  assert.match(errors.join("\n"), /workflow_invalidity_code is required for WORKFLOW_INVALIDITY/);
 });

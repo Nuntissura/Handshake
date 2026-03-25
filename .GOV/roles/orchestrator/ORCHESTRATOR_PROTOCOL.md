@@ -69,6 +69,7 @@ See also:
 
 - The Orchestrator role is one non-agentic coordinator CLI session.
 - Orchestrator-managed execution MUST use governed ACP/CLI sessions (`launch-*`, `start-*`, `steer-*`, `session-send`) for Coder and Validator lanes.
+- Orchestrator-managed execution MUST NOT reintroduce manual skeleton checkpoint or skeleton approval commands. `just coder-skeleton-checkpoint` and `just skeleton-approved` are `MANUAL_RELAY`-only surfaces; invoking them on an orchestrator-managed WP is workflow-invalid and must be recorded as `WORKFLOW_INVALIDITY`.
 - The Orchestrator MAY use helper agents/subagents for governance work, spec enrichment/refinement, WP creation, ACP runtime work (including ACP bug fixes or behavior changes), product-code inspection, and other bounded Orchestrator duties.
 - Orchestrator-spawned helper agents are not Coder or Validator lanes. They must not stand in for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`, and they do not replace governed ACP/CLI sessions for those roles.
 - Orchestrator-spawned helper agents MUST NOT write or change product code unless the Operator gave explicit approval first and that approval is recorded in the work packet (`SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`).
@@ -444,6 +445,7 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 - Signature is never part of the refinement pass itself. Record it only in the next turn after the refinement / enrichment pass has been shown in chat.
 - This delay is intentional. It blocks automation momentum and forces visible spec-grounded reasoning before approval.
 - A claimed "shown in chat" refinement is invalid if it appeared only in command/tool output rather than assistant-authored chat text.
+- Workflow-invalid conditions on orchestrator-managed WPs must be written to the WP receipts ledger as `WORKFLOW_INVALIDITY` entries; they are not allowed to remain narrative-only concerns.
 - Record the signature bundle with `just record-signature ...`.
 - After signature PASS with `OPERATOR_ACTION: NONE`, continue directly to `just orchestrator-prepare-and-packet WP-{ID}`.
 - Use `.GOV/templates/TASK_PACKET_TEMPLATE.md`.

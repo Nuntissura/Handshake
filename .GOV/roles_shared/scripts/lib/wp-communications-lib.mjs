@@ -22,6 +22,7 @@ export const DIRECT_REVIEW_CONTRACT_VERSION = "DIRECT_REVIEW_V1";
 export const DIRECT_REVIEW_HEALTH_GATE = "HANDOFF_VERDICT_BLOCKING";
 export const DIRECT_REVIEW_PACKET_FORMAT_VERSION = "2026-03-21";
 export const FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION = "2026-03-22";
+export const WORKFLOW_INVALIDITY_RECEIPT_KIND = "WORKFLOW_INVALIDITY";
 
 export const WORKFLOW_LANE_VALUES = ["MANUAL_RELAY", "ORCHESTRATOR_MANAGED"];
 export { EXECUTION_OWNER_VALUES };
@@ -103,6 +104,7 @@ export const RECEIPT_KIND_VALUES = [
   "VALIDATION_STATUS_SYNC",
   "STEERING",
   "REPAIR",
+  WORKFLOW_INVALIDITY_RECEIPT_KIND,
 ];
 export const REVIEW_OPEN_RECEIPT_KIND_VALUES = [
   "VALIDATOR_KICKOFF",
@@ -123,9 +125,15 @@ export const DIRECT_REVIEW_SESSION_ROLE_VALUES = ["CODER", "WP_VALIDATOR", "INTE
 
 const RFC3339_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
+const WORKFLOW_INVALIDITY_CODE_RE = /^[A-Z0-9_]+$/;
 
 export function normalize(value) {
   return String(value || "").replace(/\\/g, "/").trim();
+}
+
+export function normalizeWorkflowInvalidityCode(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  return raw || null;
 }
 
 export function isPlainObject(value) {
@@ -154,6 +162,18 @@ export function isNullableRfc3339Utc(value) {
 
 export function isNullableSha(value) {
   return value === null || (typeof value === "string" && SHA_RE.test(value));
+}
+
+export function workflowInvalidityReceipts(receipts = []) {
+  return (Array.isArray(receipts) ? receipts : []).filter(
+    (entry) => String(entry?.receipt_kind || "").trim().toUpperCase() === WORKFLOW_INVALIDITY_RECEIPT_KIND,
+  );
+}
+
+export function latestWorkflowInvalidityReceipt(receipts = []) {
+  return [...workflowInvalidityReceipts(receipts)]
+    .sort((left, right) => String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || "")))
+    .at(-1) || null;
 }
 
 export function ensureSchemaFilesExist() {
@@ -494,7 +514,7 @@ export function validateReceipt(entry) {
     "state_after",
     "refs",
   ];
-  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref"];
+  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "workflow_invalidity_code"];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in entry)) errors.push(`missing key: ${key}`);
@@ -542,6 +562,19 @@ export function validateReceipt(entry) {
   }
   if (!(entry.packet_row_ref === undefined || isNullableString(entry.packet_row_ref))) {
     errors.push("packet_row_ref must be null or a non-empty string");
+  }
+  if (!(entry.workflow_invalidity_code === undefined || isNullableString(entry.workflow_invalidity_code))) {
+    errors.push("workflow_invalidity_code must be null or a non-empty string");
+  }
+  const workflowInvalidityCode = normalizeWorkflowInvalidityCode(entry.workflow_invalidity_code);
+  if (entry.receipt_kind === WORKFLOW_INVALIDITY_RECEIPT_KIND) {
+    if (!workflowInvalidityCode) {
+      errors.push(`workflow_invalidity_code is required for ${WORKFLOW_INVALIDITY_RECEIPT_KIND}`);
+    } else if (!WORKFLOW_INVALIDITY_CODE_RE.test(workflowInvalidityCode)) {
+      errors.push(`workflow_invalidity_code invalid (${entry.workflow_invalidity_code})`);
+    }
+  } else if (workflowInvalidityCode) {
+    errors.push("workflow_invalidity_code is only allowed for WORKFLOW_INVALIDITY receipts");
   }
   if (REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(entry.receipt_kind)) {
     if (!isNonEmptyString(entry.correlation_id)) {

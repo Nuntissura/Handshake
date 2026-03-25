@@ -7,6 +7,7 @@ import {
   communicationTransactionLockPathForWp,
   deriveAuthorityKinds,
   normalize,
+  normalizeWorkflowInvalidityCode,
   parseJsonFile,
   parseJsonlFile,
   REVIEW_OPEN_RECEIPT_KIND_VALUES,
@@ -14,6 +15,7 @@ import {
   REVIEW_TRACKED_RECEIPT_KIND_VALUES,
   validateReceipt,
   validateRuntimeStatus,
+  WORKFLOW_INVALIDITY_RECEIPT_KIND,
 } from "../lib/wp-communications-lib.mjs";
 import {
   deriveWpCommunicationAutoRoute,
@@ -187,6 +189,7 @@ function appendWpReceiptCore({
   ackFor = null,
   specAnchor = null,
   packetRowRef = null,
+  workflowInvalidityCode = null,
 } = {}) {
   const WP_ID = String(wpId || "").trim();
   if (!WP_ID || !/^WP-/.test(WP_ID)) {
@@ -224,6 +227,7 @@ function appendWpReceiptCore({
     ack_for: nullableValue(ackFor),
     spec_anchor: nullableValue(specAnchor),
     packet_row_ref: nullableValue(packetRowRef),
+    workflow_invalidity_code: nullableValue(normalizeWorkflowInvalidityCode(workflowInvalidityCode)),
     refs: [context.packetPath, ...refs.filter(Boolean).map((value) => normalize(value))],
   };
 
@@ -241,7 +245,24 @@ function appendWpReceiptCore({
     updateOpenReviewItems(runtimeStatus, entry);
     runtimeStatus.last_event = `receipt_${entry.receipt_kind.toLowerCase()}`;
     runtimeStatus.last_event_at = entry.timestamp_utc;
-    if (reviewTrackedReceipt) {
+    if (entry.receipt_kind === WORKFLOW_INVALIDITY_RECEIPT_KIND) {
+      runtimeStatus.next_expected_actor = "ORCHESTRATOR";
+      runtimeStatus.next_expected_session = null;
+      runtimeStatus.waiting_on = entry.workflow_invalidity_code
+        ? `WORKFLOW_INVALIDITY_${entry.workflow_invalidity_code}`
+        : "WORKFLOW_INVALIDITY";
+      runtimeStatus.waiting_on_session = null;
+      runtimeStatus.validator_trigger = "NONE";
+      runtimeStatus.validator_trigger_reason = entry.workflow_invalidity_code
+        ? `Workflow invalidity flagged: ${entry.workflow_invalidity_code}`
+        : "Workflow invalidity flagged";
+      runtimeStatus.attention_required = true;
+      runtimeStatus.ready_for_validation = false;
+      runtimeStatus.ready_for_validation_reason = null;
+      if (!["completed", "failed", "canceled"].includes(String(runtimeStatus.runtime_status || "").trim().toLowerCase())) {
+        runtimeStatus.runtime_status = "input_required";
+      }
+    } else if (reviewTrackedReceipt) {
       const receipts = parseJsonlFile(context.receiptsFile);
       const evaluation = evaluateWpCommunicationHealth({
         wpId: WP_ID,
@@ -295,12 +316,12 @@ export function appendWpReceipt(args = {}, options = {}) {
 }
 
 function runCli() {
-  const [wpId, actorRole, actorSession, receiptKind, summary, stateBefore, stateAfter, targetRole, targetSession, correlationId, requiresAck, ackFor, specAnchor, packetRowRef] = process.argv.slice(2);
+  const [wpId, actorRole, actorSession, receiptKind, summary, stateBefore, stateAfter, targetRole, targetSession, correlationId, requiresAck, ackFor, specAnchor, packetRowRef, workflowInvalidityCode] = process.argv.slice(2);
   if (!wpId || !actorRole || !actorSession || !receiptKind || !summary) {
     console.error(
       "Usage: node .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs"
       + " WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <RECEIPT_KIND> \"<SUMMARY>\""
-      + " [STATE_BEFORE] [STATE_AFTER] [TARGET_ROLE] [TARGET_SESSION] [CORRELATION_ID] [REQUIRES_ACK] [ACK_FOR] [SPEC_ANCHOR] [PACKET_ROW_REF]"
+      + " [STATE_BEFORE] [STATE_AFTER] [TARGET_ROLE] [TARGET_SESSION] [CORRELATION_ID] [REQUIRES_ACK] [ACK_FOR] [SPEC_ANCHOR] [PACKET_ROW_REF] [WORKFLOW_INVALIDITY_CODE]"
     );
     process.exit(1);
   }
@@ -320,6 +341,7 @@ function runCli() {
     ackFor,
     specAnchor,
     packetRowRef,
+    workflowInvalidityCode,
   });
 
   console.log(`[WP_RECEIPT] appended ${entry.receipt_kind} for ${entry.wp_id}`);

@@ -65,6 +65,7 @@ let why = 'Pre-work checks passed.';
 let blockedOnSkeletonApproval = false;
 let blockedOnBootstrapClaim = false;
 const workflowLane = workflowLaneForPacket(wpId);
+const usesSkeletonCheckpointGate = workflowLane !== 'ORCHESTRATOR_MANAGED';
 const skeletonApprover =
   workflowLane === 'ORCHESTRATOR_MANAGED' ? 'Orchestrator/Validator/Operator' : 'Operator/Validator';
 
@@ -106,7 +107,7 @@ const hasCommitBySubjectRe = (subjectRe) => {
 const hasSkeletonCheckpoint = hasCommitBySubjectRe(checkpointSubjectRe);
 const hasSkeletonApproval = hasCommitBySubjectRe(approvedSubjectRe);
 
-if (ok && hasSkeletonCheckpoint && !hasSkeletonApproval) {
+if (usesSkeletonCheckpointGate && ok && hasSkeletonCheckpoint && !hasSkeletonApproval) {
   ok = false;
   blockedOnSkeletonApproval = true;
   why = `Skeleton checkpoint exists; awaiting ${skeletonApprover} approval.`;
@@ -123,7 +124,9 @@ process.stdout.write(`- WHY: ${why}\n`);
 process.stdout.write('\n');
 printBlockHeader('NEXT_COMMANDS', 'CX-GATE-UX-001');
 if (ok) {
-  if (!hasSkeletonCheckpoint) {
+  if (!usesSkeletonCheckpointGate) {
+    process.stdout.write(`- Proceed to implementation.\n`);
+  } else if (!hasSkeletonCheckpoint) {
     process.stdout.write(`- (After updating the packet \`## SKELETON\`) just coder-skeleton-checkpoint ${wpId}\n`);
     process.stdout.write(`- STOP: Await skeleton approval (${skeletonApprover} runs: just skeleton-approved ${wpId})\n`);
     process.stdout.write(`- After approval commit exists: re-run just pre-work ${wpId}\n`);

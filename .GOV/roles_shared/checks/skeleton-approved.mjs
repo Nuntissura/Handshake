@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from '../scripts/lib/runtime-paths.mjs';
+import { appendWpReceipt } from '../scripts/wp/wp-receipt-append.mjs';
 
 const wpId = process.argv[2];
 if (!wpId) {
@@ -62,6 +63,12 @@ function parseSingleField(text, label) {
   return m ? m[1].trim() : '';
 }
 
+function actorRoleForBranch(branch) {
+  if (branch === 'gov_kernel') return 'ORCHESTRATOR';
+  if (branch === 'role_validator') return 'VALIDATOR';
+  return 'OPERATOR';
+}
+
 const resolved = resolveWorkPacketPath(wpId);
 const packetPath = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
 let workflowLane = '';
@@ -74,6 +81,23 @@ if (fs.existsSync(packetPath)) {
 }
 
 const actorBranch = gitTrim('rev-parse --abbrev-ref HEAD');
+if (workflowLane === 'ORCHESTRATOR_MANAGED') {
+  appendWpReceipt({
+    wpId,
+    actorRole: actorRoleForBranch(actorBranch),
+    actorSession: `manual-shell:${actorBranch || 'unknown'}`,
+    receiptKind: 'WORKFLOW_INVALIDITY',
+    summary: 'Manual skeleton approval helper was invoked for an ORCHESTRATOR_MANAGED WP.',
+    stateAfter: 'WORKFLOW_INVALID',
+    targetRole: 'ORCHESTRATOR',
+    workflowInvalidityCode: 'ORCHESTRATOR_MANAGED_CHECKPOINT_RELAPSE',
+    specAnchor: 'CX-GATE-001',
+  });
+  die(
+    `FAIL: just skeleton-approved ${wpId} is forbidden when WORKFLOW_LANE=ORCHESTRATOR_MANAGED.\n`
+    + 'Use the governed ACP run directly; do not reintroduce manual skeleton approval gates.',
+  );
+}
 const actorAllowed =
   actorBranch === 'role_validator' ||
   actorBranch === 'main' ||

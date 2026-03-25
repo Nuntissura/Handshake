@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { appendWpReceipt } from '../../../roles_shared/scripts/wp/wp-receipt-append.mjs';
 
 const wpId = process.argv[2];
 if (!wpId) {
@@ -36,6 +37,12 @@ if (!skeletonMatch) {
   process.exit(1);
 }
 
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
+  const match = text.match(re);
+  return match ? match[1].trim() : '';
+}
+
 function git(args) {
   return execSync(`git ${args}`, { encoding: 'utf8' });
 }
@@ -55,6 +62,24 @@ function latestCheckpointSha() {
 }
 
 const currentBranch = git('rev-parse --abbrev-ref HEAD').trim();
+const workflowLane = parseSingleField(packetContent, 'WORKFLOW_LANE').toUpperCase();
+
+if (workflowLane === 'ORCHESTRATOR_MANAGED') {
+  appendWpReceipt({
+    wpId,
+    actorRole: 'CODER',
+    actorSession: `manual-shell:${currentBranch || 'unknown'}`,
+    receiptKind: 'WORKFLOW_INVALIDITY',
+    summary: 'Manual skeleton checkpoint helper was invoked for an ORCHESTRATOR_MANAGED WP.',
+    stateAfter: 'WORKFLOW_INVALID',
+    targetRole: 'ORCHESTRATOR',
+    workflowInvalidityCode: 'ORCHESTRATOR_MANAGED_CHECKPOINT_RELAPSE',
+    specAnchor: 'CX-GATE-001',
+  });
+  console.error(`FAIL: just coder-skeleton-checkpoint ${wpId} is forbidden when WORKFLOW_LANE=ORCHESTRATOR_MANAGED.`);
+  console.error('Use the governed ACP run directly; do not introduce manual skeleton checkpoint/approval gates.');
+  process.exit(1);
+}
 
 if (currentBranch === 'main' || currentBranch.startsWith('role_') || currentBranch.startsWith('user_')) {
   console.error(`FAIL: Refusing to create a WP skeleton commit on branch "${currentBranch}".`);

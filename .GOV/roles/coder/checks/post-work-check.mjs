@@ -271,6 +271,8 @@ const resolvedPacket = resolveWorkPacketPath(WP_ID);
 const packetPathActual = resolvedPacket?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${WP_ID}.md`;
 const packetPath = toDisplayGovPath(packetPathActual);
 const packetContent = readFileIfExists(packetPathActual);
+const workflowLane = parsePacketSingleField(packetContent, 'WORKFLOW_LANE').toUpperCase();
+const usesSkeletonCheckpointGate = workflowLane !== 'ORCHESTRATOR_MANAGED';
 const scopeContract = deriveWpScopeContract({ wpId: WP_ID, packetContent });
 const scopeDiscipline = parsePacketScopeDiscipline(packetContent);
 const enforceScopeDiscipline = scopeDisciplineRequiresEnforcement(parsePacketSingleField(packetContent, 'PACKET_FORMAT_VERSION'));
@@ -642,7 +644,7 @@ const hasSkeletonApproved = hasSkeletonApprovedCommit(WP_ID);
 const productChanged = branchLocalChangedFiles
   .filter((p) => p.startsWith('src/') || p.startsWith('app/') || p.startsWith('tests/'));
 
-if (productChanged.length > 0 && !hasSkeletonCheckpoint) {
+if (usesSkeletonCheckpointGate && productChanged.length > 0 && !hasSkeletonCheckpoint) {
   errors.push('Phase gate violation [CX-GATE-001]: Product code changes detected without a docs-only skeleton checkpoint commit on this WP branch.');
   errors.push(`Expected commit subject: docs: skeleton checkpoint [${WP_ID}] (create via: just coder-skeleton-checkpoint ${WP_ID})`);
   errors.push(`Changed product paths (subset): ${productChanged.slice(0, 10).join(', ')}`);
@@ -651,7 +653,7 @@ if (productChanged.length > 0 && !hasSkeletonCheckpoint) {
   }
 }
 
-if (productChanged.length > 0 && !hasSkeletonApproved) {
+if (usesSkeletonCheckpointGate && productChanged.length > 0 && !hasSkeletonApproved) {
   errors.push('Phase gate violation [CX-GATE-001]: Product code changes detected without a skeleton approval commit (Operator/Validator-only unblock).');
   errors.push(`Expected commit subject: docs: skeleton approved [${WP_ID}] (create via: just skeleton-approved ${WP_ID})`);
 }
