@@ -1,13 +1,12 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import path from "node:path";
 import { EXECUTION_OWNER_RANGE_HELP } from "../scripts/session/session-policy.mjs";
 import { loadSessionRegistry } from "../scripts/session/session-registry-lib.mjs";
 import { evaluateSessionGovernanceState } from "../scripts/session/session-governance-state-lib.mjs";
-import { resolveOrchestratorGatesPath } from "../scripts/lib/runtime-paths.mjs";
+import { loadPacket } from "../scripts/lib/role-resume-utils.mjs";
+import { evaluateWpDeclaredTopology } from "../scripts/lib/wp-declared-topology-lib.mjs";
 
 const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
-const ORCH_GATES_PATH = resolveOrchestratorGatesPath();
 const ACTIVE_SESSION_RUNTIME_STATES = new Set([
   "PLUGIN_REQUESTED",
   "TERMINAL_COMMAND_DISPATCHED",
@@ -71,38 +70,6 @@ function normalizeBranch(branch) {
   return (branch || "").replace(/^refs\/heads\//, "").trim();
 }
 
-function isAbsoluteWorktreeDir(worktreeDir) {
-  if (!worktreeDir) return false;
-  const value = worktreeDir.trim();
-  if (path.isAbsolute(value)) return true;
-  if (/^[A-Za-z]:[\\/]/.test(value)) return true;
-  if (value.startsWith("\\\\") || value.startsWith("//")) return true;
-  return false;
-}
-
-function samePath(a, b) {
-  return path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
-}
-
-function loadPrepareMap() {
-  const map = new Map();
-  if (!fs.existsSync(ORCH_GATES_PATH)) return map;
-
-  try {
-    const gates = JSON.parse(fs.readFileSync(ORCH_GATES_PATH, "utf8"));
-    const logs = Array.isArray(gates?.gate_logs) ? gates.gate_logs : [];
-    for (const log of logs) {
-      if (log?.type !== "PREPARE") continue;
-      if (!log?.wpId || typeof log.wpId !== "string") continue;
-      map.set(log.wpId, log);
-    }
-  } catch {
-    return map;
-  }
-
-  return map;
-}
-
 function main() {
   // Local guard only; CI clones cannot/should not be required to have worktrees.
   if (process.env.CI || process.env.GITHUB_ACTIONS) {
@@ -133,56 +100,46 @@ function main() {
   }
 
   const worktrees = parseWorktreeList();
-  const prepares = loadPrepareMap();
   const violations = [];
   const matchedPaths = new Map();
 
   for (const wpId of wpIdsToCheck) {
-    const prepare = prepares.get(wpId) || null;
-    const expectedBranch = normalizeBranch(prepare?.branch || `feat/${wpId}`);
-    const worktree = worktrees.find((entry) => normalizeBranch(entry.branch) === expectedBranch);
-
-    if (!worktree) {
-      violations.push(
-        `${wpId}: no linked worktree found for expected branch ${expectedBranch} (run: just worktree-add ${wpId} && just record-prepare ${wpId} {${EXECUTION_OWNER_RANGE_HELP}})`,
-      );
+    let packetContent = "";
+    try {
+      packetContent = loadPacket(wpId);
+    } catch {
+      violations.push(`${wpId}: official packet missing or unreadable`);
       continue;
     }
 
-    if (prepare?.worktree_dir) {
-      if (isAbsoluteWorktreeDir(prepare.worktree_dir)) {
-        violations.push(
-          `${wpId}: PREPARE.worktree_dir must be repo-relative, got absolute path: ${prepare.worktree_dir}`,
-        );
-      } else {
-        const expectedPath = path.resolve(repoRoot, prepare.worktree_dir);
-        if (!samePath(worktree.path, expectedPath)) {
-          violations.push(
-            `${wpId}: PREPARE.worktree_dir mismatch (expected ${prepare.worktree_dir} -> ${expectedPath}, git has ${worktree.path})`,
-          );
-        }
+    const topology = evaluateWpDeclaredTopology({
+      repoRoot,
+      wpId,
+      packetContent,
+      worktrees,
+    });
+    if (!topology.ok) {
+      for (const issue of topology.issues) {
+        violations.push(`${wpId}: ${issue}`);
       }
     }
 
-    const normalizedPath = path.resolve(worktree.path).toLowerCase();
+    const normalizedPath = topology.topology.allowedSpecificPaths[0] || "";
     const owner = matchedPaths.get(normalizedPath);
-    if (owner && owner !== wpId) {
-      violations.push(`${wpId}: shares worktree ${worktree.path} with ${owner} (one WP must map to one worktree)`);
-    } else {
+    if (normalizedPath && owner && owner !== wpId) {
+      violations.push(`${wpId}: shares declared coder worktree with ${owner} (one WP must map to one worktree)`);
+    } else if (normalizedPath) {
       matchedPaths.set(normalizedPath, wpId);
     }
 
     // Worktree budget: max 1 WP-specific worktree per WP (coder only) [CX-212D].
     // WP Validator operates from the coder worktree; Integration Validator from handshake_main.
     const MAX_WP_WORKTREES = 1;
-    const wpSpecificWorktrees = worktrees.filter((entry) => {
-      const branch = normalizeBranch(entry.branch);
-      return branch.includes(wpId);
-    });
+    const wpSpecificWorktrees = topology.relatedWorktrees.filter((entry) => normalizeBranch(entry.branch) !== "main");
     if (wpSpecificWorktrees.length > MAX_WP_WORKTREES) {
       violations.push(
         `${wpId}: ${wpSpecificWorktrees.length} WP-specific worktrees found (max ${MAX_WP_WORKTREES}). `
-        + `Active: ${wpSpecificWorktrees.map((w) => normalizeBranch(w.branch)).join(", ")}. `
+        + `Active: ${wpSpecificWorktrees.map((w) => normalizeBranch(w.branch) || `detached:${w.head || "<unknown>"}`).join(", ")}. `
         + "Reuse existing worktrees or clean up superseded ones before creating more.",
       );
     }

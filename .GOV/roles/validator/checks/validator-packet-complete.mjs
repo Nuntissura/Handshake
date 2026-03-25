@@ -18,6 +18,7 @@ import {
 import { validateMergeProgressionTruth } from "../../../roles_shared/scripts/lib/merge-progression-truth-lib.mjs";
 import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/semantic-proof-lib.mjs";
 import { parseJsonlFile, workflowInvalidityReceipts } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { evaluateWpDeclaredTopology } from "../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
 
 const wpId = process.argv[2];
 if (!wpId) {
@@ -214,6 +215,11 @@ if (!hasLine(/USER_SIGNATURE/i) && !hasLine(/User Signature Locked/i)) {
 const packetFormatVersion = parseSingleField("PACKET_FORMAT_VERSION");
 const workflowInvalidityEntries = loadWorkflowInvalidityEntries();
 const latestWorkflowInvalidity = workflowInvalidityEntries.at(-1) || null;
+const topologyEvaluation = evaluateWpDeclaredTopology({
+  repoRoot: process.cwd(),
+  wpId,
+  packetContent: text,
+});
 if (packetFormatVersion) {
   if (isPlaceholder(packetFormatVersion)) {
     fail("PACKET_FORMAT_VERSION present but placeholder");
@@ -292,6 +298,9 @@ if (packetFormatVersion) {
     });
     if (mergeProgressionTruth.errors.length > 0) {
       fail(`merge progression truth invalid for closed packet: ${mergeProgressionTruth.errors.join("; ")}`);
+    }
+    if (!topologyEvaluation.ok) {
+      fail(`declared WP topology invalid for closed packet: ${topologyEvaluation.issues.join("; ")}`);
     }
 
     const validationReports = extractSectionAfterHeading("VALIDATION_REPORTS");

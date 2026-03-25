@@ -294,3 +294,23 @@
   - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: orchestrator-managed WPs now emit a structured `WORKFLOW_INVALIDITY` state for invalid procedure, communication-health and validator closeout can fail on that ledgered state, and manual skeleton checkpoint/approval commands are no longer silently tolerated on those lanes
+
+### 2026.03.25.16 / GOV-CHANGE-20260325-16
+
+- STATUS: APPLIED
+- SUMMARY: enforced packet-declared WP topology and rejected undeclared auxiliary worktrees during live checks and closeout
+- CHANGE_TYPE: TOPOLOGY_TRUTH_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-declared-topology-lib.mjs`
+  - `.GOV/roles_shared/checks/worktree-concurrency-check.mjs`
+  - `.GOV/roles_shared/checks/wp-declared-topology-check.mjs`
+  - `.GOV/roles/validator/checks/integration-validator-closeout-check.mjs`
+  - `.GOV/roles/validator/checks/validator-packet-complete.mjs`
+  - `.GOV/roles_shared/tests/wp-declared-topology-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `justfile`
+- OUTCOME: auxiliary detached check/postwork/validator clones are now mechanically visible as topology violations, the global concurrency gate and final validator gates share the same topology law, and `just wp-declared-topology-check WP-{ID}` exposes the packet-declared topology for one WP directly

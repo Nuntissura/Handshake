@@ -250,10 +250,12 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
 - `just validator-handoff-check WP-{ID}`
 - `just integration-validator-closeout-check WP-{ID}`
 - `just validator-packet-complete WP-{ID}`
+- `just wp-declared-topology-check WP-{ID}`
 - `just validator-policy-gate WP-{ID}`
     - `read-only`
     - primary validator gate surface
     - `integration-validator-closeout-check` is the final-lane topology and atomic-closeout preflight for orchestrator-managed PASS closure
+    - `wp-declared-topology-check` surfaces packet-declared vs actual linked-worktree truth for one WP and fails on undeclared auxiliary worktrees
   - for `PACKET_FORMAT_VERSION >= 2026-03-25`, `Done` means merge-pending PASS and `Validated (PASS)` requires recorded containment in local `main`
 - `just external-validator-brief WP-{ID}`
   - `read-only`

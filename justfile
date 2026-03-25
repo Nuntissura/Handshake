@@ -48,6 +48,9 @@ spec-eof-appendices-check:
 validator-packet-complete wp-id:
 	node {{GOV_ROOT}}/roles/validator/checks/validator-packet-complete.mjs {{wp-id}}
 
+wp-declared-topology-check wp-id:
+	node {{GOV_ROOT}}/roles_shared/checks/wp-declared-topology-check.mjs {{wp-id}}
+
 validator-policy-gate wp-id:
 	node {{GOV_ROOT}}/roles_shared/checks/computed-policy-gate-check.mjs {{wp-id}}
 

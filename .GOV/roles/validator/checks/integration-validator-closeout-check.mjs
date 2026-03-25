@@ -15,6 +15,7 @@ import {
   resolveValidatorActorContext,
 } from "../scripts/lib/validator-governance-lib.mjs";
 import { evaluateIntegrationValidatorCloseoutState } from "../scripts/lib/integration-validator-closeout-lib.mjs";
+import { evaluateWpDeclaredTopology } from "../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
 
 function fail(message, details = []) {
   console.error(`[INTEGRATION_VALIDATOR_CLOSEOUT_CHECK] FAIL: ${message}`);
@@ -62,6 +63,16 @@ const actorContext = resolveValidatorActorContext({
   packetContent,
   gitContext: currentGitContext(),
 });
+const topologyEvaluation = evaluateWpDeclaredTopology({
+  repoRoot,
+  wpId,
+  packetContent,
+});
+if (!topologyEvaluation.ok) {
+  fail("Integration-validator closeout is blocked by undeclared or mismatched WP topology", [
+    ...topologyEvaluation.issues,
+  ]);
+}
 const evaluation = evaluateIntegrationValidatorCloseoutState({
   repoRoot,
   wpId,
