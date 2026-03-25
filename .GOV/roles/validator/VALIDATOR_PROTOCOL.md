@@ -149,6 +149,11 @@ Use this governance-maintenance record flow:
   - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
   - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
 - audits: use stable `AUDIT_ID` values and add `SMOKETEST_REVIEW_ID` for smoketest or workflow-proof reviews
+- Operator-facing scope split rule:
+  - In chat, always separate `Handshake (Product)` from `Repo Governance`.
+  - If the review target touches product code or the Master Spec, classify it as `Handshake (Product)` even when the requirement is governance-shaped, workflow-shaped, or contract-shaped.
+  - Reserve `Repo Governance` for `/.GOV/**`, ACP/session/runtime ledgers, governance records, protocols, and root control-file maintenance only.
+  - If only one lane applies, still name both lanes and state `NONE` for the other lane.
 
 Do not create a WP for pure repo-governance maintenance. If the planned diff touches the Master Spec or product code, stop and use the normal refinement plus WP path instead.
 

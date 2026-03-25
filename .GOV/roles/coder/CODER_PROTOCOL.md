@@ -137,6 +137,11 @@ If the assignment is governance/workflow/tooling-only and the planned diff is st
 Hard rules:
 - DO NOT modify Handshake product code in `src/`, `app/`, or `tests/`.
 - DO NOT modify the Master Spec under this path.
+- Operator-facing scope split rule:
+  - In chat, always separate `Handshake (Product)` from `Repo Governance`.
+  - If the diff or requirement touches `src/`, `app/`, `tests/`, or the Master Spec, classify it as `Handshake (Product)` even when the topic is governed actions, workflow semantics, or other product-governance contracts.
+  - Reserve `Repo Governance` for `/.GOV/**`, ACP/session/runtime ledgers, governance records, protocols, and root control-file maintenance only.
+  - If only one lane applies, still name both lanes and state `NONE` for the other lane.
 - List the intended changed paths before editing.
 - Provide a rollback hint.
 - Run verification commands appropriate to the change (at minimum: `just gov-check`) and record outputs.
