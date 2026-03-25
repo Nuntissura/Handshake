@@ -207,6 +207,9 @@ requireRecipe(errors, justfileContent, "session-cancel", [
 requireRecipe(errors, justfileContent, "session-close", [
   `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/session-control-command.mjs CLOSE_SESSION`,
 ]);
+requireRecipe(errors, justfileContent, "integration-validator-closeout-check", [
+  `${JUSTFILE_GOV_PREFIX}/roles/validator/checks/integration-validator-closeout-check.mjs`,
+]);
 
 for (const command of [
   roleStartupCommand("ORCHESTRATOR"),
@@ -248,6 +251,7 @@ requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, EXECU
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-coder-session");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-wp-validator-session");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-integration-validator-session");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just integration-validator-closeout-check");
 
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just coder-startup");
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just coder-next");
@@ -257,6 +261,7 @@ requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just valid
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-next");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-wp-validator-session");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-integration-validator-session");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just integration-validator-closeout-check");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "shared remote WP backup branch");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "## Read-Amplification and Ambiguity Discipline");
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "## Read-Amplification and Ambiguity Discipline");

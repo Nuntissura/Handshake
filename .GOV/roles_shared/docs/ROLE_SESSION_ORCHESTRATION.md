@@ -97,6 +97,7 @@ Required review pairs:
 - `KICKOFF`: `VALIDATOR_KICKOFF` -> `CODER_INTENT`
 - `HANDOFF`: `CODER_HANDOFF` -> `VALIDATOR_REVIEW`
 - `VERDICT`: for `PACKET_FORMAT_VERSION >= 2026-03-22`, one direct coder <-> integration-validator review pair must exist before final verdict clearance
+- Before PASS commit clearance in the orchestrator-managed final lane, run `just integration-validator-closeout-check WP-{ID}`. If it fails, final review is not closeout-ready: do not write partial closure truth, do not compensate with narrative repair, and fix the topology/runtime issue first.
 
 Blocking rule:
 - If `just wp-communication-health-check WP-{ID} KICKOFF|HANDOFF|VERDICT` fails, treat the boundary as not proven. Do not compensate with narrative relay or manual interpretation.

@@ -189,6 +189,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - `just pre-work WP-{ID}` is the blocking packet-integrity gate before handoff.
 - `just post-work WP-{ID}` is the deterministic closure gate before done/commit claims.
 - For validator PASS clearance on orchestrator-managed WPs, prefer `just validator-handoff-check WP-{ID}` so validation runs against the PREPARE worktree source of truth.
+- Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just integration-validator-closeout-check WP-{ID}`. If that preflight fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth.
 
 ## Branching & Concurrency
 

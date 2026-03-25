@@ -400,6 +400,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
 - Require evidence that `just validator-handoff-check WP-{ID}` ran and passed before PASS commit clearance. This helper runs `pre-work`, `cargo-clean`, and committed `post-work` against the PREPARE worktree source of truth. If absent or failing, verdict = FAIL until fixed.
+- Require evidence that `just integration-validator-closeout-check WP-{ID}` ran and passed before PASS commit clearance. This helper proves the governed Integration Validator lane is actually on `handshake_main` / `main`, can resolve the committed target SHA from `validator-handoff-check`, and that WP-scoped session-control/broker truth is already settled enough to finish final review coherently. If absent or failing, verdict = FAIL until fixed.
 - Require evidence that `just post-work WP-{ID}` ran and passed for the validated committed target (directly or via `validator-handoff-check`). If absent or failing, verdict = FAIL until fixed.
 - Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates staged/working changes when present, and on a clean tree validates a deterministic range:
   - If the work packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
@@ -545,6 +546,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
     - **Artifacts:** FAIL if *ignored* build artifacts (e.g., `target/`, `node_modules/`) are tracked or committed.
     - **Scope:** Ensure changes are restricted to the WP's `IN_SCOPE_PATHS`.
     - **Committed-handoff rule (preferred for orchestrator-managed WPs):** Run `just validator-handoff-check {WP_ID}`. This validates the PREPARE worktree source of truth with `pre-work`, `cargo-clean`, and committed `post-work`, and records commit-clearance evidence for `validator-gate-commit`.
+    - **Final-lane closeout rule (orchestrator-managed PASS only):** Run `just integration-validator-closeout-check {WP_ID}` before `validator-gate-commit`. This must prove both topology safety and WP-scoped settled session-control truth; otherwise final review is not closeout-ready.
     - **Local mirror sanity only:** You may still run `just post-work {WP_ID}` in your validator worktree for local diagnosis, but it does not replace committed handoff validation against the PREPARE worktree.
 
 
@@ -571,6 +573,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - `just cargo-clean` (cleans external Cargo target dir at `../Handshake Artifacts/handshake-cargo-target` before validation/commit; fail validation if skipped)
 - `just external-validator-brief WP-{ID}` (prints the canonical external/classical validator target contract: code target, governance target, committed handoff command, split report fields, and legal verdict vocabulary)
 - `just validator-handoff-check WP-{ID}` (required before PASS commit clearance for orchestrator-managed WPs; validates the committed PREPARE worktree handoff state)
+- `just integration-validator-closeout-check WP-{ID}` (required before PASS commit clearance for orchestrator-managed WPs; fails if the final lane cannot resolve the committed target SHA or if WP-scoped session-control truth is still unsettled)
 - `just gov-check` (required before PASS merge/push and for any governance-only validator changes; catches activation traceability drift, Task Board/build-order drift, and shared governance regressions)
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
 - `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend readiness)
@@ -726,6 +729,7 @@ State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.
 
 ### Gate 2: COMMIT CLEARANCE (PASS only)
 1. Only if verdict = PASS, Validator runs: `just validator-gate-commit {WP_ID}`
+   - Mandatory precondition: `just integration-validator-closeout-check {WP_ID}` must already pass.
 2. Validator performs `git commit` on the WP branch and records the commit SHA.
    - PASS requirement: this commit MUST include the appended report plus the Task Board / packet / build-order closure updates and any required Base-WP activation-state fixes (`WP_TRACEABILITY_REGISTRY`, removal of stale STUB state) so the later merge + fast-forward exposes the validated WP state in every active worktree.
    - PASS requirement: run `just gov-check` after those closure updates and before merge; a PASS commit without a passing governance check is incomplete.
@@ -747,6 +751,7 @@ State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.
 ### Gate Commands
 ```
 just validator-gate-append {WP_ID} {PASS|FAIL}   # Gate 1: Record WP append + verdict
+just integration-validator-closeout-check {WP_ID} # Final-lane topology + closeout preflight
 just validator-gate-commit {WP_ID}                # Gate 2: Unlock commit (PASS only)
 just validator-gate-present {WP_ID} [PASS|FAIL]   # Gate 3: Record report shown (HALT)
 just validator-gate-acknowledge {WP_ID}           # Gate 4: Record user ack (unlock)

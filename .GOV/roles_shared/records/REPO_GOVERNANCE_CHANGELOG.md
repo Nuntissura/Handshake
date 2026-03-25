@@ -209,3 +209,24 @@
   - `.GOV/roles/orchestrator/scripts/task-board-set.mjs`
   - `.GOV/roles_shared/records/TASK_BOARD.md`
 - OUTCOME: packets on the new format can no longer claim `Validated (PASS)` until the approved closure commit is recorded and proven to be contained in local `main`; Task Board and runtime truth now distinguish `[MERGE_PENDING]` from `[VALIDATED]`
+
+### 2026.03.25.12 / GOV-CHANGE-20260325-12
+
+- STATUS: APPLIED
+- SUMMARY: added an integration-validator closeout preflight so final PASS commit clearance fails if the final lane cannot resolve the committed target or if WP-scoped session-control truth is still unsettled
+- CHANGE_TYPE: FINAL_LANE_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW`
+  - `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW`
+- SURFACES:
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/checks/integration-validator-closeout-check.mjs`
+  - `.GOV/roles/validator/checks/validator_gates.mjs`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `justfile`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: orchestrator-managed final review now has a machine-checked preflight for topology safety and WP-scoped atomic closeout, and PASS commit clearance fails before partial closure truth can be written when that preflight is not satisfied
