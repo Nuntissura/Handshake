@@ -249,3 +249,22 @@
   - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: broker startup and governed session-control helpers now auto-recover missing terminal result rows for recoverable orphan cases, which reduces manual runtime truth repair and makes `SESSION_CONTROL_REQUESTS` -> `SESSION_CONTROL_RESULTS` convergence machine-driven
+
+### 2026.03.25.14 / GOV-CHANGE-20260325-14
+
+- STATUS: APPLIED
+- SUMMARY: added explicit modeled lineage for packets that are both failed historical closures and live smoketest baselines
+- CHANGE_TYPE: WORKFLOW_TRUTH_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT`
+  - `AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW`
+- SURFACES:
+  - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
+  - `.GOV/roles_shared/records/TASK_BOARD.md`
+  - `.GOV/roles_shared/scripts/lib/historical-smoketest-lineage-lib.mjs`
+  - `.GOV/roles_shared/checks/historical-smoketest-lineage-check.mjs`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
+  - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: historical failed packets can now remain visible as live smoketest lineage anchors without overloading stub/backlog or superseded truth, and `gov-check` enforces the modeled linkage

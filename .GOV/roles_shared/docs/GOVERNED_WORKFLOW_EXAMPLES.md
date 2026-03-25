@@ -155,6 +155,9 @@ just session-registry-status WP-{ID}
 - Do not reopen validator gates on that packet.
 - Do not re-prepare or reassign it as if it were active execution.
 - Open a new remediation packet/version instead.
+- If the historical packet is still the comparison anchor for a recovery run, also record it under:
+  - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` -> `## Historical Failure + Live Smoketest Lineage`
+  - `.GOV/roles_shared/records/TASK_BOARD.md` -> `## Historical Failed Closures Used As Live Smoketest Baselines`
 
 ## Example 5 - Parallel WP ownership at a glance
 

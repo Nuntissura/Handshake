@@ -23,6 +23,8 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 
 `[MERGE_PENDING]` means validator PASS has been appended and the packet is waiting on merge-to-main containment; `[VALIDATED]` is reserved for packets whose approved closure commit is already contained in local `main`.
 
+Historical failed closures that still act as live smoketest baselines are tracked separately under `## Historical Failed Closures Used As Live Smoketest Baselines`. They remain `[SUPERSEDED]` in the archive and do not reopen execution on the historical packet itself.
+
 **Phase 1 closure note:**
 - Historical `## Done` entries record closure under the governance/workflow that existed at the time.
 - They do **not** by themselves grant final Phase 1 signoff or prove current implementation quality.
@@ -269,6 +271,16 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]
+---
+
+## Historical Failed Closures Used As Live Smoketest Baselines
+
+Entry format for this section:
+`- **[WP_ID]** - [FAILED_HISTORICAL_SMOKETEST_BASELINE] - base_wp_id: <BASE_WP_ID> - active_recovery: <WP_ID> - live_status: <LIVE_SMOKETEST_BASELINE_PENDING|LIVE_SMOKETEST_BASELINE_RECOVERED>`
+
+- **[WP-1-Structured-Collaboration-Schema-Registry-v3]** - [FAILED_HISTORICAL_SMOKETEST_BASELINE] - base_wp_id: WP-1-Structured-Collaboration-Schema-Registry - active_recovery: WP-1-Structured-Collaboration-Schema-Registry-v4 - live_status: LIVE_SMOKETEST_BASELINE_RECOVERED
+- **[WP-1-Loom-Storage-Portability-v3]** - [FAILED_HISTORICAL_SMOKETEST_BASELINE] - base_wp_id: WP-1-Loom-Storage-Portability - active_recovery: WP-1-Loom-Storage-Portability-v4 - live_status: LIVE_SMOKETEST_BASELINE_PENDING
+
 ---
 
 ## Superseded (Archive)

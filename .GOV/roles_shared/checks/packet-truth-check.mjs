@@ -47,9 +47,26 @@ function baseWpIdFromPacket(packetId, packetText) {
   return packetId.replace(/-v\d+$/, "").replace(/-\d{8}$/, "");
 }
 
+function extractSection(text, heading) {
+  const lines = String(text || "").split(/\r?\n/);
+  const headingRe = new RegExp(`^##\\s+${heading}\\s*$`, "i");
+  const startIndex = lines.findIndex((line) => headingRe.test(line.trim()));
+  if (startIndex === -1) return "";
+
+  let endIndex = lines.length;
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    if (/^##\s+\S/.test(lines[index].trim())) {
+      endIndex = index;
+      break;
+    }
+  }
+  return lines.slice(startIndex + 1, endIndex).join("\n");
+}
+
 function parseRegistryRows(content) {
+  const scopedContent = extractSection(content, "Registry \\(Phase 1\\)");
   const rows = new Map();
-  const lines = content.split(/\r?\n/);
+  const lines = scopedContent.split(/\r?\n/);
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     if (!line.trim().startsWith("|")) continue;
