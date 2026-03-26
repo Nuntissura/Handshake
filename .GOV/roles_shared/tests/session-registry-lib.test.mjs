@@ -9,9 +9,11 @@ import {
   appendJsonlLine,
   defaultRegistry,
   getOrCreateSessionRecord,
+  markCliEscalationUsed,
   markPluginResult,
   parseJsonlFile,
   registryBatchLaunchSummary,
+  registrySessionSummary,
   resetBatchLaunchMode,
   saveSessionRegistry,
   sessionRegistryLockPath,
@@ -162,4 +164,27 @@ test("getOrCreateSessionRecord preserves original authority fields for existing 
   assert.equal(reopened.local_branch, "feat/WP-TEST-original");
   assert.equal(reopened.local_worktree_dir, "../wt-original");
   assert.equal(reopened.requested_model, "gpt-5.4");
+});
+
+test("CLI escalation keeps governance path context and marks startup as requested", () => {
+  const registry = defaultRegistry();
+  const session = getOrCreateSessionRecord(registry, {
+    wp_id: "WP-TEST",
+    role: "CODER",
+    local_branch: "feat/WP-TEST",
+    local_worktree_dir: "../wtc-test",
+    terminal_title: "CODER WP-TEST",
+  });
+
+  markCliEscalationUsed(session, {
+    hostKind: "SYSTEM_TERMINAL",
+    terminalTitle: "CODER WP-TEST",
+  });
+
+  const summary = registrySessionSummary(session);
+  assert.equal(summary.runtime_state, "CLI_ESCALATION_USED");
+  assert.equal(summary.startup_proof_state, "START_REQUESTED");
+  assert.equal(summary.local_branch, "feat/WP-TEST");
+  assert.equal(summary.local_worktree_dir, "../wtc-test");
+  assert.equal(summary.active_terminal_kind, "SYSTEM_TERMINAL");
 });

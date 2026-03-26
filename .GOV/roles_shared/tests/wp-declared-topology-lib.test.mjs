@@ -91,3 +91,27 @@ test("declared WP topology rejects token-matching detached validator clones on t
   assert.equal(evaluation.ok, false);
   assert.match(evaluation.issues.join("\n"), /handshake-wp1-schema-validator-511dc5e/);
 });
+
+test("declared WP topology accepts a packet-declared coder worktree confirmed by direct probe outside the local worktree family", () => {
+  const evaluation = evaluateWpDeclaredTopology({
+    repoRoot,
+    wpId,
+    packetContent,
+    worktrees: [
+      {
+        path: path.resolve(repoRoot, "../handshake_main"),
+        branch: "refs/heads/main",
+        head: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+    ],
+    declaredWorktreeProbe: (worktreeAbs) => ({
+      path: worktreeAbs,
+      branch: `refs/heads/feat/${wpId}`,
+      head: "511dc5e111111111111111111111111111111111",
+    }),
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.directProbeUsed, true);
+  assert.deepEqual(evaluation.issues, []);
+});

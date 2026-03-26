@@ -571,12 +571,10 @@ export function markPluginResult(registry, session, requestId, status, details =
     session.active_terminal_kind = SESSION_HOST_PREFERENCE;
     session.plugin_last_error = "";
   } else if (status === "CLI_ESCALATION_USED") {
-    session.runtime_state = "CLI_ESCALATION_USED";
-    session.active_host = SESSION_HOST_FALLBACK;
-    session.active_terminal_title = details.terminal_title || session.terminal_title;
-    session.active_terminal_kind = details.host_kind || CLI_ESCALATION_HOST_DEFAULT;
-    session.cli_escalation_used = true;
-    session.last_error = "";
+    markCliEscalationUsed(session, {
+      hostKind: details.host_kind || CLI_ESCALATION_HOST_DEFAULT,
+      terminalTitle: details.terminal_title || session.terminal_title,
+    });
   } else {
     session.plugin_failure_count += 1;
     session.runtime_state = session.plugin_failure_count >= SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION
@@ -594,6 +592,21 @@ export function markPluginResult(registry, session, requestId, status, details =
 
   session.cli_escalation_allowed = session.plugin_failure_count >= SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION;
   return processed;
+}
+
+export function markCliEscalationUsed(session, {
+  hostKind = CLI_ESCALATION_HOST_DEFAULT,
+  terminalTitle = "",
+} = {}) {
+  session.runtime_state = "CLI_ESCALATION_USED";
+  session.active_host = SESSION_HOST_FALLBACK;
+  session.active_terminal_title = terminalTitle || session.terminal_title;
+  session.active_terminal_kind = hostKind;
+  session.cli_escalation_used = true;
+  session.startup_proof_state = "START_REQUESTED";
+  session.last_error = "";
+  session.last_event_at = nowIso();
+  normalizeSessionRecord(session);
 }
 
 export function settleTimedOutPluginRequests(registry, requests, now = new Date()) {
@@ -717,6 +730,8 @@ export function registrySessionSummary(session) {
     session_key: session.session_key,
     role: session.role,
     wp_id: session.wp_id,
+    local_branch: session.local_branch || "",
+    local_worktree_dir: session.local_worktree_dir || "",
     runtime_state: session.runtime_state,
     control_mode: session.control_mode || SESSION_CONTROL_MODE,
     control_transport: session.control_transport || SESSION_CONTROL_TRANSPORT_PRIMARY,

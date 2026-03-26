@@ -35,6 +35,17 @@ function currentWorktreeRepoRelative(repoRoot, gitContext = {}) {
   return normalizePath(path.relative(root, path.resolve(topLevel))) || ".";
 }
 
+function currentWorktreeAbsolute(gitContext = {}) {
+  const topLevel = String(gitContext?.topLevel || "").trim();
+  if (!topLevel) return "";
+  return normalizePath(path.resolve(topLevel));
+}
+
+function resolveConfiguredWorktreeAbsolute(repoRoot, worktreeDir = "") {
+  if (!String(worktreeDir || "").trim()) return "";
+  return normalizePath(path.resolve(repoRoot || process.cwd(), String(worktreeDir || "").trim()));
+}
+
 function currentBranchName(gitContext = {}) {
   return String(gitContext?.branch || "").trim();
 }
@@ -45,10 +56,13 @@ function sameWorktreePath(left, right) {
 
 function matchRegistrySessionToGitContext(session, repoRoot, gitContext = {}) {
   const branch = currentBranchName(gitContext);
-  const worktreeDir = currentWorktreeRepoRelative(repoRoot, gitContext);
+  const currentWorktreeAbs = currentWorktreeAbsolute(gitContext);
+  const sessionWorktreeAbs = resolveConfiguredWorktreeAbsolute(repoRoot, session?.local_worktree_dir || "");
   return (
     String(session?.local_branch || "").trim() === branch
-    && sameWorktreePath(String(session?.local_worktree_dir || "").trim(), worktreeDir)
+    && !!currentWorktreeAbs
+    && !!sessionWorktreeAbs
+    && sameWorktreePath(sessionWorktreeAbs, currentWorktreeAbs)
   );
 }
 
@@ -79,6 +93,7 @@ export function resolveValidatorActorContext({
   const root = path.resolve(repoRoot || process.cwd());
   const branch = currentBranchName(gitContext);
   const worktreeDir = currentWorktreeRepoRelative(root, gitContext);
+  const worktreeAbs = currentWorktreeAbsolute(gitContext);
   const authority = readValidatorAuthority(packetContent);
   const sessions = Array.isArray(registrySessions)
     ? registrySessions
@@ -95,16 +110,19 @@ export function resolveValidatorActorContext({
       actorSessionKey: String(matchingGovernedSession.session_key || "").trim(),
       actorSessionId: String(matchingGovernedSession.session_id || "").trim(),
       actorThreadId: String(matchingGovernedSession.session_thread_id || "").trim(),
-      actorBranch: branch,
-      actorWorktreeDir: worktreeDir,
+      actorBranch: String(matchingGovernedSession.local_branch || branch || "").trim(),
+      actorWorktreeDir: normalizePath(String(matchingGovernedSession.local_worktree_dir || worktreeDir || "").trim()),
       source: "SESSION_REGISTRY",
       authority,
     };
   }
 
+  const expectedIntegrationWorktreeDir = defaultIntegrationValidatorWorktreeDir(wpId);
+  const expectedIntegrationWorktreeAbs = resolveConfiguredWorktreeAbsolute(root, expectedIntegrationWorktreeDir);
   if (
     branch === defaultIntegrationValidatorBranch(wpId)
-    && sameWorktreePath(worktreeDir, defaultIntegrationValidatorWorktreeDir(wpId))
+    && !!worktreeAbs
+    && sameWorktreePath(worktreeAbs, expectedIntegrationWorktreeAbs)
   ) {
     return {
       actorRole: "INTEGRATION_VALIDATOR",
@@ -112,15 +130,18 @@ export function resolveValidatorActorContext({
       actorSessionId: "",
       actorThreadId: "",
       actorBranch: branch,
-      actorWorktreeDir: worktreeDir,
+      actorWorktreeDir: expectedIntegrationWorktreeDir,
       source: "WORKTREE_POLICY",
       authority,
     };
   }
 
+  const expectedWpValidatorWorktreeDir = defaultWpValidatorWorktreeDir(wpId);
+  const expectedWpValidatorWorktreeAbs = resolveConfiguredWorktreeAbsolute(root, expectedWpValidatorWorktreeDir);
   if (
     branch === defaultWpValidatorBranch(wpId)
-    && sameWorktreePath(worktreeDir, defaultWpValidatorWorktreeDir(wpId))
+    && !!worktreeAbs
+    && sameWorktreePath(worktreeAbs, expectedWpValidatorWorktreeAbs)
   ) {
     return {
       actorRole: "WP_VALIDATOR",
@@ -128,7 +149,7 @@ export function resolveValidatorActorContext({
       actorSessionId: "",
       actorThreadId: "",
       actorBranch: branch,
-      actorWorktreeDir: worktreeDir,
+      actorWorktreeDir: expectedWpValidatorWorktreeDir,
       source: "WORKTREE_POLICY",
       authority,
     };

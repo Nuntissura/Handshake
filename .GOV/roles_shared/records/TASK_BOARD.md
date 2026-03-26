@@ -74,7 +74,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
-- **[WP-1-Loom-Storage-Portability-v4]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 
@@ -269,6 +268,8 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Structured-Collaboration-Contract-Hardening-v1]** - [VALIDATED]
 
 - **[WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1]** - [VALIDATED]
+
+- **[WP-1-Loom-Storage-Portability-v4]** - [VALIDATED]
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]

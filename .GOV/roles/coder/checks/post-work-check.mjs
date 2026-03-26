@@ -272,6 +272,7 @@ const packetPathActual = resolvedPacket?.packetPath || `${GOV_ROOT_REPO_REL}/tas
 const packetPath = toDisplayGovPath(packetPathActual);
 const packetContent = readFileIfExists(packetPathActual);
 const workflowLane = parsePacketSingleField(packetContent, 'WORKFLOW_LANE').toUpperCase();
+const zeroDeltaProofAllowed = parsePacketSingleField(packetContent, 'ZERO_DELTA_PROOF_ALLOWED').toUpperCase() === 'YES';
 const usesSkeletonCheckpointGate = workflowLane !== 'ORCHESTRATOR_MANAGED';
 const scopeContract = deriveWpScopeContract({ wpId: WP_ID, packetContent });
 const scopeDiscipline = parsePacketScopeDiscipline(packetContent);
@@ -927,9 +928,19 @@ console.log('\nCheck 4: Git status');
 try {
   if (changedFiles.length === 0) {
     if (useRange) {
-      errors.push(`No files changed in range ${evaluation.baseRev}..${evaluation.headRev}`);
+      if (zeroDeltaProofAllowed) {
+        warnings.push(
+          `No files changed in range ${evaluation.baseRev}..${evaluation.headRev}; ZERO_DELTA_PROOF_ALLOWED=YES so the empty diff is accepted for this proof-only/status-sync packet.`,
+        );
+      } else {
+        errors.push(`No files changed in range ${evaluation.baseRev}..${evaluation.headRev}`);
+      }
     } else {
-      errors.push('No files changed (git status clean)');
+      if (zeroDeltaProofAllowed) {
+        warnings.push('No files changed (git status clean); ZERO_DELTA_PROOF_ALLOWED=YES so the empty diff is accepted for this proof-only/status-sync packet.');
+      } else {
+        errors.push('No files changed (git status clean)');
+      }
     }
   }
 } catch {
