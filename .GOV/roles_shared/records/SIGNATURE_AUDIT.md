@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja260320261539 | Orchestrator | 2026-03-26 15:39 | Work packet creation: WP-1-Loom-Storage-Portability-v4 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Loom-Storage-Portability-v4.md ). |
 | ilja250320261614 | Orchestrator | 2026-03-25 16:14 | Work packet creation: WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1.md ). |
 | ilja250320260532 | Orchestrator | 2026-03-25 05:32 | Work packet creation: WP-1-Structured-Collaboration-Contract-Hardening-v1 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Structured-Collaboration-Contract-Hardening-v1.md ). |
 | ilja240320262335 | Orchestrator | 2026-03-24 23:35 | Work packet creation: WP-1-Structured-Collaboration-Schema-Registry-v4 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Structured-Collaboration-Schema-Registry-v4.md ). |
