@@ -175,6 +175,7 @@ Minimum verification for governance-only changes: `just gov-check`.
 - Skeleton approval hard gate: for `MANUAL_RELAY` lanes only, before validating/accepting any implementation changes, confirm the WP branch contains `docs: skeleton approved [WP-{ID}]` (created by Operator/Validator via `just skeleton-approved WP-{ID}`).
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, those checkpoint commands are invalid; do not invoke or require them. If they are attempted, treat that as a `WORKFLOW_INVALIDITY` condition rather than a missing prerequisite.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` after signature/prepare, do not ask the Operator for routine approval, "proceed", or checkpoint actions. If a real blocker exists, route it back to the Orchestrator and name exactly one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`.
+- If the Operator has to restate that rule mid-run, do not continue as if nothing happened; the Orchestrator must record `just wp-operator-rule-restatement ...`, and the lane is reset-required until fresh direction is issued.
 - Refinement completeness (HARD): If the WP requires a non-trivial technical approach choice (new primitives/techniques, new dependencies, security-sensitive patterns, or UI-visible behavior), the Validator MUST confirm a `LANDSCAPE_SCAN` exists in `.GOV/refinements/WP-{ID}.md` (or was pasted in-chat) with ADOPT/ADAPT/REJECT decisions. Missing scan = FAIL unless the Operator explicitly waives it for the WP. For cross-cutting WPs, also confirm `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` exist and any required Spec Appendix 12 (index/matrices) updates are either in-scope or tracked as explicit stubs.
 - [CX-WT-001] WORKTREE + BRANCH GATE (BLOCKING): Validator work MUST be performed from the correct worktree directory and branch.
   - Source of truth: `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
@@ -575,8 +576,10 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - `just cargo-clean` (cleans external Cargo target dir at `../Handshake Artifacts/handshake-cargo-target` before validation/commit; fail validation if skipped)
 - `just external-validator-brief WP-{ID}` (prints the canonical external/classical validator target contract: code target, governance target, committed handoff command, split report fields, and legal verdict vocabulary)
 - `just validator-handoff-check WP-{ID}` (required before PASS commit clearance for orchestrator-managed WPs; validates the committed PREPARE worktree handoff state)
+- `just integration-validator-context-brief WP-{ID}` (canonical final-lane authority/path/context bundle for orchestrator-managed Integration Validator work; use this instead of rereading protocols or rediscovering branch/worktree/session/main-compatibility truth)
 - `just integration-validator-closeout-check WP-{ID}` (required before PASS commit clearance for orchestrator-managed WPs; fails if the final lane cannot resolve the committed target SHA or if WP-scoped session-control truth is still unsettled)
 - `just gov-check` (required before PASS merge/push and for any governance-only validator changes; catches activation traceability drift, Task Board/build-order drift, and shared governance regressions)
+- `just validator-gate-*` write commands now reject unbound/wrong-lane orchestrator-managed usage early; if the current checkout is not a governed validator lane, use `just validator-next WP-{ID}`, `just integration-validator-context-brief WP-{ID}`, or `just external-validator-brief WP-{ID}` instead of forcing gate writes from the wrong surface
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
 - `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend readiness)
 - `just validator-spec-regression` (SPEC_CURRENT points to latest; required anchors like A2.3.12 present)
@@ -650,6 +653,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 
 ## External Validator Split Report Contract
 - Before an external/classical validator starts on an orchestrator-managed WP, generate the target contract with `just external-validator-brief WP-{ID}`.
+- Before the governed Integration Validator resumes final-lane work on an orchestrator-managed WP, open the canonical context bundle with `just integration-validator-context-brief WP-{ID}` instead of rebuilding branch/worktree/authority/main-compatibility truth manually.
 - Governance target selection is derived from the packet-declared governance authority and workflow lane, not by assuming every case is a retired `role_orchestrator` surface.
 - External/classical validator reports for orchestrator-managed WPs MUST use these top fields:
   - `VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH`

@@ -36,6 +36,7 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 - `checks/validator-git-hygiene.mjs`
 - `checks/validator-hygiene-full.mjs`
 - `checks/external-validator-brief.mjs`
+- `checks/integration-validator-context-brief.mjs`
 
 ## Shared Dependencies To Know
 
@@ -67,6 +68,7 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 - `just validator-startup`
 - `just validator-next [WP-{ID}]`
 - `just validator-handoff-check WP-{ID}`
+- `just integration-validator-context-brief WP-{ID}`
 - `just validator-packet-complete WP-{ID}`
 - `just validator-gate-present WP-{ID}`
 - `just validator-gate-acknowledge WP-{ID}`

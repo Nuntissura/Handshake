@@ -638,3 +638,39 @@ test("workflow invalidity receipts block communication health and route back to 
   assert.equal(route.waitingOn, "WORKFLOW_INVALIDITY");
   assert.equal(route.attentionRequired, true);
 });
+
+test("operator rule restatement invalidity requires a lane reset route", () => {
+  const input = baseInput({
+    receipts: [
+      {
+        receipt_kind: "WORKFLOW_INVALIDITY",
+        workflow_invalidity_code: "OPERATOR_RULE_RESTATEMENT",
+        actor_role: "ORCHESTRATOR",
+        actor_session: "orch-1",
+        target_role: "ORCHESTRATOR",
+        target_session: null,
+        correlation_id: null,
+        ack_for: null,
+        summary: "Operator had to restate the orchestrator-managed no-checkpoint rule mid-run",
+        timestamp_utc: "2026-03-26T10:00:00Z",
+      },
+    ],
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+
+  assert.equal(evaluation.ok, false);
+  assert.equal(evaluation.state, "COMM_WORKFLOW_INVALID");
+  assert.match(evaluation.details.join("\n"), /lane_reset_required=YES/);
+  assert.equal(route.nextExpectedActor, "ORCHESTRATOR");
+  assert.equal(route.waitingOn, "LANE_RESET_REQUIRED");
+  assert.equal(route.attentionRequired, true);
+  if (route.notification) {
+    assert.equal(route.notification.summary, "AUTO_ROUTE: operator rule restatement recorded; orchestrator lane reset required");
+  }
+});

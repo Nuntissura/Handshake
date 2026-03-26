@@ -446,6 +446,7 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 - This delay is intentional. It blocks automation momentum and forces visible spec-grounded reasoning before approval.
 - A claimed "shown in chat" refinement is invalid if it appeared only in command/tool output rather than assistant-authored chat text.
 - Workflow-invalid conditions on orchestrator-managed WPs must be written to the WP receipts ledger as `WORKFLOW_INVALIDITY` entries; they are not allowed to remain narrative-only concerns.
+- If the Operator has to restate a core orchestrator-managed lane rule mid-run, record it with `just wp-operator-rule-restatement ...` and treat the lane as `LANE_RESET_REQUIRED` until the Orchestrator reissues a clean bounded instruction.
 - Record the signature bundle with `just record-signature ...`.
 - After signature PASS with `OPERATOR_ACTION: NONE`, continue directly to `just orchestrator-prepare-and-packet WP-{ID}`.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, routine Operator interruption ends after signature/prepare. Do not request routine "proceed", checkpoint, or approval actions after that point.

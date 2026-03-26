@@ -5,6 +5,7 @@ import {
   FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
   latestWorkflowInvalidityReceipt,
+  OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE,
   REVIEW_TRACKED_RECEIPT_KIND_VALUES,
   workflowInvalidityReceipts,
 } from "./wp-communications-lib.mjs";
@@ -304,6 +305,7 @@ export function evaluateWpCommunicationHealth({
         ...details,
         `latest_invalidity_code=${latestWorkflowInvalidity?.workflow_invalidity_code || "<missing>"}`,
         `latest_invalidity_summary=${latestWorkflowInvalidity?.summary || "<missing>"}`,
+        `lane_reset_required=${String(latestWorkflowInvalidity?.workflow_invalidity_code || "").trim().toUpperCase() === OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE ? "YES" : "NO"}`,
       ],
       counts,
       correlations,
@@ -568,6 +570,10 @@ function route({
   };
 }
 
+function latestInvalidityCode(latestReceipt = null) {
+  return String(latestReceipt?.workflow_invalidity_code || "").trim().toUpperCase();
+}
+
 function sameRouteTarget(leftRole, leftSession, rightRole, rightSession) {
   return normalizeRole(leftRole) === normalizeRole(rightRole)
     && normalizeSession(leftSession) === normalizeSession(rightSession);
@@ -693,6 +699,16 @@ export function deriveWpCommunicationAutoRoute({
       break;
     }
     case "COMM_WORKFLOW_INVALID":
+      if (latestInvalidityCode(latestReceipt) === OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE) {
+        projection = route({
+          state: evaluation.state,
+          nextExpectedActor: "ORCHESTRATOR",
+          waitingOn: "LANE_RESET_REQUIRED",
+          attentionRequired: true,
+          notificationSummary: "AUTO_ROUTE: operator rule restatement recorded; orchestrator lane reset required",
+        });
+        break;
+      }
       projection = route({
         state: evaluation.state,
         nextExpectedActor: "ORCHESTRATOR",

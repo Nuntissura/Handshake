@@ -264,6 +264,9 @@ validator-handoff-check wp-id *args:
 integration-validator-closeout-check wp-id:
 	@node {{GOV_ROOT}}/roles/validator/checks/integration-validator-closeout-check.mjs {{wp-id}}
 
+integration-validator-context-brief wp-id *args:
+	@node {{GOV_ROOT}}/roles/validator/checks/integration-validator-context-brief.mjs {{wp-id}} {{args}}
+
 external-validator-brief wp-id *args:
 	@node {{GOV_ROOT}}/roles/validator/checks/external-validator-brief.mjs {{wp-id}} {{args}}
 
@@ -349,6 +352,9 @@ wp-receipt-append wp-id actor_role actor_session receipt_kind summary state_befo
 
 wp-invalidity-flag wp-id actor_role actor_session invalidity_code summary spec_anchor="" packet_row_ref="":
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-invalidity-flag.mjs {{wp-id}} {{actor_role}} {{actor_session}} {{invalidity_code}} "{{summary}}" "{{spec_anchor}}" "{{packet_row_ref}}"
+
+wp-operator-rule-restatement wp-id actor_role actor_session summary spec_anchor="" packet_row_ref="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-operator-rule-restatement.mjs {{wp-id}} {{actor_role}} {{actor_session}} "{{summary}}" "{{spec_anchor}}" "{{packet_row_ref}}"
 
 wp-review-exchange receipt_kind wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" ack_for="":
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs {{receipt_kind}} {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}"

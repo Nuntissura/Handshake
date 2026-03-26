@@ -373,3 +373,61 @@
   - `.GOV/roles_shared/tests/merge-progression-truth-lib.test.mjs`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: terminal Task Board moves now fail if packet status disagrees with the requested board state, runtime projection fields are refreshed immediately from packet truth on those transitions, and merge-progression checks now detect lagging runtime `current_packet_status`
+
+### 2026.03.26.04 / GOV-CHANGE-20260326-04
+
+- STATUS: APPLIED
+- SUMMARY: added a canonical integration-validator context bundle so final-lane review can open one authority/path/source-of-truth surface instead of rediscovering final-lane context manually
+- CHANGE_TYPE: FINAL_LANE_CONTEXT_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+- SURFACES:
+  - `.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs`
+  - `.GOV/roles/validator/checks/integration-validator-context-brief.mjs`
+  - `.GOV/roles/validator/tests/validator-governance-lib.test.mjs`
+  - `.GOV/roles/validator/tests/validator-command-surface.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/validator/scripts/validator-next.mjs`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/validator/README.md`
+  - `justfile`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: the Integration Validator now has a single read-only context bundle command that surfaces authority, actor/session identity, committed handoff target, declared topology, current-`main` compatibility, and the exact final-lane command sequence, which reduces repeated protocol rereads and path/authority rediscovery
+
+### 2026.03.26.05 / GOV-CHANGE-20260326-05
+
+- STATUS: APPLIED
+- SUMMARY: added a dedicated operator-rule-restatement invalidity helper and projected those cases to a machine-visible lane-reset route
+- CHANGE_TYPE: WORKFLOW_INVALIDITY_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/wp/wp-operator-rule-restatement.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `justfile`
+- OUTCOME: when the Operator has to restate a core orchestrator-managed lane rule, the repo now has a dedicated helper that records the condition as `OPERATOR_RULE_RESTATEMENT`, and communication/runtime projection routes that WP to `LANE_RESET_REQUIRED` instead of treating it as generic invalidity noise
+
+### 2026.03.26.06 / GOV-CHANGE-20260326-06
+
+- STATUS: APPLIED
+- SUMMARY: narrowed validator gate write surfaces so wrong-lane orchestrator-managed usage fails early and points to the correct helper family
+- CHANGE_TYPE: COMMAND_SURFACE_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
+- SURFACES:
+  - `.GOV/roles/validator/checks/validator_gates.mjs`
+  - `.GOV/roles/validator/tests/validator-next.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: `validator-gate-*` writes on orchestrator-managed packets now fail before mutating state when the current branch/worktree does not resolve to a governed validator lane, and the error points callers to `validator-next`, `integration-validator-context-brief`, or `external-validator-brief` instead of letting wrong-tool attempts masquerade as legitimate gate progression

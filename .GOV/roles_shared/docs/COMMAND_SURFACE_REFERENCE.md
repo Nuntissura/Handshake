@@ -204,6 +204,9 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 - `just wp-invalidity-flag WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <INVALIDITY_CODE> ...`
   - `runtime-write`
   - records a machine-visible `WORKFLOW_INVALIDITY` receipt and routes attention back to the Orchestrator
+- `just wp-operator-rule-restatement WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<summary>" ...`
+  - `runtime-write`
+  - specialized invalidity helper for the case where the Operator had to restate a core orchestrator-managed rule; projects `LANE_RESET_REQUIRED` instead of generic invalidity drift
 - `just wp-validator-kickoff ...`
 - `just wp-coder-intent ...`
 - `just wp-coder-handoff ...`
@@ -255,12 +258,14 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
 
 - `just gate-check WP-{ID}`
 - `just validator-handoff-check WP-{ID}`
+- `just integration-validator-context-brief WP-{ID}`
 - `just integration-validator-closeout-check WP-{ID}`
 - `just validator-packet-complete WP-{ID}`
 - `just wp-declared-topology-check WP-{ID}`
 - `just validator-policy-gate WP-{ID}`
     - `read-only`
     - primary validator gate surface
+    - `integration-validator-context-brief` is the canonical final-lane authority/path/source-of-truth bundle for orchestrator-managed Integration Validator review; use it instead of rereading large protocols or rediscovering final-lane paths/commands
     - `integration-validator-closeout-check` is the final-lane topology, atomic-closeout, and current-`main` signed-scope compatibility preflight for orchestrator-managed PASS closure
     - `wp-declared-topology-check` surfaces packet-declared vs actual linked-worktree truth for one WP and fails on undeclared auxiliary worktrees
   - for `PACKET_FORMAT_VERSION >= 2026-03-25`, `Done` means merge-pending PASS and `Validated (PASS)` requires recorded containment in local `main`
@@ -275,6 +280,7 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
 - `just validator-gate-reset WP-{ID} <confirm>`
   - `governance-write`
   - validator gate state progression/reset
+  - on orchestrator-managed WPs, these write surfaces now fail early if the current branch/worktree does not resolve to a governed validator lane; use `validator-next`, `integration-validator-context-brief`, or `external-validator-brief` instead of guessing
 - `just validator-gate-status WP-{ID}`
 - `just validator-governance-snapshot`
 - `just validator-report-structure-check`

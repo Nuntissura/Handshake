@@ -32,6 +32,7 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
   assert.match(prompt, /DIRECT COMMUNICATION \(MANDATORY\): Use the structured final review lane/i);
   assert.match(prompt, /wp-review-exchange REVIEW_REQUEST/i);
   assert.match(prompt, /wp-review-response/i);
+  assert.match(prompt, /integration-validator-context-brief/i);
   assert.match(prompt, /wp-communication-health-check .* VERDICT/i);
   assert.match(prompt, /Final merge-ready authority/i);
   assert.match(prompt, /ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature\/prepare/i);

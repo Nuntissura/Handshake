@@ -373,11 +373,14 @@ const findings = [
       verdict === "PASS"
         ? (
           validatorActorContext.actorRole === "INTEGRATION_VALIDATOR"
-            ? `just validator-gate-commit ${wpId}`
+            ? `just integration-validator-context-brief ${wpId}`
             : `just validator-gate-commit ${wpId}`
         )
         : `just validator-gate-present ${wpId}`,
-    ]);
+      verdict === "PASS" && validatorActorContext.actorRole === "INTEGRATION_VALIDATOR"
+        ? `just validator-gate-commit ${wpId}`
+        : null,
+    ].filter(Boolean));
     process.exit(0);
   }
 
@@ -406,7 +409,12 @@ const findings = [
         : "PASS commit clearance is already recorded; present the final report to the user next.",
     );
     printFindings(findings);
-    printNextCommands([`just validator-gate-present ${wpId}`]);
+    printNextCommands([
+      validatorActorContext.actorRole === "INTEGRATION_VALIDATOR"
+        ? `just integration-validator-context-brief ${wpId}`
+        : null,
+      `just validator-gate-present ${wpId}`,
+    ].filter(Boolean));
     process.exit(0);
   }
 
