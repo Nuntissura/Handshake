@@ -29,6 +29,12 @@ export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1"
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
 export const SESSION_CONTROL_RESULT_SCHEMA_ID = "hsk.session_control_result@1";
 export const SESSION_CONTROL_RESULT_SCHEMA_VERSION = "session_control_result_v1";
+export const ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES = [
+  "POLICY_CONFLICT",
+  "AUTHORITY_OVERRIDE_REQUIRED",
+  "OPERATOR_ARTIFACT_REQUIRED",
+  "ENVIRONMENT_FAILURE",
+];
 
 function nowIso() {
   return new Date().toISOString();
@@ -145,6 +151,7 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
     `REPO POLICY: do not switch to Codex model aliases for repo-governed sessions.`,
     `MINIMAL LIVE READ SET (MANDATORY): After startup and assignment, work from startup output + active packet + active WP thread/notifications + .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md when command choice is unclear.`,
     `ANTI-REDISCOVERY RULE: Do not keep rereading large governance protocols, rerunning just --list, or repeating path/source-of-truth checks after context is already stable. If you need that repeated rereading, report ambiguity instead of silently paying for it.`,
+    `POST-SIGNATURE RELAPSE GUARD (MANDATORY): For WORKFLOW_LANE=ORCHESTRATOR_MANAGED after signature/prepare, do not ask the Operator for routine approval, proceed, or checkpoint actions. If a real blocker exists, route it back to the Orchestrator and name exactly one BLOCKER_CLASS: ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
   ];
 
   let roleLines;
@@ -154,7 +161,7 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
       `AUTHORITY: AGENTS.md + .GOV/roles/coder/CODER_PROTOCOL.md + startup output + ${authorityPacketPath}`,
       `FOCUS: only the assigned WP in the assigned WP worktree.`,
       `GOVERNANCE NOISE RULE: the worktree .GOV tree is a live shared governance junction. Treat it as read-only context, use \`just coder-next ${wpId}\` as the filtered resume surface, and do not treat raw .GOV git noise as WP scope evidence.`,
-      `FLOW: \`just pre-work ${wpId}\` -> skeleton approval when required -> implementation -> \`just post-work ${wpId}\` -> Validator handoff.`,
+      `FLOW: \`MANUAL_RELAY\` = \`just pre-work ${wpId}\` -> skeleton approval when required -> implementation -> \`just post-work ${wpId}\` -> Validator handoff. \`ORCHESTRATOR_MANAGED\` = \`just pre-work ${wpId}\` -> implementation -> \`just post-work ${wpId}\` -> Validator handoff; no routine Operator approvals after signature.`,
       `BRANCH RULE: never merge \`main\`; only use the assigned WP backup branch when the packet allows it.`,
       `DIRECT COMMUNICATION (MANDATORY): Use the structured direct-review helpers, not generic thread traffic, for the required coder <-> WP validator lane. Respond to validator kickoff with \`just wp-coder-intent ${wpId} <your-session> <validator-session> "<summary>" <correlation_id>\`, and publish review-ready handoff with \`just wp-coder-handoff ${wpId} <your-session> <validator-session> "<summary>"\`. Use \`just wp-thread-append ${wpId} CODER <your-session> "<message>" @wpval\` only for soft coordination that is not part of the required contract.`,
       `CONTRACT GATE (HARD): Before claiming validator-ready handoff, \`just wp-communication-health-check ${wpId} KICKOFF\` must pass.`,
@@ -168,6 +175,7 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
       `AUTHORITY: AGENTS.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + ${authorityPacketPath}`,
       `FOCUS: validate evidence in the assigned WP worktree, not intent.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then report findings.`,
+      `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
       `DIRECT COMMUNICATION (MANDATORY): Use the structured direct-review helpers, not generic thread traffic, for the required WP validator <-> coder lane. Publish kickoff with \`just wp-validator-kickoff ${wpId} <your-session> <coder-session> "<summary>"\`, and publish the advisory review with \`just wp-validator-review ${wpId} <your-session> <coder-session> "<summary>" <correlation_id>\`. Use \`just wp-thread-append ${wpId} WP_VALIDATOR <your-session> "<message>" @coder\` only for soft coordination that is not part of the required contract.`,
       `CONTRACT GATE (HARD): Before PASS clearance, \`just wp-communication-health-check ${wpId} VERDICT\` must pass.`,
       `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
@@ -181,7 +189,9 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
       `AUTHORITY: AGENTS.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + ${authorityPacketPath}`,
       `FOCUS: validate evidence in the assigned WP worktree, not intent. You own final technical verdict and merge-to-main authority.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then close or merge validated work.`,
+      `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
       `DIRECT COMMUNICATION (MANDATORY): Use the structured final review lane, not generic thread traffic, for the required coder <-> integration-validator exchange. Open the final review pair with \`just wp-review-exchange REVIEW_REQUEST ${wpId} INTEGRATION_VALIDATOR <your-session> CODER <coder-session> "<summary>"\`, and record your final response with \`just wp-review-response ${wpId} INTEGRATION_VALIDATOR <your-session> CODER <coder-session> "<summary>" <correlation_id>\` when the coder replies. Use \`just wp-thread-append ${wpId} INTEGRATION_VALIDATOR <your-session> "<message>" @coder\` only for soft coordination that is not part of the required contract.`,
+      `FINAL-LANE CONTEXT (MANDATORY): Use \`just integration-validator-context-brief ${wpId}\` as the canonical authority/path/context bundle for this lane instead of rebuilding branch/worktree/session/main-compatibility truth manually.`,
       `CONTRACT GATE (HARD): Before PASS clearance, \`just wp-communication-health-check ${wpId} VERDICT\` must pass.`,
       `FINAL AUTHORITY (MANDATORY): Do not let WP validator evidence stand in for your own direct review. Final merge-ready authority for orchestrator-managed WPs belongs to this lane unless the packet explicitly says otherwise.`,
       `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Do not trust WP validator summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,

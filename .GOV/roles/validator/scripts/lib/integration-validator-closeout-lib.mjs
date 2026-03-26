@@ -17,6 +17,7 @@ import {
   evaluateValidatorPassAuthority,
   normalizeValidatorRole,
 } from "./validator-governance-lib.mjs";
+import { validateSignedScopeCompatibilityTruth } from "../../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
 
 function makeIssueSet() {
   return new Set();
@@ -108,6 +109,12 @@ export function evaluateIntegrationValidatorTopology({
     issues.add(`Integration Validator worktree cannot resolve committed target ${targetHeadSha}.`);
   }
 
+  const currentMainHead = runGit(["rev-parse", "HEAD"]);
+  const currentMainHeadSha = currentMainHead.code === 0 ? String(currentMainHead.output || "").trim() : "";
+  if (!currentMainHeadSha) {
+    issues.add("Integration Validator could not resolve current local main HEAD.");
+  }
+
   return {
     ok: issues.size === 0,
     issues: Array.from(issues),
@@ -116,6 +123,7 @@ export function evaluateIntegrationValidatorTopology({
     expectedWorktreeDir,
     resolvedWorktreeAbs: normalizePath(worktreeAbs),
     targetHeadSha,
+    currentMainHeadSha,
   };
 }
 
@@ -259,12 +267,18 @@ export function evaluateIntegrationValidatorCloseoutState({
     brokerState: resolvedBrokerState,
     fileExists,
   });
+  const scopeCompatibility = validateSignedScopeCompatibilityTruth(packetContent, {
+    packetPath: `<${wpId}>`,
+    currentMainHeadSha: topology.currentMainHeadSha || "",
+    requireReadyForPass: true,
+  });
 
   return {
-    ok: topology.ok && closeoutBundle.ok,
+    ok: topology.ok && closeoutBundle.ok && scopeCompatibility.errors.length === 0,
     topology,
     closeoutBundle,
-    issues: [...topology.issues, ...closeoutBundle.issues],
+    scopeCompatibility,
+    issues: [...topology.issues, ...closeoutBundle.issues, ...scopeCompatibility.errors],
     warnings: [...topology.warnings, ...closeoutBundle.warnings],
   };
 }

@@ -190,6 +190,7 @@ test("integration-validator ready commands emphasize final review and verdict he
   });
 
   assert.deepEqual(commands, [
+    "just integration-validator-context-brief WP-TEST-VALIDATOR-v1",
     "just check-notifications WP-TEST-VALIDATOR-v1 INTEGRATION_VALIDATOR",
     "just ack-notifications WP-TEST-VALIDATOR-v1 INTEGRATION_VALIDATOR intval:test",
     "just wp-communication-health-check WP-TEST-VALIDATOR-v1 VERDICT",

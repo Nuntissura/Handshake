@@ -190,7 +190,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - `just pre-work WP-{ID}` is the blocking packet-integrity gate before handoff.
 - `just post-work WP-{ID}` is the deterministic closure gate before done/commit claims.
 - For validator PASS clearance on orchestrator-managed WPs, prefer `just validator-handoff-check WP-{ID}` so validation runs against the PREPARE worktree source of truth.
-- Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just integration-validator-closeout-check WP-{ID}`. If that preflight fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth.
+- Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just integration-validator-closeout-check WP-{ID}`. If that preflight fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth. For `PACKET_FORMAT_VERSION >= 2026-03-26`, this also means current-`main` signed-scope compatibility was not honestly cleared or packet widening was not governed explicitly.
 
 ## Branching & Concurrency
 
@@ -446,8 +446,11 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 - This delay is intentional. It blocks automation momentum and forces visible spec-grounded reasoning before approval.
 - A claimed "shown in chat" refinement is invalid if it appeared only in command/tool output rather than assistant-authored chat text.
 - Workflow-invalid conditions on orchestrator-managed WPs must be written to the WP receipts ledger as `WORKFLOW_INVALIDITY` entries; they are not allowed to remain narrative-only concerns.
+- If the Operator has to restate a core orchestrator-managed lane rule mid-run, record it with `just wp-operator-rule-restatement ...` and treat the lane as `LANE_RESET_REQUIRED` until the Orchestrator reissues a clean bounded instruction.
 - Record the signature bundle with `just record-signature ...`.
 - After signature PASS with `OPERATOR_ACTION: NONE`, continue directly to `just orchestrator-prepare-and-packet WP-{ID}`.
+- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, routine Operator interruption ends after signature/prepare. Do not request routine "proceed", checkpoint, or approval actions after that point.
+- If post-signature Operator action is still required on an orchestrator-managed lane, `just orchestrator-next` must print one machine-visible `BLOCKER_CLASS` rather than a freeform approval ask. The allowed post-signature classes are `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, and `ENVIRONMENT_FAILURE`; the legacy repair-only pre-launch recovery class is `LEGACY_SIGNATURE_TUPLE_REPAIR`.
 - Use `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
 - Packets are transcription from the signed refinement plus current workflow metadata, not freehand reinterpretation.
 - `just pre-work WP-{ID}` is the blocking packet-integrity gate before delegation.

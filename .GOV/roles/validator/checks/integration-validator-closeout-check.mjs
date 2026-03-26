@@ -89,6 +89,8 @@ if (!evaluation.ok) {
 
 pass(`${wpId} final-lane topology and closeout bundle are coherent`, [
   `target_head_sha=${evaluation.topology.targetHeadSha || "<unknown>"}`,
+  `current_main_head_sha=${evaluation.topology.currentMainHeadSha || "<unknown>"}`,
+  `current_main_compatibility_status=${evaluation.scopeCompatibility?.parsed?.currentMainCompatibilityStatus || "<unknown>"}`,
   `integration_validator_worktree=${evaluation.topology.resolvedWorktreeAbs || "<unknown>"}`,
   `request_count=${evaluation.closeoutBundle.summary.request_count}`,
   `result_count=${evaluation.closeoutBundle.summary.result_count}`,

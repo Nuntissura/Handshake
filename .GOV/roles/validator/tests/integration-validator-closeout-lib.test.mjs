@@ -25,10 +25,15 @@ function packetFixture() {
 
 ## METADATA
 - WP_ID: WP-TEST-VALIDATOR-v1
-- PACKET_FORMAT_VERSION: 2026-03-25
+- PACKET_FORMAT_VERSION: 2026-03-26
 - WORKFLOW_LANE: ORCHESTRATOR_MANAGED
 - TECHNICAL_AUTHORITY: INTEGRATION_VALIDATOR
 - MERGE_AUTHORITY: INTEGRATION_VALIDATOR
+- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 0123456789abcdef0123456789abcdef01234567
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-03-26T10:00:00Z
+- PACKET_WIDENING_DECISION: NOT_REQUIRED
+- PACKET_WIDENING_EVIDENCE: N/A
 `.trim();
 }
 
@@ -43,7 +48,11 @@ test("integration-validator topology passes when the governed final lane resolve
       target_head_sha: "abc123",
     },
     worktreeExists: () => true,
-    gitRunner: () => ({ code: 0, output: "" }),
+    gitRunner: (args) => (
+      args[0] === "rev-parse"
+        ? { code: 0, output: "0123456789abcdef0123456789abcdef01234567" }
+        : { code: 0, output: "" }
+    ),
   });
 
   assert.equal(evaluation.ok, true);
@@ -192,10 +201,41 @@ test("integration-validator closeout state combines topology and WP-scoped close
     brokerState: { active_runs: [] },
     worktreeExists: () => true,
     fileExists: () => true,
-    gitRunner: () => ({ code: 0, output: "" }),
+    gitRunner: (args) => (
+      args[0] === "rev-parse"
+        ? { code: 0, output: "0123456789abcdef0123456789abcdef01234567" }
+        : { code: 0, output: "" }
+    ),
   });
 
   assert.equal(evaluation.ok, true);
   assert.equal(evaluation.issues.length, 0);
   assert.equal(evaluation.closeoutBundle.summary.active_run_count, 0);
+});
+
+test("integration-validator closeout state fails when signed scope compatibility is stale against current main", () => {
+  const evaluation = evaluateIntegrationValidatorCloseoutState({
+    repoRoot: ".",
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetContent: packetFixture(),
+    actorContext: actorContextFixture(),
+    committedEvidence: {
+      status: "PASS",
+      target_head_sha: "abc123",
+    },
+    requests: [],
+    results: [],
+    registrySessions: [],
+    brokerState: { active_runs: [] },
+    worktreeExists: () => true,
+    fileExists: () => true,
+    gitRunner: (args) => (
+      args[0] === "rev-parse"
+        ? { code: 0, output: "89abcdef0123456789abcdef0123456789abcdef" }
+        : { code: 0, output: "" }
+    ),
+  });
+
+  assert.equal(evaluation.ok, false);
+  assert.match(evaluation.issues.join("\n"), /does not match current local main HEAD/i);
 });

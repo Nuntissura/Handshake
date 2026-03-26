@@ -22,6 +22,7 @@ import {
   printFindings,
   printLifecycle,
   printNextCommands,
+  printBlockerClass,
   printOperatorAction,
   printState,
   taskBoardStatus,
@@ -59,6 +60,11 @@ function exists(p) {
   } catch {
     return false;
   }
+}
+
+function printOperatorEnvelope(action = "NONE", blockerClass = "NONE") {
+  printOperatorAction(action);
+  printBlockerClass(blockerClass);
 }
 
 function hasStubLine(wpId) {
@@ -226,7 +232,7 @@ function main() {
     }
 
     printLifecycle({ wpId: "N/A", stage: "REFINEMENT", next: "STOP" });
-    printOperatorAction("NONE");
+    printOperatorEnvelope("NONE", "NONE");
     printConfidence("LOW", "multiple-or-no-candidates");
     printState("Unable to infer a single orchestrator WP to resume.");
     printFindings(findings);
@@ -242,7 +248,7 @@ function main() {
   if (boardStatus && ["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"].includes(boardStatus)) {
     const packetPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`)).replace(/\\/g, "/");
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
-    printOperatorAction("NONE");
+    printOperatorEnvelope("NONE", "NONE");
     printConfidence(inferred.source === "explicit" ? "HIGH" : "MEDIUM", inferred.source);
     printState(`WP is terminal on TASK_BOARD (${boardStatus}); this is packet history, not an active orchestrator resume target.`);
     printFindings([
@@ -297,7 +303,7 @@ function main() {
   // Phase inference (minimal and deterministic).
   if (!refinementExists) {
     printLifecycle({ wpId, stage: "REFINEMENT", next: "REFINEMENT" });
-    printOperatorAction("NONE");
+    printOperatorEnvelope("NONE", "NONE");
     printConfidence(confidence.level, confidence.detail);
     printState("Refinement file does not exist yet.");
     printNextCommands([
@@ -311,7 +317,7 @@ function main() {
 
   if (!refinementReady) {
     printLifecycle({ wpId, stage: "REFINEMENT", next: "REFINEMENT" });
-    printOperatorAction("NONE");
+    printOperatorEnvelope("NONE", "NONE");
     printConfidence(confidence.level, confidence.detail);
     const detail = refinementErrors.length > 0 ? refinementErrors[0] : "Refinement is incomplete.";
     printState(detail);
@@ -325,7 +331,7 @@ function main() {
 
   if (!lastRefinement) {
     printLifecycle({ wpId, stage: "REFINEMENT", next: "APPROVAL" });
-    printOperatorAction("NONE");
+    printOperatorEnvelope("NONE", "NONE");
     printConfidence(confidence.level, confidence.detail);
     printState("Refinement file looks reviewable, but no refinement gate log exists yet.");
     printNextCommands([`just record-refinement ${wpId}`]);
@@ -334,7 +340,10 @@ function main() {
 
   if (!lastSignature) {
     printLifecycle({ wpId, stage: "APPROVAL", next: "SIGNATURE" });
-    printOperatorAction(`Collect explicit approval + one-time signature bundle for ${wpId} (signature + workflow lane + execution owner)`);
+    printOperatorEnvelope(
+      `Collect explicit approval + one-time signature bundle for ${wpId} (signature + workflow lane + execution owner)`,
+      "PRE_SIGNATURE_APPROVAL_REQUIRED",
+    );
     printConfidence(confidence.level, confidence.detail);
     printState("Refinement recorded; signature not yet recorded.");
     printNextCommands([
@@ -355,7 +364,7 @@ function main() {
         : !workflowLane
           ? `Choose workflow lane for legacy PREPARE recovery (${executionLane}; MANUAL_RELAY|ORCHESTRATOR_MANAGED)`
           : `Choose execution owner for legacy PREPARE recovery (${EXECUTION_OWNER_RANGE_HELP})`;
-      printOperatorAction(prompt);
+      printOperatorEnvelope(prompt, "LEGACY_SIGNATURE_TUPLE_REPAIR");
       printConfidence(confidence.level, confidence.detail);
       printState("Signature recorded; WP prepare record missing and the legacy signature bundle did not capture the full workflow tuple.");
       printNextCommands([
@@ -364,7 +373,7 @@ function main() {
       return;
     }
 
-    printOperatorAction("NONE");
+    printOperatorEnvelope("NONE", "NONE");
     printConfidence(confidence.level, confidence.detail);
     printState(`Signature recorded; WP prepare record missing. Workflow lane from signature bundle: ${workflowLane}; execution owner: ${executionLane}.`);
     printNextCommands([
@@ -375,7 +384,7 @@ function main() {
 
   if (!packetExists) {
     printLifecycle({ wpId, stage: "PACKET_CREATE", next: "PRE_WORK" });
-    printOperatorAction("NONE");
+    printOperatorEnvelope("NONE", "NONE");
     printConfidence(confidence.level, confidence.detail);
     printState("Prepare recorded; work packet file does not exist yet.");
     const nextCommands = [`just create-task-packet ${wpId}`];
@@ -392,7 +401,7 @@ function main() {
   const syncState = preparedWorktreeSyncState(wpId, lastPrepare, gitContext.topLevel || process.cwd());
   if (!syncState.ok) {
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
-    printOperatorAction("NONE");
+    printOperatorEnvelope("NONE", "NONE");
     printConfidence(confidence.level, confidence.detail);
     printState("Work packet exists, but the assigned WP worktree is stale and coder handoff is blocked.");
     printFindings([
@@ -409,7 +418,7 @@ function main() {
     return;
   }
   printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
-  printOperatorAction("NONE");
+  printOperatorEnvelope("NONE", "NONE");
   printConfidence(confidence.level, confidence.detail);
   printState(
     needsStubCleanup
@@ -434,4 +443,3 @@ function main() {
 }
 
 main();
-

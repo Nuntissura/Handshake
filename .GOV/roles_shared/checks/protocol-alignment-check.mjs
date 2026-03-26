@@ -26,6 +26,7 @@ const ORCHESTRATOR_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orches
 const CODER_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "coder", "CODER_PROTOCOL.md");
 const VALIDATOR_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "validator", "VALIDATOR_PROTOCOL.md");
 const ORCHESTRATOR_GATES_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "checks", "orchestrator_gates.mjs");
+const ORCHESTRATOR_NEXT_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "orchestrator-next.mjs");
 const CREATE_TASK_PACKET_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "create-task-packet.mjs");
 const LAUNCH_CLI_SESSION_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "launch-cli-session.mjs");
 const SESSION_CONTROL_COMMAND_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
@@ -45,6 +46,7 @@ const ACTIVE_SURFACE_PATHS = [
   CODER_PROTOCOL_PATH,
   VALIDATOR_PROTOCOL_PATH,
   ORCHESTRATOR_GATES_PATH,
+  ORCHESTRATOR_NEXT_PATH,
   CREATE_TASK_PACKET_PATH,
   LAUNCH_CLI_SESSION_PATH,
   SESSION_CONTROL_COMMAND_PATH,
@@ -154,6 +156,7 @@ const orchestratorProtocol = contents.get(ORCHESTRATOR_PROTOCOL_PATH);
 const coderProtocol = contents.get(CODER_PROTOCOL_PATH);
 const validatorProtocol = contents.get(VALIDATOR_PROTOCOL_PATH);
 const orchestratorGates = contents.get(ORCHESTRATOR_GATES_PATH);
+const orchestratorNext = contents.get(ORCHESTRATOR_NEXT_PATH);
 const createTaskPacket = contents.get(CREATE_TASK_PACKET_PATH);
 const launchCliSession = contents.get(LAUNCH_CLI_SESSION_PATH);
 const sessionControlCommand = contents.get(SESSION_CONTROL_COMMAND_PATH);
@@ -272,6 +275,25 @@ requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "MINIMAL L
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, ".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "ANTI-REDISCOVERY RULE:");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "just --list");
+requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "POST-SIGNATURE RELAPSE GUARD (MANDATORY):");
+requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES");
+requireRegex(
+  errors,
+  SESSION_CONTROL_LIB_PATH,
+  sessionControlLib,
+  /"POLICY_CONFLICT"[\s\S]*"AUTHORITY_OVERRIDE_REQUIRED"[\s\S]*"OPERATOR_ARTIFACT_REQUIRED"[\s\S]*"ENVIRONMENT_FAILURE"/,
+  "orchestrator-managed blocker class set",
+);
+requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "skeleton approval when required");
+requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "no routine Operator approvals after signature");
+requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "FLOW:");
+requireSubstring(errors, ORCHESTRATOR_NEXT_PATH, orchestratorNext, "printBlockerClass");
+requireSubstring(errors, ORCHESTRATOR_NEXT_PATH, orchestratorNext, "LEGACY_SIGNATURE_TUPLE_REPAIR");
+requireSubstring(errors, ORCHESTRATOR_NEXT_PATH, orchestratorNext, "PRE_SIGNATURE_APPROVAL_REQUIRED");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "BLOCKER_CLASS");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "routine Operator interruption ends after signature/prepare");
+requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "do not ask the Operator for routine approval, \"proceed\", or checkpoint actions");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "do not ask the Operator for routine approval, \"proceed\", or checkpoint actions");
 
 // Scripts must expose the current role/command contract and point at active paths.
 requireRegex(

@@ -58,6 +58,7 @@ These are safe starting points for orientation and health checks.
 - `just validator-next [WP-{ID}]`
   - `read-only`
   - role-specific resume helpers after startup/reset/compaction
+  - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, post-signature routine Operator interruptions are invalid; `just orchestrator-next` should print `OPERATOR_ACTION: NONE` unless a machine-visible `BLOCKER_CLASS` is present
 
 ## Minimal Live Read Set (Token Discipline)
 
@@ -69,6 +70,12 @@ After startup and assignment, roles should usually be able to operate from a sma
 - this command-surface reference when command choice is unclear
 
 Repeated full rereads of large governance protocols, repeated `just --list`-style command rediscovery, and repeated path/source-of-truth checks after context is already stable should be treated as ambiguity smells, not as normal diligence.
+
+For orchestrator-managed lanes after signature/prepare:
+
+- routine Operator asks such as "proceed", checkpoint approval, or generic approval relapse are invalid
+- real escalations must name one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`
+- legacy pre-launch repair may still surface `LEGACY_SIGNATURE_TUPLE_REPAIR` from `just orchestrator-next`
 
 If a role keeps needing those rereads:
 
@@ -197,6 +204,9 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 - `just wp-invalidity-flag WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <INVALIDITY_CODE> ...`
   - `runtime-write`
   - records a machine-visible `WORKFLOW_INVALIDITY` receipt and routes attention back to the Orchestrator
+- `just wp-operator-rule-restatement WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<summary>" ...`
+  - `runtime-write`
+  - specialized invalidity helper for the case where the Operator had to restate a core orchestrator-managed rule; projects `LANE_RESET_REQUIRED` instead of generic invalidity drift
 - `just wp-validator-kickoff ...`
 - `just wp-coder-intent ...`
 - `just wp-coder-handoff ...`
@@ -248,15 +258,18 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
 
 - `just gate-check WP-{ID}`
 - `just validator-handoff-check WP-{ID}`
+- `just integration-validator-context-brief WP-{ID}`
 - `just integration-validator-closeout-check WP-{ID}`
 - `just validator-packet-complete WP-{ID}`
 - `just wp-declared-topology-check WP-{ID}`
 - `just validator-policy-gate WP-{ID}`
     - `read-only`
     - primary validator gate surface
-    - `integration-validator-closeout-check` is the final-lane topology and atomic-closeout preflight for orchestrator-managed PASS closure
+    - `integration-validator-context-brief` is the canonical final-lane authority/path/source-of-truth bundle for orchestrator-managed Integration Validator review; use it instead of rereading large protocols or rediscovering final-lane paths/commands
+    - `integration-validator-closeout-check` is the final-lane topology, atomic-closeout, and current-`main` signed-scope compatibility preflight for orchestrator-managed PASS closure
     - `wp-declared-topology-check` surfaces packet-declared vs actual linked-worktree truth for one WP and fails on undeclared auxiliary worktrees
   - for `PACKET_FORMAT_VERSION >= 2026-03-25`, `Done` means merge-pending PASS and `Validated (PASS)` requires recorded containment in local `main`
+  - for `PACKET_FORMAT_VERSION >= 2026-03-26`, PASS closure also requires recorded `CURRENT_MAIN_COMPATIBILITY_*` truth plus `PACKET_WIDENING_DECISION=NOT_REQUIRED`; adjacent shared-surface drift must route to a follow-on or superseding packet instead of ad hoc widening
 - `just external-validator-brief WP-{ID}`
   - `read-only`
   - classical/external validation contract summary
@@ -267,6 +280,7 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
 - `just validator-gate-reset WP-{ID} <confirm>`
   - `governance-write`
   - validator gate state progression/reset
+  - on orchestrator-managed WPs, these write surfaces now fail early if the current branch/worktree does not resolve to a governed validator lane; use `validator-next`, `integration-validator-context-brief`, or `external-validator-brief` instead of guessing
 - `just validator-gate-status WP-{ID}`
 - `just validator-governance-snapshot`
 - `just validator-report-structure-check`

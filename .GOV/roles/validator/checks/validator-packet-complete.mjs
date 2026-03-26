@@ -17,6 +17,7 @@ import {
 } from "../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
 import { validateMergeProgressionTruth } from "../../../roles_shared/scripts/lib/merge-progression-truth-lib.mjs";
 import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/semantic-proof-lib.mjs";
+import { validateSignedScopeCompatibilityTruth } from "../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
 import { parseJsonlFile, workflowInvalidityReceipts } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { evaluateWpDeclaredTopology } from "../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
 
@@ -299,6 +300,12 @@ if (packetFormatVersion) {
     if (mergeProgressionTruth.errors.length > 0) {
       fail(`merge progression truth invalid for closed packet: ${mergeProgressionTruth.errors.join("; ")}`);
     }
+    const signedScopeCompatibilityTruth = validateSignedScopeCompatibilityTruth(text, {
+      packetPath,
+    });
+    if (signedScopeCompatibilityTruth.errors.length > 0) {
+      fail(`signed scope compatibility truth invalid for closed packet: ${signedScopeCompatibilityTruth.errors.join("; ")}`);
+    }
     if (!topologyEvaluation.ok) {
       fail(`declared WP topology invalid for closed packet: ${topologyEvaluation.issues.join("; ")}`);
     }
@@ -472,6 +479,13 @@ if (packetFormatVersion) {
         if (legalVerdict !== "PASS") fail("Verdict=PASS requires LEGAL_VERDICT=PASS");
         if (environmentVerdict !== "PASS") fail("Verdict=PASS requires ENVIRONMENT_VERDICT=PASS");
         if (disposition !== "NONE") fail("Verdict=PASS requires DISPOSITION=NONE");
+        const signedScopeCompatibilityForPass = validateSignedScopeCompatibilityTruth(text, {
+          packetPath,
+          requireReadyForPass: true,
+        });
+        if (signedScopeCompatibilityForPass.errors.length > 0) {
+          fail(`Verdict=PASS requires signed scope compatibility truth to be PASS-ready: ${signedScopeCompatibilityForPass.errors.join("; ")}`);
+        }
       }
     }
     if (usesHeuristicRigorReport && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(qualityRisks)) {

@@ -7,6 +7,10 @@
  */
 
 import fs from "node:fs";
+import { resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { parseJsonFile, validateRuntimeStatus } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { syncRuntimeProjectionFromPacket } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
+import { writeJsonFile } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 
 const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 
@@ -22,6 +26,20 @@ function readText(p) {
   } catch (e) {
     fail(`Failed to read: ${p}`, [String(e?.message || e)]);
   }
+}
+
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
+  const match = String(text || "").match(re);
+  return match ? match[1].trim() : "";
+}
+
+function parsePacketStatus(text) {
+  return (
+    (String(text || "").match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
+    || (String(text || "").match(/^\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
+    || ""
+  ).trim() || "Ready for Dev";
 }
 
 function writeText(p, text) {
@@ -99,6 +117,43 @@ function sectionForStatus(status) {
   }
 }
 
+function expectedPacketStatusForBoardStatus(status) {
+  switch (status) {
+    case "READY_FOR_DEV":
+      return "Ready for Dev";
+    case "IN_PROGRESS":
+      return "In Progress";
+    case "BLOCKED":
+      return "Blocked";
+    case "DONE_MERGE_PENDING":
+      return "Done";
+    case "DONE_VALIDATED":
+      return "Validated (PASS)";
+    case "DONE_FAIL":
+      return "Validated (FAIL)";
+    case "DONE_OUTDATED_ONLY":
+      return "Validated (OUTDATED_ONLY)";
+    default:
+      return null;
+  }
+}
+
+function syncRuntimeProjectionIfDeclared(wpId, packetText) {
+  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  if (!runtimeStatusFile || !fs.existsSync(runtimeStatusFile)) return null;
+
+  const runtimeStatus = parseJsonFile(runtimeStatusFile);
+  const syncedRuntimeStatus = syncRuntimeProjectionFromPacket(runtimeStatus, packetText, {
+    eventName: "task_board_sync",
+  });
+  const runtimeErrors = validateRuntimeStatus(syncedRuntimeStatus);
+  if (runtimeErrors.length > 0) {
+    fail(`Runtime projection sync failed for ${wpId}`, runtimeErrors);
+  }
+  writeJsonFile(runtimeStatusFile, syncedRuntimeStatus);
+  return runtimeStatusFile;
+}
+
 function main() {
   const wpId = (process.argv[2] || "").trim();
   const status = (process.argv[3] || "").trim().toUpperCase();
@@ -112,6 +167,23 @@ function main() {
 
   if (!fs.existsSync(TASK_BOARD_PATH)) {
     fail("Missing task board", [`Expected: ${TASK_BOARD_PATH}`]);
+  }
+
+  const resolvedPacket = resolveWorkPacketPath(wpId);
+  const packetPath = resolvedPacket?.packetPath || "";
+  if (!packetPath || !fs.existsSync(packetPath)) {
+    fail("Official packet not found", [packetPath || `<missing packet path for ${wpId}>`]);
+  }
+  const packetText = readText(packetPath);
+  const expectedPacketStatus = expectedPacketStatusForBoardStatus(status);
+  const actualPacketStatus = parsePacketStatus(packetText);
+  if (expectedPacketStatus && actualPacketStatus !== expectedPacketStatus) {
+    fail("TASK_BOARD status transition conflicts with packet truth", [
+      `wp_id=${wpId}`,
+      `task_board_status=${status}`,
+      `expected_packet_status=${expectedPacketStatus}`,
+      `actual_packet_status=${actualPacketStatus || "<missing>"}`,
+    ]);
   }
 
   const raw = readText(TASK_BOARD_PATH);
@@ -162,10 +234,12 @@ function main() {
   // Ensure file ends with a newline.
   const out = lines.join(eol);
   writeText(TASK_BOARD_PATH, out.endsWith(eol) ? out : out + eol);
+  const runtimeStatusFile = syncRuntimeProjectionIfDeclared(wpId, packetText);
 
   console.log("task-board-set ok");
   console.log(`- wp_id: ${wpId}`);
   console.log(`- status: ${status}`);
+  if (runtimeStatusFile) console.log(`- runtime_synced: ${runtimeStatusFile}`);
 }
 
 main();

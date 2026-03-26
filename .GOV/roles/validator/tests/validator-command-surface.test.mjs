@@ -15,6 +15,7 @@ test("justfile exposes the live validator command surface referenced by validato
   const requiredRecipes = [
     "validator-handoff-check",
     "integration-validator-closeout-check",
+    "integration-validator-context-brief",
     "external-validator-brief",
     "gate-check",
     "spec-eof-appendices-check",

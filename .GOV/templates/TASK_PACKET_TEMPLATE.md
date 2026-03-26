@@ -108,6 +108,16 @@ Requirements:
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
 - MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
+- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
+<!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
+<!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
+<!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
+- PACKET_WIDENING_DECISION: NONE
+<!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
+- PACKET_WIDENING_EVIDENCE: N/A
+<!-- Use follow-on/superseding WP id, audit id, or short rationale when widening is required. -->
 - RISK_TIER: <pending>
 <!-- Allowed: LOW | MEDIUM | HIGH -->
 - BUILD_ORDER_DOMAIN: <pending>
@@ -552,6 +562,28 @@ git revert <commit-sha>
     - project Task Board `## Done` token as `[VALIDATED]`
 - `Validated (FAIL)` and `Validated (OUTDATED_ONLY)` must use `MAIN_CONTAINMENT_STATUS: NOT_REQUIRED`.
 - Historical packet variants older than `PACKET_FORMAT_VERSION 2026-03-25` keep their legacy closure semantics and must not be rewritten in place only to satisfy this newer merge-progression model.
+
+## SIGNED_SCOPE_COMPATIBILITY_TRUTH
+- For `PACKET_FORMAT_VERSION >= 2026-03-26`, final-lane PASS clearance must record current-`main` compatibility explicitly before `just validator-gate-commit`:
+  - if the signed packet still covers the required integration work against current local `main`, set:
+    - `CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE`
+    - `CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: <current local main HEAD sha>`
+    - `CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: <RFC3339 UTC>`
+    - `PACKET_WIDENING_DECISION: NOT_REQUIRED`
+    - `PACKET_WIDENING_EVIDENCE: N/A`
+  - if current local `main` introduces adjacent shared-surface work outside the signed packet, set:
+    - `CURRENT_MAIN_COMPATIBILITY_STATUS: ADJACENT_SCOPE_REQUIRED`
+    - `CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: <current local main HEAD sha>`
+    - `CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: <RFC3339 UTC>`
+    - `PACKET_WIDENING_DECISION: FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED`
+    - `PACKET_WIDENING_EVIDENCE: <new WP id / packet id / audit id / short governed rationale>`
+  - if compatibility cannot be checked honestly, set:
+    - `CURRENT_MAIN_COMPATIBILITY_STATUS: BLOCKED`
+    - `CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: <current local main HEAD sha>`
+    - `CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: <RFC3339 UTC>`
+    - `PACKET_WIDENING_DECISION: NONE`
+    - `PACKET_WIDENING_EVIDENCE: N/A`
+- `CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN` is legal only before final-lane compatibility review starts.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)

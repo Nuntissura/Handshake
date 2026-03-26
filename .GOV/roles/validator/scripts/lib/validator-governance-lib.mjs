@@ -230,6 +230,7 @@ export function buildValidatorReadyCommands({
   if (role === "INTEGRATION_VALIDATOR") {
     const session = actorSessionId || "<integration-validator-session>";
     return [
+      `just integration-validator-context-brief ${wpId}`,
       `just check-notifications ${wpId} INTEGRATION_VALIDATOR`,
       `just ack-notifications ${wpId} INTEGRATION_VALIDATOR ${session}`,
       `just wp-communication-health-check ${wpId} VERDICT`,

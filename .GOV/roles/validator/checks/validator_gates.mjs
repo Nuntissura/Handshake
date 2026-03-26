@@ -144,6 +144,26 @@ function currentValidatorActorContextForWp(wpId) {
     });
 }
 
+function failIfWrongToolLaneForGovernedGateWrite(wpId, actionName) {
+    const packetContent = loadPacket(wpId);
+    const workflowLane = String(packetContent.match(/^\s*-\s*WORKFLOW_LANE\s*:\s*(.+)\s*$/mi)?.[1] || '').trim().toUpperCase();
+    if (workflowLane !== 'ORCHESTRATOR_MANAGED') return;
+
+    const actorContext = currentValidatorActorContextForWp(wpId);
+    if (actorContext.actorRole && actorContext.actorRole !== 'UNKNOWN') return;
+
+    fail(`Wrong lane/tool surface for governed validator gate action ${actionName} on ${wpId}`, [
+        `resolved_validator_role=${actorContext.actorRole || 'UNKNOWN'}`,
+        `resolution_source=${actorContext.source || 'UNRESOLVED'}`,
+        `actor_branch=${actorContext.actorBranch || '<unknown>'}`,
+        `actor_worktree_dir=${actorContext.actorWorktreeDir || '<unknown>'}`,
+        'Governed validator gate writes require a bound WP_VALIDATOR or INTEGRATION_VALIDATOR lane.',
+        `Use: just validator-next ${wpId}`,
+        `Use: just integration-validator-context-brief ${wpId}`,
+        `Use: just external-validator-brief ${wpId} (read-only independent audit only)`,
+    ]);
+}
+
 function ensurePassAuthorityForWp(wpId, session = null, stage = 'PASS gate') {
     const packetContent = loadPacket(wpId);
     const actorContext = currentValidatorActorContextForWp(wpId);
@@ -234,6 +254,7 @@ const extraArg = process.argv[4];
 // =============================================================================
 if (action === 'present-report') {
     assertWpId(wpId);
+    failIfWrongToolLaneForGovernedGateWrite(wpId, 'present-report');
     const state = loadWpState(wpId);
     const session = getSession(state, wpId);
     const verdictArg = extraArg?.trim() ? extraArg.trim().toUpperCase() : null;
@@ -323,6 +344,7 @@ if (action === 'present-report') {
 // =============================================================================
 if (action === 'acknowledge') {
     assertWpId(wpId);
+    failIfWrongToolLaneForGovernedGateWrite(wpId, 'acknowledge');
 
     const state = loadWpState(wpId);
     const session = getSession(state, wpId);
@@ -373,6 +395,7 @@ if (action === 'acknowledge') {
 // =============================================================================
 if (action === 'append') {
     assertWpId(wpId);
+    failIfWrongToolLaneForGovernedGateWrite(wpId, 'append');
 
     const state = loadWpState(wpId);
     const verdictArg = extraArg?.trim() ? extraArg.trim().toUpperCase() : null;
@@ -475,6 +498,7 @@ if (action === 'append') {
 // =============================================================================
 if (action === 'commit') {
     assertWpId(wpId);
+    failIfWrongToolLaneForGovernedGateWrite(wpId, 'commit');
 
     const state = loadWpState(wpId);
     const session = getSession(state, wpId);
@@ -668,6 +692,7 @@ if (action === 'status') {
 // =============================================================================
 if (action === 'reset') {
     assertWpId(wpId);
+    failIfWrongToolLaneForGovernedGateWrite(wpId, 'reset');
 
     if (extraArg !== '--confirm') {
         fail('Reset requires confirmation', [
