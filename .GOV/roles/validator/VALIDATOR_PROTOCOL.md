@@ -419,6 +419,8 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - Treat client-provided audit/provenance fields as UNTRUSTED by default.
 - Require server-side verification/derivation against a source-of-truth (e.g., stored job output) unless the work packet contains an explicit user waiver.
 - Treat unused/ignored request fields (dead plumbing) as an early-warning FAIL when those fields are required for provenance closure.
+- For portable/shared contract structs, filters, DTOs, or request shapes, trace every non-deprecated field across `input/parsing -> contract/trait -> each declared consumer/backend -> proof/tests`. If a field is forwarded but ignored by any declared consumer/backend, PASS is illegal unless the packet carries explicit governed debt or the spec marks the field backend-specific.
+- If a packet clause mixes portable obligations with backend-specific enhancements in one proof row, reject it as under-scoped unless the row names each consumer/backend explicitly and the evidence proves each one separately.
 - Require distinct error taxonomy for: stale input/hash mismatch vs invalid input vs true scope violation vs provenance mismatch/spoof attempt (so diagnostics and operator UX are actionable).
 
 ## Core Process (Follow in Order)
@@ -528,6 +530,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - CX-DBP-VAL-012: Trait boundary. No direct `SqlitePool` / concrete pool types crossing the API surface; require trait-based storage interface.
 - CX-DBP-VAL-013: Migration hygiene. Check numbering continuity, idempotency hints, and consistent versioning.
 - CX-DBP-VAL-014: Dual-backend readiness. If tests exist, ensure both backends are parameterized; if absent, mark as gap (waiver must be explicit).
+- For portable/shared storage contracts, CX-DBP-VAL-014 is field-level semantic parity, not just "a SQLite test exists and a PostgreSQL test exists". Backend-specific tests cannot close portable field behavior by themselves.
 - Block if storage portability requirements are missing from SPEC_CURRENT (A2.3.12) or DAL violations are present; re-open affected WPs.
 
 6) Architecture & RDD/LLM Compliance
