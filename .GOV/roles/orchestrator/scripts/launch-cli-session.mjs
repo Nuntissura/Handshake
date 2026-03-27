@@ -30,6 +30,7 @@ import {
   registryBatchLaunchSummary,
   registrySessionSummary,
   settleTimedOutPluginRequests,
+  markCliEscalationUsed,
   mutateSessionRegistrySync,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
@@ -304,12 +305,10 @@ function maybeRecordCliEscalation(hostKind) {
         terminal_title: roleConfig.title,
       });
     } else {
-      session.runtime_state = "CLI_ESCALATION_USED";
-      session.active_host = SESSION_HOST_FALLBACK;
-      session.active_terminal_title = roleConfig.title;
-      session.active_terminal_kind = hostKind;
-      session.cli_escalation_used = true;
-      session.last_event_at = new Date().toISOString();
+      markCliEscalationUsed(session, {
+        hostKind,
+        terminalTitle: roleConfig.title,
+      });
     }
     return {
       sessionSummary: registrySessionSummary(session),

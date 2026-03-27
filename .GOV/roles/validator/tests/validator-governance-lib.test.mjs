@@ -181,6 +181,66 @@ test("PASS authority accepts the integration-validator lane when a governed sess
   assert.equal(actorContext.source, "SESSION_REGISTRY");
 });
 
+test("validator actor context matches governed integration-validator sessions from the handshake_main root", () => {
+  const wpId = "WP-TEST-VALIDATOR-v1";
+  const actorContext = resolveValidatorActorContext({
+    repoRoot: "../handshake_main",
+    wpId,
+    packetContent: packetFixture(),
+    gitContext: {
+      branch: "main",
+      topLevel: "../handshake_main",
+    },
+    registrySessions: [
+      {
+        wp_id: wpId,
+        role: "INTEGRATION_VALIDATOR",
+        session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        session_id: "integration_validator:wp-test-validator-v1",
+        session_thread_id: "thread-intval",
+        local_branch: "main",
+        local_worktree_dir: "../handshake_main",
+      },
+    ],
+  });
+
+  assert.equal(actorContext.actorRole, "INTEGRATION_VALIDATOR");
+  assert.equal(actorContext.actorSessionId, "integration_validator:wp-test-validator-v1");
+  assert.equal(actorContext.actorWorktreeDir, "../handshake_main");
+  assert.equal(actorContext.source, "SESSION_REGISTRY");
+});
+
+test("validator actor context matches governed wp-validator sessions from the coder worktree root", () => {
+  const wpId = "WP-TEST-VALIDATOR-v1";
+  const worktreeDir = defaultWpValidatorWorktreeDir(wpId);
+  const branch = defaultWpValidatorBranch(wpId);
+  const actorContext = resolveValidatorActorContext({
+    repoRoot: worktreeDir,
+    wpId,
+    packetContent: packetFixture(),
+    gitContext: {
+      branch,
+      topLevel: worktreeDir,
+    },
+    registrySessions: [
+      {
+        wp_id: wpId,
+        role: "WP_VALIDATOR",
+        session_key: "WP_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        session_id: "wp_validator:wp-test-validator-v1",
+        session_thread_id: "thread-wpval",
+        local_branch: branch,
+        local_worktree_dir: worktreeDir,
+      },
+    ],
+  });
+
+  assert.equal(actorContext.actorRole, "WP_VALIDATOR");
+  assert.equal(actorContext.actorSessionId, "wp_validator:wp-test-validator-v1");
+  assert.equal(actorContext.actorWorktreeDir, worktreeDir);
+  assert.equal(actorContext.source, "SESSION_REGISTRY");
+});
+
 test("integration-validator ready commands emphasize final review and verdict health", () => {
   const commands = buildValidatorReadyCommands({
     wpId: "WP-TEST-VALIDATOR-v1",

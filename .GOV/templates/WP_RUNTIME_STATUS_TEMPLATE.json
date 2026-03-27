@@ -18,7 +18,7 @@
   "secondary_validator_sessions": {{SECONDARY_VALIDATOR_SESSIONS}},
   "agentic_mode": "{{AGENTIC_MODE}}",
   "current_packet_status": "{{PACKET_STATUS}}",
-  "main_containment_status": "{{MAIN_CONTAINMENT_STATUS}}",
+  "main_containment_status": {{MAIN_CONTAINMENT_STATUS}},
   "merged_main_commit": {{MERGED_MAIN_COMMIT}},
   "main_containment_verified_at_utc": {{MAIN_CONTAINMENT_VERIFIED_AT_UTC}},
   "runtime_status": "submitted",

@@ -79,6 +79,8 @@ for (const session of sessions) {
     console.log("  note: bridge dispatched the governed command to a VS Code terminal; CLI startup is not yet proven by this state alone");
   } else if (session.runtime_state === "PLUGIN_CONFIRMED") {
     console.log("  note: legacy bridge ack; treat as terminal-only dispatch, not proof of an active CLI session");
+  } else if (session.runtime_state === "CLI_ESCALATION_USED") {
+    console.log("  note: CLI escalation window launched; startup was requested, but no steerable thread or broker proof is registered yet");
   } else if (session.runtime_state === "COMMAND_RUNNING") {
     console.log("  note: governed broker owns the active run; cancellation is available through just session-cancel <ROLE> <WP_ID>");
   } else if (session.runtime_state === "READY" && governance.steeringAllowed) {

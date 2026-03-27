@@ -81,6 +81,27 @@ function branchHeadSha(repoRoot, branch, branchHeads) {
   }
 }
 
+function probeDeclaredWorktree(worktreeAbs, declaredWorktreeProbe = null) {
+  const normalizedWorktreeAbs = path.resolve(String(worktreeAbs || ""));
+  if (typeof declaredWorktreeProbe === "function") {
+    const probed = declaredWorktreeProbe(normalizedWorktreeAbs);
+    return probed ? { ...probed } : null;
+  }
+  try {
+    const branch = runGit(normalizedWorktreeAbs, ["branch", "--show-current"]);
+    const topLevel = runGit(normalizedWorktreeAbs, ["rev-parse", "--show-toplevel"]);
+    const head = runGit(normalizedWorktreeAbs, ["rev-parse", "HEAD"]);
+    return {
+      path: topLevel || normalizedWorktreeAbs,
+      branch,
+      head,
+      direct_probe: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function wpPathTokens(wpId) {
   return String(wpId || "")
     .toLowerCase()
@@ -149,6 +170,7 @@ export function evaluateWpDeclaredTopology({
   packetContent,
   worktrees = null,
   branchHeads = null,
+  declaredWorktreeProbe = null,
 } = {}) {
   const topology = declaredTopology(repoRoot, wpId, packetContent);
   const entries = Array.isArray(worktrees) ? worktrees : parseGitWorktreeList(repoRoot);
@@ -156,11 +178,20 @@ export function evaluateWpDeclaredTopology({
   const issues = [];
 
   const coderBranchEntry = entries.find((entry) => normalizeBranch(entry.branch) === topology.coderBranch) || null;
-  if (!coderBranchEntry) {
+  const directProbeEntry = coderBranchEntry
+    ? null
+    : probeDeclaredWorktree(topology.coderWorktreeAbs, declaredWorktreeProbe);
+  const effectiveCoderEntry = coderBranchEntry || directProbeEntry;
+
+  if (!effectiveCoderEntry) {
     issues.push(`no linked worktree found for expected coder branch ${topology.coderBranch}`);
-  } else if (comparablePath(coderBranchEntry.path) !== comparablePath(topology.coderWorktreeAbs)) {
+  } else if (normalizeBranch(effectiveCoderEntry.branch) !== topology.coderBranch) {
     issues.push(
-      `coder worktree mismatch (expected ${topology.coderWorktreeDir} -> ${topology.coderWorktreeAbs}, git has ${coderBranchEntry.path})`,
+      `coder worktree branch mismatch (expected ${topology.coderBranch}, git has ${normalizeBranch(effectiveCoderEntry.branch) || "<unknown>"})`,
+    );
+  } else if (comparablePath(effectiveCoderEntry.path) !== comparablePath(topology.coderWorktreeAbs)) {
+    issues.push(
+      `coder worktree mismatch (expected ${topology.coderWorktreeDir} -> ${topology.coderWorktreeAbs}, git has ${effectiveCoderEntry.path})`,
     );
   }
 
@@ -174,6 +205,8 @@ export function evaluateWpDeclaredTopology({
   return {
     ok: issues.length === 0,
     topology,
+    coderBranchEntry: effectiveCoderEntry,
+    directProbeUsed: Boolean(directProbeEntry),
     relatedWorktrees,
     undeclaredWorktrees,
     expectedBranchHead,

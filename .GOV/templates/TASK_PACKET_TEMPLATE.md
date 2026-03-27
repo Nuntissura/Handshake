@@ -118,6 +118,8 @@ Requirements:
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
 - PACKET_WIDENING_EVIDENCE: N/A
 <!-- Use follow-on/superseding WP id, audit id, or short rationale when widening is required. -->
+- ZERO_DELTA_PROOF_ALLOWED: NO
+<!-- Allowed: YES | NO. YES => deterministic post-work may accept an empty diff only for an explicitly proof-only/status-sync packet. -->
 - RISK_TIER: <pending>
 <!-- Allowed: LOW | MEDIUM | HIGH -->
 - BUILD_ORDER_DOMAIN: <pending>
@@ -174,6 +176,7 @@ Next: N/A
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature.
+- Rule: if a clause depends on a portable/shared contract type, request shape, or filter consumed by multiple backends/adapters, do not collapse portable and backend-specific proof into one row unless every declared consumer/backend is named in `CODE_SURFACES` and proven by `TESTS`/`EXAMPLES` or explicit governed debt.
 - CLAUSE_ROWS:
   - CLAUSE: <spec clause / anchor summary> | CODE_SURFACES: <paths/symbols> | TESTS: <tests/commands or NONE> | EXAMPLES: <fixtures/examples or NONE> | DEBT_IDS: <SPECDEBT-... or NONE> | CODER_STATUS: <UNPROVEN|PROVED|PARTIAL|DEFERRED|NOT_APPLICABLE> | VALIDATOR_STATUS: <PENDING|CONFIRMED|PARTIAL|REJECTED|NOT_APPLICABLE>
 
@@ -191,6 +194,7 @@ Next: N/A
   - <test or NONE>
 - POST_MERGE_SPOTCHECK_REQUIRED: <YES|NO>
 - Rule: shared registries, shared types, shared storage layers, shared workflow/runtime surfaces, and migrations default to SHARED_SURFACE_RISK=YES.
+- Rule: when shared contract fields are added/changed, `REQUIRED_TRIPWIRE_TESTS` must include at least one parity or field-consumption proof across every declared consumer/backend, or the packet must carry explicit governed debt.
 
 ## SEMANTIC_PROOF_ASSETS (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - SEMANTIC_TRIPWIRE_TESTS:
@@ -198,6 +202,7 @@ Next: N/A
 - CANONICAL_CONTRACT_EXAMPLES:
   - <fixture/example/golden payload/shape assertion target or NONE>
 - Rule: for packets using `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`, each clause row must point to TESTS, EXAMPLES, or governed debt, and shared-surface packets should carry at least one concrete tripwire or canonical example.
+- Rule: portable/shared contract fields must be exercised field-by-field across the declared consumers/backends; backend-specific tests may extend that proof, but they cannot stand in for portable parity by themselves.
 
 ## WP_COMMUNICATIONS (NON-AUTHORITATIVE; REQUIRED FOR NEW PACKETS)
 - RULE: The task packet remains authoritative for scope, status, branch/worktree truth, acceptance, and verdict.

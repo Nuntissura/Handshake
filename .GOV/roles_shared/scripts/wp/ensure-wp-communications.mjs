@@ -24,6 +24,7 @@ import {
   AGENTIC_MODE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
 import { GOV_ROOT_REPO_REL, workPacketPath } from "../lib/runtime-paths.mjs";
+import { MAIN_CONTAINMENT_STATUS_VALUES } from "../lib/merge-progression-truth-lib.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
 
 const THREAD_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_COMMUNICATION_THREAD_TEMPLATE.md");
@@ -65,6 +66,12 @@ function parseIntegerField(text, label, fallback) {
   return Number.isInteger(parsed) ? parsed : fallback;
 }
 
+function normalizeNoneLike(value) {
+  const raw = String(value || "").trim();
+  if (!raw || /^(NONE|N\/A|NA|NULL)$/i.test(raw)) return null;
+  return raw;
+}
+
 function requireTemplateFile(filePath) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Missing WP communication template: ${normalize(filePath)}`);
@@ -104,6 +111,13 @@ function ensureWpCommunicationsCore({
   const LOCAL_WORKTREE_DIR = String(localWorktreeDir || parseSingleField(packetText, "LOCAL_WORKTREE_DIR") || "<pending>").trim();
   const AGENTIC_MODE = String(agenticMode || parseSingleField(packetText, "AGENTIC_MODE") || "NO").trim();
   const PACKET_STATUS = String(packetStatus || parsePacketStatus(packetText) || "Ready for Dev").trim();
+  const MAIN_CONTAINMENT_STATUS = String(
+    normalizeNoneLike(parseSingleField(packetText, "MAIN_CONTAINMENT_STATUS")) || "NOT_STARTED",
+  ).trim().toUpperCase();
+  const MERGED_MAIN_COMMIT = normalizeNoneLike(parseSingleField(packetText, "MERGED_MAIN_COMMIT"));
+  const MAIN_CONTAINMENT_VERIFIED_AT_UTC = normalizeNoneLike(
+    parseSingleField(packetText, "MAIN_CONTAINMENT_VERIFIED_AT_UTC"),
+  );
   const WORKFLOW_AUTHORITY = String(parseSingleField(packetText, "WORKFLOW_AUTHORITY") || "ORCHESTRATOR").trim();
   const TECHNICAL_ADVISOR = String(parseSingleField(packetText, "TECHNICAL_ADVISOR") || "WP_VALIDATOR").trim();
   const TECHNICAL_AUTHORITY = String(parseSingleField(packetText, "TECHNICAL_AUTHORITY") || "INTEGRATION_VALIDATOR").trim();
@@ -181,6 +195,9 @@ function ensureWpCommunicationsCore({
   if (!AGENTIC_MODE_VALUES.includes(AGENTIC_MODE)) {
     throw new Error(`Invalid AGENTIC_MODE for ${WP_ID}: ${AGENTIC_MODE}`);
   }
+  if (!MAIN_CONTAINMENT_STATUS_VALUES.includes(MAIN_CONTAINMENT_STATUS)) {
+    throw new Error(`Invalid MAIN_CONTAINMENT_STATUS for ${WP_ID}: ${MAIN_CONTAINMENT_STATUS}`);
+  }
 
   const replacements = {
     "{{WP_ID}}": WP_ID,
@@ -201,6 +218,11 @@ function ensureWpCommunicationsCore({
     "{{LOCAL_WORKTREE_DIR}}": LOCAL_WORKTREE_DIR,
     "{{AGENTIC_MODE}}": AGENTIC_MODE,
     "{{PACKET_STATUS}}": PACKET_STATUS,
+    "{{MAIN_CONTAINMENT_STATUS}}": JSON.stringify(MAIN_CONTAINMENT_STATUS),
+    "{{MERGED_MAIN_COMMIT}}": MERGED_MAIN_COMMIT ? JSON.stringify(MERGED_MAIN_COMMIT) : "null",
+    "{{MAIN_CONTAINMENT_VERIFIED_AT_UTC}}": MAIN_CONTAINMENT_VERIFIED_AT_UTC
+      ? JSON.stringify(MAIN_CONTAINMENT_VERIFIED_AT_UTC)
+      : "null",
     "{{TASK_PACKET_PATH}}": normalize(packetPath),
     "{{WP_COMMUNICATION_DIR}}": normalize(wpCommDir),
     "{{WP_THREAD_FILE}}": normalize(threadPath),
