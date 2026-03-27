@@ -1028,15 +1028,11 @@ async fn loom_directional_edge_queries(
     Ok(())
 }
 
-async fn loom_search_graph_filter_postgres(
+async fn loom_search_graph_filter_portable(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
     graph: &LoomGraphFixture,
 ) -> StorageResult<()> {
-    if !db.as_any().is::<PostgresDatabase>() {
-        return Ok(());
-    }
-
     let direct_only = db
         .search_loom_blocks(
             workspace_id,
@@ -1957,7 +1953,7 @@ pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> Stora
     loom_traverse_graph_depth_limit(&db, &workspace.id, &graph_fixture).await?;
     loom_traverse_graph_cycle_detection(&db, &workspace.id, &graph_fixture).await?;
     loom_traverse_graph_edge_type_filter(&db, &workspace.id, &graph_fixture).await?;
-    loom_search_graph_filter_postgres(&db, &workspace.id, &graph_fixture).await?;
+    loom_search_graph_filter_portable(&db, &workspace.id, &graph_fixture).await?;
     loom_directional_edge_queries(
         &db,
         &ctx,
