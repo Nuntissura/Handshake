@@ -27,7 +27,7 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
 - Permanent protected branches: `main`, `user_ilja`, `gov_kernel`.
 - Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-gov-kernel`.
 - `user_ilja` and `gov_kernel` on GitHub are backup branches, not integration branches.
-- Permanent non-main worktrees (`wt-ilja`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- Permanent non-main worktrees (`wt-ilja`, `wtc-*`, `wtv-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - `gov_kernel` MUST NOT be merged into `main`. `.GOV/` changes reach `main` through `just sync-gov-to-main` [CX-212D].
 - Root-level repo control files inherited from `main`, currently `AGENTS.md` and the canonical root `justfile`, are main-only authoring surfaces. If either file needs changes, make that edit in `handshake_main` on local `main`, commit it on `main`, and then reseed/refresh the permanent non-main worktrees from `main`. Do not author or commit those files from WP worktrees. Exception: `wt-gov-kernel` may carry a kernel-local governance launcher `justfile`; it does not replace main ownership of the canonical root file.
 - Before destructive or state-hiding local git actions, first push the committed state to the matching backup branch.
@@ -67,13 +67,12 @@ See also:
 
 ## Current Execution Policy (Additional LAW)
 
-- The Orchestrator role is one non-agentic coordinator CLI session.
+- The Orchestrator role is one single coordinator CLI session for the active WP.
 - Orchestrator-managed execution MUST use governed ACP/CLI sessions (`launch-*`, `start-*`, `steer-*`, `session-send`) for Coder and Validator lanes.
 - Orchestrator-managed execution MUST NOT reintroduce manual skeleton checkpoint or skeleton approval commands. `just coder-skeleton-checkpoint` and `just skeleton-approved` are `MANUAL_RELAY`-only surfaces; invoking them on an orchestrator-managed WP is workflow-invalid and must be recorded as `WORKFLOW_INVALIDITY`.
-- The Orchestrator MAY use helper agents/subagents for governance work, spec enrichment/refinement, WP creation, ACP runtime work (including ACP bug fixes or behavior changes), product-code inspection, and other bounded Orchestrator duties.
-- Orchestrator-spawned helper agents are not Coder or Validator lanes. They must not stand in for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`, and they do not replace governed ACP/CLI sessions for those roles.
-- Orchestrator-spawned helper agents MUST NOT write or change product code unless the Operator gave explicit approval first and that approval is recorded in the work packet (`SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`).
-- Absent that explicit recorded approval, helper-agent product-code changes are forbidden even if the work is bounded, faster, or convenient.
+- For an active orchestrator-managed WP, the Orchestrator MUST NOT use helper agents/subagents to perform coding, validation, evidence review, or other in-lane work. The governed `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR` sessions are the only allowed execution lanes.
+- If the Operator explicitly authorizes separate helper-agent use for bounded governance maintenance outside the active lane, keep that work isolated from the governed role sessions and do not let it stand in for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`.
+- Absent explicit recorded approval in the work packet (`SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`), helper agents MUST NOT write or change product code.
 - New repo-governed sessions must be launched explicitly:
   - primary model: `gpt-5.4`
   - fallback: `gpt-5.2`
@@ -438,7 +437,7 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
   - the Orchestrator MUST paste the refinement as assistant-authored chat text
   - if the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages and do not request approval or signature until the final chunk has been sent
 - `just record-refinement WP-{ID}` must pass first.
-- If the refinement concludes `ENRICHMENT_NEEDED=YES`, unresolved ambiguity, or mandatory appendix/main-body sync, stop packet creation, advance the spec correctly, update `/.GOV/spec/SPEC_CURRENT.md`, and only then create a new active packet against the updated spec.
+- If the refinement concludes `ENRICHMENT_NEEDED=YES`, unresolved ambiguity, or mandatory appendix/main-body sync, stop packet creation, advance the spec correctly, update `/.GOV/spec/SPEC_CURRENT.md`, and then refresh the same WP refinement/signature flow against the updated spec unless scope has materially widened enough to justify a new WP variant. Spec enrichment alone does not force `-v2`.
 
 ### 2. Signature Bundle, Prepare, and Packet Creation
 
@@ -526,6 +525,8 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
   - `CODER_INTENT` (`CODER -> WP_VALIDATOR`, correlated to kickoff)
   - `CODER_HANDOFF` (`CODER -> WP_VALIDATOR`)
   - `VALIDATOR_REVIEW` (`WP_VALIDATOR -> CODER`, correlated to handoff)
+- In orchestrator-managed lanes, the WP Validator is the first technical judge for coder BOOTSTRAP, SKELETON, and completed micro tasks. The Orchestrator should not babysit those phases unless the validator raises a real blocker.
+- The initial `VALIDATOR_KICKOFF` plus correlated `CODER_INTENT` exchange is the normal bootstrap/skeleton steering surface. Use it to correct weak scope, wrong data shapes, or shallow micro-task plans before implementation hardens.
 - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
 - Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Watch that projected route; do not replace it with manual narrative steering unless a real repair is required.
 - Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
@@ -535,8 +536,9 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 ## Worktree Budget (HARD RULE)
 
-- Maximum WP-specific worktrees per WP: 1 (coder only) [CX-212D].
-- The WP Validator operates from the coder worktree (`wtc-*` on `feat/WP-*`) — reads product code there, diffs against `main`, writes governance through the `.GOV/` junction.
+- Maximum WP-specific worktrees per WP: 2 (`CODER` + `WP_VALIDATOR`) [CX-212D].
+- The Coder operates from the packet-declared coder worktree (`wtc-*` on `feat/WP-*`).
+- The WP Validator operates from a dedicated validator worktree (`wtv-*` on `validate/WP-*`) rooted from the coder branch, fast-forwarded as needed for review, and writes governance through the `.GOV/` junction.
 - The Integration Validator operates from `handshake_main` on branch `main` — no WP-specific worktree.
 - Do not create ad-hoc temp worktrees (detached checkouts, merge worktrees, revalidation worktrees) outside the governed naming scheme.
 - After a WP reaches VALIDATED or MERGED, require governed cleanup of WP-specific worktrees before starting new WPs.
@@ -545,7 +547,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 ## WP Worktree Creation Rules [CX-212D] (HARD RULE)
 
-- WP worktrees (`wtc-*`) are created from `main` but MUST NOT retain a git-tracked `/.GOV/` directory.
+- WP worktrees (`wtc-*`, `wtv-*`) are created from `main` or the declared coder branch as appropriate but MUST NOT retain a git-tracked `/.GOV/` directory.
 - After `git worktree add`, the creation script MUST:
   1. Remove the inherited `/.GOV/` directory from the new worktree.
   2. Create a junction (`mklink /J` on Windows, symlink on Unix) from `/.GOV/` to `../wt-gov-kernel/.GOV`.

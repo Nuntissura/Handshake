@@ -83,6 +83,15 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 - Do not introduce new repo-root runtime output paths in product code when a new output can be placed under `gov_runtime/` instead.
 - If current product code still hardcodes repo-root runtime outputs, record that as legacy in the packet/refinement rather than silently expanding the pattern.
 
+## Data Posture (Active Default)
+
+Unless the packet or Master Spec explicitly says otherwise, design new data/model/contract surfaces to be:
+
+- SQL-portable and PostgreSQL-ready: choose schema/query shapes that translate cleanly beyond SQLite, and avoid introducing new SQLite-only semantics unless the packet/spec explicitly requires them.
+- LLM-first readable/parseable: stable field names, explicit enums/typed fields, and machine-readable structure first. Human-friendly rendering is a projection, not the only place where meaning lives.
+- Loom-intertwined: preserve stable ids, explicit relations, backlink-friendly fields, provenance anchors, and retrieval-friendly summaries so graph/search/context tooling can traverse the data without reparsing UI text.
+- If the best implementation appears to require opaque blobs, presentation-only strings, or backend-specific SQL semantics, stop and raise it to the Orchestrator/WP Validator instead of normalizing it silently.
+
 ## Agentic Mode (Additional LAW)
 
 If the WP is being executed via orchestrator-led, multi-agent ("agentic") workflow, you MUST also follow:
@@ -521,13 +530,14 @@ Hard gate (ANTI-VIBECODE — no unreviewed, unscoped, or approval-skipping code 
 
 Forbidden: any product code changes (`src/`, `app/`, `tests/`) before a docs-only skeleton checkpoint commit exists on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
 Forbidden: any product code changes (`src/`, `app/`, `tests/`) without a skeleton approval commit on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
-For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, this checkpoint/approval subflow is forbidden. Do not run `just coder-skeleton-checkpoint` or `just skeleton-approved`; those commands now record `WORKFLOW_INVALIDITY` and fail. In orchestrator-managed lanes, `just pre-work` leads directly from BOOTSTRAP into IMPLEMENTATION.
+For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, this checkpoint/approval subflow is forbidden. Do not run `just coder-skeleton-checkpoint` or `just skeleton-approved`; those commands now record `WORKFLOW_INVALIDITY` and fail. In orchestrator-managed lanes, `just pre-work` does not waive BOOTSTRAP/SKELETON review; use the direct-review lane so the WP Validator can judge your bootstrap, skeleton, and early micro-task plan before implementation hardens.
 For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` after signature/prepare, do not ask the Operator for routine approval, "proceed", or checkpoint actions. If a real blocker exists, route it back to the Orchestrator and name exactly one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`.
 If the Operator has to restate that rule in your lane, stop normal progress and expect the Orchestrator to record `just wp-operator-rule-restatement ...`; that lane becomes reset-required rather than business-as-usual.
 1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.
-2. **SKELETON Phase**: Update the work packet `## SKELETON` section with proposed Traits/Structs/SQL headers, output the SKELETON block, and create a docs-only skeleton checkpoint commit.
-3. **SKELETON APPROVAL Gate** (Operator/Validator only): STOP. Wait for `just skeleton-approved WP-{ID}` to be run (creates `docs: skeleton approved [WP-{ID}]` commit on the WP branch).
-4. **IMPLEMENTATION Phase**: Write logic only AFTER the skeleton approval commit exists.
+2. **SKELETON Phase**: Update the work packet `## SKELETON` section with proposed Traits/Structs/SQL headers and output the SKELETON block.
+3. **SKELETON APPROVAL Gate (`MANUAL_RELAY` only)**: STOP. Wait for `just skeleton-approved WP-{ID}` to be run (creates `docs: skeleton approved [WP-{ID}]` commit on the WP branch).
+4. **EARLY REVIEW Gate (`ORCHESTRATOR_MANAGED` only)**: use the direct-review lane (`VALIDATOR_KICKOFF` -> `CODER_INTENT`) so the WP Validator can steer bootstrap/skeleton corrections. Do not treat this as an Operator approval step.
+5. **IMPLEMENTATION Phase**: Write logic only after the required gate for your workflow lane is satisfied.
 5. **HYGIENE Phase**: Run `just product-scan` (alias: `just validator-scan`), `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
 6. **EVALUATION Phase**: Run the full TEST_PLAN and required hygiene commands, self-review, and prepare results for handoff (keep work packet free of validation logs).
 

@@ -246,7 +246,8 @@ try {
       nextCommands: [
         `# Run the spec update workflow (new spec version file + update ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md).`,
         '# If the refinement expanded appendices (primitive index, feature registry, UI guidance, interaction matrix), land those changes in the new spec version first.',
-        '# Create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
+        '# Then refresh the SAME WP refinement against the updated spec, record a fresh same-WP signature, and continue packet creation.',
+        '# Create a NEW WP variant only when scope materially widened or the lane is explicitly being split/remediated.',
       ],
     });
     process.exit(1);

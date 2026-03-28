@@ -78,15 +78,6 @@ function loadPacketBaseBranch(wpIdValue) {
   }
 }
 
-// WP Validator operates from the coder worktree — no separate worktree creation [CX-212D].
-if (role === "WP_VALIDATOR") {
-  const coderDir = defaultCoderWorktreeDir(wpId);
-  console.log(`[ROLE_SESSION_WORKTREE_ADD] WP Validator operates from the coder worktree [CX-212D].`);
-  console.log(`[ROLE_SESSION_WORKTREE_ADD] No WP-specific validator worktree creation needed.`);
-  console.log(`[ROLE_SESSION_WORKTREE_ADD] Next: cd "${coderDir}"`);
-  process.exit(0);
-}
-
 // Integration validator operates from handshake_main — no worktree creation [CX-212D].
 if (role === "INTEGRATION_VALIDATOR") {
   console.log(`[ROLE_SESSION_WORKTREE_ADD] Integration Validator operates from handshake_main on branch main [CX-212D].`);

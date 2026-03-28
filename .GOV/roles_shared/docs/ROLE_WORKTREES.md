@@ -19,7 +19,7 @@ Recommended structure:
     wt-ilja/               # Operator role worktree (branch: user_ilja)
     wt-gov-kernel/         # Governance kernel worktree (branch: gov_kernel)
     wtc-.../               # Coder WP worktrees (branch: feat/WP-...)
-    # WP Validator operates from the coder worktree (no separate worktree) [CX-212D]
+    wtv-.../               # WP Validator review worktrees (branch: validate/WP-...)
     # Integration Validator operates from handshake_main on branch main [CX-212D]
 ```
 
@@ -37,7 +37,7 @@ If you are an AI assistant operating in this repo:
 - IMPORTANT: Codex [CX-108] blocks rewrite/hide operations such as `git stash`, `git checkout`, `git switch`, `git merge`, `git rebase`, `git reset`, and `git clean` unless explicitly authorized in the same turn.
 - Exception (WP auto-continue): when the Orchestrator has already recorded a PASS signature gate for a specific WP and the next deterministic step is `just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID}`, the Orchestrator MUST create that missing WP worktree/branch automatically. Do not bounce that routine post-signature setup back to the Operator for a second approval.
 - `main` is the canonical integrated branch. `user_ilja` and `gov_kernel` on GitHub are backup branches and may diverge from `main`.
-- Permanent non-main worktrees (`wt-ilja`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- Permanent non-main worktrees (`wt-ilja`, `wtc-*`, `wtv-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - Before destructive or state-hiding local git actions on a role/user/WP branch, push the current committed state to the matching GitHub backup branch.
 - For WPs, the matching GitHub backup branch should be treated as the phase-boundary recovery branch, not just a pre-destruction safety sink.
 - Minimum WP recovery milestones to preserve remotely are:
@@ -59,7 +59,7 @@ If you are an AI assistant operating in this repo:
 
 Notes:
 - CODER agents MUST work only in the WP-assigned worktree/branch created and recorded by the Orchestrator. They must not "pick" a worktree.
-- WP Validator sessions operate from the coder worktree (`wtc-*` on `feat/WP-*`), diffs against `main` [CX-212D].
+- WP Validator sessions operate from the packet-declared validator worktree (`wtv-*` on `validate/WP-*`), rooted from the coder branch and kept reviewable against it [CX-212D].
 - Integration Validator sessions operate from `handshake_main` on branch `main` [CX-212D].
 - WP Validator and Integration Validator local lanes do not mint separate GitHub WP backup branches. Coder, WP Validator, and Integration Validator reuse the single packet-declared WP backup branch on GitHub.
 - WP assignment is recorded in `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` as a `PREPARE` entry (via `just record-prepare ...`) with `branch` and `worktree_dir`.
@@ -78,7 +78,7 @@ This repo is designed for parallel governed execution, but the parallel model is
 
 - `ORCHESTRATOR`: one governed coordinator lane for the repo, running from `wt-gov-kernel` on `gov_kernel`
 - `CODER`: one governed product-execution lane per active WP, running only from the WP-assigned worktree/branch
-- `WP_VALIDATOR`: one governed advisory validator lane per active WP, operating from the coder worktree for that WP
+- `WP_VALIDATOR`: one governed advisory validator lane per active WP, operating from the packet-declared validator worktree for that WP
 - `INTEGRATION_VALIDATOR`: one governed final-validation lane running from `handshake_main` on `main`
 
 ### Allowed parallel states
@@ -93,7 +93,7 @@ This repo is designed for parallel governed execution, but the parallel model is
 - Two active WPs sharing the same WP-specific worktree.
 - Detached or convenience WP-adjacent check/postwork/validator clones that are not the packet-declared coder worktree.
 - Product edits from `wt-gov-kernel` or `wt-ilja`.
-- A separate validator-only WP worktree for ordinary `WP_VALIDATOR` work.
+- Extra validator-only WP worktrees beyond the packet-declared `wtv-*` worktree for ordinary `WP_VALIDATOR` work.
 - Treating `WP_VALIDATOR` as final merge authority for an orchestrator-managed WP.
 - Concurrent steering for the same governed role/WP session.
 

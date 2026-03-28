@@ -153,8 +153,8 @@ These mutate packet, board, traceability, or related governed surfaces.
 
 These mutate governed runtime state and should not be run from inside Coder or Validator sessions.
 For Orchestrator-managed WPs, this ACP/CLI session surface is the required normal delegation path.
-Helper agents/subagents may assist on governance/spec/runtime/orchestrator tasks, but they are not Coder or Validator lanes.
-Do not use helper agents/subagents for Coder or Validator duties, and do not let them write product code, unless the Operator explicitly approved that path and the packet records `SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`.
+For an active orchestrator-managed WP, helper agents/subagents are not allowed to perform coder, validator, or in-lane review/steering duties. Governed ACP sessions are the only legal execution lanes for `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR`.
+If the Operator explicitly authorizes separate governance-only helper work outside the active lane, keep it isolated and do not let it write product code unless the packet records `SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`.
 
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} ...`
