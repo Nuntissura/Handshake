@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-03-11
+**Updated:** 2026-03-28
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja280320262308 | Orchestrator | 2026-03-28 23:08 | Spec Enrichment v02.179 (workflow-correlation bundle scopes + workflow-run and workflow-node-execution debug-bundle law + workflow-node inventory + FEAT-DEBUG-BUNDLE workflow-scope guidance) | v02.179 | Approved after refinement review for WP-1-Workflow-Projection-Correlation-v1; signature supplied in-chat after `APPROVE REFINEMENT WP-1-Workflow-Projection-Correlation-v1`. |
 | ilja260320261539 | Orchestrator | 2026-03-26 15:39 | Work packet creation: WP-1-Loom-Storage-Portability-v4 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Loom-Storage-Portability-v4.md ). |
 | ilja250320261614 | Orchestrator | 2026-03-25 16:14 | Work packet creation: WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1.md ). |
 | ilja250320260532 | Orchestrator | 2026-03-25 05:32 | Work packet creation: WP-1-Structured-Collaboration-Contract-Hardening-v1 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Structured-Collaboration-Contract-Hardening-v1.md ). |
