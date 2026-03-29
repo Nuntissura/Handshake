@@ -184,7 +184,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
 
-- **[WP-1-Workflow-Projection-Correlation-v1]** - [IN_PROGRESS]
 
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
@@ -272,6 +271,8 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1]** - [VALIDATED]
 
 - **[WP-1-Loom-Storage-Portability-v4]** - [VALIDATED]
+
+- **[WP-1-Workflow-Projection-Correlation-v1]** - [VALIDATED]
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]

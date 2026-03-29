@@ -42,7 +42,7 @@
   - `../wtc-projection-correlation-v1/src/backend/handshake_core/src/bundles/zip.rs`
   - `../wtc-projection-correlation-v1/src/backend/handshake_core/src/workflows.rs`
 - RELATED_GOVERNANCE_ITEMS:
-  - NONE
+  - `RGF-17` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - RELATED_CHANGESETS:
   - signed six-file product delta in `bundles/exporter.rs`, `bundles/schemas.rs`, `bundles/templates.rs`, `bundles/validator.rs`, `bundles/zip.rs`, and `workflows.rs`
 
