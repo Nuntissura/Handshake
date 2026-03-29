@@ -407,6 +407,9 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - Require evidence that `just validator-packet-complete WP-{ID}` ran and passed before PASS handoff or PASS commit clearance. Packet/report/receipt hygiene is not a last-minute cleanup item; if absent or failing, verdict = FAIL until fixed.
 - Require evidence that `just integration-validator-closeout-check WP-{ID}` ran and passed before PASS commit clearance. This helper proves the governed Integration Validator lane is actually on `handshake_main` / `main`, can resolve the committed target SHA from `validator-handoff-check`, and that WP-scoped session-control/broker truth is already settled enough to finish final review coherently. If absent or failing, verdict = FAIL until fixed.
 - After the closeout preflight is green, use `just integration-validator-closeout-sync WP-{ID} DONE_MERGE_PENDING` to write the PASS-ready packet/runtime/TASK_BOARD truth in one governed step. After local `main` containment is real, use `just integration-validator-closeout-sync WP-{ID} DONE_VALIDATED <MERGED_MAIN_SHA>` to finish promotion.
+- For governed non-PASS terminal closure, use the same sync surface instead of manual packet/runtime/TASK_BOARD edits:
+  - `just integration-validator-closeout-sync WP-{ID} DONE_FAIL`
+  - `just integration-validator-closeout-sync WP-{ID} DONE_OUTDATED_ONLY`
 - Require evidence that `just post-work WP-{ID}` ran and passed for the validated committed target (directly or via `validator-handoff-check`). If absent or failing, verdict = FAIL until fixed.
 - Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates staged/working changes when present, and on a clean tree validates a deterministic range:
   - If the work packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`

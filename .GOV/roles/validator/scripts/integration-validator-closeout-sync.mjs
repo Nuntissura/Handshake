@@ -56,6 +56,7 @@ function parseMode(rawMode) {
       packetStatus: "Done",
       mainContainmentStatus: "MERGE_PENDING",
       requireMergedMainCommit: false,
+      requiredValidationVerdict: "PASS",
     };
   }
   if (mode === "CONTAINED_IN_MAIN" || mode === "DONE_VALIDATED") {
@@ -65,6 +66,27 @@ function parseMode(rawMode) {
       packetStatus: "Validated (PASS)",
       mainContainmentStatus: "CONTAINED_IN_MAIN",
       requireMergedMainCommit: true,
+      requiredValidationVerdict: "PASS",
+    };
+  }
+  if (mode === "FAIL" || mode === "DONE_FAIL") {
+    return {
+      mode: "FAIL",
+      boardStatus: "DONE_FAIL",
+      packetStatus: "Validated (FAIL)",
+      mainContainmentStatus: "NOT_REQUIRED",
+      requireMergedMainCommit: false,
+      requiredValidationVerdict: "FAIL",
+    };
+  }
+  if (mode === "OUTDATED_ONLY" || mode === "DONE_OUTDATED_ONLY") {
+    return {
+      mode: "OUTDATED_ONLY",
+      boardStatus: "DONE_OUTDATED_ONLY",
+      packetStatus: "Validated (OUTDATED_ONLY)",
+      mainContainmentStatus: "NOT_REQUIRED",
+      requireMergedMainCommit: false,
+      requiredValidationVerdict: "OUTDATED_ONLY",
     };
   }
   return null;
@@ -75,10 +97,10 @@ const requestedMode = parseMode(process.argv[3]);
 const mergedMainCommit = String(process.argv[4] || "").trim();
 
 if (!wpId || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(wpId)) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/integration-validator-closeout-sync.mjs WP-{ID} <MERGE_PENDING|CONTAINED_IN_MAIN> [MERGED_MAIN_SHA]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/integration-validator-closeout-sync.mjs WP-{ID} <MERGE_PENDING|CONTAINED_IN_MAIN|FAIL|OUTDATED_ONLY> [MERGED_MAIN_SHA]`);
 }
 if (!requestedMode) {
-  fail("Mode must be MERGE_PENDING or CONTAINED_IN_MAIN");
+  fail("Mode must be MERGE_PENDING, CONTAINED_IN_MAIN, FAIL, or OUTDATED_ONLY");
 }
 if (requestedMode.requireMergedMainCommit && !/^[0-9a-f]{7,40}$/i.test(mergedMainCommit)) {
   fail("CONTAINED_IN_MAIN requires MERGED_MAIN_SHA");
@@ -108,8 +130,9 @@ if (!governanceState.allowValidationResume) {
 }
 
 const parsedTruth = parseMergeProgressionTruth(originalPacketText);
-if (parsedTruth.validationVerdict !== "PASS") {
-  fail("Closeout sync requires a real PASS validation report already appended to the packet", [
+if (parsedTruth.validationVerdict !== requestedMode.requiredValidationVerdict) {
+  fail("Closeout sync requires a matching validation verdict already appended to the packet", [
+    `expected_validation_verdict=${requestedMode.requiredValidationVerdict}`,
     `validation_verdict=${parsedTruth.validationVerdict || "<missing>"}`,
   ]);
 }

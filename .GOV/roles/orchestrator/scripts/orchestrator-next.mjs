@@ -28,6 +28,8 @@ import {
   taskBoardStatus,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { EXECUTION_OWNER_RANGE_HELP } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
+import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
@@ -458,6 +460,28 @@ function main() {
   const needsStubCleanup = hasStubLine(wpId);
   const syncState = preparedWorktreeSyncState(wpId, lastPrepare, gitContext.topLevel || process.cwd());
   const packetText = fs.readFileSync(packetPath, "utf8");
+  const workflowLane = parseSingleField(packetText, "WORKFLOW_LANE");
+  const tokenBudget = evaluateWpTokenBudget(readWpTokenUsageLedger(process.cwd(), wpId).ledger);
+  if (
+    String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED"
+    && String(boardStatus || "").trim().toUpperCase() !== "VALIDATED"
+    && tokenBudget.status === "FAIL"
+  ) {
+    printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
+    printOperatorEnvelope("NONE", tokenBudget.blocker_class || "POLICY_CONFLICT");
+    printConfidence(confidence.level, confidence.detail);
+    printState(tokenBudget.summary);
+    printFindings([
+      `WP token budget policy: ${tokenBudget.policy_id}`,
+      ...tokenBudget.failures,
+    ]);
+    printNextCommands([
+      `just session-registry-status ${wpId}`,
+      `just wp-token-usage ${wpId}`,
+      `# Compact the lane and remove ambiguity-driven retries before resuming orchestrator-managed work.`,
+    ]);
+    return;
+  }
   const packetRuntimeState = loadProjectionDriftState(wpId, packetPath, packetText);
   if (packetRuntimeState && !packetRuntimeState.drift.ok) {
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
