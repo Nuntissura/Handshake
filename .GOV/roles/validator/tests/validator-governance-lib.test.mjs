@@ -253,8 +253,25 @@ test("integration-validator ready commands emphasize final review and verdict he
     "just integration-validator-context-brief WP-TEST-VALIDATOR-v1",
     "just check-notifications WP-TEST-VALIDATOR-v1 INTEGRATION_VALIDATOR",
     "just ack-notifications WP-TEST-VALIDATOR-v1 INTEGRATION_VALIDATOR intval:test",
+    "just validator-packet-complete WP-TEST-VALIDATOR-v1",
     "just wp-communication-health-check WP-TEST-VALIDATOR-v1 VERDICT",
     "just validator-handoff-check WP-TEST-VALIDATOR-v1",
     "just integration-validator-closeout-check WP-TEST-VALIDATOR-v1",
+  ]);
+});
+
+test("wp-validator ready commands surface packet completeness before handoff validation", () => {
+  const commands = buildValidatorReadyCommands({
+    wpId: "WP-TEST-VALIDATOR-v1",
+    actorRole: "WP_VALIDATOR",
+    actorSessionId: "wpval:test",
+  });
+
+  assert.deepEqual(commands, [
+    "just check-notifications WP-TEST-VALIDATOR-v1 WP_VALIDATOR",
+    "just ack-notifications WP-TEST-VALIDATOR-v1 WP_VALIDATOR wpval:test",
+    "just validator-packet-complete WP-TEST-VALIDATOR-v1",
+    "just wp-communication-health-check WP-TEST-VALIDATOR-v1 HANDOFF",
+    "just validator-handoff-check WP-TEST-VALIDATOR-v1",
   ]);
 });

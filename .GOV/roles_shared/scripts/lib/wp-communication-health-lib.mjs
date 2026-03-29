@@ -1,10 +1,10 @@
 import {
+  activeWorkflowInvalidityReceipt,
   DIRECT_REVIEW_SESSION_ROLE_VALUES,
   DIRECT_REVIEW_CONTRACT_VERSION,
   DIRECT_REVIEW_HEALTH_GATE,
   FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
-  latestWorkflowInvalidityReceipt,
   OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE,
   REVIEW_TRACKED_RECEIPT_KIND_VALUES,
   workflowInvalidityReceipts,
@@ -151,6 +151,7 @@ function result({
   details = [],
   counts = {},
   correlations = {},
+  activeWorkflowInvalidityCode = null,
 } = {}) {
   return {
     applicable: Boolean(applicable),
@@ -160,6 +161,7 @@ function result({
     details,
     counts,
     correlations,
+    activeWorkflowInvalidityCode,
   };
 }
 
@@ -216,7 +218,7 @@ export function evaluateWpCommunicationHealth({
 
   const openReviewItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
   const workflowInvalidities = workflowInvalidityReceipts(receipts);
-  const latestWorkflowInvalidity = latestWorkflowInvalidityReceipt(workflowInvalidities);
+  const activeWorkflowInvalidity = activeWorkflowInvalidityReceipt(receipts);
   const validatorKickoffs = receiptFilter(receipts, {
     receiptKind: "VALIDATOR_KICKOFF",
     actorRole: "WP_VALIDATOR",
@@ -295,7 +297,7 @@ export function evaluateWpCommunicationHealth({
     finalReview: integrationFinalPair?.openReceipt?.correlation_id || null,
   };
 
-  if (workflowInvalidities.length > 0) {
+  if (activeWorkflowInvalidity) {
     return result({
       applicable: true,
       ok: false,
@@ -303,12 +305,13 @@ export function evaluateWpCommunicationHealth({
       message: "Workflow invalidity was recorded for this orchestrator-managed WP",
       details: [
         ...details,
-        `latest_invalidity_code=${latestWorkflowInvalidity?.workflow_invalidity_code || "<missing>"}`,
-        `latest_invalidity_summary=${latestWorkflowInvalidity?.summary || "<missing>"}`,
-        `lane_reset_required=${String(latestWorkflowInvalidity?.workflow_invalidity_code || "").trim().toUpperCase() === OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE ? "YES" : "NO"}`,
+        `latest_invalidity_code=${activeWorkflowInvalidity?.workflow_invalidity_code || "<missing>"}`,
+        `latest_invalidity_summary=${activeWorkflowInvalidity?.summary || "<missing>"}`,
+        `lane_reset_required=${String(activeWorkflowInvalidity?.workflow_invalidity_code || "").trim().toUpperCase() === OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE ? "YES" : "NO"}`,
       ],
       counts,
       correlations,
+      activeWorkflowInvalidityCode: String(activeWorkflowInvalidity?.workflow_invalidity_code || "").trim().toUpperCase() || null,
     });
   }
 
@@ -699,7 +702,7 @@ export function deriveWpCommunicationAutoRoute({
       break;
     }
     case "COMM_WORKFLOW_INVALID":
-      if (latestInvalidityCode(latestReceipt) === OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE) {
+      if ((evaluation.activeWorkflowInvalidityCode || latestInvalidityCode(latestReceipt)) === OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE) {
         projection = route({
           state: evaluation.state,
           nextExpectedActor: "ORCHESTRATOR",

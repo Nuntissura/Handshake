@@ -34,6 +34,10 @@ import {
     evaluateValidatorPassAuthority,
     resolveValidatorActorContext,
 } from '../scripts/lib/validator-governance-lib.mjs';
+import {
+    committedEvidenceForCloseout,
+    livePrepareWorktreeHealthEvidence,
+} from '../scripts/lib/committed-validation-evidence-lib.mjs';
 
 const MIN_GATE_INTERVAL_SECONDS = 5; // Minimum time between gates to prevent automation momentum
 
@@ -543,12 +547,14 @@ if (action === 'commit') {
     session.merge_authority = session.merge_authority || actorAuthority.authority.mergeAuthority || '';
 
     const committedEvidence = state?.committed_validation_evidence?.[wpId] || null;
-    if (!committedEvidence || committedEvidence.status !== 'PASS') {
+    const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
+    const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
+    if (!durableCommittedProof || durableCommittedProof.status !== 'PASS') {
         fail(`Cannot commit: ${wpId} is missing committed handoff validation evidence`, [
             'PASS commit clearance now requires committed validation against the PREPARE worktree source of truth.',
             `Run: just validator-handoff-check ${wpId}`,
-            committedEvidence
-                ? `Latest committed evidence status: ${committedEvidence.status}`
+            durableCommittedProof
+                ? `Latest durable committed proof status: ${durableCommittedProof.status}`
                 : 'No committed validation evidence is recorded for this WP.'
         ]);
     }
@@ -597,6 +603,9 @@ if (action === 'commit') {
         '',
         '[UNLOCKED] Validator may now run git commit.',
         `Commit message: docs: validation PASS [${wpId}]`,
+        ...(livePrepareHealth && livePrepareHealth.status !== 'PASS'
+            ? [`Live PREPARE worktree health remains ${livePrepareHealth.status}; commit clearance is using the durable committed target proof for ${durableCommittedProof.target_head_sha}.`]
+            : []),
         '',
         '[NEXT] After git commit, paste the full validation report to chat (right before merge), then record it:',
         `[NEXT] Run: just validator-gate-present ${wpId}`
@@ -650,13 +659,16 @@ if (action === 'status') {
         console.log(`    Merge authority: ${session.merge_authority || '<unspecified>'}`);
     }
     const committedEvidence = state?.committed_validation_evidence?.[wpId] || null;
-    if (committedEvidence) {
+    const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
+    const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
+    if (durableCommittedProof || livePrepareHealth) {
         console.log('  Committed validation:');
-        console.log(`    Status: ${committedEvidence.status}`);
-        console.log(`    Target: ${committedEvidence.committed_validation_target}`);
-        console.log(`    HEAD: ${committedEvidence.target_head_sha}`);
-        console.log(`    Worktree: ${committedEvidence.prepare_worktree_dir}`);
-        console.log(`    Validated at: ${committedEvidence.validated_at}`);
+        console.log(`    Durable proof status: ${durableCommittedProof?.status || 'NONE'}`);
+        console.log(`    Durable target: ${durableCommittedProof?.committed_validation_target || '<none>'}`);
+        console.log(`    Durable HEAD: ${durableCommittedProof?.target_head_sha || '<none>'}`);
+        console.log(`    Durable validated at: ${durableCommittedProof?.validated_at || '<none>'}`);
+        console.log(`    Live PREPARE health: ${livePrepareHealth?.status || 'NONE'}`);
+        console.log(`    Worktree: ${livePrepareHealth?.prepare_worktree_dir || durableCommittedProof?.prepare_worktree_dir || '<none>'}`);
     } else {
         console.log('  Committed validation: (missing)');
     }
@@ -670,7 +682,7 @@ if (action === 'status') {
     const nextActions = {
         'WP_APPENDED': session.verdict === 'PASS'
             ? (
-                committedEvidence?.status === 'PASS'
+                committedEvidenceForCloseout(committedEvidence)?.status === 'PASS'
                     ? `just validator-gate-commit ${wpId}`
                     : `just validator-handoff-check ${wpId}`
             )

@@ -241,6 +241,7 @@ function appendWpReceiptCore({
   }
 
   let autoRoute = null;
+  const rerouteOnRepair = entry.receipt_kind === "REPAIR";
   if (runtimeStatus) {
     updateOpenReviewItems(runtimeStatus, entry);
     runtimeStatus.last_event = `receipt_${entry.receipt_kind.toLowerCase()}`;
@@ -262,7 +263,7 @@ function appendWpReceiptCore({
       if (!["completed", "failed", "canceled"].includes(String(runtimeStatus.runtime_status || "").trim().toLowerCase())) {
         runtimeStatus.runtime_status = "input_required";
       }
-    } else if (reviewTrackedReceipt) {
+    } else if (reviewTrackedReceipt || rerouteOnRepair) {
       const receipts = parseJsonlFile(context.receiptsFile);
       const evaluation = evaluateWpCommunicationHealth({
         wpId: WP_ID,

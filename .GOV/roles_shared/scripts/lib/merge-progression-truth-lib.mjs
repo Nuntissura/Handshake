@@ -22,6 +22,32 @@ function parseSingleField(text, label) {
   return match ? match[1].trim() : "";
 }
 
+function replaceSingleField(packetText, label, nextValue) {
+  const re = new RegExp(`^(\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*)(.+)\\s*$`, "mi");
+  if (!re.test(String(packetText || ""))) {
+    throw new Error(`Missing packet field: ${label}`);
+  }
+  return String(packetText || "").replace(re, `$1${nextValue}`);
+}
+
+function replaceStatusField(packetText, nextStatus) {
+  const candidates = [
+    /^\s*-\s*\*\*Status:\*\*\s*.+\s*$/mi,
+    /^\s*\*\*Status:\*\*\s*.+\s*$/mi,
+    /^\s*Status:\s*.+\s*$/mi,
+  ];
+  for (const candidate of candidates) {
+    if (candidate.test(String(packetText || ""))) {
+      return String(packetText || "").replace(candidate, (line) => {
+        if (/^\s*-\s*\*\*Status:\*\*/i.test(line)) return line.replace(/(\*\*Status:\*\*\s*).+$/i, `$1${nextStatus}`);
+        if (/^\s*\*\*Status:\*\*/i.test(line)) return line.replace(/(\*\*Status:\*\*\s*).+$/i, `$1${nextStatus}`);
+        return line.replace(/(Status:\s*).+$/i, `$1${nextStatus}`);
+      });
+    }
+  }
+  throw new Error("Missing packet status field");
+}
+
 function parseStatus(text) {
   return (
     (String(text || "").match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
@@ -122,6 +148,28 @@ export function parseMergeProgressionTruth(packetText) {
     mainContainmentVerifiedAtUtc: normalizeNoneLike(parseSingleField(packetText, "MAIN_CONTAINMENT_VERIFIED_AT_UTC")),
     runtimeStatusPath: parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE"),
   };
+}
+
+export function updateMergeProgressionTruth(packetText, {
+  status,
+  mainContainmentStatus,
+  mergedMainCommit,
+  mainContainmentVerifiedAtUtc,
+} = {}) {
+  let nextText = String(packetText || "");
+  if (status != null) {
+    nextText = replaceStatusField(nextText, status);
+  }
+  if (mainContainmentStatus != null) {
+    nextText = replaceSingleField(nextText, "MAIN_CONTAINMENT_STATUS", mainContainmentStatus);
+  }
+  if (mergedMainCommit != null) {
+    nextText = replaceSingleField(nextText, "MERGED_MAIN_COMMIT", mergedMainCommit);
+  }
+  if (mainContainmentVerifiedAtUtc != null) {
+    nextText = replaceSingleField(nextText, "MAIN_CONTAINMENT_VERIFIED_AT_UTC", mainContainmentVerifiedAtUtc);
+  }
+  return nextText;
 }
 
 export function validateMergeProgressionTruth(

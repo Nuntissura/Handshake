@@ -190,6 +190,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - `just post-work WP-{ID}` is the deterministic closure gate before done/commit claims.
 - For validator PASS clearance on orchestrator-managed WPs, prefer `just validator-handoff-check WP-{ID}` so validation runs against the PREPARE worktree source of truth.
 - Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just integration-validator-closeout-check WP-{ID}`. If that preflight fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth. For `PACKET_FORMAT_VERSION >= 2026-03-26`, this also means current-`main` signed-scope compatibility was not honestly cleared or packet widening was not governed explicitly.
+- After that preflight is green, prefer `just integration-validator-closeout-sync WP-{ID} DONE_MERGE_PENDING` instead of manually editing packet/TASK_BOARD/runtime surfaces. This keeps closeout truth synchronized and reduces orchestrator repair work.
 
 ## Branching & Concurrency
 
@@ -327,6 +328,7 @@ Resume rule:
 - `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
 - `just session-cancel <ROLE> WP-{ID}`
 - `just session-registry-status [WP-{ID}]`
+- `just wp-token-usage WP-{ID}`
 - `just orchestrator-prepare-and-packet WP-{ID}`
 - `just orchestrator-worktree-and-packet WP-{ID}`
 

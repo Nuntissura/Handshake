@@ -205,6 +205,38 @@
       ],
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
     },
+    "current_main_compatibility_status": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "current_main_compatibility_baseline_sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-fA-F]{7,40}$"
+    },
+    "current_main_compatibility_verified_at_utc": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "packet_widening_decision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "packet_widening_evidence": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "runtime_status": {
       "enum": [
         "submitted",

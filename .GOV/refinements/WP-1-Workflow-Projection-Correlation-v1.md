@@ -330,6 +330,8 @@ Requirements (HARD):
   - src/backend/handshake_core/src/bundles/exporter.rs
   - src/backend/handshake_core/src/bundles/schemas.rs
   - src/backend/handshake_core/src/bundles/templates.rs
+  - src/backend/handshake_core/src/bundles/validator.rs
+  - src/backend/handshake_core/src/bundles/zip.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/storage/mod.rs
   - src/backend/handshake_core/src/storage/tests.rs

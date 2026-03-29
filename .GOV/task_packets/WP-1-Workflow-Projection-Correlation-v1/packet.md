@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_TEMPLATE
+# TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
 
@@ -45,8 +45,8 @@ Requirements:
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -100,7 +100,7 @@ Requirements:
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** In Progress
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - MAIN_CONTAINMENT_STATUS: NOT_STARTED
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
@@ -172,7 +172,7 @@ Requirements:
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
 Blockers: NONE
-Next: N/A
+Next: CODER_RESUME_AFTER_SCOPE_REPAIR
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
@@ -572,6 +572,8 @@ Next: N/A
   - src/backend/handshake_core/src/bundles/exporter.rs
   - src/backend/handshake_core/src/bundles/schemas.rs
   - src/backend/handshake_core/src/bundles/templates.rs
+  - src/backend/handshake_core/src/bundles/validator.rs
+  - src/backend/handshake_core/src/bundles/zip.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/storage/mod.rs
   - src/backend/handshake_core/src/storage/tests.rs
@@ -692,50 +694,160 @@ rg -n "WorkflowRun|WorkflowNodeExecution|workflow_run_id|workflow_node_execution
 - (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Target File**: `src/backend/handshake_core/src/bundles/exporter.rs`
+- **Start**: 20
+- **End**: 2916
+- **Line Delta**: 980
+- **Pre-SHA1**: `2cf29ae41b8f80c154817e055267ee19d2b8381d`
+- **Post-SHA1**: `78393a2002c8f2938465f3e8e1ac46b1b4e181db`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Not run; proof chain is the clean-room packet test plan plus deterministic gate checks.
+- **Artifacts**: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Workflow-Projection-Correlation-v1/isolated-six-file.patch`
+- **Timestamp**: `2026-03-29T03:38:25.2854116Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: committed single-rev diff `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..274341181b694e8ae6699b047117d136bbd3f041`; clean-room proof rerun against `../handshake_main` HEAD `a1fb1773e5cf506ec9d926a14ce7b0c0d2bf025c`
+- **Target File**: `src/backend/handshake_core/src/bundles/schemas.rs`
+- **Start**: 12
+- **End**: 494
+- **Line Delta**: 45
+- **Pre-SHA1**: `135d989e878ee11e955bfadbf6cf6d4f53636502`
+- **Post-SHA1**: `83d11997545ea857dd09c726e13a057a47d78aca`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Not run; proof chain is the clean-room packet test plan plus deterministic gate checks.
+- **Artifacts**: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Workflow-Projection-Correlation-v1/isolated-six-file.patch`
+- **Timestamp**: `2026-03-29T03:38:25.2854116Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: committed single-rev diff `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..274341181b694e8ae6699b047117d136bbd3f041`; clean-room proof rerun against `../handshake_main` HEAD `a1fb1773e5cf506ec9d926a14ce7b0c0d2bf025c`
+- **Target File**: `src/backend/handshake_core/src/bundles/templates.rs`
+- **Start**: 4
+- **End**: 260
+- **Line Delta**: 27
+- **Pre-SHA1**: `c0f26f15069ebbcb21271e3f673a9f81f6e44d5c`
+- **Post-SHA1**: `d74c9658fef0e48f1fca1d1f729de7dc5380b4a0`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Not run; proof chain is the clean-room packet test plan plus deterministic gate checks.
+- **Artifacts**: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Workflow-Projection-Correlation-v1/isolated-six-file.patch`
+- **Timestamp**: `2026-03-29T03:38:25.2854116Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: committed single-rev diff `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..274341181b694e8ae6699b047117d136bbd3f041`; clean-room proof rerun against `../handshake_main` HEAD `a1fb1773e5cf506ec9d926a14ce7b0c0d2bf025c`
+- **Target File**: `src/backend/handshake_core/src/bundles/validator.rs`
+- **Start**: 12
+- **End**: 857
+- **Line Delta**: 216
+- **Pre-SHA1**: `6a8bbe6b16a8aaab343cb2c8d944468982ee8ede`
+- **Post-SHA1**: `f1948b019be45a986fa42cda999935d10ae0f2b7`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Not run; proof chain is the clean-room packet test plan plus deterministic gate checks.
+- **Artifacts**: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Workflow-Projection-Correlation-v1/isolated-six-file.patch`
+- **Timestamp**: `2026-03-29T03:38:25.2854116Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: committed single-rev diff `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..274341181b694e8ae6699b047117d136bbd3f041`; clean-room proof rerun against `../handshake_main` HEAD `a1fb1773e5cf506ec9d926a14ce7b0c0d2bf025c`
+- **Target File**: `src/backend/handshake_core/src/bundles/zip.rs`
+- **Start**: 84
+- **End**: 105
+- **Line Delta**: 3
+- **Pre-SHA1**: `d37cdab7fa8838a47e5d172481350857741069d8`
+- **Post-SHA1**: `7d61a4c30fd7b0d06fca341f6278f87aad65c029`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Not run; proof chain is the clean-room packet test plan plus deterministic gate checks.
+- **Artifacts**: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Workflow-Projection-Correlation-v1/isolated-six-file.patch`
+- **Timestamp**: `2026-03-29T03:38:25.2854116Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: committed single-rev diff `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..274341181b694e8ae6699b047117d136bbd3f041`; clean-room proof rerun against `../handshake_main` HEAD `a1fb1773e5cf506ec9d926a14ce7b0c0d2bf025c`
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 4671
+- **End**: 11827
+- **Line Delta**: 40
+- **Pre-SHA1**: `a77b1a14aad10787f4fb5b4c8347de5b8ec484e2`
+- **Post-SHA1**: `87d0edfefde88a9e15144afa6b141aa2cf3b915b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Not run; proof chain is the clean-room packet test plan plus deterministic gate checks.
+- **Artifacts**: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Workflow-Projection-Correlation-v1/isolated-six-file.patch`
+- **Timestamp**: `2026-03-29T03:38:25.2854116Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: committed single-rev diff `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..274341181b694e8ae6699b047117d136bbd3f041`; clean-room proof rerun against `../handshake_main` HEAD `a1fb1773e5cf506ec9d926a14ce7b0c0d2bf025c`
 ## STATUS_HANDOFF
-- (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
-- Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
-- Next step / handoff hint:
+- Current WP_STATUS: `In Progress`; committed product handoff is fixed at `274341181b694e8ae6699b047117d136bbd3f041`, and packet hygiene is now concrete for deterministic gate evaluation.
+- What changed in this update: removed the packet BOM, replaced the placeholder `## VALIDATION`, `## STATUS_HANDOFF`, `## EVIDENCE_MAPPING`, and `## EVIDENCE` sections, and recorded the six-file manifest coverage plus fresh clean-room proof-chain evidence.
+- Requirements / clauses self-audited: workflow bundle scope kinds, workflow-only event completeness, node-lineage export, manifest and inventory alignment, validator enforcement, and clean-room `workflows.rs` contract compatibility inside the signed six-file surface.
+- Checks actually run: `git -C ..\\handshake_main apply --check ..\\gov_runtime\\roles_shared\\WP_COMMUNICATIONS\\WP-1-Workflow-Projection-Correlation-v1\\isolated-six-file.patch`; `git -C ..\\handshake_main apply ..\\gov_runtime\\roles_shared\\WP_COMMUNICATIONS\\WP-1-Workflow-Projection-Correlation-v1\\isolated-six-file.patch`; six packet proof `cargo test` commands in `..\\handshake_main`; `git -C ..\\handshake_main apply -R ..\\gov_runtime\\roles_shared\\WP_COMMUNICATIONS\\WP-1-Workflow-Projection-Correlation-v1\\isolated-six-file.patch`; `git -C ..\\handshake_main status --short`.
+- Known gaps / weak spots: packet hygiene is repaired, but this checkout still carries unrelated branch-local product drift outside the signed surface, so `just pre-work` and `just post-work --rev 274341181b694e8ae6699b047117d136bbd3f041` cannot pass here without approval-gated state hiding or cleanup.
+- Heuristic risks / maintainability concerns: workflow correlation remains bounded to proven `workflow_id` and run `job_id` anchors; if flight-recorder exact-id recovery changes, the exporter tripwires in `bundles/exporter.rs` must continue to catch completeness regressions.
+- Validator focus request: confirm that packet hygiene is now sufficient for deterministic post-work review and treat the remaining blocker as checkout drift only, not a feature-semantic defect.
+- Rubric contract understanding proof: this packet promises bounded `workflow_run` and `workflow_node_execution` export anchors, validator-visible manifest evidence, and clean-room compile compatibility on current `main`; those claims are now backed by code refs, manifest rows, and fresh clean-room commands rather than chat summaries.
+- Rubric scope discipline proof: no new product surface was added after commit `274341181b694e8ae6699b047117d136bbd3f041`; the signed product diff remains exactly the six committed files, and this update changes packet hygiene only.
+- Rubric baseline comparison: compared the committed single-rev diff `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..274341181b694e8ae6699b047117d136bbd3f041` plus the isolated six-file patch against clean `handshake_main` HEAD `a1fb1773e5cf506ec9d926a14ce7b0c0d2bf025c`; clean-room apply, test, and reverse-apply stayed within that boundary.
+- Rubric end-to-end proof: the isolated six-file patch applied cleanly to `../handshake_main`, all six packet proof commands passed there, and the patch reversed back to a clean tree.
+- Rubric architecture fit self-review: the signed changes extend the existing debug-bundle/export contract with first-class workflow anchors and compile-contract fixes without widening API, UI, or new shared product surfaces.
+- Rubric heuristic quality self-review: the strongest remaining issue is environmental rather than semantic; deterministic gates still refuse to ignore unrelated dirty files in this checkout, which is the correct behavior.
+- Rubric anti-gaming / counterfactual check: if any manifest row, file:line evidence anchor, or clean-room proof command were removed, the deterministic gate and validator audit would lose direct traceability; if unrelated branch-local dirt were ignored, the current gates would stop enforcing the signed scope boundary.
+- Next step / handoff hint: if Operator approval is granted for approval-gated dirt parking, push the WP backup branch, stash only the unrelated branch-local drift, rerun `just pre-work WP-1-Workflow-Projection-Correlation-v1`, rerun `just post-work WP-1-Workflow-Projection-Correlation-v1 --rev 274341181b694e8ae6699b047117d136bbd3f041`, then restore the parked state; without that approval, treat committed-handoff as semantically proven but not gate-passable from this checkout.
 
 ## MERGE_PROGRESSION_TRUTH
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, PASS closure is two-step and must stay explicit:
@@ -777,18 +889,68 @@ rg -n "WorkflowRun|WorkflowNodeExecution|workflow_run_id|workflow_node_execution
 - `CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN` is legal only before final-lane compatibility review starts.
 
 ## EVIDENCE_MAPPING
-- (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+- REQUIREMENT: "Current code implements the explicit `v02.179` `workflow_run` and `workflow_node_execution` bundle scope kinds end to end."
+- EVIDENCE: `src/backend/handshake_core/src/bundles/exporter.rs:158`, `src/backend/handshake_core/src/bundles/schemas.rs:13`, `src/backend/handshake_core/src/workflows.rs:7884`
+- REQUIREMENT: "exporter, manifest schema, and validator all accept and prove those bounded scope kinds."
+- EVIDENCE: `src/backend/handshake_core/src/bundles/schemas.rs:33`, `src/backend/handshake_core/src/bundles/templates.rs:173`, `src/backend/handshake_core/src/bundles/validator.rs:303`, `src/backend/handshake_core/src/bundles/validator.rs:847`
+- REQUIREMENT: "workflow-scoped and node-scoped bundle exports only include correlated jobs/events/node records."
+- EVIDENCE: `src/backend/handshake_core/src/bundles/exporter.rs:456`, `src/backend/handshake_core/src/bundles/exporter.rs:525`, `src/backend/handshake_core/src/bundles/exporter.rs:1186`, `src/backend/handshake_core/src/bundles/exporter.rs:1213`, `src/backend/handshake_core/src/bundles/exporter.rs:2686`, `src/backend/handshake_core/src/bundles/exporter.rs:2775`
+- REQUIREMENT: "canonical export inventory includes workflow node execution records and manifest counts."
+- EVIDENCE: `src/backend/handshake_core/src/bundles/schemas.rs:127`, `src/backend/handshake_core/src/bundles/exporter.rs:1333`, `src/backend/handshake_core/src/bundles/exporter.rs:1479`, `src/backend/handshake_core/src/bundles/exporter.rs:1665`, `src/backend/handshake_core/src/bundles/exporter.rs:2372`
+- REQUIREMENT: "Clean-room committed surface compiles against the current structured-collaboration contract without widening scope."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:4669`, `src/backend/handshake_core/src/workflows.rs:4705`, `src/backend/handshake_core/src/workflows.rs:4734`, `src/backend/handshake_core/src/workflows.rs:4769`, `src/backend/handshake_core/src/workflows.rs:11793`
 ## EVIDENCE
-- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
-- Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Workflow-Projection-Correlation-v1/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `git -C ..\\handshake_main apply --check ..\\gov_runtime\\roles_shared\\WP_COMMUNICATIONS\\WP-1-Workflow-Projection-Correlation-v1\\isolated-six-file.patch`
+- EXIT_CODE: 0
+- PROOF_LINES: `apply --check` returned no stdout or stderr; patch is applicable to clean `handshake_main`.
+- COMMAND: `git -C ..\\handshake_main apply ..\\gov_runtime\\roles_shared\\WP_COMMUNICATIONS\\WP-1-Workflow-Projection-Correlation-v1\\isolated-six-file.patch`
+- EXIT_CODE: 0
+- PROOF_LINES: patch applied cleanly to `../handshake_main`.
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml storage::tests::workflow_node_execution_persists_inputs_and_outputs -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES: `test storage::tests::workflow_node_execution_persists_inputs_and_outputs ... ok`; `test result: ok. 1 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml bundles::validator::tests::val_bundle_001_reports_missing_files -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES: `test bundles::validator::tests::val_bundle_001_reports_missing_files ... ok`; `test result: ok. 1 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml bundles::zip::tests::bundle_determinism_hash_stable -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES: `test bundles::zip::tests::bundle_determinism_hash_stable ... ok`; `test result: ok. 1 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml bundles::exporter::tests::workflow_run_scope_exports_only_bound_jobs_and_nodes -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES: `test bundles::exporter::tests::workflow_run_scope_exports_only_bound_jobs_and_nodes ... ok`; `test result: ok. 1 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml bundles::exporter::tests::workflow_node_execution_scope_exports_single_node_lineage -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES: `test bundles::exporter::tests::workflow_node_execution_scope_exports_single_node_lineage ... ok`; `test result: ok. 1 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml bundles::exporter::tests::list_exportable_includes_workflow_correlation_anchors -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES: `test bundles::exporter::tests::list_exportable_includes_workflow_correlation_anchors ... ok`; `test result: ok. 1 passed; 0 failed`
+- COMMAND: `git -C ..\\handshake_main status --short -- src/backend/handshake_core/src/bundles/exporter.rs src/backend/handshake_core/src/bundles/schemas.rs src/backend/handshake_core/src/bundles/templates.rs src/backend/handshake_core/src/bundles/validator.rs src/backend/handshake_core/src/bundles/zip.rs src/backend/handshake_core/src/workflows.rs`
+- EXIT_CODE: 0
+- PROOF_LINES: `M src/backend/handshake_core/src/bundles/exporter.rs`; `M src/backend/handshake_core/src/bundles/schemas.rs`; `M src/backend/handshake_core/src/bundles/templates.rs`; `M src/backend/handshake_core/src/bundles/validator.rs`; `M src/backend/handshake_core/src/bundles/zip.rs`; `M src/backend/handshake_core/src/workflows.rs`
+- COMMAND: `git -C ..\\handshake_main apply -R ..\\gov_runtime\\roles_shared\\WP_COMMUNICATIONS\\WP-1-Workflow-Projection-Correlation-v1\\isolated-six-file.patch`
+- EXIT_CODE: 0
+- PROOF_LINES: reverse apply returned no stdout or stderr; clean-room patch was fully removed.
+- COMMAND: `git -C ..\\handshake_main status --short`
+- EXIT_CODE: 0
+- PROOF_LINES: `<empty>`
+- COMMAND: `just pre-work WP-1-Workflow-Projection-Correlation-v1`
+- EXIT_CODE: 1
+- PROOF_LINES: `Pre-work validation FAILED`; `Branch-local out-of-scope edits detected before work starts: PRODUCT_OUT_OF_SCOPE: src/backend/handshake_core/src/api/jobs.rs ... src/backend/handshake_core/src/storage/loom.rs`
+- COMMAND: `just post-work WP-1-Workflow-Projection-Correlation-v1 --rev 274341181b694e8ae6699b047117d136bbd3f041`
+- EXIT_CODE: 1
+- PROOF_LINES: `[WP_COMMUNICATION_HEALTH] PASS: Kickoff exchange is complete`; `Post-work validation FAILED (deterministic manifest gate; not tests)`; `Branch-local scope drift detected outside the evaluated diff: PRODUCT_OUT_OF_SCOPE: src/backend/handshake_core/src/api/jobs.rs ... src/backend/handshake_core/src/storage/loom.rs`
+- COMMAND: `just validator-packet-complete WP-1-Workflow-Projection-Correlation-v1`
+- EXIT_CODE: 0
+- PROOF_LINES: `validator-packet-complete: PASS - WP-1-Workflow-Projection-Correlation-v1 has required fields.`
+- COMMAND: `just wp-communication-health-check WP-1-Workflow-Projection-Correlation-v1 KICKOFF`
+- EXIT_CODE: 0
+- PROOF_LINES: `[WP_COMMUNICATION_HEALTH] PASS: Kickoff exchange is complete`; `open_review_items=0`
+- COMMAND: `just validator-handoff-check WP-1-Workflow-Projection-Correlation-v1`
+- EXIT_CODE: 1
+- PROOF_LINES: `[VALIDATOR_HANDOFF_CHECK] FAIL: Committed handoff validation failed`; `pre_work_status=FAIL`; `post_work_status=FAIL`
+- COMMAND: `just validator-git-hygiene`
+- EXIT_CODE: 0
+- PROOF_LINES: `validator-git-hygiene: PASS - .gitignore coverage and artifact checks clean.`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

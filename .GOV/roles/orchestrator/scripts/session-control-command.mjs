@@ -20,6 +20,7 @@ import {
   selectModel,
 } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { settleRecoverableSessionControlResults } from "../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
+import { syncWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { callHandshakeAcpMethod } from "../../../roles_shared/scripts/session/handshake-acp-client.mjs";
 import {
   SESSION_CONTROL_RUN_STALE_GRACE_SECONDS,
@@ -208,6 +209,7 @@ if (commandKind === "CANCEL_SESSION") {
   console.log(`[SESSION_CONTROL] output_jsonl=${settledCancel.output_jsonl_file || request.output_jsonl_file}`);
   if (settledCancel.summary) console.log(`[SESSION_CONTROL] summary=${settledCancel.summary}`);
   if (settledCancel.error) console.log(`[SESSION_CONTROL] error=${settledCancel.error}`);
+  syncWpTokenUsageLedger(repoRoot, settledCancel, { session });
 
   if ((settledCancel.cancel_status || response.status) === "cancellation_requested") {
     let settledTarget = await waitForSettledResult(repoRoot, targetCommandId);
@@ -222,6 +224,7 @@ if (commandKind === "CANCEL_SESSION") {
     console.log(`[SESSION_CONTROL] target_output_jsonl=${settledTarget.output_jsonl_file || "<none>"}`);
     if (settledTarget.summary) console.log(`[SESSION_CONTROL] target_summary=${settledTarget.summary}`);
     if (settledTarget.error) console.log(`[SESSION_CONTROL] target_error=${settledTarget.error}`);
+    syncWpTokenUsageLedger(repoRoot, settledTarget, { session });
   }
 
   process.exit(0);
@@ -304,6 +307,7 @@ if (commandKind === "CLOSE_SESSION") {
   console.log(`[SESSION_CONTROL] output_jsonl=${settledClose.output_jsonl_file || request.output_jsonl_file}`);
   if (settledClose.summary) console.log(`[SESSION_CONTROL] summary=${settledClose.summary}`);
   if (settledClose.error) console.log(`[SESSION_CONTROL] error=${settledClose.error}`);
+  syncWpTokenUsageLedger(repoRoot, settledClose, { session });
   process.exit(0);
 }
 
@@ -412,3 +416,16 @@ console.log(`[SESSION_CONTROL] output_jsonl=${response.output_jsonl_file || requ
 if (response.last_agent_message) {
   console.log(`[SESSION_CONTROL] last_agent_message=${response.last_agent_message}`);
 }
+syncWpTokenUsageLedger(repoRoot, {
+  command_id: request.command_id,
+  command_kind: request.command_kind,
+  session_key: session.session_key,
+  wp_id: wpId,
+  role,
+  status: "COMPLETED",
+  thread_id: refreshedSession.session_thread_id || response.thread_id || "",
+  processed_at: new Date().toISOString(),
+  output_jsonl_file: response.output_jsonl_file || request.output_jsonl_file,
+}, {
+  session: refreshedSession,
+});

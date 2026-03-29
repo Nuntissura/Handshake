@@ -75,7 +75,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
-- **[WP-1-Workflow-Projection-Correlation-v1]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 
@@ -184,6 +183,8 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
+
+- **[WP-1-Workflow-Projection-Correlation-v1]** - [IN_PROGRESS]
 
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]

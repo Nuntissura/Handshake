@@ -7,6 +7,7 @@ import {
   registrySessionSummary,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
+import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 
 const repoRoot = process.cwd();
 const wpIdFilter = String(process.argv[2] || "").trim();
@@ -16,6 +17,7 @@ const batchSummary = registryBatchLaunchSummary(registry);
 const { requests } = loadSessionLaunchRequests(repoRoot);
 const { requests: controlRequests } = loadSessionControlRequests(repoRoot);
 const { results: controlResults } = loadSessionControlResults(repoRoot);
+const wpTokenUsage = wpIdFilter ? readWpTokenUsageLedger(repoRoot, wpIdFilter).ledger : null;
 
 const sessions = registry.sessions
   .filter((session) => !wpIdFilter || session.wp_id === wpIdFilter)
@@ -39,7 +41,9 @@ if (batchSummary.launch_batch_switch_reason) {
 
 if (sessions.length === 0) {
   console.log("- matching_sessions: 0");
-  process.exit(0);
+  if (!wpTokenUsage || wpTokenUsage.summary.command_count === 0) {
+    process.exit(0);
+  }
 }
 
 for (const session of sessions) {
@@ -90,4 +94,29 @@ for (const session of sessions) {
     console.log(`  note: registered steerable thread is stale and should be closed before reuse (${reason})`);
   }
   console.log(`  updated_at: ${session.updated_at || "<none>"}`);
+}
+
+if (wpTokenUsage) {
+  console.log("");
+  console.log("WP_TOKEN_USAGE");
+  console.log(`- wp_id: ${wpTokenUsage.wp_id}`);
+  console.log(`- command_count: ${wpTokenUsage.summary.command_count}`);
+  console.log(`- turn_count: ${wpTokenUsage.summary.turn_count}`);
+  console.log(`- input_tokens: ${wpTokenUsage.summary.usage_totals.input_tokens}`);
+  console.log(`- cached_input_tokens: ${wpTokenUsage.summary.usage_totals.cached_input_tokens}`);
+  console.log(`- output_tokens: ${wpTokenUsage.summary.usage_totals.output_tokens}`);
+  const roleNames = Object.keys(wpTokenUsage.role_totals || {}).sort((left, right) => left.localeCompare(right));
+  if (roleNames.length === 0) {
+    console.log("- role_totals: <none>");
+  } else {
+    for (const roleName of roleNames) {
+      const roleTotals = wpTokenUsage.role_totals[roleName];
+      console.log(`- role: ${roleName}`);
+      console.log(`  command_count: ${roleTotals.command_count}`);
+      console.log(`  turn_count: ${roleTotals.turn_count}`);
+      console.log(`  input_tokens: ${roleTotals.usage_totals.input_tokens}`);
+      console.log(`  cached_input_tokens: ${roleTotals.usage_totals.cached_input_tokens}`);
+      console.log(`  output_tokens: ${roleTotals.usage_totals.output_tokens}`);
+    }
+  }
 }

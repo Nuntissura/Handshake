@@ -126,6 +126,9 @@ session-close role wp-id:
 session-registry-status wp-id="":
 	node {{GOV_ROOT}}/roles/orchestrator/scripts/session-registry-status.mjs {{wp-id}}
 
+wp-token-usage wp-id:
+	node {{GOV_ROOT}}/roles_shared/scripts/session/wp-token-usage-report.mjs {{wp-id}}
+
 session-control-runtime-check:
 	node {{GOV_ROOT}}/roles_shared/checks/session-control-runtime-check.mjs
 
@@ -263,6 +266,9 @@ validator-handoff-check wp-id *args:
 
 integration-validator-closeout-check wp-id:
 	@node {{GOV_ROOT}}/roles/validator/checks/integration-validator-closeout-check.mjs {{wp-id}}
+
+integration-validator-closeout-sync wp-id mode merged_main_sha="":
+	@node {{GOV_ROOT}}/roles/validator/scripts/integration-validator-closeout-sync.mjs {{wp-id}} {{mode}} {{merged_main_sha}}
 
 integration-validator-context-brief wp-id *args:
 	@node {{GOV_ROOT}}/roles/validator/checks/integration-validator-context-brief.mjs {{wp-id}} {{args}}

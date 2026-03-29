@@ -18,6 +18,10 @@ import {
   normalizeValidatorRole,
 } from "./validator-governance-lib.mjs";
 import { validateSignedScopeCompatibilityTruth } from "../../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
+import {
+  committedEvidenceForCloseout,
+  livePrepareWorktreeHealthEvidence,
+} from "./committed-validation-evidence-lib.mjs";
 
 function makeIssueSet() {
   return new Set();
@@ -85,11 +89,18 @@ export function evaluateIntegrationValidatorTopology({
     issues.add("Committed handoff validation evidence is missing.");
     return { ok: false, issues: Array.from(issues), warnings };
   }
-  if (normalizeStatus(committedEvidence.status) !== "PASS") {
-    issues.add(`Committed handoff validation evidence must be PASS (found ${committedEvidence.status || "NONE"}).`);
+  const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
+  const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
+  if (normalizeStatus(durableCommittedProof?.status) !== "PASS") {
+    issues.add(`Committed handoff validation evidence must include a durable PASS proof (found ${durableCommittedProof?.status || "NONE"}).`);
+  }
+  if (livePrepareHealth && normalizeStatus(livePrepareHealth.status) !== "PASS") {
+    warnings.push(
+      `Live PREPARE worktree health is ${livePrepareHealth.status}; closeout may still proceed only because a prior committed target proof already passed.`,
+    );
   }
 
-  const targetHeadSha = String(committedEvidence?.target_head_sha || "").trim();
+  const targetHeadSha = String(durableCommittedProof?.target_head_sha || "").trim();
   if (!targetHeadSha) {
     issues.add("Committed handoff validation evidence is missing target_head_sha.");
     return { ok: false, issues: Array.from(issues), warnings };
@@ -124,6 +135,8 @@ export function evaluateIntegrationValidatorTopology({
     resolvedWorktreeAbs: normalizePath(worktreeAbs),
     targetHeadSha,
     currentMainHeadSha,
+    livePrepareHealth,
+    durableCommittedProof,
   };
 }
 
@@ -227,6 +240,7 @@ export function evaluateIntegrationValidatorCloseoutState({
   packetContent = "",
   actorContext = {},
   committedEvidence = null,
+  requireReadyForPass = true,
   gitRunner = null,
   worktreeExists = fs.existsSync,
   fileExists = fs.existsSync,
@@ -270,7 +284,7 @@ export function evaluateIntegrationValidatorCloseoutState({
   const scopeCompatibility = validateSignedScopeCompatibilityTruth(packetContent, {
     packetPath: `<${wpId}>`,
     currentMainHeadSha: topology.currentMainHeadSha || "",
-    requireReadyForPass: true,
+    requireReadyForPass,
   });
 
   return {
