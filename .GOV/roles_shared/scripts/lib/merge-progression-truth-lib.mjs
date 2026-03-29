@@ -95,6 +95,14 @@ function resolveIntegrationValidatorWorktreeAbs(packetText, repoRoot) {
     : path.resolve(repoRoot || process.cwd(), declared);
 }
 
+function resolveCoderWorktreeAbs(packetText, repoRoot) {
+  const declared = parseSingleField(packetText, "LOCAL_WORKTREE_DIR");
+  if (!declared) return "";
+  return path.isAbsolute(declared)
+    ? path.resolve(declared)
+    : path.resolve(repoRoot || process.cwd(), declared);
+}
+
 function defaultMainContainmentVerifier({ mergedMainCommit, integrationWorktreeAbs }) {
   if (!integrationWorktreeAbs || !fs.existsSync(integrationWorktreeAbs)) {
     return {
@@ -135,6 +143,44 @@ function defaultMainContainmentVerifier({ mergedMainCommit, integrationWorktreeA
     reason: containsResult.status === 0
       ? "contained in main"
       : `commit ${mergedMainCommit} is not an ancestor of local main in ${integrationWorktreeAbs}`,
+  };
+}
+
+function defaultMergePendingWorktreeVerifier({ localBranch, coderWorktreeAbs }) {
+  if (!localBranch) {
+    return {
+      ok: false,
+      reason: "LOCAL_BRANCH is missing",
+    };
+  }
+  if (!coderWorktreeAbs || !fs.existsSync(coderWorktreeAbs)) {
+    return {
+      ok: false,
+      reason: `declared coder worktree missing (${coderWorktreeAbs || "<missing>"})`,
+    };
+  }
+
+  const branchResult = spawnSync("git", ["-C", coderWorktreeAbs, "rev-parse", "--abbrev-ref", "HEAD"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (branchResult.status !== 0) {
+    return {
+      ok: false,
+      reason: `cannot read branch from ${coderWorktreeAbs}`,
+    };
+  }
+  const branch = String(branchResult.stdout || "").trim();
+  if (branch !== localBranch) {
+    return {
+      ok: false,
+      reason: `declared coder worktree is on ${branch || "<unknown>"} instead of ${localBranch}`,
+    };
+  }
+
+  return {
+    ok: true,
+    reason: "coder worktree remains available for merge containment",
   };
 }
 
@@ -179,6 +225,7 @@ export function validateMergeProgressionTruth(
     repoRoot = process.cwd(),
     runtimeStatusData = undefined,
     mainContainmentVerifier = null,
+    mergePendingWorktreeVerifier = null,
   } = {},
 ) {
   const parsed = parseMergeProgressionTruth(packetText);
@@ -271,6 +318,18 @@ export function validateMergeProgressionTruth(
     }
     if (!verifiedAtIsNone) {
       errors.push("Done / MERGE_PENDING must not record MAIN_CONTAINMENT_VERIFIED_AT_UTC before main containment exists");
+    }
+    const localBranch = parseSingleField(packetText, "LOCAL_BRANCH");
+    const coderWorktreeAbs = resolveCoderWorktreeAbs(packetText, repoRoot);
+    const verifier = mergePendingWorktreeVerifier || defaultMergePendingWorktreeVerifier;
+    const mergePending = verifier({
+      localBranch,
+      coderWorktreeAbs,
+      packetPath,
+      repoRoot,
+    });
+    if (!mergePending.ok) {
+      errors.push(`Done / MERGE_PENDING requires an active coder worktree path until main containment exists: ${mergePending.reason}`);
     }
   } else {
     if (parsed.mainContainmentStatus !== "NOT_STARTED") {
