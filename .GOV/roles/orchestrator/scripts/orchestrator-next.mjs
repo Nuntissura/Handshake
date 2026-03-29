@@ -29,6 +29,9 @@ import {
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { EXECUTION_OWNER_RANGE_HELP } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
+import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 
 const STATE_FILE = resolveOrchestratorGatesPath();
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
@@ -71,6 +74,61 @@ function hasStubLine(wpId) {
   if (!exists(TASK_BOARD_PATH)) return false;
   const content = fs.readFileSync(TASK_BOARD_PATH, "utf8");
   return content.includes(`- **[${wpId}]** - [STUB]`);
+}
+
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
+  const match = String(text || "").match(re);
+  return match ? match[1].trim() : "";
+}
+
+function loadProjectionDriftState(wpId, packetPath, packetText) {
+  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  if (!runtimeStatusFile || !exists(runtimeStatusFile)) return null;
+
+  const runtimeStatus = parseJsonFile(runtimeStatusFile);
+  const receipts = receiptsFile && exists(receiptsFile) ? parseJsonlFile(receiptsFile) : [];
+  const communicationEvaluation = evaluateWpCommunicationHealth({
+    wpId,
+    stage: "STATUS",
+    packetPath,
+    workflowLane: parseSingleField(packetText, "WORKFLOW_LANE"),
+    packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
+    communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
+    communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
+    receipts,
+    runtimeStatus,
+  });
+  return {
+    runtimeStatus,
+    communicationEvaluation,
+    drift: evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus, {
+      communicationEvaluation,
+    }),
+  };
+}
+
+function closeoutSyncCommandForProjection(wpId, projection = {}, runtimeStatus = {}, communicationEvaluation = null) {
+  const packetStatus = String(projection.current_packet_status || "").trim();
+  if (packetStatus === "Done") {
+    return `just task-board-set ${wpId} DONE_MERGE_PENDING`;
+  }
+  if (/^Validated \(/i.test(packetStatus)) {
+    return /^Validated\s*\(\s*PASS\s*\)$/i.test(packetStatus)
+      ? `just task-board-set ${wpId} DONE_VALIDATED`
+      : /^Validated\s*\(\s*FAIL\s*\)$/i.test(packetStatus)
+        ? `just task-board-set ${wpId} DONE_FAIL`
+        : `just task-board-set ${wpId} DONE_OUTDATED_ONLY`;
+  }
+  if (
+    communicationEvaluation?.ok
+    && String(communicationEvaluation.state || "").trim().toUpperCase() === "COMM_OK"
+    && String(projection.current_main_compatibility_status || "").trim().toUpperCase() === "NOT_RUN"
+  ) {
+    return `just integration-validator-closeout-sync ${wpId} DONE_MERGE_PENDING`;
+  }
+  return `just integration-validator-context-brief ${wpId}`;
 }
 
 function stageScore(stage, detail = {}) {
@@ -399,6 +457,30 @@ function main() {
 
   const needsStubCleanup = hasStubLine(wpId);
   const syncState = preparedWorktreeSyncState(wpId, lastPrepare, gitContext.topLevel || process.cwd());
+  const packetText = fs.readFileSync(packetPath, "utf8");
+  const packetRuntimeState = loadProjectionDriftState(wpId, packetPath, packetText);
+  if (packetRuntimeState && !packetRuntimeState.drift.ok) {
+    printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
+    printOperatorEnvelope("NONE", "NONE");
+    printConfidence(confidence.level, confidence.detail);
+    printState("Packet/runtime closeout projection drift is blocking further delegation until status truth is reconciled.");
+    printFindings([
+      `Packet: ${packetPath}`,
+      `Runtime: ${parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE") || "<missing>"}`,
+      ...packetRuntimeState.drift.issues,
+    ]);
+    printNextCommands([
+      `just integration-validator-context-brief ${wpId}`,
+      closeoutSyncCommandForProjection(
+        wpId,
+        packetRuntimeState.drift.projection,
+        packetRuntimeState.runtimeStatus,
+        packetRuntimeState.communicationEvaluation,
+      ),
+      `just orchestrator-next ${wpId}`,
+    ]);
+    return;
+  }
   if (!syncState.ok) {
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorEnvelope("NONE", "NONE");

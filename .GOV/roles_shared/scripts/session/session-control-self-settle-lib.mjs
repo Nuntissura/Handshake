@@ -12,6 +12,7 @@ import {
   buildSessionControlResult,
   defaultSessionOutputFile,
 } from "./session-control-lib.mjs";
+import { syncWpTokenUsageLedger } from "./wp-token-usage-lib.mjs";
 import {
   SESSION_CONTROL_RESULTS_FILE,
   normalizePath,
@@ -206,6 +207,9 @@ export function settleRecoverableSessionControlResults(repoRoot, {
       } else {
         liveSession.last_event_at = result.processed_at;
       }
+    });
+    syncWpTokenUsageLedger(repoRoot, result, {
+      session: session || undefined,
     });
 
     settled.push({

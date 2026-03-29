@@ -171,10 +171,33 @@ export function workflowInvalidityReceipts(receipts = []) {
   );
 }
 
+export function repairReceipts(receipts = []) {
+  return (Array.isArray(receipts) ? receipts : []).filter(
+    (entry) => String(entry?.receipt_kind || "").trim().toUpperCase() === "REPAIR",
+  );
+}
+
 export function latestWorkflowInvalidityReceipt(receipts = []) {
   return [...workflowInvalidityReceipts(receipts)]
     .sort((left, right) => String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || "")))
     .at(-1) || null;
+}
+
+export function activeWorkflowInvalidityReceipt(receipts = []) {
+  const ordered = [...(Array.isArray(receipts) ? receipts : [])]
+    .sort((left, right) => String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || "")));
+  let active = null;
+  for (const entry of ordered) {
+    const kind = String(entry?.receipt_kind || "").trim().toUpperCase();
+    if (kind === WORKFLOW_INVALIDITY_RECEIPT_KIND) {
+      active = entry;
+      continue;
+    }
+    if (kind === "REPAIR") {
+      active = null;
+    }
+  }
+  return active;
 }
 
 export function ensureSchemaFilesExist() {
@@ -275,6 +298,11 @@ export function validateRuntimeStatus(data) {
     "main_containment_status",
     "merged_main_commit",
     "main_containment_verified_at_utc",
+    "current_main_compatibility_status",
+    "current_main_compatibility_baseline_sha",
+    "current_main_compatibility_verified_at_utc",
+    "packet_widening_decision",
+    "packet_widening_evidence",
   ];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
@@ -342,6 +370,21 @@ export function validateRuntimeStatus(data) {
   }
   if ("main_containment_verified_at_utc" in data && !isNullableRfc3339Utc(data.main_containment_verified_at_utc)) {
     errors.push(`main_containment_verified_at_utc invalid (${data.main_containment_verified_at_utc})`);
+  }
+  if ("current_main_compatibility_status" in data && !isNullableString(data.current_main_compatibility_status)) {
+    errors.push(`current_main_compatibility_status invalid (${data.current_main_compatibility_status})`);
+  }
+  if ("current_main_compatibility_baseline_sha" in data && !isNullableSha(data.current_main_compatibility_baseline_sha)) {
+    errors.push(`current_main_compatibility_baseline_sha invalid (${data.current_main_compatibility_baseline_sha})`);
+  }
+  if ("current_main_compatibility_verified_at_utc" in data && !isNullableRfc3339Utc(data.current_main_compatibility_verified_at_utc)) {
+    errors.push(`current_main_compatibility_verified_at_utc invalid (${data.current_main_compatibility_verified_at_utc})`);
+  }
+  if ("packet_widening_decision" in data && !isNullableString(data.packet_widening_decision)) {
+    errors.push(`packet_widening_decision invalid (${data.packet_widening_decision})`);
+  }
+  if ("packet_widening_evidence" in data && !isNullableString(data.packet_widening_evidence)) {
+    errors.push(`packet_widening_evidence invalid (${data.packet_widening_evidence})`);
   }
   if (!RUNTIME_STATUS_VALUES.includes(data.runtime_status)) errors.push(`runtime_status invalid (${data.runtime_status})`);
   if (!isNonEmptyString(data.current_phase) || !/^[A-Z][A-Z0-9_]*$/.test(data.current_phase)) {

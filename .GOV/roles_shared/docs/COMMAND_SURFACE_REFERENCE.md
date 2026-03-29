@@ -46,7 +46,10 @@ These are safe starting points for orientation and health checks.
   - presence check for required governance docs
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
-  - inspect governed session state
+  - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role
+- `just wp-token-usage WP-{ID}`
+  - `read-only`
+  - print the governed per-WP token ledger aggregated from settled ACP session outputs
 - `just handshake-acp-broker-status`
   - `read-only`
   - inspect ACP broker liveness/state
@@ -153,8 +156,8 @@ These mutate packet, board, traceability, or related governed surfaces.
 
 These mutate governed runtime state and should not be run from inside Coder or Validator sessions.
 For Orchestrator-managed WPs, this ACP/CLI session surface is the required normal delegation path.
-Helper agents/subagents may assist on governance/spec/runtime/orchestrator tasks, but they are not Coder or Validator lanes.
-Do not use helper agents/subagents for Coder or Validator duties, and do not let them write product code, unless the Operator explicitly approved that path and the packet records `SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`.
+For an active orchestrator-managed WP, helper agents/subagents are not allowed to perform coder, validator, or in-lane review/steering duties. Governed ACP sessions are the only legal execution lanes for `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR`.
+If the Operator explicitly authorizes separate governance-only helper work outside the active lane, keep it isolated and do not let it write product code unless the packet records `SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`.
 
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} ...`
@@ -260,6 +263,7 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
 - `just validator-handoff-check WP-{ID}`
 - `just integration-validator-context-brief WP-{ID}`
 - `just integration-validator-closeout-check WP-{ID}`
+- `just integration-validator-closeout-sync WP-{ID} <MERGE_PENDING|CONTAINED_IN_MAIN> [MERGED_MAIN_SHA]`
 - `just validator-packet-complete WP-{ID}`
 - `just wp-declared-topology-check WP-{ID}`
 - `just validator-policy-gate WP-{ID}`
@@ -267,6 +271,7 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
     - primary validator gate surface
     - `integration-validator-context-brief` is the canonical final-lane authority/path/source-of-truth bundle for orchestrator-managed Integration Validator review; use it instead of rereading large protocols or rediscovering final-lane paths/commands
     - `integration-validator-closeout-check` is the final-lane topology, atomic-closeout, and current-`main` signed-scope compatibility preflight for orchestrator-managed PASS closure
+    - `integration-validator-closeout-sync` is the governed writer that reconciles packet signed-scope compatibility truth plus TASK_BOARD/runtime projection after the preflight is green
     - `wp-declared-topology-check` surfaces packet-declared vs actual linked-worktree truth for one WP and fails on undeclared auxiliary worktrees
   - for `PACKET_FORMAT_VERSION >= 2026-03-25`, `Done` means merge-pending PASS and `Validated (PASS)` requires recorded containment in local `main`
   - for `PACKET_FORMAT_VERSION >= 2026-03-26`, PASS closure also requires recorded `CURRENT_MAIN_COMPATIBILITY_*` truth plus `PACKET_WIDENING_DECISION=NOT_REQUIRED`; adjacent shared-surface drift must route to a follow-on or superseding packet instead of ad hoc widening

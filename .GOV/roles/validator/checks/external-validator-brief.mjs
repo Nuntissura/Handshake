@@ -18,6 +18,7 @@ import {
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import { evaluateValidatorPacketGovernanceState } from "../scripts/lib/validator-governance-lib.mjs";
+import { committedEvidenceForCloseout } from "../scripts/lib/committed-validation-evidence-lib.mjs";
 
 function usage() {
   console.error("Usage: node .GOV/roles/validator/checks/external-validator-brief.mjs WP-{ID} [--json]");
@@ -227,6 +228,7 @@ const prepareWorktreeHead =
     ? safeGit(prepareWorktreeAbs, ["rev-parse", "HEAD"])
     : "";
 const committedEvidence = loadCommittedValidationEvidence(parsed.wpId);
+const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
 
 const contextNotes = [];
 let validationContext = "OK";
@@ -256,7 +258,7 @@ if (prepareEntry && (!prepareWorktreeAbs || !fs.existsSync(prepareWorktreeAbs)))
 }
 
 const codeTargetCommit =
-  String(committedEvidence?.target_head_sha || "").trim()
+  String(durableCommittedProof?.target_head_sha || "").trim()
   || prepareWorktreeHead
   || "HEAD of PREPARE worktree";
 

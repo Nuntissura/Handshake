@@ -73,7 +73,7 @@ Requirements:
 - ROLE_SESSION_REASONING_CONFIG_VALUE: {{ROLE_SESSION_REASONING_CONFIG_VALUE}}
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next {{WP_ID}}
-<!-- Validator roles keep distinct local branches/worktrees, but they mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
+<!-- The WP Validator uses a dedicated local review branch/worktree rooted from the coder branch. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
 - WP_VALIDATOR_LOCAL_BRANCH: {{WP_VALIDATOR_LOCAL_BRANCH}}
 - WP_VALIDATOR_LOCAL_WORKTREE_DIR: {{WP_VALIDATOR_LOCAL_WORKTREE_DIR}}
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: {{WP_VALIDATOR_REMOTE_BACKUP_BRANCH}}

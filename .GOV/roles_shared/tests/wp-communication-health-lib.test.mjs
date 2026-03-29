@@ -139,6 +139,39 @@ test("auto route projects coder handoff into validator review wake state", () =>
   assert.equal(route.notification, null, "explicit handoff target should not get a duplicate auto-route notification");
 });
 
+test("communication health ignores historical invalidity once a later repair receipt exists", () => {
+  const input = baseInput({
+    receipts: [
+      {
+        receipt_kind: "WORKFLOW_INVALIDITY",
+        actor_role: "ORCHESTRATOR",
+        actor_session: "orch-1",
+        target_role: "ORCHESTRATOR",
+        target_session: null,
+        correlation_id: null,
+        ack_for: null,
+        workflow_invalidity_code: "SCOPE_CONFLICT",
+        timestamp_utc: "2026-03-22T10:00:00Z",
+      },
+      {
+        receipt_kind: "REPAIR",
+        actor_role: "ORCHESTRATOR",
+        actor_session: "orch-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: null,
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:00:30Z",
+      },
+    ],
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+
+  assert.equal(evaluation.state, "COMM_MISSING_KICKOFF");
+  assert.equal(evaluation.activeWorkflowInvalidityCode, null);
+});
+
 test("auto route sends coder back to initiate missing final review exchange", () => {
   const input = baseInput({
     receipts: [

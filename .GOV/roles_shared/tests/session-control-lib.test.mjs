@@ -37,3 +37,21 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
   assert.match(prompt, /Final merge-ready authority/i);
   assert.match(prompt, /ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature\/prepare/i);
 });
+
+test("wp-validator startup prompt uses the dedicated validator lane and early steering instructions", () => {
+  const wpId = "WP-TEST-WPVAL-v1";
+  const roleConfig = resolveRoleConfig("WP_VALIDATOR", wpId);
+  const prompt = buildStartupPrompt({
+    role: "WP_VALIDATOR",
+    wpId,
+    roleConfig,
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+  });
+
+  assert.match(roleConfig.branch, /^validate\/WP-TEST-WPVAL-v1$/);
+  assert.match(roleConfig.worktreeDir, /^\.\.\/wtv-/);
+  assert.match(prompt, /SESSION ISOLATION: do not spawn or use helper agents\/subagents/i);
+  assert.match(prompt, /judge bootstrap\/skeleton\/micro-task direction early/i);
+  assert.match(prompt, /EARLY STEERING \(MANDATORY\): You are the first technical judge for coder BOOTSTRAP, SKELETON, and completed micro tasks/i);
+  assert.match(prompt, /WORKTREE SYNC \(MANDATORY\): Keep your dedicated validator branch\/worktree reviewable against the coder branch/i);
+});

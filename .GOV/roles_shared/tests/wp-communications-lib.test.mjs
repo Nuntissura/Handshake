@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  activeWorkflowInvalidityReceipt,
   COMM_ROOT,
   communicationPathsForWp,
   communicationTransactionLockPathForWp,
@@ -163,6 +164,33 @@ function workflowInvalidityReceiptFixture(overrides = {}) {
   };
 }
 
+function repairReceiptFixture(overrides = {}) {
+  return {
+    schema_version: "wp_receipt@1",
+    timestamp_utc: "2026-03-24T10:05:00Z",
+    wp_id: "WP-TEST-RUNTIME-v1",
+    actor_role: "ORCHESTRATOR",
+    actor_session: "orch-1",
+    actor_authority_kind: "WORKFLOW_AUTHORITY",
+    validator_role_kind: null,
+    receipt_kind: "REPAIR",
+    summary: "Scope truth repaired; resume governed lane",
+    branch: "gov_kernel",
+    worktree_dir: "../wt-gov-kernel",
+    state_before: "WORKFLOW_INVALID",
+    state_after: "SCOPE_REPAIRED",
+    target_role: "CODER",
+    target_session: "coder-1",
+    correlation_id: null,
+    requires_ack: false,
+    ack_for: null,
+    spec_anchor: "CLAUSE_CLOSURE_MATRIX",
+    packet_row_ref: "IN_SCOPE_PATHS",
+    refs: [".GOV/task_packets/WP-TEST-RUNTIME-v1/packet.md"],
+    ...overrides,
+  };
+}
+
 test("validateReceipt requires target_session for direct-review receipts", () => {
   const errors = validateReceipt(reviewResolutionReceiptFixture({
     target_session: null,
@@ -187,4 +215,21 @@ test("validateReceipt requires workflow_invalidity_code for WORKFLOW_INVALIDITY 
     workflow_invalidity_code: null,
   }));
   assert.match(errors.join("\n"), /workflow_invalidity_code is required for WORKFLOW_INVALIDITY/);
+});
+
+test("activeWorkflowInvalidityReceipt returns the unresolved invalidity when no repair follows", () => {
+  const active = activeWorkflowInvalidityReceipt([
+    workflowInvalidityReceiptFixture(),
+  ]);
+
+  assert.equal(active?.workflow_invalidity_code, "ORCHESTRATOR_MANAGED_CHECKPOINT_RELAPSE");
+});
+
+test("activeWorkflowInvalidityReceipt clears earlier invalidity after a later repair receipt", () => {
+  const active = activeWorkflowInvalidityReceipt([
+    workflowInvalidityReceiptFixture(),
+    repairReceiptFixture(),
+  ]);
+
+  assert.equal(active, null);
 });

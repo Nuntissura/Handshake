@@ -18,7 +18,11 @@ import {
 import { validateMergeProgressionTruth } from "../../../roles_shared/scripts/lib/merge-progression-truth-lib.mjs";
 import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/semantic-proof-lib.mjs";
 import { validateSignedScopeCompatibilityTruth } from "../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
-import { parseJsonlFile, workflowInvalidityReceipts } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import {
+  activeWorkflowInvalidityReceipt,
+  parseJsonlFile,
+  workflowInvalidityReceipts,
+} from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { evaluateWpDeclaredTopology } from "../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
 
 const wpId = process.argv[2];
@@ -69,9 +73,13 @@ function parseSingleField(label) {
 
 function loadWorkflowInvalidityEntries() {
   const receiptsFile = parseSingleField("WP_RECEIPTS_FILE");
-  if (!receiptsFile) return [];
+  if (!receiptsFile) return { history: [], active: null };
   try {
-    return workflowInvalidityReceipts(parseJsonlFile(receiptsFile));
+    const receipts = parseJsonlFile(receiptsFile);
+    return {
+      history: workflowInvalidityReceipts(receipts),
+      active: activeWorkflowInvalidityReceipt(receipts),
+    };
   } catch (error) {
     fail(`cannot read workflow invalidity receipts from ${receiptsFile}: ${error.message}`);
   }
@@ -214,8 +222,9 @@ if (!hasLine(/USER_SIGNATURE/i) && !hasLine(/User Signature Locked/i)) {
 
 // Newer template-only requirements (avoid breaking legacy packets).
 const packetFormatVersion = parseSingleField("PACKET_FORMAT_VERSION");
-const workflowInvalidityEntries = loadWorkflowInvalidityEntries();
-const latestWorkflowInvalidity = workflowInvalidityEntries.at(-1) || null;
+const workflowInvalidityState = loadWorkflowInvalidityEntries();
+const workflowInvalidityEntries = workflowInvalidityState.history;
+const activeWorkflowInvalidity = workflowInvalidityState.active;
 const topologyEvaluation = evaluateWpDeclaredTopology({
   repoRoot: process.cwd(),
   wpId,
@@ -425,9 +434,9 @@ if (packetFormatVersion) {
     const residualUncertainty = extractListItemsAfterLabel(validationReports, "RESIDUAL_UNCERTAINTY");
     const boundaryProbes = extractListItemsAfterLabel(validationReports, "BOUNDARY_PROBES");
     const negativePathChecks = extractListItemsAfterLabel(validationReports, "NEGATIVE_PATH_CHECKS");
-    if (workflowInvalidityEntries.length > 0 && topLevelVerdict === "PASS") {
+    if (activeWorkflowInvalidity && topLevelVerdict === "PASS") {
       fail(
-        `Verdict=PASS prohibited when WORKFLOW_INVALIDITY receipts exist (${latestWorkflowInvalidity?.workflow_invalidity_code || "UNKNOWN"}: ${latestWorkflowInvalidity?.summary || "<missing>"})`
+        `Verdict=PASS prohibited when active WORKFLOW_INVALIDITY receipt exists (${activeWorkflowInvalidity?.workflow_invalidity_code || "UNKNOWN"}: ${activeWorkflowInvalidity?.summary || "<missing>"})`
       );
     }
     if (usesHeuristicRigorReport && specAlignmentVerdict === "PASS" && !hasOnlyNoneList(mainBodyGaps)) {
@@ -451,15 +460,15 @@ if (packetFormatVersion) {
       if (workflowValidity === "VALID" && governanceVerdict !== "PASS") {
         fail("WORKFLOW_VALIDITY=VALID requires GOVERNANCE_VERDICT=PASS");
       }
-      if (workflowInvalidityEntries.length > 0) {
+      if (activeWorkflowInvalidity) {
         if (workflowValidity === "VALID") {
           fail(
-            `WORKFLOW_VALIDITY=VALID prohibited when WORKFLOW_INVALIDITY receipts exist (${latestWorkflowInvalidity?.workflow_invalidity_code || "UNKNOWN"}: ${latestWorkflowInvalidity?.summary || "<missing>"})`
+            `WORKFLOW_VALIDITY=VALID prohibited when active WORKFLOW_INVALIDITY receipt exists (${activeWorkflowInvalidity?.workflow_invalidity_code || "UNKNOWN"}: ${activeWorkflowInvalidity?.summary || "<missing>"})`
           );
         }
         if (governanceVerdict === "PASS") {
           fail(
-            `GOVERNANCE_VERDICT=PASS prohibited when WORKFLOW_INVALIDITY receipts exist (${latestWorkflowInvalidity?.workflow_invalidity_code || "UNKNOWN"}: ${latestWorkflowInvalidity?.summary || "<missing>"})`
+            `GOVERNANCE_VERDICT=PASS prohibited when active WORKFLOW_INVALIDITY receipt exists (${activeWorkflowInvalidity?.workflow_invalidity_code || "UNKNOWN"}: ${activeWorkflowInvalidity?.summary || "<missing>"})`
           );
         }
       }

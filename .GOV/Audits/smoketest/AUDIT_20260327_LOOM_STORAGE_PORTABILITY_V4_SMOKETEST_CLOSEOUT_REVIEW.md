@@ -6,28 +6,33 @@
 - SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260327-LOOM-STORAGE-PORTABILITY-V4
 - REVIEW_KIND: CLOSEOUT
 - DATE_UTC: 2026-03-27
+- LAST_UPDATED_UTC: 2026-03-28
 - AUTHOR: Codex acting as Orchestrator
 - HISTORICAL_BASELINE_PACKET: WP-1-Loom-Storage-Portability-v3
 - ACTIVE_RECOVERY_PACKET: WP-1-Loom-Storage-Portability-v4
-- LINEAGE_STATUS: LIVE_SMOKETEST_BASELINE_PENDING
+- LINEAGE_STATUS: LIVE_SMOKETEST_BASELINE_RECOVERED
+- PROJECTION_SYNC_STATUS: PENDING
 - RELATED_PREVIOUS_REVIEWS:
   - AUDIT-20260326-LOOM-STORAGE-PORTABILITY-V4-SMOKETEST-REVIEW
 - SCOPE:
   - historical failed-closure lineage from `WP-1-Loom-Storage-Portability-v3` through the 2026-03-26 recovery review
-  - current `WP-1-Loom-Storage-Portability-v4` closeout state on local `main` at `18cb2a417534ef8dd7ffa4990e200592c1ade4ba`
-  - follow-up remediation now staged on the active `feat/WP-1-Loom-Storage-Portability-v4` worktree at `../wtc-storage-portability-v4`
-  - ACP runtime, validator gate, session registry, Task Board, and traceability surfaces after local closeout
+  - current `WP-1-Loom-Storage-Portability-v4` closeout and post-containment state on local `main` at `a1fb1773e5cf506ec9d926a14ce7b0c0d2bf025c`
+  - contained SQLite parity remediation integrated on local `main` at `3123598`
+  - ACP runtime, validator gate, session registry, Task Board, and traceability surfaces after local closeout and subsequent containment
 - RESULT:
-  - PRODUCT_REMEDIATION: PARTIAL
-  - MASTER_SPEC_AUDIT: PARTIAL
+  - PRODUCT_REMEDIATION: PASS
+  - MASTER_SPEC_AUDIT: PASS ON THE SIGNED WP SCOPE
   - WORKFLOW_DISCIPLINE: PARTIAL
   - ACP_RUNTIME_DISCIPLINE: PASS
   - MERGE_PROGRESSION: PASS
+  - PROJECTION_SYNC: PARTIAL
 - KEY_COMMITS_REVIEWED:
   - `e867469` `merge: selective Loom v3 integration from 7aa995b [WP-1-Loom-Storage-Portability-v3]`
-  - `0e22102` `docs: bootstrap claim [WP-1-Loom-Storage-Portability-v4]`
   - `277dfa1` `gov: close WP-1 loom portability v4`
   - `18cb2a4` `gov: sync governance kernel d594f0a`
+  - `3123598` `merge: integrate WP-1 Loom sqlite parity fix`
+  - `881c4b6` `gov: harden portable contract parity checks`
+  - `a1fb177` `gov: sync governance kernel 881c4b6`
 - EVIDENCE_SOURCES:
   - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
   - `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`
@@ -47,15 +52,13 @@
   - `../handshake_main/src/backend/handshake_core/src/storage/postgres.rs`
   - `../handshake_main/src/backend/handshake_core/src/storage/tests.rs`
   - `../handshake_main/src/backend/handshake_core/tests/storage_conformance.rs`
-  - `../wtc-storage-portability-v4/src/backend/handshake_core/src/storage/sqlite.rs`
-  - `../wtc-storage-portability-v4/src/backend/handshake_core/src/storage/tests.rs`
 - RELATED_GOVERNANCE_ITEMS:
   - RGF-04
   - RGF-05
   - RGF-08
 - RELATED_CHANGESETS:
-  - active v4 worktree delta in `../wtc-storage-portability-v4/src/backend/handshake_core/src/storage/sqlite.rs`
-  - active v4 worktree delta in `../wtc-storage-portability-v4/src/backend/handshake_core/src/storage/tests.rs`
+  - contained v4 parity delta in `../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs`
+  - contained v4 parity delta in `../handshake_main/src/backend/handshake_core/src/storage/tests.rs`
   - governance hardening in `.GOV/templates/TASK_PACKET_TEMPLATE.md`
   - governance hardening in `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
 
@@ -63,10 +66,10 @@
 
 ## 1. Executive Summary
 
-- Fresh code-vs-spec inspection showed that `WP-1-Loom-Storage-Portability-v4` had not fully closed the base WP after `v1` through `v4`: `LoomSearchFilters.backlink_depth` was carried through the API and honored on PostgreSQL, but local `main` SQLite `search_loom_blocks` ignored it. Follow-up remediation is now staged on the active `feat/WP-1-Loom-Storage-Portability-v4` worktree: SQLite consumes `backlink_depth` for recursive graph-filter search, and the shared Loom storage conformance suite now proves that behavior on SQLite instead of short-circuiting it.
+- The previously remaining Loom portability gap is now contained in local `main`: `LoomSearchFilters.backlink_depth` is consumed by both PostgreSQL and SQLite, and the shared Loom storage conformance suite now proves that behavior on SQLite instead of only on PostgreSQL.
 - Most of the historical `v3` dispute is still resolved on current local `main`: traversal and metrics routes exist, portable migration checks pass, directional edge readers exist, source-anchor replay survives, and the 10K-block traversal performance probes still pass in the packet harness.
 - The new prevention controls are also now explicit in governance: the task-packet template forbids closing portable clauses from a single-backend proof row, and the validator protocol now requires field-by-field tracing across every declared consumer/backend.
-- Packet truth, runtime truth, validator-gate truth, and ACP session truth are clean, but the live smoketest baseline should remain pending until the active v4 remediation is formally validated/contained and the closeout projections are reconciled.
+- Packet truth, runtime truth, validator-gate truth, ACP session truth, and product containment on `main` are now aligned enough to call the historical baseline recovered in substance. The remaining issue is projection drift: Task Board and traceability still describe the Loom historical baseline as pending and still project the active packet like a stub/backlog item.
 
 ## 2. Lineage and What This Run Needed To Prove
 
@@ -88,10 +91,11 @@
 - Focused follow-up checks also passed:
   - `api::loom::tests::graph_traversal_and_metrics_routes_work`
   - `storage::tests::loom_migration_schema_is_portable_sqlite`
-- Follow-up remediation after that audit now exists on the active v4 worktree:
+- Follow-up remediation after that audit is now contained on local `main`:
   - SQLite `search_loom_blocks` consumes `backlink_depth` for recursive tag/mention graph filtering
   - the shared helper `loom_search_graph_filter_portable` now runs inside the common conformance suite for SQLite as well as PostgreSQL
-  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml sqlite_loom_storage_conformance -- --exact --nocapture` passed after the fix
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml sqlite_loom_storage_conformance -- --exact --nocapture` passes on current `main`
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml api::loom::tests::graph_traversal_and_metrics_routes_work -- --exact --nocapture` passes on current `main`
 - The workflow is materially cleaner than the 2026-03-26 recovery review:
   - `just validator-handoff-check WP-1-Loom-Storage-Portability-v4` passed
   - `just integration-validator-closeout-check WP-1-Loom-Storage-Portability-v4` passed
@@ -100,13 +104,13 @@
   - `just gov-check` passed after packet-template and validator-protocol hardening
   - coder, WP validator, and integration validator ACP sessions were all launched and then closed cleanly
 - What did not improve enough:
-  - current local `main` and packet closeout truth still predate the active v4 remediation delta
   - the base-WP traceability projection still labels the active packet like a stub-backlog item
-  - packet/runtime/gate truth still says `Validated (PASS)` even though the fresh historical-smoketest judgment remains pending
+  - `TASK_BOARD.md` and `WP_TRACEABILITY_REGISTRY.md` still say the Loom historical baseline is pending even though the product fix is contained in `main`
+  - there is still no deterministic one-command PostgreSQL bootstrap for fresh Loom proof on every machine
 
 ## 3. Product Outcome
 
-- The closeout audit did uncover one real remaining product gap on local `main`, and follow-up remediation is now staged on the active `feat/WP-1-Loom-Storage-Portability-v4` worktree rather than already contained on `main`.
+- The closeout audit did uncover one real remaining product gap on local `main`, and that gap has now been carried into local `main` in commit `3123598`.
 - Most of the base-WP surface is present on `main`:
   - storage-trait methods exist for `get_backlinks`, `get_outgoing_edges`, `traverse_graph`, `recompute_block_metrics`, and `recompute_all_metrics`
   - SQLite and PostgreSQL backend implementations exist
@@ -117,14 +121,15 @@
 - The original remaining base-WP gap was:
   - `api/loom.rs` accepts `backlink_depth` and forwards it into the shared `LoomSearchFilters` contract
   - `postgres.rs` consumes `filters.backlink_depth` to widen graph-relationship search semantics
-  - local `main` `sqlite.rs` never consumed `filters.backlink_depth` inside `search_loom_blocks`
-  - the shared conformance suite only probed backlink-depth semantics on PostgreSQL, so this contract drift was not caught by current packet tests
-- That gap is now remediated on the active v4 worktree:
+  - pre-fix local `main` `sqlite.rs` never consumed `filters.backlink_depth` inside `search_loom_blocks`
+  - pre-fix shared conformance only probed backlink-depth semantics on PostgreSQL, so this contract drift was not caught by current packet tests
+- That gap is now remediated on current local `main`:
   - `src/backend/handshake_core/src/storage/sqlite.rs` adds recursive graph-filter handling for `backlink_depth` on both `tag_ids` and `mention_ids`
   - `src/backend/handshake_core/src/storage/tests.rs` renames the graph-filter helper to `loom_search_graph_filter_portable` and runs it through the shared Loom storage conformance path for SQLite as well as PostgreSQL
-  - focused SQLite conformance now passes with that proof in the common suite
+  - focused SQLite conformance now passes with that proof in the common suite on current `main`
 - Adjacent debt also remains:
-  - PostgreSQL follow-up rerun in this turn is still environment-gated because `POSTGRES_TEST_URL` is unset here
+  - a fresh PostgreSQL rerun in this update turn is still environment-gated because `POSTGRES_TEST_URL` is unset here
+  - `TASK_BOARD.md` and `WP_TRACEABILITY_REGISTRY.md` still project the historical baseline as pending even though the product gap is now fixed in `main`
   - downstream Loom bridge and archive integration work remains in separate stubs and was not part of `v4`
 
 ## 4. Timeline
@@ -152,38 +157,42 @@
 - 2026-03-26T23:58:27Z:
   - validator gate ledger reaches `USER_ACKNOWLEDGED`
 - 2026-03-27:
-  - this closeout smoketest review records the post-closeout state, the remaining product/spec gap, and the still-split status projections
+  - this closeout smoketest review first recorded the post-closeout state, the remaining product/spec gap, and the still-split status projections
+- 2026-03-27 later:
+  - the SQLite parity remediation was integrated into local `main` in commit `3123598`
+  - governance hardening was synced to local `main` in commit `a1fb177`
+- 2026-03-28:
+  - this review was updated to reflect that the product gap is now contained in `main` and that the remaining failure surface is stale projection truth rather than live backend drift
 
 ## 5. Failure Inventory
 
-### 5.1 High: local `main` still lacks portable `backlink_depth` parity, even though follow-up remediation now exists on the active v4 worktree
+### 5.1 Medium: The original `backlink_depth` parity failure is fixed on `main`, but the review/projection surfaces still lag that recovery
 
 Evidence:
 
 - `Handshake_Master_Spec_v02.178.md` states that `LoomSearchFilters` is a canonical portable backend contract whose meaning must survive SQLite and PostgreSQL, and `[LM-SEARCH-001]` requires a backend-agnostic search API
 - `src/backend/handshake_core/src/api/loom.rs` forwards `backlink_depth` into `LoomSearchFilters`
 - `src/backend/handshake_core/src/storage/postgres.rs` consumes `filters.backlink_depth`
-- local `main` `src/backend/handshake_core/src/storage/sqlite.rs` never reads `filters.backlink_depth` in `search_loom_blocks`
-- local `main` `src/backend/handshake_core/src/storage/tests.rs` only exercises backlink-depth graph filtering on PostgreSQL
-- active v4 worktree `src/backend/handshake_core/src/storage/sqlite.rs` now consumes `filters.backlink_depth`
-- active v4 worktree `src/backend/handshake_core/src/storage/tests.rs` now executes the same graph-filter proof as a portable conformance helper
+- current local `main` `src/backend/handshake_core/src/storage/sqlite.rs` now reads `filters.backlink_depth` in `search_loom_blocks`
+- current local `main` `src/backend/handshake_core/src/storage/tests.rs` now exercises backlink-depth graph filtering through `loom_search_graph_filter_portable`
+- `git log --oneline -n 6` in `../handshake_main` shows containment commit `3123598` and later governance sync `a1fb177`
 - `WP-1-Loom-Storage-Portability-v2` explicitly defined portable search-filter meaning across both backends as in-scope and required parity to be proven by tests, not inferred
 
 Reason:
 
-- the packet lineage proved PostgreSQL graph-filter semantics and general search parity, but it never re-established the same `backlink_depth` meaning on SQLite before packet closeout
-- the follow-up remediation now exists, but it is not yet contained in local `main` or reflected in the packet closeout truth
+- the original closeout review correctly caught a real portability gap, but that finding became stale once the SQLite parity fix and shared portability test were integrated into `main`
+- the audit file, Task Board lineage row, and traceability projection were not updated in the same step as containment
 
 Impact:
 
-- the same shared `LoomSearchFilters` request still produces different graph-filter behavior on current local `main` depending on backend
-- the base WP cannot yet be called historically recovered until the follow-up delta is validated/contained
-- the packet and earlier closeout language overstated recovery
+- readers of the old review text still get the wrong impression that the backend contract gap remains open
+- lineage/projection surfaces still imply the base WP is unrecovered even though the product fix is now contained in `main`
+- the repo still lacks one authoritative post-containment settlement step for smoketest reviews and lineage projections
 
 Judgment:
 
 - this was the main remaining product/spec gap after `v1`, `v2`, `v3`, and `v4`
-- the product fix is now present on the active v4 worktree, but the historical closeout baseline remains pending until that delta is formally carried through
+- that product gap is now closed on current local `main`; the remaining issue is governance projection lag
 
 ### 5.2 Medium: Packet closeout truth and historical-lineage truth now disagree
 
@@ -195,8 +204,8 @@ Evidence:
 
 Reason:
 
-- packet/runtime/gate/session surfaces were closed before this fresh product-vs-spec audit uncovered the remaining SQLite portable-search gap
-- the repo has no authoritative settlement path for "packet-level PASS exists, but the latest smoketest review still keeps the historical baseline pending"
+- packet/runtime/gate/session surfaces and `main` containment are now all green, but historical-lineage projections were never synced after the later `3123598` containment
+- the repo still has no authoritative settlement path for "product fix is now contained, but Task Board/traceability still carry an older smoketest status"
 
 Impact:
 
@@ -266,7 +275,7 @@ Failures:
 
 Assessment:
 
-- materially improved from the prior recovery run, but the recovered-baseline claim was still too strong because one portable-contract gap remained uncalled
+- materially improved from the prior recovery run; the product gap is now fixed on `main`, but the review/projection settlement step is still too weak
 
 ### 6.2 Coder Review
 
@@ -283,7 +292,7 @@ Failures:
 
 Assessment:
 
-- disciplined and appropriately narrow, but still missed a real shared-contract gap
+- disciplined and appropriately narrow, but the shared-contract gap was only fully closed once the later SQLite parity fix was carried into `main`
 
 ### 6.3 WP Validator Review
 
@@ -299,7 +308,7 @@ Failures:
 
 Assessment:
 
-- strong skepticism on historical false closure, but incomplete on portable search-filter parity
+- strong skepticism on historical false closure, but the portable search-filter parity miss still required later correction
 
 ### 6.4 Integration Validator Review
 
@@ -316,7 +325,7 @@ Failures:
 
 Assessment:
 
-- strong technical closeout mechanics, but not fully spec-tight
+- strong technical closeout mechanics; the remaining weakness is post-containment projection sync rather than product proof
 
 ## 7. Review Of Coder and Validator Communication
 
@@ -332,7 +341,7 @@ Assessment:
   - no one overclaimed dual-backend PASS while PostgreSQL was still unproven
   - the packet stayed truthfully framed as proof-only until validator-owned reruns closed the remaining evidence gap
 - The weak parts:
-  - the review loop never surfaced the SQLite `backlink_depth` parity hole even though the portable contract was in scope
+  - the original review loop never surfaced the SQLite `backlink_depth` parity hole even though the portable contract was in scope
   - the receipt chain still reflects the pre-rerun env-gated state
   - final proof lives in the packet validation report and gate ledger rather than in a fresh direct-review exchange
   - the malformed final-lane correlation id should not be normalized
@@ -344,14 +353,14 @@ Assessment:
   - `ROLE_SESSION_REGISTRY.json` shows coder, WP validator, and integration validator sessions closed
   - validator gates show `WP_APPENDED`, `COMMITTED`, `REPORT_PRESENTED`, and `USER_ACKNOWLEDGED`
 - No extra worktrees were created. The declared topology remained:
-  - prepare/coder/WP validator work on `../wtc-storage-portability-v4`
+  - historical prepare/coder/WP validator execution on `../wtc-storage-portability-v4` before later containment and cleanup
   - integration validation on `../handshake_main`
   - orchestrator on `../wt-gov-kernel`
-- Remaining drift is not ACP runtime drift anymore. The unresolved issues are product/spec parity plus projection drift.
+- Remaining drift is not ACP runtime drift anymore. The unresolved issue is projection drift after product containment.
 
 ## 9. Governance Implications
 
-- This run proves that green packet/runtime/gate/session truth is not enough to call a historical smoketest recovered. A zero-delta packet can still overclose if validator review does not attack the surviving shared-contract surfaces directly.
+- This run proves that green packet/runtime/gate/session truth was not enough on its own to call the historical smoketest recovered until the surviving shared-contract gap was actually carried into `main`.
 - It also proves that "all packet tripwire tests passed" is not enough for a portable-contract claim when a shared filter field is only exercised on one backend.
 - The repo still lacks an atomic "smoketest recovery closeout sync" that settles:
   - packet status
@@ -365,7 +374,7 @@ Assessment:
 - zero-delta closure remained legal only because `ZERO_DELTA_PROOF_ALLOWED=YES` and current-main proof was rerun explicitly
 - the final-lane validator reran all four packet tests before `PASS`
 - focused follow-up checks confirmed traversal/metrics route exposure and SQLite migration portability
-- the active v4 follow-up now closes the SQLite `backlink_depth` hole and moves the parity proof into the shared conformance suite
+- the contained `main` follow-up now closes the SQLite `backlink_depth` hole and moves the parity proof into the shared conformance suite
 - governance now encodes the prevention rule in both the packet template and validator protocol instead of leaving it as reviewer memory
 - the direct-review loop remained honest under pressure and did not manufacture a false product delta
 - the ACP topology stayed inside the declared worktrees and all role sessions were closed at the end
@@ -373,11 +382,11 @@ Assessment:
 
 ## 11. Remaining Product or Spec Debt
 
-- The original main remaining gap is now patched on the active v4 worktree, but current local `main` and packet closeout projections do not yet reflect that remediation.
+- The original remaining gap is now patched on current local `main`, but `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, and the earlier review text needed explicit post-containment sync.
 - PostgreSQL Loom proof is still not turn-key. It requires a reachable local database and `POSTGRES_TEST_URL`, so the repo still does not provide one-command environment provisioning for this portability lane.
 - The prevention hardening is landed in governance, but it has not yet been exercised by a fresh packet creation/validation cycle outside this Loom lineage.
 - This closeout does not address broader downstream Loom follow-ons such as `WP-1-Media-Downloader-Loom-Bridge-v1` or `WP-1-Video-Archive-Loom-Integration-v1`.
-- The remaining product debt is now much narrower than the old `v3` narrative, but the closeout/containment gap is still packet-relevant rather than purely adjacent.
+- The remaining debt is now primarily governance projection fidelity plus turn-key PostgreSQL proof, not SQLite/portable-search behavior drift.
 
 ## Post-Smoketest Improvement Rubric
 
@@ -406,19 +415,19 @@ Assessment:
 - Evidence:
   - all four packet-level Loom tests passed on current local `main`
   - traversal/metrics route and SQLite migration portability checks passed in this audit
-  - current local `main` review showed `backlink_depth` was only consumed on PostgreSQL, not SQLite
-  - the active v4 worktree now consumes `backlink_depth` on SQLite and the shared conformance suite proves it there
-  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml sqlite_loom_storage_conformance -- --exact --nocapture` passed after the fix
+  - current local `main` now consumes `backlink_depth` on both PostgreSQL and SQLite
+  - the shared conformance suite now proves that field on SQLite through `loom_search_graph_filter_portable`
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml sqlite_loom_storage_conformance -- --exact --nocapture` passed on current `main`
 - What improved:
   - the gap surface is much smaller than the old historical `v3` failure story
   - traversal, metrics, migrations, source-anchor durability, and performance proof are all materially better grounded than before
-  - the SQLite `backlink_depth` hole is now fixed on the active v4 worktree instead of only documented as an audit finding
+  - the SQLite `backlink_depth` hole is now fixed on current `main` instead of only documented as an audit finding
   - future packets/validators now have an explicit field-parity rule in governance
 - What still hurts:
-  - current local `main` and packet closeout truth still predate the fix
-  - PostgreSQL follow-up rerun for the active v4 delta is still blocked by missing `POSTGRES_TEST_URL`
+  - a fresh PostgreSQL rerun in this update turn is still blocked by missing `POSTGRES_TEST_URL`
+  - lineage projections still describe the historical baseline as pending even though the product gap is now fixed on `main`
 - Next structural fix:
-  - validate/contain the active v4 remediation on local `main`, then keep the new field-parity rule mandatory for future packets
+  - sync Task Board/traceability/review projections to the now-contained `main` state, then keep the new field-parity rule mandatory for future packets
 
 ### Token Cost Pressure
 
@@ -442,7 +451,7 @@ Assessment:
 ### 13.1 Silent Failures / False Greens
 
 - packet validation and the first draft of this review both overclaimed closure while SQLite still ignored one shared search-contract field
-- packet/runtime/gate/session surfaces can all look green while the historical-smoketest lineage still reads pending in Task Board and traceability views
+- packet/runtime/gate/session surfaces can all look green while historical-lineage views still lag behind later containment on `main`
 - the base-WP traceability row can make an active validated packet look like an unactivated stub
 
 ### 13.2 Systematic Wrong Tool or Command Calls
@@ -453,7 +462,7 @@ Assessment:
 ### 13.3 Task and Path Ambiguity
 
 - the base WP and the active packet now disagree at the projection layer about whether Loom `v4` is a real validated packet or a stub-backlog item
-- historical-lineage tables and packet/runtime truth disagree about whether the live smoketest baseline is recovered
+- historical-lineage tables still disagree with product containment truth about whether the live smoketest baseline is recovered
 
 ### 13.4 Read Amplification / Governance Document Churn
 
@@ -480,13 +489,12 @@ Assessment:
 
 ### Governance / Runtime
 
-- sync `TASK_BOARD.md` and `WP_TRACEABILITY_REGISTRY.md` historical-lineage fields from the latest smoketest review outcome, even when that outcome disagrees with an earlier packet-level PASS
+- sync `TASK_BOARD.md` and `WP_TRACEABILITY_REGISTRY.md` historical-lineage fields from the latest updated smoketest review outcome, now that the product fix is contained in `main`
 - add a closeout projection check that rejects base-WP rows still projecting stub backlog after packet activation
 - harden final-lane review wrappers so generated correlation ids are always preserved
 
 ### Product / Validation Quality
 
-- carry the active v4 SQLite `backlink_depth` remediation and shared parity test into validated local `main`
 - add deterministic local PostgreSQL bootstrap guidance or helper commands for Loom portability proof
 - keep zero-delta packet closure restricted to cases with explicit current-main compatibility proof and validator-owned reruns
 
@@ -506,14 +514,14 @@ Assessment:
 - `Get-Content -Raw ../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` -> PASS
 - `Get-Content -Raw .GOV/roles_shared/records/TASK_BOARD.md` -> PASS
 - `Get-Content -Raw .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` -> PASS
-- `rg -n "backlink_depth" src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/api/loom.rs src/backend/handshake_core/src/storage/tests.rs` -> PASS (revealed that `backlink_depth` is consumed in API/PostgreSQL/tests but not in SQLite)
+- `rg -n "backlink_depth" src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/api/loom.rs src/backend/handshake_core/src/storage/tests.rs` -> PASS (shows that `backlink_depth` is now consumed in API/PostgreSQL/SQLite/tests on current `main`)
 - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml api::loom::tests::graph_traversal_and_metrics_routes_work -- --exact --nocapture` -> PASS
 - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml storage::tests::loom_migration_schema_is_portable_sqlite -- --exact --nocapture` -> PASS
-- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml sqlite_loom_storage_conformance -- --exact --nocapture` -> PASS (active v4 worktree after SQLite `backlink_depth` remediation)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml sqlite_loom_storage_conformance -- --exact --nocapture` -> PASS (current `main` after SQLite `backlink_depth` remediation was integrated)
 - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml sqlite_loom_traversal_performance_target -- --exact --nocapture` -> PASS
 - `$env:POSTGRES_TEST_URL='postgres://postgres:postgres@localhost:5432/handshake_test'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml postgres_loom_storage_conformance -- --exact --nocapture` -> PASS
 - `$env:POSTGRES_TEST_URL='postgres://postgres:postgres@localhost:5432/handshake_test'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml postgres_loom_traversal_performance_target -- --exact --nocapture` -> PASS
-- `if ($env:POSTGRES_TEST_URL) { 'SET' } else { 'UNSET' }` -> PASS (`UNSET` in the active v4 follow-up turn; no fresh PostgreSQL rerun was available here)
+- `if ($env:POSTGRES_TEST_URL) { 'SET' } else { 'UNSET' }` -> PASS (`UNSET` in the 2026-03-28 review-update turn; no fresh PostgreSQL rerun was available here)
 - `just validator-handoff-check WP-1-Loom-Storage-Portability-v4` -> PASS
 - `$env:HANDSHAKE_GOV_ROOT='..\\wt-gov-kernel\\.GOV'; just integration-validator-closeout-check WP-1-Loom-Storage-Portability-v4` -> PASS
 - `$env:HANDSHAKE_GOV_ROOT='..\\wt-gov-kernel\\.GOV'; just validator-packet-complete WP-1-Loom-Storage-Portability-v4` -> PASS
@@ -521,4 +529,7 @@ Assessment:
 - `just gov-check` -> PASS
 - `git -C ../handshake_main log --oneline --decorate -n 8` -> PASS
 - `git -C ../wt-gov-kernel log --oneline --decorate -n 8` -> PASS
+- `git -C ../handshake_main log --oneline -n 6` -> PASS (confirmed containment commits `3123598` and `a1fb177`)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml sqlite_loom_storage_conformance -- --exact --nocapture` -> PASS (rerun on 2026-03-28 current `main`)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml api::loom::tests::graph_traversal_and_metrics_routes_work -- --exact --nocapture` -> PASS (rerun on 2026-03-28 current `main`)
 - `rg -n "WP-1-Loom-Storage-Portability-v3|WP-1-Loom-Storage-Portability-v4|LIVE_SMOKETEST_BASELINE_" .GOV` -> PASS

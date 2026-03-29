@@ -21,6 +21,14 @@ function parseSingleField(packetText, label) {
   return match ? match[1].trim() : "";
 }
 
+function replaceSingleField(packetText, label, nextValue) {
+  const re = new RegExp(`^(\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*)(.+)\\s*$`, "mi");
+  if (!re.test(String(packetText || ""))) {
+    throw new Error(`Missing packet field: ${label}`);
+  }
+  return String(packetText || "").replace(re, `$1${nextValue}`);
+}
+
 function isNoneLike(value) {
   const normalized = String(value || "").trim().toUpperCase();
   return normalized === "NONE" || normalized === "N/A";
@@ -39,6 +47,32 @@ export function parseSignedScopeCompatibilityTruth(packetText) {
     packetWideningDecision: String(parseSingleField(packetText, "PACKET_WIDENING_DECISION") || "").trim().toUpperCase(),
     packetWideningEvidence: String(parseSingleField(packetText, "PACKET_WIDENING_EVIDENCE") || "").trim(),
   };
+}
+
+export function updateSignedScopeCompatibilityTruth(packetText, {
+  currentMainCompatibilityStatus,
+  currentMainCompatibilityBaselineSha,
+  currentMainCompatibilityVerifiedAtUtc,
+  packetWideningDecision,
+  packetWideningEvidence,
+} = {}) {
+  let nextText = String(packetText || "");
+  if (currentMainCompatibilityStatus != null) {
+    nextText = replaceSingleField(nextText, "CURRENT_MAIN_COMPATIBILITY_STATUS", currentMainCompatibilityStatus);
+  }
+  if (currentMainCompatibilityBaselineSha != null) {
+    nextText = replaceSingleField(nextText, "CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA", currentMainCompatibilityBaselineSha);
+  }
+  if (currentMainCompatibilityVerifiedAtUtc != null) {
+    nextText = replaceSingleField(nextText, "CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC", currentMainCompatibilityVerifiedAtUtc);
+  }
+  if (packetWideningDecision != null) {
+    nextText = replaceSingleField(nextText, "PACKET_WIDENING_DECISION", packetWideningDecision);
+  }
+  if (packetWideningEvidence != null) {
+    nextText = replaceSingleField(nextText, "PACKET_WIDENING_EVIDENCE", packetWideningEvidence);
+  }
+  return nextText;
 }
 
 export function validateSignedScopeCompatibilityTruth(packetText, {

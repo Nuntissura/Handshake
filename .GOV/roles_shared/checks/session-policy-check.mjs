@@ -5,6 +5,7 @@ import {
   CLI_ESCALATION_HOST_LEGACY_ALIAS,
   CLI_SESSION_TOOL,
   CODEX_MODEL_ALIASES_ALLOWED,
+  DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION,
   defaultIntegrationValidatorBranch,
   defaultIntegrationValidatorWorktreeDir,
   defaultWpValidatorBranch,
@@ -140,8 +141,10 @@ function checkPacket(filePath) {
   checkExpected(errors, rel, text, "ROLE_SESSION_REASONING_CONFIG_VALUE", ROLE_SESSION_REASONING_CONFIG_VALUE);
   checkExpected(errors, rel, text, "CODER_STARTUP_COMMAND", "just coder-startup");
   checkExpected(errors, rel, text, "CODER_RESUME_COMMAND", `just coder-next ${wpId}`);
-  checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_BRANCH", defaultWpValidatorBranch(wpId));
-  checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_WORKTREE_DIR", defaultWpValidatorWorktreeDir(wpId));
+  if (version >= DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION) {
+    checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_BRANCH", defaultWpValidatorBranch(wpId));
+    checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_WORKTREE_DIR", defaultWpValidatorWorktreeDir(wpId));
+  }
   checkExpected(errors, rel, text, "WP_VALIDATOR_STARTUP_COMMAND", "just validator-startup");
   checkExpected(errors, rel, text, "WP_VALIDATOR_RESUME_COMMAND", `just validator-next ${wpId}`);
   if (version >= SPEC_CLAUSE_MAP_MIN_VERSION) {
@@ -163,9 +166,13 @@ function checkPacket(filePath) {
     }
   } else {
     const legacyOriginTreeBase = parseSingleField(text, "REMOTE_BACKUP_URL").replace(/\/tree\/.*$/, "");
-    checkExpected(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", defaultWpValidatorBranch(wpId));
+    if (version >= DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION) {
+      checkExpected(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", defaultWpValidatorBranch(wpId));
+    }
     // Legacy integration validator branch/url: skip enforcement for pre-2026-03-18 packets.
-    checkExpected(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL", buildRemoteBackupUrl(legacyOriginTreeBase, defaultWpValidatorBranch(wpId)));
+    if (version >= DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION) {
+      checkExpected(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL", buildRemoteBackupUrl(legacyOriginTreeBase, defaultWpValidatorBranch(wpId)));
+    }
   }
   if (packetUsesStructuredValidationReport(version)) {
     const reportProfile = parseSingleField(text, "GOVERNED_VALIDATOR_REPORT_PROFILE");

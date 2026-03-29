@@ -254,6 +254,7 @@ export function buildValidatorReadyCommands({
       `just integration-validator-context-brief ${wpId}`,
       `just check-notifications ${wpId} INTEGRATION_VALIDATOR`,
       `just ack-notifications ${wpId} INTEGRATION_VALIDATOR ${session}`,
+      `just validator-packet-complete ${wpId}`,
       `just wp-communication-health-check ${wpId} VERDICT`,
       `just validator-handoff-check ${wpId}`,
       `just integration-validator-closeout-check ${wpId}`,
@@ -264,11 +265,13 @@ export function buildValidatorReadyCommands({
     return [
       `just check-notifications ${wpId} WP_VALIDATOR`,
       `just ack-notifications ${wpId} WP_VALIDATOR ${session}`,
+      `just validator-packet-complete ${wpId}`,
       `just wp-communication-health-check ${wpId} HANDOFF`,
       `just validator-handoff-check ${wpId}`,
     ];
   }
   return [
+    `just validator-packet-complete ${wpId}`,
     `just validator-handoff-check ${wpId}`,
     postWorkCommand,
   ].filter(Boolean);

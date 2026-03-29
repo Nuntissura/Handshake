@@ -316,7 +316,8 @@ if (action === 'sign') {
         if (enrichmentNeeded === 'YES') {
             v2Fail('Refinement declares ENRICHMENT_NEEDED=YES; packet signature is forbidden.', [
                 `Run the spec enrichment workflow first (new spec version + update ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md).`,
-                'Then create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
+                'Then refresh the SAME WP refinement against the updated spec and record a fresh same-WP signature.',
+                'Create a NEW WP variant only when scope materially widened or explicit remediation/splitting is required.',
             ]);
         }
     } catch (e) {

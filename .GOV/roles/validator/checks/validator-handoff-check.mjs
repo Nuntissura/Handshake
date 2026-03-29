@@ -22,6 +22,11 @@ import {
 } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluateValidatorPacketGovernanceState } from "../scripts/lib/validator-governance-lib.mjs";
+import {
+  committedEvidenceForCloseout,
+  livePrepareWorktreeHealthEvidence,
+  recordCommittedValidationRun,
+} from "../scripts/lib/committed-validation-evidence-lib.mjs";
 
 function usage() {
   console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/checks/validator-handoff-check.mjs WP-{ID} [--rev <git-rev> | --range <base>..<head>]`);
@@ -175,8 +180,12 @@ function selectCommittedTarget(worktreeAbs, packetContent, parsedArgs) {
 
 function persistEvidence(wpId, evidence) {
   const state = loadWpState(wpId);
-  state.committed_validation_evidence[wpId] = evidence;
+  state.committed_validation_evidence[wpId] = recordCommittedValidationRun(
+    state.committed_validation_evidence[wpId],
+    evidence,
+  );
   saveWpState(wpId, state);
+  return state.committed_validation_evidence[wpId];
 }
 
 const parsed = parseArgs(process.argv.slice(2));
@@ -269,6 +278,15 @@ if (communicationHealth.code !== 0) {
     ...communicationHealth.output.split(/\r?\n/).filter(Boolean),
   ]);
 }
+const packetComplete = runInWorktree(repoRoot, process.execPath, [
+  path.join(GOV_ROOT_REPO_REL, "roles", "validator", "checks", "validator-packet-complete.mjs"),
+  parsed.wpId,
+]);
+if (packetComplete.code !== 0) {
+  hardFail("Packet closure hygiene is incomplete for validator handoff", [
+    ...packetComplete.output.split(/\r?\n/).filter(Boolean),
+  ]);
+}
 const committedTarget = selectCommittedTarget(syncState.worktreeAbs, packetContent, parsed);
 let targetHeadSha = committedTarget.targetHeadSha;
 try {
@@ -305,15 +323,28 @@ const evidence = {
   post_work_output: postWork.output,
 };
 
-persistEvidence(parsed.wpId, evidence);
+const persistedEvidence = persistEvidence(parsed.wpId, evidence);
+const durableCommittedProof = committedEvidenceForCloseout(persistedEvidence);
+const livePrepareHealth = livePrepareWorktreeHealthEvidence(persistedEvidence);
 
 if (evidence.status !== "PASS") {
+  const extraDetails = [];
+  if (durableCommittedProof?.status === "PASS") {
+    extraDetails.push(`durable_committed_target_head_sha=${durableCommittedProof.target_head_sha}`);
+    extraDetails.push(`durable_committed_proof_validated_at=${durableCommittedProof.validated_at}`);
+  }
   hardFail("Committed handoff validation failed", [
     `prepare_worktree_dir=${evidence.prepare_worktree_dir}`,
     `committed_validation_target=${evidence.committed_validation_target}`,
     `pre_work_status=${evidence.pre_work_status}`,
     `cargo_clean_status=${evidence.cargo_clean_status}`,
     `post_work_status=${evidence.post_work_status}`,
+    ...(livePrepareHealth
+      ? [
+        `live_prepare_worktree_status=${livePrepareHealth.status}`,
+      ]
+      : []),
+    ...extraDetails,
     `evidence_file=${stateFilePath(parsed.wpId).replace(/\\/g, "/")}`,
   ]);
 }
@@ -324,6 +355,8 @@ console.log(`  prepare_worktree_dir=${evidence.prepare_worktree_dir}`);
 console.log(`  committed_validation_mode=${evidence.committed_validation_mode}`);
 console.log(`  committed_validation_target=${evidence.committed_validation_target}`);
 console.log(`  target_head_sha=${evidence.target_head_sha}`);
+console.log(`  live_prepare_worktree_status=${livePrepareHealth?.status || evidence.status}`);
+console.log(`  durable_committed_proof_status=${durableCommittedProof?.status || evidence.status}`);
 console.log(`  evidence_file=${stateFilePath(parsed.wpId).replace(/\\/g, "/")}`);
 if (nonBlockingSyncWarnings.length > 0) {
   console.log("  sync_warnings=");

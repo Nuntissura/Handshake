@@ -7,6 +7,10 @@ import {
   readValidatorAuthority,
   resolveValidatorActorContext,
 } from "./validator-governance-lib.mjs";
+import {
+  committedEvidenceForCloseout,
+  livePrepareWorktreeHealthEvidence,
+} from "./committed-validation-evidence-lib.mjs";
 
 const COMMAND_SURFACE_PATH = ".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md";
 
@@ -102,6 +106,8 @@ export function buildIntegrationValidatorContextBrief({
     worktreeExists,
     fileExists,
   });
+  const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
+  const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
 
   const contextStatus = !governanceState.allowValidationResume
     ? "GOVERNANCE_BLOCKED"
@@ -177,14 +183,18 @@ export function buildIntegrationValidatorContextBrief({
       issues: topologyEvaluation.issues || [],
     },
     committed_handoff: {
-      status: normalizeStatus(committedEvidence?.status, "NONE"),
-      committed_validation_mode: normalizeStatus(committedEvidence?.committed_validation_mode, "NONE"),
-      committed_validation_target: normalizeStatus(committedEvidence?.committed_validation_target, "NONE"),
+      status: normalizeStatus(durableCommittedProof?.status, "NONE"),
+      live_prepare_worktree_status: normalizeStatus(livePrepareHealth?.status, "NONE"),
+      committed_validation_mode: normalizeStatus(durableCommittedProof?.committed_validation_mode, "NONE"),
+      committed_validation_target: normalizeStatus(durableCommittedProof?.committed_validation_target, "NONE"),
       target_head_sha: normalizeStatus(
-        closeoutEvaluation.topology?.targetHeadSha || committedEvidence?.target_head_sha,
+        closeoutEvaluation.topology?.targetHeadSha || durableCommittedProof?.target_head_sha,
         "<missing>",
       ),
-      prepare_worktree_dir: normalizeStatus(committedEvidence?.prepare_worktree_dir, "<missing>"),
+      prepare_worktree_dir: normalizeStatus(
+        durableCommittedProof?.prepare_worktree_dir || livePrepareHealth?.prepare_worktree_dir,
+        "<missing>",
+      ),
       gate_state_path: normalizePath(gateStatePath) || "<missing>",
     },
     current_main_compatibility: {
@@ -237,6 +247,7 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- ACTOR_WORKTREE_DIR: ${brief.actor_context.worktree_dir}`,
     `- DECLARED_TOPOLOGY_STATUS: ${brief.declared_topology.status}`,
     `- COMMITTED_HANDOFF_STATUS: ${brief.committed_handoff.status}`,
+    `- LIVE_PREPARE_WORKTREE_STATUS: ${brief.committed_handoff.live_prepare_worktree_status}`,
     `- COMMITTED_VALIDATION_MODE: ${brief.committed_handoff.committed_validation_mode}`,
     `- COMMITTED_VALIDATION_TARGET: ${brief.committed_handoff.committed_validation_target}`,
     `- COMMITTED_TARGET_HEAD_SHA: ${brief.committed_handoff.target_head_sha}`,

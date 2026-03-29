@@ -174,7 +174,7 @@ Format:
 | WP-1-Unified-Tool-Surface-Contract | .GOV/task_packets/WP-1-Unified-Tool-Surface-Contract-v1.md | Done: WP-1-Unified-Tool-Surface-Contract-v1 | active=WP-1-Unified-Tool-Surface-Contract-v1 |
 | WP-1-Validator-Error-Codes | .GOV/task_packets/WP-1-Validator-Error-Codes-v1.md | Done: WP-1-Validator-Error-Codes-v1 | active=WP-1-Validator-Error-Codes-v1 |
 | WP-1-Workflow-Engine | .GOV/task_packets/WP-1-Workflow-Engine-v4.md | Done: WP-1-Workflow-Engine-v4 | active=WP-1-Workflow-Engine-v4; supersedes: WP-1-Workflow-Engine-v2, WP-1-Workflow-Engine-v3 |
-| WP-1-Workflow-Projection-Correlation | .GOV/task_packets/stubs/WP-1-Workflow-Projection-Correlation-v1.md | Stub Backlog (Not Activated): WP-1-Workflow-Projection-Correlation-v1 | stub (spec v02.150); backend-heavy matrix expansion for workflow/job/FR/Locus correlation and bounded bundle export |
+| WP-1-Workflow-Projection-Correlation | .GOV/task_packets/WP-1-Workflow-Projection-Correlation-v1/packet.md | Stub Backlog (Not Activated): WP-1-Workflow-Projection-Correlation-v1 | stub (spec v02.150); backend-heavy matrix expansion for workflow/job/FR/Locus correlation and bounded bundle export |
 | WP-1-Workspace-Bundle | .GOV/task_packets/stubs/WP-1-Workspace-Bundle-v2.md | Stub Backlog (Not Activated): WP-1-Workspace-Bundle-v2 | stub (remediation); supersedes: WP-1-Workspace-Bundle |
 | WP-1-Model-Swap-Protocol | .GOV/task_packets/WP-1-Model-Swap-Protocol-v1.md | Done: WP-1-Model-Swap-Protocol-v1 | active=WP-1-Model-Swap-Protocol-v1; activated from stub .GOV/task_packets/stubs/WP-1-Model-Swap-Protocol-v1.md; new roadmap item |
 | WP-1-Work-Profiles | .GOV/task_packets/stubs/WP-1-Work-Profiles-v1.md | Stub Backlog (Not Activated): WP-1-Work-Profiles-v1 | stub (spec v02.120); new roadmap item |

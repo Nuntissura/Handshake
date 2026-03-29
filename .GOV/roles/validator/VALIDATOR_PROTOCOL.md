@@ -79,7 +79,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 
 - Validator work currently has three governance forms:
   - `Classical Validator` = manual-relay / non-orchestrator-managed validator operating from `handshake_main` on branch `main`. This form may own final validation closure and merge-to-`main` authority when no orchestrator-managed Integration Validator lane exists.
-  - `WP Validator` = orchestrator-managed, WP-scoped advisory validator operating from the coder worktree (`wtc-*` on `feat/WP-*` branch, `/.GOV/` junction to kernel). Reads product code in the coder worktree, diffs against `main` for before/after comparison, writes governance through the `.GOV/` junction. This form may inspect live coder progress, challenge vibe-coding/spec drift, and request steering through packet communications plus Orchestrator-owned ACP controls, but it is not the final merge authority.
+  - `WP Validator` = orchestrator-managed, WP-scoped technical steering validator operating from a dedicated validator worktree (`wtv-*` on `validate/WP-*`, `/.GOV/` junction to kernel) rooted from the coder branch. This form judges BOOTSTRAP, SKELETON, and completed micro tasks early, fast-forwards from the coder branch when review needs the latest product state, challenges vibe-coding/spec drift, and steers the coder through packet communications plus Orchestrator-owned ACP controls, but it is not the final merge authority.
   - `Integration Validator` = orchestrator-managed final validator operating from `handshake_main` on branch `main` (no WP-specific worktree). This form owns final technical verdict, merge-to-`main` authority, and the default `sync-gov-to-main` responsibility for orchestrator-managed WPs unless the packet explicitly overrides it.
 - Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
@@ -95,7 +95,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 
 ## Final Validator Authority (Current Law)
 
-- For orchestrator-managed WPs, `WP_VALIDATOR` is an advisory technical reviewer only.
+- For orchestrator-managed WPs, `WP_VALIDATOR` is the active WP-scoped technical steering reviewer, but never the final merge authority.
 - For orchestrator-managed WPs, `INTEGRATION_VALIDATOR` owns the final merge-ready technical verdict and merge-to-`main` authority unless the packet explicitly overrides that split.
 - `CLASSICAL_VALIDATOR` owns final closure only when the repo is intentionally using the classical / non-orchestrator-managed validator lane.
 - `WP_VALIDATOR` may inspect live coder progress, block weak proof, request repair, and append review evidence, but it must not stand in for `INTEGRATION_VALIDATOR` when final merge-ready authority is required.
@@ -315,13 +315,14 @@ Resume rule (hard, anti-babysit):
   - `CODER_HANDOFF` from `CODER -> WP_VALIDATOR`
   - `VALIDATOR_REVIEW` from `WP_VALIDATOR -> CODER`, correlated to handoff
   - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
+- In orchestrator-managed lanes, the `VALIDATOR_KICKOFF -> CODER_INTENT` exchange is the normal bootstrap/skeleton review loop. Do not wait for final handoff if the bootstrap, skeleton, or data-shape plan is already weak.
 - Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Use the governed helpers; do not hand-edit around this routing.
 - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
 - Before taking a coder handoff as review-ready on those packets, `just wp-communication-health-check WP-{ID} HANDOFF` must pass.
 - Before PASS commit clearance on those packets, `just wp-communication-health-check WP-{ID} VERDICT` must pass.
 - Validator authority is layered:
   - `Classical Validator` = manual-relay / non-orchestrator-managed closure authority when the repo is using the classical validator lane
-  - `WP Validator` = advisory technical reviewer for the WP; may inspect current coder work and request steering through packet communications plus Orchestrator-owned ACP controls
+  - `WP Validator` = WP-scoped technical steering reviewer for the WP; may inspect current coder work, judge bootstrap/skeleton/micro-task quality early, and request steering through packet communications plus Orchestrator-owned ACP controls
   - `Integration Validator` = final technical and merge authority for orchestrator-managed WPs
   - only the `Classical Validator` or `Integration Validator` may own the final merge-ready verdict unless the packet explicitly says otherwise
   - a role-blind gate row is not enough by itself to prove final authority; use validator role plus governed session identity
@@ -343,7 +344,7 @@ Resume rule (hard, anti-babysit):
   - `just ack-notifications WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session>` (acknowledge pending notifications after reading)
   - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Validator session):
-  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from coder worktree; no worktree-add needed)
+  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from the dedicated validator worktree; the governed launcher creates it if missing)
   - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from handshake_main; no worktree-add needed)
   - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
@@ -403,7 +404,9 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
 - Require evidence that `just validator-handoff-check WP-{ID}` ran and passed before PASS commit clearance. This helper runs `pre-work`, `cargo-clean`, and committed `post-work` against the PREPARE worktree source of truth. If absent or failing, verdict = FAIL until fixed.
+- Require evidence that `just validator-packet-complete WP-{ID}` ran and passed before PASS handoff or PASS commit clearance. Packet/report/receipt hygiene is not a last-minute cleanup item; if absent or failing, verdict = FAIL until fixed.
 - Require evidence that `just integration-validator-closeout-check WP-{ID}` ran and passed before PASS commit clearance. This helper proves the governed Integration Validator lane is actually on `handshake_main` / `main`, can resolve the committed target SHA from `validator-handoff-check`, and that WP-scoped session-control/broker truth is already settled enough to finish final review coherently. If absent or failing, verdict = FAIL until fixed.
+- After the closeout preflight is green, use `just integration-validator-closeout-sync WP-{ID} DONE_MERGE_PENDING` to write the PASS-ready packet/runtime/TASK_BOARD truth in one governed step. After local `main` containment is real, use `just integration-validator-closeout-sync WP-{ID} DONE_VALIDATED <MERGED_MAIN_SHA>` to finish promotion.
 - Require evidence that `just post-work WP-{ID}` ran and passed for the validated committed target (directly or via `validator-handoff-check`). If absent or failing, verdict = FAIL until fixed.
 - Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates staged/working changes when present, and on a clean tree validates a deterministic range:
   - If the work packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
@@ -429,6 +432,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - Verify BOOTSTRAP fields match work packet (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
 - Confirm the work packet has `**Status:** In Progress` and claim fields filled (CODER_MODEL, CODER_REASONING_STRENGTH) before accepting any skeleton or implementation progression. [CX-212D] Bootstrap claim is verified by field content, not by a commit on the feature branch.
 - Enforce [CX-GATE-001]: if the Coder included SKELETON content in the BOOTSTRAP turn, treat it as invalid phase merging; require a new, separate SKELETON turn/commit after explicit Operator authorization.
+- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the WP Validator owns the first-pass judgement of coder BOOTSTRAP and SKELETON quality. Use the kickoff/intent loop to steer corrections directly instead of waiting for the Orchestrator to relay them.
 
 0A) Micro Task Early Review (WP Validator)
 - When micro tasks exist (`.GOV/task_packets/WP-{ID}/MT-*.md`), the WP Validator reviews completed MTs as the coder works — do not wait for all MTs to be done.
@@ -537,6 +541,9 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - Verify RDD separation: RAW writes only at storage/raw layer; DERIVED/DISPLAY not used as write-back sources.
 - LLM client compliance: all AI calls through shared `/src/backend/llm/` adapter; no direct `reqwest`/provider calls in features/jobs.
 - Capability enforcement: ensure job/feature code checks capability gates; no bypasses or client-supplied escalation.
+- For new persisted/exported/request data shapes, prefer LLM-first structured fields over presentation-first blobs: stable field names, explicit enums/typed fields, and machine-readable meaning that does not require reparsing UI prose.
+- When the WP touches SQL/data access, prefer portable SQL/data modeling that remains PostgreSQL-ready; call out new SQLite-only semantics unless the packet/spec explicitly requires them.
+- When the WP touches graph/search/provenance surfaces, preserve Loom-friendly linkage: stable ids, explicit relations, backlink-friendly fields, and retrieval-friendly summaries that stay traversable outside the UI.
 
 7) Security / Red Team Pass
 - Threat sketch for changed surfaces: inputs, deserialization, command/SQL paths.

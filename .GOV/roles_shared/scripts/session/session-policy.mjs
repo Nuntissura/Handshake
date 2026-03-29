@@ -16,7 +16,7 @@ import {
 } from "../lib/runtime-paths.mjs";
 import { ACP_BUILD_ID } from "./acp-build-id.mjs";
 
-export const PACKET_FORMAT_VERSION = "2026-03-26";
+export const PACKET_FORMAT_VERSION = "2026-03-29";
 export const STUB_FORMAT_VERSION = "2026-03-16";
 export const SESSION_POLICY_PACKET_MIN_VERSION = "2026-03-12";
 export const SESSION_POLICY_STUB_MIN_VERSION = "2026-03-12";
@@ -27,6 +27,7 @@ export const SHARED_REMOTE_WP_BACKUP_PACKET_MIN_VERSION = "2026-03-16";
 export const SPEC_CLAUSE_MAP_MIN_VERSION = "2026-03-18";
 export const COMPLETION_LAYER_VERDICTS_MIN_VERSION = "2026-03-22";
 export const MERGE_CONTAINMENT_PACKET_MIN_VERSION = "2026-03-25";
+export const DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION = "2026-03-29";
 
 export const SESSION_START_AUTHORITY = "ORCHESTRATOR_ONLY";
 export const SESSION_HOST_PREFERENCE = "VSCODE_EXTENSION_TERMINAL";
@@ -206,13 +207,11 @@ export function defaultCoderWorktreeDir(wpId) {
 }
 
 export function defaultWpValidatorBranch(wpId) {
-  // WP validator operates from the coder worktree — same branch as coder [CX-212D].
-  return defaultCoderBranch(wpId);
+  return `validate/${wpId}`;
 }
 
 export function defaultWpValidatorWorktreeDir(wpId) {
-  // WP validator operates from the coder worktree — no separate worktree [CX-212D].
-  return defaultCoderWorktreeDir(wpId);
+  return shortWorktreeName("wtv", wpId);
 }
 
 export function defaultIntegrationValidatorBranch(wpId) {
