@@ -28,6 +28,37 @@ export function normalizeRepoPath(value) {
   return normalized.replace(/^\/+/, "");
 }
 
+export function summarizeItemList(items, {
+  sampleSize = 8,
+} = {}) {
+  const values = Array.from(new Set(
+    (items || [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean),
+  ));
+  return {
+    count: values.length,
+    sample: values.slice(0, Math.max(1, sampleSize)),
+    remaining_count: Math.max(0, values.length - Math.max(1, sampleSize)),
+    values,
+  };
+}
+
+export function formatBoundedItemList(items, {
+  sampleSize = 8,
+  noun = "item",
+} = {}) {
+  const summary = summarizeItemList(items, { sampleSize });
+  if (summary.count === 0) {
+    return `0 ${noun}(s)`;
+  }
+  const sampleText = summary.sample.join(", ");
+  if (summary.remaining_count > 0) {
+    return `${summary.count} ${noun}(s): ${sampleText}, ... (+${summary.remaining_count} more)`;
+  }
+  return `${summary.count} ${noun}(s): ${sampleText}`;
+}
+
 function topLevelLabelRegex(label) {
   return new RegExp(`^\\s*-\\s*(?:\\*\\*)?${escapeRegex(label)}(?:\\*\\*)?\\s*:\\s*$`, "i");
 }

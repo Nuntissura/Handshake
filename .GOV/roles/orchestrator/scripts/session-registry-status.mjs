@@ -100,11 +100,30 @@ if (wpTokenUsage) {
   console.log("");
   console.log("WP_TOKEN_USAGE");
   console.log(`- wp_id: ${wpTokenUsage.wp_id}`);
+  console.log(`- summary_source: ${wpTokenUsage.summary_source}`);
+  console.log(`- ledger_health: ${wpTokenUsage.ledger_health.status}`);
   console.log(`- command_count: ${wpTokenUsage.summary.command_count}`);
   console.log(`- turn_count: ${wpTokenUsage.summary.turn_count}`);
   console.log(`- input_tokens: ${wpTokenUsage.summary.usage_totals.input_tokens}`);
   console.log(`- cached_input_tokens: ${wpTokenUsage.summary.usage_totals.cached_input_tokens}`);
   console.log(`- output_tokens: ${wpTokenUsage.summary.usage_totals.output_tokens}`);
+  if (wpTokenUsage.ledger_health.status !== "NO_OUTPUTS") {
+    console.log(`- tracked_command_count: ${wpTokenUsage.tracked_summary.command_count}`);
+    console.log(`- tracked_turn_count: ${wpTokenUsage.tracked_summary.turn_count}`);
+    console.log(`- raw_output_command_count: ${wpTokenUsage.raw_scan.summary.command_count}`);
+    console.log(`- raw_output_turn_count: ${wpTokenUsage.raw_scan.summary.turn_count}`);
+  }
+  if (wpTokenUsage.ledger_health.status === "DRIFT") {
+    console.log(`- drift_reason: ${wpTokenUsage.ledger_health.reason}`);
+    if (wpTokenUsage.ledger_health.missing_tracked_command_count > 0) {
+      console.log(`- missing_tracked_command_count: ${wpTokenUsage.ledger_health.missing_tracked_command_count}`);
+      console.log(`- missing_tracked_command_ids_sample: ${wpTokenUsage.ledger_health.missing_tracked_command_ids_sample.join(", ")}`);
+    }
+    if (wpTokenUsage.ledger_health.stale_tracked_command_count > 0) {
+      console.log(`- stale_tracked_command_count: ${wpTokenUsage.ledger_health.stale_tracked_command_count}`);
+      console.log(`- stale_tracked_command_ids_sample: ${wpTokenUsage.ledger_health.stale_tracked_command_ids_sample.join(", ")}`);
+    }
+  }
   const roleNames = Object.keys(wpTokenUsage.role_totals || {}).sort((left, right) => left.localeCompare(right));
   if (roleNames.length === 0) {
     console.log("- role_totals: <none>");

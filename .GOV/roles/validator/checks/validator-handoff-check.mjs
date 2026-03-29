@@ -21,6 +21,7 @@ import {
   resolveValidatorGatePath,
 } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { formatBoundedItemList } from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
 import { evaluateValidatorPacketGovernanceState } from "../scripts/lib/validator-governance-lib.mjs";
 import {
   committedEvidenceForCloseout,
@@ -359,8 +360,5 @@ console.log(`  live_prepare_worktree_status=${livePrepareHealth?.status || evide
 console.log(`  durable_committed_proof_status=${durableCommittedProof?.status || evidence.status}`);
 console.log(`  evidence_file=${stateFilePath(parsed.wpId).replace(/\\/g, "/")}`);
 if (nonBlockingSyncWarnings.length > 0) {
-  console.log("  sync_warnings=");
-  for (const warning of nonBlockingSyncWarnings) {
-    console.log(`    - ${warning}`);
-  }
+  console.log(`  sync_warnings=${formatBoundedItemList(nonBlockingSyncWarnings, { noun: "warning" })}`);
 }

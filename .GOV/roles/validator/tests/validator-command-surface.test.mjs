@@ -4,6 +4,8 @@ import path from "node:path";
 import test from "node:test";
 
 const JUSTFILE_PATH = path.resolve("justfile");
+const COMMAND_SURFACE_REFERENCE_PATH = path.resolve(".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md");
+const VALIDATOR_PROTOCOL_PATH = path.resolve(".GOV/roles/validator/VALIDATOR_PROTOCOL.md");
 
 function recipeExists(text, recipeName) {
   const escaped = recipeName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -55,4 +57,18 @@ test("justfile exposes the live validator command surface referenced by validato
   for (const recipeName of requiredRecipes) {
     assert.equal(recipeExists(justfile, recipeName), true, `Missing just recipe: ${recipeName}`);
   }
+});
+
+test("critical integration-validator helper commands stay aligned across docs, protocol, and justfile", () => {
+  const justfile = fs.readFileSync(JUSTFILE_PATH, "utf8");
+  const commandSurface = fs.readFileSync(COMMAND_SURFACE_REFERENCE_PATH, "utf8");
+  const validatorProtocol = fs.readFileSync(VALIDATOR_PROTOCOL_PATH, "utf8");
+
+  assert.match(commandSurface, /`just integration-validator-context-brief WP-\{ID\}`/);
+  assert.match(commandSurface, /`just integration-validator-closeout-check WP-\{ID\}`/);
+  assert.match(commandSurface, /`just wp-token-usage WP-\{ID\}`/);
+  assert.match(validatorProtocol, /just integration-validator-context-brief WP-\{ID\}/);
+  assert.equal(recipeExists(justfile, "integration-validator-context-brief"), true);
+  assert.equal(recipeExists(justfile, "integration-validator-closeout-check"), true);
+  assert.equal(recipeExists(justfile, "wp-token-usage"), true);
 });

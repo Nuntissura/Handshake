@@ -20,11 +20,30 @@ console.log("WP_TOKEN_USAGE");
 console.log(`- wp_id: ${ledger.wp_id}`);
 console.log(`- ledger_path: ${filePath.replace(/\\/g, "/")}`);
 console.log(`- updated_at: ${ledger.updated_at}`);
+console.log(`- summary_source: ${ledger.summary_source}`);
+console.log(`- ledger_health: ${ledger.ledger_health.status}`);
 console.log(`- command_count: ${ledger.summary.command_count}`);
 console.log(`- turn_count: ${ledger.summary.turn_count}`);
 console.log(`- input_tokens: ${ledger.summary.usage_totals.input_tokens}`);
 console.log(`- cached_input_tokens: ${ledger.summary.usage_totals.cached_input_tokens}`);
 console.log(`- output_tokens: ${ledger.summary.usage_totals.output_tokens}`);
+if (ledger.ledger_health.status !== "NO_OUTPUTS") {
+  console.log(`- tracked_command_count: ${ledger.tracked_summary.command_count}`);
+  console.log(`- tracked_turn_count: ${ledger.tracked_summary.turn_count}`);
+  console.log(`- raw_output_command_count: ${ledger.raw_scan.summary.command_count}`);
+  console.log(`- raw_output_turn_count: ${ledger.raw_scan.summary.turn_count}`);
+}
+if (ledger.ledger_health.status === "DRIFT") {
+  console.log(`- drift_reason: ${ledger.ledger_health.reason}`);
+  if (ledger.ledger_health.missing_tracked_command_count > 0) {
+    console.log(`- missing_tracked_command_count: ${ledger.ledger_health.missing_tracked_command_count}`);
+    console.log(`- missing_tracked_command_ids_sample: ${ledger.ledger_health.missing_tracked_command_ids_sample.join(", ")}`);
+  }
+  if (ledger.ledger_health.stale_tracked_command_count > 0) {
+    console.log(`- stale_tracked_command_count: ${ledger.ledger_health.stale_tracked_command_count}`);
+    console.log(`- stale_tracked_command_ids_sample: ${ledger.ledger_health.stale_tracked_command_ids_sample.join(", ")}`);
+  }
+}
 
 const roleNames = Object.keys(ledger.role_totals || {}).sort((left, right) => left.localeCompare(right));
 if (roleNames.length === 0) {
