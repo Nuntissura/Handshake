@@ -100,21 +100,21 @@ Requirements:
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** In Progress
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
-- MAIN_CONTAINMENT_STATUS: NOT_STARTED
+- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
-- MERGED_MAIN_COMMIT: NONE
+- MERGED_MAIN_COMMIT: 1f1495a1c0801f17e8e99a01fec859962a717722
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
-- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-03-29T18:31:50.9205288Z
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
-- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
+- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 1f1495a1c0801f17e8e99a01fec859962a717722
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-03-29T18:31:50.9205288Z
 <!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
-- PACKET_WIDENING_DECISION: NONE
+- PACKET_WIDENING_DECISION: NOT_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
 - PACKET_WIDENING_EVIDENCE: N/A
 <!-- Use follow-on/superseding WP id, audit id, or short rationale when widening is required. -->
@@ -170,17 +170,17 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-03-29
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
-Next: CODER_RESUME_AFTER_SCOPE_REPAIR
+Next: INTEGRATION_CLOSEOUT_SYNC
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: HSK-WF-001 durable node persistence plus recovery-safe node lineage must become bounded export anchors | CODE_SURFACES: `src/backend/handshake_core/src/storage/mod.rs`, `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/bundles/exporter.rs`, `src/backend/handshake_core/src/bundles/schemas.rs` | TESTS: `storage::tests::workflow_node_execution_persists_inputs_and_outputs`; `bundles::exporter::tests::workflow_node_execution_scope_exports_single_node_lineage` | EXAMPLES: `export_manifest.json` with `scope.kind = "workflow_run"` and explicit `workflow_run_id`, `export_manifest.json` with `scope.kind = "workflow_node_execution"` and explicit `workflow_run_id` plus `workflow_node_execution_id`, `workflow_node_executions.jsonl` containing one exported node execution line with stable ids and bounded hashes, exportable inventory row that surfaces a workflow-run anchor without degrading to a broad time-window entry | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: AI Job Model runtime identity requires `workflow_run_id` to remain a first-class runtime anchor | CODE_SURFACES: `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/bundles/exporter.rs`, `src/backend/handshake_core/src/bundles/templates.rs` | TESTS: `bundles::exporter::tests::workflow_run_scope_exports_only_bound_jobs_and_nodes`; `bundles::exporter::tests::list_exportable_includes_workflow_correlation_anchors` | EXAMPLES: `export_manifest.json` with `scope.kind = "workflow_run"` and explicit `workflow_run_id`, `export_manifest.json` with `scope.kind = "workflow_node_execution"` and explicit `workflow_run_id` plus `workflow_node_execution_id`, `workflow_node_executions.jsonl` containing one exported node execution line with stable ids and bounded hashes, exportable inventory row that surfaces a workflow-run anchor without degrading to a broad time-window entry | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Debug Bundle manifest scope and exporter contract must admit workflow-run and node-execution scope kinds | CODE_SURFACES: `src/backend/handshake_core/src/bundles/exporter.rs`, `src/backend/handshake_core/src/bundles/schemas.rs`, `src/backend/handshake_core/src/bundles/templates.rs` | TESTS: `bundles::validator::tests::val_bundle_001_reports_missing_files`; `bundles::exporter::tests::workflow_run_scope_exports_only_bound_jobs_and_nodes`; `bundles::exporter::tests::workflow_node_execution_scope_exports_single_node_lineage` | EXAMPLES: `export_manifest.json` with `scope.kind = "workflow_run"` and explicit `workflow_run_id`, `export_manifest.json` with `scope.kind = "workflow_node_execution"` and explicit `workflow_run_id` plus `workflow_node_execution_id`, `workflow_node_executions.jsonl` containing one exported node execution line with stable ids and bounded hashes, exportable inventory row that surfaces a workflow-run anchor without degrading to a broad time-window entry | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: export manifest requirements that already mention `workflow_run_id` must be reconciled with explicit scope law and workflow-node inventory proof | CODE_SURFACES: `src/backend/handshake_core/src/bundles/schemas.rs`, `src/backend/handshake_core/src/bundles/exporter.rs`, `src/backend/handshake_core/src/bundles/validator.rs` | TESTS: `bundles::validator::tests::val_bundle_001_reports_missing_files`; `bundles::zip::tests::bundle_determinism_hash_stable`; golden manifest assertions for workflow scope kinds | EXAMPLES: `export_manifest.json` with `scope.kind = "workflow_run"` and explicit `workflow_run_id`, `export_manifest.json` with `scope.kind = "workflow_node_execution"` and explicit `workflow_run_id` plus `workflow_node_execution_id`, `workflow_node_executions.jsonl` containing one exported node execution line with stable ids and bounded hashes, exportable inventory row that surfaces a workflow-run anchor without degrading to a broad time-window entry | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: HSK-WF-001 durable node persistence plus recovery-safe node lineage must become bounded export anchors | CODE_SURFACES: `src/backend/handshake_core/src/storage/mod.rs`, `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/bundles/exporter.rs`, `src/backend/handshake_core/src/bundles/schemas.rs` | TESTS: `storage::tests::workflow_node_execution_persists_inputs_and_outputs`; `bundles::exporter::tests::workflow_node_execution_scope_exports_single_node_lineage` | EXAMPLES: `export_manifest.json` with `scope.kind = "workflow_run"` and explicit `workflow_run_id`, `export_manifest.json` with `scope.kind = "workflow_node_execution"` and explicit `workflow_run_id` plus `workflow_node_execution_id`, `workflow_node_executions.jsonl` containing one exported node execution line with stable ids and bounded hashes, exportable inventory row that surfaces a workflow-run anchor without degrading to a broad time-window entry | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: AI Job Model runtime identity requires `workflow_run_id` to remain a first-class runtime anchor | CODE_SURFACES: `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/bundles/exporter.rs`, `src/backend/handshake_core/src/bundles/templates.rs` | TESTS: `bundles::exporter::tests::workflow_run_scope_exports_only_bound_jobs_and_nodes`; `bundles::exporter::tests::list_exportable_includes_workflow_correlation_anchors` | EXAMPLES: `export_manifest.json` with `scope.kind = "workflow_run"` and explicit `workflow_run_id`, `export_manifest.json` with `scope.kind = "workflow_node_execution"` and explicit `workflow_run_id` plus `workflow_node_execution_id`, `workflow_node_executions.jsonl` containing one exported node execution line with stable ids and bounded hashes, exportable inventory row that surfaces a workflow-run anchor without degrading to a broad time-window entry | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Debug Bundle manifest scope and exporter contract must admit workflow-run and node-execution scope kinds | CODE_SURFACES: `src/backend/handshake_core/src/bundles/exporter.rs`, `src/backend/handshake_core/src/bundles/schemas.rs`, `src/backend/handshake_core/src/bundles/templates.rs` | TESTS: `bundles::validator::tests::val_bundle_001_reports_missing_files`; `bundles::exporter::tests::workflow_run_scope_exports_only_bound_jobs_and_nodes`; `bundles::exporter::tests::workflow_node_execution_scope_exports_single_node_lineage` | EXAMPLES: `export_manifest.json` with `scope.kind = "workflow_run"` and explicit `workflow_run_id`, `export_manifest.json` with `scope.kind = "workflow_node_execution"` and explicit `workflow_run_id` plus `workflow_node_execution_id`, `workflow_node_executions.jsonl` containing one exported node execution line with stable ids and bounded hashes, exportable inventory row that surfaces a workflow-run anchor without degrading to a broad time-window entry | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: export manifest requirements that already mention `workflow_run_id` must be reconciled with explicit scope law and workflow-node inventory proof | CODE_SURFACES: `src/backend/handshake_core/src/bundles/schemas.rs`, `src/backend/handshake_core/src/bundles/exporter.rs`, `src/backend/handshake_core/src/bundles/validator.rs` | TESTS: `bundles::validator::tests::val_bundle_001_reports_missing_files`; `bundles::zip::tests::bundle_determinism_hash_stable`; golden manifest assertions for workflow scope kinds | EXAMPLES: `export_manifest.json` with `scope.kind = "workflow_run"` and explicit `workflow_run_id`, `export_manifest.json` with `scope.kind = "workflow_node_execution"` and explicit `workflow_run_id` plus `workflow_node_execution_id`, `workflow_node_executions.jsonl` containing one exported node execution line with stable ids and bounded hashes, exportable inventory row that surfaces a workflow-run anchor without degrading to a broad time-window entry | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -1034,3 +1034,91 @@ rg -n "WorkflowRun|WorkflowNodeExecution|workflow_run_id|workflow_node_execution
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+VALIDATION REPORT - WP-1-Workflow-Projection-Correlation-v1
+Verdict: PASS
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: POST_MERGE_RECHECKED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+VALIDATOR_RISK_TIER: HIGH
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Workflow-Projection-Correlation-v1/packet.md`
+- Spec: `Handshake_Master_Spec_v02.179.md`
+- Reviewed prepare head: `274341181b694e8ae6699b047117d136bbd3f041`
+- Contained main commit: `1f1495a1c0801f17e8e99a01fec859962a717722`
+- Governed evidence: `../gov_runtime/roles_shared/validator_gates/WP-1-Workflow-Projection-Correlation-v1.json`; `command_id=b5ad15ce-5dd0-4654-94e1-36e721a829bf`
+
+CLAUSES_REVIEWED:
+- HSK-WF-001 durable node persistence plus recovery-safe node lineage must become bounded export anchors -> `src/backend/handshake_core/src/storage/tests.rs:3013`; `src/backend/handshake_core/src/bundles/exporter.rs:1463`; `src/backend/handshake_core/src/bundles/exporter.rs:1479`; `src/backend/handshake_core/src/bundles/exporter.rs:2775`; `src/backend/handshake_core/src/bundles/exporter.rs:2831`; `src/backend/handshake_core/src/bundles/schemas.rs:220`; `src/backend/handshake_core/src/workflows.rs:24289`
+- AI Job Model runtime identity requires `workflow_run_id` to remain a first-class runtime anchor -> `src/backend/handshake_core/src/workflows.rs:7883`; `src/backend/handshake_core/src/workflows.rs:7892`; `src/backend/handshake_core/src/workflows.rs:4673`; `src/backend/handshake_core/src/workflows.rs:4705`; `src/backend/handshake_core/src/bundles/templates.rs:29`; `src/backend/handshake_core/src/bundles/templates.rs:59`; `src/backend/handshake_core/src/bundles/templates.rs:166`; `src/backend/handshake_core/src/bundles/templates.rs:226`
+- Debug Bundle manifest scope and exporter contract must admit workflow-run and node-execution scope kinds -> `src/backend/handshake_core/src/bundles/schemas.rs:6`; `src/backend/handshake_core/src/bundles/schemas.rs:30`; `src/backend/handshake_core/src/bundles/schemas.rs:454`; `src/backend/handshake_core/src/bundles/schemas.rs:485`; `src/backend/handshake_core/src/bundles/exporter.rs:1103`; `src/backend/handshake_core/src/bundles/exporter.rs:1185`; `src/backend/handshake_core/src/bundles/exporter.rs:1213`; `src/backend/handshake_core/src/bundles/exporter.rs:1463`; `src/backend/handshake_core/src/bundles/exporter.rs:2686`; `src/backend/handshake_core/src/bundles/exporter.rs:2775`
+- export manifest requirements that already mention `workflow_run_id` must be reconciled with explicit scope law and workflow-node inventory proof -> `src/backend/handshake_core/src/bundles/validator.rs:340`; `src/backend/handshake_core/src/bundles/validator.rs:780`; `src/backend/handshake_core/src/bundles/validator.rs:845`; `src/backend/handshake_core/src/bundles/validator.rs:1120`; `src/backend/handshake_core/src/bundles/zip.rs:75`
+
+NOT_PROVEN:
+- NONE
+
+MAIN_BODY_GAPS:
+- NONE
+
+QUALITY_RISKS:
+- NONE
+
+DIFF_ATTACK_SURFACES:
+- Manifest scope enum expansion could have drifted between request parsing, manifest serialization, exporter selection, validator rules, and human-facing templates.
+- Workflow-node bundle exports could have leaked unrelated jobs/events or omitted `workflow_node_executions.jsonl` while still passing a narrow happy-path export.
+- Workflow correlation anchors could have appeared in manifests but failed to persist into runtime summary artifacts or exportable inventory.
+
+INDEPENDENT_CHECKS_RUN:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml storage::tests::workflow_node_execution_persists_inputs_and_outputs -- --exact --nocapture` from `../handshake_main` => `ok`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml bundles::validator::tests::val_bundle_001_reports_missing_files -- --exact --nocapture` from `../handshake_main` => `ok`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml bundles::zip::tests::bundle_determinism_hash_stable -- --exact --nocapture` from `../handshake_main` => `ok`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml bundles::exporter::tests::workflow_run_scope_exports_only_bound_jobs_and_nodes -- --exact --nocapture` from `../handshake_main` => `ok`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml bundles::exporter::tests::workflow_node_execution_scope_exports_single_node_lineage -- --exact --nocapture` from `../handshake_main` => `ok`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml bundles::exporter::tests::list_exportable_includes_workflow_correlation_anchors -- --exact --nocapture` from `../handshake_main` => `ok`
+- `just validator-handoff-check WP-1-Workflow-Projection-Correlation-v1` from `../wtc-projection-correlation-v1` with parked out-of-scope drift => `[VALIDATOR_HANDOFF_CHECK] PASS`
+
+COUNTERFACTUAL_CHECKS:
+- If `BundleScope::WorkflowNodeExecution` parsing at `src/backend/handshake_core/src/workflows.rs:7892-7913` were removed or loosened, node-scoped export requests would lose the required `workflow_run_id` / `workflow_node_execution_id` pair and the bounded node-lineage contract would break.
+- If `src/backend/handshake_core/src/bundles/exporter.rs:1463-1479` stopped writing `workflow_node_executions.jsonl` for workflow-correlated scopes, the validator rules at `src/backend/handshake_core/src/bundles/validator.rs:845-853` and the workflow-scope exporter tests would fail instead of proving closure.
+
+BOUNDARY_PROBES:
+- Request-to-exporter probe: `src/backend/handshake_core/src/workflows.rs:7883-7913` feeds explicit workflow scope IDs into bundle requests, and `src/backend/handshake_core/src/bundles/exporter.rs:1185-1236` preserves those IDs while selecting workflow-bounded jobs, events, and node records.
+- Exporter-to-validator probe: `src/backend/handshake_core/src/bundles/exporter.rs:1463-1479` and `src/backend/handshake_core/src/bundles/exporter.rs:2764-2863` match the validator invariants in `src/backend/handshake_core/src/bundles/validator.rs:780-853` for workflow-node count, scoped `workflow_run_id`, and required node inventory presence.
+
+NEGATIVE_PATH_CHECKS:
+- `src/backend/handshake_core/src/bundles/validator.rs:340-351` rejects `scope.kind=workflow_node_execution` when `scope.workflow_node_execution_id` is missing.
+- `src/backend/handshake_core/src/bundles/validator.rs:845-853` and `src/backend/handshake_core/src/bundles/validator.rs:1120-1136` reject workflow-correlated bundles that omit `workflow_node_executions.jsonl`.
+
+INDEPENDENT_FINDINGS:
+- Current local `main` commit `1f1495a1c0801f17e8e99a01fec859962a717722` contains the bounded workflow-run and workflow-node bundle scope implementation; this is no longer stranded in the PREPARE worktree.
+- The guarded handoff gate is green after parking unrelated coder drift, so the remaining failure surface is governance closeout execution, not missing product behavior.
+- `workflow_run_id` and `workflow_node_execution_id` are carried consistently across manifest scope, templates, validator rules, exporter inventory, and runtime workflow scope parsing.
+
+RESIDUAL_UNCERTAINTY:
+- The governed ACP final-lane helper still self-blocks if `integration-validator-closeout-check` or `integration-validator-closeout-sync` is invoked from inside an active `SEND_PROMPT`, so final truth sync still depends on running the helper after the validator turn settles.
+- The PREPARE worktree still contains unrelated parked coder drift under a named stash; that drift is outside signed WP scope and was intentionally excluded from containment proof.
+
+SPEC_CLAUSE_MAP:
+- `HSK-WF-001 durable node persistence plus recovery-safe node lineage must become bounded export anchors.` -> `src/backend/handshake_core/src/storage/tests.rs:3013`; `src/backend/handshake_core/src/bundles/schemas.rs:220-229`; `src/backend/handshake_core/src/bundles/exporter.rs:1463-1479`; `src/backend/handshake_core/src/bundles/exporter.rs:2775-2863`
+- `AI Job Model runtime identity requires workflow_run_id to remain a first-class runtime anchor.` -> `src/backend/handshake_core/src/workflows.rs:7883-7913`; `src/backend/handshake_core/src/workflows.rs:4673-4705`; `src/backend/handshake_core/src/bundles/templates.rs:29-35`; `src/backend/handshake_core/src/bundles/templates.rs:166-175`; `src/backend/handshake_core/src/bundles/templates.rs:226-227`
+- `Debug Bundle manifest scope and exporter contract must admit workflow-run and node-execution scope kinds.` -> `src/backend/handshake_core/src/bundles/schemas.rs:6-15`; `src/backend/handshake_core/src/bundles/schemas.rs:30-35`; `src/backend/handshake_core/src/bundles/schemas.rs:454-458`; `src/backend/handshake_core/src/bundles/schemas.rs:485-487`; `src/backend/handshake_core/src/bundles/exporter.rs:1103-1108`; `src/backend/handshake_core/src/bundles/exporter.rs:1185-1236`; `src/backend/handshake_core/src/bundles/exporter.rs:1463-1479`
+- `Export manifest requirements that already mention workflow_run_id must be reconciled with explicit scope law and workflow-node inventory proof.` -> `src/backend/handshake_core/src/bundles/validator.rs:340-351`; `src/backend/handshake_core/src/bundles/validator.rs:780-853`; `src/backend/handshake_core/src/bundles/validator.rs:1120-1136`; `src/backend/handshake_core/src/bundles/zip.rs:75`
+
+NEGATIVE_PROOF:
+- Repo governance still does not let the Integration Validator complete `integration-validator-closeout-check` or `integration-validator-closeout-sync` from inside an active ACP `SEND_PROMPT`, because the session-control closeout bundle treats the current governed run as a blocker. This is tracked separately under `RGF-17` and is outside the signed product scope for this WP.
+
+REASON FOR PASS:
+- The signed workflow-correlation scope is contained in local `main` at `1f1495a1c0801f17e8e99a01fec859962a717722`, the committed-handoff gate is durable PASS, the bounded workflow scope tests all pass on `main`, and the remaining failure mode is a governed closeout execution bug rather than an unresolved product or spec gap.

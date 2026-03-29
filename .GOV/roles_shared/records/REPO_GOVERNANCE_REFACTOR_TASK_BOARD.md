@@ -44,6 +44,8 @@
   - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260325-CONTRACT-HARDENING-V1`
   - `AUDIT_ID: AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW`
   - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW`
+  - `AUDIT_ID: AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW`
+  - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1`
 - Historical comparison driver:
   - `AUDIT_ID: AUDIT-20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT`
 
@@ -67,6 +69,7 @@
 | RGF-14 | DONE | Terminal Closeout Projection Sync | RGF-03, RGF-04, RGF-05, RGF-12 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | `task-board-set`, runtime projection helpers, merge-progression truth checks | terminal Task Board transitions now reject packet-truth mismatches and sync packet/runtime closeout projections immediately so final truth lags less |
 | RGF-15 | DONE | Command Family Simplification and Wrong-Tool Rejection | RGF-08, RGF-11 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | command surface, helper wrappers, wrong-lane rejection rules, startup prompts | the live command surface narrows further and obviously wrong helper families fail earlier |
 | RGF-16 | DONE | Final-Lane Authority Context Bundle | RGF-10, RGF-12 | `AUDIT-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW-REVIEW` | final-lane brief/resume helpers, authority context surfaces, source-of-truth summaries | integration/final review can open one canonical context bundle instead of repeating path and authority inspection |
+| RGF-17 | READY | Integration-Validator Merge Execution and Orphaned WP Prevention | RGF-04, RGF-12, RGF-14, RGF-16 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | `roles/validator/VALIDATOR_PROTOCOL.md`, `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles/validator/checks/integration-validator-closeout-check.mjs`, `roles/validator/scripts/integration-validator-closeout-sync.mjs`, `roles_shared/scripts/lib/packet-runtime-projection-lib.mjs` | orchestrator-managed WPs with final PASS-grade proof must end in one machine-visible terminal authority outcome: contained in `main`, explicit validator `FAIL` or `OUTDATED_ONLY`, or explicit abandon/discard truth with packet/runtime/task-board state synchronized |
 
 ## Refactor Sequence (Historical)
 
@@ -87,6 +90,7 @@
 6. `RGF-14`
 7. `RGF-15`
 8. `RGF-16`
+9. `RGF-17`
 
 ## Explicit Holds
 
