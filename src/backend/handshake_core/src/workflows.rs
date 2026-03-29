@@ -4669,12 +4669,14 @@ fn read_existing_work_packet_type(
 fn build_structured_work_packet_summary(
     tracked_wp: &locus::TrackedWorkPacket,
 ) -> locus::StructuredCollaborationSummaryRecord {
+    let (workflow_state_family, _) = work_packet_workflow_state(tracked_wp.status);
     locus::default_structured_collaboration_summary_record(
         locus::StructuredCollaborationRecordFamily::WorkPacketPacket,
         tracked_wp.record_id.clone(),
         tracked_wp.title.clone(),
+        workflow_state_family,
         structured_work_packet_status(tracked_wp.status),
-        structured_work_packet_next_action(tracked_wp.status),
+        Some(structured_work_packet_next_action(tracked_wp.status).to_string()),
         tracked_wp.authority_refs.clone(),
         tracked_wp.evidence_refs.clone(),
         tracked_wp.updated_at.to_rfc3339(),
@@ -4700,6 +4702,7 @@ fn build_structured_work_packet_packet(
         authority_refs: tracked_wp.authority_refs.clone(),
         evidence_refs: tracked_wp.evidence_refs.clone(),
         mirror_contract: None,
+        profile_extension: tracked_wp.profile_extension.clone(),
         workflow_state_family,
         queue_reason_code,
         allowed_action_ids: allowed_action_ids(workflow_state_family),
@@ -4731,12 +4734,14 @@ fn build_structured_work_packet_packet(
 fn build_structured_micro_task_summary(
     tracked_mt: &locus::TrackedMicroTask,
 ) -> locus::StructuredCollaborationSummaryRecord {
+    let (workflow_state_family, _) = micro_task_workflow_state(tracked_mt.status);
     locus::default_structured_collaboration_summary_record(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         tracked_mt.record_id.clone(),
         tracked_mt.name.clone(),
+        workflow_state_family,
         structured_micro_task_status(tracked_mt.status),
-        structured_micro_task_next_action(tracked_mt.status),
+        Some(structured_micro_task_next_action(tracked_mt.status).to_string()),
         tracked_mt.authority_refs.clone(),
         tracked_mt.evidence_refs.clone(),
         tracked_mt.updated_at.to_rfc3339(),
@@ -4761,6 +4766,7 @@ fn build_structured_micro_task_packet(
         authority_refs: tracked_mt.authority_refs.clone(),
         evidence_refs: tracked_mt.evidence_refs.clone(),
         mirror_contract: None,
+        profile_extension: tracked_mt.profile_extension.clone(),
         workflow_state_family,
         queue_reason_code,
         allowed_action_ids: allowed_action_ids(workflow_state_family),
@@ -7874,6 +7880,38 @@ async fn run_job(
                 .ok_or_else(|| {
                     WorkflowError::Terminal("wsid missing for workspace scope".into())
                 })?,
+            "workflow_run" => scope_value
+                .get("workflow_run_id")
+                .and_then(|v| v.as_str())
+                .map(|workflow_run_id| BundleScope::WorkflowRun {
+                    workflow_run_id: workflow_run_id.to_string(),
+                })
+                .ok_or_else(|| {
+                    WorkflowError::Terminal("workflow_run_id missing for workflow_run scope".into())
+                })?,
+            "workflow_node_execution" => {
+                let workflow_run_id = scope_value
+                    .get("workflow_run_id")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        WorkflowError::Terminal(
+                            "workflow_run_id missing for workflow_node_execution scope".into(),
+                        )
+                    })?;
+                let workflow_node_execution_id = scope_value
+                    .get("workflow_node_execution_id")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        WorkflowError::Terminal(
+                            "workflow_node_execution_id missing for workflow_node_execution scope"
+                                .into(),
+                        )
+                    })?;
+                BundleScope::WorkflowNodeExecution {
+                    workflow_run_id: workflow_run_id.to_string(),
+                    workflow_node_execution_id: workflow_node_execution_id.to_string(),
+                }
+            }
             _ => scope_value
                 .get("job_id")
                 .and_then(|v| v.as_str())
@@ -11778,13 +11816,15 @@ fn apply_runtime_structured_micro_task_registry(
         .map(Value::is_null)
         .unwrap_or(true)
     {
+        let (workflow_state_family, _) = micro_task_workflow_state(tracked_mt.status);
         tracked_mt.metadata["structured_collaboration_summary"] =
             serde_json::to_value(locus::default_structured_collaboration_summary_record(
                 locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
                 tracked_mt.record_id.clone(),
                 tracked_mt.name.clone(),
+                workflow_state_family,
                 structured_micro_task_status(tracked_mt.status),
-                "start_micro_task",
+                Some(structured_micro_task_next_action(tracked_mt.status).to_string()),
                 tracked_mt.authority_refs.clone(),
                 tracked_mt.evidence_refs.clone(),
                 tracked_mt.updated_at.to_rfc3339(),
