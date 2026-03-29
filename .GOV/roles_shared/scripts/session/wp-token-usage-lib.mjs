@@ -5,6 +5,10 @@ import {
   GOVERNANCE_RUNTIME_ROOT_ENV_VAR,
   PRODUCT_RUNTIME_ROOT_ENV_VAR,
 } from "../lib/runtime-paths.mjs";
+import {
+  WP_TOKEN_LEDGER_HEALTH_POLICY_ID,
+  WP_TOKEN_LEDGER_HEALTH_THRESHOLDS,
+} from "./session-policy.mjs";
 import { writeJsonFile } from "./session-registry-lib.mjs";
 
 export const WP_TOKEN_USAGE_SCHEMA_ID = "hsk.wp_token_usage@1";
@@ -69,6 +73,11 @@ function sampleList(values = [], limit = OUTPUT_SCAN_SAMPLE_SIZE) {
     .slice(0, limit);
 }
 
+function normalizeNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
 function normalizeTurnUsageEntry(entry = {}) {
   return {
     timestamp: normalizeText(entry.timestamp),
@@ -115,6 +124,33 @@ function summarizeCommands(commandEntries = []) {
     addUsageTotals(summary.usage_totals, command.usage_totals);
   }
   return summary;
+}
+
+function usageTotalsDelta(left = {}, right = {}) {
+  return {
+    input_tokens: Math.abs(normalizeCount(left.input_tokens) - normalizeCount(right.input_tokens)),
+    cached_input_tokens: Math.abs(normalizeCount(left.cached_input_tokens) - normalizeCount(right.cached_input_tokens)),
+    output_tokens: Math.abs(normalizeCount(left.output_tokens) - normalizeCount(right.output_tokens)),
+  };
+}
+
+function ratioPercent(delta, left, right) {
+  const denominator = Math.max(normalizeCount(left), normalizeCount(right), 1);
+  return Number(((normalizeCount(delta) / denominator) * 100).toFixed(2));
+}
+
+function classifyDriftMetric(value, warnLimit, failLimit) {
+  const numericValue = normalizeNumber(value);
+  const warn = normalizeNumber(warnLimit);
+  const fail = normalizeNumber(failLimit);
+  if (fail > 0 && numericValue >= fail) return "FAIL";
+  if (warn > 0 && numericValue >= warn) return "WARN";
+  return "PASS";
+}
+
+function worseSeverity(left, right) {
+  const rank = { NONE: 0, PASS: 1, WARN: 2, FAIL: 3 };
+  return (rank[right] || 0) > (rank[left] || 0) ? right : left;
 }
 
 function buildRoleTotals(commandEntries = []) {
@@ -297,12 +333,30 @@ function buildLedgerHealth(trackedCommands = [], rawCommands = []) {
   if (trackedCommands.length === 0 && rawCommands.length === 0) {
     return {
       status: "NO_OUTPUTS",
+      drift_class: "NONE",
+      severity: "NONE",
+      policy_id: WP_TOKEN_LEDGER_HEALTH_POLICY_ID,
+      blocker_class: "NONE",
+      invalidity_code: "",
+      summary: "No settled WP session output was found, so token ledger drift evaluation is not applicable yet.",
       reason: "No tracked commands or raw session output files were found for this WP.",
       tracked_command_count: 0,
       raw_output_command_count: 0,
       missing_tracked_command_count: 0,
       stale_tracked_command_count: 0,
       summary_match: true,
+      metrics: {
+        command_delta_count: 0,
+        turn_delta: 0,
+        input_token_delta: 0,
+        cached_input_token_delta: 0,
+        output_token_delta: 0,
+        input_token_delta_ratio_pct: 0,
+        cached_input_token_delta_ratio_pct: 0,
+        output_token_delta_ratio_pct: 0,
+      },
+      warnings: [],
+      failures: [],
       missing_tracked_command_ids_sample: [],
       stale_tracked_command_ids_sample: [],
     };
@@ -314,6 +368,17 @@ function buildLedgerHealth(trackedCommands = [], rawCommands = []) {
   const staleTracked = [...trackedIds].filter((commandId) => !rawIds.has(commandId));
   const trackedSummary = summarizeCommands(trackedCommands);
   const rawSummary = summarizeCommands(rawCommands);
+  const usageDelta = usageTotalsDelta(trackedSummary.usage_totals, rawSummary.usage_totals);
+  const metrics = {
+    command_delta_count: Math.abs(trackedSummary.command_count - rawSummary.command_count),
+    turn_delta: Math.abs(trackedSummary.turn_count - rawSummary.turn_count),
+    input_token_delta: usageDelta.input_tokens,
+    cached_input_token_delta: usageDelta.cached_input_tokens,
+    output_token_delta: usageDelta.output_tokens,
+    input_token_delta_ratio_pct: ratioPercent(usageDelta.input_tokens, trackedSummary.usage_totals.input_tokens, rawSummary.usage_totals.input_tokens),
+    cached_input_token_delta_ratio_pct: ratioPercent(usageDelta.cached_input_tokens, trackedSummary.usage_totals.cached_input_tokens, rawSummary.usage_totals.cached_input_tokens),
+    output_token_delta_ratio_pct: ratioPercent(usageDelta.output_tokens, trackedSummary.usage_totals.output_tokens, rawSummary.usage_totals.output_tokens),
+  };
   const summaryMatch =
     trackedSummary.command_count === rawSummary.command_count
     && trackedSummary.turn_count === rawSummary.turn_count
@@ -334,14 +399,111 @@ function buildLedgerHealth(trackedCommands = [], rawCommands = []) {
     reasons.push("tracked command totals do not match raw turn.completed usage");
   }
 
+  let severity = status === "MATCH" ? "PASS" : "WARN";
+  const warnings = [];
+  const failures = [];
+
+  const metricChecks = [
+    {
+      label: "command_delta_count",
+      value: metrics.command_delta_count,
+      warn: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.warn_command_delta_count,
+      fail: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.fail_command_delta_count,
+    },
+    {
+      label: "turn_delta",
+      value: metrics.turn_delta,
+      warn: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.warn_turn_delta,
+      fail: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.fail_turn_delta,
+    },
+    {
+      label: "input_token_delta",
+      value: metrics.input_token_delta,
+      warn: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.warn_input_token_delta,
+      fail: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.fail_input_token_delta,
+    },
+    {
+      label: "cached_input_token_delta",
+      value: metrics.cached_input_token_delta,
+      warn: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.warn_cached_input_token_delta,
+      fail: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.fail_cached_input_token_delta,
+    },
+    {
+      label: "output_token_delta",
+      value: metrics.output_token_delta,
+      warn: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.warn_output_token_delta,
+      fail: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.fail_output_token_delta,
+    },
+    {
+      label: "input_token_delta_ratio_pct",
+      value: metrics.input_token_delta_ratio_pct,
+      warn: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.warn_input_token_delta_ratio_pct,
+      fail: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.fail_input_token_delta_ratio_pct,
+    },
+    {
+      label: "cached_input_token_delta_ratio_pct",
+      value: metrics.cached_input_token_delta_ratio_pct,
+      warn: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.warn_cached_input_token_delta_ratio_pct,
+      fail: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.fail_cached_input_token_delta_ratio_pct,
+    },
+    {
+      label: "output_token_delta_ratio_pct",
+      value: metrics.output_token_delta_ratio_pct,
+      warn: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.warn_output_token_delta_ratio_pct,
+      fail: WP_TOKEN_LEDGER_HEALTH_THRESHOLDS.fail_output_token_delta_ratio_pct,
+    },
+  ];
+
+  for (const check of metricChecks) {
+    const classification = classifyDriftMetric(check.value, check.warn, check.fail);
+    if (classification === "FAIL") {
+      severity = worseSeverity(severity, "FAIL");
+      failures.push(`${check.label}=${check.value} crossed fail threshold ${check.fail}`);
+    } else if (classification === "WARN" && status === "DRIFT") {
+      severity = worseSeverity(severity, "WARN");
+      warnings.push(`${check.label}=${check.value} crossed warn threshold ${check.warn}`);
+    }
+  }
+
+  if (status === "DRIFT" && missingTracked.length > 0) {
+    warnings.push(`${missingTracked.length} raw output command(s) are missing from the tracked ledger`);
+  }
+  if (status === "DRIFT" && staleTracked.length > 0) {
+    warnings.push(`${staleTracked.length} tracked command(s) no longer have raw output files`);
+  }
+
+  const driftClass = status === "MATCH"
+    ? "NONE"
+    : severity === "FAIL"
+      ? "MATERIAL"
+      : "MINOR";
+  const blockerClass = severity === "FAIL" ? "POLICY_CONFLICT" : "NONE";
+  const invalidityCode = severity === "FAIL" ? "TOKEN_LEDGER_DRIFT" : "";
+  const summary = status === "NO_OUTPUTS"
+    ? "No settled WP session output was found, so token ledger drift evaluation is not applicable yet."
+    : status === "MATCH"
+      ? "Tracked WP token ledger matches raw turn.completed usage."
+      : severity === "FAIL"
+        ? "Material WP token ledger drift detected; raw output usage can no longer be trusted to match the tracked ledger without repair."
+        : "Minor WP token ledger drift detected; repair the tracked ledger before relying on it for diagnostics.";
+
   return {
     status,
+    drift_class: driftClass,
+    severity,
+    policy_id: WP_TOKEN_LEDGER_HEALTH_POLICY_ID,
+    blocker_class: blockerClass,
+    invalidity_code: invalidityCode,
+    summary,
     reason: reasons.join("; ") || "Tracked ledger matches raw session output usage.",
     tracked_command_count: trackedSummary.command_count,
     raw_output_command_count: rawSummary.command_count,
     missing_tracked_command_count: missingTracked.length,
     stale_tracked_command_count: staleTracked.length,
     summary_match: summaryMatch,
+    metrics,
+    warnings,
+    failures,
     missing_tracked_command_ids_sample: sampleList(missingTracked),
     stale_tracked_command_ids_sample: sampleList(staleTracked),
   };

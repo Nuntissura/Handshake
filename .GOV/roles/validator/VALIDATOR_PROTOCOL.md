@@ -410,6 +410,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - For governed non-PASS terminal closure, use the same sync surface instead of manual packet/runtime/TASK_BOARD edits:
   - `just integration-validator-closeout-sync WP-{ID} DONE_FAIL`
   - `just integration-validator-closeout-sync WP-{ID} DONE_OUTDATED_ONLY`
+  - `just integration-validator-closeout-sync WP-{ID} DONE_ABANDONED`
 - Require evidence that `just post-work WP-{ID}` ran and passed for the validated committed target (directly or via `validator-handoff-check`). If absent or failing, verdict = FAIL until fixed.
 - Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates staged/working changes when present, and on a clean tree validates a deterministic range:
   - If the work packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
@@ -623,7 +624,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 
 ## Operator UX: Explicit Verdict Line (HARD)
 - When discussing a WP where the verdict is known, every Validator chat message MUST include an explicit single-line status near the top:
-  - `VERDICT: PASS` or `VERDICT: FAIL`
+  - `VERDICT: PASS`, `VERDICT: FAIL`, or `VERDICT: ABANDONED`
 - While validation is still in progress, use:
   - `VERDICT: PENDING`
 - Do not require the Operator to infer the verdict from `NEXT_ACTION`, gate state, or prose.
@@ -673,13 +674,14 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - `CODE_VERDICT: PASS | FAIL | NOT_RUN`
   - `GOVERNANCE_VERDICT: PASS | FAIL | NOT_RUN`
   - `ENVIRONMENT_VERDICT: PASS | FAIL | NOT_RUN`
-  - `DISPOSITION: NONE | OUTDATED_ONLY`
+  - `DISPOSITION: NONE | OUTDATED_ONLY | ABANDONED`
   - `LEGAL_VERDICT: PASS | FAIL | PENDING`
 - `LEGAL_VERDICT` is the only legal top-line verdict field. `CODE_VERDICT`, `GOVERNANCE_VERDICT`, `ENVIRONMENT_VERDICT`, and `DISPOSITION` are split assessments/classifications only.
 - If the validator is in the wrong checkout or cannot access the committed PREPARE worktree source of truth, classify that as `VALIDATION_CONTEXT: CONTEXT_MISMATCH`, keep the blocked assessment at `NOT_RUN`, and use `LEGAL_VERDICT: PENDING` until the validation is rerun from the correct governance context.
 - A `CONTEXT_MISMATCH` is not, by itself, proof that the WP implementation failed.
 - If computed policy reports `LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED`, do not produce an external revalidation report for that packet. Treat it as a failed historical closure and request a new remediation WP variant instead.
 - If the WP remains correct for its baseline but SPEC_TARGET evolved materially, keep the legal verdict in `PASS | FAIL | PENDING` and set `DISPOSITION: OUTDATED_ONLY`.
+- If the lane is intentionally discarded instead of remediated or merged, use top-level `Verdict: ABANDONED`, set `DISPOSITION: ABANDONED`, and close through the governed `DONE_ABANDONED` path.
 - `OUTDATED_ONLY` is a disposition, not a legal top-line verdict.
 
 ## Governed Split Verdict Contract (MANDATORY for PACKET_FORMAT_VERSION >= 2026-03-15)
@@ -691,7 +693,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - `HEURISTIC_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `SPEC_ALIGNMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `ENVIRONMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
-  - `DISPOSITION: NONE | OUTDATED_ONLY`
+  - `DISPOSITION: NONE | OUTDATED_ONLY | ABANDONED`
   - `LEGAL_VERDICT: PASS | FAIL | PENDING`
   - `SPEC_CONFIDENCE: NONE | PARTIAL_DIFF_SCOPED | REVIEWED_DIFF_SCOPED | POST_MERGE_RECHECKED`
 - For `PACKET_FORMAT_VERSION >= 2026-03-22`, also append the universal completion-layer fields:
@@ -722,7 +724,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - `VALIDATOR_RISK_TIER` is validator-assigned and MUST NOT be lower than the packet `RISK_TIER`.
 - `LEGAL_VERDICT=PASS` is legal only when `DIFF_ATTACK_SURFACES`, `INDEPENDENT_CHECKS_RUN`, and `COUNTERFACTUAL_CHECKS` are all present and non-empty.
 - `Verdict: PASS` is legal only when `VALIDATION_CONTEXT=OK`, `WORKFLOW_VALIDITY=VALID`, `SCOPE_VALIDITY=IN_SCOPE`, `PROOF_COMPLETENESS=PROVEN`, `INTEGRATION_READINESS=READY`, `DOMAIN_GOAL_COMPLETION=COMPLETE`, and `LEGAL_VERDICT=PASS`.
-- If `PROOF_COMPLETENESS` is anything other than `PROVEN`, the top-line verdict MUST NOT be `PASS`; use `NOT_PROVEN`, `FAIL`, `BLOCKED`, or `OUTDATED_ONLY` honestly.
+- If `PROOF_COMPLETENESS` is anything other than `PROVEN`, the top-line verdict MUST NOT be `PASS`; use `NOT_PROVEN`, `FAIL`, `BLOCKED`, `OUTDATED_ONLY`, or `ABANDONED` honestly.
 - `PROOF_COMPLETENESS=PROVEN` is legal only when `NOT_PROVEN` is exactly `- NONE`.
 - `WORKFLOW_VALIDITY=VALID` is legal only when `VALIDATION_CONTEXT=OK` and `GOVERNANCE_VERDICT=PASS`.
 - `LEGAL_VERDICT=PASS` is legal only when `PROOF_COMPLETENESS=PROVEN`.
@@ -743,7 +745,7 @@ State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.
    - update `.GOV/roles_shared/records/TASK_BOARD.md` to `## Done` / `[MERGE_PENDING]` before merge, then `[VALIDATED]` only after main containment is verified
    - sync `.GOV/roles_shared/records/BUILD_ORDER.md` via `just build-order-sync`
 3. Validator appends the VALIDATION REPORT to the active official packet path (`.GOV/task_packets/{WP_ID}.md` or `.GOV/task_packets/{WP_ID}/packet.md`) (APPEND-ONLY per [CX-WP-001]).
-4. Validator runs: `just validator-gate-append {WP_ID} {PASS|FAIL}`
+4. Validator runs: `just validator-gate-append {WP_ID} {PASS|FAIL|ABANDONED}`
 5. Validator does **not** paste the full report to chat yet.
 
 ### Gate 2: COMMIT CLEARANCE (PASS only)
@@ -754,11 +756,11 @@ State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.
    - PASS requirement: run `just gov-check` after those closure updates and before merge; a PASS commit without a passing governance check is incomplete.
 
 ### Gate 3: FINAL REPORT PRESENTATION (Blocking; the only mechanical pause)
-1. If verdict = FAIL: run immediately after Gate 1, **before any remediation begins**.
+1. If verdict = FAIL or ABANDONED: run immediately after Gate 1, **before any remediation/discard begins**.
 2. If verdict = PASS: run after Gate 2 and after the validation report append is committed (**right before merge to `main` / push of `main`**).
 3. Validator **outputs the entire report to chat** using the Report Template.
 4. Validator runs: `just validator-gate-present {WP_ID}`
-5. **HALT.** Validator MUST NOT merge to `main` / push `main` (PASS) or authorize remediation kickoff (FAIL) until the user acknowledges.
+5. **HALT.** Validator MUST NOT merge to `main` / push `main` (PASS) or authorize remediation/discard kickoff (FAIL/ABANDONED) until the user acknowledges.
 
 ### Gate 4: USER ACKNOWLEDGMENT (Unlock)
 1. User explicitly acknowledges the report (e.g., "proceed", "approved", "continue").
@@ -769,16 +771,16 @@ State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.
 
 ### Gate Commands
 ```
-just validator-gate-append {WP_ID} {PASS|FAIL}   # Gate 1: Record WP append + verdict
+just validator-gate-append {WP_ID} {PASS|FAIL|ABANDONED}   # Gate 1: Record WP append + verdict
 just integration-validator-closeout-check {WP_ID} # Final-lane topology + closeout preflight
 just validator-gate-commit {WP_ID}                # Gate 2: Unlock commit (PASS only)
-just validator-gate-present {WP_ID} [PASS|FAIL]   # Gate 3: Record report shown (HALT)
+just validator-gate-present {WP_ID} [PASS|FAIL|ABANDONED]   # Gate 3: Record report shown (HALT)
 just validator-gate-acknowledge {WP_ID}           # Gate 4: Record user ack (unlock)
 just validator-gate-status {WP_ID}                # Check current gate state
 just validator-gate-reset {WP_ID} --confirm       # Reset gates (archives old session)
 ```
 
-**Violations:** Skipping Gate 1, committing without a PASS Gate 2, or merging to `main` / pushing `main` (PASS) / starting remediation (FAIL) without Gate 3+4 = PROTOCOL VIOLATION [CX-VAL-GATE-FAIL]. Gate commands will fail if the sequence is violated.
+**Violations:** Skipping Gate 1, committing without a PASS Gate 2, or merging to `main` / pushing `main` (PASS) / starting remediation or discard (FAIL/ABANDONED) without Gate 3+4 = PROTOCOL VIOLATION [CX-VAL-GATE-FAIL]. Gate commands will fail if the sequence is violated.
 
 ```
 FLOW DIAGRAM:
@@ -835,7 +837,7 @@ FLOW DIAGRAM:
 ## Report Template
 ```
 VALIDATION REPORT â€” {WP_ID}
-Verdict: PASS | FAIL | NOT_PROVEN | OUTDATED_ONLY | BLOCKED
+Verdict: PASS | FAIL | NOT_PROVEN | OUTDATED_ONLY | ABANDONED | BLOCKED
 
 Validation Claims (do not collapse into a single PASS):
 - GATES_PASS (deterministic manifest gate on the committed handoff state, typically via `just validator-handoff-check {WP_ID}`; not tests): PASS | FAIL
@@ -847,7 +849,7 @@ Validation Claims (do not collapse into a single PASS):
 - HEURISTIC_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
 - SPEC_ALIGNMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
 - ENVIRONMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
-- DISPOSITION: NONE | OUTDATED_ONLY
+- DISPOSITION: NONE | OUTDATED_ONLY | ABANDONED
 - LEGAL_VERDICT: PASS | FAIL | PENDING
 - SPEC_CONFIDENCE: NONE | PARTIAL_DIFF_SCOPED | REVIEWED_DIFF_SCOPED | POST_MERGE_RECHECKED
 - WORKFLOW_VALIDITY: VALID | INVALID | PARTIAL | BLOCKED | NOT_RUN
@@ -939,10 +941,10 @@ Split-Verdict Rules:
 - If the environment blocked full proof, record that in `ENVIRONMENT_VERDICT` instead of narrating an unconditional PASS.
  
 Work Packet Update (APPEND-ONLY):
-- [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL) MUST be APPENDED to the end of the active official packet file (`.GOV/task_packets/{WP_ID}.md` or `.GOV/task_packets/{WP_ID}/packet.md`). OVERWRITING IS FORBIDDEN.
+- [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL/ABANDONED) MUST be APPENDED to the end of the active official packet file (`.GOV/task_packets/{WP_ID}.md` or `.GOV/task_packets/{WP_ID}/packet.md`). OVERWRITING IS FORBIDDEN.
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
-- STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL using the template below, but only after `verdict: PASS` may the Validator set work packet `**Status:** Done`, move TASK_BOARD to Done/Merge Pending, and sync BUILD_ORDER (`just build-order-sync`). Promote to `Validated (PASS)` / `[VALIDATED]` only after main containment is real and recorded. **DO NOT OVERWRITE User Context or previous history [CX-654].**
-- For non-PASS governed verdicts or `DISPOSITION=OUTDATED_ONLY`, append the report but do not perform normal Done/Validated PASS closure updates on work packet/TASK_BOARD/BUILD_ORDER unless the governed lane explicitly records the outdated-only closure path.
+- STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL/ABANDONED using the template below, but only after `verdict: PASS` may the Validator set work packet `**Status:** Done`, move TASK_BOARD to Done/Merge Pending, and sync BUILD_ORDER (`just build-order-sync`). Promote to `Validated (PASS)` / `[VALIDATED]` only after main containment is real and recorded. **DO NOT OVERWRITE User Context or previous history [CX-654].**
+- For non-PASS governed verdicts or `DISPOSITION=OUTDATED_ONLY|ABANDONED`, append the report but do not perform normal Done/Validated PASS closure updates on work packet/TASK_BOARD/BUILD_ORDER unless the governed lane explicitly records the non-PASS terminal closure path.
 - TASK_BOARD update (merge-visible requirement): for PASS before merge, the Validator MUST update `.GOV/roles_shared/records/TASK_BOARD.md` on the WP branch using `just task-board-set WP-{ID} DONE_MERGE_PENDING`, and the closure commit MUST carry that update so merge truth is not overstated.
 - TASK_BOARD update (post-merge requirement): after the approved closure commit is contained in local `main`, promote the entry with `just task-board-set WP-{ID} DONE_VALIDATED`.
 - TASK_BOARD update (on `main`): after merge, the canonical main-branch Task Board must already show the validated WP entry from that closure commit. Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.

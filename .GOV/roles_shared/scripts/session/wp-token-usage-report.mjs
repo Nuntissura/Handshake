@@ -24,6 +24,14 @@ console.log(`- ledger_path: ${filePath.replace(/\\/g, "/")}`);
 console.log(`- updated_at: ${ledger.updated_at}`);
 console.log(`- summary_source: ${ledger.summary_source}`);
 console.log(`- ledger_health: ${ledger.ledger_health.status}`);
+console.log(`- ledger_health_severity: ${ledger.ledger_health.severity}`);
+console.log(`- ledger_health_drift_class: ${ledger.ledger_health.drift_class}`);
+console.log(`- ledger_health_policy_id: ${ledger.ledger_health.policy_id}`);
+console.log(`- ledger_health_blocker_class: ${ledger.ledger_health.blocker_class}`);
+if (ledger.ledger_health.invalidity_code) {
+  console.log(`- ledger_health_invalidity_code: ${ledger.ledger_health.invalidity_code}`);
+}
+console.log(`- ledger_health_summary: ${ledger.ledger_health.summary}`);
 console.log(`- command_count: ${ledger.summary.command_count}`);
 console.log(`- turn_count: ${ledger.summary.turn_count}`);
 console.log(`- input_tokens: ${ledger.summary.usage_totals.input_tokens}`);
@@ -37,6 +45,10 @@ if (ledger.ledger_health.status !== "NO_OUTPUTS") {
 }
 if (ledger.ledger_health.status === "DRIFT") {
   console.log(`- drift_reason: ${ledger.ledger_health.reason}`);
+  console.log(`- command_delta_count: ${ledger.ledger_health.metrics.command_delta_count}`);
+  console.log(`- turn_delta: ${ledger.ledger_health.metrics.turn_delta}`);
+  console.log(`- input_token_delta: ${ledger.ledger_health.metrics.input_token_delta}`);
+  console.log(`- input_token_delta_ratio_pct: ${ledger.ledger_health.metrics.input_token_delta_ratio_pct}`);
   if (ledger.ledger_health.missing_tracked_command_count > 0) {
     console.log(`- missing_tracked_command_count: ${ledger.ledger_health.missing_tracked_command_count}`);
     console.log(`- missing_tracked_command_ids_sample: ${ledger.ledger_health.missing_tracked_command_ids_sample.join(", ")}`);
@@ -44,6 +56,12 @@ if (ledger.ledger_health.status === "DRIFT") {
   if (ledger.ledger_health.stale_tracked_command_count > 0) {
     console.log(`- stale_tracked_command_count: ${ledger.ledger_health.stale_tracked_command_count}`);
     console.log(`- stale_tracked_command_ids_sample: ${ledger.ledger_health.stale_tracked_command_ids_sample.join(", ")}`);
+  }
+  if (ledger.ledger_health.warnings.length > 0) {
+    console.log(`- ledger_health_warnings: ${ledger.ledger_health.warnings.join(" | ")}`);
+  }
+  if (ledger.ledger_health.failures.length > 0) {
+    console.log(`- ledger_health_failures: ${ledger.ledger_health.failures.join(" | ")}`);
   }
 }
 

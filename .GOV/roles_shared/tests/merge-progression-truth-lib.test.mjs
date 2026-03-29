@@ -99,6 +99,25 @@ test("Validated (PASS) fails when the recorded merged commit is not proven conta
   assert.match(result.errors.join("\n"), /requires main containment proof/i);
 });
 
+test("Validated (ABANDONED) requires NOT_REQUIRED containment and no merged-main fields", () => {
+  const packetText = buildPacket({
+    status: "Validated (ABANDONED)",
+    verdict: "ABANDONED",
+    mainContainmentStatus: "NOT_REQUIRED",
+    mergedMainCommit: "NONE",
+    mainContainmentVerifiedAtUtc: "N/A",
+  });
+  const result = validateMergeProgressionTruth(packetText, {
+    runtimeStatusData: {
+      current_packet_status: "Validated (ABANDONED)",
+      main_containment_status: "NOT_REQUIRED",
+      merged_main_commit: null,
+      main_containment_verified_at_utc: null,
+    },
+  });
+  assert.deepEqual(result.errors, []);
+});
+
 test("Legacy packet versions bypass merge progression truth enforcement", () => {
   const packetText = buildPacket({
     packetFormatVersion: "2026-03-24",

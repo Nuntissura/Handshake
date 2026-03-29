@@ -17,7 +17,7 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 
 **Task Board entry format (enforced for In Progress/Done/Superseded via `just task-board-check`):**
 - In Progress: `- **[WP_ID]** - [IN_PROGRESS]`
-- Done: `- **[WP_ID]** - [MERGE_PENDING|VALIDATED|FAIL|OUTDATED_ONLY]`
+- Done: `- **[WP_ID]** - [MERGE_PENDING|VALIDATED|FAIL|OUTDATED_ONLY|ABANDONED]`
 - Superseded: `- **[WP_ID]** - [SUPERSEDED]`
 Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the work packet to avoid drift/noise.
 

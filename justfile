@@ -219,8 +219,8 @@ orchestrator-next wp-id="":
 coder-next wp-id="":
 	@node {{GOV_ROOT}}/roles/coder/scripts/coder-next.mjs {{wp-id}}
 
-pre-work wp-id:
-	@node {{GOV_ROOT}}/roles/coder/checks/pre-work.mjs {{wp-id}}
+pre-work wp-id *args:
+	@node {{GOV_ROOT}}/roles/coder/checks/pre-work.mjs {{wp-id}} {{args}}
 
 post-work wp-id *args:
 	@node {{GOV_ROOT}}/roles/coder/checks/post-work.mjs {{wp-id}} {{args}}

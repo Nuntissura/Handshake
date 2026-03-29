@@ -36,6 +36,7 @@ export const PACKET_STATUS_VALUES = [
   "Validated (PASS)",
   "Validated (FAIL)",
   "Validated (OUTDATED_ONLY)",
+  "Validated (ABANDONED)",
 ];
 export const RUNTIME_STATUS_VALUES = [
   "submitted",

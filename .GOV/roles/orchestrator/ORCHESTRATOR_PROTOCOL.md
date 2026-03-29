@@ -193,7 +193,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - After that preflight is green, prefer `just integration-validator-closeout-sync WP-{ID} ...` instead of manually editing packet/TASK_BOARD/runtime surfaces.
   - PASS before main containment: `DONE_MERGE_PENDING`
   - PASS after main containment: `DONE_VALIDATED <MERGED_MAIN_SHA>`
-  - explicit non-PASS terminal closure: `DONE_FAIL` or `DONE_OUTDATED_ONLY`
+  - explicit non-PASS terminal closure: `DONE_FAIL`, `DONE_OUTDATED_ONLY`, or `DONE_ABANDONED`
   This keeps closeout truth synchronized and reduces orchestrator repair work.
 
 ## Branching & Concurrency
@@ -310,7 +310,7 @@ Resume rule:
 
 ## Deterministic Helpers
 
-- `just task-board-set WP-{ID} READY_FOR_DEV|IN_PROGRESS|DONE_MERGE_PENDING|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|STUB|BLOCKED|SUPERSEDED ["reason"]`
+- `just task-board-set WP-{ID} READY_FOR_DEV|IN_PROGRESS|DONE_MERGE_PENDING|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|DONE_ABANDONED|STUB|BLOCKED|SUPERSEDED ["reason"]`
 - `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID`
 - `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`

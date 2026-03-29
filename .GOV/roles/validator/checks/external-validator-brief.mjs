@@ -136,21 +136,21 @@ function pushUnique(target, value) {
   target.push(normalized);
 }
 
+function boundedList(items = [], maxItems = 4) {
+  const normalized = (items || []).map((item) => String(item || "").trim()).filter(Boolean);
+  if (normalized.length === 0) return ["<none>"];
+  if (normalized.length <= maxItems) return normalized;
+  return [...normalized.slice(0, maxItems), `... (${normalized.length - maxItems} more)`];
+}
+
 function formatText(brief) {
   const lines = [
     "EXTERNAL_VALIDATOR_BRIEF [CX-VAL-EXT-001]",
     `- WP_ID: ${brief.wp_id}`,
     `- VALIDATION_MODE: ${brief.validation_mode}`,
-    `- WORKFLOW_LANE: ${brief.workflow_lane}`,
-    `- VALIDATION_CONTEXT: ${brief.validation_context}`,
-    `- GOVERNANCE_AUTHORITY_ROLE: ${brief.governance_target.authority_role}`,
-    `- CODE_TARGET_BRANCH: ${brief.code_target.branch}`,
-    `- CODE_TARGET_COMMIT: ${brief.code_target.commit}`,
-    `- CODE_TARGET_HINT: ${brief.code_target.hint}`,
-    `- GOVERNANCE_CHECKOUT_BRANCH: ${brief.governance_target.branch}`,
-    `- GOVERNANCE_CHECKOUT_PATH: ${brief.governance_target.checkout_path}`,
-    `- PREPARE_WORKTREE_DIR: ${brief.handoff_target.prepare_worktree_dir}`,
-    `- PREPARE_WORKTREE_HEAD: ${brief.handoff_target.prepare_worktree_head}`,
+    `- WORKFLOW_LANE: ${brief.workflow_lane} | VALIDATION_CONTEXT: ${brief.validation_context} | GOVERNANCE_AUTHORITY_ROLE: ${brief.governance_target.authority_role}`,
+    `- CODE_TARGET: branch=${brief.code_target.branch} | commit=${brief.code_target.commit} | hint=${brief.code_target.hint}`,
+    `- ARTIFACT_POINTERS: governance_branch=${brief.governance_target.branch} | governance_path=${brief.governance_target.checkout_path} | prepare_worktree=${brief.handoff_target.prepare_worktree_dir} | prepare_head=${brief.handoff_target.prepare_worktree_head}`,
     `- STARTUP_SEQUENCE: ${brief.startup_sequence.join(" -> ")}`,
     `- HANDOFF_COMMAND: ${brief.handoff_target.command}`,
     `- GOVERNANCE_COMMAND: ${brief.governance_target.command}`,
@@ -159,6 +159,7 @@ function formatText(brief) {
     `- SPLIT_FIELDS: ${brief.split_fields.join(" | ")}`,
     `- RUNTIME_LEDGER_RULE: session ledgers/output logs are operator/runtime evidence only; they are not packet-scope implementation authority`,
     `- WRITE_TARGET_RULE: independent external revalidation of an orchestrator-managed WP writes a chat report or clearly labeled external revalidation report only; it must not run validator-gate-*, mutate closure state, or replace Classical Validator / Integration Validator merge authority`,
+    `- FULL_OUTPUT_RULE: use --json for the machine-readable full brief instead of reconstructing context from protocols`,
   ];
   if (brief.policy_outcome) lines.push(`- POLICY_OUTCOME: ${brief.policy_outcome}`);
   if (brief.policy_applicability) lines.push(`- POLICY_APPLICABILITY: ${brief.policy_applicability}`);
@@ -167,17 +168,17 @@ function formatText(brief) {
 
   if (brief.context_notes.length > 0) {
     lines.push("- CONTEXT_NOTES:");
-    for (const note of brief.context_notes) lines.push(`  - ${note}`);
+    for (const note of boundedList(brief.context_notes)) lines.push(`  - ${note}`);
   }
 
   if (brief.required_commands.length > 0) {
     lines.push("- REQUIRED_COMMANDS:");
-    for (const command of brief.required_commands) lines.push(`  - ${command}`);
+    for (const command of boundedList(brief.required_commands, 6)) lines.push(`  - ${command}`);
   }
 
   if (brief.optional_commands.length > 0) {
     lines.push("- OPTIONAL_HYGIENE_COMMANDS:");
-    for (const command of brief.optional_commands) lines.push(`  - ${command}`);
+    for (const command of boundedList(brief.optional_commands, 6)) lines.push(`  - ${command}`);
   }
 
   if (!brief.legacy_remediation_required) {

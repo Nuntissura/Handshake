@@ -156,8 +156,8 @@ for (const rel of files) {
     }
   }
 
-  if (!/^\s*Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED)\b/im.test(reports)) {
-    violations.push(`${rel}: VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED`);
+  if (!/^\s*Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|ABANDONED|BLOCKED)\b/im.test(reports)) {
+    violations.push(`${rel}: VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|ABANDONED|BLOCKED`);
   }
 
   const clausesReviewed = extractListItemsAfterLabel(reports, "CLAUSES_REVIEWED");
@@ -219,6 +219,14 @@ for (const rel of files) {
   const environmentVerdict = parseSectionField(reports, "ENVIRONMENT_VERDICT").toUpperCase();
   const disposition = parseSectionField(reports, "DISPOSITION").toUpperCase();
   const legalVerdict = parseSectionField(reports, "LEGAL_VERDICT").toUpperCase();
+  if (topLevelVerdict === "ABANDONED") {
+    if (!/^Validated\s*\(\s*ABANDONED\s*\)$/i.test(status)) {
+      violations.push(`${rel}: Verdict=ABANDONED requires packet Status: Validated (ABANDONED)`);
+    }
+    if (disposition !== "ABANDONED") {
+      violations.push(`${rel}: Verdict=ABANDONED requires DISPOSITION=ABANDONED`);
+    }
+  }
 
   if (requiresCompletionLayerVerdicts) {
     const workflowValidity = parseSectionField(reports, "WORKFLOW_VALIDITY").toUpperCase();

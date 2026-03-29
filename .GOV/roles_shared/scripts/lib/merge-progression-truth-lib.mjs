@@ -306,6 +306,19 @@ export function validateMergeProgressionTruth(
     if (!verifiedAtIsNone) {
       errors.push("Validated (OUTDATED_ONLY) must not record MAIN_CONTAINMENT_VERIFIED_AT_UTC");
     }
+  } else if (/^Validated\s*\(\s*ABANDONED\s*\)$/i.test(parsed.status)) {
+    if (parsed.validationVerdict !== "ABANDONED") {
+      errors.push("Validated (ABANDONED) requires VALIDATION_REPORTS top-level Verdict: ABANDONED");
+    }
+    if (parsed.mainContainmentStatus !== "NOT_REQUIRED") {
+      errors.push("Validated (ABANDONED) requires MAIN_CONTAINMENT_STATUS=NOT_REQUIRED");
+    }
+    if (!mergedMainCommitIsNone) {
+      errors.push("Validated (ABANDONED) must not record MERGED_MAIN_COMMIT");
+    }
+    if (!verifiedAtIsNone) {
+      errors.push("Validated (ABANDONED) must not record MAIN_CONTAINMENT_VERIFIED_AT_UTC");
+    }
   } else if (/^Done(?:\s*\(Historical\))?$/i.test(parsed.status)) {
     if (parsed.validationVerdict !== "PASS") {
       errors.push("Done now means merge-pending PASS closure and requires VALIDATION_REPORTS top-level Verdict: PASS");
@@ -349,8 +362,8 @@ export function validateMergeProgressionTruth(
   if (parsed.mainContainmentStatus === "MERGE_PENDING" && !/^Done(?:\s*\(Historical\))?$/i.test(parsed.status)) {
     errors.push("MAIN_CONTAINMENT_STATUS=MERGE_PENDING is only legal for Status: Done");
   }
-  if (parsed.mainContainmentStatus === "NOT_REQUIRED" && !/^Validated\s*\(\s*(FAIL|OUTDATED_ONLY)\s*\)$/i.test(parsed.status)) {
-    errors.push("MAIN_CONTAINMENT_STATUS=NOT_REQUIRED is only legal for Status: Validated (FAIL|OUTDATED_ONLY)");
+  if (parsed.mainContainmentStatus === "NOT_REQUIRED" && !/^Validated\s*\(\s*(FAIL|OUTDATED_ONLY|ABANDONED)\s*\)$/i.test(parsed.status)) {
+    errors.push("MAIN_CONTAINMENT_STATUS=NOT_REQUIRED is only legal for Status: Validated (FAIL|OUTDATED_ONLY|ABANDONED)");
   }
 
   const runtimePath = String(parsed.runtimeStatusPath || "").trim();

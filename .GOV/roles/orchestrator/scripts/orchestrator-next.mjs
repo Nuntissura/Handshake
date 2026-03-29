@@ -461,7 +461,28 @@ function main() {
   const syncState = preparedWorktreeSyncState(wpId, lastPrepare, gitContext.topLevel || process.cwd());
   const packetText = fs.readFileSync(packetPath, "utf8");
   const workflowLane = parseSingleField(packetText, "WORKFLOW_LANE");
-  const tokenBudget = evaluateWpTokenBudget(readWpTokenUsageLedger(process.cwd(), wpId).ledger);
+  const tokenLedger = readWpTokenUsageLedger(process.cwd(), wpId).ledger;
+  const tokenBudget = evaluateWpTokenBudget(tokenLedger);
+  if (
+    String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED"
+    && String(boardStatus || "").trim().toUpperCase() !== "VALIDATED"
+    && tokenLedger.ledger_health.severity === "FAIL"
+  ) {
+    printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
+    printOperatorEnvelope("NONE", tokenLedger.ledger_health.blocker_class || "POLICY_CONFLICT");
+    printConfidence(confidence.level, confidence.detail);
+    printState(tokenLedger.ledger_health.summary);
+    printFindings([
+      `WP token ledger policy: ${tokenLedger.ledger_health.policy_id}`,
+      ...tokenLedger.ledger_health.failures,
+    ]);
+    printNextCommands([
+      `just session-registry-status ${wpId}`,
+      `just wp-token-usage ${wpId}`,
+      `# Repair token-ledger drift before resuming orchestrator-managed work.`,
+    ]);
+    return;
+  }
   if (
     String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED"
     && String(boardStatus || "").trim().toUpperCase() !== "VALIDATED"

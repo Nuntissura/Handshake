@@ -29,6 +29,13 @@ function pushUnique(target, value) {
   target.push(normalized);
 }
 
+function formatBoundedList(items = [], maxItems = 4) {
+  const normalized = (items || []).map((item) => String(item || "").trim()).filter(Boolean);
+  if (normalized.length === 0) return ["<none>"];
+  if (normalized.length <= maxItems) return normalized;
+  return [...normalized.slice(0, maxItems), `... (${normalized.length - maxItems} more)`];
+}
+
 function requiredCommandsForState({ wpId, actorContext, governanceBlocked }) {
   if (governanceBlocked) {
     return [
@@ -228,64 +235,37 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- WP_ID: ${brief.wp_id}`,
     `- CONTEXT_STATUS: ${brief.context_status}`,
     `- CLOSEOUT_READINESS: ${brief.closeout_readiness}`,
-    `- WORKFLOW_LANE: ${brief.workflow_lane}`,
-    `- PACKET_PATH: ${brief.packet_path}`,
-    `- PACKET_STATUS: ${brief.packet_status}`,
-    `- CURRENT_WP_STATUS: ${brief.current_wp_status}`,
-    `- TASK_BOARD_STATUS: ${brief.task_board_status}`,
-    `- COMMAND_SURFACE_PATH: ${brief.command_surface_path}`,
-    `- TECHNICAL_AUTHORITY: ${brief.authority.technical_authority}`,
-    `- MERGE_AUTHORITY: ${brief.authority.merge_authority}`,
-    `- INTEGRATION_VALIDATOR_OF_RECORD: ${brief.authority.integration_validator_of_record}`,
-    `- WP_VALIDATOR_OF_RECORD: ${brief.authority.wp_validator_of_record}`,
-    `- ACTOR_ROLE: ${brief.actor_context.role}`,
-    `- ACTOR_SOURCE: ${brief.actor_context.source}`,
-    `- ACTOR_SESSION_KEY: ${brief.actor_context.session_key}`,
-    `- ACTOR_SESSION_ID: ${brief.actor_context.session_id}`,
-    `- ACTOR_THREAD_ID: ${brief.actor_context.thread_id}`,
-    `- ACTOR_BRANCH: ${brief.actor_context.branch}`,
-    `- ACTOR_WORKTREE_DIR: ${brief.actor_context.worktree_dir}`,
-    `- DECLARED_TOPOLOGY_STATUS: ${brief.declared_topology.status}`,
-    `- COMMITTED_HANDOFF_STATUS: ${brief.committed_handoff.status}`,
-    `- LIVE_PREPARE_WORKTREE_STATUS: ${brief.committed_handoff.live_prepare_worktree_status}`,
-    `- COMMITTED_VALIDATION_MODE: ${brief.committed_handoff.committed_validation_mode}`,
-    `- COMMITTED_VALIDATION_TARGET: ${brief.committed_handoff.committed_validation_target}`,
-    `- COMMITTED_TARGET_HEAD_SHA: ${brief.committed_handoff.target_head_sha}`,
-    `- PREPARE_WORKTREE_DIR: ${brief.committed_handoff.prepare_worktree_dir}`,
-    `- GATE_STATE_PATH: ${brief.committed_handoff.gate_state_path}`,
-    `- CURRENT_MAIN_COMPATIBILITY_STATUS: ${brief.current_main_compatibility.status}`,
-    `- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: ${brief.current_main_compatibility.baseline_sha}`,
-    `- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: ${brief.current_main_compatibility.verified_at_utc}`,
-    `- PACKET_WIDENING_DECISION: ${brief.current_main_compatibility.packet_widening_decision}`,
-    `- PACKET_WIDENING_EVIDENCE: ${brief.current_main_compatibility.packet_widening_evidence}`,
-    `- CURRENT_MAIN_HEAD_SHA: ${brief.current_main_compatibility.current_main_head_sha}`,
-    `- WP_SCOPED_REQUEST_COUNT: ${brief.closeout_bundle.request_count}`,
-    `- WP_SCOPED_RESULT_COUNT: ${brief.closeout_bundle.result_count}`,
-    `- WP_SCOPED_SESSION_COUNT: ${brief.closeout_bundle.session_count}`,
-    `- WP_SCOPED_ACTIVE_RUN_COUNT: ${brief.closeout_bundle.active_run_count}`,
-    `- MINIMAL_LIVE_READ_SET: ${brief.minimal_live_read_set.join(" | ")}`,
+    `- WORKFLOW_LANE: ${brief.workflow_lane} | PACKET_STATUS: ${brief.packet_status} | CURRENT_WP_STATUS: ${brief.current_wp_status} | TASK_BOARD_STATUS: ${brief.task_board_status}`,
+    `- AUTHORITIES: technical=${brief.authority.technical_authority} | merge=${brief.authority.merge_authority} | integration_validator=${brief.authority.integration_validator_of_record} | wp_validator=${brief.authority.wp_validator_of_record}`,
+    `- ACTOR_CONTEXT: role=${brief.actor_context.role} | source=${brief.actor_context.source} | session=${brief.actor_context.session_id} | thread=${brief.actor_context.thread_id} | branch=${brief.actor_context.branch}`,
+    `- COMMITTED_HANDOFF: status=${brief.committed_handoff.status} | live_prepare=${brief.committed_handoff.live_prepare_worktree_status} | mode=${brief.committed_handoff.committed_validation_mode} | target=${brief.committed_handoff.committed_validation_target}`,
+    `- MAIN_COMPATIBILITY: status=${brief.current_main_compatibility.status} | baseline=${brief.current_main_compatibility.baseline_sha} | verified_at=${brief.current_main_compatibility.verified_at_utc} | main_head=${brief.current_main_compatibility.current_main_head_sha}`,
+    `- CLOSEOUT_BUNDLE: requests=${brief.closeout_bundle.request_count} | results=${brief.closeout_bundle.result_count} | sessions=${brief.closeout_bundle.session_count} | active_runs=${brief.closeout_bundle.active_run_count}`,
+    `- ARTIFACT_POINTERS: packet=${brief.packet_path} | command_surface=${brief.command_surface_path} | gate_state=${brief.committed_handoff.gate_state_path} | prepare_worktree=${brief.committed_handoff.prepare_worktree_dir}`,
+    `- MINIMAL_LIVE_READ_SET: ${formatBoundedList(brief.minimal_live_read_set, 6).join(" | ")}`,
     `- STARTUP_SEQUENCE: ${brief.startup_sequence.join(" -> ")}`,
     `- ANTI_REDISCOVERY_RULE: ${brief.anti_rediscovery_rule}`,
+    `- FULL_OUTPUT_RULE: use --json for the machine-readable full brief instead of rereading protocols or packet history`,
   ];
 
   if (brief.declared_topology.issues.length > 0) {
     lines.push("- DECLARED_TOPOLOGY_ISSUES:");
-    for (const issue of brief.declared_topology.issues) lines.push(`  - ${issue}`);
+    for (const issue of formatBoundedList(brief.declared_topology.issues)) lines.push(`  - ${issue}`);
   }
 
   if ((brief.current_main_compatibility.errors || []).length > 0) {
     lines.push("- SIGNED_SCOPE_COMPATIBILITY_ERRORS:");
-    for (const issue of brief.current_main_compatibility.errors) lines.push(`  - ${issue}`);
+    for (const issue of formatBoundedList(brief.current_main_compatibility.errors)) lines.push(`  - ${issue}`);
   }
 
   if ((brief.context_notes || []).length > 0) {
     lines.push("- CONTEXT_NOTES:");
-    for (const note of brief.context_notes) lines.push(`  - ${note}`);
+    for (const note of formatBoundedList(brief.context_notes)) lines.push(`  - ${note}`);
   }
 
   if ((brief.required_commands || []).length > 0) {
     lines.push("- REQUIRED_COMMANDS:");
-    for (const command of brief.required_commands) lines.push(`  - ${command}`);
+    for (const command of formatBoundedList(brief.required_commands, 6)) lines.push(`  - ${command}`);
   }
 
   return `${lines.join("\n")}\n`;

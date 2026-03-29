@@ -64,9 +64,10 @@ test("critical integration-validator helper commands stay aligned across docs, p
   const commandSurface = fs.readFileSync(COMMAND_SURFACE_REFERENCE_PATH, "utf8");
   const validatorProtocol = fs.readFileSync(VALIDATOR_PROTOCOL_PATH, "utf8");
 
-  assert.match(commandSurface, /`just integration-validator-context-brief WP-\{ID\}`/);
+  assert.match(commandSurface, /`just integration-validator-context-brief WP-\{ID\} \[--json\]`/);
   assert.match(commandSurface, /`just integration-validator-closeout-check WP-\{ID\}`/);
   assert.match(commandSurface, /`just wp-token-usage WP-\{ID\}`/);
+  assert.match(commandSurface, /`just external-validator-brief WP-\{ID\} \[--json\]`/);
   assert.match(validatorProtocol, /just integration-validator-context-brief WP-\{ID\}/);
   assert.equal(recipeExists(justfile, "integration-validator-context-brief"), true);
   assert.equal(recipeExists(justfile, "integration-validator-closeout-check"), true);

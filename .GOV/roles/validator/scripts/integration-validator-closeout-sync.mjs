@@ -89,6 +89,16 @@ function parseMode(rawMode) {
       requiredValidationVerdict: "OUTDATED_ONLY",
     };
   }
+  if (mode === "ABANDONED" || mode === "DONE_ABANDONED") {
+    return {
+      mode: "ABANDONED",
+      boardStatus: "DONE_ABANDONED",
+      packetStatus: "Validated (ABANDONED)",
+      mainContainmentStatus: "NOT_REQUIRED",
+      requireMergedMainCommit: false,
+      requiredValidationVerdict: "ABANDONED",
+    };
+  }
   return null;
 }
 
@@ -97,10 +107,10 @@ const requestedMode = parseMode(process.argv[3]);
 const mergedMainCommit = String(process.argv[4] || "").trim();
 
 if (!wpId || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(wpId)) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/integration-validator-closeout-sync.mjs WP-{ID} <MERGE_PENDING|CONTAINED_IN_MAIN|FAIL|OUTDATED_ONLY> [MERGED_MAIN_SHA]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/integration-validator-closeout-sync.mjs WP-{ID} <MERGE_PENDING|CONTAINED_IN_MAIN|FAIL|OUTDATED_ONLY|ABANDONED> [MERGED_MAIN_SHA]`);
 }
 if (!requestedMode) {
-  fail("Mode must be MERGE_PENDING, CONTAINED_IN_MAIN, FAIL, or OUTDATED_ONLY");
+  fail("Mode must be MERGE_PENDING, CONTAINED_IN_MAIN, FAIL, OUTDATED_ONLY, or ABANDONED");
 }
 if (requestedMode.requireMergedMainCommit && !/^[0-9a-f]{7,40}$/i.test(mergedMainCommit)) {
   fail("CONTAINED_IN_MAIN requires MERGED_MAIN_SHA");

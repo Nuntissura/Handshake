@@ -191,9 +191,9 @@ function hasConcreteCodeReference(value) {
   );
 }
 
-const statusMatch = text.match(/(?:\*\*Status:\*\*|STATUS:)\s*(Ready for Dev|In Progress|Blocked|Done(?:\s*\(Historical\))?|Validated\s*\((?:PASS|FAIL|OUTDATED_ONLY)\))(?=\s|$)/i);
+const statusMatch = text.match(/(?:\*\*Status:\*\*|STATUS:)\s*(Ready for Dev|In Progress|Blocked|Done(?:\s*\(Historical\))?|Validated\s*\((?:PASS|FAIL|OUTDATED_ONLY|ABANDONED)\))(?=\s|$)/i);
 if (!statusMatch) {
-  fail("STATUS missing or invalid (must be Ready for Dev / In Progress / Blocked / Done / Done (Historical) / Validated (PASS|FAIL|OUTDATED_ONLY))");
+  fail("STATUS missing or invalid (must be Ready for Dev / In Progress / Blocked / Done / Done (Historical) / Validated (PASS|FAIL|OUTDATED_ONLY|ABANDONED))");
 }
 const statusValue = (statusMatch[1] || "").trim();
 const closureStatus = /\b(done|validated)\b/i.test(statusValue);
@@ -362,8 +362,8 @@ if (packetFormatVersion) {
     if (!hasLine(/^##\s*VALIDATION_REPORTS\b/im)) {
       fail("VALIDATION_REPORTS heading missing");
     }
-    if (!/^\s*Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED)\b/im.test(validationReports)) {
-      fail("VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED");
+    if (!/^\s*Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|ABANDONED|BLOCKED)\b/im.test(validationReports)) {
+      fail("VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|ABANDONED|BLOCKED");
     }
     if (!hasListItemAfterLabel(validationReports, "CLAUSES_REVIEWED")) {
       fail("CLAUSES_REVIEWED missing/placeholder list items in VALIDATION_REPORTS for closed packet");
@@ -434,6 +434,19 @@ if (packetFormatVersion) {
     const residualUncertainty = extractListItemsAfterLabel(validationReports, "RESIDUAL_UNCERTAINTY");
     const boundaryProbes = extractListItemsAfterLabel(validationReports, "BOUNDARY_PROBES");
     const negativePathChecks = extractListItemsAfterLabel(validationReports, "NEGATIVE_PATH_CHECKS");
+    const abandonedClosure = topLevelVerdict === "ABANDONED" || /^Validated\s*\(\s*ABANDONED\s*\)$/i.test(statusValue);
+    if (abandonedClosure) {
+      if (topLevelVerdict !== "ABANDONED") {
+        fail("Validated (ABANDONED) requires VALIDATION_REPORTS top-level Verdict: ABANDONED");
+      }
+      if (!/^Validated\s*\(\s*ABANDONED\s*\)$/i.test(statusValue)) {
+        fail("Verdict=ABANDONED requires packet Status: Validated (ABANDONED)");
+      }
+      if (disposition !== "ABANDONED") {
+        fail("Verdict=ABANDONED requires DISPOSITION=ABANDONED");
+      }
+    }
+
     if (activeWorkflowInvalidity && topLevelVerdict === "PASS") {
       fail(
         `Verdict=PASS prohibited when active WORKFLOW_INVALIDITY receipt exists (${activeWorkflowInvalidity?.workflow_invalidity_code || "UNKNOWN"}: ${activeWorkflowInvalidity?.summary || "<missing>"})`
@@ -566,7 +579,7 @@ if (packetFormatVersion) {
       }
     }
 
-    if (computedPolicy.applicable && !computedPolicyOutcomeAllowsClosure(computedPolicy)) {
+    if (computedPolicy.applicable && !computedPolicyOutcomeAllowsClosure(computedPolicy) && !abandonedClosure) {
       const details = [
         ...computedPolicy.issues.fail,
         ...computedPolicy.issues.blocked,

@@ -235,12 +235,14 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 
 These are typically run from the WP-assigned worktree.
 
-- `just pre-work WP-{ID}`
+- `just pre-work WP-{ID} [--verbose]`
   - `read-only`
   - blocking packet-integrity/start gate
-- `just post-work WP-{ID}`
+  - default output is compact-by-default and writes the full nested gate output to a governed runtime artifact path
+- `just post-work WP-{ID} [options] [--verbose]`
   - `read-only`
   - deterministic closure gate against the validated diff window
+  - default output is compact-by-default and writes the full nested gate output to a governed runtime artifact path
 - `just coder-skeleton-checkpoint WP-{ID}`
 - `just skeleton-approved WP-{ID}`
   - `governance-write`
@@ -261,24 +263,26 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
 
 - `just gate-check WP-{ID}`
 - `just validator-handoff-check WP-{ID}`
-- `just integration-validator-context-brief WP-{ID}`
+- `just integration-validator-context-brief WP-{ID} [--json]`
 - `just integration-validator-closeout-check WP-{ID}`
-- `just integration-validator-closeout-sync WP-{ID} <MERGE_PENDING|CONTAINED_IN_MAIN> [MERGED_MAIN_SHA]`
+- `just integration-validator-closeout-sync WP-{ID} <MERGE_PENDING|CONTAINED_IN_MAIN|FAIL|OUTDATED_ONLY|ABANDONED> [MERGED_MAIN_SHA]`
 - `just validator-packet-complete WP-{ID}`
 - `just wp-declared-topology-check WP-{ID}`
 - `just validator-policy-gate WP-{ID}`
     - `read-only`
     - primary validator gate surface
     - `integration-validator-context-brief` is the canonical final-lane authority/path/source-of-truth bundle for orchestrator-managed Integration Validator review; use it instead of rereading large protocols or rediscovering final-lane paths/commands
+    - default text output is compact-by-default and points at the authoritative packet/gate artifacts; use `--json` for the full machine-readable brief
     - `integration-validator-closeout-check` is the final-lane topology, atomic-closeout, and current-`main` signed-scope compatibility preflight for orchestrator-managed PASS closure
     - `integration-validator-closeout-sync` is the governed writer that reconciles packet signed-scope compatibility truth plus TASK_BOARD/runtime projection after the preflight is green
     - `wp-declared-topology-check` surfaces packet-declared vs actual linked-worktree truth for one WP and fails on undeclared auxiliary worktrees
   - for `PACKET_FORMAT_VERSION >= 2026-03-25`, `Done` means merge-pending PASS and `Validated (PASS)` requires recorded containment in local `main`
   - for `PACKET_FORMAT_VERSION >= 2026-03-26`, PASS closure also requires recorded `CURRENT_MAIN_COMPATIBILITY_*` truth plus `PACKET_WIDENING_DECISION=NOT_REQUIRED`; adjacent shared-surface drift must route to a follow-on or superseding packet instead of ad hoc widening
-- `just external-validator-brief WP-{ID}`
+- `just external-validator-brief WP-{ID} [--json]`
   - `read-only`
   - classical/external validation contract summary
-- `just validator-gate-append WP-{ID} <PASS|FAIL|...>`
+  - default text output is compact-by-default and points at the authoritative governance/code targets; use `--json` for the full machine-readable brief
+- `just validator-gate-append WP-{ID} <PASS|FAIL|ABANDONED|...>`
 - `just validator-gate-commit WP-{ID}`
 - `just validator-gate-present WP-{ID} [verdict]`
 - `just validator-gate-acknowledge WP-{ID}`

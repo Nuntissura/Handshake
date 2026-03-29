@@ -76,6 +76,25 @@ export const REASONING_ENFORCEMENT_MODE = "SESSION_BRIEF_AND_CLAIM_CHECK";
 export const ROLE_SESSION_REASONING_CONFIG_KEY = "model_reasoning_effort";
 export const ROLE_SESSION_REASONING_CONFIG_VALUE = "xhigh";
 export const WP_TOKEN_BUDGET_POLICY_ID = "ORCHESTRATOR_MANAGED_V1";
+export const WP_TOKEN_LEDGER_HEALTH_POLICY_ID = "ORCHESTRATOR_MANAGED_LEDGER_V1";
+export const WP_TOKEN_LEDGER_HEALTH_THRESHOLDS = Object.freeze({
+  warn_command_delta_count: 1,
+  fail_command_delta_count: 2,
+  warn_turn_delta: 1,
+  fail_turn_delta: 2,
+  warn_input_token_delta: 1,
+  fail_input_token_delta: 50000,
+  warn_cached_input_token_delta: 1,
+  fail_cached_input_token_delta: 50000,
+  warn_output_token_delta: 1,
+  fail_output_token_delta: 5000,
+  warn_input_token_delta_ratio_pct: 0.1,
+  fail_input_token_delta_ratio_pct: 5,
+  warn_cached_input_token_delta_ratio_pct: 0.1,
+  fail_cached_input_token_delta_ratio_pct: 5,
+  warn_output_token_delta_ratio_pct: 0.1,
+  fail_output_token_delta_ratio_pct: 5,
+});
 export const WP_ROLE_TOKEN_BUDGETS = Object.freeze({
   CODER: Object.freeze({
     warn_turn_count: 10,
