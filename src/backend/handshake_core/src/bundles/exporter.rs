@@ -17,10 +17,11 @@ use crate::bundles::schemas::{
     AvailableCounts, BundleDiagnostic, BundleDiagnosticSeverity, BundleEnv, BundleJob,
     BundleJobError, BundleJobMetrics, BundleJobStatus, BundleLinkConfidence, BundleManifest,
     BundleManifestFile, EvidenceGap, ExpiredEvidence, ExportableDiagnostic, ExportableFilter,
-    ExportableInventory, ExportableJob, ExportableRange, ImpactLevel, IncludedCounts,
-    ManifestScope, MissingEvidence, MissingEvidenceKind, MissingEvidenceReason, PlatformInfo,
-    PlatformInfoMinimal, RedactionLogEntry, RedactionMode, RedactionReport, RetentionPolicy,
-    RetentionReport, ScopeKind, TimeRange,
+    ExportableInventory, ExportableJob, ExportableRange, ExportableWorkflowNodeExecution,
+    ExportableWorkflowRun, ImpactLevel, IncludedCounts, ManifestScope, MissingEvidence,
+    MissingEvidenceKind, MissingEvidenceReason, PlatformInfo, PlatformInfoMinimal,
+    RedactionLogEntry, RedactionMode, RedactionReport, RetentionPolicy, RetentionReport, ScopeKind,
+    TimeRange, WorkflowNodeExecutionBundleRecord,
 };
 use crate::bundles::templates::{render_coder_prompt, render_repro_md};
 use crate::bundles::zip::{sha256_hex, BundleFileEntry};
@@ -38,7 +39,7 @@ use crate::storage::artifacts::{
     ArtifactError, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind, ArtifactWriteEntry,
     BundleIndexEntry,
 };
-use crate::storage::{AiJob, AiJobListFilter, JobState, StorageError};
+use crate::storage::{AiJob, AiJobListFilter, JobState, StorageError, WorkflowNodeExecution};
 use crate::AppState;
 
 static BUNDLE_STORE: Lazy<Mutex<HashMap<String, PathBuf>>> =
@@ -160,6 +161,13 @@ pub enum BundleScope {
     },
     Job {
         job_id: String,
+    },
+    WorkflowRun {
+        workflow_run_id: String,
+    },
+    WorkflowNodeExecution {
+        workflow_run_id: String,
+        workflow_node_execution_id: String,
     },
     TimeWindow {
         start: DateTime<Utc>,
@@ -287,6 +295,8 @@ impl DefaultDebugBundleExporter {
                 kind: ScopeKind::Problem,
                 problem_id: Some(diagnostic_id.clone()),
                 job_id: None,
+                workflow_run_id: None,
+                workflow_node_execution_id: None,
                 time_range: None,
                 wsid: None,
             },
@@ -294,6 +304,29 @@ impl DefaultDebugBundleExporter {
                 kind: ScopeKind::Job,
                 problem_id: None,
                 job_id: Some(job_id.clone()),
+                workflow_run_id: None,
+                workflow_node_execution_id: None,
+                time_range: None,
+                wsid: None,
+            },
+            BundleScope::WorkflowRun { workflow_run_id } => ManifestScope {
+                kind: ScopeKind::WorkflowRun,
+                problem_id: None,
+                job_id: None,
+                workflow_run_id: Some(workflow_run_id.clone()),
+                workflow_node_execution_id: None,
+                time_range: None,
+                wsid: None,
+            },
+            BundleScope::WorkflowNodeExecution {
+                workflow_run_id,
+                workflow_node_execution_id,
+            } => ManifestScope {
+                kind: ScopeKind::WorkflowNodeExecution,
+                problem_id: None,
+                job_id: None,
+                workflow_run_id: Some(workflow_run_id.clone()),
+                workflow_node_execution_id: Some(workflow_node_execution_id.clone()),
                 time_range: None,
                 wsid: None,
             },
@@ -301,6 +334,8 @@ impl DefaultDebugBundleExporter {
                 kind: ScopeKind::TimeWindow,
                 problem_id: None,
                 job_id: None,
+                workflow_run_id: None,
+                workflow_node_execution_id: None,
                 time_range: Some(TimeRange {
                     start: *start,
                     end: *end,
@@ -311,6 +346,8 @@ impl DefaultDebugBundleExporter {
                 kind: ScopeKind::Workspace,
                 problem_id: None,
                 job_id: None,
+                workflow_run_id: None,
+                workflow_node_execution_id: None,
                 time_range: None,
                 wsid: Some(wsid.clone()),
             },
@@ -344,6 +381,237 @@ impl DefaultDebugBundleExporter {
                 }
                 RedactionMode::FullLocal => "Full payloads included (policy override)".to_string(),
             },
+        }
+    }
+
+    fn parse_scope_uuid(value: &str, field: &str) -> Result<Uuid, BundleExportError> {
+        Uuid::parse_str(value)
+            .map_err(|_| BundleExportError::InvalidScope(format!("{field} must be a UUID")))
+    }
+
+    async fn collect_workflow_jobs(
+        &self,
+        workflow_run_id: Uuid,
+    ) -> Result<Vec<AiJob>, BundleExportError> {
+        let mut jobs: Vec<_> = self
+            .state
+            .storage
+            .list_ai_jobs(AiJobListFilter::default())
+            .await
+            .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?
+            .into_iter()
+            .filter(|job| job.workflow_run_id == Some(workflow_run_id))
+            .collect();
+        jobs.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        Ok(jobs)
+    }
+
+    async fn collect_workflow_node_executions(
+        &self,
+        scope: &BundleScope,
+    ) -> Result<Vec<WorkflowNodeExecution>, BundleExportError> {
+        match scope {
+            BundleScope::WorkflowRun { workflow_run_id } => {
+                let workflow_run_id = Self::parse_scope_uuid(workflow_run_id, "workflow_run_id")?;
+                let mut nodes = self
+                    .state
+                    .storage
+                    .list_workflow_node_executions(workflow_run_id)
+                    .await
+                    .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?;
+                nodes.sort_by(|a, b| a.sequence.cmp(&b.sequence).then_with(|| a.id.cmp(&b.id)));
+                Ok(nodes)
+            }
+            BundleScope::WorkflowNodeExecution {
+                workflow_run_id,
+                workflow_node_execution_id,
+            } => {
+                let workflow_run_id = Self::parse_scope_uuid(workflow_run_id, "workflow_run_id")?;
+                let workflow_node_execution_id = Self::parse_scope_uuid(
+                    workflow_node_execution_id,
+                    "workflow_node_execution_id",
+                )?;
+                let mut nodes: Vec<_> = self
+                    .state
+                    .storage
+                    .list_workflow_node_executions(workflow_run_id)
+                    .await
+                    .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?
+                    .into_iter()
+                    .filter(|node| node.id == workflow_node_execution_id)
+                    .collect();
+                nodes.sort_by(|a, b| a.sequence.cmp(&b.sequence).then_with(|| a.id.cmp(&b.id)));
+                if nodes.is_empty() {
+                    return Err(BundleExportError::NotFound {
+                        kind: "workflow_node_execution".to_string(),
+                        id: workflow_node_execution_id.to_string(),
+                    });
+                }
+                Ok(nodes)
+            }
+            _ => Ok(Vec::new()),
+        }
+    }
+
+    fn workflow_event_matches(
+        event: &FlightRecorderEvent,
+        workflow_run_id: &str,
+        job_ids: &HashSet<String>,
+    ) -> bool {
+        let workflow_matches = event.workflow_id.as_deref() == Some(workflow_run_id);
+        let job_matches = event
+            .job_id
+            .as_ref()
+            .map(|id| job_ids.contains(id))
+            .unwrap_or(false);
+        workflow_matches || job_matches
+    }
+
+    fn push_workflow_event(
+        events: &mut Vec<FlightRecorderEvent>,
+        seen_event_ids: &mut HashSet<Uuid>,
+        workflow_run_id: &str,
+        job_ids: &HashSet<String>,
+        event: FlightRecorderEvent,
+    ) {
+        if !seen_event_ids.insert(event.event_id) {
+            return;
+        }
+        if Self::workflow_event_matches(&event, workflow_run_id, job_ids) {
+            events.push(event);
+        }
+    }
+
+    fn list_event_ids_by_correlation(
+        &self,
+        column: &str,
+        correlation_id: &str,
+    ) -> Result<Vec<Uuid>, BundleExportError> {
+        let conn = self
+            .state
+            .flight_recorder
+            .duckdb_connection()
+            .ok_or_else(|| {
+                BundleExportError::ExportFailed(
+                    "workflow-correlated export requires a DuckDB-backed flight recorder for complete event recovery".to_string(),
+                )
+            })?;
+        let conn = conn.lock().map_err(|_| {
+            BundleExportError::ExportFailed("duckdb connection lock error".to_string())
+        })?;
+        let mut stmt = conn
+            .prepare(&format!(
+                "SELECT event_id FROM events WHERE {column} = ? ORDER BY timestamp DESC, event_id DESC"
+            ))
+            .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?;
+        let rows = stmt
+            .query_map(duckdb::params![correlation_id], |row| {
+                row.get::<_, String>(0)
+            })
+            .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?;
+
+        let mut event_ids = Vec::new();
+        for row in rows {
+            let event_id = row.map_err(|e| BundleExportError::ExportFailed(e.to_string()))?;
+            event_ids.push(Uuid::parse_str(&event_id).map_err(|e| {
+                BundleExportError::ExportFailed(format!(
+                    "invalid flight recorder event_id `{event_id}`: {e}"
+                ))
+            })?);
+        }
+        Ok(event_ids)
+    }
+
+    async fn collect_workflow_events(
+        &self,
+        workflow_run_id: &str,
+        correlation_jobs: &[AiJob],
+    ) -> Result<Vec<FlightRecorderEvent>, BundleExportError> {
+        let job_ids: HashSet<String> = correlation_jobs
+            .iter()
+            .map(|job| job.job_id.to_string())
+            .collect();
+        let mut events = Vec::new();
+        let mut seen_event_ids = HashSet::new();
+
+        let mut correlated_event_ids =
+            self.list_event_ids_by_correlation("workflow_id", workflow_run_id)?;
+        for job in &job_ids {
+            correlated_event_ids.extend(self.list_event_ids_by_correlation("job_id", job)?);
+        }
+
+        for event_id in correlated_event_ids {
+            let listed = self
+                .state
+                .flight_recorder
+                .list_events(EventFilter {
+                    event_id: Some(event_id),
+                    ..Default::default()
+                })
+                .await
+                .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?;
+            for event in listed {
+                Self::push_workflow_event(
+                    &mut events,
+                    &mut seen_event_ids,
+                    workflow_run_id,
+                    &job_ids,
+                    event,
+                );
+            }
+        }
+
+        events.sort_by(|a, b| {
+            a.timestamp
+                .cmp(&b.timestamp)
+                .then_with(|| a.event_id.cmp(&b.event_id))
+        });
+        Ok(events)
+    }
+
+    async fn collect_workflow_diagnostics(
+        &self,
+        jobs: &[AiJob],
+    ) -> Result<Vec<Diagnostic>, BundleExportError> {
+        let mut diagnostics = Vec::new();
+        let mut seen_diagnostic_ids = HashSet::new();
+
+        for job in jobs {
+            let listed = self
+                .state
+                .diagnostics
+                .list_diagnostics(DiagFilter {
+                    job_id: Some(job.job_id),
+                    limit: Some(1000),
+                    ..Default::default()
+                })
+                .await
+                .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?;
+            for diagnostic in listed {
+                if seen_diagnostic_ids.insert(diagnostic.id) {
+                    diagnostics.push(diagnostic);
+                }
+            }
+        }
+
+        diagnostics.sort_by(|a, b| a.timestamp.cmp(&b.timestamp).then_with(|| a.id.cmp(&b.id)));
+        Ok(diagnostics)
+    }
+
+    fn build_workflow_node_bundle_record(
+        &self,
+        node: &WorkflowNodeExecution,
+    ) -> WorkflowNodeExecutionBundleRecord {
+        WorkflowNodeExecutionBundleRecord {
+            workflow_node_execution_id: node.id.to_string(),
+            workflow_run_id: node.workflow_run_id.to_string(),
+            node_id: node.node_id.clone(),
+            status: node.status.as_str().to_string(),
+            started_at: node.started_at,
+            finished_at: node.finished_at,
+            job_id: None,
+            input_sha256: node.input_payload.as_ref().map(hash_value),
+            output_sha256: node.output_payload.as_ref().map(hash_value),
         }
     }
 
@@ -389,6 +657,9 @@ impl DefaultDebugBundleExporter {
                     .list_diagnostics(filter)
                     .await
                     .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?
+            }
+            BundleScope::WorkflowRun { .. } | BundleScope::WorkflowNodeExecution { .. } => {
+                Vec::new()
             }
             BundleScope::TimeWindow { start, end, wsid } => {
                 let filter = DiagFilter {
@@ -444,6 +715,7 @@ impl DefaultDebugBundleExporter {
                     }
                 }
             }
+            BundleScope::WorkflowRun { .. } | BundleScope::WorkflowNodeExecution { .. } => {}
             BundleScope::TimeWindow {
                 start,
                 end,
@@ -470,6 +742,7 @@ impl DefaultDebugBundleExporter {
                 .into_iter()
                 .filter(|evt| evt.wsids.iter().any(|w| w == wsid))
                 .collect(),
+            BundleScope::WorkflowRun { .. } | BundleScope::WorkflowNodeExecution { .. } => events,
             BundleScope::TimeWindow {
                 wsid: Some(wsid), ..
             } => events
@@ -573,7 +846,11 @@ impl DefaultDebugBundleExporter {
         Ok((jobs, missing))
     }
 
-    fn map_diagnostic(&self, diagnostic: &Diagnostic) -> BundleDiagnostic {
+    fn map_diagnostic(
+        &self,
+        diagnostic: &Diagnostic,
+        job_workflow_runs: &HashMap<String, String>,
+    ) -> BundleDiagnostic {
         let file_path = diagnostic
             .locations
             .as_ref()
@@ -632,7 +909,21 @@ impl DefaultDebugBundleExporter {
             created_at: diagnostic.timestamp,
             wsid: diagnostic.wsid.clone(),
             job_id: diagnostic.job_id.clone(),
-            workflow_run_id: None,
+            workflow_run_id: diagnostic
+                .job_id
+                .as_ref()
+                .and_then(|job_id| job_workflow_runs.get(job_id).cloned())
+                .or_else(|| {
+                    diagnostic
+                        .evidence_refs
+                        .as_ref()
+                        .and_then(|refs| refs.related_job_ids.as_ref())
+                        .and_then(|job_ids| {
+                            job_ids
+                                .iter()
+                                .find_map(|job_id| job_workflow_runs.get(job_id).cloned())
+                        })
+                }),
             file_path,
             line_start,
             line_end,
@@ -812,6 +1103,8 @@ impl DefaultDebugBundleExporter {
         let scope_kind = match scope.kind {
             ScopeKind::Problem => "problem",
             ScopeKind::Job => "job",
+            ScopeKind::WorkflowRun => "workflow_run",
+            ScopeKind::WorkflowNodeExecution => "workflow_node_execution",
             ScopeKind::TimeWindow => "time_window",
             ScopeKind::Workspace => "workspace",
         };
@@ -888,11 +1181,84 @@ async fn export_impl(
     let mut scope = exporter.build_manifest_scope(&request.scope);
     let redactor = SecretRedactor::new();
 
-    let (diagnostics_raw, mut missing_evidence) =
-        exporter.collect_diagnostics(&request.scope).await?;
-    let mut events_raw = exporter
-        .collect_events(&request.scope, &diagnostics_raw)
-        .await?;
+    let (diagnostics_raw, missing_evidence, mut events_raw, jobs_raw, workflow_nodes_raw) =
+        match &request.scope {
+            BundleScope::WorkflowRun { workflow_run_id } => {
+                let workflow_run_uuid = DefaultDebugBundleExporter::parse_scope_uuid(
+                    workflow_run_id,
+                    "workflow_run_id",
+                )?;
+                let jobs_raw = exporter.collect_workflow_jobs(workflow_run_uuid).await?;
+                let workflow_nodes_raw = exporter
+                    .collect_workflow_node_executions(&request.scope)
+                    .await?;
+                if jobs_raw.is_empty() && workflow_nodes_raw.is_empty() {
+                    return Err(BundleExportError::NotFound {
+                        kind: "workflow_run".to_string(),
+                        id: workflow_run_id.clone(),
+                    });
+                }
+                let diagnostics_raw = exporter.collect_workflow_diagnostics(&jobs_raw).await?;
+                let events_raw = exporter
+                    .collect_workflow_events(workflow_run_id, &jobs_raw)
+                    .await?;
+                (
+                    diagnostics_raw,
+                    Vec::new(),
+                    events_raw,
+                    jobs_raw,
+                    workflow_nodes_raw,
+                )
+            }
+            BundleScope::WorkflowNodeExecution {
+                workflow_run_id,
+                workflow_node_execution_id: _,
+            } => {
+                let workflow_run_uuid = DefaultDebugBundleExporter::parse_scope_uuid(
+                    workflow_run_id,
+                    "workflow_run_id",
+                )?;
+                let workflow_nodes_raw = exporter
+                    .collect_workflow_node_executions(&request.scope)
+                    .await?;
+                let workflow_correlation_jobs =
+                    exporter.collect_workflow_jobs(workflow_run_uuid).await?;
+                let diagnostics_raw = Vec::new();
+                let events_raw = exporter
+                    .collect_workflow_events(workflow_run_id, &workflow_correlation_jobs)
+                    .await?;
+                (
+                    diagnostics_raw,
+                    Vec::new(),
+                    events_raw,
+                    Vec::new(),
+                    workflow_nodes_raw,
+                )
+            }
+            _ => {
+                let (diagnostics_raw, mut missing_evidence) =
+                    exporter.collect_diagnostics(&request.scope).await?;
+                let mut events_raw = exporter
+                    .collect_events(&request.scope, &diagnostics_raw)
+                    .await?;
+                events_raw.sort_by(|a, b| {
+                    a.timestamp
+                        .cmp(&b.timestamp)
+                        .then_with(|| a.event_id.cmp(&b.event_id))
+                });
+                let (jobs_raw, missing_jobs) = exporter
+                    .collect_jobs(&request.scope, &diagnostics_raw, &events_raw)
+                    .await?;
+                missing_evidence.extend(missing_jobs);
+                (
+                    diagnostics_raw,
+                    missing_evidence,
+                    events_raw,
+                    jobs_raw,
+                    Vec::new(),
+                )
+            }
+        };
     events_raw.sort_by(|a, b| {
         a.timestamp
             .cmp(&b.timestamp)
@@ -910,11 +1276,6 @@ async fn export_impl(
     } else {
         None
     };
-
-    let (jobs_raw, missing_jobs) = exporter
-        .collect_jobs(&request.scope, &diagnostics_raw, &events_raw)
-        .await?;
-    missing_evidence.extend(missing_jobs);
 
     let present_event_ids: HashSet<String> =
         events_raw.iter().map(|e| e.event_id.to_string()).collect();
@@ -949,9 +1310,16 @@ async fn export_impl(
         event_ids_for_prompt.truncate(50);
     }
 
+    let job_workflow_runs: HashMap<String, String> = jobs_raw
+        .iter()
+        .filter_map(|job| {
+            job.workflow_run_id
+                .map(|workflow_run_id| (job.job_id.to_string(), workflow_run_id.to_string()))
+        })
+        .collect();
     let mut diagnostics: Vec<BundleDiagnostic> = diagnostics_raw
         .iter()
-        .map(|d| exporter.map_diagnostic(d))
+        .map(|d| exporter.map_diagnostic(d, &job_workflow_runs))
         .collect();
     diagnostics.sort_by(|a, b| a.id.cmp(&b.id));
 
@@ -960,6 +1328,10 @@ async fn export_impl(
         .map(|j| exporter.map_job(j, &diagnostics, &events_raw, request.redaction_mode))
         .collect();
     jobs.sort_by(|a, b| a.job_id.cmp(&b.job_id));
+    let workflow_node_records: Vec<_> = workflow_nodes_raw
+        .iter()
+        .map(|node| exporter.build_workflow_node_bundle_record(node))
+        .collect();
 
     if scope.wsid.is_none() {
         scope.wsid = diagnostics_raw
@@ -1087,6 +1459,28 @@ async fn export_impl(
         bytes: diagnostics_bytes,
         redacted: true,
     });
+
+    if matches!(
+        scope.kind,
+        ScopeKind::WorkflowRun | ScopeKind::WorkflowNodeExecution
+    ) {
+        let workflow_node_lines = workflow_node_records
+            .iter()
+            .map(|record| {
+                serde_json::to_string(record).map_err(|e| {
+                    BundleExportError::ExportFailed(format!(
+                        "serialize workflow_node_executions entry: {}",
+                        e
+                    ))
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        files.push(BundleFileEntry {
+            path: "workflow_node_executions.jsonl".to_string(),
+            bytes: workflow_node_lines.join("\n").into_bytes(),
+            redacted: false,
+        });
+    }
 
     // trace.jsonl
     let mut trace_lines = Vec::new();
@@ -1268,6 +1662,14 @@ async fn export_impl(
             job_count: jobs.len() as u32,
             diagnostic_count: diagnostics.len() as u32,
             event_count: events_raw.len() as u32,
+            workflow_node_execution_count: if matches!(
+                scope.kind,
+                ScopeKind::WorkflowRun | ScopeKind::WorkflowNodeExecution
+            ) {
+                Some(workflow_node_records.len() as u32)
+            } else {
+                None
+            },
         },
         missing_evidence: missing_evidence.clone(),
         bundle_hash: bundle_hash.clone(),
@@ -1450,6 +1852,18 @@ fn record_export_record(
             entity_kind: "problem".to_string(),
         });
     }
+    if let Some(workflow_run_id) = scope.workflow_run_id.clone() {
+        source_entity_refs.push(crate::storage::EntityRef {
+            entity_id: workflow_run_id,
+            entity_kind: "workflow_run".to_string(),
+        });
+    }
+    if let Some(workflow_node_execution_id) = scope.workflow_node_execution_id.clone() {
+        source_entity_refs.push(crate::storage::EntityRef {
+            entity_id: workflow_node_execution_id,
+            entity_kind: "workflow_node_execution".to_string(),
+        });
+    }
     if source_entity_refs.is_empty() {
         source_entity_refs.push(crate::storage::EntityRef {
             entity_id: bundle_id.to_string(),
@@ -1524,6 +1938,7 @@ fn record_export_record(
 fn validate_bundle_path(
     bundle_path: &Path,
 ) -> Result<crate::bundles::validator::BundleValidationReport, BundleExportError> {
+    let validator = crate::bundles::validator::ValBundleValidator;
     if !bundle_path.exists() {
         return Err(BundleExportError::Validation(format!(
             "bundle path does not exist: {}",
@@ -1531,9 +1946,9 @@ fn validate_bundle_path(
         )));
     }
     if bundle_path.is_dir() {
-        validate_bundle_dir(bundle_path)
+        validator.validate_dir(bundle_path)
     } else if bundle_path.is_file() {
-        validate_bundle_zip(bundle_path)
+        validator.validate_zip(bundle_path)
     } else {
         Err(BundleExportError::Validation(format!(
             "unsupported bundle path type: {}",
@@ -1891,7 +2306,7 @@ impl DebugBundleExporter for DefaultDebugBundleExporter {
             .await
             .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?;
 
-        let mut exportable_jobs: Vec<_> = jobs
+        let filtered_jobs: Vec<_> = jobs
             .into_iter()
             .filter(|job| {
                 filter
@@ -1900,6 +2315,10 @@ impl DebugBundleExporter for DefaultDebugBundleExporter {
                     .map(|ws| job_matches_wsid(job, ws))
                     .unwrap_or(true)
             })
+            .collect();
+
+        let mut exportable_jobs: Vec<_> = filtered_jobs
+            .iter()
             .map(|job| ExportableJob {
                 job_id: job.job_id.to_string(),
                 job_kind: job.job_kind.as_str().to_string(),
@@ -1921,16 +2340,577 @@ impl DebugBundleExporter for DefaultDebugBundleExporter {
             })
             .collect();
 
+        let mut workflow_runs = Vec::new();
+        let mut workflow_node_executions = Vec::new();
+        let mut workflow_run_ids: Vec<_> = filtered_jobs
+            .iter()
+            .filter_map(|job| job.workflow_run_id)
+            .collect();
+        workflow_run_ids.sort();
+        workflow_run_ids.dedup();
+
+        for workflow_run_id in workflow_run_ids {
+            let jobs_for_run: Vec<_> = filtered_jobs
+                .iter()
+                .filter(|job| job.workflow_run_id == Some(workflow_run_id))
+                .collect();
+            if jobs_for_run.is_empty() {
+                continue;
+            }
+
+            let representative = jobs_for_run
+                .iter()
+                .copied()
+                .find(|job| job.job_kind.as_str() == "workflow_run")
+                .unwrap_or_else(|| {
+                    jobs_for_run
+                        .iter()
+                        .copied()
+                        .min_by(|a, b| a.created_at.cmp(&b.created_at))
+                        .expect("jobs_for_run is non-empty")
+                });
+            workflow_runs.push(ExportableWorkflowRun {
+                workflow_run_id: workflow_run_id.to_string(),
+                status: job_status_from_state(&representative.state)
+                    .as_str()
+                    .to_string(),
+                started_at: representative.created_at,
+            });
+
+            let mut nodes = self
+                .state
+                .storage
+                .list_workflow_node_executions(workflow_run_id)
+                .await
+                .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?;
+            nodes.sort_by(|a, b| a.sequence.cmp(&b.sequence).then_with(|| a.id.cmp(&b.id)));
+            workflow_node_executions.extend(nodes.into_iter().map(|node| {
+                ExportableWorkflowNodeExecution {
+                    workflow_node_execution_id: node.id.to_string(),
+                    workflow_run_id: node.workflow_run_id.to_string(),
+                    node_id: node.node_id,
+                    status: node.status.as_str().to_string(),
+                    started_at: node.started_at,
+                    finished_at: node.finished_at,
+                }
+            }));
+        }
+
         let now = Utc::now();
         let time_range = Some(ExportableRange {
             earliest: filter.start.unwrap_or(now - Duration::hours(24)),
             latest: filter.end.unwrap_or(now),
         });
 
+        if let Some(limit) = filter.limit {
+            let limit = limit as usize;
+            workflow_runs.truncate(limit);
+            workflow_node_executions.truncate(limit);
+        }
+
         Ok(ExportableInventory {
             jobs: exportable_jobs,
             diagnostics: exportable_diagnostics,
+            workflow_runs,
+            workflow_node_executions,
             time_range,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::capabilities::CapabilityRegistry;
+    use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
+    use crate::llm::ollama::InMemoryLlmClient;
+    use crate::storage::{
+        sqlite::SqliteDatabase, AccessMode, Database, EntityRef, JobMetrics, JobStatusUpdate,
+        NewAiJob, NewNodeExecution, SafetyMode, WorkflowRun,
+    };
+    use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
+    use once_cell::sync::Lazy;
+    use serde::de::DeserializeOwned;
+    use std::ffi::OsString;
+    use std::path::Path;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+    use tokio::sync::{Mutex as AsyncMutex, MutexGuard};
+
+    static TEST_ENV_LOCK: Lazy<AsyncMutex<()>> = Lazy::new(|| AsyncMutex::new(()));
+
+    struct WorkspaceRootGuard {
+        _lock: MutexGuard<'static, ()>,
+        previous: Option<OsString>,
+    }
+
+    impl WorkspaceRootGuard {
+        async fn enter(root: &Path) -> Self {
+            let lock = TEST_ENV_LOCK.lock().await;
+            let previous = std::env::var_os("HANDSHAKE_WORKSPACE_ROOT");
+            std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", root.as_os_str());
+            Self {
+                _lock: lock,
+                previous,
+            }
+        }
+    }
+
+    impl Drop for WorkspaceRootGuard {
+        fn drop(&mut self) {
+            if let Some(previous) = self.previous.as_ref() {
+                std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", previous);
+            } else {
+                std::env::remove_var("HANDSHAKE_WORKSPACE_ROOT");
+            }
+        }
+    }
+
+    #[derive(Clone)]
+    struct SeededWorkflow {
+        workflow_run: WorkflowRun,
+        root_job: AiJob,
+        child_job: AiJob,
+        target_node: WorkflowNodeExecution,
+        sibling_node: WorkflowNodeExecution,
+    }
+
+    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
+        let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
+        sqlite.run_migrations().await?;
+
+        let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+
+        Ok(AppState {
+            storage: sqlite.into_arc(),
+            flight_recorder: flight_recorder.clone(),
+            diagnostics: flight_recorder,
+            llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
+            capability_registry: Arc::new(CapabilityRegistry::new()),
+            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        })
+    }
+
+    async fn create_job(
+        state: &AppState,
+        wsid: &str,
+        job_kind: crate::storage::JobKind,
+    ) -> Result<AiJob, Box<dyn std::error::Error>> {
+        Ok(state
+            .storage
+            .create_ai_job(NewAiJob {
+                trace_id: Uuid::new_v4(),
+                job_kind,
+                protocol_id: "protocol-default".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "default".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: vec![EntityRef {
+                    entity_id: wsid.to_string(),
+                    entity_kind: "workspace".to_string(),
+                }],
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({ "wsid": wsid })),
+            })
+            .await?)
+    }
+
+    async fn attach_job_to_workflow(
+        state: &AppState,
+        job: AiJob,
+        workflow_run_id: Uuid,
+        trace_id: Uuid,
+        status_reason: &str,
+    ) -> Result<AiJob, Box<dyn std::error::Error>> {
+        Ok(state
+            .storage
+            .update_ai_job_status(JobStatusUpdate {
+                job_id: job.job_id,
+                state: JobState::Running,
+                error_message: None,
+                status_reason: status_reason.to_string(),
+                metrics: None,
+                workflow_run_id: Some(workflow_run_id),
+                trace_id: Some(trace_id),
+                job_outputs: None,
+            })
+            .await?)
+    }
+
+    async fn seed_workflow(
+        state: &AppState,
+        wsid: &str,
+        target_node_id: &str,
+        sibling_node_id: &str,
+    ) -> Result<SeededWorkflow, Box<dyn std::error::Error>> {
+        let root_job = create_job(state, wsid, crate::storage::JobKind::WorkflowRun).await?;
+        let workflow_run = state
+            .storage
+            .create_workflow_run(root_job.job_id, JobState::Running, Some(Utc::now()))
+            .await?;
+        let root_job = attach_job_to_workflow(
+            state,
+            root_job,
+            workflow_run.id,
+            Uuid::new_v4(),
+            "workflow_running",
+        )
+        .await?;
+
+        let child_job = create_job(state, wsid, crate::storage::JobKind::ModelRun).await?;
+        let child_job = attach_job_to_workflow(
+            state,
+            child_job,
+            workflow_run.id,
+            Uuid::new_v4(),
+            "node_running",
+        )
+        .await?;
+
+        let target_node = state
+            .storage
+            .create_workflow_node_execution(NewNodeExecution {
+                workflow_run_id: workflow_run.id,
+                node_id: target_node_id.to_string(),
+                node_type: "spec_router".to_string(),
+                status: JobState::Running,
+                sequence: 1,
+                input_payload: Some(json!({ "node": "target" })),
+                started_at: Utc::now(),
+            })
+            .await?;
+        let target_node = state
+            .storage
+            .update_workflow_node_execution_status(
+                target_node.id,
+                JobState::Completed,
+                Some(json!({ "node": "target", "ok": true })),
+                None,
+            )
+            .await?;
+
+        let sibling_node = state
+            .storage
+            .create_workflow_node_execution(NewNodeExecution {
+                workflow_run_id: workflow_run.id,
+                node_id: sibling_node_id.to_string(),
+                node_type: "micro_task".to_string(),
+                status: JobState::Running,
+                sequence: 2,
+                input_payload: Some(json!({ "node": "sibling" })),
+                started_at: Utc::now(),
+            })
+            .await?;
+        let sibling_node = state
+            .storage
+            .update_workflow_node_execution_status(
+                sibling_node.id,
+                JobState::Completed,
+                Some(json!({ "node": "sibling", "ok": true })),
+                None,
+            )
+            .await?;
+
+        Ok(SeededWorkflow {
+            workflow_run,
+            root_job,
+            child_job,
+            target_node,
+            sibling_node,
+        })
+    }
+
+    async fn record_workflow_only_event(
+        state: &AppState,
+        workflow_run_id: Uuid,
+        label: &str,
+        timestamp: Option<DateTime<Utc>>,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let mut event = FlightRecorderEvent::new(
+            FlightRecorderEventType::System,
+            FlightRecorderActor::Agent,
+            Uuid::new_v4(),
+            json!({ "label": label }),
+        )
+        .with_workflow_id(workflow_run_id.to_string());
+        if let Some(timestamp) = timestamp {
+            event.timestamp = timestamp;
+        }
+        let event_id = event.event_id.to_string();
+        state.flight_recorder.record_event(event).await?;
+        Ok(event_id)
+    }
+
+    async fn record_job_only_event(
+        state: &AppState,
+        job_id: Uuid,
+        label: &str,
+        timestamp: Option<DateTime<Utc>>,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let mut event = FlightRecorderEvent::new(
+            FlightRecorderEventType::System,
+            FlightRecorderActor::Agent,
+            Uuid::new_v4(),
+            json!({ "label": label }),
+        )
+        .with_job_id(job_id.to_string());
+        if let Some(timestamp) = timestamp {
+            event.timestamp = timestamp;
+        }
+        let event_id = event.event_id.to_string();
+        state.flight_recorder.record_event(event).await?;
+        Ok(event_id)
+    }
+
+    fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T, Box<dyn std::error::Error>> {
+        Ok(serde_json::from_slice(&std::fs::read(path)?)?)
+    }
+
+    fn read_json_lines<T: DeserializeOwned>(
+        path: &Path,
+    ) -> Result<Vec<T>, Box<dyn std::error::Error>> {
+        let contents = std::fs::read_to_string(path)?;
+        if contents.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+        contents
+            .lines()
+            .map(|line| Ok(serde_json::from_str(line)?))
+            .collect()
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn workflow_run_scope_exports_only_bound_jobs_and_nodes(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let seeded = seed_workflow(&state, "ws-run", "node-target", "node-sibling").await?;
+        let unrelated = seed_workflow(&state, "ws-other", "other-target", "other-sibling").await?;
+        let out_of_window = seeded
+            .sibling_node
+            .finished_at
+            .unwrap_or(seeded.sibling_node.updated_at)
+            + Duration::minutes(30);
+
+        let workflow_only_event_id = record_workflow_only_event(
+            &state,
+            seeded.workflow_run.id,
+            "workflow_only_out_of_window",
+            Some(out_of_window),
+        )
+        .await?;
+        let job_only_event_id =
+            record_job_only_event(&state, seeded.child_job.job_id, "job_only", None).await?;
+        let unrelated_event_id = record_workflow_only_event(
+            &state,
+            unrelated.workflow_run.id,
+            "unrelated_out_of_window",
+            Some(out_of_window),
+        )
+        .await?;
+
+        let exporter = DefaultDebugBundleExporter::new(state.clone());
+        let workspace = tempdir()?;
+        let output_dir = workspace.path().join("bundle");
+        let _workspace_root = WorkspaceRootGuard::enter(workspace.path()).await;
+
+        let manifest = exporter
+            .export(DebugBundleRequest {
+                scope: BundleScope::WorkflowRun {
+                    workflow_run_id: seeded.workflow_run.id.to_string(),
+                },
+                redaction_mode: RedactionMode::SafeDefault,
+                output_path: Some(output_dir.clone()),
+                include_artifacts: false,
+            })
+            .await?;
+
+        let jobs: Vec<BundleJob> = read_json(&output_dir.join("jobs.json"))?;
+        let job_ids: HashSet<String> = jobs.iter().map(|job| job.job_id.clone()).collect();
+        assert_eq!(job_ids.len(), 2);
+        assert!(job_ids.contains(&seeded.root_job.job_id.to_string()));
+        assert!(job_ids.contains(&seeded.child_job.job_id.to_string()));
+        assert!(!job_ids.contains(&unrelated.root_job.job_id.to_string()));
+
+        let nodes: Vec<WorkflowNodeExecutionBundleRecord> =
+            read_json_lines(&output_dir.join("workflow_node_executions.jsonl"))?;
+        let node_ids: HashSet<String> = nodes
+            .iter()
+            .map(|record| record.workflow_node_execution_id.clone())
+            .collect();
+        assert_eq!(nodes.len(), 2);
+        assert!(node_ids.contains(&seeded.target_node.id.to_string()));
+        assert!(node_ids.contains(&seeded.sibling_node.id.to_string()));
+        assert!(nodes.iter().all(|record| {
+            record.workflow_run_id == seeded.workflow_run.id.to_string() && record.job_id.is_none()
+        }));
+
+        let trace_events: Vec<Value> = read_json_lines(&output_dir.join("trace.jsonl"))?;
+        let trace_event_ids: HashSet<String> = trace_events
+            .iter()
+            .filter_map(|event| {
+                event
+                    .get("event_id")
+                    .and_then(|value| value.as_str())
+                    .map(ToString::to_string)
+            })
+            .collect();
+        assert!(trace_event_ids.contains(&workflow_only_event_id));
+        assert!(trace_event_ids.contains(&job_only_event_id));
+        assert!(!trace_event_ids.contains(&unrelated_event_id));
+
+        assert_eq!(manifest.scope.kind, ScopeKind::WorkflowRun);
+        assert_eq!(
+            manifest.scope.workflow_run_id,
+            Some(seeded.workflow_run.id.to_string())
+        );
+        assert_eq!(manifest.included.workflow_node_execution_count, Some(2));
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn workflow_node_execution_scope_exports_single_node_lineage(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let seeded = seed_workflow(&state, "ws-node", "node-target", "node-sibling").await?;
+        let unrelated = seed_workflow(&state, "ws-other", "other-target", "other-sibling").await?;
+        let out_of_window = seeded
+            .target_node
+            .finished_at
+            .unwrap_or(seeded.target_node.updated_at)
+            + Duration::minutes(30);
+
+        let workflow_only_event_id = record_workflow_only_event(
+            &state,
+            seeded.workflow_run.id,
+            "workflow_only_out_of_window",
+            Some(out_of_window),
+        )
+        .await?;
+        let job_only_event_id =
+            record_job_only_event(&state, seeded.child_job.job_id, "job_only", None).await?;
+        let unrelated_event_id = record_workflow_only_event(
+            &state,
+            unrelated.workflow_run.id,
+            "unrelated_out_of_window",
+            Some(out_of_window),
+        )
+        .await?;
+
+        let exporter = DefaultDebugBundleExporter::new(state.clone());
+        let workspace = tempdir()?;
+        let output_dir = workspace.path().join("bundle");
+        let _workspace_root = WorkspaceRootGuard::enter(workspace.path()).await;
+
+        let manifest = exporter
+            .export(DebugBundleRequest {
+                scope: BundleScope::WorkflowNodeExecution {
+                    workflow_run_id: seeded.workflow_run.id.to_string(),
+                    workflow_node_execution_id: seeded.target_node.id.to_string(),
+                },
+                redaction_mode: RedactionMode::SafeDefault,
+                output_path: Some(output_dir.clone()),
+                include_artifacts: false,
+            })
+            .await?;
+
+        let jobs: Vec<BundleJob> = read_json(&output_dir.join("jobs.json"))?;
+        assert!(
+            jobs.is_empty(),
+            "node-scoped export should not guess job lineage"
+        );
+
+        let diagnostics: Vec<BundleDiagnostic> =
+            read_json_lines(&output_dir.join("diagnostics.jsonl"))?;
+        assert!(diagnostics.is_empty());
+
+        let nodes: Vec<WorkflowNodeExecutionBundleRecord> =
+            read_json_lines(&output_dir.join("workflow_node_executions.jsonl"))?;
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(
+            nodes[0].workflow_node_execution_id,
+            seeded.target_node.id.to_string()
+        );
+        assert_eq!(nodes[0].workflow_run_id, seeded.workflow_run.id.to_string());
+        assert!(nodes[0].job_id.is_none());
+
+        let trace_events: Vec<Value> = read_json_lines(&output_dir.join("trace.jsonl"))?;
+        let trace_event_ids: HashSet<String> = trace_events
+            .iter()
+            .filter_map(|event| {
+                event
+                    .get("event_id")
+                    .and_then(|value| value.as_str())
+                    .map(ToString::to_string)
+            })
+            .collect();
+        assert!(trace_event_ids.contains(&workflow_only_event_id));
+        assert!(trace_event_ids.contains(&job_only_event_id));
+        assert!(!trace_event_ids.contains(&unrelated_event_id));
+
+        assert_eq!(manifest.scope.kind, ScopeKind::WorkflowNodeExecution);
+        assert_eq!(
+            manifest.scope.workflow_run_id,
+            Some(seeded.workflow_run.id.to_string())
+        );
+        assert_eq!(
+            manifest.scope.workflow_node_execution_id,
+            Some(seeded.target_node.id.to_string())
+        );
+        assert_eq!(manifest.included.workflow_node_execution_count, Some(1));
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn list_exportable_includes_workflow_correlation_anchors(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let seeded = seed_workflow(&state, "ws-anchor", "node-target", "node-sibling").await?;
+        let unrelated = seed_workflow(&state, "ws-other", "other-target", "other-sibling").await?;
+        let exporter = DefaultDebugBundleExporter::new(state.clone());
+
+        let inventory = exporter
+            .list_exportable(ExportableFilter {
+                wsid: Some("ws-anchor".to_string()),
+                ..Default::default()
+            })
+            .await?;
+
+        let workflow_run_ids: HashSet<String> = inventory
+            .workflow_runs
+            .iter()
+            .map(|run| run.workflow_run_id.clone())
+            .collect();
+        assert_eq!(workflow_run_ids.len(), 1);
+        assert!(workflow_run_ids.contains(&seeded.workflow_run.id.to_string()));
+        assert!(!workflow_run_ids.contains(&unrelated.workflow_run.id.to_string()));
+
+        let node_ids: HashSet<String> = inventory
+            .workflow_node_executions
+            .iter()
+            .map(|node| node.workflow_node_execution_id.clone())
+            .collect();
+        assert_eq!(node_ids.len(), 2);
+        assert!(node_ids.contains(&seeded.target_node.id.to_string()));
+        assert!(node_ids.contains(&seeded.sibling_node.id.to_string()));
+        assert!(inventory
+            .workflow_node_executions
+            .iter()
+            .all(|node| { node.workflow_run_id == seeded.workflow_run.id.to_string() }));
+
+        let exportable_job_ids: HashSet<String> = inventory
+            .jobs
+            .iter()
+            .map(|job| job.job_id.clone())
+            .collect();
+        assert!(exportable_job_ids.contains(&seeded.root_job.job_id.to_string()));
+        assert!(exportable_job_ids.contains(&seeded.child_job.job_id.to_string()));
+        assert!(!exportable_job_ids.contains(&unrelated.root_job.job_id.to_string()));
+
+        Ok(())
     }
 }

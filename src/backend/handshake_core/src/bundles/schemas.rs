@@ -10,6 +10,10 @@ pub struct ManifestScope {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub job_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub workflow_run_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workflow_node_execution_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub time_range: Option<TimeRange>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wsid: Option<String>,
@@ -26,6 +30,8 @@ pub struct TimeRange {
 pub enum ScopeKind {
     Problem,
     Job,
+    WorkflowRun,
+    WorkflowNodeExecution,
     TimeWindow,
     Workspace,
 }
@@ -117,6 +123,8 @@ pub struct IncludedCounts {
     pub job_count: u32,
     pub diagnostic_count: u32,
     pub event_count: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workflow_node_execution_count: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -207,6 +215,23 @@ pub struct BundleJob {
 }
 
 pub type BundleJobs = Vec<BundleJob>;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowNodeExecutionBundleRecord {
+    pub workflow_node_execution_id: String,
+    pub workflow_run_id: String,
+    pub node_id: String,
+    pub status: String,
+    pub started_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finished_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub job_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_sha256: Option<String>,
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -429,6 +454,8 @@ pub enum RedactionMode {
 pub struct ExportableInventory {
     pub jobs: Vec<ExportableJob>,
     pub diagnostics: Vec<ExportableDiagnostic>,
+    pub workflow_runs: Vec<ExportableWorkflowRun>,
+    pub workflow_node_executions: Vec<ExportableWorkflowNodeExecution>,
     pub time_range: Option<ExportableRange>,
 }
 
@@ -445,6 +472,24 @@ pub struct ExportableDiagnostic {
     pub diagnostic_id: String,
     pub severity: String,
     pub title: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportableWorkflowRun {
+    pub workflow_run_id: String,
+    pub status: String,
+    pub started_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportableWorkflowNodeExecution {
+    pub workflow_node_execution_id: String,
+    pub workflow_run_id: String,
+    pub node_id: String,
+    pub status: String,
+    pub started_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finished_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

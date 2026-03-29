@@ -9,7 +9,7 @@ use uuid::Uuid;
 use crate::bundles::exporter::{BundleExportError, FindingSeverity, ValidationFinding};
 use crate::bundles::schemas::{
     BundleDiagnostic, BundleEnv, BundleJobs, BundleManifest, RedactionMode, RedactionReport,
-    RetentionReport, ScopeKind,
+    RetentionReport, ScopeKind, WorkflowNodeExecutionBundleRecord,
 };
 use crate::bundles::zip::{compute_bundle_hash, sha256_hex};
 
@@ -211,6 +211,16 @@ fn validate_contents(contents: BundleContents) -> BundleValidationReport {
         "VAL-BUNDLE-001:PARSE_ERROR",
     );
     let trace_events = parse_jsonl_value(&contents, "trace.jsonl", &mut findings);
+    let workflow_node_executions = if contents.entries.contains("workflow_node_executions.jsonl") {
+        parse_jsonl::<WorkflowNodeExecutionBundleRecord>(
+            &contents,
+            "workflow_node_executions.jsonl",
+            &mut findings,
+            "VAL-BUNDLE-001:PARSE_ERROR",
+        )
+    } else {
+        None
+    };
     let retention = parse_json::<RetentionReport>(
         &contents,
         "retention_report.json",
@@ -287,6 +297,58 @@ fn validate_contents(contents: BundleContents) -> BundleValidationReport {
                         message: "scope.job_id is required when scope.kind=job".to_string(),
                         file: Some("bundle_manifest.json".to_string()),
                         path: Some("$.scope.job_id".to_string()),
+                    });
+                }
+            }
+            ScopeKind::WorkflowRun => {
+                if manifest
+                    .scope
+                    .workflow_run_id
+                    .as_deref()
+                    .unwrap_or("")
+                    .is_empty()
+                {
+                    findings.push(ValidationFinding {
+                        severity: FindingSeverity::Error,
+                        code: "VAL-BUNDLE-001:SCHEMA_VIOLATION".to_string(),
+                        message: "scope.workflow_run_id is required when scope.kind=workflow_run"
+                            .to_string(),
+                        file: Some("bundle_manifest.json".to_string()),
+                        path: Some("$.scope.workflow_run_id".to_string()),
+                    });
+                }
+            }
+            ScopeKind::WorkflowNodeExecution => {
+                if manifest
+                    .scope
+                    .workflow_run_id
+                    .as_deref()
+                    .unwrap_or("")
+                    .is_empty()
+                {
+                    findings.push(ValidationFinding {
+                        severity: FindingSeverity::Error,
+                        code: "VAL-BUNDLE-001:SCHEMA_VIOLATION".to_string(),
+                        message:
+                            "scope.workflow_run_id is required when scope.kind=workflow_node_execution"
+                                .to_string(),
+                        file: Some("bundle_manifest.json".to_string()),
+                        path: Some("$.scope.workflow_run_id".to_string()),
+                    });
+                }
+                if manifest
+                    .scope
+                    .workflow_node_execution_id
+                    .as_deref()
+                    .unwrap_or("")
+                    .is_empty()
+                {
+                    findings.push(ValidationFinding {
+                        severity: FindingSeverity::Error,
+                        code: "VAL-BUNDLE-001:SCHEMA_VIOLATION".to_string(),
+                        message: "scope.workflow_node_execution_id is required when scope.kind=workflow_node_execution".to_string(),
+                        file: Some("bundle_manifest.json".to_string()),
+                        path: Some("$.scope.workflow_node_execution_id".to_string()),
                     });
                 }
             }
@@ -372,7 +434,7 @@ fn validate_contents(contents: BundleContents) -> BundleValidationReport {
         }
 
         // Manifest files inventory + hashes.
-        let required_inventory_files = [
+        let mut required_inventory_files = vec![
             "env.json",
             expected_jobs_file,
             "trace.jsonl",
@@ -382,6 +444,12 @@ fn validate_contents(contents: BundleContents) -> BundleValidationReport {
             "repro.md",
             "coder_prompt.md",
         ];
+        if matches!(
+            manifest.scope.kind,
+            ScopeKind::WorkflowRun | ScopeKind::WorkflowNodeExecution
+        ) {
+            required_inventory_files.push("workflow_node_executions.jsonl");
+        }
 
         let mut manifest_paths: HashSet<&str> = HashSet::new();
         for entry in &manifest.files {
@@ -571,6 +639,50 @@ fn validate_contents(contents: BundleContents) -> BundleValidationReport {
                 }
             }
 
+            if matches!(
+                manifest.scope.kind,
+                ScopeKind::WorkflowRun | ScopeKind::WorkflowNodeExecution
+            ) {
+                if let Some(scope_workflow_run_id) = manifest.scope.workflow_run_id.as_deref() {
+                    for referenced in extract_ids_with_label(&coder_prompt, "Workflow Run ID") {
+                        if referenced != scope_workflow_run_id {
+                            findings.push(ValidationFinding {
+                                severity: FindingSeverity::Error,
+                                code: "VAL-BUNDLE-001:INTERNAL_MISMATCH".to_string(),
+                                message: format!(
+                                    "coder_prompt.md references workflow_run_id `{}` but manifest.scope.workflow_run_id is `{}`",
+                                    referenced, scope_workflow_run_id
+                                ),
+                                file: Some("coder_prompt.md".to_string()),
+                                path: None,
+                            });
+                        }
+                    }
+                }
+                if matches!(manifest.scope.kind, ScopeKind::WorkflowNodeExecution) {
+                    if let Some(scope_node_id) =
+                        manifest.scope.workflow_node_execution_id.as_deref()
+                    {
+                        for referenced in
+                            extract_ids_with_label(&coder_prompt, "Workflow Node Execution ID")
+                        {
+                            if referenced != scope_node_id {
+                                findings.push(ValidationFinding {
+                                    severity: FindingSeverity::Error,
+                                    code: "VAL-BUNDLE-001:INTERNAL_MISMATCH".to_string(),
+                                    message: format!(
+                                        "coder_prompt.md references workflow_node_execution_id `{}` but manifest.scope.workflow_node_execution_id is `{}`",
+                                        referenced, scope_node_id
+                                    ),
+                                    file: Some("coder_prompt.md".to_string()),
+                                    path: None,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
             if let Some(event_line) = line_after_label(&coder_prompt, "Event IDs") {
                 for referenced in extract_uuids(event_line) {
                     if !event_ids.contains(referenced.as_str()) {
@@ -622,6 +734,31 @@ fn validate_contents(contents: BundleContents) -> BundleValidationReport {
                 }
             }
 
+            if matches!(
+                manifest.scope.kind,
+                ScopeKind::WorkflowRun | ScopeKind::WorkflowNodeExecution
+            ) {
+                if let Some(scope_workflow_run_id) = manifest.scope.workflow_run_id.as_deref() {
+                    let has_scoped_job = jobs
+                        .iter()
+                        .any(|job| job.workflow_run_id.as_deref() == Some(scope_workflow_run_id));
+                    let requires_scoped_job =
+                        matches!(manifest.scope.kind, ScopeKind::WorkflowRun) || !jobs.is_empty();
+                    if requires_scoped_job && !has_scoped_job {
+                        findings.push(ValidationFinding {
+                            severity: FindingSeverity::Error,
+                            code: "VAL-BUNDLE-001:INTERNAL_MISMATCH".to_string(),
+                            message: format!(
+                                "scope.workflow_run_id `{}` is not present in `{}`",
+                                scope_workflow_run_id, expected_jobs_file
+                            ),
+                            file: Some("bundle_manifest.json".to_string()),
+                            path: Some("$.scope.workflow_run_id".to_string()),
+                        });
+                    }
+                }
+            }
+
             if let (Some(env), Some(wsid)) = (env.as_ref(), manifest.scope.wsid.as_deref()) {
                 if env.wsid.as_deref() != Some(wsid) {
                     findings.push(ValidationFinding {
@@ -637,6 +774,85 @@ fn validate_contents(contents: BundleContents) -> BundleValidationReport {
                     });
                 }
             }
+        }
+
+        if let Some(workflow_nodes) = workflow_node_executions.as_ref() {
+            let declared = manifest.included.workflow_node_execution_count;
+            let actual = workflow_nodes.len() as u32;
+            if declared != Some(actual) {
+                findings.push(ValidationFinding {
+                    severity: FindingSeverity::Error,
+                    code: "VAL-BUNDLE-001:INTERNAL_MISMATCH".to_string(),
+                    message: format!(
+                        "included.workflow_node_execution_count={:?} does not match workflow_node_executions.jsonl line count={}",
+                        declared, actual
+                    ),
+                    file: Some("bundle_manifest.json".to_string()),
+                    path: Some("$.included.workflow_node_execution_count".to_string()),
+                });
+            }
+
+            if let Some(scope_workflow_run_id) = manifest.scope.workflow_run_id.as_deref() {
+                for record in workflow_nodes {
+                    if record.workflow_run_id != scope_workflow_run_id {
+                        findings.push(ValidationFinding {
+                            severity: FindingSeverity::Error,
+                            code: "VAL-BUNDLE-001:INTERNAL_MISMATCH".to_string(),
+                            message: format!(
+                                "workflow_node_executions.jsonl record `{}` has workflow_run_id `{}` outside scoped workflow_run_id `{}`",
+                                record.workflow_node_execution_id,
+                                record.workflow_run_id,
+                                scope_workflow_run_id
+                            ),
+                            file: Some("workflow_node_executions.jsonl".to_string()),
+                            path: None,
+                        });
+                    }
+                }
+            }
+
+            if matches!(manifest.scope.kind, ScopeKind::WorkflowNodeExecution) {
+                if actual != 1 {
+                    findings.push(ValidationFinding {
+                        severity: FindingSeverity::Error,
+                        code: "VAL-BUNDLE-001:INTERNAL_MISMATCH".to_string(),
+                        message: format!(
+                            "workflow_node_execution scope must contain exactly one workflow node execution record, found {}",
+                            actual
+                        ),
+                        file: Some("workflow_node_executions.jsonl".to_string()),
+                        path: None,
+                    });
+                }
+                if let Some(scope_node_id) = manifest.scope.workflow_node_execution_id.as_deref() {
+                    if !workflow_nodes
+                        .iter()
+                        .any(|record| record.workflow_node_execution_id == scope_node_id)
+                    {
+                        findings.push(ValidationFinding {
+                            severity: FindingSeverity::Error,
+                            code: "VAL-BUNDLE-001:INTERNAL_MISMATCH".to_string(),
+                            message: format!(
+                                "scope.workflow_node_execution_id `{}` is not present in workflow_node_executions.jsonl",
+                                scope_node_id
+                            ),
+                            file: Some("bundle_manifest.json".to_string()),
+                            path: Some("$.scope.workflow_node_execution_id".to_string()),
+                        });
+                    }
+                }
+            }
+        } else if matches!(
+            manifest.scope.kind,
+            ScopeKind::WorkflowRun | ScopeKind::WorkflowNodeExecution
+        ) {
+            findings.push(ValidationFinding {
+                severity: FindingSeverity::Error,
+                code: "VAL-BUNDLE-001:MISSING_FILE".to_string(),
+                message: "workflow_node_executions.jsonl is required for workflow-correlated bundle scopes".to_string(),
+                file: Some("workflow_node_executions.jsonl".to_string()),
+                path: None,
+            });
         }
 
         // 5) Missing evidence accounting (retention_report aligns with missing_evidence).

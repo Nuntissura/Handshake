@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 
 use crate::bundles::schemas::{
-    BundleDiagnostic, BundleEnv, BundleJob, ManifestScope, MissingEvidence,
+    BundleDiagnostic, BundleEnv, BundleJob, ManifestScope, MissingEvidence, ScopeKind,
 };
 
 pub fn render_repro_md(
@@ -26,6 +26,15 @@ pub fn render_repro_md(
         .map(|d| d.id.clone())
         .or_else(|| scope.problem_id.clone())
         .unwrap_or_else(|| "n/a".to_string());
+    let workflow_run_id = scope
+        .workflow_run_id
+        .clone()
+        .or_else(|| job.and_then(|j| j.workflow_run_id.clone()))
+        .unwrap_or_else(|| "n/a".to_string());
+    let workflow_node_execution_id = scope
+        .workflow_node_execution_id
+        .clone()
+        .unwrap_or_else(|| "n/a".to_string());
 
     format!(
         "# Reproduction Steps\n\n\
@@ -47,6 +56,8 @@ pub fn render_repro_md(
 ## Related Artifacts\n\
 - Job ID: {job_id}\n\
 - Diagnostic ID: {diagnostic_id}\n\
+- Workflow Run ID: {workflow_run_id}\n\
+- Workflow Node Execution ID: {workflow_node_execution_id}\n\
 - See `trace.jsonl` for full event sequence\n",
         app_version = env.app_version,
         build_hash = env.build_hash,
@@ -65,6 +76,8 @@ pub fn render_repro_md(
         actual = "Actual behavior is not provided.",
         job_id = job_id,
         diagnostic_id = diagnostic_id,
+        workflow_run_id = workflow_run_id,
+        workflow_node_execution_id = workflow_node_execution_id,
     )
 }
 
@@ -152,7 +165,17 @@ pub fn render_coder_prompt(
 
     let workflow_run_id = job
         .and_then(|j| j.workflow_run_id.as_deref())
+        .or_else(|| scope.workflow_run_id.as_deref())
         .unwrap_or("n/a");
+    let workflow_node_execution_id = scope.workflow_node_execution_id.as_deref().unwrap_or("n/a");
+    let workflow_node_file_row = if matches!(
+        scope.kind,
+        ScopeKind::WorkflowRun | ScopeKind::WorkflowNodeExecution
+    ) {
+        "| `workflow_node_executions.jsonl` | Workflow node lineage inventory |\n"
+    } else {
+        ""
+    };
 
     let event_ids_line = if event_ids.is_empty() {
         "n/a".to_string()
@@ -193,6 +216,7 @@ See `repro.md` for detailed reproduction steps.\n\n\
 | `{jobs_file_name}` | Job metadata and status |\n\
 | `diagnostics.jsonl` | Normalized diagnostics ({diagnostic_count} entries) |\n\
 | `trace.jsonl` | Flight Recorder events ({event_count} entries) |\n\
+{workflow_node_file_row}\
 | `env.json` | Environment context (redacted) |\n\
 | `retention_report.json` | Evidence availability |\n\
 | `redaction_report.json` | What was redacted |\n\n\
@@ -200,6 +224,7 @@ See `repro.md` for detailed reproduction steps.\n\n\
 - Diagnostic ID: `{diag_id}`\n\
 - Job ID: `{job_id}`\n\
 - Workflow Run ID: `{workflow_run_id}`\n\
+- Workflow Node Execution ID: `{workflow_node_execution_id}`\n\
 - Event IDs: {event_ids_line}\n\n\
 ## Policy Notes\n\
 No policy restrictions applied.\n\n\
@@ -231,6 +256,8 @@ No policy restrictions applied.\n\n\
         jobs_file_name = jobs_file_name,
         diagnostic_count = diagnostic_count,
         workflow_run_id = workflow_run_id,
+        workflow_node_execution_id = workflow_node_execution_id,
+        workflow_node_file_row = workflow_node_file_row,
         event_ids_line = event_ids_line,
     )
 }
