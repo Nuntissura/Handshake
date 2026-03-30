@@ -19,7 +19,7 @@ function writeText(filePath, text = "") {
   fs.writeFileSync(filePath, text, "utf8");
 }
 
-function createFixture() {
+function createFixture({ terminal = false } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-active-lane-"));
   const govRoot = path.join(root, ".GOV");
   const govRuntimeRoot = path.join(root, "gov_runtime");
@@ -40,8 +40,13 @@ function createFixture() {
       `- PACKET_FORMAT_VERSION: 2026-03-22`,
       `- COMMUNICATION_CONTRACT: DIRECT_REVIEW_REQUIRED`,
       `- COMMUNICATION_HEALTH_GATE: WP_COMMUNICATION_HEALTH_V1`,
-      `- **Status:** In Progress`,
+      `- **Status:** ${terminal ? "Validated (PASS)" : "In Progress"}`,
     ].join("\n"),
+  );
+
+  writeText(
+    path.join(govRoot, "roles_shared", "records", "TASK_BOARD.md"),
+    `- **[${wpId}]** - [${terminal ? "VALIDATED" : "IN_PROGRESS"}] Example\n`,
   );
 
   writeText(
@@ -86,7 +91,29 @@ function createFixture() {
       active_role_sessions: [
         { role: "CODER", session_id: "coder-1", state: "working", last_heartbeat_at: "2099-01-01T10:00:00Z" },
       ],
-      open_review_items: [],
+      open_review_items: [
+        {
+          correlation_id: "kick-1",
+          receipt_kind: "VALIDATOR_KICKOFF",
+          summary: "Bootstrap and skeleton review required",
+          opened_by_role: "WP_VALIDATOR",
+          opened_by_session: "wpv-1",
+          target_role: "CODER",
+          target_session: "coder-1",
+          spec_anchor: "CX-LANE-001",
+          packet_row_ref: "CLAUSE_CLOSURE_MATRIX",
+          microtask_contract: {
+            scope_ref: "CLAUSE_CLOSURE_MATRIX/CX-LANE-001",
+            file_targets: ["src/backend/handshake_core/src/workflows.rs"],
+            proof_commands: ["cargo test workflows::tests::debug_bundle_export_rejects_missing_run_id -- --exact"],
+            risk_focus: "bootstrap scope drift",
+            expected_receipt_kind: "CODER_INTENT",
+          },
+          requires_ack: true,
+          opened_at: "2099-01-01T10:00:00Z",
+          updated_at: "2099-01-01T10:00:00Z",
+        },
+      ],
       last_event: "receipt_validator_kickoff",
       last_event_at: "2099-01-01T10:00:00Z",
       last_heartbeat_at: "2099-01-01T10:00:00Z",
@@ -169,5 +196,30 @@ test("active-lane-brief reports compact authority and relay summary", () => {
   assert.equal(brief.runtime.next_expected_actor, "CODER");
   assert.equal(brief.relay.status, "NORMAL");
   assert.match(brief.relay.summary, /Relay is healthy/i);
+  assert.equal(brief.review_queue.length, 1);
+  assert.equal(brief.review_queue[0].microtask_contract.scope_ref, "CLAUSE_CLOSURE_MATRIX/CX-LANE-001");
+  assert.equal(brief.review_queue[0].microtask_contract.expected_receipt_kind, "CODER_INTENT");
   assert.ok(brief.next_commands.some((entry) => entry.includes(`just check-notifications ${fixture.wpId} CODER`)));
+});
+
+test("active-lane-brief hides stale notification and relay noise for terminal WPs by default", () => {
+  const fixture = createFixture({ terminal: true });
+  const result = spawnSync(process.execPath, [briefScript, "CODER", fixture.wpId, "--json"], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      HANDSHAKE_GOV_ROOT: fixture.govRoot,
+      HANDSHAKE_GOV_RUNTIME_ROOT: fixture.govRuntimeRoot,
+    },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const brief = JSON.parse(result.stdout);
+  assert.equal(brief.notifications.pending_count, 0);
+  assert.equal(brief.notifications.history_hidden, true);
+  assert.equal(brief.notifications.hidden_history.pending_notification_count, 1);
+  assert.equal(brief.review_queue.length, 0);
+  assert.equal(brief.relay.status, "TERMINAL_HIDDEN");
+  assert.match(brief.relay.summary, /hidden for terminal WPs/i);
 });

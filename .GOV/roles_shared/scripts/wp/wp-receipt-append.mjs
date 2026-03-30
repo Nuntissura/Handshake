@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +25,8 @@ import {
 import { workPacketPath } from "../lib/runtime-paths.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification } from "./wp-notification-append.mjs";
+
+const ACTIVE_AUTO_RELAY_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -78,6 +81,7 @@ function updateOpenReviewItems(runtimeStatus, entry) {
       target_session: entry.target_session ?? null,
       spec_anchor: entry.spec_anchor ?? null,
       packet_row_ref: entry.packet_row_ref ?? null,
+      microtask_contract: entry.microtask_contract ?? null,
       requires_ack: entry.requires_ack,
       opened_at: entry.timestamp_utc,
       updated_at: entry.timestamp_utc,
@@ -170,6 +174,53 @@ function appendReviewNotifications({ wpId, entry, autoRoute }) {
   }
 }
 
+function attemptOrchestratorAutoRelay({ wpId, context, entry, autoRoute }) {
+  if (String(context?.workflowLane || "").trim().toUpperCase() !== "ORCHESTRATOR_MANAGED") {
+    return { status: "NOT_APPLICABLE", reason: "NON_ORCHESTRATOR_MANAGED" };
+  }
+  if (!autoRoute?.applicable) {
+    return { status: "NOT_APPLICABLE", reason: "NO_AUTO_ROUTE" };
+  }
+  const nextActor = normalizeRole(autoRoute.nextExpectedActor);
+  if (!ACTIVE_AUTO_RELAY_ROLE_VALUES.has(nextActor)) {
+    return { status: "NOT_APPLICABLE", reason: "NO_GOVERNED_NEXT_ACTOR" };
+  }
+  if (nextActor === normalizeRole(entry?.actor_role)) {
+    return { status: "SKIPPED", reason: "NEXT_ACTOR_IS_CURRENT_ACTOR", next_actor: nextActor };
+  }
+
+  const orchestratorSteerPath = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../roles/orchestrator/scripts/orchestrator-steer-next.mjs",
+  );
+  try {
+    const output = execFileSync(process.execPath, [orchestratorSteerPath, wpId, "PRIMARY"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const outputLines = String(output || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(-6);
+    return {
+      status: "DISPATCHED",
+      reason: "AUTO_RELAY_TRIGGERED",
+      next_actor: nextActor,
+      output_lines: outputLines,
+    };
+  } catch (error) {
+    const stderr = String(error?.stderr || "").trim();
+    const stdout = String(error?.stdout || "").trim();
+    return {
+      status: "FAILED",
+      reason: "AUTO_RELAY_FAILED",
+      next_actor: nextActor,
+      error: stderr || stdout || (error instanceof Error ? error.message : String(error)),
+    };
+  }
+}
+
 function appendWpReceiptCore({
   wpId,
   actorRole,
@@ -189,6 +240,7 @@ function appendWpReceiptCore({
   ackFor = null,
   specAnchor = null,
   packetRowRef = null,
+  microtaskContract = null,
   workflowInvalidityCode = null,
 } = {}) {
   const WP_ID = String(wpId || "").trim();
@@ -227,6 +279,7 @@ function appendWpReceiptCore({
     ack_for: nullableValue(ackFor),
     spec_anchor: nullableValue(specAnchor),
     packet_row_ref: nullableValue(packetRowRef),
+    microtask_contract: microtaskContract && typeof microtaskContract === "object" ? microtaskContract : null,
     workflow_invalidity_code: nullableValue(normalizeWorkflowInvalidityCode(workflowInvalidityCode)),
     refs: [context.packetPath, ...refs.filter(Boolean).map((value) => normalize(value))],
   };
@@ -304,16 +357,35 @@ function appendWpReceiptCore({
   if (reviewTrackedReceipt) {
     appendReviewNotifications({ wpId: WP_ID, entry, autoRoute });
   }
-  return { context, entry };
+  return { context, entry, autoRoute };
 }
 
 export function appendWpReceipt(args = {}, options = {}) {
   const WP_ID = String(args?.wpId || "").trim();
   const run = () => appendWpReceiptCore(args);
+  const relayEnabled = options.autoRelay !== false;
   if (options.assumeTransactionLock || !WP_ID || !/^WP-/.test(WP_ID)) {
-    return run();
+    const result = run();
+    if (relayEnabled) {
+      result.relayAttempt = attemptOrchestratorAutoRelay({
+        wpId: WP_ID,
+        context: result.context,
+        entry: result.entry,
+        autoRoute: result.autoRoute,
+      });
+    }
+    return result;
   }
-  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), run);
+  const result = withFileLockSync(communicationTransactionLockPathForWp(WP_ID), run);
+  if (relayEnabled) {
+    result.relayAttempt = attemptOrchestratorAutoRelay({
+      wpId: WP_ID,
+      context: result.context,
+      entry: result.entry,
+      autoRoute: result.autoRoute,
+    });
+  }
+  return result;
 }
 
 function runCli() {
@@ -327,7 +399,7 @@ function runCli() {
     process.exit(1);
   }
 
-  const { context, entry } = appendWpReceipt({
+  const { context, entry, relayAttempt } = appendWpReceipt({
     wpId,
     actorRole,
     actorSession,
@@ -348,6 +420,15 @@ function runCli() {
   console.log(`[WP_RECEIPT] appended ${entry.receipt_kind} for ${entry.wp_id}`);
   console.log(`- ledger: ${context.receiptsFile}`);
   console.log(`- timestamp_utc: ${entry.timestamp_utc}`);
+  if (relayAttempt && relayAttempt.status !== "NOT_APPLICABLE") {
+    console.log(`- auto_relay_status: ${relayAttempt.status}`);
+    console.log(`- auto_relay_reason: ${relayAttempt.reason}`);
+    if (relayAttempt.next_actor) console.log(`- auto_relay_next_actor: ${relayAttempt.next_actor}`);
+    if (relayAttempt.error) console.log(`- auto_relay_error: ${relayAttempt.error}`);
+    if (Array.isArray(relayAttempt.output_lines) && relayAttempt.output_lines.length > 0) {
+      console.log(`- auto_relay_output: ${relayAttempt.output_lines.join(" | ")}`);
+    }
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

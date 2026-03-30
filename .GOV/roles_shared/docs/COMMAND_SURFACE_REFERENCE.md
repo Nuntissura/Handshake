@@ -53,6 +53,9 @@ These are safe starting points for orientation and health checks.
 - `just wp-token-usage WP-{ID}`
   - `read-only`
   - print the governed per-WP token ledger aggregated from settled ACP session outputs
+- `just wp-token-usage-settle WP-{ID} [REASON] [SETTLED_BY]`
+  - `writes-runtime`
+  - settle a historical WP token ledger to raw ACP session outputs after the lane is terminal so compact views stop surfacing old drift as live noise
 - `just handshake-acp-broker-status`
   - `read-only`
   - inspect ACP broker liveness/state
@@ -231,6 +234,7 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 - `just wp-spec-confirmation ...`
   - `runtime-write`
   - structured direct-review / review-resolution helpers
+  - optional final `microtask_json` argument may carry a compact steering contract with `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, and `expected_receipt_kind`
 - `just wp-communication-health-check WP-{ID} [STATUS|KICKOFF|HANDOFF|VERDICT]`
   - `read-only`
   - communication proof and route health

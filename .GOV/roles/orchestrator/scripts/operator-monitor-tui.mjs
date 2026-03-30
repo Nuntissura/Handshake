@@ -582,6 +582,26 @@ function normalizeLaneState(value) {
   return normalized;
 }
 
+function isTerminalPacketStatus(status = "") {
+  const text = String(status || "").trim();
+  return /^Validated\s*\(/i.test(text)
+    || /^Done$/i.test(text);
+}
+
+function isTerminalBoardSection(section = "") {
+  const text = String(section || "").trim().toUpperCase();
+  return text === "DONE"
+    || text === "SUPERSEDED";
+}
+
+function isTerminalRecord(record) {
+  return Boolean(
+    isTerminalBoardSection(record?.boardSection)
+    || isTerminalPacketStatus(record?.packetRecord?.packetStatus)
+    || isTerminalPacketStatus(record?.packetRecord?.runtime?.current_packet_status),
+  );
+}
+
 function laneStateForRole(record, role) {
   const packetSession = (record.sessions || []).find((entry) => String(entry.role || "").trim().toUpperCase() === role);
   if (packetSession?.state) return normalizeLaneState(packetSession.state);
@@ -599,6 +619,9 @@ function roleLaneChip(record, role) {
 }
 
 function reviewPressureChip(record) {
+  if (isTerminalRecord(record)) {
+    return paint("REV:HID", STATE_COLORS.none, { dim: true });
+  }
   const count = Number(record.packetRecord?.openReviewItems?.length || 0);
   const text = `REV:${count}`;
   if (count <= 0) return paint(text, STATE_COLORS.none, { dim: true });
@@ -606,6 +629,9 @@ function reviewPressureChip(record) {
 }
 
 function communicationHealthChip(record) {
+  if (isTerminalRecord(record)) {
+    return paint("COMM:HID", STATE_COLORS.none, { dim: true });
+  }
   const state = String(record.communicationHealthState || "COMM_NA").trim().toUpperCase();
   const labelMap = {
     COMM_NA: "OFF",
@@ -654,10 +680,14 @@ function communicationHealthStateText(record) {
 }
 
 function communicationHealthLine(record) {
+  if (isTerminalRecord(record)) {
+    return "comm=HIDDEN | Communication health history is hidden for terminal WPs by default.";
+  }
   return `comm=${communicationHealthStateText(record)} | ${record.packetRecord?.communicationHealthEvaluation?.message || "No communication health summary."}`;
 }
 
 function notificationChip(record) {
+  if (isTerminalRecord(record)) return "";
   const pending = record.packetRecord?.pendingNotifications || { total: 0 };
   const count = pending.total || 0;
   if (count <= 0) return "";
@@ -666,6 +696,9 @@ function notificationChip(record) {
 }
 
 function latestReviewLabel(record) {
+  if (isTerminalRecord(record)) {
+    return paint("review:hidden", STATE_COLORS.none, { dim: true });
+  }
   const entry = record.packetRecord?.lastReviewReceipt;
   if (!entry) return paint("review:none", STATE_COLORS.none, { dim: true });
   const target = formatTarget(entry.target_role, entry.target_session);
@@ -1239,7 +1272,7 @@ function renderList(records, selectedIndex, width, height, listHasFocus) {
     const record = visible[index];
     const globalIndex = start + index;
     const marker = globalIndex === selectedIndex ? ">" : " ";
-    const stale = record.stale ? "!" : " ";
+    const stale = record.stale && !isTerminalRecord(record) ? "!" : " ";
     const drift = record.currentBoardMatchesSelected === false ? "~" : " ";
     const worktreeFlag = record.packetRecord?.localWorktreeStatus === "MISSING" ? "x" : " ";
     const latest = record.lastActivityAt ? record.lastActivityAt.slice(11, 16) : "-----";
@@ -1288,12 +1321,17 @@ function buildDetailLines(record, width, detailView, uiState) {
   lines.push(`canonical_entry=${formatBoardEntry(record.canonicalBoardEntry)} | current_entry=${formatBoardEntry(record.currentBoardEntry)}`);
   lines.push(`current_entry_drift=${record.currentBoardMatchesSelected === null ? "UNKNOWN" : (record.currentBoardMatchesSelected ? "NO" : "YES")}`);
   if (runtime) {
+    const terminalHistorySuppressed = isTerminalRecord(record);
     lines.push(
       `runtime=${runtime.runtime_status}/${runtime.current_phase}`
       + ` | next=${formatTarget(runtime.next_expected_actor, runtime.next_expected_session) || runtime.next_expected_actor}`
       + ` | waiting_on=${runtime.waiting_on}${runtime.waiting_on_session ? ` (${runtime.waiting_on_session})` : ""}`
     );
-    lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"} | open_reviews=${record.packetRecord?.openReviewItems?.length || 0}`);
+    if (terminalHistorySuppressed) {
+      lines.push("validator_trigger=<hidden> | ready=<hidden> | stale=HIDDEN | open_reviews=HIDDEN | history_hidden=YES");
+    } else {
+      lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"} | open_reviews=${record.packetRecord?.openReviewItems?.length || 0}`);
+    }
     lines.push(communicationHealthLine(record));
   } else {
     lines.push("runtime=<none>");
@@ -1614,6 +1652,7 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
       }
     }
   } else {
+    const terminalHistorySuppressed = isTerminalRecord(record);
     lines.push("OVERVIEW");
     lines.push(`focus=${uiState.focusedPane} | mode=${uiState.admin ? "ADMIN" : "VIEW"}`);
     lines.push(`docs=${docArtifacts.map((artifact) => artifact.label).join(", ") || "<none>"} | comms=${commsArtifacts.map((artifact) => artifact.label).join(", ") || "<none>"}`);
@@ -1623,7 +1662,9 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
     lines.push("");
     const pendingNotifs = record.packetRecord?.pendingNotifications || { total: 0, byRole: {} };
     lines.push("PENDING NOTIFICATIONS");
-    if (pendingNotifs.total === 0) {
+    if (terminalHistorySuppressed) {
+      lines.push("Hidden by default for terminal WP; use history/runtime artifacts when explicitly needed.");
+    } else if (pendingNotifs.total === 0) {
       lines.push("No pending notifications.");
     } else {
       lines.push(`Total: ${paint(String(pendingNotifs.total), pendingNotifs.total >= 3 ? STATE_COLORS.blocked : "\x1b[38;5;208m", { bold: true })}`);
@@ -1633,7 +1674,9 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
     }
     lines.push("");
     lines.push("OPEN REVIEW ITEMS");
-    if ((record.packetRecord?.openReviewItems || []).length === 0) {
+    if (terminalHistorySuppressed) {
+      lines.push("Hidden by default for terminal WP; use packet/runtime history when explicitly needed.");
+    } else if ((record.packetRecord?.openReviewItems || []).length === 0) {
       lines.push("No open coder/validator review items.");
     } else {
       for (const item of (record.packetRecord?.openReviewItems || []).slice(0, 8)) {
@@ -1643,11 +1686,24 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
         if (item.spec_anchor || item.packet_row_ref) {
           lines.push(`  spec=${item.spec_anchor || "<none>"} | packet=${item.packet_row_ref || "<none>"}`);
         }
+        if (item.microtask_contract && typeof item.microtask_contract === "object") {
+          if (item.microtask_contract.scope_ref) lines.push(`  microtask.scope_ref=${item.microtask_contract.scope_ref}`);
+          if (Array.isArray(item.microtask_contract.file_targets) && item.microtask_contract.file_targets.length > 0) {
+            lines.push(`  microtask.files=${item.microtask_contract.file_targets.join(", ")}`);
+          }
+          if (Array.isArray(item.microtask_contract.proof_commands) && item.microtask_contract.proof_commands.length > 0) {
+            lines.push(`  microtask.proof=${item.microtask_contract.proof_commands.join(" ; ")}`);
+          }
+          if (item.microtask_contract.risk_focus) lines.push(`  microtask.risk=${item.microtask_contract.risk_focus}`);
+          if (item.microtask_contract.expected_receipt_kind) lines.push(`  microtask.expected_receipt=${item.microtask_contract.expected_receipt_kind}`);
+        }
       }
     }
     lines.push("");
     lines.push("LATEST REVIEW TRAFFIC");
-    if ((record.packetRecord?.reviewReceipts || []).length === 0) {
+    if (terminalHistorySuppressed) {
+      lines.push("Hidden by default for terminal WP; use packet/runtime history when explicitly needed.");
+    } else if ((record.packetRecord?.reviewReceipts || []).length === 0) {
       lines.push("No structured coder/validator review receipts.");
     } else {
       for (const entry of (record.packetRecord?.reviewReceipts || []).slice(-6)) {
@@ -1706,8 +1762,14 @@ function renderScreen(model, uiState) {
   const rightWidth = Math.max(40, columns - leftWidth - 3);
   const bodyHeight = Math.max(12, rows - 9);
 
-  const totalOpenReviews = records.reduce((sum, record) => sum + Number(record.packetRecord?.openReviewItems?.length || 0), 0);
-  const totalPendingNotifications = records.reduce((sum, record) => sum + Number(record.packetRecord?.pendingNotifications?.total || 0), 0);
+  const totalOpenReviews = records.reduce((sum, record) => {
+    if (isTerminalRecord(record)) return sum;
+    return sum + Number(record.packetRecord?.openReviewItems?.length || 0);
+  }, 0);
+  const totalPendingNotifications = records.reduce((sum, record) => {
+    if (isTerminalRecord(record)) return sum;
+    return sum + Number(record.packetRecord?.pendingNotifications?.total || 0);
+  }, 0);
   const counts = FILTERS.map((filter) => {
     const label = `${filter}:${filterRecords(records, filter).length}`;
     return paint(label, STATUS_COLORS[filter] || STATUS_COLORS.OTHER, { bold: filter === uiState.filter });

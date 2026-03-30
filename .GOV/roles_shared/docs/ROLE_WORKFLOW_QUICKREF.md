@@ -182,6 +182,7 @@ Primary commands (per WP validation):
 - `just wp-validator-response WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
 - `just wp-review-request WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
 - `just wp-review-response WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
+- optional final `microtask_json` may carry `{ "scope_ref": "...", "file_targets": ["..."], "proof_commands": ["..."], "risk_focus": "...", "expected_receipt_kind": "..." }`
 
 Governance-only work:
 - `just gov-check`

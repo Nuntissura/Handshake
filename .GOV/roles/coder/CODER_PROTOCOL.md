@@ -361,6 +361,7 @@ Resume rule (hard, anti-babysit):
   - `just wp-review-response WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-spec-gap WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
   - `just wp-spec-confirmation WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
+  - For structured microtask steering, the direct-review helpers also accept an optional final `microtask_json` argument carrying `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, and `expected_receipt_kind`.
   - `just wp-communication-health-check WP-{ID} STATUS|KICKOFF|HANDOFF|VERDICT`
   - `just session-registry-status [WP-{ID}]`
   - `just active-lane-brief CODER WP-{ID} [--json]`

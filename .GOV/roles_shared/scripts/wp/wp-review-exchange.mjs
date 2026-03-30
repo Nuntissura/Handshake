@@ -51,10 +51,34 @@ function buildTargetLabel(targetRole, targetSession) {
   return targetSession ? `${targetRole}:${targetSession}` : targetRole;
 }
 
-function buildThreadMessage({ receiptKind, summary, specAnchor, packetRowRef, correlationId }) {
+function parseMicrotaskContract(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw || /^null$/i.test(raw) || /^none$/i.test(raw) || /^n\/a$/i.test(raw)) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    fail(`MICROTASK_JSON must be valid JSON: ${error.message}`);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    fail("MICROTASK_JSON must decode to an object");
+  }
+  return parsed;
+}
+
+function buildThreadMessage({ receiptKind, summary, specAnchor, packetRowRef, correlationId, microtaskContract }) {
   const lines = [`${receiptKind}: ${summary}`];
   if (specAnchor) lines.push(`spec_anchor=${specAnchor}`);
   if (packetRowRef) lines.push(`packet_row_ref=${packetRowRef}`);
+  if (microtaskContract?.scope_ref) lines.push(`microtask_scope_ref=${microtaskContract.scope_ref}`);
+  if (Array.isArray(microtaskContract?.file_targets) && microtaskContract.file_targets.length > 0) {
+    lines.push(`microtask_files=${microtaskContract.file_targets.join(", ")}`);
+  }
+  if (Array.isArray(microtaskContract?.proof_commands) && microtaskContract.proof_commands.length > 0) {
+    lines.push(`microtask_proof=${microtaskContract.proof_commands.join(" ; ")}`);
+  }
+  if (microtaskContract?.risk_focus) lines.push(`microtask_risk=${microtaskContract.risk_focus}`);
+  if (microtaskContract?.expected_receipt_kind) lines.push(`microtask_expected_receipt=${microtaskContract.expected_receipt_kind}`);
   lines.push(`correlation_id=${correlationId}`);
   return lines.join("\n");
 }
@@ -71,6 +95,7 @@ export function recordReviewExchange({
   specAnchor = null,
   packetRowRef = null,
   ackFor = null,
+  microtaskJson = null,
 } = {}) {
   const RECEIPT_KIND = String(receiptKind || "").trim().toUpperCase();
   const WP_ID = String(wpId || "").trim();
@@ -81,6 +106,7 @@ export function recordReviewExchange({
   const TARGET_SESSION = nullableValue(targetSession);
   const SPEC_ANCHOR = nullableValue(specAnchor);
   const PACKET_ROW_REF = nullableValue(packetRowRef);
+  const MICROTASK_CONTRACT = parseMicrotaskContract(microtaskJson);
   let ACK_FOR = nullableValue(ackFor);
 
   if (!SUPPORTED_RECEIPT_KINDS.includes(RECEIPT_KIND)) {
@@ -115,6 +141,7 @@ export function recordReviewExchange({
       specAnchor: SPEC_ANCHOR,
       packetRowRef: PACKET_ROW_REF,
       correlationId: CORRELATION_ID,
+      microtaskContract: MICROTASK_CONTRACT,
     }),
     target: buildTargetLabel(TARGET_ROLE, TARGET_SESSION),
     recordReceipt: false,
@@ -126,6 +153,7 @@ export function recordReviewExchange({
     ackFor: ACK_FOR,
     specAnchor: SPEC_ANCHOR,
     packetRowRef: PACKET_ROW_REF,
+    microtaskContract: MICROTASK_CONTRACT,
   });
 
   const receiptResult = appendWpReceipt({
@@ -141,6 +169,7 @@ export function recordReviewExchange({
     ackFor: ACK_FOR,
     specAnchor: SPEC_ANCHOR,
     packetRowRef: PACKET_ROW_REF,
+    microtaskContract: MICROTASK_CONTRACT,
     refs: [threadResult.threadFile],
   });
 
@@ -150,17 +179,18 @@ export function recordReviewExchange({
     receiptsFile: receiptResult.context.receiptsFile,
     runtimeStatusFile: receiptResult.context.runtimeStatusFile,
     receipt: receiptResult.entry,
+    microtaskContract: MICROTASK_CONTRACT,
   };
 }
 
 function runCli() {
-  const [receiptKind, wpId, actorRole, actorSession, targetRole, targetSession, summary, correlationId, specAnchor, packetRowRef, ackFor] =
+  const [receiptKind, wpId, actorRole, actorSession, targetRole, targetSession, summary, correlationId, specAnchor, packetRowRef, ackFor, microtaskJson] =
     process.argv.slice(2);
   if (!receiptKind || !wpId || !actorRole || !actorSession || !summary) {
     console.error(
       "Usage: node .GOV/roles_shared/scripts/wp/wp-review-exchange.mjs"
       + " <RECEIPT_KIND> WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <TARGET_ROLE> <TARGET_SESSION>"
-      + " \"<SUMMARY>\" [CORRELATION_ID] [SPEC_ANCHOR] [PACKET_ROW_REF] [ACK_FOR]"
+      + " \"<SUMMARY>\" [CORRELATION_ID] [SPEC_ANCHOR] [PACKET_ROW_REF] [ACK_FOR] [MICROTASK_JSON]"
     );
     process.exit(1);
   }
@@ -173,17 +203,21 @@ function runCli() {
     targetRole,
     targetSession,
     summary,
-    correlationId,
-    specAnchor,
-    packetRowRef,
-    ackFor,
-  });
+      correlationId,
+      specAnchor,
+      packetRowRef,
+      ackFor,
+      microtaskJson,
+    });
 
   console.log(`[WP_REVIEW_EXCHANGE] appended ${String(receiptKind).trim().toUpperCase()} for ${wpId}`);
   console.log(`- correlation_id: ${result.correlationId}`);
   console.log(`- thread: ${result.threadFile}`);
   console.log(`- receipts: ${result.receiptsFile}`);
   console.log(`- runtime: ${result.runtimeStatusFile}`);
+  if (result.microtaskContract) {
+    console.log(`- microtask_contract: ${JSON.stringify(result.microtaskContract)}`);
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

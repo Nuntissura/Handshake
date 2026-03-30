@@ -48,6 +48,10 @@
   - `RGF-20` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `RGF-21` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `RGF-22` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `RGF-28` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `RGF-29` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `RGF-30` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `RGF-31` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - RELATED_CHANGESETS:
   - signed six-file product delta in `bundles/exporter.rs`, `bundles/schemas.rs`, `bundles/templates.rs`, `bundles/validator.rs`, `bundles/zip.rs`, and `workflows.rs`
 
@@ -529,3 +533,24 @@ Assessment:
 - `RGF-25`: Heartbeat Liveness-Only Enforcement and Semantic Drift Rejection
 - `RGF-26`: Compact Authority Digest and Canonical Active-Lane Brief
 - `RGF-27`: Receipt/Notification Threshold Auto-Escalation for Stalled Relay
+
+### 17.5 Additional Operator ROI Concerns After RGF-23 Through RGF-27
+
+- Terminal WPs still produce too much historical noise in compact views.
+  - closed packets can still surface old pending notifications and old token-budget drift as if they are active blockers
+  - that is historically correct but operationally bad; compact views should default to live signal, not stale residue
+- Token diagnostics are accurate now, but older WPs still look permanently broken because their tracked ledgers were historically incomplete.
+  - this is useful for forensics, but poor for routine monitoring
+  - a governed settlement/backfill path is now the highest ROI follow-up for diagnostics quality
+- Relay is still semi-manual.
+  - `just orchestrator-steer-next` exists, but the lane still requires the orchestrator to invoke it
+  - the highest-value future speed win is event-driven happy-path relay from receipts/notifications instead of supervised polling
+- Coder-validator exchange is still more prose-heavy than it should be.
+  - if microtask exchange becomes more structured, validator steering can stay strong while costing fewer tokens
+
+### 17.6 Additional Required Follow-On Governance Work
+
+- `RGF-28`: Terminal-WP Noise Suppression and Historical Surface Gating
+- `RGF-29`: Historical Token Ledger Settlement and Backfill
+- `RGF-30`: Event-Driven Happy-Path Relay Automation
+- `RGF-31`: Structured Coder-Validator Microtask Exchange Contract

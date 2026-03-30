@@ -205,6 +205,26 @@ test("validateReceipt requires ack_for to match correlation_id for resolution re
   assert.match(errors.join("\n"), /ack_for must match correlation_id for VALIDATOR_REVIEW/);
 });
 
+test("validateReceipt accepts structured microtask contracts on review receipts", () => {
+  const errors = validateReceipt(reviewResolutionReceiptFixture({
+    microtask_contract: {
+      scope_ref: "CLAUSE_CLOSURE_MATRIX/LM-SEARCH-001",
+      file_targets: ["src/backend/handshake_core/src/storage/sqlite.rs"],
+      proof_commands: ["cargo test storage::tests::sqlite_loom_storage_conformance -- --exact"],
+      risk_focus: "portable search parity",
+      expected_receipt_kind: "REVIEW_RESPONSE",
+    },
+  }));
+  assert.deepEqual(errors, []);
+});
+
+test("validateReceipt rejects empty microtask contracts", () => {
+  const errors = validateReceipt(reviewResolutionReceiptFixture({
+    microtask_contract: {},
+  }));
+  assert.match(errors.join("\n"), /microtask_contract must contain at least one populated field/);
+});
+
 test("validateReceipt accepts WORKFLOW_INVALIDITY receipts with a machine code", () => {
   const errors = validateReceipt(workflowInvalidityReceiptFixture());
   assert.deepEqual(errors, []);

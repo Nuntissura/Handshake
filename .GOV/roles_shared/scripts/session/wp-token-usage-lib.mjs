@@ -49,6 +49,19 @@ function defaultSummary() {
   };
 }
 
+function defaultSettlement() {
+  return {
+    status: "UNSETTLED",
+    settled_at: "",
+    settled_reason: "",
+    settled_by: "",
+    previous_health_status: "",
+    previous_health_severity: "",
+    previous_summary_source: "",
+    raw_output_command_count: 0,
+  };
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -113,6 +126,19 @@ function normalizeCommandEntry(entry = {}) {
     turn_count: turnUsage.length,
     usage_totals: usageTotals,
     turn_usage: turnUsage,
+  };
+}
+
+function normalizeSettlement(entry = {}) {
+  return {
+    status: normalizeText(entry.status).toUpperCase() || "UNSETTLED",
+    settled_at: normalizeText(entry.settled_at),
+    settled_reason: normalizeText(entry.settled_reason),
+    settled_by: normalizeText(entry.settled_by),
+    previous_health_status: normalizeText(entry.previous_health_status).toUpperCase(),
+    previous_health_severity: normalizeText(entry.previous_health_severity).toUpperCase(),
+    previous_summary_source: normalizeText(entry.previous_summary_source),
+    raw_output_command_count: normalizeCount(entry.raw_output_command_count),
   };
 }
 
@@ -530,6 +556,7 @@ export function defaultWpTokenUsageLedger(wpId) {
       summary: defaultSummary(),
       role_totals: {},
     },
+    settlement: defaultSettlement(),
     ledger_health: buildLedgerHealth([], []),
     commands: [],
   };
@@ -567,6 +594,7 @@ export function normalizeWpTokenUsageLedger(raw, wpId = "", { repoRoot = "" } = 
   ledger.summary_source = rawCommands.length > 0 ? "RAW_OUTPUT_SCAN" : "TRACKED_COMMAND_LEDGER";
   ledger.summary = summarizeCommands(authoritativeCommands);
   ledger.role_totals = buildRoleTotals(authoritativeCommands);
+  ledger.settlement = normalizeSettlement(raw?.settlement);
   ledger.ledger_health = buildLedgerHealth(trackedCommands, rawCommands);
   return ledger;
 }
@@ -628,5 +656,46 @@ export function syncWpTokenUsageLedger(repoRoot, result = {}, {
     filePath,
     ledger: nextLedger,
     command: nextEntry,
+  };
+}
+
+export function settleWpTokenUsageLedger(repoRoot, wpId, {
+  reason = "HISTORICAL_BACKFILL",
+  settledBy = "SYSTEM",
+} = {}) {
+  const normalizedWpId = normalizeText(wpId);
+  if (!normalizedWpId) {
+    throw new Error("settleWpTokenUsageLedger requires wpId");
+  }
+
+  const { filePath, ledger } = readWpTokenUsageLedger(repoRoot, normalizedWpId);
+  const rawScan = scanWpSessionOutputCommands(repoRoot, normalizedWpId);
+  const rawCommands = stableSortCommands(rawScan.commands || []);
+  if (rawCommands.length === 0) {
+    throw new Error(`No raw session output files were found for ${normalizedWpId}; settlement cannot proceed.`);
+  }
+
+  const settledAt = nowIso();
+  const nextLedger = normalizeWpTokenUsageLedger({
+    ...ledger,
+    updated_at: settledAt,
+    commands: rawCommands,
+    settlement: {
+      status: "SETTLED_TO_RAW_SCAN",
+      settled_at: settledAt,
+      settled_reason: normalizeText(reason) || "HISTORICAL_BACKFILL",
+      settled_by: normalizeText(settledBy) || "SYSTEM",
+      previous_health_status: normalizeText(ledger.ledger_health?.status).toUpperCase(),
+      previous_health_severity: normalizeText(ledger.ledger_health?.severity).toUpperCase(),
+      previous_summary_source: normalizeText(ledger.summary_source),
+      raw_output_command_count: rawCommands.length,
+    },
+  }, normalizedWpId, { repoRoot });
+  nextLedger.updated_at = settledAt;
+
+  writeJsonFile(filePath, nextLedger);
+  return {
+    filePath,
+    ledger: nextLedger,
   };
 }

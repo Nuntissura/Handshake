@@ -26,6 +26,9 @@ const { requests: controlRequests } = loadSessionControlRequests(repoRoot);
 const { results: controlResults } = loadSessionControlResults(repoRoot);
 const wpTokenUsage = wpIdFilter ? readWpTokenUsageLedger(repoRoot, wpIdFilter).ledger : null;
 const wpTokenBudget = wpTokenUsage ? evaluateWpTokenBudget(wpTokenUsage) : null;
+const wpGovernanceState = wpIdFilter
+  ? evaluateSessionGovernanceState(repoRoot, { wp_id: wpIdFilter, local_worktree_dir: "" })
+  : null;
 
 const sessions = registry.sessions
   .filter((session) => !wpIdFilter || session.wp_id === wpIdFilter)
@@ -36,6 +39,17 @@ function parseSingleField(text, label) {
   const match = String(text || "").match(re);
   return match ? match[1].trim() : "";
 }
+
+function isTerminalPacketStatus(status = "") {
+  const text = String(status || "").trim();
+  return /^Validated\s*\(/i.test(text)
+    || /^Done$/i.test(text);
+}
+
+const terminalHistorySuppressed = Boolean(
+  wpGovernanceState?.terminalTaskBoardStatus
+  || isTerminalPacketStatus(wpGovernanceState?.packetStatus),
+);
 
 function loadRelayStatusForWp(wpId) {
   const packetPath = resolveWorkPacketPath(wpId)?.packetPath || "";
@@ -149,23 +163,30 @@ if (relayStatus) {
   console.log("");
   console.log("WP_RELAY_ESCALATION");
   console.log(`- wp_id: ${wpIdFilter}`);
-  console.log(`- status: ${relayStatus.status}`);
-  console.log(`- severity: ${relayStatus.severity}`);
-  console.log(`- reason_code: ${relayStatus.reason_code}`);
-  console.log(`- target: ${relayStatus.target_role || "<none>"}${relayStatus.target_session ? `:${relayStatus.target_session}` : ""}`);
-  console.log(`- summary: ${relayStatus.summary}`);
-  if (relayStatus.recommended_command) {
-    console.log(`- recommended_command: ${relayStatus.recommended_command}`);
-  }
-  const metrics = relayStatus.metrics || {};
-  if (Object.keys(metrics).length > 0) {
-    console.log(`- pending_notification_count: ${metrics.pending_notification_count ?? 0}`);
-    console.log(`- route_anchor_at: ${metrics.route_anchor_at || "<none>"}`);
-    console.log(`- latest_notification_at: ${metrics.latest_notification_at || "<none>"}`);
-    console.log(`- latest_target_receipt_at: ${metrics.latest_target_receipt_at || "<none>"}`);
-    console.log(`- latest_session_activity_at: ${metrics.latest_session_activity_at || "<none>"}`);
-    console.log(`- heartbeat_due_at: ${metrics.heartbeat_due_at || "<none>"}`);
-    console.log(`- stale_after: ${metrics.stale_after || "<none>"}`);
+  if (terminalHistorySuppressed) {
+    console.log("- status: TERMINAL_HIDDEN");
+    console.log("- severity: NONE");
+    console.log("- reason_code: TERMINAL_HISTORY_HIDDEN");
+    console.log("- summary: Relay escalation history is hidden by default for terminal WPs.");
+  } else {
+    console.log(`- status: ${relayStatus.status}`);
+    console.log(`- severity: ${relayStatus.severity}`);
+    console.log(`- reason_code: ${relayStatus.reason_code}`);
+    console.log(`- target: ${relayStatus.target_role || "<none>"}${relayStatus.target_session ? `:${relayStatus.target_session}` : ""}`);
+    console.log(`- summary: ${relayStatus.summary}`);
+    if (relayStatus.recommended_command) {
+      console.log(`- recommended_command: ${relayStatus.recommended_command}`);
+    }
+    const metrics = relayStatus.metrics || {};
+    if (Object.keys(metrics).length > 0) {
+      console.log(`- pending_notification_count: ${metrics.pending_notification_count ?? 0}`);
+      console.log(`- route_anchor_at: ${metrics.route_anchor_at || "<none>"}`);
+      console.log(`- latest_notification_at: ${metrics.latest_notification_at || "<none>"}`);
+      console.log(`- latest_target_receipt_at: ${metrics.latest_target_receipt_at || "<none>"}`);
+      console.log(`- latest_session_activity_at: ${metrics.latest_session_activity_at || "<none>"}`);
+      console.log(`- heartbeat_due_at: ${metrics.heartbeat_due_at || "<none>"}`);
+      console.log(`- stale_after: ${metrics.stale_after || "<none>"}`);
+    }
   }
 }
 
@@ -173,78 +194,94 @@ if (wpTokenUsage) {
   console.log("");
   console.log("WP_TOKEN_USAGE");
   console.log(`- wp_id: ${wpTokenUsage.wp_id}`);
-  console.log(`- summary_source: ${wpTokenUsage.summary_source}`);
-  console.log(`- ledger_health: ${wpTokenUsage.ledger_health.status}`);
-  console.log(`- ledger_health_severity: ${wpTokenUsage.ledger_health.severity}`);
-  console.log(`- ledger_health_drift_class: ${wpTokenUsage.ledger_health.drift_class}`);
-  console.log(`- ledger_health_policy_id: ${wpTokenUsage.ledger_health.policy_id}`);
-  console.log(`- ledger_health_blocker_class: ${wpTokenUsage.ledger_health.blocker_class}`);
-  if (wpTokenUsage.ledger_health.invalidity_code) {
-    console.log(`- ledger_health_invalidity_code: ${wpTokenUsage.ledger_health.invalidity_code}`);
-  }
-  console.log(`- ledger_health_summary: ${wpTokenUsage.ledger_health.summary}`);
-  console.log(`- command_count: ${wpTokenUsage.summary.command_count}`);
-  console.log(`- turn_count: ${wpTokenUsage.summary.turn_count}`);
-  console.log(`- input_tokens: ${wpTokenUsage.summary.usage_totals.input_tokens}`);
-  console.log(`- cached_input_tokens: ${wpTokenUsage.summary.usage_totals.cached_input_tokens}`);
-  console.log(`- output_tokens: ${wpTokenUsage.summary.usage_totals.output_tokens}`);
-  if (wpTokenUsage.ledger_health.status !== "NO_OUTPUTS") {
-    console.log(`- tracked_command_count: ${wpTokenUsage.tracked_summary.command_count}`);
-    console.log(`- tracked_turn_count: ${wpTokenUsage.tracked_summary.turn_count}`);
-    console.log(`- raw_output_command_count: ${wpTokenUsage.raw_scan.summary.command_count}`);
-    console.log(`- raw_output_turn_count: ${wpTokenUsage.raw_scan.summary.turn_count}`);
-  }
-  if (wpTokenUsage.ledger_health.status === "DRIFT") {
-    console.log(`- drift_reason: ${wpTokenUsage.ledger_health.reason}`);
-    console.log(`- command_delta_count: ${wpTokenUsage.ledger_health.metrics.command_delta_count}`);
-    console.log(`- turn_delta: ${wpTokenUsage.ledger_health.metrics.turn_delta}`);
-    console.log(`- input_token_delta: ${wpTokenUsage.ledger_health.metrics.input_token_delta}`);
-    console.log(`- input_token_delta_ratio_pct: ${wpTokenUsage.ledger_health.metrics.input_token_delta_ratio_pct}`);
-    if (wpTokenUsage.ledger_health.missing_tracked_command_count > 0) {
-      console.log(`- missing_tracked_command_count: ${wpTokenUsage.ledger_health.missing_tracked_command_count}`);
-      console.log(`- missing_tracked_command_ids_sample: ${wpTokenUsage.ledger_health.missing_tracked_command_ids_sample.join(", ")}`);
-    }
-    if (wpTokenUsage.ledger_health.stale_tracked_command_count > 0) {
-      console.log(`- stale_tracked_command_count: ${wpTokenUsage.ledger_health.stale_tracked_command_count}`);
-      console.log(`- stale_tracked_command_ids_sample: ${wpTokenUsage.ledger_health.stale_tracked_command_ids_sample.join(", ")}`);
-    }
-    if (wpTokenUsage.ledger_health.warnings.length > 0) {
-      console.log(`- ledger_health_warnings: ${wpTokenUsage.ledger_health.warnings.join(" | ")}`);
-    }
-    if (wpTokenUsage.ledger_health.failures.length > 0) {
-      console.log(`- ledger_health_failures: ${wpTokenUsage.ledger_health.failures.join(" | ")}`);
-    }
-  }
-  const roleNames = Object.keys(wpTokenUsage.role_totals || {}).sort((left, right) => left.localeCompare(right));
-  if (roleNames.length === 0) {
-    console.log("- role_totals: <none>");
+  if (terminalHistorySuppressed) {
+    console.log("- history_hidden: YES");
+    console.log("- summary: Historical token-ledger drift and budget residue are hidden by default for terminal WPs.");
+    console.log(`- settlement_status: ${wpTokenUsage.settlement?.status || "UNSETTLED"}`);
+    if (wpTokenUsage.settlement?.settled_at) console.log(`- settled_at: ${wpTokenUsage.settlement.settled_at}`);
+    console.log(`- command_count: ${wpTokenUsage.summary.command_count}`);
+    console.log(`- turn_count: ${wpTokenUsage.summary.turn_count}`);
+    console.log(`- input_tokens: ${wpTokenUsage.summary.usage_totals.input_tokens}`);
+    console.log(`- output_tokens: ${wpTokenUsage.summary.usage_totals.output_tokens}`);
+    console.log(`- summary_source: ${wpTokenUsage.summary_source}`);
   } else {
-    for (const roleName of roleNames) {
-      const roleTotals = wpTokenUsage.role_totals[roleName];
-      console.log(`- role: ${roleName}`);
-      console.log(`  command_count: ${roleTotals.command_count}`);
-      console.log(`  turn_count: ${roleTotals.turn_count}`);
-      console.log(`  input_tokens: ${roleTotals.usage_totals.input_tokens}`);
-      console.log(`  cached_input_tokens: ${roleTotals.usage_totals.cached_input_tokens}`);
-      console.log(`  output_tokens: ${roleTotals.usage_totals.output_tokens}`);
+    console.log(`- summary_source: ${wpTokenUsage.summary_source}`);
+    console.log(`- settlement_status: ${wpTokenUsage.settlement?.status || "UNSETTLED"}`);
+    if (wpTokenUsage.settlement?.settled_at) console.log(`- settled_at: ${wpTokenUsage.settlement.settled_at}`);
+    if (wpTokenUsage.settlement?.settled_reason) console.log(`- settled_reason: ${wpTokenUsage.settlement.settled_reason}`);
+    if (wpTokenUsage.settlement?.settled_by) console.log(`- settled_by: ${wpTokenUsage.settlement.settled_by}`);
+    console.log(`- ledger_health: ${wpTokenUsage.ledger_health.status}`);
+    console.log(`- ledger_health_severity: ${wpTokenUsage.ledger_health.severity}`);
+    console.log(`- ledger_health_drift_class: ${wpTokenUsage.ledger_health.drift_class}`);
+    console.log(`- ledger_health_policy_id: ${wpTokenUsage.ledger_health.policy_id}`);
+    console.log(`- ledger_health_blocker_class: ${wpTokenUsage.ledger_health.blocker_class}`);
+    if (wpTokenUsage.ledger_health.invalidity_code) {
+      console.log(`- ledger_health_invalidity_code: ${wpTokenUsage.ledger_health.invalidity_code}`);
     }
-  }
+    console.log(`- ledger_health_summary: ${wpTokenUsage.ledger_health.summary}`);
+    console.log(`- command_count: ${wpTokenUsage.summary.command_count}`);
+    console.log(`- turn_count: ${wpTokenUsage.summary.turn_count}`);
+    console.log(`- input_tokens: ${wpTokenUsage.summary.usage_totals.input_tokens}`);
+    console.log(`- cached_input_tokens: ${wpTokenUsage.summary.usage_totals.cached_input_tokens}`);
+    console.log(`- output_tokens: ${wpTokenUsage.summary.usage_totals.output_tokens}`);
+    if (wpTokenUsage.ledger_health.status !== "NO_OUTPUTS") {
+      console.log(`- tracked_command_count: ${wpTokenUsage.tracked_summary.command_count}`);
+      console.log(`- tracked_turn_count: ${wpTokenUsage.tracked_summary.turn_count}`);
+      console.log(`- raw_output_command_count: ${wpTokenUsage.raw_scan.summary.command_count}`);
+      console.log(`- raw_output_turn_count: ${wpTokenUsage.raw_scan.summary.turn_count}`);
+    }
+    if (wpTokenUsage.ledger_health.status === "DRIFT") {
+      console.log(`- drift_reason: ${wpTokenUsage.ledger_health.reason}`);
+      console.log(`- command_delta_count: ${wpTokenUsage.ledger_health.metrics.command_delta_count}`);
+      console.log(`- turn_delta: ${wpTokenUsage.ledger_health.metrics.turn_delta}`);
+      console.log(`- input_token_delta: ${wpTokenUsage.ledger_health.metrics.input_token_delta}`);
+      console.log(`- input_token_delta_ratio_pct: ${wpTokenUsage.ledger_health.metrics.input_token_delta_ratio_pct}`);
+      if (wpTokenUsage.ledger_health.missing_tracked_command_count > 0) {
+        console.log(`- missing_tracked_command_count: ${wpTokenUsage.ledger_health.missing_tracked_command_count}`);
+        console.log(`- missing_tracked_command_ids_sample: ${wpTokenUsage.ledger_health.missing_tracked_command_ids_sample.join(", ")}`);
+      }
+      if (wpTokenUsage.ledger_health.stale_tracked_command_count > 0) {
+        console.log(`- stale_tracked_command_count: ${wpTokenUsage.ledger_health.stale_tracked_command_count}`);
+        console.log(`- stale_tracked_command_ids_sample: ${wpTokenUsage.ledger_health.stale_tracked_command_ids_sample.join(", ")}`);
+      }
+      if (wpTokenUsage.ledger_health.warnings.length > 0) {
+        console.log(`- ledger_health_warnings: ${wpTokenUsage.ledger_health.warnings.join(" | ")}`);
+      }
+      if (wpTokenUsage.ledger_health.failures.length > 0) {
+        console.log(`- ledger_health_failures: ${wpTokenUsage.ledger_health.failures.join(" | ")}`);
+      }
+    }
+    const roleNames = Object.keys(wpTokenUsage.role_totals || {}).sort((left, right) => left.localeCompare(right));
+    if (roleNames.length === 0) {
+      console.log("- role_totals: <none>");
+    } else {
+      for (const roleName of roleNames) {
+        const roleTotals = wpTokenUsage.role_totals[roleName];
+        console.log(`- role: ${roleName}`);
+        console.log(`  command_count: ${roleTotals.command_count}`);
+        console.log(`  turn_count: ${roleTotals.turn_count}`);
+        console.log(`  input_tokens: ${roleTotals.usage_totals.input_tokens}`);
+        console.log(`  cached_input_tokens: ${roleTotals.usage_totals.cached_input_tokens}`);
+        console.log(`  output_tokens: ${roleTotals.usage_totals.output_tokens}`);
+      }
+    }
 
-  if (wpTokenBudget) {
-    console.log("");
-    console.log("WP_TOKEN_BUDGET");
-    console.log(`- policy_id: ${wpTokenBudget.policy_id}`);
-    console.log(`- status: ${wpTokenBudget.status}`);
-    console.log(`- blocker_class: ${wpTokenBudget.blocker_class}`);
-    if (wpTokenBudget.invalidity_code) {
-      console.log(`- invalidity_code: ${wpTokenBudget.invalidity_code}`);
-    }
-    console.log(`- summary: ${wpTokenBudget.summary}`);
-    if (wpTokenBudget.warnings.length > 0) {
-      console.log(`- warnings: ${wpTokenBudget.warnings.join(" | ")}`);
-    }
-    if (wpTokenBudget.failures.length > 0) {
-      console.log(`- failures: ${wpTokenBudget.failures.join(" | ")}`);
+    if (wpTokenBudget) {
+      console.log("");
+      console.log("WP_TOKEN_BUDGET");
+      console.log(`- policy_id: ${wpTokenBudget.policy_id}`);
+      console.log(`- status: ${wpTokenBudget.status}`);
+      console.log(`- blocker_class: ${wpTokenBudget.blocker_class}`);
+      if (wpTokenBudget.invalidity_code) {
+        console.log(`- invalidity_code: ${wpTokenBudget.invalidity_code}`);
+      }
+      console.log(`- summary: ${wpTokenBudget.summary}`);
+      if (wpTokenBudget.warnings.length > 0) {
+        console.log(`- warnings: ${wpTokenBudget.warnings.join(" | ")}`);
+      }
+      if (wpTokenBudget.failures.length > 0) {
+        console.log(`- failures: ${wpTokenBudget.failures.join(" | ")}`);
+      }
     }
   }
 }
