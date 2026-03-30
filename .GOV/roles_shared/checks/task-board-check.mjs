@@ -26,7 +26,7 @@ function sectionKeyFromHeading(headingLine) {
 }
 
 function checkLines(lines) {
-  const doneRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[(MERGE_PENDING|VALIDATED|FAIL|OUTDATED_ONLY)\]\s*$/;
+  const doneRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[(MERGE_PENDING|VALIDATED|FAIL|OUTDATED_ONLY|ABANDONED)\]\s*$/;
   const supersededRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[SUPERSEDED\]\s*$/;
   const inProgressRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[IN_PROGRESS\]\s*$/;
 
@@ -48,7 +48,7 @@ function checkLines(lines) {
 
     if (active === "DONE" && !doneRe.test(line)) {
       violations.push(
-        `${TASK_BOARD_PATH}:${lineNumber}: Done entries must be \`- **[WP_ID]** - [MERGE_PENDING|VALIDATED|FAIL|OUTDATED_ONLY]\`: ${line.trim()}`
+        `${TASK_BOARD_PATH}:${lineNumber}: Done entries must be \`- **[WP_ID]** - [MERGE_PENDING|VALIDATED|FAIL|OUTDATED_ONLY|ABANDONED]\`: ${line.trim()}`
       );
       continue;
     }
@@ -91,7 +91,7 @@ function checkLines(lines) {
     const packetText = fs.readFileSync(packetPath, "utf8");
     const isModernPacket = /^\s*-\s*PACKET_FORMAT_VERSION\s*:/mi.test(packetText);
     if (!isModernPacket) continue;
-    const hasVerdict = /^\s*Verdict\s*:\s*(PASS|FAIL|OUTDATED_ONLY)\b/mi.test(packetText);
+    const hasVerdict = /^\s*Verdict\s*:\s*(PASS|FAIL|OUTDATED_ONLY|ABANDONED)\b/mi.test(packetText);
     if (!hasVerdict) {
       semanticViolations.push(
         `${TASK_BOARD_PATH}:${entry.lineNumber}: ${entry.wpId} is marked [${entry.status}] but task packet is missing a Validator verdict line (expected under ## VALIDATION_REPORTS).`

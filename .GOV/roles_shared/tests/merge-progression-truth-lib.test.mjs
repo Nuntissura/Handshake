@@ -9,6 +9,8 @@ function buildPacket({
   mainContainmentStatus = "MERGE_PENDING",
   mergedMainCommit = "NONE",
   mainContainmentVerifiedAtUtc = "N/A",
+  localBranch = "feat/WP-TEST-MERGE-TRUTH-v1",
+  localWorktreeDir = "../wtc-merge-truth-v1",
 } = {}) {
   return [
     "# Task Packet: WP-TEST-MERGE-TRUTH-v1",
@@ -19,6 +21,8 @@ function buildPacket({
     `- MAIN_CONTAINMENT_STATUS: ${mainContainmentStatus}`,
     `- MERGED_MAIN_COMMIT: ${mergedMainCommit}`,
     `- MAIN_CONTAINMENT_VERIFIED_AT_UTC: ${mainContainmentVerifiedAtUtc}`,
+    `- LOCAL_BRANCH: ${localBranch}`,
+    `- LOCAL_WORKTREE_DIR: ${localWorktreeDir}`,
     "- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main",
     "- WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-TEST-MERGE-TRUTH-v1/RUNTIME_STATUS.json",
     `- PACKET_FORMAT_VERSION: ${packetFormatVersion}`,
@@ -38,8 +42,23 @@ test("Done on new-format packets requires merge-pending truth", () => {
       merged_main_commit: null,
       main_containment_verified_at_utc: null,
     },
+    mergePendingWorktreeVerifier: () => ({ ok: true, reason: "worktree available" }),
   });
   assert.deepEqual(result.errors, []);
+});
+
+test("Done / MERGE_PENDING fails when the declared coder worktree path is unavailable", () => {
+  const packetText = buildPacket();
+  const result = validateMergeProgressionTruth(packetText, {
+    runtimeStatusData: {
+      current_packet_status: "Done",
+      main_containment_status: "MERGE_PENDING",
+      merged_main_commit: null,
+      main_containment_verified_at_utc: null,
+    },
+    mergePendingWorktreeVerifier: () => ({ ok: false, reason: "declared coder worktree missing" }),
+  });
+  assert.match(result.errors.join("\n"), /requires an active coder worktree path/i);
 });
 
 test("Validated (PASS) on new-format packets requires containment proof and recorded main SHA", () => {
@@ -78,6 +97,25 @@ test("Validated (PASS) fails when the recorded merged commit is not proven conta
     mainContainmentVerifier: () => ({ ok: false, reason: "commit abc1234 is not in main" }),
   });
   assert.match(result.errors.join("\n"), /requires main containment proof/i);
+});
+
+test("Validated (ABANDONED) requires NOT_REQUIRED containment and no merged-main fields", () => {
+  const packetText = buildPacket({
+    status: "Validated (ABANDONED)",
+    verdict: "ABANDONED",
+    mainContainmentStatus: "NOT_REQUIRED",
+    mergedMainCommit: "NONE",
+    mainContainmentVerifiedAtUtc: "N/A",
+  });
+  const result = validateMergeProgressionTruth(packetText, {
+    runtimeStatusData: {
+      current_packet_status: "Validated (ABANDONED)",
+      main_containment_status: "NOT_REQUIRED",
+      merged_main_commit: null,
+      main_containment_verified_at_utc: null,
+    },
+  });
+  assert.deepEqual(result.errors, []);
 });
 
 test("Legacy packet versions bypass merge progression truth enforcement", () => {

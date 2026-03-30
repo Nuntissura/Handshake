@@ -537,6 +537,8 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
       waivable: false,
       source: "REPORT",
     }));
+  } else if (report.disposition === "ABANDONED") {
+    // Terminal discard/abandonment is governed separately from technical PASS/FAIL semantics.
   } else if (report.disposition && report.disposition !== "NONE") {
     issues.push(issue("DISPOSITION_NON_STANDARD", "REVIEW_REQUIRED", `DISPOSITION=${report.disposition}`, {
       source: "REPORT",

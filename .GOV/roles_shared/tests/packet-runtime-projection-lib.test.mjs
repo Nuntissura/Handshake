@@ -100,6 +100,35 @@ test("syncRuntimeProjectionFromPacket drives validated packets into STATUS_SYNC 
   assert.deepEqual(runtime.open_review_items, []);
 });
 
+test("syncRuntimeProjectionFromPacket treats Validated (ABANDONED) as a closed terminal runtime state", () => {
+  const runtime = syncRuntimeProjectionFromPacket(
+    {
+      current_phase: "VALIDATION",
+      runtime_status: "working",
+      next_expected_actor: "INTEGRATION_VALIDATOR",
+      waiting_on: "MERGE",
+      validator_trigger: "HANDOFF_READY",
+      ready_for_validation: true,
+      attention_required: true,
+      open_review_items: [{ correlation_id: "review-2" }],
+    },
+    packetFixture({
+      status: "Validated (ABANDONED)",
+      containment: "NOT_REQUIRED",
+      merged: "NONE",
+      verifiedAt: "N/A",
+    }),
+  );
+
+  assert.equal(runtime.current_phase, "STATUS_SYNC");
+  assert.equal(runtime.runtime_status, "completed");
+  assert.equal(runtime.next_expected_actor, "NONE");
+  assert.equal(runtime.waiting_on, "CLOSED");
+  assert.equal(runtime.ready_for_validation, false);
+  assert.equal(runtime.attention_required, false);
+  assert.deepEqual(runtime.open_review_items, []);
+});
+
 test("evaluatePacketRuntimeProjectionDrift flags stale bootstrap runtime after direct review is complete", () => {
   const drift = evaluatePacketRuntimeProjectionDrift(
     [

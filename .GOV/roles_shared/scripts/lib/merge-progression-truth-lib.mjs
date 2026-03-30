@@ -95,6 +95,14 @@ function resolveIntegrationValidatorWorktreeAbs(packetText, repoRoot) {
     : path.resolve(repoRoot || process.cwd(), declared);
 }
 
+function resolveCoderWorktreeAbs(packetText, repoRoot) {
+  const declared = parseSingleField(packetText, "LOCAL_WORKTREE_DIR");
+  if (!declared) return "";
+  return path.isAbsolute(declared)
+    ? path.resolve(declared)
+    : path.resolve(repoRoot || process.cwd(), declared);
+}
+
 function defaultMainContainmentVerifier({ mergedMainCommit, integrationWorktreeAbs }) {
   if (!integrationWorktreeAbs || !fs.existsSync(integrationWorktreeAbs)) {
     return {
@@ -135,6 +143,44 @@ function defaultMainContainmentVerifier({ mergedMainCommit, integrationWorktreeA
     reason: containsResult.status === 0
       ? "contained in main"
       : `commit ${mergedMainCommit} is not an ancestor of local main in ${integrationWorktreeAbs}`,
+  };
+}
+
+function defaultMergePendingWorktreeVerifier({ localBranch, coderWorktreeAbs }) {
+  if (!localBranch) {
+    return {
+      ok: false,
+      reason: "LOCAL_BRANCH is missing",
+    };
+  }
+  if (!coderWorktreeAbs || !fs.existsSync(coderWorktreeAbs)) {
+    return {
+      ok: false,
+      reason: `declared coder worktree missing (${coderWorktreeAbs || "<missing>"})`,
+    };
+  }
+
+  const branchResult = spawnSync("git", ["-C", coderWorktreeAbs, "rev-parse", "--abbrev-ref", "HEAD"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (branchResult.status !== 0) {
+    return {
+      ok: false,
+      reason: `cannot read branch from ${coderWorktreeAbs}`,
+    };
+  }
+  const branch = String(branchResult.stdout || "").trim();
+  if (branch !== localBranch) {
+    return {
+      ok: false,
+      reason: `declared coder worktree is on ${branch || "<unknown>"} instead of ${localBranch}`,
+    };
+  }
+
+  return {
+    ok: true,
+    reason: "coder worktree remains available for merge containment",
   };
 }
 
@@ -179,6 +225,7 @@ export function validateMergeProgressionTruth(
     repoRoot = process.cwd(),
     runtimeStatusData = undefined,
     mainContainmentVerifier = null,
+    mergePendingWorktreeVerifier = null,
   } = {},
 ) {
   const parsed = parseMergeProgressionTruth(packetText);
@@ -259,6 +306,19 @@ export function validateMergeProgressionTruth(
     if (!verifiedAtIsNone) {
       errors.push("Validated (OUTDATED_ONLY) must not record MAIN_CONTAINMENT_VERIFIED_AT_UTC");
     }
+  } else if (/^Validated\s*\(\s*ABANDONED\s*\)$/i.test(parsed.status)) {
+    if (parsed.validationVerdict !== "ABANDONED") {
+      errors.push("Validated (ABANDONED) requires VALIDATION_REPORTS top-level Verdict: ABANDONED");
+    }
+    if (parsed.mainContainmentStatus !== "NOT_REQUIRED") {
+      errors.push("Validated (ABANDONED) requires MAIN_CONTAINMENT_STATUS=NOT_REQUIRED");
+    }
+    if (!mergedMainCommitIsNone) {
+      errors.push("Validated (ABANDONED) must not record MERGED_MAIN_COMMIT");
+    }
+    if (!verifiedAtIsNone) {
+      errors.push("Validated (ABANDONED) must not record MAIN_CONTAINMENT_VERIFIED_AT_UTC");
+    }
   } else if (/^Done(?:\s*\(Historical\))?$/i.test(parsed.status)) {
     if (parsed.validationVerdict !== "PASS") {
       errors.push("Done now means merge-pending PASS closure and requires VALIDATION_REPORTS top-level Verdict: PASS");
@@ -271,6 +331,18 @@ export function validateMergeProgressionTruth(
     }
     if (!verifiedAtIsNone) {
       errors.push("Done / MERGE_PENDING must not record MAIN_CONTAINMENT_VERIFIED_AT_UTC before main containment exists");
+    }
+    const localBranch = parseSingleField(packetText, "LOCAL_BRANCH");
+    const coderWorktreeAbs = resolveCoderWorktreeAbs(packetText, repoRoot);
+    const verifier = mergePendingWorktreeVerifier || defaultMergePendingWorktreeVerifier;
+    const mergePending = verifier({
+      localBranch,
+      coderWorktreeAbs,
+      packetPath,
+      repoRoot,
+    });
+    if (!mergePending.ok) {
+      errors.push(`Done / MERGE_PENDING requires an active coder worktree path until main containment exists: ${mergePending.reason}`);
     }
   } else {
     if (parsed.mainContainmentStatus !== "NOT_STARTED") {
@@ -290,8 +362,8 @@ export function validateMergeProgressionTruth(
   if (parsed.mainContainmentStatus === "MERGE_PENDING" && !/^Done(?:\s*\(Historical\))?$/i.test(parsed.status)) {
     errors.push("MAIN_CONTAINMENT_STATUS=MERGE_PENDING is only legal for Status: Done");
   }
-  if (parsed.mainContainmentStatus === "NOT_REQUIRED" && !/^Validated\s*\(\s*(FAIL|OUTDATED_ONLY)\s*\)$/i.test(parsed.status)) {
-    errors.push("MAIN_CONTAINMENT_STATUS=NOT_REQUIRED is only legal for Status: Validated (FAIL|OUTDATED_ONLY)");
+  if (parsed.mainContainmentStatus === "NOT_REQUIRED" && !/^Validated\s*\(\s*(FAIL|OUTDATED_ONLY|ABANDONED)\s*\)$/i.test(parsed.status)) {
+    errors.push("MAIN_CONTAINMENT_STATUS=NOT_REQUIRED is only legal for Status: Validated (FAIL|OUTDATED_ONLY|ABANDONED)");
   }
 
   const runtimePath = String(parsed.runtimeStatusPath || "").trim();

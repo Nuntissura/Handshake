@@ -1,10 +1,35 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import {
   evaluateIntegrationValidatorCloseoutState,
   evaluateIntegrationValidatorTopology,
   evaluateWpSessionControlCloseoutBundle,
 } from "../scripts/lib/integration-validator-closeout-lib.mjs";
+
+function writeFile(targetPath, content) {
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.writeFileSync(targetPath, content, "utf8");
+}
+
+function repoRootWithArtifact(diffText) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "integration-closeout-signed-scope-"));
+  writeFile(path.join(tempRoot, "artifacts", "signed.patch"), diffText);
+  return tempRoot;
+}
+
+const matchingDiff = [
+  "diff --git a/src/demo.rs b/src/demo.rs",
+  "--- a/src/demo.rs",
+  "+++ b/src/demo.rs",
+  "@@ -10 +10,2 @@",
+  "-old",
+  "+new",
+  "+extra",
+  "",
+].join("\n");
 
 function actorContextFixture() {
   return {
@@ -34,6 +59,11 @@ function packetFixture() {
 - CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-03-26T10:00:00Z
 - PACKET_WIDENING_DECISION: NOT_REQUIRED
 - PACKET_WIDENING_EVIDENCE: N/A
+- **Target File**: \`src/demo.rs\`
+- **Start**: 10
+- **End**: 20
+- **Line Delta**: 3
+- **Artifacts**: \`artifacts/signed.patch\`
 `.trim();
 }
 
@@ -160,8 +190,9 @@ test("WP closeout bundle fails when an active run or unsettled request still exi
 });
 
 test("integration-validator closeout state combines topology and WP-scoped closeout truth", () => {
+  const repoRoot = repoRootWithArtifact(matchingDiff);
   const evaluation = evaluateIntegrationValidatorCloseoutState({
-    repoRoot: ".",
+    repoRoot,
     wpId: "WP-TEST-VALIDATOR-v1",
     packetContent: packetFixture(),
     actorContext: actorContextFixture(),
@@ -201,11 +232,12 @@ test("integration-validator closeout state combines topology and WP-scoped close
     brokerState: { active_runs: [] },
     worktreeExists: () => true,
     fileExists: () => true,
-    gitRunner: (args) => (
-      args[0] === "rev-parse"
-        ? { code: 0, output: "0123456789abcdef0123456789abcdef01234567" }
-        : { code: 0, output: "" }
-    ),
+    gitRunner: (args) => {
+      if (args[0] === "rev-parse") return { code: 0, output: "0123456789abcdef0123456789abcdef01234567" };
+      if (args[0] === "merge-base") return { code: 0, output: "fedcba9876543210fedcba9876543210fedcba98" };
+      if (args[0] === "diff") return { code: 0, output: matchingDiff };
+      return { code: 0, output: "" };
+    },
   });
 
   assert.equal(evaluation.ok, true);
@@ -214,8 +246,9 @@ test("integration-validator closeout state combines topology and WP-scoped close
 });
 
 test("integration-validator closeout state fails when signed scope compatibility is stale against current main", () => {
+  const repoRoot = repoRootWithArtifact(matchingDiff);
   const evaluation = evaluateIntegrationValidatorCloseoutState({
-    repoRoot: ".",
+    repoRoot,
     wpId: "WP-TEST-VALIDATOR-v1",
     packetContent: packetFixture(),
     actorContext: actorContextFixture(),
@@ -229,13 +262,54 @@ test("integration-validator closeout state fails when signed scope compatibility
     brokerState: { active_runs: [] },
     worktreeExists: () => true,
     fileExists: () => true,
-    gitRunner: (args) => (
-      args[0] === "rev-parse"
-        ? { code: 0, output: "89abcdef0123456789abcdef0123456789abcdef" }
-        : { code: 0, output: "" }
-    ),
+    gitRunner: (args) => {
+      if (args[0] === "rev-parse") return { code: 0, output: "89abcdef0123456789abcdef0123456789abcdef" };
+      if (args[0] === "merge-base") return { code: 0, output: "fedcba9876543210fedcba9876543210fedcba98" };
+      if (args[0] === "diff") return { code: 0, output: matchingDiff };
+      return { code: 0, output: "" };
+    },
   });
 
   assert.equal(evaluation.ok, false);
   assert.match(evaluation.issues.join("\n"), /does not match current local main HEAD/i);
+});
+
+test("integration-validator closeout state fails when the committed target diff drifts from the signed artifact", () => {
+  const repoRoot = repoRootWithArtifact(matchingDiff);
+  const driftedDiff = [
+    "diff --git a/src/demo.rs b/src/demo.rs",
+    "--- a/src/demo.rs",
+    "+++ b/src/demo.rs",
+    "@@ -10 +10,3 @@",
+    "-old",
+    "+new",
+    "+extra",
+    "+drift",
+    "",
+  ].join("\n");
+  const evaluation = evaluateIntegrationValidatorCloseoutState({
+    repoRoot,
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetContent: packetFixture(),
+    actorContext: actorContextFixture(),
+    committedEvidence: {
+      status: "PASS",
+      target_head_sha: "abc123",
+    },
+    requests: [],
+    results: [],
+    registrySessions: [],
+    brokerState: { active_runs: [] },
+    worktreeExists: () => true,
+    fileExists: () => true,
+    gitRunner: (args) => {
+      if (args[0] === "rev-parse") return { code: 0, output: "0123456789abcdef0123456789abcdef01234567" };
+      if (args[0] === "merge-base") return { code: 0, output: "fedcba9876543210fedcba9876543210fedcba98" };
+      if (args[0] === "diff") return { code: 0, output: driftedDiff };
+      return { code: 0, output: "" };
+    },
+  });
+
+  assert.equal(evaluation.ok, false);
+  assert.match(evaluation.issues.join("\n"), /candidate target diff does not match the signed patch artifact/i);
 });

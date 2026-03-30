@@ -15,10 +15,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import {
+  compactGateOutputSummary,
+  writeGateOutputArtifact,
+} from '../../../roles_shared/scripts/lib/gate-output-artifact-lib.mjs';
 
-const wpId = process.argv[2];
+const args = process.argv.slice(2);
+const verbose = args.includes('--verbose');
+const wpId = args.find((arg) => !arg.startsWith('--'));
 if (!wpId) {
-  console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/coder/checks/pre-work.mjs WP-{ID}`);
+  console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/coder/checks/pre-work.mjs WP-{ID} [--verbose]`);
   process.exit(1);
 }
 
@@ -77,7 +83,12 @@ const preWorkCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles', 'coder', 'checks'
 
 const gate = run(process.execPath, [gateCheckPath, wpId]);
 gateOutputs.push(gate.out);
-process.stdout.write(ensureTrailingNewline(gate.out.trimEnd()));
+if (verbose) {
+  process.stdout.write(ensureTrailingNewline(gate.out.trimEnd()));
+} else {
+  process.stdout.write(`- gate-check: ${gate.code === 0 ? 'PASS' : 'FAIL'}\n`);
+  for (const line of compactGateOutputSummary(gate.out)) process.stdout.write(`  ${line}\n`);
+}
 if (gate.code !== 0) {
   ok = false;
   why = 'Phase gate failed.';
@@ -87,7 +98,12 @@ process.stdout.write('\n');
 
 const pre = run(process.execPath, [preWorkCheckPath, wpId]);
 gateOutputs.push(pre.out);
-process.stdout.write(ensureTrailingNewline(pre.out.trimEnd()));
+if (verbose) {
+  process.stdout.write(ensureTrailingNewline(pre.out.trimEnd()));
+} else {
+  process.stdout.write(`- pre-work-check: ${pre.code === 0 ? 'PASS' : 'FAIL'}\n`);
+  for (const line of compactGateOutputSummary(pre.out)) process.stdout.write(`  ${line}\n`);
+}
 if (pre.code !== 0) {
   ok = false;
   why = 'Pre-work validation failed.';
@@ -113,17 +129,25 @@ if (usesSkeletonCheckpointGate && ok && hasSkeletonCheckpoint && !hasSkeletonApp
   why = `Skeleton checkpoint exists; awaiting ${skeletonApprover} approval.`;
 }
 
+const artifactPath = writeGateOutputArtifact('pre-work', wpId, [
+  { title: 'gate-check', body: gate.out },
+  { title: 'pre-work-check', body: pre.out },
+]);
+
 process.stdout.write('\n');
 
 printBlockHeader('GATE_STATUS', 'CX-GATE-UX-001');
 process.stdout.write(`- PHASE: BOOTSTRAP\n`);
 process.stdout.write(`- GATE_RAN: just pre-work ${wpId}\n`);
+process.stdout.write(`- OUTPUT_MODE: ${verbose ? 'VERBOSE' : 'COMPACT_DEFAULT'}\n`);
+process.stdout.write(`- ARTIFACT_PATH: ${artifactPath}\n`);
 process.stdout.write(`- RESULT: ${ok ? 'PASS' : 'FAIL'}\n`);
 process.stdout.write(`- WHY: ${why}\n`);
 
 process.stdout.write('\n');
 printBlockHeader('NEXT_COMMANDS', 'CX-GATE-UX-001');
 if (ok) {
+  if (!verbose) process.stdout.write(`- For full nested gate output: just pre-work ${wpId} --verbose\n`);
   if (!usesSkeletonCheckpointGate) {
     process.stdout.write(`- Proceed to implementation.\n`);
   } else if (!hasSkeletonCheckpoint) {
@@ -134,6 +158,7 @@ if (ok) {
     process.stdout.write(`- Proceed to implementation (skeleton approved).\n`);
   }
 } else {
+  if (!verbose) process.stdout.write(`- For full nested gate output: just pre-work ${wpId} --verbose\n`);
   if (blockedOnSkeletonApproval) {
     process.stdout.write(`- STOP: Await skeleton approval (${skeletonApprover} runs: just skeleton-approved ${wpId})\n`);
     process.stdout.write(`- After approval commit exists: re-run just pre-work ${wpId}\n`);

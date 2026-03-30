@@ -73,6 +73,7 @@ import {
   collectBudgetCountedFiles,
   classifyWpChangedPath,
   deriveWpScopeContract,
+  formatBoundedItemList,
   hasConcreteScopeEntries,
   hasScopeOverlap,
   parsePacketScopeDiscipline,
@@ -507,22 +508,22 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   if (scopeDriftFailures.length > 0) {
-    errors.push(`Branch-local out-of-scope edits detected before work starts: ${scopeDriftFailures.join(', ')}`);
+    errors.push(`Branch-local out-of-scope edits detected before work starts: ${formatBoundedItemList(scopeDriftFailures, { noun: 'entry' })}`);
   } else {
     console.log('PASS: No branch-local out-of-scope edits detected');
   }
   if (junctionDriftWarnings.length > 0) {
     warnings.push(
-      `Shared .GOV junction drift visible in this worktree (not counted as WP scope evidence): ${junctionDriftWarnings.join(', ')}`
+      `Shared .GOV junction drift visible in this worktree (not counted as WP scope evidence): ${formatBoundedItemList(junctionDriftWarnings, { noun: 'path' })}`
     );
   }
   if (inScopeLocalChanges.length > 0) {
-    console.log(`INFO: Existing in-scope local changes detected: ${inScopeLocalChanges.join(', ')}`);
+    console.log(`INFO: Existing in-scope local changes detected: ${formatBoundedItemList(inScopeLocalChanges, { noun: 'path' })}`);
   }
   if (enforceScopeDiscipline && scopeDiscipline.touchedFileBudgetValid) {
     const branchLocalBudgetFiles = collectBudgetCountedFiles(branchLocalChangedFiles, scopeContract);
     if (branchLocalBudgetFiles.length > scopeDiscipline.touchedFileBudget) {
-      errors.push(`Branch-local touched file budget already exceeded before work starts: ${branchLocalBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${branchLocalBudgetFiles.join(', ')})`);
+      errors.push(`Branch-local touched file budget already exceeded before work starts: ${branchLocalBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${formatBoundedItemList(branchLocalBudgetFiles, { noun: 'path' })})`);
     } else {
       console.log(`PASS: Branch-local touched file budget respected (${branchLocalBudgetFiles.length}/${scopeDiscipline.touchedFileBudget})`);
     }

@@ -15,11 +15,17 @@
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import {
+  compactGateOutputSummary,
+  writeGateOutputArtifact,
+} from '../../../roles_shared/scripts/lib/gate-output-artifact-lib.mjs';
 
 const wpId = process.argv[2];
 const extraArgs = process.argv.slice(3);
+const verbose = extraArgs.includes('--verbose');
+const gateArgs = extraArgs.filter((arg) => arg !== '--verbose');
 if (!wpId) {
-  console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/coder/checks/post-work.mjs WP-{ID} [options]`);
+  console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/coder/checks/post-work.mjs WP-{ID} [options] [--verbose]`);
   process.exit(1);
 }
 
@@ -52,7 +58,12 @@ const communicationHealthPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'ch
 let communicationHealthOk = true;
 
 const gate = run(process.execPath, [gateCheckPath, wpId]);
-process.stdout.write(ensureTrailingNewline(gate.out.trimEnd()));
+if (verbose) {
+  process.stdout.write(ensureTrailingNewline(gate.out.trimEnd()));
+} else {
+  process.stdout.write(`- gate-check: ${gate.code === 0 ? 'PASS' : 'FAIL'}\n`);
+  for (const line of compactGateOutputSummary(gate.out)) process.stdout.write(`  ${line}\n`);
+}
 if (gate.code !== 0) {
   ok = false;
   why = 'Phase gate failed.';
@@ -60,8 +71,13 @@ if (gate.code !== 0) {
 
 process.stdout.write('\n');
 
-const post = run(process.execPath, [postWorkCheckPath, wpId, ...extraArgs]);
-process.stdout.write(ensureTrailingNewline(post.out.trimEnd()));
+const post = run(process.execPath, [postWorkCheckPath, wpId, ...gateArgs]);
+if (verbose) {
+  process.stdout.write(ensureTrailingNewline(post.out.trimEnd()));
+} else {
+  process.stdout.write(`- post-work-check: ${post.code === 0 ? 'PASS' : 'FAIL'}\n`);
+  for (const line of compactGateOutputSummary(post.out)) process.stdout.write(`  ${line}\n`);
+}
 if (post.code !== 0) {
   ok = false;
   why = 'Deterministic post-work validation failed.';
@@ -70,7 +86,12 @@ if (post.code !== 0) {
 process.stdout.write('\n');
 
 const roleMailbox = run(process.execPath, [roleMailboxPath]);
-process.stdout.write(ensureTrailingNewline(roleMailbox.out.trimEnd()));
+if (verbose) {
+  process.stdout.write(ensureTrailingNewline(roleMailbox.out.trimEnd()));
+} else {
+  process.stdout.write(`- role-mailbox-export-check: ${roleMailbox.code === 0 ? 'PASS' : 'FAIL'}\n`);
+  for (const line of compactGateOutputSummary(roleMailbox.out)) process.stdout.write(`  ${line}\n`);
+}
 if (roleMailbox.code !== 0) {
   ok = false;
   why = 'Role mailbox export gate failed.';
@@ -79,7 +100,12 @@ if (roleMailbox.code !== 0) {
 process.stdout.write('\n');
 
 const communicationHealth = run(process.execPath, [communicationHealthPath, wpId, 'KICKOFF']);
-process.stdout.write(ensureTrailingNewline(communicationHealth.out.trimEnd()));
+if (verbose) {
+  process.stdout.write(ensureTrailingNewline(communicationHealth.out.trimEnd()));
+} else {
+  process.stdout.write(`- wp-communication-health-check: ${communicationHealth.code === 0 ? 'PASS' : 'FAIL'}\n`);
+  for (const line of compactGateOutputSummary(communicationHealth.out)) process.stdout.write(`  ${line}\n`);
+}
 if (communicationHealth.code !== 0) {
   ok = false;
   communicationHealthOk = false;
@@ -88,20 +114,31 @@ if (communicationHealth.code !== 0) {
   }
 }
 
+const artifactPath = writeGateOutputArtifact('post-work', wpId, [
+  { title: 'gate-check', body: gate.out },
+  { title: 'post-work-check', body: post.out },
+  { title: 'role_mailbox_export_check', body: roleMailbox.out },
+  { title: 'wp-communication-health-check', body: communicationHealth.out },
+]);
+
 process.stdout.write('\n');
 
 printBlockHeader('GATE_STATUS', 'CX-GATE-UX-001');
 process.stdout.write(`- PHASE: POST_WORK\n`);
-process.stdout.write(`- GATE_RAN: just post-work ${wpId}${extraArgs.length ? ' ' + extraArgs.join(' ') : ''}\n`);
+process.stdout.write(`- GATE_RAN: just post-work ${wpId}${gateArgs.length ? ' ' + gateArgs.join(' ') : ''}\n`);
+process.stdout.write(`- OUTPUT_MODE: ${verbose ? 'VERBOSE' : 'COMPACT_DEFAULT'}\n`);
+process.stdout.write(`- ARTIFACT_PATH: ${artifactPath}\n`);
 process.stdout.write(`- RESULT: ${ok ? 'PASS' : 'FAIL'}\n`);
 process.stdout.write(`- WHY: ${why}\n`);
 
 process.stdout.write('\n');
 printBlockHeader('NEXT_COMMANDS', 'CX-GATE-UX-001');
 if (ok) {
+  if (!verbose) process.stdout.write(`- For full nested gate output: just post-work ${wpId}${gateArgs.length ? ' ' + gateArgs.join(' ') : ''} --verbose\n`);
   process.stdout.write(`- You may proceed with commit.\n`);
   process.stdout.write(`- Record the structured coder handoff before notifying the validator: just wp-coder-handoff ${wpId} <coder-session> <validator-session> "<summary>"\n`);
 } else {
+  if (!verbose) process.stdout.write(`- For full nested gate output: just post-work ${wpId}${gateArgs.length ? ' ' + gateArgs.join(' ') : ''} --verbose\n`);
   process.stdout.write(`- Review the failures above.\n`);
   if (!communicationHealthOk) {
     process.stdout.write(`- Complete the direct review contract, then re-run: just wp-communication-health-check ${wpId} KICKOFF\n`);
@@ -110,4 +147,3 @@ if (ok) {
 }
 
 process.exit(ok ? 0 : 1);
-

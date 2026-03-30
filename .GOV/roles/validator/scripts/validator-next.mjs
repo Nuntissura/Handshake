@@ -469,8 +469,16 @@ const findings = [
   `Resolved validator lane: ${validatorActorContext.actorRole} (${validatorActorContext.source})`,
 ];
 
-if (["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"].includes(boardStatus)) {
-  printVerdict(boardStatus === "VALIDATED" ? "PASS" : boardStatus === "FAIL" ? "FAIL" : "PENDING");
+if (["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"].includes(boardStatus)) {
+  printVerdict(
+    boardStatus === "VALIDATED"
+      ? "PASS"
+      : boardStatus === "FAIL"
+        ? "FAIL"
+        : boardStatus === "ABANDONED"
+          ? "ABANDONED"
+          : "PENDING",
+  );
   printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
   printOperatorAction("NONE");
   printConfidence(confidence, confidenceDetail);

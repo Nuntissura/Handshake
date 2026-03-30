@@ -43,6 +43,11 @@
   - `../wtc-projection-correlation-v1/src/backend/handshake_core/src/workflows.rs`
 - RELATED_GOVERNANCE_ITEMS:
   - `RGF-17` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `RGF-18` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `RGF-19` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `RGF-20` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `RGF-21` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `RGF-22` in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - RELATED_CHANGESETS:
   - signed six-file product delta in `bundles/exporter.rs`, `bundles/schemas.rs`, `bundles/templates.rs`, `bundles/validator.rs`, `bundles/zip.rs`, and `workflows.rs`
 
@@ -397,3 +402,70 @@ Assessment:
 - `git ls-remote --heads origin feat/WP-1-Workflow-Projection-Correlation-v1` -> PASS (backup branch now points to `274341181b694e8ae6699b047117d136bbd3f041`)
 - `just validator-handoff-check WP-1-Workflow-Projection-Correlation-v1` -> FAIL (live coder checkout still fails committed-handoff after unrelated dirt was restored)
 - `just integration-validator-closeout-check WP-1-Workflow-Projection-Correlation-v1` -> FAIL (remaining blocker is `CURRENT_MAIN_COMPATIBILITY_STATUS=NOT_RUN`)
+
+## 16. Appendage: Closeout Cost and Mechanical-Failure Evaluation
+
+### 16.1 Why This Appendage Exists
+
+- This appendage records the Operator-raised concern that the orchestrator-managed ACP lane is still burning too much time, too many tokens, and too much paid-model spend for work that should already be mostly mechanical.
+- The goal here is not to relitigate product correctness. The product WP is now contained in `main`. The goal is to record why the repo-governance lane still behaved expensively and what must be fixed before the next orchestrator-managed trial.
+
+### 16.2 Hard Cost Findings
+
+- The governed WP token ledger materially under-reported the cost of this run.
+  - `../gov_runtime/roles_shared/WP_TOKEN_USAGE/WP-1-Workflow-Projection-Correlation-v1.json` reports only:
+    - `turn_count: 3`
+    - `input_tokens: 46804987`
+    - `output_tokens: 237288`
+- Raw `turn.completed` evidence in `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/` shows the real cost was much higher:
+  - CODER: `12` turns, about `307679864` input tokens, `1492571` output tokens
+  - WP_VALIDATOR: `14` turns, about `73570193` input tokens, `412545` output tokens
+  - INTEGRATION_VALIDATOR: `7` turns, about `13244081` input tokens, `107110` output tokens
+  - Aggregate actual cost observed from raw session outputs:
+    - `turn_count: 33`
+    - `input_tokens: 394494138`
+    - `cached_input_tokens: 374433024`
+    - `output_tokens: 2012226`
+- Because the ledger is currently false, token-cost diagnostics and later budget tuning are also false.
+
+### 16.3 Mechanical Failure Findings
+
+- The lane is still paying for large text surfaces instead of compact machine summaries.
+  - WP validator consumed a huge `git status --short --branch` dump from a dirty worktree that included large shared-`.GOV` junction drift and runtime residue.
+  - WP validator also loaded a near-full packet body (`Get-Content ...packet.md -TotalCount 760`) instead of a compact packet brief.
+  - Coder and validator turns repeatedly absorbed long `pre-work`, packet, and proof text blocks rather than short structured deltas.
+- The lane still allows helper/documentation drift and then falls back to rediscovery.
+  - Integration Validator correctly attempted `just integration-validator-context-brief WP-1-Workflow-Projection-Correlation-v1`.
+  - That documented helper was missing from the `justfile` at the time, so the lane fell back to rereading protocol/command surfaces.
+  - This is exactly the kind of command-surface ambiguity that a mechanical workflow should eliminate, not absorb.
+- Dirty worktree and shared-junction noise is still too visible to the model.
+  - The warnings themselves were valid.
+  - The problem is that the model was forced to ingest the full long-form warning body rather than a compact count plus a short sample list.
+- Closeout was still not terminally atomic.
+  - Proof existed before packet/runtime/task-board/gate truth converged.
+  - That created extra orchestration and reread cost, and left too much room for manual recovery instead of one deterministic closeout path.
+
+### 16.4 Judgment
+
+- This run proves that the repo-governance architecture is improving in structure, but it is still not mechanically efficient enough for top-tier cloud-model spend.
+- The primary problem is no longer "lack of rules".
+- The primary problem is "rules and evidence are still represented as giant text surfaces and recovery procedures instead of small deterministic commands, compact briefs, and atomic state transitions."
+- In other words: governance strictness is not the main slowdown; governance representation and execution are.
+
+### 16.5 Required Follow-On Governance Work
+
+- `RGF-17`: Integration-Validator Merge Execution and Orphaned WP Prevention
+- `RGF-18`: Accurate WP Token Accounting and Drift Detection
+- `RGF-19`: Compact Gate Output and Artifact-First Overflow Discipline
+- `RGF-20`: Context-Brief Command Parity and No-Rediscovery Enforcement
+- `RGF-21`: Dirty Worktree and Shared-Junction Noise Compression
+- `RGF-22`: Turn and Token Budget Enforcement for Orchestrator-Managed ACP Lanes
+
+### 16.6 Exit Condition For The Next Trial
+
+- Before the next orchestrator-managed smoketest trial is considered representative, the lane should be able to prove all of the following:
+  - the WP token ledger matches raw `turn.completed` evidence closely enough to be trusted
+  - final-lane helpers documented in the command surface actually exist and are wired into `just`
+  - large dirty-worktree or packet/protocol outputs are summarized mechanically instead of dumped into model context
+  - closeout ends in one machine-visible terminal authority outcome without manual packet/runtime/task-board reconciliation
+  - per-role turn and token budgets can be measured and can fail loudly when the lane drifts into ambiguity

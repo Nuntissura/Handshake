@@ -83,6 +83,8 @@ function buildLine(wpId, status, reason) {
       return `${base} - [FAIL]`;
     case "DONE_OUTDATED_ONLY":
       return `${base} - [OUTDATED_ONLY]`;
+    case "DONE_ABANDONED":
+      return `${base} - [ABANDONED]`;
     case "BLOCKED":
       return reason ? `${base} - [BLOCKED] - ${reason}` : `${base} - [BLOCKED]`;
     case "SUPERSEDED":
@@ -90,7 +92,7 @@ function buildLine(wpId, status, reason) {
     default:
       fail("Unknown status", [
         `got=${status}`,
-        "allowed: READY_FOR_DEV|STUB|IN_PROGRESS|DONE_MERGE_PENDING|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|BLOCKED|SUPERSEDED",
+        "allowed: READY_FOR_DEV|STUB|IN_PROGRESS|DONE_MERGE_PENDING|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|DONE_ABANDONED|BLOCKED|SUPERSEDED",
       ]);
   }
 }
@@ -107,6 +109,7 @@ function sectionForStatus(status) {
     case "DONE_MERGE_PENDING":
     case "DONE_FAIL":
     case "DONE_OUTDATED_ONLY":
+    case "DONE_ABANDONED":
       return /^##\s+Done\s*$/;
     case "BLOCKED":
       return /^##\s+Blocked\s*$/;
@@ -133,6 +136,8 @@ function expectedPacketStatusForBoardStatus(status) {
       return "Validated (FAIL)";
     case "DONE_OUTDATED_ONLY":
       return "Validated (OUTDATED_ONLY)";
+    case "DONE_ABANDONED":
+      return "Validated (ABANDONED)";
     default:
       return null;
   }

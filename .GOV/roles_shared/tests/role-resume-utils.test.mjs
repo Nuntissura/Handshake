@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { comparePrepareAgainstPacketTruth } from "../scripts/lib/role-resume-utils.mjs";
+import {
+  comparePrepareAgainstPacketTruth,
+  isTerminalTaskBoardStatus,
+  normalizeVerdict,
+} from "../scripts/lib/role-resume-utils.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../handshake_main");
 
@@ -70,4 +74,9 @@ test("comparePrepareAgainstPacketTruth flags packet/PREPARE authority drift", ()
     "Official packet LOCAL_BRANCH conflicts with PREPARE: expected feat/WP-1-Example-v1, got feat/WP-1-Other-v1",
     "Official packet LOCAL_WORKTREE_DIR conflicts with PREPARE: expected ../wtc-example-v1, got ../wtc-other-v1",
   ]);
+});
+
+test("terminal board helpers treat ABANDONED as a first-class terminal state", () => {
+  assert.equal(isTerminalTaskBoardStatus("ABANDONED"), true);
+  assert.equal(normalizeVerdict("abandoned"), "ABANDONED");
 });

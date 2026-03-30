@@ -4,13 +4,13 @@
  * Mechanical enforcement of validation gate sequence.
  * Prevents automation momentum and enforces a single review pause: the full
  * validation report is presented in chat only right before merge (PASS) or
- * remediation kickoff (FAIL), while still recording that the report was appended
+ * remediation/discard kickoff (FAIL/ABANDONED), while still recording that the report was appended
  * to the WP packet first.
  *
  * Actions:
- *   append {WP_ID} {PASS|FAIL}           - Gate 1: Record WP append completed + verdict
+ *   append {WP_ID} {PASS|FAIL|ABANDONED} - Gate 1: Record WP append completed + verdict
  *   commit {WP_ID}                       - Gate 2: Clear PASS for git commit
- *   present-report {WP_ID} [PASS|FAIL]   - Gate 3: Record report shown in chat (blocking)
+ *   present-report {WP_ID} [PASS|FAIL|ABANDONED] - Gate 3: Record report shown in chat (blocking)
  *   acknowledge {WP_ID}                  - Gate 4: Record user acknowledgment (unlock)
  *   status {WP_ID}                       - Show current gate state
  *   reset {WP_ID}                        - Reset gates for WP (requires confirmation)
@@ -254,7 +254,7 @@ const wpId = process.argv[3];
 const extraArg = process.argv[4];
 
 // =============================================================================
-// ACTION: present-report {WP_ID} [PASS|FAIL]
+// ACTION: present-report {WP_ID} [PASS|FAIL|ABANDONED]
 // =============================================================================
 if (action === 'present-report') {
     assertWpId(wpId);
@@ -267,12 +267,12 @@ if (action === 'present-report') {
     if (!session) {
         fail(`No validation session for ${wpId}`, [
             'Append the report to the WP packet first, then record it:',
-            `Run: just validator-gate-append ${wpId} {PASS|FAIL}`
+            `Run: just validator-gate-append ${wpId} {PASS|FAIL|ABANDONED}`
         ]);
     }
 
-    if (verdictArg && verdictArg !== 'PASS' && verdictArg !== 'FAIL') {
-        fail('Verdict must be PASS or FAIL (or omitted)', [`Received: ${extraArg}`]);
+    if (verdictArg && verdictArg !== 'PASS' && verdictArg !== 'FAIL' && verdictArg !== 'ABANDONED') {
+        fail('Verdict must be PASS, FAIL, or ABANDONED (or omitted)', [`Received: ${extraArg}`]);
     }
 
     if (verdictArg && verdictArg !== session.verdict) {
@@ -313,9 +313,9 @@ if (action === 'present-report') {
     } else {
         if (session.status !== 'WP_APPENDED') {
             fail(`Cannot present report for ${wpId} in state ${session.status}`, [
-                'FAIL flow requires append gate before final report presentation.',
+                `${session.verdict} flow requires append gate before final report presentation.`,
                 'Expected state: WP_APPENDED',
-                `Next: just validator-gate-append ${wpId} FAIL`
+                `Next: just validator-gate-append ${wpId} ${session.verdict}`
             ]);
         }
     }
@@ -355,7 +355,7 @@ if (action === 'acknowledge') {
     failIfLegacyRemediationRequired(wpId, session?.status || '');
     if (!session) {
         fail(`No validation session for ${wpId}`, [
-            `Run: just validator-gate-append ${wpId} {PASS|FAIL}`
+            `Run: just validator-gate-append ${wpId} {PASS|FAIL|ABANDONED}`
         ]);
     }
 
@@ -385,6 +385,11 @@ if (action === 'acknowledge') {
             '[UNLOCKED] Validator may now merge/push the WP to main.',
             'Ensure the validation report append is committed on the WP branch before merging.'
         ]);
+    } else if (session.verdict === 'ABANDONED') {
+        success(`Gate 4 PASSED: User acknowledged report for ${wpId}`, [
+            '',
+            '[UNLOCKED] WP may proceed to governed discard/cleanup (no merge/commit).'
+        ]);
     } else {
         success(`Gate 4 PASSED: User acknowledged report for ${wpId}`, [
             '',
@@ -395,7 +400,7 @@ if (action === 'acknowledge') {
 }
 
 // =============================================================================
-// ACTION: append {WP_ID} {PASS|FAIL}
+// ACTION: append {WP_ID} {PASS|FAIL|ABANDONED}
 // =============================================================================
 if (action === 'append') {
     assertWpId(wpId);
@@ -404,8 +409,8 @@ if (action === 'append') {
     const state = loadWpState(wpId);
     const verdictArg = extraArg?.trim() ? extraArg.trim().toUpperCase() : null;
 
-    if (verdictArg && verdictArg !== 'PASS' && verdictArg !== 'FAIL') {
-        fail('Verdict must be PASS or FAIL (or omitted when a session already exists)', [
+    if (verdictArg && verdictArg !== 'PASS' && verdictArg !== 'FAIL' && verdictArg !== 'ABANDONED') {
+        fail('Verdict must be PASS, FAIL, or ABANDONED (or omitted when a session already exists)', [
             `Received: ${extraArg}`
         ]);
     }
@@ -422,7 +427,7 @@ if (action === 'append') {
     if (!session) {
         if (!verdictArg) {
             fail(`Verdict required to start append gate for ${wpId}`, [
-                `Run: just validator-gate-append ${wpId} {PASS|FAIL}`
+                `Run: just validator-gate-append ${wpId} {PASS|FAIL|ABANDONED}`
             ]);
         }
 
@@ -453,10 +458,10 @@ if (action === 'append') {
         state.validation_sessions[wpId] = session;
         saveWpState(wpId, state);
 
-        if (session.verdict === 'FAIL') {
+        if (session.verdict === 'FAIL' || session.verdict === 'ABANDONED') {
             success(`Gate 1 PASSED: Report appended to ${wpId}`, [
                 '',
-                '[NEXT] Paste the full validation report to chat now (before remediation), then record it:',
+                `[NEXT] Paste the full validation report to chat now (before ${session.verdict === 'ABANDONED' ? 'discard/cleanup' : 'remediation'}), then record it:`,
                 `[NEXT] Run: just validator-gate-present ${wpId}`
             ]);
         } else {
@@ -691,7 +696,9 @@ if (action === 'status') {
         'REPORT_PRESENTED': `just validator-gate-acknowledge ${wpId}`,
         'USER_ACKNOWLEDGED': session.verdict === 'PASS'
             ? '(PASS - merge/push allowed)'
-            : '(FAIL - remediation allowed)'
+            : session.verdict === 'ABANDONED'
+                ? '(ABANDONED - discard/cleanup allowed)'
+                : '(FAIL - remediation allowed)'
     };
     console.log(`  Next: ${governanceState.legacyRemediationRequired
         ? 'BLOCKED - request new remediation WP variant; do not merge or reopen this packet in-place'
@@ -743,9 +750,9 @@ fail('Unknown action', [
     'Valid actions: present-report, acknowledge, append, commit, status, reset',
     '',
     'Usage:',
-    '  just validator-gate-append {WP_ID} {PASS|FAIL}',
+    '  just validator-gate-append {WP_ID} {PASS|FAIL|ABANDONED}',
     '  just validator-gate-commit {WP_ID}',
-    '  just validator-gate-present {WP_ID} [PASS|FAIL]',
+    '  just validator-gate-present {WP_ID} [PASS|FAIL|ABANDONED]',
     '  just validator-gate-acknowledge {WP_ID}',
     '  just validator-gate-status {WP_ID}',
     '  just validator-gate-reset {WP_ID} --confirm'

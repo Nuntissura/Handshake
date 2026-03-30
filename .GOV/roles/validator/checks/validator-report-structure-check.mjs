@@ -93,6 +93,10 @@ function hasConcreteCodeReference(value) {
   );
 }
 
+function negativeProofLeaksToGovernance(value) {
+  return /\.GOV\/|gov_runtime\/|TASK_BOARD|RUNTIME_STATUS|ROLE_SESSION_REGISTRY|SESSION_CONTROL|VALIDATOR_PROTOCOL|ORCHESTRATOR_PROTOCOL|COMMAND_SURFACE_REFERENCE|governance closeout|outside the signed product scope/i.test(String(value || ""));
+}
+
 function isClosedStatus(status) {
   return /\b(done|validated)\b/i.test(String(status || ""));
 }
@@ -156,8 +160,8 @@ for (const rel of files) {
     }
   }
 
-  if (!/^\s*Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED)\b/im.test(reports)) {
-    violations.push(`${rel}: VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED`);
+  if (!/^\s*Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|ABANDONED|BLOCKED)\b/im.test(reports)) {
+    violations.push(`${rel}: VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|ABANDONED|BLOCKED`);
   }
 
   const clausesReviewed = extractListItemsAfterLabel(reports, "CLAUSES_REVIEWED");
@@ -219,6 +223,14 @@ for (const rel of files) {
   const environmentVerdict = parseSectionField(reports, "ENVIRONMENT_VERDICT").toUpperCase();
   const disposition = parseSectionField(reports, "DISPOSITION").toUpperCase();
   const legalVerdict = parseSectionField(reports, "LEGAL_VERDICT").toUpperCase();
+  if (topLevelVerdict === "ABANDONED") {
+    if (!/^Validated\s*\(\s*ABANDONED\s*\)$/i.test(status)) {
+      violations.push(`${rel}: Verdict=ABANDONED requires packet Status: Validated (ABANDONED)`);
+    }
+    if (disposition !== "ABANDONED") {
+      violations.push(`${rel}: Verdict=ABANDONED requires DISPOSITION=ABANDONED`);
+    }
+  }
 
   if (requiresCompletionLayerVerdicts) {
     const workflowValidity = parseSectionField(reports, "WORKFLOW_VALIDITY").toUpperCase();
@@ -339,6 +351,13 @@ for (const rel of files) {
               `${rel}: LEGAL_VERDICT=PASS requires SPEC_CLAUSE_MAP entries to include file:line evidence (${item})`,
             );
           }
+        }
+      }
+      for (const item of negativeProof) {
+        if (!hasConcreteCodeReference(item) || negativeProofLeaksToGovernance(item)) {
+          violations.push(
+            `${rel}: LEGAL_VERDICT=PASS requires NEGATIVE_PROOF entries to stay inside signed product scope with concrete product code evidence (${item})`,
+          );
         }
       }
     }

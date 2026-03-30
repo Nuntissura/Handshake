@@ -18,6 +18,7 @@ import {
 import { validateMergeProgressionTruth } from "../../../roles_shared/scripts/lib/merge-progression-truth-lib.mjs";
 import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/semantic-proof-lib.mjs";
 import { validateSignedScopeCompatibilityTruth } from "../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
+import { validateContainedMainCommitAgainstSignedScope } from "../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
 import {
   activeWorkflowInvalidityReceipt,
   parseJsonlFile,
@@ -191,9 +192,9 @@ function hasConcreteCodeReference(value) {
   );
 }
 
-const statusMatch = text.match(/(?:\*\*Status:\*\*|STATUS:)\s*(Ready for Dev|In Progress|Blocked|Done(?:\s*\(Historical\))?|Validated\s*\((?:PASS|FAIL|OUTDATED_ONLY)\))(?=\s|$)/i);
+const statusMatch = text.match(/(?:\*\*Status:\*\*|STATUS:)\s*(Ready for Dev|In Progress|Blocked|Done(?:\s*\(Historical\))?|Validated\s*\((?:PASS|FAIL|OUTDATED_ONLY|ABANDONED)\))(?=\s|$)/i);
 if (!statusMatch) {
-  fail("STATUS missing or invalid (must be Ready for Dev / In Progress / Blocked / Done / Done (Historical) / Validated (PASS|FAIL|OUTDATED_ONLY))");
+  fail("STATUS missing or invalid (must be Ready for Dev / In Progress / Blocked / Done / Done (Historical) / Validated (PASS|FAIL|OUTDATED_ONLY|ABANDONED))");
 }
 const statusValue = (statusMatch[1] || "").trim();
 const closureStatus = /\b(done|validated)\b/i.test(statusValue);
@@ -315,6 +316,15 @@ if (packetFormatVersion) {
     if (signedScopeCompatibilityTruth.errors.length > 0) {
       fail(`signed scope compatibility truth invalid for closed packet: ${signedScopeCompatibilityTruth.errors.join("; ")}`);
     }
+    if (/^Validated\s*\(\s*PASS\s*\)$/i.test(statusValue)) {
+      const containedMainScope = validateContainedMainCommitAgainstSignedScope(text, {
+        repoRoot: process.cwd(),
+        mergedMainCommit: mergeProgressionTruth?.parsed?.mergedMainCommit || "",
+      });
+      if (containedMainScope.errors.length > 0) {
+        fail(`contained main commit violates signed scope surface: ${containedMainScope.errors.join("; ")}`);
+      }
+    }
     if (!topologyEvaluation.ok) {
       fail(`declared WP topology invalid for closed packet: ${topologyEvaluation.issues.join("; ")}`);
     }
@@ -362,8 +372,8 @@ if (packetFormatVersion) {
     if (!hasLine(/^##\s*VALIDATION_REPORTS\b/im)) {
       fail("VALIDATION_REPORTS heading missing");
     }
-    if (!/^\s*Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED)\b/im.test(validationReports)) {
-      fail("VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|BLOCKED");
+    if (!/^\s*Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|ABANDONED|BLOCKED)\b/im.test(validationReports)) {
+      fail("VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|ABANDONED|BLOCKED");
     }
     if (!hasListItemAfterLabel(validationReports, "CLAUSES_REVIEWED")) {
       fail("CLAUSES_REVIEWED missing/placeholder list items in VALIDATION_REPORTS for closed packet");
@@ -434,6 +444,20 @@ if (packetFormatVersion) {
     const residualUncertainty = extractListItemsAfterLabel(validationReports, "RESIDUAL_UNCERTAINTY");
     const boundaryProbes = extractListItemsAfterLabel(validationReports, "BOUNDARY_PROBES");
     const negativePathChecks = extractListItemsAfterLabel(validationReports, "NEGATIVE_PATH_CHECKS");
+    const negativeProofItems = extractListItemsAfterLabel(validationReports, "NEGATIVE_PROOF");
+    const abandonedClosure = topLevelVerdict === "ABANDONED" || /^Validated\s*\(\s*ABANDONED\s*\)$/i.test(statusValue);
+    if (abandonedClosure) {
+      if (topLevelVerdict !== "ABANDONED") {
+        fail("Validated (ABANDONED) requires VALIDATION_REPORTS top-level Verdict: ABANDONED");
+      }
+      if (!/^Validated\s*\(\s*ABANDONED\s*\)$/i.test(statusValue)) {
+        fail("Verdict=ABANDONED requires packet Status: Validated (ABANDONED)");
+      }
+      if (disposition !== "ABANDONED") {
+        fail("Verdict=ABANDONED requires DISPOSITION=ABANDONED");
+      }
+    }
+
     if (activeWorkflowInvalidity && topLevelVerdict === "PASS") {
       fail(
         `Verdict=PASS prohibited when active WORKFLOW_INVALIDITY receipt exists (${activeWorkflowInvalidity?.workflow_invalidity_code || "UNKNOWN"}: ${activeWorkflowInvalidity?.summary || "<missing>"})`
@@ -494,6 +518,11 @@ if (packetFormatVersion) {
         });
         if (signedScopeCompatibilityForPass.errors.length > 0) {
           fail(`Verdict=PASS requires signed scope compatibility truth to be PASS-ready: ${signedScopeCompatibilityForPass.errors.join("; ")}`);
+        }
+        for (const item of negativeProofItems) {
+          if (!hasConcreteCodeReference(item) || /\.GOV\/|gov_runtime\/|TASK_BOARD|RUNTIME_STATUS|ROLE_SESSION_REGISTRY|SESSION_CONTROL|VALIDATOR_PROTOCOL|ORCHESTRATOR_PROTOCOL|COMMAND_SURFACE_REFERENCE|governance closeout|outside the signed product scope/i.test(item)) {
+            fail(`Verdict=PASS requires NEGATIVE_PROOF to stay inside signed product scope with concrete product code evidence (${item})`);
+          }
         }
       }
     }
@@ -566,7 +595,7 @@ if (packetFormatVersion) {
       }
     }
 
-    if (computedPolicy.applicable && !computedPolicyOutcomeAllowsClosure(computedPolicy)) {
+    if (computedPolicy.applicable && !computedPolicyOutcomeAllowsClosure(computedPolicy) && !abandonedClosure) {
       const details = [
         ...computedPolicy.issues.fail,
         ...computedPolicy.issues.blocked,

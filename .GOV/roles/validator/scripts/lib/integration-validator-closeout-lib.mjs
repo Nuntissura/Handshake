@@ -18,6 +18,7 @@ import {
   normalizeValidatorRole,
 } from "./validator-governance-lib.mjs";
 import { validateSignedScopeCompatibilityTruth } from "../../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
+import { validateCandidateTargetAgainstSignedScope } from "../../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
 import {
   committedEvidenceForCloseout,
   livePrepareWorktreeHealthEvidence,
@@ -286,13 +287,33 @@ export function evaluateIntegrationValidatorCloseoutState({
     currentMainHeadSha: topology.currentMainHeadSha || "",
     requireReadyForPass,
   });
+  const candidateSignedScope = topology.targetHeadSha
+    ? validateCandidateTargetAgainstSignedScope(packetContent, {
+      repoRoot,
+      targetHeadSha: topology.targetHeadSha,
+      currentMainHeadSha: topology.currentMainHeadSha || "",
+      gitRunner,
+    })
+    : {
+      ok: false,
+      errors: ["candidate target validation requires committed target_head_sha"],
+    };
 
   return {
-    ok: topology.ok && closeoutBundle.ok && scopeCompatibility.errors.length === 0,
+    ok: topology.ok
+      && closeoutBundle.ok
+      && scopeCompatibility.errors.length === 0
+      && candidateSignedScope.errors.length === 0,
     topology,
     closeoutBundle,
     scopeCompatibility,
-    issues: [...topology.issues, ...closeoutBundle.issues, ...scopeCompatibility.errors],
+    candidateSignedScope,
+    issues: [
+      ...topology.issues,
+      ...closeoutBundle.issues,
+      ...scopeCompatibility.errors,
+      ...candidateSignedScope.errors,
+    ],
     warnings: [...topology.warnings, ...closeoutBundle.warnings],
   };
 }

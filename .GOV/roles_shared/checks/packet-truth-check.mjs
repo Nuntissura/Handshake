@@ -107,6 +107,7 @@ function normalizedStatusKind(status) {
   if (/VALIDATED\s*\(\s*PASS\s*\)/.test(value)) return "VALIDATED_PASS";
   if (/VALIDATED\s*\(\s*FAIL\s*\)/.test(value)) return "VALIDATED_FAIL";
   if (/VALIDATED\s*\(\s*OUTDATED_ONLY\s*\)/.test(value)) return "VALIDATED_OUTDATED_ONLY";
+  if (/VALIDATED\s*\(\s*ABANDONED\s*\)/.test(value)) return "VALIDATED_ABANDONED";
   if (value.includes("DONE") || value.includes("COMPLETE") || value.includes("VALIDATED")) return "DONE";
   return "UNKNOWN";
 }
@@ -119,6 +120,7 @@ function expectedBoardTokens(statusKind, isStub) {
   if (statusKind === "VALIDATED_PASS") return new Set(["VALIDATED"]);
   if (statusKind === "VALIDATED_FAIL") return new Set(["FAIL"]);
   if (statusKind === "VALIDATED_OUTDATED_ONLY") return new Set(["OUTDATED_ONLY"]);
+  if (statusKind === "VALIDATED_ABANDONED") return new Set(["ABANDONED"]);
   if (statusKind === "DONE") return new Set(["VALIDATED", "FAIL", "OUTDATED_ONLY"]);
   return new Set();
 }
