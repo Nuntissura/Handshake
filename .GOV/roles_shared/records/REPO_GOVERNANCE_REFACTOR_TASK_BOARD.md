@@ -1,6 +1,6 @@
 # Repo Governance Refactor Task Board
 
-**Status:** Governance refactor complete; current smoketest follow-on remediation implemented
+**Status:** Governance refactor complete; current ACP speed/cost remediation in progress
 **Scope:** Governance-only refactor tracking for `/.GOV/`  
 **Authority:** `.GOV/roles_shared/docs/REPO_GOVERNANCE_REFACTOR_ROADMAP.md`
 
@@ -80,6 +80,10 @@
 | RGF-25 | DONE | Heartbeat Liveness-Only Enforcement and Semantic Drift Rejection | RGF-24 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | `roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`, heartbeat/runtime helpers, orchestration checks | heartbeat and validator-trigger fields are treated as liveness/wake only, and semantic routing must come from receipts/notifications or explicit closeout projection |
 | RGF-26 | DONE | Compact Authority Digest and Canonical Active-Lane Brief | RGF-23, RGF-24 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | startup prompt generation, context-brief helpers, command surface docs | governed roles can open one compact active-lane authority brief instead of rereading packet/protocol/runtime/task-board surfaces separately |
 | RGF-27 | DONE | Receipt/Notification Threshold Auto-Escalation for Stalled Relay | RGF-24, RGF-25 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | notification checks, communication health, orchestrator routing helpers, monitor surfaces | stale required notifications and missing receipt progress cross a governed threshold and become machine-visible stalled-relay escalation instead of silent waiting |
+| RGF-28 | DONE | Terminal-WP Noise Suppression and Historical Surface Gating | RGF-18, RGF-26, RGF-27 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | compact lane briefs, session registry status, operator monitor surfaces | compact operator/role views default to live signal on terminal WPs and hide stale notifications/token-drift residue unless history is explicitly requested |
+| RGF-29 | DONE | Historical Token Ledger Settlement and Backfill | RGF-18, RGF-28 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | token ledger readers, budget evaluators, session-control runtime ledgers | historically incomplete tracked ledgers can be repaired or settled so terminal WPs stop looking permanently broken |
+| RGF-30 | DONE | Event-Driven Happy-Path Relay Automation | RGF-24, RGF-25, RGF-27 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | receipt appenders, notification routing, orchestrator steering helpers, session-control dispatch | normal-path receipt/notification transitions can trigger the next governed actor mechanically without repeated orchestrator polling |
+| RGF-31 | DONE | Structured Coder-Validator Microtask Exchange Contract | RGF-24, RGF-26 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | direct-review helpers, receipt schemas, role protocols, validator/coder rubrics | coder-validator microtask steering uses a compact structured exchange contract instead of repeated prose-heavy interpretation |
 
 ## Refactor Sequence (Historical)
 
@@ -111,6 +115,10 @@
 17. `RGF-25`
 18. `RGF-26`
 19. `RGF-27`
+20. `RGF-28`
+21. `RGF-29`
+22. `RGF-30`
+23. `RGF-31`
 
 ## Explicit Holds
 

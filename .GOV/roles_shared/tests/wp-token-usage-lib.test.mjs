@@ -191,3 +191,49 @@ test("readWpTokenUsageLedger reports material raw-output drift as FAIL", async (
   assert.equal(ledger.ledger_health.missing_tracked_command_count, 1);
   assert.deepEqual(ledger.ledger_health.missing_tracked_command_ids_sample, ["cmd-wpval"]);
 }));
+
+test("settleWpTokenUsageLedger backfills tracked commands from raw output and records settlement metadata", async () => withTempRepo(async (repoRoot) => {
+  const { syncWpTokenUsageLedger, readWpTokenUsageLedger, settleWpTokenUsageLedger } = await loadTokenLib(path.join(repoRoot, "gov_runtime"));
+  const coderOutput = path.join(repoRoot, "gov_runtime", "roles_shared", "SESSION_CONTROL_OUTPUTS", "CODER_WP-TEST-v1", "cmd-coder.jsonl");
+  const validatorOutput = path.join(repoRoot, "gov_runtime", "roles_shared", "SESSION_CONTROL_OUTPUTS", "WP_VALIDATOR_WP-TEST-v1", "cmd-wpval.jsonl");
+  fs.mkdirSync(path.dirname(coderOutput), { recursive: true });
+  fs.mkdirSync(path.dirname(validatorOutput), { recursive: true });
+  fs.writeFileSync(coderOutput, `${JSON.stringify({ timestamp: "2026-03-29T10:00:01Z", type: "turn.completed", usage: { input_tokens: 100, cached_input_tokens: 40, output_tokens: 12 } })}\n`, "utf8");
+  fs.writeFileSync(validatorOutput, `${JSON.stringify({ timestamp: "2026-03-29T10:05:01Z", type: "turn.completed", usage: { input_tokens: 80, cached_input_tokens: 10, output_tokens: 9 } })}\n`, "utf8");
+
+  await withRuntimeRoot(path.join(repoRoot, "gov_runtime"), () => syncWpTokenUsageLedger(repoRoot, {
+    command_id: "cmd-coder",
+    command_kind: "START_SESSION",
+    session_key: "CODER:WP-TEST-v1",
+    wp_id: "WP-TEST-v1",
+    role: "CODER",
+    status: "COMPLETED",
+    processed_at: "2026-03-29T10:00:05Z",
+    output_jsonl_file: path.relative(repoRoot, coderOutput),
+  }, {
+    session: {
+      requested_model: "gpt-5.4",
+      reasoning_config_value: "xhigh",
+      session_thread_id: "thread-coder",
+    },
+  }));
+
+  const before = await withRuntimeRoot(path.join(repoRoot, "gov_runtime"), () => readWpTokenUsageLedger(repoRoot, "WP-TEST-v1"));
+  assert.equal(before.ledger.ledger_health.status, "DRIFT");
+  assert.equal(before.ledger.ledger_health.severity, "FAIL");
+
+  const settled = await withRuntimeRoot(path.join(repoRoot, "gov_runtime"), () => settleWpTokenUsageLedger(repoRoot, "WP-TEST-v1", {
+    reason: "HISTORICAL_BACKFILL",
+    settledBy: "TEST",
+  }));
+
+  assert.equal(settled.ledger.settlement.status, "SETTLED_TO_RAW_SCAN");
+  assert.equal(settled.ledger.settlement.settled_reason, "HISTORICAL_BACKFILL");
+  assert.equal(settled.ledger.settlement.settled_by, "TEST");
+  assert.equal(settled.ledger.settlement.previous_health_status, "DRIFT");
+  assert.equal(settled.ledger.settlement.previous_health_severity, "FAIL");
+  assert.equal(settled.ledger.ledger_health.status, "MATCH");
+  assert.equal(settled.ledger.ledger_health.severity, "PASS");
+  assert.equal(settled.ledger.summary.command_count, 2);
+  assert.equal(settled.ledger.tracked_summary.command_count, 2);
+}));

@@ -4,6 +4,7 @@ import { parseJsonFile, parseJsonlFile } from "../lib/wp-communications-lib.mjs"
 import { evaluateWpCommunicationHealth } from "../lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../lib/wp-relay-escalation-lib.mjs";
 import { checkAllNotifications, checkNotifications } from "../wp/wp-check-notifications.mjs";
+import { evaluateSessionGovernanceState } from "./session-governance-state-lib.mjs";
 import { loadSessionRegistry } from "./session-registry-lib.mjs";
 import { buildRoleAuthorityString, resolveRoleConfig } from "./session-control-lib.mjs";
 import { sessionKey } from "./session-policy.mjs";
@@ -19,6 +20,23 @@ function parseSingleField(text, label) {
 function normalize(value, fallback = "<none>") {
   const text = String(value || "").trim();
   return text || fallback;
+}
+
+function isTerminalPacketStatus(status = "") {
+  const text = String(status || "").trim();
+  return /^Validated\s*\(/i.test(text)
+    || /^Done$/i.test(text);
+}
+
+function summarizeMicrotaskContract(value = null) {
+  if (!value || typeof value !== "object") return null;
+  return {
+    scope_ref: normalize(value.scope_ref),
+    file_targets: Array.isArray(value.file_targets) ? value.file_targets.filter(Boolean).slice(0, 6) : [],
+    proof_commands: Array.isArray(value.proof_commands) ? value.proof_commands.filter(Boolean).slice(0, 4) : [],
+    risk_focus: normalize(value.risk_focus),
+    expected_receipt_kind: normalize(value.expected_receipt_kind),
+  };
 }
 
 export function buildActiveLaneBrief({
@@ -47,6 +65,10 @@ export function buildActiveLaneBrief({
     : [];
   const { registry } = loadSessionRegistry(repoRoot);
   const session = (registry.sessions || []).find((entry) => entry.session_key === sessionKey(normalizedRole, wpId)) || null;
+  const governanceState = evaluateSessionGovernanceState(repoRoot, {
+    wp_id: wpId,
+    local_worktree_dir: roleConfig.worktreeDir,
+  });
   const notifications = checkNotifications({ wpId, role: normalizedRole });
   const pendingNotifications = Object.values(checkAllNotifications({ wpId })).flatMap((entry) => entry.notifications || []);
   const communicationEvaluation = evaluateWpCommunicationHealth({
@@ -68,6 +90,45 @@ export function buildActiveLaneBrief({
     pendingNotifications,
     registrySessions: registry.sessions || [],
   });
+  const terminalNoiseSuppressed = Boolean(
+    governanceState.terminalTaskBoardStatus
+    || isTerminalPacketStatus(governanceState.packetStatus)
+    || isTerminalPacketStatus(runtimeStatus.current_packet_status),
+  );
+  const visibleNotifications = terminalNoiseSuppressed
+    ? { pendingCount: 0, byKind: {} }
+    : notifications;
+  const hiddenHistory = terminalNoiseSuppressed
+    ? {
+        pending_notification_count: notifications.pendingCount || 0,
+        pending_notification_by_kind: notifications.byKind || {},
+      }
+    : null;
+  const relayView = terminalNoiseSuppressed
+    ? {
+        status: "TERMINAL_HIDDEN",
+        severity: "NONE",
+        summary: "Relay escalation is hidden for terminal WPs by default; use runtime/history surfaces only when explicitly needed.",
+        reason_code: "TERMINAL_HISTORY_HIDDEN",
+        recommended_command: null,
+      }
+    : relay;
+  const reviewQueue = terminalNoiseSuppressed
+    ? []
+    : (Array.isArray(runtimeStatus.open_review_items) ? runtimeStatus.open_review_items : [])
+        .filter((item) => String(item?.target_role || "").trim().toUpperCase() === normalizedRole)
+        .slice(0, 4)
+        .map((item) => ({
+          correlation_id: normalize(item?.correlation_id),
+          receipt_kind: normalize(item?.receipt_kind),
+          summary: normalize(item?.summary),
+          opened_by_role: normalize(item?.opened_by_role),
+          opened_by_session: normalize(item?.opened_by_session),
+          target_session: normalize(item?.target_session),
+          spec_anchor: normalize(item?.spec_anchor),
+          packet_row_ref: normalize(item?.packet_row_ref),
+          microtask_contract: summarizeMicrotaskContract(item?.microtask_contract),
+        }));
 
   return {
     schema_id: "hsk.active_lane_brief@1",
@@ -101,15 +162,18 @@ export function buildActiveLaneBrief({
       last_command_status: normalize(session?.last_command_status),
     },
     notifications: {
-      pending_count: notifications.pendingCount || 0,
-      by_kind: notifications.byKind || {},
+      pending_count: visibleNotifications.pendingCount || 0,
+      by_kind: visibleNotifications.byKind || {},
+      history_hidden: terminalNoiseSuppressed,
+      hidden_history: hiddenHistory,
     },
+    review_queue: reviewQueue,
     relay: {
-      status: relay.status,
-      severity: relay.severity,
-      summary: relay.summary,
-      reason_code: relay.reason_code,
-      recommended_command: relay.recommended_command,
+      status: relayView.status,
+      severity: relayView.severity,
+      summary: relayView.summary,
+      reason_code: relayView.reason_code,
+      recommended_command: relayView.recommended_command,
     },
     minimal_live_read_set: [
       "startup output",
@@ -135,6 +199,39 @@ export function formatActiveLaneBrief(brief) {
     `- RUNTIME: status=${brief.runtime.status} | phase=${brief.runtime.phase} | next=${brief.runtime.next_expected_actor}${brief.runtime.next_expected_session !== "<none>" ? `:${brief.runtime.next_expected_session}` : ""} | waiting_on=${brief.runtime.waiting_on}${brief.runtime.waiting_on_session !== "<none>" ? ` (${brief.runtime.waiting_on_session})` : ""}`,
     `- SESSION: key=${brief.session.session_key} | runtime_state=${brief.session.runtime_state} | thread=${brief.session.thread_id} | last_command=${brief.session.last_command_kind}/${brief.session.last_command_status}`,
     `- NOTIFICATIONS: pending=${brief.notifications.pending_count} | by_kind=${JSON.stringify(brief.notifications.by_kind)}`,
+    ...(brief.notifications.history_hidden
+      ? [`- NOTIFICATIONS_HISTORY_HIDDEN: pending=${brief.notifications.hidden_history?.pending_notification_count || 0} | by_kind=${JSON.stringify(brief.notifications.hidden_history?.pending_notification_by_kind || {})}`]
+      : []),
+    ...(Array.isArray(brief.review_queue) && brief.review_queue.length > 0
+      ? [
+          `- REVIEW_QUEUE: ${brief.review_queue.length} item(s) targeted to this role`,
+          ...brief.review_queue.flatMap((item, index) => {
+            const lines = [
+              `  ${index + 1}. ${item.receipt_kind} | from=${item.opened_by_role}:${item.opened_by_session} | correlation=${item.correlation_id}`,
+              `     summary=${item.summary}`,
+            ];
+            if (item.spec_anchor !== "<none>" || item.packet_row_ref !== "<none>") {
+              lines.push(`     spec=${item.spec_anchor} | packet=${item.packet_row_ref}`);
+            }
+            if (item.microtask_contract) {
+              lines.push(`     microtask.scope_ref=${item.microtask_contract.scope_ref}`);
+              if (item.microtask_contract.file_targets.length > 0) {
+                lines.push(`     microtask.files=${item.microtask_contract.file_targets.join(", ")}`);
+              }
+              if (item.microtask_contract.proof_commands.length > 0) {
+                lines.push(`     microtask.proof=${item.microtask_contract.proof_commands.join(" ; ")}`);
+              }
+              if (item.microtask_contract.risk_focus !== "<none>") {
+                lines.push(`     microtask.risk=${item.microtask_contract.risk_focus}`);
+              }
+              if (item.microtask_contract.expected_receipt_kind !== "<none>") {
+                lines.push(`     microtask.expected_receipt=${item.microtask_contract.expected_receipt_kind}`);
+              }
+            }
+            return lines;
+          }),
+        ]
+      : []),
     `- RELAY: status=${brief.relay.status} | severity=${brief.relay.severity} | reason=${brief.relay.reason_code}`,
     `- RELAY_SUMMARY: ${brief.relay.summary}`,
     ...(brief.relay.recommended_command ? [`- RELAY_COMMAND: ${brief.relay.recommended_command}`] : []),

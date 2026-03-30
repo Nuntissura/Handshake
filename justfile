@@ -132,6 +132,9 @@ active-lane-brief role wp-id json="":
 wp-token-usage wp-id:
 	node {{GOV_ROOT}}/roles_shared/scripts/session/wp-token-usage-report.mjs {{wp-id}}
 
+wp-token-usage-settle wp-id reason="HISTORICAL_BACKFILL" settled-by="SYSTEM":
+	node {{GOV_ROOT}}/roles_shared/scripts/session/wp-token-usage-settle.mjs {{wp-id}} {{reason}} {{settled-by}}
+
 session-control-runtime-check:
 	node {{GOV_ROOT}}/roles_shared/checks/session-control-runtime-check.mjs
 
@@ -336,11 +339,11 @@ close-wp-branch wp-id approval remote="":
 wp-heartbeat wp-id actor_role actor_session current_phase runtime_status next_expected_actor waiting_on validator_trigger="" last_event="" worktree_dir="" next_expected_session="" waiting_on_session="":
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-heartbeat.mjs {{wp-id}} {{actor_role}} {{actor_session}} {{current_phase}} {{runtime_status}} {{next_expected_actor}} "{{waiting_on}}" "{{validator_trigger}}" "{{last_event}}" "{{worktree_dir}}" "{{next_expected_session}}" "{{waiting_on_session}}"
 
-wp-validator-response wp-id actor_role actor_session coder_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="":
-	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} CODER {{coder_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}"
+wp-validator-response wp-id actor_role actor_session coder_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} CODER {{coder_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
 
-wp-review-response wp-id actor_role actor_session target_role target_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="":
-	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs REVIEW_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}"
+wp-review-response wp-id actor_role actor_session target_role target_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs REVIEW_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
 
 record-refinement wp-id detail="":
 	@node {{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs refine {{wp-id}} "{{detail}}"
@@ -368,26 +371,26 @@ wp-invalidity-flag wp-id actor_role actor_session invalidity_code summary spec_a
 wp-operator-rule-restatement wp-id actor_role actor_session summary spec_anchor="" packet_row_ref="":
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-operator-rule-restatement.mjs {{wp-id}} {{actor_role}} {{actor_session}} "{{summary}}" "{{spec_anchor}}" "{{packet_row_ref}}"
 
-wp-review-exchange receipt_kind wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" ack_for="":
-	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs {{receipt_kind}} {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}"
+wp-review-exchange receipt_kind wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs {{receipt_kind}} {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
 
-wp-spec-gap wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="":
-	@just wp-review-exchange SPEC_GAP {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}"
+wp-spec-gap wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" microtask_json="":
+	@just wp-review-exchange SPEC_GAP {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
 
-wp-spec-confirmation wp-id actor_role actor_session target_role target_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="":
-	@just wp-review-exchange SPEC_CONFIRMATION {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}"
+wp-spec-confirmation wp-id actor_role actor_session target_role target_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
+	@just wp-review-exchange SPEC_CONFIRMATION {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
 
-wp-validator-kickoff wp-id actor_session coder_session summary spec_anchor="" packet_row_ref="":
-	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_KICKOFF {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "" "{{spec_anchor}}" "{{packet_row_ref}}" ""
+wp-validator-kickoff wp-id actor_session coder_session summary spec_anchor="" packet_row_ref="" microtask_json="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_KICKOFF {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
 
-wp-coder-intent wp-id actor_session validator_session summary correlation_id spec_anchor="" packet_row_ref="":
-	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs CODER_INTENT {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" ""
+wp-coder-intent wp-id actor_session validator_session summary correlation_id spec_anchor="" packet_row_ref="" microtask_json="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs CODER_INTENT {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
 
-wp-coder-handoff wp-id actor_session validator_session summary correlation_id="" spec_anchor="" packet_row_ref="":
-	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs CODER_HANDOFF {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" ""
+wp-coder-handoff wp-id actor_session validator_session summary correlation_id="" spec_anchor="" packet_row_ref="" microtask_json="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs CODER_HANDOFF {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
 
-wp-validator-review wp-id actor_session coder_session summary correlation_id spec_anchor="" packet_row_ref="":
-	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_REVIEW {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" ""
+wp-validator-review wp-id actor_session coder_session summary correlation_id spec_anchor="" packet_row_ref="" microtask_json="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_REVIEW {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
 
 wp-communication-health-check wp-id stage="STATUS":
 	@node {{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs {{wp-id}} {{stage}}

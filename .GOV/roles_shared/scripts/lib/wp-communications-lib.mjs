@@ -166,6 +166,54 @@ export function isNullableSha(value) {
   return value === null || (typeof value === "string" && SHA_RE.test(value));
 }
 
+function validateMicrotaskContract(value, prefix, errors) {
+  if (!(value === undefined || value === null || isPlainObject(value))) {
+    errors.push(`${prefix} must be null or an object`);
+    return;
+  }
+  if (value === undefined || value === null) return;
+
+  const allowedKeys = new Set([
+    "scope_ref",
+    "file_targets",
+    "proof_commands",
+    "risk_focus",
+    "expected_receipt_kind",
+  ]);
+  for (const key of Object.keys(value)) {
+    if (!allowedKeys.has(key)) errors.push(`${prefix}.${key} is not allowed`);
+  }
+  if (!(value.scope_ref === undefined || isNullableString(value.scope_ref))) {
+    errors.push(`${prefix}.scope_ref must be null or a non-empty string`);
+  }
+  if (!(value.risk_focus === undefined || isNullableString(value.risk_focus))) {
+    errors.push(`${prefix}.risk_focus must be null or a non-empty string`);
+  }
+  if (!(value.expected_receipt_kind === undefined || value.expected_receipt_kind === null || RECEIPT_KIND_VALUES.includes(value.expected_receipt_kind))) {
+    errors.push(`${prefix}.expected_receipt_kind invalid (${value.expected_receipt_kind})`);
+  }
+  if (!(value.file_targets === undefined || Array.isArray(value.file_targets))) {
+    errors.push(`${prefix}.file_targets must be an array when present`);
+  } else if (Array.isArray(value.file_targets) && value.file_targets.some((entry) => !isNonEmptyString(entry))) {
+    errors.push(`${prefix}.file_targets must contain non-empty strings`);
+  }
+  if (!(value.proof_commands === undefined || Array.isArray(value.proof_commands))) {
+    errors.push(`${prefix}.proof_commands must be an array when present`);
+  } else if (Array.isArray(value.proof_commands) && value.proof_commands.some((entry) => !isNonEmptyString(entry))) {
+    errors.push(`${prefix}.proof_commands must contain non-empty strings`);
+  }
+
+  const hasPayload =
+    isNonEmptyString(value.scope_ref)
+    || isNonEmptyString(value.risk_focus)
+    || isNonEmptyString(value.expected_receipt_kind)
+    || (Array.isArray(value.file_targets) && value.file_targets.length > 0)
+    || (Array.isArray(value.proof_commands) && value.proof_commands.length > 0);
+  if (!hasPayload) {
+    errors.push(`${prefix} must contain at least one populated field`);
+  }
+}
+
 export function workflowInvalidityReceipts(receipts = []) {
   return (Array.isArray(receipts) ? receipts : []).filter(
     (entry) => String(entry?.receipt_kind || "").trim().toUpperCase() === WORKFLOW_INVALIDITY_RECEIPT_KIND,
@@ -466,7 +514,7 @@ export function validateRuntimeStatus(data) {
         "opened_at",
         "updated_at",
       ];
-      const allowed = new Set(required);
+      const allowed = new Set([...required, "microtask_contract"]);
       for (const key of required) {
         if (!(key in entry)) errors.push(`open_review_items[${index}] missing key: ${key}`);
       }
@@ -488,6 +536,7 @@ export function validateRuntimeStatus(data) {
       if (!isNullableString(entry.target_session)) errors.push(`open_review_items[${index}].target_session must be null or a non-empty string`);
       if (!isNullableString(entry.spec_anchor)) errors.push(`open_review_items[${index}].spec_anchor must be null or a non-empty string`);
       if (!isNullableString(entry.packet_row_ref)) errors.push(`open_review_items[${index}].packet_row_ref must be null or a non-empty string`);
+      validateMicrotaskContract(entry.microtask_contract, `open_review_items[${index}].microtask_contract`, errors);
       if (typeof entry.requires_ack !== "boolean") errors.push(`open_review_items[${index}].requires_ack must be boolean`);
       if (!isRfc3339Utc(entry.opened_at)) errors.push(`open_review_items[${index}].opened_at must be RFC3339 UTC`);
       if (!isRfc3339Utc(entry.updated_at)) errors.push(`open_review_items[${index}].updated_at must be RFC3339 UTC`);
@@ -559,7 +608,7 @@ export function validateReceipt(entry) {
     "state_after",
     "refs",
   ];
-  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "workflow_invalidity_code"];
+  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "microtask_contract", "workflow_invalidity_code"];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in entry)) errors.push(`missing key: ${key}`);
@@ -608,6 +657,7 @@ export function validateReceipt(entry) {
   if (!(entry.packet_row_ref === undefined || isNullableString(entry.packet_row_ref))) {
     errors.push("packet_row_ref must be null or a non-empty string");
   }
+  validateMicrotaskContract(entry.microtask_contract, "microtask_contract", errors);
   if (!(entry.workflow_invalidity_code === undefined || isNullableString(entry.workflow_invalidity_code))) {
     errors.push("workflow_invalidity_code must be null or a non-empty string");
   }

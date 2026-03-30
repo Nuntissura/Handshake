@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +13,8 @@ import {
 } from "../lib/wp-communications-lib.mjs";
 import { workPacketPath } from "../lib/runtime-paths.mjs";
 import { appendJsonlLine, withFileLockSync } from "../session/session-registry-lib.mjs";
+
+const ACTIVE_AUTO_RELAY_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -30,6 +33,54 @@ function resolveNotificationsFile(wpId) {
   }
   const paths = communicationPathsForWp(wpId);
   return normalize(path.join(paths.dir, NOTIFICATIONS_FILE_NAME));
+}
+
+function workflowLaneForWp(wpId) {
+  const packetPath = workPacketPath(wpId);
+  if (!fs.existsSync(packetPath)) return "";
+  const text = fs.readFileSync(packetPath, "utf8");
+  return parseSingleField(text, "WORKFLOW_LANE") || "";
+}
+
+function attemptOrchestratorAutoRelay({ wpId, notification }) {
+  if (String(workflowLaneForWp(wpId) || "").trim().toUpperCase() !== "ORCHESTRATOR_MANAGED") {
+    return { status: "NOT_APPLICABLE", reason: "NON_ORCHESTRATOR_MANAGED" };
+  }
+  const targetRole = String(notification?.target_role || "").trim().toUpperCase();
+  if (!ACTIVE_AUTO_RELAY_ROLE_VALUES.has(targetRole)) {
+    return { status: "NOT_APPLICABLE", reason: "NO_GOVERNED_TARGET_ROLE" };
+  }
+
+  const orchestratorSteerPath = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../roles/orchestrator/scripts/orchestrator-steer-next.mjs",
+  );
+  try {
+    const output = execFileSync(process.execPath, [orchestratorSteerPath, wpId, "PRIMARY"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const outputLines = String(output || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(-6);
+    return {
+      status: "DISPATCHED",
+      reason: "AUTO_RELAY_TRIGGERED",
+      next_actor: targetRole,
+      output_lines: outputLines,
+    };
+  } catch (error) {
+    const stderr = String(error?.stderr || "").trim();
+    const stdout = String(error?.stdout || "").trim();
+    return {
+      status: "FAILED",
+      reason: "AUTO_RELAY_FAILED",
+      next_actor: targetRole,
+      error: stderr || stdout || (error instanceof Error ? error.message : String(error)),
+    };
+  }
 }
 
 function appendWpNotificationCore({
@@ -76,10 +127,19 @@ function appendWpNotificationCore({
 export function appendWpNotification(args = {}, options = {}) {
   const WP_ID = String(args?.wpId || "").trim();
   const run = () => appendWpNotificationCore(args);
+  const relayEnabled = options.autoRelay !== false;
   if (options.assumeTransactionLock || !WP_ID || !/^WP-/.test(WP_ID)) {
-    return run();
+    const result = run();
+    if (relayEnabled && result) {
+      result.relayAttempt = attemptOrchestratorAutoRelay({ wpId: WP_ID, notification: result });
+    }
+    return result;
   }
-  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), run);
+  const result = withFileLockSync(communicationTransactionLockPathForWp(WP_ID), run);
+  if (relayEnabled && result) {
+    result.relayAttempt = attemptOrchestratorAutoRelay({ wpId: WP_ID, notification: result });
+  }
+  return result;
 }
 
 function resolveTargetRoleFromMention(target) {
@@ -123,6 +183,15 @@ function runCli() {
     console.log(`- source: ${result.source_role}:${result.source_session}`);
     console.log(`- kind: ${result.source_kind}`);
     console.log(`- summary: ${result.summary}`);
+    if (result.relayAttempt && result.relayAttempt.status !== "NOT_APPLICABLE") {
+      console.log(`- auto_relay_status: ${result.relayAttempt.status}`);
+      console.log(`- auto_relay_reason: ${result.relayAttempt.reason}`);
+      if (result.relayAttempt.next_actor) console.log(`- auto_relay_next_actor: ${result.relayAttempt.next_actor}`);
+      if (result.relayAttempt.error) console.log(`- auto_relay_error: ${result.relayAttempt.error}`);
+      if (Array.isArray(result.relayAttempt.output_lines) && result.relayAttempt.output_lines.length > 0) {
+        console.log(`- auto_relay_output: ${result.relayAttempt.output_lines.join(" | ")}`);
+      }
+    }
   } else {
     console.log(`[WP_NOTIFICATION] skipped (no valid target or directory missing)`);
   }
