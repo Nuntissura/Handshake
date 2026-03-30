@@ -74,6 +74,7 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - `READY` is thread-registration proof, not by itself proof that packet-scoped WP communications are already live.
 - `CLOSED` means the governed session record remains in the registry for audit, but its steerable thread registration has been intentionally cleared. A fresh `START_SESSION` is required before steering may resume.
 - Heartbeat is liveness only. `validator_trigger` is a validator wake signal only. Neither one is a steering channel.
+- Receipt/notification progress is the steering channel. If a governed next-actor route crosses `heartbeat_due_at` or `stale_after` without receipt progress, treat it as a relay-health signal, not as evidence that the route changed by itself.
 - One governed role/WP session has at most one active ACP run at a time. Concurrent steering for the same governed session is not allowed.
 
 ## Session Model Policy
@@ -148,5 +149,10 @@ Use these rules when governed runtime/session truth drifts or looks stale.
   - `just handshake-acp-broker-status`
   - `just handshake-acp-broker-stop`
 - `just session-registry-status [WP-{ID}]`
+- `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
+- `just orchestrator-steer-next WP-{ID} [PRIMARY|FALLBACK]`
 - `just operator-monitor`
 - `just operator-admin`
+- When a WP filter is supplied, `just session-registry-status` now prints derived relay escalation state.
+- `just active-lane-brief` is the compact authority digest for one governed lane; prefer it over rereading packet/runtime/session surfaces separately.
+- If derived relay escalation is `ESCALATED`, use `just orchestrator-steer-next WP-{ID}` instead of waiting silently.

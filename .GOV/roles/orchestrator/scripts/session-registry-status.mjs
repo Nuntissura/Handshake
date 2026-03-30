@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import {
   loadSessionControlRequests,
   loadSessionControlResults,
@@ -9,6 +10,11 @@ import {
 import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
 import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
+import { resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
+import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 
 const repoRoot = process.cwd();
 const wpIdFilter = String(process.argv[2] || "").trim();
@@ -24,6 +30,47 @@ const wpTokenBudget = wpTokenUsage ? evaluateWpTokenBudget(wpTokenUsage) : null;
 const sessions = registry.sessions
   .filter((session) => !wpIdFilter || session.wp_id === wpIdFilter)
   .map((session) => registrySessionSummary(session));
+
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
+  const match = String(text || "").match(re);
+  return match ? match[1].trim() : "";
+}
+
+function loadRelayStatusForWp(wpId) {
+  const packetPath = resolveWorkPacketPath(wpId)?.packetPath || "";
+  if (!packetPath || !fs.existsSync(packetPath)) return null;
+
+  const packetText = fs.readFileSync(packetPath, "utf8");
+  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  if (!runtimeStatusFile || !fs.existsSync(runtimeStatusFile)) return null;
+
+  const runtimeStatus = parseJsonFile(runtimeStatusFile);
+  const receipts = receiptsFile && fs.existsSync(receiptsFile) ? parseJsonlFile(receiptsFile) : [];
+  const communicationEvaluation = evaluateWpCommunicationHealth({
+    wpId,
+    stage: "STATUS",
+    packetPath,
+    workflowLane: parseSingleField(packetText, "WORKFLOW_LANE"),
+    packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
+    communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
+    communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
+    receipts,
+    runtimeStatus,
+  });
+  const pendingNotifications = Object.values(checkAllNotifications({ wpId })).flatMap((entry) => entry.notifications || []);
+  return evaluateWpRelayEscalation({
+    wpId,
+    runtimeStatus,
+    communicationEvaluation,
+    receipts,
+    pendingNotifications,
+    registrySessions: registry.sessions || [],
+  });
+}
+
+const relayStatus = wpIdFilter ? loadRelayStatusForWp(wpIdFilter) : null;
 
 console.log("ROLE_SESSION_REGISTRY");
 console.log(`- updated_at: ${registry.updated_at}`);
@@ -96,6 +143,30 @@ for (const session of sessions) {
     console.log(`  note: registered steerable thread is stale and should be closed before reuse (${reason})`);
   }
   console.log(`  updated_at: ${session.updated_at || "<none>"}`);
+}
+
+if (relayStatus) {
+  console.log("");
+  console.log("WP_RELAY_ESCALATION");
+  console.log(`- wp_id: ${wpIdFilter}`);
+  console.log(`- status: ${relayStatus.status}`);
+  console.log(`- severity: ${relayStatus.severity}`);
+  console.log(`- reason_code: ${relayStatus.reason_code}`);
+  console.log(`- target: ${relayStatus.target_role || "<none>"}${relayStatus.target_session ? `:${relayStatus.target_session}` : ""}`);
+  console.log(`- summary: ${relayStatus.summary}`);
+  if (relayStatus.recommended_command) {
+    console.log(`- recommended_command: ${relayStatus.recommended_command}`);
+  }
+  const metrics = relayStatus.metrics || {};
+  if (Object.keys(metrics).length > 0) {
+    console.log(`- pending_notification_count: ${metrics.pending_notification_count ?? 0}`);
+    console.log(`- route_anchor_at: ${metrics.route_anchor_at || "<none>"}`);
+    console.log(`- latest_notification_at: ${metrics.latest_notification_at || "<none>"}`);
+    console.log(`- latest_target_receipt_at: ${metrics.latest_target_receipt_at || "<none>"}`);
+    console.log(`- latest_session_activity_at: ${metrics.latest_session_activity_at || "<none>"}`);
+    console.log(`- heartbeat_due_at: ${metrics.heartbeat_due_at || "<none>"}`);
+    console.log(`- stale_after: ${metrics.stale_after || "<none>"}`);
+  }
 }
 
 if (wpTokenUsage) {

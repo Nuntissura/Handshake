@@ -126,6 +126,9 @@ session-close role wp-id:
 session-registry-status wp-id="":
 	node {{GOV_ROOT}}/roles/orchestrator/scripts/session-registry-status.mjs {{wp-id}}
 
+active-lane-brief role wp-id json="":
+	@node {{GOV_ROOT}}/roles_shared/checks/active-lane-brief.mjs {{role}} {{wp-id}} {{json}}
+
 wp-token-usage wp-id:
 	node {{GOV_ROOT}}/roles_shared/scripts/session/wp-token-usage-report.mjs {{wp-id}}
 
@@ -215,6 +218,9 @@ orchestrator-startup-truth-check:
 
 orchestrator-next wp-id="":
 	@node {{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-next.mjs {{wp-id}}
+
+orchestrator-steer-next wp-id model="PRIMARY":
+	@node {{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-steer-next.mjs {{wp-id}} {{model}}
 
 coder-next wp-id="":
 	@node {{GOV_ROOT}}/roles/coder/scripts/coder-next.mjs {{wp-id}}

@@ -347,6 +347,8 @@ Resume rule (hard, anti-babysit):
   - Integration Validator = final technical and merge authority
 - Update runtime status and append a receipt on session start, phase change, blocker/unblock, handoff, completion, and every packet heartbeat interval only while actively working.
 - Set `validator_trigger` only when the validator should wake up. Do not expect continuous polling.
+- `just wp-heartbeat ...` is liveness-only. The `next_actor`, `waiting_on`, and session-route parameters must match current runtime truth; use receipts/notifications to change workflow routing, not heartbeat.
+- Prefer `just active-lane-brief CODER WP-{ID}` when context or routing feels fragmented instead of rereading packet/runtime/session truth separately.
 - Prefer deterministic helpers over hand-editing these files:
   - `just wp-thread-append WP-{ID} CODER <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
   - `just wp-heartbeat WP-{ID} CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
@@ -361,6 +363,7 @@ Resume rule (hard, anti-babysit):
   - `just wp-spec-confirmation WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-communication-health-check WP-{ID} STATUS|KICKOFF|HANDOFF|VERDICT`
   - `just session-registry-status [WP-{ID}]`
+  - `just active-lane-brief CODER WP-{ID} [--json]`
   - `just check-notifications WP-{ID} CODER` (check pending messages from validators/orchestrator)
   - `just ack-notifications WP-{ID} CODER <session>` (acknowledge pending notifications after reading)
   - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)

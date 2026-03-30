@@ -1,0 +1,91 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { evaluateWpRelayEscalation } from "../scripts/lib/wp-relay-escalation-lib.mjs";
+
+function baseRuntime(overrides = {}) {
+  return {
+    next_expected_actor: "WP_VALIDATOR",
+    next_expected_session: "wpv-1",
+    heartbeat_due_at: "2026-03-30T10:10:00Z",
+    stale_after: "2026-03-30T10:20:00Z",
+    current_relay_escalation_cycle: 0,
+    max_relay_escalation_cycles: 2,
+    active_role_sessions: [],
+    ...overrides,
+  };
+}
+
+test("relay escalation is not applicable when no governed actor is projected", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime({ next_expected_actor: "ORCHESTRATOR", next_expected_session: null }),
+    communicationEvaluation: { applicable: true },
+    receipts: [],
+    pendingNotifications: [],
+    nowIso: "2026-03-30T10:30:00Z",
+  });
+
+  assert.equal(result.applicable, false);
+  assert.equal(result.status, "NOT_APPLICABLE");
+});
+
+test("relay escalation warns after heartbeat_due_at when pending notifications are still waiting", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime(),
+    communicationEvaluation: { applicable: true },
+    receipts: [
+      { actor_role: "CODER", actor_session: "coder-1", timestamp_utc: "2026-03-30T10:00:00Z" },
+    ],
+    pendingNotifications: [
+      { target_role: "WP_VALIDATOR", target_session: "wpv-1", timestamp_utc: "2026-03-30T10:00:01Z" },
+    ],
+    nowIso: "2026-03-30T10:15:00Z",
+  });
+
+  assert.equal(result.applicable, true);
+  assert.equal(result.status, "WATCH");
+  assert.equal(result.reason_code, "PENDING_NOTIFICATION_WAITING");
+});
+
+test("relay escalation fails when stale notifications cross stale_after without receipt progress", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime({
+      active_role_sessions: [
+        { role: "WP_VALIDATOR", session_id: "wpv-1", last_heartbeat_at: "2026-03-30T10:05:00Z" },
+      ],
+    }),
+    communicationEvaluation: { applicable: true },
+    receipts: [
+      { actor_role: "CODER", actor_session: "coder-1", timestamp_utc: "2026-03-30T10:00:00Z" },
+    ],
+    pendingNotifications: [
+      { target_role: "WP_VALIDATOR", target_session: "wpv-1", timestamp_utc: "2026-03-30T10:00:01Z" },
+    ],
+    nowIso: "2026-03-30T10:25:00Z",
+  });
+
+  assert.equal(result.status, "ESCALATED");
+  assert.match(result.reason_code, /PENDING_NOTIFICATION_STALE|SESSION_ACTIVE_NO_RECEIPT_PROGRESS/);
+  assert.match(result.summary, /Use just orchestrator-steer-next WP-TEST-RELAY-v1/i);
+});
+
+test("relay escalation fails when receipt progress is stale even without pending notifications", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime({
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-1",
+    }),
+    communicationEvaluation: { applicable: true },
+    receipts: [
+      { actor_role: "WP_VALIDATOR", actor_session: "wpv-1", timestamp_utc: "2026-03-30T10:00:00Z" },
+    ],
+    pendingNotifications: [],
+    nowIso: "2026-03-30T10:25:00Z",
+  });
+
+  assert.equal(result.status, "ESCALATED");
+  assert.equal(result.reason_code, "RECEIPT_PROGRESS_STALE");
+});

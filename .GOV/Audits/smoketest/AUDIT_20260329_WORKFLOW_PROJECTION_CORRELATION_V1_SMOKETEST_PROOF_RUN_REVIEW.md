@@ -469,3 +469,63 @@ Assessment:
   - large dirty-worktree or packet/protocol outputs are summarized mechanically instead of dumped into model context
   - closeout ends in one machine-visible terminal authority outcome without manual packet/runtime/task-board reconciliation
   - per-role turn and token budgets can be measured and can fail loudly when the lane drifts into ambiguity
+
+## 17. Appendage: Operator Assessment and Additional Root-Cause Findings
+
+### 17.1 Operator Assessment
+
+- The Operator assessment is that orchestrator-managed ACP remains materially slower than the former manual three-terminal workflow and is still burning too much token budget and real paid-model spend.
+- The Operator assessment is also that governance strictness itself is not the only issue. The bigger failure is that the lane is still not mechanical enough:
+  - too much waiting
+  - too much repeated steering
+  - too much manual or semi-manual state interpretation
+  - too much latency between receipt generation and the next meaningful model action
+- The Operator expectation remains:
+  - strict Codex + role-protocol adherence is mandatory
+  - startup authority must be explicit
+  - the orchestrator-managed lane should behave more like deterministic relay and less like an intelligent supervisor continuously re-evaluating what to do next
+
+### 17.2 Additional Root-Cause Findings
+
+- The older manual system had one major hidden optimization: the Operator acted as a human context compressor.
+  - only the relevant delta was relayed
+  - models started working immediately on the fresh input
+  - there was almost no broker or projection overhead
+- The current ACP lane adds real control-plane latency.
+  - request/result ledgers
+  - session registry projection
+  - runtime projection
+  - notifications
+  - heartbeats
+  - governed `START_SESSION` / `SEND_PROMPT` steering
+- The current lane still leaks too much workflow truth into text-first model context.
+  - startup prompts
+  - packet truth
+  - runtime truth
+  - task-board truth
+  - notifications
+  - validator evidence
+  - gate output
+- The orchestrator still has to reason too much.
+  - infer who should act next
+  - decide whether to launch, steer, or wait
+  - interpret whether drift is semantic or merely projection lag
+- Heartbeat and lifecycle fields still create too much semantic noise even though repo law already says heartbeat is liveness-only.
+- The live ACP startup builder assigns `AGENTS.md`, role protocol, startup output, packet, `gpt-5.4`, and `model_reasoning_effort=xhigh`, but it still does not explicitly name `Handshake_Codex_v1.4.md` in the role-session startup authority string.
+  - that is softer than the Operator’s manual launch expectation
+- The old startup cheat sheet was also stale on topology, which likely increased mental drift.
+  - it still described WP validator in the coder worktree before correction
+
+### 17.3 Updated Judgment
+
+- The main remaining slowdown is not "too many rules".
+- The main remaining slowdown is "rules and evidence are still represented too often as large text surfaces and semi-manual orchestration instead of compact deterministic control steps."
+- If governance remains equally strict but the relay becomes more event-driven and more compact, the lane should become materially cheaper and faster without losing rigor.
+
+### 17.4 Additional Required Follow-On Governance Work
+
+- `RGF-23`: Codex-Explicit ACP Startup Authority
+- `RGF-24`: Receipt-Driven Next-Actor Relay and Steer Helper
+- `RGF-25`: Heartbeat Liveness-Only Enforcement and Semantic Drift Rejection
+- `RGF-26`: Compact Authority Digest and Canonical Active-Lane Brief
+- `RGF-27`: Receipt/Notification Threshold Auto-Escalation for Stalled Relay

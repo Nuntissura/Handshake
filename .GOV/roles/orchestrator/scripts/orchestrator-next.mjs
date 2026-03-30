@@ -28,16 +28,20 @@ import {
   taskBoardStatus,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { EXECUTION_OWNER_RANGE_HELP } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 
 const STATE_FILE = resolveOrchestratorGatesPath();
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
+const GOVERNED_ROLE_RELAY_TARGETS = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 
 function fail(message, details = []) {
   console.error(`[ORCHESTRATOR_NEXT] ${message}`);
@@ -104,11 +108,26 @@ function loadProjectionDriftState(wpId, packetPath, packetText) {
   });
   return {
     runtimeStatus,
+    receipts,
     communicationEvaluation,
     drift: evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus, {
       communicationEvaluation,
     }),
   };
+}
+
+function loadRelayEscalationState(wpId, packetRuntimeState) {
+  if (!packetRuntimeState?.runtimeStatus || !packetRuntimeState?.communicationEvaluation) return null;
+  const { registry } = loadSessionRegistry(process.cwd());
+  const pendingNotifications = Object.values(checkAllNotifications({ wpId })).flatMap((entry) => entry.notifications || []);
+  return evaluateWpRelayEscalation({
+    wpId,
+    runtimeStatus: packetRuntimeState.runtimeStatus,
+    communicationEvaluation: packetRuntimeState.communicationEvaluation,
+    receipts: packetRuntimeState.receipts || [],
+    pendingNotifications,
+    registrySessions: registry.sessions || [],
+  });
 }
 
 function closeoutSyncCommandForProjection(wpId, projection = {}, runtimeStatus = {}, communicationEvaluation = null) {
@@ -131,6 +150,13 @@ function closeoutSyncCommandForProjection(wpId, projection = {}, runtimeStatus =
     return `just integration-validator-closeout-sync ${wpId} DONE_MERGE_PENDING`;
   }
   return `just integration-validator-context-brief ${wpId}`;
+}
+
+function relayCommandForRuntime(wpId, workflowLane = "", runtimeStatus = {}) {
+  if (String(workflowLane || "").trim().toUpperCase() !== "ORCHESTRATOR_MANAGED") return "";
+  const nextActor = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
+  if (!GOVERNED_ROLE_RELAY_TARGETS.has(nextActor)) return "";
+  return `just orchestrator-steer-next ${wpId}`;
 }
 
 function stageScore(stage, detail = {}) {
@@ -504,6 +530,7 @@ function main() {
     return;
   }
   const packetRuntimeState = loadProjectionDriftState(wpId, packetPath, packetText);
+  const relayEscalation = packetRuntimeState ? loadRelayEscalationState(wpId, packetRuntimeState) : null;
   if (packetRuntimeState && !packetRuntimeState.drift.ok) {
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorEnvelope("NONE", "NONE");
@@ -522,6 +549,27 @@ function main() {
         packetRuntimeState.runtimeStatus,
         packetRuntimeState.communicationEvaluation,
       ),
+      `just orchestrator-next ${wpId}`,
+    ]);
+    return;
+  }
+  if (relayEscalation?.applicable && relayEscalation.status === "ESCALATED") {
+    printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
+    printOperatorEnvelope("NONE", "NONE");
+    printConfidence(confidence.level, confidence.detail);
+    printState(relayEscalation.summary);
+    printFindings([
+      `Target: ${relayEscalation.target_role}${relayEscalation.target_session ? `:${relayEscalation.target_session}` : ""}`,
+      `Route anchor: ${relayEscalation.metrics.route_anchor_at || "<missing>"}`,
+      `Latest notification: ${relayEscalation.metrics.latest_notification_at || "<none>"}`,
+      `Latest target receipt: ${relayEscalation.metrics.latest_target_receipt_at || "<none>"}`,
+      `Latest session activity: ${relayEscalation.metrics.latest_session_activity_at || "<none>"}`,
+      ...relayEscalation.failures,
+    ]);
+    printNextCommands([
+      relayEscalation.recommended_command,
+      `just active-lane-brief ${relayEscalation.target_role} ${wpId}`,
+      `just session-registry-status ${wpId}`,
       `just orchestrator-next ${wpId}`,
     ]);
     return;
@@ -556,14 +604,21 @@ function main() {
     `Resume source: ${inferred.source}`,
     `Current branch: ${gitContext.branch || "<unknown>"}`,
     `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+    ...(relayEscalation?.applicable && relayEscalation.status === "WATCH"
+      ? [relayEscalation.summary]
+      : []),
   ]);
+  const runtimeRelayCommand = relayCommandForRuntime(wpId, workflowLane, packetRuntimeState?.runtimeStatus || {});
   const cmds = [
     `cat ${packetPath}`,
     `just pre-work ${wpId}`,
   ];
+  if (runtimeRelayCommand) cmds.push(runtimeRelayCommand);
   if (needsStubCleanup) cmds.push(`just task-board-set ${wpId} READY_FOR_DEV`);
-  cmds.push(`just launch-coder-session ${wpId}`);
-  cmds.push(`just launch-wp-validator-session ${wpId}`);
+  if (!runtimeRelayCommand) {
+    cmds.push(`just launch-coder-session ${wpId}`);
+    cmds.push(`just launch-wp-validator-session ${wpId}`);
+  }
   cmds.push(`just session-registry-status ${wpId}`);
   cmds.push(`# Integration Validator is downstream of WP validation PASS; launch later with: just launch-integration-validator-session ${wpId}`);
   printNextCommands(cmds);
