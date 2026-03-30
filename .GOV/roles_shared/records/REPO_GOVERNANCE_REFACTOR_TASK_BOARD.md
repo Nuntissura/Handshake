@@ -1,6 +1,6 @@
 # Repo Governance Refactor Task Board
 
-**Status:** Governance refactor complete; smoketest follow-on remediation open
+**Status:** Governance refactor complete; current smoketest follow-on remediation implemented
 **Scope:** Governance-only refactor tracking for `/.GOV/`  
 **Authority:** `.GOV/roles_shared/docs/REPO_GOVERNANCE_REFACTOR_ROADMAP.md`
 
@@ -75,6 +75,11 @@
 | RGF-20 | DONE | Context-Brief Command Parity and No-Rediscovery Enforcement | RGF-15, RGF-16 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | `justfile`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `roles/validator/VALIDATOR_PROTOCOL.md`, final-lane brief helpers/tests | every documented role context-brief helper exists and is callable through the sanctioned command surface, and missing helpers fail closed instead of sending the role back into protocol rediscovery |
 | RGF-21 | DONE | Dirty Worktree and Shared-Junction Noise Compression | RGF-10, RGF-19 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | `pre-work`, `validator-handoff-check`, worktree topology helpers, session summaries | shared `.GOV` junction drift and large unrelated dirty-worktree surfaces are reported as counts plus bounded samples, not as giant enumerations that inflate model context cost |
 | RGF-22 | DONE | Turn and Token Budget Enforcement for ACP Lanes | RGF-18, RGF-19, RGF-20 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | session policy, orchestrator monitor surfaces, invalidity helpers, session registry reporting | orchestrator-managed lanes expose per-role turn/token budgets, and large ambiguity-driven overruns become machine-visible blocker or invalidity conditions instead of silent spend |
+| RGF-23 | DONE | Codex-Explicit ACP Startup Authority | RGF-08, RGF-20 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | `roles_shared/scripts/session/session-control-lib.mjs`, startup prompt tests, launcher docs | every governed role startup prompt explicitly includes `.GOV/codex/Handshake_Codex_v1.4.md` in its authority surface instead of relying on indirect inheritance |
+| RGF-24 | DONE | Receipt-Driven Next-Actor Relay and Steer Helper | RGF-16, RGF-20 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | `roles/orchestrator/scripts/orchestrator-next.mjs`, `roles/orchestrator/scripts/orchestrator-steer-next.mjs`, session-control helpers, command surface, receipt/runtime projection | the orchestrator can launch or steer the next expected actor from runtime/receipt truth with one governed helper command instead of manual relay interpretation |
+| RGF-25 | DONE | Heartbeat Liveness-Only Enforcement and Semantic Drift Rejection | RGF-24 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | `roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`, heartbeat/runtime helpers, orchestration checks | heartbeat and validator-trigger fields are treated as liveness/wake only, and semantic routing must come from receipts/notifications or explicit closeout projection |
+| RGF-26 | DONE | Compact Authority Digest and Canonical Active-Lane Brief | RGF-23, RGF-24 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | startup prompt generation, context-brief helpers, command surface docs | governed roles can open one compact active-lane authority brief instead of rereading packet/protocol/runtime/task-board surfaces separately |
+| RGF-27 | DONE | Receipt/Notification Threshold Auto-Escalation for Stalled Relay | RGF-24, RGF-25 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | notification checks, communication health, orchestrator routing helpers, monitor surfaces | stale required notifications and missing receipt progress cross a governed threshold and become machine-visible stalled-relay escalation instead of silent waiting |
 
 ## Refactor Sequence (Historical)
 
@@ -101,6 +106,11 @@
 12. `RGF-20`
 13. `RGF-21`
 14. `RGF-22`
+15. `RGF-23`
+16. `RGF-24`
+17. `RGF-25`
+18. `RGF-26`
+19. `RGF-27`
 
 ## Explicit Holds
 

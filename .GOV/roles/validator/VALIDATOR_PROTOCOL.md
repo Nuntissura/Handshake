@@ -328,6 +328,8 @@ Resume rule (hard, anti-babysit):
   - a role-blind gate row is not enough by itself to prove final authority; use validator role plus governed session identity
 - Do not poll continuously. The Validator should wake on explicit packet assignment, `ready_for_validation=true`, `validator_trigger != NONE`, a validation handoff receipt, or an explicit operator/orchestrator instruction.
 - Update runtime status and append a receipt on validation start, validation query, blocker, verdict-ready handoff, completion, and every packet heartbeat interval only while actively validating.
+- `just wp-heartbeat ...` is liveness-only. The `next_actor`, `waiting_on`, and session-route parameters must match current runtime truth; use receipts/notifications or closeout-sync helpers to change workflow routing, not heartbeat.
+- Prefer `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID}` when context or routing feels fragmented instead of rereading packet/runtime/session truth separately.
 - Prefer deterministic helpers over hand-editing these files:
   - `just wp-thread-append WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
   - `just wp-heartbeat WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
@@ -340,6 +342,7 @@ Resume rule (hard, anti-babysit):
   - `just wp-spec-confirmation WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-communication-health-check WP-{ID} STATUS|KICKOFF|HANDOFF|VERDICT`
   - `just session-registry-status [WP-{ID}]`
+  - `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID} [--json]`
   - `just check-notifications WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR` (check pending messages from coders/orchestrator)
   - `just ack-notifications WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session>` (acknowledge pending notifications after reading)
   - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)

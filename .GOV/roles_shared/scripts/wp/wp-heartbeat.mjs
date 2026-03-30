@@ -88,6 +88,21 @@ function nullableValue(value) {
   return raw;
 }
 
+function normalizeRole(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function assertRouteField(fieldName, actual, asserted, formatter = (value) => nullableValue(value)) {
+  const actualValue = formatter(actual);
+  const assertedValue = formatter(asserted);
+  if (actualValue !== assertedValue) {
+    throw new Error(
+      `Heartbeat is liveness-only: ${fieldName} expected ${actualValue ?? "<null>"} but got ${assertedValue ?? "<null>"}. `
+      + "Use receipts, notifications, or closeout-sync helpers to change workflow routing.",
+    );
+  }
+}
+
 function recordWpHeartbeatCore({
   wpId,
   actorRole,
@@ -136,14 +151,10 @@ function recordWpHeartbeatCore({
   runtime.current_packet_status = parsePacketStatus(context.packetText);
   runtime.runtime_status = RUNTIME_STATUS;
   runtime.current_phase = CURRENT_PHASE;
-  runtime.next_expected_actor = NEXT_EXPECTED_ACTOR;
-  runtime.next_expected_session = NEXT_EXPECTED_SESSION;
-  runtime.waiting_on = WAITING_ON;
-  runtime.waiting_on_session = WAITING_ON_SESSION;
-  runtime.validator_trigger = VALIDATOR_TRIGGER;
-  runtime.validator_trigger_reason = VALIDATOR_TRIGGER === "NONE" ? null : `${ACTOR_ROLE} signaled ${VALIDATOR_TRIGGER}`;
-  runtime.ready_for_validation = ["READY_FOR_VALIDATION", "POST_WORK_PASS", "HANDOFF_READY"].includes(VALIDATOR_TRIGGER);
-  runtime.ready_for_validation_reason = runtime.ready_for_validation ? runtime.validator_trigger_reason : null;
+  assertRouteField("next_expected_actor", runtime.next_expected_actor, NEXT_EXPECTED_ACTOR, normalizeRole);
+  assertRouteField("next_expected_session", runtime.next_expected_session, NEXT_EXPECTED_SESSION);
+  assertRouteField("waiting_on", runtime.waiting_on, WAITING_ON, (value) => String(value || "").trim());
+  assertRouteField("waiting_on_session", runtime.waiting_on_session, WAITING_ON_SESSION);
   runtime.last_event = String(lastEvent || `heartbeat_${ACTOR_ROLE.toLowerCase()}`);
   runtime.last_event_at = now;
   runtime.last_heartbeat_at = now;
@@ -172,9 +183,13 @@ function recordWpHeartbeatCore({
 
   writeJsonFile(runtimeStatusPath, runtime);
 
-  const nextDescriptor = NEXT_EXPECTED_SESSION ? `${NEXT_EXPECTED_ACTOR}:${NEXT_EXPECTED_SESSION}` : NEXT_EXPECTED_ACTOR;
-  const waitingDescriptor = WAITING_ON_SESSION ? `${WAITING_ON} (${WAITING_ON_SESSION})` : WAITING_ON;
-  const summary = `${ACTOR_ROLE} heartbeat: ${RUNTIME_STATUS}/${CURRENT_PHASE}; next=${nextDescriptor}; waiting_on=${waitingDescriptor}; validator_trigger=${VALIDATOR_TRIGGER}`;
+  const observedNextActor = normalizeRole(runtime.next_expected_actor);
+  const observedNextSession = nullableValue(runtime.next_expected_session);
+  const observedWaitingOn = String(runtime.waiting_on || "").trim();
+  const observedWaitingOnSession = nullableValue(runtime.waiting_on_session);
+  const nextDescriptor = observedNextSession ? `${observedNextActor}:${observedNextSession}` : observedNextActor;
+  const waitingDescriptor = observedWaitingOnSession ? `${observedWaitingOn} (${observedWaitingOnSession})` : observedWaitingOn;
+  const summary = `${ACTOR_ROLE} heartbeat: ${RUNTIME_STATUS}/${CURRENT_PHASE}; next=${nextDescriptor}; waiting_on=${waitingDescriptor}; heartbeat_validator_trigger=${VALIDATOR_TRIGGER}`;
   appendWpReceipt({
     wpId: WP_ID,
     actorRole: ACTOR_ROLE,
@@ -185,8 +200,8 @@ function recordWpHeartbeatCore({
     stateAfter: `${runtime.runtime_status}/${runtime.current_phase}`,
     refs: [runtimeStatusPath],
     worktreeDir: worktreeDir || runtime.current_worktree_dir || null,
-    targetRole: runtime.next_expected_actor === "NONE" ? null : runtime.next_expected_actor,
-    targetSession: runtime.next_expected_session,
+    targetRole: null,
+    targetSession: null,
     correlationId: `heartbeat:${WP_ID}:${ACTOR_SESSION}:${now}`,
   }, { assumeTransactionLock: true });
 

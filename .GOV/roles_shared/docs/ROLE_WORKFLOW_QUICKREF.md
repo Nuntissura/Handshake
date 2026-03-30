@@ -106,8 +106,8 @@ Primary commands:
 - `just orchestrator-worktree-and-packet WP-...`
 - `just orchestrator-prepare-and-packet WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>]`
 - `just coder-worktree-add WP-...`
-- ~~`just wp-validator-worktree-add WP-...`~~ (WP Validator uses coder worktree [CX-212D])
-- ~~`just integration-validator-worktree-add WP-...`~~ (Integration Validator uses handshake_main [CX-212D])
+- `just wp-validator-worktree-add WP-...`
+- `just integration-validator-worktree-add WP-...`
 - `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
@@ -124,11 +124,16 @@ Primary commands:
 - `just session-send <ROLE> WP-... "<prompt>" [PRIMARY|FALLBACK]`
 - `just session-cancel <ROLE> WP-...`
 - `just session-registry-status [WP-...]`
+- `just active-lane-brief <ROLE> WP-... [--json]`
+- `just orchestrator-steer-next WP-... [PRIMARY|FALLBACK]`
 - `just pre-work WP-...`
 - `just wp-heartbeat WP-... ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`
 - `just wp-thread-append WP-... ORCHESTRATOR <session> "<message>" [target]`
 - `just operator-monitor`
+- Heartbeat note: `wp-heartbeat` is liveness-only. `next_actor` / `waiting_on` must match current runtime route and cannot be used to steer the lane.
+- `just session-registry-status WP-...` now also surfaces derived stalled-relay state for the filtered WP.
+- If relay state is `ESCALATED`, use `just orchestrator-steer-next WP-...` instead of waiting silently.
 - Inside the monitor:
   - `c` closes governed sessions for the selected WP after a role prompt + confirmation.
   - `b` stops the ACP broker after confirmation, but only if no governed runs are active.
@@ -145,9 +150,12 @@ Primary commands:
 - Hygiene: `just product-scan`, `just validator-dal-audit`, `just validator-git-hygiene`
 - Workflow closure evidence: `just post-work WP-...`
 - Session start/steering: `just start-coder-session WP-...`, `just steer-coder-session WP-... "<prompt>"`
+- `just active-lane-brief CODER WP-... [--json]`
 - `just wp-heartbeat WP-... CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... CODER <session> <receipt_kind> "<summary>"`
 - `just wp-thread-append WP-... CODER <session> "<message>" [target]`
+- Heartbeat note: `wp-heartbeat` is liveness-only. Use receipts/notifications to change routing, not heartbeat.
+- If context/routing feels fragmented, use `just active-lane-brief CODER WP-...` instead of rereading packet/runtime/session truth separately.
 
 Role rule:
 - Only the Primary Coder may use sub-agents, and only when the packet explicitly allows it.
@@ -164,9 +172,12 @@ Primary commands (per WP validation):
 - `just validator-git-hygiene`
 - `just codex-check` (product boundary enforcement)
 - Session start/steering: `just start-wp-validator-session WP-...`, `just steer-wp-validator-session WP-... "<prompt>"`
+- `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-... [--json]`
 - `just wp-heartbeat WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
 - `just wp-receipt-append WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - `just wp-thread-append WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
+- Heartbeat note: `wp-heartbeat` is liveness-only. Route changes must come from receipts/notifications or closeout projection.
+- If context/routing feels fragmented, use `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-...` instead of rereading packet/runtime/session truth separately.
 - `just wp-validator-query WP-... CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
 - `just wp-validator-response WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
 - `just wp-review-request WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`

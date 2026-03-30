@@ -46,7 +46,10 @@ These are safe starting points for orientation and health checks.
   - presence check for required governance docs
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
-  - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role
+  - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role plus derived stalled-relay status
+- `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
+  - `read-only`
+  - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, and next commands
 - `just wp-token-usage WP-{ID}`
   - `read-only`
   - print the governed per-WP token ledger aggregated from settled ACP session outputs
@@ -62,6 +65,10 @@ These are safe starting points for orientation and health checks.
   - `read-only`
   - role-specific resume helpers after startup/reset/compaction
   - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, post-signature routine Operator interruptions are invalid; `just orchestrator-next` should print `OPERATOR_ACTION: NONE` unless a machine-visible `BLOCKER_CLASS` is present
+- `just orchestrator-steer-next WP-{ID} [PRIMARY|FALLBACK]`
+  - `runtime-write`
+  - launch or steer the next expected governed actor directly from runtime/receipt projection without a manually written relay prompt
+  - when stalled-relay escalation is active, this is the canonical continue/repair command instead of silent waiting
 
 ## Minimal Live Read Set (Token Discipline)
 
@@ -71,6 +78,7 @@ After startup and assignment, roles should usually be able to operate from a sma
 - the assigned packet
 - the active WP thread / notifications
 - this command-surface reference when command choice is unclear
+- `just active-lane-brief <ROLE> WP-{ID}` when packet/runtime/session truth feels fragmented
 
 Repeated full rereads of large governance protocols, repeated `just --list`-style command rediscovery, and repeated path/source-of-truth checks after context is already stable should be treated as ambiguity smells, not as normal diligence.
 
@@ -92,6 +100,7 @@ If a role keeps needing those rereads:
 - `just validator-startup`
   - `read-only`
   - protocol ack + backup context + role preflight
+  - governed startup prompts are derived from `session-control-lib.mjs` and now explicitly include `AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + role protocol + startup output + packet`
 - `just orchestrator-preflight`
 - `just coder-preflight`
 - `just validator-preflight`
@@ -200,7 +209,8 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
   - soft coordination only
 - `just wp-heartbeat ...`
   - `runtime-write`
-  - liveness/state projection only
+  - liveness and actor-local phase projection only
+  - `next_actor`, `waiting_on`, and related route fields are assertion-only against current runtime truth; heartbeat must not be used to change workflow routing or validator-readiness semantics
 - `just wp-receipt-append ...`
   - `runtime-write`
   - low-level deterministic receipt append
