@@ -2913,4 +2913,67 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn workflow_run_scope_rejects_invalid_uuid() -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let exporter = DefaultDebugBundleExporter::new(state.clone());
+        let workspace = tempdir()?;
+        let output_dir = workspace.path().join("bundle");
+        let _workspace_root = WorkspaceRootGuard::enter(workspace.path()).await;
+
+        let result = exporter
+            .export(DebugBundleRequest {
+                scope: BundleScope::WorkflowRun {
+                    workflow_run_id: "not-a-uuid".to_string(),
+                },
+                redaction_mode: RedactionMode::SafeDefault,
+                output_path: Some(output_dir),
+                include_artifacts: false,
+            })
+            .await;
+
+        match result {
+            Err(BundleExportError::InvalidScope(message)) => {
+                assert!(message.contains("workflow_run_id must be a UUID"));
+            }
+            other => panic!("expected InvalidScope for workflow_run UUID, got {:?}", other),
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn workflow_node_execution_scope_rejects_invalid_node_uuid(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let exporter = DefaultDebugBundleExporter::new(state.clone());
+        let workspace = tempdir()?;
+        let output_dir = workspace.path().join("bundle");
+        let _workspace_root = WorkspaceRootGuard::enter(workspace.path()).await;
+
+        let result = exporter
+            .export(DebugBundleRequest {
+                scope: BundleScope::WorkflowNodeExecution {
+                    workflow_run_id: Uuid::new_v4().to_string(),
+                    workflow_node_execution_id: "not-a-uuid".to_string(),
+                },
+                redaction_mode: RedactionMode::SafeDefault,
+                output_path: Some(output_dir),
+                include_artifacts: false,
+            })
+            .await;
+
+        match result {
+            Err(BundleExportError::InvalidScope(message)) => {
+                assert!(message.contains("workflow_node_execution_id must be a UUID"));
+            }
+            other => panic!(
+                "expected InvalidScope for workflow_node_execution UUID, got {:?}",
+                other
+            ),
+        }
+
+        Ok(())
+    }
 }

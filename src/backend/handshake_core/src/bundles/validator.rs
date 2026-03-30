@@ -110,6 +110,7 @@ const BUNDLE_CANDIDATE_FILES: &[&str] = &[
     "diagnostics.jsonl",
     "retention_report.json",
     "redaction_report.json",
+    "workflow_node_executions.jsonl",
     "repro.md",
     "coder_prompt.md",
 ];
@@ -1114,7 +1115,206 @@ fn validate_safe_default_leaks(contents: &BundleContents, findings: &mut Vec<Val
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bundles::schemas::{
+        AvailableCounts, BundleEnv, BundleJob, BundleJobStatus, BundleManifest, BundleManifestFile,
+        EnvConfig, ExpiredEvidence, ManifestScope, PlatformInfo, PlatformInfoMinimal,
+        PolicyDecision, RedactionDetector, RedactionMode, RedactionReport, RedactionSummary,
+        RetentionPolicy, RetentionReport, ScopeKind, WorkflowNodeExecutionBundleRecord,
+    };
+    use chrono::Utc;
+    use std::path::Path;
     use tempfile::tempdir;
+    use uuid::Uuid;
+
+    fn encode_json_bytes<T: serde::Serialize>(value: &T) -> Result<Vec<u8>, BundleExportError> {
+        serde_json::to_vec(value).map_err(|error| BundleExportError::Validation(error.to_string()))
+    }
+
+    fn encode_json_line<T: serde::Serialize>(value: &T) -> Result<String, BundleExportError> {
+        serde_json::to_string(value)
+            .map_err(|error| BundleExportError::Validation(error.to_string()))
+    }
+
+    fn bundle_job(workflow_run_id: &str) -> BundleJob {
+        BundleJob {
+            job_id: Uuid::new_v4().to_string(),
+            job_kind: "workflow_run".to_string(),
+            protocol_id: "protocol-default".to_string(),
+            status: BundleJobStatus::Completed,
+            created_at: Utc::now(),
+            started_at: None,
+            ended_at: None,
+            profile_id: "default".to_string(),
+            capability_profile_id: "Coder".to_string(),
+            wsid: Some("ws-test".to_string()),
+            doc_id: None,
+            inputs_hash: "0".repeat(64),
+            outputs_hash: None,
+            inputs_preview: None,
+            outputs_preview: None,
+            error: None,
+            metrics: None,
+            workflow_run_id: Some(workflow_run_id.to_string()),
+            parent_job_id: None,
+            diagnostic_ids: Vec::new(),
+            event_ids: Vec::new(),
+        }
+    }
+
+    fn bundle_env() -> BundleEnv {
+        BundleEnv {
+            app_version: "test".to_string(),
+            build_hash: "build".to_string(),
+            platform: PlatformInfoMinimal {
+                os: "windows".to_string(),
+                arch: "x86_64".to_string(),
+            },
+            rust_version: "rustc".to_string(),
+            node_version: None,
+            wsid: Some("ws-test".to_string()),
+            workspace_name: Some("ws-test".to_string()),
+            config: EnvConfig {
+                model_runtime: "test".to_string(),
+                default_model: None,
+                flight_recorder_retention_days: 7,
+            },
+            feature_flags: Vec::new(),
+            redaction_note: "safe".to_string(),
+        }
+    }
+
+    fn retention_report() -> RetentionReport {
+        RetentionReport {
+            report_generated_at: Utc::now(),
+            retention_policy: RetentionPolicy {
+                flight_recorder_days: 7,
+                diagnostics_days: 7,
+                job_metadata_days: 7,
+            },
+            available: AvailableCounts {
+                jobs: 1,
+                diagnostics: 0,
+                events: 0,
+            },
+            expired: ExpiredEvidence {
+                jobs: Vec::new(),
+                diagnostics: Vec::new(),
+                event_ranges: Vec::new(),
+            },
+            evidence_gaps: Vec::new(),
+        }
+    }
+
+    fn redaction_report() -> RedactionReport {
+        RedactionReport {
+            redaction_mode: RedactionMode::SafeDefault,
+            report_generated_at: Utc::now(),
+            detectors: vec![RedactionDetector {
+                id: "detector".to_string(),
+                version: "1".to_string(),
+                patterns_count: 0,
+            }],
+            summary: RedactionSummary {
+                files_scanned: 0,
+                files_redacted: 0,
+                total_redactions: 0,
+                by_category: HashMap::new(),
+            },
+            redactions: Vec::new(),
+            policy_decisions: Vec::<PolicyDecision>::new(),
+        }
+    }
+
+    fn write_bundle_fixture(
+        dir: &Path,
+        scope: ManifestScope,
+        workflow_nodes: Option<Vec<WorkflowNodeExecutionBundleRecord>>,
+        workflow_node_execution_count: Option<u32>,
+    ) -> Result<(), BundleExportError> {
+        let jobs = vec![bundle_job(
+            scope.workflow_run_id.as_deref().unwrap_or("run-test"),
+        )];
+        let env = bundle_env();
+        let retention = retention_report();
+        let redaction = redaction_report();
+        let repro = "# repro".to_string();
+        let coder_prompt = "Workflow scope debug bundle".to_string();
+
+        let mut files: Vec<(String, Vec<u8>)> = vec![
+            ("env.json".to_string(), encode_json_bytes(&env)?),
+            ("jobs.json".to_string(), encode_json_bytes(&jobs)?),
+            ("trace.jsonl".to_string(), Vec::new()),
+            ("diagnostics.jsonl".to_string(), Vec::new()),
+            (
+                "retention_report.json".to_string(),
+                encode_json_bytes(&retention)?,
+            ),
+            (
+                "redaction_report.json".to_string(),
+                encode_json_bytes(&redaction)?,
+            ),
+            ("repro.md".to_string(), repro.into_bytes()),
+            ("coder_prompt.md".to_string(), coder_prompt.into_bytes()),
+        ];
+        if let Some(nodes) = workflow_nodes.as_ref() {
+            let mut bytes = Vec::new();
+            for node in nodes {
+                bytes.extend_from_slice(encode_json_line(node)?.as_bytes());
+                bytes.push(b'\n');
+            }
+            files.push(("workflow_node_executions.jsonl".to_string(), bytes));
+        }
+
+        for (name, bytes) in &files {
+            std::fs::write(dir.join(name), bytes)?;
+        }
+
+        let manifest_files: Vec<BundleManifestFile> = files
+            .iter()
+            .map(|(name, bytes)| BundleManifestFile {
+                path: name.clone(),
+                sha256: sha256_hex(bytes),
+                size_bytes: bytes.len() as u64,
+                redacted: false,
+            })
+            .collect();
+        let mut manifest = BundleManifest {
+            schema_version: "1.0".to_string(),
+            bundle_id: Uuid::new_v4().to_string(),
+            bundle_kind: "debug_bundle".to_string(),
+            created_at: Utc::now(),
+            scope,
+            redaction_mode: RedactionMode::SafeDefault,
+            workflow_run_id: "run-test".to_string(),
+            job_id: "job-test".to_string(),
+            exporter_version: "test".to_string(),
+            platform: PlatformInfo {
+                os: "windows".to_string(),
+                arch: "x86_64".to_string(),
+                app_version: "test".to_string(),
+                build_hash: "build".to_string(),
+            },
+            files: manifest_files.clone(),
+            included: crate::bundles::schemas::IncludedCounts {
+                job_count: jobs.len() as u32,
+                diagnostic_count: 0,
+                event_count: 0,
+                workflow_node_execution_count,
+            },
+            missing_evidence: Vec::new(),
+            bundle_hash: String::new(),
+        };
+        let file_hashes: Vec<(String, String)> = manifest_files
+            .iter()
+            .map(|file| (file.path.clone(), file.sha256.clone()))
+            .collect();
+        manifest.bundle_hash = compute_bundle_hash(&manifest, &file_hashes);
+        std::fs::write(
+            dir.join("bundle_manifest.json"),
+            encode_json_bytes(&manifest)?,
+        )?;
+        Ok(())
+    }
 
     #[test]
     fn val_bundle_001_reports_missing_files() -> Result<(), BundleExportError> {
@@ -1133,6 +1333,138 @@ mod tests {
                 .iter()
                 .any(|f| f.code.starts_with("VAL-BUNDLE-001")),
             "expected VAL-BUNDLE-001 finding"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn workflow_correlated_scope_requires_workflow_node_inventory_file(
+    ) -> Result<(), BundleExportError> {
+        let dir = tempdir()?;
+        write_bundle_fixture(
+            dir.path(),
+            ManifestScope {
+                kind: ScopeKind::WorkflowRun,
+                problem_id: None,
+                job_id: None,
+                workflow_run_id: Some("run-test".to_string()),
+                workflow_node_execution_id: None,
+                time_range: None,
+                wsid: Some("ws-test".to_string()),
+            },
+            None,
+            Some(0),
+        )?;
+
+        let report = ValBundleValidator.validate_dir(dir.path())?;
+        assert!(!report.valid);
+        assert!(
+            report.findings.iter().any(|finding| {
+                finding
+                    .message
+                    .contains("workflow_node_executions.jsonl is required")
+            }),
+            "unexpected findings: {:?}",
+            report.findings
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn workflow_node_execution_scope_reports_count_mismatch() -> Result<(), BundleExportError> {
+        let dir = tempdir()?;
+        let workflow_run_id = Uuid::new_v4().to_string();
+        let scope_node_id = Uuid::new_v4().to_string();
+        write_bundle_fixture(
+            dir.path(),
+            ManifestScope {
+                kind: ScopeKind::WorkflowNodeExecution,
+                problem_id: None,
+                job_id: None,
+                workflow_run_id: Some(workflow_run_id.clone()),
+                workflow_node_execution_id: Some(scope_node_id.clone()),
+                time_range: None,
+                wsid: Some("ws-test".to_string()),
+            },
+            Some(vec![
+                WorkflowNodeExecutionBundleRecord {
+                    workflow_node_execution_id: scope_node_id,
+                    workflow_run_id: workflow_run_id.clone(),
+                    node_id: "node-a".to_string(),
+                    status: "completed".to_string(),
+                    started_at: Utc::now(),
+                    finished_at: None,
+                    job_id: None,
+                    input_sha256: None,
+                    output_sha256: None,
+                },
+                WorkflowNodeExecutionBundleRecord {
+                    workflow_node_execution_id: Uuid::new_v4().to_string(),
+                    workflow_run_id,
+                    node_id: "node-b".to_string(),
+                    status: "completed".to_string(),
+                    started_at: Utc::now(),
+                    finished_at: None,
+                    job_id: None,
+                    input_sha256: None,
+                    output_sha256: None,
+                },
+            ]),
+            Some(1),
+        )?;
+
+        let report = ValBundleValidator.validate_dir(dir.path())?;
+        assert!(!report.valid);
+        assert!(
+            report.findings.iter().any(|finding| {
+                finding
+                    .message
+                    .contains("included.workflow_node_execution_count=Some(1) does not match")
+            }),
+            "unexpected findings: {:?}",
+            report.findings
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn workflow_node_inventory_rejects_wrong_workflow_run_id() -> Result<(), BundleExportError> {
+        let dir = tempdir()?;
+        let scope_run_id = Uuid::new_v4().to_string();
+        write_bundle_fixture(
+            dir.path(),
+            ManifestScope {
+                kind: ScopeKind::WorkflowNodeExecution,
+                problem_id: None,
+                job_id: None,
+                workflow_run_id: Some(scope_run_id.clone()),
+                workflow_node_execution_id: Some(Uuid::new_v4().to_string()),
+                time_range: None,
+                wsid: Some("ws-test".to_string()),
+            },
+            Some(vec![WorkflowNodeExecutionBundleRecord {
+                workflow_node_execution_id: Uuid::new_v4().to_string(),
+                workflow_run_id: Uuid::new_v4().to_string(),
+                node_id: "node-a".to_string(),
+                status: "completed".to_string(),
+                started_at: Utc::now(),
+                finished_at: None,
+                job_id: None,
+                input_sha256: None,
+                output_sha256: None,
+            }]),
+            Some(1),
+        )?;
+
+        let report = ValBundleValidator.validate_dir(dir.path())?;
+        assert!(!report.valid);
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| { finding.message.contains("outside scoped workflow_run_id") }),
+            "unexpected findings: {:?}",
+            report.findings
         );
         Ok(())
     }
