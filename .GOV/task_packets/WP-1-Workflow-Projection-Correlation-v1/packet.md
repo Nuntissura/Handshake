@@ -1118,7 +1118,7 @@ SPEC_CLAUSE_MAP:
 - `Export manifest requirements that already mention workflow_run_id must be reconciled with explicit scope law and workflow-node inventory proof.` -> `src/backend/handshake_core/src/bundles/validator.rs:340-351`; `src/backend/handshake_core/src/bundles/validator.rs:780-853`; `src/backend/handshake_core/src/bundles/validator.rs:1120-1136`; `src/backend/handshake_core/src/bundles/zip.rs:75`
 
 NEGATIVE_PROOF:
-- Repo governance still does not let the Integration Validator complete `integration-validator-closeout-check` or `integration-validator-closeout-sync` from inside an active ACP `SEND_PROMPT`, because the session-control closeout bundle treats the current governed run as a blocker. This is tracked separately under `RGF-17` and is outside the signed product scope for this WP.
+- `src/backend/handshake_core/src/bundles/exporter.rs:613-614` records `input_sha256` and `output_sha256` for workflow node executions, but the bundle validator currently proves only scope membership and inventory integrity at `src/backend/handshake_core/src/bundles/validator.rs:780-853`; it does not yet validate those node payload hashes against exported artifacts. The workflow-correlation scope is closed, while the broader node-payload integrity surface remains partial.
 
 REASON FOR PASS:
 - The signed workflow-correlation scope is contained in local `main` at `1f1495a1c0801f17e8e99a01fec859962a717722`, the committed-handoff gate is durable PASS, the bounded workflow scope tests all pass on `main`, and the remaining failure mode is a governed closeout execution bug rather than an unresolved product or spec gap.

@@ -18,6 +18,7 @@ import {
 import { validateMergeProgressionTruth } from "../../../roles_shared/scripts/lib/merge-progression-truth-lib.mjs";
 import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/semantic-proof-lib.mjs";
 import { validateSignedScopeCompatibilityTruth } from "../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
+import { validateContainedMainCommitAgainstSignedScope } from "../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
 import {
   activeWorkflowInvalidityReceipt,
   parseJsonlFile,
@@ -315,6 +316,15 @@ if (packetFormatVersion) {
     if (signedScopeCompatibilityTruth.errors.length > 0) {
       fail(`signed scope compatibility truth invalid for closed packet: ${signedScopeCompatibilityTruth.errors.join("; ")}`);
     }
+    if (/^Validated\s*\(\s*PASS\s*\)$/i.test(statusValue)) {
+      const containedMainScope = validateContainedMainCommitAgainstSignedScope(text, {
+        repoRoot: process.cwd(),
+        mergedMainCommit: mergeProgressionTruth?.parsed?.mergedMainCommit || "",
+      });
+      if (containedMainScope.errors.length > 0) {
+        fail(`contained main commit violates signed scope surface: ${containedMainScope.errors.join("; ")}`);
+      }
+    }
     if (!topologyEvaluation.ok) {
       fail(`declared WP topology invalid for closed packet: ${topologyEvaluation.issues.join("; ")}`);
     }
@@ -434,6 +444,7 @@ if (packetFormatVersion) {
     const residualUncertainty = extractListItemsAfterLabel(validationReports, "RESIDUAL_UNCERTAINTY");
     const boundaryProbes = extractListItemsAfterLabel(validationReports, "BOUNDARY_PROBES");
     const negativePathChecks = extractListItemsAfterLabel(validationReports, "NEGATIVE_PATH_CHECKS");
+    const negativeProofItems = extractListItemsAfterLabel(validationReports, "NEGATIVE_PROOF");
     const abandonedClosure = topLevelVerdict === "ABANDONED" || /^Validated\s*\(\s*ABANDONED\s*\)$/i.test(statusValue);
     if (abandonedClosure) {
       if (topLevelVerdict !== "ABANDONED") {
@@ -507,6 +518,11 @@ if (packetFormatVersion) {
         });
         if (signedScopeCompatibilityForPass.errors.length > 0) {
           fail(`Verdict=PASS requires signed scope compatibility truth to be PASS-ready: ${signedScopeCompatibilityForPass.errors.join("; ")}`);
+        }
+        for (const item of negativeProofItems) {
+          if (!hasConcreteCodeReference(item) || /\.GOV\/|gov_runtime\/|TASK_BOARD|RUNTIME_STATUS|ROLE_SESSION_REGISTRY|SESSION_CONTROL|VALIDATOR_PROTOCOL|ORCHESTRATOR_PROTOCOL|COMMAND_SURFACE_REFERENCE|governance closeout|outside the signed product scope/i.test(item)) {
+            fail(`Verdict=PASS requires NEGATIVE_PROOF to stay inside signed product scope with concrete product code evidence (${item})`);
+          }
         }
       }
     }

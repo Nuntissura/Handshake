@@ -14,6 +14,9 @@ import {
   updateSignedScopeCompatibilityTruth,
 } from "../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
 import {
+  validateContainedMainCommitAgainstSignedScope,
+} from "../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
+import {
   evaluateValidatorPacketGovernanceState,
   resolveValidatorActorContext,
 } from "../scripts/lib/validator-governance-lib.mjs";
@@ -164,7 +167,7 @@ const evaluation = evaluateIntegrationValidatorCloseoutState({
   requireReadyForPass: false,
 });
 
-if (!evaluation.topology?.ok || !evaluation.closeoutBundle?.ok) {
+if (!evaluation.ok) {
   fail("Closeout sync preflight failed", [
     ...evaluation.issues,
   ]);
@@ -173,6 +176,17 @@ if (!evaluation.topology?.ok || !evaluation.closeoutBundle?.ok) {
 const baselineSha = String(evaluation.topology.currentMainHeadSha || "").trim();
 if (!/^[0-9a-f]{40}$/i.test(baselineSha)) {
   fail("Closeout sync could not resolve current local main HEAD for signed-scope compatibility truth");
+}
+if (requestedMode.requireMergedMainCommit) {
+  const containedMainScope = validateContainedMainCommitAgainstSignedScope(originalPacketText, {
+    repoRoot,
+    mergedMainCommit,
+  });
+  if (!containedMainScope.ok) {
+    fail("Closeout sync requires the contained main commit to match the signed scope surface", [
+      ...containedMainScope.errors,
+    ]);
+  }
 }
 
 const timestamp = new Date().toISOString();

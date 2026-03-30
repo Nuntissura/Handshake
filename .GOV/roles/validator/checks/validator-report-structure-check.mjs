@@ -93,6 +93,10 @@ function hasConcreteCodeReference(value) {
   );
 }
 
+function negativeProofLeaksToGovernance(value) {
+  return /\.GOV\/|gov_runtime\/|TASK_BOARD|RUNTIME_STATUS|ROLE_SESSION_REGISTRY|SESSION_CONTROL|VALIDATOR_PROTOCOL|ORCHESTRATOR_PROTOCOL|COMMAND_SURFACE_REFERENCE|governance closeout|outside the signed product scope/i.test(String(value || ""));
+}
+
 function isClosedStatus(status) {
   return /\b(done|validated)\b/i.test(String(status || ""));
 }
@@ -347,6 +351,13 @@ for (const rel of files) {
               `${rel}: LEGAL_VERDICT=PASS requires SPEC_CLAUSE_MAP entries to include file:line evidence (${item})`,
             );
           }
+        }
+      }
+      for (const item of negativeProof) {
+        if (!hasConcreteCodeReference(item) || negativeProofLeaksToGovernance(item)) {
+          violations.push(
+            `${rel}: LEGAL_VERDICT=PASS requires NEGATIVE_PROOF entries to stay inside signed product scope with concrete product code evidence (${item})`,
+          );
         }
       }
     }
