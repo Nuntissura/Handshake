@@ -296,6 +296,11 @@ Assessment:
   - `CURRENT_MAIN_COMPATIBILITY_STATUS` and widening/containment packet fields are stale
   - runtime/task-board surfaces still lag actual proof state
   - final integration-validator validation report has not been appended yet
+- Adjacent governance/product drift newly reconfirmed after the sweep:
+  - `WP-1-Project-Profile-Extension-Registry-v1` remains open in product code and must not be treated as done from the current partial envelope plumbing alone
+  - summary/work-packet/micro-task records accept optional `profile_extension` metadata, but no registry of supported extension-schema contracts is implemented yet
+  - Task Board and Role Mailbox projections still flatten records to `software_delivery` and drop the profile-extension boundary, so the generic-viewer/export contract is not closed
+  - no product proof currently demonstrates the required non-software profile example on emitted artifacts
 
 ## 12. Post-Smoketest Improvement Rubric
 
@@ -389,11 +394,17 @@ Assessment:
 - Add a single closeout-sync path for orchestrator-managed lanes after temporary clean-state validation succeeds.
 - Make `RUNTIME_STATUS.json` and task-board projection advance automatically when committed-handoff or integration closeout proofs are recorded.
 - Distinguish temporary clean-state proof from durable live checkout truth in a first-class gate field so the lane does not appear greener than it is.
+- Add a governance hard-warning when a backlog stub is being socially treated as complete but current product evidence still fails its acceptance contract.
 
 ### Product / Validation Quality
 
 - Preserve the clean-room patch artifact pattern for future shared-surface packets.
 - Keep the WP validator in the early steering role; this run shows that pattern is materially better than late-only review.
+- Create a dedicated remediation WP for `WP-1-Project-Profile-Extension-Registry-v1` instead of rounding the historical stub to done.
+- Scope that remediation around end-to-end registry truth:
+  - explicit profile-kind and extension-schema registry evidence
+  - Task Board and Role Mailbox propagation of the base-envelope versus profile-extension boundary
+  - at least one software-delivery and one non-software emitted-artifact proof case
 
 ### Documentation / Review Practice
 
@@ -707,3 +718,5 @@ Assessment:
 - Residual risk:
   - the governance sweep materially reduced stale behavior and path drift, but the next real orchestrator-managed ACP WP is still required as the proof run for the refreshed lane
   - the TUI is much less stale and easier to read, but it is still an operator viewport, not a full workflow cockpit
+  - adjacent governance drift is still present around project-profile portability: `WP-1-Project-Profile-Extension-Registry-v1` is easy to over-credit because envelope validation landed before registry/export/viewer closure
+  - a dedicated remediation WP is therefore still needed before downstream project-agnostic workflow-law packets are treated as safely unlocked

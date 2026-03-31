@@ -130,6 +130,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
   - `just launch-coder-session WP-{ID}`
   - `just launch-wp-validator-session WP-{ID}`
   - `just launch-integration-validator-session WP-{ID}`
+  - normal supported launch paths now auto-issue the first governed `START_SESSION`; keep `start-*` for explicit recovery or exceptional manual repair
 - Orchestrator-only steering commands:
   - `just start-coder-session WP-{ID}`
   - `just start-wp-validator-session WP-{ID}`

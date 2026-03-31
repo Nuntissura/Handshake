@@ -431,3 +431,43 @@
   - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: `validator-gate-*` writes on orchestrator-managed packets now fail before mutating state when the current branch/worktree does not resolve to a governed validator lane, and the error points callers to `validator-next`, `integration-validator-context-brief`, or `external-validator-brief` instead of letting wrong-tool attempts masquerade as legitimate gate progression
+
+### 2026.03.31.01 / GOV-CHANGE-20260331-01
+
+- STATUS: APPLIED
+- SUMMARY: restored communications-repair command-surface parity and made WP communications template drift fail closed before invalid runtime artifacts can be written
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs`
+  - `.GOV/roles_shared/tests/ensure-wp-communications.test.mjs`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-command-surface.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-40`
+- OUTCOME: the sanctioned `just ensure-wp-communications WP-{ID}` repair helper now exists, unreplaced `{{TOKEN}}` drift in packet communication templates is rejected before file writes, and regression checks cover both command-surface parity and template-token completeness
+
+### 2026.03.31.02 / GOV-CHANGE-20260331-02
+
+- STATUS: APPLIED
+- SUMMARY: hardened orchestrator-managed launch so the ordinary launch path auto-issues the first governed ACP start instead of stopping at a launch-only false green
+- CHANGE_TYPE: ACP_RUNTIME_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-40`
+- OUTCOME: supported `launch-*` paths now auto-attempt the initial governed `START_SESSION`, startup proof becomes visible in launch summaries, and the explicit `start-*` helpers remain available as recovery tools instead of being required for the normal orchestrator-managed path

@@ -134,9 +134,12 @@ Use this flow only for repo-governance maintenance that stays out of product cod
   - `just gov-check`
     - `read-only`
     - mandatory verification before claiming governance-maintenance completion
-  - `just build-order-sync`
-    - `governance-write`
-    - required only when governance changes affect `TASK_BOARD.md` or `WP_TRACEABILITY_REGISTRY.md`
+- `just build-order-sync`
+  - `governance-write`
+  - required only when governance changes affect `TASK_BOARD.md` or `WP_TRACEABILITY_REGISTRY.md`
+- `just ensure-wp-communications WP-{ID}`
+  - `runtime-write`
+  - rebuild or repair the packet-declared communication artifacts under external runtime; this is the sanctioned repair helper when communications bootstrap drift is suspected
 
 ## Packet activation and governance state writes
 
@@ -179,11 +182,12 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just launch-integration-validator-session WP-{ID} ...`
   - `runtime-write`
   - launch/bootstrap lane
+  - on the ordinary orchestrator-managed path, supported launch hosts now auto-issue the first governed `START_SESSION` so launch does not stop at a launch-only false green
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-{ID} ...`
 - `just start-integration-validator-session WP-{ID} ...`
   - `runtime-write`
-  - first governed ACP start for the lane
+  - explicit governed ACP start / recovery helper when a launch host could not complete the first start automatically
 - `just steer-coder-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
 - `just steer-wp-validator-session WP-{ID} ...`
 - `just steer-integration-validator-session WP-{ID} ...`

@@ -181,6 +181,9 @@ const retiredRootScriptsDir = [GOV_ROOT_REPO_REL, "scripts"].join("/");
 requireRecipe(errors, justfileContent, "worktree-add", [
   `${JUSTFILE_GOV_PREFIX}/roles_shared/scripts/topology/worktree-add.mjs`,
 ]);
+requireRecipe(errors, justfileContent, "ensure-wp-communications", [
+  `${JUSTFILE_GOV_PREFIX}/roles_shared/scripts/wp/ensure-wp-communications.mjs`,
+]);
 requireRecipe(errors, justfileContent, "coder-worktree-add", [
   `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/role-session-worktree-add.mjs CODER`,
 ]);
@@ -271,6 +274,8 @@ requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "## R
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "## Read-Amplification and Ambiguity Discipline");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "## Read-Amplification and Ambiguity Discipline");
 requireSubstring(errors, LAUNCH_CLI_SESSION_PATH, launchCliSession, "buildStartupPrompt");
+requireSubstring(errors, LAUNCH_CLI_SESSION_PATH, launchCliSession, "session-control-command.mjs");
+requireSubstring(errors, LAUNCH_CLI_SESSION_PATH, launchCliSession, '"START_SESSION"');
 requireSubstring(errors, SESSION_CONTROL_COMMAND_PATH, sessionControlCommand, "buildStartupPrompt");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "MINIMAL LIVE READ SET (MANDATORY):");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, ".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md");

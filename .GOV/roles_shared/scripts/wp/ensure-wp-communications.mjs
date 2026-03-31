@@ -53,6 +53,17 @@ function fillAll(text, replacements) {
   return output;
 }
 
+export function findUnreplacedTemplateTokens(text) {
+  return [...new Set(String(text || "").match(/\{\{[A-Z0-9_]+\}\}/g) || [])].sort();
+}
+
+function assertNoUnreplacedTemplateTokens(text, label, wpId) {
+  const unreplaced = findUnreplacedTemplateTokens(text);
+  if (unreplaced.length > 0) {
+    throw new Error(`Unreplaced template token(s) in ${label} for ${wpId}: ${unreplaced.join(", ")}`);
+  }
+}
+
 function writeIfMissing(filePath, content) {
   const fileAbsPath = repoPathAbs(filePath);
   if (fs.existsSync(fileAbsPath)) return false;
@@ -77,6 +88,82 @@ function requireTemplateFile(filePath) {
   if (!fs.existsSync(repoPathAbs(filePath))) {
     throw new Error(`Missing WP communication template: ${normalize(filePath)}`);
   }
+}
+
+export function buildWpCommunicationTemplateReplacements({
+  wpId,
+  baseWpId,
+  dateIso,
+  workflowLane,
+  executionOwner,
+  workflowAuthority,
+  technicalAdvisor,
+  technicalAuthority,
+  mergeAuthority,
+  wpValidatorOfRecord,
+  integrationValidatorOfRecord,
+  secondaryValidatorSessionsJson,
+  localBranch,
+  localWorktreeDir,
+  agenticMode,
+  packetStatus,
+  mainContainmentStatusJson,
+  mergedMainCommitJson,
+  mainContainmentVerifiedAtUtcJson,
+  currentMainCompatibilityStatusJson,
+  currentMainCompatibilityBaselineShaJson,
+  currentMainCompatibilityVerifiedAtUtcJson,
+  packetWideningDecisionJson,
+  packetWideningEvidenceJson,
+  taskPacketPath,
+  communicationDir,
+  threadFile,
+  runtimeStatusFile,
+  receiptsFile,
+  heartbeatIntervalMinutes,
+  heartbeatDueAt,
+  staleAfter,
+  maxCoderRevisionCycles,
+  maxValidatorReviewCycles,
+  maxRelayEscalationCycles,
+} = {}) {
+  return {
+    "{{WP_ID}}": wpId,
+    "{{BASE_WP_ID}}": baseWpId,
+    "{{DATE_ISO}}": dateIso,
+    "{{WORKFLOW_LANE}}": workflowLane,
+    "{{EXECUTION_OWNER}}": executionOwner,
+    "{{WORKFLOW_AUTHORITY}}": workflowAuthority,
+    "{{TECHNICAL_ADVISOR}}": technicalAdvisor,
+    "{{TECHNICAL_AUTHORITY}}": technicalAuthority,
+    "{{MERGE_AUTHORITY}}": mergeAuthority,
+    "{{WP_VALIDATOR_OF_RECORD}}": wpValidatorOfRecord,
+    "{{INTEGRATION_VALIDATOR_OF_RECORD}}": integrationValidatorOfRecord,
+    "{{SECONDARY_VALIDATOR_SESSIONS}}": secondaryValidatorSessionsJson,
+    "{{LOCAL_BRANCH}}": localBranch,
+    "{{LOCAL_WORKTREE_DIR}}": localWorktreeDir,
+    "{{AGENTIC_MODE}}": agenticMode,
+    "{{PACKET_STATUS}}": packetStatus,
+    "{{MAIN_CONTAINMENT_STATUS}}": mainContainmentStatusJson,
+    "{{MERGED_MAIN_COMMIT}}": mergedMainCommitJson,
+    "{{MAIN_CONTAINMENT_VERIFIED_AT_UTC}}": mainContainmentVerifiedAtUtcJson,
+    "{{CURRENT_MAIN_COMPATIBILITY_STATUS}}": currentMainCompatibilityStatusJson,
+    "{{CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA}}": currentMainCompatibilityBaselineShaJson,
+    "{{CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC}}": currentMainCompatibilityVerifiedAtUtcJson,
+    "{{PACKET_WIDENING_DECISION}}": packetWideningDecisionJson,
+    "{{PACKET_WIDENING_EVIDENCE}}": packetWideningEvidenceJson,
+    "{{TASK_PACKET_PATH}}": taskPacketPath,
+    "{{WP_COMMUNICATION_DIR}}": communicationDir,
+    "{{WP_THREAD_FILE}}": threadFile,
+    "{{WP_RUNTIME_STATUS_FILE}}": runtimeStatusFile,
+    "{{WP_RECEIPTS_FILE}}": receiptsFile,
+    "{{HEARTBEAT_INTERVAL_MINUTES}}": heartbeatIntervalMinutes,
+    "{{HEARTBEAT_DUE_AT}}": heartbeatDueAt,
+    "{{STALE_AFTER}}": staleAfter,
+    "{{MAX_CODER_REVISION_CYCLES}}": maxCoderRevisionCycles,
+    "{{MAX_VALIDATOR_REVIEW_CYCLES}}": maxValidatorReviewCycles,
+    "{{MAX_RELAY_ESCALATION_CYCLES}}": maxRelayEscalationCycles,
+  };
 }
 
 function ensureWpCommunicationsCore({
@@ -119,6 +206,21 @@ function ensureWpCommunicationsCore({
   const MERGED_MAIN_COMMIT = normalizeNoneLike(parseSingleField(packetText, "MERGED_MAIN_COMMIT"));
   const MAIN_CONTAINMENT_VERIFIED_AT_UTC = normalizeNoneLike(
     parseSingleField(packetText, "MAIN_CONTAINMENT_VERIFIED_AT_UTC"),
+  );
+  const CURRENT_MAIN_COMPATIBILITY_STATUS = String(
+    normalizeNoneLike(parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS")) || "NOT_RUN",
+  ).trim().toUpperCase();
+  const CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA = normalizeNoneLike(
+    parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA"),
+  );
+  const CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC = normalizeNoneLike(
+    parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC"),
+  );
+  const PACKET_WIDENING_DECISION = String(
+    normalizeNoneLike(parseSingleField(packetText, "PACKET_WIDENING_DECISION")) || "NONE",
+  ).trim().toUpperCase();
+  const PACKET_WIDENING_EVIDENCE = normalizeNoneLike(
+    parseSingleField(packetText, "PACKET_WIDENING_EVIDENCE"),
   );
   const WORKFLOW_AUTHORITY = String(parseSingleField(packetText, "WORKFLOW_AUTHORITY") || "ORCHESTRATOR").trim();
   const TECHNICAL_ADVISOR = String(parseSingleField(packetText, "TECHNICAL_ADVISOR") || "WP_VALIDATOR").trim();
@@ -200,51 +302,68 @@ function ensureWpCommunicationsCore({
   if (!MAIN_CONTAINMENT_STATUS_VALUES.includes(MAIN_CONTAINMENT_STATUS)) {
     throw new Error(`Invalid MAIN_CONTAINMENT_STATUS for ${WP_ID}: ${MAIN_CONTAINMENT_STATUS}`);
   }
+  if (!CURRENT_MAIN_COMPATIBILITY_STATUS) {
+    throw new Error(`Invalid CURRENT_MAIN_COMPATIBILITY_STATUS for ${WP_ID}: ${CURRENT_MAIN_COMPATIBILITY_STATUS}`);
+  }
+  if (!PACKET_WIDENING_DECISION) {
+    throw new Error(`Invalid PACKET_WIDENING_DECISION for ${WP_ID}: ${PACKET_WIDENING_DECISION}`);
+  }
 
-  const replacements = {
-    "{{WP_ID}}": WP_ID,
-    "{{BASE_WP_ID}}": BASE_WP_ID,
-    "{{DATE_ISO}}": DATE_ISO,
-    "{{WORKFLOW_LANE}}": WORKFLOW_LANE,
-    "{{EXECUTION_OWNER}}": EXECUTION_OWNER,
-    "{{WORKFLOW_AUTHORITY}}": WORKFLOW_AUTHORITY,
-    "{{TECHNICAL_ADVISOR}}": TECHNICAL_ADVISOR,
-    "{{TECHNICAL_AUTHORITY}}": TECHNICAL_AUTHORITY,
-    "{{MERGE_AUTHORITY}}": MERGE_AUTHORITY,
-    "{{WP_VALIDATOR_OF_RECORD}}": WP_VALIDATOR_OF_RECORD ? JSON.stringify(WP_VALIDATOR_OF_RECORD) : "null",
-    "{{INTEGRATION_VALIDATOR_OF_RECORD}}": INTEGRATION_VALIDATOR_OF_RECORD ? JSON.stringify(INTEGRATION_VALIDATOR_OF_RECORD) : "null",
-    "{{SECONDARY_VALIDATOR_SESSIONS}}": SECONDARY_VALIDATOR_SESSIONS_RAW.toUpperCase() === "NONE"
+  const replacements = buildWpCommunicationTemplateReplacements({
+    wpId: WP_ID,
+    baseWpId: BASE_WP_ID,
+    dateIso: DATE_ISO,
+    workflowLane: WORKFLOW_LANE,
+    executionOwner: EXECUTION_OWNER,
+    workflowAuthority: WORKFLOW_AUTHORITY,
+    technicalAdvisor: TECHNICAL_ADVISOR,
+    technicalAuthority: TECHNICAL_AUTHORITY,
+    mergeAuthority: MERGE_AUTHORITY,
+    wpValidatorOfRecord: WP_VALIDATOR_OF_RECORD ? JSON.stringify(WP_VALIDATOR_OF_RECORD) : "null",
+    integrationValidatorOfRecord: INTEGRATION_VALIDATOR_OF_RECORD ? JSON.stringify(INTEGRATION_VALIDATOR_OF_RECORD) : "null",
+    secondaryValidatorSessionsJson: SECONDARY_VALIDATOR_SESSIONS_RAW.toUpperCase() === "NONE"
       ? "[]"
       : JSON.stringify(SECONDARY_VALIDATOR_SESSIONS_RAW.split(",").map((value) => value.trim()).filter(Boolean)),
-    "{{LOCAL_BRANCH}}": LOCAL_BRANCH,
-    "{{LOCAL_WORKTREE_DIR}}": LOCAL_WORKTREE_DIR,
-    "{{AGENTIC_MODE}}": AGENTIC_MODE,
-    "{{PACKET_STATUS}}": PACKET_STATUS,
-    "{{MAIN_CONTAINMENT_STATUS}}": JSON.stringify(MAIN_CONTAINMENT_STATUS),
-    "{{MERGED_MAIN_COMMIT}}": MERGED_MAIN_COMMIT ? JSON.stringify(MERGED_MAIN_COMMIT) : "null",
-    "{{MAIN_CONTAINMENT_VERIFIED_AT_UTC}}": MAIN_CONTAINMENT_VERIFIED_AT_UTC
-      ? JSON.stringify(MAIN_CONTAINMENT_VERIFIED_AT_UTC)
-      : "null",
-    "{{TASK_PACKET_PATH}}": normalize(packetPath),
-    "{{WP_COMMUNICATION_DIR}}": normalize(wpCommDir),
-    "{{WP_THREAD_FILE}}": normalize(threadPath),
-    "{{WP_RUNTIME_STATUS_FILE}}": normalize(runtimeStatusPath),
-    "{{WP_RECEIPTS_FILE}}": normalize(receiptsPath),
-    "{{HEARTBEAT_INTERVAL_MINUTES}}": String(HEARTBEAT_INTERVAL_MINUTES),
-    "{{HEARTBEAT_DUE_AT}}": addMinutes(DATE_ISO, HEARTBEAT_INTERVAL_MINUTES),
-    "{{STALE_AFTER}}": addMinutes(DATE_ISO, STALE_AFTER_MINUTES),
-    "{{MAX_CODER_REVISION_CYCLES}}": String(MAX_CODER_REVISION_CYCLES),
-    "{{MAX_VALIDATOR_REVIEW_CYCLES}}": String(MAX_VALIDATOR_REVIEW_CYCLES),
-    "{{MAX_RELAY_ESCALATION_CYCLES}}": String(MAX_RELAY_ESCALATION_CYCLES),
-  };
+    localBranch: LOCAL_BRANCH,
+    localWorktreeDir: LOCAL_WORKTREE_DIR,
+    agenticMode: AGENTIC_MODE,
+    packetStatus: PACKET_STATUS,
+    mainContainmentStatusJson: JSON.stringify(MAIN_CONTAINMENT_STATUS),
+    mergedMainCommitJson: MERGED_MAIN_COMMIT ? JSON.stringify(MERGED_MAIN_COMMIT) : "null",
+    mainContainmentVerifiedAtUtcJson: MAIN_CONTAINMENT_VERIFIED_AT_UTC ? JSON.stringify(MAIN_CONTAINMENT_VERIFIED_AT_UTC) : "null",
+    currentMainCompatibilityStatusJson: JSON.stringify(CURRENT_MAIN_COMPATIBILITY_STATUS),
+    currentMainCompatibilityBaselineShaJson: CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA ? JSON.stringify(CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA) : "null",
+    currentMainCompatibilityVerifiedAtUtcJson: CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC ? JSON.stringify(CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC) : "null",
+    packetWideningDecisionJson: JSON.stringify(PACKET_WIDENING_DECISION),
+    packetWideningEvidenceJson: PACKET_WIDENING_EVIDENCE ? JSON.stringify(PACKET_WIDENING_EVIDENCE) : "null",
+    taskPacketPath: normalize(packetPath),
+    communicationDir: normalize(wpCommDir),
+    threadFile: normalize(threadPath),
+    runtimeStatusFile: normalize(runtimeStatusPath),
+    receiptsFile: normalize(receiptsPath),
+    heartbeatIntervalMinutes: String(HEARTBEAT_INTERVAL_MINUTES),
+    heartbeatDueAt: addMinutes(DATE_ISO, HEARTBEAT_INTERVAL_MINUTES),
+    staleAfter: addMinutes(DATE_ISO, STALE_AFTER_MINUTES),
+    maxCoderRevisionCycles: String(MAX_CODER_REVISION_CYCLES),
+    maxValidatorReviewCycles: String(MAX_VALIDATOR_REVIEW_CYCLES),
+    maxRelayEscalationCycles: String(MAX_RELAY_ESCALATION_CYCLES),
+  });
 
   const threadTemplate = fs.readFileSync(repoPathAbs(THREAD_TEMPLATE), "utf8");
   const runtimeTemplate = fs.readFileSync(repoPathAbs(RUNTIME_TEMPLATE), "utf8");
   const receiptsTemplate = fs.readFileSync(repoPathAbs(RECEIPTS_TEMPLATE), "utf8");
 
-  writeIfMissing(threadPath, fillAll(threadTemplate, replacements));
-  writeIfMissing(runtimeStatusPath, fillAll(runtimeTemplate, replacements));
-  writeIfMissing(receiptsPath, fillAll(receiptsTemplate, replacements));
+  const renderedThread = fillAll(threadTemplate, replacements);
+  const renderedRuntime = fillAll(runtimeTemplate, replacements);
+  const renderedReceipts = fillAll(receiptsTemplate, replacements);
+
+  assertNoUnreplacedTemplateTokens(renderedThread, THREAD_FILE_NAME, WP_ID);
+  assertNoUnreplacedTemplateTokens(renderedRuntime, RUNTIME_STATUS_FILE_NAME, WP_ID);
+  assertNoUnreplacedTemplateTokens(renderedReceipts, RECEIPTS_FILE_NAME, WP_ID);
+
+  writeIfMissing(threadPath, renderedThread);
+  writeIfMissing(runtimeStatusPath, renderedRuntime);
+  writeIfMissing(receiptsPath, renderedReceipts);
 
   const notificationsPath = normalize(path.join(wpCommDir, NOTIFICATIONS_FILE_NAME));
   const cursorPath = normalize(path.join(wpCommDir, NOTIFICATION_CURSOR_FILE_NAME));

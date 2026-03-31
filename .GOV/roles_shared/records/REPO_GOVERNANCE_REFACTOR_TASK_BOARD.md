@@ -1,6 +1,6 @@
 # Repo Governance Refactor Task Board
 
-**Status:** Governance refactor complete; ACP speed/cost remediation, folder sweeps, and operator-viewport refresh complete
+**Status:** Governance refactor reopened for 2026-03-31 smoketest remediation; autonomy and runtime-projection follow-ons are active
 **Scope:** Governance-only refactor tracking for `/.GOV/`  
 **Authority:** `.GOV/roles_shared/docs/REPO_GOVERNANCE_REFACTOR_ROADMAP.md`
 
@@ -90,6 +90,9 @@
 | RGF-35 | DONE | `roles/validator` Folder Sweep and PASS-Lane Hardening | RGF-32 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | `roles/validator/checks`, validator scripts/libs, closeout/report surfaces, gate helpers | validator-facing governance code is line-by-line audited so PASS/FAIL/ABANDONED truth, scope proof, and closeout routing remain mechanically correct without rubber-stamp drift |
 | RGF-36 | DONE | ACP Workflow and Runtime Control-Plane Sweep | RGF-32, RGF-33, RGF-35 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | ACP broker/runtime/session ledgers, notifications, registry projections, bridge/runtime monitors | the ACP/runtime layer is audited end-to-end for waiting cost, broker drift, stale projection behavior, and non-atomic routing so the governed lane becomes cheaper and more mechanical |
 | RGF-37 | DONE | Operator Viewport Modernization and Interaction Refresh | RGF-33, RGF-36 | `AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW` / `SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1` | `operator/scripts/operator-viewport-tui.mjs`, active-lane brief/session views, operator docs | the operator viewport is refreshed into a modern, lower-friction TUI with stronger visual hierarchy, better lane/session/status visibility, compact event timelines, and less stale noise without introducing a heavier web control layer |
+| RGF-38 | IN_PROGRESS | Autonomous Launch-to-Start Convergence | RGF-24, RGF-30, RGF-36 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `justfile`, `roles/orchestrator/scripts/launch-cli-session.mjs`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`, `roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`, `roles_shared/checks/protocol-alignment-check.mjs` | normal orchestrator-managed launch no longer stops at a launch-only false green; the first governed ACP start happens on the ordinary launch path and recovery helpers remain explicit |
+| RGF-39 | IN_PROGRESS | WP Communications Helper Parity and Template Completeness | RGF-36 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `justfile`, `roles_shared/scripts/wp/ensure-wp-communications.mjs`, `roles_shared/checks/protocol-alignment-check.mjs`, `roles/orchestrator/tests/orchestrator-command-surface.test.mjs`, `roles_shared/tests` | the printed communications-repair helper exists on the sanctioned command surface, and template drift fails closed before invalid runtime artifacts are written |
+| RGF-40 | READY | Runtime / Relay Projection Convergence After Review Traffic | RGF-24, RGF-27, RGF-30, RGF-36, RGF-38 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles_shared/scripts/wp/wp-receipt-append.mjs`, `roles_shared/scripts/lib/wp-communication-health-lib.mjs`, runtime projection helpers, operator status surfaces | review receipts move runtime `phase` / `status` / `waiting_on` truth coherently enough that stale `BOOTSTRAP` or stale relay escalation does not persist after live direct-review traffic |
 
 ## Refactor Sequence (Historical)
 
@@ -131,6 +134,9 @@
 27. `RGF-35`
 28. `RGF-36`
 29. `RGF-37`
+30. `RGF-38`
+31. `RGF-39`
+32. `RGF-40`
 
 ## Explicit Holds
 
