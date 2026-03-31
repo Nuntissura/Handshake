@@ -30,8 +30,9 @@ const AUTOGEN_BEGIN = "<!-- BUILD_ORDER_AUTOGEN:BEGIN -->";
 const AUTOGEN_END = "<!-- BUILD_ORDER_AUTOGEN:END -->";
 
 function resolveRepoRoot() {
+  const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   try {
-    const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    const out = execFileSync("git", ["-C", fileRelativeRepoRoot, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
@@ -42,7 +43,7 @@ function resolveRepoRoot() {
 
   // This file lives at: /.GOV/roles_shared/scripts/build-order-sync.mjs
   // Up 2 => /.GOV => repo root
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  return fileRelativeRepoRoot;
 }
 
 function fail(message, details = []) {

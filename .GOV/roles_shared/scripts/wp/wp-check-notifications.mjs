@@ -11,7 +11,7 @@ import {
   NOTIFICATION_CURSOR_FILE_NAME,
   ROUTABLE_ROLE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
-import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 
 function parseSingleField(text, label) {
@@ -22,25 +22,27 @@ function parseSingleField(text, label) {
 
 function resolveCommDir(wpId) {
   const packetPath = workPacketPath(wpId);
-  if (fs.existsSync(packetPath)) {
-    const text = fs.readFileSync(packetPath, "utf8");
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (fs.existsSync(packetAbsPath)) {
+    const text = fs.readFileSync(packetAbsPath, "utf8");
     const commDir = parseSingleField(text, "WP_COMMUNICATION_DIR");
-    if (commDir && fs.existsSync(commDir)) return normalize(commDir);
+    if (commDir && fs.existsSync(repoPathAbs(commDir))) return normalize(commDir);
   }
   return communicationPathsForWp(wpId).dir;
 }
 
 function loadCursor(cursorPath) {
-  if (!fs.existsSync(cursorPath)) return {};
+  const cursorAbsPath = repoPathAbs(cursorPath);
+  if (!fs.existsSync(cursorAbsPath)) return {};
   try {
-    return JSON.parse(fs.readFileSync(cursorPath, "utf8"));
+    return JSON.parse(fs.readFileSync(cursorAbsPath, "utf8"));
   } catch {
     return {};
   }
 }
 
 function saveCursor(cursorPath, cursorData) {
-  writeJsonFile(cursorPath, cursorData);
+  writeJsonFile(repoPathAbs(cursorPath), cursorData);
 }
 
 function normalizeSession(value) {
@@ -103,8 +105,9 @@ function ensureCursorStorage(cursorData) {
 }
 
 function loadNotifications(notificationsPath) {
-  if (!fs.existsSync(notificationsPath)) return [];
-  const text = fs.readFileSync(notificationsPath, "utf8");
+  const notificationsAbsPath = repoPathAbs(notificationsPath);
+  if (!fs.existsSync(notificationsAbsPath)) return [];
+  const text = fs.readFileSync(notificationsAbsPath, "utf8");
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   return lines.map((line, index) => {
     try {
@@ -236,9 +239,11 @@ function runCli() {
   const args = process.argv.slice(2);
   const wpId = args[0] || "";
   const role = args[1] || "";
+  const positionalSession = normalizeSession(args[2] || "");
   const ackFlag = args.includes("--ack");
   const session = args.find((arg) => arg.startsWith("--session="))?.slice("--session=".length) || null;
   const allFlag = args.includes("--all");
+  const resolvedSession = normalizeSession(session || positionalSession);
 
   if (!wpId) {
     console.error(
@@ -263,10 +268,13 @@ function runCli() {
     return;
   }
 
-  const result = checkNotifications({ wpId, role, ack: ackFlag, session });
+  const result = checkNotifications({ wpId, role, ack: ackFlag, session: resolvedSession });
 
   if (result.pendingCount === 0) {
     console.log(`[WP_NOTIFICATIONS] ${wpId} ${role}: no pending notifications`);
+    if (resolvedSession) {
+      console.log(`  session: ${resolvedSession}`);
+    }
     if (result.lastReadAt) {
       console.log(`  last_read_at: ${result.lastReadAt}`);
     }
@@ -274,6 +282,9 @@ function runCli() {
   }
 
   console.log(`[WP_NOTIFICATIONS] ${wpId} ${role}: ${result.pendingCount} pending notification(s)`);
+  if (resolvedSession) {
+    console.log(`  session: ${resolvedSession}`);
+  }
   for (const [kind, count] of Object.entries(result.byKind)) {
     console.log(`  - ${kind}: ${count}`);
   }

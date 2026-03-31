@@ -1,12 +1,12 @@
 import fs from "node:fs";
-import { inferWpIdFromPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 import { parseMergeProgressionTruth } from "../scripts/lib/merge-progression-truth-lib.mjs";
 import { packetRequiresMergeContainmentTruth } from "../scripts/session/session-policy.mjs";
 
-const TRACE_REGISTRY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
-const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
-const TASK_PACKETS_DIR = ".GOV/task_packets";
-const TASK_PACKET_STUBS_DIR = ".GOV/task_packets/stubs";
+const TRACE_REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
+const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
+const TASK_PACKETS_DIR = `${GOV_ROOT_REPO_REL}/task_packets`;
+const TASK_PACKET_STUBS_DIR = `${GOV_ROOT_REPO_REL}/task_packets/stubs`;
 
 function fail(message, details = []) {
   console.error(`[PACKET_TRUTH_CHECK] ${message}`);
@@ -141,14 +141,15 @@ function expectedBoardTokensForPacket(packet) {
 
 function readPacketInventory(dir, kind) {
   const entries = [];
-  if (!fs.existsSync(dir)) return entries;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  const dirAbs = repoPathAbs(dir);
+  if (!fs.existsSync(dirAbs)) return entries;
+  for (const entry of fs.readdirSync(dirAbs, { withFileTypes: true })) {
     let filePath = "";
     let packetId = "";
     if (entry.isDirectory()) {
       if (kind !== "official" || !entry.name.startsWith("WP-")) continue;
       filePath = `${dir}/${entry.name}/packet.md`.replace(/\\/g, "/");
-      if (!fs.existsSync(filePath)) continue;
+      if (!fs.existsSync(repoPathAbs(filePath))) continue;
       packetId = entry.name;
     } else if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md") {
       filePath = `${dir}/${entry.name}`.replace(/\\/g, "/");
@@ -156,7 +157,7 @@ function readPacketInventory(dir, kind) {
     } else {
       continue;
     }
-    const text = fs.readFileSync(filePath, "utf8");
+    const text = fs.readFileSync(repoPathAbs(filePath), "utf8");
     entries.push({
       kind,
       filePath,
@@ -169,11 +170,11 @@ function readPacketInventory(dir, kind) {
   return entries;
 }
 
-const registryContent = fs.existsSync(TRACE_REGISTRY_PATH)
-  ? fs.readFileSync(TRACE_REGISTRY_PATH, "utf8")
+const registryContent = fs.existsSync(repoPathAbs(TRACE_REGISTRY_PATH))
+  ? fs.readFileSync(repoPathAbs(TRACE_REGISTRY_PATH), "utf8")
   : "";
-const taskBoardContent = fs.existsSync(TASK_BOARD_PATH)
-  ? fs.readFileSync(TASK_BOARD_PATH, "utf8")
+const taskBoardContent = fs.existsSync(repoPathAbs(TASK_BOARD_PATH))
+  ? fs.readFileSync(repoPathAbs(TASK_BOARD_PATH), "utf8")
   : "";
 
 const registryRows = parseRegistryRows(registryContent);

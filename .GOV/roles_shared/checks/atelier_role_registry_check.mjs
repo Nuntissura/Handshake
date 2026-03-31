@@ -21,8 +21,9 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 function resolveRepoRoot() {
+  const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   try {
-    const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    const out = execFileSync("git", ["-C", fileRelativeRepoRoot, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     })
@@ -34,7 +35,7 @@ function resolveRepoRoot() {
 
   // This file lives at: /.GOV/roles_shared/checks/atelier_role_registry_check.mjs
   // Up 3 => repo root.
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  return fileRelativeRepoRoot;
 }
 
 const repoRoot = path.resolve(resolveRepoRoot());
@@ -49,6 +50,8 @@ function resolveCurrentRolepackPath() {
   }
 
   candidates.push(path.join(repoRoot, ROLEPACK_REL_PATH));
+  candidates.push(path.resolve(repoRoot, "../handshake_main", ROLEPACK_REL_PATH));
+  candidates.push(path.resolve(repoRoot, "../wt-ilja", ROLEPACK_REL_PATH));
 
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) {

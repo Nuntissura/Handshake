@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { GOV_ROOT_REPO_REL } from './runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, repoPathAbs } from './runtime-paths.mjs';
 
 export const SPEC_DEBT_REGISTRY_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'SPEC_DEBT_REGISTRY.md');
 
@@ -60,11 +60,12 @@ function replaceDebtItems(content, items) {
 
 export function loadSpecDebtRegistry(registryPath = SPEC_DEBT_REGISTRY_PATH) {
   const errors = [];
-  if (!fs.existsSync(registryPath)) {
+  const registryAbsPath = repoPathAbs(registryPath);
+  if (!fs.existsSync(registryAbsPath)) {
     return { errors: [`Missing spec debt registry: ${registryPath.replace(/\\/g, '/')}`], rowsById: new Map(), rows: [] };
   }
 
-  const content = fs.readFileSync(registryPath, 'utf8');
+  const content = fs.readFileSync(registryAbsPath, 'utf8');
   const debtItems = extractDebtItems(content);
   if (!debtItems.found) {
     errors.push(`SPEC_DEBT_REGISTRY missing ## DEBT_ROWS heading: ${registryPath.replace(/\\/g, '/')}`);
@@ -144,11 +145,12 @@ export function nextSpecDebtId(registry) {
 }
 
 export function writeSpecDebtRegistryRows(rows, registryPath = SPEC_DEBT_REGISTRY_PATH) {
-  if (!fs.existsSync(registryPath)) {
+  const registryAbsPath = repoPathAbs(registryPath);
+  if (!fs.existsSync(registryAbsPath)) {
     throw new Error(`Missing spec debt registry: ${registryPath.replace(/\\/g, "/")}`);
   }
-  const content = fs.readFileSync(registryPath, "utf8");
+  const content = fs.readFileSync(registryAbsPath, "utf8");
   const normalizedRows = rows.map((row) => formatSpecDebtRow(row));
   const nextContent = replaceDebtItems(content, normalizedRows);
-  fs.writeFileSync(registryPath, nextContent, "utf8");
+  fs.writeFileSync(registryAbsPath, nextContent, "utf8");
 }

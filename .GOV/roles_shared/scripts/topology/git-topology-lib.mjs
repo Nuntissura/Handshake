@@ -54,8 +54,9 @@ export const SNAPSHOT_EXCLUDE_DIRS = [
 export const SNAPSHOT_EXCLUDE_FILES = [".git"];
 
 function resolveRepoRoot() {
+  const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
   try {
-    const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    const out = execFileSync("git", ["-C", fileRelativeRepoRoot, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
@@ -63,7 +64,7 @@ function resolveRepoRoot() {
   } catch {
     // Ignore and fall back to file-relative resolution.
   }
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  return fileRelativeRepoRoot;
 }
 
 export const REPO_ROOT = path.resolve(resolveRepoRoot());

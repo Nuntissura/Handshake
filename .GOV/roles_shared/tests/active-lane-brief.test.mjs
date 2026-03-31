@@ -223,3 +223,59 @@ test("active-lane-brief hides stale notification and relay noise for terminal WP
   assert.equal(brief.relay.status, "TERMINAL_HIDDEN");
   assert.match(brief.relay.summary, /hidden for terminal WPs/i);
 });
+
+test("active-lane-brief only shows review items for the active target session", () => {
+  const fixture = createFixture();
+  const runtimeStatusPath = path.join(
+    fixture.govRuntimeRoot,
+    "roles_shared",
+    "WP_COMMUNICATIONS",
+    fixture.wpId,
+    "RUNTIME_STATUS.json",
+  );
+  const runtimeStatus = JSON.parse(fs.readFileSync(runtimeStatusPath, "utf8"));
+  runtimeStatus.open_review_items.push({
+    correlation_id: "kick-2",
+    receipt_kind: "VALIDATOR_KICKOFF",
+    summary: "Different coder session should not leak into the brief",
+    opened_by_role: "WP_VALIDATOR",
+    opened_by_session: "wpv-1",
+    target_role: "CODER",
+    target_session: "coder-2",
+    spec_anchor: "CX-LANE-002",
+    packet_row_ref: "CLAUSE_CLOSURE_MATRIX",
+    microtask_contract: {
+      scope_ref: "CLAUSE_CLOSURE_MATRIX/CX-LANE-002",
+      file_targets: ["src/backend/handshake_core/src/other.rs"],
+      proof_commands: ["cargo test other::tests::isolated -- --exact"],
+      risk_focus: "cross-session leakage",
+      expected_receipt_kind: "CODER_INTENT",
+    },
+    requires_ack: true,
+    opened_at: "2099-01-01T10:00:05Z",
+    updated_at: "2099-01-01T10:00:05Z",
+  });
+  runtimeStatus.active_role_sessions.push({
+    role: "CODER",
+    session_id: "coder-2",
+    state: "working",
+    last_heartbeat_at: "2099-01-01T10:00:05Z",
+  });
+  fs.writeFileSync(runtimeStatusPath, `${JSON.stringify(runtimeStatus, null, 2)}\n`, "utf8");
+
+  const result = spawnSync(process.execPath, [briefScript, "CODER", fixture.wpId, "--json"], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      HANDSHAKE_GOV_ROOT: fixture.govRoot,
+      HANDSHAKE_GOV_RUNTIME_ROOT: fixture.govRuntimeRoot,
+    },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const brief = JSON.parse(result.stdout);
+  assert.equal(brief.session.actor_session, "coder-1");
+  assert.equal(brief.review_queue.length, 1);
+  assert.equal(brief.review_queue[0].correlation_id, "kick-1");
+});

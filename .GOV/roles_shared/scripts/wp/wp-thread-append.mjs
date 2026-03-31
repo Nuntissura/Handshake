@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { communicationTransactionLockPathForWp, normalize } from "../lib/wp-communications-lib.mjs";
-import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
 import { appendWpReceipt } from "./wp-receipt-append.mjs";
 import { appendWpNotification, resolveTargetRoleFromMention } from "./wp-notification-append.mjs";
@@ -38,18 +38,25 @@ function nullableCliString(value) {
 
 function loadThreadContext(wpId) {
   const packetPath = workPacketPath(wpId);
-  if (!fs.existsSync(packetPath)) {
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbsPath)) {
     throw new Error(`Official packet not found: ${normalize(packetPath)}`);
   }
-  const packetText = fs.readFileSync(packetPath, "utf8");
+  const packetText = fs.readFileSync(packetAbsPath, "utf8");
   const threadFile = parseSingleField(packetText, "WP_THREAD_FILE");
   if (!threadFile) {
     throw new Error(`${normalize(packetPath)} does not declare WP_THREAD_FILE`);
   }
-  if (!fs.existsSync(threadFile)) {
+  const threadAbsPath = repoPathAbs(threadFile);
+  if (!fs.existsSync(threadAbsPath)) {
     throw new Error(`Thread file missing on disk: ${normalize(threadFile)}`);
   }
-  return { packetPath: normalize(packetPath), threadFile: normalize(threadFile) };
+  return {
+    packetPath: normalize(packetPath),
+    packetAbsPath: normalize(packetAbsPath),
+    threadFile: normalize(threadFile),
+    threadAbsPath: normalize(threadAbsPath),
+  };
 }
 
 function appendWpThreadEntryCore({
@@ -98,7 +105,7 @@ function appendWpThreadEntryCore({
   if (SPEC_ANCHOR) header.push(`spec_anchor=${SPEC_ANCHOR}`);
   if (PACKET_ROW_REF) header.push(`packet_row_ref=${PACKET_ROW_REF}`);
   const entryLines = [header.join(" | "), ...bodyLines.map((line) => `  ${line}`), ""];
-  fs.appendFileSync(context.threadFile, `${entryLines.join("\n")}\n`, "utf8");
+  fs.appendFileSync(context.threadAbsPath, `${entryLines.join("\n")}\n`, "utf8");
 
   if (recordReceipt) {
     appendWpReceipt({

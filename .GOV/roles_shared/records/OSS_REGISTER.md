@@ -495,6 +495,6 @@
 
 1) **Copyleft isolation (11.10.4 (2)):** GPL/AGPL components MUST be `external_process` (not `embedded_lib` or `external_service`). None present in current manifests.
 2) **Coverage rule:** Every dependency declared in `Cargo.lock`/`package.json` must appear in this register; update this file whenever dependencies change.
-3) **Security gate:** Supply-chain checks (e.g., `just validate`, `cargo deny`, npm audit equivalents) must be remediated within 48 hours or blocked at merge.
+3) **Security gate:** Supply-chain checks (for example `cargo deny`, npm audit equivalents, and any explicit WP `TEST_PLAN` security/hygiene commands) must be remediated within 48 hours or blocked at merge.
 4) **Evidence:** Register updates should cite the manifest/lock source in PR descriptions to keep provenance auditable.
 5) **Enforcement test:** `cargo test --manifest-path src/backend/handshake_core/Cargo.toml oss_register_enforcement` validates coverage and copyleft isolation per 11.10.4 (2).

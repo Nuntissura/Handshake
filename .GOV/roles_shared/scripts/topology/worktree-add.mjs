@@ -16,6 +16,14 @@ function normalizeWorktreePathForCompare(targetPath) {
   return process.platform === "win32" ? normalized.toLowerCase() : normalized;
 }
 
+function removeDirectoryLinkOnly(linkPath) {
+  if (process.platform === "win32") {
+    execFileSync("cmd", ["/c", "rmdir", linkPath], { stdio: "ignore" });
+    return;
+  }
+  fs.unlinkSync(linkPath);
+}
+
 function parseWorktreeListPorcelain(raw) {
   const entries = [];
   const lines = String(raw || "").split(/\r?\n/);
@@ -157,10 +165,29 @@ function main() {
 
   if (fs.existsSync(govDir) && fs.existsSync(govKernelAbs)) {
     const stat = fs.lstatSync(govDir);
-    // Skip if already a symlink or junction
-    if (!stat.isSymbolicLink()) {
+    let needsCreate = false;
+    if (stat.isSymbolicLink()) {
+      try {
+        const actualTarget = path.resolve(fs.realpathSync(govDir));
+        const expectedTarget = path.resolve(fs.realpathSync(govKernelAbs));
+        if (normalizeWorktreePathForCompare(actualTarget) === normalizeWorktreePathForCompare(expectedTarget)) {
+          console.log(`[WORKTREE_ADD] .GOV already linked -> ${govKernelAbs}`);
+        } else {
+          console.log(`[WORKTREE_ADD] Replacing incorrect .GOV junction in ${absDir}`);
+          removeDirectoryLinkOnly(govDir);
+          needsCreate = true;
+        }
+      } catch {
+        console.log(`[WORKTREE_ADD] Replacing unreadable .GOV junction in ${absDir}`);
+        removeDirectoryLinkOnly(govDir);
+        needsCreate = true;
+      }
+    } else {
       console.log(`[WORKTREE_ADD] Replacing inherited .GOV/ with junction to governance kernel`);
       fs.rmSync(govDir, { recursive: true, force: true });
+      needsCreate = true;
+    }
+    if (needsCreate) {
       if (process.platform === "win32") {
         execFileSync("cmd", ["/c", "mklink", "/J", govDir, govKernelAbs], { stdio: "inherit" });
       } else {

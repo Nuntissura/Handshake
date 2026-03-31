@@ -11,8 +11,9 @@ import {
 import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 function resolveRepoRoot() {
+  const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   try {
-    const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    const out = execFileSync("git", ["-C", fileRelativeRepoRoot, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
@@ -20,7 +21,7 @@ function resolveRepoRoot() {
   } catch {
     // Ignore and fall back.
   }
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  return fileRelativeRepoRoot;
 }
 
 function toPosix(value) {

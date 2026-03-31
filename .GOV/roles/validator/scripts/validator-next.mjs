@@ -172,7 +172,7 @@ function resolveWpId() {
     return { wpId: provided, gitContext, confidence: "HIGH", confidenceDetail: "explicit" };
   }
 
-  const inferred = inferWpIdFromPrepare(logs, gitContext);
+  const inferred = inferWpIdFromPrepare(logs, gitContext, gitContext.topLevel || process.cwd());
   if (inferred.wpId) {
     return {
       wpId: inferred.wpId,

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { buildActiveLaneBrief, formatActiveLaneBrief } from "../scripts/session/active-lane-brief-lib.mjs";
+import { REPO_ROOT } from "../scripts/lib/runtime-paths.mjs";
 
 function usage() {
   console.error("Usage: node .GOV/roles_shared/checks/active-lane-brief.mjs <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]");
@@ -14,7 +15,7 @@ const json = process.argv.slice(4).includes("--json");
 if (!role || !wpId || !/^WP-/.test(wpId)) usage();
 
 const brief = buildActiveLaneBrief({
-  repoRoot: process.cwd(),
+  repoRoot: REPO_ROOT,
   role,
   wpId,
 });

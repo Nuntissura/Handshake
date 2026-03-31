@@ -11,10 +11,18 @@ import {
   NOTIFICATIONS_FILE_NAME,
   ROUTABLE_ROLE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
-import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { appendJsonlLine, withFileLockSync } from "../session/session-registry-lib.mjs";
 
 const ACTIVE_AUTO_RELAY_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const ORCHESTRATOR_STEER_SCRIPT_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+  "roles",
+  "orchestrator",
+  "scripts",
+  "orchestrator-steer-next.mjs",
+);
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -24,10 +32,11 @@ function parseSingleField(text, label) {
 
 function resolveNotificationsFile(wpId) {
   const packetPath = workPacketPath(wpId);
-  if (fs.existsSync(packetPath)) {
-    const text = fs.readFileSync(packetPath, "utf8");
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (fs.existsSync(packetAbsPath)) {
+    const text = fs.readFileSync(packetAbsPath, "utf8");
     const commDir = parseSingleField(text, "WP_COMMUNICATION_DIR");
-    if (commDir && fs.existsSync(commDir)) {
+    if (commDir && fs.existsSync(repoPathAbs(commDir))) {
       return normalize(path.join(commDir, NOTIFICATIONS_FILE_NAME));
     }
   }
@@ -37,8 +46,9 @@ function resolveNotificationsFile(wpId) {
 
 function workflowLaneForWp(wpId) {
   const packetPath = workPacketPath(wpId);
-  if (!fs.existsSync(packetPath)) return "";
-  const text = fs.readFileSync(packetPath, "utf8");
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbsPath)) return "";
+  const text = fs.readFileSync(packetAbsPath, "utf8");
   return parseSingleField(text, "WORKFLOW_LANE") || "";
 }
 
@@ -51,12 +61,8 @@ function attemptOrchestratorAutoRelay({ wpId, notification }) {
     return { status: "NOT_APPLICABLE", reason: "NO_GOVERNED_TARGET_ROLE" };
   }
 
-  const orchestratorSteerPath = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "../../roles/orchestrator/scripts/orchestrator-steer-next.mjs",
-  );
   try {
-    const output = execFileSync(process.execPath, [orchestratorSteerPath, wpId, "PRIMARY"], {
+    const output = execFileSync(process.execPath, [ORCHESTRATOR_STEER_SCRIPT_PATH, wpId, "PRIMARY"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -83,6 +89,10 @@ function attemptOrchestratorAutoRelay({ wpId, notification }) {
   }
 }
 
+export function orchestratorSteerScriptPath() {
+  return ORCHESTRATOR_STEER_SCRIPT_PATH;
+}
+
 function appendWpNotificationCore({
   wpId,
   sourceKind,
@@ -104,7 +114,8 @@ function appendWpNotificationCore({
   if (SOURCE_ROLE === TARGET_ROLE) return null;
 
   const notificationsFile = resolveNotificationsFile(WP_ID);
-  const dir = path.dirname(notificationsFile);
+  const notificationsAbsPath = repoPathAbs(notificationsFile);
+  const dir = path.dirname(notificationsAbsPath);
   if (!fs.existsSync(dir)) return null;
 
   const entry = {
@@ -120,7 +131,7 @@ function appendWpNotificationCore({
     summary: String(summary || "").trim(),
   };
 
-  appendJsonlLine(notificationsFile, entry);
+  appendJsonlLine(notificationsAbsPath, entry);
   return entry;
 }
 

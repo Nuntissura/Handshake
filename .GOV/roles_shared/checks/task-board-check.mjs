@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
@@ -11,10 +11,10 @@ function fail(message, details = []) {
 }
 
 function readTaskBoard() {
-  if (!fs.existsSync(TASK_BOARD_PATH)) {
+  if (!fs.existsSync(repoPathAbs(TASK_BOARD_PATH))) {
     fail("Missing task board", [`Expected: ${TASK_BOARD_PATH}`]);
   }
-  return fs.readFileSync(TASK_BOARD_PATH, "utf8");
+  return fs.readFileSync(repoPathAbs(TASK_BOARD_PATH), "utf8");
 }
 
 function sectionKeyFromHeading(headingLine) {
@@ -82,13 +82,13 @@ function checkLines(lines) {
   for (const entry of doneEntries) {
     const resolved = resolveWorkPacketPath(entry.wpId);
     const packetPath = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${entry.wpId}.md`);
-    if (!resolved || !fs.existsSync(packetPath)) {
+    if (!resolved || !fs.existsSync(repoPathAbs(packetPath))) {
       semanticViolations.push(
         `${TASK_BOARD_PATH}:${entry.lineNumber}: Done WP has no task packet file: ${packetPath.replace(/\\/g, "/")}`
       );
       continue;
     }
-    const packetText = fs.readFileSync(packetPath, "utf8");
+    const packetText = fs.readFileSync(repoPathAbs(packetPath), "utf8");
     const isModernPacket = /^\s*-\s*PACKET_FORMAT_VERSION\s*:/mi.test(packetText);
     if (!isModernPacket) continue;
     const hasVerdict = /^\s*Verdict\s*:\s*(PASS|FAIL|OUTDATED_ONLY|ABANDONED)\b/mi.test(packetText);

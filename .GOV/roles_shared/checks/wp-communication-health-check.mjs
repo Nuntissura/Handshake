@@ -7,7 +7,7 @@ import {
   evaluateWpCommunicationHealth,
 } from "../scripts/lib/wp-communication-health-lib.mjs";
 import { normalize, parseJsonFile, parseJsonlFile } from "../scripts/lib/wp-communications-lib.mjs";
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 import { checkAllNotifications } from "../scripts/wp/wp-check-notifications.mjs";
 
 function usage() {
@@ -27,12 +27,13 @@ function parseSingleField(text, label) {
 function resolvePacketContext(wpId) {
   const resolved = resolveWorkPacketPath(wpId);
   const packetPath = resolved?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`;
-  if (!fs.existsSync(packetPath)) {
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbsPath)) {
     console.error(`[WP_COMMUNICATION_HEALTH] FAIL: Official packet not found`);
     console.error(`  - ${normalize(packetPath)}`);
     process.exit(1);
   }
-  const packetText = fs.readFileSync(packetPath, "utf8");
+  const packetText = fs.readFileSync(packetAbsPath, "utf8");
   return {
     packetPath: normalize(packetPath),
     packetText,
@@ -60,10 +61,10 @@ if (!wpId || !/^WP-/.test(wpId)) usage();
 if (!COMMUNICATION_HEALTH_STAGE_VALUES.includes(stage)) usage();
 
 const context = resolvePacketContext(wpId);
-const receipts = context.receiptsFile && fs.existsSync(context.receiptsFile)
+const receipts = context.receiptsFile && fs.existsSync(repoPathAbs(context.receiptsFile))
   ? parseJsonlFile(context.receiptsFile)
   : [];
-const runtimeStatus = context.runtimeStatusFile && fs.existsSync(context.runtimeStatusFile)
+const runtimeStatus = context.runtimeStatusFile && fs.existsSync(repoPathAbs(context.runtimeStatusFile))
   ? parseJsonFile(context.runtimeStatusFile)
   : { open_review_items: [] };
 const latestReceipt = receipts.at(-1) || null;

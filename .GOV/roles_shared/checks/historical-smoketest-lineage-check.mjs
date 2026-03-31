@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import { validateHistoricalSmoketestLineage } from "../scripts/lib/historical-smoketest-lineage-lib.mjs";
+import { GOV_ROOT_REPO_REL, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
-const TRACE_REGISTRY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
-const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
+const TRACE_REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
+const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
 function fail(message, details = []) {
   console.error(`[HISTORICAL_SMOKETEST_LINEAGE_CHECK] ${message}`);
@@ -10,11 +11,11 @@ function fail(message, details = []) {
   process.exit(1);
 }
 
-const registryText = fs.existsSync(TRACE_REGISTRY_PATH)
-  ? fs.readFileSync(TRACE_REGISTRY_PATH, "utf8")
+const registryText = fs.existsSync(repoPathAbs(TRACE_REGISTRY_PATH))
+  ? fs.readFileSync(repoPathAbs(TRACE_REGISTRY_PATH), "utf8")
   : "";
-const taskBoardText = fs.existsSync(TASK_BOARD_PATH)
-  ? fs.readFileSync(TASK_BOARD_PATH, "utf8")
+const taskBoardText = fs.existsSync(repoPathAbs(TASK_BOARD_PATH))
+  ? fs.readFileSync(repoPathAbs(TASK_BOARD_PATH), "utf8")
   : "";
 
 const result = validateHistoricalSmoketestLineage({

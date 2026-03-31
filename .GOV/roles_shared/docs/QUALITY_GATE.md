@@ -31,8 +31,8 @@ Purpose: reduce coding errors by standard checks and clear risk tiers.
 | Tier | Use when | Required checks | Review |
 | --- | --- | --- | --- |
 | LOW | Docs-only or comments; no behavior change | `just docs-check` (if docs touched) | Optional owner review |
-| MEDIUM | Code change within one module; no schema/IPC changes | `just validate` (or record why not) | Owner review required |
-| HIGH | Cross-module, IPC, migrations, auth/security, dependency updates, perf-critical | `just validate` + manual test steps | Two reviewers (owner + secondary) |
+| MEDIUM | Code change within one module; no schema/IPC changes | explicit WP `TEST_PLAN` commands + `just product-scan` (or record why not) | Owner review required |
+| HIGH | Cross-module, IPC, migrations, auth/security, dependency updates, perf-critical | explicit WP `TEST_PLAN` commands + `just product-scan` + manual test steps | Two reviewers (owner + secondary) |
 
 If uncertain, choose the higher tier.
 
@@ -49,7 +49,7 @@ If uncertain, choose the higher tier.
 - Targeted test added for logic changes, or explicit reason recorded.
 - Manual validator review completed and recorded (status + evidence mapping); no automated review required.
 
-`just validate` runs: `just docs-check`, `just codex-check`, `pnpm -C app run lint`, `pnpm -C app test`, `pnpm -C app run depcruise`, `cargo fmt`, `cargo clippy --all-targets --all-features`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`, `cargo deny check advisories licenses bans sources`.
+There is no sanctioned single `just validate` recipe in the live command surface. Product hygiene should be declared explicitly in the WP `TEST_PLAN`, typically combining `just product-scan` with the required frontend/backend commands such as `pnpm -C app run lint`, `pnpm -C app test`, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`.
 
 ## Gate 1: Post-Work Validation (AI Autonomy - Mandatory)
 
@@ -67,7 +67,9 @@ If uncertain, choose the higher tier.
 
 **Full workflow validation:**
 ```bash
-just validate-workflow WP-{ID}  # Runs pre-work, validate, post-work
+just pre-work WP-{ID}
+# run the packet TEST_PLAN product commands here
+just post-work WP-{ID}
 ```
 
 ## Self-review checklist (required)

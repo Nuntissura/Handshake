@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
+import { REPO_ROOT } from "../lib/runtime-paths.mjs";
 
-export const TERMINAL_SESSION_TASK_BOARD_STATUSES = new Set(["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"]);
+export const TERMINAL_SESSION_TASK_BOARD_STATUSES = new Set(["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"]);
+const LOCAL_GOV_ROOT_REPO_REL = ".GOV";
 
 function escapeRegex(value) {
   return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -17,7 +18,7 @@ function parsePacketStatus(packetContent) {
 }
 
 function taskBoardStatusAtRepo(repoRoot, wpId) {
-  const taskBoardPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
+  const taskBoardPath = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
   if (!fs.existsSync(taskBoardPath)) return "";
   const content = fs.readFileSync(taskBoardPath, "utf8");
   const match = content.match(
@@ -30,13 +31,28 @@ export function isTerminalSessionTaskBoardStatus(status) {
   return TERMINAL_SESSION_TASK_BOARD_STATUSES.has(String(status || "").trim().toUpperCase());
 }
 
+function packetPathAtRepo(repoRoot, wpId) {
+  const folderPacket = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "task_packets", wpId, "packet.md");
+  if (fs.existsSync(folderPacket)) {
+    return {
+      packetPathRel: path.join(LOCAL_GOV_ROOT_REPO_REL, "task_packets", wpId, "packet.md"),
+      packetPathAbs: folderPacket,
+    };
+  }
+  const flatPacket = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  return {
+    packetPathRel: path.join(LOCAL_GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`),
+    packetPathAbs: flatPacket,
+  };
+}
+
 export function evaluateSessionGovernanceState(repoRoot, sessionLike = {}) {
-  const root = path.resolve(repoRoot || process.cwd());
+  const root = path.resolve(repoRoot || REPO_ROOT);
   const wpId = String(sessionLike.wp_id || sessionLike.wpId || "").trim();
   const localWorktreeDir = String(sessionLike.local_worktree_dir || sessionLike.localWorktreeDir || "").trim();
-  const packetResolved = wpId ? resolveWorkPacketPath(wpId) : null;
-  const packetPathRel = packetResolved?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
-  const packetPathAbs = path.resolve(root, packetPathRel);
+  const packetResolved = wpId ? packetPathAtRepo(root, wpId) : null;
+  const packetPathRel = packetResolved?.packetPathRel || path.join(LOCAL_GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  const packetPathAbs = packetResolved?.packetPathAbs || path.resolve(root, packetPathRel);
   const packetExists = Boolean(wpId) && fs.existsSync(packetPathAbs);
   const packetStatus = packetExists ? parsePacketStatus(fs.readFileSync(packetPathAbs, "utf8")) : "";
   const taskBoardStatus = wpId ? taskBoardStatusAtRepo(root, wpId) : "";

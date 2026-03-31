@@ -4,8 +4,9 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 function resolveRepoRoot() {
+  const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   try {
-    const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    const out = execFileSync("git", ["-C", fileRelativeRepoRoot, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
@@ -16,7 +17,7 @@ function resolveRepoRoot() {
 
   // This file lives at: /.GOV/roles_shared/checks/oss-register-check.mjs
   // Up 3 => repo root.
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  return fileRelativeRepoRoot;
 }
 
 const repoRoot = path.resolve(resolveRepoRoot());
@@ -25,6 +26,28 @@ process.chdir(repoRoot);
 const OSS_REGISTER_PATH = ".GOV/roles_shared/records/OSS_REGISTER.md";
 const CARGO_LOCK_PATH = "src/backend/handshake_core/Cargo.lock";
 const PACKAGE_JSON_PATH = "app/package.json";
+
+function resolveProductRepoRoot() {
+  const candidates = [];
+  const injectedRepoRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
+  if (injectedRepoRoot) candidates.push(path.resolve(injectedRepoRoot));
+  candidates.push(repoRoot);
+  candidates.push(path.resolve(repoRoot, "../handshake_main"));
+  candidates.push(path.resolve(repoRoot, "../wt-ilja"));
+
+  for (const candidate of candidates) {
+    if (
+      fs.existsSync(path.join(candidate, CARGO_LOCK_PATH))
+      && fs.existsSync(path.join(candidate, PACKAGE_JSON_PATH))
+    ) {
+      return candidate;
+    }
+  }
+
+  return candidates[0];
+}
+
+const productRepoRoot = resolveProductRepoRoot();
 
 const HEADER_PATTERN =
   "| component_id | name | upstream_ref | license | integration_mode_default | capabilities_required | pinning_policy | compliance_notes | test_fixture | used_by_modules |";
@@ -38,10 +61,16 @@ function fail(code, message, details = []) {
 }
 
 function readTextFile(code, filePath) {
+  const absolutePath = path.isAbsolute(filePath)
+    ? filePath
+    : path.resolve(
+      filePath === OSS_REGISTER_PATH ? repoRoot : productRepoRoot,
+      filePath,
+    );
   try {
-    return fs.readFileSync(filePath, "utf8");
+    return fs.readFileSync(absolutePath, "utf8");
   } catch (err) {
-    fail(code, `Cannot read ${filePath}`, [String(err?.message ?? err)]);
+    fail(code, `Cannot read ${absolutePath}`, [String(err?.message ?? err)]);
   }
 }
 
@@ -51,7 +80,7 @@ function isCopyleftLicense(license) {
 }
 
 function parseOssRegister() {
-  if (!fs.existsSync(OSS_REGISTER_PATH)) {
+  if (!fs.existsSync(path.resolve(repoRoot, OSS_REGISTER_PATH))) {
     fail("HSK-OSS-000", "Missing OSS register", [`Expected: ${OSS_REGISTER_PATH}`]);
   }
 

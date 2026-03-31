@@ -18,8 +18,9 @@ export const LEGACY_SHARED_GOV_VALIDATOR_GATES_ROOT = `${LEGACY_SHARED_GOV_RUNTI
 export const LEGACY_SHARED_GOV_GIT_TOPOLOGY_FILE = `${LEGACY_SHARED_GOV_RUNTIME_ROOT}/GIT_TOPOLOGY_REGISTRY.json`;
 
 function resolveRepoRoot() {
+  const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
   try {
-    const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    const out = execFileSync("git", ["-C", fileRelativeRepoRoot, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
@@ -28,7 +29,7 @@ function resolveRepoRoot() {
     // Fall back to file-relative resolution below.
   }
 
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  return fileRelativeRepoRoot;
 }
 
 function readPersistedUserEnv(name) {
@@ -48,6 +49,12 @@ export function normalizePath(value) {
   return String(value || "").replace(/\\/g, "/");
 }
 
+export function repoPathAbs(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return path.isAbsolute(raw) ? path.resolve(raw) : path.resolve(REPO_ROOT, raw);
+}
+
 export const REPO_ROOT = path.resolve(resolveRepoRoot());
 export const WORKSPACE_ROOT = path.resolve(REPO_ROOT, "..");
 
@@ -59,7 +66,10 @@ function resolveGovRoot() {
       || readPersistedUserEnv(GOV_ROOT_ENV_VAR)
       || "",
   ).trim();
-  if (directValue) return path.resolve(directValue);
+  if (directValue) {
+    const candidate = path.resolve(directValue);
+    if (fs.existsSync(candidate)) return candidate;
+  }
   return path.resolve(REPO_ROOT, ".GOV");
 }
 
@@ -144,18 +154,36 @@ export function listStubWorkPacketPaths() {
  */
 export function resolveWorkPacketPath(wpId) {
   const folderPath = govRootRelPath("task_packets", wpId, "packet.md");
+  const folderAbsPath = govRootAbsPath("task_packets", wpId, "packet.md");
   const flatPath = govRootRelPath("task_packets", `${wpId}.md`);
-  if (fs.existsSync(folderPath)) {
-    return { packetPath: folderPath, packetDir: govRootRelPath("task_packets", wpId), isFolder: true };
+  const flatAbsPath = govRootAbsPath("task_packets", `${wpId}.md`);
+  if (fs.existsSync(folderAbsPath)) {
+    return {
+      packetPath: folderPath,
+      packetAbsPath: folderAbsPath,
+      packetDir: govRootRelPath("task_packets", wpId),
+      packetDirAbs: govRootAbsPath("task_packets", wpId),
+      isFolder: true,
+    };
   }
-  if (fs.existsSync(flatPath)) {
-    return { packetPath: flatPath, packetDir: govRootRelPath("task_packets"), isFolder: false };
+  if (fs.existsSync(flatAbsPath)) {
+    return {
+      packetPath: flatPath,
+      packetAbsPath: flatAbsPath,
+      packetDir: govRootRelPath("task_packets"),
+      packetDirAbs: govRootAbsPath("task_packets"),
+      isFolder: false,
+    };
   }
   return null;
 }
 
 export function workPacketPath(wpId) {
   return resolveWorkPacketPath(wpId)?.packetPath || govRootRelPath("task_packets", `${wpId}.md`);
+}
+
+export function workPacketAbsPath(wpId) {
+  return resolveWorkPacketPath(wpId)?.packetAbsPath || govRootAbsPath("task_packets", `${wpId}.md`);
 }
 
 export function inferWpIdFromPacketPath(packetPath) {
@@ -177,10 +205,17 @@ export function inferWpIdFromPacketPath(packetPath) {
  */
 export function resolveRefinementPath(wpId) {
   const folderPath = govRootRelPath("task_packets", wpId, "refinement.md");
+  const folderAbsPath = govRootAbsPath("task_packets", wpId, "refinement.md");
   const flatPath = govRootRelPath("refinements", `${wpId}.md`);
-  if (fs.existsSync(folderPath)) return folderPath;
-  if (fs.existsSync(flatPath)) return flatPath;
+  const flatAbsPath = govRootAbsPath("refinements", `${wpId}.md`);
+  if (fs.existsSync(folderAbsPath)) return folderPath;
+  if (fs.existsSync(flatAbsPath)) return flatPath;
   return null;
+}
+
+export function refinementAbsPath(wpId) {
+  const refinementPath = resolveRefinementPath(wpId);
+  return refinementPath ? repoPathAbs(refinementPath) : govRootAbsPath("refinements", `${wpId}.md`);
 }
 
 export function resolveGovernanceRuntimeRoot(overrideValue = "") {

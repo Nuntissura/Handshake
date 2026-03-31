@@ -16,7 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from '../scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from '../scripts/lib/runtime-paths.mjs';
 import { appendWpReceipt } from '../scripts/wp/wp-receipt-append.mjs';
 
 const wpId = process.argv[2];
@@ -72,9 +72,9 @@ function actorRoleForBranch(branch) {
 const resolved = resolveWorkPacketPath(wpId);
 const packetPath = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
 let workflowLane = '';
-if (fs.existsSync(packetPath)) {
+if (fs.existsSync(repoPathAbs(packetPath))) {
   try {
-    workflowLane = parseSingleField(fs.readFileSync(packetPath, 'utf8'), 'WORKFLOW_LANE').toUpperCase();
+    workflowLane = parseSingleField(fs.readFileSync(repoPathAbs(packetPath), 'utf8'), 'WORKFLOW_LANE').toUpperCase();
   } catch {
     workflowLane = '';
   }

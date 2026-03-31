@@ -10,15 +10,19 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 const SPEC_CURRENT_REL = path.join(GOV_ROOT_REPO_REL, "spec", "SPEC_CURRENT.md");
+const FILE_RELATIVE_REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 function tryGitRepoRoot() {
   try {
-    return execSync("git rev-parse --show-toplevel", { encoding: "utf8" }).trim();
+    return execFileSync("git", ["-C", FILE_RELATIVE_REPO_ROOT, "rev-parse", "--show-toplevel"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
   } catch {
     return "";
   }
@@ -46,7 +50,7 @@ function extractBoldFilenameFromSection({ specCurrentText, sectionMarkerRe, spec
 }
 
 export function resolveGovernanceReference(options = {}) {
-  const repoRoot = options.repoRoot || tryGitRepoRoot() || process.cwd();
+  const repoRoot = options.repoRoot || tryGitRepoRoot() || FILE_RELATIVE_REPO_ROOT;
   let specCurrentPathAbs = path.resolve(repoRoot, options.specCurrentPath || SPEC_CURRENT_REL);
   if (!options.specCurrentPath && !fs.existsSync(specCurrentPathAbs)) {
     // Legacy compatibility bundle (should not be treated as governance SSoT).
@@ -100,4 +104,3 @@ const invokedFile = process.argv[1] ? path.resolve(process.argv[1]) : "";
 if (invokedFile && path.resolve(invokedFile) === path.resolve(thisFile)) {
   main(process.argv);
 }
-

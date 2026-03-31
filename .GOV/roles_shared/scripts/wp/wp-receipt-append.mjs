@@ -22,11 +22,19 @@ import {
   deriveWpCommunicationAutoRoute,
   evaluateWpCommunicationHealth,
 } from "../lib/wp-communication-health-lib.mjs";
-import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification } from "./wp-notification-append.mjs";
 
 const ACTIVE_AUTO_RELAY_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const ORCHESTRATOR_STEER_SCRIPT_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+  "roles",
+  "orchestrator",
+  "scripts",
+  "orchestrator-steer-next.mjs",
+);
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -100,10 +108,11 @@ function updateOpenReviewItems(runtimeStatus, entry) {
 
 function loadPacketContext(wpId) {
   const packetPath = workPacketPath(wpId);
-  if (!fs.existsSync(packetPath)) {
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbsPath)) {
     throw new Error(`Official packet not found: ${normalize(packetPath)}`);
   }
-  const packetText = fs.readFileSync(packetPath, "utf8");
+  const packetText = fs.readFileSync(packetAbsPath, "utf8");
   const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
   const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   const threadFile = parseSingleField(packetText, "WP_THREAD_FILE");
@@ -113,15 +122,20 @@ function loadPacketContext(wpId) {
   if (!receiptsFile) {
     throw new Error(`${normalize(packetPath)} does not declare WP_RECEIPTS_FILE`);
   }
-  if (!fs.existsSync(receiptsFile)) {
+  const receiptsAbsPath = repoPathAbs(receiptsFile);
+  if (!fs.existsSync(receiptsAbsPath)) {
     throw new Error(`Receipts ledger missing on disk: ${normalize(receiptsFile)}`);
   }
 
   return {
     packetPath: normalize(packetPath),
+    packetAbsPath: normalize(packetAbsPath),
     receiptsFile: normalize(receiptsFile),
+    receiptsAbsPath: normalize(receiptsAbsPath),
     runtimeStatusFile: normalize(runtimeStatusFile),
+    runtimeStatusAbsPath: runtimeStatusFile ? normalize(repoPathAbs(runtimeStatusFile)) : "",
     threadFile: normalize(threadFile),
+    threadAbsPath: threadFile ? normalize(repoPathAbs(threadFile)) : "",
     branch: branch ? normalize(branch) : null,
     worktreeDir: worktreeDir ? normalize(worktreeDir) : null,
     workflowLane: parseSingleField(packetText, "WORKFLOW_LANE") || "",
@@ -189,12 +203,8 @@ function attemptOrchestratorAutoRelay({ wpId, context, entry, autoRoute }) {
     return { status: "SKIPPED", reason: "NEXT_ACTOR_IS_CURRENT_ACTOR", next_actor: nextActor };
   }
 
-  const orchestratorSteerPath = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "../../roles/orchestrator/scripts/orchestrator-steer-next.mjs",
-  );
   try {
-    const output = execFileSync(process.execPath, [orchestratorSteerPath, wpId, "PRIMARY"], {
+    const output = execFileSync(process.execPath, [ORCHESTRATOR_STEER_SCRIPT_PATH, wpId, "PRIMARY"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -219,6 +229,10 @@ function attemptOrchestratorAutoRelay({ wpId, context, entry, autoRoute }) {
       error: stderr || stdout || (error instanceof Error ? error.message : String(error)),
     };
   }
+}
+
+export function orchestratorSteerScriptPath() {
+  return ORCHESTRATOR_STEER_SCRIPT_PATH;
 }
 
 function appendWpReceiptCore({
@@ -249,7 +263,7 @@ function appendWpReceiptCore({
   }
 
   const context = loadPacketContext(WP_ID);
-  const runtimeStatus = context.runtimeStatusFile && fs.existsSync(context.runtimeStatusFile)
+  const runtimeStatus = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
     ? parseJsonFile(context.runtimeStatusFile)
     : null;
   const reviewTrackedReceipt = REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(String(receiptKind || "").trim().toUpperCase());
@@ -350,10 +364,10 @@ function appendWpReceiptCore({
     if (runtimeErrors.length > 0) {
       throw new Error(`Runtime status validation failed after receipt append: ${runtimeErrors.join("; ")}`);
     }
-    writeJsonFile(context.runtimeStatusFile, runtimeStatus);
+    writeJsonFile(context.runtimeStatusAbsPath, runtimeStatus);
   }
 
-  appendJsonlLine(context.receiptsFile, entry);
+  appendJsonlLine(context.receiptsAbsPath, entry);
   if (reviewTrackedReceipt) {
     appendReviewNotifications({ wpId: WP_ID, entry, autoRoute });
   }

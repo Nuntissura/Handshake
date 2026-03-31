@@ -28,6 +28,15 @@ function maxTimestamp(values = []) {
   return result;
 }
 
+function maxParsedTimestamp(values = []) {
+  let result = null;
+  for (const value of values) {
+    if (!Number.isFinite(value)) continue;
+    if (result === null || value > result) result = value;
+  }
+  return result;
+}
+
 function minutesBetween(nowTs, thenTs) {
   if (!Number.isFinite(nowTs) || !Number.isFinite(thenTs)) return null;
   return Math.max(0, Math.round((nowTs - thenTs) / 60000));
@@ -124,7 +133,7 @@ export function evaluateWpRelayEscalation({
   const latestNotificationTs = maxTimestamp(targetNotifications.map((entry) => entry.timestamp_utc));
   const latestTargetReceiptTs = latestActorReceiptTimestamp(receipts, nextActor, nextSession);
   const latestForeignReceiptTs = latestForeignReceiptTimestamp(receipts, nextActor, nextSession);
-  const routeAnchorTs = maxTimestamp([
+  const routeAnchorTs = maxParsedTimestamp([
     latestNotificationTs,
     latestForeignReceiptTs,
     (latestTargetReceiptTs && latestForeignReceiptTs === null) ? latestTargetReceiptTs : null,
@@ -139,7 +148,7 @@ export function evaluateWpRelayEscalation({
       .filter((entry) => matchingRegistrySession(entry, nextActor, wpId, nextSession))
       .map((entry) => entry.updated_at || entry.last_event_at),
   );
-  const latestSessionActivityTs = maxTimestamp([runtimeSessionActivityTs, registrySessionActivityTs]);
+  const latestSessionActivityTs = maxParsedTimestamp([runtimeSessionActivityTs, registrySessionActivityTs]);
   const pendingNotificationCount = targetNotifications.length;
   const recommendedCommand = `just orchestrator-steer-next ${wpId}`;
 

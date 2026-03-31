@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { validateMergeProgressionTruth } from "../scripts/lib/merge-progression-truth-lib.mjs";
-import { listOfficialWorkPacketPaths } from "../scripts/lib/runtime-paths.mjs";
+import { listOfficialWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
 function fail(message, details = []) {
   console.error(`[MERGE_PROGRESSION_TRUTH_CHECK] ${message}`);
@@ -11,7 +11,7 @@ function fail(message, details = []) {
 const violations = [];
 
 for (const packetPath of listOfficialWorkPacketPaths()) {
-  const packetText = fs.readFileSync(packetPath, "utf8");
+  const packetText = fs.readFileSync(repoPathAbs(packetPath), "utf8");
   const result = validateMergeProgressionTruth(packetText, {
     packetPath,
   });

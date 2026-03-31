@@ -28,9 +28,8 @@
 - When adding new repeatable errors, assign a code/tag like `HSK-####` and note it here with the primary entrypoint to triage.
 
 ## Debugging a failed CI check
-- codex-check: run `just codex-check` and inspect outputs for forbidden `fetch(`, `println!/eprintln!`, or doc drift.
+- product boundary scan: run `just product-scan` and inspect outputs for forbidden product-side patterns or repo-governance boundary drift.
 - depcruise: run `pnpm -C app run depcruise` to see layer violations.
 - cargo-deny: run `cargo deny check advisories licenses bans sources` (install via `cargo install cargo-deny` if needed).
 - gitleaks: rerun in CI or locally with `gitleaks detect --source .` if installed.
 - todo-policy: `rg -n --pcre2 "TODO(?!\\(HSK-\\d+\\))" app/src src/backend scripts` to find non-tagged TODOs.
-

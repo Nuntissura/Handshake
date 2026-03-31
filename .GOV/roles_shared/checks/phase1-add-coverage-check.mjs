@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
 const SPEC_CURRENT_PATH = ".GOV/spec/SPEC_CURRENT.md";
 const STUB_DIR = ".GOV/task_packets/stubs";
@@ -14,10 +15,11 @@ function fail(message, details = []) {
 }
 
 function readText(filePath) {
-  if (!fs.existsSync(filePath)) {
+  const fileAbsPath = repoPathAbs(filePath);
+  if (!fs.existsSync(fileAbsPath)) {
     fail("Missing required file", [filePath]);
   }
-  return fs.readFileSync(filePath, "utf8");
+  return fs.readFileSync(fileAbsPath, "utf8");
 }
 
 function parseCurrentSpecTarget() {
@@ -100,17 +102,18 @@ function parseLineSet(raw) {
 }
 
 function collectCoverageFromStubs(versionTag) {
-  if (!fs.existsSync(STUB_DIR)) {
+  if (!fs.existsSync(repoPathAbs(STUB_DIR))) {
     fail("Missing stub directory", [STUB_DIR]);
   }
 
   const coverage = new Map();
   const parseErrors = [];
-  const stubFiles = fs.readdirSync(STUB_DIR).filter((name) => name.endsWith(".md"));
+  const stubDirAbs = repoPathAbs(STUB_DIR);
+  const stubFiles = fs.readdirSync(stubDirAbs).filter((name) => name.endsWith(".md"));
 
   for (const fileName of stubFiles) {
     const fullPath = path.join(STUB_DIR, fileName);
-    const lines = fs.readFileSync(fullPath, "utf8").split(/\r?\n/);
+    const lines = fs.readFileSync(repoPathAbs(fullPath), "utf8").split(/\r?\n/);
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index].trim();
       if (!line.startsWith(COVERAGE_PREFIX)) continue;

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { validateSemanticProofAssets } from "../scripts/lib/semantic-proof-lib.mjs";
-import { listOfficialWorkPacketPaths } from "../scripts/lib/runtime-paths.mjs";
+import { listOfficialWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
 function fail(message, details = []) {
   console.error(`[SEMANTIC_PROOF_CHECK] ${message}`);
@@ -31,7 +31,7 @@ const violations = [];
 const files = listOfficialWorkPacketPaths();
 
 for (const rel of files) {
-  const text = fs.readFileSync(rel, "utf8");
+  const text = fs.readFileSync(repoPathAbs(rel), "utf8");
   const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
   const semanticProofProfile = parseSingleField(text, "SEMANTIC_PROOF_PROFILE");
   const usesSemanticProofProfile = /^DIFF_SCOPED_SEMANTIC_V1$/i.test(semanticProofProfile);
@@ -55,4 +55,3 @@ if (violations.length > 0) {
 }
 
 console.log("semantic-proof-check ok");
-

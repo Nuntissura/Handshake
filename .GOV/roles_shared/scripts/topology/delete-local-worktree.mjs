@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   REPO_ROOT,
   WORKSPACE_ROOT,
@@ -132,6 +133,22 @@ function comparablePath(value) {
   return path.resolve(String(value || "")).replace(/\\/g, "/").toLowerCase();
 }
 
+function normalizeLinkedPath(linkPath, targetPath) {
+  const raw = String(targetPath || "").trim().replace(/^\\\\\?\\/, "");
+  if (!raw) return "";
+  return path.resolve(path.dirname(linkPath), raw);
+}
+
+function removeDirectoryLinkOnly(linkPath) {
+  if (process.platform === "win32") {
+    execFileSync("cmd", ["/c", "rmdir", linkPath], {
+      stdio: "ignore",
+    });
+    return;
+  }
+  fs.unlinkSync(linkPath);
+}
+
 function normalizeApproval(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -220,6 +237,72 @@ function isSharedGovPath(value) {
     .trim()
     .replace(/^"+|"+$/g, "");
   return normalized.startsWith(".GOV/") || normalized.startsWith("GOV/");
+}
+
+export function detachExternalGovLink(absDir) {
+  const govDir = path.join(absDir, ".GOV");
+  if (!fs.existsSync(govDir)) {
+    return {
+      detached: false,
+      govDir,
+      reason: "missing",
+      targetAbs: "",
+    };
+  }
+
+  let stat;
+  try {
+    stat = fs.lstatSync(govDir);
+  } catch {
+    return {
+      detached: false,
+      govDir,
+      reason: "unreadable",
+      targetAbs: "",
+    };
+  }
+
+  if (!stat.isSymbolicLink()) {
+    return {
+      detached: false,
+      govDir,
+      reason: "not_linked",
+      targetAbs: "",
+    };
+  }
+
+  let targetAbs = "";
+  try {
+    targetAbs = normalizeLinkedPath(govDir, fs.readlinkSync(govDir));
+  } catch {
+    return {
+      detached: false,
+      govDir,
+      reason: "readlink_failed",
+      targetAbs: "",
+    };
+  }
+
+  const worktreeComparable = comparablePath(absDir);
+  const targetComparable = comparablePath(targetAbs);
+  const insideWorktree = targetComparable === worktreeComparable
+    || targetComparable.startsWith(`${worktreeComparable}/`);
+  if (insideWorktree) {
+    return {
+      detached: false,
+      govDir,
+      reason: "linked_inside_worktree",
+      targetAbs,
+    };
+  }
+
+  removeDirectoryLinkOnly(govDir);
+  return {
+    detached: true,
+    govDir,
+    reason: "detached_external_link",
+    targetAbs,
+  };
 }
 
 function reducePathsForSelectiveStash(paths) {
@@ -539,9 +622,14 @@ function main() {
     createSafetySnapshot(worktreeId);
   }
 
+  const detachedGovLink = detachExternalGovLink(absDir);
+  if (detachedGovLink.detached) {
+    console.log(`[DELETE_LOCAL_WORKTREE] detached external .GOV link before removal -> ${detachedGovLink.targetAbs}`);
+  }
+
   try {
     const removeArgs = ["-c", "core.longpaths=true", "worktree", "remove"];
-    if (ignoreSharedGovJunctionDirt) {
+    if (ignoreSharedGovJunctionDirt || detachedGovLink.detached) {
       removeArgs.push("--force");
     }
     removeArgs.push(absDir);
@@ -566,4 +654,6 @@ function main() {
   console.log(`[DELETE_LOCAL_WORKTREE] removed ${worktreeId}`);
 }
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}

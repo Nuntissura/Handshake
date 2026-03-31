@@ -9,6 +9,5 @@ Mapping of contributing agents/models for traceability.
 | AGENT_BACKEND | Backend Coder/Reviewer | TBD | TBD | Handles `src/backend/handshake_core/` |
 | AGENT_SHARED | Shared Contracts | TBD | TBD | Handles `src/shared/` schemas/types |
 | AGENT_DOCS | Docs Reviewer | TBD | TBD | Handles `/.GOV/` navigation pack updates |
-| AGENT_CI | CI/Hygiene | TBD | TBD | Handles `just validate`/CI workflows |
+| AGENT_CI | CI/Hygiene | TBD | TBD | Handles explicit hygiene/CI workflows and governance checks |
 | AGENT_VALIDATOR | Validator/Reviewer | Manual review | TBD | Performs evidence-based validation and review |
-

@@ -2,8 +2,9 @@
 
 import { evaluateWpTokenBudget } from "./wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "./wp-token-usage-lib.mjs";
+import { REPO_ROOT } from "../lib/runtime-paths.mjs";
 
-const repoRoot = process.cwd();
+const repoRoot = REPO_ROOT;
 const wpId = String(process.argv[2] || "").trim();
 
 function fail(message) {

@@ -27,7 +27,7 @@ This document defines the repo-resilience layer for Handshake governance.
 
 - `main` is the only canonical integrated branch.
 - `user_ilja` and `gov_kernel` are backup branches on GitHub.
-- Permanent non-main worktrees (`wt-ilja`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- Permanent non-main worktrees (`wt-ilja`, `wt-gov-kernel`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - `just sync-all-role-worktrees` is limited to refreshing the local `main` branch across the permanent worktrees when they are clean.
 - `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` is the governed helper for refreshing a permanent non-main role/user worktree from local `main`. It safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.

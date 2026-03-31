@@ -421,9 +421,9 @@
             "enum": [
               "VALIDATOR_KICKOFF",
               "CODER_HANDOFF",
-              "VALIDATOR_QUERY",
-              "REVIEW_REQUEST",
-              "SPEC_GAP"
+            "VALIDATOR_QUERY",
+            "REVIEW_REQUEST",
+            "SPEC_GAP"
             ]
           },
           "summary": {
@@ -472,6 +472,70 @@
               "string",
               "null"
             ]
+          },
+          "microtask_contract": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "scope_ref": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "file_targets": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "proof_commands": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "risk_focus": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "expected_receipt_kind": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "ASSIGNMENT",
+                  "STATUS",
+                  "HEARTBEAT",
+                  "HANDOFF",
+                  "THREAD_MESSAGE",
+                  "VALIDATOR_KICKOFF",
+                  "CODER_INTENT",
+                  "CODER_HANDOFF",
+                  "VALIDATOR_REVIEW",
+                  "VALIDATOR_QUERY",
+                  "VALIDATOR_RESPONSE",
+                  "REVIEW_REQUEST",
+                  "REVIEW_RESPONSE",
+                  "SPEC_GAP",
+                  "SPEC_CONFIRMATION",
+                  "VALIDATION_START",
+                  "VALIDATION_STATUS_SYNC",
+                  "STEERING",
+                  "REPAIR",
+                  "WORKFLOW_INVALIDITY",
+                  null
+                ]
+              }
+            }
           },
           "requires_ack": {
             "type": "boolean"
