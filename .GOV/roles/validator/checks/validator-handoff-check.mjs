@@ -17,10 +17,9 @@ import {
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import {
   ensureValidatorGateDir,
-  validatorGatePath,
   resolveValidatorGatePath,
 } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { formatBoundedItemList } from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
 import { evaluateValidatorPacketGovernanceState } from "../scripts/lib/validator-governance-lib.mjs";
 import {
@@ -67,7 +66,7 @@ function ensureStateDir() {
 }
 
 function stateFilePath(wpId) {
-  return validatorGatePath(wpId);
+  return resolveValidatorGatePath(wpId);
 }
 
 function normalizeState(raw) {
@@ -190,8 +189,8 @@ function persistEvidence(wpId, evidence) {
 }
 
 const parsed = parseArgs(process.argv.slice(2));
-const repoRoot = process.cwd();
 const gitContext = currentGitContext();
+const repoRoot = gitContext.topLevel || REPO_ROOT;
 const packetContentForContext = loadPacket(parsed.wpId);
 const workflowLane = parseClaimField(packetContentForContext, "WORKFLOW_LANE");
 const workflowAuthority = parseClaimField(packetContentForContext, "WORKFLOW_AUTHORITY")

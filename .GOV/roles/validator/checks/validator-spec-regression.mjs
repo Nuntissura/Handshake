@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Spec regression check: ensure SPEC_CURRENT points to existing spec and required anchors are present.
+ * Spec regression check: ensure SPEC_CURRENT points to an existing spec and required anchors are present.
  */
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import path from "node:path";
+import { GOV_ROOT_REPO_REL, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
-const specPointerPath = ".GOV/spec/SPEC_CURRENT.md";
-// Phase/safety-critical anchors that must exist in the current spec.
+const specPointerPath = `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md`;
 const requiredAnchors = [
   "2.3.12", // storage portability pillars
   "2.3.11", // retention/GC
@@ -15,34 +15,37 @@ const requiredAnchors = [
   "4.6",    // tokenization
 ];
 
-function fail(msg) {
-  console.error(`validator-spec-regression: FAIL â€” ${msg}`);
+function fail(message) {
+  console.error(`validator-spec-regression: FAIL - ${message}`);
   process.exit(1);
 }
 
 function main() {
   let specPointer;
   try {
-    specPointer = readFileSync(specPointerPath, "utf8");
-  } catch (err) {
-    fail(`cannot read ${specPointerPath}: ${err.message}`);
+    specPointer = readFileSync(repoPathAbs(specPointerPath), "utf8");
+  } catch (error) {
+    fail(`cannot read ${specPointerPath}: ${error.message}`);
   }
 
   const match = specPointer.match(/\*\*([^*\r\n]*Handshake_Master_Spec_[^*]+)\*\*/);
   if (!match) {
     fail("SPEC_CURRENT does not reference a Master Spec filename.");
   }
+
   const specRef = match[1].trim();
   const specFile = specRef.split("/").pop();
-  const specPath = specRef.startsWith(".GOV/")
-    ? join(specRef)
-    : join(dirname(specPointerPath), specRef);
+  const specPath = path.isAbsolute(specRef)
+    ? specRef
+    : specRef.startsWith(".GOV/")
+      ? repoPathAbs(specRef)
+      : repoPathAbs(path.join(GOV_ROOT_REPO_REL, "spec", specRef));
 
   let spec;
   try {
     spec = readFileSync(specPath, "utf8");
-  } catch (err) {
-    fail(`cannot read referenced spec ${specPath}: ${err.message}`);
+  } catch (error) {
+    fail(`cannot read referenced spec ${specPath}: ${error.message}`);
   }
 
   for (const anchor of requiredAnchors) {
@@ -51,7 +54,7 @@ function main() {
     }
   }
 
-  console.log(`validator-spec-regression: PASS â€” ${specFile} present with required anchors.`);
+  console.log(`validator-spec-regression: PASS - ${specFile} present with required anchors.`);
 }
 
 main();

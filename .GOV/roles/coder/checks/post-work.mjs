@@ -14,7 +14,7 @@
 
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { GOV_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, repoPathAbs } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 import {
   compactGateOutputSummary,
   writeGateOutputArtifact,
@@ -57,7 +57,7 @@ const roleMailboxPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', '
 const communicationHealthPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'wp-communication-health-check.mjs');
 let communicationHealthOk = true;
 
-const gate = run(process.execPath, [gateCheckPath, wpId]);
+const gate = run(process.execPath, [repoPathAbs(gateCheckPath), wpId]);
 if (verbose) {
   process.stdout.write(ensureTrailingNewline(gate.out.trimEnd()));
 } else {
@@ -71,7 +71,7 @@ if (gate.code !== 0) {
 
 process.stdout.write('\n');
 
-const post = run(process.execPath, [postWorkCheckPath, wpId, ...gateArgs]);
+const post = run(process.execPath, [repoPathAbs(postWorkCheckPath), wpId, ...gateArgs]);
 if (verbose) {
   process.stdout.write(ensureTrailingNewline(post.out.trimEnd()));
 } else {
@@ -85,7 +85,7 @@ if (post.code !== 0) {
 
 process.stdout.write('\n');
 
-const roleMailbox = run(process.execPath, [roleMailboxPath]);
+const roleMailbox = run(process.execPath, [repoPathAbs(roleMailboxPath)]);
 if (verbose) {
   process.stdout.write(ensureTrailingNewline(roleMailbox.out.trimEnd()));
 } else {
@@ -99,7 +99,7 @@ if (roleMailbox.code !== 0) {
 
 process.stdout.write('\n');
 
-const communicationHealth = run(process.execPath, [communicationHealthPath, wpId, 'KICKOFF']);
+const communicationHealth = run(process.execPath, [repoPathAbs(communicationHealthPath), wpId, 'KICKOFF']);
 if (verbose) {
   process.stdout.write(ensureTrailingNewline(communicationHealth.out.trimEnd()));
 } else {

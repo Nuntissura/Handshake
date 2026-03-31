@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { currentGitContext } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
-import { resolveWorkPacketPath, GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { resolveWorkPacketPath, GOV_ROOT_REPO_REL, REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   parseMergeProgressionTruth,
   updateMergeProgressionTruth,
@@ -119,7 +119,7 @@ if (requestedMode.requireMergedMainCommit && !/^[0-9a-f]{7,40}$/i.test(mergedMai
   fail("CONTAINED_IN_MAIN requires MERGED_MAIN_SHA");
 }
 
-const repoRoot = process.cwd();
+const repoRoot = currentGitContext().topLevel || REPO_ROOT;
 const taskBoardPath = path.resolve(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
 const resolvedPacket = resolveWorkPacketPath(wpId);
 if (!resolvedPacket?.packetPath || !fs.existsSync(resolvedPacket.packetPath)) {

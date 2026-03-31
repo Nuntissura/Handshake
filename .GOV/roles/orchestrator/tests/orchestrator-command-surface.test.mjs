@@ -16,6 +16,7 @@ test("justfile exposes the orchestrator ACP/session control surface", () => {
     "launch-coder-session",
     "launch-wp-validator-session",
     "launch-integration-validator-session",
+    "orchestrator-steer-next",
     "start-coder-session",
     "start-wp-validator-session",
     "start-integration-validator-session",
@@ -34,6 +35,10 @@ test("justfile exposes the orchestrator ACP/session control surface", () => {
     "session-close",
     "handshake-acp-broker-status",
     "handshake-acp-broker-stop",
+    "wp-validator-query",
+    "wp-review-request",
+    "wp-validator-response",
+    "wp-review-response",
     "operator-monitor",
     "operator-admin",
   ];

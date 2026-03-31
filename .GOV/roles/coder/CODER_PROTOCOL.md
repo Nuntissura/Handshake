@@ -773,7 +773,7 @@ I cannot start without a complete packet.
 
 ### Step 3: Bootstrap Claim Commit (Status Sync) [CX-217] âœ‹ STOP
 
-Goal: make "work started" visible to the Operator on `main` **without** blocking your local `just validate` workflow.
+Goal: make "work started" visible to the Operator on `main` **without** blocking your local explicit product validation workflow.
 
 **MANDATORY in your work packet (before any code changes):**
 - Set work packet `**Status:** In Progress`
@@ -1227,8 +1227,14 @@ pnpm -C app run lint
 pnpm -C app test
 cargo clippy --all-targets --all-features
 
-# Or full hygiene
-just validate
+# Governance/product boundary scan
+just product-scan
+
+# Then run the exact TEST_PLAN commands the packet requires
+cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+pnpm -C app run lint
+pnpm -C app test
+cargo clippy --all-targets --all-features
 ```
 
 **Document results for handoff (append to ## EVIDENCE in the work packet):**
@@ -1625,8 +1631,11 @@ ls .GOV/task_packets/WP-*.md .GOV/task_packets/WP-*/packet.md
 # Read packet
 cat .GOV/task_packets/WP-{ID}-*.md
 
-# Run validation
-just validate
+# Run governance/product boundary scan
+just product-scan
+
+# Then run the packet TEST_PLAN validation commands
+cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 
 
 # Post-work check

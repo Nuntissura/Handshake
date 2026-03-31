@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { defaultIntegrationValidatorWorktreeDir } from "../session/session-policy.mjs";
+import { REPO_ROOT } from "./runtime-paths.mjs";
 
 function parseSingleField(packetText, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -226,7 +227,7 @@ function defaultGitRunner(worktreeAbs, args) {
 function resolveMainWorktreeAbs(packetText, repoRoot) {
   const declared = parseSingleField(packetText, "INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR")
     || defaultIntegrationValidatorWorktreeDir("");
-  return path.resolve(repoRoot || process.cwd(), declared);
+  return path.resolve(repoRoot || REPO_ROOT, declared);
 }
 
 function readContainedCommitDiff({ packetText, repoRoot, mergedMainCommit, gitRunner }) {
@@ -315,7 +316,7 @@ function readCandidateTargetDiff({
 }
 
 export function validateSignedScopeSurface(packetText, {
-  repoRoot = process.cwd(),
+  repoRoot = REPO_ROOT,
   artifactText = null,
 } = {}) {
   const errors = [];
@@ -354,7 +355,7 @@ export function validateSignedScopeSurface(packetText, {
 }
 
 export function validateContainedMainCommitAgainstSignedScope(packetText, {
-  repoRoot = process.cwd(),
+  repoRoot = REPO_ROOT,
   mergedMainCommit = "",
   actualDiffText = null,
   gitRunner = null,
@@ -416,7 +417,7 @@ export function validateContainedMainCommitAgainstSignedScope(packetText, {
 }
 
 export function validateCandidateTargetAgainstSignedScope(packetText, {
-  repoRoot = process.cwd(),
+  repoRoot = REPO_ROOT,
   targetHeadSha = "",
   currentMainHeadSha = "",
   candidateDiffText = null,

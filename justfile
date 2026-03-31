@@ -39,6 +39,9 @@ build-order-sync:
 validator-spec-regression:
 	node {{GOV_ROOT}}/roles/validator/checks/validator-spec-regression.mjs
 
+cor701-sha file:
+	node {{GOV_ROOT}}/roles_shared/checks/cor701-sha.mjs {{file}}
+
 gate-check wp-id:
 	node {{GOV_ROOT}}/roles_shared/checks/gate-check.mjs {{wp-id}}
 
@@ -339,6 +342,12 @@ close-wp-branch wp-id approval remote="":
 wp-heartbeat wp-id actor_role actor_session current_phase runtime_status next_expected_actor waiting_on validator_trigger="" last_event="" worktree_dir="" next_expected_session="" waiting_on_session="":
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-heartbeat.mjs {{wp-id}} {{actor_role}} {{actor_session}} {{current_phase}} {{runtime_status}} {{next_expected_actor}} "{{waiting_on}}" "{{validator_trigger}}" "{{last_event}}" "{{worktree_dir}}" "{{next_expected_session}}" "{{waiting_on_session}}"
 
+wp-validator-query wp-id actor_role actor_session wp_validator_session summary correlation_id="" spec_anchor="" packet_row_ref="" microtask_json="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_QUERY {{wp-id}} {{actor_role}} {{actor_session}} WP_VALIDATOR {{wp_validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
+
+wp-review-request wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" microtask_json="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs REVIEW_REQUEST {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
+
 wp-validator-response wp-id actor_role actor_session coder_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs VALIDATOR_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} CODER {{coder_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
 
@@ -358,6 +367,9 @@ create-task-packet wp-id:
 	@echo "Creating task packet: {{wp-id}}..."
 	@node {{GOV_ROOT}}/roles/orchestrator/scripts/create-task-packet.mjs {{wp-id}}
 	@just build-order-sync
+
+wp-traceability-set base_wp_id active_packet_wp_id:
+	@node {{GOV_ROOT}}/roles/orchestrator/scripts/wp-traceability-set.mjs {{base_wp_id}} {{active_packet_wp_id}}
 
 wp-thread-append wp-id actor_role actor_session message target="" target_role="" target_session="" correlation_id="" requires_ack="" ack_for="" spec_anchor="" packet_row_ref="":
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-thread-append.mjs {{wp-id}} {{actor_role}} {{actor_session}} "{{message}}" "{{target}}" "{{target_role}}" "{{target_session}}" "{{correlation_id}}" "{{requires_ack}}" "{{ack_for}}" "{{spec_anchor}}" "{{packet_row_ref}}"

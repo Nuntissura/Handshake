@@ -12,6 +12,7 @@ import {
   printValidatorContextMismatchAndExit,
   requireValidatorProductTargets,
 } from "../scripts/lib/validator-product-targets-lib.mjs";
+import { REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const targets = ["src/backend/handshake_core/src"];
 const waiverMarker = "WAIVER [CX-573E]";
@@ -52,11 +53,11 @@ function shouldExclude(relativePosixPath) {
   return false;
 }
 
-function collectTargetFiles(targetRoots) {
+function collectTargetFiles(targetRoots, repoRoot) {
   const files = [];
 
   for (const target of targetRoots) {
-    const targetAbs = path.resolve(process.cwd(), target);
+    const targetAbs = path.resolve(repoRoot, target);
     if (!fs.existsSync(targetAbs)) continue;
 
     const stack = [{ absDir: targetAbs, relDir: target }];
@@ -184,7 +185,7 @@ const findings = [];
 const targetContext = requireValidatorProductTargets("validator-error-codes", targets, {
   extraDetails: ["This audit inspects Rust production source files only."],
 });
-const files = collectTargetFiles(targetContext.existingTargets);
+const files = collectTargetFiles(targetContext.existingTargets, targetContext.repoRoot || REPO_ROOT);
 if (files.length === 0) {
   printValidatorContextMismatchAndExit("validator-error-codes", targetContext, [
     "No Rust production files were found in the resolved targets.",

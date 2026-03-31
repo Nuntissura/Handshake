@@ -20,7 +20,6 @@ import fs from 'fs';
 import { spawnSync } from 'child_process';
 import {
     ensureValidatorGateDir,
-    validatorGatePath,
     resolveValidatorGatePath,
 } from '../../../roles_shared/scripts/lib/validator-gate-paths.mjs';
 import { GOV_ROOT_REPO_REL, workPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
@@ -29,6 +28,7 @@ import {
     loadPacket,
     packetPath as resolvePacketPath,
 } from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
+import { REPO_ROOT } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 import {
     evaluateValidatorPacketGovernanceState,
     evaluateValidatorPassAuthority,
@@ -46,7 +46,7 @@ function ensureStateDir() {
 }
 
 function stateFilePath(wpId) {
-    return validatorGatePath(wpId);
+    return resolveValidatorGatePath(wpId);
 }
 
 function normalizeState(raw) {
@@ -140,11 +140,12 @@ function validatorGovernanceStateForWp(wpId, sessionStatus = '') {
 }
 
 function currentValidatorActorContextForWp(wpId) {
+    const gitContext = currentGitContext();
     return resolveValidatorActorContext({
-        repoRoot: process.cwd(),
+        repoRoot: gitContext.topLevel || REPO_ROOT,
         wpId,
         packetContent: loadPacket(wpId),
-        gitContext: currentGitContext(),
+        gitContext,
     });
 }
 

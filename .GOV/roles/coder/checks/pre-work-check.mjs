@@ -66,6 +66,7 @@ import {
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
 import {
   GOV_ROOT_REPO_REL,
+  repoPathAbs,
   resolveOrchestratorGatesPath,
   workPacketPath,
 } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
@@ -331,7 +332,7 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   try {
-    const gatesPath = resolveOrchestratorGatesPath();
+    const gatesPath = repoPathAbs(resolveOrchestratorGatesPath());
     const gates = JSON.parse(fs.readFileSync(gatesPath, 'utf8'));
     const logs = Array.isArray(gates?.gate_logs) ? gates.gate_logs : [];
     lastPrepare = [...logs].reverse().find((l) => l?.wpId === WP_ID && l?.type === 'PREPARE') || null;

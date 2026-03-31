@@ -74,7 +74,7 @@ import {
   SESSION_HOST_PREFERENCE,
   SESSION_LAUNCH_POLICY,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
-import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const WP_ID = process.argv[2];
 const allowOverwriteExisting = process.argv.includes('--overwrite-existing') || process.env.ALLOW_PACKET_OVERWRITE === '1';
@@ -297,7 +297,7 @@ let signatureGate = null;
 let prepareGate = null;
 try {
   const gatesPath = resolveOrchestratorGatesPath();
-  const gates = JSON.parse(fs.readFileSync(gatesPath, 'utf8'));
+  const gates = JSON.parse(fs.readFileSync(repoPathAbs(gatesPath), 'utf8'));
   const logs = Array.isArray(gates.gate_logs) ? gates.gate_logs : [];
   const lastSig = [...logs].reverse().find((l) => l.wpId === WP_ID && l.type === 'SIGNATURE');
   if (!lastSig) {
@@ -1229,7 +1229,7 @@ try {
 
 {
   const isRevision = baseWpId !== WP_ID;
-  const syncState = preparedWorktreeSyncState(WP_ID, prepareGate, process.cwd());
+  const syncState = preparedWorktreeSyncState(WP_ID, prepareGate, REPO_ROOT);
 
   const nextCommands = [
     `cat ${filePath.replace(/\\/g, '/')}`,

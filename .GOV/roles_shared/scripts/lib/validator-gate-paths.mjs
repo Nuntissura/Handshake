@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   LEGACY_SHARED_GOV_VALIDATOR_GATES_ROOT,
   SHARED_GOV_VALIDATOR_GATES_ROOT,
+  repoPathAbs,
 } from "./runtime-paths.mjs";
 
 export const SHARED_VALIDATOR_GATE_DIR = path.normalize(SHARED_GOV_VALIDATOR_GATES_ROOT);
@@ -20,24 +21,30 @@ export function validatorGatePath(wpId) {
   return path.join(SHARED_VALIDATOR_GATE_DIR, validatorGateFileName(wpId));
 }
 
+export function validatorGateAbsPath(wpId) {
+  return repoPathAbs(validatorGatePath(wpId));
+}
+
 export function ensureValidatorGateDir() {
-  if (!fs.existsSync(SHARED_VALIDATOR_GATE_DIR)) {
-    fs.mkdirSync(SHARED_VALIDATOR_GATE_DIR, { recursive: true });
+  const gateDirAbs = repoPathAbs(SHARED_VALIDATOR_GATE_DIR);
+  if (!fs.existsSync(gateDirAbs)) {
+    fs.mkdirSync(gateDirAbs, { recursive: true });
   }
 }
 
 export function resolveValidatorGatePath(wpId) {
-  return validatorGatePath(wpId);
+  return validatorGateAbsPath(wpId);
 }
 
 export function listValidatorGateStateFiles() {
   const results = [];
-  if (!fs.existsSync(SHARED_VALIDATOR_GATE_DIR)) return results;
+  const gateDirAbs = repoPathAbs(SHARED_VALIDATOR_GATE_DIR);
+  if (!fs.existsSync(gateDirAbs)) return results;
 
-  for (const entry of fs.readdirSync(SHARED_VALIDATOR_GATE_DIR, { withFileTypes: true })) {
+  for (const entry of fs.readdirSync(gateDirAbs, { withFileTypes: true })) {
     if (!entry.isFile() || !isJsonFile(entry.name)) continue;
     if (entry.name === "VALIDATOR_GATES.json") continue;
-    results.push(path.join(SHARED_VALIDATOR_GATE_DIR, entry.name));
+    results.push(path.join(gateDirAbs, entry.name));
   }
 
   return results.sort((left, right) => left.localeCompare(right));

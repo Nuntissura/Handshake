@@ -624,3 +624,86 @@ Assessment:
 - `RGF-35`: `roles/validator` Folder Sweep and PASS-Lane Hardening
 - `RGF-36`: ACP Workflow and Runtime Control-Plane Sweep
 - `RGF-37`: Operator TUI Modernization and Interaction Refresh
+
+## 19. Appendage: Governance Sweep Completion and Operator TUI Outcome
+
+### 19.1 Completion Status
+
+- `RGF-32` through `RGF-37` are now complete.
+- The governance sweep was executed against the live repo-governance control plane, not as speculative planning only.
+- Reverse traceability is preserved through:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles/orchestrator/docs/GOVERNANCE_SWEEP_CHECKLIST_20260331.md`
+  - this smoketest review
+
+### 19.2 `RGF-32` `roles_shared` Outcome
+
+- `roles_shared` was audited and hardened across:
+  - relay appenders and notification routing
+  - session-governance and resume helpers
+  - signed-scope, merge-progression, and token-usage helpers
+  - topology and worktree deletion/reseed helpers
+  - shared schemas, docs, and audit generators
+- High-value fixes included:
+  - repo-root-safe path resolution instead of silent cwd dependence
+  - repaired auto-relay helper resolution
+  - session-target isolation in lane-brief and notification surfaces
+  - corrected `ABANDONED` terminal-state handling
+  - safer shared `.GOV` link handling in topology helpers
+  - schema/doc parity for `microtask_contract`
+
+### 19.3 `RGF-33` `roles/orchestrator` Outcome
+
+- Orchestrator gate, packet, and worktree-control surfaces now read and write through repo-root-safe paths.
+- Steering and next-action surfaces were tightened so the lane relies less on ad hoc state rediscovery.
+- The operator monitor refresh also landed here because the orchestrator folder owns the TUI and lane-control viewport.
+
+### 19.4 `RGF-34` `roles/coder` Outcome
+
+- Coder-facing governance now has less stale startup/command drift.
+- Pre-work, post-work, bootstrap, skeleton, and next-action surfaces were checked against current packet/runtime law and the compact-output policy.
+- Repo-root drift in coder path resolution was removed from the active lane.
+
+### 19.5 `RGF-35` `roles/validator` Outcome
+
+- Validator-facing governance was hardened across:
+  - product target discovery
+  - DAL/error-code scans
+  - context-brief helpers
+  - closeout helpers
+  - packet-complete law
+  - validator gate state files
+- The validator lane is now less exposed to cwd drift and stale closeout assumptions.
+
+### 19.6 `RGF-36` ACP / Runtime Outcome
+
+- ACP/runtime registry, notification, relay, and session-control surfaces were rechecked after the earlier cost-remediation work.
+- The main result is lower hidden path drift and better agreement between runtime truth, gate state, and role resume/readiness behavior.
+- This does not eliminate all ACP overhead, but it reduces another class of silent control-plane inconsistency.
+
+### 19.7 `RGF-37` Operator TUI Outcome
+
+- The operator monitor remains TUI-first. No new web control layer was added.
+- The TUI now provides:
+  - a stronger top summary strip
+  - explicit `next_action` output
+  - clearer two-line session cards
+  - better lane/session grouping and readability
+  - quieter terminal-WP views that suppress stale historical noise by default
+  - improved focus on live signal instead of prose-heavy residue
+- This refresh was informed by the earlier external reference scan, especially the value of:
+  - one dominant focus area rather than many equally loud panes
+  - persistent session cards with strong state cues
+  - compact event/timeline presentation
+  - explicit steerable-next-action visibility
+
+### 19.8 Verification and Residual Risk
+
+- Verification passed:
+  - targeted orchestrator/coder/validator/shared node tests
+  - operator-monitor TUI tests
+  - path-safety and command-surface parity tests
+  - `just gov-check`
+- Residual risk:
+  - the governance sweep materially reduced stale behavior and path drift, but the next real orchestrator-managed ACP WP is still required as the proof run for the refreshed lane
+  - the TUI is much less stale and easier to read, but it is still an operator viewport, not a full workflow cockpit

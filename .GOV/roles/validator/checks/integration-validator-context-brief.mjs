@@ -7,6 +7,7 @@ import {
   packetExists,
   packetPath,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
+import { REPO_ROOT, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import {
   buildIntegrationValidatorContextBrief,
@@ -43,15 +44,16 @@ if (!packetExists(parsed.wpId)) {
 
 const gateStatePath = resolveValidatorGatePath(parsed.wpId);
 let gateState = {};
-if (fs.existsSync(gateStatePath)) {
-  gateState = JSON.parse(fs.readFileSync(gateStatePath, "utf8"));
+if (fs.existsSync(repoPathAbs(gateStatePath))) {
+  gateState = JSON.parse(fs.readFileSync(repoPathAbs(gateStatePath), "utf8"));
 }
 
+const gitContext = currentGitContext();
 const brief = buildIntegrationValidatorContextBrief({
-  repoRoot: process.cwd(),
+  repoRoot: gitContext.topLevel || REPO_ROOT,
   wpId: parsed.wpId,
   packetContent: loadPacket(parsed.wpId),
-  gitContext: currentGitContext(),
+  gitContext,
   committedEvidence: gateState?.committed_validation_evidence?.[parsed.wpId] || null,
   gateStatePath,
 });

@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 import { appendWpReceipt } from '../../../roles_shared/scripts/wp/wp-receipt-append.mjs';
 
 const wpId = process.argv[2];
@@ -24,13 +24,13 @@ if (!wpId) {
 
 const resolved = resolveWorkPacketPath(wpId);
 const packetRel = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
-if (!fs.existsSync(packetRel)) {
+if (!fs.existsSync(repoPathAbs(packetRel))) {
   console.error(`FAIL: Work packet not found: ${packetRel}`);
   process.exit(1);
 }
 
 // Verify ## SKELETON section exists and has content.
-const packetContent = fs.readFileSync(packetRel, 'utf8');
+const packetContent = fs.readFileSync(repoPathAbs(packetRel), 'utf8');
 const skeletonMatch = packetContent.match(/^##\s+SKELETON\s*$/mi);
 if (!skeletonMatch) {
   console.error(`FAIL: Work packet missing ## SKELETON section. Fill it before creating the checkpoint.`);

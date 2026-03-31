@@ -17,6 +17,7 @@ import {
   resolvePrepareWorktreeAbs,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import { REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluateValidatorPacketGovernanceState } from "../scripts/lib/validator-governance-lib.mjs";
 import { committedEvidenceForCloseout } from "../scripts/lib/committed-validation-evidence-lib.mjs";
 
@@ -202,7 +203,7 @@ function formatText(brief) {
 
 const parsed = parseArgs(process.argv.slice(2));
 const gitContext = currentGitContext();
-const repoRoot = gitContext.topLevel || process.cwd();
+const repoRoot = gitContext.topLevel || REPO_ROOT;
 
 if (!packetExists(parsed.wpId)) {
   console.error(`[EXTERNAL_VALIDATOR_BRIEF] Task packet not found: ${packetPath(parsed.wpId)}`);

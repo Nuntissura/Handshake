@@ -8,6 +8,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   defaultRefinementPath,
   validateRefinementFile,
@@ -31,7 +32,7 @@ import { EXECUTION_OWNER_RANGE_HELP } from "../../../roles_shared/scripts/sessio
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
-import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
@@ -39,9 +40,12 @@ import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 
 const STATE_FILE = resolveOrchestratorGatesPath();
+const STATE_FILE_ABS = repoPathAbs(STATE_FILE);
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
+const TASK_BOARD_ABS_PATH = repoPathAbs(TASK_BOARD_PATH);
 const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
 const GOVERNED_ROLE_RELAY_TARGETS = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const TERMINAL_ORCHESTRATOR_BOARD_STATUSES = new Set(["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"]);
 
 function fail(message, details = []) {
   console.error(`[ORCHESTRATOR_NEXT] ${message}`);
@@ -50,9 +54,9 @@ function fail(message, details = []) {
 }
 
 function loadState() {
-  if (!fs.existsSync(STATE_FILE)) return { gate_logs: [] };
+  if (!fs.existsSync(STATE_FILE_ABS)) return { gate_logs: [] };
   try {
-    return JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+    return JSON.parse(fs.readFileSync(STATE_FILE_ABS, "utf8"));
   } catch (e) {
     fail("Failed to read ORCHESTRATOR_GATES.json", [String(e?.message || e)]);
   }
@@ -77,8 +81,8 @@ function printOperatorEnvelope(action = "NONE", blockerClass = "NONE") {
 }
 
 function hasStubLine(wpId) {
-  if (!exists(TASK_BOARD_PATH)) return false;
-  const content = fs.readFileSync(TASK_BOARD_PATH, "utf8");
+  if (!exists(TASK_BOARD_ABS_PATH)) return false;
+  const content = fs.readFileSync(TASK_BOARD_ABS_PATH, "utf8");
   return content.includes(`- **[${wpId}]** - [STUB]`);
 }
 
@@ -91,10 +95,12 @@ function parseSingleField(text, label) {
 function loadProjectionDriftState(wpId, packetPath, packetText) {
   const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
-  if (!runtimeStatusFile || !exists(runtimeStatusFile)) return null;
+  const runtimeStatusAbs = repoPathAbs(runtimeStatusFile);
+  const receiptsAbs = repoPathAbs(receiptsFile);
+  if (!runtimeStatusFile || !exists(runtimeStatusAbs)) return null;
 
   const runtimeStatus = parseJsonFile(runtimeStatusFile);
-  const receipts = receiptsFile && exists(receiptsFile) ? parseJsonlFile(receiptsFile) : [];
+  const receipts = receiptsFile && exists(receiptsAbs) ? parseJsonlFile(receiptsFile) : [];
   const communicationEvaluation = evaluateWpCommunicationHealth({
     wpId,
     stage: "STATUS",
@@ -116,9 +122,9 @@ function loadProjectionDriftState(wpId, packetPath, packetText) {
   };
 }
 
-function loadRelayEscalationState(wpId, packetRuntimeState) {
+function loadRelayEscalationState(repoRoot, wpId, packetRuntimeState) {
   if (!packetRuntimeState?.runtimeStatus || !packetRuntimeState?.communicationEvaluation) return null;
-  const { registry } = loadSessionRegistry(process.cwd());
+  const { registry } = loadSessionRegistry(repoRoot);
   const pendingNotifications = Object.values(checkAllNotifications({ wpId })).flatMap((entry) => entry.notifications || []);
   return evaluateWpRelayEscalation({
     wpId,
@@ -130,17 +136,25 @@ function loadRelayEscalationState(wpId, packetRuntimeState) {
   });
 }
 
+export function closeoutModeFromPacketStatus(packetStatus = "") {
+  const normalized = String(packetStatus || "").trim();
+  if (normalized === "Done") return "DONE_MERGE_PENDING";
+  if (/^Validated\s*\(\s*PASS\s*\)$/i.test(normalized)) return "DONE_VALIDATED";
+  if (/^Validated\s*\(\s*FAIL\s*\)$/i.test(normalized)) return "DONE_FAIL";
+  if (/^Validated\s*\(\s*ABANDONED\s*\)$/i.test(normalized)) return "DONE_ABANDONED";
+  if (/^Validated\s*\(\s*OUTDATED_ONLY\s*\)$/i.test(normalized)) return "DONE_OUTDATED_ONLY";
+  return "";
+}
+
+export function isTerminalOrchestratorBoardStatus(status = "") {
+  return TERMINAL_ORCHESTRATOR_BOARD_STATUSES.has(String(status || "").trim().toUpperCase());
+}
+
 function closeoutSyncCommandForProjection(wpId, projection = {}, runtimeStatus = {}, communicationEvaluation = null) {
   const packetStatus = String(projection.current_packet_status || "").trim();
-  if (packetStatus === "Done") {
-    return `just task-board-set ${wpId} DONE_MERGE_PENDING`;
-  }
-  if (/^Validated \(/i.test(packetStatus)) {
-    return /^Validated\s*\(\s*PASS\s*\)$/i.test(packetStatus)
-      ? `just task-board-set ${wpId} DONE_VALIDATED`
-      : /^Validated\s*\(\s*FAIL\s*\)$/i.test(packetStatus)
-        ? `just task-board-set ${wpId} DONE_FAIL`
-        : `just task-board-set ${wpId} DONE_OUTDATED_ONLY`;
+  const closeoutMode = closeoutModeFromPacketStatus(packetStatus);
+  if (closeoutMode) {
+    return `just task-board-set ${wpId} ${closeoutMode}`;
   }
   if (
     communicationEvaluation?.ok
@@ -192,8 +206,9 @@ function summarizeResumeState(state, wpId) {
 
   const refinementPath = defaultRefinementPath(wpId);
   const currentPacketPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`)).replace(/\\/g, "/");
+  const currentPacketAbsPath = repoPathAbs(currentPacketPath);
   const refinementExists = exists(refinementPath);
-  const currentPacketExists = exists(currentPacketPath);
+  const currentPacketExists = exists(currentPacketAbsPath);
   const boardStatus = taskBoardStatus(wpId) || "<none>";
   const needsStubCleanup = hasStubLine(wpId);
 
@@ -212,7 +227,7 @@ function summarizeResumeState(state, wpId) {
   let reason = "Work packet exists; ready to delegate to Coder.";
   let ready = true;
   const syncState = lastPrepare && currentPacketExists
-    ? preparedWorktreeSyncState(wpId, lastPrepare, process.cwd())
+    ? preparedWorktreeSyncState(wpId, lastPrepare, REPO_ROOT)
     : null;
 
   if (!refinementExists) {
@@ -268,7 +283,7 @@ function main() {
   const providedWpId = (process.argv[2] || "").trim();
   const gitContext = currentGitContext();
   const gateLogs = loadOrchestratorGateLogs();
-  const repoRoot = gitContext.topLevel || process.cwd();
+  const repoRoot = gitContext.topLevel || REPO_ROOT;
   let inferred = providedWpId
     ? { wpId: providedWpId, source: "explicit", candidates: [providedWpId] }
     : inferOrchestratorWpId(gateLogs, gitContext, repoRoot);
@@ -332,7 +347,7 @@ function main() {
   }
 
   const boardStatus = taskBoardStatus(wpId);
-  if (boardStatus && ["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"].includes(boardStatus)) {
+  if (isTerminalOrchestratorBoardStatus(boardStatus)) {
     const packetPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`)).replace(/\\/g, "/");
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorEnvelope("NONE", "NONE");
@@ -362,9 +377,10 @@ function main() {
 
   const refinementPath = defaultRefinementPath(wpId);
   const packetPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`)).replace(/\\/g, "/");
+  const packetAbsPath = repoPathAbs(packetPath);
 
   const refinementExists = exists(refinementPath);
-  const packetExists = exists(packetPath);
+  const packetExists = exists(packetAbsPath);
 
   let refinementReady = false;
   let refinementSigned = false;
@@ -485,10 +501,10 @@ function main() {
   }
 
   const needsStubCleanup = hasStubLine(wpId);
-  const syncState = preparedWorktreeSyncState(wpId, lastPrepare, gitContext.topLevel || process.cwd());
-  const packetText = fs.readFileSync(packetPath, "utf8");
+  const syncState = preparedWorktreeSyncState(wpId, lastPrepare, repoRoot);
+  const packetText = fs.readFileSync(packetAbsPath, "utf8");
   const workflowLane = parseSingleField(packetText, "WORKFLOW_LANE");
-  const tokenLedger = readWpTokenUsageLedger(process.cwd(), wpId).ledger;
+  const tokenLedger = readWpTokenUsageLedger(repoRoot, wpId).ledger;
   const tokenBudget = evaluateWpTokenBudget(tokenLedger);
   if (
     String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED"
@@ -531,7 +547,7 @@ function main() {
     return;
   }
   const packetRuntimeState = loadProjectionDriftState(wpId, packetPath, packetText);
-  const relayEscalation = packetRuntimeState ? loadRelayEscalationState(wpId, packetRuntimeState) : null;
+  const relayEscalation = packetRuntimeState ? loadRelayEscalationState(repoRoot, wpId, packetRuntimeState) : null;
   if (packetRuntimeState && !packetRuntimeState.drift.ok) {
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorEnvelope("NONE", "NONE");
@@ -625,4 +641,6 @@ function main() {
   printNextCommands(cmds);
 }
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}
