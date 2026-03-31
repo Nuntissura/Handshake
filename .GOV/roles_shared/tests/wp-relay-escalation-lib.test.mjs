@@ -89,3 +89,33 @@ test("relay escalation fails when receipt progress is stale even without pending
   assert.equal(result.status, "ESCALATED");
   assert.equal(result.reason_code, "RECEIPT_PROGRESS_STALE");
 });
+
+test("relay escalation records route and session activity timestamps when registry activity occurs after the route opened", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime({
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-2",
+    }),
+    communicationEvaluation: { applicable: true },
+    receipts: [],
+    pendingNotifications: [
+      { target_role: "CODER", target_session: "coder-2", timestamp_utc: "2026-03-30T10:00:00Z" },
+    ],
+    registrySessions: [
+      {
+        role: "CODER",
+        wp_id: "WP-TEST-RELAY-v1",
+        session_id: "coder-2",
+        session_key: "CODER:WP-TEST-RELAY-v1",
+        updated_at: "2026-03-30T10:25:00Z",
+      },
+    ],
+    nowIso: "2026-03-30T10:30:00Z",
+  });
+
+  assert.equal(result.status, "ESCALATED");
+  assert.equal(result.reason_code, "SESSION_ACTIVE_NO_RECEIPT_PROGRESS");
+  assert.equal(result.metrics.route_anchor_at, "2026-03-30T10:00:00.000Z");
+  assert.equal(result.metrics.latest_session_activity_at, "2026-03-30T10:25:00.000Z");
+});

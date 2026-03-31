@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import { settleWpTokenUsageLedger } from "./wp-token-usage-lib.mjs";
+import { REPO_ROOT } from "../lib/runtime-paths.mjs";
 
-const repoRoot = process.cwd();
+const repoRoot = REPO_ROOT;
 const wpId = String(process.argv[2] || "").trim();
 const reason = String(process.argv[3] || "HISTORICAL_BACKFILL").trim() || "HISTORICAL_BACKFILL";
 const settledBy = String(process.argv[4] || "SYSTEM").trim() || "SYSTEM";

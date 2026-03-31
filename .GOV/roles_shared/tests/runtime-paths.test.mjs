@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { listWorkPacketEntriesAt } from "../scripts/lib/runtime-paths.mjs";
+import { listWorkPacketEntriesAt, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
 test("listWorkPacketEntriesAt discovers flat and folder packets while skipping README and excluded dirs", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-"));
@@ -35,4 +35,14 @@ test("listWorkPacketEntriesAt discovers flat and folder packets while skipping R
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
+});
+
+test("repoPathAbs anchors repo-relative paths while preserving absolute paths", () => {
+  const relativePath = ".GOV/task_packets/WP-TEST/packet.md";
+  const resolvedRelative = repoPathAbs(relativePath);
+  assert.equal(path.isAbsolute(resolvedRelative), true);
+  assert.match(resolvedRelative.replace(/\\/g, "/"), /\/\.GOV\/task_packets\/WP-TEST\/packet\.md$/);
+
+  const absolutePath = path.resolve(os.tmpdir(), "handshake-runtime-paths-absolute.txt");
+  assert.equal(repoPathAbs(absolutePath), absolutePath);
 });

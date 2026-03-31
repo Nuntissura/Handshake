@@ -179,7 +179,7 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
       `DIRECT COMMUNICATION (MANDATORY): Use the structured direct-review helpers, not generic thread traffic, for the required coder <-> WP validator lane. Respond to validator kickoff with \`just wp-coder-intent ${wpId} <your-session> <validator-session> "<summary>" <correlation_id>\`, use that kickoff/intent loop for bootstrap/skeleton/data-shape review, and publish review-ready handoff with \`just wp-coder-handoff ${wpId} <your-session> <validator-session> "<summary>"\`. Use \`just wp-thread-append ${wpId} CODER <your-session> "<message>" @wpval\` only for soft coordination that is not part of the required contract.`,
       `CONTRACT GATE (HARD): Before claiming validator-ready handoff, \`just wp-communication-health-check ${wpId} KICKOFF\` must pass.`,
       `HANDOFF QUALITY (MANDATORY): Before requesting validation, you MUST produce a WEAK_SPOTS section listing the least-proven requirement and the riskiest file/boundary. "Done, tests pass" is not an acceptable handoff. See .GOV/roles/coder/docs/CODER_RUBRIC_V2.md (live law).`,
-      `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} CODER\` to see pending messages from validators/orchestrator. After reading, run \`just ack-notifications ${wpId} CODER <your-session>\` to clear them. Check again before each handoff.`,
+      `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} CODER <your-session>\` to see only the notifications targeted to your governed session. After reading, run \`just ack-notifications ${wpId} CODER <your-session>\` to clear them. Check again before each handoff.`,
       `REMINDER: the Orchestrator remains workflow authority; only the Integration Validator can own merge-to-main authority.`,
     ];
   } else if (role === "WP_VALIDATOR") {
@@ -195,7 +195,7 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
       `CONTRACT GATE (HARD): Before PASS clearance, \`just wp-communication-health-check ${wpId} VERDICT\` must pass.`,
       `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
       `SPEC EVIDENCE (MANDATORY): Every PASS verdict MUST include a spec_clause_map with file:line citations for each packet requirement. You MUST identify at least one spec requirement you verified is NOT fully implemented (negative proof) to demonstrate independent code reading.`,
-      `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} WP_VALIDATOR\` to see pending messages from coders/orchestrator. After reading, run \`just ack-notifications ${wpId} WP_VALIDATOR <your-session>\` to clear them. Check again before each verdict.`,
+      `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} WP_VALIDATOR <your-session>\` to see only the notifications targeted to your governed session. After reading, run \`just ack-notifications ${wpId} WP_VALIDATOR <your-session>\` to clear them. Check again before each verdict.`,
       `REMINDER: status sync is not a validation verdict.`,
     ];
   } else if (role === "INTEGRATION_VALIDATOR") {
@@ -211,7 +211,7 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
       `FINAL AUTHORITY (MANDATORY): Do not let WP validator evidence stand in for your own direct review. Final merge-ready authority for orchestrator-managed WPs belongs to this lane unless the packet explicitly says otherwise.`,
       `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Do not trust WP validator summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
       `SPEC EVIDENCE (MANDATORY): Every PASS verdict MUST include a spec_clause_map with file:line citations for each packet requirement. You MUST identify at least one spec requirement you verified is NOT fully implemented (negative proof) to demonstrate independent code reading.`,
-      `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} INTEGRATION_VALIDATOR\` to see pending messages. After reading, run \`just ack-notifications ${wpId} INTEGRATION_VALIDATOR <your-session>\` to clear them. Check again before each verdict.`,
+      `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} INTEGRATION_VALIDATOR <your-session>\` to see only the notifications targeted to your governed session. After reading, run \`just ack-notifications ${wpId} INTEGRATION_VALIDATOR <your-session>\` to clear them. Check again before each verdict.`,
       `REMINDER: status sync is not a validation verdict. The Orchestrator remains workflow authority; only you can own merge-to-main authority.`,
     ];
   } else {
@@ -246,7 +246,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
     `If route/context feels fragmented, use just active-lane-brief ${role} ${wpId} instead of rediscovering packet/runtime/session truth manually.`,
     `Run in order:`,
     `1. ${resolvedRoleConfig.nextCommand}`,
-    `2. just check-notifications ${wpId} ${role}`,
+    `2. just check-notifications ${wpId} ${role} <your-session>`,
     `3. If you consume any pending notification, acknowledge it with your actor session id using just ack-notifications ${wpId} ${role} <your-session>.`,
     `Then perform only the single next governed action implied by the active receipts/notifications and runtime projection.`,
     `Report only lifecycle/gate state, blockers, and next required command(s).`,

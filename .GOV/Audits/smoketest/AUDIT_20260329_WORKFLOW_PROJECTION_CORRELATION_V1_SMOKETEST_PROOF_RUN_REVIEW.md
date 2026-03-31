@@ -554,3 +554,73 @@ Assessment:
 - `RGF-29`: Historical Token Ledger Settlement and Backfill
 - `RGF-30`: Event-Driven Happy-Path Relay Automation
 - `RGF-31`: Structured Coder-Validator Microtask Exchange Contract
+
+## 18. Appendage: Remaining Governance Sweep Queue and Operator TUI Refresh
+
+### 18.1 Why This Appendage Exists
+
+- This appendage records the next remediation batch before the next orchestrator-managed ACP proof run.
+- The Operator requirement is to keep the remaining governance sweep and operator-monitor work visible on the governance board so the work can resume without losing technical detail.
+- The immediate aim is not new product work. The aim is to continue reducing ambiguity, stale behavior, token waste, and operator friction inside repo governance itself.
+
+### 18.2 Remaining Governance Sweep Queue
+
+- `RGF-32`: `roles_shared` folder sweep and control-plane hardening
+  - line-by-line audit of shared checks, runtime/session helpers, topology helpers, schemas, and shared docs
+  - remove stale topology assumptions, stale command references, cwd-sensitive behavior, and repo-root/path drift
+- `RGF-33`: `roles/orchestrator` folder sweep and lane-mechanics hardening
+  - audit relay logic, steering logic, recovery paths, startup/approval surfaces, and operator-control assumptions
+- `RGF-34`: `roles/coder` folder sweep and resume/hygiene surface hardening
+  - audit coder resume flow, scope/hygiene checks, startup/handoff surfaces, and stale packet-state assumptions
+- `RGF-35`: `roles/validator` folder sweep and PASS-lane hardening
+  - audit validator closeout logic, report/gate law, PASS/FAIL/ABANDONED truth, scope proof, and anti-rubber-stamp surfaces
+- `RGF-36`: ACP workflow and runtime control-plane sweep
+  - audit broker/runtime/session-ledger behavior, waiting cost, stale projection, notification routing, registry drift, and non-atomic lane transitions
+
+### 18.3 Operator TUI Refresh Requirement
+
+- `RGF-37` records a dedicated operator-monitor refresh for the current TUI in `roles/orchestrator/scripts/operator-monitor-tui.mjs`.
+- The Operator assessment is that the current TUI is unpleasant to use, visually stale, too noisy, and not strong enough at surfacing the few things that actually matter:
+  - which lane is active
+  - which role/session is blocked
+  - what the next mechanical action is
+  - whether the lane is progressing, stalled, or drifting
+- The preferred direction remains TUI-first, not a heavier webviewer control layer, because:
+  - the repo governance should stay focused on Handshake-as-product rather than growing a separate complex operator web stack
+  - a terminal-first monitor keeps the governance testbed closer to the eventual Handshake control-plane intent
+
+### 18.4 External Reference Scan for TUI Direction
+
+- GitHub / adjacent references worth studying for `RGF-37`:
+  - `ccmanager` (`https://github.com/kbwo/ccmanager`)
+    - useful for multi-worktree, multi-session TUI patterns, assistant-state indicators (`active/busy/waiting`), and project/worktree/session navigation in one terminal surface
+  - `coder/mux` (`https://github.com/coder/cmux`)
+    - useful for isolated parallel agent workspaces, tangent/A-B session management, long-running agent visibility, and stronger workspace-centric status modeling
+  - `agentpipe` (`https://github.com/kevinelliott/agentpipe`)
+    - useful for persistent multi-agent rooms, event-log style coordination, and compact “shared state + active tasks” presentation
+  - GitHub Copilot “Managing coding agents” (`https://docs.github.com/en/copilot/how-tos/use-copilot-agents/manage-agents`)
+    - useful for session-log centric progress display, explicit steer surfaces, archive semantics, and clear session status framing
+  - `Commander` (`https://github.com/autohandai/commander`)
+    - useful as a caution/reference point for parallel coding-agent control rooms, especially where richer session panes, streaming output, and worktree-aware execution are helpful but risk growing into a heavier non-TUI layer
+- Directional design lessons from those references:
+  - one dominant lane/session focus area, not many equally loud panes
+  - persistent session cards with strong state coloring and elapsed/runtime indicators
+  - a compact event timeline instead of long scrolling status prose
+  - explicit “next action” and “steerable session” surfaces
+  - historic residue hidden by default and expanded only on demand
+- No relevant GitHub reference was found yet for a parallel-agent TUI specifically named `jirai`; if the intended reference was `Jira`, that should be treated as a separate issue-tracker integration topic rather than a direct operator-monitor model.
+
+### 18.5 Updated Judgment
+
+- The repo-governance remediation batch is not done merely because `RGF-17` through `RGF-31` closed.
+- The next likely failure mode is now folder-local stale behavior, especially inside orchestrator/runtime surfaces and the operator monitor itself.
+- The remaining sweep work and TUI refresh are therefore required to make the next orchestrator-managed ACP trial a fair test of the current governance model rather than another recovery-heavy run.
+
+### 18.6 Newly Linked Follow-On Governance Work
+
+- `RGF-32`: `roles_shared` Folder Sweep and Control-Plane Hardening
+- `RGF-33`: `roles/orchestrator` Folder Sweep and Lane-Mechanics Hardening
+- `RGF-34`: `roles/coder` Folder Sweep and Resume/Hygiene Surface Hardening
+- `RGF-35`: `roles/validator` Folder Sweep and PASS-Lane Hardening
+- `RGF-36`: ACP Workflow and Runtime Control-Plane Sweep
+- `RGF-37`: Operator TUI Modernization and Interaction Refresh

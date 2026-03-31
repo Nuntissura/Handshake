@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 
 const TRACE_REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
@@ -29,12 +29,12 @@ function parseRegistryTable(content) {
 }
 
 function listRevisionPacketIds() {
-  if (!fs.existsSync(TASK_PACKETS_DIR)) return [];
+  if (!fs.existsSync(repoPathAbs(TASK_PACKETS_DIR))) return [];
   const packetIds = [];
-  for (const entry of fs.readdirSync(TASK_PACKETS_DIR, { withFileTypes: true })) {
+  for (const entry of fs.readdirSync(repoPathAbs(TASK_PACKETS_DIR), { withFileTypes: true })) {
     if (entry.isDirectory()) {
       if (!entry.name.startsWith("WP-")) continue;
-      if (!fs.existsSync(`${TASK_PACKETS_DIR}/${entry.name}/packet.md`)) continue;
+      if (!fs.existsSync(repoPathAbs(`${TASK_PACKETS_DIR}/${entry.name}/packet.md`))) continue;
       packetIds.push(entry.name);
       continue;
     }
@@ -64,18 +64,18 @@ function isOfficialPacketPath(packetPath) {
 
 function exists(path) {
   try {
-    return fs.existsSync(path);
+    return fs.existsSync(repoPathAbs(path));
   } catch {
     return false;
   }
 }
 
-const registryContent = fs.existsSync(TRACE_REGISTRY_PATH)
-  ? fs.readFileSync(TRACE_REGISTRY_PATH, "utf8")
+const registryContent = fs.existsSync(repoPathAbs(TRACE_REGISTRY_PATH))
+  ? fs.readFileSync(repoPathAbs(TRACE_REGISTRY_PATH), "utf8")
   : "";
 const registry = parseRegistryTable(registryContent);
 
-const taskBoardContent = fs.existsSync(TASK_BOARD_PATH) ? fs.readFileSync(TASK_BOARD_PATH, "utf8") : "";
+const taskBoardContent = fs.existsSync(repoPathAbs(TASK_BOARD_PATH)) ? fs.readFileSync(repoPathAbs(TASK_BOARD_PATH), "utf8") : "";
 
 const revisionPacketIds = listRevisionPacketIds();
 const baseToRevisionPackets = new Map();

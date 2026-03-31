@@ -49,7 +49,7 @@ echo ""
 
 # Check 3: Run codex-check to enforce hard invariants
 echo "Running codex-check (hard invariants)..."
-if just codex-check; then
+if node .GOV/roles_shared/checks/codex-check.mjs; then
   echo "Æ’o. Codex check passed"
 else
   echo ""
@@ -152,6 +152,7 @@ echo "Æ’o. Pre-commit validation passed"
 echo ""
 echo "Reminder: For WP handoff, run these at handoff (before or after commit):"
 echo "  - just post-work WP-{ID}  (prefers staged changes; clean trees validate HEAD^..HEAD)"
-echo "  - just validate  (full hygiene check)"
+echo "  - just gov-check  (governance truth/hard checks)"
+echo "  - explicit WP TEST_PLAN product checks  (no sanctioned just validate recipe)"
 echo ""
 

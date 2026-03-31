@@ -238,9 +238,9 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 - `just wp-communication-health-check WP-{ID} [STATUS|KICKOFF|HANDOFF|VERDICT]`
   - `read-only`
   - communication proof and route health
-- `just check-notifications WP-{ID} <ROLE>`
+- `just check-notifications WP-{ID} <ROLE> [session]`
   - `read-only`
-  - inspect unread session-targeted notifications
+  - inspect unread notifications; pass the governed actor session to avoid same-role cross-session leakage
 - `just ack-notifications WP-{ID} <ROLE> <session>`
   - `runtime-write`
   - acknowledge notifications for one governed session only

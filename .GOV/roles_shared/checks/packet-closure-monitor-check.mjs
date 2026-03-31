@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { validateClauseReportConsistency, validatePacketClosureMonitoring } from "../scripts/lib/packet-closure-monitor-lib.mjs";
-import { listOfficialWorkPacketPaths } from "../scripts/lib/runtime-paths.mjs";
+import { listOfficialWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
 function fail(message, details = []) {
   console.error(`[PACKET_CLOSURE_MONITOR_CHECK] ${message}`);
@@ -31,7 +31,7 @@ const violations = [];
 const files = listOfficialWorkPacketPaths();
 
 for (const rel of files) {
-  const text = fs.readFileSync(rel, "utf8");
+  const text = fs.readFileSync(repoPathAbs(rel), "utf8");
   const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
   const closureMonitorProfile = parseSingleField(text, "CLAUSE_CLOSURE_MONITOR_PROFILE");
   const usesClauseMonitor = /^CLAUSE_MONITOR_V1$/i.test(closureMonitorProfile);

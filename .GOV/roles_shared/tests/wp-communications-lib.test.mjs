@@ -225,6 +225,21 @@ test("validateReceipt rejects empty microtask contracts", () => {
   assert.match(errors.join("\n"), /microtask_contract must contain at least one populated field/);
 });
 
+test("receipt schema exposes microtask_contract for external consumers", () => {
+  const rule = runtimeStatusSchema.properties.open_review_items.items.properties.microtask_contract;
+  assert.equal(rule.type.includes("object"), true);
+  assert.equal(rule.properties.expected_receipt_kind.enum.includes("CODER_INTENT"), true);
+});
+
+test("runtime receipt schema exposes microtask_contract on receipts", () => {
+  const receiptSchema = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "../schemas/WP_RECEIPT.schema.json"), "utf8"),
+  );
+  const rule = receiptSchema.properties.microtask_contract;
+  assert.equal(rule.type.includes("object"), true);
+  assert.equal(rule.properties.expected_receipt_kind.enum.includes("WORKFLOW_INVALIDITY"), true);
+});
+
 test("validateReceipt accepts WORKFLOW_INVALIDITY receipts with a machine code", () => {
   const errors = validateReceipt(workflowInvalidityReceiptFixture());
   assert.deepEqual(errors, []);

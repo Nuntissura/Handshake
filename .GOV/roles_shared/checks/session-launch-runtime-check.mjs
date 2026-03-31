@@ -4,6 +4,7 @@ import {
   SESSION_PLUGIN_REQUESTS_FILE,
   SESSION_REGISTRY_FILE,
 } from "../scripts/session/session-policy.mjs";
+import { REPO_ROOT } from "../scripts/lib/runtime-paths.mjs";
 import {
   loadSessionLaunchRequests,
   loadSessionRegistry,
@@ -11,7 +12,7 @@ import {
   validateRegistryShape,
 } from "../scripts/session/session-registry-lib.mjs";
 
-const repoRoot = process.cwd();
+const repoRoot = REPO_ROOT;
 const registryPath = path.resolve(repoRoot, SESSION_REGISTRY_FILE);
 const requestsPath = path.resolve(repoRoot, SESSION_PLUGIN_REQUESTS_FILE);
 
@@ -47,4 +48,3 @@ if (requestErrors.length > 0) {
 }
 
 console.log("session-launch-runtime-check ok");
-

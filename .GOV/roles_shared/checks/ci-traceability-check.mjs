@@ -2,14 +2,14 @@
 /**
  * CI traceability check [CX-903]
  * Validates commit messages reference WP_IDs and that task packets exist.
- * Task Board + task packets are the primary micro-log; logger is optional (milestones/hard bugs only).
+ * Task Board + task packets are the primary micro-log; logger is optional.
  */
 
-import { execSync } from 'child_process';
-import fs from 'fs';
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 
-import { resolveGovernanceReference } from './governance-reference.mjs';
-import { GOV_ROOT_REPO_REL } from '../scripts/lib/runtime-paths.mjs';
+import { resolveGovernanceReference } from "./governance-reference.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
 let governanceRef = null;
 try {
@@ -22,59 +22,51 @@ const bannerRef = governanceRef
   ? `Governance Reference: ${governanceRef.codexFilename}`
   : `Governance Reference: UNRESOLVED (see ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md)`;
 
-console.log(`\ndY"? CI Traceability Check (${bannerRef})...\n`);
+console.log(`\nCI Traceability Check (${bannerRef})...\n`);
 
-let errors = [];
-let warnings = [];
+const errors = [];
+const warnings = [];
 
-// Get recent commits (last 10)
-let commits;
-try {
-  const commitOutput = execSync('git log -10 --pretty=format:"%H|%s|%an|%ae"', {
-    encoding: 'utf8',
-  });
-  commits = commitOutput
-    .split('\n')
-    .filter(Boolean)
-    .map(line => {
-      const [hash, subject, author, email] = line.split('|');
-      return { hash, subject, author, email };
-    });
-} catch (err) {
-  console.error('Æ’?O Could not retrieve git commits');
-  console.error(err.message);
-  process.exit(1);
+function git(args) {
+  return execFileSync("git", ["-C", REPO_ROOT, ...args], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
 }
 
-console.log(`Found ${commits.length} recent commits to check\n`);
+function readRecentCommits() {
+  const commitOutput = git(["log", "-10", "--pretty=format:%H|%s|%an|%ae"]);
+  return commitOutput
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, subject, author, email] = line.split("|");
+      return { hash, subject, author, email };
+    });
+}
 
-// Check 1: WP_ID references in commits
-console.log('Check 1: WP_ID references in commits');
 const wpIdPattern = /WP-[\w-]+/;
 const governanceOnlyPathAllowlist = [
-  p => p.startsWith(`${GOV_ROOT_REPO_REL}/`),
-  p => p.startsWith('.github/'),
-  p => p.startsWith('.claude/'),
-  p => p === 'justfile',
-  p => p === 'AGENTS.md',
-  p => p === '.GOV/codex/Handshake_Codex_v1.4.md',
-  p => /^\.GOV\/spec\/Handshake_Master_Spec_.*\.md$/.test(p),
-  p => /^Handshake_logger_.*\.md$/.test(p),
+  (p) => p.startsWith(`${GOV_ROOT_REPO_REL}/`),
+  (p) => p.startsWith(".github/"),
+  (p) => p.startsWith(".claude/"),
+  (p) => p === "justfile",
+  (p) => p === "AGENTS.md",
+  (p) => p === ".GOV/codex/Handshake_Codex_v1.4.md",
+  (p) => /^\.GOV\/spec\/Handshake_Master_Spec_.*\.md$/.test(p),
+  (p) => /^Handshake_logger_.*\.md$/.test(p),
 ];
 
-function isGovernanceOnlyPath(path) {
-  return governanceOnlyPathAllowlist.some(fn => fn(path));
+function isGovernanceOnlyPath(filePath) {
+  return governanceOnlyPathAllowlist.some((fn) => fn(filePath));
 }
 
 function getCommitTouchedPaths(commitHash) {
   try {
-    const output = execSync(
-      `git show --name-only --no-patch --pretty=format: ${commitHash}`,
-      { encoding: 'utf8' }
-    );
+    const output = git(["show", "--name-only", "--no-patch", "--pretty=format:", commitHash]);
     return output
-      .split('\n')
-      .map(l => l.trim())
+      .split("\n")
+      .map((line) => line.trim())
       .filter(Boolean);
   } catch {
     return null;
@@ -87,100 +79,95 @@ function isGovernanceOnlyCommit(commitHash) {
     return commitIsGovernanceOnlyCache.get(commitHash);
   }
   const touchedPaths = getCommitTouchedPaths(commitHash);
-  const isGovOnly =
-    Array.isArray(touchedPaths) &&
-    touchedPaths.every(isGovernanceOnlyPath);
+  const isGovOnly = Array.isArray(touchedPaths) && touchedPaths.every(isGovernanceOnlyPath);
   commitIsGovernanceOnlyCache.set(commitHash, isGovOnly);
   return isGovOnly;
 }
 
-const commitsWithWpId = commits.filter(c => wpIdPattern.test(c.subject));
-const commitsWithoutWpId = commits.filter(
-  c => !wpIdPattern.test(c.subject) && !isGovernanceOnlyCommit(c.hash)
-);
-
-console.log(`  Æ’o. ${commitsWithWpId.length} commits reference WP_ID`);
-if (commitsWithoutWpId.length > 0) {
-  console.log(`  Æ’sÃ¿â€¹,?  ${commitsWithoutWpId.length} commits without WP_ID:`);
-  commitsWithoutWpId.slice(0, 3).forEach(c => {
-    console.log(`    - ${c.hash.slice(0, 7)}: ${c.subject}`);
-  });
-  warnings.push(
-    `${commitsWithoutWpId.length} commits without WP_ID reference (non-governance)`
-  );
+let commits = [];
+try {
+  commits = readRecentCommits();
+} catch (error) {
+  console.error("Could not retrieve git commits");
+  console.error(error.message);
+  process.exit(1);
 }
 
-// Check 2: Task packets exist for referenced WP_IDs
-console.log('\nCheck 2: Task packets exist for referenced WP_IDs');
+console.log(`Found ${commits.length} recent commits to check\n`);
+
+console.log("Check 1: WP_ID references in commits");
+const commitsWithWpId = commits.filter((commit) => wpIdPattern.test(commit.subject));
+const commitsWithoutWpId = commits.filter(
+  (commit) => !wpIdPattern.test(commit.subject) && !isGovernanceOnlyCommit(commit.hash),
+);
+console.log(`  OK ${commitsWithWpId.length} commits reference WP_ID`);
+if (commitsWithoutWpId.length > 0) {
+  console.log(`  WARN ${commitsWithoutWpId.length} commits without WP_ID:`);
+  commitsWithoutWpId.slice(0, 3).forEach((commit) => {
+    console.log(`    - ${commit.hash.slice(0, 7)}: ${commit.subject}`);
+  });
+  warnings.push(`${commitsWithoutWpId.length} commits without WP_ID reference (non-governance)`);
+}
+
+console.log("\nCheck 2: Task packets exist for referenced WP_IDs");
 const canonicalTaskPacketDir = `${GOV_ROOT_REPO_REL}/task_packets`;
-if (!fs.existsSync(canonicalTaskPacketDir)) {
+const canonicalTaskPacketDirAbs = repoPathAbs(canonicalTaskPacketDir);
+if (!fs.existsSync(canonicalTaskPacketDirAbs)) {
   errors.push(`${GOV_ROOT_REPO_REL}/task_packets/ directory does not exist [CX-213]`);
-  console.log('Æ’?O FAIL: No task_packets directory');
+  console.log("  FAIL: No task_packets directory");
   console.log(`  Run: mkdir -p ${GOV_ROOT_REPO_REL}/task_packets`);
 } else {
-  const canonicalPackets = fs
-    .readdirSync(canonicalTaskPacketDir)
-    .filter(f => f.endsWith('.md'));
-  console.log(`  Æ’o. ${GOV_ROOT_REPO_REL}/task_packets/ exists (${canonicalPackets.length} packets)`);
+  const canonicalPackets = fs.readdirSync(canonicalTaskPacketDirAbs).filter((file) => file.endsWith(".md"));
+  console.log(`  OK ${GOV_ROOT_REPO_REL}/task_packets/ exists (${canonicalPackets.length} packets)`);
 
   const missingPackets = [];
-  commitsWithWpId.forEach(commit => {
+  commitsWithWpId.forEach((commit) => {
     const wpId = commit.subject.match(wpIdPattern)?.[0];
-    if (wpId) {
-      const hasCanonical = canonicalPackets.some(p => p.includes(wpId));
-      if (!hasCanonical) {
-        missingPackets.push({ commit, wpId });
-      }
-    }
+    if (!wpId) return;
+    const hasCanonical = canonicalPackets.some((packet) => packet.includes(wpId));
+    if (!hasCanonical) missingPackets.push({ commit, wpId });
   });
 
   if (missingPackets.length > 0) {
-    console.log(
-      `  Æ’sÃ¿â€¹,?  ${missingPackets.length} WP_IDs in commits without task packet files:`
-    );
+    console.log(`  FAIL ${missingPackets.length} WP_IDs in commits without task packet files:`);
     missingPackets.slice(0, 3).forEach(({ commit, wpId }) => {
       console.log(`    - ${commit.hash.slice(0, 7)}: ${wpId}`);
     });
-    errors.push(
-      `${missingPackets.length} commits reference WP_ID without matching task packet`
-    );
+    errors.push(`${missingPackets.length} commits reference WP_ID without matching task packet`);
   } else {
-    console.log('  Æ’o. All WP_IDs in commits have task packets');
+    console.log("  OK All WP_IDs in commits have task packets");
   }
 }
 
-// Optional: Logger presence (info only)
-console.log('\nCheck 3: Logger (optional, milestones/hard bugs)');
+console.log("\nCheck 3: Logger (optional, milestones/hard bugs)");
 const loggerFiles = fs
-  .readdirSync('.')
-  .filter(f => f.startsWith('Handshake_logger_') && f.endsWith('.md'))
+  .readdirSync(REPO_ROOT)
+  .filter((file) => file.startsWith("Handshake_logger_") && file.endsWith(".md"))
   .sort()
   .reverse();
 if (loggerFiles.length === 0) {
-  console.log('  â„¹ï¸  Logger not present (optional)');
+  console.log("  INFO Logger not present (optional)");
 } else {
-  console.log(`  â„¹ï¸  Logger present: ${loggerFiles[0]} (milestones/hard bugs only)`);
+  console.log(`  INFO Logger present: ${loggerFiles[0]} (milestones/hard bugs only)`);
 }
 
-// Check 4: Governance Reference exists (derived from .GOV/spec/SPEC_CURRENT.md)
 console.log(`\nCheck 4: Governance Reference exists (from ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md)`);
 try {
   const ref = governanceRef || resolveGovernanceReference();
   if (!fs.existsSync(ref.codexPathAbs)) {
     errors.push(
-      `Governance Reference file not found: ${ref.codexFilename} (resolved from ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md)`
+      `Governance Reference file not found: ${ref.codexFilename} (resolved from ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md)`,
     );
-    console.log(`Æ’?O FAIL: Governance Reference missing: ${ref.codexFilename}`);
+    console.log(`  FAIL Governance Reference missing: ${ref.codexFilename}`);
   } else {
-    console.log(`  Æ’o. ${ref.codexFilename} exists`);
+    console.log(`  OK ${ref.codexFilename} exists`);
   }
-} catch (err) {
-  errors.push(`Could not resolve Governance Reference from ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md: ${err.message}`);
-  console.log(`Æ’?O FAIL: Could not resolve Governance Reference from ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md`);
+} catch (error) {
+  errors.push(`Could not resolve Governance Reference from ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md: ${error.message}`);
+  console.log(`  FAIL Could not resolve Governance Reference from ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md`);
 }
 
-// Check 5: Protocol files exist
-console.log('\nCheck 5: Protocol files exist');
+console.log("\nCheck 5: Protocol files exist");
 const protocolFiles = [
   `${GOV_ROOT_REPO_REL}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`,
   `${GOV_ROOT_REPO_REL}/roles/coder/CODER_PROTOCOL.md`,
@@ -191,36 +178,36 @@ const protocolFiles = [
   `${GOV_ROOT_REPO_REL}/roles_shared/docs/BOUNDARY_RULES.md`,
   `${GOV_ROOT_REPO_REL}/roles_shared/docs/EVIDENCE_LEDGER.md`,
 ];
-
-protocolFiles.forEach(file => {
-  if (!fs.existsSync(file)) {
-    errors.push(`${file} not found [CX-900]`);
-    console.log(`  Æ’?O FAIL: ${file} missing`);
+protocolFiles.forEach((filePath) => {
+  if (!fs.existsSync(repoPathAbs(filePath))) {
+    errors.push(`${filePath} not found [CX-900]`);
+    console.log(`  FAIL ${filePath} missing`);
   } else {
-    console.log(`  Æ’o. ${file} exists`);
+    console.log(`  OK ${filePath} exists`);
   }
 });
 
-// Results
-console.log('\n' + '='.repeat(50));
+console.log(`\n${"=".repeat(50)}`);
 if (errors.length === 0 && warnings.length === 0) {
-  console.log('Æ’o. CI traceability check PASSED\n');
+  console.log("CI traceability check PASSED\n");
   process.exit(0);
-} else if (errors.length === 0 && warnings.length > 0) {
-  console.log('Æ’sÃ¿â€¹,?  CI traceability check PASSED with warnings\n');
-  console.log('Warnings:');
-  warnings.forEach((warn, i) => console.log(`  ${i + 1}. ${warn}`));
-  console.log('\nWarnings do not block CI, but should be addressed.');
-  process.exit(0);
-} else {
-  console.log('Æ’?O CI traceability check FAILED\n');
-  console.log('Errors:');
-  errors.forEach((err, i) => console.log(`  ${i + 1}. ${err}`));
-  if (warnings.length > 0) {
-    console.log('\nWarnings:');
-    warnings.forEach((warn, i) => console.log(`  ${i + 1}. ${warn}`));
-  }
-  console.log('\nFix these issues to pass CI traceability check.');
-  console.log(`See: ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md`);
-  process.exit(1);
 }
+
+if (errors.length === 0 && warnings.length > 0) {
+  console.log("CI traceability check PASSED with warnings\n");
+  console.log("Warnings:");
+  warnings.forEach((warning, index) => console.log(`  ${index + 1}. ${warning}`));
+  console.log("\nWarnings do not block CI, but should be addressed.");
+  process.exit(0);
+}
+
+console.log("CI traceability check FAILED\n");
+console.log("Errors:");
+errors.forEach((error, index) => console.log(`  ${index + 1}. ${error}`));
+if (warnings.length > 0) {
+  console.log("\nWarnings:");
+  warnings.forEach((warning, index) => console.log(`  ${index + 1}. ${warning}`));
+}
+console.log("\nFix these issues to pass CI traceability check.");
+console.log(`See: ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md`);
+process.exit(1);

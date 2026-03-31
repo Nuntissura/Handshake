@@ -8,8 +8,9 @@ import {
 } from "../scripts/lib/runtime-paths.mjs";
 
 function resolveRepoRoot() {
+  const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   try {
-    const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    const out = execFileSync("git", ["-C", fileRelativeRepoRoot, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
@@ -18,7 +19,7 @@ function resolveRepoRoot() {
     // Ignore; fall back to relative-to-file resolution.
   }
 
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  return fileRelativeRepoRoot;
 }
 
 function listFilesRecursive(rootDir) {

@@ -43,7 +43,7 @@ import {
   stubUsesSessionPolicy,
   SPEC_CLAUSE_MAP_MIN_VERSION,
 } from "../scripts/session/session-policy.mjs";
-import { inferWpIdFromPacketPath, listOfficialWorkPacketPaths, listStubWorkPacketPaths } from "../scripts/lib/runtime-paths.mjs";
+import { inferWpIdFromPacketPath, listOfficialWorkPacketPaths, listStubWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
 function fail(message, details = []) {
   console.error(`[SESSION_POLICY_CHECK] ${message}`);
@@ -102,7 +102,7 @@ function checkMirrorField(errors, rel, text, label, sourceLabel) {
 }
 
 function checkPacket(filePath) {
-  const text = fs.readFileSync(filePath, "utf8");
+  const text = fs.readFileSync(repoPathAbs(filePath), "utf8");
   const rel = filePath.replace(/\\/g, "/");
   const version = parseSingleField(text, "PACKET_FORMAT_VERSION");
   if (!packetUsesSessionPolicy(version)) return;
@@ -212,7 +212,7 @@ function checkPacket(filePath) {
 }
 
 function checkStub(filePath) {
-  const text = fs.readFileSync(filePath, "utf8");
+  const text = fs.readFileSync(repoPathAbs(filePath), "utf8");
   const rel = filePath.replace(/\\/g, "/");
   const version = parseSingleField(text, "STUB_FORMAT_VERSION");
   if (!stubUsesSessionPolicy(version)) return;

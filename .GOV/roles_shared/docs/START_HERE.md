@@ -51,8 +51,10 @@ just pre-work WP-{ID}
 # Coder: Verify work complete before commit
 just post-work WP-{ID}
 
-# Full workflow validation (pre-work + validate + post-work)
-just validate-workflow WP-{ID}
+# Full governed workflow closure
+just pre-work WP-{ID}
+# run the packet TEST_PLAN product commands here
+just post-work WP-{ID}
 
 # Governance-only health check (no product scan)
 just gov-check
@@ -124,8 +126,11 @@ pnpm -C app run lint
 # or
 just lint
 
-# Full hygiene (lint/tests/depcruise/clippy/deny)
-just validate
+# Product hygiene: run the explicit frontend/backend commands required by your WP TEST_PLAN
+just product-scan
+pnpm -C app run lint
+pnpm -C app test
+cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 
 # Scaffolding
 just new-react-component <ComponentName>
@@ -153,7 +158,7 @@ Troubleshooting:
 
 For work packets: include scope, expected behavior, in-scope paths, DONE_MEANS, BOOTSTRAP block (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP), and these commands.
 
-CI expectation: run `just validate`; manual validator review is required for MEDIUM/HIGH risk work.
+CI expectation: run the explicit frontend/backend product commands required by the WP `TEST_PLAN`; manual validator review is required for MEDIUM/HIGH risk work.
 
 ## Bug triage map (jump into RUNBOOK_DEBUG)
 - UI/frontend: see `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md#ui-and-shell` (app React + Tauri window lifecycle).

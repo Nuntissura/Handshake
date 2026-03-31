@@ -23,7 +23,7 @@ import {
   EXECUTION_OWNER_VALUES,
   AGENTIC_MODE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
-import { GOV_ROOT_REPO_REL, workPacketPath } from "../lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "../lib/merge-progression-truth-lib.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
 
@@ -54,8 +54,9 @@ function fillAll(text, replacements) {
 }
 
 function writeIfMissing(filePath, content) {
-  if (fs.existsSync(filePath)) return false;
-  fs.writeFileSync(filePath, content, "utf8");
+  const fileAbsPath = repoPathAbs(filePath);
+  if (fs.existsSync(fileAbsPath)) return false;
+  fs.writeFileSync(fileAbsPath, content, "utf8");
   return true;
 }
 
@@ -73,7 +74,7 @@ function normalizeNoneLike(value) {
 }
 
 function requireTemplateFile(filePath) {
-  if (!fs.existsSync(filePath)) {
+  if (!fs.existsSync(repoPathAbs(filePath))) {
     throw new Error(`Missing WP communication template: ${normalize(filePath)}`);
   }
 }
@@ -95,9 +96,10 @@ function ensureWpCommunicationsCore({
   }
 
   const packetPath = workPacketPath(WP_ID);
+  const packetAbsPath = repoPathAbs(packetPath);
   let packetText = "";
-  if (fs.existsSync(packetPath)) {
-    packetText = fs.readFileSync(packetPath, "utf8");
+  if (fs.existsSync(packetAbsPath)) {
+    packetText = fs.readFileSync(packetAbsPath, "utf8");
   }
 
   const BASE_WP_ID = String(
@@ -158,7 +160,7 @@ function ensureWpCommunicationsCore({
   requireTemplateFile(RUNTIME_TEMPLATE);
   requireTemplateFile(RECEIPTS_TEMPLATE);
 
-  fs.mkdirSync(COMM_ROOT, { recursive: true });
+  fs.mkdirSync(repoPathAbs(COMM_ROOT), { recursive: true });
   const expectedPaths = communicationPathsForWp(WP_ID);
   if (declaredCommunicationDir || declaredThreadFile || declaredRuntimeStatusFile || declaredReceiptsFile) {
     const declaredPaths = {
@@ -180,7 +182,7 @@ function ensureWpCommunicationsCore({
   }
   const paths = expectedPaths;
   const wpCommDir = paths.dir;
-  fs.mkdirSync(wpCommDir, { recursive: true });
+  fs.mkdirSync(repoPathAbs(wpCommDir), { recursive: true });
 
   const threadPath = paths.threadFile;
   const runtimeStatusPath = paths.runtimeStatusFile;
@@ -236,9 +238,9 @@ function ensureWpCommunicationsCore({
     "{{MAX_RELAY_ESCALATION_CYCLES}}": String(MAX_RELAY_ESCALATION_CYCLES),
   };
 
-  const threadTemplate = fs.readFileSync(THREAD_TEMPLATE, "utf8");
-  const runtimeTemplate = fs.readFileSync(RUNTIME_TEMPLATE, "utf8");
-  const receiptsTemplate = fs.readFileSync(RECEIPTS_TEMPLATE, "utf8");
+  const threadTemplate = fs.readFileSync(repoPathAbs(THREAD_TEMPLATE), "utf8");
+  const runtimeTemplate = fs.readFileSync(repoPathAbs(RUNTIME_TEMPLATE), "utf8");
+  const receiptsTemplate = fs.readFileSync(repoPathAbs(RECEIPTS_TEMPLATE), "utf8");
 
   writeIfMissing(threadPath, fillAll(threadTemplate, replacements));
   writeIfMissing(runtimeStatusPath, fillAll(runtimeTemplate, replacements));

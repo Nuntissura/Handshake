@@ -31,7 +31,7 @@ import {
 } from "../lib/wp-communications-lib.mjs";
 import { resolveValidatorGatePath } from "../lib/validator-gate-paths.mjs";
 import {
-  GOV_ROOT_REPO_REL,
+  repoPathAbs,
   resolveOrchestratorGatesPath,
   resolveRefinementPath,
   resolveWorkPacketPath,
@@ -89,8 +89,8 @@ function parsePacketStatus(text) {
   ).trim();
 }
 
-function taskBoardStatus(repoRoot, wpId) {
-  const boardPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
+function taskBoardStatus(governanceRepoRoot, wpId) {
+  const boardPath = path.join(governanceRepoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
   if (!fs.existsSync(boardPath)) return "";
   const content = fs.readFileSync(boardPath, "utf8");
   const match = content.match(new RegExp(`- \\*\\*\\[${wpId.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\]\\*\\* - \\[([^\\]]+)\\]`, "i"));
@@ -98,10 +98,11 @@ function taskBoardStatus(repoRoot, wpId) {
 }
 
 function readThreadSummary(threadPath) {
-  if (!threadPath || !fs.existsSync(threadPath)) {
+  const threadAbsPath = threadPath ? repoPathAbs(threadPath) : "";
+  if (!threadAbsPath || !fs.existsSync(threadAbsPath)) {
     return { exists: false, lineCount: 0, lastNonEmptyLine: "" };
   }
-  const lines = fs.readFileSync(threadPath, "utf8").split(/\r?\n/);
+  const lines = fs.readFileSync(threadAbsPath, "utf8").split(/\r?\n/);
   const nonEmpty = lines.map((line) => line.trim()).filter(Boolean);
   return {
     exists: true,
@@ -200,7 +201,7 @@ function formatGateLine(entry) {
 }
 
 function buildSkeleton({
-  repoRoot,
+  governanceRepoRoot,
   wpId,
   packetPath,
   refinementPath,
@@ -224,7 +225,7 @@ function buildSkeleton({
   computedPolicyEvaluation,
 }) {
   const packetStatus = parsePacketStatus(packetText) || "<missing>";
-  const boardStatus = taskBoardStatus(repoRoot, wpId) || "<missing>";
+  const boardStatus = taskBoardStatus(governanceRepoRoot, wpId) || "<missing>";
   const receiptSummary = formatReceiptSummary(receipts);
   const receiptKindLines = formatReceiptKinds(receipts);
   const sessionLines = sessions.length > 0
@@ -377,21 +378,23 @@ function buildSkeleton({
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
-  const repoRoot = process.cwd();
   const resolvedPacket = resolveWorkPacketPath(options.wpId);
-  if (!resolvedPacket?.packetPath || !fs.existsSync(resolvedPacket.packetPath)) {
+  if (!resolvedPacket?.packetPath || !fs.existsSync(resolvedPacket.packetAbsPath || "")) {
     fail(`Packet not found for ${options.wpId}`);
   }
 
   const packetPath = resolvedPacket.packetPath;
+  const packetAbsPath = resolvedPacket.packetAbsPath;
+  const governanceRepoRoot = path.resolve(path.dirname(packetAbsPath), "..", "..", "..");
+  const repoRoot = governanceRepoRoot;
   const refinementPath = resolveRefinementPath(options.wpId) || "";
-  const packetText = fs.readFileSync(packetPath, "utf8");
+  const packetText = fs.readFileSync(packetAbsPath, "utf8");
   const runtimePath = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   const receiptsPath = parseSingleField(packetText, "WP_RECEIPTS_FILE");
   const threadPath = parseSingleField(packetText, "WP_THREAD_FILE");
   const commDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
-  const runtime = runtimePath && fs.existsSync(runtimePath) ? parseJsonFile(runtimePath) : null;
-  const receipts = receiptsPath && fs.existsSync(receiptsPath) ? parseJsonlFile(receiptsPath) : [];
+  const runtime = runtimePath && fs.existsSync(repoPathAbs(runtimePath)) ? parseJsonFile(runtimePath) : null;
+  const receipts = receiptsPath && fs.existsSync(repoPathAbs(receiptsPath)) ? parseJsonlFile(receiptsPath) : [];
   const threadSummary = readThreadSummary(threadPath);
   const notificationSummary = summarizeNotifications(options.wpId, commDir);
   const latestReceipt = receipts.at(-1) || null;
@@ -444,7 +447,7 @@ function main() {
   const controlResults = controlResultsAll.filter((entry) => String(entry.wp_id || "").trim() === options.wpId);
 
   const content = buildSkeleton({
-    repoRoot,
+    governanceRepoRoot,
     wpId: options.wpId,
     packetPath,
     refinementPath,

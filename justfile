@@ -395,8 +395,8 @@ wp-validator-review wp-id actor_session coder_session summary correlation_id spe
 wp-communication-health-check wp-id stage="STATUS":
 	@node {{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs {{wp-id}} {{stage}}
 
-check-notifications wp-id role="":
-	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs {{wp-id}} {{role}}
+check-notifications wp-id role="" session="":
+	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs {{wp-id}} {{role}} "{{session}}"
 
 ack-notifications wp-id role session:
 	@node {{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs {{wp-id}} {{role}} --ack --session={{session}}

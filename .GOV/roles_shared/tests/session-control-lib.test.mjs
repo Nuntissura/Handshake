@@ -18,6 +18,7 @@ test("coder startup prompt carries orchestrator-managed relapse guard and lane-a
   assert.match(prompt, /`MANUAL_RELAY` = .*skeleton approval when required/i);
   assert.match(prompt, /`ORCHESTRATOR_MANAGED` = .*no routine Operator approvals after signature/i);
   assert.match(prompt, /just active-lane-brief CODER WP-TEST-CODER-v1/i);
+  assert.match(prompt, /just check-notifications WP-TEST-CODER-v1 CODER <your-session>/i);
   assert.match(prompt, new RegExp(CODEX_AUTHORITY_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
@@ -56,6 +57,7 @@ test("wp-validator startup prompt uses the dedicated validator lane and early st
   assert.match(prompt, /judge bootstrap\/skeleton\/micro-task direction early/i);
   assert.match(prompt, /EARLY STEERING \(MANDATORY\): You are the first technical judge for coder BOOTSTRAP, SKELETON, and completed micro tasks/i);
   assert.match(prompt, /WORKTREE SYNC \(MANDATORY\): Keep your dedicated validator branch\/worktree reviewable against the coder branch/i);
+  assert.match(prompt, /just check-notifications WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
 });
 
 test("steering prompt stays compact and codex-explicit", () => {
@@ -70,6 +72,6 @@ test("steering prompt stays compact and codex-explicit", () => {
   assert.match(prompt, /just active-lane-brief INTEGRATION_VALIDATOR WP-TEST-STEER-v1/i);
   assert.match(prompt, /Run in order:/i);
   assert.match(prompt, /just validator-next WP-TEST-STEER-v1/i);
-  assert.match(prompt, /just check-notifications WP-TEST-STEER-v1 INTEGRATION_VALIDATOR/i);
+  assert.match(prompt, /just check-notifications WP-TEST-STEER-v1 INTEGRATION_VALIDATOR <your-session>/i);
   assert.match(prompt, /Do not request routine Operator approval/i);
 });

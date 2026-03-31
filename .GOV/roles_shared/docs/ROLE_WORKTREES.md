@@ -35,9 +35,9 @@ If you are an AI assistant operating in this repo:
 - You MUST verify you are operating from the correct worktree directory and branch for your role before any repo changes.
 - If the required worktree/branch does not exist, you MUST STOP and request the Orchestrator/Operator to create it (see "Creation commands").
 - IMPORTANT: Codex [CX-108] blocks rewrite/hide operations such as `git stash`, `git checkout`, `git switch`, `git merge`, `git rebase`, `git reset`, and `git clean` unless explicitly authorized in the same turn.
-- Exception (WP auto-continue): when the Orchestrator has already recorded a PASS signature gate for a specific WP and the next deterministic step is `just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID}`, the Orchestrator MUST create that missing WP worktree/branch automatically. Do not bounce that routine post-signature setup back to the Operator for a second approval.
+- Exception (WP auto-continue): when the Orchestrator has already recorded a PASS signature gate for a specific WP and the next deterministic step is `just worktree-add WP-{ID}` or `just orchestrator-prepare-and-packet WP-{ID}`, the Orchestrator MUST create that missing WP worktree/branch automatically. Do not bounce that routine post-signature setup back to the Operator for a second approval.
 - `main` is the canonical integrated branch. `user_ilja` and `gov_kernel` on GitHub are backup branches and may diverge from `main`.
-- Permanent non-main worktrees (`wt-ilja`, `wtc-*`, `wtv-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- Permanent non-main worktrees (`wt-ilja`, `wt-gov-kernel`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - Before destructive or state-hiding local git actions on a role/user/WP branch, push the current committed state to the matching GitHub backup branch.
 - For WPs, the matching GitHub backup branch should be treated as the phase-boundary recovery branch, not just a pre-destruction safety sink.
 - Minimum WP recovery milestones to preserve remotely are:
@@ -157,7 +157,7 @@ WP worktrees (Orchestrator action, not Coder):
 - If the signature was recorded without the full workflow tuple (legacy recovery), the only remaining operator decision is the missing workflow lane and/or coder lane; do not ask again for branch/worktree authorization.
 - Create a WP worktree/branch:
   - `just worktree-add WP-{ID}`
-- Validator worktrees [CX-212D]: WP Validator uses the coder worktree; Integration Validator uses handshake_main. No separate worktree creation needed.
+- Validator worktrees [CX-212D]: WP Validator uses the packet-declared validator worktree (`wtv-*` on `validate/WP-*`); Integration Validator uses `handshake_main` on `main`. The ordinary governed lane therefore has one packet-scoped coder worktree and one packet-scoped validator worktree.
 - Launch the repo-governed CLI sessions:
   - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`

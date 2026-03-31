@@ -72,3 +72,68 @@ test("evaluateSessionGovernanceState blocks launch and steering for terminal tas
     assert.match(result.launchBlockers.join(" "), /task board status is terminal/i);
   });
 });
+
+test("evaluateSessionGovernanceState treats ABANDONED as a terminal task-board state", () => {
+  withTempRepo((repoRoot) => {
+    writeFile(
+      path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md"),
+      "# Board\n\n## Done\n- **[WP-1-Abandon-v1]** - [ABANDONED]\n",
+    );
+    writeFile(
+      path.join(repoRoot, ".GOV", "task_packets", "WP-1-Abandon-v1.md"),
+      "# Task Packet\n\n- **Status:** Validated (ABANDONED)\n",
+    );
+
+    const result = evaluateSessionGovernanceState(repoRoot, {
+      wp_id: "WP-1-Abandon-v1",
+      local_worktree_dir: "wt-abandon",
+    });
+
+    assert.equal(result.taskBoardStatus, "ABANDONED");
+    assert.equal(result.terminalTaskBoardStatus, true);
+    assert.equal(result.launchAllowed, false);
+    assert.match(result.launchBlockers.join(" "), /task board status is terminal/i);
+  });
+});
+
+test("evaluateSessionGovernanceState stays repo-local even when HANDSHAKE_GOV_ROOT points elsewhere", () => {
+  withTempRepo((repoRoot) => {
+    const foreignGovRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-foreign-gov-"));
+    try {
+      writeFile(
+        path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md"),
+        "# Board\n\n## Superseded\n- **[WP-1-Example-v1]** - [SUPERSEDED]\n",
+      );
+      writeFile(
+        path.join(repoRoot, ".GOV", "task_packets", "WP-1-Example-v1.md"),
+        "# Task Packet\n\n- **Status:** Done\n",
+      );
+      writeFile(
+        path.join(foreignGovRoot, "task_packets", "WP-1-Example-v1.md"),
+        "# Task Packet\n\n- **Status:** Ready for Dev\n",
+      );
+
+      const previousGovRoot = process.env.HANDSHAKE_GOV_ROOT;
+      process.env.HANDSHAKE_GOV_ROOT = foreignGovRoot;
+      try {
+        const result = evaluateSessionGovernanceState(repoRoot, {
+          wp_id: "WP-1-Example-v1",
+          local_worktree_dir: "wt-old",
+        });
+
+        assert.equal(result.packetStatus, "Done");
+        assert.equal(result.taskBoardStatus, "SUPERSEDED");
+        assert.equal(result.terminalTaskBoardStatus, true);
+        assert.equal(result.launchAllowed, false);
+      } finally {
+        if (previousGovRoot === undefined) {
+          delete process.env.HANDSHAKE_GOV_ROOT;
+        } else {
+          process.env.HANDSHAKE_GOV_ROOT = previousGovRoot;
+        }
+      }
+    } finally {
+      fs.rmSync(foreignGovRoot, { recursive: true, force: true });
+    }
+  });
+});

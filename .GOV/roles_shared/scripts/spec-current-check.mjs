@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { GOV_ROOT_REPO_REL } from "./lib/runtime-paths.mjs";
 
 function parseVersion(name) {
@@ -20,8 +21,9 @@ function compareVersions(a, b) {
 }
 
 function resolveRepoRoot() {
+  const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   try {
-    const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    const out = execFileSync("git", ["-C", fileRelativeRepoRoot, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     })
@@ -30,7 +32,7 @@ function resolveRepoRoot() {
   } catch {
     // ignore (e.g., running outside a git checkout)
   }
-  return process.cwd();
+  return fileRelativeRepoRoot;
 }
 
 const repoRoot = resolveRepoRoot();

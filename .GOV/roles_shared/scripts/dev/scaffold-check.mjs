@@ -2,12 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { execSync } from "node:child_process";
+import { REPO_ROOT } from "../lib/runtime-paths.mjs";
 
 function fail(message) {
   throw new Error(message);
 }
 
-const repoRoot = process.cwd();
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "handshake-scaffold-"));
 let exitCode = 0;
 
@@ -45,11 +45,11 @@ try {
   const componentsDir = path.join(tmpRoot, "app", "src", "components");
   fs.mkdirSync(componentsDir, { recursive: true });
 
-  execSync(`node "${path.join(repoRoot, "roles_shared", "scripts", "dev", "new-api-endpoint.mjs")}" sample_ping`, {
+  execSync(`node "${path.join(REPO_ROOT, ".GOV", "roles_shared", "scripts", "dev", "new-api-endpoint.mjs")}" sample_ping`, {
     cwd: tmpRoot,
     stdio: "inherit",
   });
-  execSync(`node "${path.join(repoRoot, "roles_shared", "scripts", "dev", "new-react-component.mjs")}" SampleWidget`, {
+  execSync(`node "${path.join(REPO_ROOT, ".GOV", "roles_shared", "scripts", "dev", "new-react-component.mjs")}" SampleWidget`, {
     cwd: tmpRoot,
     stdio: "inherit",
   });

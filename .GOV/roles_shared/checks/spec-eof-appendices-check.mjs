@@ -1,6 +1,7 @@
 import fs from "node:fs";
 
 import { resolveSpecCurrent } from "./refinement-check.mjs";
+import { repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
 function fail(msg, details = []) {
   console.error(msg);
@@ -96,7 +97,7 @@ if (!specVersion) {
   ]);
 }
 
-const content = fs.readFileSync(resolved.specFilePath, "utf8");
+const content = fs.readFileSync(repoPathAbs(resolved.specFilePath), "utf8");
 
 const featureRegistrySchema = isVersionAtLeast(specVersion, "v02.142")
   ? "hs_feature_registry@2"
@@ -154,7 +155,10 @@ for (const r of required) {
 if (primitiveMatrixSchema === "hs_primitive_tool_tech_matrix@2") {
   const featureRegistry = parsedById.get("HS-APPX-FEATURE-REGISTRY");
   const primitiveMatrix = parsedById.get("HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX");
-  const taskBoard = fs.readFileSync(".GOV/roles_shared/records/TASK_BOARD.md", "utf8");
+  const taskBoard = fs.readFileSync(
+    repoPathAbs(".GOV/roles_shared/records/TASK_BOARD.md"),
+    "utf8",
+  );
 
   requireArray(featureRegistry?.features, "feature_registry.features");
   requireArray(primitiveMatrix?.primitives, "primitive_matrix.primitives");
@@ -234,7 +238,7 @@ if (primitiveMatrixSchema === "hs_primitive_tool_tech_matrix@2") {
     for (const stubId of row.gap_stub_ids) {
       const stubNeedle = `**[${stubId}]** - [STUB]`;
       const activePacketRe = new RegExp(
-        `^\\s*-\\s+\\*\\*\\[${escapeRegExp(stubId)}\\]\\*\\*\\s+-\\s+\\[(READY_FOR_DEV|IN_PROGRESS|BLOCKED|ACTIVE|VALIDATED|FAIL|OUTDATED_ONLY)\\]`,
+        `^\\s*-\\s+\\*\\*\\[${escapeRegExp(stubId)}\\]\\*\\*\\s+-\\s+\\[(READY_FOR_DEV|IN_PROGRESS|BLOCKED|MERGE_PENDING|VALIDATED|FAIL|OUTDATED_ONLY|ABANDONED|SUPERSEDED)\\]`,
         "m",
       );
       if (!taskBoard.includes(stubNeedle) && !activePacketRe.test(taskBoard)) {

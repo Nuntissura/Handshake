@@ -1,26 +1,26 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { GOV_ROOT_REPO_REL, resolveRefinementPath } from '../scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, repoPathAbs, resolveRefinementPath } from '../scripts/lib/runtime-paths.mjs';
 
 const SPEC_CURRENT_PATH = path.join(GOV_ROOT_REPO_REL, 'spec', 'SPEC_CURRENT.md');
 const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'TASK_BOARD.md');
 
 export function resolveSpecCurrent() {
-  if (!fs.existsSync(SPEC_CURRENT_PATH)) {
+  if (!fs.existsSync(repoPathAbs(SPEC_CURRENT_PATH))) {
     throw new Error(`Missing ${SPEC_CURRENT_PATH}`);
   }
-  const specCurrent = fs.readFileSync(SPEC_CURRENT_PATH, 'utf8');
+  const specCurrent = fs.readFileSync(repoPathAbs(SPEC_CURRENT_PATH), 'utf8');
   const m = specCurrent.match(/Handshake_Master_Spec_v[0-9._]+\.md/);
   if (!m) {
     throw new Error(`Could not resolve spec filename from ${SPEC_CURRENT_PATH}`);
   }
   const specFileName = m[0];
   const specFilePath = path.join(path.dirname(SPEC_CURRENT_PATH), specFileName);
-  if (!fs.existsSync(specFilePath)) {
+  if (!fs.existsSync(repoPathAbs(specFilePath))) {
     throw new Error(`Resolved spec file does not exist: ${specFilePath}`);
   }
-  const sha1 = crypto.createHash('sha1').update(fs.readFileSync(specFilePath)).digest('hex');
+  const sha1 = crypto.createHash('sha1').update(fs.readFileSync(repoPathAbs(specFilePath))).digest('hex');
   return { specFileName, specFilePath, sha1 };
 }
 
@@ -2013,8 +2013,8 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
 
       const matchGroups = [
         { label: 'MATCHED_STUBS', parsedMatches: stubMatches, allowedStatuses: new Set(['STUB']), expectsStubFile: true, expectsOfficialPacket: false, codeRealityAllowed: new Set(['N/A']) },
-        { label: 'MATCHED_ACTIVE_PACKETS', parsedMatches: activeMatches, allowedStatuses: new Set(['READY_FOR_DEV', 'IN_PROGRESS', 'BLOCKED']), expectsStubFile: false, expectsOfficialPacket: true, codeRealityAllowed: new Set(['PARTIAL', 'NOT_PRESENT', 'N/A']) },
-        { label: 'MATCHED_COMPLETED_PACKETS', parsedMatches: completedMatches, allowedStatuses: new Set(['VALIDATED', 'OUTDATED_ONLY', 'FAIL', 'SUPERSEDED']), expectsStubFile: false, expectsOfficialPacket: true, codeRealityAllowed: new Set(['IMPLEMENTED', 'PARTIAL', 'NOT_PRESENT']) },
+        { label: 'MATCHED_ACTIVE_PACKETS', parsedMatches: activeMatches, allowedStatuses: new Set(['READY_FOR_DEV', 'IN_PROGRESS', 'BLOCKED', 'MERGE_PENDING']), expectsStubFile: false, expectsOfficialPacket: true, codeRealityAllowed: new Set(['PARTIAL', 'NOT_PRESENT', 'N/A']) },
+        { label: 'MATCHED_COMPLETED_PACKETS', parsedMatches: completedMatches, allowedStatuses: new Set(['VALIDATED', 'OUTDATED_ONLY', 'FAIL', 'ABANDONED', 'SUPERSEDED']), expectsStubFile: false, expectsOfficialPacket: true, codeRealityAllowed: new Set(['IMPLEMENTED', 'PARTIAL', 'NOT_PRESENT']) },
       ];
 
       for (const group of matchGroups) {

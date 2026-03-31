@@ -14,6 +14,7 @@ import {
 } from "../scripts/session/session-policy.mjs";
 import {
   LEGACY_SHARED_GOV_RUNTIME_ROOT,
+  REPO_ROOT,
 } from "../scripts/lib/runtime-paths.mjs";
 import {
   loadSessionControlRequests,
@@ -27,7 +28,7 @@ import {
   validateSessionControlResultShape,
 } from "../scripts/session/session-control-lib.mjs";
 
-const repoRoot = process.cwd();
+const repoRoot = REPO_ROOT;
 const registryPath = path.resolve(repoRoot, SESSION_REGISTRY_FILE);
 const requestsPath = path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE);
 const resultsPath = path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE);

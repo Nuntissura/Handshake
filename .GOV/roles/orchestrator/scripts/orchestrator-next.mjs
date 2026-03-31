@@ -268,13 +268,14 @@ function main() {
   const providedWpId = (process.argv[2] || "").trim();
   const gitContext = currentGitContext();
   const gateLogs = loadOrchestratorGateLogs();
+  const repoRoot = gitContext.topLevel || process.cwd();
   let inferred = providedWpId
     ? { wpId: providedWpId, source: "explicit", candidates: [providedWpId] }
-    : inferOrchestratorWpId(gateLogs, gitContext);
+    : inferOrchestratorWpId(gateLogs, gitContext, repoRoot);
 
   if (!providedWpId && !inferred.wpId) {
     const state = loadState();
-    const ranked = activeOrchestratorCandidates(gateLogs)
+    const ranked = activeOrchestratorCandidates(gateLogs, repoRoot)
       .map((entry) => summarizeResumeState(state, entry.wpId))
       .sort((left, right) => {
         if (right.score !== left.score) return right.score - left.score;
@@ -296,7 +297,7 @@ function main() {
   if (!wpId || !wpId.startsWith("WP-")) {
     const activeCandidates =
       inferred.ranked ||
-      activeOrchestratorCandidates(gateLogs).map((entry) => ({
+      activeOrchestratorCandidates(gateLogs, repoRoot).map((entry) => ({
         wpId: entry.wpId,
         stage: entry.type,
         reason: `Latest orchestrator log: ${entry.type}`,

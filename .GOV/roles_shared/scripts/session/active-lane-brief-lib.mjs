@@ -1,5 +1,6 @@
 import fs from "node:fs";
-import { workPacketPath } from "../lib/runtime-paths.mjs";
+import path from "node:path";
+import { REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { parseJsonFile, parseJsonlFile } from "../lib/wp-communications-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../lib/wp-relay-escalation-lib.mjs";
@@ -39,8 +40,31 @@ function summarizeMicrotaskContract(value = null) {
   };
 }
 
+function normalizeSession(value) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+function preferredRoleSession(runtimeStatus = {}, role = "") {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  if (!normalizedRole) return null;
+
+  const nextRole = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
+  const nextSession = normalizeSession(runtimeStatus?.next_expected_session);
+  if (nextRole === normalizedRole && nextSession) return nextSession;
+
+  const activeSessions = (Array.isArray(runtimeStatus?.active_role_sessions) ? runtimeStatus.active_role_sessions : [])
+    .filter((entry) => String(entry?.role || "").trim().toUpperCase() === normalizedRole)
+    .map((entry) => normalizeSession(entry?.session_id))
+    .filter(Boolean);
+  const uniqueSessions = [...new Set(activeSessions)];
+  if (uniqueSessions.length === 1) return uniqueSessions[0];
+
+  return null;
+}
+
 export function buildActiveLaneBrief({
-  repoRoot = process.cwd(),
+  repoRoot = REPO_ROOT,
   role = "",
   wpId = "",
 } = {}) {
@@ -51,21 +75,23 @@ export function buildActiveLaneBrief({
   }
 
   const packetPath = workPacketPath(wpId);
-  if (!fs.existsSync(packetPath)) {
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbsPath)) {
     throw new Error(`Task packet not found: ${packetPath}`);
   }
-  const packetText = fs.readFileSync(packetPath, "utf8");
+  const packetText = fs.readFileSync(packetAbsPath, "utf8");
+  const governanceRepoRoot = path.resolve(path.dirname(packetAbsPath), "..", "..", "..");
   const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
-  const runtimeStatus = runtimeStatusFile && fs.existsSync(runtimeStatusFile)
+  const runtimeStatus = runtimeStatusFile && fs.existsSync(repoPathAbs(runtimeStatusFile))
     ? parseJsonFile(runtimeStatusFile)
     : {};
-  const receipts = receiptsFile && fs.existsSync(receiptsFile)
+  const receipts = receiptsFile && fs.existsSync(repoPathAbs(receiptsFile))
     ? parseJsonlFile(receiptsFile)
     : [];
   const { registry } = loadSessionRegistry(repoRoot);
   const session = (registry.sessions || []).find((entry) => entry.session_key === sessionKey(normalizedRole, wpId)) || null;
-  const governanceState = evaluateSessionGovernanceState(repoRoot, {
+  const governanceState = evaluateSessionGovernanceState(governanceRepoRoot, {
     wp_id: wpId,
     local_worktree_dir: roleConfig.worktreeDir,
   });
@@ -113,10 +139,17 @@ export function buildActiveLaneBrief({
         recommended_command: null,
       }
     : relay;
+  const preferredSession = preferredRoleSession(runtimeStatus, normalizedRole);
   const reviewQueue = terminalNoiseSuppressed
     ? []
     : (Array.isArray(runtimeStatus.open_review_items) ? runtimeStatus.open_review_items : [])
-        .filter((item) => String(item?.target_role || "").trim().toUpperCase() === normalizedRole)
+        .filter((item) => {
+          if (String(item?.target_role || "").trim().toUpperCase() !== normalizedRole) return false;
+          const targetSession = normalizeSession(item?.target_session);
+          if (!targetSession) return true;
+          if (!preferredSession) return false;
+          return targetSession === preferredSession;
+        })
         .slice(0, 4)
         .map((item) => ({
           correlation_id: normalize(item?.correlation_id),
@@ -156,6 +189,7 @@ export function buildActiveLaneBrief({
     },
     session: {
       session_key: normalize(session?.session_key),
+      actor_session: normalize(preferredSession),
       runtime_state: normalize(session?.runtime_state),
       thread_id: normalize(session?.session_thread_id),
       last_command_kind: normalize(session?.last_command_kind),
@@ -183,8 +217,8 @@ export function buildActiveLaneBrief({
     ],
     next_commands: [
       roleConfig.nextCommand,
-      `just check-notifications ${wpId} ${normalizedRole}`,
-      `just ack-notifications ${wpId} ${normalizedRole} <your-session>`,
+      `just check-notifications ${wpId} ${normalizedRole} ${preferredSession || "<your-session>"}`,
+      `just ack-notifications ${wpId} ${normalizedRole} ${preferredSession || "<your-session>"}`,
     ],
   };
 }
@@ -197,7 +231,7 @@ export function formatActiveLaneBrief(brief) {
     `- PACKET: ${brief.packet_path}`,
     `- ROLE_CONTEXT: branch=${brief.role_config.branch} | worktree=${brief.role_config.worktree_dir}`,
     `- RUNTIME: status=${brief.runtime.status} | phase=${brief.runtime.phase} | next=${brief.runtime.next_expected_actor}${brief.runtime.next_expected_session !== "<none>" ? `:${brief.runtime.next_expected_session}` : ""} | waiting_on=${brief.runtime.waiting_on}${brief.runtime.waiting_on_session !== "<none>" ? ` (${brief.runtime.waiting_on_session})` : ""}`,
-    `- SESSION: key=${brief.session.session_key} | runtime_state=${brief.session.runtime_state} | thread=${brief.session.thread_id} | last_command=${brief.session.last_command_kind}/${brief.session.last_command_status}`,
+    `- SESSION: key=${brief.session.session_key} | actor_session=${brief.session.actor_session} | runtime_state=${brief.session.runtime_state} | thread=${brief.session.thread_id} | last_command=${brief.session.last_command_kind}/${brief.session.last_command_status}`,
     `- NOTIFICATIONS: pending=${brief.notifications.pending_count} | by_kind=${JSON.stringify(brief.notifications.by_kind)}`,
     ...(brief.notifications.history_hidden
       ? [`- NOTIFICATIONS_HISTORY_HIDDEN: pending=${brief.notifications.hidden_history?.pending_notification_count || 0} | by_kind=${JSON.stringify(brief.notifications.hidden_history?.pending_notification_by_kind || {})}`]

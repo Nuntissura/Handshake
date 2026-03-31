@@ -25,6 +25,7 @@ Rules:
 - BUILD_ORDER_DEPENDS_ON: WP-1-Workflow-Engine, WP-1-AI-Job-Model, WP-1-Flight-Recorder, WP-1-Locus-Phase1-Integration-Occupancy, WP-1-Artifact-System-Foundations
 - BUILD_ORDER_BLOCKS: NONE
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
+- ROADMAP_ADD_COVERAGE: SPEC=v02.179; PHASE=7.6.3; LINES=47317
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.150.md 7.6.3 (Phase 1) -> backend combo expansion: workflow projection correlation
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - Handshake_Master_Spec_v02.150.md 2.6 Workflow & Automation Engine (Normative)

@@ -5,6 +5,7 @@ import { loadSessionRegistry } from "../scripts/session/session-registry-lib.mjs
 import { evaluateSessionGovernanceState } from "../scripts/session/session-governance-state-lib.mjs";
 import { loadPacket } from "../scripts/lib/role-resume-utils.mjs";
 import { evaluateWpDeclaredTopology } from "../scripts/lib/wp-declared-topology-lib.mjs";
+import { REPO_ROOT, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
 const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 const ACTIVE_SESSION_RUNTIME_STATES = new Set([
@@ -21,7 +22,7 @@ const ACTIVE_SESSION_RUNTIME_STATES = new Set([
 ]);
 
 function runGit(args) {
-  return execFileSync("git", args, { stdio: "pipe" }).toString().trim();
+  return execFileSync("git", ["-C", REPO_ROOT, ...args], { stdio: "pipe" }).toString().trim();
 }
 
 function fail(message, details = []) {
@@ -77,11 +78,11 @@ function main() {
     return;
   }
 
-  if (!fs.existsSync(TASK_BOARD_PATH)) {
+  if (!fs.existsSync(repoPathAbs(TASK_BOARD_PATH))) {
     fail("Missing task board", [`Expected: ${TASK_BOARD_PATH}`]);
   }
 
-  const taskBoard = fs.readFileSync(TASK_BOARD_PATH, "utf8");
+  const taskBoard = fs.readFileSync(repoPathAbs(TASK_BOARD_PATH), "utf8");
   const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
   const inProgressWpIds = listInProgressWps(taskBoard);
   const { registry } = loadSessionRegistry(repoRoot);

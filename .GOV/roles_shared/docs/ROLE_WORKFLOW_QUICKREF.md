@@ -57,9 +57,8 @@ Governance-only (does not scan `src/` or `app/`):
 - Shared repo tooling notes live in `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`; use it as short append-only shared tooling memory, not as a second LAW surface.
 
 Product-scanning / product-boundary enforcement:
-- `just codex-check` (includes hard boundary checks for `.GOV` references in product code)
-- `just product-scan` (alias) / `just validator-scan` (forbidden patterns in product sources)
-- `just validate` (full product hygiene: frontend + backend tests, etc.)
+- `just product-scan` / `just validator-scan` (forbidden patterns and product-boundary enforcement in product sources)
+- There is no sanctioned `just codex-check` or `just validate` recipe in the live command surface. Run the explicit frontend/backend `TEST_PLAN` commands your WP requires instead.
 
 ## Session Host + Operator Monitor
 
@@ -103,7 +102,6 @@ Primary commands:
 - `just worktree-add WP-...`
 - `just record-prepare WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>] [branch] [worktree_dir]`
 - `just create-task-packet WP-...`
-- `just orchestrator-worktree-and-packet WP-...`
 - `just orchestrator-prepare-and-packet WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>]`
 - `just coder-worktree-add WP-...`
 - `just wp-validator-worktree-add WP-...`
@@ -156,6 +154,7 @@ Primary commands:
 - `just wp-thread-append WP-... CODER <session> "<message>" [target]`
 - Heartbeat note: `wp-heartbeat` is liveness-only. Use receipts/notifications to change routing, not heartbeat.
 - If context/routing feels fragmented, use `just active-lane-brief CODER WP-...` instead of rereading packet/runtime/session truth separately.
+- Use `just check-notifications WP-... CODER <your-session>` so you only consume notifications targeted to your governed session.
 
 Role rule:
 - Only the Primary Coder may use sub-agents, and only when the packet explicitly allows it.
@@ -170,7 +169,7 @@ Primary commands (per WP validation):
 - `just post-work WP-...` (local mirror sanity only unless you are explicitly validating the committed PREPARE target)
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
-- `just codex-check` (product boundary enforcement)
+- `just product-scan` (product boundary enforcement)
 - Session start/steering: `just start-wp-validator-session WP-...`, `just steer-wp-validator-session WP-... "<prompt>"`
 - `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-... [--json]`
 - `just wp-heartbeat WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
@@ -178,10 +177,11 @@ Primary commands (per WP validation):
 - `just wp-thread-append WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - Heartbeat note: `wp-heartbeat` is liveness-only. Route changes must come from receipts/notifications or closeout projection.
 - If context/routing feels fragmented, use `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-...` instead of rereading packet/runtime/session truth separately.
-- `just wp-validator-query WP-... CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
-- `just wp-validator-response WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
-- `just wp-review-request WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
-- `just wp-review-response WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
+- Use `just check-notifications WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <your-session>` so you only consume notifications targeted to your governed session.
+- `just wp-review-exchange VALIDATOR_QUERY WP-... CODER <session> WP_VALIDATOR <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
+- `just wp-validator-response WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
+- `just wp-review-exchange REVIEW_REQUEST WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
+- `just wp-review-response WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
 - optional final `microtask_json` may carry `{ "scope_ref": "...", "file_targets": ["..."], "proof_commands": ["..."], "risk_focus": "...", "expected_receipt_kind": "..." }`
 
 Governance-only work:

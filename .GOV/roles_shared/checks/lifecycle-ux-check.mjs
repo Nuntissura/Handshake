@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
 function fail(message) {
   console.error(message);
@@ -8,11 +8,11 @@ function fail(message) {
 }
 
 function readUtf8(filePath) {
-  return fs.readFileSync(filePath, "utf8");
+  return fs.readFileSync(repoPathAbs(filePath), "utf8");
 }
 
 function requireFileExists(filePath) {
-  if (!fs.existsSync(filePath)) {
+  if (!fs.existsSync(repoPathAbs(filePath))) {
     fail(`Missing required governance surface file: ${filePath}`);
   }
 }

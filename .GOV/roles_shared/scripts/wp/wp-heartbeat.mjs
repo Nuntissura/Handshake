@@ -16,7 +16,7 @@ import {
   ACTIVE_ROLE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
 import { appendWpReceipt } from "./wp-receipt-append.mjs";
-import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 
 function parseSingleField(text, label) {
@@ -42,10 +42,11 @@ function parseIntegerField(text, label, fallback) {
 
 function requirePacketContext(wpId) {
   const packetPath = workPacketPath(wpId);
-  if (!fs.existsSync(packetPath)) {
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbsPath)) {
     throw new Error(`Official packet not found: ${normalize(packetPath)}`);
   }
-  const packetText = fs.readFileSync(packetPath, "utf8");
+  const packetText = fs.readFileSync(packetAbsPath, "utf8");
   const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
   if (!runtimeStatusFile) {
@@ -54,13 +55,15 @@ function requirePacketContext(wpId) {
   if (!receiptsFile) {
     throw new Error(`${normalize(packetPath)} does not declare WP_RECEIPTS_FILE`);
   }
-  if (!fs.existsSync(runtimeStatusFile)) {
+  const runtimeStatusAbsPath = repoPathAbs(runtimeStatusFile);
+  if (!fs.existsSync(runtimeStatusAbsPath)) {
     throw new Error(`Runtime status file missing on disk: ${normalize(runtimeStatusFile)}`);
   }
   return {
     packetPath: normalize(packetPath),
     packetText,
     runtimeStatusFile: normalize(runtimeStatusFile),
+    runtimeStatusAbsPath: normalize(runtimeStatusAbsPath),
     heartbeatIntervalMinutes: parseIntegerField(packetText, "HEARTBEAT_INTERVAL_MINUTES", 15),
     staleAfterMinutes: parseIntegerField(packetText, "STALE_AFTER_MINUTES", 45),
   };
@@ -139,7 +142,7 @@ function recordWpHeartbeatCore({
   if (!VALIDATOR_TRIGGER_VALUES.includes(VALIDATOR_TRIGGER)) throw new Error(`Invalid VALIDATOR_TRIGGER: ${VALIDATOR_TRIGGER}`);
 
   const context = requirePacketContext(WP_ID);
-  const runtimeStatusPath = context.runtimeStatusFile;
+  const runtimeStatusPath = context.runtimeStatusAbsPath;
   const runtime = parseJsonFile(runtimeStatusPath);
   const stateBefore = `${runtime.runtime_status}/${runtime.current_phase}`;
   const { authorityKind, validatorRoleKind } = deriveAuthorityKinds({

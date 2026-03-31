@@ -147,14 +147,15 @@ function declaredTopology(repoRoot, wpId, packetContent) {
   };
 }
 
-function isRelatedWorktree(entry, topology, wpId, expectedBranchHead) {
+function isRelatedWorktree(entry, topology, wpId, expectedBranchHeads) {
   const branch = normalizeBranch(entry?.branch);
   const worktreePath = String(entry?.path || "");
   const basename = basenameHint(worktreePath);
   const branchMatchesWp = branch.includes(wpId);
   const pathMatchesDeclaredBase = topology.allowedBasenames.some((base) => basename === base || basename.startsWith(`${base}-`));
   const tokenMatch = wpPathTokens(wpId).some((token) => basename.includes(token));
-  const detachedHeadMatch = !branch && expectedBranchHead && String(entry?.head || "").trim() === expectedBranchHead && tokenMatch;
+  const heads = Array.isArray(expectedBranchHeads) ? expectedBranchHeads.filter(Boolean) : [];
+  const detachedHeadMatch = !branch && heads.includes(String(entry?.head || "").trim()) && tokenMatch;
   return branchMatchesWp || pathMatchesDeclaredBase || detachedHeadMatch;
 }
 
@@ -174,7 +175,8 @@ export function evaluateWpDeclaredTopology({
 } = {}) {
   const topology = declaredTopology(repoRoot, wpId, packetContent);
   const entries = Array.isArray(worktrees) ? worktrees : parseGitWorktreeList(repoRoot);
-  const expectedBranchHead = branchHeadSha(repoRoot, topology.coderBranch, branchHeads);
+  const expectedCoderBranchHead = branchHeadSha(repoRoot, topology.coderBranch, branchHeads);
+  const expectedWpValidatorBranchHead = branchHeadSha(repoRoot, topology.wpValidatorBranch, branchHeads);
   const issues = [];
 
   const coderBranchEntry = entries.find((entry) => normalizeBranch(entry.branch) === topology.coderBranch) || null;
@@ -195,7 +197,34 @@ export function evaluateWpDeclaredTopology({
     );
   }
 
-  const relatedWorktrees = entries.filter((entry) => isRelatedWorktree(entry, topology, wpId, expectedBranchHead));
+  const wpValidatorBranchEntry = entries.find((entry) => normalizeBranch(entry.branch) === topology.wpValidatorBranch) || null;
+  const directWpValidatorProbeEntry = wpValidatorBranchEntry
+    ? null
+    : probeDeclaredWorktree(topology.wpValidatorWorktreeAbs, declaredWorktreeProbe);
+  const effectiveWpValidatorEntry = wpValidatorBranchEntry || directWpValidatorProbeEntry;
+
+  if (comparablePath(topology.wpValidatorWorktreeAbs) === comparablePath(topology.coderWorktreeAbs)) {
+    issues.push(
+      `wp validator worktree must be distinct from coder worktree (both resolve to ${topology.wpValidatorWorktreeAbs})`,
+    );
+  }
+
+  if (!effectiveWpValidatorEntry) {
+    issues.push(`no linked worktree found for expected WP validator branch ${topology.wpValidatorBranch}`);
+  } else if (normalizeBranch(effectiveWpValidatorEntry.branch) !== topology.wpValidatorBranch) {
+    issues.push(
+      `WP validator worktree branch mismatch (expected ${topology.wpValidatorBranch}, git has ${normalizeBranch(effectiveWpValidatorEntry.branch) || "<unknown>"})`,
+    );
+  } else if (comparablePath(effectiveWpValidatorEntry.path) !== comparablePath(topology.wpValidatorWorktreeAbs)) {
+    issues.push(
+      `WP validator worktree mismatch (expected ${topology.wpValidatorWorktreeDir} -> ${topology.wpValidatorWorktreeAbs}, git has ${effectiveWpValidatorEntry.path})`,
+    );
+  }
+
+  const relatedWorktrees = entries.filter((entry) => isRelatedWorktree(entry, topology, wpId, [
+    expectedCoderBranchHead,
+    expectedWpValidatorBranchHead,
+  ]));
   const undeclaredWorktrees = relatedWorktrees.filter((entry) => !topology.allowedSpecificPaths.includes(comparablePath(entry.path)));
 
   for (const entry of undeclaredWorktrees) {
@@ -206,10 +235,13 @@ export function evaluateWpDeclaredTopology({
     ok: issues.length === 0,
     topology,
     coderBranchEntry: effectiveCoderEntry,
-    directProbeUsed: Boolean(directProbeEntry),
+    wpValidatorBranchEntry: effectiveWpValidatorEntry,
+    directProbeUsed: Boolean(directProbeEntry || directWpValidatorProbeEntry),
     relatedWorktrees,
     undeclaredWorktrees,
-    expectedBranchHead,
+    expectedBranchHead: expectedCoderBranchHead,
+    expectedCoderBranchHead,
+    expectedWpValidatorBranchHead,
     issues,
   };
 }

@@ -3,7 +3,7 @@ import {
   computedPolicyOutcomeAllowsClosure,
   evaluateComputedPolicyGateFromPacketText,
 } from "../scripts/lib/computed-policy-gate-lib.mjs";
-import { GOV_ROOT_REPO_REL, listOfficialWorkPacketEntries, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, listOfficialWorkPacketEntries, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 
 function fail(message, details = []) {
   console.error(`[COMPUTED_POLICY_GATE] ${message}`);
@@ -30,10 +30,11 @@ const jsonMode = process.argv.includes("--json");
 const results = [];
 
 for (const target of loadTargetPackets(wpIdArg)) {
-  if (!fs.existsSync(target.packetPath)) {
+  const packetAbsPath = repoPathAbs(target.packetPath);
+  if (!fs.existsSync(packetAbsPath)) {
     fail("Work packet not found", [target.packetPath]);
   }
-  const packetText = fs.readFileSync(target.packetPath, "utf8");
+  const packetText = fs.readFileSync(packetAbsPath, "utf8");
   const evaluation = evaluateComputedPolicyGateFromPacketText(packetText, {
     wpId: target.wpId,
     packetPath: target.packetPath,

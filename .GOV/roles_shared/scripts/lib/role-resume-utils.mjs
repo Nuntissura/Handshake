@@ -10,6 +10,7 @@ export const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "rec
 export const TERMINAL_TASK_BOARD_STATUSES = ["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"];
 export const IMPLICIT_ORCHESTRATOR_RESUME_LOOKBACK_HOURS = 168;
 export const ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES = ["READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "MERGE_PENDING"];
+const LOCAL_GOV_ROOT_REPO_REL = ".GOV";
 
 function safeExec(command) {
   try {
@@ -83,8 +84,15 @@ export function packetPath(wpId) {
 }
 
 export function packetPathAtRepo(wpId, referenceRepoRoot = "") {
-  const packetPathRel = resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
-  return referenceRepoRoot ? path.join(referenceRepoRoot, packetPathRel) : packetPathRel;
+  if (!referenceRepoRoot) {
+    const packetPathRel = resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+    return packetPathRel;
+  }
+
+  const repoRoot = path.resolve(referenceRepoRoot);
+  const folderPacket = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "task_packets", wpId, "packet.md");
+  if (exists(folderPacket)) return folderPacket;
+  return path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
 }
 
 export function packetExists(wpId) {
@@ -178,7 +186,14 @@ export function escapeRegex(value) {
 }
 
 export function loadOrchestratorGateLogs() {
-  const state = loadJson(ORCHESTRATOR_GATES_PATH, { gate_logs: [] });
+  return loadOrchestratorGateLogsAtRepo();
+}
+
+export function loadOrchestratorGateLogsAtRepo(repoRoot = "") {
+  const gatesPath = repoRoot
+    ? path.join(path.resolve(repoRoot), GOVERNANCE_RUNTIME_ROOT_REPO_REL, "roles_shared", "ORCHESTRATOR_GATES.json")
+    : ORCHESTRATOR_GATES_PATH;
+  const state = loadJson(gatesPath, { gate_logs: [] });
   return Array.isArray(state.gate_logs) ? state.gate_logs : [];
 }
 
@@ -186,15 +201,25 @@ export function lastGateLog(logs, wpId, type) {
   return [...logs].reverse().find((entry) => entry?.wpId === wpId && entry?.type === type) || null;
 }
 
-export function inferWpIdFromPrepare(logs, gitContext) {
+export function inferWpIdFromPrepare(logs, gitContext, referenceRepoRoot = "") {
   const currentBranchWp = inferWpIdFromBranch(gitContext.branch);
-  if (currentBranchWp) return { wpId: currentBranchWp, source: "branch", candidates: [currentBranchWp] };
+  if (currentBranchWp) {
+    const boardStatus = referenceRepoRoot
+      ? taskBoardStatusAtRepo(referenceRepoRoot, currentBranchWp)
+      : taskBoardStatus(currentBranchWp);
+    if (!isTerminalTaskBoardStatus(boardStatus)) {
+      return { wpId: currentBranchWp, source: "branch", candidates: [currentBranchWp] };
+    }
+  }
 
   const matches = new Set();
 
   for (const entry of logs) {
     if (!entry?.wpId || !String(entry.wpId).startsWith("WP-")) continue;
-    if (isTerminalTaskBoardStatus(taskBoardStatus(entry.wpId))) continue;
+    const boardStatus = referenceRepoRoot
+      ? taskBoardStatusAtRepo(referenceRepoRoot, entry.wpId)
+      : taskBoardStatus(entry.wpId);
+    if (isTerminalTaskBoardStatus(boardStatus)) continue;
 
     const entryBranch = String(entry.branch || "").trim();
     if (entryBranch && gitContext.branch && entryBranch === gitContext.branch) {
@@ -248,7 +273,7 @@ export function taskBoardEntries() {
 
 export function taskBoardEntriesAtRepo(repoRoot = "") {
   const taskBoardPath = repoRoot
-    ? path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md")
+    ? path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md")
     : TASK_BOARD_PATH;
   if (!exists(taskBoardPath)) return [];
   const entries = [];
@@ -266,7 +291,7 @@ export function taskBoardEntriesAtRepo(repoRoot = "") {
 }
 
 function taskBoardStatusAtRepo(repoRoot, wpId) {
-  const taskBoardPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
+  const taskBoardPath = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
   if (!exists(taskBoardPath)) return "";
   const content = readUtf8(taskBoardPath);
   const match = content.match(
@@ -276,7 +301,7 @@ function taskBoardStatusAtRepo(repoRoot, wpId) {
 }
 
 function traceabilityPacketPathAtRepo(repoRoot, baseWpId) {
-  const traceabilityPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "WP_TRACEABILITY_REGISTRY.md");
+  const traceabilityPath = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "roles_shared", "records", "WP_TRACEABILITY_REGISTRY.md");
   if (!exists(traceabilityPath)) return "";
   const content = readUtf8(traceabilityPath);
   const lines = content.split(/\r?\n/);
@@ -291,7 +316,7 @@ function traceabilityPacketPathAtRepo(repoRoot, baseWpId) {
 }
 
 function resolveSpecSnapshotAtRepo(repoRoot) {
-  const specCurrentPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "spec", "SPEC_CURRENT.md");
+  const specCurrentPath = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "spec", "SPEC_CURRENT.md");
   if (!exists(specCurrentPath)) {
     return { ok: false, error: `Missing ${specCurrentPath}` };
   }
@@ -505,7 +530,7 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
   };
 }
 
-export function activeOrchestratorCandidates(logs) {
+export function activeOrchestratorCandidates(logs, referenceRepoRoot = "") {
   const latestByWp = new Map();
 
   for (const entry of logs) {
@@ -516,7 +541,9 @@ export function activeOrchestratorCandidates(logs) {
 
   return [...latestByWp.values()]
     .filter((entry) => {
-      const status = taskBoardStatus(entry.wpId);
+      const status = referenceRepoRoot
+        ? taskBoardStatusAtRepo(referenceRepoRoot, entry.wpId)
+        : taskBoardStatus(entry.wpId);
       if (isTerminalTaskBoardStatus(status)) return false;
       return isRecentImplicitResumeTimestamp(entry?.timestamp);
     })
@@ -529,11 +556,11 @@ function uniqueSorted(values) {
 
 export function workflowStartReadinessState({ repoRoot, gateLogs } = {}) {
   const resolvedRepoRoot = repoRoot || currentGitContext().topLevel || process.cwd();
-  const logs = Array.isArray(gateLogs) ? gateLogs : loadOrchestratorGateLogs();
+  const logs = Array.isArray(gateLogs) ? gateLogs : loadOrchestratorGateLogsAtRepo(resolvedRepoRoot);
   const activeBoardEntries = taskBoardEntriesAtRepo(resolvedRepoRoot)
     .filter((entry) => ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES.includes(String(entry.status || "").trim().toUpperCase()));
   const activeBoardWpIds = uniqueSorted(activeBoardEntries.map((entry) => entry.wpId));
-  const activeCandidateWpIds = uniqueSorted(activeOrchestratorCandidates(logs).map((entry) => entry.wpId));
+  const activeCandidateWpIds = uniqueSorted(activeOrchestratorCandidates(logs, resolvedRepoRoot).map((entry) => entry.wpId));
   const candidateWpIdSet = new Set(activeCandidateWpIds);
   const wpIds = uniqueSorted([...activeBoardWpIds, ...activeCandidateWpIds]);
   const violations = [];
@@ -593,11 +620,11 @@ export function workflowStartReadinessState({ repoRoot, gateLogs } = {}) {
   };
 }
 
-export function inferOrchestratorWpId(logs, gitContext) {
-  const fromPrepare = inferWpIdFromPrepare(logs, gitContext);
+export function inferOrchestratorWpId(logs, gitContext, referenceRepoRoot = "") {
+  const fromPrepare = inferWpIdFromPrepare(logs, gitContext, referenceRepoRoot);
   if (fromPrepare.wpId) return { wpId: fromPrepare.wpId, source: fromPrepare.source, candidates: fromPrepare.candidates };
 
-  const candidates = activeOrchestratorCandidates(logs);
+  const candidates = activeOrchestratorCandidates(logs, referenceRepoRoot);
   if (candidates.length === 1) {
     return { wpId: candidates[0].wpId, source: "latest-active", candidates: [candidates[0].wpId] };
   }

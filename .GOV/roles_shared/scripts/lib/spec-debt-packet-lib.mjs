@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { repoPathAbs } from "./runtime-paths.mjs";
 import { formatClauseClosureMatrixSection, formatSpecDebtStatusSection } from "./packet-closure-monitor-lib.mjs";
 
 function parsePipeRecord(item) {
@@ -118,12 +119,13 @@ export function formatUpdatedPacket(packetText, clauseRows, debtState) {
 }
 
 export function readPacket(packetPath) {
-  if (!fs.existsSync(packetPath)) {
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbsPath)) {
     throw new Error(`Missing packet: ${packetPath.replace(/\\/g, "/")}`);
   }
-  return fs.readFileSync(packetPath, "utf8");
+  return fs.readFileSync(packetAbsPath, "utf8");
 }
 
 export function writePacket(packetPath, content) {
-  fs.writeFileSync(packetPath, content, "utf8");
+  fs.writeFileSync(repoPathAbs(packetPath), content, "utf8");
 }

@@ -5,8 +5,9 @@ import { fileURLToPath } from "node:url";
 import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
 
 function resolveRepoRoot() {
+  const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   try {
-    const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    const out = execFileSync("git", ["-C", fileRelativeRepoRoot, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
@@ -17,7 +18,7 @@ function resolveRepoRoot() {
 
   // This file lives at: /.GOV/roles_shared/checks/drive-agnostic-check.mjs
   // Up 3 => repo root.
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  return fileRelativeRepoRoot;
 }
 
 const repoRoot = path.resolve(resolveRepoRoot());

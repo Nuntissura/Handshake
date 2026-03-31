@@ -19,6 +19,19 @@ import {
 const RESEEDABLE_WORKTREE_ROLES = new Set(["OPERATOR"]);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 
+function normalizeComparablePath(value) {
+  const normalized = path.resolve(String(value || "")).replace(/\\/g, "/").replace(/\/+$/, "");
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
+function removeDirectoryLinkOnly(linkPath) {
+  if (process.platform === "win32") {
+    execFileSync("cmd", ["/c", "rmdir", linkPath], { stdio: "ignore" });
+    return;
+  }
+  fs.unlinkSync(linkPath);
+}
+
 function fail(message, details = []) {
   console.error(`[RESEED_PERMANENT_WORKTREE_FROM_MAIN] ${message}`);
   for (const line of details) console.error(`  - ${line}`);
@@ -99,14 +112,18 @@ function ensureGovJunction(absDir) {
   if (fs.existsSync(govDir)) {
     const stat = fs.lstatSync(govDir);
     if (stat.isSymbolicLink()) {
-      const actualTarget = path.resolve(fs.realpathSync(govDir));
-      const expectedTarget = path.resolve(fs.realpathSync(govKernelAbs));
-      if (actualTarget === expectedTarget) {
-        console.log(`[RESEED_PERMANENT_WORKTREE_FROM_MAIN] .GOV already linked in ${absDir}`);
-        return;
+      try {
+        const actualTarget = path.resolve(fs.realpathSync(govDir));
+        const expectedTarget = path.resolve(fs.realpathSync(govKernelAbs));
+        if (normalizeComparablePath(actualTarget) === normalizeComparablePath(expectedTarget)) {
+          console.log(`[RESEED_PERMANENT_WORKTREE_FROM_MAIN] .GOV already linked in ${absDir}`);
+          return;
+        }
+      } catch {
+        // Fall through to replace an unreadable/broken link below.
       }
       console.log(`[RESEED_PERMANENT_WORKTREE_FROM_MAIN] replacing incorrect .GOV junction in ${absDir}`);
-      fs.rmSync(govDir, { recursive: true, force: true });
+      removeDirectoryLinkOnly(govDir);
     } else {
       console.log(`[RESEED_PERMANENT_WORKTREE_FROM_MAIN] replacing inherited .GOV with junction in ${absDir}`);
       fs.rmSync(govDir, { recursive: true, force: true });

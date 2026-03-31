@@ -5,6 +5,7 @@ import { MAIN_CONTAINMENT_STATUS_VALUES } from "./merge-progression-truth-lib.mj
 import {
   GOV_ROOT_REPO_REL,
   LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT,
+  repoPathAbs,
   SHARED_GOV_WP_COMMUNICATIONS_ROOT,
 } from "./runtime-paths.mjs";
 
@@ -250,7 +251,7 @@ export function activeWorkflowInvalidityReceipt(receipts = []) {
 }
 
 export function ensureSchemaFilesExist() {
-  const missing = [RUNTIME_STATUS_SCHEMA_PATH, RECEIPT_SCHEMA_PATH].filter((target) => !fs.existsSync(target));
+  const missing = [RUNTIME_STATUS_SCHEMA_PATH, RECEIPT_SCHEMA_PATH].filter((target) => !fs.existsSync(repoPathAbs(target)));
   if (missing.length > 0) {
     throw new Error(`Missing WP communication schema file(s): ${missing.map(normalize).join(", ")}`);
   }
@@ -266,12 +267,12 @@ export function addMinutes(iso, minutes) {
 }
 
 export function parseJsonFile(filePath) {
-  const text = fs.readFileSync(filePath, "utf8");
+  const text = fs.readFileSync(repoPathAbs(filePath), "utf8");
   return JSON.parse(text);
 }
 
 export function parseJsonlFile(filePath) {
-  const text = fs.readFileSync(filePath, "utf8");
+  const text = fs.readFileSync(repoPathAbs(filePath), "utf8");
   const lines = text
     .split(/\r?\n/)
     .map((line) => line.trim())

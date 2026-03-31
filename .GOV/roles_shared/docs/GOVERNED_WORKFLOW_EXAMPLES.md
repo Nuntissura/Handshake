@@ -41,7 +41,7 @@ just wp-communication-health-check WP-{ID} KICKOFF
 ```bash
 just coder-startup
 just coder-next WP-{ID}
-just check-notifications WP-{ID} CODER
+just check-notifications WP-{ID} CODER <coder_session>
 just ack-notifications WP-{ID} CODER <coder_session>
 just wp-coder-intent WP-{ID} <coder_session> <wp_validator_session> "Implementation plan and first proof target" <kickoff_correlation_id>
 just pre-work WP-{ID}
@@ -52,7 +52,7 @@ just wp-coder-handoff WP-{ID} <coder_session> <wp_validator_session> "Committed 
 ### WP Validator reviews the committed handoff
 
 ```bash
-just check-notifications WP-{ID} WP_VALIDATOR
+just check-notifications WP-{ID} WP_VALIDATOR <wp_validator_session>
 just ack-notifications WP-{ID} WP_VALIDATOR <wp_validator_session>
 just wp-communication-health-check WP-{ID} HANDOFF
 just validator-handoff-check WP-{ID}
@@ -86,7 +86,7 @@ just wp-review-exchange REVIEW_REQUEST WP-{ID} INTEGRATION_VALIDATOR <intval_ses
 ### Coder responds directly to the Integration Validator
 
 ```bash
-just check-notifications WP-{ID} CODER
+just check-notifications WP-{ID} CODER <coder_session>
 just ack-notifications WP-{ID} CODER <coder_session>
 just wp-review-response WP-{ID} CODER <coder_session> INTEGRATION_VALIDATOR <intval_session> "Final response with closure evidence" <review_request_correlation_id>
 ```
@@ -94,7 +94,7 @@ just wp-review-response WP-{ID} CODER <coder_session> INTEGRATION_VALIDATOR <int
 ### Integration Validator clears final gates
 
 ```bash
-just check-notifications WP-{ID} INTEGRATION_VALIDATOR
+just check-notifications WP-{ID} INTEGRATION_VALIDATOR <intval_session>
 just ack-notifications WP-{ID} INTEGRATION_VALIDATOR <intval_session>
 just wp-communication-health-check WP-{ID} VERDICT
 just validator-gate-append WP-{ID} PASS
@@ -126,8 +126,8 @@ just orchestrator-next WP-{ID}
 
 ```bash
 just wp-communication-health-check WP-{ID} STATUS
-just check-notifications WP-{ID} CODER
-just check-notifications WP-{ID} WP_VALIDATOR
+just check-notifications WP-{ID} CODER <coder_session>
+just check-notifications WP-{ID} WP_VALIDATOR <wp_validator_session>
 ```
 
 ### Repair rules
@@ -167,10 +167,10 @@ Use this as the minimal mental model for parallel governed work.
 
 - `WP-A`
   - `CODER` in `wtc-WP-A`
-  - `WP_VALIDATOR` in `wtc-WP-A`
+  - `WP_VALIDATOR` in `wtv-WP-A`
 - `WP-B`
   - `CODER` in `wtc-WP-B`
-  - `WP_VALIDATOR` in `wtc-WP-B`
+  - `WP_VALIDATOR` in `wtv-WP-B`
 - shared repo lanes
   - `ORCHESTRATOR` in `wt-gov-kernel`
   - `INTEGRATION_VALIDATOR` in `handshake_main`
