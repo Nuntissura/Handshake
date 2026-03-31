@@ -120,6 +120,21 @@ function ensureWpCommunicationsCore({
   const MAIN_CONTAINMENT_VERIFIED_AT_UTC = normalizeNoneLike(
     parseSingleField(packetText, "MAIN_CONTAINMENT_VERIFIED_AT_UTC"),
   );
+  const CURRENT_MAIN_COMPATIBILITY_STATUS = String(
+    normalizeNoneLike(parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS")) || "NOT_RUN",
+  ).trim().toUpperCase();
+  const CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA = normalizeNoneLike(
+    parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA"),
+  );
+  const CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC = normalizeNoneLike(
+    parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC"),
+  );
+  const PACKET_WIDENING_DECISION = String(
+    normalizeNoneLike(parseSingleField(packetText, "PACKET_WIDENING_DECISION")) || "NONE",
+  ).trim().toUpperCase();
+  const PACKET_WIDENING_EVIDENCE = normalizeNoneLike(
+    parseSingleField(packetText, "PACKET_WIDENING_EVIDENCE"),
+  );
   const WORKFLOW_AUTHORITY = String(parseSingleField(packetText, "WORKFLOW_AUTHORITY") || "ORCHESTRATOR").trim();
   const TECHNICAL_ADVISOR = String(parseSingleField(packetText, "TECHNICAL_ADVISOR") || "WP_VALIDATOR").trim();
   const TECHNICAL_AUTHORITY = String(parseSingleField(packetText, "TECHNICAL_AUTHORITY") || "INTEGRATION_VALIDATOR").trim();
@@ -200,6 +215,12 @@ function ensureWpCommunicationsCore({
   if (!MAIN_CONTAINMENT_STATUS_VALUES.includes(MAIN_CONTAINMENT_STATUS)) {
     throw new Error(`Invalid MAIN_CONTAINMENT_STATUS for ${WP_ID}: ${MAIN_CONTAINMENT_STATUS}`);
   }
+  if (!CURRENT_MAIN_COMPATIBILITY_STATUS) {
+    throw new Error(`Invalid CURRENT_MAIN_COMPATIBILITY_STATUS for ${WP_ID}: ${CURRENT_MAIN_COMPATIBILITY_STATUS}`);
+  }
+  if (!PACKET_WIDENING_DECISION) {
+    throw new Error(`Invalid PACKET_WIDENING_DECISION for ${WP_ID}: ${PACKET_WIDENING_DECISION}`);
+  }
 
   const replacements = {
     "{{WP_ID}}": WP_ID,
@@ -224,6 +245,17 @@ function ensureWpCommunicationsCore({
     "{{MERGED_MAIN_COMMIT}}": MERGED_MAIN_COMMIT ? JSON.stringify(MERGED_MAIN_COMMIT) : "null",
     "{{MAIN_CONTAINMENT_VERIFIED_AT_UTC}}": MAIN_CONTAINMENT_VERIFIED_AT_UTC
       ? JSON.stringify(MAIN_CONTAINMENT_VERIFIED_AT_UTC)
+      : "null",
+    "{{CURRENT_MAIN_COMPATIBILITY_STATUS}}": JSON.stringify(CURRENT_MAIN_COMPATIBILITY_STATUS),
+    "{{CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA}}": CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA
+      ? JSON.stringify(CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA)
+      : "null",
+    "{{CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC}}": CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC
+      ? JSON.stringify(CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC)
+      : "null",
+    "{{PACKET_WIDENING_DECISION}}": JSON.stringify(PACKET_WIDENING_DECISION),
+    "{{PACKET_WIDENING_EVIDENCE}}": PACKET_WIDENING_EVIDENCE
+      ? JSON.stringify(PACKET_WIDENING_EVIDENCE)
       : "null",
     "{{TASK_PACKET_PATH}}": normalize(packetPath),
     "{{WP_COMMUNICATION_DIR}}": normalize(wpCommDir),
