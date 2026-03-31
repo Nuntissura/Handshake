@@ -57,7 +57,8 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
   - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/**/RECEIPTS.jsonl`
   - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/**/THREAD.md`
 - The VS Code bridge handles launch/bootstrap dispatch plus operator-facing notices. The ACP broker owns steering state, result settlement, and per-command output logs.
-- `just operator-monitor` is the ACP-aware read-only operator viewport: it merges canonical task-board source/drift, broker status, session registry state, control results/output activity, packet thread/receipt activity, and packet/runtime visibility.
+- `just operator-viewport` is the canonical ACP-aware read-only operator viewport: it merges canonical task-board source/drift, broker status, session registry state, control results/output activity, packet thread/receipt activity, and packet/runtime visibility.
+- `just operator-monitor` remains a compatibility alias.
 - `just operator-admin` is the explicit admin-mode console for governed lifecycle actions. It remains non-authoritative and must invoke the same governed scripts the Orchestrator would run directly.
 - Roles should not depend on blind continuous polling when a watch event exists.
 
@@ -151,7 +152,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
 - `just session-registry-status [WP-{ID}]`
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
 - `just orchestrator-steer-next WP-{ID} [PRIMARY|FALLBACK]`
-- `just operator-monitor`
+- `just operator-viewport`
 - `just operator-admin`
 - When a WP filter is supplied, `just session-registry-status` now prints derived relay escalation state.
 - `just active-lane-brief` is the compact authority digest for one governed lane; prefer it over rereading packet/runtime/session surfaces separately.

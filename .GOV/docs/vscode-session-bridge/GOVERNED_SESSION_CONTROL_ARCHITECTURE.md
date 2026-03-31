@@ -38,7 +38,7 @@ From the Orchestrator worktree:
    - `just start-wp-validator-session WP-{ID}`
 2. Inspect governed state:
    - `just session-registry-status WP-{ID}`
-   - `just operator-monitor`
+   - `just operator-viewport`
 3. Steer work through governed prompts:
    - `just steer-coder-session WP-{ID} "<prompt>"`
    - `just steer-wp-validator-session WP-{ID} "<prompt>"`
@@ -151,7 +151,7 @@ That means:
 - the primary control transport becomes a governed ACP adapter under `.GOV/tools`
 - repo scripts remain the authority layer that decides who may start, steer, cancel, or inspect a session
 - the main TUI remains governance-backed and non-authoritative as a rich viewport only
-- any lifecycle actions such as `close session` or `broker stop` belong to a separate explicit admin mode, not the default operator monitor
+- any lifecycle actions such as `close session` or `broker stop` belong to a separate explicit admin mode, not the default operator viewport
 
 This is not a `.bat` file design. The deliverable is a governance-owned tool package plus repo scripts, ledgers, and viewport updates.
 
@@ -243,7 +243,7 @@ The VS Code bridge is demoted from "primary runtime control plane" to "launch/bo
 
 Lives in:
 
-- `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+- `.GOV/operator/scripts/operator-viewport-tui.mjs`
 
 Responsibilities:
 
@@ -338,7 +338,7 @@ Trust boundary note:
 
 ## TUI Requirements
 
-The default operator monitor remains a viewport. It must stay read-only and must not directly control ACP sessions.
+The default operator viewport remains a viewport. It must stay read-only and must not directly control ACP sessions.
 
 The read model should combine:
 
@@ -406,7 +406,7 @@ The operator should always be able to answer three questions quickly:
 
 Admin functionality must be separate from the default viewport.
 
-- default `operator-monitor` = read-only viewport
+- default `operator-viewport` = read-only viewport (`operator-monitor` remains a compatibility alias)
 - explicit admin mode or separate admin entrypoint = lifecycle actions such as `close session`, `broker stop`, or other governed controls
 - admin mode must call the same governed wrappers as the normal Orchestrator workflow
 - admin mode must remain auditable through the same request/result/output ledgers
@@ -430,7 +430,7 @@ The TUI should give direct read-only visibility into:
 
 During a live WP, the most canonical portfolio board is still the task board on `main`.
 
-The operator monitor may run from another worktree such as `wt-gov-kernel`. The viewport must therefore:
+The operator viewport may run from another worktree such as `wt-gov-kernel`. The viewport must therefore:
 
 - use the canonical `main` board for counts, filter buckets, and WP list selection whenever that canonical board is available
 - use the current worktree board as the mirror comparison surface
@@ -465,7 +465,7 @@ No single field should carry all three meanings.
 - external repo-governance `roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
 - external repo-governance `roles_shared/SESSION_CONTROL_RESULTS.jsonl`
 - external repo-governance `roles_shared/SESSION_CONTROL_OUTPUTS/`
-- `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+- `.GOV/operator/scripts/operator-viewport-tui.mjs`
 
 ### Add
 
@@ -487,7 +487,7 @@ The target end state is:
 
 - Orchestrator-managed role sessions are steerable
 - session control is deterministic and inspectable
-- the operator TUI is a trustworthy viewport over repo-governed truth
+- the operator viewport TUI is a trustworthy viewport over repo-governed truth
 - all work remains inside governance and does not touch product code
 
 ## Immediate Implementation Plan
@@ -495,5 +495,5 @@ The target end state is:
 1. Add a governance-owned ACP adapter package under `.GOV/tools/handshake-acp-bridge/`.
 2. Route governed session start and steer commands through ACP, while preserving repo request/result ledgers.
 3. Update the session registry projection to describe ACP-backed transport explicitly.
-4. Extend `operator-monitor-tui.mjs` with control/event visibility and canonical board-source visibility.
+4. Extend `operator-viewport-tui.mjs` with control/event visibility and canonical board-source visibility.
 5. Keep `just gov-check` as the minimum verification gate for all changes in this lane.

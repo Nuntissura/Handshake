@@ -39,6 +39,8 @@ test("justfile exposes the orchestrator ACP/session control surface", () => {
     "wp-review-request",
     "wp-validator-response",
     "wp-review-response",
+    "operator-viewport",
+    "operator-viewport-admin",
     "operator-monitor",
     "operator-admin",
   ];

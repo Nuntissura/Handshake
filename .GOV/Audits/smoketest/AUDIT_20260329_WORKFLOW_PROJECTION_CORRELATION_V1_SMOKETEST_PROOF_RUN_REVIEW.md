@@ -555,12 +555,12 @@ Assessment:
 - `RGF-30`: Event-Driven Happy-Path Relay Automation
 - `RGF-31`: Structured Coder-Validator Microtask Exchange Contract
 
-## 18. Appendage: Remaining Governance Sweep Queue and Operator TUI Refresh
+## 18. Appendage: Remaining Governance Sweep Queue and Operator Viewport Refresh
 
 ### 18.1 Why This Appendage Exists
 
 - This appendage records the next remediation batch before the next orchestrator-managed ACP proof run.
-- The Operator requirement is to keep the remaining governance sweep and operator-monitor work visible on the governance board so the work can resume without losing technical detail.
+- The Operator requirement is to keep the remaining governance sweep and operator-viewport work visible on the governance board so the work can resume without losing technical detail.
 - The immediate aim is not new product work. The aim is to continue reducing ambiguity, stale behavior, token waste, and operator friction inside repo governance itself.
 
 ### 18.2 Remaining Governance Sweep Queue
@@ -577,9 +577,9 @@ Assessment:
 - `RGF-36`: ACP workflow and runtime control-plane sweep
   - audit broker/runtime/session-ledger behavior, waiting cost, stale projection, notification routing, registry drift, and non-atomic lane transitions
 
-### 18.3 Operator TUI Refresh Requirement
+### 18.3 Operator Viewport Refresh Requirement
 
-- `RGF-37` records a dedicated operator-monitor refresh for the current TUI in `roles/orchestrator/scripts/operator-monitor-tui.mjs`.
+- `RGF-37` records a dedicated operator-viewport refresh for the current TUI, now exposed canonically at `operator/scripts/operator-viewport-tui.mjs`.
 - The Operator assessment is that the current TUI is unpleasant to use, visually stale, too noisy, and not strong enough at surfacing the few things that actually matter:
   - which lane is active
   - which role/session is blocked
@@ -608,12 +608,12 @@ Assessment:
   - a compact event timeline instead of long scrolling status prose
   - explicit “next action” and “steerable session” surfaces
   - historic residue hidden by default and expanded only on demand
-- No relevant GitHub reference was found yet for a parallel-agent TUI specifically named `jirai`; if the intended reference was `Jira`, that should be treated as a separate issue-tracker integration topic rather than a direct operator-monitor model.
+- No relevant GitHub reference was found yet for a parallel-agent TUI specifically named `jirai`; if the intended reference was `Jira`, that should be treated as a separate issue-tracker integration topic rather than a direct operator-viewport model.
 
 ### 18.5 Updated Judgment
 
 - The repo-governance remediation batch is not done merely because `RGF-17` through `RGF-31` closed.
-- The next likely failure mode is now folder-local stale behavior, especially inside orchestrator/runtime surfaces and the operator monitor itself.
+- The next likely failure mode is now folder-local stale behavior, especially inside orchestrator/runtime surfaces and the operator viewport itself.
 - The remaining sweep work and TUI refresh are therefore required to make the next orchestrator-managed ACP trial a fair test of the current governance model rather than another recovery-heavy run.
 
 ### 18.6 Newly Linked Follow-On Governance Work
@@ -623,9 +623,9 @@ Assessment:
 - `RGF-34`: `roles/coder` Folder Sweep and Resume/Hygiene Surface Hardening
 - `RGF-35`: `roles/validator` Folder Sweep and PASS-Lane Hardening
 - `RGF-36`: ACP Workflow and Runtime Control-Plane Sweep
-- `RGF-37`: Operator TUI Modernization and Interaction Refresh
+- `RGF-37`: Operator Viewport Modernization and Interaction Refresh
 
-## 19. Appendage: Governance Sweep Completion and Operator TUI Outcome
+## 19. Appendage: Governance Sweep Completion and Operator Viewport Outcome
 
 ### 19.1 Completion Status
 
@@ -656,7 +656,7 @@ Assessment:
 
 - Orchestrator gate, packet, and worktree-control surfaces now read and write through repo-root-safe paths.
 - Steering and next-action surfaces were tightened so the lane relies less on ad hoc state rediscovery.
-- The operator monitor refresh also landed here because the orchestrator folder owns the TUI and lane-control viewport.
+- The operator viewport refresh also landed here because the orchestrator/runtime sweep owns the underlying lane-control implementation, even though the canonical entrypoint is operator-facing.
 
 ### 19.4 `RGF-34` `roles/coder` Outcome
 
@@ -681,9 +681,9 @@ Assessment:
 - The main result is lower hidden path drift and better agreement between runtime truth, gate state, and role resume/readiness behavior.
 - This does not eliminate all ACP overhead, but it reduces another class of silent control-plane inconsistency.
 
-### 19.7 `RGF-37` Operator TUI Outcome
+### 19.7 `RGF-37` Operator Viewport Outcome
 
-- The operator monitor remains TUI-first. No new web control layer was added.
+- The operator viewport remains TUI-first. No new web control layer was added.
 - The TUI now provides:
   - a stronger top summary strip
   - explicit `next_action` output
@@ -701,7 +701,7 @@ Assessment:
 
 - Verification passed:
   - targeted orchestrator/coder/validator/shared node tests
-  - operator-monitor TUI tests
+  - operator-viewport TUI tests
   - path-safety and command-surface parity tests
   - `just gov-check`
 - Residual risk:

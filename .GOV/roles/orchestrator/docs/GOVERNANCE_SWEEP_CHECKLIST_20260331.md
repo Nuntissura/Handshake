@@ -1,6 +1,6 @@
 # Governance Sweep Checklist 2026-03-31
 
-**Purpose:** reverse-traceable overnight execution checklist and closeout record for the governance sweeps and operator-monitor refresh
+**Purpose:** reverse-traceable overnight execution checklist and closeout record for the governance sweeps and operator-viewport refresh
 
 **Primary board:** `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 
@@ -13,7 +13,7 @@
 - `RGF-34` -> `roles/coder` folder sweep and resume/hygiene surface hardening
 - `RGF-35` -> `roles/validator` folder sweep and PASS-lane hardening
 - `RGF-36` -> ACP workflow and runtime control-plane sweep
-- `RGF-37` -> operator TUI modernization and interaction refresh
+- `RGF-37` -> operator viewport modernization and interaction refresh
 
 ## Execution Order
 
@@ -27,7 +27,7 @@
 ## Completion Summary
 
 - `RGF-32` completed with repo-root-safe shared helpers, repaired relay/session scoping, corrected topology/schema/doc drift, safer shared `.GOV` handling in topology helpers, and expanded regression coverage.
-- `RGF-33` completed with repo-root-safe orchestrator gate/packet/worktree reads, safer prepare/launch flow, quieter and more explicit runtime steering, and a refreshed operator TUI.
+- `RGF-33` completed with repo-root-safe orchestrator gate/packet/worktree reads, safer prepare/launch flow, quieter and more explicit runtime steering, and a refreshed operator viewport.
 - `RGF-34` completed with coder pre-work/post-work/bootstrap/skeleton surfaces aligned to compact output, repo-root-safe state reads, and reduced stale startup/command drift.
 - `RGF-35` completed with validator product-target resolution, closeout/context helpers, DAL/error-code scans, packet-complete law, and gate state handling made repo-root-safe and mechanically stricter.
 - `RGF-36` completed with ACP/runtime registry, relay, token, notification, and resume surfaces audited for cwd drift and stale projection behavior.
@@ -38,7 +38,7 @@
 ### `RGF-33` `roles/orchestrator`
 
 - [x] audit startup, steering, resume, and recovery command paths
-- [x] audit operator monitor/TUI data sourcing, noise suppression, and stale state presentation
+- [x] audit operator viewport/TUI data sourcing, noise suppression, and stale state presentation
 - [x] audit lifecycle helpers for terminal-state, board-state, and packet-truth drift
 - [x] audit command-surface docs and tests for parity with `justfile`
 - [x] add/extend regression coverage for every bug found
@@ -65,7 +65,7 @@
 - [x] audit waiting-cost surfaces and repeated polling behavior
 - [x] add/extend regression coverage for every bug found
 
-### `RGF-37` Operator TUI
+### `RGF-37` Operator Viewport
 
 - [x] reduce stale noise and prose density
 - [x] strengthen lane/session focus and "next action" visibility

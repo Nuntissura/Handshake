@@ -309,7 +309,7 @@ Resume rule (hard, anti-babysit):
 
 - If the assigned packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a coder-local worktree as a competing inbox.
-- When available, prefer VS Code integrated terminals for coder sessions so the Operator can monitor active WPs alongside `just operator-monitor`.
+- When available, prefer VS Code integrated terminals for coder sessions so the Operator can monitor active WPs alongside `just operator-viewport` (`just operator-monitor` remains a compatibility alias).
 - Do not rely on ambient editor defaults for model choice or reasoning strength. For newly created repo-governed sessions, claim/launch explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
 - Fresh repo-governed coder session start is `ORCHESTRATOR_ONLY`. Do not self-start a new repo-governed coder session.
 - Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
@@ -367,7 +367,7 @@ Resume rule (hard, anti-babysit):
   - `just active-lane-brief CODER WP-{ID} [--json]`
   - `just check-notifications WP-{ID} CODER` (check pending messages from validators/orchestrator)
   - `just ack-notifications WP-{ID} CODER <session>` (acknowledge pending notifications after reading)
-  - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
+  - `just operator-viewport` (canonical operator viewport for ACP-aware session/control/thread/receipt/artifact visibility; `just operator-monitor` remains a compatibility alias)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Coder session):
   - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`

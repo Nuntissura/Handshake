@@ -221,7 +221,7 @@ function parseArgs(argv) {
     once: false,
     admin: false,
     actorRole: "OPERATOR",
-    actorSession: "operator-monitor",
+    actorSession: "operator-viewport",
     wpId: "",
     filter: "ACTIVE",
     detailView: "OVERVIEW",
@@ -237,7 +237,7 @@ function parseArgs(argv) {
     } else if (token === "--actor-role") {
       options.actorRole = String(args.shift() || "").trim().toUpperCase() || "OPERATOR";
     } else if (token === "--actor-session") {
-      options.actorSession = String(args.shift() || "").trim() || "operator-monitor";
+      options.actorSession = String(args.shift() || "").trim() || "operator-viewport";
     } else if (token === "--wp") {
       options.wpId = String(args.shift() || "").trim();
     } else if (token === "--filter") {
@@ -1384,7 +1384,7 @@ function buildTopSummary(records, filtered, selected, model, uiState) {
   const broker = model.brokerState?.summary || "broker=<unknown>";
   const board = model.boardSource?.display || "board=<unknown>";
   return [
-    `${paint("Operator Monitor", STATUS_COLORS.ACTIVE, { bold: true })} | mode=${uiState.admin ? "ADMIN" : "VIEW"} | focus=${uiState.focusedPane} | filter=${uiState.filter} | view=${uiState.detailView}`,
+    `${paint("Operator Viewport", STATUS_COLORS.ACTIVE, { bold: true })} | mode=${uiState.admin ? "ADMIN" : "VIEW"} | focus=${uiState.focusedPane} | filter=${uiState.filter} | view=${uiState.detailView}`,
     `${paint(`visible=${filtered.length}/${records.length}`, STATUS_COLORS.ACTIVE, { bold: true })}  ${paint(`sessions=${activeSessions}`, STATUS_COLORS.READY_FOR_DEV)}  ${paint(`runs=${activeRuns}`, STATUS_COLORS.IN_PROGRESS)}  ${paint(`reviews=${openReviews}`, openReviews > 0 ? STATE_COLORS.waiting : STATE_COLORS.none, { bold: openReviews > 0 })}  ${paint(`notif=${pendingNotifications}`, pendingNotifications > 0 ? "\x1b[38;5;208m" : STATE_COLORS.none, { bold: pendingNotifications > 0 })}  ${paint(`relay=${escalatedRelayCount}`, escalatedRelayCount > 0 ? STATE_COLORS.blocked : STATE_COLORS.none, { bold: escalatedRelayCount > 0 })}  ${paint(`stale=${staleCount}`, staleCount > 0 ? STATE_COLORS.blocked : STATE_COLORS.none, { bold: staleCount > 0 })}`,
     `${board} | ${broker} | actor=${uiState.actorRole}/${uiState.actorSession}`,
     `next_action=${nextActionSummary(selected)}`,
@@ -2150,7 +2150,7 @@ async function runInteractive(options) {
   });
 }
 
-async function main() {
+export async function main() {
   const options = parseArgs(process.argv.slice(2));
   const records = loadMonitorModel();
   if (options.once) {

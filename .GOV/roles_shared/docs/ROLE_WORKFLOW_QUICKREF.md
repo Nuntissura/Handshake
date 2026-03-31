@@ -74,7 +74,8 @@ Product-scanning / product-boundary enforcement:
   - `WPVAL <WP_ID>`
   - `INTVAL`
   - `MONITOR`
-- `just operator-monitor` is the Operator viewport for canonical board drift, governed ACP state, and broker/session lifecycle actions.
+- `just operator-viewport` is the canonical Operator viewport for canonical board drift, governed ACP state, and broker/session lifecycle actions.
+- `just operator-monitor` remains a compatibility alias.
 - When the canonical `main` task board is available, the monitor uses that board for counts, filter buckets, and WP list selection. The current worktree board is still surfaced as the mirror/drift comparison source.
 - Default `SESSIONS` view is governed-session-first: repo-governed ACP sessions are shown as first-class active sessions, with packet runtime sessions shown separately.
 - `EVENTS` shows the merged governed ACP output stream for the selected WP across its governed role sessions.
@@ -128,7 +129,7 @@ Primary commands:
 - `just wp-heartbeat WP-... ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`
 - `just wp-thread-append WP-... ORCHESTRATOR <session> "<message>" [target]`
-- `just operator-monitor`
+- `just operator-viewport`
 - Heartbeat note: `wp-heartbeat` is liveness-only. `next_actor` / `waiting_on` must match current runtime route and cannot be used to steer the lane.
 - `just session-registry-status WP-...` now also surfaces derived stalled-relay state for the filtered WP.
 - If relay state is `ESCALATED`, use `just orchestrator-steer-next WP-...` instead of waiting silently.

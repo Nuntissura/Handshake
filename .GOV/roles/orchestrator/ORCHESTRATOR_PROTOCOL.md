@@ -321,7 +321,7 @@ Resume rule:
 - `just wp-validator-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
 - `just wp-review-request WP-{ID} <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
 - `just wp-review-response WP-{ID} <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
-- `just operator-monitor`
+- `just operator-viewport` (`just operator-monitor` remains a compatibility alias)
 - `just coder-worktree-add WP-{ID}`
 - `just wp-validator-worktree-add WP-{ID}`
 - `just integration-validator-worktree-add WP-{ID}`
