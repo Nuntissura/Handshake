@@ -17,6 +17,7 @@ test("orchestrator runtime entrypoints use repo-root-safe resolution on governan
     [".GOV/roles/orchestrator/scripts/wp-traceability-set.mjs", "repoPathAbs("],
     [".GOV/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs", "cwd: REPO_ROOT"],
     [".GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs", "const CURRENT_WORKTREE_DIR = REPO_ROOT;"],
+    [".GOV/operator/scripts/operator-viewport-tui.mjs", "roles/orchestrator/scripts/operator-monitor-tui.mjs"],
   ];
   for (const [relativePath, needle] of expectations) {
     assert.match(read(relativePath), new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));

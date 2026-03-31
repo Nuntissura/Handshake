@@ -24,7 +24,9 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `.GOV/co
 - `scripts/session-control-command.mjs`
 - `scripts/session-control-cancel.mjs`
 - `scripts/session-registry-status.mjs`
-- `scripts/operator-monitor-tui.mjs`
+- implementation host for the canonical operator viewport:
+  - `../../operator/scripts/operator-viewport-tui.mjs`
+  - compatibility implementation: `scripts/operator-monitor-tui.mjs`
 - `scripts/task-board-set.mjs`
 - `scripts/wp-traceability-set.mjs`
 

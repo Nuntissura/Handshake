@@ -59,9 +59,12 @@ These are safe starting points for orientation and health checks.
 - `just handshake-acp-broker-status`
   - `read-only`
   - inspect ACP broker liveness/state
+- `just operator-viewport`
+  - `read-only`
+  - canonical operator viewport across sessions, receipts, control results, and packet/runtime activity
 - `just operator-monitor`
   - `read-only`
-  - operator viewport across sessions, receipts, control results, and packet/runtime activity
+  - compatibility alias for `just operator-viewport`
 - `just orchestrator-next [WP-{ID}]`
 - `just coder-next [WP-{ID}]`
 - `just validator-next [WP-{ID}]`

@@ -147,11 +147,17 @@ handshake-acp-broker-status:
 handshake-acp-broker-stop:
 	node {{GOV_ROOT}}/roles/orchestrator/scripts/session-control-broker.mjs stop
 
+operator-viewport *args:
+	@node {{GOV_ROOT}}/operator/scripts/operator-viewport-tui.mjs {{args}}
+
+operator-viewport-admin *args:
+	@node {{GOV_ROOT}}/operator/scripts/operator-viewport-tui.mjs --admin {{args}}
+
 operator-monitor *args:
-	@node {{GOV_ROOT}}/roles/orchestrator/scripts/operator-monitor-tui.mjs {{args}}
+	@node {{GOV_ROOT}}/operator/scripts/operator-viewport-tui.mjs {{args}}
 
 operator-admin *args:
-	@node {{GOV_ROOT}}/roles/orchestrator/scripts/operator-monitor-tui.mjs --admin {{args}}
+	@node {{GOV_ROOT}}/operator/scripts/operator-viewport-tui.mjs --admin {{args}}
 
 protocol-ack codex agents shared protocol:
 	@node {{GOV_ROOT}}/roles_shared/scripts/protocol-ack.mjs "{{codex}}" "{{agents}}" "{{shared}}" "{{protocol}}"
