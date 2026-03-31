@@ -7,12 +7,12 @@
  */
 
 import fs from "node:fs";
-import { resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { parseJsonFile, validateRuntimeStatus } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 import { writeJsonFile } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 
-const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
+const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
 function fail(message, details = []) {
   console.error(`[TASK_BOARD_SET] ${message}`);
@@ -145,9 +145,11 @@ function expectedPacketStatusForBoardStatus(status) {
 
 function syncRuntimeProjectionIfDeclared(wpId, packetText) {
   const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
-  if (!runtimeStatusFile || !fs.existsSync(runtimeStatusFile)) return null;
+  if (!runtimeStatusFile) return null;
+  const runtimeStatusAbsPath = repoPathAbs(runtimeStatusFile);
+  if (!fs.existsSync(runtimeStatusAbsPath)) return null;
 
-  const runtimeStatus = parseJsonFile(runtimeStatusFile);
+  const runtimeStatus = parseJsonFile(runtimeStatusAbsPath);
   const syncedRuntimeStatus = syncRuntimeProjectionFromPacket(runtimeStatus, packetText, {
     eventName: "task_board_sync",
   });
@@ -155,8 +157,8 @@ function syncRuntimeProjectionIfDeclared(wpId, packetText) {
   if (runtimeErrors.length > 0) {
     fail(`Runtime projection sync failed for ${wpId}`, runtimeErrors);
   }
-  writeJsonFile(runtimeStatusFile, syncedRuntimeStatus);
-  return runtimeStatusFile;
+  writeJsonFile(runtimeStatusAbsPath, syncedRuntimeStatus);
+  return runtimeStatusAbsPath;
 }
 
 function main() {
@@ -170,16 +172,18 @@ function main() {
     ]);
   }
 
-  if (!fs.existsSync(TASK_BOARD_PATH)) {
+  const taskBoardAbsPath = repoPathAbs(TASK_BOARD_PATH);
+  if (!fs.existsSync(taskBoardAbsPath)) {
     fail("Missing task board", [`Expected: ${TASK_BOARD_PATH}`]);
   }
 
   const resolvedPacket = resolveWorkPacketPath(wpId);
   const packetPath = resolvedPacket?.packetPath || "";
-  if (!packetPath || !fs.existsSync(packetPath)) {
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!packetPath || !fs.existsSync(packetAbsPath)) {
     fail("Official packet not found", [packetPath || `<missing packet path for ${wpId}>`]);
   }
-  const packetText = readText(packetPath);
+  const packetText = readText(packetAbsPath);
   const expectedPacketStatus = expectedPacketStatusForBoardStatus(status);
   const actualPacketStatus = parsePacketStatus(packetText);
   if (expectedPacketStatus && actualPacketStatus !== expectedPacketStatus) {
@@ -191,7 +195,7 @@ function main() {
     ]);
   }
 
-  const raw = readText(TASK_BOARD_PATH);
+  const raw = readText(taskBoardAbsPath);
   const eol = detectEol(raw);
   let lines = raw.split(/\r?\n/);
 
@@ -238,7 +242,7 @@ function main() {
 
   // Ensure file ends with a newline.
   const out = lines.join(eol);
-  writeText(TASK_BOARD_PATH, out.endsWith(eol) ? out : out + eol);
+  writeText(taskBoardAbsPath, out.endsWith(eol) ? out : out + eol);
   const runtimeStatusFile = syncRuntimeProjectionIfDeclared(wpId, packetText);
 
   console.log("task-board-set ok");

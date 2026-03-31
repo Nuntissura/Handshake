@@ -4,7 +4,7 @@
  * Ensures required fields are present and sane.
  */
 import { readFileSync } from "node:fs";
-import { workPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { REPO_ROOT, workPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   packetRequiresCompletionLayerVerdicts,
   packetRequiresSpecClauseMap,
@@ -227,7 +227,7 @@ const workflowInvalidityState = loadWorkflowInvalidityEntries();
 const workflowInvalidityEntries = workflowInvalidityState.history;
 const activeWorkflowInvalidity = workflowInvalidityState.active;
 const topologyEvaluation = evaluateWpDeclaredTopology({
-  repoRoot: process.cwd(),
+  repoRoot: REPO_ROOT,
   wpId,
   packetContent: text,
 });
@@ -318,7 +318,7 @@ if (packetFormatVersion) {
     }
     if (/^Validated\s*\(\s*PASS\s*\)$/i.test(statusValue)) {
       const containedMainScope = validateContainedMainCommitAgainstSignedScope(text, {
-        repoRoot: process.cwd(),
+        repoRoot: REPO_ROOT,
         mergedMainCommit: mergeProgressionTruth?.parsed?.mergedMainCommit || "",
       });
       if (containedMainScope.errors.length > 0) {

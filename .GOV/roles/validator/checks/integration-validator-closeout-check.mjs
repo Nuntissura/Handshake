@@ -16,6 +16,7 @@ import {
 } from "../scripts/lib/validator-governance-lib.mjs";
 import { evaluateIntegrationValidatorCloseoutState } from "../scripts/lib/integration-validator-closeout-lib.mjs";
 import { evaluateWpDeclaredTopology } from "../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
+import { REPO_ROOT, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 function fail(message, details = []) {
   console.error(`[INTEGRATION_VALIDATOR_CLOSEOUT_CHECK] FAIL: ${message}`);
@@ -31,8 +32,8 @@ function pass(message, details = []) {
 function loadGateState(wpId) {
   ensureValidatorGateDir();
   const filePath = resolveValidatorGatePath(wpId);
-  if (!fs.existsSync(filePath)) return {};
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  if (!fs.existsSync(repoPathAbs(filePath))) return {};
+  return JSON.parse(fs.readFileSync(repoPathAbs(filePath), "utf8"));
 }
 
 const wpId = String(process.argv[2] || "").trim();
@@ -40,7 +41,7 @@ if (!wpId || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(wpId)) {
   fail("Usage: just integration-validator-closeout-check WP-1-Example");
 }
 
-const repoRoot = process.cwd();
+const repoRoot = currentGitContext().topLevel || REPO_ROOT;
 const packetContent = loadPacket(wpId);
 const governanceState = evaluateValidatorPacketGovernanceState({
   wpId,

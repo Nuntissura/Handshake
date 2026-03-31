@@ -11,7 +11,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 const OFFICIAL_DIR = `${GOV_ROOT_REPO_REL}/task_packets`;
@@ -53,9 +53,9 @@ function exists(p) {
 
 function resolvePacketPath(activeWpId) {
   const official = resolveWorkPacketPath(activeWpId)?.packetPath || "";
-  if (official && exists(official)) return official;
+  if (official && exists(repoPathAbs(official))) return official;
   const stub = path.join(STUB_DIR, `${activeWpId}.md`).replace(/\\/g, "/");
-  if (exists(stub)) return stub;
+  if (exists(repoPathAbs(stub))) return stub;
   fail("Active packet file not found (official or stub)", [
     `tried=${official || path.join(OFFICIAL_DIR, `${activeWpId}.md`).replace(/\\/g, "/")}`,
     `tried=${stub}`,
@@ -84,11 +84,12 @@ function main() {
     fail("Active packet WP_ID must start with WP-", [`got=${activeWpId}`]);
   }
 
-  if (!exists(REGISTRY_PATH)) fail("Missing registry", [`Expected: ${REGISTRY_PATH}`]);
+  const registryAbsPath = repoPathAbs(REGISTRY_PATH);
+  if (!exists(registryAbsPath)) fail("Missing registry", [`Expected: ${REGISTRY_PATH}`]);
 
   const activePath = resolvePacketPath(activeWpId);
 
-  const raw = readText(REGISTRY_PATH);
+  const raw = readText(registryAbsPath);
   const eol = detectEol(raw);
   const lines = raw.split(/\r?\n/);
 
@@ -128,7 +129,7 @@ function main() {
   }
 
   const out = lines.join(eol);
-  writeText(REGISTRY_PATH, out.endsWith(eol) ? out : out + eol);
+  writeText(registryAbsPath, out.endsWith(eol) ? out : out + eol);
 
   console.log("wp-traceability-set ok");
   console.log(`- base_wp_id: ${baseWpId}`);

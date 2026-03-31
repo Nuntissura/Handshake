@@ -14,7 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 import {
   compactGateOutputSummary,
   writeGateOutputArtifact,
@@ -58,7 +58,7 @@ function workflowLaneForPacket(wpId) {
   const resolved = resolveWorkPacketPath(wpId);
   const packetPath = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
   try {
-    const packetText = ensureTrailingNewline(fs.readFileSync(packetPath, 'utf8'));
+    const packetText = ensureTrailingNewline(fs.readFileSync(repoPathAbs(packetPath), 'utf8'));
     return parseSingleField(packetText, 'WORKFLOW_LANE').toUpperCase();
   } catch {
     return '';
@@ -81,7 +81,7 @@ process.stdout.write('\n');
 const gateCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'gate-check.mjs');
 const preWorkCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles', 'coder', 'checks', 'pre-work-check.mjs');
 
-const gate = run(process.execPath, [gateCheckPath, wpId]);
+const gate = run(process.execPath, [repoPathAbs(gateCheckPath), wpId]);
 gateOutputs.push(gate.out);
 if (verbose) {
   process.stdout.write(ensureTrailingNewline(gate.out.trimEnd()));
@@ -96,7 +96,7 @@ if (gate.code !== 0) {
 
 process.stdout.write('\n');
 
-const pre = run(process.execPath, [preWorkCheckPath, wpId]);
+const pre = run(process.execPath, [repoPathAbs(preWorkCheckPath), wpId]);
 gateOutputs.push(pre.out);
 if (verbose) {
   process.stdout.write(ensureTrailingNewline(pre.out.trimEnd()));

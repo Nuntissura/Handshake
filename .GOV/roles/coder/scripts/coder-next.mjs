@@ -22,6 +22,7 @@ import {
   printState,
   sectionHasMaterialContent,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
+import { REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   classifyWpChangedPath,
   deriveWpScopeContract,
@@ -35,7 +36,7 @@ function resolveWpId() {
 
   if (provided) return { wpId: provided, gitContext, confidence: "HIGH", confidenceDetail: "explicit" };
 
-  const inferred = inferWpIdFromPrepare(logs, gitContext, gitContext.topLevel || process.cwd());
+  const inferred = inferWpIdFromPrepare(logs, gitContext, gitContext.topLevel || REPO_ROOT);
   if (inferred.wpId) {
     return {
       wpId: inferred.wpId,

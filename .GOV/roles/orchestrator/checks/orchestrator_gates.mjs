@@ -16,23 +16,24 @@ import {
     EXECUTION_OWNER_RANGE_HELP,
     normalizeExecutionOwner,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
-import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const STATE_FILE = resolveOrchestratorGatesPath();
+const STATE_FILE_ABS = repoPathAbs(STATE_FILE);
 
 function loadState() {
-    if (!fs.existsSync(STATE_FILE)) {
+    if (!fs.existsSync(STATE_FILE_ABS)) {
         return { gate_logs: [] };
     }
-    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    return JSON.parse(fs.readFileSync(STATE_FILE_ABS, 'utf8'));
 }
 
 function saveState(state) {
-    fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
-    const tempPath = `${STATE_FILE}.tmp-${process.pid}-${Date.now()}`;
+    fs.mkdirSync(path.dirname(STATE_FILE_ABS), { recursive: true });
+    const tempPath = `${STATE_FILE_ABS}.tmp-${process.pid}-${Date.now()}`;
     try {
         fs.writeFileSync(tempPath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
-        fs.renameSync(tempPath, STATE_FILE);
+        fs.renameSync(tempPath, STATE_FILE_ABS);
     } finally {
         if (fs.existsSync(tempPath)) {
             fs.unlinkSync(tempPath);
@@ -562,12 +563,12 @@ if (action === 'prepare') {
         branch,
         worktree_dir: worktreeDir.replace(/\\/g, '/'),
     };
-    const packetTruth = preparePacketTruthState(wpId, candidatePrepare, process.cwd());
+    const packetTruth = preparePacketTruthState(wpId, candidatePrepare, REPO_ROOT);
     if (packetTruth.packetPresent && !packetTruth.ok) {
         v2Fail('PREPARE conflicts with the existing official packet authority.', packetTruth.issues);
     }
     if (packetTruth.packetPresent && lastPrepare) {
-        const currentSyncState = preparedWorktreeSyncState(wpId, lastPrepare, process.cwd());
+        const currentSyncState = preparedWorktreeSyncState(wpId, lastPrepare, REPO_ROOT);
         if (!currentSyncState.ok) {
             v2Fail('Current PREPARE / worktree truth is already stale; repair STATUS_SYNC before appending another PREPARE.', [
                 ...currentSyncState.issues,
@@ -599,7 +600,7 @@ if (action === 'prepare') {
         ]);
     }
     if (packetTruth.packetPresent) {
-        const persistedSyncState = preparedWorktreeSyncState(wpId, persistedPrepare, process.cwd());
+        const persistedSyncState = preparedWorktreeSyncState(wpId, persistedPrepare, REPO_ROOT);
         if (!persistedSyncState.ok) {
             v2Fail('PREPARE write left split packet/runtime/worktree truth; repair STATUS_SYNC before continuing.', [
                 ...persistedSyncState.issues,

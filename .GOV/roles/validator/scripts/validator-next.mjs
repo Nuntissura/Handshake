@@ -26,7 +26,7 @@ import {
   taskBoardStatus,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { listValidatorGateStateFiles, resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
-import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, inferWpIdFromPacketPath, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   buildValidatorReadyCommands,
   evaluateValidatorPacketGovernanceState,
@@ -101,7 +101,7 @@ function collectPendingSessions() {
 }
 
 function collectValidationReadyPackets() {
-  const taskPacketDir = path.join(GOV_ROOT_REPO_REL, "task_packets");
+  const taskPacketDir = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "task_packets"));
   if (!fs.existsSync(taskPacketDir)) return [];
 
   const candidates = [];
@@ -158,7 +158,7 @@ function collectValidationReadyPackets() {
 
 function loadValidationSession(wpId) {
   const filePath = resolveValidatorGatePath(wpId);
-  if (!fs.existsSync(filePath)) return null;
+  if (!fs.existsSync(repoPathAbs(filePath))) return null;
   const raw = loadJson(filePath, {});
   return raw?.validation_sessions?.[wpId] || null;
 }
@@ -172,7 +172,7 @@ function resolveWpId() {
     return { wpId: provided, gitContext, confidence: "HIGH", confidenceDetail: "explicit" };
   }
 
-  const inferred = inferWpIdFromPrepare(logs, gitContext, gitContext.topLevel || process.cwd());
+  const inferred = inferWpIdFromPrepare(logs, gitContext, gitContext.topLevel || REPO_ROOT);
   if (inferred.wpId) {
     return {
       wpId: inferred.wpId,
@@ -293,7 +293,7 @@ const validatorGovernanceState = evaluateValidatorPacketGovernanceState({
   sessionStatus: session?.status || "",
 });
 const validatorActorContext = resolveValidatorActorContext({
-  repoRoot: gitContext.topLevel || process.cwd(),
+  repoRoot: gitContext.topLevel || REPO_ROOT,
   wpId,
   packetContent,
   gitContext,

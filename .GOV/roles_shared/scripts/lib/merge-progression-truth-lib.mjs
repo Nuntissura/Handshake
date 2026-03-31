@@ -5,6 +5,7 @@ import {
   defaultIntegrationValidatorWorktreeDir,
   packetRequiresMergeContainmentTruth,
 } from "../session/session-policy.mjs";
+import { REPO_ROOT } from "./runtime-paths.mjs";
 
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
 const RFC3339_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -92,7 +93,7 @@ function resolveIntegrationValidatorWorktreeAbs(packetText, repoRoot) {
   if (!declared) return "";
   return path.isAbsolute(declared)
     ? path.resolve(declared)
-    : path.resolve(repoRoot || process.cwd(), declared);
+    : path.resolve(repoRoot || REPO_ROOT, declared);
 }
 
 function resolveCoderWorktreeAbs(packetText, repoRoot) {
@@ -100,7 +101,7 @@ function resolveCoderWorktreeAbs(packetText, repoRoot) {
   if (!declared) return "";
   return path.isAbsolute(declared)
     ? path.resolve(declared)
-    : path.resolve(repoRoot || process.cwd(), declared);
+    : path.resolve(repoRoot || REPO_ROOT, declared);
 }
 
 function defaultMainContainmentVerifier({ mergedMainCommit, integrationWorktreeAbs }) {
@@ -222,7 +223,7 @@ export function validateMergeProgressionTruth(
   packetText,
   {
     packetPath = "",
-    repoRoot = process.cwd(),
+    repoRoot = REPO_ROOT,
     runtimeStatusData = undefined,
     mainContainmentVerifier = null,
     mergePendingWorktreeVerifier = null,

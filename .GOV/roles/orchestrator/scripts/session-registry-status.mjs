@@ -10,13 +10,13 @@ import {
 import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
 import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
-import { resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 
-const repoRoot = process.cwd();
+const repoRoot = REPO_ROOT;
 const wpIdFilter = String(process.argv[2] || "").trim();
 
 const { registry } = loadSessionRegistry(repoRoot);
@@ -53,15 +53,16 @@ const terminalHistorySuppressed = Boolean(
 
 function loadRelayStatusForWp(wpId) {
   const packetPath = resolveWorkPacketPath(wpId)?.packetPath || "";
-  if (!packetPath || !fs.existsSync(packetPath)) return null;
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!packetPath || !fs.existsSync(packetAbsPath)) return null;
 
-  const packetText = fs.readFileSync(packetPath, "utf8");
+  const packetText = fs.readFileSync(packetAbsPath, "utf8");
   const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
-  if (!runtimeStatusFile || !fs.existsSync(runtimeStatusFile)) return null;
+  if (!runtimeStatusFile || !fs.existsSync(repoPathAbs(runtimeStatusFile))) return null;
 
   const runtimeStatus = parseJsonFile(runtimeStatusFile);
-  const receipts = receiptsFile && fs.existsSync(receiptsFile) ? parseJsonlFile(receiptsFile) : [];
+  const receipts = receiptsFile && fs.existsSync(repoPathAbs(receiptsFile)) ? parseJsonlFile(receiptsFile) : [];
   const communicationEvaluation = evaluateWpCommunicationHealth({
     wpId,
     stage: "STATUS",

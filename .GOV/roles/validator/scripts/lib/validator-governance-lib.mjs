@@ -1,7 +1,7 @@
 import path from "node:path";
 import { evaluateComputedPolicyGateFromPacketText } from "../../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
 import { parseClaimField } from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
-import { normalizePath } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { normalizePath, REPO_ROOT } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { loadSessionRegistry } from "../../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
   defaultIntegrationValidatorBranch,
@@ -29,7 +29,7 @@ export function normalizeValidatorRole(value) {
 }
 
 function currentWorktreeRepoRelative(repoRoot, gitContext = {}) {
-  const root = path.resolve(repoRoot || process.cwd());
+  const root = path.resolve(repoRoot || REPO_ROOT);
   const topLevel = String(gitContext?.topLevel || "").trim();
   if (!topLevel) return "";
   return normalizePath(path.relative(root, path.resolve(topLevel))) || ".";
@@ -43,7 +43,7 @@ function currentWorktreeAbsolute(gitContext = {}) {
 
 function resolveConfiguredWorktreeAbsolute(repoRoot, worktreeDir = "") {
   if (!String(worktreeDir || "").trim()) return "";
-  return normalizePath(path.resolve(repoRoot || process.cwd(), String(worktreeDir || "").trim()));
+  return normalizePath(path.resolve(repoRoot || REPO_ROOT, String(worktreeDir || "").trim()));
 }
 
 function currentBranchName(gitContext = {}) {
@@ -84,13 +84,13 @@ export function readValidatorAuthority(packetContent = "") {
 }
 
 export function resolveValidatorActorContext({
-  repoRoot = process.cwd(),
+  repoRoot = REPO_ROOT,
   wpId = "",
   packetContent = "",
   gitContext = {},
   registrySessions = null,
 } = {}) {
-  const root = path.resolve(repoRoot || process.cwd());
+  const root = path.resolve(repoRoot || REPO_ROOT);
   const branch = currentBranchName(gitContext);
   const worktreeDir = currentWorktreeRepoRelative(root, gitContext);
   const worktreeAbs = currentWorktreeAbsolute(gitContext);

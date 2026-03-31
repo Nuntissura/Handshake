@@ -23,6 +23,7 @@ import {
   committedEvidenceForCloseout,
   livePrepareWorktreeHealthEvidence,
 } from "./committed-validation-evidence-lib.mjs";
+import { REPO_ROOT } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 function makeIssueSet() {
   return new Set();
@@ -53,7 +54,7 @@ function defaultGitRunner(worktreeAbs, args) {
 }
 
 export function evaluateIntegrationValidatorTopology({
-  repoRoot = process.cwd(),
+  repoRoot = REPO_ROOT,
   wpId = "",
   packetContent = "",
   actorContext = {},
@@ -142,7 +143,7 @@ export function evaluateIntegrationValidatorTopology({
 }
 
 export function evaluateWpSessionControlCloseoutBundle({
-  repoRoot = process.cwd(),
+  repoRoot = REPO_ROOT,
   wpId = "",
   requests = [],
   results = [],
@@ -236,7 +237,7 @@ export function evaluateWpSessionControlCloseoutBundle({
 }
 
 export function evaluateIntegrationValidatorCloseoutState({
-  repoRoot = process.cwd(),
+  repoRoot = REPO_ROOT,
   wpId = "",
   packetContent = "",
   actorContext = {},

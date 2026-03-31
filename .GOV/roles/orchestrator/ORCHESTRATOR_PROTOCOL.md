@@ -227,7 +227,7 @@ HARD_GATE_NEXT_ACTIONS [CX-WT-001]
 - If incorrect: stop and ask the Operator for the correct worktree or branch.
 ```
 
-If the deterministic WP worktree is missing and the next step is `just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID}`, create it automatically when the latest gate is PASS and `OPERATOR_ACTION: NONE`.
+If the deterministic WP worktree is missing and the next step is `just worktree-add WP-{ID}` or `just orchestrator-prepare-and-packet WP-{ID}`, create it automatically when the latest gate is PASS and `OPERATOR_ACTION: NONE`.
 
 ## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
 
@@ -337,7 +337,6 @@ Resume rule:
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
 - `just wp-token-usage WP-{ID}`
 - `just orchestrator-prepare-and-packet WP-{ID}`
-- `just orchestrator-worktree-and-packet WP-{ID}`
 
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
@@ -480,7 +479,7 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 - The packet is authoritative for scope, mutable closure monitoring, and validation truth.
 - `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, and `BUILD_ORDER.md` are projections and must reconcile to packet truth.
 - Orchestrator owns planning visibility and blockers.
-- Validator-owned completion states on `main` remain packet-backed only: `[MERGE_PENDING]`, `[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`.
+- Validator-owned completion states on `main` remain packet-backed only: `[MERGE_PENDING]`, `[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`, `[ABANDONED]`.
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, `Done` means validator PASS is recorded but merge-to-main containment is still pending. `Validated (PASS)` is reserved for packets whose approved closure commit is already contained in local `main`.
 - Do not narrate a WP as fully correct or spec-aligned unless the packet's validator report and split verdicts explicitly support that claim.
 - Treat `CLAUSE_CLOSURE_MATRIX`, `SPEC_DEBT_STATUS`, `SHARED_SURFACE_MONITORING`, and `SEMANTIC_PROOF_ASSETS` as live closure truth.

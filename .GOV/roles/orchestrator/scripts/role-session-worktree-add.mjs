@@ -9,7 +9,7 @@ import {
   defaultWpValidatorBranch,
   defaultWpValidatorWorktreeDir,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const role = String(process.argv[2] || "").trim().toUpperCase();
 const wpId = String(process.argv[3] || "").trim();
@@ -53,7 +53,7 @@ function parseSingleField(text, label) {
 }
 
 function loadPrepareBaseBranch(wpIdValue) {
-  const gatesPath = resolveOrchestratorGatesPath();
+  const gatesPath = repoPathAbs(resolveOrchestratorGatesPath());
   if (!fs.existsSync(gatesPath)) return "";
   try {
     const parsed = JSON.parse(fs.readFileSync(gatesPath, "utf8"));
@@ -68,9 +68,10 @@ function loadPrepareBaseBranch(wpIdValue) {
 function loadPacketBaseBranch(wpIdValue) {
   const resolved = resolveWorkPacketPath(wpIdValue);
   const packetPath = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpIdValue}.md`);
-  if (!fs.existsSync(packetPath)) return "";
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbsPath)) return "";
   try {
-    const packetText = fs.readFileSync(packetPath, "utf8");
+    const packetText = fs.readFileSync(packetAbsPath, "utf8");
     const localBranch = parseSingleField(packetText, "LOCAL_BRANCH");
     return localBranch === "<pending>" ? "" : localBranch;
   } catch {
@@ -101,7 +102,8 @@ if (role !== "CODER" && !baseBranch) {
 }
 const scriptPath = path.join(GOV_ROOT_REPO_REL, "roles_shared", "scripts", "topology", "worktree-add.mjs");
 
-execFileSync(process.execPath, [scriptPath, wpId, baseBranch || "main", branch, dir], {
+execFileSync(process.execPath, [repoPathAbs(scriptPath), wpId, baseBranch || "main", branch, dir], {
+  cwd: REPO_ROOT,
   stdio: "inherit",
 });
 

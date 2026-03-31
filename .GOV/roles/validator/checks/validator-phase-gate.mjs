@@ -3,9 +3,10 @@
  * Phase gate check: ensure no Ready-for-Dev items remain before phase progression and validator scans are clean.
  */
 import { readFileSync } from "node:fs";
+import { GOV_ROOT_REPO_REL, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const phase = process.argv[2] || "Phase-1";
-const taskBoardPath = ".GOV/roles_shared/records/TASK_BOARD.md";
+const taskBoardPath = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
 function fail(msg) {
   console.error(`validator-phase-gate: FAIL - ${msg}`);
@@ -42,7 +43,7 @@ function countWpEntries(sectionLines) {
 function main() {
   let board;
   try {
-    board = readFileSync(taskBoardPath, "utf8");
+    board = readFileSync(repoPathAbs(taskBoardPath), "utf8");
   } catch (err) {
     fail(`cannot read ${taskBoardPath}: ${err.message}`);
   }
@@ -63,4 +64,3 @@ function main() {
 }
 
 main();
-

@@ -22,6 +22,8 @@ import {
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import {
   GOV_ROOT_REPO_REL,
+  REPO_ROOT,
+  repoPathAbs,
   resolveOrchestratorGatesPath,
   resolveWorkPacketPath,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
@@ -31,10 +33,10 @@ const wpId = (process.argv[2] || "").trim();
 const workflowLane = (process.argv[3] || "").trim();
 const executionLane = (process.argv[4] || "").trim();
 
-const TASK_BOARD_PATH = path.resolve(process.cwd(), GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
-const TRACEABILITY_PATH = path.resolve(process.cwd(), GOV_ROOT_REPO_REL, "roles_shared", "records", "WP_TRACEABILITY_REGISTRY.md");
-const BUILD_ORDER_PATH = path.resolve(process.cwd(), GOV_ROOT_REPO_REL, "roles_shared", "records", "BUILD_ORDER.md");
-const ORCHESTRATOR_GATES_PATH = path.resolve(process.cwd(), resolveOrchestratorGatesPath());
+const TASK_BOARD_PATH = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md"));
+const TRACEABILITY_PATH = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "WP_TRACEABILITY_REGISTRY.md"));
+const BUILD_ORDER_PATH = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "BUILD_ORDER.md"));
+const ORCHESTRATOR_GATES_PATH = repoPathAbs(resolveOrchestratorGatesPath());
 
 function usageAndExit() {
   console.error("Usage: node .GOV/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs WP-{ID} [WORKFLOW_LANE] [EXECUTION_OWNER]");
@@ -50,7 +52,7 @@ function normalize(value) {
 }
 
 function packetDirForWp(targetWpId) {
-  return path.resolve(process.cwd(), GOV_ROOT_REPO_REL, "task_packets", targetWpId);
+  return repoPathAbs(path.join(GOV_ROOT_REPO_REL, "task_packets", targetWpId));
 }
 
 function packetPathForWp(targetWpId) {
@@ -90,7 +92,7 @@ function logProcessOutput(error) {
 function runNodeStep(stepName, scriptRelativePath, args = []) {
   try {
     execFileSync(process.execPath, [scriptRelativePath, ...args], {
-      cwd: process.cwd(),
+      cwd: REPO_ROOT,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -137,7 +139,7 @@ function verifyTransactionalActivation() {
     return { ok: false, issues, syncState: null };
   }
 
-  const packetTruth = preparePacketTruthState(wpId, prepareEntry, process.cwd());
+  const packetTruth = preparePacketTruthState(wpId, prepareEntry, REPO_ROOT);
   if (!packetTruth.packetPresent) {
     issues.push(`Official packet missing after activation: ${packetTruth.packetPath}`);
   }
@@ -157,7 +159,7 @@ function verifyTransactionalActivation() {
     WP_RUNTIME_STATUS_FILE: communicationPaths.runtimeStatusFile,
     WP_RECEIPTS_FILE: communicationPaths.receiptsFile,
   })) {
-    const absolutePath = path.resolve(process.cwd(), targetPath);
+    const absolutePath = repoPathAbs(targetPath);
     if (!fs.existsSync(absolutePath)) {
       issues.push(`${label} missing after activation: ${normalize(absolutePath)}`);
     }
@@ -176,7 +178,7 @@ function verifyTransactionalActivation() {
     ok: issues.length === 0,
     issues,
     prepareEntry,
-    syncState: preparedWorktreeSyncState(wpId, prepareEntry, process.cwd()),
+    syncState: preparedWorktreeSyncState(wpId, prepareEntry, REPO_ROOT),
   };
 }
 
@@ -187,7 +189,7 @@ function main() {
     TASK_BOARD_PATH,
     TRACEABILITY_PATH,
     BUILD_ORDER_PATH,
-    path.resolve(process.cwd(), communicationPathsForWp(wpId).dir),
+    repoPathAbs(communicationPathsForWp(wpId).dir),
   ], { label: `orchestrator-prepare-and-packet-${wpId}` });
 
   try {

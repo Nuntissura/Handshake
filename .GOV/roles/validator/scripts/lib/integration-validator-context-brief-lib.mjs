@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { packetPath, parseCurrentWpStatus, parseStatus, taskBoardStatus } from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { evaluateWpDeclaredTopology } from "../../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
+import { REPO_ROOT } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluateIntegrationValidatorCloseoutState } from "./integration-validator-closeout-lib.mjs";
 import {
   evaluateValidatorPacketGovernanceState,
@@ -55,7 +56,7 @@ function requiredCommandsForState({ wpId, actorContext, governanceBlocked }) {
 }
 
 export function buildIntegrationValidatorContextBrief({
-  repoRoot = process.cwd(),
+  repoRoot = REPO_ROOT,
   wpId = "",
   packetContent = "",
   packetPathValueOverride = "",

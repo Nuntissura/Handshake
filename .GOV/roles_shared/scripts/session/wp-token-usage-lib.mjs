@@ -4,6 +4,7 @@ import {
   GOVERNANCE_RUNTIME_ROOT_ABS,
   GOVERNANCE_RUNTIME_ROOT_ENV_VAR,
   PRODUCT_RUNTIME_ROOT_ENV_VAR,
+  REPO_ROOT,
 } from "../lib/runtime-paths.mjs";
 import {
   WP_TOKEN_LEDGER_HEALTH_POLICY_ID,
@@ -301,7 +302,7 @@ export function parseUsageFromOutputJsonl(outputJsonlFile) {
     };
   }
 
-  const command = parseRawOutputCommand(outputJsonlFile, "UNKNOWN", process.cwd());
+  const command = parseRawOutputCommand(outputJsonlFile, "UNKNOWN", REPO_ROOT);
   for (const usageEntry of command.turn_usage) {
     turnUsage.push(usageEntry);
     addUsageTotals(usageTotals, usageEntry);

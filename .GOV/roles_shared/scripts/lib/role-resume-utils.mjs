@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import crypto from "node:crypto";
-import { GOV_ROOT_REPO_REL, GOVERNANCE_RUNTIME_ROOT_REPO_REL, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "./runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, GOVERNANCE_RUNTIME_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "./runtime-paths.mjs";
 import { executionOwnerToPacketValue } from "../session/session-policy.mjs";
 
 export const ORCHESTRATOR_GATES_PATH = resolveOrchestratorGatesPath();
@@ -33,15 +33,19 @@ function safeExecInDir(cwd, command) {
 }
 
 export function exists(filePath) {
+  const resolvedPath = String(filePath || "").trim()
+    ? (path.isAbsolute(String(filePath || "").trim()) ? path.resolve(String(filePath || "").trim()) : repoPathAbs(filePath))
+    : "";
   try {
-    return fs.existsSync(filePath);
+    return resolvedPath ? fs.existsSync(resolvedPath) : false;
   } catch {
     return false;
   }
 }
 
 export function readUtf8(filePath) {
-  return fs.readFileSync(filePath, "utf8");
+  const resolvedPath = path.isAbsolute(String(filePath || "").trim()) ? path.resolve(String(filePath || "").trim()) : repoPathAbs(filePath);
+  return fs.readFileSync(resolvedPath, "utf8");
 }
 
 export function loadJson(filePath, fallback = {}) {
@@ -186,7 +190,7 @@ export function escapeRegex(value) {
 }
 
 export function loadOrchestratorGateLogs() {
-  return loadOrchestratorGateLogsAtRepo();
+  return loadOrchestratorGateLogsAtRepo(REPO_ROOT);
 }
 
 export function loadOrchestratorGateLogsAtRepo(repoRoot = "") {
@@ -352,7 +356,7 @@ export function resolvePrepareWorktreeAbs(prepareEntry, referenceRepoRoot) {
   if (!worktreeDir) return "";
   return path.isAbsolute(worktreeDir)
     ? path.resolve(worktreeDir)
-    : path.resolve(referenceRepoRoot || process.cwd(), worktreeDir);
+    : path.resolve(referenceRepoRoot || REPO_ROOT, worktreeDir);
 }
 
 function isPendingAuthorityValue(value) {
@@ -365,7 +369,7 @@ export function normalizeComparableRepoPath(value, referenceRepoRoot) {
   if (!normalized || isPendingAuthorityValue(normalized)) return "";
   const absolute = path.isAbsolute(normalized)
     ? path.resolve(normalized)
-    : path.resolve(referenceRepoRoot || currentGitContext().topLevel || process.cwd(), normalized);
+    : path.resolve(referenceRepoRoot || currentGitContext().topLevel || REPO_ROOT, normalized);
   return process.platform === "win32" ? absolute.toLowerCase() : absolute;
 }
 
@@ -434,7 +438,7 @@ export function preparePacketTruthState(wpId, prepareEntry, referenceRepoRoot) {
 }
 
 export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot) {
-  const repoRoot = referenceRepoRoot || currentGitContext().topLevel || process.cwd();
+  const repoRoot = referenceRepoRoot || currentGitContext().topLevel || REPO_ROOT;
   const worktreeAbs = resolvePrepareWorktreeAbs(prepareEntry, repoRoot);
   const expectedBranch = String(prepareEntry?.branch || "").trim();
   const issues = [];
@@ -555,7 +559,7 @@ function uniqueSorted(values) {
 }
 
 export function workflowStartReadinessState({ repoRoot, gateLogs } = {}) {
-  const resolvedRepoRoot = repoRoot || currentGitContext().topLevel || process.cwd();
+  const resolvedRepoRoot = repoRoot || currentGitContext().topLevel || REPO_ROOT;
   const logs = Array.isArray(gateLogs) ? gateLogs : loadOrchestratorGateLogsAtRepo(resolvedRepoRoot);
   const activeBoardEntries = taskBoardEntriesAtRepo(resolvedRepoRoot)
     .filter((entry) => ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES.includes(String(entry.status || "").trim().toUpperCase()));

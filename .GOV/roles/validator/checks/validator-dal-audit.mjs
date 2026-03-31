@@ -5,16 +5,18 @@
  */
 import { execSync } from "node:child_process";
 import { readdirSync } from "node:fs";
+import path from "node:path";
 import { printValidatorContextMismatchAndExit, requireValidatorProductTargets } from "../scripts/lib/validator-product-targets-lib.mjs";
+import { REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
-const root = process.cwd();
 const backendSrc = "src/backend/handshake_core/src";
 const migrationsDir = "src/backend/handshake_core/migrations";
+let repoRoot = REPO_ROOT;
 
 function runRg(pattern, paths, extraArgs = "") {
   const cmd = `rg --hidden --no-heading --line-number "${pattern}" ${paths.join(" ")} ${extraArgs}`;
   try {
-    const out = execSync(cmd, { stdio: "pipe", encoding: "utf8" });
+    const out = execSync(cmd, { stdio: "pipe", encoding: "utf8", cwd: repoRoot });
     return out.trim();
   } catch (err) {
     if (err.status === 1) return "";
@@ -26,6 +28,7 @@ let failures = [];
 const targetContext = requireValidatorProductTargets("validator-dal-audit", [backendSrc, migrationsDir], {
   extraDetails: ["This audit inspects product DAL/storage code and migrations only."],
 });
+repoRoot = targetContext.repoRoot || REPO_ROOT;
 const existingTargetSet = new Set(targetContext.existingTargets);
 if (!existingTargetSet.has(backendSrc)) {
   printValidatorContextMismatchAndExit("validator-dal-audit", targetContext, [
@@ -69,7 +72,7 @@ const portabilityTargets = [backendSrc, migrationsDir].filter((target) => existi
 
 // CX-DBP-VAL-013: Migration hygiene (basic check: consecutive numbering)
 try {
-  const allFiles = readdirSync(migrationsDir);
+  const allFiles = readdirSync(path.resolve(repoRoot, migrationsDir));
 
   // Only treat `000X_name.sql` as versioned ups; ignore `*.down.sql` in numbering checks.
   const upFiles = allFiles.filter(
