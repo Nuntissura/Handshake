@@ -569,6 +569,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 ## Gov-to-Main Sync Responsibility [CX-212D] (HARD RULE)
 
 - `just sync-gov-to-main` copies the governance kernel `/.GOV/` into `handshake_main` and auto-commits.
+- `just sync-gov-to-main` must sync from committed kernel truth. If `wt-gov-kernel/.GOV` is dirty, fix or commit `gov_kernel` first; do not mirror an uncommitted kernel snapshot into `main`.
 - This is the Integration Validator's default responsibility, to be run before pushing to `origin/main`.
 - The Orchestrator MAY run `just sync-gov-to-main` and push `origin/main` only when explicitly instructed by the Operator.
 - That Orchestrator exception is mechanical execution only. It does not grant final technical verdict authority or permission to invent a new product merge decision.

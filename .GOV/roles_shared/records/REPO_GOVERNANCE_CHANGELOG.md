@@ -582,3 +582,18 @@
   - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: governed closeout sync now writes packet/runtime truth before the final completion gate evaluates it, stale recorded compatibility can be refreshed by the sync itself, contained-main PASS closure allows conflict-resolved local-main harmonization only when the resulting commit stays within the signed file surface and still satisfies the governed tripwire checks, and terminal closeout retires stale coder/WP-validator steerable sessions so session-governance truth converges with terminal packet state
+
+### 2026.04.01.07 / GOV-CHANGE-20260401-07
+
+- STATUS: APPLIED
+- SUMMARY: blocked kernel-to-main governance sync on dirty kernel state so main-side sync provenance cannot silently reference stale kernel commits
+- CHANGE_TYPE: SYNC_PROVENANCE_HARDENING
+- DRIVER_EVIDENCE:
+  - Operator follow-on governance directive after `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/topology/sync-gov-to-main.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: `just sync-gov-to-main` now fails closed when `wt-gov-kernel/.GOV` has uncommitted changes, so `GOV_KERNEL_SYNC.json` and main-side governance sync commits always refer to committed kernel truth instead of mirroring an uncheckpointed governance snapshot under a stale kernel SHA

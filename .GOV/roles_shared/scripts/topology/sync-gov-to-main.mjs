@@ -76,6 +76,20 @@ if (!fs.existsSync(mainWorktreeAbs) || !gitCheckoutExists(mainWorktreeAbs)) {
   fail(`Main worktree not found or not a git checkout: ${mainWorktreeAbs}`);
 }
 
+if (!kernelWorktreeAbs || !gitCheckoutExists(kernelWorktreeAbs)) {
+  fail(`Kernel worktree not found or not a git checkout: ${kernelWorktreeAbs || "<missing>"}`);
+}
+
+const kernelBranch = currentBranchInRepo(kernelWorktreeAbs);
+if (kernelBranch !== "gov_kernel") {
+  fail(`Kernel worktree is on branch '${kernelBranch}', expected 'gov_kernel'`);
+}
+
+const kernelGovDirty = runGitInRepo(kernelWorktreeAbs, ["status", "--porcelain=v1", "--", ".GOV"]);
+if (kernelGovDirty.trim()) {
+  fail("Kernel .GOV has uncommitted changes. Commit gov_kernel before syncing to main.");
+}
+
 const mainBranch = currentBranchInRepo(mainWorktreeAbs);
 if (mainBranch !== "main") {
   fail(`Main worktree is on branch '${mainBranch}', expected 'main'`);

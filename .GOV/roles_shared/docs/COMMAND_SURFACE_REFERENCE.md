@@ -131,12 +131,16 @@ Use this flow only for repo-governance maintenance that stays out of product cod
 - Shared workflow note:
   - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
 - Commands:
-  - `just gov-check`
-    - `read-only`
-    - mandatory verification before claiming governance-maintenance completion
+- `just gov-check`
+  - `read-only`
+  - mandatory verification before claiming governance-maintenance completion
 - `just build-order-sync`
   - `governance-write`
   - required only when governance changes affect `TASK_BOARD.md` or `WP_TRACEABILITY_REGISTRY.md`
+- `just sync-gov-to-main`
+  - `governance-write`
+  - mirrors kernel `/.GOV/` into `handshake_main` and auto-commits on local `main`
+  - requires committed kernel governance truth; if `wt-gov-kernel/.GOV` is dirty, commit `gov_kernel` first instead of syncing an uncommitted snapshot
 - `just ensure-wp-communications WP-{ID}`
   - `runtime-write`
   - rebuild or repair the packet-declared communication artifacts under external runtime; this is the sanctioned repair helper when communications bootstrap drift is suspected
