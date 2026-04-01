@@ -238,8 +238,30 @@ async fn role_mailbox_export_empty_is_deterministic() {
         Some("hsk.role_mailbox_index@1")
     );
     assert_eq!(
+        index_json
+            .get("project_profile_kind")
+            .and_then(Value::as_str),
+        Some("generic")
+    );
+    assert!(
+        index_json
+            .get("profile_extension")
+            .is_some_and(Value::is_null)
+    );
+    assert_eq!(
         index_json.get("schema_version").and_then(Value::as_str),
         Some("role_mailbox_export_v1")
+    );
+    assert_eq!(
+        manifest_json
+            .get("project_profile_kind")
+            .and_then(Value::as_str),
+        Some("generic")
+    );
+    assert!(
+        manifest_json
+            .get("profile_extension")
+            .is_some_and(Value::is_null)
     );
     assert_eq!(
         index_json
@@ -328,6 +350,17 @@ async fn role_mailbox_create_message_emits_events_and_export() {
     assert_eq!(
         line_json.get("record_kind").and_then(Value::as_str),
         Some("role_mailbox_message")
+    );
+    assert_eq!(
+        line_json
+            .get("project_profile_kind")
+            .and_then(Value::as_str),
+        Some("generic")
+    );
+    assert!(
+        line_json
+            .get("profile_extension")
+            .is_some_and(Value::is_null)
     );
     assert_eq!(
         line_json
@@ -493,6 +526,32 @@ async fn role_mailbox_validation_reports_schema_and_authority_drift() {
             StructuredCollaborationValidationCode::SchemaVersionMismatch
         ) && issue.field == "schema_version"
     }));
+
+    let mut line_unknown_profile_extension_json = line_schema_version_json;
+    line_unknown_profile_extension_json["schema_version"] =
+        Value::String("role_mailbox_export_v1".to_string());
+    line_unknown_profile_extension_json["profile_extension"] = json!({
+        "extension_schema_id": "hsk.profile.unknown@1",
+        "extension_schema_version": "1",
+        "compatibility": {
+            "breaking": false,
+        },
+    });
+    let line_unknown_profile_extension_validation = validate_runtime_mailbox_record(
+        &root,
+        StructuredCollaborationRecordFamily::RoleMailboxThreadLine,
+        &line_unknown_profile_extension_json,
+    );
+    assert!(!line_unknown_profile_extension_validation.ok);
+    assert!(line_unknown_profile_extension_validation
+        .issues
+        .iter()
+        .any(|issue| {
+            matches!(
+                issue.code,
+                StructuredCollaborationValidationCode::InvalidFieldValue
+            ) && issue.field == "profile_extension.extension_schema_id"
+        }));
 }
 
 #[tokio::test]

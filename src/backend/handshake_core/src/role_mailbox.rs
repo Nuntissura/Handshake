@@ -18,7 +18,7 @@ use crate::flight_recorder::{
 };
 use crate::runtime_governance::RuntimeGovernancePaths;
 use crate::workflows::locus::{
-    validate_structured_collaboration_record, StructuredCollaborationRecordFamily,
+    ProjectProfileKind, validate_structured_collaboration_record, StructuredCollaborationRecordFamily,
     StructuredCollaborationValidationCode,
 };
 
@@ -1307,6 +1307,7 @@ impl RoleMailbox {
             let mut max_ts = "1970-01-01T00:00:00Z".to_string();
             let mut total_messages: u64 = 0;
             let index_display = format!("{}index.json", self.export_root_display);
+            let mailbox_profile_kind = ProjectProfileKind::Generic.as_str();
 
             for thread_row in thread_rows {
                 let (
@@ -1418,7 +1419,8 @@ impl RoleMailbox {
                         "schema_version": ROLE_MAILBOX_EXPORT_SCHEMA_VERSION,
                         "record_id": message_id,
                         "record_kind": "role_mailbox_message",
-                        "project_profile_kind": "software_delivery",
+                        "project_profile_kind": mailbox_profile_kind,
+                        "profile_extension": Value::Null,
                         "mirror_state": "canonical_only",
                         "updated_at": msg_created_at,
                         "authority_refs": [index_display.as_str()],
@@ -1488,7 +1490,8 @@ impl RoleMailbox {
                 "schema_version": ROLE_MAILBOX_EXPORT_SCHEMA_VERSION,
                 "record_id": "role_mailbox_index",
                 "record_kind": "generic",
-                "project_profile_kind": "software_delivery",
+                "project_profile_kind": mailbox_profile_kind,
+                "profile_extension": Value::Null,
                 "mirror_state": "canonical_only",
                 "updated_at": max_ts,
                 "generated_at": max_ts,
@@ -1536,7 +1539,8 @@ impl RoleMailbox {
             "schema_version": ROLE_MAILBOX_EXPORT_SCHEMA_VERSION,
             "record_id": "role_mailbox_export_manifest",
             "record_kind": "generic",
-            "project_profile_kind": "software_delivery",
+            "project_profile_kind": ProjectProfileKind::Generic.as_str(),
+            "profile_extension": Value::Null,
             "mirror_state": "canonical_only",
             "updated_at": generated_at,
             "authority_refs": [

@@ -46,6 +46,46 @@ impl ProjectProfileKind {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ProfileExtensionRegistryEntry {
+    project_profile_kind: ProjectProfileKind,
+    schema_id: &'static str,
+    schema_version: &'static str,
+}
+
+const PROFILE_EXTENSION_REGISTRY: &[ProfileExtensionRegistryEntry] = &[
+    ProfileExtensionRegistryEntry {
+        project_profile_kind: ProjectProfileKind::SoftwareDelivery,
+        schema_id: "hsk.profile.software_delivery@1",
+        schema_version: "1",
+    },
+    ProfileExtensionRegistryEntry {
+        project_profile_kind: ProjectProfileKind::Research,
+        schema_id: "hsk.profile.research@1",
+        schema_version: "1",
+    },
+    ProfileExtensionRegistryEntry {
+        project_profile_kind: ProjectProfileKind::Research,
+        schema_id: "hsk.profile.research.exploratory@1",
+        schema_version: "1",
+    },
+    ProfileExtensionRegistryEntry {
+        project_profile_kind: ProjectProfileKind::Worldbuilding,
+        schema_id: "hsk.profile.worldbuilding@1",
+        schema_version: "1",
+    },
+    ProfileExtensionRegistryEntry {
+        project_profile_kind: ProjectProfileKind::Design,
+        schema_id: "hsk.profile.design@1",
+        schema_version: "1",
+    },
+    ProfileExtensionRegistryEntry {
+        project_profile_kind: ProjectProfileKind::Custom,
+        schema_id: "hsk.profile.custom@1",
+        schema_version: "1",
+    },
+];
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum MirrorSyncState {
@@ -375,8 +415,6 @@ pub struct StructuredCollaborationSummaryV1 {
     pub evidence_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror_contract: Option<MarkdownMirrorContractV1>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub profile_extension: Option<Value>,
     pub workflow_state_family: WorkflowStateFamily,
     pub queue_reason_code: WorkflowQueueReasonCode,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -398,6 +436,8 @@ pub struct TrackedWorkPacketArtifactV1 {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_extension: Option<Value>,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
     #[serde(default)]
@@ -406,8 +446,6 @@ pub struct TrackedWorkPacketArtifactV1 {
     pub evidence_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror_contract: Option<MarkdownMirrorContractV1>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub profile_extension: Option<Value>,
     pub workflow_state_family: WorkflowStateFamily,
     pub queue_reason_code: WorkflowQueueReasonCode,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -454,6 +492,8 @@ pub struct TrackedMicroTaskArtifactV1 {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_extension: Option<Value>,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
     #[serde(default)]
@@ -462,8 +502,6 @@ pub struct TrackedMicroTaskArtifactV1 {
     pub evidence_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror_contract: Option<MarkdownMirrorContractV1>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub profile_extension: Option<Value>,
     pub workflow_state_family: WorkflowStateFamily,
     pub queue_reason_code: WorkflowQueueReasonCode,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -882,6 +920,10 @@ pub struct LocusCreateWpParams {
     pub labels: Option<Vec<String>>,
     #[serde(default)]
     pub spec_session_id: Option<String>,
+    #[serde(default)]
+    pub project_profile_kind: Option<ProjectProfileKind>,
+    #[serde(default)]
+    pub profile_extension: Option<Value>,
     pub reporter: String,
 }
 
@@ -1068,6 +1110,8 @@ pub struct StructuredCollaborationSummaryRecord {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_extension: Option<Value>,
     pub mirror_state: MirrorSyncState,
     pub workflow_state_family: WorkflowStateFamily,
     pub status: String,
@@ -1280,12 +1324,16 @@ pub fn validate_structured_collaboration_record(
         descriptor.record_kind,
         &mut result,
     );
+    let project_profile_kind = obj
+        .get("project_profile_kind")
+        .and_then(Value::as_str)
+        .and_then(ProjectProfileKind::parse);
     validate_project_profile_kind(obj.get("project_profile_kind"), &mut result);
     require_non_empty_string(obj.get("updated_at"), "updated_at", &mut result);
     validate_mirror_state(obj.get("mirror_state"), &mut result);
     require_string_array(obj.get("authority_refs"), "authority_refs", &mut result);
     require_string_array(obj.get("evidence_refs"), "evidence_refs", &mut result);
-    validate_profile_extension(obj.get("profile_extension"), &mut result);
+    validate_profile_extension(obj.get("profile_extension"), project_profile_kind, &mut result);
 
     match family {
         StructuredCollaborationRecordFamily::WorkPacketPacket
@@ -1447,6 +1495,7 @@ pub fn validate_structured_collaboration_summary_join(
         "workflow_state_family",
         &mut result,
     );
+    compare_optional_value_field(detail_obj, summary_obj, "profile_extension", &mut result);
     compare_string_arrays(detail_obj, summary_obj, "authority_refs", &mut result);
     compare_string_arrays(detail_obj, summary_obj, "evidence_refs", &mut result);
 
@@ -1468,7 +1517,6 @@ pub fn seed_tracked_micro_task_registry_fields(
     )
     .record_kind
     .to_string();
-    tracked_mt.project_profile_kind = ProjectProfileKind::SoftwareDelivery;
     tracked_mt.updated_at = Utc::now();
     tracked_mt.mirror_state = MirrorSyncState::CanonicalOnly;
     tracked_mt.authority_refs = authority_refs;
@@ -1491,7 +1539,6 @@ pub fn seed_tracked_work_packet_registry_fields(
     )
     .record_kind
     .to_string();
-    tracked_wp.project_profile_kind = ProjectProfileKind::SoftwareDelivery;
     tracked_wp.updated_at = Utc::now();
     tracked_wp.mirror_state = MirrorSyncState::CanonicalOnly;
     tracked_wp.authority_refs = authority_refs;
@@ -1603,6 +1650,7 @@ pub fn default_structured_collaboration_summary_record(
     evidence_refs: Vec<String>,
     updated_at: impl Into<String>,
     project_profile_kind: ProjectProfileKind,
+    profile_extension: Option<Value>,
     mirror_state: MirrorSyncState,
 ) -> StructuredCollaborationSummaryRecord {
     let summary_family = match family {
@@ -1623,6 +1671,7 @@ pub fn default_structured_collaboration_summary_record(
         record_id: record_id.into(),
         record_kind: descriptor.record_kind.to_string(),
         project_profile_kind,
+        profile_extension,
         mirror_state,
         workflow_state_family,
         status: status.into(),
@@ -2449,6 +2498,7 @@ fn merge_child_validation(
 
 fn validate_profile_extension(
     value: Option<&Value>,
+    project_profile_kind: Option<ProjectProfileKind>,
     result: &mut StructuredCollaborationValidationResult,
 ) {
     let Some(value) = value else {
@@ -2496,6 +2546,74 @@ fn validate_profile_extension(
             "profile_extension declares breaking compatibility and must be rejected deterministically",
         );
     }
+
+    let Some(project_profile_kind) = project_profile_kind else {
+        return;
+    };
+    let Some(extension_schema_id) = obj
+        .get("extension_schema_id")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return;
+    };
+    let Some(extension_schema_version) = obj
+        .get("extension_schema_version")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return;
+    };
+
+    let registered_entries: Vec<&ProfileExtensionRegistryEntry> =
+        registered_profile_extensions(project_profile_kind).collect();
+    let registered_ids: Vec<&str> = registered_entries.iter().map(|entry| entry.schema_id).collect();
+    if !registered_ids.iter().any(|schema_id| *schema_id == extension_schema_id) {
+        let expected = if registered_ids.is_empty() {
+            format!(
+                "no registered extensions for {}",
+                project_profile_kind.as_str()
+            )
+        } else {
+            registered_ids.join(", ")
+        };
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "profile_extension.extension_schema_id",
+            Some(expected),
+            Some(extension_schema_id.to_string()),
+            "profile_extension.extension_schema_id is not registered for project_profile_kind",
+        );
+        return;
+    }
+
+    if !registered_entries.iter().any(|entry| {
+        entry.schema_id == extension_schema_id && entry.schema_version == extension_schema_version
+    }) {
+        let expected_versions = registered_entries
+            .iter()
+            .filter(|entry| entry.schema_id == extension_schema_id)
+            .map(|entry| entry.schema_version)
+            .collect::<Vec<_>>()
+            .join(", ");
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "profile_extension.extension_schema_version",
+            Some(expected_versions),
+            Some(extension_schema_version.to_string()),
+            "profile_extension.extension_schema_version is not registered for extension_schema_id",
+        );
+    }
+}
+
+fn registered_profile_extensions(
+    project_profile_kind: ProjectProfileKind,
+) -> impl Iterator<Item = &'static ProfileExtensionRegistryEntry> {
+    PROFILE_EXTENSION_REGISTRY
+        .iter()
+        .filter(move |entry| entry.project_profile_kind == project_profile_kind)
 }
 
 fn profile_extension_is_breaking(value: Option<&Value>) -> bool {
@@ -2554,6 +2672,32 @@ fn compare_string_arrays(
             Some(summary_values.join(",")),
             format!("{field} must match between detail and summary records"),
         );
+    }
+}
+
+fn compare_optional_value_field(
+    detail_obj: &serde_json::Map<String, Value>,
+    summary_obj: &serde_json::Map<String, Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let detail_value = normalized_optional_value(detail_obj.get(field));
+    let summary_value = normalized_optional_value(summary_obj.get(field));
+    if detail_value != summary_value {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            field,
+            detail_value.map(Value::to_string),
+            summary_value.map(Value::to_string),
+            format!("{field} must match between detail and summary records"),
+        );
+    }
+}
+
+fn normalized_optional_value(value: Option<&Value>) -> Option<&Value> {
+    match value {
+        Some(Value::Null) | None => None,
+        other => other,
     }
 }
 

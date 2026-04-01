@@ -2630,6 +2630,109 @@ fn parse_gate_statuses_from_metadata(metadata: &Value) -> locus::GateStatuses {
     }
 }
 
+fn project_profile_kind_from_metadata(metadata: &Value) -> locus::ProjectProfileKind {
+    metadata
+        .get("project_profile_kind")
+        .and_then(Value::as_str)
+        .and_then(locus::ProjectProfileKind::parse)
+        .unwrap_or_default()
+}
+
+fn profile_extension_from_metadata(metadata: &Value) -> Option<Value> {
+    metadata
+        .get("profile_extension")
+        .cloned()
+        .filter(|value| !value.is_null())
+}
+
+fn aggregate_project_profile_kind(
+    kinds: impl IntoIterator<Item = locus::ProjectProfileKind>,
+) -> locus::ProjectProfileKind {
+    let mut iter = kinds.into_iter();
+    let Some(first) = iter.next() else {
+        return locus::ProjectProfileKind::Generic;
+    };
+    if iter.all(|kind| kind == first) {
+        first
+    } else {
+        locus::ProjectProfileKind::Generic
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct WorkPacketProfileBoundary {
+    project_profile_kind: locus::ProjectProfileKind,
+    profile_extension: Option<Value>,
+}
+
+fn aggregate_profile_extension(values: impl IntoIterator<Item = Option<Value>>) -> Option<Value> {
+    let mut iter = values.into_iter();
+    let Some(first) = iter.next() else {
+        return None;
+    };
+    if iter.all(|value| value == first) {
+        first
+    } else {
+        None
+    }
+}
+
+fn work_packet_profile_boundary_from_value(value: &Value) -> Option<WorkPacketProfileBoundary> {
+    let project_profile_kind = value
+        .get("project_profile_kind")
+        .and_then(Value::as_str)
+        .and_then(locus::ProjectProfileKind::parse)
+        .unwrap_or_default();
+    let profile_extension = profile_extension_from_metadata(value);
+    if project_profile_kind == locus::ProjectProfileKind::Generic && profile_extension.is_none() {
+        return None;
+    }
+    Some(WorkPacketProfileBoundary {
+        project_profile_kind,
+        profile_extension,
+    })
+}
+
+fn read_work_packet_profile_boundary_from_runtime(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+) -> Option<WorkPacketProfileBoundary> {
+    let packet_value = fs::read(runtime_paths.work_packet_packet_path(wp_id))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .and_then(|value| work_packet_profile_boundary_from_value(&value));
+    if packet_value.is_some() {
+        return packet_value;
+    }
+
+    fs::read(runtime_paths.work_packet_summary_path(wp_id))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .and_then(|value| work_packet_profile_boundary_from_value(&value))
+}
+
+fn resolve_work_packet_profile_boundary(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+    metadata: &Value,
+) -> WorkPacketProfileBoundary {
+    let project_profile_kind = project_profile_kind_from_metadata(metadata);
+    let profile_extension = profile_extension_from_metadata(metadata);
+    if project_profile_kind != locus::ProjectProfileKind::Generic || profile_extension.is_some() {
+        return WorkPacketProfileBoundary {
+            project_profile_kind,
+            profile_extension,
+        };
+    }
+
+    read_work_packet_profile_boundary_from_runtime(runtime_paths, wp_id).unwrap_or(
+        WorkPacketProfileBoundary {
+            project_profile_kind,
+            profile_extension,
+        },
+    )
+}
+
 fn parse_timestamp_utc(value: &str, field: &str) -> Result<DateTime<Utc>, WorkflowError> {
     DateTime::parse_from_rfc3339(value)
         .map(|timestamp| timestamp.with_timezone(&Utc))
@@ -2925,17 +3028,23 @@ async fn load_tracked_work_packet_for_artifacts(
         .and_then(|value| serde_json::from_value::<Vec<locus::WorkNote>>(value).ok())
         .unwrap_or_default();
     let vector_clock = serde_json::from_str(&vector_clock_raw).unwrap_or_else(|_| json!({}));
-    let profile_extension = metadata
-        .get("profile_extension")
-        .cloned()
-        .filter(|value| !value.is_null());
+    let WorkPacketProfileBoundary {
+        project_profile_kind,
+        profile_extension,
+    } = RuntimeGovernancePaths::resolve()
+        .ok()
+        .map(|runtime_paths| resolve_work_packet_profile_boundary(&runtime_paths, wp_id, &metadata))
+        .unwrap_or(WorkPacketProfileBoundary {
+            project_profile_kind: project_profile_kind_from_metadata(&metadata),
+            profile_extension: profile_extension_from_metadata(&metadata),
+        });
 
     let work_packet = locus::TrackedWorkPacket {
         schema_id: String::new(),
         schema_version: String::new(),
         record_id: String::new(),
         record_kind: String::new(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+        project_profile_kind,
         mirror_state: locus::MirrorSyncState::CanonicalOnly,
         authority_refs: Vec::new(),
         evidence_refs: Vec::new(),
@@ -3448,6 +3557,7 @@ async fn emit_task_board_projection_artifacts(
                 let status = parse_task_board_status_db_global(task_board_status_raw);
                 let metadata: Value =
                     serde_json::from_str(metadata_raw).unwrap_or_else(|_| json!({}));
+                let boundary = resolve_work_packet_profile_boundary(runtime_paths, wp_id, &metadata);
                 let token = metadata
                     .get("task_board_token")
                     .and_then(Value::as_str)
@@ -3457,6 +3567,8 @@ async fn emit_task_board_projection_artifacts(
                     "wp_id": wp_id,
                     "status": task_board_status_string(status),
                     "token": token,
+                    "project_profile_kind": boundary.project_profile_kind.as_str(),
+                    "profile_extension": boundary.profile_extension.clone(),
                     "updated_at": updated_at,
                 })
             },
@@ -3501,6 +3613,7 @@ async fn emit_task_board_projection_artifacts(
         let status = parse_task_board_status_db_global(&task_board_status_raw);
         let work_packet_status = parse_work_packet_status_value(&work_packet_status_raw)?;
         let metadata: Value = serde_json::from_str(&metadata_raw).unwrap_or_else(|_| json!({}));
+        let boundary = resolve_work_packet_profile_boundary(runtime_paths, &wp_id, &metadata);
         let token = metadata
             .get("task_board_token")
             .and_then(Value::as_str)
@@ -3522,7 +3635,8 @@ async fn emit_task_board_projection_artifacts(
             schema_version: locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
             record_id: format!("task_board_entry:{wp_id}"),
             record_kind: "task_board_entry".to_string(),
-            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+            project_profile_kind: boundary.project_profile_kind,
+            profile_extension: boundary.profile_extension.clone(),
             updated_at,
             mirror_state,
             authority_refs: vec![runtime_paths.work_packet_packet_display(&wp_id)],
@@ -3548,13 +3662,18 @@ async fn emit_task_board_projection_artifacts(
         ));
         entries.push(entry);
     }
+    let task_board_profile_kind =
+        aggregate_project_profile_kind(entries.iter().map(|entry| entry.project_profile_kind));
+    let task_board_profile_extension =
+        aggregate_profile_extension(entries.iter().map(|entry| entry.profile_extension.clone()));
 
     let index = locus::task_board::TaskBoardIndexV1 {
         schema_id: TASK_BOARD_INDEX_SCHEMA_ID.to_string(),
         schema_version: locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
         record_id: "task_board_index".to_string(),
         record_kind: "task_board_index".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+        project_profile_kind: task_board_profile_kind,
+        profile_extension: task_board_profile_extension.clone(),
         updated_at: generated_at.clone(),
         mirror_state,
         authority_refs: vec![runtime_paths.task_board_index_display()],
@@ -3584,7 +3703,8 @@ async fn emit_task_board_projection_artifacts(
         schema_version: locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
         record_id: format!("task_board_view:{view_id}"),
         record_kind: "task_board_view".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+        project_profile_kind: task_board_profile_kind,
+        profile_extension: task_board_profile_extension,
         updated_at: generated_at.clone(),
         mirror_state,
         authority_refs: vec![runtime_paths.task_board_view_display(&view_id)],
@@ -3708,9 +3828,11 @@ async fn materialize_structured_collaboration_artifacts(
 
     match op {
         locus::LocusOperation::CreateWp(params) => {
-            if let Some(work_packet) =
+            if let Some(mut work_packet) =
                 load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
             {
+                work_packet.project_profile_kind = params.project_profile_kind.unwrap_or_default();
+                work_packet.profile_extension = params.profile_extension.clone();
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
             emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
@@ -4001,6 +4123,25 @@ fn build_spec_router_locus_create_wp_params(
             "/work_packet/spec_session_id",
         ],
     );
+    let project_profile_kind = json_pointer_string(
+        raw_inputs,
+        &[
+            "/project_profile_kind",
+            "/routing_result/project_profile_kind",
+            "/work_packet/project_profile_kind",
+        ],
+    )
+    .and_then(|value| locus::ProjectProfileKind::parse(&value));
+    let profile_extension = json_pointer_value(
+        raw_inputs,
+        &[
+            "/profile_extension",
+            "/routing_result/profile_extension",
+            "/work_packet/profile_extension",
+        ],
+    )
+    .cloned()
+    .filter(|value| !value.is_null());
 
     Ok(Some(locus::LocusCreateWpParams {
         wp_id,
@@ -4014,6 +4155,8 @@ fn build_spec_router_locus_create_wp_params(
         assignee,
         labels,
         spec_session_id,
+        project_profile_kind,
+        profile_extension,
         reporter,
     }))
 }
@@ -4477,10 +4620,10 @@ async fn load_tracked_work_packet_from_sqlite(
     let started_at = parse_optional_timestamp_value(metadata.get("started_at"))?;
     let completed_at = parse_optional_timestamp_value(metadata.get("completed_at"))?;
     let due_at = parse_optional_timestamp_value(metadata.get("due_at"))?;
-    let profile_extension = metadata
-        .get("profile_extension")
-        .cloned()
-        .filter(|value| !value.is_null());
+    let WorkPacketProfileBoundary {
+        project_profile_kind,
+        profile_extension,
+    } = resolve_work_packet_profile_boundary(&runtime_paths, &wp_id, &metadata);
     let tombstone = metadata
         .get("tombstone")
         .cloned()
@@ -4521,7 +4664,7 @@ async fn load_tracked_work_packet_from_sqlite(
         schema_version: String::new(),
         record_id: String::new(),
         record_kind: String::new(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+        project_profile_kind,
         mirror_state: locus::MirrorSyncState::CanonicalOnly,
         authority_refs: Vec::new(),
         evidence_refs: Vec::new(),
@@ -4656,6 +4799,7 @@ fn build_structured_work_packet_summary(
         tracked_wp.evidence_refs.clone(),
         tracked_wp.updated_at.to_rfc3339(),
         tracked_wp.project_profile_kind,
+        tracked_wp.profile_extension.clone(),
         tracked_wp.mirror_state,
     )
 }
@@ -4672,12 +4816,12 @@ fn build_structured_work_packet_packet(
         record_id: tracked_wp.record_id.clone(),
         record_kind: tracked_wp.record_kind.clone(),
         project_profile_kind: tracked_wp.project_profile_kind,
+        profile_extension: tracked_wp.profile_extension.clone(),
         updated_at: tracked_wp.updated_at.to_rfc3339(),
         mirror_state: tracked_wp.mirror_state,
         authority_refs: tracked_wp.authority_refs.clone(),
         evidence_refs: tracked_wp.evidence_refs.clone(),
         mirror_contract: None,
-        profile_extension: tracked_wp.profile_extension.clone(),
         workflow_state_family,
         queue_reason_code,
         allowed_action_ids: locus::governed_action_ids_for_workflow_family(workflow_state_family),
@@ -4721,6 +4865,7 @@ fn build_structured_micro_task_summary(
         tracked_mt.evidence_refs.clone(),
         tracked_mt.updated_at.to_rfc3339(),
         tracked_mt.project_profile_kind,
+        tracked_mt.profile_extension.clone(),
         tracked_mt.mirror_state,
     )
 }
@@ -4736,12 +4881,12 @@ fn build_structured_micro_task_packet(
         record_id: tracked_mt.record_id.clone(),
         record_kind: tracked_mt.record_kind.clone(),
         project_profile_kind: tracked_mt.project_profile_kind,
+        profile_extension: tracked_mt.profile_extension.clone(),
         updated_at: tracked_mt.updated_at.to_rfc3339(),
         mirror_state: tracked_mt.mirror_state,
         authority_refs: tracked_mt.authority_refs.clone(),
         evidence_refs: tracked_mt.evidence_refs.clone(),
         mirror_contract: None,
-        profile_extension: tracked_mt.profile_extension.clone(),
         workflow_state_family,
         queue_reason_code,
         allowed_action_ids: locus::governed_action_ids_for_workflow_family(workflow_state_family),
@@ -11599,7 +11744,7 @@ fn build_locus_register_mts_params(
                 schema_version: String::new(),
                 record_id: String::new(),
                 record_kind: String::new(),
-                project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+                project_profile_kind: locus::ProjectProfileKind::Generic,
                 updated_at: Utc::now(),
                 mirror_state: locus::MirrorSyncState::CanonicalOnly,
                 authority_refs: Vec::new(),
@@ -11800,6 +11945,7 @@ fn apply_runtime_structured_micro_task_registry(
                 tracked_mt.evidence_refs.clone(),
                 tracked_mt.updated_at.to_rfc3339(),
                 tracked_mt.project_profile_kind,
+                tracked_mt.profile_extension.clone(),
                 tracked_mt.mirror_state,
             ))
             .map_err(|e| WorkflowError::Terminal(e.to_string()))?;

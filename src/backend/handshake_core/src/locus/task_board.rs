@@ -5,6 +5,7 @@ use super::types::{
     WorkflowStateFamily,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaskBoardEntry {
@@ -31,6 +32,8 @@ pub struct TaskBoardEntryRecordV1 {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
+    #[serde(default)]
+    pub profile_extension: Option<Value>,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
     #[serde(default)]
@@ -61,6 +64,8 @@ pub struct TaskBoardIndexV1 {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
+    #[serde(default)]
+    pub profile_extension: Option<Value>,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
     #[serde(default)]
@@ -84,6 +89,8 @@ pub struct TaskBoardViewV1 {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
+    #[serde(default)]
+    pub profile_extension: Option<Value>,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
     #[serde(default)]
