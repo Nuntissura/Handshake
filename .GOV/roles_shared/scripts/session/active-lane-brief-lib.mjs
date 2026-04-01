@@ -101,6 +101,7 @@ export function buildActiveLaneBrief({
     wpId,
     stage: "STATUS",
     packetPath,
+    packetContent: packetText,
     workflowLane: parseSingleField(packetText, "WORKFLOW_LANE"),
     packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
     communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),

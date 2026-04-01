@@ -323,6 +323,23 @@ test("wp-validator ready commands surface packet completeness before handoff val
   ]);
 });
 
+test("wp-validator ready commands switch to intent-checkpoint guidance when checkpoint review is pending", () => {
+  const commands = buildValidatorReadyCommands({
+    wpId: "WP-TEST-VALIDATOR-v1",
+    actorRole: "WP_VALIDATOR",
+    actorSessionId: "wpval:test",
+    waitingOn: "WP_VALIDATOR_INTENT_CHECKPOINT",
+  });
+
+  assert.deepEqual(commands, [
+    "just check-notifications WP-TEST-VALIDATOR-v1 WP_VALIDATOR",
+    "just ack-notifications WP-TEST-VALIDATOR-v1 WP_VALIDATOR wpval:test",
+    "just active-lane-brief WP_VALIDATOR WP-TEST-VALIDATOR-v1",
+    "just wp-validator-response WP-TEST-VALIDATOR-v1 WP_VALIDATOR wpval:test <coder-session> \"<summary>\" <correlation_id>",
+    "just wp-spec-gap WP-TEST-VALIDATOR-v1 WP_VALIDATOR wpval:test CODER <coder-session> \"<summary>\" [correlation_id] [spec_anchor] [packet_row_ref]",
+  ]);
+});
+
 test("validator resume state follows projected WP validator review truth", () => {
   const state = deriveValidatorResumeState({
     actorRole: "WP_VALIDATOR",
@@ -344,6 +361,29 @@ test("validator resume state follows projected WP validator review truth", () =>
   assert.equal(state.nextExpectedActor, "WP_VALIDATOR");
   assert.equal(state.waitingOn, "WP_VALIDATOR_REVIEW");
   assert.match(state.message, /WP validator review is required now/i);
+});
+
+test("validator resume state follows projected WP validator intent checkpoint truth", () => {
+  const state = deriveValidatorResumeState({
+    actorRole: "WP_VALIDATOR",
+    communicationState: {
+      runtimeStatus: {
+        next_expected_actor: "WP_VALIDATOR",
+        waiting_on: "WP_VALIDATOR_INTENT_CHECKPOINT",
+      },
+      communicationEvaluation: {
+        applicable: true,
+        state: "COMM_WAITING_FOR_INTENT_CHECKPOINT",
+      },
+      latestValidatorAssessment: null,
+    },
+  });
+
+  assert.equal(state.ready, true);
+  assert.equal(state.blockedByRoute, false);
+  assert.equal(state.nextExpectedActor, "WP_VALIDATOR");
+  assert.equal(state.waitingOn, "WP_VALIDATOR_INTENT_CHECKPOINT");
+  assert.match(state.message, /checkpoint review is required/i);
 });
 
 test("validator resume state reports coder remediation after failed assessment", () => {

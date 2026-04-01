@@ -105,6 +105,9 @@ function validatorReadyMessage(actorRole, waitingOn, communicationState = null) 
   const waiting = String(waitingOn || "").trim().toUpperCase();
   const latestAssessment = communicationState?.latestValidatorAssessment || null;
   if (normalizedRole === "WP_VALIDATOR") {
+    if (waiting === "WP_VALIDATOR_INTENT_CHECKPOINT") {
+      return "Coder intent is recorded; WP validator checkpoint review is required before implementation or full handoff.";
+    }
     if (waiting === "WP_VALIDATOR_REVIEW") {
       return "Coder handoff recorded; WP validator review is required now.";
     }
@@ -164,6 +167,7 @@ export function loadValidatorCommunicationState({
     wpId,
     stage: "STATUS",
     packetPath,
+    packetContent,
     workflowLane: parseClaimField(packetContent, "WORKFLOW_LANE"),
     packetFormatVersion: parseClaimField(packetContent, "PACKET_FORMAT_VERSION"),
     communicationContract: parseClaimField(packetContent, "COMMUNICATION_CONTRACT"),
@@ -396,6 +400,7 @@ export function buildValidatorReadyCommands({
   actorRole = "",
   actorSessionId = "",
   postWorkCommand = "",
+  waitingOn = "",
 } = {}) {
   const role = normalizeValidatorRole(actorRole);
   if (role === "INTEGRATION_VALIDATOR") {
@@ -412,6 +417,15 @@ export function buildValidatorReadyCommands({
   }
   if (role === "WP_VALIDATOR") {
     const session = actorSessionId || "<wp-validator-session>";
+    if (String(waitingOn || "").trim().toUpperCase() === "WP_VALIDATOR_INTENT_CHECKPOINT") {
+      return [
+        `just check-notifications ${wpId} WP_VALIDATOR`,
+        `just ack-notifications ${wpId} WP_VALIDATOR ${session}`,
+        `just active-lane-brief WP_VALIDATOR ${wpId}`,
+        `just wp-validator-response ${wpId} WP_VALIDATOR ${session} <coder-session> "<summary>" <correlation_id>`,
+        `just wp-spec-gap ${wpId} WP_VALIDATOR ${session} CODER <coder-session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`,
+      ];
+    }
     return [
       `just check-notifications ${wpId} WP_VALIDATOR`,
       `just ack-notifications ${wpId} WP_VALIDATOR ${session}`,

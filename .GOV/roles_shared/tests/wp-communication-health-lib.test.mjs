@@ -39,6 +39,7 @@ for (const fixtureName of fs.readdirSync(FIXTURES_DIR).filter((name) => name.end
 function baseInput({
   packetFormatVersion = "2026-03-22",
   communicationHealthGate = "HANDOFF_VERDICT_BLOCKING",
+  packetContent = "",
   receipts = [],
   runtimeStatus = {},
 } = {}) {
@@ -46,6 +47,7 @@ function baseInput({
     wpId: "WP-TEST-AUTO-ROUTE",
     stage: "STATUS",
     packetPath: ".GOV/task_packets/WP-TEST-AUTO-ROUTE/packet.md",
+    packetContent,
     workflowLane: "ORCHESTRATOR_MANAGED",
     packetFormatVersion,
     communicationContract: "DIRECT_REVIEW_V1",
@@ -88,6 +90,27 @@ function baseInput({
       ...runtimeStatus,
     },
   };
+}
+
+function contractHeavyPacketFixture() {
+  return `# Task Packet: WP-TEST-AUTO-ROUTE
+
+## METADATA
+- WORKFLOW_LANE: ORCHESTRATOR_MANAGED
+- PACKET_FORMAT_VERSION: 2026-03-29
+- COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1
+- COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING
+- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V3
+- CODER_HANDOFF_RIGOR_PROFILE: RUBRIC_SELF_AUDIT_V2
+- CLAUSE_CLOSURE_MONITOR_PROFILE: CLAUSE_MONITOR_V1
+- SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
+- IN_SCOPE_PATHS:
+  - src/demo.rs
+  - src/demo_support.rs
+
+## CLAUSE_CLOSURE_MATRIX
+- CLAUSE | CODER_STATUS=PROVED | VALIDATOR_STATUS=PENDING
+`.trim();
 }
 
 test("auto route projects coder handoff into validator review wake state", () => {
@@ -383,6 +406,101 @@ test("negative validator review routes the lane back to coder remediation instea
   assert.equal(route.nextExpectedSession, "coder-1");
   assert.equal(route.waitingOn, "CODER_REPAIR_HANDOFF");
   assert.equal(route.notification, null, "validator review already targets coder directly");
+});
+
+test("contract-heavy packets wait for WP validator checkpoint review after coder intent", () => {
+  const input = baseInput({
+    packetContent: contractHeavyPacketFixture(),
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Implementation order drafted.",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+    ],
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+
+  assert.equal(evaluation.state, "COMM_WAITING_FOR_INTENT_CHECKPOINT");
+  assert.match(evaluation.details.join("\n"), /intent_checkpoint_required=YES/);
+  assert.equal(route.nextExpectedActor, "WP_VALIDATOR");
+  assert.equal(route.nextExpectedSession, "wpv-1");
+  assert.equal(route.waitingOn, "WP_VALIDATOR_INTENT_CHECKPOINT");
+  assert.equal(route.validatorTrigger, "BLOCKED_NEEDS_VALIDATOR");
+  assert.equal(route.readyForValidation, true);
+});
+
+test("validator checkpoint clearance unlocks handoff after contract-heavy intent review", () => {
+  const input = baseInput({
+    packetContent: contractHeavyPacketFixture(),
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Implementation order drafted.",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Intent checkpoint cleared; proceed to implementation and full handoff.",
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+    ],
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+
+  assert.equal(evaluation.state, "COMM_WAITING_FOR_HANDOFF");
+  assert.equal(route.nextExpectedActor, "CODER");
+  assert.equal(route.waitingOn, "CODER_HANDOFF");
 });
 
 test("validator review outcome honors explicit microtask review_outcome overrides", () => {

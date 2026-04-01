@@ -888,6 +888,7 @@ function parsePacketRecord(packetPath, prepareAssignment = null) {
     wpId: record.wpId,
     stage: "STATUS",
     packetPath: record.packetPath,
+    packetContent: record.packetText || "",
     workflowLane: record.workflowLane,
     packetFormatVersion: record.packetFormatVersion,
     communicationContract: record.communicationContract,
