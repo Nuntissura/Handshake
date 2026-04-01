@@ -104,6 +104,9 @@
 | RGF-49 | DONE | Validator-Owned Bootstrap and Skeleton Gate | RGF-47 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | startup/launch governance, `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles/coder/CODER_PROTOCOL.md`, `roles/validator/VALIDATOR_PROTOCOL.md`, direct-review lane routing | governed WPs cannot leave bootstrap or skeleton on coder say-so alone; after every governed `CODER_INTENT`, the WP Validator must explicitly clear the early plan before implementation hardens or full handoff is legal |
 | RGF-50 | DONE | LLM-First Data Contract Codification | RGF-49 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | packet/spec templates, `roles/coder/CODER_PROTOCOL.md`, `roles/validator/VALIDATOR_PROTOCOL.md`, audit rubrics, data-surface proof fields | data-bearing Handshake WPs now declare and review a codified data contract covering SQL posture, PostgreSQL readiness, LLM-first readability/parseability, and Loom-intertwined requirements instead of leaving those qualities implicit |
 | RGF-51 | DONE | Anti-Vibe Review Heuristics and Zero-Debt Rejection | RGF-48, RGF-49, RGF-50 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | validator rubrics/reports, coder handoff schema, audit template, review exchange helpers | shallow easy-surface work, weakly justified implementation, vibe-coded changes, and accepted signed-scope debt now become explicit review failures or `NOT_PROVEN` truth, and PASS cannot coexist with unresolved implementation-quality debt inside signed scope on the new packet format |
+| RGF-52 | READY | Explicit Data-Contract Activation and Waiver Gate | RGF-50 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles_shared/scripts/lib/data-contract-lib.mjs`, `roles/orchestrator/scripts/create-task-packet.mjs`, `roles_shared/checks/task-packet-claim-check.mjs`, refinement/packet activation rules | data-bearing or structure-bearing packets can no longer rely on heuristic refinement phrasing alone to activate `DATA_CONTRACT_PROFILE`; activation must become explicit, reviewable, or explicitly waived with governed reason |
+| RGF-53 | READY | Shared Docs and Command-Surface Alignment for New Packet Law | RGF-50, RGF-51 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `roles_shared/docs/START_HERE.md`, shared quickrefs/examples, startup/operator-facing guidance | operator and shared role docs now surface the `2026-04-01` packet law, including data-contract activation, anti-vibe review fields, and signed-scope-debt rejection, instead of leaving those rules discoverable only in role-local protocols and checks |
+| RGF-54 | READY | End-to-End New-Packet Law Regression and Legacy Migration Strategy | RGF-50, RGF-51, RGF-52 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | orchestrator packet creation flow, shared claim checks, validator closeout checks, shared regression suite, packet-family migration policy | the `2026-04-01` packet law is proven end-to-end from packet creation through validator closure, and legacy packet families have an explicit migration or grandfathering policy instead of mixed implicit enforcement |
 
 ## Refactor Sequence (Historical)
 
@@ -159,6 +162,9 @@
 41. `RGF-49`
 42. `RGF-50`
 43. `RGF-51`
+44. `RGF-52`
+45. `RGF-53`
+46. `RGF-54`
 
 ## Explicit Holds
 

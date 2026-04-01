@@ -725,3 +725,20 @@
   - `.GOV/roles_shared/scripts/session/session-policy.mjs`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: new packets (`PACKET_FORMAT_VERSION >= 2026-04-01`) can declare `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, packet creation and claim-time checks now require an authoritative data-contract monitoring block, validator closure now requires explicit `DATA_CONTRACT_PROOF` and `DATA_CONTRACT_GAPS` for active data-contract packets, coder handoffs on the new packet format now include anti-vibe, signed-scope-debt, and data-contract self-check fields, and governed RIGOR_V3 PASS law now rejects unresolved anti-vibe findings or signed-scope debt on the new packet format instead of leaving those concerns as prose-only review style
+
+### 2026.04.01.13 / GOV-CHANGE-20260401-13
+
+- STATUS: APPLIED
+- SUMMARY: captured `roles_shared` follow-on gaps after the new packet-law hardening so explicit data-contract activation, shared-doc alignment, and end-to-end regression coverage are tracked as concrete governance work
+- CHANGE_TYPE: POST_HARDENING_FOLLOW_ON_CAPTURE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-52`
+  - `RGF-53`
+  - `RGF-54`
+- OUTCOME: the governance board now tracks three `roles_shared` follow-ons that were left implicit after `RGF-50` and `RGF-51`: making data-contract activation explicit instead of keyword-inferred, aligning shared docs/operator-facing command surfaces with the new packet law, and adding an end-to-end regression plus explicit migration policy for older packet families
