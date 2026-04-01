@@ -582,6 +582,7 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
     prompt: requestRecord.prompt,
     outputFile,
     threadId: requestRecord.command_kind === "SEND_PROMPT" ? threadId : "",
+    environmentOverrides: requestRecord.environment_overrides || {},
     onSpawn: (child) => {
       runState.child = child;
       runState.childPid = child.pid || 0;

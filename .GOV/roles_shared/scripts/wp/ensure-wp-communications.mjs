@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +24,16 @@ import {
   EXECUTION_OWNER_VALUES,
   AGENTIC_MODE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
+import {
+  deriveWpCommunicationAutoRoute,
+  evaluateWpCommunicationHealth,
+} from "../lib/wp-communication-health-lib.mjs";
+import {
+  applyWpReviewPacketProjection,
+  applyWpReviewRuntimeProjection,
+  deriveWpReviewPacketProjection,
+} from "../lib/wp-review-projection-lib.mjs";
+import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
 import { GOV_ROOT_REPO_REL, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "../lib/merge-progression-truth-lib.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
@@ -30,6 +41,44 @@ import { withFileLockSync } from "../session/session-registry-lib.mjs";
 const THREAD_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_COMMUNICATION_THREAD_TEMPLATE.md");
 const RUNTIME_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_RUNTIME_STATUS_TEMPLATE.json");
 const RECEIPTS_TEMPLATE = path.join(GOV_ROOT_REPO_REL, "templates", "WP_RECEIPTS_TEMPLATE.jsonl");
+const TASK_BOARD_SET_SCRIPT_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+  "roles",
+  "orchestrator",
+  "scripts",
+  "task-board-set.mjs",
+);
+const BUILD_ORDER_SYNC_SCRIPT_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+  "roles_shared",
+  "scripts",
+  "build-order-sync.mjs",
+);
+const RUNTIME_ROUTE_FIELD_NAMES = [
+  "open_review_items",
+  "next_expected_actor",
+  "next_expected_session",
+  "waiting_on",
+  "waiting_on_session",
+  "validator_trigger",
+  "validator_trigger_reason",
+  "ready_for_validation",
+  "ready_for_validation_reason",
+  "attention_required",
+];
+const AUTO_ROUTE_RUNTIME_FIELD_MAP = {
+  next_expected_actor: "nextExpectedActor",
+  next_expected_session: "nextExpectedSession",
+  waiting_on: "waitingOn",
+  waiting_on_session: "waitingOnSession",
+  validator_trigger: "validatorTrigger",
+  validator_trigger_reason: "validatorTriggerReason",
+  ready_for_validation: "readyForValidation",
+  ready_for_validation_reason: "readyForValidationReason",
+  attention_required: "attentionRequired",
+};
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -51,6 +100,17 @@ function fillAll(text, replacements) {
     output = output.split(token).join(value);
   }
   return output;
+}
+
+export function findUnreplacedTemplateTokens(text) {
+  return [...new Set(String(text || "").match(/\{\{[A-Z0-9_]+\}\}/g) || [])].sort();
+}
+
+function assertNoUnreplacedTemplateTokens(text, label, wpId) {
+  const unreplaced = findUnreplacedTemplateTokens(text);
+  if (unreplaced.length > 0) {
+    throw new Error(`Unreplaced template token(s) in ${label} for ${wpId}: ${unreplaced.join(", ")}`);
+  }
 }
 
 function writeIfMissing(filePath, content) {
@@ -77,6 +137,207 @@ function requireTemplateFile(filePath) {
   if (!fs.existsSync(repoPathAbs(filePath))) {
     throw new Error(`Missing WP communication template: ${normalize(filePath)}`);
   }
+}
+
+function normalizeSessionValue(value) {
+  const raw = normalizeNoneLike(value);
+  return raw || null;
+}
+
+function parseSecondaryValidatorSessions(rawValue) {
+  const raw = String(rawValue || "").trim();
+  if (!raw || /^NONE$/i.test(raw)) return [];
+  return raw.split(",").map((value) => value.trim()).filter(Boolean);
+}
+
+function syncRuntimeDeclaredFieldsFromPacket(runtimeStatus = {}, packetText = "", {
+  packetPath = "",
+} = {}) {
+  const syncedRuntime = syncRuntimeProjectionFromPacket(runtimeStatus, packetText, {
+    eventName: runtimeStatus?.last_event || "ensure_wp_communications",
+    eventAt: runtimeStatus?.last_event_at || new Date().toISOString(),
+  });
+  syncedRuntime.task_packet = normalize(packetPath || parseSingleField(packetText, "TASK_ID"));
+  syncedRuntime.communication_dir = normalize(parseSingleField(packetText, "WP_COMMUNICATION_DIR"));
+  syncedRuntime.thread_file = normalize(parseSingleField(packetText, "WP_THREAD_FILE"));
+  syncedRuntime.runtime_status_file = normalize(parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE"));
+  syncedRuntime.receipts_file = normalize(parseSingleField(packetText, "WP_RECEIPTS_FILE"));
+  syncedRuntime.workflow_lane = parseSingleField(packetText, "WORKFLOW_LANE");
+  syncedRuntime.execution_owner = parseSingleField(packetText, "EXECUTION_OWNER");
+  syncedRuntime.workflow_authority = parseSingleField(packetText, "WORKFLOW_AUTHORITY");
+  syncedRuntime.technical_advisor = parseSingleField(packetText, "TECHNICAL_ADVISOR");
+  syncedRuntime.technical_authority = parseSingleField(packetText, "TECHNICAL_AUTHORITY");
+  syncedRuntime.merge_authority = parseSingleField(packetText, "MERGE_AUTHORITY");
+  syncedRuntime.wp_validator_of_record = normalizeSessionValue(parseSingleField(packetText, "WP_VALIDATOR_OF_RECORD"));
+  syncedRuntime.integration_validator_of_record = normalizeSessionValue(parseSingleField(packetText, "INTEGRATION_VALIDATOR_OF_RECORD"));
+  syncedRuntime.secondary_validator_sessions = parseSecondaryValidatorSessions(
+    parseSingleField(packetText, "SECONDARY_VALIDATOR_SESSIONS"),
+  );
+  syncedRuntime.agentic_mode = parseSingleField(packetText, "AGENTIC_MODE") || syncedRuntime.agentic_mode;
+  syncedRuntime.current_branch = parseSingleField(packetText, "LOCAL_BRANCH") || syncedRuntime.current_branch;
+  syncedRuntime.current_worktree_dir = parseSingleField(packetText, "LOCAL_WORKTREE_DIR") || syncedRuntime.current_worktree_dir;
+  return syncedRuntime;
+}
+
+function isTerminalPacketStatus(status) {
+  return status === "Done" || /^Validated \(/i.test(String(status || "").trim());
+}
+
+export function reconcileWpCommunicationTruth({
+  wpId,
+  packetPath,
+  packetText,
+  runtimeStatus = {},
+  receipts = [],
+} = {}) {
+  const evaluation = evaluateWpCommunicationHealth({
+    wpId,
+    stage: "STATUS",
+    packetPath,
+    workflowLane: parseSingleField(packetText, "WORKFLOW_LANE"),
+    packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
+    communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
+    communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
+    receipts,
+    runtimeStatus,
+  });
+  const latestReceipt = receipts.at(-1) || null;
+  const autoRoute = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus,
+    latestReceipt,
+  });
+  const packetProjection = deriveWpReviewPacketProjection({
+    evaluation,
+    autoRoute,
+    packetText,
+  });
+  const nextPacketText = packetProjection?.packetStatus
+    ? applyWpReviewPacketProjection(packetText, packetProjection)
+    : packetText;
+  const terminalPacketStatus = isTerminalPacketStatus(parsePacketStatus(nextPacketText));
+  let nextRuntimeStatus = syncRuntimeDeclaredFieldsFromPacket(runtimeStatus, nextPacketText, {
+    packetPath,
+  });
+
+  if (autoRoute.applicable && !terminalPacketStatus) {
+    for (const fieldName of RUNTIME_ROUTE_FIELD_NAMES) {
+      if (fieldName === "open_review_items") continue;
+      const autoRouteFieldName = AUTO_ROUTE_RUNTIME_FIELD_MAP[fieldName];
+      if (Object.prototype.hasOwnProperty.call(autoRoute, autoRouteFieldName)) {
+        nextRuntimeStatus[fieldName] = autoRoute[autoRouteFieldName];
+      }
+    }
+    if (latestReceipt) {
+      nextRuntimeStatus.last_event = `receipt_${String(latestReceipt.receipt_kind || "").trim().toLowerCase()}`;
+      nextRuntimeStatus.last_event_at = latestReceipt.timestamp_utc || nextRuntimeStatus.last_event_at;
+    }
+    nextRuntimeStatus = applyWpReviewRuntimeProjection(nextRuntimeStatus, { evaluation });
+  }
+
+  return {
+    evaluation,
+    autoRoute,
+    packetProjection,
+    latestReceipt,
+    nextPacketText,
+    nextRuntimeStatus,
+  };
+}
+
+function syncProjectedTaskBoardTruth(wpId, projection = {}) {
+  if (!projection?.taskBoardStatus) return;
+  execFileSync(
+    process.execPath,
+    [
+      TASK_BOARD_SET_SCRIPT_PATH,
+      wpId,
+      projection.taskBoardStatus,
+      projection.taskBoardReason || "",
+    ],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+  );
+  execFileSync(
+    process.execPath,
+    [BUILD_ORDER_SYNC_SCRIPT_PATH],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+  );
+}
+
+export function buildWpCommunicationTemplateReplacements({
+  wpId,
+  baseWpId,
+  dateIso,
+  workflowLane,
+  executionOwner,
+  workflowAuthority,
+  technicalAdvisor,
+  technicalAuthority,
+  mergeAuthority,
+  wpValidatorOfRecord,
+  integrationValidatorOfRecord,
+  secondaryValidatorSessionsJson,
+  localBranch,
+  localWorktreeDir,
+  agenticMode,
+  packetStatus,
+  mainContainmentStatusJson,
+  mergedMainCommitJson,
+  mainContainmentVerifiedAtUtcJson,
+  currentMainCompatibilityStatusJson,
+  currentMainCompatibilityBaselineShaJson,
+  currentMainCompatibilityVerifiedAtUtcJson,
+  packetWideningDecisionJson,
+  packetWideningEvidenceJson,
+  taskPacketPath,
+  communicationDir,
+  threadFile,
+  runtimeStatusFile,
+  receiptsFile,
+  heartbeatIntervalMinutes,
+  heartbeatDueAt,
+  staleAfter,
+  maxCoderRevisionCycles,
+  maxValidatorReviewCycles,
+  maxRelayEscalationCycles,
+} = {}) {
+  return {
+    "{{WP_ID}}": wpId,
+    "{{BASE_WP_ID}}": baseWpId,
+    "{{DATE_ISO}}": dateIso,
+    "{{WORKFLOW_LANE}}": workflowLane,
+    "{{EXECUTION_OWNER}}": executionOwner,
+    "{{WORKFLOW_AUTHORITY}}": workflowAuthority,
+    "{{TECHNICAL_ADVISOR}}": technicalAdvisor,
+    "{{TECHNICAL_AUTHORITY}}": technicalAuthority,
+    "{{MERGE_AUTHORITY}}": mergeAuthority,
+    "{{WP_VALIDATOR_OF_RECORD}}": wpValidatorOfRecord,
+    "{{INTEGRATION_VALIDATOR_OF_RECORD}}": integrationValidatorOfRecord,
+    "{{SECONDARY_VALIDATOR_SESSIONS}}": secondaryValidatorSessionsJson,
+    "{{LOCAL_BRANCH}}": localBranch,
+    "{{LOCAL_WORKTREE_DIR}}": localWorktreeDir,
+    "{{AGENTIC_MODE}}": agenticMode,
+    "{{PACKET_STATUS}}": packetStatus,
+    "{{MAIN_CONTAINMENT_STATUS}}": mainContainmentStatusJson,
+    "{{MERGED_MAIN_COMMIT}}": mergedMainCommitJson,
+    "{{MAIN_CONTAINMENT_VERIFIED_AT_UTC}}": mainContainmentVerifiedAtUtcJson,
+    "{{CURRENT_MAIN_COMPATIBILITY_STATUS}}": currentMainCompatibilityStatusJson,
+    "{{CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA}}": currentMainCompatibilityBaselineShaJson,
+    "{{CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC}}": currentMainCompatibilityVerifiedAtUtcJson,
+    "{{PACKET_WIDENING_DECISION}}": packetWideningDecisionJson,
+    "{{PACKET_WIDENING_EVIDENCE}}": packetWideningEvidenceJson,
+    "{{TASK_PACKET_PATH}}": taskPacketPath,
+    "{{WP_COMMUNICATION_DIR}}": communicationDir,
+    "{{WP_THREAD_FILE}}": threadFile,
+    "{{WP_RUNTIME_STATUS_FILE}}": runtimeStatusFile,
+    "{{WP_RECEIPTS_FILE}}": receiptsFile,
+    "{{HEARTBEAT_INTERVAL_MINUTES}}": heartbeatIntervalMinutes,
+    "{{HEARTBEAT_DUE_AT}}": heartbeatDueAt,
+    "{{STALE_AFTER}}": staleAfter,
+    "{{MAX_CODER_REVISION_CYCLES}}": maxCoderRevisionCycles,
+    "{{MAX_VALIDATOR_REVIEW_CYCLES}}": maxValidatorReviewCycles,
+    "{{MAX_RELAY_ESCALATION_CYCLES}}": maxRelayEscalationCycles,
+  };
 }
 
 function ensureWpCommunicationsCore({
@@ -222,61 +483,61 @@ function ensureWpCommunicationsCore({
     throw new Error(`Invalid PACKET_WIDENING_DECISION for ${WP_ID}: ${PACKET_WIDENING_DECISION}`);
   }
 
-  const replacements = {
-    "{{WP_ID}}": WP_ID,
-    "{{BASE_WP_ID}}": BASE_WP_ID,
-    "{{DATE_ISO}}": DATE_ISO,
-    "{{WORKFLOW_LANE}}": WORKFLOW_LANE,
-    "{{EXECUTION_OWNER}}": EXECUTION_OWNER,
-    "{{WORKFLOW_AUTHORITY}}": WORKFLOW_AUTHORITY,
-    "{{TECHNICAL_ADVISOR}}": TECHNICAL_ADVISOR,
-    "{{TECHNICAL_AUTHORITY}}": TECHNICAL_AUTHORITY,
-    "{{MERGE_AUTHORITY}}": MERGE_AUTHORITY,
-    "{{WP_VALIDATOR_OF_RECORD}}": WP_VALIDATOR_OF_RECORD ? JSON.stringify(WP_VALIDATOR_OF_RECORD) : "null",
-    "{{INTEGRATION_VALIDATOR_OF_RECORD}}": INTEGRATION_VALIDATOR_OF_RECORD ? JSON.stringify(INTEGRATION_VALIDATOR_OF_RECORD) : "null",
-    "{{SECONDARY_VALIDATOR_SESSIONS}}": SECONDARY_VALIDATOR_SESSIONS_RAW.toUpperCase() === "NONE"
+  const replacements = buildWpCommunicationTemplateReplacements({
+    wpId: WP_ID,
+    baseWpId: BASE_WP_ID,
+    dateIso: DATE_ISO,
+    workflowLane: WORKFLOW_LANE,
+    executionOwner: EXECUTION_OWNER,
+    workflowAuthority: WORKFLOW_AUTHORITY,
+    technicalAdvisor: TECHNICAL_ADVISOR,
+    technicalAuthority: TECHNICAL_AUTHORITY,
+    mergeAuthority: MERGE_AUTHORITY,
+    wpValidatorOfRecord: WP_VALIDATOR_OF_RECORD ? JSON.stringify(WP_VALIDATOR_OF_RECORD) : "null",
+    integrationValidatorOfRecord: INTEGRATION_VALIDATOR_OF_RECORD ? JSON.stringify(INTEGRATION_VALIDATOR_OF_RECORD) : "null",
+    secondaryValidatorSessionsJson: SECONDARY_VALIDATOR_SESSIONS_RAW.toUpperCase() === "NONE"
       ? "[]"
       : JSON.stringify(SECONDARY_VALIDATOR_SESSIONS_RAW.split(",").map((value) => value.trim()).filter(Boolean)),
-    "{{LOCAL_BRANCH}}": LOCAL_BRANCH,
-    "{{LOCAL_WORKTREE_DIR}}": LOCAL_WORKTREE_DIR,
-    "{{AGENTIC_MODE}}": AGENTIC_MODE,
-    "{{PACKET_STATUS}}": PACKET_STATUS,
-    "{{MAIN_CONTAINMENT_STATUS}}": JSON.stringify(MAIN_CONTAINMENT_STATUS),
-    "{{MERGED_MAIN_COMMIT}}": MERGED_MAIN_COMMIT ? JSON.stringify(MERGED_MAIN_COMMIT) : "null",
-    "{{MAIN_CONTAINMENT_VERIFIED_AT_UTC}}": MAIN_CONTAINMENT_VERIFIED_AT_UTC
-      ? JSON.stringify(MAIN_CONTAINMENT_VERIFIED_AT_UTC)
-      : "null",
-    "{{CURRENT_MAIN_COMPATIBILITY_STATUS}}": JSON.stringify(CURRENT_MAIN_COMPATIBILITY_STATUS),
-    "{{CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA}}": CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA
-      ? JSON.stringify(CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA)
-      : "null",
-    "{{CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC}}": CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC
-      ? JSON.stringify(CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC)
-      : "null",
-    "{{PACKET_WIDENING_DECISION}}": JSON.stringify(PACKET_WIDENING_DECISION),
-    "{{PACKET_WIDENING_EVIDENCE}}": PACKET_WIDENING_EVIDENCE
-      ? JSON.stringify(PACKET_WIDENING_EVIDENCE)
-      : "null",
-    "{{TASK_PACKET_PATH}}": normalize(packetPath),
-    "{{WP_COMMUNICATION_DIR}}": normalize(wpCommDir),
-    "{{WP_THREAD_FILE}}": normalize(threadPath),
-    "{{WP_RUNTIME_STATUS_FILE}}": normalize(runtimeStatusPath),
-    "{{WP_RECEIPTS_FILE}}": normalize(receiptsPath),
-    "{{HEARTBEAT_INTERVAL_MINUTES}}": String(HEARTBEAT_INTERVAL_MINUTES),
-    "{{HEARTBEAT_DUE_AT}}": addMinutes(DATE_ISO, HEARTBEAT_INTERVAL_MINUTES),
-    "{{STALE_AFTER}}": addMinutes(DATE_ISO, STALE_AFTER_MINUTES),
-    "{{MAX_CODER_REVISION_CYCLES}}": String(MAX_CODER_REVISION_CYCLES),
-    "{{MAX_VALIDATOR_REVIEW_CYCLES}}": String(MAX_VALIDATOR_REVIEW_CYCLES),
-    "{{MAX_RELAY_ESCALATION_CYCLES}}": String(MAX_RELAY_ESCALATION_CYCLES),
-  };
+    localBranch: LOCAL_BRANCH,
+    localWorktreeDir: LOCAL_WORKTREE_DIR,
+    agenticMode: AGENTIC_MODE,
+    packetStatus: PACKET_STATUS,
+    mainContainmentStatusJson: JSON.stringify(MAIN_CONTAINMENT_STATUS),
+    mergedMainCommitJson: MERGED_MAIN_COMMIT ? JSON.stringify(MERGED_MAIN_COMMIT) : "null",
+    mainContainmentVerifiedAtUtcJson: MAIN_CONTAINMENT_VERIFIED_AT_UTC ? JSON.stringify(MAIN_CONTAINMENT_VERIFIED_AT_UTC) : "null",
+    currentMainCompatibilityStatusJson: JSON.stringify(CURRENT_MAIN_COMPATIBILITY_STATUS),
+    currentMainCompatibilityBaselineShaJson: CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA ? JSON.stringify(CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA) : "null",
+    currentMainCompatibilityVerifiedAtUtcJson: CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC ? JSON.stringify(CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC) : "null",
+    packetWideningDecisionJson: JSON.stringify(PACKET_WIDENING_DECISION),
+    packetWideningEvidenceJson: PACKET_WIDENING_EVIDENCE ? JSON.stringify(PACKET_WIDENING_EVIDENCE) : "null",
+    taskPacketPath: normalize(packetPath),
+    communicationDir: normalize(wpCommDir),
+    threadFile: normalize(threadPath),
+    runtimeStatusFile: normalize(runtimeStatusPath),
+    receiptsFile: normalize(receiptsPath),
+    heartbeatIntervalMinutes: String(HEARTBEAT_INTERVAL_MINUTES),
+    heartbeatDueAt: addMinutes(DATE_ISO, HEARTBEAT_INTERVAL_MINUTES),
+    staleAfter: addMinutes(DATE_ISO, STALE_AFTER_MINUTES),
+    maxCoderRevisionCycles: String(MAX_CODER_REVISION_CYCLES),
+    maxValidatorReviewCycles: String(MAX_VALIDATOR_REVIEW_CYCLES),
+    maxRelayEscalationCycles: String(MAX_RELAY_ESCALATION_CYCLES),
+  });
 
   const threadTemplate = fs.readFileSync(repoPathAbs(THREAD_TEMPLATE), "utf8");
   const runtimeTemplate = fs.readFileSync(repoPathAbs(RUNTIME_TEMPLATE), "utf8");
   const receiptsTemplate = fs.readFileSync(repoPathAbs(RECEIPTS_TEMPLATE), "utf8");
 
-  writeIfMissing(threadPath, fillAll(threadTemplate, replacements));
-  writeIfMissing(runtimeStatusPath, fillAll(runtimeTemplate, replacements));
-  writeIfMissing(receiptsPath, fillAll(receiptsTemplate, replacements));
+  const renderedThread = fillAll(threadTemplate, replacements);
+  const renderedRuntime = fillAll(runtimeTemplate, replacements);
+  const renderedReceipts = fillAll(receiptsTemplate, replacements);
+
+  assertNoUnreplacedTemplateTokens(renderedThread, THREAD_FILE_NAME, WP_ID);
+  assertNoUnreplacedTemplateTokens(renderedRuntime, RUNTIME_STATUS_FILE_NAME, WP_ID);
+  assertNoUnreplacedTemplateTokens(renderedReceipts, RECEIPTS_FILE_NAME, WP_ID);
+
+  writeIfMissing(threadPath, renderedThread);
+  writeIfMissing(runtimeStatusPath, renderedRuntime);
+  writeIfMissing(receiptsPath, renderedReceipts);
 
   const notificationsPath = normalize(path.join(wpCommDir, NOTIFICATIONS_FILE_NAME));
   const cursorPath = normalize(path.join(wpCommDir, NOTIFICATION_CURSOR_FILE_NAME));
@@ -302,6 +563,25 @@ function ensureWpCommunicationsCore({
   if (receiptErrors.length > 0) {
     throw new Error(`Generated receipts ledger failed validation for ${WP_ID}: ${receiptErrors.join("; ")}`);
   }
+
+  const reconciliation = reconcileWpCommunicationTruth({
+    wpId: WP_ID,
+    packetPath: normalize(packetPath),
+    packetText,
+    runtimeStatus,
+    receipts,
+  });
+  const reconciledRuntimeErrors = validateRuntimeStatus(reconciliation.nextRuntimeStatus);
+  if (reconciledRuntimeErrors.length > 0) {
+    throw new Error(`Reconciled runtime status failed validation for ${WP_ID}: ${reconciledRuntimeErrors.join("; ")}`);
+  }
+  if (reconciliation.nextPacketText !== packetText) {
+    fs.writeFileSync(packetAbsPath, reconciliation.nextPacketText, "utf8");
+  }
+  if (JSON.stringify(reconciliation.nextRuntimeStatus) !== JSON.stringify(runtimeStatus)) {
+    fs.writeFileSync(repoPathAbs(runtimeStatusPath), `${JSON.stringify(reconciliation.nextRuntimeStatus, null, 2)}\n`, "utf8");
+  }
+  syncProjectedTaskBoardTruth(WP_ID, reconciliation.packetProjection);
 
   return {
     dir: normalize(wpCommDir),

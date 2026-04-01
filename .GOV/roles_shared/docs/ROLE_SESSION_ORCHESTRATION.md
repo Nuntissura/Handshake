@@ -94,6 +94,8 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - `target_session` is required whenever the direct-review boundary is session-targeted between `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR`.
 - Receipt pairing must preserve reversed role plus session continuity. Mixed-session chains do not satisfy the boundary even if the receipt kinds look correct.
 - Notification unread state and acknowledgment are session-scoped for session-targeted review traffic. Acknowledging one governed session must not clear another session's unread boundary notifications.
+- In orchestrator-managed lanes, validator-authored assessment receipts also emit an `ORCHESTRATOR` governance-checkpoint notification so workflow authority can verify packet/runtime/task-board truth and ACP steering after each assessment without becoming the message broker.
+- Resume helpers should follow the projected receipt/runtime route first and only fall back to legacy packet wording when no governed communication state exists. Do not let stale "handoff marker" heuristics override live `next_expected_actor` / `waiting_on` truth.
 
 Required review pairs:
 - `KICKOFF`: `VALIDATOR_KICKOFF` -> `CODER_INTENT`
@@ -121,6 +123,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
 
 - One governed role/WP session has at most one active ACP run at a time.
 - The ordinary orchestrator-managed WP shape is one governed `CODER` lane plus one governed `WP_VALIDATOR` lane, with `INTEGRATION_VALIDATOR` joining from `handshake_main` only for final validation/closure when required.
+- `INTEGRATION_VALIDATOR` joins from `handshake_main` for product authority only. Its live governance root must still resolve to `wt-gov-kernel/.GOV` through `HANDSHAKE_GOV_ROOT`; `handshake_main/.GOV` is a local backup copy, not the authoritative governance source for orchestrator-managed work.
 - Packet-scoped direct review is session-targeted. Role identity alone is not enough once multiple governed sessions may exist in the batch.
 - The Orchestrator may run multiple governed sessions in parallel across different WPs, but it must not create parallel steerable lanes that collapse authority for the same role/WP pair.
 - If the repo is in an exceptional repair state with extra same-role sessions around one WP, only the governed role/WP lane tracked by the session registry and packet communications is authoritative.
@@ -130,6 +133,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
   - `just launch-coder-session WP-{ID}`
   - `just launch-wp-validator-session WP-{ID}`
   - `just launch-integration-validator-session WP-{ID}`
+  - normal supported launch paths now auto-issue the first governed `START_SESSION`; keep `start-*` for explicit recovery or exceptional manual repair
 - Orchestrator-only steering commands:
   - `just start-coder-session WP-{ID}`
   - `just start-wp-validator-session WP-{ID}`

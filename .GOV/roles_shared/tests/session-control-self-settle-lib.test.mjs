@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { defaultRegistry } from "../scripts/session/session-registry-lib.mjs";
 import {
+  SESSION_CONTROL_BROKER_STATE_FILE,
   SESSION_CONTROL_OUTPUT_DIR,
   SESSION_CONTROL_REQUESTS_FILE,
   SESSION_CONTROL_RESULTS_FILE,
@@ -142,4 +143,72 @@ test("self-settlement mirrors session-registry terminal state when the result ro
   assert.equal(results[0].command_id, commandId);
   assert.equal(results[0].status, "COMPLETED");
   assert.match(results[0].summary, /Recovered missing terminal result from session registry state/i);
+});
+
+test("self-settlement prunes broker active runs that already have settled results", () => {
+  const repoRoot = tempRepoRoot();
+  const commandId = "cmd-stale-broker-run";
+  const request = requestFixture(repoRoot, { commandId });
+  appendJsonl(path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE), request);
+  appendJsonl(path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE), {
+    schema_id: "hsk.session_control_result@1",
+    schema_version: "session_control_result_v1",
+    command_id: commandId,
+    processed_at: "2026-04-01T00:00:00.000Z",
+    command_kind: "SEND_PROMPT",
+    session_key: request.session_key,
+    wp_id: request.wp_id,
+    role: request.role,
+    status: "FAILED",
+    thread_id: "thread-1",
+    summary: "Recovered orphaned governed request.",
+    output_jsonl_file: request.output_jsonl_file,
+    last_agent_message: "",
+    error: "orphaned run",
+    duration_ms: 0,
+    target_command_id: "",
+    cancel_status: "",
+    broker_build_id: "sha256:test",
+  });
+  writeJson(path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE), {
+    schema_id: "hsk.session_control_broker_state@1",
+    schema_version: "session_control_broker_state_v1",
+    protocol: "HANDSHAKE_ACP_STDIO_V1",
+    control_transport: "CODEX_EXEC_RESUME_JSON",
+    host: "127.0.0.1",
+    port: 65195,
+    broker_pid: process.pid,
+    started_at: "2026-04-01T00:00:00.000Z",
+    updated_at: "2026-04-01T00:00:00.000Z",
+    active_runs: [{
+      command_id: commandId,
+      session_key: request.session_key,
+      wp_id: request.wp_id,
+      role: request.role,
+      command_kind: "SEND_PROMPT",
+      child_pid: 1234,
+      started_at: "2026-04-01T00:00:00.000Z",
+      timeout_at: "2026-04-01T01:00:00.000Z",
+      output_jsonl_file: request.output_jsonl_file,
+      termination_reason: "",
+    }],
+    broker_build_id: "sha256:test",
+    broker_auth_mode: "LOCAL_TOKEN_FILE_V1",
+  });
+
+  const reconciliation = settleRecoverableSessionControlResults(repoRoot, {
+    brokerState: {
+      active_runs: [{
+        command_id: commandId,
+      }],
+    },
+  });
+
+  assert.ok(
+    reconciliation.settled.some((entry) =>
+      entry.command_id === commandId && entry.repair_reason === "stale_active_run_with_settled_result"),
+  );
+
+  const brokerState = JSON.parse(fs.readFileSync(path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE), "utf8"));
+  assert.deepEqual(brokerState.active_runs, []);
 });

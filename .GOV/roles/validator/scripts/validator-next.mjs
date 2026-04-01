@@ -29,8 +29,10 @@ import { listValidatorGateStateFiles, resolveValidatorGatePath } from "../../../
 import { GOV_ROOT_REPO_REL, REPO_ROOT, inferWpIdFromPacketPath, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   buildValidatorReadyCommands,
+  deriveValidatorResumeState,
   evaluateValidatorPacketGovernanceState,
   evaluateValidatorPassAuthority,
+  loadValidatorCommunicationState,
   resolveValidatorActorContext,
 } from "./lib/validator-governance-lib.mjs";
 
@@ -56,6 +58,18 @@ function isValidationReadyStatus(currentWpStatus) {
   return /(validator|validation|review|audit|implementation complete|ready for review|ready for audit|ready for validator|post-work)/i.test(
     String(currentWpStatus || ""),
   );
+}
+
+function projectedValidatorReadyState(communicationState = null) {
+  const nextActor = String(communicationState?.runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
+  return ["WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(nextActor);
+}
+
+function projectedValidatorReadyReason(communicationState = null) {
+  const nextActor = String(communicationState?.runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
+  const waitingOn = String(communicationState?.runtimeStatus?.waiting_on || "").trim();
+  if (!nextActor) return "";
+  return `${nextActor} projected next via runtime${waitingOn ? ` (${waitingOn})` : ""}`;
 }
 
 function collectPendingSessions() {
@@ -134,17 +148,25 @@ function collectValidationReadyPackets() {
     if (!validatorGovernanceState.allowValidationResume) continue;
     const currentWpStatus = parseCurrentWpStatus(packetContent);
     const packetStatus = parseStatus(packetContent);
-    if (!isValidationReadyStatus(currentWpStatus) && !/^done$/i.test(packetStatus)) continue;
+    const communicationState = loadValidatorCommunicationState({
+      wpId,
+      packetPath: packetPath(wpId),
+      packetContent,
+    });
+    const runtimeReady = projectedValidatorReadyState(communicationState);
+    if (!runtimeReady && !isValidationReadyStatus(currentWpStatus) && !/^done$/i.test(packetStatus)) continue;
 
     const stat = fs.statSync(filePath);
     const score =
-      (isValidationReadyStatus(currentWpStatus) ? 140 : 120) +
+      (runtimeReady ? 150 : isValidationReadyStatus(currentWpStatus) ? 140 : 120) +
       (boardStatus === "IN_PROGRESS" ? 10 : 0) +
       freshnessBoost(stat.mtimeMs);
 
     candidates.push({
       wpId,
-      reason: currentWpStatus || `packet status ${packetStatus || "<missing>"}`,
+      reason: runtimeReady
+        ? projectedValidatorReadyReason(communicationState)
+        : currentWpStatus || `packet status ${packetStatus || "<missing>"}`,
       score,
       timestamp: stat.mtimeMs,
     });
@@ -284,6 +306,12 @@ const currentWpStatusLower = currentWpStatus.toLowerCase();
 const boardStatus = taskBoardStatus(wpId) || "<none>";
 const postWorkCommand = buildPostWorkCommand(wpId, packetContent);
 const session = loadValidationSession(wpId);
+const validatorActorContext = resolveValidatorActorContext({
+  repoRoot: gitContext.topLevel || REPO_ROOT,
+  wpId,
+  packetContent,
+  gitContext,
+});
 const validatorGovernanceState = evaluateValidatorPacketGovernanceState({
   wpId,
   packetPath: packetPath(wpId),
@@ -291,12 +319,16 @@ const validatorGovernanceState = evaluateValidatorPacketGovernanceState({
   currentWpStatus,
   taskBoardStatus: boardStatus,
   sessionStatus: session?.status || "",
+  actorContext: validatorActorContext,
 });
-const validatorActorContext = resolveValidatorActorContext({
-  repoRoot: gitContext.topLevel || REPO_ROOT,
+const communicationState = loadValidatorCommunicationState({
   wpId,
+  packetPath: packetPath(wpId),
   packetContent,
-  gitContext,
+});
+const validatorResumeState = deriveValidatorResumeState({
+  actorRole: validatorActorContext.actorRole,
+  communicationState,
 });
 const passAuthorityCheck = evaluateValidatorPassAuthority({
   packetContent,
@@ -467,7 +499,16 @@ const findings = [
   `Current WP_STATUS: ${currentWpStatus || "<empty>"}`,
   `Task Board status: ${boardStatus}`,
   `Resolved validator lane: ${validatorActorContext.actorRole} (${validatorActorContext.source})`,
-];
+  communicationState?.runtimeStatus?.next_expected_actor
+    ? `Runtime next actor: ${communicationState.runtimeStatus.next_expected_actor}${communicationState.runtimeStatus.next_expected_session ? `:${communicationState.runtimeStatus.next_expected_session}` : ""}`
+    : null,
+  communicationState?.runtimeStatus?.waiting_on
+    ? `Runtime waiting_on: ${communicationState.runtimeStatus.waiting_on}`
+    : null,
+  validatorResumeState.latestAssessment
+    ? `Latest validator assessment: ${validatorResumeState.latestAssessment.verdict} via ${validatorResumeState.latestAssessment.receiptKind} - ${validatorResumeState.latestAssessment.reason}`
+    : null,
+].filter(Boolean);
 
 if (["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"].includes(boardStatus)) {
   printVerdict(
@@ -485,6 +526,37 @@ if (["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"].includes(b
   printState("Task Board already records a terminal state for this WP; no fresh validation resume action is inferred.");
   printFindings(findings);
   printNextCommands([`just validator-gate-status ${wpId}`]);
+  process.exit(0);
+}
+
+if (validatorResumeState.ready) {
+  printVerdict("PENDING");
+  printLifecycle({ wpId, stage: "VALIDATION", next: "VALIDATION" });
+  printOperatorAction("NONE");
+  printConfidence(confidence, confidenceDetail);
+  printState(validatorResumeState.message);
+  printFindings(findings);
+  printNextCommands(buildValidatorReadyCommands({
+    wpId,
+    actorRole: validatorActorContext.actorRole,
+    actorSessionId: validatorActorContext.actorSessionId,
+    postWorkCommand,
+  }));
+  process.exit(0);
+}
+
+if (validatorResumeState.blockedByRoute) {
+  printVerdict("PENDING");
+  printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
+  printOperatorAction("NONE");
+  printConfidence(confidence, confidenceDetail);
+  printState(validatorResumeState.message);
+  printFindings(findings);
+  printNextCommands([
+    `just check-notifications ${wpId} ${validatorActorContext.actorRole || "WP_VALIDATOR"}`,
+    `just session-registry-status ${wpId}`,
+    "# STOP: Wait for the routed next actor to advance the governed lane.",
+  ]);
   process.exit(0);
 }
 

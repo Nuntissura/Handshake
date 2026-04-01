@@ -13,6 +13,7 @@ function recipeExists(text, recipeName) {
 test("justfile exposes the orchestrator ACP/session control surface", () => {
   const justfile = fs.readFileSync(JUSTFILE_PATH, "utf8");
   const requiredRecipes = [
+    "ensure-wp-communications",
     "launch-coder-session",
     "launch-wp-validator-session",
     "launch-integration-validator-session",

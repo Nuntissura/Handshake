@@ -140,6 +140,7 @@ test("integration-validator context brief surfaces canonical final-lane authorit
     assert.equal(brief.context_status, "OK");
     assert.equal(brief.closeout_readiness, "READY");
     assert.equal(brief.actor_context.role, "INTEGRATION_VALIDATOR");
+    assert.equal(brief.governance_root.mode, "KERNEL");
     assert.equal(brief.current_main_compatibility.status, "COMPATIBLE");
     assert.equal(brief.required_commands[0], "just integration-validator-context-brief WP-TEST-VALIDATOR-v1");
     assert.match(brief.anti_rediscovery_rule, /Do not rebuild final-lane/i);

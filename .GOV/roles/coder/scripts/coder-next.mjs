@@ -26,8 +26,15 @@ import { REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   classifyWpChangedPath,
   deriveWpScopeContract,
+  isGovernanceOnlyPath,
+  isTransientProofArtifactPath,
+  normalizeRepoPath,
 } from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
-import { evaluateCoderPacketGovernanceState } from "./lib/coder-governance-lib.mjs";
+import {
+  deriveCoderResumeState,
+  evaluateCoderPacketGovernanceState,
+  loadCoderCommunicationState,
+} from "./lib/coder-governance-lib.mjs";
 
 function resolveWpId() {
   const provided = String(process.argv[2] || "").trim();
@@ -77,18 +84,22 @@ function summarizeDirtyTree(statusPorcelain, scopeContract) {
   const summary = {
     changedPaths,
     dirty: changedPaths.length > 0,
-    governanceJunction: [],
+    governanceNoise: [],
     governanceCompanion: [],
+    transientArtifacts: [],
     inScope: [],
     outOfScope: [],
   };
 
   for (const changedPath of changedPaths) {
     const classification = classifyWpChangedPath(changedPath, scopeContract);
-    if (classification.kind === "GOVERNANCE_JUNCTION_DRIFT") {
-      summary.governanceJunction.push(classification.path);
-    } else if (classification.kind === "GOVERNANCE_COMPANION") {
+    const normalizedPath = normalizeRepoPath(changedPath) || changedPath;
+    if (classification.kind === "GOVERNANCE_COMPANION") {
       summary.governanceCompanion.push(classification.path);
+    } else if (isTransientProofArtifactPath(normalizedPath)) {
+      summary.transientArtifacts.push(normalizedPath);
+    } else if (isGovernanceOnlyPath(normalizedPath)) {
+      summary.governanceNoise.push(normalizedPath);
     } else if (classification.allowed) {
       summary.inScope.push(classification.path);
     } else {
@@ -140,15 +151,20 @@ const dirtyTreeFinding = !dirtyTree
   ? "Working tree dirty: no"
   : dirtySummary.outOfScope.length > 0
     ? `Working tree dirty: yes (${dirtySummary.outOfScope.length} out-of-scope path(s) require correction)`
-    : dirtySummary.governanceJunction.length > 0
-      ? `Working tree dirty: yes (shared .GOV junction drift only across ${dirtySummary.governanceJunction.length} path(s))`
+    : dirtySummary.inScope.length + dirtySummary.governanceCompanion.length > 0
+      ? `Working tree dirty: yes (${dirtySummary.inScope.length + dirtySummary.governanceCompanion.length} packet-scoped path(s))`
+      : dirtySummary.governanceNoise.length + dirtySummary.transientArtifacts.length > 0
+        ? `Working tree dirty: yes (governance/proof noise only across ${dirtySummary.governanceNoise.length + dirtySummary.transientArtifacts.length} path(s))`
       : `Working tree dirty: yes (${dirtySummary.inScope.length + dirtySummary.governanceCompanion.length} packet-scoped path(s))`;
 const dirtyNoiseFindings = [
-  dirtySummary.governanceJunction.length > 0
-    ? `Shared .GOV junction drift: ${dirtySummary.governanceJunction.length} path(s) treated as read-only noise by default`
+  dirtySummary.governanceNoise.length > 0
+    ? `Governance-only drift: ${dirtySummary.governanceNoise.length} path(s) treated as non-blocking noise by default`
     : "",
   dirtySummary.governanceCompanion.length > 0
     ? `Governance companion paths touched: ${dirtySummary.governanceCompanion.length} (${dirtySummary.governanceCompanion.slice(0, 3).join(", ")})`
+    : "",
+  dirtySummary.transientArtifacts.length > 0
+    ? `Transient proof artifacts present: ${dirtySummary.transientArtifacts.length} (${dirtySummary.transientArtifacts.slice(0, 3).join(", ")})`
     : "",
   dirtySummary.outOfScope.length > 0
     ? `Out-of-scope changes detected: ${dirtySummary.outOfScope.slice(0, 3).join(", ")}`
@@ -170,6 +186,61 @@ const coderGovernanceState = evaluateCoderPacketGovernanceState({
   packetContent,
   currentWpStatus,
 });
+const coderCommunicationState = loadCoderCommunicationState({
+  wpId,
+  packetPath: packetPath(wpId),
+  packetContent,
+});
+const coderResumeState = deriveCoderResumeState({
+  communicationState: coderCommunicationState,
+});
+const communicationFindings = [
+  coderCommunicationState?.runtimeStatus?.next_expected_actor
+    ? `Runtime next actor: ${coderCommunicationState.runtimeStatus.next_expected_actor}${coderCommunicationState.runtimeStatus.next_expected_session ? `:${coderCommunicationState.runtimeStatus.next_expected_session}` : ""}`
+    : null,
+  coderCommunicationState?.runtimeStatus?.waiting_on
+    ? `Runtime waiting_on: ${coderCommunicationState.runtimeStatus.waiting_on}`
+    : null,
+  coderResumeState.latestAssessment
+    ? `Latest validator assessment: ${coderResumeState.latestAssessment.verdict} via ${coderResumeState.latestAssessment.receiptKind} - ${coderResumeState.latestAssessment.reason}`
+    : null,
+].filter(Boolean);
+const reviewRouteCommands = (() => {
+  const wpValidatorSession =
+    String(coderCommunicationState?.runtimeStatus?.wp_validator_of_record || "").trim()
+    || "<wp-validator-session>";
+  const integrationValidatorSession =
+    String(coderCommunicationState?.runtimeStatus?.integration_validator_of_record || "").trim()
+    || "<integration-validator-session>";
+  const kickoffCorrelation =
+    String(coderCommunicationState?.communicationEvaluation?.correlations?.kickoff || "").trim()
+    || "<correlation_id>";
+  const waitingOn = String(coderResumeState.waitingOn || "").trim().toUpperCase();
+
+  if (waitingOn === "CODER_INTENT") {
+    return [
+      `just check-notifications ${wpId} CODER`,
+      `just wp-coder-intent ${wpId} <coder-session> ${wpValidatorSession} "<summary>" ${kickoffCorrelation}`,
+      `just ack-notifications ${wpId} CODER <coder-session>`,
+    ];
+  }
+  if (waitingOn === "FINAL_REVIEW_EXCHANGE") {
+    return [
+      `just check-notifications ${wpId} CODER`,
+      `just wp-review-exchange REVIEW_REQUEST ${wpId} CODER <coder-session> INTEGRATION_VALIDATOR ${integrationValidatorSession} "<summary>"`,
+      `just ack-notifications ${wpId} CODER <coder-session>`,
+    ];
+  }
+  if (waitingOn.startsWith("OPEN_REVIEW_ITEM_")) {
+    return [
+      `just check-notifications ${wpId} CODER`,
+      `just session-registry-status ${wpId}`,
+      `just active-lane-brief CODER ${wpId}`,
+    ];
+  }
+  return [];
+})();
+const allFindings = [...commonFindings, ...communicationFindings];
 
 if (!coderGovernanceState.allowResume) {
   const stopCommands = coderGovernanceState.legacyRemediationRequired
@@ -190,7 +261,7 @@ if (!coderGovernanceState.allowResume) {
   printConfidence(confidence, confidenceDetail);
   printState(coderGovernanceState.message);
   printFindings([
-    ...commonFindings,
+    ...allFindings,
     `Computed policy outcome: ${coderGovernanceState.computedPolicy.outcome}`,
     `Computed policy applicability: ${coderGovernanceState.computedPolicy.applicability_reason || "APPLICABLE"}`,
   ]);
@@ -203,7 +274,7 @@ if (!bootstrapClaim) {
   printOperatorAction("NONE");
   printConfidence(confidence, confidenceDetail);
   printState("Coder claim/bootstrap commit is missing; resume at BOOTSTRAP.");
-  printFindings(commonFindings);
+  printFindings(allFindings);
   printNextCommands([
     `cat ${packetPath(wpId).replace(/\\/g, "/")}`,
     `node .GOV/roles/coder/checks/coder-bootstrap-claim.mjs ${wpId}`,
@@ -217,7 +288,7 @@ if (usesSkeletonCheckpointGate && !skeletonCheckpoint) {
   printOperatorAction("NONE");
   printConfidence(confidence, confidenceDetail);
   printState("Bootstrap is claimed; the docs-only skeleton checkpoint is the next required step.");
-  printFindings(commonFindings);
+  printFindings(allFindings);
   printNextCommands([
     `cat ${packetPath(wpId).replace(/\\/g, "/")}`,
     `just coder-skeleton-checkpoint ${wpId}`,
@@ -231,10 +302,34 @@ if (usesSkeletonCheckpointGate && !skeletonApproved) {
   printOperatorAction(`${skeletonApprover} must create skeleton approval commit for ${wpId}`);
   printConfidence(confidence, confidenceDetail);
   printState("Skeleton checkpoint exists; implementation remains blocked until the approval commit lands.");
-  printFindings(commonFindings);
+  printFindings(allFindings);
   printNextCommands([
     `# STOP: Await skeleton approval (${skeletonApprover} runs: just skeleton-approved ${wpId})`,
     `just pre-work ${wpId}`,
+  ]);
+  process.exit(0);
+}
+
+if (reviewRouteCommands.length > 0) {
+  printLifecycle({ wpId, stage: "DIRECT_REVIEW", next: "DIRECT_REVIEW" });
+  printOperatorAction("NONE");
+  printConfidence(confidence, confidenceDetail);
+  printState(coderResumeState.message);
+  printFindings(allFindings);
+  printNextCommands(reviewRouteCommands);
+  process.exit(0);
+}
+
+if (coderResumeState.blockedByRoute) {
+  printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
+  printOperatorAction("NONE");
+  printConfidence(confidence, confidenceDetail);
+  printState(coderResumeState.message);
+  printFindings(allFindings);
+  printNextCommands([
+    `just check-notifications ${wpId} CODER`,
+    `just session-registry-status ${wpId}`,
+    "# STOP: Wait for the routed next actor to advance the governed lane.",
   ]);
   process.exit(0);
 }
@@ -243,9 +338,13 @@ if (implementationFilled && hygieneFilled && (validationFilled || !dirtyTree)) {
   printLifecycle({ wpId, stage: "POST_WORK", next: "HANDOFF" });
   printOperatorAction("NONE");
   printConfidence(confidence, confidenceDetail);
-  printState("Implementation and hygiene evidence exist; resume at post-work closure.");
+  printState(
+    coderResumeState.remediationRequired
+      ? "Validator review recorded FAIL; the repair loop is active and this branch is already at post-work closure. Re-run post-work on the committed repair state before re-handoff."
+      : "Implementation and hygiene evidence exist; resume at post-work closure."
+  );
   printFindings([
-    ...commonFindings,
+    ...allFindings,
     dirtyTreeFinding,
     ...dirtyNoiseFindings,
   ]);
@@ -260,9 +359,13 @@ if (implementationFilled) {
   printLifecycle({ wpId, stage: "HYGIENE", next: "POST_WORK" });
   printOperatorAction("NONE");
   printConfidence(confidence, confidenceDetail);
-  printState("Implementation is present; resume at hygiene/evidence capture before post-work.");
+  printState(
+    coderResumeState.remediationRequired
+      ? "Validator review recorded FAIL; resume remediation and refresh hygiene/evidence before the next post-work and re-handoff."
+      : "Implementation is present; resume at hygiene/evidence capture before post-work."
+  );
   printFindings([
-    ...commonFindings,
+    ...allFindings,
     dirtyTreeFinding,
     ...dirtyNoiseFindings,
   ]);
@@ -278,12 +381,14 @@ printLifecycle({ wpId, stage: "IMPLEMENTATION", next: "HYGIENE" });
 printOperatorAction("NONE");
 printConfidence(confidence, confidenceDetail);
 printState(
-  usesSkeletonCheckpointGate
-    ? "Skeleton is approved and no handoff markers are present; implementation may continue."
-    : "Bootstrap is claimed and the orchestrator-managed lane is active; implementation may continue."
+  coderResumeState.remediationRequired
+    ? "Validator review recorded FAIL; resume in-scope remediation against the latest review before re-handoff."
+    : usesSkeletonCheckpointGate
+      ? "Skeleton is approved and no handoff markers are present; implementation may continue."
+      : "Bootstrap is claimed and the orchestrator-managed lane is active; implementation may continue."
 );
 printFindings([
-  ...commonFindings,
+  ...allFindings,
   dirtyTreeFinding,
   ...dirtyNoiseFindings,
 ]);

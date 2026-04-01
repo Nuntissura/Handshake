@@ -23,7 +23,7 @@ import {
   roleNextCommand,
   roleStartupCommand,
 } from "./session-policy.mjs";
-import { workPacketPath } from "../lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, workPacketPath } from "../lib/runtime-paths.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
@@ -151,6 +151,18 @@ export function selectModel(modelSelector) {
     : ROLE_SESSION_PRIMARY_MODEL;
 }
 
+export function buildRoleEnvironmentOverrides({
+  role = "",
+  governanceRootAbs = GOV_ROOT_ABS,
+} = {}) {
+  if (String(role || "").trim().toUpperCase() !== "INTEGRATION_VALIDATOR") {
+    return {};
+  }
+  return {
+    [GOV_ROOT_ENV_VAR]: normalizePath(path.resolve(governanceRootAbs || GOV_ROOT_ABS)),
+  };
+}
+
 export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
   const authorityPacketPath = workPacketPath(wpId);
   const commonLines = [
@@ -203,6 +215,8 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation, cleanup, merge, or status sync without a specific task.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
       `FOCUS: validate evidence in the assigned WP worktree, not intent. You own final technical verdict and merge-to-main authority.`,
+      `GOVERNANCE ROOT (HARD): even though you operate from handshake_main on branch main, live governance authority must resolve through ${GOV_ROOT_ENV_VAR} to wt-gov-kernel/.GOV. Do not use handshake_main/.GOV as the live source of truth for orchestrator-managed work.`,
+      `KERNEL GOVERNANCE USAGE (MANDATORY): Do not manually grep, browse, or rebuild authority from handshake_main/.GOV. Use \`just integration-validator-context-brief ${wpId}\`, \`just active-lane-brief INTEGRATION_VALIDATOR ${wpId}\`, and commands that resolve governance through ${GOV_ROOT_ENV_VAR}.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then close or merge validated work.`,
       `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
       `DIRECT COMMUNICATION (MANDATORY): Use the structured final review lane, not generic thread traffic, for the required coder <-> integration-validator exchange. Open the final review pair with \`just wp-review-exchange REVIEW_REQUEST ${wpId} INTEGRATION_VALIDATOR <your-session> CODER <coder-session> "<summary>"\`, and record your final response with \`just wp-review-response ${wpId} INTEGRATION_VALIDATOR <your-session> CODER <coder-session> "<summary>" <correlation_id>\` when the coder replies. Use \`just wp-thread-append ${wpId} INTEGRATION_VALIDATOR <your-session> "<message>" @coder\` only for soft coordination that is not part of the required contract.`,
@@ -238,20 +252,31 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   if (!resolvedRoleConfig) {
     throw new Error(`Unknown role for steering prompt: ${role}`);
   }
-  const authorityPacketPath = workPacketPath(wpId);
+  const orderedCommands = role === "INTEGRATION_VALIDATOR"
+    ? [
+      `just integration-validator-context-brief ${wpId}`,
+      resolvedRoleConfig.nextCommand,
+      `just check-notifications ${wpId} ${role} <your-session>`,
+    ]
+    : [
+      resolvedRoleConfig.nextCommand,
+      `just check-notifications ${wpId} ${role} <your-session>`,
+    ];
   return [
     `RESUME GOVERNED ${role} lane for ${wpId}.`,
     `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
     `Use packet + active WP thread/notifications + current runtime projection as the live truth surface. Do not reread large governance documents if context is already stable.`,
     `If route/context feels fragmented, use just active-lane-brief ${role} ${wpId} instead of rediscovering packet/runtime/session truth manually.`,
+    role === "INTEGRATION_VALIDATOR"
+      ? `KERNEL GOVERNANCE RULE: operate from handshake_main for product truth, but use ${GOV_ROOT_ENV_VAR} and just integration-validator-context-brief ${wpId} for live governance truth. Do not manually inspect handshake_main/.GOV as authoritative context.`
+      : null,
     `Run in order:`,
-    `1. ${resolvedRoleConfig.nextCommand}`,
-    `2. just check-notifications ${wpId} ${role} <your-session>`,
-    `3. If you consume any pending notification, acknowledge it with your actor session id using just ack-notifications ${wpId} ${role} <your-session>.`,
+    ...orderedCommands.map((command, index) => `${index + 1}. ${command}`),
+    `${orderedCommands.length + 1}. If you consume any pending notification, acknowledge it with your actor session id using just ack-notifications ${wpId} ${role} <your-session>.`,
     `Then perform only the single next governed action implied by the active receipts/notifications and runtime projection.`,
     `Report only lifecycle/gate state, blockers, and next required command(s).`,
     `Do not request routine Operator approval on an orchestrator-managed lane.`,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 export function buildSessionControlRequest({
@@ -268,6 +293,7 @@ export function buildSessionControlRequest({
   threadId = "",
   summary = "",
   outputJsonlFile,
+  environmentOverrides = null,
   targetCommandId = "",
   createdByRole = "ORCHESTRATOR",
 }) {
@@ -294,6 +320,13 @@ export function buildSessionControlRequest({
     prompt,
     summary,
     output_jsonl_file: normalizePath(outputJsonlFile),
+    environment_overrides: environmentOverrides && typeof environmentOverrides === "object"
+      ? Object.fromEntries(
+        Object.entries(environmentOverrides)
+          .map(([key, value]) => [String(key || "").trim(), String(value ?? "").trim()])
+          .filter(([key, value]) => key && value),
+      )
+      : {},
     target_command_id: targetCommandId,
   };
 }
@@ -352,6 +385,7 @@ export async function runCodexThreadCommand({
   prompt,
   outputFile,
   threadId = "",
+  environmentOverrides = null,
   onEvent = null,
   onSpawn = null,
 }) {
@@ -360,6 +394,10 @@ export async function runCodexThreadCommand({
   const outputStream = fs.createWriteStream(outputPath, { flags: "a" });
   const startedAt = Date.now();
   const cliToolPath = resolveCliTool();
+  const childEnvironment = {
+    ...process.env,
+    ...(environmentOverrides && typeof environmentOverrides === "object" ? environmentOverrides : {}),
+  };
 
   const args = threadId
     ? [
@@ -402,11 +440,13 @@ export async function runCodexThreadCommand({
         ].join("; "),
       ], {
         cwd: absWorktreeDir,
+        env: childEnvironment,
         shell: false,
         stdio: ["ignore", "pipe", "pipe"],
       })
       : spawn(cliToolPath, args, {
         cwd: absWorktreeDir,
+        env: childEnvironment,
         shell: false,
         stdio: ["ignore", "pipe", "pipe"],
       });
@@ -509,6 +549,16 @@ export function validateSessionControlRequestShape(request) {
   if (!request.role) errors.push("role is required");
   if (!["CANCEL_SESSION", "CLOSE_SESSION"].includes(commandKind) && !request.prompt) errors.push("prompt is required");
   if (!request.output_jsonl_file) errors.push("output_jsonl_file is required");
+  if ("environment_overrides" in request) {
+    if (!request.environment_overrides || typeof request.environment_overrides !== "object" || Array.isArray(request.environment_overrides)) {
+      errors.push("environment_overrides must be an object when present");
+    } else {
+      for (const [key, value] of Object.entries(request.environment_overrides)) {
+        if (!String(key || "").trim()) errors.push("environment_overrides keys must be non-empty strings");
+        if (!String(value ?? "").trim()) errors.push(`environment_overrides.${key} must be a non-empty string`);
+      }
+    }
+  }
   if (commandKind === "CANCEL_SESSION" && !request.target_command_id) {
     errors.push("target_command_id is required for CANCEL_SESSION");
   }

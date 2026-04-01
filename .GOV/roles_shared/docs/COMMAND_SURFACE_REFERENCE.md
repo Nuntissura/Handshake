@@ -131,12 +131,19 @@ Use this flow only for repo-governance maintenance that stays out of product cod
 - Shared workflow note:
   - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
 - Commands:
-  - `just gov-check`
-    - `read-only`
-    - mandatory verification before claiming governance-maintenance completion
-  - `just build-order-sync`
-    - `governance-write`
-    - required only when governance changes affect `TASK_BOARD.md` or `WP_TRACEABILITY_REGISTRY.md`
+- `just gov-check`
+  - `read-only`
+  - mandatory verification before claiming governance-maintenance completion
+- `just build-order-sync`
+  - `governance-write`
+  - required only when governance changes affect `TASK_BOARD.md` or `WP_TRACEABILITY_REGISTRY.md`
+- `just sync-gov-to-main`
+  - `governance-write`
+  - mirrors kernel `/.GOV/` into `handshake_main` and auto-commits on local `main`
+  - requires committed kernel governance truth; if `wt-gov-kernel/.GOV` is dirty, commit `gov_kernel` first instead of syncing an uncommitted snapshot
+- `just ensure-wp-communications WP-{ID}`
+  - `runtime-write`
+  - rebuild or repair the packet-declared communication artifacts under external runtime; this is the sanctioned repair helper when communications bootstrap drift is suspected
 
 ## Packet activation and governance state writes
 
@@ -179,11 +186,13 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just launch-integration-validator-session WP-{ID} ...`
   - `runtime-write`
   - launch/bootstrap lane
+  - on the ordinary orchestrator-managed path, supported launch hosts now auto-issue the first governed `START_SESSION` so launch does not stop at a launch-only false green
+  - governed launch/control must preserve kernel governance authority with `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`; `handshake_main/.GOV` is not valid live governance for orchestrator-managed integration validation
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-{ID} ...`
 - `just start-integration-validator-session WP-{ID} ...`
   - `runtime-write`
-  - first governed ACP start for the lane
+  - explicit governed ACP start / recovery helper when a launch host could not complete the first start automatically
 - `just steer-coder-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
 - `just steer-wp-validator-session WP-{ID} ...`
 - `just steer-integration-validator-session WP-{ID} ...`
@@ -292,6 +301,8 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
     - default text output is compact-by-default and points at the authoritative packet/gate artifacts; use `--json` for the full machine-readable brief
     - `integration-validator-closeout-check` is the final-lane topology, atomic-closeout, and current-`main` signed-scope compatibility preflight for orchestrator-managed PASS closure
     - `integration-validator-closeout-sync` is the governed writer that reconciles packet signed-scope compatibility truth plus TASK_BOARD/runtime projection after the preflight is green
+    - for orchestrator-managed final review, live governance authority still comes from `wt-gov-kernel/.GOV`; `handshake_main/.GOV` is only the synced main-branch mirror and must not be treated as the live authority surface
+    - candidate-target validation remains exact to the signed artifact; contained local-main closure may include conflict-resolved harmonization only when the contained commit stays inside the signed file surface and the governed closeout proof still passes
     - `wp-declared-topology-check` surfaces packet-declared vs actual linked-worktree truth for one WP and fails on undeclared auxiliary worktrees
   - for `PACKET_FORMAT_VERSION >= 2026-03-25`, `Done` means merge-pending PASS and `Validated (PASS)` requires recorded containment in local `main`
   - for `PACKET_FORMAT_VERSION >= 2026-03-26`, PASS closure also requires recorded `CURRENT_MAIN_COMPATIBILITY_*` truth plus `PACKET_WIDENING_DECISION=NOT_REQUIRED`; adjacent shared-surface drift must route to a follow-on or superseding packet instead of ad hoc widening

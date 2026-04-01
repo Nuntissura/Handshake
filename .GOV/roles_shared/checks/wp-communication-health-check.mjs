@@ -8,6 +8,7 @@ import {
 } from "../scripts/lib/wp-communication-health-lib.mjs";
 import { normalize, parseJsonFile, parseJsonlFile } from "../scripts/lib/wp-communications-lib.mjs";
 import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { ensureWpCommunications } from "../scripts/wp/ensure-wp-communications.mjs";
 import { checkAllNotifications } from "../scripts/wp/wp-check-notifications.mjs";
 
 function usage() {
@@ -59,6 +60,8 @@ const wpId = String(process.argv[2] || "").trim();
 const stage = String(process.argv[3] || "STATUS").trim().toUpperCase();
 if (!wpId || !/^WP-/.test(wpId)) usage();
 if (!COMMUNICATION_HEALTH_STAGE_VALUES.includes(stage)) usage();
+
+ensureWpCommunications({ wpId });
 
 const context = resolvePacketContext(wpId);
 const receipts = context.receiptsFile && fs.existsSync(repoPathAbs(context.receiptsFile))

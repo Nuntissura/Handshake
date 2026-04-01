@@ -27,6 +27,9 @@ just launch-coder-session WP-{ID}
 just launch-wp-validator-session WP-{ID}
 ```
 
+Normal launch note:
+- supported launch paths auto-issue the first governed `START_SESSION`, so ordinary orchestrator-managed startup should not require a second manual `start-*` step
+
 ### WP Validator opens the review lane
 
 ```bash

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   closeoutModeFromPacketStatus,
   isTerminalOrchestratorBoardStatus,
+  latestOrchestratorGovernanceCheckpoint,
 } from "../scripts/orchestrator-next.mjs";
 
 test("orchestrator-next maps packet closeout states to the correct task-board closeout modes", () => {
@@ -21,4 +22,30 @@ test("orchestrator-next treats abandoned task-board state as terminal orchestrat
   assert.equal(isTerminalOrchestratorBoardStatus("SUPERSEDED"), true);
   assert.equal(isTerminalOrchestratorBoardStatus("MERGE_PENDING"), false);
   assert.equal(isTerminalOrchestratorBoardStatus("IN_PROGRESS"), false);
+});
+
+test("orchestrator-next picks the latest governance checkpoint notification for orchestrator review", () => {
+  const notification = latestOrchestratorGovernanceCheckpoint({
+    ORCHESTRATOR: {
+      notifications: [
+        {
+          source_kind: "GOVERNANCE_CHECKPOINT",
+          timestamp_utc: "2026-04-01T10:00:00Z",
+          summary: "older checkpoint",
+        },
+        {
+          source_kind: "AUTO_ROUTE",
+          timestamp_utc: "2026-04-01T10:01:00Z",
+          summary: "not a checkpoint",
+        },
+        {
+          source_kind: "GOVERNANCE_CHECKPOINT",
+          timestamp_utc: "2026-04-01T10:02:00Z",
+          summary: "latest checkpoint",
+        },
+      ],
+    },
+  });
+
+  assert.equal(notification?.summary, "latest checkpoint");
 });

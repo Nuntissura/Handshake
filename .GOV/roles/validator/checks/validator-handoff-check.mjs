@@ -19,7 +19,7 @@ import {
   ensureValidatorGateDir,
   resolveValidatorGatePath,
 } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
-import { GOV_ROOT_REPO_REL, REPO_ROOT, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { formatBoundedItemList } from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
 import { evaluateValidatorPacketGovernanceState } from "../scripts/lib/validator-governance-lib.mjs";
 import {
@@ -140,6 +140,22 @@ function gitInWorktree(worktreeAbs, args) {
     throw new Error(result.output || `git ${args.join(" ")} failed`);
   }
   return result.output.trim();
+}
+
+const PRE_WORK_SCRIPT = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles", "coder", "checks", "pre-work.mjs"));
+const POST_WORK_SCRIPT = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles", "coder", "checks", "post-work.mjs"));
+const CARGO_CLEAN_ARGS = [
+  "clean",
+  "-p",
+  "handshake_core",
+  "--manifest-path",
+  "src/backend/handshake_core/Cargo.toml",
+  "--target-dir",
+  "../Handshake Artifacts/handshake-cargo-target",
+];
+
+function repoRelativeDisplayPath(repoRoot, absPath) {
+  return String(path.relative(repoRoot, absPath) || "").replace(/\\/g, "/");
 }
 
 function selectCommittedTarget(worktreeAbs, packetContent, parsedArgs) {
@@ -295,9 +311,9 @@ try {
   // Keep user-specified ref literal in the evidence summary if rev-parse fails.
 }
 
-const preWork = runInWorktree(worktreeAbs, "just", ["pre-work", parsed.wpId]);
-const cargoClean = runInWorktree(worktreeAbs, "just", ["cargo-clean"]);
-const postWork = runInWorktree(worktreeAbs, "just", ["post-work", parsed.wpId, ...committedTarget.args]);
+const preWork = runInWorktree(worktreeAbs, process.execPath, [PRE_WORK_SCRIPT, parsed.wpId]);
+const cargoClean = runInWorktree(worktreeAbs, "cargo", CARGO_CLEAN_ARGS);
+const postWork = runInWorktree(worktreeAbs, process.execPath, [POST_WORK_SCRIPT, parsed.wpId, ...committedTarget.args]);
 const cargoCleanStatus = cargoClean.code === 0 ? "PASS" : "FAIL";
 
 const evidence = {
@@ -315,9 +331,9 @@ const evidence = {
   cargo_clean_required: true,
   cargo_clean_status: cargoCleanStatus,
   post_work_status: postWork.code === 0 ? "PASS" : "FAIL",
-  pre_work_command: `just pre-work ${parsed.wpId}`,
-  cargo_clean_command: "just cargo-clean",
-  post_work_command: `just post-work ${parsed.wpId} ${committedTarget.args.join(" ")}`.trim(),
+  pre_work_command: `node ${repoRelativeDisplayPath(repoRoot, PRE_WORK_SCRIPT)} ${parsed.wpId}`,
+  cargo_clean_command: `cargo ${CARGO_CLEAN_ARGS.join(" ")}`,
+  post_work_command: `node ${repoRelativeDisplayPath(repoRoot, POST_WORK_SCRIPT)} ${parsed.wpId} ${committedTarget.args.join(" ")}`.trim(),
   pre_work_output: preWork.output,
   cargo_clean_output: cargoClean.output,
   post_work_output: postWork.output,

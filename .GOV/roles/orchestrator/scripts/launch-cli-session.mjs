@@ -24,6 +24,7 @@ import {
   ensureSessionStateFiles,
   getOrCreateSessionRecord,
   loadSessionLaunchRequests,
+  loadSessionRegistry,
   markPluginResult,
   pendingRequestStatus,
   queuePluginLaunch,
@@ -34,6 +35,7 @@ import {
   mutateSessionRegistrySync,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
+  buildRoleEnvironmentOverrides,
   buildStartupPrompt,
   resolveRoleConfig,
   selectModel,
@@ -45,6 +47,7 @@ const role = String(process.argv[2] || "").trim().toUpperCase();
 const wpId = String(process.argv[3] || "").trim();
 const requestedHost = String(process.argv[4] || "").trim().toUpperCase() || "AUTO";
 const requestedModel = String(process.argv[5] || "").trim().toUpperCase() || "PRIMARY";
+const sessionControlCommandPath = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
 
 function fail(message) {
   console.error(`[LAUNCH_CLI_SESSION] ${message}`);
@@ -71,6 +74,7 @@ function commandExists(command) {
 const roleConfig = resolveRoleConfig(role, wpId);
 if (!roleConfig) fail(`Unknown role: ${role}`);
 const selectedModel = selectModel(requestedModel);
+const launchEnvironmentOverrides = buildRoleEnvironmentOverrides({ role });
 
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const currentBranch = runGit(["branch", "--show-current"]);
@@ -119,8 +123,12 @@ function psQuote(value) {
 function writeLaunchScript() {
   const psPath = path.join(os.tmpdir(), `handshake-${role.toLowerCase()}-${wpId}-${Date.now()}.ps1`);
   const psArgsLines = codexArgs.map((arg) => `  ${psQuote(arg)}`).join(",\r\n");
+  const envLines = Object.entries(launchEnvironmentOverrides)
+    .map(([key, value]) => `$env:${key} = ${psQuote(value)}`)
+    .join("\r\n");
   const script = [
     `$ErrorActionPreference = 'Stop'`,
+    envLines,
     `Set-Location -LiteralPath ${psQuote(absWorktreeDir)}`,
     `$codexArgs = @(`,
     psArgsLines,
@@ -137,6 +145,10 @@ const codexCommand = `& ${psQuote(launchScriptPath)}`;
 function launchCurrent() {
   const child = spawn(CLI_SESSION_TOOL, codexArgs, {
     cwd: absWorktreeDir,
+    env: {
+      ...process.env,
+      ...launchEnvironmentOverrides,
+    },
     stdio: "inherit",
     shell: false,
   });
@@ -179,6 +191,9 @@ function printOnly(reason, resolvedHost) {
   console.log(`[LAUNCH_CLI_SESSION] branch=${roleConfig.branch}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
   console.log(`[LAUNCH_CLI_SESSION] launch_script=${launchScriptPath}`);
+  if (Object.keys(launchEnvironmentOverrides).length > 0) {
+    console.log(`[LAUNCH_CLI_SESSION] env_overrides=${JSON.stringify(launchEnvironmentOverrides)}`);
+  }
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] command=${codexCommand}`);
@@ -198,6 +213,8 @@ let { sessionSummary, batchSummary } = mutateSessionRegistrySync(repoRoot, (regi
 function printSessionSummary() {
   console.log(`[LAUNCH_CLI_SESSION] session_key=${sessionSummary.session_key}`);
   console.log(`[LAUNCH_CLI_SESSION] runtime_state=${sessionSummary.runtime_state}`);
+  console.log(`[LAUNCH_CLI_SESSION] startup_proof_state=${sessionSummary.startup_proof_state}`);
+  console.log(`[LAUNCH_CLI_SESSION] thread_id=${sessionSummary.session_thread_id || "<none>"}`);
   console.log(`[LAUNCH_CLI_SESSION] plugin_request_count=${sessionSummary.plugin_request_count}`);
   console.log(`[LAUNCH_CLI_SESSION] plugin_failure_count=${sessionSummary.plugin_failure_count}`);
   console.log(`[LAUNCH_CLI_SESSION] plugin_last_result=${sessionSummary.plugin_last_result}`);
@@ -210,6 +227,44 @@ function printSessionSummary() {
   if (batchSummary.launch_batch_switch_reason) {
     console.log(`[LAUNCH_CLI_SESSION] launch_batch_switch_reason=${batchSummary.launch_batch_switch_reason}`);
   }
+}
+
+function refreshSessionSummary() {
+  const registry = loadSessionRegistry(repoRoot).registry;
+  const refreshedSession = (registry.sessions || []).find((entry) => entry.session_key === sessionSummary.session_key);
+  if (refreshedSession) {
+    sessionSummary = registrySessionSummary(refreshedSession);
+  }
+  batchSummary = registryBatchLaunchSummary(registry);
+}
+
+function needsGovernedAutoStart(summary = sessionSummary) {
+  const runtimeState = String(summary?.runtime_state || "").trim().toUpperCase();
+  const startupProofState = String(summary?.startup_proof_state || "").trim().toUpperCase();
+  const threadId = String(summary?.session_thread_id || "").trim();
+  const lastCommandKind = String(summary?.last_command_kind || "").trim().toUpperCase();
+  const lastCommandStatus = String(summary?.last_command_status || "").trim().toUpperCase();
+  if (threadId || startupProofState === "READY") return false;
+  if (["READY", "COMMAND_RUNNING", "ACTIVE", "WAITING"].includes(runtimeState)) return false;
+  if (lastCommandKind === "START_SESSION" && ["QUEUED", "RUNNING"].includes(lastCommandStatus)) return false;
+  return true;
+}
+
+function autoStartGovernedSession(reason) {
+  refreshSessionSummary();
+  if (!needsGovernedAutoStart()) {
+    console.log(`[LAUNCH_CLI_SESSION] auto_start=SKIPPED`);
+    console.log(`[LAUNCH_CLI_SESSION] auto_start_reason=${reason}`);
+    return;
+  }
+  console.log(`[LAUNCH_CLI_SESSION] auto_start=START_SESSION`);
+  console.log(`[LAUNCH_CLI_SESSION] auto_start_reason=${reason}`);
+  execFileSync(
+    process.execPath,
+    [sessionControlCommandPath, "START_SESSION", role, wpId, "", requestedModel],
+    { stdio: "inherit" },
+  );
+  refreshSessionSummary();
 }
 
 function queueVsCodePluginLaunch() {
@@ -274,6 +329,7 @@ function queueVsCodePluginLaunch() {
     console.log(`[LAUNCH_CLI_SESSION] plugin launch request still pending for ${SESSION_PLUGIN_BRIDGE_ID}`);
     console.log(`[LAUNCH_CLI_SESSION] request_id=${result.requestId}`);
     console.log(`[LAUNCH_CLI_SESSION] wait_timeout_seconds=${SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS}`);
+    autoStartGovernedSession("plugin launch request already pending");
     printSessionSummary();
     return;
   }
@@ -282,6 +338,7 @@ function queueVsCodePluginLaunch() {
   console.log(`[LAUNCH_CLI_SESSION] preferred_host=${SESSION_HOST_PREFERENCE}`);
   console.log(`[LAUNCH_CLI_SESSION] plugin_command=${SESSION_PLUGIN_BRIDGE_COMMAND}`);
   console.log(`[LAUNCH_CLI_SESSION] wait_timeout_seconds=${SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS}`);
+  autoStartGovernedSession("plugin launch request queued");
   printSessionSummary();
 }
 
@@ -363,6 +420,7 @@ if (isSystemTerminalMode(requestedHost)) {
   }
   maybeRecordCliEscalation(CLI_ESCALATION_HOST_DEFAULT);
   launchWindowsTerminal();
+  autoStartGovernedSession("system terminal launch");
   printSessionSummary();
   process.exit(0);
 }
@@ -371,6 +429,7 @@ if (requestedHost === "AUTO") {
   if (commandExists("wt")) {
     maybeRecordCliEscalation(CLI_ESCALATION_HOST_DEFAULT);
     launchWindowsTerminal();
+    autoStartGovernedSession("auto-resolved system terminal launch");
     printSessionSummary();
     process.exit(0);
   }

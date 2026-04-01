@@ -105,3 +105,56 @@ test("validateContainedMainCommitAgainstSignedScope fails when merged main diff 
   assert.equal(result.ok, false);
   assert.match(result.errors.join("\n"), /does not match the signed patch artifact/i);
 });
+
+test("validateContainedMainCommitAgainstSignedScope can accept contained-main harmonization when exact artifact match is disabled", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-contained-relaxed-"));
+  writeFile(path.join(tempRoot, "artifacts", "signed.patch"), matchingDiff);
+  const harmonizedDiff = [
+    "diff --git a/src/demo.rs b/src/demo.rs",
+    "--- a/src/demo.rs",
+    "+++ b/src/demo.rs",
+    "@@ -8 +8 @@",
+    "-legacy",
+    "+legacy",
+    "@@ -10 +10,2 @@",
+    "-old",
+    "+new",
+    "+extra",
+    "",
+  ].join("\n");
+
+  const result = validateContainedMainCommitAgainstSignedScope(packetFixture(), {
+    repoRoot: tempRoot,
+    mergedMainCommit: "abc1234",
+    actualDiffText: harmonizedDiff,
+    requireExactArtifactMatch: false,
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+});
+
+test("validateCandidateTargetAgainstSignedScope tolerates current-main line shifts when the signed patch artifact still matches", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-surface-shift-"));
+  const shiftedDiff = [
+    "diff --git a/src/demo.rs b/src/demo.rs",
+    "--- a/src/demo.rs",
+    "+++ b/src/demo.rs",
+    "@@ -5 +5,2 @@",
+    "-old",
+    "+new",
+    "+extra",
+    "",
+  ].join("\n");
+  writeFile(path.join(tempRoot, "artifacts", "signed.patch"), shiftedDiff);
+
+  const result = validateCandidateTargetAgainstSignedScope(packetFixture(), {
+    repoRoot: tempRoot,
+    targetHeadSha: "abc1234",
+    currentMainHeadSha: "def5678",
+    candidateDiffText: shiftedDiff,
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+});

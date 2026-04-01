@@ -107,6 +107,29 @@ test("integration-validator topology fails when the final lane cannot resolve th
   assert.match(evaluation.issues.join("\n"), /cannot resolve committed target deadbeef/i);
 });
 
+test("integration-validator topology fails when live governance still resolves to handshake_main backup state", () => {
+  const evaluation = evaluateIntegrationValidatorTopology({
+    repoRoot: ".",
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetContent: packetFixture(),
+    actorContext: actorContextFixture(),
+    committedEvidence: {
+      status: "PASS",
+      target_head_sha: "abc123",
+    },
+    governanceRootAbs: path.resolve(".", "..", "handshake_main", ".GOV"),
+    worktreeExists: () => true,
+    gitRunner: (args) => (
+      args[0] === "rev-parse"
+        ? { code: 0, output: "0123456789abcdef0123456789abcdef01234567" }
+        : { code: 0, output: "" }
+    ),
+  });
+
+  assert.equal(evaluation.ok, false);
+  assert.match(evaluation.issues.join("\n"), /must resolve live governance from the kernel via HANDSHAKE_GOV_ROOT/i);
+});
+
 test("WP closeout bundle passes when every request is settled and no run is active", () => {
   const evaluation = evaluateWpSessionControlCloseoutBundle({
     repoRoot: ".",
@@ -272,6 +295,40 @@ test("integration-validator closeout state fails when signed scope compatibility
 
   assert.equal(evaluation.ok, false);
   assert.match(evaluation.issues.join("\n"), /does not match current local main HEAD/i);
+});
+
+test("integration-validator closeout state can refresh stale recorded compatibility truth during sync", () => {
+  const repoRoot = repoRootWithArtifact(matchingDiff);
+  const evaluation = evaluateIntegrationValidatorCloseoutState({
+    repoRoot,
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetContent: packetFixture(),
+    actorContext: actorContextFixture(),
+    committedEvidence: {
+      status: "PASS",
+      target_head_sha: "abc123",
+    },
+    requests: [],
+    results: [],
+    registrySessions: [],
+    brokerState: { active_runs: [] },
+    requireRecordedScopeCompatibility: false,
+    worktreeExists: () => true,
+    fileExists: () => true,
+    gitRunner: (args) => {
+      if (args[0] === "rev-parse") return { code: 0, output: "89abcdef0123456789abcdef0123456789abcdef" };
+      if (args[0] === "merge-base") return { code: 0, output: "fedcba9876543210fedcba9876543210fedcba98" };
+      if (args[0] === "diff") return { code: 0, output: matchingDiff };
+      return { code: 0, output: "" };
+    },
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.deepEqual(evaluation.issues, []);
+  assert.match(
+    evaluation.scopeCompatibility.errors.join("\n"),
+    /does not match current local main HEAD/i,
+  );
 });
 
 test("integration-validator closeout state fails when the committed target diff drifts from the signed artifact", () => {

@@ -4,7 +4,7 @@
  * Ensures required fields are present and sane.
  */
 import { readFileSync } from "node:fs";
-import { REPO_ROOT, workPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { REPO_ROOT, workPacketAbsPath, workPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   packetRequiresCompletionLayerVerdicts,
   packetRequiresSpecClauseMap,
@@ -33,6 +33,7 @@ if (!wpId) {
 }
 
 const packetPath = workPacketPath(wpId);
+const packetAbsPath = workPacketAbsPath(wpId);
 
 function fail(msg) {
   console.error(`validator-packet-complete: FAIL - ${msg}`);
@@ -41,7 +42,7 @@ function fail(msg) {
 
 let text;
 try {
-  text = readFileSync(packetPath, "utf8");
+  text = readFileSync(packetAbsPath, "utf8");
 } catch (err) {
   fail(`cannot read ${packetPath}: ${err.message}`);
 }
@@ -320,6 +321,7 @@ if (packetFormatVersion) {
       const containedMainScope = validateContainedMainCommitAgainstSignedScope(text, {
         repoRoot: REPO_ROOT,
         mergedMainCommit: mergeProgressionTruth?.parsed?.mergedMainCommit || "",
+        requireExactArtifactMatch: false,
       });
       if (containedMainScope.errors.length > 0) {
         fail(`contained main commit violates signed scope surface: ${containedMainScope.errors.join("; ")}`);

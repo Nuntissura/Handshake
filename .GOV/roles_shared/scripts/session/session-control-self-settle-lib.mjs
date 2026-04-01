@@ -7,6 +7,7 @@ import {
   loadSessionRegistry,
   markSessionCommandResult,
   mutateSessionRegistrySync,
+  writeJsonFile,
 } from "./session-registry-lib.mjs";
 import {
   buildSessionControlResult,
@@ -14,6 +15,7 @@ import {
 } from "./session-control-lib.mjs";
 import { syncWpTokenUsageLedger } from "./wp-token-usage-lib.mjs";
 import {
+  SESSION_CONTROL_BROKER_STATE_FILE,
   SESSION_CONTROL_RESULTS_FILE,
   normalizePath,
 } from "./session-policy.mjs";
@@ -53,6 +55,26 @@ function appendSelfSettleEvent(repoRoot, outputJsonlFile, details = {}) {
     `${JSON.stringify({ timestamp: new Date().toISOString(), type: "broker.self_settle", ...details })}\n`,
     "utf8",
   );
+}
+
+function pruneSettledBrokerRuns(repoRoot, resultById) {
+  const brokerStatePath = path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE);
+  if (!fs.existsSync(brokerStatePath)) return [];
+  const brokerState = JSON.parse(fs.readFileSync(brokerStatePath, "utf8"));
+  if (!Array.isArray(brokerState?.active_runs) || brokerState.active_runs.length === 0) return [];
+
+  const prunedCommandIds = brokerState.active_runs
+    .map((run) => String(run?.command_id || "").trim())
+    .filter((commandId) => commandId && resultById.has(commandId));
+  if (prunedCommandIds.length === 0) return [];
+
+  brokerState.active_runs = brokerState.active_runs.filter((run) => {
+    const commandId = String(run?.command_id || "").trim();
+    return !commandId || !resultById.has(commandId);
+  });
+  brokerState.updated_at = new Date().toISOString();
+  writeJsonFile(brokerStatePath, brokerState);
+  return prunedCommandIds;
 }
 
 export function inferRecoverableSessionControlResult({
@@ -149,9 +171,12 @@ export function settleRecoverableSessionControlResults(repoRoot, {
   const { registry } = loadSessionRegistry(repoRoot);
   const resultById = new Map(results.map((result) => [String(result?.command_id || "").trim(), result]));
   const sessionByKey = new Map((registry.sessions || []).map((session) => [String(session?.session_key || "").trim(), session]));
+  const prunedSettledActiveRuns = pruneSettledBrokerRuns(repoRoot, resultById);
   const activeRunIds = new Set(
     Array.isArray(brokerState?.active_runs)
-      ? brokerState.active_runs.map((run) => String(run?.command_id || "").trim()).filter(Boolean)
+      ? brokerState.active_runs
+        .map((run) => String(run?.command_id || "").trim())
+        .filter((commandId) => commandId && !resultById.has(commandId))
       : [],
   );
   const onlyCommandIds = new Set((commandIds || []).map((value) => String(value || "").trim()).filter(Boolean));
@@ -217,6 +242,16 @@ export function settleRecoverableSessionControlResults(repoRoot, {
       status: result.status,
       repair_reason: inferred.repairReason,
       output_jsonl_file: normalizedOutputPath,
+    });
+  }
+
+  const additionallyPruned = pruneSettledBrokerRuns(repoRoot, resultById);
+  for (const commandId of [...prunedSettledActiveRuns, ...additionallyPruned]) {
+    settled.push({
+      command_id: commandId,
+      status: "BROKER_STATE_PRUNED",
+      repair_reason: "stale_active_run_with_settled_result",
+      output_jsonl_file: "",
     });
   }
 

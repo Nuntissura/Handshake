@@ -76,7 +76,10 @@ import {
   deriveWpScopeContract,
   formatBoundedItemList,
   hasConcreteScopeEntries,
+  isGovernanceOnlyPath,
+  isTransientProofArtifactPath,
   hasScopeOverlap,
+  normalizeRepoPath,
   parsePacketScopeDiscipline,
   parsePacketScopeList,
   scopeDisciplineRequiresEnforcement,
@@ -492,17 +495,23 @@ if (!fs.existsSync(taskPacketDir)) {
   console.log('\nCheck 2.6AC: Branch-local scope drift');
   const branchLocalChangedFiles = getBranchLocalChangedFiles();
   const scopeDriftFailures = [];
-  const junctionDriftWarnings = [];
+  const governanceNoiseWarnings = [];
+  const transientArtifactWarnings = [];
   const inScopeLocalChanges = [];
   for (const changedFile of branchLocalChangedFiles) {
     const classification = classifyWpChangedPath(changedFile, scopeContract);
+    const normalizedPath = normalizeRepoPath(changedFile) || changedFile;
     if (classification.kind === 'IN_SCOPE') {
       inScopeLocalChanges.push(classification.path);
       continue;
     }
     if (classification.kind === 'GOVERNANCE_COMPANION') continue;
-    if (classification.kind === 'GOVERNANCE_JUNCTION_DRIFT') {
-      junctionDriftWarnings.push(classification.path);
+    if (isTransientProofArtifactPath(normalizedPath)) {
+      transientArtifactWarnings.push(normalizedPath);
+      continue;
+    }
+    if (isGovernanceOnlyPath(normalizedPath)) {
+      governanceNoiseWarnings.push(normalizedPath);
       continue;
     }
     scopeDriftFailures.push(`${classification.kind}: ${classification.path}`);
@@ -513,9 +522,14 @@ if (!fs.existsSync(taskPacketDir)) {
   } else {
     console.log('PASS: No branch-local out-of-scope edits detected');
   }
-  if (junctionDriftWarnings.length > 0) {
+  if (governanceNoiseWarnings.length > 0) {
     warnings.push(
-      `Shared .GOV junction drift visible in this worktree (not counted as WP scope evidence): ${formatBoundedItemList(junctionDriftWarnings, { noun: 'path' })}`
+      `Governance-only drift visible in this worktree (not counted as WP scope evidence): ${formatBoundedItemList(governanceNoiseWarnings, { noun: 'path' })}`
+    );
+  }
+  if (transientArtifactWarnings.length > 0) {
+    warnings.push(
+      `Transient proof artifacts visible in this worktree (not counted as WP scope evidence): ${formatBoundedItemList(transientArtifactWarnings, { noun: 'path' })}`
     );
   }
   if (inScopeLocalChanges.length > 0) {

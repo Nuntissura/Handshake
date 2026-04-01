@@ -73,3 +73,53 @@ test("acknowledging one validator session does not clear another session's notif
     fs.rmSync(commDir, { recursive: true, force: true });
   }
 });
+
+test("session-scoped checks can consume placeholder <unassigned> notifications once the governed session exists", () => {
+  const wpId = "WP-TEST-NOTIF-UNASSIGNED";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "wp-notif-unassigned-"));
+  const notificationsPath = path.join(commDir, "NOTIFICATIONS.jsonl");
+  const cursorPath = path.join(commDir, "NOTIFICATION_CURSOR.json");
+
+  writePacket(packetDir, commDir);
+  fs.writeFileSync(cursorPath, `${JSON.stringify({ schema_version: "wp_notification_cursor@1", cursors: {} }, null, 2)}\n`, "utf8");
+  fs.writeFileSync(notificationsPath, `${JSON.stringify({
+    schema_version: "wp_notification@1",
+    timestamp_utc: "2026-04-01T10:00:00Z",
+    wp_id: wpId,
+    source_kind: "REVIEW_REQUEST",
+    source_role: "CODER",
+    source_session: "coder-1",
+    target_role: "INTEGRATION_VALIDATOR",
+    target_session: "<unassigned>",
+    correlation_id: "review-request-a",
+    summary: "final review request before integration-validator session was claimed",
+  })}\n`, "utf8");
+
+  try {
+    const visibleToSession = checkNotifications({
+      wpId,
+      role: "INTEGRATION_VALIDATOR",
+      session: "integration_validator:test",
+    });
+    assert.equal(visibleToSession.pendingCount, 1);
+
+    const ack = checkNotifications({
+      wpId,
+      role: "INTEGRATION_VALIDATOR",
+      ack: true,
+      session: "integration_validator:test",
+    });
+    assert.equal(ack.acknowledged, true);
+
+    const after = checkNotifications({
+      wpId,
+      role: "INTEGRATION_VALIDATOR",
+      session: "integration_validator:test",
+    });
+    assert.equal(after.pendingCount, 0);
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});

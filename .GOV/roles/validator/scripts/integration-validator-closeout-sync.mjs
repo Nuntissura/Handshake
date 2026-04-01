@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { currentGitContext } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
-import { resolveWorkPacketPath, GOV_ROOT_REPO_REL, REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { resolveWorkPacketPath, GOV_ROOT_ABS, GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   parseMergeProgressionTruth,
   updateMergeProgressionTruth,
@@ -16,12 +16,15 @@ import {
 import {
   validateContainedMainCommitAgainstSignedScope,
 } from "../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
+import { syncRuntimeProjectionFromPacket } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
+import { validateRuntimeStatus } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import {
   evaluateValidatorPacketGovernanceState,
   resolveValidatorActorContext,
 } from "../scripts/lib/validator-governance-lib.mjs";
 import { evaluateIntegrationValidatorCloseoutState } from "../scripts/lib/integration-validator-closeout-lib.mjs";
 import { ensureValidatorGateDir, resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 
 function fail(message, details = []) {
   console.error(`[INTEGRATION_VALIDATOR_CLOSEOUT_SYNC] ${message}`);
@@ -37,15 +40,44 @@ function writeText(filePath, text) {
   fs.writeFileSync(filePath, text, "utf8");
 }
 
+function kernelRepoRoot() {
+  return path.resolve(GOV_ROOT_ABS, "..");
+}
+
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = String(text || "").match(re);
   return match ? match[1].trim() : "";
 }
 
+function sessionNeedsClosure(repoRoot, role, wpId) {
+  const { registry } = loadSessionRegistry(repoRoot);
+  const session = (registry.sessions || []).find((entry) => entry.session_key === `${role}:${wpId}`);
+  if (!session) return false;
+  const runtimeState = String(session.runtime_state || "").trim().toUpperCase();
+  return !["", "UNSTARTED", "CLOSED"].includes(runtimeState);
+}
+
+function closeGovernedSession(role, wpId) {
+  const closeScript = path.resolve(GOV_ROOT_ABS, "roles", "orchestrator", "scripts", "session-control-command.mjs");
+  execFileSync(
+    process.execPath,
+    [closeScript, "CLOSE_SESSION", role, wpId],
+    {
+      cwd: kernelRepoRoot(),
+      stdio: "pipe",
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HANDSHAKE_GOV_ROOT: GOV_ROOT_ABS,
+      },
+    },
+  );
+}
+
 function loadGateState(wpId) {
   ensureValidatorGateDir();
-  const filePath = resolveValidatorGatePath(wpId);
+  const filePath = repoPathAbs(resolveValidatorGatePath(wpId));
   if (!fs.existsSync(filePath)) return {};
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
@@ -120,19 +152,21 @@ if (requestedMode.requireMergedMainCommit && !/^[0-9a-f]{7,40}$/i.test(mergedMai
 }
 
 const repoRoot = currentGitContext().topLevel || REPO_ROOT;
-const taskBoardPath = path.resolve(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
+const taskBoardPath = path.resolve(GOV_ROOT_ABS, "roles_shared", "records", "TASK_BOARD.md");
 const resolvedPacket = resolveWorkPacketPath(wpId);
-if (!resolvedPacket?.packetPath || !fs.existsSync(resolvedPacket.packetPath)) {
+if (!resolvedPacket?.packetAbsPath || !fs.existsSync(resolvedPacket.packetAbsPath)) {
   fail(`Official packet not found for ${wpId}`);
 }
 const packetPath = resolvedPacket.packetPath;
-const originalPacketText = readText(packetPath);
+const packetAbsPath = resolvedPacket.packetAbsPath;
+const originalPacketText = readText(packetAbsPath);
 const originalTaskBoardText = fs.existsSync(taskBoardPath) ? readText(taskBoardPath) : "";
-const runtimeStatusPath = path.resolve(repoRoot, parseSingleField(originalPacketText, "WP_RUNTIME_STATUS_FILE") || "");
+const runtimeStatusPath = repoPathAbs(parseSingleField(originalPacketText, "WP_RUNTIME_STATUS_FILE") || "");
 const originalRuntimeStatusText = runtimeStatusPath && fs.existsSync(runtimeStatusPath) ? readText(runtimeStatusPath) : "";
+const originalRuntimeStatusData = originalRuntimeStatusText ? JSON.parse(originalRuntimeStatusText) : null;
 const governanceState = evaluateValidatorPacketGovernanceState({
   wpId,
-  packetPath,
+  packetPath: packetAbsPath,
   packetContent: originalPacketText,
 });
 if (!governanceState.allowValidationResume) {
@@ -165,6 +199,7 @@ const evaluation = evaluateIntegrationValidatorCloseoutState({
   actorContext,
   committedEvidence,
   requireReadyForPass: false,
+  requireRecordedScopeCompatibility: false,
 });
 
 if (!evaluation.ok) {
@@ -181,6 +216,7 @@ if (requestedMode.requireMergedMainCommit) {
   const containedMainScope = validateContainedMainCommitAgainstSignedScope(originalPacketText, {
     repoRoot,
     mergedMainCommit,
+    requireExactArtifactMatch: false,
   });
   if (!containedMainScope.ok) {
     fail("Closeout sync requires the contained main commit to match the signed scope surface", [
@@ -203,19 +239,37 @@ nextPacketText = updateMergeProgressionTruth(nextPacketText, {
   mergedMainCommit: requestedMode.requireMergedMainCommit ? mergedMainCommit : "NONE",
   mainContainmentVerifiedAtUtc: requestedMode.requireMergedMainCommit ? timestamp : "N/A",
 });
+const nextRuntimeStatusData = originalRuntimeStatusData
+  ? syncRuntimeProjectionFromPacket(originalRuntimeStatusData, nextPacketText, {
+    eventName: "integration_validator_closeout_sync",
+    eventAt: timestamp,
+  })
+  : null;
+if (nextRuntimeStatusData) {
+  const runtimeErrors = validateRuntimeStatus(nextRuntimeStatusData);
+  if (runtimeErrors.length > 0) {
+    fail("Closeout sync would produce invalid runtime projection", runtimeErrors);
+  }
+}
 
-const mergeValidation = validateMergeProgressionTruth(nextPacketText, { repoRoot });
+const mergeValidation = validateMergeProgressionTruth(nextPacketText, {
+  repoRoot,
+  runtimeStatusData: nextRuntimeStatusData ?? undefined,
+});
 if (mergeValidation.errors.length > 0) {
   fail("Closeout sync would produce invalid merge-progression truth", mergeValidation.errors);
 }
 
-writeText(packetPath, nextPacketText);
+writeText(packetAbsPath, nextPacketText);
+if (nextRuntimeStatusData && runtimeStatusPath) {
+  writeText(runtimeStatusPath, `${JSON.stringify(nextRuntimeStatusData, null, 2)}\n`);
+}
 
 try {
   execFileSync(
     process.execPath,
     [
-      path.join(GOV_ROOT_REPO_REL, "roles", "validator", "checks", "validator-packet-complete.mjs"),
+      path.resolve(GOV_ROOT_ABS, "roles", "validator", "checks", "validator-packet-complete.mjs"),
       wpId,
     ],
     { stdio: "pipe", encoding: "utf8" },
@@ -223,14 +277,22 @@ try {
   execFileSync(
     process.execPath,
     [
-      path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "task-board-set.mjs"),
+      path.resolve(GOV_ROOT_ABS, "roles", "orchestrator", "scripts", "task-board-set.mjs"),
       wpId,
       requestedMode.boardStatus,
     ],
     { stdio: "pipe", encoding: "utf8" },
   );
+  if (["CONTAINED_IN_MAIN", "FAIL", "OUTDATED_ONLY", "ABANDONED"].includes(requestedMode.mode)) {
+    const kernelRoot = kernelRepoRoot();
+    for (const role of ["CODER", "WP_VALIDATOR"]) {
+      if (sessionNeedsClosure(kernelRoot, role, wpId)) {
+        closeGovernedSession(role, wpId);
+      }
+    }
+  }
 } catch (error) {
-  writeText(packetPath, originalPacketText);
+  writeText(packetAbsPath, originalPacketText);
   if (originalTaskBoardText) writeText(taskBoardPath, originalTaskBoardText);
   if (originalRuntimeStatusText) writeText(runtimeStatusPath, originalRuntimeStatusText);
   fail("Closeout sync failed validation and reverted the packet edit", [

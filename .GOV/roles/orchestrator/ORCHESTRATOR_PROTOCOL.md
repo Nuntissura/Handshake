@@ -82,6 +82,8 @@ See also:
 - Primary launch path is the VS Code bridge using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
   - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
   - `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
+- For the governed `INTEGRATION_VALIDATOR` lane, the Orchestrator MUST preserve kernel governance authority even though execution occurs from `handshake_main`: launch/control requests must carry `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`, and any lane that resolves live authority from `handshake_main/.GOV` is misconfigured and must be repaired before closeout.
+- `handshake_main/.GOV` is only the synced main-branch mirror. It is not the live authority surface for orchestrator-managed integration validation, even immediately after `just sync-gov-to-main`.
 - Primary steering path is the governed session-control ledgers under that same external repo-governance runtime root:
   - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
   - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
@@ -191,9 +193,10 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - For validator PASS clearance on orchestrator-managed WPs, prefer `just validator-handoff-check WP-{ID}` so validation runs against the PREPARE worktree source of truth.
 - Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just integration-validator-closeout-check WP-{ID}`. If that preflight fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth. For `PACKET_FORMAT_VERSION >= 2026-03-26`, this also means current-`main` signed-scope compatibility was not honestly cleared or packet widening was not governed explicitly.
 - After that preflight is green, prefer `just integration-validator-closeout-sync WP-{ID} ...` instead of manually editing packet/TASK_BOARD/runtime surfaces.
-  - PASS before main containment: `DONE_MERGE_PENDING`
-  - PASS after main containment: `DONE_VALIDATED <MERGED_MAIN_SHA>`
-  - explicit non-PASS terminal closure: `DONE_FAIL`, `DONE_OUTDATED_ONLY`, or `DONE_ABANDONED`
+  - PASS before main containment: `MERGE_PENDING`
+  - PASS after main containment: `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>`
+  - explicit non-PASS terminal closure: `FAIL`, `OUTDATED_ONLY`, or `ABANDONED`
+  - candidate-target proof must still match the signed artifact exactly; contained local-main closure may differ only when conflict resolution stays within the signed file surface and the governed closeout proof still passes
   This keeps closeout truth synchronized and reduces orchestrator repair work.
 
 ## Branching & Concurrency
@@ -328,6 +331,7 @@ Resume rule:
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- supported launch hosts must auto-issue the first governed `START_SESSION` on the ordinary path; `start-*` remains the explicit repair surface when launch could not complete autonomously
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
@@ -536,7 +540,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - In orchestrator-managed lanes, the WP Validator is the first technical judge for coder BOOTSTRAP, SKELETON, and completed micro tasks. The Orchestrator should not babysit those phases unless the validator raises a real blocker.
 - The initial `VALIDATOR_KICKOFF` plus correlated `CODER_INTENT` exchange is the normal bootstrap/skeleton steering surface. Use it to correct weak scope, wrong data shapes, or shallow micro-task plans before implementation hardens.
 - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
-- Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Watch that projected route; do not replace it with manual narrative steering unless a real repair is required.
+- Review-tracked receipt appends now auto-write notifications for the explicit target role, notify `ORCHESTRATOR` on validator-authored assessment receipts as a governance checkpoint, include the assessment result (`PASS`/`FAIL`/`ASSESSED`) plus the validator's reason in that checkpoint summary, and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Watch that projected route; do not replace it with manual narrative steering unless a real repair is required.
 - Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
 - Before validator handoff review begins, `just wp-communication-health-check WP-{ID} HANDOFF` MUST pass.
 - Before PASS commit clearance, `just wp-communication-health-check WP-{ID} VERDICT` MUST pass.
@@ -565,6 +569,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 ## Gov-to-Main Sync Responsibility [CX-212D] (HARD RULE)
 
 - `just sync-gov-to-main` copies the governance kernel `/.GOV/` into `handshake_main` and auto-commits.
+- `just sync-gov-to-main` must sync from committed kernel truth. If `wt-gov-kernel/.GOV` is dirty, fix or commit `gov_kernel` first; do not mirror an uncommitted kernel snapshot into `main`.
 - This is the Integration Validator's default responsibility, to be run before pushing to `origin/main`.
 - The Orchestrator MAY run `just sync-gov-to-main` and push `origin/main` only when explicitly instructed by the Operator.
 - That Orchestrator exception is mechanical execution only. It does not grant final technical verdict authority or permission to invent a new product merge decision.
