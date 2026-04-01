@@ -802,3 +802,21 @@
 - FOLLOW_ON_ITEMS:
   - `RGF-58`
 - OUTCOME: the governance board now tracks the coder-side path-truth cleanup so pre-work guidance stops telling the coder to use legacy wildcard packet paths or only `.GOV/refinements/WP-{ID}.md` when the official packet family already supports co-located `packet.md` and `refinement.md`
+
+### 2026.04.02.01 / GOV-CHANGE-20260402-01
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-55` by removing stale hard-coded refinement-path wording from orchestrator outputs and aligning the shared path docs with the current folder packet family
+- CHANGE_TYPE: PATH_TRUTH_ALIGNMENT_PATCH
+- DRIVER_EVIDENCE:
+  - `RGF-55`
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/checks/orchestrator_gates.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: operator-facing orchestrator guidance now references the resolved current refinement path instead of hard-coding `.GOV/refinements/WP-{ID}.md`, and the shared protocol/invariant docs now describe the folder packet/refinement layout as current truth while still naming the legacy flat layout explicitly as compatibility-only

@@ -25,7 +25,9 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 - ROLE_PROTOCOLS_DIR: `.GOV/roles/`
 - NAV_PACK_DIR: `.GOV/roles_shared/`
 - TASK_PACKETS_DIR: `.GOV/task_packets/`
-- REFINEMENTS_DIR: `.GOV/refinements/`
+- PACKET_CANONICAL_LAYOUT: `.GOV/task_packets/WP-{ID}/packet.md` (current); `.GOV/task_packets/WP-{ID}.md` remains legacy compatibility
+- REFINEMENT_CANONICAL_LAYOUT: `.GOV/task_packets/WP-{ID}/refinement.md` (current); `.GOV/refinements/WP-{ID}.md` remains legacy compatibility and pre-packet staging
+- REFINEMENTS_DIR: `.GOV/refinements/` (legacy compatibility / pre-packet staging)
 - TEMPLATES_DIR: `.GOV/templates/`
 - GATES_STATE:
   - Orchestrator: `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`

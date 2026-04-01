@@ -371,6 +371,14 @@ If any of those are stale or missing, report `STAGE: STATUS_SYNC` and fix the as
 ## Safety Commit Gate (HARD RULE)
 
 Immediately after creating a WP work packet and refinement and obtaining `USER_SIGNATURE`, create a checkpoint commit on the `gov_kernel` branch containing:
+- the official packet path resolved for the WP
+- the official refinement path resolved for the WP
+
+Current folder-packet default:
+- `.GOV/task_packets/WP-{ID}/packet.md`
+- `.GOV/task_packets/WP-{ID}/refinement.md`
+
+Legacy flat compatibility:
 - `.GOV/task_packets/WP-{ID}.md`
 - `.GOV/refinements/WP-{ID}.md`
 

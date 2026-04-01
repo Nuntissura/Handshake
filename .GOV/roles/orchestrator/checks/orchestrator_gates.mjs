@@ -234,7 +234,7 @@ if (action === 'refine') {
             `[ORCHESTRATOR GATE] Technical Refinement recorded for ${wpId}.`,
         ],
         nextCommands: [
-            `# Paste the FULL Technical Refinement Block from ${GOV_ROOT_REPO_REL}/refinements/${wpId}.md in chat as assistant-authored text (verbatim; no summary). Tool/terminal output does NOT count.`,
+            `# Paste the FULL Technical Refinement Block from ${refinementPath.replace(/\\/g, '/')} in chat as assistant-authored text (verbatim; no summary). Tool/terminal output does NOT count.`,
             `# If the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages and wait until the final chunk before any approval ask.`,
             `# When approved, set USER_APPROVAL_EVIDENCE in the refinement file to: APPROVE REFINEMENT ${wpId}`,
             `# Do NOT ask for or consume a signature until that verbatim block has been shown in chat.`,

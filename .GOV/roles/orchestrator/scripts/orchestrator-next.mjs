@@ -447,7 +447,7 @@ function main() {
     printConfidence(confidence.level, confidence.detail);
     printState("Refinement file does not exist yet.");
     printNextCommands([
-      `just create-task-packet ${wpId}  # scaffolds ${GOV_ROOT_REPO_REL}/refinements/${wpId}.md and exits BLOCKED`,
+      `just create-task-packet ${wpId}  # scaffolds ${refinementPath.replace(/\\/g, "/")} and exits BLOCKED`,
       `cat ${refinementPath.replace(/\\/g, "/")}`,
       `# Present the Technical Refinement Block in-chat; wait for explicit review.`,
       `just record-refinement ${wpId}`,
@@ -487,7 +487,7 @@ function main() {
     printConfidence(confidence.level, confidence.detail);
     printState("Refinement recorded; signature not yet recorded.");
     printNextCommands([
-      `# Paste the FULL Technical Refinement Block from ${GOV_ROOT_REPO_REL}/refinements/${wpId}.md in chat (verbatim; no summary).`,
+      `# Paste the FULL Technical Refinement Block from ${refinementPath.replace(/\\/g, "/")} in chat (verbatim; no summary).`,
       `# Ensure refinement METADATA contains: - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT ${wpId}`,
       `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
     ]);
