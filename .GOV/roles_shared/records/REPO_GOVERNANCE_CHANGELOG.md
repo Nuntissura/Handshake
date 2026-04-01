@@ -772,3 +772,33 @@
 - FOLLOW_ON_ITEMS:
   - `RGF-56`
 - OUTCOME: the governance board now tracks an orchestrator-specific visibility item so packet creation, next-command surfaces, and operator-facing protocol stop hiding the active `PACKET_FORMAT_VERSION`, `DATA_CONTRACT_PROFILE`, anti-vibe, signed-scope-debt, and validator-proof obligations that are already enforced later by coder/validator checks
+
+### 2026.04.01.16 / GOV-CHANGE-20260401-16
+
+- STATUS: APPLIED
+- SUMMARY: captured the validator-side path-truth drift after finding a remaining hard-rule reference to the legacy flat refinement path in the validator protocol
+- CHANGE_TYPE: VALIDATOR_PATH_TRUTH_FOLLOW_ON_CAPTURE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-57`
+- OUTCOME: the governance board now tracks the remaining validator path-truth cleanup so refinement-completeness rules stop referencing only `.GOV/refinements/WP-{ID}.md` after the packet family migrated to co-located `task_packets/WP-{ID}/refinement.md`
+
+### 2026.04.01.17 / GOV-CHANGE-20260401-17
+
+- STATUS: APPLIED
+- SUMMARY: captured the coder-side path-truth drift after finding legacy packet-read and refinement-read instructions still embedded in the coder protocol workflow
+- CHANGE_TYPE: CODER_PATH_TRUTH_FOLLOW_ON_CAPTURE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-58`
+- OUTCOME: the governance board now tracks the coder-side path-truth cleanup so pre-work guidance stops telling the coder to use legacy wildcard packet paths or only `.GOV/refinements/WP-{ID}.md` when the official packet family already supports co-located `packet.md` and `refinement.md`

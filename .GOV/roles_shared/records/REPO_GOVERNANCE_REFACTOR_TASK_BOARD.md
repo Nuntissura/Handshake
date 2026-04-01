@@ -109,6 +109,8 @@
 | RGF-54 | READY | End-to-End New-Packet Law Regression and Legacy Migration Strategy | RGF-50, RGF-51, RGF-52 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | orchestrator packet creation flow, shared claim checks, validator closeout checks, shared regression suite, packet-family migration policy | the `2026-04-01` packet law is proven end-to-end from packet creation through validator closure, and legacy packet families have an explicit migration or grandfathering policy instead of mixed implicit enforcement |
 | RGF-55 | READY | Packet/Refinement Path Truth Alignment Across Shared and Orchestrator Surfaces | RGF-39, RGF-53 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/orchestrator/scripts/orchestrator-next.mjs`, `roles/orchestrator/checks/orchestrator_gates.mjs`, `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles_shared/docs/PROJECT_INVARIANTS.md`, shared path-resolution guidance | operator-facing next commands, protocols, and shared docs stop hard-coding the legacy flat `.GOV/refinements/WP-{ID}.md` path when the live packet family uses co-located `task_packets/WP-{ID}/refinement.md`, and all such surfaces either resolve both layouts correctly or use path-neutral wording |
 | RGF-56 | READY | Orchestrator Packet-Law Visibility for New Packet Families | RGF-50, RGF-51, RGF-53 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/orchestrator/scripts/create-task-packet.mjs`, `roles/orchestrator/scripts/orchestrator-next.mjs`, `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, orchestrator-facing startup/operator guidance | packet creation and orchestrator-facing workflow surfaces disclose the active `PACKET_FORMAT_VERSION`, `DATA_CONTRACT_PROFILE`, anti-vibe/signed-scope-debt obligations, and validator evidence requirements so operators do not launch new packet-family work blind to the law bundle that coder/validator checks will later enforce |
+| RGF-57 | READY | Validator Refinement Path Truth Alignment | RGF-55 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/validator/VALIDATOR_PROTOCOL.md`, validator-facing refinement review guidance | validator hard-review rules stop naming only the legacy flat `.GOV/refinements/WP-{ID}.md` path and instead accept the co-located `task_packets/WP-{ID}/refinement.md` layout or use path-neutral wording consistent with runtime resolution truth |
+| RGF-58 | READY | Coder Packet/Refinement Path Truth Alignment | RGF-55 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/coder/CODER_PROTOCOL.md`, coder-facing pre-work/handoff guidance | coder workflow guidance stops telling the coder to read legacy wildcard packet paths or only `.GOV/refinements/WP-{ID}.md`, and instead points to the official packet/refinement paths resolved under the current packet family or uses path-neutral wording consistent with runtime path resolution |
 
 ## Refactor Sequence (Historical)
 
@@ -169,6 +171,8 @@
 46. `RGF-54`
 47. `RGF-55`
 48. `RGF-56`
+49. `RGF-57`
+50. `RGF-58`
 
 ## Explicit Holds
 
