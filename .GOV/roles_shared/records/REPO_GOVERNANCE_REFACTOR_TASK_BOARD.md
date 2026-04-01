@@ -108,6 +108,7 @@
 | RGF-53 | READY | Shared Docs and Command-Surface Alignment for New Packet Law | RGF-50, RGF-51 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `roles_shared/docs/START_HERE.md`, shared quickrefs/examples, startup/operator-facing guidance | operator and shared role docs now surface the `2026-04-01` packet law, including data-contract activation, anti-vibe review fields, and signed-scope-debt rejection, instead of leaving those rules discoverable only in role-local protocols and checks |
 | RGF-54 | READY | End-to-End New-Packet Law Regression and Legacy Migration Strategy | RGF-50, RGF-51, RGF-52 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | orchestrator packet creation flow, shared claim checks, validator closeout checks, shared regression suite, packet-family migration policy | the `2026-04-01` packet law is proven end-to-end from packet creation through validator closure, and legacy packet families have an explicit migration or grandfathering policy instead of mixed implicit enforcement |
 | RGF-55 | READY | Packet/Refinement Path Truth Alignment Across Shared and Orchestrator Surfaces | RGF-39, RGF-53 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/orchestrator/scripts/orchestrator-next.mjs`, `roles/orchestrator/checks/orchestrator_gates.mjs`, `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles_shared/docs/PROJECT_INVARIANTS.md`, shared path-resolution guidance | operator-facing next commands, protocols, and shared docs stop hard-coding the legacy flat `.GOV/refinements/WP-{ID}.md` path when the live packet family uses co-located `task_packets/WP-{ID}/refinement.md`, and all such surfaces either resolve both layouts correctly or use path-neutral wording |
+| RGF-56 | READY | Orchestrator Packet-Law Visibility for New Packet Families | RGF-50, RGF-51, RGF-53 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/orchestrator/scripts/create-task-packet.mjs`, `roles/orchestrator/scripts/orchestrator-next.mjs`, `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, orchestrator-facing startup/operator guidance | packet creation and orchestrator-facing workflow surfaces disclose the active `PACKET_FORMAT_VERSION`, `DATA_CONTRACT_PROFILE`, anti-vibe/signed-scope-debt obligations, and validator evidence requirements so operators do not launch new packet-family work blind to the law bundle that coder/validator checks will later enforce |
 
 ## Refactor Sequence (Historical)
 
@@ -167,6 +168,7 @@
 45. `RGF-53`
 46. `RGF-54`
 47. `RGF-55`
+48. `RGF-56`
 
 ## Explicit Holds
 
