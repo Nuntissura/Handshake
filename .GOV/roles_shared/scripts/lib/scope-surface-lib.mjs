@@ -279,6 +279,13 @@ export function isGovernanceOnlyPath(filePath) {
   return isGovJunctionPath(normalized);
 }
 
+export function isTransientProofArtifactPath(filePath) {
+  const normalized = normalizeRepoPath(filePath);
+  if (!normalized) return false;
+  const baseName = path.posix.basename(normalized).toLowerCase();
+  return /^tmp-[^.].*\.log$/i.test(baseName);
+}
+
 export function isRootGovernancePath(filePath) {
   const normalized = normalizeRepoPath(filePath);
   if (!normalized) return false;

@@ -325,13 +325,14 @@ Requirements (HARD):
 - BUILD_ORDER_DEPENDS_ON: WP-1-Structured-Collaboration-Schema-Registry
 - BUILD_ORDER_BLOCKS: NONE
 - SPEC_ANCHOR_PRIMARY: Handshake_Master_Spec_v02.179.md Base structured schema and project-profile extension contract [ADD v02.168]
-- WHAT: Complete the explicit project-profile extension registry and propagate the base-envelope versus `profile_extension` boundary through Work Packet, Micro-Task, Task Board, and Role Mailbox emitted artifacts, including generic-fallback proof and one non-software example.
+- WHAT: Complete the explicit project-profile extension registry and propagate the base-envelope versus `profile_extension` boundary through Work Packet, Micro-Task, Task Board, Role Mailbox, and the coupled tracked micro-task progress payload needed to keep emitted progress artifacts consistent, including generic-fallback proof and one non-software example.
 - WHY: Current product code over-credits partial envelope plumbing as if the registry were done. Downstream portable workflow-law work remains unsafe until registry, projection, and export truth are aligned end-to-end.
 - IN_SCOPE_PATHS:
   - src/backend/handshake_core/src/locus/types.rs
   - src/backend/handshake_core/src/locus/task_board.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/role_mailbox.rs
+  - src/backend/handshake_core/src/storage/locus_sqlite.rs
   - src/backend/handshake_core/tests/micro_task_executor_tests.rs
   - src/backend/handshake_core/tests/role_mailbox_tests.rs
 - OUT_OF_SCOPE:

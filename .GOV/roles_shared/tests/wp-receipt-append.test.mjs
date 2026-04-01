@@ -1,10 +1,42 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { deriveWpScopeContract } from "../scripts/lib/scope-surface-lib.mjs";
 import {
   deriveReviewNotificationTargets,
   summarizeCommittedCoderHandoffDirtyState,
 } from "../scripts/wp/wp-receipt-append.mjs";
+import { recordReviewExchange } from "../scripts/wp/wp-review-exchange.mjs";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+
+function writeReviewExchangePacket(packetDir, wpId, commDir) {
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(packetDir, "packet.md"),
+    [
+      `# Task Packet: ${wpId}`,
+      "",
+      "**Status:** In Progress",
+      "",
+      "## METADATA",
+      `- WP_ID: ${wpId}`,
+      `- WP_RECEIPTS_FILE: ${path.join(commDir, "RECEIPTS.jsonl").replace(/\\/g, "/")}`,
+      `- WP_RUNTIME_STATUS_FILE: ${path.join(commDir, "RUNTIME_STATUS.json").replace(/\\/g, "/")}`,
+      `- WP_THREAD_FILE: ${path.join(commDir, "THREAD.md").replace(/\\/g, "/")}`,
+      "- LOCAL_BRANCH: feat/test-review-exchange",
+      `- LOCAL_WORKTREE_DIR: ${path.join(commDir, "worktree").replace(/\\/g, "/")}`,
+      "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+      "- PACKET_FORMAT_VERSION: 2026-03-29",
+      "- COMMUNICATION_CONTRACT: v1",
+      "- COMMUNICATION_HEALTH_GATE: REQUIRED",
+    ].join("\n"),
+    "utf8",
+  );
+}
 
 test("validator assessment receipts add an orchestrator governance checkpoint in orchestrator-managed lanes", () => {
   const targets = deriveReviewNotificationTargets({
@@ -99,7 +131,7 @@ test("non-assessment receipts do not add orchestrator checkpoint notifications",
   ]);
 });
 
-test("committed coder handoff dirty-state summary ignores shared governance junction drift but blocks product dirt", () => {
+test("committed coder handoff dirty-state summary ignores governance-only drift and transient proof logs but blocks product dirt", () => {
   const scopeContract = deriveWpScopeContract({
     wpId: "WP-TEST-HANDOFF-v1",
     packetContent: `# Task Packet: WP-TEST-HANDOFF-v1
@@ -115,10 +147,49 @@ test("committed coder handoff dirty-state summary ignores shared governance junc
   });
   const summary = summarizeCommittedCoderHandoffDirtyState([
     " M .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md",
+    " M .GOV/roles_shared/records/TASK_BOARD.md",
+    "?? tmp-test-proof.log",
     " M src/demo.rs",
   ].join("\n"), scopeContract);
 
   assert.equal(summary.ok, false);
-  assert.deepEqual(summary.governanceJunctionPaths, [".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md"]);
+  assert.deepEqual(summary.governanceNoisePaths, [
+    ".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md",
+    ".GOV/roles_shared/records/TASK_BOARD.md",
+  ]);
+  assert.deepEqual(summary.transientArtifactPaths, ["tmp-test-proof.log"]);
   assert.deepEqual(summary.blockingPaths, ["src/demo.rs (IN_SCOPE)"]);
+});
+
+test("review exchange preflight blocks invalid direct-review receipts before thread append", () => {
+  const wpId = "WP-TEST-REVIEW-EXCHANGE-PREFLIGHT";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-review-exchange-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const threadPath = path.join(commDir, "THREAD.md");
+
+  fs.writeFileSync(receiptsPath, "", "utf8");
+  writeReviewExchangePacket(packetDir, wpId, commDir);
+
+  try {
+    assert.throws(
+      () => recordReviewExchange({
+        receiptKind: "REVIEW_REQUEST",
+        wpId,
+        actorRole: "CODER",
+        actorSession: "coder-test",
+        targetRole: "INTEGRATION_VALIDATOR",
+        targetSession: null,
+        summary: "Requesting final integration review.",
+        correlationId: "review-request-test",
+      }),
+      /target_session is required for REVIEW_REQUEST/,
+    );
+
+    assert.equal(fs.existsSync(threadPath), false);
+    assert.equal(fs.readFileSync(receiptsPath, "utf8"), "");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
 });

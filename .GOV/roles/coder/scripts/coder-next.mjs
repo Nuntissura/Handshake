@@ -26,6 +26,9 @@ import { REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   classifyWpChangedPath,
   deriveWpScopeContract,
+  isGovernanceOnlyPath,
+  isTransientProofArtifactPath,
+  normalizeRepoPath,
 } from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
 import {
   deriveCoderResumeState,
@@ -81,18 +84,22 @@ function summarizeDirtyTree(statusPorcelain, scopeContract) {
   const summary = {
     changedPaths,
     dirty: changedPaths.length > 0,
-    governanceJunction: [],
+    governanceNoise: [],
     governanceCompanion: [],
+    transientArtifacts: [],
     inScope: [],
     outOfScope: [],
   };
 
   for (const changedPath of changedPaths) {
     const classification = classifyWpChangedPath(changedPath, scopeContract);
-    if (classification.kind === "GOVERNANCE_JUNCTION_DRIFT") {
-      summary.governanceJunction.push(classification.path);
-    } else if (classification.kind === "GOVERNANCE_COMPANION") {
+    const normalizedPath = normalizeRepoPath(changedPath) || changedPath;
+    if (classification.kind === "GOVERNANCE_COMPANION") {
       summary.governanceCompanion.push(classification.path);
+    } else if (isTransientProofArtifactPath(normalizedPath)) {
+      summary.transientArtifacts.push(normalizedPath);
+    } else if (isGovernanceOnlyPath(normalizedPath)) {
+      summary.governanceNoise.push(normalizedPath);
     } else if (classification.allowed) {
       summary.inScope.push(classification.path);
     } else {
@@ -144,15 +151,20 @@ const dirtyTreeFinding = !dirtyTree
   ? "Working tree dirty: no"
   : dirtySummary.outOfScope.length > 0
     ? `Working tree dirty: yes (${dirtySummary.outOfScope.length} out-of-scope path(s) require correction)`
-    : dirtySummary.governanceJunction.length > 0
-      ? `Working tree dirty: yes (shared .GOV junction drift only across ${dirtySummary.governanceJunction.length} path(s))`
+    : dirtySummary.inScope.length + dirtySummary.governanceCompanion.length > 0
+      ? `Working tree dirty: yes (${dirtySummary.inScope.length + dirtySummary.governanceCompanion.length} packet-scoped path(s))`
+      : dirtySummary.governanceNoise.length + dirtySummary.transientArtifacts.length > 0
+        ? `Working tree dirty: yes (governance/proof noise only across ${dirtySummary.governanceNoise.length + dirtySummary.transientArtifacts.length} path(s))`
       : `Working tree dirty: yes (${dirtySummary.inScope.length + dirtySummary.governanceCompanion.length} packet-scoped path(s))`;
 const dirtyNoiseFindings = [
-  dirtySummary.governanceJunction.length > 0
-    ? `Shared .GOV junction drift: ${dirtySummary.governanceJunction.length} path(s) treated as read-only noise by default`
+  dirtySummary.governanceNoise.length > 0
+    ? `Governance-only drift: ${dirtySummary.governanceNoise.length} path(s) treated as non-blocking noise by default`
     : "",
   dirtySummary.governanceCompanion.length > 0
     ? `Governance companion paths touched: ${dirtySummary.governanceCompanion.length} (${dirtySummary.governanceCompanion.slice(0, 3).join(", ")})`
+    : "",
+  dirtySummary.transientArtifacts.length > 0
+    ? `Transient proof artifacts present: ${dirtySummary.transientArtifacts.length} (${dirtySummary.transientArtifacts.slice(0, 3).join(", ")})`
     : "",
   dirtySummary.outOfScope.length > 0
     ? `Out-of-scope changes detected: ${dirtySummary.outOfScope.slice(0, 3).join(", ")}`

@@ -15,6 +15,8 @@ import {
   classifyWpChangedPath,
   deriveWpScopeContract,
   formatBoundedItemList,
+  isGovernanceOnlyPath,
+  isTransientProofArtifactPath,
   normalizeRepoPath,
   parsePacketSingleField,
   parsePacketScopeDiscipline,
@@ -708,12 +710,18 @@ if (manifests) {
   const shaRegex = /^[a-f0-9]{40}$/i;
   const evaluatedScopeViolations = [];
   const branchLocalScopeViolations = [];
-  const junctionDriftWarnings = [];
+  const governanceNoiseWarnings = [];
+  const transientArtifactWarnings = [];
 
   for (const changedFile of changedFiles) {
     const classification = classifyWpChangedPath(changedFile, scopeContract);
-    if (classification.kind === 'GOVERNANCE_JUNCTION_DRIFT') {
-      junctionDriftWarnings.push(classification.path);
+    const normalizedPath = normalizeRepoPath(changedFile) || changedFile;
+    if (isTransientProofArtifactPath(normalizedPath)) {
+      transientArtifactWarnings.push(normalizedPath);
+      continue;
+    }
+    if (isGovernanceOnlyPath(normalizedPath)) {
+      governanceNoiseWarnings.push(normalizedPath);
       continue;
     }
     if (!classification.allowed) {
@@ -723,8 +731,13 @@ if (manifests) {
 
   for (const changedFile of branchLocalChangedFiles) {
     const classification = classifyWpChangedPath(changedFile, scopeContract);
-    if (classification.kind === 'GOVERNANCE_JUNCTION_DRIFT') {
-      junctionDriftWarnings.push(classification.path);
+    const normalizedPath = normalizeRepoPath(changedFile) || changedFile;
+    if (isTransientProofArtifactPath(normalizedPath)) {
+      transientArtifactWarnings.push(normalizedPath);
+      continue;
+    }
+    if (isGovernanceOnlyPath(normalizedPath)) {
+      governanceNoiseWarnings.push(normalizedPath);
       continue;
     }
     if (!classification.allowed) {
@@ -734,7 +747,8 @@ if (manifests) {
 
   const uniqueEvaluatedViolations = Array.from(new Set(evaluatedScopeViolations));
   const uniqueBranchLocalViolations = Array.from(new Set(branchLocalScopeViolations));
-  const uniqueJunctionWarnings = Array.from(new Set(junctionDriftWarnings));
+  const uniqueGovernanceNoiseWarnings = Array.from(new Set(governanceNoiseWarnings));
+  const uniqueTransientArtifactWarnings = Array.from(new Set(transientArtifactWarnings));
 
   if (uniqueEvaluatedViolations.length > 0 && !hasGitWaiver) {
     errors.push(`Out-of-scope files in the evaluated diff: ${formatBoundedItemList(uniqueEvaluatedViolations, { noun: 'entry' })}`);
@@ -748,8 +762,12 @@ if (manifests) {
     warnings.push(`Branch-local scope drift detected but waiver present [CX-573F]: ${formatBoundedItemList(uniqueBranchLocalViolations, { noun: 'entry' })}`);
   }
 
-  if (uniqueJunctionWarnings.length > 0) {
-    warnings.push(`Shared .GOV junction drift visible in this worktree (not counted as WP evidence): ${formatBoundedItemList(uniqueJunctionWarnings, { noun: 'path' })}`);
+  if (uniqueGovernanceNoiseWarnings.length > 0) {
+    warnings.push(`Governance-only drift visible in this worktree (not counted as WP evidence): ${formatBoundedItemList(uniqueGovernanceNoiseWarnings, { noun: 'path' })}`);
+  }
+
+  if (uniqueTransientArtifactWarnings.length > 0) {
+    warnings.push(`Transient proof artifacts visible in this worktree (not counted as WP evidence): ${formatBoundedItemList(uniqueTransientArtifactWarnings, { noun: 'path' })}`);
   }
 
   if (enforceScopeDiscipline) {

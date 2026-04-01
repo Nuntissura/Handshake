@@ -171,8 +171,8 @@ Requirements:
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
-Blockers: WP validator review requires coder remediation; see the latest VALIDATOR_REVIEW receipt for authoritative findings.
-Next: CODER repairs against the latest VALIDATOR_REVIEW, commits the reviewable state, and re-records CODER_HANDOFF with proof.
+Blockers: Open review items still block verdict progression; see WP communications for the authoritative pending item.
+Next: INTEGRATION_VALIDATOR resolves the pending review item and records the matching response receipt.
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
@@ -548,13 +548,14 @@ Export schemas (normative; role_mailbox_export_v1):
 - GUI_ENGINEERING_TRICKS_TO_CARRY:
   - NONE
 ## SCOPE
-- What: Complete the explicit project-profile extension registry and propagate the base-envelope versus `profile_extension` boundary through Work Packet, Micro-Task, Task Board, and Role Mailbox emitted artifacts, including generic-fallback proof and one non-software example.
+- What: Complete the explicit project-profile extension registry and propagate the base-envelope versus `profile_extension` boundary through Work Packet, Micro-Task, Task Board, Role Mailbox, and the coupled tracked micro-task progress payload needed to keep emitted progress artifacts consistent, including generic-fallback proof and one non-software example.
 - Why: Current product code over-credits partial envelope plumbing as if the registry were done. Downstream portable workflow-law work remains unsafe until registry, projection, and export truth are aligned end-to-end.
 - IN_SCOPE_PATHS:
   - src/backend/handshake_core/src/locus/types.rs
   - src/backend/handshake_core/src/locus/task_board.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/role_mailbox.rs
+  - src/backend/handshake_core/src/storage/locus_sqlite.rs
   - src/backend/handshake_core/tests/micro_task_executor_tests.rs
   - src/backend/handshake_core/tests/role_mailbox_tests.rs
 - OUT_OF_SCOPE:
@@ -562,7 +563,7 @@ Export schemas (normative; role_mailbox_export_v1):
   - Full Dev Command Center frontend or typed-viewer implementation
   - Main Body or appendix spec updates
   - Loom storage portability or runtime-backend refactors
-- TOUCHED_FILE_BUDGET: 6
+- TOUCHED_FILE_BUDGET: 7
 <!-- Max unique in-scope files allowed in the evaluated diff. Raise intentionally before coding if the packet truly needs broader edit spread. -->
 - BROAD_TOOL_ALLOWLIST: NONE
 <!-- Allowed: NONE | FORMATTER | CODEGEN | SEARCH_REPLACE | MIGRATION_REWRITE -->

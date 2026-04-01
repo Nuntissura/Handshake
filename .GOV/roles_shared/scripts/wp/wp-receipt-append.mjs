@@ -22,6 +22,9 @@ import {
   classifyWpChangedPath,
   deriveWpScopeContract,
   formatBoundedItemList,
+  isGovernanceOnlyPath,
+  isTransientProofArtifactPath,
+  normalizeRepoPath,
 } from "../lib/scope-surface-lib.mjs";
 import {
   buildPostWorkCommand,
@@ -149,21 +152,28 @@ function runInWorktree(worktreeAbs, command, args) {
 
 export function summarizeCommittedCoderHandoffDirtyState(statusPorcelain, scopeContract) {
   const changedPaths = parseChangedPaths(statusPorcelain);
-  const governanceJunctionPaths = [];
+  const governanceNoisePaths = [];
+  const transientArtifactPaths = [];
   const blockingPaths = [];
 
   for (const changedPath of changedPaths) {
-    const classification = classifyWpChangedPath(changedPath, scopeContract);
-    if (classification.kind === "GOVERNANCE_JUNCTION_DRIFT") {
-      governanceJunctionPaths.push(classification.path);
+    const normalizedPath = normalizeRepoPath(changedPath) || changedPath;
+    if (isTransientProofArtifactPath(normalizedPath)) {
+      transientArtifactPaths.push(normalizedPath);
       continue;
     }
+    if (isGovernanceOnlyPath(normalizedPath)) {
+      governanceNoisePaths.push(normalizedPath);
+      continue;
+    }
+    const classification = classifyWpChangedPath(changedPath, scopeContract);
     blockingPaths.push(`${classification.path} (${classification.kind})`);
   }
 
   return {
     changedPaths,
-    governanceJunctionPaths,
+    governanceNoisePaths,
+    transientArtifactPaths,
     blockingPaths,
     ok: blockingPaths.length === 0,
   };
@@ -176,9 +186,14 @@ function formatCommittedCoderHandoffFailure(summary = {}) {
       `blocking_paths=${formatBoundedItemList(summary.blockingPaths, { noun: "entry" })}`,
     );
   }
-  if ((summary.governanceJunctionPaths || []).length > 0) {
+  if ((summary.governanceNoisePaths || []).length > 0) {
     detailLines.push(
-      `shared_gov_junction_drift=${formatBoundedItemList(summary.governanceJunctionPaths, { noun: "path" })}`,
+      `governance_noise=${formatBoundedItemList(summary.governanceNoisePaths, { noun: "path" })}`,
+    );
+  }
+  if ((summary.transientArtifactPaths || []).length > 0) {
+    detailLines.push(
+      `transient_artifacts=${formatBoundedItemList(summary.transientArtifactPaths, { noun: "path" })}`,
     );
   }
   return detailLines;
@@ -188,6 +203,49 @@ function committedCoderHandoffGateApplies({ context, actorRole, receiptKind }) {
   return normalizeRole(context?.workflowLane) === "ORCHESTRATOR_MANAGED"
     && normalizeRole(actorRole) === "CODER"
     && normalizeReceiptKind(receiptKind) === "CODER_HANDOFF";
+}
+
+function buildReceiptValidationEntry({
+  args = {},
+  context,
+  runtimeStatus = null,
+  timestamp = null,
+} = {}) {
+  const { authorityKind, validatorRoleKind } = deriveAuthorityKinds({
+    actorRole: args?.actorRole,
+    actorSession: args?.actorSession,
+    runtimeStatus,
+  });
+  const entry = {
+    schema_version: "wp_receipt@1",
+    timestamp_utc: String(timestamp || args?.timestamp || new Date().toISOString()),
+    wp_id: String(args?.wpId || "").trim(),
+    actor_role: String(args?.actorRole || "").trim().toUpperCase(),
+    actor_session: String(args?.actorSession || "").trim(),
+    actor_authority_kind: authorityKind,
+    validator_role_kind: validatorRoleKind,
+    receipt_kind: String(args?.receiptKind || "").trim().toUpperCase(),
+    summary: String(args?.summary || "").trim(),
+    branch: args?.branch === undefined ? context.branch : nullableValue(args?.branch),
+    worktree_dir: args?.worktreeDir === undefined ? context.worktreeDir : nullableValue(args?.worktreeDir),
+    state_before: nullableValue(args?.stateBefore),
+    state_after: nullableValue(args?.stateAfter),
+    target_role: nullableValue(args?.targetRole),
+    target_session: nullableValue(args?.targetSession),
+    correlation_id: nullableValue(args?.correlationId),
+    requires_ack: Boolean(args?.requiresAck),
+    ack_for: nullableValue(args?.ackFor),
+    spec_anchor: nullableValue(args?.specAnchor),
+    packet_row_ref: nullableValue(args?.packetRowRef),
+    microtask_contract: args?.microtaskContract && typeof args?.microtaskContract === "object" ? args.microtaskContract : null,
+    workflow_invalidity_code: nullableValue(normalizeWorkflowInvalidityCode(args?.workflowInvalidityCode)),
+    refs: [context.packetPath, ...(Array.isArray(args?.refs) ? args.refs : []).filter(Boolean).map((value) => normalize(value))],
+  };
+
+  if (context.runtimeStatusFile && !entry.refs.includes(context.runtimeStatusFile)) entry.refs.push(context.runtimeStatusFile);
+  if (context.threadFile && !entry.refs.includes(context.threadFile)) entry.refs.push(context.threadFile);
+  if (!entry.refs.includes(context.receiptsFile)) entry.refs.push(context.receiptsFile);
+  return entry;
 }
 
 function appendNotificationTarget(targets, seenTargets, target) {
@@ -419,6 +477,9 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
   }
 
   const context = options.context || loadPacketContext(wpId);
+  const runtimeStatus = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
+    ? parseJsonFile(context.runtimeStatusFile)
+    : null;
   if (
     !options.skipCommittedCoderHandoffGate
     && committedCoderHandoffGateApplies({
@@ -430,7 +491,17 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
     assertCommittedCoderHandoffPreflight({ wpId, context });
   }
 
-  return { context };
+  const entry = buildReceiptValidationEntry({
+    args,
+    context,
+    runtimeStatus,
+  });
+  const errors = validateReceipt(entry);
+  if (errors.length > 0) {
+    throw new Error(`Receipt validation failed: ${errors.join("; ")}`);
+  }
+
+  return { context, runtimeStatus, entry };
 }
 
 function appendReviewNotifications({ wpId, workflowLane, entry, autoRoute }) {
@@ -598,8 +669,8 @@ function appendWpReceiptCore({
     throw new Error("WP_ID is required");
   }
 
-  const { context } = options.skipPreflight
-    ? { context: loadPacketContext(WP_ID) }
+  const preflight = options.skipPreflight
+    ? null
     : validateWpReceiptAppendPreconditions({
       wpId,
       actorRole,
@@ -622,44 +693,41 @@ function appendWpReceiptCore({
       microtaskContract,
       workflowInvalidityCode,
     });
-  let runtimeStatus = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
-    ? parseJsonFile(context.runtimeStatusFile)
-    : null;
+  const context = preflight?.context || loadPacketContext(WP_ID);
+  let runtimeStatus = preflight?.runtimeStatus;
+  if (runtimeStatus === undefined) {
+    runtimeStatus = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
+      ? parseJsonFile(context.runtimeStatusFile)
+      : null;
+  }
   const reviewTrackedReceipt = REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(String(receiptKind || "").trim().toUpperCase());
-  const { authorityKind, validatorRoleKind } = deriveAuthorityKinds({
-    actorRole,
-    actorSession,
+  const entry = buildReceiptValidationEntry({
+    args: {
+      wpId: WP_ID,
+      actorRole,
+      actorSession,
+      receiptKind,
+      summary,
+      stateBefore,
+      stateAfter,
+      refs,
+      branch,
+      worktreeDir,
+      timestamp,
+      targetRole,
+      targetSession,
+      correlationId,
+      requiresAck,
+      ackFor,
+      specAnchor,
+      packetRowRef,
+      microtaskContract,
+      workflowInvalidityCode,
+    },
+    context,
     runtimeStatus,
+    timestamp,
   });
-  const entry = {
-    schema_version: "wp_receipt@1",
-    timestamp_utc: String(timestamp || new Date().toISOString()),
-    wp_id: WP_ID,
-    actor_role: String(actorRole || "").trim().toUpperCase(),
-    actor_session: String(actorSession || "").trim(),
-    actor_authority_kind: authorityKind,
-    validator_role_kind: validatorRoleKind,
-    receipt_kind: String(receiptKind || "").trim().toUpperCase(),
-    summary: String(summary || "").trim(),
-    branch: branch === undefined ? context.branch : nullableValue(branch),
-    worktree_dir: worktreeDir === undefined ? context.worktreeDir : nullableValue(worktreeDir),
-    state_before: nullableValue(stateBefore),
-    state_after: nullableValue(stateAfter),
-    target_role: nullableValue(targetRole),
-    target_session: nullableValue(targetSession),
-    correlation_id: nullableValue(correlationId),
-    requires_ack: Boolean(requiresAck),
-    ack_for: nullableValue(ackFor),
-    spec_anchor: nullableValue(specAnchor),
-    packet_row_ref: nullableValue(packetRowRef),
-    microtask_contract: microtaskContract && typeof microtaskContract === "object" ? microtaskContract : null,
-    workflow_invalidity_code: nullableValue(normalizeWorkflowInvalidityCode(workflowInvalidityCode)),
-    refs: [context.packetPath, ...refs.filter(Boolean).map((value) => normalize(value))],
-  };
-
-  if (context.runtimeStatusFile && !entry.refs.includes(context.runtimeStatusFile)) entry.refs.push(context.runtimeStatusFile);
-  if (context.threadFile && !entry.refs.includes(context.threadFile)) entry.refs.push(context.threadFile);
-  if (!entry.refs.includes(context.receiptsFile)) entry.refs.push(context.receiptsFile);
 
   const errors = validateReceipt(entry);
   if (errors.length > 0) {
