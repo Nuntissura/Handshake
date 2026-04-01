@@ -31,6 +31,17 @@
         "target_session": "wpv-1"
       },
       {
+        "timestamp_utc": "2026-03-21T10:06:00Z",
+        "receipt_kind": "VALIDATOR_RESPONSE",
+        "actor_role": "WP_VALIDATOR",
+        "target_role": "CODER",
+        "correlation_id": "kick-1",
+        "ack_for": "kick-1",
+        "summary": "Bootstrap and skeleton cleared; proceed.",
+        "actor_session": "wpv-1",
+        "target_session": "coder-1"
+      },
+      {
         "timestamp_utc": "2026-03-21T11:00:00Z",
         "receipt_kind": "CODER_HANDOFF",
         "actor_role": "CODER",

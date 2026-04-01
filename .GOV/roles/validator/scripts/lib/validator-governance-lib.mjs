@@ -3,7 +3,11 @@ import path from "node:path";
 import { evaluateComputedPolicyGateFromPacketText } from "../../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
 import { parseClaimField } from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { GOV_ROOT_ABS, normalizePath, REPO_ROOT, repoPathAbs } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
-import { evaluateWpCommunicationHealth, deriveLatestValidatorAssessment } from "../../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import {
+  evaluateWpCommunicationHealth,
+  deriveLatestValidatorAssessment,
+  isOverlapMicrotaskReviewItem,
+} from "../../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { loadSessionRegistry } from "../../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
@@ -30,6 +34,12 @@ function repoRelativeFileExists(filePath = "") {
   } catch {
     return false;
   }
+}
+
+function normalizeSession(value) {
+  const raw = String(value || "").trim();
+  if (!raw || /^<unassigned>$/i.test(raw)) return null;
+  return raw || null;
 }
 
 export function normalizeValidatorRole(value) {
@@ -128,6 +138,23 @@ function validatorReadyMessage(actorRole, waitingOn, communicationState = null) 
   return "Validator lane is the projected next actor for the current governed validation step.";
 }
 
+function parallelMicrotaskReviewItems(actorRole, communicationState = null) {
+  const normalizedRole = normalizeValidatorRole(actorRole);
+  if (normalizedRole !== "WP_VALIDATOR") return [];
+  const runtimeStatus = communicationState?.runtimeStatus || {};
+  const actorSession = normalizeSession(runtimeStatus?.wp_validator_of_record)
+    || normalizeSession(
+      (Array.isArray(runtimeStatus?.active_role_sessions) ? runtimeStatus.active_role_sessions : [])
+        .find((entry) => normalizeValidatorRole(entry?.role) === normalizedRole)?.session_id,
+    );
+  return (Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : []).filter((item) => {
+    if (!isOverlapMicrotaskReviewItem(item)) return false;
+    const targetSession = String(item?.target_session || "").trim();
+    if (!targetSession || !actorSession) return true;
+    return targetSession === actorSession;
+  });
+}
+
 function blockedValidatorMessage(actorRole, nextExpectedActor, waitingOn, communicationState = null) {
   const normalizedRole = normalizeValidatorRole(actorRole);
   const nextActor = normalizeValidatorRole(nextExpectedActor);
@@ -193,11 +220,13 @@ export function deriveValidatorResumeState({
   const waitingOn = String(communicationState?.runtimeStatus?.waiting_on || "").trim();
   const latestAssessment = communicationState?.latestValidatorAssessment || null;
   const communicationApplicable = Boolean(communicationState?.communicationEvaluation?.applicable);
+  const overlapQueue = parallelMicrotaskReviewItems(normalizedRole, communicationState);
 
   if (!["WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(normalizedRole) || !communicationApplicable) {
     return {
       ready: false,
       blockedByRoute: false,
+      parallelReviewReady: false,
       nextExpectedActor,
       waitingOn,
       latestAssessment,
@@ -209,6 +238,7 @@ export function deriveValidatorResumeState({
     return {
       ready: true,
       blockedByRoute: false,
+      parallelReviewReady: false,
       nextExpectedActor,
       waitingOn,
       latestAssessment,
@@ -216,10 +246,23 @@ export function deriveValidatorResumeState({
     };
   }
 
+  if (overlapQueue.length > 0) {
+    return {
+      ready: true,
+      blockedByRoute: false,
+      parallelReviewReady: true,
+      nextExpectedActor,
+      waitingOn,
+      latestAssessment,
+      message: `Parallel microtask review queue is available for WP validator while ${nextExpectedActor || "CODER"} continues implementation.`,
+    };
+  }
+
   if (nextExpectedActor) {
     return {
       ready: false,
       blockedByRoute: true,
+      parallelReviewReady: false,
       nextExpectedActor,
       waitingOn,
       latestAssessment,
@@ -230,6 +273,7 @@ export function deriveValidatorResumeState({
   return {
     ready: false,
     blockedByRoute: false,
+    parallelReviewReady: false,
     nextExpectedActor,
     waitingOn,
     latestAssessment,
@@ -401,6 +445,7 @@ export function buildValidatorReadyCommands({
   actorSessionId = "",
   postWorkCommand = "",
   waitingOn = "",
+  parallelReview = false,
 } = {}) {
   const role = normalizeValidatorRole(actorRole);
   if (role === "INTEGRATION_VALIDATOR") {
@@ -417,6 +462,15 @@ export function buildValidatorReadyCommands({
   }
   if (role === "WP_VALIDATOR") {
     const session = actorSessionId || "<wp-validator-session>";
+    if (parallelReview) {
+      return [
+        `just check-notifications ${wpId} WP_VALIDATOR`,
+        `just ack-notifications ${wpId} WP_VALIDATOR ${session}`,
+        `just active-lane-brief WP_VALIDATOR ${wpId}`,
+        `just wp-validator-response ${wpId} WP_VALIDATOR ${session} <coder-session> "<summary>" <correlation_id>`,
+        `just wp-review-exchange VALIDATOR_QUERY ${wpId} WP_VALIDATOR ${session} CODER <coder-session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`,
+      ];
+    }
     if (String(waitingOn || "").trim().toUpperCase() === "WP_VALIDATOR_INTENT_CHECKPOINT") {
       return [
         `just check-notifications ${wpId} WP_VALIDATOR`,

@@ -73,7 +73,7 @@ test("intent checkpoint review projects packet truth into validator-side bootstr
 
   assert.equal(projection.packetStatus, "In Progress");
   assert.equal(projection.taskBoardStatus, "IN_PROGRESS");
-  assert.match(nextPacketText, /WP validator checkpoint clearance/i);
+  assert.match(nextPacketText, /Bootstrap and skeleton clearance now belongs to the WP validator/i);
   assert.equal(runtime.runtime_status, "working");
   assert.equal(runtime.current_phase, "BOOTSTRAP");
 });

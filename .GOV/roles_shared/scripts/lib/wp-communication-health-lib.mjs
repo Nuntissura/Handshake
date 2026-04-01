@@ -4,6 +4,7 @@ import {
   DIRECT_REVIEW_CONTRACT_VERSION,
   DIRECT_REVIEW_HEALTH_GATE,
   FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION,
+  MICROTASK_REVIEW_MODE_VALUES,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
   OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE,
   REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
@@ -39,6 +40,7 @@ export const VALIDATOR_REVIEW_OUTCOME_VALUES = [
   "APPROVED_FOR_FINAL_REVIEW",
 ];
 export const VALIDATOR_ASSESSMENT_VERDICT_VALUES = ["ASSESSED", "FAIL", "PASS"];
+export const MAX_OVERLAP_MICROTASK_REVIEW_ITEMS = 2;
 const INTENT_CHECKPOINT_CLEARANCE_RECEIPT_KIND_VALUES = new Set(["VALIDATOR_RESPONSE", "SPEC_CONFIRMATION"]);
 const CONTRACT_HEAVY_GOVERNED_VALIDATOR_REPORT_PROFILE_VALUES = new Set([
   "SPLIT_DIFF_SCOPED_RIGOR_V2",
@@ -76,6 +78,35 @@ function parseListField(value) {
   return Array.isArray(value)
     ? value.map((entry) => String(entry || "").trim()).filter(Boolean)
     : [];
+}
+
+function normalizeMicrotaskReviewMode(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  return MICROTASK_REVIEW_MODE_VALUES.includes(normalized) ? normalized : "BLOCKING";
+}
+
+export function isOverlapMicrotaskReviewItem(item = null) {
+  return normalizeReceiptKind(item?.receipt_kind) === "REVIEW_REQUEST"
+    && normalizeRole(item?.opened_by_role) === "CODER"
+    && normalizeRole(item?.target_role) === "WP_VALIDATOR"
+    && normalizeMicrotaskReviewMode(item?.microtask_contract?.review_mode) === "OVERLAP";
+}
+
+function partitionOpenReviewItems(openReviewItems = []) {
+  const overlapQueue = [];
+  const blockingQueue = [];
+  for (const item of Array.isArray(openReviewItems) ? openReviewItems : []) {
+    if (isOverlapMicrotaskReviewItem(item)) {
+      overlapQueue.push(item);
+      continue;
+    }
+    blockingQueue.push(item);
+  }
+  return {
+    overlapQueue,
+    blockingQueue,
+    exceedsOverlapLimit: overlapQueue.length > MAX_OVERLAP_MICROTASK_REVIEW_ITEMS,
+  };
 }
 
 function isVersionAtLeast(current, minimum) {
@@ -203,6 +234,7 @@ function summarizeIntentCheckpointRequirement({
   const missingSignedSurfaces = inScopePaths.filter((entry) => !fileTargets.includes(normalizeRepoPath(entry)));
   const reasons = [];
 
+  reasons.push("bootstrap_skeleton_validator_gate");
   if (contractHeavy) reasons.push("contract_heavy_packet");
   if (!intentContract && (contractHeavy || hasSignedSurface)) reasons.push("intent_missing_microtask_contract");
   if (hasSignedSurface && fileTargets.length === 0) reasons.push("intent_missing_file_targets");
@@ -212,9 +244,9 @@ function summarizeIntentCheckpointRequirement({
   }
 
   return {
-    required: contractHeavy || reasons.some((entry) => !entry.startsWith("contract_heavy_packet")),
+    required: true,
     contractHeavy,
-    underSpecified: reasons.some((entry) => !entry.startsWith("contract_heavy_packet")),
+    underSpecified: reasons.some((entry) => !["contract_heavy_packet", "bootstrap_skeleton_validator_gate"].includes(entry)),
     reasons,
   };
 }
@@ -308,6 +340,8 @@ function buildBaseDetails({
   integrationFinalOpenReceipts = [],
   integrationFinalResolutionReceipts = [],
   openReviewItems = [],
+  blockingOpenReviewItems = [],
+  overlapOpenReviewItems = [],
   workflowInvalidities = [],
 } = {}) {
   return [
@@ -322,6 +356,8 @@ function buildBaseDetails({
     `integration_final_open=${integrationFinalOpenReceipts.length}`,
     `integration_final_resolution=${integrationFinalResolutionReceipts.length}`,
     `open_review_items=${openReviewItems.length}`,
+    `blocking_open_review_items=${blockingOpenReviewItems.length}`,
+    `overlap_open_review_items=${overlapOpenReviewItems.length}`,
     `workflow_invalidities=${workflowInvalidities.length}`,
   ];
 }
@@ -403,6 +439,7 @@ export function evaluateWpCommunicationHealth({
   }
 
   const openReviewItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
+  const openReviewPartition = partitionOpenReviewItems(openReviewItems);
   const workflowInvalidities = workflowInvalidityReceipts(receipts);
   const activeWorkflowInvalidity = activeWorkflowInvalidityReceipt(receipts);
   const validatorKickoffs = receiptFilter(receipts, {
@@ -471,6 +508,8 @@ export function evaluateWpCommunicationHealth({
     integrationFinalOpenReceipts,
     integrationFinalResolutionReceipts,
     openReviewItems,
+    blockingOpenReviewItems: openReviewPartition.blockingQueue,
+    overlapOpenReviewItems: openReviewPartition.overlapQueue,
     workflowInvalidities,
   });
   const counts = {
@@ -482,11 +521,38 @@ export function evaluateWpCommunicationHealth({
     integrationFinalOpenReceipts: integrationFinalOpenReceipts.length,
     integrationFinalResolutionReceipts: integrationFinalResolutionReceipts.length,
     openReviewItems: openReviewItems.length,
+    blockingOpenReviewItems: openReviewPartition.blockingQueue.length,
+    overlapOpenReviewItems: openReviewPartition.overlapQueue.length,
   };
   const correlations = {
     kickoff: kickoffIntentPair.openReceipt?.correlation_id || null,
     handoff: handoffReviewPair.openReceipt?.correlation_id || null,
     finalReview: integrationFinalPair.openReceipt?.correlation_id || null,
+  };
+  const blockingOpenReviewResult = () => {
+    const blockingItems = openReviewPartition.blockingQueue.length > 0
+      ? openReviewPartition.blockingQueue
+      : openReviewPartition.overlapQueue;
+    return result({
+      applicable: true,
+      ok: false,
+      state: "COMM_BLOCKED_OPEN_ITEMS",
+      message: openReviewPartition.exceedsOverlapLimit
+        ? "Overlap microtask review backlog exceeded the bounded validator queue"
+        : "Open review items still block direct review progression",
+      details: [
+        ...details,
+        ...(openReviewPartition.exceedsOverlapLimit
+          ? [`overlap_backpressure_limit=${MAX_OVERLAP_MICROTASK_REVIEW_ITEMS}`]
+          : []),
+        ...blockingItems.map((entry) =>
+          `open_review_item=${entry.receipt_kind}:${entry.correlation_id}:${entry.summary}`
+        ),
+      ],
+      counts,
+      correlations,
+      latestWpValidatorReviewOutcome,
+    });
   };
 
   if (activeWorkflowInvalidity) {
@@ -531,22 +597,8 @@ export function evaluateWpCommunicationHealth({
         correlations,
       });
     }
-    if (openReviewItems.length > 0) {
-      return result({
-        applicable: true,
-        ok: false,
-        state: "COMM_BLOCKED_OPEN_ITEMS",
-        message: "Open review items still block direct review progression",
-        details: [
-          ...details,
-          ...openReviewItems.map((entry) =>
-            `open_review_item=${entry.receipt_kind}:${entry.correlation_id}:${entry.summary}`
-          ),
-        ],
-        counts,
-        correlations,
-        latestWpValidatorReviewOutcome,
-      });
+    if (openReviewPartition.blockingQueue.length > 0 || openReviewPartition.exceedsOverlapLimit) {
+      return blockingOpenReviewResult();
     }
     if (intentCheckpoint.required && !intentCheckpointClearance) {
       return result({
@@ -602,22 +654,8 @@ export function evaluateWpCommunicationHealth({
         latestWpValidatorReviewOutcome,
       });
     }
-    if (openReviewItems.length > 0) {
-      return result({
-        applicable: true,
-        ok: false,
-        state: "COMM_BLOCKED_OPEN_ITEMS",
-        message: "Open review items still block direct review progression",
-        details: [
-          ...details,
-          ...openReviewItems.map((entry) =>
-            `open_review_item=${entry.receipt_kind}:${entry.correlation_id}:${entry.summary}`
-          ),
-        ],
-        counts,
-        correlations,
-        latestWpValidatorReviewOutcome,
-      });
+    if (openReviewPartition.blockingQueue.length > 0 || openReviewPartition.exceedsOverlapLimit) {
+      return blockingOpenReviewResult();
     }
     if (requiresFinalAuthorityDirectReview(packetFormatVersion) && !integrationFinalPair.reply) {
       return result({
@@ -682,22 +720,8 @@ export function evaluateWpCommunicationHealth({
     });
   }
 
-  if (openReviewItems.length > 0) {
-    return result({
-      applicable: true,
-      ok: false,
-      state: "COMM_BLOCKED_OPEN_ITEMS",
-      message: "Open review items still block direct review progression",
-      details: [
-        ...details,
-        ...openReviewItems.map((entry) =>
-          `open_review_item=${entry.receipt_kind}:${entry.correlation_id}:${entry.summary}`
-        ),
-      ],
-      counts,
-      correlations,
-      latestWpValidatorReviewOutcome,
-    });
+  if (openReviewPartition.blockingQueue.length > 0 || openReviewPartition.exceedsOverlapLimit) {
+    return blockingOpenReviewResult();
   }
 
   if (intentCheckpoint.required && !intentCheckpointClearance) {
@@ -783,22 +807,8 @@ export function evaluateWpCommunicationHealth({
     });
   }
 
-  if (openReviewItems.length > 0) {
-    return result({
-      applicable: true,
-      ok: false,
-      state: "COMM_BLOCKED_OPEN_ITEMS",
-      message: "Open review items still block direct review progression",
-      details: [
-        ...details,
-        ...openReviewItems.map((entry) =>
-          `open_review_item=${entry.receipt_kind}:${entry.correlation_id}:${entry.summary}`
-        ),
-      ],
-      counts,
-      correlations,
-      latestWpValidatorReviewOutcome,
-    });
+  if (openReviewPartition.blockingQueue.length > 0 || openReviewPartition.exceedsOverlapLimit) {
+    return blockingOpenReviewResult();
   }
 
   return result({
@@ -958,10 +968,10 @@ export function deriveWpCommunicationAutoRoute({
         waitingOn: "WP_VALIDATOR_INTENT_CHECKPOINT",
         waitingOnSession: wpValidatorSession,
         validatorTrigger: "BLOCKED_NEEDS_VALIDATOR",
-        validatorTriggerReason: "Coder intent recorded; WP validator checkpoint review is required before full handoff",
+        validatorTriggerReason: "Coder intent recorded; WP validator must clear bootstrap/skeleton intent review before implementation or full handoff",
         readyForValidation: true,
-        readyForValidationReason: "Coder intent recorded; WP validator checkpoint review is required before full handoff",
-        notificationSummary: "AUTO_ROUTE: WP validator checkpoint review required after coder intent",
+        readyForValidationReason: "Coder intent recorded; WP validator must clear bootstrap/skeleton intent review before implementation or full handoff",
+        notificationSummary: "AUTO_ROUTE: WP validator bootstrap/skeleton checkpoint review required after coder intent",
       });
       break;
     case "COMM_WAITING_FOR_HANDOFF":

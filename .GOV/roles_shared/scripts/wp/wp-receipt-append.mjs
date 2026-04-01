@@ -38,6 +38,8 @@ import {
   deriveLatestValidatorAssessment,
   deriveWpCommunicationAutoRoute,
   evaluateWpCommunicationHealth,
+  isOverlapMicrotaskReviewItem,
+  MAX_OVERLAP_MICROTASK_REVIEW_ITEMS,
 } from "../lib/wp-communication-health-lib.mjs";
 import {
   applyWpReviewPacketProjection,
@@ -480,6 +482,11 @@ function assertCommittedCoderHandoffPreflight({ wpId, context }) {
 
 function assertCoderHandoffRoutePreflight({ wpId, context, runtimeStatus }) {
   if (!runtimeStatus || normalizeRole(context?.workflowLane) !== "ORCHESTRATOR_MANAGED") return;
+  const pendingOverlapReviews = (Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [])
+    .filter((item) => isOverlapMicrotaskReviewItem(item));
+  if (pendingOverlapReviews.length > 0) {
+    throw new Error("Governed CODER_HANDOFF rejected: pending overlap microtask reviews must be resolved before full handoff.");
+  }
   const receipts = parseJsonlFile(context.receiptsFile);
   const latestReceipt = receipts.at(-1) || null;
   const evaluation = evaluateWpCommunicationHealth({
@@ -512,6 +519,24 @@ function assertCoderHandoffRoutePreflight({ wpId, context, runtimeStatus }) {
   throw new Error(`Governed CODER_HANDOFF rejected: ${reason}`);
 }
 
+function overlapReviewPreflightApplies({ context, actorRole, receiptKind, targetRole, microtaskContract }) {
+  return normalizeRole(context?.workflowLane) === "ORCHESTRATOR_MANAGED"
+    && normalizeRole(actorRole) === "CODER"
+    && normalizeReceiptKind(receiptKind) === "REVIEW_REQUEST"
+    && normalizeRole(targetRole) === "WP_VALIDATOR"
+    && String(microtaskContract?.review_mode || "").trim().toUpperCase() === "OVERLAP";
+}
+
+function assertOverlapReviewBackpressurePreflight({ runtimeStatus }) {
+  const overlapQueue = (Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [])
+    .filter((item) => isOverlapMicrotaskReviewItem(item));
+  if (overlapQueue.length >= MAX_OVERLAP_MICROTASK_REVIEW_ITEMS) {
+    throw new Error(
+      `Governed REVIEW_REQUEST rejected: overlap microtask review backlog already reached ${MAX_OVERLAP_MICROTASK_REVIEW_ITEMS}; wait for WP validator to drain the queue before opening another parallel review item.`,
+    );
+  }
+}
+
 export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
   const wpId = String(args?.wpId || "").trim();
   if (!wpId || !/^WP-/.test(wpId)) {
@@ -531,6 +556,15 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
       assertCommittedCoderHandoffPreflight({ wpId, context });
     }
     assertCoderHandoffRoutePreflight({ wpId, context, runtimeStatus });
+  }
+  if (overlapReviewPreflightApplies({
+    context,
+    actorRole: args?.actorRole,
+    receiptKind: args?.receiptKind,
+    targetRole: args?.targetRole,
+    microtaskContract: args?.microtaskContract,
+  })) {
+    assertOverlapReviewBackpressurePreflight({ runtimeStatus });
   }
 
   const entry = buildReceiptValidationEntry({

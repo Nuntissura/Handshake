@@ -340,6 +340,23 @@ test("wp-validator ready commands switch to intent-checkpoint guidance when chec
   ]);
 });
 
+test("wp-validator ready commands surface overlap microtask review guidance when parallel review is allowed", () => {
+  const commands = buildValidatorReadyCommands({
+    wpId: "WP-TEST-VALIDATOR-v1",
+    actorRole: "WP_VALIDATOR",
+    actorSessionId: "wpval:test",
+    parallelReview: true,
+  });
+
+  assert.deepEqual(commands, [
+    "just check-notifications WP-TEST-VALIDATOR-v1 WP_VALIDATOR",
+    "just ack-notifications WP-TEST-VALIDATOR-v1 WP_VALIDATOR wpval:test",
+    "just active-lane-brief WP_VALIDATOR WP-TEST-VALIDATOR-v1",
+    "just wp-validator-response WP-TEST-VALIDATOR-v1 WP_VALIDATOR wpval:test <coder-session> \"<summary>\" <correlation_id>",
+    "just wp-review-exchange VALIDATOR_QUERY WP-TEST-VALIDATOR-v1 WP_VALIDATOR wpval:test CODER <coder-session> \"<summary>\" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]",
+  ]);
+});
+
 test("validator resume state follows projected WP validator review truth", () => {
   const state = deriveValidatorResumeState({
     actorRole: "WP_VALIDATOR",
@@ -411,6 +428,44 @@ test("validator resume state reports coder remediation after failed assessment",
   assert.equal(state.nextExpectedActor, "CODER");
   assert.match(state.message, /Latest validator assessment already recorded FAIL/i);
   assert.match(state.message, /coder remediation is next/i);
+});
+
+test("validator resume state exposes parallel overlap review work even when coder remains the routed next actor", () => {
+  const state = deriveValidatorResumeState({
+    actorRole: "WP_VALIDATOR",
+    communicationState: {
+      runtimeStatus: {
+        next_expected_actor: "CODER",
+        waiting_on: "CODER_HANDOFF",
+        wp_validator_of_record: "wpv-1",
+        open_review_items: [
+          {
+            correlation_id: "micro-1",
+            receipt_kind: "REVIEW_REQUEST",
+            summary: "Review the completed microtask while coder continues.",
+            opened_by_role: "CODER",
+            opened_by_session: "coder-1",
+            target_role: "WP_VALIDATOR",
+            target_session: "wpv-1",
+            microtask_contract: {
+              review_mode: "OVERLAP",
+              phase_gate: "MICROTASK",
+            },
+          },
+        ],
+      },
+      communicationEvaluation: {
+        applicable: true,
+        state: "COMM_WAITING_FOR_HANDOFF",
+      },
+      latestValidatorAssessment: null,
+    },
+  });
+
+  assert.equal(state.ready, true);
+  assert.equal(state.parallelReviewReady, true);
+  assert.equal(state.blockedByRoute, false);
+  assert.match(state.message, /Parallel microtask review queue is available/i);
 });
 
 test("validator resume state follows projected integration-validator review truth", () => {
