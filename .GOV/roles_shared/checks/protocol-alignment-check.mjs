@@ -176,6 +176,10 @@ const commandKindAlternation = SESSION_COMMAND_KINDS.join("|");
 const reasoningConfigPair = `${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}`;
 const retiredRootScriptsDir = [GOV_ROOT_REPO_REL, "scripts"].join("/");
 
+function quotedJustGovScript(scriptPath, trailingArgs = "") {
+  return `"${JUSTFILE_GOV_PREFIX}/${scriptPath}"${trailingArgs ? ` ${trailingArgs}` : ""}`;
+}
+
 // justfile recipes must stay aligned with the active orchestrator/session tooling.
 // Note: justfile uses {{GOV_ROOT}} variable syntax — match against JUSTFILE_GOV_PREFIX, not resolved path.
 requireRecipe(errors, justfileContent, "worktree-add", [
@@ -185,34 +189,34 @@ requireRecipe(errors, justfileContent, "ensure-wp-communications", [
   `${JUSTFILE_GOV_PREFIX}/roles_shared/scripts/wp/ensure-wp-communications.mjs`,
 ]);
 requireRecipe(errors, justfileContent, "coder-worktree-add", [
-  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/role-session-worktree-add.mjs CODER`,
+  quotedJustGovScript("roles/orchestrator/scripts/role-session-worktree-add.mjs", "CODER"),
 ]);
 requireRecipe(errors, justfileContent, "wp-validator-worktree-add", [
-  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/role-session-worktree-add.mjs WP_VALIDATOR`,
+  quotedJustGovScript("roles/orchestrator/scripts/role-session-worktree-add.mjs", "WP_VALIDATOR"),
 ]);
 requireRecipe(errors, justfileContent, "integration-validator-worktree-add", [
-  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/role-session-worktree-add.mjs INTEGRATION_VALIDATOR`,
+  quotedJustGovScript("roles/orchestrator/scripts/role-session-worktree-add.mjs", "INTEGRATION_VALIDATOR"),
 ]);
 requireRecipe(errors, justfileContent, "launch-coder-session", [
-  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/launch-cli-session.mjs CODER`,
+  quotedJustGovScript("roles/orchestrator/scripts/launch-cli-session.mjs", "CODER"),
 ]);
 requireRecipe(errors, justfileContent, "launch-wp-validator-session", [
-  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/launch-cli-session.mjs WP_VALIDATOR`,
+  quotedJustGovScript("roles/orchestrator/scripts/launch-cli-session.mjs", "WP_VALIDATOR"),
 ]);
 requireRecipe(errors, justfileContent, "launch-integration-validator-session", [
-  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/launch-cli-session.mjs INTEGRATION_VALIDATOR`,
+  quotedJustGovScript("roles/orchestrator/scripts/launch-cli-session.mjs", "INTEGRATION_VALIDATOR"),
 ]);
 requireRecipe(errors, justfileContent, "session-start", [
-  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/session-control-command.mjs START_SESSION`,
+  quotedJustGovScript("roles/orchestrator/scripts/session-control-command.mjs", "START_SESSION"),
 ]);
 requireRecipe(errors, justfileContent, "session-send", [
-  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/session-control-command.mjs SEND_PROMPT`,
+  quotedJustGovScript("roles/orchestrator/scripts/session-control-command.mjs", "SEND_PROMPT"),
 ]);
 requireRecipe(errors, justfileContent, "session-cancel", [
   `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/session-control-cancel.mjs`,
 ]);
 requireRecipe(errors, justfileContent, "session-close", [
-  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/scripts/session-control-command.mjs CLOSE_SESSION`,
+  quotedJustGovScript("roles/orchestrator/scripts/session-control-command.mjs", "CLOSE_SESSION"),
 ]);
 requireRecipe(errors, justfileContent, "integration-validator-closeout-check", [
   `${JUSTFILE_GOV_PREFIX}/roles/validator/checks/integration-validator-closeout-check.mjs`,

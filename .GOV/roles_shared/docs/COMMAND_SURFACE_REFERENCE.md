@@ -297,6 +297,8 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
     - default text output is compact-by-default and points at the authoritative packet/gate artifacts; use `--json` for the full machine-readable brief
     - `integration-validator-closeout-check` is the final-lane topology, atomic-closeout, and current-`main` signed-scope compatibility preflight for orchestrator-managed PASS closure
     - `integration-validator-closeout-sync` is the governed writer that reconciles packet signed-scope compatibility truth plus TASK_BOARD/runtime projection after the preflight is green
+    - for orchestrator-managed final review, live governance authority still comes from `wt-gov-kernel/.GOV`; `handshake_main/.GOV` is only the synced main-branch mirror and must not be treated as the live authority surface
+    - candidate-target validation remains exact to the signed artifact; contained local-main closure may include conflict-resolved harmonization only when the contained commit stays inside the signed file surface and the governed closeout proof still passes
     - `wp-declared-topology-check` surfaces packet-declared vs actual linked-worktree truth for one WP and fails on undeclared auxiliary worktrees
   - for `PACKET_FORMAT_VERSION >= 2026-03-25`, `Done` means merge-pending PASS and `Validated (PASS)` requires recorded containment in local `main`
   - for `PACKET_FORMAT_VERSION >= 2026-03-26`, PASS closure also requires recorded `CURRENT_MAIN_COMPATIBILITY_*` truth plus `PACKET_WIDENING_DECISION=NOT_REQUIRED`; adjacent shared-surface drift must route to a follow-on or superseding packet instead of ad hoc widening

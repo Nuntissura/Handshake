@@ -100,19 +100,19 @@ Requirements:
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Done
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
-- MAIN_CONTAINMENT_STATUS: MERGE_PENDING
+- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
-- MERGED_MAIN_COMMIT: NONE
+- MERGED_MAIN_COMMIT: 26e85bbfdebfa5b19044420ced816ee3c3501f5d
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
-- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-04-01T11:40:08.254Z
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
 - CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 4bc9aa76aa4469beede96a403e1aaf32e357bbbc
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 26e85bbfdebfa5b19044420ced816ee3c3501f5d
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-01T11:03:00.943Z
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-01T11:40:08.254Z
 <!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
 - PACKET_WIDENING_DECISION: NOT_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
@@ -170,9 +170,9 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-03-29
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
-Next: ORCHESTRATOR advances verdict progression and integration closeout from the completed direct-review lane.
+Next: CLOSED; packet is contained in local main at 26e85bbfdebfa5b19044420ced816ee3c3501f5d and governance truth is synchronized.
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:

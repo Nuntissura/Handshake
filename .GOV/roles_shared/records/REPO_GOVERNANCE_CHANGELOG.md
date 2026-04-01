@@ -563,3 +563,22 @@
   - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: governed Integration Validator prompts now explicitly forbid manual authority rebuilds from `handshake_main/.GOV`, require `just integration-validator-context-brief WP-{ID}` ahead of broader resume work, and keep kernel governance truth mechanically in front of the final lane even when product execution stays rooted in `handshake_main`
+
+### 2026.04.01.06 / GOV-CHANGE-20260401-06
+
+- STATUS: APPLIED
+- SUMMARY: hardened final-lane closeout sync so contained-main closure can refresh stale compatibility truth and accept only signed-surface-preserving harmonization in local main
+- CHANGE_TYPE: FINAL_LANE_CLOSEOUT_HARDENING
+- DRIVER_EVIDENCE:
+  - Operator follow-on governance directive after `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/checks/validator-packet-complete.mjs`
+  - `.GOV/roles_shared/scripts/lib/signed-scope-surface-lib.mjs`
+  - `.GOV/roles_shared/tests/signed-scope-surface-lib.test.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: governed closeout sync now writes packet/runtime truth before the final completion gate evaluates it, stale recorded compatibility can be refreshed by the sync itself, contained-main PASS closure allows conflict-resolved local-main harmonization only when the resulting commit stays within the signed file surface and still satisfies the governed tripwire checks, and terminal closeout retires stale coder/WP-validator steerable sessions so session-governance truth converges with terminal packet state

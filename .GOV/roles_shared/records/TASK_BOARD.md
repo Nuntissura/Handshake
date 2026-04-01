@@ -294,7 +294,9 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 - **[WP-1-Workflow-Projection-Correlation-v1]** - [VALIDATED]
 
-- **[WP-1-Project-Profile-Extension-Registry-v1]** - [MERGE_PENDING]
+
+
+- **[WP-1-Project-Profile-Extension-Registry-v1]** - [VALIDATED]
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]

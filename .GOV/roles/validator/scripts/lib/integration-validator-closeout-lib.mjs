@@ -273,6 +273,7 @@ export function evaluateIntegrationValidatorCloseoutState({
   actorContext = {},
   committedEvidence = null,
   requireReadyForPass = true,
+  requireRecordedScopeCompatibility = true,
   gitRunner = null,
   worktreeExists = fs.existsSync,
   fileExists = fs.existsSync,
@@ -334,7 +335,7 @@ export function evaluateIntegrationValidatorCloseoutState({
   return {
     ok: topology.ok
       && closeoutBundle.ok
-      && scopeCompatibility.errors.length === 0
+      && (!requireRecordedScopeCompatibility || scopeCompatibility.errors.length === 0)
       && candidateSignedScope.errors.length === 0,
     topology,
     closeoutBundle,
@@ -343,7 +344,7 @@ export function evaluateIntegrationValidatorCloseoutState({
     issues: [
       ...topology.issues,
       ...closeoutBundle.issues,
-      ...scopeCompatibility.errors,
+      ...(requireRecordedScopeCompatibility ? scopeCompatibility.errors : []),
       ...candidateSignedScope.errors,
     ],
     warnings: [...topology.warnings, ...closeoutBundle.warnings],

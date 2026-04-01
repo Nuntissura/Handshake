@@ -297,6 +297,40 @@ test("integration-validator closeout state fails when signed scope compatibility
   assert.match(evaluation.issues.join("\n"), /does not match current local main HEAD/i);
 });
 
+test("integration-validator closeout state can refresh stale recorded compatibility truth during sync", () => {
+  const repoRoot = repoRootWithArtifact(matchingDiff);
+  const evaluation = evaluateIntegrationValidatorCloseoutState({
+    repoRoot,
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetContent: packetFixture(),
+    actorContext: actorContextFixture(),
+    committedEvidence: {
+      status: "PASS",
+      target_head_sha: "abc123",
+    },
+    requests: [],
+    results: [],
+    registrySessions: [],
+    brokerState: { active_runs: [] },
+    requireRecordedScopeCompatibility: false,
+    worktreeExists: () => true,
+    fileExists: () => true,
+    gitRunner: (args) => {
+      if (args[0] === "rev-parse") return { code: 0, output: "89abcdef0123456789abcdef0123456789abcdef" };
+      if (args[0] === "merge-base") return { code: 0, output: "fedcba9876543210fedcba9876543210fedcba98" };
+      if (args[0] === "diff") return { code: 0, output: matchingDiff };
+      return { code: 0, output: "" };
+    },
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.deepEqual(evaluation.issues, []);
+  assert.match(
+    evaluation.scopeCompatibility.errors.join("\n"),
+    /does not match current local main HEAD/i,
+  );
+});
+
 test("integration-validator closeout state fails when the committed target diff drifts from the signed artifact", () => {
   const repoRoot = repoRootWithArtifact(matchingDiff);
   const driftedDiff = [

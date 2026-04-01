@@ -83,6 +83,7 @@ See also:
   - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
   - `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
 - For the governed `INTEGRATION_VALIDATOR` lane, the Orchestrator MUST preserve kernel governance authority even though execution occurs from `handshake_main`: launch/control requests must carry `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`, and any lane that resolves live authority from `handshake_main/.GOV` is misconfigured and must be repaired before closeout.
+- `handshake_main/.GOV` is only the synced main-branch mirror. It is not the live authority surface for orchestrator-managed integration validation, even immediately after `just sync-gov-to-main`.
 - Primary steering path is the governed session-control ledgers under that same external repo-governance runtime root:
   - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
   - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
@@ -192,9 +193,10 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - For validator PASS clearance on orchestrator-managed WPs, prefer `just validator-handoff-check WP-{ID}` so validation runs against the PREPARE worktree source of truth.
 - Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just integration-validator-closeout-check WP-{ID}`. If that preflight fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth. For `PACKET_FORMAT_VERSION >= 2026-03-26`, this also means current-`main` signed-scope compatibility was not honestly cleared or packet widening was not governed explicitly.
 - After that preflight is green, prefer `just integration-validator-closeout-sync WP-{ID} ...` instead of manually editing packet/TASK_BOARD/runtime surfaces.
-  - PASS before main containment: `DONE_MERGE_PENDING`
-  - PASS after main containment: `DONE_VALIDATED <MERGED_MAIN_SHA>`
-  - explicit non-PASS terminal closure: `DONE_FAIL`, `DONE_OUTDATED_ONLY`, or `DONE_ABANDONED`
+  - PASS before main containment: `MERGE_PENDING`
+  - PASS after main containment: `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>`
+  - explicit non-PASS terminal closure: `FAIL`, `OUTDATED_ONLY`, or `ABANDONED`
+  - candidate-target proof must still match the signed artifact exactly; contained local-main closure may differ only when conflict resolution stays within the signed file surface and the governed closeout proof still passes
   This keeps closeout truth synchronized and reduces orchestrator repair work.
 
 ## Branching & Concurrency

@@ -24,6 +24,7 @@ import {
 } from "../scripts/lib/validator-governance-lib.mjs";
 import { evaluateIntegrationValidatorCloseoutState } from "../scripts/lib/integration-validator-closeout-lib.mjs";
 import { ensureValidatorGateDir, resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 
 function fail(message, details = []) {
   console.error(`[INTEGRATION_VALIDATOR_CLOSEOUT_SYNC] ${message}`);
@@ -39,10 +40,39 @@ function writeText(filePath, text) {
   fs.writeFileSync(filePath, text, "utf8");
 }
 
+function kernelRepoRoot() {
+  return path.resolve(GOV_ROOT_ABS, "..");
+}
+
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = String(text || "").match(re);
   return match ? match[1].trim() : "";
+}
+
+function sessionNeedsClosure(repoRoot, role, wpId) {
+  const { registry } = loadSessionRegistry(repoRoot);
+  const session = (registry.sessions || []).find((entry) => entry.session_key === `${role}:${wpId}`);
+  if (!session) return false;
+  const runtimeState = String(session.runtime_state || "").trim().toUpperCase();
+  return !["", "UNSTARTED", "CLOSED"].includes(runtimeState);
+}
+
+function closeGovernedSession(role, wpId) {
+  const closeScript = path.resolve(GOV_ROOT_ABS, "roles", "orchestrator", "scripts", "session-control-command.mjs");
+  execFileSync(
+    process.execPath,
+    [closeScript, "CLOSE_SESSION", role, wpId],
+    {
+      cwd: kernelRepoRoot(),
+      stdio: "pipe",
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HANDSHAKE_GOV_ROOT: GOV_ROOT_ABS,
+      },
+    },
+  );
 }
 
 function loadGateState(wpId) {
@@ -169,6 +199,7 @@ const evaluation = evaluateIntegrationValidatorCloseoutState({
   actorContext,
   committedEvidence,
   requireReadyForPass: false,
+  requireRecordedScopeCompatibility: false,
 });
 
 if (!evaluation.ok) {
@@ -185,6 +216,7 @@ if (requestedMode.requireMergedMainCommit) {
   const containedMainScope = validateContainedMainCommitAgainstSignedScope(originalPacketText, {
     repoRoot,
     mergedMainCommit,
+    requireExactArtifactMatch: false,
   });
   if (!containedMainScope.ok) {
     fail("Closeout sync requires the contained main commit to match the signed scope surface", [
@@ -251,6 +283,14 @@ try {
     ],
     { stdio: "pipe", encoding: "utf8" },
   );
+  if (["CONTAINED_IN_MAIN", "FAIL", "OUTDATED_ONLY", "ABANDONED"].includes(requestedMode.mode)) {
+    const kernelRoot = kernelRepoRoot();
+    for (const role of ["CODER", "WP_VALIDATOR"]) {
+      if (sessionNeedsClosure(kernelRoot, role, wpId)) {
+        closeGovernedSession(role, wpId);
+      }
+    }
+  }
 } catch (error) {
   writeText(packetAbsPath, originalPacketText);
   if (originalTaskBoardText) writeText(taskBoardPath, originalTaskBoardText);

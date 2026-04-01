@@ -367,6 +367,7 @@ export function validateContainedMainCommitAgainstSignedScope(packetText, {
   mergedMainCommit = "",
   actualDiffText = null,
   gitRunner = null,
+  requireExactArtifactMatch = true,
 } = {}) {
   const surface = validateSignedScopeSurface(packetText, { repoRoot });
   const errors = [...surface.errors];
@@ -411,7 +412,7 @@ export function validateContainedMainCommitAgainstSignedScope(packetText, {
     enforceLineDelta: false,
   }));
 
-  if (surface.ok && actualSummary.normalizedDiff !== surface.artifactNormalizedDiff) {
+  if (requireExactArtifactMatch && surface.ok && actualSummary.normalizedDiff !== surface.artifactNormalizedDiff) {
     errors.push(
       "contained main diff does not match the signed patch artifact after normalization; merged scope drifted from the clean-room proof surface",
     );

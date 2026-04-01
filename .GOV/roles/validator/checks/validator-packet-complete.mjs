@@ -321,6 +321,7 @@ if (packetFormatVersion) {
       const containedMainScope = validateContainedMainCommitAgainstSignedScope(text, {
         repoRoot: REPO_ROOT,
         mergedMainCommit: mergeProgressionTruth?.parsed?.mergedMainCommit || "",
+        requireExactArtifactMatch: false,
       });
       if (containedMainScope.errors.length > 0) {
         fail(`contained main commit violates signed scope surface: ${containedMainScope.errors.join("; ")}`);
