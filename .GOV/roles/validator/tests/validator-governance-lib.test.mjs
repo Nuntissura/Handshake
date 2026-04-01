@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildValidatorReadyCommands,
+  deriveValidatorResumeState,
   evaluateValidatorPacketGovernanceState,
   evaluateValidatorPassAuthority,
   readValidatorAuthority,
@@ -274,4 +275,76 @@ test("wp-validator ready commands surface packet completeness before handoff val
     "just wp-communication-health-check WP-TEST-VALIDATOR-v1 HANDOFF",
     "just validator-handoff-check WP-TEST-VALIDATOR-v1",
   ]);
+});
+
+test("validator resume state follows projected WP validator review truth", () => {
+  const state = deriveValidatorResumeState({
+    actorRole: "WP_VALIDATOR",
+    communicationState: {
+      runtimeStatus: {
+        next_expected_actor: "WP_VALIDATOR",
+        waiting_on: "WP_VALIDATOR_REVIEW",
+      },
+      communicationEvaluation: {
+        applicable: true,
+        state: "COMM_WAITING_FOR_REVIEW",
+      },
+      latestValidatorAssessment: null,
+    },
+  });
+
+  assert.equal(state.ready, true);
+  assert.equal(state.blockedByRoute, false);
+  assert.equal(state.nextExpectedActor, "WP_VALIDATOR");
+  assert.equal(state.waitingOn, "WP_VALIDATOR_REVIEW");
+  assert.match(state.message, /WP validator review is required now/i);
+});
+
+test("validator resume state reports coder remediation after failed assessment", () => {
+  const state = deriveValidatorResumeState({
+    actorRole: "WP_VALIDATOR",
+    communicationState: {
+      runtimeStatus: {
+        next_expected_actor: "CODER",
+        waiting_on: "CODER_REPAIR_HANDOFF",
+      },
+      communicationEvaluation: {
+        applicable: true,
+        state: "COMM_REPAIR_REQUIRED",
+      },
+      latestValidatorAssessment: {
+        verdict: "FAIL",
+        receiptKind: "VALIDATOR_REVIEW",
+        reason: "Repair required. Findings: fix mailbox projection and re-handoff.",
+      },
+    },
+  });
+
+  assert.equal(state.ready, false);
+  assert.equal(state.blockedByRoute, true);
+  assert.equal(state.nextExpectedActor, "CODER");
+  assert.match(state.message, /Latest validator assessment already recorded FAIL/i);
+  assert.match(state.message, /coder remediation is next/i);
+});
+
+test("validator resume state follows projected integration-validator review truth", () => {
+  const state = deriveValidatorResumeState({
+    actorRole: "INTEGRATION_VALIDATOR",
+    communicationState: {
+      runtimeStatus: {
+        next_expected_actor: "INTEGRATION_VALIDATOR",
+        waiting_on: "OPEN_REVIEW_ITEM_REVIEW_REQUEST",
+      },
+      communicationEvaluation: {
+        applicable: true,
+        state: "COMM_BLOCKED_OPEN_ITEMS",
+      },
+      latestValidatorAssessment: null,
+    },
+  });
+
+  assert.equal(state.ready, true);
+  assert.equal(state.blockedByRoute, false);
+  assert.equal(state.nextExpectedActor, "INTEGRATION_VALIDATOR");
+  assert.match(state.message, /final direct review exchange/i);
 });

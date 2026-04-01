@@ -6,6 +6,7 @@ import {
   FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
   OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE,
+  REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
   REVIEW_TRACKED_RECEIPT_KIND_VALUES,
   workflowInvalidityReceipts,
 } from "./wp-communications-lib.mjs";
@@ -17,6 +18,7 @@ export const COMMUNICATION_MONITOR_STATE_VALUES = [
   "COMM_MISSING_KICKOFF",
   "COMM_WAITING_FOR_INTENT",
   "COMM_WAITING_FOR_HANDOFF",
+  "COMM_REPAIR_REQUIRED",
   "COMM_WAITING_FOR_REVIEW",
   "COMM_WAITING_FOR_FINAL_REVIEW",
   "COMM_BLOCKED_OPEN_ITEMS",
@@ -24,6 +26,13 @@ export const COMMUNICATION_MONITOR_STATE_VALUES = [
   "COMM_OK",
   "COMM_STALE",
 ];
+
+export const VALIDATOR_REVIEW_OUTCOME_VALUES = [
+  "UNKNOWN",
+  "REPAIR_REQUIRED",
+  "APPROVED_FOR_FINAL_REVIEW",
+];
+export const VALIDATOR_ASSESSMENT_VERDICT_VALUES = ["ASSESSED", "FAIL", "PASS"];
 
 function normalizeRole(value) {
   return String(value || "").trim().toUpperCase();
@@ -36,6 +45,16 @@ function normalizeReceiptKind(value) {
 function normalizeSession(value) {
   const raw = String(value || "").trim();
   return raw || null;
+}
+
+function normalizeReviewOutcome(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  return VALIDATOR_REVIEW_OUTCOME_VALUES.includes(normalized) ? normalized : "UNKNOWN";
+}
+
+function normalizeAssessmentVerdict(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  return VALIDATOR_ASSESSMENT_VERDICT_VALUES.includes(normalized) ? normalized : "ASSESSED";
 }
 
 function isVersionAtLeast(current, minimum) {
@@ -88,6 +107,79 @@ function latestMatchingPair(openReceipts, resolutionReceipts) {
   for (const openReceipt of ordered) {
     const reply = matchingReply(openReceipt, resolutionReceipts);
     if (reply) return { openReceipt, reply };
+  }
+  return null;
+}
+
+function latestOpenReceiptStatus(openReceipts, resolutionReceipts) {
+  const ordered = [...(openReceipts || [])].sort((left, right) =>
+    String(right.timestamp_utc || "").localeCompare(String(left.timestamp_utc || ""))
+  );
+  const openReceipt = ordered[0] || null;
+  return {
+    openReceipt,
+    reply: openReceipt ? matchingReply(openReceipt, resolutionReceipts) : null,
+  };
+}
+
+function summarySuggestsRepairRequired(summary) {
+  const normalized = String(summary || "").trim();
+  if (!normalized) return false;
+  return /\brepair required\b/i.test(normalized)
+    || /\bremediation required\b/i.test(normalized)
+    || /\bplease repair\b/i.test(normalized)
+    || /\brework required\b/i.test(normalized)
+    || /\bfix required\b/i.test(normalized)
+    || /\bre-handoff\b/i.test(normalized);
+}
+
+function summarySuggestsFinalReviewApproval(summary) {
+  const normalized = String(summary || "").trim();
+  if (!normalized) return false;
+  return /\bsuitable for integration review\b/i.test(normalized)
+    || /\bapproved for final review\b/i.test(normalized)
+    || /\bready for final review\b/i.test(normalized)
+    || /\binitiate final review\b/i.test(normalized)
+    || /\bfinal review exchange\b/i.test(normalized)
+    || /\badvisory review complete\b/i.test(normalized);
+}
+
+export function deriveValidatorReviewOutcome(reviewReceipt = null) {
+  const microtaskOutcome = normalizeReviewOutcome(reviewReceipt?.microtask_contract?.review_outcome);
+  if (microtaskOutcome !== "UNKNOWN") return microtaskOutcome;
+  if (summarySuggestsRepairRequired(reviewReceipt?.summary)) return "REPAIR_REQUIRED";
+  if (summarySuggestsFinalReviewApproval(reviewReceipt?.summary)) return "APPROVED_FOR_FINAL_REVIEW";
+  return "UNKNOWN";
+}
+
+export function deriveValidatorAssessmentVerdict(reviewReceipt = null) {
+  const outcome = deriveValidatorReviewOutcome(reviewReceipt);
+  if (outcome === "REPAIR_REQUIRED") return "FAIL";
+  if (outcome === "APPROVED_FOR_FINAL_REVIEW") return "PASS";
+  return "ASSESSED";
+}
+
+export function deriveLatestValidatorAssessment(receipts = []) {
+  const ordered = [...(receipts || [])].sort((left, right) =>
+    String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || ""))
+  );
+  for (const entry of ordered) {
+    const actorRole = normalizeRole(entry?.actor_role);
+    if (!["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"].includes(actorRole)) continue;
+    const receiptKind = normalizeReceiptKind(entry?.receipt_kind);
+    if (!REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(receiptKind)) continue;
+    return {
+      receiptKind,
+      actorRole,
+      actorSession: normalizeSession(entry?.actor_session),
+      targetRole: normalizeRole(entry?.target_role) || null,
+      targetSession: normalizeSession(entry?.target_session),
+      timestampUtc: String(entry?.timestamp_utc || "").trim() || null,
+      reviewOutcome: deriveValidatorReviewOutcome(entry),
+      verdict: normalizeAssessmentVerdict(deriveValidatorAssessmentVerdict(entry)),
+      reason: String(entry?.summary || "").trim(),
+      correlationId: String(entry?.correlation_id || "").trim() || null,
+    };
   }
   return null;
 }
@@ -152,6 +244,7 @@ function result({
   counts = {},
   correlations = {},
   activeWorkflowInvalidityCode = null,
+  latestWpValidatorReviewOutcome = "UNKNOWN",
 } = {}) {
   return {
     applicable: Boolean(applicable),
@@ -162,6 +255,7 @@ function result({
     counts,
     correlations,
     activeWorkflowInvalidityCode,
+    latestWpValidatorReviewOutcome: normalizeReviewOutcome(latestWpValidatorReviewOutcome),
   };
 }
 
@@ -240,8 +334,9 @@ export function evaluateWpCommunicationHealth({
     targetRole: "CODER",
   });
 
-  const kickoffIntentPair = latestMatchingPair(validatorKickoffs, coderIntents);
-  const handoffReviewPair = latestMatchingPair(coderHandoffs, validatorReviews);
+  const kickoffIntentPair = latestOpenReceiptStatus(validatorKickoffs, coderIntents);
+  const handoffReviewPair = latestOpenReceiptStatus(coderHandoffs, validatorReviews);
+  const latestWpValidatorReviewOutcome = deriveValidatorReviewOutcome(handoffReviewPair.reply);
   const integrationFinalOpenReceipts = [
     ...receiptKindsFilter(receipts, {
       receiptKinds: ["CODER_HANDOFF", "REVIEW_REQUEST"],
@@ -266,7 +361,7 @@ export function evaluateWpCommunicationHealth({
       targetRole: "INTEGRATION_VALIDATOR",
     }),
   ];
-  const integrationFinalPair = latestMatchingPair(integrationFinalOpenReceipts, integrationFinalResolutionReceipts);
+  const integrationFinalPair = latestOpenReceiptStatus(integrationFinalOpenReceipts, integrationFinalResolutionReceipts);
   const details = buildBaseDetails({
     wpId,
     stage: normalizedStage,
@@ -292,9 +387,9 @@ export function evaluateWpCommunicationHealth({
     openReviewItems: openReviewItems.length,
   };
   const correlations = {
-    kickoff: kickoffIntentPair?.openReceipt?.correlation_id || null,
-    handoff: handoffReviewPair?.openReceipt?.correlation_id || null,
-    finalReview: integrationFinalPair?.openReceipt?.correlation_id || null,
+    kickoff: kickoffIntentPair.openReceipt?.correlation_id || null,
+    handoff: handoffReviewPair.openReceipt?.correlation_id || null,
+    finalReview: integrationFinalPair.openReceipt?.correlation_id || null,
   };
 
   if (activeWorkflowInvalidity) {
@@ -312,6 +407,7 @@ export function evaluateWpCommunicationHealth({
       counts,
       correlations,
       activeWorkflowInvalidityCode: String(activeWorkflowInvalidity?.workflow_invalidity_code || "").trim().toUpperCase() || null,
+      latestWpValidatorReviewOutcome,
     });
   }
 
@@ -327,7 +423,7 @@ export function evaluateWpCommunicationHealth({
         correlations,
       });
     }
-    if (coderIntents.length === 0 || !kickoffIntentPair) {
+    if (coderIntents.length === 0 || !kickoffIntentPair.reply) {
       return result({
         applicable: true,
         ok: false,
@@ -349,7 +445,7 @@ export function evaluateWpCommunicationHealth({
         correlations,
       });
     }
-    if (validatorReviews.length === 0 || !handoffReviewPair) {
+    if (validatorReviews.length === 0 || !handoffReviewPair.reply) {
       return result({
         applicable: true,
         ok: false,
@@ -358,6 +454,22 @@ export function evaluateWpCommunicationHealth({
         details,
         counts,
         correlations,
+        latestWpValidatorReviewOutcome,
+      });
+    }
+    if (latestWpValidatorReviewOutcome === "REPAIR_REQUIRED") {
+      return result({
+        applicable: true,
+        ok: false,
+        state: "COMM_REPAIR_REQUIRED",
+        message: "WP validator review requires coder remediation before re-handoff",
+        details: [
+          ...details,
+          `wp_validator_review_outcome=${latestWpValidatorReviewOutcome}`,
+        ],
+        counts,
+        correlations,
+        latestWpValidatorReviewOutcome,
       });
     }
     if (openReviewItems.length > 0) {
@@ -374,9 +486,10 @@ export function evaluateWpCommunicationHealth({
         ],
         counts,
         correlations,
+        latestWpValidatorReviewOutcome,
       });
     }
-    if (requiresFinalAuthorityDirectReview(packetFormatVersion) && !integrationFinalPair) {
+    if (requiresFinalAuthorityDirectReview(packetFormatVersion) && !integrationFinalPair.reply) {
       return result({
         applicable: true,
         ok: false,
@@ -385,6 +498,7 @@ export function evaluateWpCommunicationHealth({
         details,
         counts,
         correlations,
+        latestWpValidatorReviewOutcome,
       });
     }
     return result({
@@ -395,6 +509,7 @@ export function evaluateWpCommunicationHealth({
       details,
       counts,
       correlations,
+      latestWpValidatorReviewOutcome,
     });
   }
 
@@ -407,10 +522,11 @@ export function evaluateWpCommunicationHealth({
       details,
       counts,
       correlations,
+      latestWpValidatorReviewOutcome,
     });
   }
 
-  if (coderIntents.length === 0 || !kickoffIntentPair) {
+  if (coderIntents.length === 0 || !kickoffIntentPair.reply) {
     return result({
       applicable: true,
       ok: false,
@@ -419,6 +535,7 @@ export function evaluateWpCommunicationHealth({
       details,
       counts,
       correlations,
+      latestWpValidatorReviewOutcome,
     });
   }
 
@@ -431,6 +548,7 @@ export function evaluateWpCommunicationHealth({
       details,
       counts,
       correlations,
+      latestWpValidatorReviewOutcome,
     });
   }
 
@@ -458,7 +576,7 @@ export function evaluateWpCommunicationHealth({
     });
   }
 
-  if (validatorReviews.length === 0 || !handoffReviewPair) {
+  if (validatorReviews.length === 0 || !handoffReviewPair.reply) {
     return result({
       applicable: true,
       ok: false,
@@ -467,10 +585,27 @@ export function evaluateWpCommunicationHealth({
       details,
       counts,
       correlations,
+      latestWpValidatorReviewOutcome,
     });
   }
 
-  if (requiresFinalAuthorityDirectReview(packetFormatVersion) && !integrationFinalPair) {
+  if (latestWpValidatorReviewOutcome === "REPAIR_REQUIRED") {
+    return result({
+      applicable: true,
+      ok: false,
+      state: "COMM_REPAIR_REQUIRED",
+      message: "WP validator review requires coder remediation before re-handoff",
+      details: [
+        ...details,
+        `wp_validator_review_outcome=${latestWpValidatorReviewOutcome}`,
+      ],
+      counts,
+      correlations,
+      latestWpValidatorReviewOutcome,
+    });
+  }
+
+  if (requiresFinalAuthorityDirectReview(packetFormatVersion) && !integrationFinalPair.reply) {
     return result({
       applicable: true,
       ok: false,
@@ -479,6 +614,7 @@ export function evaluateWpCommunicationHealth({
       details,
       counts,
       correlations,
+      latestWpValidatorReviewOutcome,
     });
   }
 
@@ -496,6 +632,7 @@ export function evaluateWpCommunicationHealth({
       ],
       counts,
       correlations,
+      latestWpValidatorReviewOutcome,
     });
   }
 
@@ -507,6 +644,7 @@ export function evaluateWpCommunicationHealth({
     details,
     counts,
     correlations,
+    latestWpValidatorReviewOutcome,
   });
 }
 
@@ -656,6 +794,15 @@ export function deriveWpCommunicationAutoRoute({
         notificationSummary: "AUTO_ROUTE: coder handoff required",
       });
       break;
+    case "COMM_REPAIR_REQUIRED":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "CODER",
+        nextExpectedSession: coderSession,
+        waitingOn: "CODER_REPAIR_HANDOFF",
+        notificationSummary: "AUTO_ROUTE: WP validator review requires coder remediation before re-handoff",
+      });
+      break;
     case "COMM_WAITING_FOR_REVIEW":
       projection = route({
         state: evaluation.state,
@@ -769,6 +916,7 @@ function boundaryCorrelationId(statusEvaluation, runtimeStatus = {}) {
     case "COMM_WAITING_FOR_INTENT":
     case "COMM_WAITING_FOR_HANDOFF":
       return nullableComparable(statusEvaluation?.correlations?.kickoff);
+    case "COMM_REPAIR_REQUIRED":
     case "COMM_WAITING_FOR_REVIEW":
       return nullableComparable(statusEvaluation?.correlations?.handoff);
     case "COMM_WAITING_FOR_FINAL_REVIEW":

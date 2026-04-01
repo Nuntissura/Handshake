@@ -186,6 +186,15 @@ export function buildIntegrationValidatorContextBrief({
       branch: actorContext.actorBranch || "<unknown>",
       worktree_dir: actorContext.actorWorktreeDir || "<unknown>",
     },
+    governance_root: {
+      live_root: normalizeStatus(closeoutEvaluation.topology?.liveGovernanceRootAbs, "<missing>"),
+      local_main_backup_root: normalizeStatus(closeoutEvaluation.topology?.localMainGovernanceAbs, "<missing>"),
+      mode: closeoutEvaluation.topology?.liveGovernanceRootAbs
+        && closeoutEvaluation.topology?.localMainGovernanceAbs
+        && normalizePath(closeoutEvaluation.topology.liveGovernanceRootAbs) === normalizePath(closeoutEvaluation.topology.localMainGovernanceAbs)
+          ? "MAIN_BACKUP"
+          : "KERNEL",
+    },
     declared_topology: {
       status: topologyEvaluation.ok ? "PASS" : "FAIL",
       issues: topologyEvaluation.issues || [],
@@ -239,6 +248,7 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- WORKFLOW_LANE: ${brief.workflow_lane} | PACKET_STATUS: ${brief.packet_status} | CURRENT_WP_STATUS: ${brief.current_wp_status} | TASK_BOARD_STATUS: ${brief.task_board_status}`,
     `- AUTHORITIES: technical=${brief.authority.technical_authority} | merge=${brief.authority.merge_authority} | integration_validator=${brief.authority.integration_validator_of_record} | wp_validator=${brief.authority.wp_validator_of_record}`,
     `- ACTOR_CONTEXT: role=${brief.actor_context.role} | source=${brief.actor_context.source} | session=${brief.actor_context.session_id} | thread=${brief.actor_context.thread_id} | branch=${brief.actor_context.branch}`,
+    `- GOVERNANCE_ROOT: live=${brief.governance_root.live_root} | main_backup=${brief.governance_root.local_main_backup_root} | mode=${brief.governance_root.mode}`,
     `- COMMITTED_HANDOFF: status=${brief.committed_handoff.status} | live_prepare=${brief.committed_handoff.live_prepare_worktree_status} | mode=${brief.committed_handoff.committed_validation_mode} | target=${brief.committed_handoff.committed_validation_target}`,
     `- MAIN_COMPATIBILITY: status=${brief.current_main_compatibility.status} | baseline=${brief.current_main_compatibility.baseline_sha} | verified_at=${brief.current_main_compatibility.verified_at_utc} | main_head=${brief.current_main_compatibility.current_main_head_sha}`,
     `- CLOSEOUT_BUNDLE: requests=${brief.closeout_bundle.request_count} | results=${brief.closeout_bundle.result_count} | sessions=${brief.closeout_bundle.session_count} | active_runs=${brief.closeout_bundle.active_run_count}`,

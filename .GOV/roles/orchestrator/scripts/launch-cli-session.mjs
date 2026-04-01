@@ -35,6 +35,7 @@ import {
   mutateSessionRegistrySync,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
+  buildRoleEnvironmentOverrides,
   buildStartupPrompt,
   resolveRoleConfig,
   selectModel,
@@ -73,6 +74,7 @@ function commandExists(command) {
 const roleConfig = resolveRoleConfig(role, wpId);
 if (!roleConfig) fail(`Unknown role: ${role}`);
 const selectedModel = selectModel(requestedModel);
+const launchEnvironmentOverrides = buildRoleEnvironmentOverrides({ role });
 
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const currentBranch = runGit(["branch", "--show-current"]);
@@ -121,8 +123,12 @@ function psQuote(value) {
 function writeLaunchScript() {
   const psPath = path.join(os.tmpdir(), `handshake-${role.toLowerCase()}-${wpId}-${Date.now()}.ps1`);
   const psArgsLines = codexArgs.map((arg) => `  ${psQuote(arg)}`).join(",\r\n");
+  const envLines = Object.entries(launchEnvironmentOverrides)
+    .map(([key, value]) => `$env:${key} = ${psQuote(value)}`)
+    .join("\r\n");
   const script = [
     `$ErrorActionPreference = 'Stop'`,
+    envLines,
     `Set-Location -LiteralPath ${psQuote(absWorktreeDir)}`,
     `$codexArgs = @(`,
     psArgsLines,
@@ -139,6 +145,10 @@ const codexCommand = `& ${psQuote(launchScriptPath)}`;
 function launchCurrent() {
   const child = spawn(CLI_SESSION_TOOL, codexArgs, {
     cwd: absWorktreeDir,
+    env: {
+      ...process.env,
+      ...launchEnvironmentOverrides,
+    },
     stdio: "inherit",
     shell: false,
   });
@@ -181,6 +191,9 @@ function printOnly(reason, resolvedHost) {
   console.log(`[LAUNCH_CLI_SESSION] branch=${roleConfig.branch}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
   console.log(`[LAUNCH_CLI_SESSION] launch_script=${launchScriptPath}`);
+  if (Object.keys(launchEnvironmentOverrides).length > 0) {
+    console.log(`[LAUNCH_CLI_SESSION] env_overrides=${JSON.stringify(launchEnvironmentOverrides)}`);
+  }
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] command=${codexCommand}`);

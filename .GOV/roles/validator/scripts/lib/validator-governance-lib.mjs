@@ -1,7 +1,10 @@
+import fs from "node:fs";
 import path from "node:path";
 import { evaluateComputedPolicyGateFromPacketText } from "../../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
 import { parseClaimField } from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
-import { normalizePath, REPO_ROOT } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { normalizePath, REPO_ROOT, repoPathAbs } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { evaluateWpCommunicationHealth, deriveLatestValidatorAssessment } from "../../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import { parseJsonFile, parseJsonlFile } from "../../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { loadSessionRegistry } from "../../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
   defaultIntegrationValidatorBranch,
@@ -17,6 +20,16 @@ function parseStatus(packetContent) {
     || (String(packetContent || "").match(/^\s*Status:\s*(.+)\s*$/mi) || [])[1]
     || ""
   ).trim();
+}
+
+function repoRelativeFileExists(filePath = "") {
+  const relPath = String(filePath || "").trim();
+  if (!relPath) return false;
+  try {
+    return path.isAbsolute(relPath) ? false : fs.existsSync(repoPathAbs(relPath));
+  } catch {
+    return false;
+  }
 }
 
 export function normalizeValidatorRole(value) {
@@ -80,6 +93,139 @@ export function readValidatorAuthority(packetContent = "") {
     mergeAuthority,
     wpValidatorOfRecord: String(parseClaimField(packetContent, "WP_VALIDATOR_OF_RECORD") || "").trim(),
     integrationValidatorOfRecord: String(parseClaimField(packetContent, "INTEGRATION_VALIDATOR_OF_RECORD") || "").trim(),
+  };
+}
+
+function validatorReadyMessage(actorRole, waitingOn, communicationState = null) {
+  const normalizedRole = normalizeValidatorRole(actorRole);
+  const waiting = String(waitingOn || "").trim().toUpperCase();
+  const latestAssessment = communicationState?.latestValidatorAssessment || null;
+  if (normalizedRole === "WP_VALIDATOR") {
+    if (waiting === "WP_VALIDATOR_REVIEW") {
+      return "Coder handoff recorded; WP validator review is required now.";
+    }
+    if (waiting.startsWith("OPEN_REVIEW_ITEM_")) {
+      return "Open review traffic is targeted to WP Validator and requires a reply.";
+    }
+    return "WP Validator is the projected next actor for the current governed validation step.";
+  }
+  if (normalizedRole === "INTEGRATION_VALIDATOR") {
+    if (waiting.startsWith("OPEN_REVIEW_ITEM_REVIEW_REQUEST")) {
+      return "Coder opened the final direct review exchange; Integration Validator response is required now.";
+    }
+    if (latestAssessment?.verdict === "PASS") {
+      return "Integration Validator assessment is positioned for final review progression.";
+    }
+    return "Integration Validator is the projected next actor for the current governed validation step.";
+  }
+  return "Validator lane is the projected next actor for the current governed validation step.";
+}
+
+function blockedValidatorMessage(actorRole, nextExpectedActor, waitingOn, communicationState = null) {
+  const normalizedRole = normalizeValidatorRole(actorRole);
+  const nextActor = normalizeValidatorRole(nextExpectedActor);
+  const waiting = String(waitingOn || "").trim();
+  const latestAssessment = communicationState?.latestValidatorAssessment || null;
+
+  if (nextActor === "CODER") {
+    if (latestAssessment?.verdict === "FAIL") {
+      return `Latest validator assessment already recorded FAIL; coder remediation is next (${waiting || "CODER_REPAIR_HANDOFF"}).`;
+    }
+    return `Validator work is not the current route target; runtime expects CODER next (${waiting || "implementation"}).`;
+  }
+  if (nextActor === "ORCHESTRATOR") {
+    if (latestAssessment) {
+      return `Latest validator assessment already recorded ${latestAssessment.verdict}; orchestrator progression is next (${waiting || "governance"}).`;
+    }
+    return `Validator work is not the current route target; runtime expects ORCHESTRATOR next (${waiting || "governance"}).`;
+  }
+  if (nextActor && nextActor !== normalizedRole) {
+    return `Validator work is not the current route target; runtime expects ${nextActor} next (${waiting || "governed progression"}).`;
+  }
+  return "Validator work is not the current route target yet.";
+}
+
+export function loadValidatorCommunicationState({
+  wpId = "",
+  packetPath = "",
+  packetContent = "",
+} = {}) {
+  const runtimeStatusFile = String(parseClaimField(packetContent, "WP_RUNTIME_STATUS_FILE") || "").trim();
+  const receiptsFile = String(parseClaimField(packetContent, "WP_RECEIPTS_FILE") || "").trim();
+  if (!runtimeStatusFile || !repoRelativeFileExists(runtimeStatusFile)) return null;
+
+  const runtimeStatus = parseJsonFile(runtimeStatusFile);
+  const receipts = receiptsFile && repoRelativeFileExists(receiptsFile) ? parseJsonlFile(receiptsFile) : [];
+  const communicationEvaluation = evaluateWpCommunicationHealth({
+    wpId,
+    stage: "STATUS",
+    packetPath,
+    workflowLane: parseClaimField(packetContent, "WORKFLOW_LANE"),
+    packetFormatVersion: parseClaimField(packetContent, "PACKET_FORMAT_VERSION"),
+    communicationContract: parseClaimField(packetContent, "COMMUNICATION_CONTRACT"),
+    communicationHealthGate: parseClaimField(packetContent, "COMMUNICATION_HEALTH_GATE"),
+    receipts,
+    runtimeStatus,
+  });
+
+  return {
+    runtimeStatus,
+    receipts,
+    communicationEvaluation,
+    latestValidatorAssessment: deriveLatestValidatorAssessment(receipts),
+  };
+}
+
+export function deriveValidatorResumeState({
+  actorRole = "",
+  communicationState = null,
+} = {}) {
+  const normalizedRole = normalizeValidatorRole(actorRole);
+  const nextExpectedActor = normalizeValidatorRole(communicationState?.runtimeStatus?.next_expected_actor);
+  const waitingOn = String(communicationState?.runtimeStatus?.waiting_on || "").trim();
+  const latestAssessment = communicationState?.latestValidatorAssessment || null;
+  const communicationApplicable = Boolean(communicationState?.communicationEvaluation?.applicable);
+
+  if (!["WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(normalizedRole) || !communicationApplicable) {
+    return {
+      ready: false,
+      blockedByRoute: false,
+      nextExpectedActor,
+      waitingOn,
+      latestAssessment,
+      message: "",
+    };
+  }
+
+  if (nextExpectedActor === normalizedRole) {
+    return {
+      ready: true,
+      blockedByRoute: false,
+      nextExpectedActor,
+      waitingOn,
+      latestAssessment,
+      message: validatorReadyMessage(normalizedRole, waitingOn, communicationState),
+    };
+  }
+
+  if (nextExpectedActor) {
+    return {
+      ready: false,
+      blockedByRoute: true,
+      nextExpectedActor,
+      waitingOn,
+      latestAssessment,
+      message: blockedValidatorMessage(normalizedRole, nextExpectedActor, waitingOn, communicationState),
+    };
+  }
+
+  return {
+    ready: false,
+    blockedByRoute: false,
+    nextExpectedActor,
+    waitingOn,
+    latestAssessment,
+    message: "",
   };
 }
 

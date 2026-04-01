@@ -23,7 +23,7 @@ import {
   committedEvidenceForCloseout,
   livePrepareWorktreeHealthEvidence,
 } from "./committed-validation-evidence-lib.mjs";
-import { REPO_ROOT } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, REPO_ROOT } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 function makeIssueSet() {
   return new Set();
@@ -59,16 +59,18 @@ export function evaluateIntegrationValidatorTopology({
   packetContent = "",
   actorContext = {},
   committedEvidence = null,
+  governanceRootAbs = "",
   gitRunner = null,
   worktreeExists = fs.existsSync,
 } = {}) {
   const issues = makeIssueSet();
   const warnings = [];
-  const authority = evaluateValidatorPassAuthority({
+  const authorityEvaluation = evaluateValidatorPassAuthority({
     packetContent,
     actorContext,
   });
-  for (const issue of authority.issues || []) issues.add(issue);
+  const authority = authorityEvaluation.authority || {};
+  for (const issue of authorityEvaluation.issues || []) issues.add(issue);
 
   const actorRole = normalizeValidatorRole(actorContext?.actorRole);
   if (actorRole !== "INTEGRATION_VALIDATOR") {
@@ -77,8 +79,11 @@ export function evaluateIntegrationValidatorTopology({
 
   const expectedBranch = defaultIntegrationValidatorBranch(wpId);
   const expectedWorktreeDir = normalizePath(defaultIntegrationValidatorWorktreeDir(wpId));
+  const expectedWorktreeAbs = normalizePath(path.resolve(repoRoot, expectedWorktreeDir));
   const actorBranch = String(actorContext?.actorBranch || "").trim();
   const actorWorktreeDir = normalizePath(actorContext?.actorWorktreeDir || "");
+  const liveGovernanceRootAbs = normalizePath(path.resolve(governanceRootAbs || GOV_ROOT_ABS || path.resolve(repoRoot, ".GOV")));
+  const localMainGovernanceAbs = normalizePath(path.join(expectedWorktreeAbs, ".GOV"));
 
   if (actorBranch !== expectedBranch) {
     issues.add(`Integration Validator must run from branch ${expectedBranch}; current branch is ${actorBranch || "<unknown>"}.`);
@@ -86,10 +91,21 @@ export function evaluateIntegrationValidatorTopology({
   if (!samePath(actorWorktreeDir, expectedWorktreeDir)) {
     issues.add(`Integration Validator must run from ${expectedWorktreeDir}; current worktree is ${actorWorktreeDir || "<unknown>"}.`);
   }
+  if (authority.workflowLane === "ORCHESTRATOR_MANAGED" && samePath(liveGovernanceRootAbs, localMainGovernanceAbs)) {
+    issues.add(
+      `Integration Validator must resolve live governance from the kernel via HANDSHAKE_GOV_ROOT; current governance root still points at handshake_main/.GOV (${localMainGovernanceAbs}).`
+    );
+  }
 
   if (!committedEvidence || typeof committedEvidence !== "object") {
     issues.add("Committed handoff validation evidence is missing.");
-    return { ok: false, issues: Array.from(issues), warnings };
+    return {
+      ok: false,
+      issues: Array.from(issues),
+      warnings,
+      liveGovernanceRootAbs,
+      localMainGovernanceAbs,
+    };
   }
   const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
   const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
@@ -105,13 +121,25 @@ export function evaluateIntegrationValidatorTopology({
   const targetHeadSha = String(durableCommittedProof?.target_head_sha || "").trim();
   if (!targetHeadSha) {
     issues.add("Committed handoff validation evidence is missing target_head_sha.");
-    return { ok: false, issues: Array.from(issues), warnings };
+    return {
+      ok: false,
+      issues: Array.from(issues),
+      warnings,
+      liveGovernanceRootAbs,
+      localMainGovernanceAbs,
+    };
   }
 
   const worktreeAbs = path.resolve(repoRoot, actorWorktreeDir || expectedWorktreeDir);
   if (!worktreeExists(worktreeAbs)) {
     issues.add(`Integration Validator worktree is unavailable: ${normalizePath(worktreeAbs)}`);
-    return { ok: false, issues: Array.from(issues), warnings };
+    return {
+      ok: false,
+      issues: Array.from(issues),
+      warnings,
+      liveGovernanceRootAbs,
+      localMainGovernanceAbs,
+    };
   }
 
   const runGit = typeof gitRunner === "function"
@@ -135,6 +163,8 @@ export function evaluateIntegrationValidatorTopology({
     expectedBranch,
     expectedWorktreeDir,
     resolvedWorktreeAbs: normalizePath(worktreeAbs),
+    liveGovernanceRootAbs,
+    localMainGovernanceAbs,
     targetHeadSha,
     currentMainHeadSha,
     livePrepareHealth,
@@ -271,6 +301,7 @@ export function evaluateIntegrationValidatorCloseoutState({
     packetContent,
     actorContext,
     committedEvidence,
+    governanceRootAbs: GOV_ROOT_ABS,
     gitRunner,
     worktreeExists,
   });

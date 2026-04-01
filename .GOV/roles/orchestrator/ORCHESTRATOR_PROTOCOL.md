@@ -82,6 +82,7 @@ See also:
 - Primary launch path is the VS Code bridge using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
   - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
   - `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
+- For the governed `INTEGRATION_VALIDATOR` lane, the Orchestrator MUST preserve kernel governance authority even though execution occurs from `handshake_main`: launch/control requests must carry `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`, and any lane that resolves live authority from `handshake_main/.GOV` is misconfigured and must be repaired before closeout.
 - Primary steering path is the governed session-control ledgers under that same external repo-governance runtime root:
   - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
   - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
@@ -537,7 +538,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - In orchestrator-managed lanes, the WP Validator is the first technical judge for coder BOOTSTRAP, SKELETON, and completed micro tasks. The Orchestrator should not babysit those phases unless the validator raises a real blocker.
 - The initial `VALIDATOR_KICKOFF` plus correlated `CODER_INTENT` exchange is the normal bootstrap/skeleton steering surface. Use it to correct weak scope, wrong data shapes, or shallow micro-task plans before implementation hardens.
 - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
-- Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Watch that projected route; do not replace it with manual narrative steering unless a real repair is required.
+- Review-tracked receipt appends now auto-write notifications for the explicit target role, notify `ORCHESTRATOR` on validator-authored assessment receipts as a governance checkpoint, include the assessment result (`PASS`/`FAIL`/`ASSESSED`) plus the validator's reason in that checkpoint summary, and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Watch that projected route; do not replace it with manual narrative steering unless a real repair is required.
 - Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
 - Before validator handoff review begins, `just wp-communication-health-check WP-{ID} HANDOFF` MUST pass.
 - Before PASS commit clearance, `just wp-communication-health-check WP-{ID} VERDICT` MUST pass.

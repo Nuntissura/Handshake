@@ -13,6 +13,7 @@ import {
   mutateSessionRegistrySync,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
+  buildRoleEnvironmentOverrides,
   buildSessionControlRequest,
   buildStartupPrompt,
   defaultSessionOutputFile,
@@ -72,6 +73,7 @@ const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const currentBranch = runGit(["branch", "--show-current"]);
 assertOrchestratorLaunchAuthority(currentBranch);
 const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
+const environmentOverrides = buildRoleEnvironmentOverrides({ role });
 
 const selectedModel = selectModel(requestedModel);
 const sessionDescriptor = {
@@ -145,6 +147,7 @@ if (commandKind === "CANCEL_SESSION") {
     threadId: session.session_thread_id || "",
     summary: `Cancel governed ${role} session command ${targetCommandId} for ${wpId}`,
     outputJsonlFile: defaultSessionOutputFile(repoRoot, session.session_key, commandId),
+    environmentOverrides,
     targetCommandId,
   });
 
@@ -246,6 +249,7 @@ if (commandKind === "CLOSE_SESSION") {
     threadId: session.session_thread_id || "",
     summary: `Close governed ${role} session for ${wpId}`,
     outputJsonlFile: defaultSessionOutputFile(repoRoot, session.session_key, commandId),
+    environmentOverrides,
   });
 
   let acpResponse;
@@ -352,6 +356,7 @@ const request = buildSessionControlRequest({
   threadId: session.session_thread_id || "",
   summary,
   outputJsonlFile: defaultSessionOutputFile(repoRoot, session.session_key, commandId),
+  environmentOverrides,
 });
 
 let acpResponse;

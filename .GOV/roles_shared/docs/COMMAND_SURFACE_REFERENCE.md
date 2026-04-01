@@ -183,6 +183,7 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
   - `runtime-write`
   - launch/bootstrap lane
   - on the ordinary orchestrator-managed path, supported launch hosts now auto-issue the first governed `START_SESSION` so launch does not stop at a launch-only false green
+  - governed launch/control must preserve kernel governance authority with `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`; `handshake_main/.GOV` is not valid live governance for orchestrator-managed integration validation
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-{ID} ...`
 - `just start-integration-validator-session WP-{ID} ...`

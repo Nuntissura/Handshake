@@ -45,8 +45,8 @@ Requirements:
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -100,7 +100,7 @@ Requirements:
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** In Progress
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
 - MAIN_CONTAINMENT_STATUS: NOT_STARTED
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
@@ -157,7 +157,7 @@ Requirements:
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Project-Profile-Extension-Registry-v1/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Project-Profile-Extension-Registry-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Project-Profile-Extension-Registry-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: wp_validator:wp-1-project-profile-extension-registry-v1
 - INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
@@ -171,9 +171,8 @@ Requirements:
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
-Blockers: NONE
-Next: N/A
-
+Blockers: WP validator review requires coder remediation; see the latest VALIDATOR_REVIEW receipt for authoritative findings.
+Next: CODER repairs against the latest VALIDATOR_REVIEW, commits the reviewable state, and re-records CODER_HANDOFF with proof.
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:

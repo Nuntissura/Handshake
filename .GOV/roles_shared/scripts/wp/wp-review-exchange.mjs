@@ -4,10 +4,12 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  communicationTransactionLockPathForWp,
   REVIEW_OPEN_RECEIPT_KIND_VALUES,
   REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
 } from "../lib/wp-communications-lib.mjs";
-import { appendWpReceipt } from "./wp-receipt-append.mjs";
+import { withFileLockSync } from "../session/session-registry-lib.mjs";
+import { appendWpReceipt, validateWpReceiptAppendPreconditions } from "./wp-receipt-append.mjs";
 import { appendWpThreadEntry } from "./wp-thread-append.mjs";
 
 const SUPPORTED_RECEIPT_KINDS = [
@@ -131,56 +133,74 @@ export function recordReviewExchange({
     ACK_FOR = CORRELATION_ID;
   }
 
-  const threadResult = appendWpThreadEntry({
-    wpId: WP_ID,
-    actorRole: ACTOR_ROLE,
-    actorSession: ACTOR_SESSION,
-    message: buildThreadMessage({
+  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), () => {
+    validateWpReceiptAppendPreconditions({
+      wpId: WP_ID,
+      actorRole: ACTOR_ROLE,
+      actorSession: ACTOR_SESSION,
       receiptKind: RECEIPT_KIND,
       summary: SUMMARY,
+      targetRole: TARGET_ROLE,
+      targetSession: TARGET_SESSION,
+      correlationId: CORRELATION_ID,
+      requiresAck: requiresAck(RECEIPT_KIND),
+      ackFor: ACK_FOR,
       specAnchor: SPEC_ANCHOR,
       packetRowRef: PACKET_ROW_REF,
-      correlationId: CORRELATION_ID,
       microtaskContract: MICROTASK_CONTRACT,
-    }),
-    target: buildTargetLabel(TARGET_ROLE, TARGET_SESSION),
-    recordReceipt: false,
-    emitNotification: false,
-    targetRole: TARGET_ROLE,
-    targetSession: TARGET_SESSION,
-    correlationId: CORRELATION_ID,
-    requiresAck: requiresAck(RECEIPT_KIND),
-    ackFor: ACK_FOR,
-    specAnchor: SPEC_ANCHOR,
-    packetRowRef: PACKET_ROW_REF,
-    microtaskContract: MICROTASK_CONTRACT,
-  });
+    });
 
-  const receiptResult = appendWpReceipt({
-    wpId: WP_ID,
-    actorRole: ACTOR_ROLE,
-    actorSession: ACTOR_SESSION,
-    receiptKind: RECEIPT_KIND,
-    summary: SUMMARY,
-    targetRole: TARGET_ROLE,
-    targetSession: TARGET_SESSION,
-    correlationId: CORRELATION_ID,
-    requiresAck: requiresAck(RECEIPT_KIND),
-    ackFor: ACK_FOR,
-    specAnchor: SPEC_ANCHOR,
-    packetRowRef: PACKET_ROW_REF,
-    microtaskContract: MICROTASK_CONTRACT,
-    refs: [threadResult.threadFile],
-  });
+    const threadResult = appendWpThreadEntry({
+      wpId: WP_ID,
+      actorRole: ACTOR_ROLE,
+      actorSession: ACTOR_SESSION,
+      message: buildThreadMessage({
+        receiptKind: RECEIPT_KIND,
+        summary: SUMMARY,
+        specAnchor: SPEC_ANCHOR,
+        packetRowRef: PACKET_ROW_REF,
+        correlationId: CORRELATION_ID,
+        microtaskContract: MICROTASK_CONTRACT,
+      }),
+      target: buildTargetLabel(TARGET_ROLE, TARGET_SESSION),
+      recordReceipt: false,
+      emitNotification: false,
+      targetRole: TARGET_ROLE,
+      targetSession: TARGET_SESSION,
+      correlationId: CORRELATION_ID,
+      requiresAck: requiresAck(RECEIPT_KIND),
+      ackFor: ACK_FOR,
+      specAnchor: SPEC_ANCHOR,
+      packetRowRef: PACKET_ROW_REF,
+      microtaskContract: MICROTASK_CONTRACT,
+    }, { assumeTransactionLock: true });
 
-  return {
-    correlationId: CORRELATION_ID,
-    threadFile: threadResult.threadFile,
-    receiptsFile: receiptResult.context.receiptsFile,
-    runtimeStatusFile: receiptResult.context.runtimeStatusFile,
-    receipt: receiptResult.entry,
-    microtaskContract: MICROTASK_CONTRACT,
-  };
+    const receiptResult = appendWpReceipt({
+      wpId: WP_ID,
+      actorRole: ACTOR_ROLE,
+      actorSession: ACTOR_SESSION,
+      receiptKind: RECEIPT_KIND,
+      summary: SUMMARY,
+      targetRole: TARGET_ROLE,
+      targetSession: TARGET_SESSION,
+      correlationId: CORRELATION_ID,
+      requiresAck: requiresAck(RECEIPT_KIND),
+      ackFor: ACK_FOR,
+      specAnchor: SPEC_ANCHOR,
+      packetRowRef: PACKET_ROW_REF,
+      microtaskContract: MICROTASK_CONTRACT,
+      refs: [threadResult.threadFile],
+    }, { assumeTransactionLock: true, skipPreflight: true });
+
+    return {
+      correlationId: CORRELATION_ID,
+      threadFile: threadResult.threadFile,
+      receiptsFile: receiptResult.context.receiptsFile,
+      runtimeStatusFile: receiptResult.context.runtimeStatusFile,
+      receipt: receiptResult.entry,
+      microtaskContract: MICROTASK_CONTRACT,
+    };
+  });
 }
 
 function runCli() {

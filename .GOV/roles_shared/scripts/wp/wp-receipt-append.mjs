@@ -19,14 +19,35 @@ import {
   WORKFLOW_INVALIDITY_RECEIPT_KIND,
 } from "../lib/wp-communications-lib.mjs";
 import {
+  classifyWpChangedPath,
+  deriveWpScopeContract,
+  formatBoundedItemList,
+} from "../lib/scope-surface-lib.mjs";
+import {
+  buildPostWorkCommand,
+  lastGateLog,
+  loadOrchestratorGateLogs,
+  parseMergeBaseSha,
+  preparedWorktreeSyncState,
+  resolvePrepareWorktreeAbs,
+} from "../lib/role-resume-utils.mjs";
+import {
+  deriveLatestValidatorAssessment,
   deriveWpCommunicationAutoRoute,
   evaluateWpCommunicationHealth,
 } from "../lib/wp-communication-health-lib.mjs";
-import { repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
+import {
+  applyWpReviewPacketProjection,
+  applyWpReviewRuntimeProjection,
+  deriveWpReviewPacketProjection,
+} from "../lib/wp-review-projection-lib.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification } from "./wp-notification-append.mjs";
 
 const ACTIVE_AUTO_RELAY_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const VALIDATOR_ASSESSMENT_ROLE_VALUES = new Set(["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"]);
+const GOVERNANCE_CHECKPOINT_RECEIPT_KIND_VALUES = new Set(REVIEW_RESOLUTION_RECEIPT_KIND_VALUES);
 const ORCHESTRATOR_STEER_SCRIPT_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
@@ -35,6 +56,35 @@ const ORCHESTRATOR_STEER_SCRIPT_PATH = path.resolve(
   "scripts",
   "orchestrator-steer-next.mjs",
 );
+const TASK_BOARD_SET_SCRIPT_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+  "roles",
+  "orchestrator",
+  "scripts",
+  "task-board-set.mjs",
+);
+const BUILD_ORDER_SYNC_SCRIPT_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+  "roles_shared",
+  "scripts",
+  "build-order-sync.mjs",
+);
+const TASK_BOARD_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`);
+const BUILD_ORDER_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md`);
+const RUNTIME_ROUTE_FIELD_NAMES = [
+  "open_review_items",
+  "next_expected_actor",
+  "next_expected_session",
+  "waiting_on",
+  "waiting_on_session",
+  "validator_trigger",
+  "validator_trigger_reason",
+  "ready_for_validation",
+  "ready_for_validation_reason",
+  "attention_required",
+];
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -54,6 +104,18 @@ function parseBooleanLike(value) {
   return ["1", "true", "yes", "y"].includes(raw.toLowerCase());
 }
 
+function readOptionalText(absPath) {
+  return fs.existsSync(absPath) ? fs.readFileSync(absPath, "utf8") : null;
+}
+
+function restoreOptionalText(absPath, text) {
+  if (text === null) {
+    if (fs.existsSync(absPath)) fs.unlinkSync(absPath);
+    return;
+  }
+  fs.writeFileSync(absPath, text, "utf8");
+}
+
 function normalizeRole(value) {
   return String(value || "").trim().toUpperCase();
 }
@@ -63,9 +125,144 @@ function normalizeSession(value) {
   return raw || null;
 }
 
-function sameRouteTarget(leftRole, leftSession, rightRole, rightSession) {
-  return normalizeRole(leftRole) === normalizeRole(rightRole)
-    && normalizeSession(leftSession) === normalizeSession(rightSession);
+function normalizeReceiptKind(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function parseChangedPaths(statusPorcelain) {
+  return String(statusPorcelain || "")
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map((line) => line.slice(3).split(" -> ").at(-1)?.trim() || "")
+    .filter(Boolean);
+}
+
+function runInWorktree(worktreeAbs, command, args) {
+  const result = execFileSync(command, args, {
+    cwd: worktreeAbs,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  return String(result || "").trim();
+}
+
+export function summarizeCommittedCoderHandoffDirtyState(statusPorcelain, scopeContract) {
+  const changedPaths = parseChangedPaths(statusPorcelain);
+  const governanceJunctionPaths = [];
+  const blockingPaths = [];
+
+  for (const changedPath of changedPaths) {
+    const classification = classifyWpChangedPath(changedPath, scopeContract);
+    if (classification.kind === "GOVERNANCE_JUNCTION_DRIFT") {
+      governanceJunctionPaths.push(classification.path);
+      continue;
+    }
+    blockingPaths.push(`${classification.path} (${classification.kind})`);
+  }
+
+  return {
+    changedPaths,
+    governanceJunctionPaths,
+    blockingPaths,
+    ok: blockingPaths.length === 0,
+  };
+}
+
+function formatCommittedCoderHandoffFailure(summary = {}) {
+  const detailLines = [];
+  if ((summary.blockingPaths || []).length > 0) {
+    detailLines.push(
+      `blocking_paths=${formatBoundedItemList(summary.blockingPaths, { noun: "entry" })}`,
+    );
+  }
+  if ((summary.governanceJunctionPaths || []).length > 0) {
+    detailLines.push(
+      `shared_gov_junction_drift=${formatBoundedItemList(summary.governanceJunctionPaths, { noun: "path" })}`,
+    );
+  }
+  return detailLines;
+}
+
+function committedCoderHandoffGateApplies({ context, actorRole, receiptKind }) {
+  return normalizeRole(context?.workflowLane) === "ORCHESTRATOR_MANAGED"
+    && normalizeRole(actorRole) === "CODER"
+    && normalizeReceiptKind(receiptKind) === "CODER_HANDOFF";
+}
+
+function appendNotificationTarget(targets, seenTargets, target) {
+  const targetRole = normalizeRole(target?.targetRole);
+  const targetSession = normalizeSession(target?.targetSession);
+  const actorRole = normalizeRole(target?.actorRole);
+  if (!targetRole || targetRole === actorRole) return;
+  const dedupeKey = `${targetRole}::${targetSession || ""}`;
+  if (seenTargets.has(dedupeKey)) return;
+  seenTargets.add(dedupeKey);
+  targets.push({
+    targetRole,
+    targetSession,
+    sourceKind: String(target?.sourceKind || "").trim().toUpperCase(),
+    summary: String(target?.summary || "").trim(),
+  });
+}
+
+function shouldAppendOrchestratorGovernanceCheckpoint({ workflowLane, entry }) {
+  if (normalizeRole(workflowLane) !== "ORCHESTRATOR_MANAGED") return false;
+  if (!VALIDATOR_ASSESSMENT_ROLE_VALUES.has(normalizeRole(entry?.actor_role))) return false;
+  return GOVERNANCE_CHECKPOINT_RECEIPT_KIND_VALUES.has(normalizeReceiptKind(entry?.receipt_kind));
+}
+
+function buildOrchestratorGovernanceCheckpointSummary({ entry, autoRoute }) {
+  const assessment = deriveLatestValidatorAssessment([entry]);
+  const nextActor = normalizeRole(autoRoute?.nextExpectedActor) || "UNCHANGED";
+  const result = assessment?.verdict || "ASSESSED";
+  const why = String(assessment?.reason || entry?.summary || "").trim();
+  return [
+    `GOVERNANCE_CHECKPOINT: ${normalizeRole(entry?.actor_role)} recorded ${normalizeReceiptKind(entry?.receipt_kind)} result=${result};`,
+    why ? `why=${why}` : null,
+    `verify governance truth and ACP steering.`,
+    `projected_next_actor=${nextActor}.`,
+  ].filter(Boolean).join(" ");
+}
+
+export function deriveReviewNotificationTargets({ workflowLane = "", entry, autoRoute } = {}) {
+  const targets = [];
+  const seenTargets = new Set();
+  const actorRole = normalizeRole(entry?.actor_role);
+  const explicitTargetRole = normalizeRole(entry?.target_role);
+  const explicitTargetSession = normalizeSession(entry?.target_session);
+
+  if (explicitTargetRole) {
+    appendNotificationTarget(targets, seenTargets, {
+      actorRole,
+      targetRole: explicitTargetRole,
+      targetSession: explicitTargetSession,
+      sourceKind: entry?.receipt_kind,
+      summary: `${entry.receipt_kind}: ${entry.summary}`,
+    });
+  }
+
+  if (autoRoute?.notification?.targetRole) {
+    appendNotificationTarget(targets, seenTargets, {
+      actorRole,
+      targetRole: autoRoute.notification.targetRole,
+      targetSession: autoRoute.notification.targetSession,
+      sourceKind: "AUTO_ROUTE",
+      summary: autoRoute.notification.summary,
+    });
+  }
+
+  if (shouldAppendOrchestratorGovernanceCheckpoint({ workflowLane, entry })) {
+    appendNotificationTarget(targets, seenTargets, {
+      actorRole,
+      targetRole: "ORCHESTRATOR",
+      targetSession: null,
+      sourceKind: "GOVERNANCE_CHECKPOINT",
+      summary: buildOrchestratorGovernanceCheckpointSummary({ entry, autoRoute }),
+    });
+  }
+
+  return targets;
 }
 
 function updateOpenReviewItems(runtimeStatus, entry) {
@@ -130,6 +327,7 @@ function loadPacketContext(wpId) {
   return {
     packetPath: normalize(packetPath),
     packetAbsPath: normalize(packetAbsPath),
+    packetText,
     receiptsFile: normalize(receiptsFile),
     receiptsAbsPath: normalize(receiptsAbsPath),
     runtimeStatusFile: normalize(runtimeStatusFile),
@@ -145,34 +343,98 @@ function loadPacketContext(wpId) {
   };
 }
 
-function appendReviewNotifications({ wpId, entry, autoRoute }) {
-  const targets = [];
-  const explicitTargetRole = normalizeRole(entry?.target_role);
-  const explicitTargetSession = normalizeSession(entry?.target_session);
-
-  if (explicitTargetRole && explicitTargetRole !== normalizeRole(entry?.actor_role)) {
-    targets.push({
-      targetRole: explicitTargetRole,
-      targetSession: explicitTargetSession,
-      sourceKind: entry.receipt_kind,
-      summary: `${entry.receipt_kind}: ${entry.summary}`,
-    });
+function assertCommittedCoderHandoffPreflight({ wpId, context }) {
+  const prepareEntry = lastGateLog(loadOrchestratorGateLogs(), wpId, "PREPARE");
+  if (!prepareEntry) {
+    throw new Error("Governed CODER_HANDOFF rejected: PREPARE authority is missing for this WP.");
   }
 
-  if (autoRoute?.notification?.targetRole) {
-    const routeTargetRole = normalizeRole(autoRoute.notification.targetRole);
-    const routeTargetSession = normalizeSession(autoRoute.notification.targetSession);
-    const duplicatesExplicit = sameRouteTarget(routeTargetRole, routeTargetSession, explicitTargetRole, explicitTargetSession);
-    if (!duplicatesExplicit && routeTargetRole !== normalizeRole(entry?.actor_role)) {
-      targets.push({
-        targetRole: routeTargetRole,
-        targetSession: routeTargetSession,
-        sourceKind: "AUTO_ROUTE",
-        summary: autoRoute.notification.summary,
-      });
-    }
+  const syncState = preparedWorktreeSyncState(wpId, prepareEntry, REPO_ROOT);
+  if (!syncState.ok) {
+    throw new Error(
+      `Governed CODER_HANDOFF rejected: PREPARE worktree is not synchronized with current packet truth (${formatBoundedItemList(syncState.issues, { noun: "issue" })}).`
+    );
   }
 
+  const worktreeAbs = resolvePrepareWorktreeAbs(prepareEntry, REPO_ROOT);
+  if (!worktreeAbs || !fs.existsSync(worktreeAbs)) {
+    throw new Error("Governed CODER_HANDOFF rejected: PREPARE worktree is unavailable.");
+  }
+
+  const scopeContract = deriveWpScopeContract({ wpId, packetContent: context.packetText });
+  const initialStatus = execFileSync("git", ["status", "--porcelain=v1"], {
+    cwd: worktreeAbs,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const initialDirty = summarizeCommittedCoderHandoffDirtyState(initialStatus, scopeContract);
+  if (!initialDirty.ok) {
+    throw new Error(
+      `Governed CODER_HANDOFF rejected: PREPARE worktree is not committed/reviewable yet (${formatCommittedCoderHandoffFailure(initialDirty).join("; ")}).`
+    );
+  }
+
+  try {
+    runInWorktree(worktreeAbs, "just", ["pre-work", wpId]);
+  } catch (error) {
+    const output = String(error?.stdout || error?.stderr || error?.message || "").trim();
+    throw new Error(`Governed CODER_HANDOFF rejected: just pre-work ${wpId} failed${output ? ` (${output})` : ""}.`);
+  }
+
+  try {
+    runInWorktree(worktreeAbs, "just", ["cargo-clean"]);
+  } catch (error) {
+    const output = String(error?.stdout || error?.stderr || error?.message || "").trim();
+    throw new Error(`Governed CODER_HANDOFF rejected: just cargo-clean failed${output ? ` (${output})` : ""}.`);
+  }
+
+  const mergeBaseSha = parseMergeBaseSha(context.packetText);
+  const postWorkArgs = mergeBaseSha
+    ? ["post-work", wpId, "--range", `${mergeBaseSha}..HEAD`]
+    : ["post-work", wpId];
+  try {
+    runInWorktree(worktreeAbs, "just", postWorkArgs);
+  } catch (error) {
+    const output = String(error?.stdout || error?.stderr || error?.message || "").trim();
+    throw new Error(`Governed CODER_HANDOFF rejected: ${buildPostWorkCommand(wpId, context.packetText)} failed${output ? ` (${output})` : ""}.`);
+  }
+
+  const finalStatus = execFileSync("git", ["status", "--porcelain=v1"], {
+    cwd: worktreeAbs,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const finalDirty = summarizeCommittedCoderHandoffDirtyState(finalStatus, scopeContract);
+  if (!finalDirty.ok) {
+    throw new Error(
+      `Governed CODER_HANDOFF rejected: PREPARE worktree gained non-junction dirty state during preflight (${formatCommittedCoderHandoffFailure(finalDirty).join("; ")}).`
+    );
+  }
+}
+
+export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
+  const wpId = String(args?.wpId || "").trim();
+  if (!wpId || !/^WP-/.test(wpId)) {
+    throw new Error("WP_ID is required");
+  }
+
+  const context = options.context || loadPacketContext(wpId);
+  if (
+    !options.skipCommittedCoderHandoffGate
+    && committedCoderHandoffGateApplies({
+      context,
+      actorRole: args?.actorRole,
+      receiptKind: args?.receiptKind,
+    })
+  ) {
+    assertCommittedCoderHandoffPreflight({ wpId, context });
+  }
+
+  return { context };
+}
+
+function appendReviewNotifications({ wpId, workflowLane, entry, autoRoute }) {
+  const targets = deriveReviewNotificationTargets({ workflowLane, entry, autoRoute });
   for (const target of targets) {
     appendWpNotification({
       wpId,
@@ -185,6 +447,80 @@ function appendReviewNotifications({ wpId, entry, autoRoute }) {
       summary: target.summary,
       timestamp: entry.timestamp_utc,
     }, { assumeTransactionLock: true });
+  }
+}
+
+function syncReviewGovernanceTruth({
+  wpId,
+  context,
+  entry,
+  evaluation,
+  autoRoute,
+  runtimeStatus,
+}) {
+  if (!evaluation?.applicable) {
+    return applyWpReviewRuntimeProjection(runtimeStatus, { evaluation });
+  }
+
+  const originalPacketText = fs.readFileSync(context.packetAbsPath, "utf8");
+  const originalTaskBoardText = readOptionalText(TASK_BOARD_ABS_PATH);
+  const originalBuildOrderText = readOptionalText(BUILD_ORDER_ABS_PATH);
+  const originalRuntimeText = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
+    ? fs.readFileSync(context.runtimeStatusAbsPath, "utf8")
+    : null;
+  const packetProjection = deriveWpReviewPacketProjection({
+    evaluation,
+    autoRoute,
+    packetText: originalPacketText,
+  });
+  const nextPacketText = packetProjection
+    ? applyWpReviewPacketProjection(originalPacketText, packetProjection)
+    : originalPacketText;
+
+  try {
+    if (nextPacketText !== originalPacketText) {
+      fs.writeFileSync(context.packetAbsPath, nextPacketText, "utf8");
+    }
+
+    if (packetProjection?.taskBoardStatus) {
+      execFileSync(
+        process.execPath,
+        [
+          TASK_BOARD_SET_SCRIPT_PATH,
+          wpId,
+          packetProjection.taskBoardStatus,
+          packetProjection.taskBoardReason || "",
+        ],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      );
+      execFileSync(
+        process.execPath,
+        [BUILD_ORDER_SYNC_SCRIPT_PATH],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      );
+    }
+
+    const syncedRuntimeStatus = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
+      ? parseJsonFile(context.runtimeStatusFile)
+      : { ...(runtimeStatus || {}) };
+    for (const fieldName of RUNTIME_ROUTE_FIELD_NAMES) {
+      syncedRuntimeStatus[fieldName] = runtimeStatus[fieldName];
+    }
+    syncedRuntimeStatus.last_event = `receipt_${entry.receipt_kind.toLowerCase()}`;
+    syncedRuntimeStatus.last_event_at = entry.timestamp_utc;
+    return applyWpReviewRuntimeProjection(syncedRuntimeStatus, { evaluation });
+  } catch (error) {
+    restoreOptionalText(context.packetAbsPath, originalPacketText);
+    restoreOptionalText(TASK_BOARD_ABS_PATH, originalTaskBoardText);
+    restoreOptionalText(BUILD_ORDER_ABS_PATH, originalBuildOrderText);
+    if (context.runtimeStatusAbsPath) {
+      restoreOptionalText(context.runtimeStatusAbsPath, originalRuntimeText);
+    }
+    const stderr = String(error?.stderr || "").trim();
+    const stdout = String(error?.stdout || "").trim();
+    throw new Error(
+      `Review governance sync failed: ${stderr || stdout || (error instanceof Error ? error.message : String(error))}`
+    );
   }
 }
 
@@ -256,14 +592,37 @@ function appendWpReceiptCore({
   packetRowRef = null,
   microtaskContract = null,
   workflowInvalidityCode = null,
-} = {}) {
+} = {}, options = {}) {
   const WP_ID = String(wpId || "").trim();
   if (!WP_ID || !/^WP-/.test(WP_ID)) {
     throw new Error("WP_ID is required");
   }
 
-  const context = loadPacketContext(WP_ID);
-  const runtimeStatus = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
+  const { context } = options.skipPreflight
+    ? { context: loadPacketContext(WP_ID) }
+    : validateWpReceiptAppendPreconditions({
+      wpId,
+      actorRole,
+      actorSession,
+      receiptKind,
+      summary,
+      stateBefore,
+      stateAfter,
+      refs,
+      branch,
+      worktreeDir,
+      timestamp,
+      targetRole,
+      targetSession,
+      correlationId,
+      requiresAck,
+      ackFor,
+      specAnchor,
+      packetRowRef,
+      microtaskContract,
+      workflowInvalidityCode,
+    });
+  let runtimeStatus = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
     ? parseJsonFile(context.runtimeStatusFile)
     : null;
   const reviewTrackedReceipt = REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(String(receiptKind || "").trim().toUpperCase());
@@ -308,6 +667,7 @@ function appendWpReceiptCore({
   }
 
   let autoRoute = null;
+  let evaluation = null;
   const rerouteOnRepair = entry.receipt_kind === "REPAIR";
   if (runtimeStatus) {
     updateOpenReviewItems(runtimeStatus, entry);
@@ -332,7 +692,7 @@ function appendWpReceiptCore({
       }
     } else if (reviewTrackedReceipt || rerouteOnRepair) {
       const receipts = parseJsonlFile(context.receiptsFile);
-      const evaluation = evaluateWpCommunicationHealth({
+      evaluation = evaluateWpCommunicationHealth({
         wpId: WP_ID,
         stage: "STATUS",
         packetPath: context.packetPath,
@@ -359,6 +719,14 @@ function appendWpReceiptCore({
         runtimeStatus.ready_for_validation_reason = autoRoute.readyForValidationReason;
         runtimeStatus.attention_required = autoRoute.attentionRequired;
       }
+      runtimeStatus = syncReviewGovernanceTruth({
+        wpId: WP_ID,
+        context,
+        entry,
+        evaluation,
+        autoRoute,
+        runtimeStatus,
+      });
     }
     const runtimeErrors = validateRuntimeStatus(runtimeStatus);
     if (runtimeErrors.length > 0) {
@@ -369,14 +737,14 @@ function appendWpReceiptCore({
 
   appendJsonlLine(context.receiptsAbsPath, entry);
   if (reviewTrackedReceipt) {
-    appendReviewNotifications({ wpId: WP_ID, entry, autoRoute });
+    appendReviewNotifications({ wpId: WP_ID, workflowLane: context.workflowLane, entry, autoRoute });
   }
   return { context, entry, autoRoute };
 }
 
 export function appendWpReceipt(args = {}, options = {}) {
   const WP_ID = String(args?.wpId || "").trim();
-  const run = () => appendWpReceiptCore(args);
+  const run = () => appendWpReceiptCore(args, options);
   const relayEnabled = options.autoRelay !== false;
   if (options.assumeTransactionLock || !WP_ID || !/^WP-/.test(WP_ID)) {
     const result = run();

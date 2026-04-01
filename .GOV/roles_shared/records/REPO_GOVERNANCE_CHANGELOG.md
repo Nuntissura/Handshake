@@ -471,3 +471,82 @@
 - FOLLOW_ON_ITEMS:
   - `RGF-40`
 - OUTCOME: supported `launch-*` paths now auto-attempt the initial governed `START_SESSION`, startup proof becomes visible in launch summaries, and the explicit `start-*` helpers remain available as recovery tools instead of being required for the normal orchestrator-managed path
+
+### 2026.04.01.01 / GOV-CHANGE-20260401-01
+
+- STATUS: APPLIED
+- SUMMARY: converged review-receipt projection so validator review traffic updates packet/task-board/build-order truth and runtime lifecycle state without manual repair
+- CHANGE_TYPE: REVIEW_PROJECTION_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-review-projection-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-review-projection-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: negative `VALIDATOR_REVIEW` receipts now route back into coder remediation instead of falsely progressing toward final review, newer unresolved handoffs take precedence over older resolved review pairs, and review-driven packet/task-board/build-order/runtime truth stays converged after live direct-review traffic
+
+### 2026.04.01.02 / GOV-CHANGE-20260401-02
+
+- STATUS: APPLIED
+- SUMMARY: added orchestrator governance-checkpoint notifications on validator-authored assessment receipts so workflow authority stays in the loop after each review decision
+- CHANGE_TYPE: REVIEW_NOTIFICATION_HARDENING
+- DRIVER_EVIDENCE:
+  - Operator follow-on governance directive after `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: validator-authored assessment receipts in orchestrator-managed lanes now emit a dedicated `ORCHESTRATOR` notification alongside the normal direct-review target, so the orchestrator can verify packet/runtime/task-board truth and ACP steering immediately after each assessment without taking over coder-validator communication
+
+### 2026.04.01.03 / GOV-CHANGE-20260401-03
+
+- STATUS: APPLIED
+- SUMMARY: aligned `validator-next` and `orchestrator-next` with projected receipt/runtime truth so live review routes and validator assessment results surface mechanically instead of through stale packet wording
+- CHANGE_TYPE: RESUME_SURFACE_HARDENING
+- DRIVER_EVIDENCE:
+  - Operator follow-on governance directive after `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/validator/scripts/validator-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles/validator/tests/validator-governance-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: validator assessment checkpoints now carry `PASS`/`FAIL`/`ASSESSED` plus the validator's reason, `validator-next` follows projected `next_expected_actor` / `waiting_on` truth before falling back to legacy packet wording, and `orchestrator-next` surfaces pending governance checkpoints with the validator result and steering/closeout follow-ons instead of silently treating them as background notifications
+
+### 2026.04.01.04 / GOV-CHANGE-20260401-04
+
+- STATUS: APPLIED
+- SUMMARY: hardened the final validator lane so governed Integration Validator sessions always resolve live governance from the kernel and governed coder handoffs fail closed unless the PREPARE target is reviewable
+- CHANGE_TYPE: FINAL_LANE_AND_HANDOFF_GATE_HARDENING
+- DRIVER_EVIDENCE:
+  - Operator follow-on governance directive after `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs`
+  - `.GOV/roles/coder/scripts/lib/coder-governance-lib.mjs`
+  - `.GOV/roles/coder/scripts/coder-next.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: governed Integration Validator launch/control now injects `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`, final-lane closeout fails if live authority resolves from `handshake_main/.GOV`, coder resume surfaces reflect validator remediation truth directly, and governed `CODER_HANDOFF` receipt appends reject dirty/non-reviewable PREPARE state instead of recording a false validator-ready handoff

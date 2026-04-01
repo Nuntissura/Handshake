@@ -34,7 +34,7 @@ import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
-import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import { deriveLatestValidatorAssessment, evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
@@ -122,10 +122,9 @@ function loadProjectionDriftState(wpId, packetPath, packetText) {
   };
 }
 
-function loadRelayEscalationState(repoRoot, wpId, packetRuntimeState) {
+function loadRelayEscalationState(repoRoot, wpId, packetRuntimeState, pendingNotifications = []) {
   if (!packetRuntimeState?.runtimeStatus || !packetRuntimeState?.communicationEvaluation) return null;
   const { registry } = loadSessionRegistry(repoRoot);
-  const pendingNotifications = Object.values(checkAllNotifications({ wpId })).flatMap((entry) => entry.notifications || []);
   return evaluateWpRelayEscalation({
     wpId,
     runtimeStatus: packetRuntimeState.runtimeStatus,
@@ -134,6 +133,37 @@ function loadRelayEscalationState(repoRoot, wpId, packetRuntimeState) {
     pendingNotifications,
     registrySessions: registry.sessions || [],
   });
+}
+
+function loadNotificationState(wpId) {
+  const byRole = checkAllNotifications({ wpId });
+  return {
+    byRole,
+    pendingNotifications: Object.values(byRole).flatMap((entry) => entry.notifications || []),
+  };
+}
+
+export function latestOrchestratorGovernanceCheckpoint(notificationsByRole = {}) {
+  const notifications = notificationsByRole?.ORCHESTRATOR?.notifications || [];
+  const checkpoints = notifications.filter((entry) => String(entry?.source_kind || "").trim().toUpperCase() === "GOVERNANCE_CHECKPOINT");
+  return checkpoints.sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
+}
+
+function orchestratorAssessmentState(checkpointNotification, assessment = null, runtimeStatus = {}) {
+  const nextActor = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase() || "UNCHANGED";
+  if (!checkpointNotification && !(assessment && nextActor === "ORCHESTRATOR")) return null;
+  const verdict = assessment?.verdict || "ASSESSED";
+  const why = assessment?.reason || checkpointNotification?.summary || "Validator assessment recorded.";
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim() || "<missing>";
+  return {
+    verdict,
+    state: `Validator assessment recorded: ${verdict}. ${why}`,
+    findings: [
+      `Projected next actor: ${nextActor}${runtimeStatus?.next_expected_session ? `:${runtimeStatus.next_expected_session}` : ""}`,
+      `Projected waiting_on: ${waitingOn}`,
+      checkpointNotification ? `Pending orchestrator checkpoint: ${checkpointNotification.summary}` : null,
+    ].filter(Boolean),
+  };
 }
 
 export function closeoutModeFromPacketStatus(packetStatus = "") {
@@ -211,6 +241,8 @@ function summarizeResumeState(state, wpId) {
   const currentPacketExists = exists(currentPacketAbsPath);
   const boardStatus = taskBoardStatus(wpId) || "<none>";
   const needsStubCleanup = hasStubLine(wpId);
+  const notificationState = currentPacketExists ? loadNotificationState(wpId) : { byRole: {}, pendingNotifications: [] };
+  const orchestratorCheckpoint = latestOrchestratorGovernanceCheckpoint(notificationState.byRole);
 
   let refinementReady = false;
   let refinementError = "";
@@ -256,6 +288,9 @@ function summarizeResumeState(state, wpId) {
   } else if (needsStubCleanup) {
     stage = "DELEGATION";
     reason = "Work packet exists; Task Board still lists this WP as [STUB].";
+  } else if (orchestratorCheckpoint) {
+    stage = "DELEGATION";
+    reason = `Pending orchestrator governance checkpoint: ${orchestratorCheckpoint.summary}`;
   }
 
   const timestamp =
@@ -266,6 +301,7 @@ function summarizeResumeState(state, wpId) {
   const score =
     stageScore(stage, { ready, needsStubCleanup }) +
     freshnessBoost(timestamp) +
+    (orchestratorCheckpoint ? 35 : 0) +
     (boardStatus === "READY_FOR_DEV" ? 8 : 0) +
     (boardStatus === "IN_PROGRESS" ? 4 : 0);
 
@@ -547,7 +583,19 @@ function main() {
     return;
   }
   const packetRuntimeState = loadProjectionDriftState(wpId, packetPath, packetText);
-  const relayEscalation = packetRuntimeState ? loadRelayEscalationState(repoRoot, wpId, packetRuntimeState) : null;
+  const notificationState = packetRuntimeState ? loadNotificationState(wpId) : { byRole: {}, pendingNotifications: [] };
+  const relayEscalation = packetRuntimeState
+    ? loadRelayEscalationState(repoRoot, wpId, packetRuntimeState, notificationState.pendingNotifications)
+    : null;
+  const orchestratorCheckpoint = latestOrchestratorGovernanceCheckpoint(notificationState.byRole);
+  const latestValidatorAssessment = packetRuntimeState
+    ? deriveLatestValidatorAssessment(packetRuntimeState.receipts || [])
+    : null;
+  const assessmentState = orchestratorAssessmentState(
+    orchestratorCheckpoint,
+    latestValidatorAssessment,
+    packetRuntimeState?.runtimeStatus || {},
+  );
   if (packetRuntimeState && !packetRuntimeState.drift.ok) {
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorEnvelope("NONE", "NONE");
@@ -574,8 +622,13 @@ function main() {
     printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
     printOperatorEnvelope("NONE", "NONE");
     printConfidence(confidence.level, confidence.detail);
-    printState(relayEscalation.summary);
+    printState(
+      assessmentState
+        ? `${assessmentState.state} ${relayEscalation.summary}`
+        : relayEscalation.summary
+    );
     printFindings([
+      ...(assessmentState?.findings || []),
       `Target: ${relayEscalation.target_role}${relayEscalation.target_session ? `:${relayEscalation.target_session}` : ""}`,
       `Route anchor: ${relayEscalation.metrics.route_anchor_at || "<missing>"}`,
       `Latest notification: ${relayEscalation.metrics.latest_notification_at || "<none>"}`,
@@ -607,6 +660,37 @@ function main() {
       `# Then re-run in ${syncState.worktreeAbs || "the assigned WP worktree"}: just pre-work ${wpId}`,
       `just orchestrator-next ${wpId}`,
     ]);
+    return;
+  }
+  if (assessmentState) {
+    printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
+    printOperatorEnvelope("NONE", "NONE");
+    printConfidence(confidence.level, confidence.detail);
+    printState(assessmentState.state);
+    printFindings([
+      `Resume source: ${inferred.source}`,
+      `Current branch: ${gitContext.branch || "<unknown>"}`,
+      `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+      ...assessmentState.findings,
+      ...(relayEscalation?.applicable && relayEscalation.status === "WATCH"
+        ? [relayEscalation.summary]
+        : []),
+    ]);
+    const runtimeRelayCommand = relayCommandForRuntime(wpId, workflowLane, packetRuntimeState?.runtimeStatus || {});
+    const nextCommands = [
+      `just check-notifications ${wpId} ORCHESTRATOR`,
+      runtimeRelayCommand || null,
+      !runtimeRelayCommand && String(packetRuntimeState?.runtimeStatus?.next_expected_actor || "").trim().toUpperCase() === "ORCHESTRATOR"
+        ? closeoutSyncCommandForProjection(
+          wpId,
+          packetRuntimeState?.drift?.projection || {},
+          packetRuntimeState?.runtimeStatus || {},
+          packetRuntimeState?.communicationEvaluation,
+        )
+        : null,
+      `just session-registry-status ${wpId}`,
+    ].filter(Boolean);
+    printNextCommands(nextCommands);
     return;
   }
   printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
