@@ -33,6 +33,10 @@ import {
   formatSemanticProofAssetsSection,
 } from '../../../roles_shared/scripts/lib/semantic-proof-lib.mjs';
 import {
+  deriveDataContractProfileFromRefinement,
+  formatDataContractMonitoringSection,
+} from '../../../roles_shared/scripts/lib/data-contract-lib.mjs';
+import {
   communicationPathsForWp,
   EXECUTION_OWNER_VALUES,
   WORKFLOW_LANE_VALUES,
@@ -801,8 +805,14 @@ template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'DISALLOWED');
 template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', 'N/A');
 template = replaceSingleField(template, 'TOUCHED_FILE_BUDGET', '1');
 template = replaceSingleField(template, 'BROAD_TOOL_ALLOWLIST', 'NONE');
+template = replaceSingleField(template, 'DATA_CONTRACT_PROFILE', 'NONE');
 let touchedFileBudget = '1';
 let broadToolAllowlist = 'NONE';
+let dataContractProfile = 'NONE';
+template = replaceSection(template, 'DATA_CONTRACT_MONITORING', formatDataContractMonitoringSection({
+  profile: dataContractProfile,
+  inScopePaths: [],
+}));
 
 let clauseClosureRows = [];
 if (isHydratedProfile) {
@@ -861,13 +871,22 @@ if (isHydratedProfile) {
     doneMeans: hydration.doneMeans,
     specAnchors: refinementData.specAnchors,
   });
+  dataContractProfile = deriveDataContractProfileFromRefinement({
+    refinementData,
+    refinementText: fs.readFileSync(refinementPath, 'utf8'),
+  });
 
   template = replaceSingleField(template, 'CLAUSE_CLOSURE_MONITOR_PROFILE', 'CLAUSE_MONITOR_V1');
   template = replaceSingleField(template, 'SEMANTIC_PROOF_PROFILE', 'DIFF_SCOPED_SEMANTIC_V1');
+  template = replaceSingleField(template, 'DATA_CONTRACT_PROFILE', dataContractProfile);
   template = replaceSection(template, 'CLAUSE_CLOSURE_MATRIX', formatClauseClosureMatrixSection(clauseClosureRows));
   template = replaceSection(template, 'SPEC_DEBT_STATUS', formatSpecDebtStatusSection());
   template = replaceSection(template, 'SHARED_SURFACE_MONITORING', formatSharedSurfaceMonitoringSection(sharedSurfaceMonitoring));
   template = replaceSection(template, 'SEMANTIC_PROOF_ASSETS', formatSemanticProofAssetsSection(semanticProofAssets));
+  template = replaceSection(template, 'DATA_CONTRACT_MONITORING', formatDataContractMonitoringSection({
+    profile: dataContractProfile,
+    inScopePaths: hydration.inScopePaths || [],
+  }));
 
   template = replaceSection(template, 'SPEC_CONTEXT_WINDOWS', formatSpecContextWindowsSection(refinementData.specAnchors));
 

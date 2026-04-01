@@ -274,6 +274,8 @@ const resolvedPacket = resolveWorkPacketPath(WP_ID);
 const packetPathActual = resolvedPacket?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${WP_ID}.md`;
 const packetPath = toDisplayGovPath(packetPathActual);
 const packetContent = readFileIfExists(packetPathActual);
+const packetFormatVersion = parsePacketSingleField(packetContent, 'PACKET_FORMAT_VERSION');
+const usesAntiVibeRigor = packetFormatVersion >= '2026-04-01';
 const workflowLane = parsePacketSingleField(packetContent, 'WORKFLOW_LANE').toUpperCase();
 const zeroDeltaProofAllowed = parsePacketSingleField(packetContent, 'ZERO_DELTA_PROOF_ALLOWED').toUpperCase() === 'YES';
 const usesSkeletonCheckpointGate = workflowLane !== 'ORCHESTRATOR_MANAGED';
@@ -547,6 +549,13 @@ if (isModernPacket) {
         'Rubric anti-gaming / counterfactual check',
         'Next step / handoff hint',
       ];
+      if (usesAntiVibeRigor) {
+        requiredStatusFields.splice(requiredStatusFields.length - 1, 0,
+          'Rubric anti-vibe / substance self-check',
+          'Signed-scope debt ledger',
+          'Data contract self-check',
+        );
+      }
       for (const label of requiredStatusFields) {
         if (!hasConcreteStatusField(statusHandoff, label)) {
           errors.push(`STATUS_HANDOFF missing concrete field: ${label}`);

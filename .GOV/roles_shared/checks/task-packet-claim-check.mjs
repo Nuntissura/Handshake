@@ -19,6 +19,10 @@ import {
   packetRequiresSignedScopeCompatibility,
   validateSignedScopeCompatibilityTruth,
 } from "../scripts/lib/signed-scope-compatibility-lib.mjs";
+import {
+  packetUsesDataContractProfile,
+  validateDataContractSection,
+} from "../scripts/lib/data-contract-lib.mjs";
 
 // Canonical governance workspace packets live under `/.GOV/task_packets/`.
 // Legacy compatibility bundles must not be treated as governance SSoT.
@@ -142,6 +146,15 @@ function checkPacket(filePath) {
       packetPath: rel,
     });
     errors.push(...signedScopeCompatibilityTruth.errors);
+  }
+  if (packetUsesDataContractProfile(packetFormatVersion)) {
+    const dataContractProfile = parseSingleField(text, "DATA_CONTRACT_PROFILE");
+    if (isPlaceholder(dataContractProfile)) {
+      errors.push(`${rel}: DATA_CONTRACT_PROFILE is required for PACKET_FORMAT_VERSION >= 2026-04-01`);
+    } else {
+      const dataContractValidation = validateDataContractSection(text, { packetPath: rel });
+      errors.push(...dataContractValidation.errors);
+    }
   }
 
   if (errors.length > 0) fail("Coder claim fields missing/invalid", errors);

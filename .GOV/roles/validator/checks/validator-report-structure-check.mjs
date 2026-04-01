@@ -6,6 +6,11 @@ import {
   packetUsesStructuredValidationReport,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { GOV_ROOT_REPO_REL, listOfficialWorkPacketPaths } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import {
+  packetUsesDataContractProfile,
+  parseDataContractProfile,
+  validateDataContractSection,
+} from "../../../roles_shared/scripts/lib/data-contract-lib.mjs";
 
 function fail(message, details = []) {
   console.error(`[VALIDATOR_REPORT_STRUCTURE_CHECK] ${message}`);
@@ -111,6 +116,9 @@ for (const rel of files) {
   const text = fs.readFileSync(rel, "utf8");
   const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
   if (!packetUsesStructuredValidationReport(packetFormatVersion)) continue;
+  const usesDataContractProfile = packetUsesDataContractProfile(packetFormatVersion);
+  const enforcesAntiVibeRigor = packetFormatVersion >= "2026-04-01";
+  const dataContractProfile = parseDataContractProfile(text);
   const reportProfile = parseSingleField(text, "GOVERNED_VALIDATOR_REPORT_PROFILE");
   const requiresRigorV2 = /^SPLIT_DIFF_SCOPED_RIGOR_V2$/i.test(reportProfile);
   const requiresRigorV3 = /^SPLIT_DIFF_SCOPED_RIGOR_V3$/i.test(reportProfile);
@@ -119,6 +127,11 @@ for (const rel of files) {
 
   const status = parseStatus(text);
   if (!isClosedStatus(status)) continue;
+
+  if (usesDataContractProfile) {
+    const dataContractValidation = validateDataContractSection(text, { packetPath: rel });
+    violations.push(...dataContractValidation.errors);
+  }
 
   const reports = extractSectionAfterHeading(text, "VALIDATION_REPORTS");
   if (!reports.trim()) {
@@ -191,6 +204,10 @@ for (const rel of files) {
   const negativePathChecks = extractListItemsAfterLabel(reports, "NEGATIVE_PATH_CHECKS");
   const specClauseMap = extractListItemsAfterLabel(reports, "SPEC_CLAUSE_MAP");
   const negativeProof = extractListItemsAfterLabel(reports, "NEGATIVE_PROOF");
+  const antiVibeFindings = extractListItemsAfterLabel(reports, "ANTI_VIBE_FINDINGS");
+  const signedScopeDebt = extractListItemsAfterLabel(reports, "SIGNED_SCOPE_DEBT");
+  const dataContractProof = extractListItemsAfterLabel(reports, "DATA_CONTRACT_PROOF");
+  const dataContractGaps = extractListItemsAfterLabel(reports, "DATA_CONTRACT_GAPS");
   if (requiresRigorV3 && attackSurfaces.length === 0) {
     violations.push(`${rel}: DIFF_ATTACK_SURFACES missing bullet items in VALIDATION_REPORTS`);
   }
@@ -206,6 +223,18 @@ for (const rel of files) {
   if (requiresRigorV3 && residualUncertainty.length === 0) {
     violations.push(`${rel}: RESIDUAL_UNCERTAINTY missing bullet items in VALIDATION_REPORTS`);
   }
+  if (requiresRigorV3 && enforcesAntiVibeRigor && antiVibeFindings.length === 0) {
+    violations.push(`${rel}: ANTI_VIBE_FINDINGS missing bullet items in VALIDATION_REPORTS`);
+  }
+  if (requiresRigorV3 && enforcesAntiVibeRigor && signedScopeDebt.length === 0) {
+    violations.push(`${rel}: SIGNED_SCOPE_DEBT missing bullet items in VALIDATION_REPORTS`);
+  }
+  if (dataContractProfile === "LLM_FIRST_DATA_V1" && (dataContractProof.length === 0 || hasOnlyNoneList(dataContractProof))) {
+    violations.push(`${rel}: DATA_CONTRACT_PROOF must list concrete proof items in VALIDATION_REPORTS for active data contract packet`);
+  }
+  if (dataContractProfile === "LLM_FIRST_DATA_V1" && dataContractGaps.length === 0) {
+    violations.push(`${rel}: DATA_CONTRACT_GAPS missing bullet items in VALIDATION_REPORTS for active data contract packet`);
+  }
 
   const specAlignmentVerdict = parseSectionField(reports, "SPEC_ALIGNMENT_VERDICT").toUpperCase();
   if (specAlignmentVerdict === "PASS") {
@@ -215,6 +244,9 @@ for (const rel of files) {
     if (requiresHeuristicRigor && !hasOnlyNoneList(mainBodyGaps)) {
       violations.push(`${rel}: SPEC_ALIGNMENT_VERDICT=PASS requires MAIN_BODY_GAPS to be exactly "- NONE"`);
     }
+    if (dataContractProfile === "LLM_FIRST_DATA_V1" && !hasOnlyNoneList(dataContractGaps)) {
+      violations.push(`${rel}: SPEC_ALIGNMENT_VERDICT=PASS requires DATA_CONTRACT_GAPS to be exactly "- NONE" for active data contract packet`);
+    }
   }
 
   const topLevelVerdict = parseSectionField(reports, "Verdict").toUpperCase();
@@ -223,6 +255,7 @@ for (const rel of files) {
   const environmentVerdict = parseSectionField(reports, "ENVIRONMENT_VERDICT").toUpperCase();
   const disposition = parseSectionField(reports, "DISPOSITION").toUpperCase();
   const legalVerdict = parseSectionField(reports, "LEGAL_VERDICT").toUpperCase();
+  const heuristicReviewVerdict = parseSectionField(reports, "HEURISTIC_REVIEW_VERDICT").toUpperCase();
   if (topLevelVerdict === "ABANDONED") {
     if (!/^Validated\s*\(\s*ABANDONED\s*\)$/i.test(status)) {
       violations.push(`${rel}: Verdict=ABANDONED requires packet Status: Validated (ABANDONED)`);
@@ -282,9 +315,14 @@ for (const rel of files) {
     }
   }
 
-  const heuristicReviewVerdict = parseSectionField(reports, "HEURISTIC_REVIEW_VERDICT").toUpperCase();
   if (requiresHeuristicRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(qualityRisks)) {
     violations.push(`${rel}: HEURISTIC_REVIEW_VERDICT=PASS requires QUALITY_RISKS to be exactly "- NONE"`);
+  }
+  if (requiresRigorV3 && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(antiVibeFindings)) {
+    violations.push(`${rel}: HEURISTIC_REVIEW_VERDICT=PASS requires ANTI_VIBE_FINDINGS to be exactly "- NONE"`);
+  }
+  if (requiresRigorV3 && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt)) {
+    violations.push(`${rel}: HEURISTIC_REVIEW_VERDICT=PASS requires SIGNED_SCOPE_DEBT to be exactly "- NONE"`);
   }
 
   if (requiresRigorV3) {
@@ -331,6 +369,12 @@ for (const rel of files) {
       if (counterfactualChecks.length === 0) {
         violations.push(`${rel}: LEGAL_VERDICT=PASS requires COUNTERFACTUAL_CHECKS`);
       }
+      if (enforcesAntiVibeRigor && !hasOnlyNoneList(antiVibeFindings)) {
+        violations.push(`${rel}: LEGAL_VERDICT=PASS requires ANTI_VIBE_FINDINGS to be exactly "- NONE"`);
+      }
+      if (enforcesAntiVibeRigor && !hasOnlyNoneList(signedScopeDebt)) {
+        violations.push(`${rel}: LEGAL_VERDICT=PASS requires SIGNED_SCOPE_DEBT to be exactly "- NONE"`);
+      }
       if ((validatorRiskTier === "MEDIUM" || validatorRiskTier === "HIGH") && boundaryProbes.length === 0) {
         violations.push(`${rel}: LEGAL_VERDICT=PASS requires BOUNDARY_PROBES for ${validatorRiskTier} risk`);
       }
@@ -360,6 +404,19 @@ for (const rel of files) {
           );
         }
       }
+      if (dataContractProfile === "LLM_FIRST_DATA_V1") {
+        if (dataContractProof.length === 0) {
+          violations.push(`${rel}: LEGAL_VERDICT=PASS requires DATA_CONTRACT_PROOF for active data contract packet`);
+        }
+        if (!hasOnlyNoneList(dataContractGaps)) {
+          violations.push(`${rel}: LEGAL_VERDICT=PASS requires DATA_CONTRACT_GAPS to be exactly "- NONE" for active data contract packet`);
+        }
+        for (const item of dataContractProof) {
+          if (!hasConcreteCodeReference(item)) {
+            violations.push(`${rel}: LEGAL_VERDICT=PASS requires DATA_CONTRACT_PROOF entries to include concrete code or query evidence (${item})`);
+          }
+        }
+      }
     }
 
     if (packetRequiresSpecClauseMap(packetFormatVersion) && specClauseMap.length === 0) {
@@ -367,6 +424,12 @@ for (const rel of files) {
     }
     if (packetRequiresSpecClauseMap(packetFormatVersion) && (negativeProof.length === 0 || hasOnlyNoneList(negativeProof))) {
       violations.push(`${rel}: NEGATIVE_PROOF must list at least one spec requirement verified as NOT fully implemented (required for RIGOR_V3)`);
+    }
+    if (enforcesAntiVibeRigor && topLevelVerdict === "PASS" && !hasOnlyNoneList(antiVibeFindings)) {
+      violations.push(`${rel}: Verdict=PASS requires ANTI_VIBE_FINDINGS to be exactly "- NONE"`);
+    }
+    if (enforcesAntiVibeRigor && topLevelVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt)) {
+      violations.push(`${rel}: Verdict=PASS requires SIGNED_SCOPE_DEBT to be exactly "- NONE"`);
     }
   }
 }

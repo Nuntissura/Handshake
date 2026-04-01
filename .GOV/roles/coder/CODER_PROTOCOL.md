@@ -91,6 +91,7 @@ Unless the packet or Master Spec explicitly says otherwise, design new data/mode
 - LLM-first readable/parseable: stable field names, explicit enums/typed fields, and machine-readable structure first. Human-friendly rendering is a projection, not the only place where meaning lives.
 - Loom-intertwined: preserve stable ids, explicit relations, backlink-friendly fields, provenance anchors, and retrieval-friendly summaries so graph/search/context tooling can traverse the data without reparsing UI text.
 - If the best implementation appears to require opaque blobs, presentation-only strings, or backend-specific SQL semantics, stop and raise it to the Orchestrator/WP Validator instead of normalizing it silently.
+- If the packet declares `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, treat these data-posture rules as signed requirements, keep `## DATA_CONTRACT_MONITORING` honest, and hand off concrete proof rather than generic "data looks fine" claims.
 
 ## Agentic Mode (Additional LAW)
 
@@ -1406,7 +1407,12 @@ Fix errors, re-run `just post-work`.
   - `Rubric architecture fit self-review:`
   - `Rubric heuristic quality self-review:`
   - `Rubric anti-gaming / counterfactual check:`
+- For `PACKET_FORMAT_VERSION >= 2026-04-01`, `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2` MUST also include:
+  - `Rubric anti-vibe / substance self-check:`
+  - `Signed-scope debt ledger:`
+  - `Data contract self-check:`
 - Treat those rubric-proof fields as evidence-backed self-critique for the validator, not as motivational prose.
+- `Signed-scope debt ledger` must be explicit and honest. If debt remains inside signed scope, do not posture as PASS-ready.
 - Do NOT write verdicts or edit `## VALIDATION_REPORTS`
 
 **2. Output final summary:**
