@@ -542,6 +542,7 @@ if (validatorResumeState.ready) {
     actorSessionId: validatorActorContext.actorSessionId,
     postWorkCommand,
     waitingOn: validatorResumeState.waitingOn,
+    parallelReview: validatorResumeState.parallelReviewReady,
   }));
   process.exit(0);
 }

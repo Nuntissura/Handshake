@@ -246,8 +246,10 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 - `just wp-spec-confirmation ...`
   - `runtime-write`
   - structured direct-review / review-resolution helpers
-  - optional final `microtask_json` argument may carry a compact steering contract with `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, and `expected_receipt_kind`
-  - contract-heavy intent checkpoint rule: after `wp-coder-intent`, the lane may route to `WP_VALIDATOR_INTENT_CHECKPOINT`; use `wp-validator-response` to clear the intent or `wp-spec-gap` / `VALIDATOR_QUERY` to request tighter signed-surface/proof detail before `wp-coder-handoff`
+  - validator-owned bootstrap/skeleton gate: on governed lanes, after `wp-coder-intent` the lane now requires one explicit WP-validator checkpoint before implementation hardens or full `wp-coder-handoff` is legal; use `wp-validator-response` to clear the early plan or `wp-spec-gap` / `VALIDATOR_QUERY` to keep the lane in early review
+  - optional final `microtask_json` argument may carry a compact steering contract with `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, `expected_receipt_kind`, `review_mode`, `phase_gate`, and `review_outcome`
+  - use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` when the receipt is part of that mandatory early validator gate
+  - rolling microtask overlap: use `wp-review-exchange REVIEW_REQUEST ...` with `review_mode=OVERLAP` for completed narrow slices while the coder advances the next declared microtask; the unresolved overlap queue is bounded to 2 and full `wp-coder-handoff` is blocked until those overlap review items are drained
 - `just wp-communication-health-check WP-{ID} [STATUS|KICKOFF|HANDOFF|VERDICT]`
   - `read-only`
   - communication proof and route health

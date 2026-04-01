@@ -212,6 +212,9 @@ test("validateReceipt accepts structured microtask contracts on review receipts"
       file_targets: ["src/backend/handshake_core/src/storage/sqlite.rs"],
       proof_commands: ["cargo test storage::tests::sqlite_loom_storage_conformance -- --exact"],
       risk_focus: "portable search parity",
+      review_mode: "OVERLAP",
+      phase_gate: "MICROTASK",
+      review_outcome: "REPAIR_REQUIRED",
       expected_receipt_kind: "REVIEW_RESPONSE",
     },
   }));
@@ -229,6 +232,9 @@ test("receipt schema exposes microtask_contract for external consumers", () => {
   const rule = runtimeStatusSchema.properties.open_review_items.items.properties.microtask_contract;
   assert.equal(rule.type.includes("object"), true);
   assert.equal(rule.properties.expected_receipt_kind.enum.includes("CODER_INTENT"), true);
+  assert.equal(rule.properties.review_mode.enum.includes("OVERLAP"), true);
+  assert.equal(rule.properties.phase_gate.enum.includes("SKELETON"), true);
+  assert.equal(rule.properties.review_outcome.enum.includes("REPAIR_REQUIRED"), true);
 });
 
 test("runtime receipt schema exposes microtask_contract on receipts", () => {
@@ -238,6 +244,9 @@ test("runtime receipt schema exposes microtask_contract on receipts", () => {
   const rule = receiptSchema.properties.microtask_contract;
   assert.equal(rule.type.includes("object"), true);
   assert.equal(rule.properties.expected_receipt_kind.enum.includes("WORKFLOW_INVALIDITY"), true);
+  assert.equal(rule.properties.review_mode.enum.includes("BLOCKING"), true);
+  assert.equal(rule.properties.phase_gate.enum.includes("BOOTSTRAP"), true);
+  assert.equal(rule.properties.review_outcome.enum.includes("APPROVED_FOR_FINAL_REVIEW"), true);
 });
 
 test("validateReceipt accepts WORKFLOW_INVALIDITY receipts with a machine code", () => {

@@ -81,6 +81,9 @@ function buildThreadMessage({ receiptKind, summary, specAnchor, packetRowRef, co
   }
   if (microtaskContract?.risk_focus) lines.push(`microtask_risk=${microtaskContract.risk_focus}`);
   if (microtaskContract?.expected_receipt_kind) lines.push(`microtask_expected_receipt=${microtaskContract.expected_receipt_kind}`);
+  if (microtaskContract?.review_mode) lines.push(`microtask_review_mode=${microtaskContract.review_mode}`);
+  if (microtaskContract?.phase_gate) lines.push(`microtask_phase_gate=${microtaskContract.phase_gate}`);
+  if (microtaskContract?.review_outcome) lines.push(`microtask_review_outcome=${microtaskContract.review_outcome}`);
   lines.push(`correlation_id=${correlationId}`);
   return lines.join("\n");
 }

@@ -380,3 +380,189 @@ test("coder handoff preflight rejects missing validator intent checkpoint on con
     fs.rmSync(commDir, { recursive: true, force: true });
   }
 });
+
+test("coder handoff preflight rejects unresolved overlap microtask reviews before full handoff", () => {
+  const wpId = "WP-TEST-OVERLAP-HANDOFF";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-overlap-handoff-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const runtimePath = path.join(commDir, "RUNTIME_STATUS.json");
+
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  fs.writeFileSync(receiptsPath, "", "utf8");
+  fs.writeFileSync(
+    runtimePath,
+    JSON.stringify({
+      workflow_lane: "ORCHESTRATOR_MANAGED",
+      wp_validator_of_record: "wpv-1",
+      integration_validator_of_record: "intval-1",
+      active_role_sessions: [
+        {
+          role: "CODER",
+          session_id: "coder-1",
+          worktree_dir: "../wtc-test",
+          state: "working",
+          last_heartbeat_at: "2026-04-01T10:01:00Z",
+        },
+        {
+          role: "WP_VALIDATOR",
+          session_id: "wpv-1",
+          worktree_dir: "../wtv-test",
+          state: "waiting",
+          last_heartbeat_at: "2026-04-01T10:01:00Z",
+        },
+      ],
+      open_review_items: [
+        {
+          correlation_id: "micro-1",
+          receipt_kind: "REVIEW_REQUEST",
+          summary: "Review completed microtask 1 while coder continues microtask 2.",
+          opened_by_role: "CODER",
+          opened_by_session: "coder-1",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-1",
+          spec_anchor: "CX-MICRO-001",
+          packet_row_ref: "CLAUSE_CLOSURE_MATRIX",
+          microtask_contract: {
+            scope_ref: "CLAUSE_CLOSURE_MATRIX/CX-MICRO-001",
+            file_targets: ["src/demo.rs"],
+            proof_commands: ["cargo test demo::tests::micro_1 -- --exact"],
+            review_mode: "OVERLAP",
+            phase_gate: "MICROTASK",
+            expected_receipt_kind: "VALIDATOR_RESPONSE",
+          },
+          requires_ack: true,
+          opened_at: "2026-04-01T10:02:00Z",
+          updated_at: "2026-04-01T10:02:00Z",
+        },
+      ],
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-1",
+      waiting_on: "CODER_HANDOFF",
+      waiting_on_session: "coder-1",
+      validator_trigger: "NONE",
+      validator_trigger_reason: null,
+      ready_for_validation: false,
+      ready_for_validation_reason: null,
+      attention_required: false,
+    }, null, 2),
+    "utf8",
+  );
+
+  try {
+    assert.throws(
+      () => validateWpReceiptAppendPreconditions({
+        wpId,
+        actorRole: "CODER",
+        actorSession: "coder-1",
+        receiptKind: "CODER_HANDOFF",
+        summary: "Ready for full review.",
+        targetRole: "WP_VALIDATOR",
+        targetSession: "wpv-1",
+        correlationId: "handoff-1",
+        requiresAck: true,
+      }, {
+        skipCommittedCoderHandoffGate: true,
+      }),
+      /pending overlap microtask reviews must be resolved/i,
+    );
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("overlap review request preflight rejects queue growth beyond the bounded backlog", () => {
+  const wpId = "WP-TEST-OVERLAP-BACKPRESSURE";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-overlap-backpressure-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const runtimePath = path.join(commDir, "RUNTIME_STATUS.json");
+
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  fs.writeFileSync(receiptsPath, "", "utf8");
+  fs.writeFileSync(
+    runtimePath,
+    JSON.stringify({
+      workflow_lane: "ORCHESTRATOR_MANAGED",
+      wp_validator_of_record: "wpv-1",
+      integration_validator_of_record: "intval-1",
+      active_role_sessions: [
+        {
+          role: "CODER",
+          session_id: "coder-1",
+          worktree_dir: "../wtc-test",
+          state: "working",
+          last_heartbeat_at: "2026-04-01T10:01:00Z",
+        },
+        {
+          role: "WP_VALIDATOR",
+          session_id: "wpv-1",
+          worktree_dir: "../wtv-test",
+          state: "waiting",
+          last_heartbeat_at: "2026-04-01T10:01:00Z",
+        },
+      ],
+      open_review_items: ["micro-1", "micro-2"].map((id, index) => ({
+        correlation_id: id,
+        receipt_kind: "REVIEW_REQUEST",
+        summary: `Review ${id}`,
+        opened_by_role: "CODER",
+        opened_by_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        spec_anchor: `CX-MICRO-00${index + 1}`,
+        packet_row_ref: "CLAUSE_CLOSURE_MATRIX",
+        microtask_contract: {
+          scope_ref: `CLAUSE_CLOSURE_MATRIX/CX-MICRO-00${index + 1}`,
+          file_targets: ["src/demo.rs"],
+          proof_commands: [`cargo test demo::tests::micro_${index + 1} -- --exact`],
+          review_mode: "OVERLAP",
+          phase_gate: "MICROTASK",
+          expected_receipt_kind: "VALIDATOR_RESPONSE",
+        },
+        requires_ack: true,
+        opened_at: `2026-04-01T10:0${index + 1}:00Z`,
+        updated_at: `2026-04-01T10:0${index + 1}:00Z`,
+      })),
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-1",
+      waiting_on: "CODER_HANDOFF",
+      waiting_on_session: "coder-1",
+      validator_trigger: "NONE",
+      validator_trigger_reason: null,
+      ready_for_validation: false,
+      ready_for_validation_reason: null,
+      attention_required: false,
+    }, null, 2),
+    "utf8",
+  );
+
+  try {
+    assert.throws(
+      () => validateWpReceiptAppendPreconditions({
+        wpId,
+        actorRole: "CODER",
+        actorSession: "coder-1",
+        receiptKind: "REVIEW_REQUEST",
+        summary: "Review completed microtask 3 while I continue microtask 4.",
+        targetRole: "WP_VALIDATOR",
+        targetSession: "wpv-1",
+        correlationId: "micro-3",
+        requiresAck: true,
+        microtaskContract: {
+          scope_ref: "CLAUSE_CLOSURE_MATRIX/CX-MICRO-003",
+          file_targets: ["src/demo_support.rs"],
+          proof_commands: ["cargo test demo::tests::micro_3 -- --exact"],
+          review_mode: "OVERLAP",
+          phase_gate: "MICROTASK",
+          expected_receipt_kind: "VALIDATOR_RESPONSE",
+        },
+      }),
+      /overlap microtask review backlog already reached 2/i,
+    );
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});

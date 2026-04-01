@@ -73,8 +73,8 @@ function currentStateForEvaluation(evaluationState, autoRoute = {}) {
     case "COMM_WAITING_FOR_INTENT_CHECKPOINT":
       return {
         verdict: "PENDING",
-        blockers: "Contract-heavy or under-specified coder intent requires WP validator checkpoint clearance before implementation or full handoff.",
-        next: "WP_VALIDATOR reviews CODER_INTENT and records SPEC_GAP / VALIDATOR_QUERY for missing signed surfaces or proof, or VALIDATOR_RESPONSE to clear the checkpoint.",
+        blockers: "Bootstrap and skeleton clearance now belongs to the WP validator; coder intent must be explicitly cleared before implementation hardens or full handoff proceeds.",
+        next: "WP_VALIDATOR reviews CODER_INTENT and records SPEC_GAP / VALIDATOR_QUERY for missing signed surfaces or proof, or VALIDATOR_RESPONSE to clear bootstrap/skeleton intent review.",
       };
     case "COMM_WAITING_FOR_HANDOFF":
       return {

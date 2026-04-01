@@ -125,6 +125,9 @@ export const REVIEW_RESOLUTION_RECEIPT_KIND_VALUES = [
 ];
 export const REVIEW_TRACKED_RECEIPT_KIND_VALUES = [...REVIEW_OPEN_RECEIPT_KIND_VALUES, ...REVIEW_RESOLUTION_RECEIPT_KIND_VALUES];
 export const DIRECT_REVIEW_SESSION_ROLE_VALUES = ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
+export const MICROTASK_REVIEW_MODE_VALUES = ["BLOCKING", "OVERLAP"];
+export const MICROTASK_PHASE_GATE_VALUES = ["BOOTSTRAP", "SKELETON", "MICROTASK", "FINAL_REVIEW"];
+export const MICROTASK_REVIEW_OUTCOME_VALUES = ["UNKNOWN", "REPAIR_REQUIRED", "APPROVED_FOR_FINAL_REVIEW"];
 
 const RFC3339_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
@@ -180,6 +183,9 @@ function validateMicrotaskContract(value, prefix, errors) {
     "proof_commands",
     "risk_focus",
     "expected_receipt_kind",
+    "review_mode",
+    "phase_gate",
+    "review_outcome",
   ]);
   for (const key of Object.keys(value)) {
     if (!allowedKeys.has(key)) errors.push(`${prefix}.${key} is not allowed`);
@@ -192,6 +198,15 @@ function validateMicrotaskContract(value, prefix, errors) {
   }
   if (!(value.expected_receipt_kind === undefined || value.expected_receipt_kind === null || RECEIPT_KIND_VALUES.includes(value.expected_receipt_kind))) {
     errors.push(`${prefix}.expected_receipt_kind invalid (${value.expected_receipt_kind})`);
+  }
+  if (!(value.review_mode === undefined || value.review_mode === null || MICROTASK_REVIEW_MODE_VALUES.includes(value.review_mode))) {
+    errors.push(`${prefix}.review_mode invalid (${value.review_mode})`);
+  }
+  if (!(value.phase_gate === undefined || value.phase_gate === null || MICROTASK_PHASE_GATE_VALUES.includes(value.phase_gate))) {
+    errors.push(`${prefix}.phase_gate invalid (${value.phase_gate})`);
+  }
+  if (!(value.review_outcome === undefined || value.review_outcome === null || MICROTASK_REVIEW_OUTCOME_VALUES.includes(value.review_outcome))) {
+    errors.push(`${prefix}.review_outcome invalid (${value.review_outcome})`);
   }
   if (!(value.file_targets === undefined || Array.isArray(value.file_targets))) {
     errors.push(`${prefix}.file_targets must be an array when present`);
@@ -208,6 +223,9 @@ function validateMicrotaskContract(value, prefix, errors) {
     isNonEmptyString(value.scope_ref)
     || isNonEmptyString(value.risk_focus)
     || isNonEmptyString(value.expected_receipt_kind)
+    || isNonEmptyString(value.review_mode)
+    || isNonEmptyString(value.phase_gate)
+    || isNonEmptyString(value.review_outcome)
     || (Array.isArray(value.file_targets) && value.file_targets.length > 0)
     || (Array.isArray(value.proof_commands) && value.proof_commands.length > 0);
   if (!hasPayload) {

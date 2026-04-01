@@ -506,6 +506,42 @@
                   "null"
                 ]
               },
+              "review_mode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "BLOCKING",
+                  "OVERLAP",
+                  null
+                ]
+              },
+              "phase_gate": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "BOOTSTRAP",
+                  "SKELETON",
+                  "MICROTASK",
+                  "FINAL_REVIEW",
+                  null
+                ]
+              },
+              "review_outcome": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "UNKNOWN",
+                  "REPAIR_REQUIRED",
+                  "APPROVED_FOR_FINAL_REVIEW",
+                  null
+                ]
+              },
               "expected_receipt_kind": {
                 "type": [
                   "string",

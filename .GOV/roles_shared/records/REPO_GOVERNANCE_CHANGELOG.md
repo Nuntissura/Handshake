@@ -663,3 +663,39 @@
   - `RGF-50`
   - `RGF-51`
 - OUTCOME: the smoketest review now explicitly records the operator requirement for validator-owned bootstrap/skeleton review, rolling microtask review overlap, zero-debt anti-vibe enforcement, and a codified LLM-first data doctrine, and the governance task board now exposes those concerns as concrete follow-on remediation items linked back to the same audit evidence
+
+### 2026.04.01.11 / GOV-CHANGE-20260401-11
+
+- STATUS: APPLIED
+- SUMMARY: added validator-owned bootstrap/skeleton clearance plus bounded rolling overlap review so governed direct-review lanes catch weak intent earlier without letting microtask debt accumulate silently
+- CHANGE_TYPE: EARLY_REVIEW_AND_MICROTASK_BACKPRESSURE_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-review-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/validator/scripts/validator-next.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/tests/wp-review-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `.GOV/roles_shared/tests/protocol-alignment-check.test.mjs`
+  - `.GOV/roles/validator/tests/validator-governance-lib.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-50`
+  - `RGF-51`
+- OUTCOME: after every governed `CODER_INTENT`, the lane now waits for explicit WP-validator bootstrap/skeleton clearance instead of silently trusting coder intent; completed microtasks can be reviewed in bounded overlap mode with a hard queue limit of 2; overlap review backlog now creates mechanical backpressure; full `CODER_HANDOFF` fails closed until overlap review debt is drained; startup prompts, resume helpers, runtime route truth, and the operator command surface now all describe the same early-review law
