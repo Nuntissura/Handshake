@@ -70,6 +70,9 @@ function blockedCoderMessage(nextExpectedActor, waitingOn, communicationState = 
   const latestAssessment = communicationState?.latestValidatorAssessment || null;
 
   if (nextActor === "WP_VALIDATOR") {
+    if (String(waiting || "").trim().toUpperCase() === "WP_VALIDATOR_INTENT_CHECKPOINT") {
+      return "Coder intent is recorded; wait for WP validator checkpoint clearance before implementation or full handoff.";
+    }
     return `Coder handoff is already recorded; WP validator review is next (${waiting || "WP_VALIDATOR_REVIEW"}).`;
   }
   if (nextActor === "INTEGRATION_VALIDATOR") {
@@ -164,6 +167,7 @@ export function loadCoderCommunicationState({
     wpId,
     stage: "STATUS",
     packetPath,
+    packetContent,
     workflowLane: parseClaimField(packetContent, "WORKFLOW_LANE"),
     packetFormatVersion: parseClaimField(packetContent, "PACKET_FORMAT_VERSION"),
     communicationContract: parseClaimField(packetContent, "COMMUNICATION_CONTRACT"),

@@ -70,6 +70,12 @@ function currentStateForEvaluation(evaluationState, autoRoute = {}) {
         blockers: "Awaiting CODER intent reply to the validator kickoff.",
         next: "CODER records CODER_INTENT with implementation order and proof plan.",
       };
+    case "COMM_WAITING_FOR_INTENT_CHECKPOINT":
+      return {
+        verdict: "PENDING",
+        blockers: "Contract-heavy or under-specified coder intent requires WP validator checkpoint clearance before implementation or full handoff.",
+        next: "WP_VALIDATOR reviews CODER_INTENT and records SPEC_GAP / VALIDATOR_QUERY for missing signed surfaces or proof, or VALIDATOR_RESPONSE to clear the checkpoint.",
+      };
     case "COMM_WAITING_FOR_HANDOFF":
       return {
         verdict: "PENDING",
@@ -97,7 +103,7 @@ function currentStateForEvaluation(evaluationState, autoRoute = {}) {
     case "COMM_BLOCKED_OPEN_ITEMS":
       return {
         verdict: "PENDING",
-        blockers: "Open review items still block verdict progression; see WP communications for the authoritative pending item.",
+        blockers: "Open review items still block governed direct-review progression; see WP communications for the authoritative pending item.",
         next: `${String(autoRoute.nextExpectedActor || "ORCHESTRATOR").trim() || "ORCHESTRATOR"} resolves the pending review item and records the matching response receipt.`,
       };
     case "COMM_OK":
@@ -179,6 +185,10 @@ export function applyWpReviewRuntimeProjection(runtimeStatus, {
     case "COMM_MISSING_KICKOFF":
     case "COMM_WAITING_FOR_INTENT":
       nextRuntime.runtime_status = "submitted";
+      nextRuntime.current_phase = "BOOTSTRAP";
+      break;
+    case "COMM_WAITING_FOR_INTENT_CHECKPOINT":
+      nextRuntime.runtime_status = "working";
       nextRuntime.current_phase = "BOOTSTRAP";
       break;
     case "COMM_WAITING_FOR_HANDOFF":

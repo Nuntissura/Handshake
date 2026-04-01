@@ -619,3 +619,28 @@
 - FOLLOW_ON_ITEMS:
   - `RGF-47`
 - OUTCOME: final-lane closeout now classifies role-boundary misuse into machine-visible `WORKFLOW_INVALIDITY` codes, kernel/orchestrator-side closeout misuse can no longer quietly become closure truth, and successful closeout sync records attributable provenance for contained-main promotion in validator gate state plus closeout receipts
+
+### 2026.04.01.09 / GOV-CHANGE-20260401-09
+
+- STATUS: APPLIED
+- SUMMARY: added a contract-heavy intent checkpoint between `CODER_INTENT` and `CODER_HANDOFF` so governed direct-review lanes catch signed-surface/proof drift before full handoff
+- CHANGE_TYPE: DIRECT_REVIEW_CHECKPOINT_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-review-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/coder/scripts/lib/coder-governance-lib.mjs`
+  - `.GOV/roles/validator/scripts/validator-next.mjs`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-review-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles/validator/tests/validator-governance-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: contract-heavy or under-specified intent now routes to `WP_VALIDATOR_INTENT_CHECKPOINT`, validator/coder resume helpers surface checkpoint-specific guidance, and governed `CODER_HANDOFF` fails closed until the checkpoint or any open review items are resolved so late-loop rework and false completion claims are reduced mechanically

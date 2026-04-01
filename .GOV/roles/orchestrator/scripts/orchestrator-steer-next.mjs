@@ -75,6 +75,7 @@ const communicationEvaluation = evaluateWpCommunicationHealth({
   wpId,
   stage: "STATUS",
   packetPath,
+  packetContent: packetText,
   workflowLane,
   packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
   communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),

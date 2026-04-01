@@ -43,6 +43,41 @@ test("negative validator review projects packet truth back to active coder remed
   assert.match(nextPacketText, /Next:\s*CODER repairs against the latest VALIDATOR_REVIEW/i);
 });
 
+test("intent checkpoint review projects packet truth into validator-side bootstrap review", () => {
+  const projection = deriveWpReviewPacketProjection({
+    evaluation: {
+      applicable: true,
+      state: "COMM_WAITING_FOR_INTENT_CHECKPOINT",
+    },
+    autoRoute: {
+      nextExpectedActor: "WP_VALIDATOR",
+      waitingOn: "WP_VALIDATOR_INTENT_CHECKPOINT",
+    },
+    packetText: packetFixture("Ready for Dev"),
+  });
+
+  const nextPacketText = applyWpReviewPacketProjection(packetFixture("Ready for Dev"), projection);
+  const runtime = applyWpReviewRuntimeProjection(
+    {
+      current_packet_status: "Ready for Dev",
+      runtime_status: "submitted",
+      current_phase: "BOOTSTRAP",
+    },
+    {
+      evaluation: {
+        applicable: true,
+        state: "COMM_WAITING_FOR_INTENT_CHECKPOINT",
+      },
+    },
+  );
+
+  assert.equal(projection.packetStatus, "In Progress");
+  assert.equal(projection.taskBoardStatus, "IN_PROGRESS");
+  assert.match(nextPacketText, /WP validator checkpoint clearance/i);
+  assert.equal(runtime.runtime_status, "working");
+  assert.equal(runtime.current_phase, "BOOTSTRAP");
+});
+
 test("workflow invalidity projects packet truth into blocked state", () => {
   const projection = deriveWpReviewPacketProjection({
     evaluation: {

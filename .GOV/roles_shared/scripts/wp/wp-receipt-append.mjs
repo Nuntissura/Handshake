@@ -478,6 +478,40 @@ function assertCommittedCoderHandoffPreflight({ wpId, context }) {
   }
 }
 
+function assertCoderHandoffRoutePreflight({ wpId, context, runtimeStatus }) {
+  if (!runtimeStatus || normalizeRole(context?.workflowLane) !== "ORCHESTRATOR_MANAGED") return;
+  const receipts = parseJsonlFile(context.receiptsFile);
+  const latestReceipt = receipts.at(-1) || null;
+  const evaluation = evaluateWpCommunicationHealth({
+    wpId,
+    stage: "STATUS",
+    packetPath: context.packetPath,
+    packetContent: context.packetText,
+    workflowLane: context.workflowLane || runtimeStatus.workflow_lane || "",
+    packetFormatVersion: context.packetFormatVersion || "",
+    communicationContract: context.communicationContract || "",
+    communicationHealthGate: context.communicationHealthGate || "",
+    receipts,
+    runtimeStatus,
+  });
+  const autoRoute = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus,
+    latestReceipt,
+  });
+  const nextActor = normalizeRole(autoRoute?.nextExpectedActor);
+  const waitingOn = String(autoRoute?.waitingOn || "").trim().toUpperCase();
+  if (nextActor === "CODER" && ["CODER_HANDOFF", "CODER_REPAIR_HANDOFF"].includes(waitingOn)) return;
+
+  let reason = `lane is not currently waiting on a coder handoff (${nextActor || "NONE"} / ${waitingOn || "UNKNOWN"}).`;
+  if (String(evaluation?.state || "").trim().toUpperCase() === "COMM_WAITING_FOR_INTENT_CHECKPOINT") {
+    reason = "WP validator checkpoint review of CODER_INTENT is still required before full handoff.";
+  } else if (String(evaluation?.state || "").trim().toUpperCase() === "COMM_BLOCKED_OPEN_ITEMS") {
+    reason = "open review items still block direct-review progression; resolve them before full handoff.";
+  }
+  throw new Error(`Governed CODER_HANDOFF rejected: ${reason}`);
+}
+
 export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
   const wpId = String(args?.wpId || "").trim();
   if (!wpId || !/^WP-/.test(wpId)) {
@@ -488,15 +522,15 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
   const runtimeStatus = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
     ? parseJsonFile(context.runtimeStatusFile)
     : null;
-  if (
-    !options.skipCommittedCoderHandoffGate
-    && committedCoderHandoffGateApplies({
-      context,
-      actorRole: args?.actorRole,
-      receiptKind: args?.receiptKind,
-    })
-  ) {
-    assertCommittedCoderHandoffPreflight({ wpId, context });
+  if (committedCoderHandoffGateApplies({
+    context,
+    actorRole: args?.actorRole,
+    receiptKind: args?.receiptKind,
+  })) {
+    if (!options.skipCommittedCoderHandoffGate) {
+      assertCommittedCoderHandoffPreflight({ wpId, context });
+    }
+    assertCoderHandoffRoutePreflight({ wpId, context, runtimeStatus });
   }
 
   const entry = buildReceiptValidationEntry({
@@ -772,6 +806,7 @@ function appendWpReceiptCore({
         wpId: WP_ID,
         stage: "STATUS",
         packetPath: context.packetPath,
+        packetContent: context.packetText,
         workflowLane: context.workflowLane || runtimeStatus.workflow_lane || "",
         packetFormatVersion: context.packetFormatVersion || "",
         communicationContract: context.communicationContract || "",

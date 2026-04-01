@@ -10,6 +10,11 @@ import {
   REVIEW_TRACKED_RECEIPT_KIND_VALUES,
   workflowInvalidityReceipts,
 } from "./wp-communications-lib.mjs";
+import {
+  normalizeRepoPath,
+  parsePacketScopeList,
+  parsePacketSingleField,
+} from "./scope-surface-lib.mjs";
 
 export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
 export const COMMUNICATION_MONITOR_STATE_VALUES = [
@@ -17,6 +22,7 @@ export const COMMUNICATION_MONITOR_STATE_VALUES = [
   "COMM_MISCONFIGURED",
   "COMM_MISSING_KICKOFF",
   "COMM_WAITING_FOR_INTENT",
+  "COMM_WAITING_FOR_INTENT_CHECKPOINT",
   "COMM_WAITING_FOR_HANDOFF",
   "COMM_REPAIR_REQUIRED",
   "COMM_WAITING_FOR_REVIEW",
@@ -33,6 +39,14 @@ export const VALIDATOR_REVIEW_OUTCOME_VALUES = [
   "APPROVED_FOR_FINAL_REVIEW",
 ];
 export const VALIDATOR_ASSESSMENT_VERDICT_VALUES = ["ASSESSED", "FAIL", "PASS"];
+const INTENT_CHECKPOINT_CLEARANCE_RECEIPT_KIND_VALUES = new Set(["VALIDATOR_RESPONSE", "SPEC_CONFIRMATION"]);
+const CONTRACT_HEAVY_GOVERNED_VALIDATOR_REPORT_PROFILE_VALUES = new Set([
+  "SPLIT_DIFF_SCOPED_RIGOR_V2",
+  "SPLIT_DIFF_SCOPED_RIGOR_V3",
+]);
+const CONTRACT_HEAVY_CODER_HANDOFF_RIGOR_PROFILE_VALUES = new Set(["RUBRIC_SELF_AUDIT_V2"]);
+const CONTRACT_HEAVY_CLAUSE_MONITOR_PROFILE_VALUES = new Set(["CLAUSE_MONITOR_V1"]);
+const CONTRACT_HEAVY_SEMANTIC_PROOF_PROFILE_VALUES = new Set(["DIFF_SCOPED_SEMANTIC_V1"]);
 
 function normalizeRole(value) {
   return String(value || "").trim().toUpperCase();
@@ -56,6 +70,12 @@ function normalizeReviewOutcome(value) {
 function normalizeAssessmentVerdict(value) {
   const normalized = String(value || "").trim().toUpperCase();
   return VALIDATOR_ASSESSMENT_VERDICT_VALUES.includes(normalized) ? normalized : "ASSESSED";
+}
+
+function parseListField(value) {
+  return Array.isArray(value)
+    ? value.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : [];
 }
 
 function isVersionAtLeast(current, minimum) {
@@ -153,6 +173,64 @@ function explicitSummaryAssessmentVerdict(summary) {
   if (/^FAIL\b/i.test(normalized)) return "FAIL";
   if (/^PASS\b/i.test(normalized)) return "PASS";
   return null;
+}
+
+function packetIsContractHeavy(packetContent = "") {
+  const reportProfile = normalizeRole(parsePacketSingleField(packetContent, "GOVERNED_VALIDATOR_REPORT_PROFILE"));
+  const handoffProfile = normalizeRole(parsePacketSingleField(packetContent, "CODER_HANDOFF_RIGOR_PROFILE"));
+  const clauseMonitorProfile = normalizeRole(parsePacketSingleField(packetContent, "CLAUSE_CLOSURE_MONITOR_PROFILE"));
+  const semanticProofProfile = normalizeRole(parsePacketSingleField(packetContent, "SEMANTIC_PROOF_PROFILE"));
+
+  return CONTRACT_HEAVY_GOVERNED_VALIDATOR_REPORT_PROFILE_VALUES.has(reportProfile)
+    || CONTRACT_HEAVY_CODER_HANDOFF_RIGOR_PROFILE_VALUES.has(handoffProfile)
+    || CONTRACT_HEAVY_CLAUSE_MONITOR_PROFILE_VALUES.has(clauseMonitorProfile)
+    || CONTRACT_HEAVY_SEMANTIC_PROOF_PROFILE_VALUES.has(semanticProofProfile)
+    || /(^|\n)##\s+CLAUSE_CLOSURE_MATRIX\b/im.test(String(packetContent || ""));
+}
+
+function summarizeIntentCheckpointRequirement({
+  packetContent = "",
+  intentReceipt = null,
+} = {}) {
+  const contractHeavy = packetIsContractHeavy(packetContent);
+  const inScopePaths = parsePacketScopeList(packetContent, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
+  const hasSignedSurface = inScopePaths.length > 0;
+  const intentContract = intentReceipt?.microtask_contract && typeof intentReceipt.microtask_contract === "object"
+    ? intentReceipt.microtask_contract
+    : null;
+  const fileTargets = parseListField(intentContract?.file_targets).map((entry) => normalizeRepoPath(entry)).filter(Boolean);
+  const proofCommands = parseListField(intentContract?.proof_commands);
+  const missingSignedSurfaces = inScopePaths.filter((entry) => !fileTargets.includes(normalizeRepoPath(entry)));
+  const reasons = [];
+
+  if (contractHeavy) reasons.push("contract_heavy_packet");
+  if (!intentContract && (contractHeavy || hasSignedSurface)) reasons.push("intent_missing_microtask_contract");
+  if (hasSignedSurface && fileTargets.length === 0) reasons.push("intent_missing_file_targets");
+  if (contractHeavy && proofCommands.length === 0) reasons.push("intent_missing_proof_commands");
+  if (hasSignedSurface && fileTargets.length > 0 && missingSignedSurfaces.length > 0) {
+    reasons.push(`intent_missing_signed_surfaces=${missingSignedSurfaces.slice(0, 6).join(", ")}`);
+  }
+
+  return {
+    required: contractHeavy || reasons.some((entry) => !entry.startsWith("contract_heavy_packet")),
+    contractHeavy,
+    underSpecified: reasons.some((entry) => !entry.startsWith("contract_heavy_packet")),
+    reasons,
+  };
+}
+
+function latestIntentCheckpointClearance(receipts = [], intentReceipt = null) {
+  const intentTimestamp = String(intentReceipt?.timestamp_utc || "").trim();
+  if (!intentTimestamp) return null;
+  return [...(receipts || [])]
+    .filter((entry) =>
+      normalizeRole(entry?.actor_role) === "WP_VALIDATOR"
+      && normalizeRole(entry?.target_role) === "CODER"
+      && INTENT_CHECKPOINT_CLEARANCE_RECEIPT_KIND_VALUES.has(normalizeReceiptKind(entry?.receipt_kind))
+      && String(entry?.timestamp_utc || "").trim() > intentTimestamp
+    )
+    .sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0]
+    || null;
 }
 
 export function deriveValidatorReviewOutcome(reviewReceipt = null) {
@@ -276,6 +354,7 @@ export function evaluateWpCommunicationHealth({
   wpId = "",
   stage = "STATUS",
   packetPath = "",
+  packetContent = "",
   workflowLane = "",
   packetFormatVersion = "",
   communicationContract = "",
@@ -348,6 +427,11 @@ export function evaluateWpCommunicationHealth({
   });
 
   const kickoffIntentPair = latestOpenReceiptStatus(validatorKickoffs, coderIntents);
+  const intentCheckpoint = summarizeIntentCheckpointRequirement({
+    packetContent,
+    intentReceipt: kickoffIntentPair.reply,
+  });
+  const intentCheckpointClearance = latestIntentCheckpointClearance(receipts, kickoffIntentPair.reply);
   const handoffReviewPair = latestOpenReceiptStatus(coderHandoffs, validatorReviews);
   const latestWpValidatorReviewOutcome = deriveValidatorReviewOutcome(handoffReviewPair.reply);
   const integrationFinalOpenReceipts = [
@@ -447,6 +531,39 @@ export function evaluateWpCommunicationHealth({
         correlations,
       });
     }
+    if (openReviewItems.length > 0) {
+      return result({
+        applicable: true,
+        ok: false,
+        state: "COMM_BLOCKED_OPEN_ITEMS",
+        message: "Open review items still block direct review progression",
+        details: [
+          ...details,
+          ...openReviewItems.map((entry) =>
+            `open_review_item=${entry.receipt_kind}:${entry.correlation_id}:${entry.summary}`
+          ),
+        ],
+        counts,
+        correlations,
+        latestWpValidatorReviewOutcome,
+      });
+    }
+    if (intentCheckpoint.required && !intentCheckpointClearance) {
+      return result({
+        applicable: true,
+        ok: false,
+        state: "COMM_WAITING_FOR_INTENT_CHECKPOINT",
+        message: "Waiting on WP validator checkpoint review of the coder intent before full handoff",
+        details: [
+          ...details,
+          `intent_checkpoint_required=YES`,
+          ...intentCheckpoint.reasons.map((reason) => `intent_checkpoint_reason=${reason}`),
+        ],
+        counts,
+        correlations,
+        latestWpValidatorReviewOutcome,
+      });
+    }
     if (coderHandoffs.length === 0) {
       return result({
         applicable: true,
@@ -490,7 +607,7 @@ export function evaluateWpCommunicationHealth({
         applicable: true,
         ok: false,
         state: "COMM_BLOCKED_OPEN_ITEMS",
-        message: "Review exchange is complete, but open review items still block verdict",
+        message: "Open review items still block direct review progression",
         details: [
           ...details,
           ...openReviewItems.map((entry) =>
@@ -559,6 +676,41 @@ export function evaluateWpCommunicationHealth({
       state: "COMM_OK",
       message: "Kickoff exchange is complete",
       details,
+      counts,
+      correlations,
+      latestWpValidatorReviewOutcome,
+    });
+  }
+
+  if (openReviewItems.length > 0) {
+    return result({
+      applicable: true,
+      ok: false,
+      state: "COMM_BLOCKED_OPEN_ITEMS",
+      message: "Open review items still block direct review progression",
+      details: [
+        ...details,
+        ...openReviewItems.map((entry) =>
+          `open_review_item=${entry.receipt_kind}:${entry.correlation_id}:${entry.summary}`
+        ),
+      ],
+      counts,
+      correlations,
+      latestWpValidatorReviewOutcome,
+    });
+  }
+
+  if (intentCheckpoint.required && !intentCheckpointClearance) {
+    return result({
+      applicable: true,
+      ok: false,
+      state: "COMM_WAITING_FOR_INTENT_CHECKPOINT",
+      message: "Waiting on WP validator checkpoint review of the coder intent before full handoff",
+      details: [
+        ...details,
+        `intent_checkpoint_required=YES`,
+        ...intentCheckpoint.reasons.map((reason) => `intent_checkpoint_reason=${reason}`),
+      ],
       counts,
       correlations,
       latestWpValidatorReviewOutcome,
@@ -636,7 +788,7 @@ export function evaluateWpCommunicationHealth({
       applicable: true,
       ok: false,
       state: "COMM_BLOCKED_OPEN_ITEMS",
-      message: "Review exchange is complete, but open review items still block verdict",
+      message: "Open review items still block direct review progression",
       details: [
         ...details,
         ...openReviewItems.map((entry) =>
@@ -798,6 +950,20 @@ export function deriveWpCommunicationAutoRoute({
         notificationSummary: "AUTO_ROUTE: coder intent reply required",
       });
       break;
+    case "COMM_WAITING_FOR_INTENT_CHECKPOINT":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "WP_VALIDATOR",
+        nextExpectedSession: wpValidatorSession,
+        waitingOn: "WP_VALIDATOR_INTENT_CHECKPOINT",
+        waitingOnSession: wpValidatorSession,
+        validatorTrigger: "BLOCKED_NEEDS_VALIDATOR",
+        validatorTriggerReason: "Coder intent recorded; WP validator checkpoint review is required before full handoff",
+        readyForValidation: true,
+        readyForValidationReason: "Coder intent recorded; WP validator checkpoint review is required before full handoff",
+        notificationSummary: "AUTO_ROUTE: WP validator checkpoint review required after coder intent",
+      });
+      break;
     case "COMM_WAITING_FOR_HANDOFF":
       projection = route({
         state: evaluation.state,
@@ -927,6 +1093,7 @@ function nullableComparable(value) {
 function boundaryCorrelationId(statusEvaluation, runtimeStatus = {}) {
   switch (String(statusEvaluation?.state || "").trim().toUpperCase()) {
     case "COMM_WAITING_FOR_INTENT":
+    case "COMM_WAITING_FOR_INTENT_CHECKPOINT":
     case "COMM_WAITING_FOR_HANDOFF":
       return nullableComparable(statusEvaluation?.correlations?.kickoff);
     case "COMM_REPAIR_REQUIRED":

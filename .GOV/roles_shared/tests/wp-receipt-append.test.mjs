@@ -8,6 +8,7 @@ import { deriveWpScopeContract } from "../scripts/lib/scope-surface-lib.mjs";
 import {
   deriveReviewNotificationTargets,
   summarizeCommittedCoderHandoffDirtyState,
+  validateWpReceiptAppendPreconditions,
 } from "../scripts/wp/wp-receipt-append.mjs";
 import { recordReviewExchange } from "../scripts/wp/wp-review-exchange.mjs";
 
@@ -33,6 +34,40 @@ function writeReviewExchangePacket(packetDir, wpId, commDir) {
       "- PACKET_FORMAT_VERSION: 2026-03-29",
       "- COMMUNICATION_CONTRACT: v1",
       "- COMMUNICATION_HEALTH_GATE: REQUIRED",
+    ].join("\n"),
+    "utf8",
+  );
+}
+
+function writeIntentCheckpointPacket(packetDir, wpId, commDir) {
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(packetDir, "packet.md"),
+    [
+      `# Task Packet: ${wpId}`,
+      "",
+      "**Status:** In Progress",
+      "",
+      "## METADATA",
+      `- WP_ID: ${wpId}`,
+      `- WP_RECEIPTS_FILE: ${path.join(commDir, "RECEIPTS.jsonl").replace(/\\/g, "/")}`,
+      `- WP_RUNTIME_STATUS_FILE: ${path.join(commDir, "RUNTIME_STATUS.json").replace(/\\/g, "/")}`,
+      `- WP_THREAD_FILE: ${path.join(commDir, "THREAD.md").replace(/\\/g, "/")}`,
+      "- LOCAL_BRANCH: feat/test-intent-checkpoint",
+      `- LOCAL_WORKTREE_DIR: ${path.join(commDir, "worktree").replace(/\\/g, "/")}`,
+      "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+      "- PACKET_FORMAT_VERSION: 2026-03-29",
+      "- COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1",
+      "- COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING",
+      "- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V3",
+      "- CODER_HANDOFF_RIGOR_PROFILE: RUBRIC_SELF_AUDIT_V2",
+      "- CLAUSE_CLOSURE_MONITOR_PROFILE: CLAUSE_MONITOR_V1",
+      "- SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1",
+      "- IN_SCOPE_PATHS:",
+      "  - src/demo.rs",
+      "",
+      "## CLAUSE_CLOSURE_MATRIX",
+      "- CLAUSE | CODER_STATUS=PROVED | VALIDATOR_STATUS=PENDING",
     ].join("\n"),
     "utf8",
   );
@@ -221,6 +256,125 @@ test("review exchange preflight rejects placeholder unassigned target sessions",
 
     assert.equal(fs.existsSync(threadPath), false);
     assert.equal(fs.readFileSync(receiptsPath, "utf8"), "");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("coder handoff preflight rejects missing validator intent checkpoint on contract-heavy packets", () => {
+  const wpId = "WP-TEST-INTENT-CHECKPOINT";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-intent-checkpoint-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const runtimePath = path.join(commDir, "RUNTIME_STATUS.json");
+
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  fs.writeFileSync(
+    receiptsPath,
+    [
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:00:00Z",
+        wp_id: wpId,
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        actor_authority_kind: "WP_VALIDATOR",
+        validator_role_kind: "WP_VALIDATOR",
+        receipt_kind: "VALIDATOR_KICKOFF",
+        summary: "Kickoff",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        requires_ack: true,
+        ack_for: null,
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:01:00Z",
+        wp_id: wpId,
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        actor_authority_kind: "PRIMARY_CODER",
+        validator_role_kind: null,
+        receipt_kind: "CODER_INTENT",
+        summary: "Implementation order drafted.",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        requires_ack: false,
+        ack_for: "kickoff-1",
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+    ].join("\n"),
+    "utf8",
+  );
+  fs.writeFileSync(
+    runtimePath,
+    JSON.stringify({
+      workflow_lane: "ORCHESTRATOR_MANAGED",
+      wp_validator_of_record: "wpv-1",
+      integration_validator_of_record: "intval-1",
+      active_role_sessions: [
+        {
+          role: "CODER",
+          session_id: "coder-1",
+          worktree_dir: "../wtc-test",
+          state: "working",
+          last_heartbeat_at: "2026-04-01T10:01:00Z",
+        },
+        {
+          role: "WP_VALIDATOR",
+          session_id: "wpv-1",
+          worktree_dir: "../wtv-test",
+          state: "waiting",
+          last_heartbeat_at: "2026-04-01T10:01:00Z",
+        },
+      ],
+      open_review_items: [],
+      next_expected_actor: "WP_VALIDATOR",
+      next_expected_session: "wpv-1",
+      waiting_on: "WP_VALIDATOR_INTENT_CHECKPOINT",
+      waiting_on_session: "wpv-1",
+      validator_trigger: "BLOCKED_NEEDS_VALIDATOR",
+      validator_trigger_reason: "Coder intent recorded; WP validator checkpoint review is required before full handoff",
+      ready_for_validation: true,
+      ready_for_validation_reason: "Coder intent recorded; WP validator checkpoint review is required before full handoff",
+      attention_required: false,
+    }, null, 2),
+    "utf8",
+  );
+
+  try {
+    assert.throws(
+      () => validateWpReceiptAppendPreconditions({
+        wpId,
+        actorRole: "CODER",
+        actorSession: "coder-1",
+        receiptKind: "CODER_HANDOFF",
+        summary: "Ready for review.",
+        targetRole: "WP_VALIDATOR",
+        targetSession: "wpv-1",
+        correlationId: "handoff-1",
+        requiresAck: true,
+      }, {
+        skipCommittedCoderHandoffGate: true,
+      }),
+      /checkpoint review of CODER_INTENT is still required/i,
+    );
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
     fs.rmSync(commDir, { recursive: true, force: true });

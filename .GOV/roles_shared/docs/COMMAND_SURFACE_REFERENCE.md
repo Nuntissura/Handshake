@@ -247,6 +247,7 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
   - `runtime-write`
   - structured direct-review / review-resolution helpers
   - optional final `microtask_json` argument may carry a compact steering contract with `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, and `expected_receipt_kind`
+  - contract-heavy intent checkpoint rule: after `wp-coder-intent`, the lane may route to `WP_VALIDATOR_INTENT_CHECKPOINT`; use `wp-validator-response` to clear the intent or `wp-spec-gap` / `VALIDATOR_QUERY` to request tighter signed-surface/proof detail before `wp-coder-handoff`
 - `just wp-communication-health-check WP-{ID} [STATUS|KICKOFF|HANDOFF|VERDICT]`
   - `read-only`
   - communication proof and route health

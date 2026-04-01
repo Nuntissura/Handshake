@@ -334,9 +334,12 @@ Resume rule (hard, anti-babysit):
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` packets with `PACKET_FORMAT_VERSION >= 2026-03-21`, the required direct-review contract is:
   - `VALIDATOR_KICKOFF` from `WP_VALIDATOR -> CODER`
   - `CODER_INTENT` from `CODER -> WP_VALIDATOR`, correlated to kickoff
+  - for contract-heavy packets, or when your intent omitted signed file surfaces / proof obligations, the WP Validator may require one short checkpoint before you are allowed to post full handoff:
+    - wait for `WP_VALIDATOR -> CODER` `VALIDATOR_RESPONSE` to clear the intent, or answer a `SPEC_GAP` / `VALIDATOR_QUERY` first
   - `CODER_HANDOFF` from `CODER -> WP_VALIDATOR`
   - `VALIDATOR_REVIEW` from `WP_VALIDATOR -> CODER`, correlated to handoff
   - For `PACKET_FORMAT_VERSION >= 2026-03-22`, before `VERDICT` can pass the Coder must also complete one direct review exchange with `INTEGRATION_VALIDATOR` recorded in receipts with matching `correlation_id` / `ack_for`.
+- Do not jump from `CODER_INTENT` straight to `CODER_HANDOFF` when runtime truth is waiting on `WP_VALIDATOR_INTENT_CHECKPOINT` or an open review item. Governed `CODER_HANDOFF` now fails closed until the checkpoint is cleared.
 - Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Use the governed helpers; do not hand-edit around this routing.
 - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
 - Before claiming validator-ready handoff on those packets, `just wp-communication-health-check WP-{ID} KICKOFF` must pass.
@@ -362,6 +365,7 @@ Resume rule (hard, anti-babysit):
   - `just wp-spec-gap WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
   - `just wp-spec-confirmation WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - For structured microtask steering, the direct-review helpers also accept an optional final `microtask_json` argument carrying `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, and `expected_receipt_kind`.
+  - For the contract-heavy intent checkpoint, use `wp-coder-intent` with concrete `file_targets` + `proof_commands`, then wait for validator clearance instead of broad “ready end-to-end” language.
   - `just wp-communication-health-check WP-{ID} STATUS|KICKOFF|HANDOFF|VERDICT`
   - `just session-registry-status [WP-{ID}]`
   - `just active-lane-brief CODER WP-{ID} [--json]`

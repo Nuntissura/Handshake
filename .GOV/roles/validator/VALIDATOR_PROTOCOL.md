@@ -315,10 +315,14 @@ Resume rule (hard, anti-babysit):
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` packets with `PACKET_FORMAT_VERSION >= 2026-03-21`, the required direct-review contract is:
   - `VALIDATOR_KICKOFF` from `WP_VALIDATOR -> CODER`
   - `CODER_INTENT` from `CODER -> WP_VALIDATOR`, correlated to kickoff
+  - for contract-heavy packets, or when `CODER_INTENT` omits signed file surfaces/proof obligations, one short WP-validator checkpoint must occur before full handoff:
+    - clear path: `WP_VALIDATOR -> CODER` `VALIDATOR_RESPONSE` confirming the intent is specific enough to proceed
+    - corrective path: `WP_VALIDATOR -> CODER` `SPEC_GAP` or `VALIDATOR_QUERY`, followed by coder reply and a later validator clearance
   - `CODER_HANDOFF` from `CODER -> WP_VALIDATOR`
   - `VALIDATOR_REVIEW` from `WP_VALIDATOR -> CODER`, correlated to handoff
   - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
 - In orchestrator-managed lanes, the `VALIDATOR_KICKOFF -> CODER_INTENT` exchange is the normal bootstrap/skeleton review loop. Do not wait for final handoff if the bootstrap, skeleton, or data-shape plan is already weak.
+- When the checkpoint rule applies, `CODER_HANDOFF` is illegal until route truth returns to `waiting_on=CODER_HANDOFF` (or `CODER_REPAIR_HANDOFF` on a later repair loop). The governed handoff helper now fails closed if the lane is still waiting on `WP_VALIDATOR_INTENT_CHECKPOINT` or any open review item.
 - Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Use the governed helpers; do not hand-edit around this routing.
 - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
 - Before taking a coder handoff as review-ready on those packets, `just wp-communication-health-check WP-{ID} HANDOFF` must pass.
@@ -344,6 +348,7 @@ Resume rule (hard, anti-babysit):
   - `just wp-spec-gap WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
   - `just wp-spec-confirmation WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - For structured microtask steering, the direct-review helpers also accept an optional final `microtask_json` argument carrying `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, and `expected_receipt_kind`.
+  - For the contract-heavy intent checkpoint, prefer `wp-validator-response` to clear the plan and `wp-spec-gap` / `VALIDATOR_QUERY` when signed surfaces or proof commands are still missing.
   - `just wp-communication-health-check WP-{ID} STATUS|KICKOFF|HANDOFF|VERDICT`
   - `just session-registry-status [WP-{ID}]`
   - `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID} [--json]`

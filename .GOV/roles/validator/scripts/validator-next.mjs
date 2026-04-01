@@ -541,6 +541,7 @@ if (validatorResumeState.ready) {
     actorRole: validatorActorContext.actorRole,
     actorSessionId: validatorActorContext.actorSessionId,
     postWorkCommand,
+    waitingOn: validatorResumeState.waitingOn,
   }));
   process.exit(0);
 }
@@ -583,6 +584,7 @@ if (
     actorRole: validatorActorContext.actorRole,
     actorSessionId: validatorActorContext.actorSessionId,
     postWorkCommand,
+    waitingOn: validatorResumeState.waitingOn,
   }));
   process.exit(0);
 }
