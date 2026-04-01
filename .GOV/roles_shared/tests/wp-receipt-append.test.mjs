@@ -193,3 +193,36 @@ test("review exchange preflight blocks invalid direct-review receipts before thr
     fs.rmSync(commDir, { recursive: true, force: true });
   }
 });
+
+test("review exchange preflight rejects placeholder unassigned target sessions", () => {
+  const wpId = "WP-TEST-REVIEW-EXCHANGE-UNASSIGNED";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-review-exchange-unassigned-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const threadPath = path.join(commDir, "THREAD.md");
+
+  fs.writeFileSync(receiptsPath, "", "utf8");
+  writeReviewExchangePacket(packetDir, wpId, commDir);
+
+  try {
+    assert.throws(
+      () => recordReviewExchange({
+        receiptKind: "REVIEW_REQUEST",
+        wpId,
+        actorRole: "CODER",
+        actorSession: "coder-test",
+        targetRole: "INTEGRATION_VALIDATOR",
+        targetSession: "<unassigned>",
+        summary: "Requesting final integration review.",
+        correlationId: "review-request-test",
+      }),
+      /target_session is required for REVIEW_REQUEST/,
+    );
+
+    assert.equal(fs.existsSync(threadPath), false);
+    assert.equal(fs.readFileSync(receiptsPath, "utf8"), "");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});

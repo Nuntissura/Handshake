@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { evaluateComputedPolicyGateFromPacketText } from "../../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
 import { parseClaimField } from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
-import { normalizePath, REPO_ROOT, repoPathAbs } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, normalizePath, REPO_ROOT, repoPathAbs } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluateWpCommunicationHealth, deriveLatestValidatorAssessment } from "../../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { loadSessionRegistry } from "../../../../roles_shared/scripts/session/session-registry-lib.mjs";
@@ -65,6 +65,10 @@ function currentBranchName(gitContext = {}) {
 
 function sameWorktreePath(left, right) {
   return normalizePath(left).toLowerCase() === normalizePath(right).toLowerCase();
+}
+
+function resolveLiveGovernanceRootAbs(governanceRootAbs = "") {
+  return normalizePath(path.resolve(governanceRootAbs || GOV_ROOT_ABS || path.resolve(REPO_ROOT, ".GOV")));
 }
 
 function matchRegistrySessionToGitContext(session, repoRoot, gitContext = {}) {
@@ -430,6 +434,8 @@ export function evaluateValidatorPacketGovernanceState({
   currentWpStatus = "",
   taskBoardStatus = "",
   sessionStatus = "",
+  actorContext = {},
+  governanceRootAbs = "",
 } = {}) {
   const packetStatus = parseStatus(packetContent);
   const computedPolicy = evaluateComputedPolicyGateFromPacketText(packetContent, {
@@ -452,6 +458,28 @@ export function evaluateValidatorPacketGovernanceState({
       computedPolicy,
       message: blockedMessage,
     };
+  }
+
+  const authority = readValidatorAuthority(packetContent);
+  const actorRole = normalizeValidatorRole(actorContext?.actorRole);
+  if (authority.workflowLane === "ORCHESTRATOR_MANAGED" && actorRole === "INTEGRATION_VALIDATOR") {
+    const integrationWorktreeAbs = resolveConfiguredWorktreeAbsolute(REPO_ROOT, defaultIntegrationValidatorWorktreeDir(wpId));
+    const localMainGovernanceAbs = normalizePath(path.join(integrationWorktreeAbs, ".GOV"));
+    const liveGovernanceRootAbs = resolveLiveGovernanceRootAbs(governanceRootAbs);
+    if (sameWorktreePath(liveGovernanceRootAbs, localMainGovernanceAbs)) {
+      return {
+        allowValidationResume: false,
+        legacyRemediationRequired: false,
+        terminalReason: "INTEGRATION_VALIDATOR_GOV_ROOT_MISCONFIGURED",
+        packetStatus,
+        currentWpStatus,
+        taskBoardStatus,
+        sessionStatus,
+        computedPolicy,
+        message:
+          "Integration Validator lane is misconfigured: live governance still resolves to handshake_main/.GOV instead of the kernel. Set HANDSHAKE_GOV_ROOT to wt-gov-kernel/.GOV before resuming governed final review.",
+      };
+    }
   }
 
   return {

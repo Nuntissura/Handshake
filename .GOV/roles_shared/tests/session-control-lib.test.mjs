@@ -47,6 +47,7 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
   assert.match(prompt, /Final merge-ready authority/i);
   assert.match(prompt, /HANDSHAKE_GOV_ROOT/i);
   assert.match(prompt, /Do not use handshake_main\/.GOV as the live source of truth/i);
+  assert.match(prompt, /Do not manually grep, browse, or rebuild authority from handshake_main\/.GOV/i);
   assert.match(prompt, /ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature\/prepare/i);
 });
 
@@ -80,8 +81,10 @@ test("steering prompt stays compact and codex-explicit", () => {
   assert.match(prompt, new RegExp(CODEX_AUTHORITY_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(prompt, /just active-lane-brief INTEGRATION_VALIDATOR WP-TEST-STEER-v1/i);
   assert.match(prompt, /Run in order:/i);
+  assert.match(prompt, /just integration-validator-context-brief WP-TEST-STEER-v1/i);
   assert.match(prompt, /just validator-next WP-TEST-STEER-v1/i);
   assert.match(prompt, /just check-notifications WP-TEST-STEER-v1 INTEGRATION_VALIDATOR <your-session>/i);
+  assert.match(prompt, /Do not manually inspect handshake_main\/.GOV as authoritative context/i);
   assert.match(prompt, /Do not request routine Operator approval/i);
 });
 

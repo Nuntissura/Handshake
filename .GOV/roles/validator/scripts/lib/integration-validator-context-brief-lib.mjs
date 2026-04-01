@@ -81,19 +81,20 @@ export function buildIntegrationValidatorContextBrief({
   const currentWpStatus = normalizeStatus(parseCurrentWpStatus(packetContent), "<empty>");
   const boardStatus = normalizeStatus(taskBoardStatus(wpId), "<none>");
   const authority = readValidatorAuthority(packetContent);
-  const governanceState = evaluateValidatorPacketGovernanceState({
-    wpId,
-    packetPath: packetPathValue,
-    packetContent,
-    currentWpStatus,
-    taskBoardStatus: boardStatus,
-  });
   const actorContext = resolveValidatorActorContext({
     repoRoot,
     wpId,
     packetContent,
     gitContext,
     registrySessions,
+  });
+  const governanceState = evaluateValidatorPacketGovernanceState({
+    wpId,
+    packetPath: packetPathValue,
+    packetContent,
+    currentWpStatus,
+    taskBoardStatus: boardStatus,
+    actorContext,
   });
   const topologyEvaluation = declaredTopologyEvaluation ?? evaluateWpDeclaredTopology({
     repoRoot,

@@ -306,6 +306,12 @@ const currentWpStatusLower = currentWpStatus.toLowerCase();
 const boardStatus = taskBoardStatus(wpId) || "<none>";
 const postWorkCommand = buildPostWorkCommand(wpId, packetContent);
 const session = loadValidationSession(wpId);
+const validatorActorContext = resolveValidatorActorContext({
+  repoRoot: gitContext.topLevel || REPO_ROOT,
+  wpId,
+  packetContent,
+  gitContext,
+});
 const validatorGovernanceState = evaluateValidatorPacketGovernanceState({
   wpId,
   packetPath: packetPath(wpId),
@@ -313,12 +319,7 @@ const validatorGovernanceState = evaluateValidatorPacketGovernanceState({
   currentWpStatus,
   taskBoardStatus: boardStatus,
   sessionStatus: session?.status || "",
-});
-const validatorActorContext = resolveValidatorActorContext({
-  repoRoot: gitContext.topLevel || REPO_ROOT,
-  wpId,
-  packetContent,
-  gitContext,
+  actorContext: validatorActorContext,
 });
 const communicationState = loadValidatorCommunicationState({
   wpId,

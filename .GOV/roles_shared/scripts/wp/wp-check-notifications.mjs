@@ -14,6 +14,10 @@ import {
 import { repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.max(1, Math.trunc(ms)));
+}
+
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = text.match(re);
@@ -47,6 +51,7 @@ function saveCursor(cursorPath, cursorData) {
 
 function normalizeSession(value) {
   const raw = String(value || "").trim();
+  if (!raw || /^<unassigned>$/i.test(raw)) return null;
   return raw || null;
 }
 
@@ -214,7 +219,7 @@ export function checkNotifications(args = {}, options = {}) {
   if (options.assumeTransactionLock || !WP_ID || !/^WP-/.test(WP_ID)) {
     return run();
   }
-  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), run);
+  return withCommunicationReadLock(WP_ID, run);
 }
 
 export function checkAllNotifications({ wpId } = {}) {
@@ -223,7 +228,7 @@ export function checkAllNotifications({ wpId } = {}) {
     throw new Error("WP_ID is required");
   }
 
-  return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), () => {
+  return withCommunicationReadLock(WP_ID, () => {
     const results = {};
     for (const role of ROUTABLE_ROLE_VALUES) {
       const check = checkNotifications({ wpId: WP_ID, role }, { assumeTransactionLock: true });
@@ -233,6 +238,29 @@ export function checkAllNotifications({ wpId } = {}) {
     }
     return results;
   });
+}
+
+function withCommunicationReadLock(wpId, run, {
+  attempts = 3,
+  waitMs = 15000,
+  backoffMs = 250,
+} = {}) {
+  const lockPath = communicationTransactionLockPathForWp(wpId);
+  let lastError = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return withFileLockSync(lockPath, run, { waitMs });
+    } catch (error) {
+      if (!/Timed out waiting for file lock/i.test(String(error?.message || ""))) {
+        throw error;
+      }
+      lastError = error;
+      if (attempt < (attempts - 1)) {
+        sleepSync(backoffMs);
+      }
+    }
+  }
+  throw lastError;
 }
 
 function runCli() {

@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_TEMPLATE
+# TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
 
@@ -100,21 +100,21 @@ Requirements:
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** In Progress
+- **Status:** Done
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
-- MAIN_CONTAINMENT_STATUS: NOT_STARTED
+- MAIN_CONTAINMENT_STATUS: MERGE_PENDING
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
 - MERGED_MAIN_COMMIT: NONE
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
 - MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
-- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
+- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 4bc9aa76aa4469beede96a403e1aaf32e357bbbc
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-01T11:03:00.943Z
 <!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
-- PACKET_WIDENING_DECISION: NONE
+- PACKET_WIDENING_DECISION: NOT_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
 - PACKET_WIDENING_EVIDENCE: N/A
 <!-- Use follow-on/superseding WP id, audit id, or short rationale when widening is required. -->
@@ -158,7 +158,7 @@ Requirements:
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Project-Profile-Extension-Registry-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Project-Profile-Extension-Registry-v1/RECEIPTS.jsonl
 - WP_VALIDATOR_OF_RECORD: wp_validator:wp-1-project-profile-extension-registry-v1
-- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- INTEGRATION_VALIDATOR_OF_RECORD: integration_validator:wp-1-project-profile-extension-registry-v1
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
@@ -171,14 +171,14 @@ Requirements:
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
-Blockers: Open review items still block verdict progression; see WP communications for the authoritative pending item.
-Next: INTEGRATION_VALIDATOR resolves the pending review item and records the matching response receipt.
+Blockers: NONE
+Next: ORCHESTRATOR advances verdict progression and integration closeout from the completed direct-review lane.
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: Base structured schema and project-profile extension contract [ADD v02.168] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs; src/backend/handshake_core/src/workflows.rs; src/backend/handshake_core/src/locus/task_board.rs; src/backend/handshake_core/src/role_mailbox.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml profile_extension; cargo test --manifest-path src/backend/handshake_core/Cargo.toml task_board; cargo test --manifest-path src/backend/handshake_core/Cargo.toml role_mailbox | EXAMPLES: Work Packet detail plus summary artifacts with `project_profile_kind=software_delivery` and a valid software-delivery `profile_extension`, Work Packet or Micro-Task detail plus summary artifacts with `project_profile_kind=research` and a valid non-software `profile_extension`, Task Board and Role Mailbox exported artifacts that preserve base-envelope fields and remain parseable when `profile_extension` is unknown or omitted | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: `profile_extension` payloads declare schema id, schema version, and compatibility and keep the base envelope valid when absent | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs; src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml profile_extension | EXAMPLES: Work Packet detail plus summary artifacts with `project_profile_kind=software_delivery` and a valid software-delivery `profile_extension`, Work Packet or Micro-Task detail plus summary artifacts with `project_profile_kind=research` and a valid non-software `profile_extension`, Task Board and Role Mailbox exported artifacts that preserve base-envelope fields and remain parseable when `profile_extension` is unknown or omitted | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: RoleMailboxIndexV1 and RoleMailboxThreadLineV1 share the base envelope and project-profile extension boundary | CODE_SURFACES: src/backend/handshake_core/src/role_mailbox.rs; src/backend/handshake_core/tests/role_mailbox_tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml role_mailbox | EXAMPLES: Work Packet detail plus summary artifacts with `project_profile_kind=software_delivery` and a valid software-delivery `profile_extension`, Work Packet or Micro-Task detail plus summary artifacts with `project_profile_kind=research` and a valid non-software `profile_extension`, Task Board and Role Mailbox exported artifacts that preserve base-envelope fields and remain parseable when `profile_extension` is unknown or omitted | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Base structured schema and project-profile extension contract [ADD v02.168] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs; src/backend/handshake_core/src/workflows.rs; src/backend/handshake_core/src/locus/task_board.rs; src/backend/handshake_core/src/role_mailbox.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml profile_extension; cargo test --manifest-path src/backend/handshake_core/Cargo.toml task_board; cargo test --manifest-path src/backend/handshake_core/Cargo.toml role_mailbox | EXAMPLES: Work Packet detail plus summary artifacts with `project_profile_kind=software_delivery` and a valid software-delivery `profile_extension`, Work Packet or Micro-Task detail plus summary artifacts with `project_profile_kind=research` and a valid non-software `profile_extension`, Task Board and Role Mailbox exported artifacts that preserve base-envelope fields and remain parseable when `profile_extension` is unknown or omitted | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: `profile_extension` payloads declare schema id, schema version, and compatibility and keep the base envelope valid when absent | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs; src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml profile_extension | EXAMPLES: Work Packet detail plus summary artifacts with `project_profile_kind=software_delivery` and a valid software-delivery `profile_extension`, Work Packet or Micro-Task detail plus summary artifacts with `project_profile_kind=research` and a valid non-software `profile_extension`, Task Board and Role Mailbox exported artifacts that preserve base-envelope fields and remain parseable when `profile_extension` is unknown or omitted | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: RoleMailboxIndexV1 and RoleMailboxThreadLineV1 share the base envelope and project-profile extension boundary | CODE_SURFACES: src/backend/handshake_core/src/role_mailbox.rs; src/backend/handshake_core/tests/role_mailbox_tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml role_mailbox | EXAMPLES: Work Packet detail plus summary artifacts with `project_profile_kind=software_delivery` and a valid software-delivery `profile_extension`, Work Packet or Micro-Task detail plus summary artifacts with `project_profile_kind=research` and a valid non-software `profile_extension`, Task Board and Role Mailbox exported artifacts that preserve base-envelope fields and remain parseable when `profile_extension` is unknown or omitted | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -675,50 +675,152 @@ rg -n "project_profile_kind|profile_extension|extension_schema_id|software_deliv
 - (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- Committed validation target: `1b03c2cdf22b968368d651c1656e79082b8b25e0`
+- Diff authority: `MERGE_BASE_SHA facce56f879d4ee990f62566b12a8b26d8bc61d7 .. HEAD`
+- Spec Target Resolved: `.GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md`
+- **Artifacts**: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Project-Profile-Extension-Registry-v1/signed_scope.patch`
+
+- **Target File**: `src/backend/handshake_core/src/locus/task_board.rs`
+- **Start**: 6
+- **End**: 175
+- **Line Delta**: 7
+- **Pre-SHA1**: `bd4a8b681d5fb0793b3e01aedfd7e90082035488`
+- **Post-SHA1**: `932ba6a2a68c9c5c11a4280a3e898c9f3cf59e90`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/locus/types.rs`
+- **Start**: 46
+- **End**: 1888
+- **Line Delta**: 150
+- **Pre-SHA1**: `ce48d67cf815ac8bfb8c11184b5b4f301f4750b2`
+- **Post-SHA1**: `0ba8f856fa29413dddd5a65a08fca9b9c83c4c73`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/role_mailbox.rs`
+- **Start**: 21
+- **End**: 1543
+- **Line Delta**: 4
+- **Pre-SHA1**: `0546b534dfc11d5ab263a2124805f65dc675d817`
+- **Post-SHA1**: `84ac581ef5e179cacedf2d62de022e57315e6b0b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Start**: 14
+- **End**: 1135
+- **Line Delta**: 1
+- **Pre-SHA1**: `a3bdbe81c302f8fdbefd260bff808c12b2181ee8`
+- **Post-SHA1**: `8f30d13dd18734fc89f5b72e1bd9c7e0294cb4cd`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1480
+- **End**: 11939
+- **Line Delta**: 148
+- **Pre-SHA1**: `a77b1a14aad10787f4fb5b4c8347de5b8ec484e2`
+- **Post-SHA1**: `fce12ab1f35f0506cb6b0661780093c9be697403`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Start**: 21
+- **End**: 1752
+- **Line Delta**: 195
+- **Pre-SHA1**: `0c396ecceeec0e74dc726aaa887e95c9d74d8af5`
+- **Post-SHA1**: `770432342415b5ee1cce58290fc975e0ede94437`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/tests/role_mailbox_tests.rs`
+- **Start**: 240
+- **End**: 541
+- **Line Delta**: 59
+- **Pre-SHA1**: `96adf0cc0f9bb09cd622996d1036772af84c3f99`
+- **Post-SHA1**: `2304d6d1fff3d0854f196a4d3b20a730ea9f9b43`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 ## STATUS_HANDOFF
-- (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
-- Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress (committed handoff proved on `1b03c2cdf22b968368d651c1656e79082b8b25e0`; final-lane closeout sync is the remaining completion step)
+- What changed in this update: Replaced placeholder manifest/evidence sections with the exact 7-file committed proof surface and synchronized the packet to the recorded WP validator PASS plus Integration Validator review receipts.
+- Requirements / clauses self-audited: The explicit profile-extension registry and compatibility checks in `src/backend/handshake_core/src/locus/types.rs`, the Task Board `profile_extension` boundary propagation in `src/backend/handshake_core/src/workflows.rs` plus `src/backend/handshake_core/src/locus/task_board.rs`, and the Role Mailbox generic/null boundary in `src/backend/handshake_core/src/role_mailbox.rs` all match the signed clause set.
+- Checks actually run: `just pre-work WP-1-Project-Profile-Extension-Registry-v1`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml locus_register_mts_returns_machine_readable_validation_for_unknown_profile_extension_schema -- --exact`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml locus_sync_task_board_emits_structured_index_and_view -- --exact`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml role_mailbox_validation_reports_schema_and_authority_drift -- --exact`; `just gov-check`
+- Known gaps / weak spots: No unresolved signed-scope product-code gaps remain in the committed diff; the only pre-closeout weakness was missing packet proof material, which this sync repairs.
+- Heuristic risks / maintainability concerns: `src/backend/handshake_core/src/locus/types.rs`, `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/locus/task_board.rs`, and `src/backend/handshake_core/src/role_mailbox.rs` remain shared cross-boundary surfaces, so future profile-kind additions must update registry seeds, emitted artifacts, and validators together.
+- Validator focus request: Re-run final-lane closeout against committed target `1b03c2cdf22b968368d651c1656e79082b8b25e0` and confirm current-main compatibility plus merge-progression truth before projecting the packet to Done.
+- Rubric contract understanding proof: This packet closes only the Phase 1 base-envelope and `profile_extension` contract; it does not widen into workflow-state automation, richer mailbox round-tripping, or unrelated collaboration-schema work.
+- Rubric scope discipline proof: The committed diff now matches the signed 7-file product surface exactly, including the explicit scope widening that already brought `src/backend/handshake_core/src/storage/locus_sqlite.rs` into packet authority.
+- Rubric baseline comparison: Compared against merge base `facce56f879d4ee990f62566b12a8b26d8bc61d7` and current local `main` head `4bc9aa76aa4469beede96a403e1aaf32e357bbbc`; no extra signed-scope files or hidden branch-local product deltas remain.
+- Rubric end-to-end proof: Full `handshake_core` tests, exact unknown-schema rejection, task-board projection, mailbox validation, and `just gov-check` all passed on committed branch state `1b03c2cdf22b968368d651c1656e79082b8b25e0`.
+- Rubric architecture fit self-review: The change keeps the shared envelope law centralized in `src/backend/handshake_core/src/locus/types.rs` and only projects boundary data through task-board and mailbox emitters, which fits the existing locus-centered design.
+- Rubric heuristic quality self-review: The touched emitters no longer flatten everything to `software_delivery`; the packet now uses explicit registry-backed behavior and deterministic rejection rather than silent nullable drift.
+- Rubric anti-gaming / counterfactual check: If `PROFILE_EXTENSION_REGISTRY` or `validate_profile_extension` lost registry enforcement, the unknown-schema exact probe would fail; if task-board or mailbox emitters dropped the boundary fields again, the exact task-board or mailbox probes would fail.
+- Next step / handoff hint: Run final authority closeout sync and closeout check from `handshake_main` with kernel governance injected, then project the packet to `Done` / `MERGE_PENDING`.
 
 ## MERGE_PROGRESSION_TRUTH
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, PASS closure is two-step and must stay explicit:
@@ -760,90 +862,121 @@ rg -n "project_profile_kind|profile_extension|extension_schema_id|software_deliv
 - `CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN` is legal only before final-lane compatibility review starts.
 
 ## EVIDENCE_MAPPING
-- (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+- REQUIREMENT: "Base structured schema and project-profile extension contract [ADD v02.168]"
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:53`, `src/backend/handshake_core/src/locus/types.rs:1126`, `src/backend/handshake_core/src/locus/types.rs:1684`, `src/backend/handshake_core/src/workflows.rs:2633`, `src/backend/handshake_core/src/locus/task_board.rs:34`
+- REQUIREMENT: "`profile_extension` payloads declare schema id, schema version, and compatibility and keep the base envelope valid when absent"
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1684`, `src/backend/handshake_core/src/locus/types.rs:1799`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1698`
+- REQUIREMENT: "RoleMailboxIndexV1 and RoleMailboxThreadLineV1 share the base envelope and project-profile extension boundary"
+  - EVIDENCE: `src/backend/handshake_core/src/role_mailbox.rs:1310`, `src/backend/handshake_core/src/role_mailbox.rs:1422`, `src/backend/handshake_core/src/role_mailbox.rs:1493`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:426`
 ## EVIDENCE
-- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
-- Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Project-Profile-Extension-Registry-v1/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `just pre-work WP-1-Project-Profile-Extension-Registry-v1`
+- EXIT_CODE: 0
+- PROOF_LINES: `PASS; packet/refinement scope hydration aligned; signed in-scope files match the committed review target`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
+- EXIT_CODE: 0
+- PROOF_LINES: `PASS on committed branch state 1b03c2cdf22b968368d651c1656e79082b8b25e0; full handshake_core suite green per coder handoff receipt 2026-04-01T02:04:33.086Z and WP validator PASS receipt 2026-04-01T02:11:17.238Z`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml locus_register_mts_returns_machine_readable_validation_for_unknown_profile_extension_schema -- --exact`
+- EXIT_CODE: 0
+- PROOF_LINES: `PASS; unknown profile_extension schema ids are rejected deterministically`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml locus_sync_task_board_emits_structured_index_and_view -- --exact`
+- EXIT_CODE: 0
+- PROOF_LINES: `PASS; Task Board row/index/view projection now carries the signed base-envelope/profile_extension boundary`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml role_mailbox_validation_reports_schema_and_authority_drift -- --exact`
+- EXIT_CODE: 0
+- PROOF_LINES: `PASS; mailbox export validation reports schema and authority drift on the updated generic/null boundary`
+
+- COMMAND: `just gov-check`
+- EXIT_CODE: 0
+- PROOF_LINES: `PASS; governance checks green on the committed reviewable state`
 
 ## VALIDATION_REPORTS
-- (Validator appends official audits and verdicts here. Append-only.)
-- For `PACKET_FORMAT_VERSION >= 2026-03-25`, merge progression truth is part of closure law:
-  - `**Status:** Done` means PASS is recorded but main containment is still pending and requires:
-    - `MAIN_CONTAINMENT_STATUS: MERGE_PENDING`
-    - `MERGED_MAIN_COMMIT: NONE`
-    - `MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A`
-  - `**Status:** Validated (PASS)` is reserved for closures already contained in local `main` and requires:
-    - `MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN`
-    - `MERGED_MAIN_COMMIT: <main-contained sha>`
-    - `MAIN_CONTAINMENT_VERIFIED_AT_UTC: <RFC3339 UTC>`
-  - `Validated (FAIL)`, `Validated (OUTDATED_ONLY)`, and `Validated (ABANDONED)` require `MAIN_CONTAINMENT_STATUS: NOT_REQUIRED`
-- For `PACKET_FORMAT_VERSION >= 2026-03-15`, every appended governed validation report MUST include these top fields:
-  - `VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH`
-  - `GOVERNANCE_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
-  - `TEST_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
-  - `CODE_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
-  - `HEURISTIC_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
-  - `SPEC_ALIGNMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
-  - `ENVIRONMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
-  - `DISPOSITION: NONE | OUTDATED_ONLY | ABANDONED`
-  - `LEGAL_VERDICT: PASS | FAIL | PENDING`
-  - `SPEC_CONFIDENCE: NONE | PARTIAL_DIFF_SCOPED | REVIEWED_DIFF_SCOPED | POST_MERGE_RECHECKED`
-- For `PACKET_FORMAT_VERSION >= 2026-03-22`, every appended governed validation report MUST also include these completion-layer fields:
-  - `WORKFLOW_VALIDITY: VALID | INVALID | PARTIAL | BLOCKED | NOT_RUN`
-  - `SCOPE_VALIDITY: IN_SCOPE | OUT_OF_SCOPE | PARTIAL | BLOCKED | NOT_RUN`
-  - `PROOF_COMPLETENESS: PROVEN | NOT_PROVEN | PARTIAL | BLOCKED | NOT_RUN`
-  - `INTEGRATION_READINESS: READY | NOT_READY | PARTIAL | BLOCKED | NOT_RUN`
-  - `DOMAIN_GOAL_COMPLETION: COMPLETE | INCOMPLETE | PARTIAL | BLOCKED | NOT_RUN`
-- For `PACKET_FORMAT_VERSION >= 2026-03-15`, every appended governed validation report MUST also include:
-  - `CLAUSES_REVIEWED:`
-    - one bullet per in-scope MUST/SHOULD clause reviewed, each with file:line evidence or an explicit proof note
-    - when `CLAUSE_CLOSURE_MONITOR_PROFILE=CLAUSE_MONITOR_V1`, reuse the exact clause text from `CLAUSE_CLOSURE_MATRIX`
-  - `NOT_PROVEN:`
-    - `- NONE` only when nothing remains unproven
-    - otherwise list each unresolved clause/gap explicitly
-- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`, every appended governed validation report MUST also include:
-  - `MAIN_BODY_GAPS:`
-    - `- NONE` only when no main-body requirement remains unproven, partial, or weakly evidenced
-    - otherwise list each unresolved MUST/SHOULD gap explicitly
-  - `QUALITY_RISKS:`
-    - `- NONE` only when no material maintainability, brittleness, ambiguity, or heuristic-quality risk remains
-    - otherwise list each residual code-quality risk explicitly
-  - `VALIDATOR_RISK_TIER: LOW | MEDIUM | HIGH`
-    - validator-assigned risk tier; MUST NOT be lower than the packet `RISK_TIER`
-  - `DIFF_ATTACK_SURFACES:`
-    - list the failure surfaces the validator derived from reading the diff directly
-  - `INDEPENDENT_CHECKS_RUN:`
-    - list validator-owned checks that were not copied from coder evidence, formatted as `what => observed`
-  - `COUNTERFACTUAL_CHECKS:`
-    - list concrete code-path / symbol counterfactuals in the form `If X were removed or altered, Y would break`
-    - naming a test only is insufficient; name the file, symbol, or code path
-  - `BOUNDARY_PROBES:`
-    - required for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`
-    - record the validator's interface / producer-consumer / storage / contract boundary checks
-  - `NEGATIVE_PATH_CHECKS:`
-    - required for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`
-    - record invalid, missing, adversarial, or failure-path checks the validator ran
-  - `INDEPENDENT_FINDINGS:`
-    - list what the validator learned independently, even if the conclusion is baseline confirmation
-  - `RESIDUAL_UNCERTAINTY:`
-    - list remaining uncertainty explicitly; for `VALIDATOR_RISK_TIER=HIGH`, `- NONE` is illegal
-  - `SPEC_CLAUSE_MAP:`
-    - map each packet requirement to `file:line` evidence proving it is implemented
-    - entries must include concrete code references (file paths, line numbers, or symbol names)
-    - required for `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`
-  - `NEGATIVE_PROOF:`
-    - list at least one spec requirement the validator verified is NOT fully implemented
-    - this proves the validator independently read the code rather than trusting coder summaries
-    - `- NONE` is illegal; every codebase has at least one gap or partial implementation
-    - required for `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`
+### 2026-04-01 - VALIDATION REPORT - WP-1-Project-Profile-Extension-Registry-v1 (FINAL AUTHORITY)
+Verdict: PASS
+
+Scope Inputs:
+- Reviewed commit: `1b03c2cdf22b968368d651c1656e79082b8b25e0`
+- Task Packet: `.GOV/task_packets/WP-1-Project-Profile-Extension-Registry-v1/packet.md` (`**Status:** In Progress` at review time)
+- Spec: `.GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md`
+- Final review receipts:
+  - `WP_VALIDATOR VALIDATOR_REVIEW PASS` at `2026-04-01T02:11:17.238Z`
+  - `INTEGRATION_VALIDATOR REVIEW_RESPONSE` at `2026-04-01T02:46:32.499Z`
+
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+VALIDATOR_RISK_TIER: HIGH
+
+CLAUSES_REVIEWED:
+- Base structured schema and project-profile extension contract [ADD v02.168] -> `src/backend/handshake_core/src/locus/types.rs:53`, `src/backend/handshake_core/src/locus/types.rs:1684`, `src/backend/handshake_core/src/workflows.rs:2633`, `src/backend/handshake_core/src/locus/task_board.rs:34`
+- `profile_extension` payloads declare schema id, schema version, and compatibility and keep the base envelope valid when absent -> `src/backend/handshake_core/src/locus/types.rs:1684`, `src/backend/handshake_core/src/locus/types.rs:1799`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1698`
+- RoleMailboxIndexV1 and RoleMailboxThreadLineV1 share the base envelope and project-profile extension boundary -> `src/backend/handshake_core/src/role_mailbox.rs:1310`, `src/backend/handshake_core/src/role_mailbox.rs:1422`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:426`
+
+NOT_PROVEN:
+- NONE
+
+MAIN_BODY_GAPS:
+- NONE
+
+QUALITY_RISKS:
+- NONE
+
+DIFF_ATTACK_SURFACES:
+- Registry drift between `PROFILE_EXTENSION_REGISTRY` and `validate_profile_extension` in `src/backend/handshake_core/src/locus/types.rs`
+- Projection drift between workflow emitters and Task Board row/index/view serializers in `src/backend/handshake_core/src/workflows.rs` and `src/backend/handshake_core/src/locus/task_board.rs`
+- Mailbox portability drift if `project_profile_kind` or the `profile_extension` boundary regressed in `src/backend/handshake_core/src/role_mailbox.rs`
+
+INDEPENDENT_CHECKS_RUN:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml locus_register_mts_returns_machine_readable_validation_for_unknown_profile_extension_schema -- --exact` => PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml locus_sync_task_board_emits_structured_index_and_view -- --exact` => PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml role_mailbox_validation_reports_schema_and_authority_drift -- --exact` => PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` => PASS
+- `just gov-check` => PASS
+
+COUNTERFACTUAL_CHECKS:
+- If `validate_profile_extension` in `src/backend/handshake_core/src/locus/types.rs:1684` stopped enforcing registered schema ids or versions, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1698` would fail.
+- If Task Board projection dropped the boundary fields in `src/backend/handshake_core/src/workflows.rs:1614` or `src/backend/handshake_core/src/locus/task_board.rs:34`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:959` would fail.
+- If mailbox export stopped emitting the generic/null boundary in `src/backend/handshake_core/src/role_mailbox.rs:1310` or `src/backend/handshake_core/src/role_mailbox.rs:1422`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:426` would fail.
+
+BOUNDARY_PROBES:
+- Work Packet and Micro-Task writers -> locus validator boundary through `validate_structured_collaboration_record` in `src/backend/handshake_core/src/locus/types.rs:1126`
+- Workflow task-board emitter -> Task Board row/index/view consumer boundary in `src/backend/handshake_core/src/workflows.rs:1614` and `src/backend/handshake_core/src/locus/task_board.rs:34`
+- Role Mailbox export writer -> mailbox validator boundary in `src/backend/handshake_core/src/role_mailbox.rs:1422` and `src/backend/handshake_core/tests/role_mailbox_tests.rs:426`
+
+NEGATIVE_PATH_CHECKS:
+- Unknown extension schema ids are rejected at `src/backend/handshake_core/src/locus/types.rs:1684` and proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1698`
+- Mailbox schema and authority drift is rejected by `src/backend/handshake_core/tests/role_mailbox_tests.rs:426`
+
+INDEPENDENT_FINDINGS:
+- The committed diff now matches the signed 7-file product surface exactly, including the previously widened `src/backend/handshake_core/src/storage/locus_sqlite.rs` touch.
+- No remaining blocking `software_delivery` flattening was found in the touched Task Board or mailbox projection paths outside intended enum, registry, or test literals.
+- Final authority review found no new blocking product-code findings beyond the packet-proof incompleteness that this sync resolves.
+
+RESIDUAL_UNCERTAINTY:
+- Review is diff-scoped against the signed clause set; broader downstream readers outside the exercised task-board and mailbox export paths were not exhaustively revalidated for every future custom profile kind.
+
+SPEC_CLAUSE_MAP:
+- Base structured schema and project-profile extension contract [ADD v02.168] -> `src/backend/handshake_core/src/locus/types.rs:53`, `src/backend/handshake_core/src/locus/types.rs:232`, `src/backend/handshake_core/src/workflows.rs:2633`, `src/backend/handshake_core/src/locus/task_board.rs:34`
+- `profile_extension` payloads declare schema id, schema version, and compatibility and keep the base envelope valid when absent -> `src/backend/handshake_core/src/locus/types.rs:1684`, `src/backend/handshake_core/src/locus/types.rs:1799`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:1698`
+- RoleMailboxIndexV1 and RoleMailboxThreadLineV1 share the base envelope and project-profile extension boundary -> `src/backend/handshake_core/src/role_mailbox.rs:1310`, `src/backend/handshake_core/src/role_mailbox.rs:1422`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:426`
+
+NEGATIVE_PROOF:
+- Role Mailbox export does not preserve caller-specific non-generic `profile_extension` payloads; it intentionally normalizes to `project_profile_kind=generic` with `profile_extension=null` in `src/backend/handshake_core/src/role_mailbox.rs:1310`, `src/backend/handshake_core/src/role_mailbox.rs:1422`, and `src/backend/handshake_core/src/role_mailbox.rs:1493`, so richer mailbox profile round-tripping remains unimplemented outside this packet's signed boundary contract.
 - Rule: do not claim spec correctness with a generic PASS paragraph. `SPEC_ALIGNMENT_VERDICT=PASS` is only valid when the diff-scoped clauses are listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `- NONE`.
 - Rule: `HEURISTIC_REVIEW_VERDICT=PASS` is only valid when `QUALITY_RISKS` is exactly `- NONE`.
 - Rule: `LEGAL_VERDICT=PASS` is only valid when `DIFF_ATTACK_SURFACES`, `INDEPENDENT_CHECKS_RUN`, `COUNTERFACTUAL_CHECKS`, and `SPEC_CLAUSE_MAP` are all present and non-empty, and `SPEC_CLAUSE_MAP` entries include file:line evidence.

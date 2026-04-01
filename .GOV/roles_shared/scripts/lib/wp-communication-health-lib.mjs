@@ -44,6 +44,7 @@ function normalizeReceiptKind(value) {
 
 function normalizeSession(value) {
   const raw = String(value || "").trim();
+  if (!raw || /^<unassigned>$/i.test(raw)) return null;
   return raw || null;
 }
 
@@ -95,8 +96,10 @@ function matchingReply(openReceipt, resolutionReceipts) {
     const openTargetSession = normalizeSession(openReceipt?.target_session);
     const replyActorSession = normalizeSession(entry?.actor_session);
     const replyTargetSession = normalizeSession(entry?.target_session);
-    if (!openActorSession || !openTargetSession || !replyActorSession || !replyTargetSession) return false;
-    return openActorSession === replyTargetSession && openTargetSession === replyActorSession;
+    if (!openActorSession || !replyActorSession || !replyTargetSession) return false;
+    if (openActorSession !== replyTargetSession) return false;
+    if (openTargetSession && openTargetSession !== replyActorSession) return false;
+    return true;
   }) || null;
 }
 
@@ -144,6 +147,14 @@ function summarySuggestsFinalReviewApproval(summary) {
     || /\badvisory review complete\b/i.test(normalized);
 }
 
+function explicitSummaryAssessmentVerdict(summary) {
+  const normalized = String(summary || "").trim();
+  if (!normalized) return null;
+  if (/^FAIL\b/i.test(normalized)) return "FAIL";
+  if (/^PASS\b/i.test(normalized)) return "PASS";
+  return null;
+}
+
 export function deriveValidatorReviewOutcome(reviewReceipt = null) {
   const microtaskOutcome = normalizeReviewOutcome(reviewReceipt?.microtask_contract?.review_outcome);
   if (microtaskOutcome !== "UNKNOWN") return microtaskOutcome;
@@ -153,6 +164,8 @@ export function deriveValidatorReviewOutcome(reviewReceipt = null) {
 }
 
 export function deriveValidatorAssessmentVerdict(reviewReceipt = null) {
+  const explicitVerdict = explicitSummaryAssessmentVerdict(reviewReceipt?.summary);
+  if (explicitVerdict) return explicitVerdict;
   const outcome = deriveValidatorReviewOutcome(reviewReceipt);
   if (outcome === "REPAIR_REQUIRED") return "FAIL";
   if (outcome === "APPROVED_FOR_FINAL_REVIEW") return "PASS";

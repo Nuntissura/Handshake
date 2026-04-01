@@ -11,6 +11,7 @@ import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../../../
 import { parseJsonFile, validateRuntimeStatus } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 import { writeJsonFile } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { reconcileWpCommunicationTruth } from "../../../roles_shared/scripts/wp/ensure-wp-communications.mjs";
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
@@ -148,9 +149,24 @@ function syncRuntimeProjectionIfDeclared(wpId, packetText) {
   if (!runtimeStatusFile) return null;
   const runtimeStatusAbsPath = repoPathAbs(runtimeStatusFile);
   if (!fs.existsSync(runtimeStatusAbsPath)) return null;
+  const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
 
   const runtimeStatus = parseJsonFile(runtimeStatusAbsPath);
-  const syncedRuntimeStatus = syncRuntimeProjectionFromPacket(runtimeStatus, packetText, {
+  const receipts = receiptsFile && fs.existsSync(repoPathAbs(receiptsFile))
+    ? String(fs.readFileSync(repoPathAbs(receiptsFile), "utf8"))
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+    : [];
+  const reconciled = reconcileWpCommunicationTruth({
+    wpId,
+    packetPath: resolveWorkPacketPath(wpId)?.packetPath || "",
+    packetText,
+    runtimeStatus,
+    receipts,
+  });
+  const syncedRuntimeStatus = syncRuntimeProjectionFromPacket(reconciled.nextRuntimeStatus, packetText, {
     eventName: "task_board_sync",
   });
   const runtimeErrors = validateRuntimeStatus(syncedRuntimeStatus);

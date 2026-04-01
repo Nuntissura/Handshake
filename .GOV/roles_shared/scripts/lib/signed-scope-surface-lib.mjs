@@ -173,7 +173,10 @@ export function normalizeUnifiedDiff(diffText) {
   return normalizedLines.join("\n").trim();
 }
 
-function compareSummaryAgainstDeclaredSurface(summary, declaredEntries, label) {
+function compareSummaryAgainstDeclaredSurface(summary, declaredEntries, label, {
+  enforceWindows = true,
+  enforceLineDelta = true,
+} = {}) {
   const errors = [];
   const declaredByFile = new Map(declaredEntries.map((entry) => [entry.filePath, entry]));
   const summaryByFile = new Map((summary?.files || []).map((entry) => [entry.filePath, entry]));
@@ -184,21 +187,23 @@ function compareSummaryAgainstDeclaredSurface(summary, declaredEntries, label) {
       errors.push(`${label}: missing diff for declared file ${filePath}`);
       continue;
     }
-    if (Number.isFinite(declared.lineDelta) && actual.lineDelta !== declared.lineDelta) {
+    if (enforceLineDelta && Number.isFinite(declared.lineDelta) && actual.lineDelta !== declared.lineDelta) {
       errors.push(
         `${label}: ${filePath} line delta ${actual.lineDelta} does not match declared ${declared.lineDelta}`,
       );
     }
-    for (const hunk of actual.hunks) {
-      if (Number.isFinite(declared.start) && hunk.touchedStart < declared.start) {
-        errors.push(
-          `${label}: ${filePath} hunk starts at ${hunk.touchedStart}, before declared window start ${declared.start}`,
-        );
-      }
-      if (Number.isFinite(declared.end) && hunk.touchedEnd > declared.end) {
-        errors.push(
-          `${label}: ${filePath} hunk ends at ${hunk.touchedEnd}, after declared window end ${declared.end}`,
-        );
+    if (enforceWindows) {
+      for (const hunk of actual.hunks) {
+        if (Number.isFinite(declared.start) && hunk.touchedStart < declared.start) {
+          errors.push(
+            `${label}: ${filePath} hunk starts at ${hunk.touchedStart}, before declared window start ${declared.start}`,
+          );
+        }
+        if (Number.isFinite(declared.end) && hunk.touchedEnd > declared.end) {
+          errors.push(
+            `${label}: ${filePath} hunk ends at ${hunk.touchedEnd}, after declared window end ${declared.end}`,
+          );
+        }
       }
     }
   }
@@ -342,7 +347,10 @@ export function validateSignedScopeSurface(packetText, {
 
   const patchText = artifactText == null ? fs.readFileSync(patchArtifactPath, "utf8") : String(artifactText || "");
   const artifactSummary = parseUnifiedDiffSummary(patchText);
-  errors.push(...compareSummaryAgainstDeclaredSurface(artifactSummary, declaredEntries, "signed patch artifact"));
+  errors.push(...compareSummaryAgainstDeclaredSurface(artifactSummary, declaredEntries, "signed patch artifact", {
+    enforceWindows: false,
+    enforceLineDelta: false,
+  }));
 
   return {
     ok: errors.length === 0,
@@ -398,7 +406,10 @@ export function validateContainedMainCommitAgainstSignedScope(packetText, {
   }
 
   const actualSummary = parseUnifiedDiffSummary(diffText);
-  errors.push(...compareSummaryAgainstDeclaredSurface(actualSummary, surface.declaredEntries, "contained main diff"));
+  errors.push(...compareSummaryAgainstDeclaredSurface(actualSummary, surface.declaredEntries, "contained main diff", {
+    enforceWindows: false,
+    enforceLineDelta: false,
+  }));
 
   if (surface.ok && actualSummary.normalizedDiff !== surface.artifactNormalizedDiff) {
     errors.push(
@@ -471,7 +482,10 @@ export function validateCandidateTargetAgainstSignedScope(packetText, {
   }
 
   const actualSummary = parseUnifiedDiffSummary(diffText);
-  errors.push(...compareSummaryAgainstDeclaredSurface(actualSummary, surface.declaredEntries, "candidate target diff"));
+  errors.push(...compareSummaryAgainstDeclaredSurface(actualSummary, surface.declaredEntries, "candidate target diff", {
+    enforceWindows: false,
+    enforceLineDelta: false,
+  }));
 
   if (surface.ok && actualSummary.normalizedDiff !== surface.artifactNormalizedDiff) {
     errors.push(

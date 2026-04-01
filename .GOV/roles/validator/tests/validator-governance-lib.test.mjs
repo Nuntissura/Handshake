@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 import {
   buildValidatorReadyCommands,
@@ -65,6 +66,51 @@ test("validator packet policy leaves current completion-layer packets resumable"
 
   assert.equal(evaluation.allowValidationResume, true);
   assert.equal(evaluation.legacyRemediationRequired, false);
+  assert.equal(evaluation.terminalReason, "ACTIVE");
+});
+
+test("integration-validator lane blocks resume when governance root falls back to handshake_main .GOV", () => {
+  const evaluation = evaluateValidatorPacketGovernanceState({
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetPath: ".GOV/task_packets/WP-TEST-VALIDATOR-v1/packet.md",
+    packetContent: packetFixture({
+      packetFormatVersion: "2026-03-29",
+      status: "In Progress",
+    }),
+    currentWpStatus: "Ready for Validator",
+    taskBoardStatus: "IN_PROGRESS",
+    actorContext: {
+      actorRole: "INTEGRATION_VALIDATOR",
+      actorBranch: "main",
+      actorWorktreeDir: "../handshake_main",
+    },
+    governanceRootAbs: path.resolve("../handshake_main/.GOV"),
+  });
+
+  assert.equal(evaluation.allowValidationResume, false);
+  assert.equal(evaluation.terminalReason, "INTEGRATION_VALIDATOR_GOV_ROOT_MISCONFIGURED");
+  assert.match(evaluation.message, /HANDSHAKE_GOV_ROOT/i);
+});
+
+test("integration-validator lane remains resumable when governance root points at the kernel", () => {
+  const evaluation = evaluateValidatorPacketGovernanceState({
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetPath: ".GOV/task_packets/WP-TEST-VALIDATOR-v1/packet.md",
+    packetContent: packetFixture({
+      packetFormatVersion: "2026-03-29",
+      status: "In Progress",
+    }),
+    currentWpStatus: "Ready for Validator",
+    taskBoardStatus: "IN_PROGRESS",
+    actorContext: {
+      actorRole: "INTEGRATION_VALIDATOR",
+      actorBranch: "main",
+      actorWorktreeDir: "../handshake_main",
+    },
+    governanceRootAbs: path.resolve(".GOV"),
+  });
+
+  assert.equal(evaluation.allowValidationResume, true);
   assert.equal(evaluation.terminalReason, "ACTIVE");
 });
 

@@ -11,6 +11,7 @@ import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { evaluateWpCommunicationBoundary, evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
+import { steerActionForSession } from "./lib/orchestrator-steer-lib.mjs";
 
 const wpId = String(process.argv[2] || "").trim();
 const requestedModel = String(process.argv[3] || "").trim().toUpperCase() || "PRIMARY";
@@ -50,13 +51,6 @@ function loadRuntimeStatus(packetText) {
     receiptsFile,
     runtimeStatus: parseJsonFile(runtimeStatusFile),
   };
-}
-
-function shouldStartSession(session) {
-  if (!session) return true;
-  if (!String(session.session_thread_id || "").trim()) return true;
-  const runtimeState = normalizeRole(session.runtime_state);
-  return !runtimeState || ["UNSTARTED", "FAILED", "CLOSED"].includes(runtimeState);
 }
 
 if (!wpId || !/^WP-/.test(wpId)) {
@@ -126,7 +120,7 @@ if (!roleConfig) {
 }
 
 const commandScript = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
-const action = shouldStartSession(governedSession) ? "START_SESSION" : "SEND_PROMPT";
+const action = steerActionForSession(governedSession);
 
 console.log(`[ORCHESTRATOR_STEER_NEXT] wp_id=${wpId}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] next_actor=${nextActor}`);

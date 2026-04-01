@@ -28,7 +28,7 @@ function normalizeRole(value) {
 
 function nullableValue(value) {
   const raw = String(value ?? "").trim();
-  if (!raw || /^null$/i.test(raw) || /^none$/i.test(raw) || /^n\/a$/i.test(raw)) return null;
+  if (!raw || /^null$/i.test(raw) || /^none$/i.test(raw) || /^n\/a$/i.test(raw) || /^<unassigned>$/i.test(raw)) return null;
   return raw;
 }
 

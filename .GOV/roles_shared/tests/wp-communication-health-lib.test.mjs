@@ -462,6 +462,26 @@ test("latest validator assessment reports PASS for approved final review respons
   assert.equal(assessment?.reviewOutcome, "APPROVED_FOR_FINAL_REVIEW");
 });
 
+test("latest validator assessment reports PASS for explicit PASS summaries", () => {
+  const assessment = deriveLatestValidatorAssessment([
+    {
+      receipt_kind: "VALIDATOR_REVIEW",
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wpv-1",
+      target_role: "CODER",
+      target_session: "coder-1",
+      correlation_id: "handoff-1",
+      ack_for: "handoff-1",
+      summary: "PASS. No blocking findings remain in the committed reviewable state.",
+      timestamp_utc: "2026-03-22T10:06:00Z",
+    },
+  ]);
+
+  assert.equal(assessment?.actorRole, "WP_VALIDATOR");
+  assert.equal(assessment?.receiptKind, "VALIDATOR_REVIEW");
+  assert.equal(assessment?.verdict, "PASS");
+});
+
 test("a newer coder re-handoff takes precedence over an older repaired review pair", () => {
   const input = baseInput({
     receipts: [
@@ -613,6 +633,100 @@ test("auto route notifies orchestrator when the direct review lane is complete",
     targetSession: null,
     summary: "AUTO_ROUTE: direct review lane complete; orchestrator verdict progression ready",
   });
+});
+
+test("final review closes when the open request targeted an unassigned integration-validator placeholder", () => {
+  const input = baseInput({
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "CODER_HANDOFF",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_REVIEW",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        ack_for: "handoff-1",
+        summary: "PASS. No blocking findings remain in the committed reviewable state.",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_REQUEST",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "INTEGRATION_VALIDATOR",
+        target_session: "<unassigned>",
+        correlation_id: "final-1",
+        ack_for: null,
+        summary: "Final authority review requested for the committed reviewable state.",
+        timestamp_utc: "2026-03-22T10:05:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_RESPONSE",
+        actor_role: "INTEGRATION_VALIDATOR",
+        actor_session: "intval-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "final-1",
+        ack_for: "final-1",
+        summary: "No new blocking product-code findings were found in final authority review.",
+        timestamp_utc: "2026-03-22T10:06:00Z",
+      },
+    ],
+    runtimeStatus: {
+      integration_validator_of_record: "intval-1",
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-1",
+      waiting_on: "FINAL_REVIEW_EXCHANGE",
+      waiting_on_session: null,
+      validator_trigger: "NONE",
+      validator_trigger_reason: null,
+      ready_for_validation: false,
+      ready_for_validation_reason: null,
+      attention_required: false,
+    },
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+
+  assert.equal(evaluation.state, "COMM_OK");
+  assert.equal(evaluation.correlations.finalReview, "final-1");
+  assert.equal(route.nextExpectedActor, "ORCHESTRATOR");
+  assert.equal(route.waitingOn, "VERDICT_PROGRESSION");
 });
 
 test("boundary check fails when runtime projection drifts from the status-derived route", () => {

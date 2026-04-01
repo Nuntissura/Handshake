@@ -97,7 +97,14 @@ function parseSingleField(text, label) {
 
 function nullableValue(value) {
   const raw = String(value ?? "").trim();
-  if (!raw || /^null$/i.test(raw) || /^none$/i.test(raw) || /^n\/a$/i.test(raw) || /^false$/i.test(raw)) return null;
+  if (
+    !raw
+    || /^null$/i.test(raw)
+    || /^none$/i.test(raw)
+    || /^n\/a$/i.test(raw)
+    || /^false$/i.test(raw)
+    || /^<unassigned>$/i.test(raw)
+  ) return null;
   return raw;
 }
 
@@ -125,6 +132,7 @@ function normalizeRole(value) {
 
 function normalizeSession(value) {
   const raw = String(value || "").trim();
+  if (!raw || /^<unassigned>$/i.test(raw)) return null;
   return raw || null;
 }
 

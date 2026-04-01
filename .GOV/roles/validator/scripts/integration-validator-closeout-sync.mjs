@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { currentGitContext } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
-import { resolveWorkPacketPath, GOV_ROOT_REPO_REL, REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { resolveWorkPacketPath, GOV_ROOT_ABS, GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   parseMergeProgressionTruth,
   updateMergeProgressionTruth,
@@ -16,6 +16,8 @@ import {
 import {
   validateContainedMainCommitAgainstSignedScope,
 } from "../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
+import { syncRuntimeProjectionFromPacket } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
+import { validateRuntimeStatus } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import {
   evaluateValidatorPacketGovernanceState,
   resolveValidatorActorContext,
@@ -45,7 +47,7 @@ function parseSingleField(text, label) {
 
 function loadGateState(wpId) {
   ensureValidatorGateDir();
-  const filePath = resolveValidatorGatePath(wpId);
+  const filePath = repoPathAbs(resolveValidatorGatePath(wpId));
   if (!fs.existsSync(filePath)) return {};
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
@@ -120,19 +122,21 @@ if (requestedMode.requireMergedMainCommit && !/^[0-9a-f]{7,40}$/i.test(mergedMai
 }
 
 const repoRoot = currentGitContext().topLevel || REPO_ROOT;
-const taskBoardPath = path.resolve(repoRoot, GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
+const taskBoardPath = path.resolve(GOV_ROOT_ABS, "roles_shared", "records", "TASK_BOARD.md");
 const resolvedPacket = resolveWorkPacketPath(wpId);
-if (!resolvedPacket?.packetPath || !fs.existsSync(resolvedPacket.packetPath)) {
+if (!resolvedPacket?.packetAbsPath || !fs.existsSync(resolvedPacket.packetAbsPath)) {
   fail(`Official packet not found for ${wpId}`);
 }
 const packetPath = resolvedPacket.packetPath;
-const originalPacketText = readText(packetPath);
+const packetAbsPath = resolvedPacket.packetAbsPath;
+const originalPacketText = readText(packetAbsPath);
 const originalTaskBoardText = fs.existsSync(taskBoardPath) ? readText(taskBoardPath) : "";
-const runtimeStatusPath = path.resolve(repoRoot, parseSingleField(originalPacketText, "WP_RUNTIME_STATUS_FILE") || "");
+const runtimeStatusPath = repoPathAbs(parseSingleField(originalPacketText, "WP_RUNTIME_STATUS_FILE") || "");
 const originalRuntimeStatusText = runtimeStatusPath && fs.existsSync(runtimeStatusPath) ? readText(runtimeStatusPath) : "";
+const originalRuntimeStatusData = originalRuntimeStatusText ? JSON.parse(originalRuntimeStatusText) : null;
 const governanceState = evaluateValidatorPacketGovernanceState({
   wpId,
-  packetPath,
+  packetPath: packetAbsPath,
   packetContent: originalPacketText,
 });
 if (!governanceState.allowValidationResume) {
@@ -203,19 +207,37 @@ nextPacketText = updateMergeProgressionTruth(nextPacketText, {
   mergedMainCommit: requestedMode.requireMergedMainCommit ? mergedMainCommit : "NONE",
   mainContainmentVerifiedAtUtc: requestedMode.requireMergedMainCommit ? timestamp : "N/A",
 });
+const nextRuntimeStatusData = originalRuntimeStatusData
+  ? syncRuntimeProjectionFromPacket(originalRuntimeStatusData, nextPacketText, {
+    eventName: "integration_validator_closeout_sync",
+    eventAt: timestamp,
+  })
+  : null;
+if (nextRuntimeStatusData) {
+  const runtimeErrors = validateRuntimeStatus(nextRuntimeStatusData);
+  if (runtimeErrors.length > 0) {
+    fail("Closeout sync would produce invalid runtime projection", runtimeErrors);
+  }
+}
 
-const mergeValidation = validateMergeProgressionTruth(nextPacketText, { repoRoot });
+const mergeValidation = validateMergeProgressionTruth(nextPacketText, {
+  repoRoot,
+  runtimeStatusData: nextRuntimeStatusData ?? undefined,
+});
 if (mergeValidation.errors.length > 0) {
   fail("Closeout sync would produce invalid merge-progression truth", mergeValidation.errors);
 }
 
-writeText(packetPath, nextPacketText);
+writeText(packetAbsPath, nextPacketText);
+if (nextRuntimeStatusData && runtimeStatusPath) {
+  writeText(runtimeStatusPath, `${JSON.stringify(nextRuntimeStatusData, null, 2)}\n`);
+}
 
 try {
   execFileSync(
     process.execPath,
     [
-      path.join(GOV_ROOT_REPO_REL, "roles", "validator", "checks", "validator-packet-complete.mjs"),
+      path.resolve(GOV_ROOT_ABS, "roles", "validator", "checks", "validator-packet-complete.mjs"),
       wpId,
     ],
     { stdio: "pipe", encoding: "utf8" },
@@ -223,14 +245,14 @@ try {
   execFileSync(
     process.execPath,
     [
-      path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "task-board-set.mjs"),
+      path.resolve(GOV_ROOT_ABS, "roles", "orchestrator", "scripts", "task-board-set.mjs"),
       wpId,
       requestedMode.boardStatus,
     ],
     { stdio: "pipe", encoding: "utf8" },
   );
 } catch (error) {
-  writeText(packetPath, originalPacketText);
+  writeText(packetAbsPath, originalPacketText);
   if (originalTaskBoardText) writeText(taskBoardPath, originalTaskBoardText);
   if (originalRuntimeStatusText) writeText(runtimeStatusPath, originalRuntimeStatusText);
   fail("Closeout sync failed validation and reverted the packet edit", [
