@@ -20,6 +20,11 @@ import { validateSemanticProofAssets } from "../../../roles_shared/scripts/lib/s
 import { validateSignedScopeCompatibilityTruth } from "../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
 import { validateContainedMainCommitAgainstSignedScope } from "../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
 import {
+  packetUsesDataContractProfile,
+  parseDataContractProfile,
+  validateDataContractSection,
+} from "../../../roles_shared/scripts/lib/data-contract-lib.mjs";
+import {
   activeWorkflowInvalidityReceipt,
   parseJsonlFile,
   workflowInvalidityReceipts,
@@ -227,6 +232,9 @@ const packetFormatVersion = parseSingleField("PACKET_FORMAT_VERSION");
 const workflowInvalidityState = loadWorkflowInvalidityEntries();
 const workflowInvalidityEntries = workflowInvalidityState.history;
 const activeWorkflowInvalidity = workflowInvalidityState.active;
+const usesDataContractProfile = packetUsesDataContractProfile(packetFormatVersion);
+const enforcesAntiVibeRigor = packetFormatVersion >= "2026-04-01";
+const dataContractProfile = parseDataContractProfile(text);
 const topologyEvaluation = evaluateWpDeclaredTopology({
   repoRoot: REPO_ROOT,
   wpId,
@@ -278,6 +286,19 @@ if (packetFormatVersion) {
   const usesHeuristicRigorReport = usesRigorV2Report || usesRigorV3Report;
   const usesCompletionLayerVerdicts = packetRequiresCompletionLayerVerdicts(packetFormatVersion);
   let computedPolicy = null;
+
+  if (usesDataContractProfile) {
+    const rawDataContractProfile = parseSingleField("DATA_CONTRACT_PROFILE");
+    if (isPlaceholder(rawDataContractProfile)) {
+      fail("DATA_CONTRACT_PROFILE missing/placeholder for PACKET_FORMAT_VERSION >= 2026-04-01");
+    }
+    const dataContractValidation = validateDataContractSection(text, {
+      packetPath,
+    });
+    if (dataContractValidation.errors.length > 0) {
+      fail(`data contract monitoring invalid: ${dataContractValidation.errors.join("; ")}`);
+    }
+  }
 
   if (closureStatus && packetUsesStructuredValidationReport(packetFormatVersion)) {
     computedPolicy = evaluateComputedPolicyGateFromPacketText(text, {
@@ -389,6 +410,12 @@ if (packetFormatVersion) {
     if (usesHeuristicRigorReport && !hasListItemAfterLabel(validationReports, "QUALITY_RISKS")) {
       fail("QUALITY_RISKS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
+    if (usesRigorV3Report && enforcesAntiVibeRigor && !hasListItemAfterLabel(validationReports, "ANTI_VIBE_FINDINGS")) {
+      fail("ANTI_VIBE_FINDINGS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
+    if (usesRigorV3Report && enforcesAntiVibeRigor && !hasListItemAfterLabel(validationReports, "SIGNED_SCOPE_DEBT")) {
+      fail("SIGNED_SCOPE_DEBT missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
     if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "DIFF_ATTACK_SURFACES")) {
       fail("DIFF_ATTACK_SURFACES missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
@@ -411,6 +438,15 @@ if (packetFormatVersion) {
       const negativeProofItems = extractListItemsAfterLabel(validationReports, "NEGATIVE_PROOF");
       if (negativeProofItems.length === 0 || hasOnlyNoneList(negativeProofItems)) {
         fail("NEGATIVE_PROOF must list at least one spec requirement verified as NOT fully implemented (required for RIGOR_V3)");
+      }
+    }
+    if (dataContractProfile === "LLM_FIRST_DATA_V1") {
+      const dataContractProofItems = extractListItemsAfterLabel(validationReports, "DATA_CONTRACT_PROOF");
+      if (dataContractProofItems.length === 0 || hasOnlyNoneList(dataContractProofItems)) {
+        fail("DATA_CONTRACT_PROOF must list concrete proof items in VALIDATION_REPORTS for active data contract packet");
+      }
+      if (!hasListItemAfterLabel(validationReports, "DATA_CONTRACT_GAPS")) {
+        fail("DATA_CONTRACT_GAPS missing/placeholder list items in VALIDATION_REPORTS for active data contract packet");
       }
     }
 
@@ -439,6 +475,8 @@ if (packetFormatVersion) {
     const disposition = dispositionMatch ? (dispositionMatch[1] || "").trim().toUpperCase() : "";
     const mainBodyGaps = extractListItemsAfterLabel(validationReports, "MAIN_BODY_GAPS");
     const qualityRisks = extractListItemsAfterLabel(validationReports, "QUALITY_RISKS");
+    const antiVibeFindings = extractListItemsAfterLabel(validationReports, "ANTI_VIBE_FINDINGS");
+    const signedScopeDebt = extractListItemsAfterLabel(validationReports, "SIGNED_SCOPE_DEBT");
     const notProvenItems = extractListItemsAfterLabel(validationReports, "NOT_PROVEN");
     const attackSurfaces = extractListItemsAfterLabel(validationReports, "DIFF_ATTACK_SURFACES");
     const independentChecks = extractListItemsAfterLabel(validationReports, "INDEPENDENT_CHECKS_RUN");
@@ -447,6 +485,8 @@ if (packetFormatVersion) {
     const boundaryProbes = extractListItemsAfterLabel(validationReports, "BOUNDARY_PROBES");
     const negativePathChecks = extractListItemsAfterLabel(validationReports, "NEGATIVE_PATH_CHECKS");
     const negativeProofItems = extractListItemsAfterLabel(validationReports, "NEGATIVE_PROOF");
+    const dataContractProof = extractListItemsAfterLabel(validationReports, "DATA_CONTRACT_PROOF");
+    const dataContractGaps = extractListItemsAfterLabel(validationReports, "DATA_CONTRACT_GAPS");
     const abandonedClosure = topLevelVerdict === "ABANDONED" || /^Validated\s*\(\s*ABANDONED\s*\)$/i.test(statusValue);
     if (abandonedClosure) {
       if (topLevelVerdict !== "ABANDONED") {
@@ -467,6 +507,9 @@ if (packetFormatVersion) {
     }
     if (usesHeuristicRigorReport && specAlignmentVerdict === "PASS" && !hasOnlyNoneList(mainBodyGaps)) {
       fail("SPEC_ALIGNMENT_VERDICT=PASS requires MAIN_BODY_GAPS to be exactly '- NONE'");
+    }
+    if (dataContractProfile === "LLM_FIRST_DATA_V1" && specAlignmentVerdict === "PASS" && !hasOnlyNoneList(dataContractGaps)) {
+      fail("SPEC_ALIGNMENT_VERDICT=PASS requires DATA_CONTRACT_GAPS to be exactly '- NONE' for active data contract packet");
     }
     if (usesCompletionLayerVerdicts) {
       const workflowValidityMatch = validationReports.match(/^\s*WORKFLOW_VALIDITY\s*:\s*(.+)\s*$/im);
@@ -526,10 +569,22 @@ if (packetFormatVersion) {
             fail(`Verdict=PASS requires NEGATIVE_PROOF to stay inside signed product scope with concrete product code evidence (${item})`);
           }
         }
+        if (usesRigorV3Report && enforcesAntiVibeRigor && !hasOnlyNoneList(antiVibeFindings)) {
+          fail("Verdict=PASS requires ANTI_VIBE_FINDINGS to be exactly '- NONE'");
+        }
+        if (usesRigorV3Report && enforcesAntiVibeRigor && !hasOnlyNoneList(signedScopeDebt)) {
+          fail("Verdict=PASS requires SIGNED_SCOPE_DEBT to be exactly '- NONE'");
+        }
       }
     }
     if (usesHeuristicRigorReport && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(qualityRisks)) {
       fail("HEURISTIC_REVIEW_VERDICT=PASS requires QUALITY_RISKS to be exactly '- NONE'");
+    }
+    if (usesRigorV3Report && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(antiVibeFindings)) {
+      fail("HEURISTIC_REVIEW_VERDICT=PASS requires ANTI_VIBE_FINDINGS to be exactly '- NONE'");
+    }
+    if (usesRigorV3Report && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt)) {
+      fail("HEURISTIC_REVIEW_VERDICT=PASS requires SIGNED_SCOPE_DEBT to be exactly '- NONE'");
     }
     if (usesRigorV3Report) {
       const packetRiskTier = parseSingleField("RISK_TIER").toUpperCase();
@@ -565,6 +620,8 @@ if (packetFormatVersion) {
         if (attackSurfaces.length === 0) fail("LEGAL_VERDICT=PASS requires DIFF_ATTACK_SURFACES");
         if (independentChecks.length === 0) fail("LEGAL_VERDICT=PASS requires INDEPENDENT_CHECKS_RUN");
         if (counterfactualChecks.length === 0) fail("LEGAL_VERDICT=PASS requires COUNTERFACTUAL_CHECKS");
+        if (enforcesAntiVibeRigor && !hasOnlyNoneList(antiVibeFindings)) fail("LEGAL_VERDICT=PASS requires ANTI_VIBE_FINDINGS to be exactly '- NONE'");
+        if (enforcesAntiVibeRigor && !hasOnlyNoneList(signedScopeDebt)) fail("LEGAL_VERDICT=PASS requires SIGNED_SCOPE_DEBT to be exactly '- NONE'");
         if ((validatorRiskTier === "MEDIUM" || validatorRiskTier === "HIGH") && boundaryProbes.length === 0) {
           fail(`LEGAL_VERDICT=PASS requires BOUNDARY_PROBES for ${validatorRiskTier} risk`);
         }
@@ -581,6 +638,19 @@ if (packetFormatVersion) {
           for (const item of specClauseMapItems) {
             if (!hasConcreteCodeReference(item)) {
               fail(`LEGAL_VERDICT=PASS requires SPEC_CLAUSE_MAP entries to include file:line evidence (${item})`);
+            }
+          }
+        }
+        if (dataContractProfile === "LLM_FIRST_DATA_V1") {
+          if (dataContractProof.length === 0) {
+            fail("LEGAL_VERDICT=PASS requires DATA_CONTRACT_PROOF for active data contract packet");
+          }
+          if (!hasOnlyNoneList(dataContractGaps)) {
+            fail("LEGAL_VERDICT=PASS requires DATA_CONTRACT_GAPS to be exactly '- NONE' for active data contract packet");
+          }
+          for (const item of dataContractProof) {
+            if (!hasConcreteCodeReference(item)) {
+              fail(`LEGAL_VERDICT=PASS requires DATA_CONTRACT_PROOF entries to include concrete code or query evidence (${item})`);
             }
           }
         }

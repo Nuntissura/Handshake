@@ -75,6 +75,28 @@ Maintain a separate judgment for:
 
 If those are weak, downgrade heuristic review even when tests pass.
 
+### 6. Reject Vibe-Coding and Easy-Surface Wins
+
+Treat these as explicit anti-vibe findings, not as style nitpicks:
+
+- shallow interface or schema changes that make visible tests pass while deeper contract behavior remains unproven
+- packet language echoed back without concrete code or emitted-artifact evidence
+- broad confidence claims supported only by happy-path checks
+- implementation that "looks plausible" but does not close the signed-scope requirement mechanically
+
+If that pattern appears inside signed scope, do not give governed PASS.
+
+### 7. Zero Signed-Scope Debt on PASS
+
+PASS is incompatible with accepted signed-scope debt.
+
+Examples of forbidden PASS-time debt:
+
+- "fix later" notes for in-scope code paths
+- knowingly partial in-scope implementation hidden behind future TODOs
+- cleanup IOUs required to make the signed scope maintainable or reviewable
+- handoff text that admits real in-scope gaps but still asks for PASS
+
 ## Independent Validator Techniques
 
 ### A. Mutation / Counterfactual Checks
@@ -131,9 +153,12 @@ A strong validator report should capture:
 - exact clauses reviewed
 - exact unresolved clause gaps
 - exact heuristic quality risks
+- exact anti-vibe findings
+- exact signed-scope debt, or `NONE`
 - exact files read
 - exact tests run or not run
 - why tests were insufficient if they were insufficient
+- exact data-contract proof and gaps when the packet uses `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`
 
 ## Use
 

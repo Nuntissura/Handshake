@@ -699,3 +699,29 @@
   - `RGF-50`
   - `RGF-51`
 - OUTCOME: after every governed `CODER_INTENT`, the lane now waits for explicit WP-validator bootstrap/skeleton clearance instead of silently trusting coder intent; completed microtasks can be reviewed in bounded overlap mode with a hard queue limit of 2; overlap review backlog now creates mechanical backpressure; full `CODER_HANDOFF` fails closed until overlap review debt is drained; startup prompts, resume helpers, runtime route truth, and the operator command surface now all describe the same early-review law
+
+### 2026.04.01.12 / GOV-CHANGE-20260401-12
+
+- STATUS: APPLIED
+- SUMMARY: codified the LLM-first data contract and anti-vibe zero-debt review law so new packets must prove data posture explicitly and PASS can no longer coexist with shallow signed-scope work
+- CHANGE_TYPE: DATA_CONTRACT_AND_ZERO_DEBT_REVIEW_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/data-contract-lib.mjs`
+  - `.GOV/roles_shared/tests/data-contract-lib.test.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles_shared/checks/task-packet-claim-check.mjs`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/roles/coder/checks/post-work-check.mjs`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/checks/validator-report-structure-check.mjs`
+  - `.GOV/roles/validator/checks/validator-packet-complete.mjs`
+  - `.GOV/roles/validator/tests/validator-report-structure-check.test.mjs`
+  - `.GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: new packets (`PACKET_FORMAT_VERSION >= 2026-04-01`) can declare `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, packet creation and claim-time checks now require an authoritative data-contract monitoring block, validator closure now requires explicit `DATA_CONTRACT_PROOF` and `DATA_CONTRACT_GAPS` for active data-contract packets, coder handoffs on the new packet format now include anti-vibe, signed-scope-debt, and data-contract self-check fields, and governed RIGOR_V3 PASS law now rejects unresolved anti-vibe findings or signed-scope debt on the new packet format instead of leaving those concerns as prose-only review style

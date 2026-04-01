@@ -484,7 +484,12 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - `Rubric heuristic quality self-review`
   - `Rubric anti-gaming / counterfactual check`
   - `Next step / handoff hint`
+- For `PACKET_FORMAT_VERSION >= 2026-04-01`, `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2` also requires:
+  - `Rubric anti-vibe / substance self-check`
+  - `Signed-scope debt ledger`
+  - `Data contract self-check`
 - If those fields are missing, generic, or evasive, do not treat the WP as technically ready; return it for completion and downgrade governance/code-review confidence accordingly.
+- Treat anti-vibe findings and signed-scope debt as first-class closure truth. Easy-surface work, hand-wavy justification, "fix later" residue, or accepted signed-scope debt are not compatible with governed PASS.
 
 1) Spec Extraction
 - List every MUST/SHOULD from the work packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
@@ -738,8 +743,19 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - `NEGATIVE_PATH_CHECKS:` for invalid, missing, adversarial, or failure-path checks
   - `INDEPENDENT_FINDINGS:` with deliberate independent findings or baseline-confirmation notes
   - `RESIDUAL_UNCERTAINTY:` with explicit remaining uncertainty; `- NONE` is illegal for `VALIDATOR_RISK_TIER=HIGH`
+- For `PACKET_FORMAT_VERSION >= 2026-04-01`, `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3` also appends:
+  - `ANTI_VIBE_FINDINGS:` with `- NONE` only when the implementation is substantively grounded, not easy-surface or vibe-coded, and no shallow review concern remains inside signed scope
+  - `SIGNED_SCOPE_DEBT:` with `- NONE` only when no signed-scope debt, cleanup IOU, or "fix later" residue was accepted
+- When `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, also append:
+  - `DATA_CONTRACT_PROOF:` with concrete code, query, schema, or emitted-artifact evidence showing the packet was reviewed for SQL portability, LLM-first readability/parseability, and Loom-intertwined requirements
+  - `DATA_CONTRACT_GAPS:` with `- NONE` only when no gap remains in those data-contract obligations inside signed scope
 - `VALIDATOR_RISK_TIER` is validator-assigned and MUST NOT be lower than the packet `RISK_TIER`.
 - `LEGAL_VERDICT=PASS` is legal only when `DIFF_ATTACK_SURFACES`, `INDEPENDENT_CHECKS_RUN`, and `COUNTERFACTUAL_CHECKS` are all present and non-empty.
+- `HEURISTIC_REVIEW_VERDICT=PASS` is legal only when `QUALITY_RISKS` is exactly `- NONE`.
+- For `PACKET_FORMAT_VERSION >= 2026-04-01`, `HEURISTIC_REVIEW_VERDICT=PASS` is legal only when `ANTI_VIBE_FINDINGS` and `SIGNED_SCOPE_DEBT` are also exactly `- NONE`.
+- For `PACKET_FORMAT_VERSION >= 2026-04-01`, `LEGAL_VERDICT=PASS` is legal only when `ANTI_VIBE_FINDINGS` and `SIGNED_SCOPE_DEBT` are both exactly `- NONE`.
+- When `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, `SPEC_ALIGNMENT_VERDICT=PASS` is legal only when `DATA_CONTRACT_GAPS` is exactly `- NONE`.
+- When `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, `LEGAL_VERDICT=PASS` is legal only when `DATA_CONTRACT_PROOF` is present and `DATA_CONTRACT_GAPS` is exactly `- NONE`.
 - `Verdict: PASS` is legal only when `VALIDATION_CONTEXT=OK`, `WORKFLOW_VALIDITY=VALID`, `SCOPE_VALIDITY=IN_SCOPE`, `PROOF_COMPLETENESS=PROVEN`, `INTEGRATION_READINESS=READY`, `DOMAIN_GOAL_COMPLETION=COMPLETE`, and `LEGAL_VERDICT=PASS`.
 - If `PROOF_COMPLETENESS` is anything other than `PROVEN`, the top-line verdict MUST NOT be `PASS`; use `NOT_PROVEN`, `FAIL`, `BLOCKED`, `OUTDATED_ONLY`, or `ABANDONED` honestly.
 - `PROOF_COMPLETENESS=PROVEN` is legal only when `NOT_PROVEN` is exactly `- NONE`.

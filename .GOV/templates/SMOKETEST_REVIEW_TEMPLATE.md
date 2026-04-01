@@ -14,6 +14,8 @@ Authoring rules:
 - Write `NONE` explicitly when a subsection truly has no findings. Do not leave sections blank.
 - Do not write only a verdict summary. Capture the failure inventory, role review, runtime truth, positive signals, and concrete remediations.
 - A closeout review should be honest about both what the WP fixed and what still remains adjacent debt outside the packet.
+- If the packet or remediation touches data-bearing surfaces and declares an active data contract, assess SQL/PostgreSQL readiness, LLM-first readability/parseability, and Loom-intertwined structure explicitly rather than folding that judgment into generic product prose.
+- Call out anti-vibe findings, accepted signed-scope debt, or shallow easy-surface work explicitly when they influenced the review. Do not leave those concerns implicit.
 
 ## METADATA
 
