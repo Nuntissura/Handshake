@@ -17,14 +17,23 @@ import {
   validateContainedMainCommitAgainstSignedScope,
 } from "../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
-import { validateRuntimeStatus } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import {
+  activeWorkflowInvalidityReceipt,
+  parseJsonlFile,
+  validateRuntimeStatus,
+} from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import {
   evaluateValidatorPacketGovernanceState,
   resolveValidatorActorContext,
 } from "../scripts/lib/validator-governance-lib.mjs";
-import { evaluateIntegrationValidatorCloseoutState } from "../scripts/lib/integration-validator-closeout-lib.mjs";
+import {
+  appendCloseoutSyncProvenance,
+  deriveFinalLaneGovernanceInvalidity,
+  evaluateIntegrationValidatorCloseoutState,
+} from "../scripts/lib/integration-validator-closeout-lib.mjs";
 import { ensureValidatorGateDir, resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { appendWpReceipt } from "../../../roles_shared/scripts/wp/wp-receipt-append.mjs";
 
 function fail(message, details = []) {
   console.error(`[INTEGRATION_VALIDATOR_CLOSEOUT_SYNC] ${message}`);
@@ -80,6 +89,64 @@ function loadGateState(wpId) {
   const filePath = repoPathAbs(resolveValidatorGatePath(wpId));
   if (!fs.existsSync(filePath)) return {};
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+function writeGateState(wpId, gateState) {
+  ensureValidatorGateDir();
+  const filePath = repoPathAbs(resolveValidatorGatePath(wpId));
+  fs.writeFileSync(filePath, `${JSON.stringify(gateState, null, 2)}\n`, "utf8");
+}
+
+function appendCloseoutGovernanceInvalidityIfNeeded({
+  wpId,
+  packetText,
+  actorContext,
+  gitContext,
+  repoRoot,
+  governanceState = null,
+  evaluation = null,
+} = {}) {
+  const invalidity = deriveFinalLaneGovernanceInvalidity({
+    repoRoot,
+    actorContext,
+    gitContext,
+    governanceState,
+    topology: evaluation?.topology || null,
+  });
+  if (!invalidity) return null;
+
+  const receiptsFile = String(parseSingleField(packetText, "WP_RECEIPTS_FILE") || "").trim();
+  const existingReceipts = receiptsFile ? parseJsonlFile(receiptsFile) : [];
+  const activeInvalidity = activeWorkflowInvalidityReceipt(existingReceipts);
+  if (
+    activeInvalidity
+    && String(activeInvalidity.workflow_invalidity_code || "").trim().toUpperCase() === invalidity.workflowInvalidityCode
+  ) {
+    return {
+      status: "SKIPPED",
+      workflowInvalidityCode: invalidity.workflowInvalidityCode,
+      reason: "ACTIVE_INVALIDITY_ALREADY_PRESENT",
+    };
+  }
+
+  const result = appendWpReceipt({
+    wpId,
+    actorRole: invalidity.actorRole,
+    actorSession: invalidity.actorSession,
+    receiptKind: "WORKFLOW_INVALIDITY",
+    summary: invalidity.summary,
+    stateAfter: "WORKFLOW_INVALID",
+    targetRole: "ORCHESTRATOR",
+    targetSession: null,
+    specAnchor: invalidity.specAnchor,
+    packetRowRef: invalidity.packetRowRef,
+    workflowInvalidityCode: invalidity.workflowInvalidityCode,
+  });
+  return {
+    status: "APPENDED",
+    workflowInvalidityCode: invalidity.workflowInvalidityCode,
+    timestampUtc: result.entry.timestamp_utc,
+  };
 }
 
 function parseMode(rawMode) {
@@ -151,7 +218,8 @@ if (requestedMode.requireMergedMainCommit && !/^[0-9a-f]{7,40}$/i.test(mergedMai
   fail("CONTAINED_IN_MAIN requires MERGED_MAIN_SHA");
 }
 
-const repoRoot = currentGitContext().topLevel || REPO_ROOT;
+const gitContext = currentGitContext();
+const repoRoot = gitContext.topLevel || REPO_ROOT;
 const taskBoardPath = path.resolve(GOV_ROOT_ABS, "roles_shared", "records", "TASK_BOARD.md");
 const resolvedPacket = resolveWorkPacketPath(wpId);
 if (!resolvedPacket?.packetAbsPath || !fs.existsSync(resolvedPacket.packetAbsPath)) {
@@ -161,19 +229,34 @@ const packetPath = resolvedPacket.packetPath;
 const packetAbsPath = resolvedPacket.packetAbsPath;
 const originalPacketText = readText(packetAbsPath);
 const originalTaskBoardText = fs.existsSync(taskBoardPath) ? readText(taskBoardPath) : "";
+const receiptsPath = repoPathAbs(parseSingleField(originalPacketText, "WP_RECEIPTS_FILE") || "");
+const originalReceiptsText = receiptsPath && fs.existsSync(receiptsPath) ? readText(receiptsPath) : "";
 const runtimeStatusPath = repoPathAbs(parseSingleField(originalPacketText, "WP_RUNTIME_STATUS_FILE") || "");
 const originalRuntimeStatusText = runtimeStatusPath && fs.existsSync(runtimeStatusPath) ? readText(runtimeStatusPath) : "";
 const originalRuntimeStatusData = originalRuntimeStatusText ? JSON.parse(originalRuntimeStatusText) : null;
+const gateStatePath = repoPathAbs(resolveValidatorGatePath(wpId));
+const originalGateStateText = fs.existsSync(gateStatePath) ? readText(gateStatePath) : null;
 const governanceState = evaluateValidatorPacketGovernanceState({
   wpId,
   packetPath: packetAbsPath,
   packetContent: originalPacketText,
 });
 if (!governanceState.allowValidationResume) {
+  const invalidityResult = appendCloseoutGovernanceInvalidityIfNeeded({
+    wpId,
+    packetText: originalPacketText,
+    actorContext: { actorRole: "", actorSessionId: "" },
+    gitContext,
+    repoRoot,
+    governanceState,
+  });
   fail("Closeout sync is blocked for this packet", [
     governanceState.message,
     `computed_policy_outcome=${governanceState.computedPolicy.outcome}`,
-  ]);
+    invalidityResult
+      ? `workflow_invalidity=${invalidityResult.workflowInvalidityCode} (${invalidityResult.status})`
+      : null,
+  ].filter(Boolean));
 }
 
 const parsedTruth = parseMergeProgressionTruth(originalPacketText);
@@ -190,7 +273,7 @@ const actorContext = resolveValidatorActorContext({
   repoRoot,
   wpId,
   packetContent: originalPacketText,
-  gitContext: currentGitContext(),
+  gitContext,
 });
 const evaluation = evaluateIntegrationValidatorCloseoutState({
   repoRoot,
@@ -203,9 +286,21 @@ const evaluation = evaluateIntegrationValidatorCloseoutState({
 });
 
 if (!evaluation.ok) {
+  const invalidityResult = appendCloseoutGovernanceInvalidityIfNeeded({
+    wpId,
+    packetText: originalPacketText,
+    actorContext,
+    gitContext,
+    repoRoot,
+    governanceState,
+    evaluation,
+  });
   fail("Closeout sync preflight failed", [
     ...evaluation.issues,
-  ]);
+    invalidityResult
+      ? `workflow_invalidity=${invalidityResult.workflowInvalidityCode} (${invalidityResult.status})`
+      : null,
+  ].filter(Boolean));
 }
 
 const baselineSha = String(evaluation.topology.currentMainHeadSha || "").trim();
@@ -291,10 +386,55 @@ try {
       }
     }
   }
+  const nextGateState = appendCloseoutSyncProvenance(gateState, {
+    wpId,
+    event: {
+      schema_version: "integration_validator_closeout_sync_event@1",
+      timestamp_utc: timestamp,
+      mode: requestedMode.mode,
+      packet_status: requestedMode.packetStatus,
+      main_containment_status: requestedMode.mainContainmentStatus,
+      merged_main_commit: requestedMode.requireMergedMainCommit ? mergedMainCommit : null,
+      current_main_compatibility_baseline_sha: baselineSha,
+      actor_role: actorContext.actorRole || "UNKNOWN",
+      actor_session_key: actorContext.actorSessionKey || null,
+      actor_session_id: actorContext.actorSessionId || null,
+      actor_source: actorContext.source || "UNRESOLVED",
+      actor_branch: actorContext.actorBranch || null,
+      actor_worktree_dir: actorContext.actorWorktreeDir || null,
+      live_governance_root_abs: evaluation.topology.liveGovernanceRootAbs || null,
+      target_head_sha: evaluation.topology.targetHeadSha || null,
+    },
+  });
+  writeGateState(wpId, nextGateState);
+  appendWpReceipt({
+    wpId,
+    actorRole: "INTEGRATION_VALIDATOR",
+    actorSession: actorContext.actorSessionId || actorContext.actorSessionKey || "integration-validator-closeout-sync",
+    receiptKind: "STATUS",
+    summary: [
+      `Integration Validator synced closeout truth: mode=${requestedMode.mode}.`,
+      `main_containment_status=${requestedMode.mainContainmentStatus}.`,
+      requestedMode.requireMergedMainCommit ? `merged_main_commit=${mergedMainCommit}.` : null,
+      `baseline_sha=${baselineSha}.`,
+    ].filter(Boolean).join(" "),
+    stateBefore: parsedTruth.status,
+    stateAfter: requestedMode.packetStatus,
+    targetRole: "ORCHESTRATOR",
+    targetSession: null,
+    specAnchor: "CX-573B",
+    packetRowRef: "MAIN_CONTAINMENT_STATUS",
+  });
 } catch (error) {
   writeText(packetAbsPath, originalPacketText);
   if (originalTaskBoardText) writeText(taskBoardPath, originalTaskBoardText);
+  if (receiptsPath && typeof originalReceiptsText === "string") writeText(receiptsPath, originalReceiptsText);
   if (originalRuntimeStatusText) writeText(runtimeStatusPath, originalRuntimeStatusText);
+  if (originalGateStateText === null) {
+    if (fs.existsSync(gateStatePath)) fs.unlinkSync(gateStatePath);
+  } else {
+    writeText(gateStatePath, originalGateStateText);
+  }
   fail("Closeout sync failed validation and reverted the packet edit", [
     String(error?.stdout || "").trim(),
     String(error?.stderr || error?.message || error).trim(),

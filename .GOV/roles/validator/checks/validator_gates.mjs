@@ -58,11 +58,16 @@ function normalizeState(raw) {
         raw?.committed_validation_evidence && typeof raw.committed_validation_evidence === 'object'
             ? raw.committed_validation_evidence
             : {};
+    const closeout_sync_events =
+        raw?.closeout_sync_events && typeof raw.closeout_sync_events === 'object'
+            ? raw.closeout_sync_events
+            : {};
 
     return {
         validation_sessions,
         archived_sessions: Array.isArray(raw?.archived_sessions) ? raw.archived_sessions : [],
         committed_validation_evidence,
+        closeout_sync_events,
     };
 }
 
@@ -87,11 +92,15 @@ function saveWpState(wpId, state) {
         ? state.archived_sessions.filter((s) => s?.wpId === wpId)
         : [];
     const committedEvidence = state?.committed_validation_evidence?.[wpId] || null;
+    const closeoutSyncEvents = Array.isArray(state?.closeout_sync_events?.[wpId])
+        ? state.closeout_sync_events[wpId]
+        : [];
 
     const toWrite = normalizeState({
         validation_sessions: session ? { [wpId]: session } : {},
         archived_sessions: archived,
         committed_validation_evidence: committedEvidence ? { [wpId]: committedEvidence } : {},
+        closeout_sync_events: closeoutSyncEvents.length > 0 ? { [wpId]: closeoutSyncEvents } : {},
     });
 
     fs.writeFileSync(perFile, `${JSON.stringify(toWrite, null, 2)}\n`);
@@ -677,6 +686,21 @@ if (action === 'status') {
         console.log(`    Worktree: ${livePrepareHealth?.prepare_worktree_dir || durableCommittedProof?.prepare_worktree_dir || '<none>'}`);
     } else {
         console.log('  Committed validation: (missing)');
+    }
+    const latestCloseoutSyncEvent = Array.isArray(state?.closeout_sync_events?.[wpId])
+        ? [...state.closeout_sync_events[wpId]]
+            .sort((left, right) => String(right?.timestamp_utc || '').localeCompare(String(left?.timestamp_utc || '')))[0]
+        : null;
+    if (latestCloseoutSyncEvent) {
+        console.log('  Latest closeout sync:');
+        console.log(`    Mode: ${latestCloseoutSyncEvent.mode || '<none>'}`);
+        console.log(`    Packet status: ${latestCloseoutSyncEvent.packet_status || '<none>'}`);
+        console.log(`    Main containment: ${latestCloseoutSyncEvent.main_containment_status || '<none>'}`);
+        console.log(`    Actor: ${latestCloseoutSyncEvent.actor_role || '<none>'} / ${latestCloseoutSyncEvent.actor_session_id || '<none>'}`);
+        console.log(`    Recorded at: ${latestCloseoutSyncEvent.timestamp_utc || '<none>'}`);
+        if (latestCloseoutSyncEvent.merged_main_commit) {
+            console.log(`    Merged main commit: ${latestCloseoutSyncEvent.merged_main_commit}`);
+        }
     }
     console.log('  Gates:');
     session.gates.forEach((g, i) => {

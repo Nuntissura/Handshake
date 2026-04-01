@@ -41,6 +41,138 @@ function samePath(left, right) {
   return normalizePath(left).toLowerCase() === normalizePath(right).toLowerCase();
 }
 
+function normalizeCloseoutSyncEventMap(rawValue) {
+  if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue)) return {};
+  return Object.fromEntries(
+    Object.entries(rawValue)
+      .filter(([key, value]) => String(key || "").trim() && Array.isArray(value))
+      .map(([key, value]) => [String(key).trim(), value.filter((entry) => entry && typeof entry === "object")]),
+  );
+}
+
+function defaultGovernanceViolationReporterRole({
+  repoRoot = REPO_ROOT,
+  actorContext = {},
+  gitContext = {},
+} = {}) {
+  const actorRole = normalizeValidatorRole(actorContext?.actorRole);
+  if (actorRole && actorRole !== "UNKNOWN") return actorRole;
+
+  const branch = String(gitContext?.branch || actorContext?.actorBranch || "").trim();
+  const topLevel = normalizePath(path.resolve(String(gitContext?.topLevel || "").trim() || repoRoot));
+  const kernelRoot = normalizePath(path.resolve(repoRoot));
+  if (branch === "gov_kernel" || samePath(topLevel, kernelRoot)) {
+    return "ORCHESTRATOR";
+  }
+  return "SYSTEM";
+}
+
+function defaultGovernanceViolationReporterSession({
+  actorContext = {},
+  reporterRole = "SYSTEM",
+} = {}) {
+  const actorSessionId = String(actorContext?.actorSessionId || "").trim();
+  if (actorSessionId) return actorSessionId;
+  if (reporterRole === "ORCHESTRATOR") return "orchestrator-role-lock-guard";
+  if (reporterRole === "INTEGRATION_VALIDATOR") return "integration-validator-final-lane-guard";
+  return "workflow-boundary-guard";
+}
+
+export function deriveFinalLaneGovernanceInvalidity({
+  repoRoot = REPO_ROOT,
+  actorContext = {},
+  gitContext = {},
+  governanceState = null,
+  topology = null,
+} = {}) {
+  const actorRole = normalizeValidatorRole(actorContext?.actorRole);
+  const reporterRole = defaultGovernanceViolationReporterRole({
+    repoRoot,
+    actorContext,
+    gitContext,
+  });
+  const reporterSession = defaultGovernanceViolationReporterSession({
+    actorContext,
+    reporterRole,
+  });
+  const topologyIssues = Array.isArray(topology?.issues) ? topology.issues : [];
+  const authorityIssues = topologyIssues.filter((issue) =>
+    /requires the Integration Validator lane|final PASS authority|governed Integration Validator session identity|PASS authority belongs to|integration validator of record mismatch/i.test(
+      String(issue || ""),
+    )
+  );
+  const govRootViolation = governanceState?.terminalReason === "INTEGRATION_VALIDATOR_GOV_ROOT_MISCONFIGURED"
+    || topologyIssues.some((issue) => /HANDSHAKE_GOV_ROOT|handshake_main\/\.GOV/i.test(String(issue || "")));
+
+  if (govRootViolation) {
+    return {
+      workflowInvalidityCode: "FINAL_LANE_GOV_ROOT_VIOLATION",
+      summary:
+        "Final-lane closeout resolved live governance from handshake_main/.GOV instead of the kernel; repair HANDSHAKE_GOV_ROOT before contained-main progression.",
+      actorRole: reporterRole,
+      actorSession: reporterSession,
+      specAnchor: "CX-212D",
+      packetRowRef: "INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR",
+    };
+  }
+
+  if (
+    (actorRole && actorRole !== "UNKNOWN" && actorRole !== "INTEGRATION_VALIDATOR")
+    || (!actorRole || actorRole === "UNKNOWN") && reporterRole === "ORCHESTRATOR"
+  ) {
+    return {
+      workflowInvalidityCode: "ROLE_BOUNDARY_BREACH",
+      summary:
+        "Final-lane closeout was attempted outside the governed INTEGRATION_VALIDATOR lane; contained-main harmonization and merge authority remain final-lane validator responsibilities.",
+      actorRole: reporterRole,
+      actorSession: reporterSession,
+      specAnchor: "CX-600",
+      packetRowRef: "MERGE_AUTHORITY",
+    };
+  }
+
+  if (authorityIssues.length > 0) {
+    return {
+      workflowInvalidityCode: "FINAL_LANE_AUTHORITY_VIOLATION",
+      summary:
+        "Final-lane closeout lacked governed Integration Validator authority proof; repair lane/session identity before updating packet or contained-main truth.",
+      actorRole: reporterRole,
+      actorSession: reporterSession,
+      specAnchor: "CX-570",
+      packetRowRef: "INTEGRATION_VALIDATOR_OF_RECORD",
+    };
+  }
+
+  return null;
+}
+
+export function appendCloseoutSyncProvenance(gateState = {}, {
+  wpId = "",
+  event = null,
+} = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId || !event || typeof event !== "object") {
+    return gateState && typeof gateState === "object" ? { ...gateState } : {};
+  }
+
+  const nextState = gateState && typeof gateState === "object" ? { ...gateState } : {};
+  const closeoutSyncEvents = normalizeCloseoutSyncEventMap(nextState.closeout_sync_events);
+  const existingEvents = Array.isArray(closeoutSyncEvents[normalizedWpId]) ? closeoutSyncEvents[normalizedWpId] : [];
+  nextState.closeout_sync_events = {
+    ...closeoutSyncEvents,
+    [normalizedWpId]: [...existingEvents, { ...event }],
+  };
+  return nextState;
+}
+
+export function latestCloseoutSyncEvent(gateState = {}, wpId = "") {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId) return null;
+  const closeoutSyncEvents = normalizeCloseoutSyncEventMap(gateState?.closeout_sync_events);
+  return [...(closeoutSyncEvents[normalizedWpId] || [])]
+    .sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
+}
+
 function defaultGitRunner(worktreeAbs, args) {
   const result = spawnSync("git", args, {
     cwd: worktreeAbs,
