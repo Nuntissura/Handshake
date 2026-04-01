@@ -1250,3 +1250,52 @@ Judgment:
 - `just sync-gov-to-main` -> PASS from committed kernel truth (`1a8ec21` on local `main`)
 - `git -C ../handshake_main push origin main` -> PASS
 - `git push origin gov_kernel` -> PASS
+
+## 34. Review Quality, Microtask Discipline, and Data Doctrine Addendum
+
+### 34.1 Operator Notes Incorporated
+
+- bootstrap and skeleton quality should be judged by the WP Validator, not carried mainly by the Orchestrator, both to reduce orchestrator workload and to prove live coder-validator communication early
+- validator review should overlap with microtask execution so the coder can continue on the next microtask while the validator checks the prior completed slice and loops back on gaps
+- technical debt inside signed scope should be rejected, including vibe coding, easy-surface progress theater, weak implementation habits, and intent that rounds up partial work into false closure
+- Handshake data should be treated as LLM-first, with active coding and review doctrine around:
+  - SQL-backed and PostgreSQL-ready structures
+  - LLM-first readability and parseability
+  - Loom-intertwined data design
+- those data-oriented goals are strategically correct, but they still need sharper definitions before they can be enforced mechanically
+
+### 34.2 Assessment
+
+- The direction is correct and high ROI.
+- The strongest quality gain is earlier and more continuous WP-validator involvement, not simply tougher final handoff review.
+- `RGF-47` improved this materially by adding a contract-heavy intent checkpoint, but it does not yet create a full rolling microtask-review loop with bounded backlog and explicit backpressure.
+- Bootstrap and skeleton review should be treated as default WP-validator-owned checkpoints on governed lanes, especially when the packet is contract-heavy, schema-heavy, or data-shape-heavy.
+- The LLM-first data doctrine is important, but in its current wording it is still too ambiguous to enforce consistently. Governance should translate it into packet/spec fields, coder instructions, validator proof obligations, and gate checks instead of leaving it as a general aspiration.
+- "No technical debt at all cost" is operationally best interpreted as: no accepted debt inside signed scope, no rounding up weak progress into PASS, and fast failure on weak reasoning, shallow surface work, or brittle implementation.
+
+### 34.3 Findings
+
+- Review quality on this WP was strongest when the validator acted as an evidence-heavy blocker and weakest when review cadence waited too long for full handoff.
+- The current governed lane now supports an intent checkpoint, but still does not give the validator a first-class rolling microtask review queue while the coder advances the next bounded slice.
+- Bootstrap and skeleton review are still not expressed strongly enough as mandatory validator-owned gates across governed WP starts.
+- Vibe coding, easy-surface-only progress, and bad implementation habits are not yet elevated enough into machine-visible review outcomes; too much still depends on reviewer diligence and prose quality.
+- The repo still lacks a codified, reviewable definition of "LLM-first" data, which means coder and validator cannot yet prove or fail that standard consistently.
+- If these areas stay informal, the result will be the same recurring failure family:
+  - late discovery of intent/spec drift
+  - superficial progress that looks green too early
+  - avoidable debt and rework accumulating behind a final handoff
+
+### 34.4 Suggested Governance Remediations
+
+- `RGF-48`: add rolling microtask validator overlap with bounded backlog, explicit block/reroute semantics, and review carry-forward while coder proceeds on the next microtask
+- `RGF-49`: make bootstrap and skeleton assessment an explicit WP-validator-owned governed gate on direct-review lanes
+- `RGF-50`: codify an LLM-first data contract for Handshake so SQL/PostgreSQL readiness, LLM-readable structure, and Loom-intertwined data requirements become reviewable packet/spec truth
+- `RGF-51`: strengthen anti-vibe/easy-surface review heuristics so shallow or weakly justified implementation quality becomes explicit `FAIL`, `NOT_PROVEN`, or debt-rejection truth rather than soft reviewer commentary
+
+### 34.5 Expected Review-Quality Effect
+
+- Earlier validator involvement should reduce false-green coder momentum and shrink the amount of product work that reaches full handoff in a closure-unready state.
+- Rolling microtask review should let the validator catch intent and implementation drift while the coder still has narrow context, which is cheaper than late-loop rework.
+- Validator-owned bootstrap and skeleton review should prove coder-validator communication early and reduce orchestrator relay burden.
+- A codified data doctrine should improve product consistency across future WPs instead of repeatedly rediscovering the same storage and parseability expectations.
+- Harder anti-vibe/debt rejection should make the review lane stricter about implementation quality, not only functional closure.

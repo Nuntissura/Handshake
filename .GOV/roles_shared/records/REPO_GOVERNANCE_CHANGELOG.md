@@ -644,3 +644,22 @@
   - `.GOV/roles/validator/tests/validator-governance-lib.test.mjs`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: contract-heavy or under-specified intent now routes to `WP_VALIDATOR_INTENT_CHECKPOINT`, validator/coder resume helpers surface checkpoint-specific guidance, and governed `CODER_HANDOFF` fails closed until the checkpoint or any open review items are resolved so late-loop rework and false completion claims are reduced mechanically
+
+### 2026.04.01.10 / GOV-CHANGE-20260401-10
+
+- STATUS: APPLIED
+- SUMMARY: captured new review-quality, microtask-discipline, and LLM-first data follow-ons from the WP-1 smoketest evidence so the governance board now maps them to concrete remediation work
+- CHANGE_TYPE: SMOKETEST_FOLLOW_ON_CAPTURE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/Audits/smoketest/AUDIT_20260331_PROJECT_PROFILE_EXTENSION_REGISTRY_V1_SMOKETEST_STARTUP_REVIEW.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-48`
+  - `RGF-49`
+  - `RGF-50`
+  - `RGF-51`
+- OUTCOME: the smoketest review now explicitly records the operator requirement for validator-owned bootstrap/skeleton review, rolling microtask review overlap, zero-debt anti-vibe enforcement, and a codified LLM-first data doctrine, and the governance task board now exposes those concerns as concrete follow-on remediation items linked back to the same audit evidence
