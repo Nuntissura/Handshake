@@ -4,9 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  appendCloseoutSyncProvenance,
+  deriveFinalLaneGovernanceInvalidity,
   evaluateIntegrationValidatorCloseoutState,
   evaluateIntegrationValidatorTopology,
   evaluateWpSessionControlCloseoutBundle,
+  latestCloseoutSyncEvent,
 } from "../scripts/lib/integration-validator-closeout-lib.mjs";
 
 function writeFile(targetPath, content) {
@@ -369,4 +372,55 @@ test("integration-validator closeout state fails when the committed target diff 
 
   assert.equal(evaluation.ok, false);
   assert.match(evaluation.issues.join("\n"), /candidate target diff does not match the signed patch artifact/i);
+});
+
+test("deriveFinalLaneGovernanceInvalidity classifies kernel-side final-lane misuse as a role-boundary breach", () => {
+  const invalidity = deriveFinalLaneGovernanceInvalidity({
+    repoRoot: ".",
+    actorContext: {
+      actorRole: "UNKNOWN",
+      actorSessionId: "",
+    },
+    gitContext: {
+      branch: "gov_kernel",
+      topLevel: path.resolve("."),
+    },
+  });
+
+  assert.equal(invalidity?.workflowInvalidityCode, "ROLE_BOUNDARY_BREACH");
+  assert.equal(invalidity?.actorRole, "ORCHESTRATOR");
+});
+
+test("deriveFinalLaneGovernanceInvalidity classifies handshake_main governance-root drift as a final-lane gov-root violation", () => {
+  const invalidity = deriveFinalLaneGovernanceInvalidity({
+    repoRoot: ".",
+    actorContext: actorContextFixture(),
+    gitContext: {
+      branch: "main",
+      topLevel: path.resolve(".", "..", "handshake_main"),
+    },
+    governanceState: {
+      terminalReason: "INTEGRATION_VALIDATOR_GOV_ROOT_MISCONFIGURED",
+    },
+  });
+
+  assert.equal(invalidity?.workflowInvalidityCode, "FINAL_LANE_GOV_ROOT_VIOLATION");
+  assert.equal(invalidity?.actorRole, "INTEGRATION_VALIDATOR");
+});
+
+test("appendCloseoutSyncProvenance records and returns the latest closeout event per WP", () => {
+  const nextState = appendCloseoutSyncProvenance({}, {
+    wpId: "WP-TEST-VALIDATOR-v1",
+    event: {
+      timestamp_utc: "2026-04-01T12:00:00Z",
+      mode: "MERGE_PENDING",
+      actor_role: "INTEGRATION_VALIDATOR",
+      actor_session_id: "integration-validator-session",
+    },
+  });
+
+  const latest = latestCloseoutSyncEvent(nextState, "WP-TEST-VALIDATOR-v1");
+  assert.equal(latest?.mode, "MERGE_PENDING");
+  assert.equal(latest?.actor_role, "INTEGRATION_VALIDATOR");
+  assert.equal(latest?.actor_session_id, "integration-validator-session");
 });

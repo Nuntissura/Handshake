@@ -197,6 +197,8 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
   - PASS after main containment: `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>`
   - explicit non-PASS terminal closure: `FAIL`, `OUTDATED_ONLY`, or `ABANDONED`
   - candidate-target proof must still match the signed artifact exactly; contained local-main closure may differ only when conflict resolution stays within the signed file surface and the governed closeout proof still passes
+  - contained-main harmonization is a final-lane activity owned by `INTEGRATION_VALIDATOR` (or another explicitly reassigned governed actor), and successful closeout sync must leave machine-readable provenance in validator gate state/receipts
+  - if final-lane closeout is attempted from a role-locked orchestrator/kernel surface, from a non-final validator lane, or with `HANDSHAKE_GOV_ROOT` still resolving to `handshake_main/.GOV`, treat that as `WORKFLOW_INVALIDITY` (`ROLE_BOUNDARY_BREACH`, `FINAL_LANE_AUTHORITY_VIOLATION`, or `FINAL_LANE_GOV_ROOT_VIOLATION`) and repair the lane before any packet/task-board/runtime promotion
   This keeps closeout truth synchronized and reduces orchestrator repair work.
 
 ## Branching & Concurrency
@@ -491,6 +493,7 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 ## Packet and Dependency Rules (Authoritative)
 
 - No product coding by the Orchestrator in `src/`, `app/`, or `tests/`.
+- No contained-main cherry-pick, conflict-resolution, or harmonization authored by the Orchestrator on product paths. If final-lane product reconciliation is needed, stop and route it back to `INTEGRATION_VALIDATOR` or record an explicit governed reassignment first.
 - One active WP per coherent requirement.
 - Signed packets are immutable. If scope, anchor, or authority changes materially, create a new packet variant or remediation packet.
 - Dependencies must be explicit in the packet, Task Board, and build-order or traceability records when relevant.

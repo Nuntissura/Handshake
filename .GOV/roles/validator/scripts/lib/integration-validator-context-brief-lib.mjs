@@ -2,7 +2,10 @@ import fs from "node:fs";
 import { packetPath, parseCurrentWpStatus, parseStatus, taskBoardStatus } from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { evaluateWpDeclaredTopology } from "../../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
 import { REPO_ROOT } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
-import { evaluateIntegrationValidatorCloseoutState } from "./integration-validator-closeout-lib.mjs";
+import {
+  evaluateIntegrationValidatorCloseoutState,
+  latestCloseoutSyncEvent,
+} from "./integration-validator-closeout-lib.mjs";
 import {
   evaluateValidatorPacketGovernanceState,
   readValidatorAuthority,
@@ -61,6 +64,7 @@ export function buildIntegrationValidatorContextBrief({
   packetContent = "",
   packetPathValueOverride = "",
   gitContext = {},
+  gateState = null,
   committedEvidence = null,
   requests = null,
   results = null,
@@ -117,6 +121,7 @@ export function buildIntegrationValidatorContextBrief({
   });
   const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
   const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
+  const latestCloseoutEvent = latestCloseoutSyncEvent(gateState, wpId);
 
   const contextStatus = !governanceState.allowValidationResume
     ? "GOVERNANCE_BLOCKED"
@@ -231,6 +236,17 @@ export function buildIntegrationValidatorContextBrief({
       session_count: closeoutEvaluation.closeoutBundle?.summary?.session_count ?? 0,
       active_run_count: closeoutEvaluation.closeoutBundle?.summary?.active_run_count ?? 0,
     },
+    closeout_provenance: {
+      status: latestCloseoutEvent ? "RECORDED" : "MISSING",
+      mode: normalizeStatus(latestCloseoutEvent?.mode, "NONE"),
+      actor_role: normalizeStatus(latestCloseoutEvent?.actor_role, "NONE"),
+      actor_session_id: normalizeStatus(latestCloseoutEvent?.actor_session_id, "NONE"),
+      actor_source: normalizeStatus(latestCloseoutEvent?.actor_source, "NONE"),
+      recorded_at_utc: normalizeStatus(latestCloseoutEvent?.timestamp_utc, "NONE"),
+      main_containment_status: normalizeStatus(latestCloseoutEvent?.main_containment_status, "NONE"),
+      merged_main_commit: normalizeStatus(latestCloseoutEvent?.merged_main_commit, "NONE"),
+      baseline_sha: normalizeStatus(latestCloseoutEvent?.current_main_compatibility_baseline_sha, "NONE"),
+    },
     required_commands: requiredCommandsForState({
       wpId,
       actorContext,
@@ -253,6 +269,7 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- COMMITTED_HANDOFF: status=${brief.committed_handoff.status} | live_prepare=${brief.committed_handoff.live_prepare_worktree_status} | mode=${brief.committed_handoff.committed_validation_mode} | target=${brief.committed_handoff.committed_validation_target}`,
     `- MAIN_COMPATIBILITY: status=${brief.current_main_compatibility.status} | baseline=${brief.current_main_compatibility.baseline_sha} | verified_at=${brief.current_main_compatibility.verified_at_utc} | main_head=${brief.current_main_compatibility.current_main_head_sha}`,
     `- CLOSEOUT_BUNDLE: requests=${brief.closeout_bundle.request_count} | results=${brief.closeout_bundle.result_count} | sessions=${brief.closeout_bundle.session_count} | active_runs=${brief.closeout_bundle.active_run_count}`,
+    `- CLOSEOUT_PROVENANCE: status=${brief.closeout_provenance.status} | mode=${brief.closeout_provenance.mode} | actor=${brief.closeout_provenance.actor_role}/${brief.closeout_provenance.actor_session_id} | recorded_at=${brief.closeout_provenance.recorded_at_utc}`,
     `- ARTIFACT_POINTERS: packet=${brief.packet_path} | command_surface=${brief.command_surface_path} | gate_state=${brief.committed_handoff.gate_state_path} | prepare_worktree=${brief.committed_handoff.prepare_worktree_dir}`,
     `- MINIMAL_LIVE_READ_SET: ${formatBoundedList(brief.minimal_live_read_set, 6).join(" | ")}`,
     `- STARTUP_SEQUENCE: ${brief.startup_sequence.join(" -> ")}`,

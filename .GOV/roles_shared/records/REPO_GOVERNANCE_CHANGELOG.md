@@ -597,3 +597,25 @@
   - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: `just sync-gov-to-main` now fails closed when `wt-gov-kernel/.GOV` has uncommitted changes, so `GOV_KERNEL_SYNC.json` and main-side governance sync commits always refer to committed kernel truth instead of mirroring an uncheckpointed governance snapshot under a stale kernel SHA
+
+### 2026.04.01.08 / GOV-CHANGE-20260401-08
+
+- STATUS: APPLIED
+- SUMMARY: hardened final-lane boundary enforcement so wrong-lane closeout attempts emit governed invalidity and successful contained-main closeout leaves machine-readable provenance
+- CHANGE_TYPE: FINAL_LANE_BOUNDARY_AND_PROVENANCE_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles/validator/checks/validator_gates.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs`
+  - `.GOV/roles/validator/checks/integration-validator-context-brief.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-47`
+- OUTCOME: final-lane closeout now classifies role-boundary misuse into machine-visible `WORKFLOW_INVALIDITY` codes, kernel/orchestrator-side closeout misuse can no longer quietly become closure truth, and successful closeout sync records attributable provenance for contained-main promotion in validator gate state plus closeout receipts

@@ -54,6 +54,7 @@ const brief = buildIntegrationValidatorContextBrief({
   wpId: parsed.wpId,
   packetContent: loadPacket(parsed.wpId),
   gitContext,
+  gateState,
   committedEvidence: gateState?.committed_validation_evidence?.[parsed.wpId] || null,
   gateStatePath,
 });
