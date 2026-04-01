@@ -107,6 +107,7 @@
 | RGF-52 | READY | Explicit Data-Contract Activation and Waiver Gate | RGF-50 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles_shared/scripts/lib/data-contract-lib.mjs`, `roles/orchestrator/scripts/create-task-packet.mjs`, `roles_shared/checks/task-packet-claim-check.mjs`, refinement/packet activation rules | data-bearing or structure-bearing packets can no longer rely on heuristic refinement phrasing alone to activate `DATA_CONTRACT_PROFILE`; activation must become explicit, reviewable, or explicitly waived with governed reason |
 | RGF-53 | READY | Shared Docs and Command-Surface Alignment for New Packet Law | RGF-50, RGF-51 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `roles_shared/docs/START_HERE.md`, shared quickrefs/examples, startup/operator-facing guidance | operator and shared role docs now surface the `2026-04-01` packet law, including data-contract activation, anti-vibe review fields, and signed-scope-debt rejection, instead of leaving those rules discoverable only in role-local protocols and checks |
 | RGF-54 | READY | End-to-End New-Packet Law Regression and Legacy Migration Strategy | RGF-50, RGF-51, RGF-52 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | orchestrator packet creation flow, shared claim checks, validator closeout checks, shared regression suite, packet-family migration policy | the `2026-04-01` packet law is proven end-to-end from packet creation through validator closure, and legacy packet families have an explicit migration or grandfathering policy instead of mixed implicit enforcement |
+| RGF-55 | READY | Packet/Refinement Path Truth Alignment Across Shared and Orchestrator Surfaces | RGF-39, RGF-53 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/orchestrator/scripts/orchestrator-next.mjs`, `roles/orchestrator/checks/orchestrator_gates.mjs`, `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `roles_shared/docs/PROJECT_INVARIANTS.md`, shared path-resolution guidance | operator-facing next commands, protocols, and shared docs stop hard-coding the legacy flat `.GOV/refinements/WP-{ID}.md` path when the live packet family uses co-located `task_packets/WP-{ID}/refinement.md`, and all such surfaces either resolve both layouts correctly or use path-neutral wording |
 
 ## Refactor Sequence (Historical)
 
@@ -165,6 +166,7 @@
 44. `RGF-52`
 45. `RGF-53`
 46. `RGF-54`
+47. `RGF-55`
 
 ## Explicit Holds
 

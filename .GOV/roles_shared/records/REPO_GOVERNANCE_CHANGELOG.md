@@ -742,3 +742,18 @@
   - `RGF-53`
   - `RGF-54`
 - OUTCOME: the governance board now tracks three `roles_shared` follow-ons that were left implicit after `RGF-50` and `RGF-51`: making data-contract activation explicit instead of keyword-inferred, aligning shared docs/operator-facing command surfaces with the new packet law, and adding an end-to-end regression plus explicit migration policy for older packet families
+
+### 2026.04.01.14 / GOV-CHANGE-20260401-14
+
+- STATUS: APPLIED
+- SUMMARY: captured the next orchestrator/shared follow-on after spotting stale legacy refinement-path guidance in operator-facing next-command surfaces and shared docs
+- CHANGE_TYPE: PATH_TRUTH_ALIGNMENT_FOLLOW_ON_CAPTURE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-55`
+- OUTCOME: the governance board now tracks a dedicated path-truth alignment item for the post-layout-migration drift where orchestrator/operator/shared surfaces still hard-code the legacy flat `.GOV/refinements/WP-{ID}.md` path instead of resolving the current co-located packet/refinement layout or using path-neutral wording
