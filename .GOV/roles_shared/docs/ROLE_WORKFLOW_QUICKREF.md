@@ -103,6 +103,9 @@ Primary commands:
 - `just worktree-add WP-...`
 - `just record-prepare WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>] [branch] [worktree_dir]`
 - `just create-task-packet WP-...`
+- for `PACKET_FORMAT_VERSION >= 2026-04-01`, inspect the packet law bundle immediately after creation: `DATA_CONTRACT_PROFILE`, `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`
+- on that packet family, coder handoff must include anti-vibe + signed-scope-debt self-audit, and validator PASS requires both lists to be exactly `- NONE`
+- if `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, keep `DATA_CONTRACT_MONITORING` credible from the start; validator closeout later requires concrete `DATA_CONTRACT_PROOF` plus `DATA_CONTRACT_GAPS`
 - `just orchestrator-prepare-and-packet WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>]`
 - `just coder-worktree-add WP-...`
 - `just wp-validator-worktree-add WP-...`

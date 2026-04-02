@@ -22,8 +22,10 @@ import { validateContainedMainCommitAgainstSignedScope } from "../../../roles_sh
 import {
   packetUsesDataContractProfile,
   parseDataContractProfile,
+  validateDataContractDecisionSection,
   validateDataContractSection,
 } from "../../../roles_shared/scripts/lib/data-contract-lib.mjs";
+import { parsePacketScopeList } from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
 import {
   activeWorkflowInvalidityReceipt,
   parseJsonlFile,
@@ -235,6 +237,7 @@ const activeWorkflowInvalidity = workflowInvalidityState.active;
 const usesDataContractProfile = packetUsesDataContractProfile(packetFormatVersion);
 const enforcesAntiVibeRigor = packetFormatVersion >= "2026-04-01";
 const dataContractProfile = parseDataContractProfile(text);
+const inScopePaths = parsePacketScopeList(text, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
 const topologyEvaluation = evaluateWpDeclaredTopology({
   repoRoot: REPO_ROOT,
   wpId,
@@ -291,6 +294,13 @@ if (packetFormatVersion) {
     const rawDataContractProfile = parseSingleField("DATA_CONTRACT_PROFILE");
     if (isPlaceholder(rawDataContractProfile)) {
       fail("DATA_CONTRACT_PROFILE missing/placeholder for PACKET_FORMAT_VERSION >= 2026-04-01");
+    }
+    const dataContractDecisionValidation = validateDataContractDecisionSection(text, {
+      packetPath,
+      inScopePaths,
+    });
+    if (dataContractDecisionValidation.errors.length > 0) {
+      fail(`data contract decision invalid: ${dataContractDecisionValidation.errors.join("; ")}`);
     }
     const dataContractValidation = validateDataContractSection(text, {
       packetPath,

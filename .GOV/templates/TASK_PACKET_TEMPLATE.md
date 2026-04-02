@@ -206,6 +206,16 @@ Next: N/A
 - Rule: for packets using `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`, each clause row must point to TESTS, EXAMPLES, or governed debt, and shared-surface packets should carry at least one concrete tripwire or canonical example.
 - Rule: portable/shared contract fields must be exercised field-by-field across the declared consumers/backends; backend-specific tests may extend that proof, but they cannot stand in for portable parity by themselves.
 
+## DATA_CONTRACT_DECISION (AUTHORITATIVE SNAPSHOT; MUTABLE)
+- DECISION: ACTIVE_REQUIRED | WAIVED_NOT_DATA_BEARING
+- REASON: <explicit activation or waiver rationale>
+- EVIDENCE:
+  - <reviewable scope/refinement evidence or NONE>
+- Rule: for `PACKET_FORMAT_VERSION >= 2026-04-01`, this section is mandatory and cannot be left implicit.
+- Rule: `DECISION=ACTIVE_REQUIRED` requires `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`.
+- Rule: `DECISION=WAIVED_NOT_DATA_BEARING` requires `DATA_CONTRACT_PROFILE=NONE` and is legal only when packet scope does not touch concrete data-bearing or structure-bearing surfaces.
+- Rule: if packet scope later changes to include persisted, emitted, schema, registry, Loom-facing, or portability-relevant data surfaces, this decision must be updated before claim/handoff/closure proceeds.
+
 ## DATA_CONTRACT_MONITORING (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - DATA_CONTRACT_ACTIVE: YES | NO
 - SQL_POSTURE: SQLITE_NOW_POSTGRES_READY | BACKEND_NEUTRAL | NOT_APPLICABLE

@@ -447,7 +447,7 @@ function main() {
     printConfidence(confidence.level, confidence.detail);
     printState("Refinement file does not exist yet.");
     printNextCommands([
-      `just create-task-packet ${wpId}  # scaffolds ${GOV_ROOT_REPO_REL}/refinements/${wpId}.md and exits BLOCKED`,
+      `just create-task-packet ${wpId}  # scaffolds ${refinementPath.replace(/\\/g, "/")} and exits BLOCKED`,
       `cat ${refinementPath.replace(/\\/g, "/")}`,
       `# Present the Technical Refinement Block in-chat; wait for explicit review.`,
       `just record-refinement ${wpId}`,
@@ -487,7 +487,7 @@ function main() {
     printConfidence(confidence.level, confidence.detail);
     printState("Refinement recorded; signature not yet recorded.");
     printNextCommands([
-      `# Paste the FULL Technical Refinement Block from ${GOV_ROOT_REPO_REL}/refinements/${wpId}.md in chat (verbatim; no summary).`,
+      `# Paste the FULL Technical Refinement Block from ${refinementPath.replace(/\\/g, "/")} in chat (verbatim; no summary).`,
       `# Ensure refinement METADATA contains: - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT ${wpId}`,
       `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
     ]);
@@ -541,6 +541,10 @@ function main() {
   const syncState = preparedWorktreeSyncState(wpId, lastPrepare, repoRoot);
   const packetText = fs.readFileSync(packetAbsPath, "utf8");
   const workflowLane = parseSingleField(packetText, "WORKFLOW_LANE");
+  const packetFormatVersion = parseSingleField(packetText, "PACKET_FORMAT_VERSION");
+  const dataContractProfile = parseSingleField(packetText, "DATA_CONTRACT_PROFILE") || "NONE";
+  const coderHandoffRigorProfile = parseSingleField(packetText, "CODER_HANDOFF_RIGOR_PROFILE");
+  const validatorReportProfile = parseSingleField(packetText, "GOVERNED_VALIDATOR_REPORT_PROFILE");
   const tokenLedger = readWpTokenUsageLedger(repoRoot, wpId).ledger;
   const tokenBudget = evaluateWpTokenBudget(tokenLedger);
   if (
@@ -706,6 +710,15 @@ function main() {
     `Resume source: ${inferred.source}`,
     `Current branch: ${gitContext.branch || "<unknown>"}`,
     `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+    ...(packetFormatVersion >= "2026-04-01"
+      ? [`Packet law: format=${packetFormatVersion} | data_contract=${dataContractProfile} | handoff_rigor=${coderHandoffRigorProfile || "<unknown>"} | validator_report=${validatorReportProfile || "<unknown>"}`]
+      : []),
+    ...(packetFormatVersion >= "2026-04-01"
+      ? ['Packet law: coder handoff must include anti-vibe + signed-scope-debt self-audit; validator PASS requires both lists to be exactly "- NONE".']
+      : []),
+    ...(packetFormatVersion >= "2026-04-01" && /^LLM_FIRST_DATA_V1$/i.test(dataContractProfile)
+      ? ['Packet law: active data contract packet - DATA_CONTRACT_MONITORING must stay credible now, and validator closeout later requires concrete DATA_CONTRACT_PROOF plus DATA_CONTRACT_GAPS.']
+      : []),
     ...(relayEscalation?.applicable && relayEscalation.status === "WATCH"
       ? [relayEscalation.summary]
       : []),

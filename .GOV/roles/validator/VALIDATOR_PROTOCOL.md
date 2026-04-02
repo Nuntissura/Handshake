@@ -179,7 +179,7 @@ Minimum verification for governance-only changes: `just gov-check`.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, those checkpoint commands are invalid; do not invoke or require them. If they are attempted, treat that as a `WORKFLOW_INVALIDITY` condition rather than a missing prerequisite.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` after signature/prepare, do not ask the Operator for routine approval, "proceed", or checkpoint actions. If a real blocker exists, route it back to the Orchestrator and name exactly one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`.
 - If the Operator has to restate that rule mid-run, do not continue as if nothing happened; the Orchestrator must record `just wp-operator-rule-restatement ...`, and the lane is reset-required until fresh direction is issued.
-- Refinement completeness (HARD): If the WP requires a non-trivial technical approach choice (new primitives/techniques, new dependencies, security-sensitive patterns, or UI-visible behavior), the Validator MUST confirm a `LANDSCAPE_SCAN` exists in `.GOV/refinements/WP-{ID}.md` (or was pasted in-chat) with ADOPT/ADAPT/REJECT decisions. Missing scan = FAIL unless the Operator explicitly waives it for the WP. For cross-cutting WPs, also confirm `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` exist and any required Spec Appendix 12 (index/matrices) updates are either in-scope or tracked as explicit stubs.
+- Refinement completeness (HARD): If the WP requires a non-trivial technical approach choice (new primitives/techniques, new dependencies, security-sensitive patterns, or UI-visible behavior), the Validator MUST confirm a `LANDSCAPE_SCAN` exists in the official refinement path for the WP (current: `.GOV/task_packets/WP-{ID}/refinement.md`; legacy compatibility: `.GOV/refinements/WP-{ID}.md`) or was pasted in-chat, with ADOPT/ADAPT/REJECT decisions. Missing scan = FAIL unless the Operator explicitly waives it for the WP. For cross-cutting WPs, also confirm `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` exist and any required Spec Appendix 12 (index/matrices) updates are either in-scope or tracked as explicit stubs.
 - [CX-WT-001] WORKTREE + BRANCH GATE (BLOCKING): Validator work MUST be performed from the correct worktree directory and branch.
   - Source of truth: `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
   - Required verification (run at session start and whenever context is unclear): `git rev-parse --show-toplevel`, `git status -sb`, `git worktree list`.
@@ -283,7 +283,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
 - `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`
-- `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`
+- `.GOV/task_packets/WP-*/packet.md` or legacy `.GOV/task_packets/WP-*.md`
 - `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json` (when present)
 
 Resume rule (hard, anti-babysit):
@@ -408,7 +408,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - The Task Board update MUST be carried in the same WP branch closure flow as the PASS report append / packet `**Status:** Done` update, so merge truth stays `[MERGE_PENDING]` until local `main` actually contains the approved closure commit.
 - If the WP packet says `Done`/`PASS` but the Task Board still shows `READY_FOR_DEV` or `IN_PROGRESS`, closure is incomplete and the Validator MUST fix the Task Board before merge.
 - Activation-state reconciliation is part of PASS closure, not an optional cleanup:
-  - If `.GOV/task_packets/{WP_ID}.md` or `.GOV/task_packets/{WP_ID}/packet.md` is an official packet, `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` MUST point the Base WP to that official packet path, not a stub path.
+  - If `.GOV/task_packets/{WP_ID}/packet.md` or legacy `.GOV/task_packets/{WP_ID}.md` is an official packet, `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` MUST point the Base WP to that official packet path, not a stub path.
   - `.GOV/roles_shared/records/TASK_BOARD.md` MUST NOT keep that Active Packet under `## Stub Backlog (Not Activated)`.
   - `.GOV/roles_shared/records/BUILD_ORDER.md` MUST be regenerated from the reconciled Task Board + traceability state via `just build-order-sync`.
 - Required final verification before merge/push of `main`: `just gov-check`
@@ -777,7 +777,7 @@ State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.
    - set work packet `**Status:** Done`
    - update `.GOV/roles_shared/records/TASK_BOARD.md` to `## Done` / `[MERGE_PENDING]` before merge, then `[VALIDATED]` only after main containment is verified
    - sync `.GOV/roles_shared/records/BUILD_ORDER.md` via `just build-order-sync`
-3. Validator appends the VALIDATION REPORT to the active official packet path (`.GOV/task_packets/{WP_ID}.md` or `.GOV/task_packets/{WP_ID}/packet.md`) (APPEND-ONLY per [CX-WP-001]).
+3. Validator appends the VALIDATION REPORT to the active official packet path (current: `.GOV/task_packets/{WP_ID}/packet.md`; legacy: `.GOV/task_packets/{WP_ID}.md`) (APPEND-ONLY per [CX-WP-001]).
 4. Validator runs: `just validator-gate-append {WP_ID} {PASS|FAIL|ABANDONED}`
 5. Validator does **not** paste the full report to chat yet.
 
@@ -893,7 +893,7 @@ Validation Claims (do not collapse into a single PASS):
 - VALIDATOR_RISK_TIER: LOW | MEDIUM | HIGH
 
 Scope Inputs:
-- Task Packet: .GOV/task_packets/{WP_ID}/packet.md (or legacy `.GOV/task_packets/{WP_ID}.md`) (status: {status})
+- Task Packet: `.GOV/task_packets/{WP_ID}/packet.md` (or legacy `.GOV/task_packets/{WP_ID}.md`) (status: {status})
 - Spec: {spec version/anchors}
 
 Files Checked:
@@ -974,7 +974,7 @@ Split-Verdict Rules:
 - If the environment blocked full proof, record that in `ENVIRONMENT_VERDICT` instead of narrating an unconditional PASS.
  
 Work Packet Update (APPEND-ONLY):
-- [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL/ABANDONED) MUST be APPENDED to the end of the active official packet file (`.GOV/task_packets/{WP_ID}.md` or `.GOV/task_packets/{WP_ID}/packet.md`). OVERWRITING IS FORBIDDEN.
+- [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL/ABANDONED) MUST be APPENDED to the end of the active official packet file (current: `.GOV/task_packets/{WP_ID}/packet.md`; legacy: `.GOV/task_packets/{WP_ID}.md`). OVERWRITING IS FORBIDDEN.
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
 - STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL/ABANDONED using the template below, but only after `verdict: PASS` may the Validator set work packet `**Status:** Done`, move TASK_BOARD to Done/Merge Pending, and sync BUILD_ORDER (`just build-order-sync`). Promote to `Validated (PASS)` / `[VALIDATED]` only after main containment is real and recorded. **DO NOT OVERWRITE User Context or previous history [CX-654].**
 - For non-PASS governed verdicts or `DISPOSITION=OUTDATED_ONLY|ABANDONED`, append the report but do not perform normal Done/Validated PASS closure updates on work packet/TASK_BOARD/BUILD_ORDER unless the governed lane explicitly records the non-PASS terminal closure path.

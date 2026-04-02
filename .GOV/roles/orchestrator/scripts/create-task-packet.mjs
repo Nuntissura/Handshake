@@ -33,7 +33,8 @@ import {
   formatSemanticProofAssetsSection,
 } from '../../../roles_shared/scripts/lib/semantic-proof-lib.mjs';
 import {
-  deriveDataContractProfileFromRefinement,
+  deriveDataContractDecisionFromRefinement,
+  formatDataContractDecisionSection,
   formatDataContractMonitoringSection,
 } from '../../../roles_shared/scripts/lib/data-contract-lib.mjs';
 import {
@@ -809,6 +810,12 @@ template = replaceSingleField(template, 'DATA_CONTRACT_PROFILE', 'NONE');
 let touchedFileBudget = '1';
 let broadToolAllowlist = 'NONE';
 let dataContractProfile = 'NONE';
+const defaultDataContractDecision = deriveDataContractDecisionFromRefinement({
+  refinementData,
+  refinementText: fs.readFileSync(refinementPath, 'utf8'),
+  inScopePaths: [],
+});
+template = replaceSection(template, 'DATA_CONTRACT_DECISION', formatDataContractDecisionSection(defaultDataContractDecision));
 template = replaceSection(template, 'DATA_CONTRACT_MONITORING', formatDataContractMonitoringSection({
   profile: dataContractProfile,
   inScopePaths: [],
@@ -871,10 +878,12 @@ if (isHydratedProfile) {
     doneMeans: hydration.doneMeans,
     specAnchors: refinementData.specAnchors,
   });
-  dataContractProfile = deriveDataContractProfileFromRefinement({
+  const dataContractDecision = deriveDataContractDecisionFromRefinement({
     refinementData,
+    inScopePaths: hydration.inScopePaths || [],
     refinementText: fs.readFileSync(refinementPath, 'utf8'),
   });
+  dataContractProfile = dataContractDecision.profile;
 
   template = replaceSingleField(template, 'CLAUSE_CLOSURE_MONITOR_PROFILE', 'CLAUSE_MONITOR_V1');
   template = replaceSingleField(template, 'SEMANTIC_PROOF_PROFILE', 'DIFF_SCOPED_SEMANTIC_V1');
@@ -883,6 +892,7 @@ if (isHydratedProfile) {
   template = replaceSection(template, 'SPEC_DEBT_STATUS', formatSpecDebtStatusSection());
   template = replaceSection(template, 'SHARED_SURFACE_MONITORING', formatSharedSurfaceMonitoringSection(sharedSurfaceMonitoring));
   template = replaceSection(template, 'SEMANTIC_PROOF_ASSETS', formatSemanticProofAssetsSection(semanticProofAssets));
+  template = replaceSection(template, 'DATA_CONTRACT_DECISION', formatDataContractDecisionSection(dataContractDecision));
   template = replaceSection(template, 'DATA_CONTRACT_MONITORING', formatDataContractMonitoringSection({
     profile: dataContractProfile,
     inScopePaths: hydration.inScopePaths || [],
@@ -1249,11 +1259,32 @@ try {
 {
   const isRevision = baseWpId !== WP_ID;
   const syncState = preparedWorktreeSyncState(WP_ID, prepareGate, REPO_ROOT);
+  const packetLawLines = [];
+  if (PACKET_FORMAT_VERSION >= '2026-04-01') {
+    packetLawLines.push(
+      `LAW_BUNDLE: PACKET_FORMAT_VERSION=${PACKET_FORMAT_VERSION} | DATA_CONTRACT_PROFILE=${dataContractProfile} | DATA_CONTRACT_DECISION=${parseSingleField(template, 'DECISION') || 'UNSET'} | CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2 | GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`,
+    );
+    packetLawLines.push(
+      'LAW_BUNDLE: coder handoff now requires anti-vibe + signed-scope-debt self-audit fields; validator PASS requires those lists to be exactly "- NONE".',
+    );
+    if (dataContractProfile === 'LLM_FIRST_DATA_V1') {
+      packetLawLines.push(
+        'LAW_BUNDLE: active data contract packet - keep DATA_CONTRACT_MONITORING honest now, and expect concrete DATA_CONTRACT_PROOF plus DATA_CONTRACT_GAPS at validator closeout.',
+      );
+    }
+  }
 
   const nextCommands = [
     `cat ${filePath.replace(/\\/g, '/')}`,
     `just task-board-set ${WP_ID} READY_FOR_DEV`,
   ];
+  if (PACKET_FORMAT_VERSION >= '2026-04-01') {
+    nextCommands.splice(1, 0, `# Review packet law bundle: format=${PACKET_FORMAT_VERSION}, data_contract=${dataContractProfile}, coder_handoff_rigor=RUBRIC_SELF_AUDIT_V2, validator_report=SPLIT_DIFF_SCOPED_RIGOR_V3.`);
+    nextCommands.splice(2, 0, '# On this packet family, shallow handoff is illegal: coder must supply anti-vibe + signed-scope-debt self-audit, and validator PASS requires both lists to be exactly "- NONE".');
+    if (dataContractProfile === 'LLM_FIRST_DATA_V1') {
+      nextCommands.splice(3, 0, '# Active data contract: confirm DATA_CONTRACT_MONITORING is credible before launch; validator closeout later requires concrete DATA_CONTRACT_PROOF and DATA_CONTRACT_GAPS.');
+    }
+  }
   if (!isHydratedProfile) {
     nextCommands.splice(1, 0, '# Fill placeholders: UI_UX_APPLICABLE, UI_UX_VERDICT, STUB_WP_IDS, SCOPE, RISK_TIER, TEST_PLAN, DONE_MEANS, BOOTSTRAP, SPEC_ANCHOR.');
   }
@@ -1276,6 +1307,7 @@ try {
       gateOutputLines: [
         `OK: Work packet created: ${filePath.replace(/\\/g, '/')}`,
         `OK: WP communication folder ready: ${wpCommunicationPaths.dir}`,
+        ...packetLawLines,
         ...syncState.issues.map((issue) => `SYNC_REQUIRED: ${issue}`),
       ],
       nextCommands,
@@ -1302,6 +1334,7 @@ try {
       gateOutputLines: [
         `OK: Work packet created: ${filePath.replace(/\\/g, '/')}`,
         `OK: WP communication folder ready: ${wpCommunicationPaths.dir}`,
+        ...packetLawLines,
       ],
       nextCommands,
     });

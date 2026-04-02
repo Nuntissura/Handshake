@@ -50,3 +50,15 @@ Operational shim ownership lives in `.GOV/roles_shared/records/COMPATIBILITY_SHI
 - DELETION_CONDITION: `all active validator tooling reads per-WP gate files only and the old shared file remains historical reference material only`
 - SUNSET_TRIGGER: `all active validator tooling reads per-WP gate files only and no live authority surface requires the legacy archive path outside explicitly marked reference material`
 - REMOVAL_ACTION: `legacy root archive removed; preserved historical copy at .GOV/reference/legacy/validator/VALIDATOR_GATES.json and removed active workflow dependencies on the old root path`
+
+## ENTRY
+- LEGACY_SURFACE: `PACKET_FORMAT_VERSION < 2026-04-01 packet family`
+- STATUS: `ACTIVE_COMPAT`
+- CANONICAL_REPLACEMENT: `PACKET_FORMAT_VERSION >= 2026-04-01 packet family with explicit DATA_CONTRACT_DECISION + anti-vibe zero-debt law`
+- OWNER: `ORCHESTRATOR`
+- NEW_DEPENDENCIES_ALLOWED: `NO`
+- WHY_THIS_EXISTS: `older packets predate the explicit data-contract activation/waiver decision and the stricter anti-vibe/data-contract closure bundle, so live governance still needs grandfathered checks while those packets remain open or historically referenced`
+- SUPERSEDED_BY: `task packet template + task-packet-claim-check + validator closeout checks that require DATA_CONTRACT_DECISION and the 2026-04-01 law bundle explicitly`
+- DELETION_CONDITION: `no active or review-reopen packet still relies on PACKET_FORMAT_VERSION < 2026-04-01 semantics, or an approved migration path exists to rewrite those packets into the newer family without corrupting audit history`
+- SUNSET_TRIGGER: `all live packets are created or migrated onto the 2026-04-01+ family and claim/validator checks no longer need grandfather branches`
+- REMOVAL_ACTION: `remove grandfather compatibility branches from packet claim and validator closeout checks once the older packet family is no longer live`

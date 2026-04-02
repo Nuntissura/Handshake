@@ -725,3 +725,162 @@
   - `.GOV/roles_shared/scripts/session/session-policy.mjs`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: new packets (`PACKET_FORMAT_VERSION >= 2026-04-01`) can declare `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, packet creation and claim-time checks now require an authoritative data-contract monitoring block, validator closure now requires explicit `DATA_CONTRACT_PROOF` and `DATA_CONTRACT_GAPS` for active data-contract packets, coder handoffs on the new packet format now include anti-vibe, signed-scope-debt, and data-contract self-check fields, and governed RIGOR_V3 PASS law now rejects unresolved anti-vibe findings or signed-scope debt on the new packet format instead of leaving those concerns as prose-only review style
+
+### 2026.04.01.13 / GOV-CHANGE-20260401-13
+
+- STATUS: APPLIED
+- SUMMARY: captured `roles_shared` follow-on gaps after the new packet-law hardening so explicit data-contract activation, shared-doc alignment, and end-to-end regression coverage are tracked as concrete governance work
+- CHANGE_TYPE: POST_HARDENING_FOLLOW_ON_CAPTURE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-52`
+  - `RGF-53`
+  - `RGF-54`
+- OUTCOME: the governance board now tracks three `roles_shared` follow-ons that were left implicit after `RGF-50` and `RGF-51`: making data-contract activation explicit instead of keyword-inferred, aligning shared docs/operator-facing command surfaces with the new packet law, and adding an end-to-end regression plus explicit migration policy for older packet families
+
+### 2026.04.01.14 / GOV-CHANGE-20260401-14
+
+- STATUS: APPLIED
+- SUMMARY: captured the next orchestrator/shared follow-on after spotting stale legacy refinement-path guidance in operator-facing next-command surfaces and shared docs
+- CHANGE_TYPE: PATH_TRUTH_ALIGNMENT_FOLLOW_ON_CAPTURE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-55`
+- OUTCOME: the governance board now tracks a dedicated path-truth alignment item for the post-layout-migration drift where orchestrator/operator/shared surfaces still hard-code the legacy flat `.GOV/refinements/WP-{ID}.md` path instead of resolving the current co-located packet/refinement layout or using path-neutral wording
+
+### 2026.04.01.15 / GOV-CHANGE-20260401-15
+
+- STATUS: APPLIED
+- SUMMARY: captured the next orchestrator follow-on after confirming that the new `2026-04-01` packet-law bundle is enforced in code but still under-exposed in orchestrator-facing protocol and launch surfaces
+- CHANGE_TYPE: OPERATOR_PACKET_LAW_VISIBILITY_FOLLOW_ON_CAPTURE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-56`
+- OUTCOME: the governance board now tracks an orchestrator-specific visibility item so packet creation, next-command surfaces, and operator-facing protocol stop hiding the active `PACKET_FORMAT_VERSION`, `DATA_CONTRACT_PROFILE`, anti-vibe, signed-scope-debt, and validator-proof obligations that are already enforced later by coder/validator checks
+
+### 2026.04.01.16 / GOV-CHANGE-20260401-16
+
+- STATUS: APPLIED
+- SUMMARY: captured the validator-side path-truth drift after finding a remaining hard-rule reference to the legacy flat refinement path in the validator protocol
+- CHANGE_TYPE: VALIDATOR_PATH_TRUTH_FOLLOW_ON_CAPTURE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-57`
+- OUTCOME: the governance board now tracks the remaining validator path-truth cleanup so refinement-completeness rules stop referencing only `.GOV/refinements/WP-{ID}.md` after the packet family migrated to co-located `task_packets/WP-{ID}/refinement.md`
+
+### 2026.04.01.17 / GOV-CHANGE-20260401-17
+
+- STATUS: APPLIED
+- SUMMARY: captured the coder-side path-truth drift after finding legacy packet-read and refinement-read instructions still embedded in the coder protocol workflow
+- CHANGE_TYPE: CODER_PATH_TRUTH_FOLLOW_ON_CAPTURE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-58`
+- OUTCOME: the governance board now tracks the coder-side path-truth cleanup so pre-work guidance stops telling the coder to use legacy wildcard packet paths or only `.GOV/refinements/WP-{ID}.md` when the official packet family already supports co-located `packet.md` and `refinement.md`
+
+### 2026.04.02.01 / GOV-CHANGE-20260402-01
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-55` by removing stale hard-coded refinement-path wording from orchestrator outputs and aligning the shared path docs with the current folder packet family
+- CHANGE_TYPE: PATH_TRUTH_ALIGNMENT_PATCH
+- DRIVER_EVIDENCE:
+  - `RGF-55`
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/checks/orchestrator_gates.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: operator-facing orchestrator guidance now references the resolved current refinement path instead of hard-coding `.GOV/refinements/WP-{ID}.md`, and the shared protocol/invariant docs now describe the folder packet/refinement layout as current truth while still naming the legacy flat layout explicitly as compatibility-only
+
+### 2026.04.02.02 / GOV-CHANGE-20260402-02
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-57` and `RGF-58` by aligning validator and coder protocol path guidance to the current folder packet family while preserving legacy flat compatibility wording
+- CHANGE_TYPE: ROLE_PROTOCOL_PATH_TRUTH_ALIGNMENT_PATCH
+- DRIVER_EVIDENCE:
+  - `RGF-57`
+  - `RGF-58`
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: validator refinement review now names the official current refinement path instead of only the flat legacy path, coder pre-work guidance now reads the current packet/refinement layout first and treats flat files as explicit compatibility-only paths, and the stale wildcard packet-read examples are removed from coder workflow instructions
+
+### 2026.04.02.03 / GOV-CHANGE-20260402-03
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-53` and `RGF-56` by surfacing the `2026-04-01` packet-law bundle in the shared operator docs and orchestrator packet-create/resume flow
+- CHANGE_TYPE: PACKET_LAW_VISIBILITY_ALIGNMENT_PATCH
+- DRIVER_EVIDENCE:
+  - `RGF-53`
+  - `RGF-56`
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/START_HERE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: shared/operator-facing docs now state that packet creation activates the `2026-04-01` law bundle rather than just scaffolding files, and orchestrator packet-create/resume output now surfaces the active packet format, data-contract posture, handoff/report rigor profile, anti-vibe and signed-scope-debt consequences, and data-contract proof obligations so new governed lanes do not start blind to the checks that will later enforce closure truth
+
+### 2026.04.02.04 / GOV-CHANGE-20260402-04
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-52` and `RGF-54` by making data-contract activation or waiver an explicit packet decision, enforcing it at claim and validator closeout, adding end-to-end regression coverage for the new packet family, and recording the grandfathered legacy packet-family compatibility surface explicitly
+- CHANGE_TYPE: DATA_CONTRACT_DECISION_AND_PACKET_LAW_REGRESSION_PATCH
+- DRIVER_EVIDENCE:
+  - `RGF-52`
+  - `RGF-54`
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/data-contract-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/roles_shared/checks/task-packet-claim-check.mjs`
+  - `.GOV/roles/validator/checks/validator-report-structure-check.mjs`
+  - `.GOV/roles/validator/checks/validator-packet-complete.mjs`
+  - `.GOV/roles_shared/tests/data-contract-lib.test.mjs`
+  - `.GOV/roles_shared/tests/new-packet-law-regression.test.mjs`
+  - `.GOV/roles/validator/tests/validator-report-structure-check.test.mjs`
+  - `.GOV/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md`
+  - `.GOV/roles_shared/records/COMPATIBILITY_SHIM_LEDGER.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `PACKET_FORMAT_VERSION >= 2026-04-01` packets now carry an explicit `DATA_CONTRACT_DECISION` that must either activate the LLM-first data contract with reviewable evidence or explicitly waive it as not data-bearing; claim and validator closeout gates reject mismatched or conflicted waivers, regression coverage now proves the active-vs-waived-vs-grandfathered behavior end-to-end, and the older packet family remains explicitly tracked as an `ACTIVE_COMPAT` governance shim instead of an undocumented implicit exception
