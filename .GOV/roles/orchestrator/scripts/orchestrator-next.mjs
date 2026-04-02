@@ -541,6 +541,10 @@ function main() {
   const syncState = preparedWorktreeSyncState(wpId, lastPrepare, repoRoot);
   const packetText = fs.readFileSync(packetAbsPath, "utf8");
   const workflowLane = parseSingleField(packetText, "WORKFLOW_LANE");
+  const packetFormatVersion = parseSingleField(packetText, "PACKET_FORMAT_VERSION");
+  const dataContractProfile = parseSingleField(packetText, "DATA_CONTRACT_PROFILE") || "NONE";
+  const coderHandoffRigorProfile = parseSingleField(packetText, "CODER_HANDOFF_RIGOR_PROFILE");
+  const validatorReportProfile = parseSingleField(packetText, "GOVERNED_VALIDATOR_REPORT_PROFILE");
   const tokenLedger = readWpTokenUsageLedger(repoRoot, wpId).ledger;
   const tokenBudget = evaluateWpTokenBudget(tokenLedger);
   if (
@@ -706,6 +710,15 @@ function main() {
     `Resume source: ${inferred.source}`,
     `Current branch: ${gitContext.branch || "<unknown>"}`,
     `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+    ...(packetFormatVersion >= "2026-04-01"
+      ? [`Packet law: format=${packetFormatVersion} | data_contract=${dataContractProfile} | handoff_rigor=${coderHandoffRigorProfile || "<unknown>"} | validator_report=${validatorReportProfile || "<unknown>"}`]
+      : []),
+    ...(packetFormatVersion >= "2026-04-01"
+      ? ['Packet law: coder handoff must include anti-vibe + signed-scope-debt self-audit; validator PASS requires both lists to be exactly "- NONE".']
+      : []),
+    ...(packetFormatVersion >= "2026-04-01" && /^LLM_FIRST_DATA_V1$/i.test(dataContractProfile)
+      ? ['Packet law: active data contract packet - DATA_CONTRACT_MONITORING must stay credible now, and validator closeout later requires concrete DATA_CONTRACT_PROOF plus DATA_CONTRACT_GAPS.']
+      : []),
     ...(relayEscalation?.applicable && relayEscalation.status === "WATCH"
       ? [relayEscalation.summary]
       : []),

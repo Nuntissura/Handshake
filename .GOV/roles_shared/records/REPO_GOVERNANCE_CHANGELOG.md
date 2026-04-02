@@ -837,3 +837,24 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
 - OUTCOME: validator refinement review now names the official current refinement path instead of only the flat legacy path, coder pre-work guidance now reads the current packet/refinement layout first and treats flat files as explicit compatibility-only paths, and the stale wildcard packet-read examples are removed from coder workflow instructions
+
+### 2026.04.02.03 / GOV-CHANGE-20260402-03
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-53` and `RGF-56` by surfacing the `2026-04-01` packet-law bundle in the shared operator docs and orchestrator packet-create/resume flow
+- CHANGE_TYPE: PACKET_LAW_VISIBILITY_ALIGNMENT_PATCH
+- DRIVER_EVIDENCE:
+  - `RGF-53`
+  - `RGF-56`
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/START_HERE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: shared/operator-facing docs now state that packet creation activates the `2026-04-01` law bundle rather than just scaffolding files, and orchestrator packet-create/resume output now surfaces the active packet format, data-contract posture, handoff/report rigor profile, anti-vibe and signed-scope-debt consequences, and data-contract proof obligations so new governed lanes do not start blind to the checks that will later enforce closure truth

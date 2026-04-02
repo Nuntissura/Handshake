@@ -42,6 +42,14 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 # Orchestrator: Create work packet from template
 just create-task-packet WP-{phase}-{name}
 
+# For PACKET_FORMAT_VERSION >= 2026-04-01, inspect the packet law bundle immediately:
+# DATA_CONTRACT_PROFILE, CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2,
+# and GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3.
+# On this packet family, shallow handoff is illegal: coder must provide anti-vibe
+# + signed-scope-debt self-audit, and validator PASS requires both lists to be exactly "- NONE".
+# If DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1, keep DATA_CONTRACT_MONITORING honest now and
+# expect validator closeout to require concrete DATA_CONTRACT_PROOF plus DATA_CONTRACT_GAPS.
+
 # Orchestrator: Verify packet complete before delegation
 just pre-work WP-{ID}
 

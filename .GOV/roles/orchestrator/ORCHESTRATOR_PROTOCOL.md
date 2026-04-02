@@ -474,6 +474,12 @@ Legacy flat compatibility:
 - If post-signature Operator action is still required on an orchestrator-managed lane, `just orchestrator-next` must print one machine-visible `BLOCKER_CLASS` rather than a freeform approval ask. The allowed post-signature classes are `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, and `ENVIRONMENT_FAILURE`; the legacy repair-only pre-launch recovery class is `LEGACY_SIGNATURE_TUPLE_REPAIR`.
 - Use `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
 - Packets are transcription from the signed refinement plus current workflow metadata, not freehand reinterpretation.
+- For `PACKET_FORMAT_VERSION >= 2026-04-01`, packet creation and resume output must surface the active law bundle, not hide it:
+  - `DATA_CONTRACT_PROFILE` and whether `DATA_CONTRACT_MONITORING` is active
+  - `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`
+  - `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`
+  - the consequence that coder handoff must carry anti-vibe + signed-scope-debt self-audit, and validator PASS cannot coexist with unresolved anti-vibe or signed-scope debt
+  - when `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, the additional consequence that validator closeout later requires concrete `DATA_CONTRACT_PROOF` plus explicit `DATA_CONTRACT_GAPS`
 - `just pre-work WP-{ID}` is the blocking packet-integrity gate before delegation.
 
 ### 3. Delegation and Monitoring
