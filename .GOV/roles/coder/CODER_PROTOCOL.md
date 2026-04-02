@@ -293,7 +293,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
 - `ORCHESTRATOR_GATES.json (in gov_runtime)`
-- `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`
+- `.GOV/task_packets/WP-*/packet.md` or legacy `.GOV/task_packets/WP-*.md`
 
 Noise-control rule:
 - In coder worktrees, `/.GOV/` is a live shared governance junction, not the coder authority surface.
@@ -571,7 +571,7 @@ Complete ALL steps before writing code. If any step fails, STOP and request help
 ### Step 1: Verify work packet Exists âœ‹ STOP
 
 **Check that orchestrator provided:**
-- [ ] work packet path mentioned (e.g., `.GOV/task_packets/WP-*.md` or `.GOV/task_packets/WP-*/packet.md`)
+- [ ] work packet path mentioned (e.g., current `.GOV/task_packets/WP-{ID}/packet.md`; legacy `.GOV/task_packets/WP-{ID}.md`)
 - [ ] WP_ID in handoff message
 - [ ] "Orchestrator checklist complete" confirmation
 - [ ] Packet is an official work packet in `.GOV/task_packets/` (NOT a stub in `.GOV/task_packets/stubs/`)
@@ -580,7 +580,11 @@ Complete ALL steps before writing code. If any step fails, STOP and request help
 
 **Method 1: Check for file**
 ```bash
-ls -la .GOV/task_packets/WP-*.md .GOV/task_packets/WP-*/packet.md
+# Current packet layout
+ls -la .GOV/task_packets/WP-{ID}/packet.md
+
+# Legacy compatibility
+ls -la .GOV/task_packets/WP-{ID}.md
 ```
 
 **Method 2: Check handoff message**
@@ -703,11 +707,15 @@ If my understanding is correct, I'll proceed to Step 2. Otherwise, clarify neede
 ### Step 2: Read work packet âœ‹ STOP
 
 ```bash
-cat .GOV/task_packets/WP-{ID}-*.md
+# Current packet layout
+cat .GOV/task_packets/WP-{ID}/packet.md
+
+# legacy compatibility:
+cat .GOV/task_packets/WP-{ID}.md
 ```
 
 Recommended (Refinement cross-check):
-- Open `.GOV/refinements/WP-{ID}.md` and read `LANDSCAPE_SCAN` (prior art + ADOPT/ADAPT/REJECT decisions) before choosing libraries/architectural patterns.
+- Open the official refinement path for the WP and read `LANDSCAPE_SCAN` (current: `.GOV/task_packets/WP-{ID}/refinement.md`; legacy compatibility: `.GOV/refinements/WP-{ID}.md`) before choosing libraries/architectural patterns.
 - Also review `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` to avoid isolated implementations that miss cross-feature/primitive leverage; if missing/UNKNOWN for a cross-cutting WP, STOP and escalate to the Orchestrator.
 - If the WP requires a non-trivial technical approach choice and there is no `LANDSCAPE_SCAN` recorded: STOP and escalate to the Orchestrator (do not improvise an un-reviewed approach).
 
@@ -1638,10 +1646,14 @@ Now work is done.
 **Commands:**
 ```bash
 # Verify packet exists
-ls .GOV/task_packets/WP-*.md .GOV/task_packets/WP-*/packet.md
+ls .GOV/task_packets/WP-{ID}/packet.md
+# legacy compatibility:
+ls .GOV/task_packets/WP-{ID}.md
 
 # Read packet
-cat .GOV/task_packets/WP-{ID}-*.md
+cat .GOV/task_packets/WP-{ID}/packet.md
+# legacy compatibility:
+cat .GOV/task_packets/WP-{ID}.md
 
 # Run governance/product boundary scan
 just product-scan

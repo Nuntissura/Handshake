@@ -820,3 +820,20 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
 - OUTCOME: operator-facing orchestrator guidance now references the resolved current refinement path instead of hard-coding `.GOV/refinements/WP-{ID}.md`, and the shared protocol/invariant docs now describe the folder packet/refinement layout as current truth while still naming the legacy flat layout explicitly as compatibility-only
+
+### 2026.04.02.02 / GOV-CHANGE-20260402-02
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-57` and `RGF-58` by aligning validator and coder protocol path guidance to the current folder packet family while preserving legacy flat compatibility wording
+- CHANGE_TYPE: ROLE_PROTOCOL_PATH_TRUTH_ALIGNMENT_PATCH
+- DRIVER_EVIDENCE:
+  - `RGF-57`
+  - `RGF-58`
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: validator refinement review now names the official current refinement path instead of only the flat legacy path, coder pre-work guidance now reads the current packet/refinement layout first and treats flat files as explicit compatibility-only paths, and the stale wildcard packet-read examples are removed from coder workflow instructions
