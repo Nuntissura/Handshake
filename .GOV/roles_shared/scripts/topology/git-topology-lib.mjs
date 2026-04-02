@@ -138,6 +138,13 @@ export function dirtyInRepo(repoDir) {
   return runGitInRepo(repoDir, ["status", "--porcelain=v1"]).length > 0;
 }
 
+export function dirtyOutsideGovInRepo(repoDir) {
+  return runGitInRepo(
+    repoDir,
+    ["status", "--porcelain=v1", "--untracked-files=all", "--", ".", ":(exclude).GOV", ":(exclude).GOV/**"],
+  ).length > 0;
+}
+
 export function listLocalBranches(repoDir) {
   const out = runGitInRepo(repoDir, ["for-each-ref", "--format=%(refname:short)", "refs/heads"]);
   return out.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).sort(compareStrings);
