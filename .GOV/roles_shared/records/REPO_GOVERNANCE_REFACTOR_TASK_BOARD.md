@@ -111,6 +111,7 @@
 | RGF-56 | DONE | Orchestrator Packet-Law Visibility for New Packet Families | RGF-50, RGF-51, RGF-53 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/orchestrator/scripts/create-task-packet.mjs`, `roles/orchestrator/scripts/orchestrator-next.mjs`, `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` | packet creation and orchestrator resume output now print the active packet-law bundle (`PACKET_FORMAT_VERSION`, `DATA_CONTRACT_PROFILE`, handoff/report rigor profiles, anti-vibe/signed-scope-debt consequences, and active data-contract proof obligations), and the orchestrator protocol now requires that visibility instead of leaving it implicit |
 | RGF-57 | DONE | Validator Refinement Path Truth Alignment | RGF-55 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/validator/VALIDATOR_PROTOCOL.md` | validator refinement-completeness guidance now points at the official refinement path with current co-located layout first and legacy flat layout explicitly marked as compatibility-only |
 | RGF-58 | DONE | Coder Packet/Refinement Path Truth Alignment | RGF-55 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/coder/CODER_PROTOCOL.md` | coder pre-work and packet-read guidance now use the current co-located packet/refinement layout first, keep legacy flat layout explicit as compatibility-only, and remove the stale wildcard packet-read examples |
+| RGF-59 | DONE | Permanent Worktree Reseed Helper Checked-Out Branch Safety | RGF-43 | `MAINT-20260402-PERMANENT-WORKTREE-RESEED-HELPER` | `roles_shared/scripts/topology/reseed-permanent-worktree-from-main.mjs`, `roles_shared/scripts/topology/git-topology-lib.mjs` | governed reseed of a permanent non-main worktree now succeeds when the target branch is currently checked out, and the post-reseed cleanliness gate ignores expected `.GOV` junction drift while still rejecting non-governance dirt |
 
 ## Refactor Sequence (Historical)
 
@@ -173,6 +174,7 @@
 48. `RGF-56`
 49. `RGF-57`
 50. `RGF-58`
+51. `RGF-59`
 
 ## Explicit Holds
 

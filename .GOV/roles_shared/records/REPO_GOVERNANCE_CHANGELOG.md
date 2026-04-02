@@ -884,3 +884,18 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
 - OUTCOME: `PACKET_FORMAT_VERSION >= 2026-04-01` packets now carry an explicit `DATA_CONTRACT_DECISION` that must either activate the LLM-first data contract with reviewable evidence or explicitly waive it as not data-bearing; claim and validator closeout gates reject mismatched or conflicted waivers, regression coverage now proves the active-vs-waived-vs-grandfathered behavior end-to-end, and the older packet family remains explicitly tracked as an `ACTIVE_COMPAT` governance shim instead of an undocumented implicit exception
+
+### 2026.04.02.05 / GOV-CHANGE-20260402-05
+
+- STATUS: APPLIED
+- SUMMARY: recorded and fixed the permanent-worktree reseed helper bug discovered during the `user_ilja` refresh sequence, where the helper failed on a checked-out target branch and then falsely treated expected `.GOV` junction drift as a dirty-worktree failure
+- CHANGE_TYPE: TOPOLOGY_RESEED_HELPER_MAINTENANCE_CAPTURE
+- DRIVER_EVIDENCE:
+  - `RGF-59`
+  - `MAINT-20260402-PERMANENT-WORKTREE-RESEED-HELPER`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/topology/reseed-permanent-worktree-from-main.mjs`
+  - `.GOV/roles_shared/scripts/topology/git-topology-lib.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `just reseed-permanent-worktree-from-main wt-ilja ...` now updates the checked-out permanent branch safely with `checkout -B` semantics instead of trying to force-move the live branch ref, and the helper's cleanliness gate now checks for non-`.GOV` dirt so expected governance-junction replacement in permanent non-main worktrees does not cause a false failure after a successful reseed
