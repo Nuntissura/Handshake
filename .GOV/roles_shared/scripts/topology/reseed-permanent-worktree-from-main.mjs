@@ -9,7 +9,7 @@ import {
   WORKTREE_SPECS,
   absFromRepo,
   currentBranchInRepo,
-  dirtyInRepo,
+  dirtyOutsideGovInRepo,
   gitCheckoutExists,
   localBranchExists,
   refExists,
@@ -155,10 +155,10 @@ function main() {
     fail("Target worktree is missing or is not a git checkout", [`path=${absDir}`]);
   }
 
-  if (dirtyInRepo(absDir)) {
+  if (dirtyOutsideGovInRepo(absDir)) {
     fail("Refusing to reseed a dirty worktree", [
       `path=${absDir}`,
-      "Commit, stash, or recover the changes first.",
+      "Commit, stash, or recover the non-.GOV changes first.",
     ]);
   }
 
@@ -204,16 +204,15 @@ function main() {
   console.log(
     `[RESEED_PERMANENT_WORKTREE_FROM_MAIN] reseeding ${spec.local_branch} from local main in ${absDir}`,
   );
-  runGitInherit(absDir, ["branch", "-f", spec.local_branch, "main"]);
-  runGitInherit(absDir, ["checkout", spec.local_branch]);
+  runGitInherit(absDir, ["checkout", "-B", spec.local_branch, "main"]);
   runGitInherit(absDir, ["branch", "--set-upstream-to", spec.remote_branch, spec.local_branch]);
 
   ensureGovJunction(absDir);
 
-  if (dirtyInRepo(absDir)) {
+  if (dirtyOutsideGovInRepo(absDir)) {
     fail("Worktree is dirty after reseed", [
       `path=${absDir}`,
-      "Expected a clean worktree after branch reset and .GOV junction repair.",
+      "Expected a clean non-.GOV worktree after branch reset and .GOV junction repair.",
     ]);
   }
 
