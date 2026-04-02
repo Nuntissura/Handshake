@@ -1,5 +1,6 @@
 export const DATA_CONTRACT_PACKET_MIN_VERSION = "2026-04-01";
 export const DATA_CONTRACT_PROFILE_VALUES = ["NONE", "LLM_FIRST_DATA_V1"];
+export const DATA_CONTRACT_DECISION_VALUES = ["ACTIVE_REQUIRED", "WAIVED_NOT_DATA_BEARING"];
 export const DATA_CONTRACT_SQL_POSTURE_VALUES = [
   "SQLITE_NOW_POSTGRES_READY",
   "BACKEND_NEUTRAL",
@@ -72,6 +73,52 @@ function hasOnlyNoneList(items = []) {
   return items.length === 1 && String(items[0] || "").trim().toUpperCase() === "NONE";
 }
 
+function uniqueEvidence(items = []) {
+  return Array.from(new Set(
+    (items || [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean),
+  ));
+}
+
+function normalizeRepoLikePath(value) {
+  return String(value || "").trim().replace(/\\/g, "/").replace(/^\.?\//, "");
+}
+
+function collectDataContractScopeEvidence(inScopePaths = []) {
+  const evidence = [];
+  for (const rawPath of Array.isArray(inScopePaths) ? inScopePaths : []) {
+    const normalized = normalizeRepoLikePath(rawPath);
+    if (!normalized) continue;
+    if (/(^|\/)migrations?(\/|$)|\.sql$/i.test(normalized)) {
+      evidence.push(`IN_SCOPE_PATH: ${normalized} (migration/sql surface)`);
+      continue;
+    }
+    if (!/^src\/backend\//i.test(normalized)) continue;
+    if (/(^|\/)(storage|locus)(\/|$)|role_mailbox|schema|models?\.rs$|types?\.rs$|registry|payload|dto|serialize|deserial/i.test(normalized)) {
+      evidence.push(`IN_SCOPE_PATH: ${normalized} (backend data surface)`);
+    }
+  }
+  return uniqueEvidence(evidence);
+}
+
+function collectStructuredDataContractEvidence(refinementData = null) {
+  const evidence = [];
+  const structuredSignals = [
+    ...(Array.isArray(refinementData?.pillarsTouched) ? refinementData.pillarsTouched.map((value) => `PILLARS_TOUCHED: ${value}`) : []),
+    ...(Array.isArray(refinementData?.pillarDecompositionRows) ? refinementData.pillarDecompositionRows.map((value) => `PILLAR_DECOMPOSITION: ${value}`) : []),
+    ...(Array.isArray(refinementData?.executionRuntimeAlignmentRows) ? refinementData.executionRuntimeAlignmentRows.map((value) => `EXECUTION_RUNTIME_ALIGNMENT: ${value}`) : []),
+    ...(Array.isArray(refinementData?.forceMultiplierResolutions) ? refinementData.forceMultiplierResolutions.map((value) => `FORCE_MULTIPLIER_EXPANSION: ${value}`) : []),
+    ...(Array.isArray(refinementData?.codeRealitySummary) ? refinementData.codeRealitySummary.map((value) => `CODE_REALITY_EVIDENCE: ${value}`) : []),
+  ];
+  for (const signal of structuredSignals) {
+    if (/(LLM[- ]friendly data|LLM[- ]first|SQL to PostgreSQL shift readiness|SQLite-now\s*\/\s*PostgreSQL-ready|postgresql-ready|Loom|Locus|persist(?:ed|ence)?|schema|machine-readable|provenance|stable ids?|relations?)/i.test(signal)) {
+      evidence.push(signal);
+    }
+  }
+  return uniqueEvidence(evidence);
+}
+
 export function packetUsesDataContractProfile(packetFormatVersion) {
   const version = String(packetFormatVersion || "").trim();
   return version >= DATA_CONTRACT_PACKET_MIN_VERSION;
@@ -83,6 +130,16 @@ export function normalizeDataContractProfile(value) {
 
 export function parseDataContractProfile(packetContent = "") {
   return normalizeDataContractProfile(parseSingleField(packetContent, "DATA_CONTRACT_PROFILE"));
+}
+
+export function parseDataContractDecision(packetContent = "") {
+  const raw = extractSectionAfterHeading(packetContent, "DATA_CONTRACT_DECISION");
+  return {
+    raw,
+    decision: normalizeValue(parseSingleField(raw, "DECISION"), DATA_CONTRACT_DECISION_VALUES),
+    reason: parseSingleField(raw, "REASON"),
+    evidence: extractListItemsAfterLabel(raw, "EVIDENCE"),
+  };
 }
 
 export function parseDataContractMonitoring(packetContent = "") {
@@ -143,6 +200,43 @@ export function validateDataContractSection(packetContent = "", { packetPath = "
   return { profile, monitoring, errors };
 }
 
+export function validateDataContractDecisionSection(packetContent = "", {
+  packetPath = "",
+  inScopePaths = [],
+} = {}) {
+  const profile = parseDataContractProfile(packetContent);
+  const decision = parseDataContractDecision(packetContent);
+  const errors = [];
+
+  if (!String(decision.raw || "").trim()) {
+    errors.push(`${packetPath || "<packet>"}: DATA_CONTRACT_DECISION section missing for PACKET_FORMAT_VERSION >= 2026-04-01`);
+    return { profile, decision, errors };
+  }
+  if (!decision.decision) {
+    errors.push(`${packetPath || "<packet>"}: DATA_CONTRACT_DECISION DECISION must be ${DATA_CONTRACT_DECISION_VALUES.join(" | ")}`);
+  }
+  if (isPlaceholder(decision.reason)) {
+    errors.push(`${packetPath || "<packet>"}: DATA_CONTRACT_DECISION REASON must be explicit for PACKET_FORMAT_VERSION >= 2026-04-01`);
+  }
+  if (decision.evidence.length === 0 || hasOnlyNoneList(decision.evidence)) {
+    errors.push(`${packetPath || "<packet>"}: DATA_CONTRACT_DECISION EVIDENCE must list reviewable justification for the activation or waiver`);
+  }
+
+  if (decision.decision === "ACTIVE_REQUIRED" && profile !== "LLM_FIRST_DATA_V1") {
+    errors.push(`${packetPath || "<packet>"}: DATA_CONTRACT_DECISION=ACTIVE_REQUIRED requires DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`);
+  }
+  if (decision.decision === "WAIVED_NOT_DATA_BEARING" && profile !== "NONE") {
+    errors.push(`${packetPath || "<packet>"}: DATA_CONTRACT_DECISION=WAIVED_NOT_DATA_BEARING requires DATA_CONTRACT_PROFILE=NONE`);
+  }
+
+  const scopeEvidence = collectDataContractScopeEvidence(inScopePaths);
+  if (decision.decision === "WAIVED_NOT_DATA_BEARING" && scopeEvidence.length > 0) {
+    errors.push(`${packetPath || "<packet>"}: DATA_CONTRACT_DECISION=WAIVED_NOT_DATA_BEARING conflicts with data-bearing IN_SCOPE_PATHS (${scopeEvidence.join("; ")})`);
+  }
+
+  return { profile, decision, errors };
+}
+
 export function formatDataContractMonitoringSection({ profile = "NONE", inScopePaths = [] } = {}) {
   const normalizedProfile = normalizeDataContractProfile(profile) || "NONE";
   const primaryDataSurfaces = Array.isArray(inScopePaths)
@@ -187,21 +281,66 @@ ${formattedSurfaces}
 `;
 }
 
-export function deriveDataContractProfileFromRefinement({
+export function formatDataContractDecisionSection({
+  decision = "WAIVED_NOT_DATA_BEARING",
+  reason = "No concrete data-bearing or structure-bearing surface was identified in current packet scope.",
+  evidence = [],
+} = {}) {
+  const normalizedDecision = normalizeValue(decision, DATA_CONTRACT_DECISION_VALUES) || "WAIVED_NOT_DATA_BEARING";
+  const normalizedEvidence = uniqueEvidence(evidence);
+  const formattedEvidence = normalizedEvidence.length > 0
+    ? normalizedEvidence.map((entry) => `  - ${entry}`).join("\n")
+    : "  - NONE";
+
+  return `
+## DATA_CONTRACT_DECISION (AUTHORITATIVE SNAPSHOT; MUTABLE)
+- DECISION: ${normalizedDecision}
+- REASON: ${reason}
+- EVIDENCE:
+${formattedEvidence}
+`;
+}
+
+export function deriveDataContractDecisionFromRefinement({
   refinementData = null,
   refinementText = "",
+  inScopePaths = [],
 } = {}) {
-  const signals = [
-    ...(Array.isArray(refinementData?.pillarsTouched) ? refinementData.pillarsTouched : []),
-    ...(Array.isArray(refinementData?.pillarDecompositionRows) ? refinementData.pillarDecompositionRows : []),
-    ...(Array.isArray(refinementData?.executionRuntimeAlignmentRows) ? refinementData.executionRuntimeAlignmentRows : []),
-    ...(Array.isArray(refinementData?.forceMultiplierResolutions) ? refinementData.forceMultiplierResolutions : []),
-    ...(Array.isArray(refinementData?.codeRealitySummary) ? refinementData.codeRealitySummary : []),
-    String(refinementText || ""),
-  ].join("\n");
+  const scopeEvidence = collectDataContractScopeEvidence(inScopePaths);
+  const structuredEvidence = collectStructuredDataContractEvidence(refinementData);
+  const evidence = uniqueEvidence([...scopeEvidence, ...structuredEvidence]);
 
-  if (/(LLM[- ]friendly data|LLM[- ]first|SQL to PostgreSQL shift readiness|SQLite-now\s*\/\s*PostgreSQL-ready|postgresql-ready|Loom)/i.test(signals)) {
-    return "LLM_FIRST_DATA_V1";
+  if (evidence.length > 0) {
+    return {
+      profile: "LLM_FIRST_DATA_V1",
+      decision: "ACTIVE_REQUIRED",
+      reason: "Current packet scope includes concrete persisted, emitted, or Loom-facing data surfaces, so the data contract is explicitly active.",
+      evidence,
+    };
   }
-  return "NONE";
+
+  return {
+    profile: "NONE",
+    decision: "WAIVED_NOT_DATA_BEARING",
+    reason: "No concrete data-bearing or structure-bearing surface was identified in current packet scope, so the data contract is explicitly waived unless scope changes later.",
+    evidence: uniqueEvidence([
+      Array.isArray(inScopePaths) && inScopePaths.length > 0
+        ? `IN_SCOPE_PATHS reviewed: ${inScopePaths.map((entry) => normalizeRepoLikePath(entry)).filter(Boolean).join(", ")}`
+        : "IN_SCOPE_PATHS reviewed: NONE",
+      "No structured refinement rows explicitly marked LLM-friendly data, SQL-to-PostgreSQL readiness, Loom-facing data, or persisted/emitted schema surfaces.",
+      refinementText ? "Refinement text was reviewed, but no packet-scope data-contract trigger was elevated without structured or scope evidence." : "",
+    ]),
+  };
+}
+
+export function deriveDataContractProfileFromRefinement({
+  refinementData = null,
+  inScopePaths = [],
+  refinementText = "",
+} = {}) {
+  return deriveDataContractDecisionFromRefinement({
+    refinementData,
+    inScopePaths,
+    refinementText,
+  }).profile;
 }

@@ -858,3 +858,29 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
 - OUTCOME: shared/operator-facing docs now state that packet creation activates the `2026-04-01` law bundle rather than just scaffolding files, and orchestrator packet-create/resume output now surfaces the active packet format, data-contract posture, handoff/report rigor profile, anti-vibe and signed-scope-debt consequences, and data-contract proof obligations so new governed lanes do not start blind to the checks that will later enforce closure truth
+
+### 2026.04.02.04 / GOV-CHANGE-20260402-04
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-52` and `RGF-54` by making data-contract activation or waiver an explicit packet decision, enforcing it at claim and validator closeout, adding end-to-end regression coverage for the new packet family, and recording the grandfathered legacy packet-family compatibility surface explicitly
+- CHANGE_TYPE: DATA_CONTRACT_DECISION_AND_PACKET_LAW_REGRESSION_PATCH
+- DRIVER_EVIDENCE:
+  - `RGF-52`
+  - `RGF-54`
+  - `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW`
+  - `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/data-contract-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/roles_shared/checks/task-packet-claim-check.mjs`
+  - `.GOV/roles/validator/checks/validator-report-structure-check.mjs`
+  - `.GOV/roles/validator/checks/validator-packet-complete.mjs`
+  - `.GOV/roles_shared/tests/data-contract-lib.test.mjs`
+  - `.GOV/roles_shared/tests/new-packet-law-regression.test.mjs`
+  - `.GOV/roles/validator/tests/validator-report-structure-check.test.mjs`
+  - `.GOV/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md`
+  - `.GOV/roles_shared/records/COMPATIBILITY_SHIM_LEDGER.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `PACKET_FORMAT_VERSION >= 2026-04-01` packets now carry an explicit `DATA_CONTRACT_DECISION` that must either activate the LLM-first data contract with reviewable evidence or explicitly waive it as not data-bearing; claim and validator closeout gates reject mismatched or conflicted waivers, regression coverage now proves the active-vs-waived-vs-grandfathered behavior end-to-end, and the older packet family remains explicitly tracked as an `ACTIVE_COMPAT` governance shim instead of an undocumented implicit exception

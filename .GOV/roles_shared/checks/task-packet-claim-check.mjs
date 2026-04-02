@@ -21,6 +21,7 @@ import {
 } from "../scripts/lib/signed-scope-compatibility-lib.mjs";
 import {
   packetUsesDataContractProfile,
+  validateDataContractDecisionSection,
   validateDataContractSection,
 } from "../scripts/lib/data-contract-lib.mjs";
 
@@ -152,6 +153,11 @@ function checkPacket(filePath) {
     if (isPlaceholder(dataContractProfile)) {
       errors.push(`${rel}: DATA_CONTRACT_PROFILE is required for PACKET_FORMAT_VERSION >= 2026-04-01`);
     } else {
+      const dataContractDecisionValidation = validateDataContractDecisionSection(text, {
+        packetPath: rel,
+        inScopePaths,
+      });
+      errors.push(...dataContractDecisionValidation.errors);
       const dataContractValidation = validateDataContractSection(text, { packetPath: rel });
       errors.push(...dataContractValidation.errors);
     }

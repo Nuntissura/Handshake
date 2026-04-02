@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  deriveDataContractDecisionFromRefinement,
   deriveDataContractProfileFromRefinement,
+  formatDataContractDecisionSection,
   formatDataContractMonitoringSection,
   packetUsesDataContractProfile,
+  validateDataContractDecisionSection,
   validateDataContractSection,
 } from "../scripts/lib/data-contract-lib.mjs";
 
@@ -20,6 +23,15 @@ test("deriveDataContractProfileFromRefinement detects SQL/LLM/Loom data posture 
     },
   });
   assert.equal(profile, "LLM_FIRST_DATA_V1");
+});
+
+test("deriveDataContractDecisionFromRefinement activates on concrete backend data scope", () => {
+  const decision = deriveDataContractDecisionFromRefinement({
+    inScopePaths: ["src/backend/handshake_core/src/locus/types.rs"],
+  });
+  assert.equal(decision.profile, "LLM_FIRST_DATA_V1");
+  assert.equal(decision.decision, "ACTIVE_REQUIRED");
+  assert.match(decision.evidence.join("\n"), /locus\/types\.rs/i);
 });
 
 test("validateDataContractSection accepts a fully declared active data contract", () => {
@@ -57,4 +69,23 @@ test("validateDataContractSection rejects missing concrete surfaces for active d
 
   const validation = validateDataContractSection(packet, { packetPath: "packet.md" });
   assert.match(validation.errors.join("\n"), /PRIMARY_DATA_SURFACES/);
+});
+
+test("validateDataContractDecisionSection rejects waived decision when scope is concretely data-bearing", () => {
+  const packet = [
+    "- PACKET_FORMAT_VERSION: 2026-04-01",
+    "- DATA_CONTRACT_PROFILE: NONE",
+    "",
+    formatDataContractDecisionSection({
+      decision: "WAIVED_NOT_DATA_BEARING",
+      reason: "No governed data surface was believed to be in scope.",
+      evidence: ["IN_SCOPE_PATHS reviewed: src/backend/handshake_core/src/locus/types.rs"],
+    }).trim(),
+  ].join("\n");
+
+  const validation = validateDataContractDecisionSection(packet, {
+    packetPath: "packet.md",
+    inScopePaths: ["src/backend/handshake_core/src/locus/types.rs"],
+  });
+  assert.match(validation.errors.join("\n"), /conflicts with data-bearing IN_SCOPE_PATHS/i);
 });

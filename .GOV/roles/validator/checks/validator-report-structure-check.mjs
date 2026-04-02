@@ -9,8 +9,10 @@ import { GOV_ROOT_REPO_REL, listOfficialWorkPacketPaths } from "../../../roles_s
 import {
   packetUsesDataContractProfile,
   parseDataContractProfile,
+  validateDataContractDecisionSection,
   validateDataContractSection,
 } from "../../../roles_shared/scripts/lib/data-contract-lib.mjs";
+import { parsePacketScopeList } from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
 
 function fail(message, details = []) {
   console.error(`[VALIDATOR_REPORT_STRUCTURE_CHECK] ${message}`);
@@ -119,6 +121,7 @@ for (const rel of files) {
   const usesDataContractProfile = packetUsesDataContractProfile(packetFormatVersion);
   const enforcesAntiVibeRigor = packetFormatVersion >= "2026-04-01";
   const dataContractProfile = parseDataContractProfile(text);
+  const inScopePaths = parsePacketScopeList(text, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
   const reportProfile = parseSingleField(text, "GOVERNED_VALIDATOR_REPORT_PROFILE");
   const requiresRigorV2 = /^SPLIT_DIFF_SCOPED_RIGOR_V2$/i.test(reportProfile);
   const requiresRigorV3 = /^SPLIT_DIFF_SCOPED_RIGOR_V3$/i.test(reportProfile);
@@ -129,6 +132,11 @@ for (const rel of files) {
   if (!isClosedStatus(status)) continue;
 
   if (usesDataContractProfile) {
+    const dataContractDecisionValidation = validateDataContractDecisionSection(text, {
+      packetPath: rel,
+      inScopePaths,
+    });
+    violations.push(...dataContractDecisionValidation.errors);
     const dataContractValidation = validateDataContractSection(text, { packetPath: rel });
     violations.push(...dataContractValidation.errors);
   }
