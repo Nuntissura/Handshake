@@ -33,7 +33,16 @@ import {
   resolveCloseoutValidatorSessionsOfRecord,
 } from "../scripts/lib/integration-validator-closeout-lib.mjs";
 import { ensureValidatorGateDir, resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
-import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import {
+  loadSessionControlRequests,
+  loadSessionControlResults,
+  loadSessionRegistry,
+  readJsonFile,
+} from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import {
+  SESSION_CONTROL_BROKER_STATE_FILE,
+} from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { settleRecoverableSessionControlResults } from "../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
 import { appendWpReceipt } from "../../../roles_shared/scripts/wp/wp-receipt-append.mjs";
 
 function fail(message, details = []) {
@@ -285,12 +294,24 @@ const actorContext = resolveValidatorActorContext({
   packetContent: originalPacketText,
   gitContext,
 });
+const initialBrokerState = readJsonFile(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE), { active_runs: [] });
+const settlement = settleRecoverableSessionControlResults(repoRoot, {
+  brokerState: initialBrokerState,
+});
+const requests = loadSessionControlRequests(repoRoot).requests;
+const results = loadSessionControlResults(repoRoot).results;
+const registrySessions = loadSessionRegistry(repoRoot).registry.sessions;
+const brokerState = readJsonFile(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE), { active_runs: [] });
 const evaluation = evaluateIntegrationValidatorCloseoutState({
   repoRoot,
   wpId,
   packetContent: originalPacketText,
   actorContext,
   committedEvidence,
+  requests,
+  results,
+  registrySessions,
+  brokerState,
   requireReadyForPass: false,
   requireRecordedScopeCompatibility: false,
 });
@@ -475,6 +496,7 @@ console.log(`[INTEGRATION_VALIDATOR_CLOSEOUT_SYNC] PASS: ${wpId} closeout truth 
 console.log(`  mode=${requestedMode.mode}`);
 console.log(`  packet_path=${packetPath.replace(/\\/g, "/")}`);
 console.log(`  current_main_compatibility_baseline_sha=${baselineSha}`);
+console.log(`  self_settled_count=${settlement.settled.length}`);
 if (requestedMode.requireMergedMainCommit) {
   console.log(`  merged_main_commit=${mergedMainCommit}`);
 }

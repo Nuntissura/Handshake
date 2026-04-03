@@ -954,3 +954,21 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
 - OUTCOME: orchestrator-managed packets with an assigned coder now leave creation with governed session-policy claim fields, and `READY_FOR_DEV` packets fail claim-check immediately if those fields are still unclaimed instead of surfacing only after implementation hardens
+
+### 2026.04.03.04 / GOV-CHANGE-20260403-04
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-62` by making final-lane closeout self-settle stale WP-scoped session-control state and tolerate only the current Integration Validator self-run
+- CHANGE_TYPE: FINAL_LANE_CLOSEOUT_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-62`
+  - `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW`
+  - `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1`
+- SURFACES:
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/checks/integration-validator-closeout-check.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: closeout entrypoints now self-settle stale WP-scoped session-control rows before evaluation, and the closeout bundle no longer self-collides on the Integration Validator's own in-flight broker command while still failing on foreign or extra active runs

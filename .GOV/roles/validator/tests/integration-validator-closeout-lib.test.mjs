@@ -216,6 +216,51 @@ test("WP closeout bundle fails when an active run or unsettled request still exi
   assert.match(details, /still reports RUNNING/i);
 });
 
+test("WP closeout bundle tolerates the current integration-validator broker run while final-lane closeout is executing", () => {
+  const evaluation = evaluateWpSessionControlCloseoutBundle({
+    repoRoot: ".",
+    wpId: "WP-TEST-VALIDATOR-v1",
+    actorContext: actorContextFixture(),
+    requests: [
+      {
+        command_id: "cmd-closeout-self",
+        wp_id: "WP-TEST-VALIDATOR-v1",
+        role: "INTEGRATION_VALIDATOR",
+        session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        command_kind: "SEND_PROMPT",
+        output_jsonl_file: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/cmd-closeout-self.jsonl",
+      },
+    ],
+    results: [],
+    sessions: [
+      {
+        wp_id: "WP-TEST-VALIDATOR-v1",
+        session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        last_command_id: "cmd-closeout-self",
+        last_command_status: "RUNNING",
+      },
+    ],
+    brokerState: {
+      active_runs: [
+        {
+          command_id: "cmd-closeout-self",
+          wp_id: "WP-TEST-VALIDATOR-v1",
+          role: "INTEGRATION_VALIDATOR",
+          session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        },
+      ],
+    },
+    fileExists: () => false,
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.issues.length, 0);
+  assert.equal(evaluation.summary.active_run_count, 1);
+  assert.equal(evaluation.summary.self_active_run_count, 1);
+  assert.equal(evaluation.summary.blocking_active_run_count, 0);
+  assert.match(evaluation.warnings.join("\n"), /treating that self-owned run as non-blocking/i);
+});
+
 test("integration-validator closeout state combines topology and WP-scoped closeout truth", () => {
   const repoRoot = repoRootWithArtifact(matchingDiff);
   const evaluation = evaluateIntegrationValidatorCloseoutState({
@@ -271,6 +316,63 @@ test("integration-validator closeout state combines topology and WP-scoped close
   assert.equal(evaluation.ok, true);
   assert.equal(evaluation.issues.length, 0);
   assert.equal(evaluation.closeoutBundle.summary.active_run_count, 0);
+});
+
+test("integration-validator closeout state passes with a self-owned active final-lane broker run", () => {
+  const repoRoot = repoRootWithArtifact(matchingDiff);
+  const evaluation = evaluateIntegrationValidatorCloseoutState({
+    repoRoot,
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetContent: packetFixture(),
+    actorContext: actorContextFixture(),
+    committedEvidence: {
+      status: "PASS",
+      target_head_sha: "abc123",
+    },
+    requests: [
+      {
+        command_id: "cmd-closeout-self",
+        wp_id: "WP-TEST-VALIDATOR-v1",
+        role: "INTEGRATION_VALIDATOR",
+        session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        command_kind: "SEND_PROMPT",
+        output_jsonl_file: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/cmd-closeout-self.jsonl",
+      },
+    ],
+    results: [],
+    registrySessions: [
+      {
+        wp_id: "WP-TEST-VALIDATOR-v1",
+        session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        last_command_id: "cmd-closeout-self",
+        last_command_status: "RUNNING",
+      },
+    ],
+    brokerState: {
+      active_runs: [
+        {
+          command_id: "cmd-closeout-self",
+          wp_id: "WP-TEST-VALIDATOR-v1",
+          role: "INTEGRATION_VALIDATOR",
+          session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        },
+      ],
+    },
+    worktreeExists: () => true,
+    fileExists: () => true,
+    gitRunner: (args) => {
+      if (args[0] === "rev-parse") return { code: 0, output: "0123456789abcdef0123456789abcdef01234567" };
+      if (args[0] === "merge-base" && args[1] === "--is-ancestor") return { code: 1, output: "" };
+      if (args[0] === "merge-base") return { code: 0, output: "fedcba9876543210fedcba9876543210fedcba98" };
+      if (args[0] === "diff") return { code: 0, output: matchingDiff };
+      return { code: 0, output: "" };
+    },
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.issues.length, 0);
+  assert.equal(evaluation.closeoutBundle.summary.self_active_run_count, 1);
+  assert.equal(evaluation.closeoutBundle.summary.blocking_active_run_count, 0);
 });
 
 test("integration-validator closeout state fails when signed scope compatibility is stale against current main", () => {

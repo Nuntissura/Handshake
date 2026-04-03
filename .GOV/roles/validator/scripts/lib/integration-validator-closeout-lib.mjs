@@ -353,6 +353,7 @@ export function evaluateWpSessionControlCloseoutBundle({
   results = [],
   sessions = [],
   brokerState = null,
+  actorContext = {},
   fileExists = fs.existsSync,
 } = {}) {
   const issues = makeIssueSet();
@@ -363,14 +364,37 @@ export function evaluateWpSessionControlCloseoutBundle({
   const activeRuns = Array.isArray(brokerState?.active_runs)
     ? brokerState.active_runs.filter((run) => String(run?.wp_id || "").trim() === wpId)
     : [];
+  const actorRole = normalizeValidatorRole(actorContext?.actorRole);
+  const actorSessionKey = String(actorContext?.actorSessionKey || "").trim();
+  const selfActiveRuns = activeRuns.filter((run) =>
+    actorRole === "INTEGRATION_VALIDATOR"
+      && normalizeValidatorRole(run?.role) === actorRole
+      && String(run?.session_key || "").trim() === actorSessionKey,
+  );
+  const blockingActiveRuns = activeRuns.filter((run) => !selfActiveRuns.includes(run));
+  const selfActiveRunIds = new Set(
+    selfActiveRuns
+      .map((run) => String(run?.command_id || "").trim())
+      .filter(Boolean),
+  );
 
   const requestById = new Map();
   for (const request of wpRequests) requestById.set(String(request?.command_id || "").trim(), request);
   const resultById = new Map();
   for (const result of wpResults) resultById.set(String(result?.command_id || "").trim(), result);
 
-  if (activeRuns.length > 0) {
-    issues.add(`Active broker runs still exist for ${wpId}: ${activeRuns.map((run) => String(run?.command_id || "<missing>")).join(", ")}`);
+  if (selfActiveRuns.length > 1) {
+    issues.add(
+      `Multiple self-owned Integration Validator broker runs still exist for ${wpId}: ${selfActiveRuns.map((run) => String(run?.command_id || "<missing>")).join(", ")}`
+    );
+  } else if (selfActiveRuns.length === 1) {
+    warnings.push(
+      `Closeout is executing inside the current Integration Validator broker run (${String(selfActiveRuns[0]?.command_id || "<missing>")}); treating that self-owned run as non-blocking.`
+    );
+  }
+
+  if (blockingActiveRuns.length > 0) {
+    issues.add(`Active broker runs still exist for ${wpId}: ${blockingActiveRuns.map((run) => String(run?.command_id || "<missing>")).join(", ")}`);
   }
 
   for (const result of wpResults) {
@@ -386,6 +410,10 @@ export function evaluateWpSessionControlCloseoutBundle({
     if (!commandId) continue;
     const result = resultById.get(commandId);
     if (!result) {
+      if (selfActiveRunIds.has(commandId)) {
+        warnings.push(`Self-owned closeout run ${commandId} has no settled result yet because the current final-lane command is still active.`);
+        continue;
+      }
       issues.add(`Request ${commandId} has no settled result for ${wpId}.`);
       continue;
     }
@@ -415,6 +443,10 @@ export function evaluateWpSessionControlCloseoutBundle({
 
     const result = resultById.get(lastCommandId);
     if (lastCommandStatus === "RUNNING") {
+      if (selfActiveRunIds.has(lastCommandId) && sessionKey === actorSessionKey) {
+        warnings.push(`Session ${sessionKey} still reports RUNNING for self-owned closeout command ${lastCommandId}; tolerated while the current final-lane command is in flight.`);
+        continue;
+      }
       issues.add(`Session ${sessionKey} still reports RUNNING for ${lastCommandId}.`);
       continue;
     }
@@ -436,6 +468,8 @@ export function evaluateWpSessionControlCloseoutBundle({
       result_count: wpResults.length,
       session_count: wpSessions.length,
       active_run_count: activeRuns.length,
+      self_active_run_count: selfActiveRuns.length,
+      blocking_active_run_count: blockingActiveRuns.length,
     },
   };
 }
@@ -487,6 +521,7 @@ export function evaluateIntegrationValidatorCloseoutState({
     results: resolvedResults,
     sessions: resolvedSessions,
     brokerState: resolvedBrokerState,
+    actorContext,
     fileExists,
   });
   const scopeCompatibility = validateSignedScopeCompatibilityTruth(packetContent, {

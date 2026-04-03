@@ -17,6 +17,14 @@ import {
 import { evaluateIntegrationValidatorCloseoutState } from "../scripts/lib/integration-validator-closeout-lib.mjs";
 import { evaluateWpDeclaredTopology } from "../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
 import { REPO_ROOT, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { settleRecoverableSessionControlResults } from "../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
+import {
+  loadSessionControlRequests,
+  loadSessionControlResults,
+  loadSessionRegistry,
+  readJsonFile,
+} from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { SESSION_CONTROL_BROKER_STATE_FILE } from "../../../roles_shared/scripts/session/session-policy.mjs";
 
 function fail(message, details = []) {
   console.error(`[INTEGRATION_VALIDATOR_CLOSEOUT_CHECK] FAIL: ${message}`);
@@ -64,6 +72,14 @@ const actorContext = resolveValidatorActorContext({
   packetContent,
   gitContext: currentGitContext(),
 });
+const initialBrokerState = readJsonFile(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE), { active_runs: [] });
+const settlement = settleRecoverableSessionControlResults(repoRoot, {
+  brokerState: initialBrokerState,
+});
+const requests = loadSessionControlRequests(repoRoot).requests;
+const results = loadSessionControlResults(repoRoot).results;
+const registrySessions = loadSessionRegistry(repoRoot).registry.sessions;
+const brokerState = readJsonFile(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE), { active_runs: [] });
 const topologyEvaluation = evaluateWpDeclaredTopology({
   repoRoot,
   wpId,
@@ -80,6 +96,10 @@ const evaluation = evaluateIntegrationValidatorCloseoutState({
   packetContent,
   actorContext,
   committedEvidence,
+  requests,
+  results,
+  registrySessions,
+  brokerState,
 });
 
 if (!evaluation.ok) {
@@ -97,5 +117,6 @@ pass(`${wpId} final-lane topology and closeout bundle are coherent`, [
   `result_count=${evaluation.closeoutBundle.summary.result_count}`,
   `session_count=${evaluation.closeoutBundle.summary.session_count}`,
   `active_run_count=${evaluation.closeoutBundle.summary.active_run_count}`,
+  `self_settled_count=${settlement.settled.length}`,
   `next=just validator-gate-commit ${wpId}`,
 ]);
