@@ -235,17 +235,17 @@ function resolveMainWorktreeAbs(packetText, repoRoot) {
   return path.resolve(repoRoot || REPO_ROOT, declared);
 }
 
-function readContainedCommitDiff({ packetText, repoRoot, mergedMainCommit, gitRunner }) {
-  const mainWorktreeAbs = resolveMainWorktreeAbs(packetText, repoRoot);
-  const runGit = typeof gitRunner === "function"
-    ? gitRunner
-    : (args) => defaultGitRunner(mainWorktreeAbs, args);
-
-  const parentResult = runGit(["rev-list", "--parents", "-n", "1", mergedMainCommit]);
+function readFirstParentDiff({
+  runGit,
+  commitSha,
+  label,
+  mainWorktreeAbs,
+}) {
+  const parentResult = runGit(["rev-list", "--parents", "-n", "1", commitSha]);
   if (parentResult.code !== 0) {
     return {
       ok: false,
-      error: `cannot resolve parents for merged commit ${mergedMainCommit}`,
+      error: `cannot resolve parents for ${label} ${commitSha}`,
       mainWorktreeAbs,
     };
   }
@@ -253,16 +253,16 @@ function readContainedCommitDiff({ packetText, repoRoot, mergedMainCommit, gitRu
   if (parentTokens.length < 2) {
     return {
       ok: false,
-      error: `merged commit ${mergedMainCommit} has no parent to diff against`,
+      error: `${label} ${commitSha} has no parent to diff against`,
       mainWorktreeAbs,
     };
   }
   const parentSha = parentTokens[1];
-  const diffResult = runGit(["diff", "--unified=0", "--no-ext-diff", parentSha, mergedMainCommit]);
+  const diffResult = runGit(["diff", "--unified=0", "--no-ext-diff", parentSha, commitSha]);
   if (diffResult.code !== 0) {
     return {
       ok: false,
-      error: `cannot read containment diff for ${mergedMainCommit}`,
+      error: `cannot read ${label} diff for ${commitSha}`,
       mainWorktreeAbs,
     };
   }
@@ -272,6 +272,19 @@ function readContainedCommitDiff({ packetText, repoRoot, mergedMainCommit, gitRu
     parentSha,
     mainWorktreeAbs,
   };
+}
+
+function readContainedCommitDiff({ packetText, repoRoot, mergedMainCommit, gitRunner }) {
+  const mainWorktreeAbs = resolveMainWorktreeAbs(packetText, repoRoot);
+  const runGit = typeof gitRunner === "function"
+    ? gitRunner
+    : (args) => defaultGitRunner(mainWorktreeAbs, args);
+  return readFirstParentDiff({
+    runGit,
+    commitSha: mergedMainCommit,
+    label: "merged commit",
+    mainWorktreeAbs,
+  });
 }
 
 function readCandidateTargetDiff({
@@ -299,6 +312,23 @@ function readCandidateTargetDiff({
     return {
       ok: false,
       error: `merge-base between local main ${currentMainHeadSha} and target ${targetHeadSha} is empty`,
+      mainWorktreeAbs,
+    };
+  }
+
+  const containedResult = runGit(["merge-base", "--is-ancestor", targetHeadSha, currentMainHeadSha]);
+  if (containedResult.code === 0) {
+    return readFirstParentDiff({
+      runGit,
+      commitSha: targetHeadSha,
+      label: "candidate target",
+      mainWorktreeAbs,
+    });
+  }
+  if (containedResult.code !== 1) {
+    return {
+      ok: false,
+      error: `cannot determine whether local main ${currentMainHeadSha} already contains target ${targetHeadSha}`,
       mainWorktreeAbs,
     };
   }

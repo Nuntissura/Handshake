@@ -260,6 +260,7 @@ test("integration-validator closeout state combines topology and WP-scoped close
     fileExists: () => true,
     gitRunner: (args) => {
       if (args[0] === "rev-parse") return { code: 0, output: "0123456789abcdef0123456789abcdef01234567" };
+      if (args[0] === "merge-base" && args[1] === "--is-ancestor") return { code: 1, output: "" };
       if (args[0] === "merge-base") return { code: 0, output: "fedcba9876543210fedcba9876543210fedcba98" };
       if (args[0] === "diff") return { code: 0, output: matchingDiff };
       return { code: 0, output: "" };
@@ -320,6 +321,7 @@ test("integration-validator closeout state can refresh stale recorded compatibil
     fileExists: () => true,
     gitRunner: (args) => {
       if (args[0] === "rev-parse") return { code: 0, output: "89abcdef0123456789abcdef0123456789abcdef" };
+      if (args[0] === "merge-base" && args[1] === "--is-ancestor") return { code: 1, output: "" };
       if (args[0] === "merge-base") return { code: 0, output: "fedcba9876543210fedcba9876543210fedcba98" };
       if (args[0] === "diff") return { code: 0, output: matchingDiff };
       return { code: 0, output: "" };
@@ -364,6 +366,7 @@ test("integration-validator closeout state fails when the committed target diff 
     fileExists: () => true,
     gitRunner: (args) => {
       if (args[0] === "rev-parse") return { code: 0, output: "0123456789abcdef0123456789abcdef01234567" };
+      if (args[0] === "merge-base" && args[1] === "--is-ancestor") return { code: 1, output: "" };
       if (args[0] === "merge-base") return { code: 0, output: "fedcba9876543210fedcba9876543210fedcba98" };
       if (args[0] === "diff") return { code: 0, output: driftedDiff };
       return { code: 0, output: "" };
