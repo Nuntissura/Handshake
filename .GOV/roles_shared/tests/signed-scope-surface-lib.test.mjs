@@ -209,3 +209,46 @@ test("validateCandidateTargetAgainstSignedScope honors MERGE_BASE_SHA for multi-
   assert.deepEqual(result.errors, []);
   assert.equal(result.mergeBaseSha, mergeBaseSha);
 });
+
+test("validateContainedMainCommitAgainstSignedScope allows a subset of the signed file surface during harmonized containment", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-contained-subset-"));
+  const packetText = [
+    "# Task Packet: WP-TEST-SIGNED-SCOPE-v1",
+    "",
+    "## METADATA",
+    "- WP_ID: WP-TEST-SIGNED-SCOPE-v1",
+    "- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main",
+    "",
+    "## VALIDATION",
+    "- **Target File**: `src/demo.rs`",
+    "- **Start**: 10",
+    "- **End**: 20",
+    "- **Line Delta**: 3",
+    "- **Target File**: `src/other.rs`",
+    "- **Start**: 1",
+    "- **End**: 5",
+    "- **Line Delta**: 2",
+    "- **Artifacts**: `artifacts/signed.patch`",
+  ].join("\n");
+  const twoFileDiff = [
+    matchingDiff.trimEnd(),
+    "diff --git a/src/other.rs b/src/other.rs",
+    "--- a/src/other.rs",
+    "+++ b/src/other.rs",
+    "@@ -1 +1 @@",
+    "-x",
+    "+y",
+    "",
+  ].join("\n");
+  writeFile(path.join(tempRoot, "artifacts", "signed.patch"), twoFileDiff);
+
+  const result = validateContainedMainCommitAgainstSignedScope(packetText, {
+    repoRoot: tempRoot,
+    mergedMainCommit: "abc1234",
+    actualDiffText: matchingDiff,
+    requireExactArtifactMatch: false,
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+});
