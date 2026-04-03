@@ -298,6 +298,41 @@ function readCandidateTargetDiff({
   const runGit = typeof gitRunner === "function"
     ? gitRunner
     : (args) => defaultGitRunner(mainWorktreeAbs, args);
+  const declaredMergeBaseSha = stripTicks(parseSingleField(packetText, "MERGE_BASE_SHA"));
+
+  if (/^[0-9a-f]{40}$/i.test(declaredMergeBaseSha)) {
+    const declaredBaseAncestorResult = runGit(["merge-base", "--is-ancestor", declaredMergeBaseSha, targetHeadSha]);
+    if (declaredBaseAncestorResult.code === 1) {
+      return {
+        ok: false,
+        error: `declared MERGE_BASE_SHA ${declaredMergeBaseSha} is not an ancestor of target ${targetHeadSha}`,
+        mainWorktreeAbs,
+      };
+    }
+    if (declaredBaseAncestorResult.code !== 0) {
+      return {
+        ok: false,
+        error: `cannot determine whether declared MERGE_BASE_SHA ${declaredMergeBaseSha} reaches target ${targetHeadSha}`,
+        mainWorktreeAbs,
+      };
+    }
+
+    const declaredBaseDiffResult = runGit(["diff", "--unified=0", "--no-ext-diff", declaredMergeBaseSha, targetHeadSha]);
+    if (declaredBaseDiffResult.code !== 0) {
+      return {
+        ok: false,
+        error: `cannot read candidate target diff for ${targetHeadSha} from declared MERGE_BASE_SHA ${declaredMergeBaseSha}`,
+        mainWorktreeAbs,
+      };
+    }
+
+    return {
+      ok: true,
+      diffText: String(declaredBaseDiffResult.output || ""),
+      mergeBaseSha: declaredMergeBaseSha,
+      mainWorktreeAbs,
+    };
+  }
 
   const mergeBaseResult = runGit(["merge-base", currentMainHeadSha, targetHeadSha]);
   if (mergeBaseResult.code !== 0) {
