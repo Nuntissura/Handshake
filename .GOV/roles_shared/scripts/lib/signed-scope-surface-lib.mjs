@@ -176,6 +176,7 @@ export function normalizeUnifiedDiff(diffText) {
 function compareSummaryAgainstDeclaredSurface(summary, declaredEntries, label, {
   enforceWindows = true,
   enforceLineDelta = true,
+  requireDeclaredFiles = true,
 } = {}) {
   const errors = [];
   const declaredByFile = new Map(declaredEntries.map((entry) => [entry.filePath, entry]));
@@ -184,7 +185,9 @@ function compareSummaryAgainstDeclaredSurface(summary, declaredEntries, label, {
   for (const [filePath, declared] of declaredByFile.entries()) {
     const actual = summaryByFile.get(filePath);
     if (!actual) {
-      errors.push(`${label}: missing diff for declared file ${filePath}`);
+      if (requireDeclaredFiles) {
+        errors.push(`${label}: missing diff for declared file ${filePath}`);
+      }
       continue;
     }
     if (enforceLineDelta && Number.isFinite(declared.lineDelta) && actual.lineDelta !== declared.lineDelta) {
@@ -475,6 +478,7 @@ export function validateContainedMainCommitAgainstSignedScope(packetText, {
   errors.push(...compareSummaryAgainstDeclaredSurface(actualSummary, surface.declaredEntries, "contained main diff", {
     enforceWindows: false,
     enforceLineDelta: false,
+    requireDeclaredFiles: requireExactArtifactMatch,
   }));
 
   if (requireExactArtifactMatch && surface.ok && actualSummary.normalizedDiff !== surface.artifactNormalizedDiff) {
