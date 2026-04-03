@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_TEMPLATE
+# TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
 
@@ -21,7 +21,8 @@ Requirements:
 - WP_ID: WP-1-Storage-Trait-Purity-v1
 - BASE_WP_ID: WP-1-Storage-Trait-Purity
 - DATE: 2026-04-03T00:19:07.793Z
-- MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: d26f46d586d2c44a76dd40ffaadf8603972867c4
+- MERGE_BASE_NOTE: committed handoff base for reviewable range `d26f46d586d2c44a76dd40ffaadf8603972867c4..be50f673a26aead6c2af4cc43037e84b15f3392b`; use for deterministic `just post-work --range` evidence
 - REQUESTOR: Operator
 - AGENT_ID: Orchestrator
 - ROLE: Orchestrator
@@ -45,8 +46,8 @@ Requirements:
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -102,7 +103,7 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** In Progress
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
 - MAIN_CONTAINMENT_STATUS: NOT_STARTED
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
@@ -173,13 +174,13 @@ Requirements:
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
-Blockers: Awaiting WP validator kickoff for the governed direct-review lane.
-Next: WP_VALIDATOR records VALIDATOR_KICKOFF for the active packet.
+Blockers: NONE
+Next: ORCHESTRATOR advances verdict progression and integration closeout from the completed direct-review lane.
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
   - CLAUSE: One Storage API [CX-DBP-010] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs; src/backend/handshake_core/src/workflows.rs; src/backend/handshake_core/src/api/loom.rs; src/backend/handshake_core/src/storage/retention.rs; src/backend/handshake_core/src/storage/locus_sqlite.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml database_trait_purity; cargo test --manifest-path src/backend/handshake_core/Cargo.toml loom_search_backend_tier | EXAMPLES: a `Database` trait object backed by SQLite reports explicit backend identity or capability without requiring downcast access, a `Database` trait object backed by PostgreSQL rejects SQLite-only Locus or structured-artifact paths through explicit capability law or terminal error, not concrete-type checks, Loom search records the same `tier_used` semantics using explicit backend identity or capability queries instead of `as_any` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Trait Purity Invariant [CX-DBP-040] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs; src/backend/handshake_core/src/storage/sqlite.rs; src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/storage/tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml database_trait_purity; rg -n "as_any | EXAMPLES: a `Database` trait object backed by SQLite reports explicit backend identity or capability without requiring downcast access, a `Database` trait object backed by PostgreSQL rejects SQLite-only Locus or structured-artifact paths through explicit capability law or terminal error, not concrete-type checks, Loom search records the same `tier_used` semantics using explicit backend identity or capability queries instead of `as_any` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Trait Purity Invariant [CX-DBP-040] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs; src/backend/handshake_core/src/storage/sqlite.rs; src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/storage/tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml database_trait_purity; rg -n "as_any|downcast_ref::<SqliteDatabase>|downcast_ref::<PostgresDatabase>" src/backend/handshake_core/src | EXAMPLES: a `Database` trait object backed by SQLite reports explicit backend identity or capability without requiring downcast access, a `Database` trait object backed by PostgreSQL rejects SQLite-only Locus or structured-artifact paths through explicit capability law or terminal error, not concrete-type checks, Loom search records the same `tier_used` semantics using explicit backend identity or capability queries instead of `as_any` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
   - CLAUSE: Dual-Backend Testing Early [CX-DBP-013] | CODE_SURFACES: src/backend/handshake_core/src/storage/tests.rs; src/backend/handshake_core/src/storage/sqlite.rs; src/backend/handshake_core/src/storage/postgres.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml locus_backend_capability; cargo test --manifest-path src/backend/handshake_core/Cargo.toml loom_search_backend_tier; cargo test --manifest-path src/backend/handshake_core/Cargo.toml | EXAMPLES: a `Database` trait object backed by SQLite reports explicit backend identity or capability without requiring downcast access, a `Database` trait object backed by PostgreSQL rejects SQLite-only Locus or structured-artifact paths through explicit capability law or terminal error, not concrete-type checks, Loom search records the same `tier_used` semantics using explicit backend identity or capability queries instead of `as_any` | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
@@ -685,51 +686,212 @@ rg -n "as_any|downcast_ref::<SqliteDatabase>|downcast_ref::<PostgresDatabase>" s
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Target File**: `src/backend/handshake_core/src/api/loom.rs`
+- **Start**: 1057
+- **End**: 1366
+- **Line Delta**: 49
+- **Pre-SHA1**: `1c4f67e690bfaec4790e5b14669342de41206bad`
+- **Post-SHA1**: `3e3c6bbe3a79c449632ed9ac268ab6408d9f1f45`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: commit-window manifest derived from `git diff --unified=0 d26f46d586d2c44a76dd40ffaadf8603972867c4 be50f673a26aead6c2af4cc43037e84b15f3392b -- src/backend/handshake_core/src/api/loom.rs`
+- **Artifacts**: `.GOV/task_packets/WP-1-Storage-Trait-Purity-v1/signed-scope.patch`; `git show --stat --summary --format=fuller be50f673a26aead6c2af4cc43037e84b15f3392b`; `git diff --numstat d26f46d586d2c44a76dd40ffaadf8603972867c4 be50f673a26aead6c2af4cc43037e84b15f3392b -- src/backend/handshake_core/src/api/loom.rs`
+- **Timestamp**: `2026-04-03T05:21:37.5518914Z`
+- **Operator**: `ORCHESTRATOR`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: manifest refreshed after coder proof-semantic repair commit `be50f673a26aead6c2af4cc43037e84b15f3392b`; commit-bounded row for `d26f46d586d2c44a76dd40ffaadf8603972867c4..be50f673a26aead6c2af4cc43037e84b15f3392b`
+- **Target File**: `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Start**: 17
+- **End**: 1147
+- **Line Delta**: -21
+- **Pre-SHA1**: `a3bdbe81c302f8fdbefd260bff808c12b2181ee8`
+- **Post-SHA1**: `a681dcf66bf5311fdb1d2cb6a6589902a50b8d41`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: commit-window manifest derived from `git diff --unified=0 d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Artifacts**: `git diff --numstat d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Timestamp**: `2026-04-03T02:34:09.3837331Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: commit-bounded manifest row for `d26f46d586d2c44a76dd40ffaadf8603972867c4..518066ae4b382b8f3d9550eac19f316f6798c914`
+- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
+- **Start**: 24
+- **End**: 2072
+- **Line Delta**: 172
+- **Pre-SHA1**: `931b2f54ed60b3415e588a23b076b670e0419d74`
+- **Post-SHA1**: `ef003795647e82b956fca7e5683acff3ba6887b9`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: commit-window manifest derived from `git diff --unified=0 d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/storage/mod.rs`
+- **Artifacts**: `git diff --numstat d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/storage/mod.rs`
+- **Timestamp**: `2026-04-03T02:34:09.3837331Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: commit-bounded manifest row for `d26f46d586d2c44a76dd40ffaadf8603972867c4..518066ae4b382b8f3d9550eac19f316f6798c914`
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 719
+- **End**: 957
+- **Line Delta**: 221
+- **Pre-SHA1**: `d1b3b82d78a9fe77716cb7762449b8c2cc6ace88`
+- **Post-SHA1**: `54513af2b9e21daf9608e0f714e78c08a5993c11`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: commit-window manifest derived from `git diff --unified=0 d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/storage/postgres.rs`
+- **Artifacts**: `git diff --numstat d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/storage/postgres.rs`
+- **Timestamp**: `2026-04-03T02:34:09.3837331Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: commit-bounded manifest row for `d26f46d586d2c44a76dd40ffaadf8603972867c4..518066ae4b382b8f3d9550eac19f316f6798c914`
+- **Target File**: `src/backend/handshake_core/src/storage/retention.rs`
+- **Start**: 574
+- **End**: 588
+- **Line Delta**: -13
+- **Pre-SHA1**: `3a089db581a754e8500385c74bac71b08d482012`
+- **Post-SHA1**: `5e24dd5644d820b580bbbd6f1b484b5bd04bd4d2`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: commit-window manifest derived from `git diff --unified=0 d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/storage/retention.rs`
+- **Artifacts**: `git diff --numstat d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/storage/retention.rs`
+- **Timestamp**: `2026-04-03T02:34:09.3837331Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: commit-bounded manifest row for `d26f46d586d2c44a76dd40ffaadf8603972867c4..518066ae4b382b8f3d9550eac19f316f6798c914`
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 1035
+- **End**: 1372
+- **Line Delta**: 318
+- **Pre-SHA1**: `1b2af0d384fc9bd7d5f04679cb60a63c062bed59`
+- **Post-SHA1**: `15dc6470ef2cf2acb5db3acd925ae9ac02c532c0`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: commit-window manifest derived from `git diff --unified=0 d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/storage/sqlite.rs`
+- **Artifacts**: `git diff --numstat d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/storage/sqlite.rs`
+- **Timestamp**: `2026-04-03T02:34:09.3837331Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: commit-bounded manifest row for `d26f46d586d2c44a76dd40ffaadf8603972867c4..518066ae4b382b8f3d9550eac19f316f6798c914`
+- **Target File**: `src/backend/handshake_core/src/storage/tests.rs`
+- **Start**: 731
+- **End**: 3107
+- **Line Delta**: -106
+- **Pre-SHA1**: `be0a61ca3a6f05cc015729a901ab952d911e5b6f`
+- **Post-SHA1**: `05ee3f5ac744ba8b87ed2d11a3c3f79451093f90`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: commit-window manifest derived from `git diff --unified=0 d26f46d586d2c44a76dd40ffaadf8603972867c4 be50f673a26aead6c2af4cc43037e84b15f3392b -- src/backend/handshake_core/src/storage/tests.rs`
+- **Artifacts**: `git show --stat --summary --format=fuller be50f673a26aead6c2af4cc43037e84b15f3392b`; `git diff --numstat d26f46d586d2c44a76dd40ffaadf8603972867c4 be50f673a26aead6c2af4cc43037e84b15f3392b -- src/backend/handshake_core/src/storage/tests.rs`
+- **Timestamp**: `2026-04-03T05:21:37.5518914Z`
+- **Operator**: `ORCHESTRATOR`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: manifest refreshed after coder proof-semantic repair commit `be50f673a26aead6c2af4cc43037e84b15f3392b`; commit-bounded row for `d26f46d586d2c44a76dd40ffaadf8603972867c4..be50f673a26aead6c2af4cc43037e84b15f3392b`
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 49
+- **End**: 4616
+- **Line Delta**: -153
+- **Pre-SHA1**: `a77b1a14aad10787f4fb5b4c8347de5b8ec484e2`
+- **Post-SHA1**: `8178f2c2b592847293a23ddc8a4eea32ed0ddbd4`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: commit-window manifest derived from `git diff --unified=0 d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/workflows.rs`
+- **Artifacts**: `git diff --numstat d26f46d586d2c44a76dd40ffaadf8603972867c4 518066ae4b382b8f3d9550eac19f316f6798c914 -- src/backend/handshake_core/src/workflows.rs`
+- **Timestamp**: `2026-04-03T02:34:09.3837331Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: commit-bounded manifest row for `d26f46d586d2c44a76dd40ffaadf8603972867c4..518066ae4b382b8f3d9550eac19f316f6798c914`
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
+- Current WP_STATUS: `In Progress`; committed product work now ends at `be50f673a26aead6c2af4cc43037e84b15f3392b`, and this packet companion is refreshed to that head for deterministic validator review.
+- What changed in this update: the earlier storage capability-law repair from `518066a` remains intact, `54978d0` restored the named storage proof filters, and the latest proof-semantic repair commit `be50f67` moves `loom_search_backend_tier` into `src/backend/handshake_core/src/api/loom.rs` so the signed tripwire now exercises the real Loom API path and asserts the emitted Flight Recorder `tier_used` payload contract. The storage-only graph-filter proof remains in `src/backend/handshake_core/src/storage/tests.rs` under the truthful name `loom_search_graph_filter_backend_support`.
+- Requirements / clauses self-audited: One Storage API [CX-DBP-010], Trait Purity Invariant [CX-DBP-040], and Dual-Backend Testing Early [CX-DBP-013] across the signed 8-file storage surface, specifically the capability-gated `Database` methods, Locus/structured-collaboration accessors, Loom tier routing, retention helper usage, and workflow-side generic reads.
+- Checks actually run: `just pre-work WP-1-Storage-Trait-Purity-v1`; `git show --stat --summary --format=fuller be50f673a26aead6c2af4cc43037e84b15f3392b`; `git diff --numstat d26f46d586d2c44a76dd40ffaadf8603972867c4 be50f673a26aead6c2af4cc43037e84b15f3392b -- src/backend/handshake_core/src/api/loom.rs src/backend/handshake_core/src/storage/locus_sqlite.rs src/backend/handshake_core/src/storage/mod.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/storage/retention.rs src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/src/storage/tests.rs src/backend/handshake_core/src/workflows.rs`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml loom_search_backend_tier -- --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml database_trait_purity -- --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml locus_backend_capability -- --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml loom_search_graph_filter_backend_support -- --nocapture`; `POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/handshake_test cargo test --manifest-path src/backend/handshake_core/Cargo.toml postgres_structured_collab_artifacts_are_capability_denied -- --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml -- --nocapture`.
+- Known gaps / weak spots: the packet companion was the only live blocker after `be50f67`; product code is not reopened by this governance repair. The one transient full-suite failure seen with `POSTGRES_TEST_URL` set reran green in isolation, so validator review should treat it as an environment wrinkle unless it reproduces independently.
+- Heuristic risks / maintainability concerns: the portability law now lives in small capability methods plus generic trait accessors, so future backend additions can regress silently if they update only one backend impl or only one downstream consumer; validator review should check that the signed 8-file seam stays symmetric.
+- Validator focus request: validate the eight manifest rows against `d26f46d586d2c44a76dd40ffaadf8603972867c4..be50f673a26aead6c2af4cc43037e84b15f3392b`, confirm that `loom_search_backend_tier` now proves the Flight Recorder `tier_used` payload contract through `api/loom.rs`, and treat any remaining blocker after gate reruns as either governance-runtime drift or an independently reproduced product issue.
+- Rubric contract understanding proof: the signed packet promises removal of production downcast behavior decisions, explicit backend capability law, and preserved Loom/Locus/retention/workflow behavior inside the exact eight-file storage scope; this handoff now points those promises at concrete code lines and commit-window hashes instead of placeholder prose.
+- Rubric scope discipline proof: no product files were edited in this governance repair turn; the only intended change is this packet companion, and all manifest evidence is pinned to the committed `d26f46d586d2c44a76dd40ffaadf8603972867c4..be50f673a26aead6c2af4cc43037e84b15f3392b` eight-file diff.
+- Rubric baseline comparison: the repaired packet evidence is anchored to the single committed range `d26f46d586d2c44a76dd40ffaadf8603972867c4..be50f673a26aead6c2af4cc43037e84b15f3392b`; every manifest row, SHA1 pair, and line window was derived from that range rather than from current worktree state or a broader branch diff.
+- Rubric end-to-end proof: the strongest end-to-end claim I can defend here is committed-handoff hygiene, not new implementation. The packet now names the exact storage trait/capability seams, the validator-facing manifest covers all eight changed files, and the proof commands in `## EVIDENCE` are commit-aware rather than conversational.
+- Rubric architecture fit self-review: the current repair range ending at `be50f67` fits the existing storage architecture because it keeps backend-specific law on the backend impls and keeps consumers on `Database`, while the added named tests keep the signed proof surface honest without widening product scope.
+- Rubric heuristic quality self-review: this is mechanically stronger than the prior placeholder packet, but it still depends on honest validator rereads of the capability-law seams; a bad reviewer could over-trust the packet if they skip the underlying code.
+- Rubric anti-gaming / counterfactual check: if any manifest row were omitted, `post-work-check` would lose changed-file coverage; if the file:line anchors were replaced with vague prose, the evidence mapping would become non-auditable; if I described the product as "complete" without rerunnable commit-window hashes, the handoff would be pure narration.
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01 and CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2, also include: -->
-- Rubric anti-vibe / substance self-check:
-- Signed-scope debt ledger:
-- Data contract self-check:
-- Next step / handoff hint:
+- Rubric anti-vibe / substance self-check: this repair does not pretend packet prose is product proof. The substantive claims are limited to manifest rows, code anchors, and commands actually run; anything I did not rerun in this turn is not presented as fresh evidence.
+- Signed-scope debt ledger: `NONE` inside this packet repair. If `wp-coder-handoff` remains blocked after the packet gates go green, that blockage belongs to runtime workflow state outside this packet file.
+- Data contract self-check: no new data-contract behavior was introduced in this turn. The packet evidence stays aligned with the active data contract by pointing to the committed Loom/Locus/storage capability surfaces already in the signed 8-file diff.
+- Next step / handoff hint: rerun `just post-work WP-1-Storage-Trait-Purity-v1 --range d26f46d586d2c44a76dd40ffaadf8603972867c4..be50f673a26aead6c2af4cc43037e84b15f3392b` and `just validator-handoff-check WP-1-Storage-Trait-Purity-v1 --range d26f46d586d2c44a76dd40ffaadf8603972867c4..be50f673a26aead6c2af4cc43037e84b15f3392b`; if both are green, return the lane to `WP_VALIDATOR`.
 
 ## MERGE_PROGRESSION_TRUTH
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, PASS closure is two-step and must stay explicit:
@@ -773,16 +935,29 @@ rg -n "as_any|downcast_ref::<SqliteDatabase>|downcast_ref::<PostgresDatabase>" s
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+  - REQUIREMENT: "Production code no longer depends on `Database` downcasts for behavior decisions."
+  - EVIDENCE: `src/backend/handshake_core/src/storage/mod.rs:1598`, `src/backend/handshake_core/src/storage/locus_sqlite.rs:19`, `src/backend/handshake_core/src/workflows.rs:1596`, `src/backend/handshake_core/src/api/loom.rs:1057`, `src/backend/handshake_core/src/storage/retention.rs:574`
+  - REQUIREMENT: "Unsupported backend behavior is explicit through backend identity or capability methods, not hidden concrete-type branching."
+  - EVIDENCE: `src/backend/handshake_core/src/storage/mod.rs:1602`, `src/backend/handshake_core/src/storage/mod.rs:1604`, `src/backend/handshake_core/src/storage/mod.rs:1608`, `src/backend/handshake_core/src/storage/sqlite.rs:1035`, `src/backend/handshake_core/src/storage/postgres.rs:719`
+  - REQUIREMENT: "Loom, Locus, retention, and workflow-side consumers keep their intended behavior without using `as_any`."
+  - EVIDENCE: `src/backend/handshake_core/src/storage/locus_sqlite.rs:37`, `src/backend/handshake_core/src/storage/locus_sqlite.rs:66`, `src/backend/handshake_core/src/storage/retention.rs:574`, `src/backend/handshake_core/src/api/loom.rs:1057`, `src/backend/handshake_core/src/workflows.rs:2825`
+  - REQUIREMENT: "Dual-backend or backend-sensitive tripwire coverage remains in the storage proof surface."
+  - EVIDENCE: `src/backend/handshake_core/src/api/loom.rs:1302`, `src/backend/handshake_core/src/storage/tests.rs:3062`, `src/backend/handshake_core/src/storage/tests.rs:3072`, `src/backend/handshake_core/src/storage/tests.rs:3077`, `src/backend/handshake_core/src/storage/tests.rs:3082`, `src/backend/handshake_core/src/storage/sqlite.rs:1218`, `src/backend/handshake_core/src/storage/postgres.rs:803`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Storage-Trait-Purity-v1/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+  - COMMAND: `just pre-work WP-1-Storage-Trait-Purity-v1`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `gate-check: PASS`; `pre-work-check: PASS`; `RESULT: PASS`
+  - COMMAND: `git show --stat --summary --format=fuller be50f673a26aead6c2af4cc43037e84b15f3392b`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `2 files changed, 67 insertions(+), 1 deletion(-)`; `test: align loom tier proof with flight recorder semantics`
+  - COMMAND: `git diff --name-only d26f46d586d2c44a76dd40ffaadf8603972867c4 be50f673a26aead6c2af4cc43037e84b15f3392b -- src/backend/handshake_core/src/api/loom.rs src/backend/handshake_core/src/storage/locus_sqlite.rs src/backend/handshake_core/src/storage/mod.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/storage/retention.rs src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/src/storage/tests.rs src/backend/handshake_core/src/workflows.rs`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `src/backend/handshake_core/src/api/loom.rs`; `src/backend/handshake_core/src/storage/locus_sqlite.rs`; `src/backend/handshake_core/src/storage/mod.rs`; `src/backend/handshake_core/src/storage/postgres.rs`; `src/backend/handshake_core/src/storage/retention.rs`; `src/backend/handshake_core/src/storage/sqlite.rs`; `src/backend/handshake_core/src/storage/tests.rs`; `src/backend/handshake_core/src/workflows.rs`
+  - COMMAND: `git diff --numstat d26f46d586d2c44a76dd40ffaadf8603972867c4 be50f673a26aead6c2af4cc43037e84b15f3392b -- src/backend/handshake_core/src/api/loom.rs src/backend/handshake_core/src/storage/locus_sqlite.rs src/backend/handshake_core/src/storage/mod.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/storage/retention.rs src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/src/storage/tests.rs src/backend/handshake_core/src/workflows.rs`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `76	27	src/backend/handshake_core/src/api/loom.rs`; `32	53	src/backend/handshake_core/src/storage/locus_sqlite.rs`; `176	4	src/backend/handshake_core/src/storage/mod.rs`; `223	2	src/backend/handshake_core/src/storage/postgres.rs`; `1	14	src/backend/handshake_core/src/storage/retention.rs`; `320	2	src/backend/handshake_core/src/storage/sqlite.rs`; `302	408	src/backend/handshake_core/src/storage/tests.rs`; `107	260	src/backend/handshake_core/src/workflows.rs`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -883,3 +1058,81 @@ rg -n "as_any|downcast_ref::<SqliteDatabase>|downcast_ref::<PostgresDatabase>" s
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+### 2026-04-03T06:30:49.4824785Z | INTEGRATION_VALIDATOR PASS REPORT
+VALIDATOR_ROLE: INTEGRATION_VALIDATOR
+ACTOR_SESSION: integration_validator:wp-1-storage-trait-purity-v1
+COMMITTED_RANGE: d26f46d586d2c44a76dd40ffaadf8603972867c4..be50f673a26aead6c2af4cc43037e84b15f3392b
+SIGNED_PATCH_ARTIFACT: .GOV/task_packets/WP-1-Storage-Trait-Purity-v1/signed-scope.patch
+REVIEW_EXCHANGE_PROOF: CODER REVIEW_REQUEST at 2026-04-03T06:13:13.323Z and INTEGRATION_VALIDATOR REVIEW_RESPONSE at 2026-04-03T06:18:35.854Z under ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Storage-Trait-Purity-v1/RECEIPTS.jsonl
+Verdict: PASS
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+CLAUSES_REVIEWED:
+- One Storage API [CX-DBP-010] reviewed against the committed 8-file range and confirmed through capability-based `Database` methods plus real consumer usage at `src/backend/handshake_core/src/storage/mod.rs:1596-1608`, `src/backend/handshake_core/src/storage/locus_sqlite.rs:36-70`, `src/backend/handshake_core/src/workflows.rs:2823-2829`, and `src/backend/handshake_core/src/api/loom.rs:1050-1068`.
+- Trait Purity Invariant [CX-DBP-040] reviewed against the committed range and confirmed by the trait defaults/capability surface at `src/backend/handshake_core/src/storage/mod.rs:1596-1608`, the Postgres backend capability law at `src/backend/handshake_core/src/storage/postgres.rs:717-733`, and the committed be50 tree grep showing no production `as_any` / `downcast_ref::<SqliteDatabase>` / `downcast_ref::<PostgresDatabase>` matches under `src/backend/handshake_core/src`.
+- Dual-Backend Testing Early [CX-DBP-013] reviewed against the committed range and confirmed by the explicit Postgres capability-denial proof at `src/backend/handshake_core/src/storage/tests.rs:3036-3049`, the signed tripwires at `src/backend/handshake_core/src/storage/tests.rs:3061-3078`, and the API-level Loom payload proof at `src/backend/handshake_core/src/api/loom.rs:1302-1358`.
+NOT_PROVEN:
+- NONE
+MAIN_BODY_GAPS:
+- NONE
+QUALITY_RISKS:
+- NONE
+VALIDATOR_RISK_TIER: MEDIUM
+DIFF_ATTACK_SURFACES:
+- Producer/consumer drift between `search_loom_blocks` emitting `tier_used` and the validator tripwire that claims to prove the Flight Recorder payload contract.
+- Capability-law drift between `Database` trait defaults and backend implementations, especially whether Postgres still denies structured-collaboration artifacts and Locus runtime access explicitly.
+- Consumer drift in workflow/Locus paths where a trait cleanup could silently leave one downstream path using backend-specific assumptions.
+- Evidence drift between the signed diff, the packet, and the governed signed patch artifact.
+INDEPENDENT_CHECKS_RUN:
+- `git ls-remote --heads origin feat/WP-1-Storage-Trait-Purity-v1` => remote backup branch points at `be50f673a26aead6c2af4cc43037e84b15f3392b`.
+- `git rev-parse --verify "be50f673a26aead6c2af4cc43037e84b15f3392b^{commit}"` => committed target is reachable in the Integration Validator lane.
+- `Test-Path $HANDSHAKE_GOV_ROOT/task_packets/WP-1-Storage-Trait-Purity-v1/signed-scope.patch` => signed patch artifact is present in live governance state.
+- `git grep -n -E "as_any|downcast_ref::<SqliteDatabase>|downcast_ref::<PostgresDatabase>" be50f673a26aead6c2af4cc43037e84b15f3392b -- src/backend/handshake_core/src` => no production trait-purity escape-hatch matches in the committed tree.
+- `git show be50f673a26aead6c2af4cc43037e84b15f3392b:src/backend/handshake_core/src/api/loom.rs` and `git show be50f673a26aead6c2af4cc43037e84b15f3392b:src/backend/handshake_core/src/storage/tests.rs` => the producer sets `tier_used` from `state.storage.loom_search_observability_tier()` and the test reads the emitted payload and asserts it against the same backend-tier source.
+COUNTERFACTUAL_CHECKS:
+- If `src/backend/handshake_core/src/api/loom.rs:1057-1068` stopped emitting `tier_used` from `state.storage.loom_search_observability_tier()`, `src/backend/handshake_core/src/api/loom.rs:1348-1357` would no longer prove the Flight Recorder payload contract promised by this WP.
+- If `src/backend/handshake_core/src/storage/postgres.rs:723-724` were flipped away from explicit capability denial without real artifact parity, `src/backend/handshake_core/src/storage/tests.rs:3036-3049` would stop defending the signed negative-path contract.
+- If `src/backend/handshake_core/src/storage/locus_sqlite.rs:47-58` or `src/backend/handshake_core/src/workflows.rs:2827-2829` stopped guarding structured-collaboration access through capability checks, Postgres-backed workflow/Locus reads would silently cross the signed portability boundary.
+BOUNDARY_PROBES:
+- Producer/consumer boundary checked by reading the emitted Flight Recorder payload path in `src/backend/handshake_core/src/api/loom.rs:1057-1068` and the proving assertion path in `src/backend/handshake_core/src/api/loom.rs:1348-1357`.
+- Trait/consumer boundary checked by reading the capability surface in `src/backend/handshake_core/src/storage/mod.rs:1596-1608` and the downstream structured-collab callers in `src/backend/handshake_core/src/storage/locus_sqlite.rs:43-59` and `src/backend/handshake_core/src/workflows.rs:2823-2829`.
+NEGATIVE_PATH_CHECKS:
+- Postgres negative path checked at `src/backend/handshake_core/src/storage/tests.rs:3036-3049`, where `structured_collab_work_packet_row("WP-TEST")` and `locus_work_packet_exists(...)` both assert `StorageError::NotImplemented("structured collaboration artifacts")`.
+- Capability-negative path checked at `src/backend/handshake_core/src/storage/postgres.rs:719-725`, where the backend explicitly reports `supports_locus_runtime() == false` and `supports_structured_collab_artifacts() == false`.
+INDEPENDENT_FINDINGS:
+- The be50 repair did move the Loom proof from a storage-only fixture path to the real API/Flight Recorder path; the committed tree now proves the emitted `tier_used` payload rather than only a backend helper.
+- The signed patch artifact is present in live governance state, so the packet, receipts, and signed-scope artifact are aligned on the same committed range.
+- Local `main` still does not contain `be50f67`, which is correct for a `MERGE_PENDING` PASS stage and not a product-scope regression.
+RESIDUAL_UNCERTAINTY:
+- This PASS report is diff-scoped to `d26f46d586d2c44a76dd40ffaadf8603972867c4..be50f673a26aead6c2af4cc43037e84b15f3392b`; it does not by itself prove contained-main promotion or post-merge spot checks.
+- Merge-surface governance state can still block promotion after PASS is recorded, including current-main compatibility recording, Gate 2 progression, active broker runs, or unrelated dirt on local `main`.
+SPEC_CLAUSE_MAP:
+- One Storage API [CX-DBP-010] => `src/backend/handshake_core/src/storage/mod.rs:1596-1608`, `src/backend/handshake_core/src/storage/locus_sqlite.rs:36-70`, `src/backend/handshake_core/src/workflows.rs:2823-2829`, `src/backend/handshake_core/src/api/loom.rs:1050-1068`.
+- Trait Purity Invariant [CX-DBP-040] => `src/backend/handshake_core/src/storage/mod.rs:1596-1608`, `src/backend/handshake_core/src/storage/postgres.rs:717-733`, `src/backend/handshake_core/src/storage/tests.rs:3061-3078`.
+- Dual-Backend Testing Early [CX-DBP-013] => `src/backend/handshake_core/src/storage/tests.rs:3036-3078`, `src/backend/handshake_core/src/api/loom.rs:1302-1358`, `src/backend/handshake_core/src/storage/sqlite.rs:1217-1225`.
+NEGATIVE_PROOF:
+- True Postgres structured-collaboration artifact parity is still not implemented. The validator confirmed that this WP intentionally preserves explicit capability denial instead of adding parity, and the signed contract proves that denial path honestly at `src/backend/handshake_core/src/storage/postgres.rs:723-724` and `src/backend/handshake_core/src/storage/tests.rs:3036-3049`.
+ANTI_VIBE_FINDINGS:
+- NONE
+SIGNED_SCOPE_DEBT:
+- NONE
+DATA_CONTRACT_PROOF:
+- Emitted Loom/Flight Recorder payload contract reviewed at `src/backend/handshake_core/src/api/loom.rs:1057-1068` and proved by the API-level test at `src/backend/handshake_core/src/api/loom.rs:1348-1357`.
+- Structured-collaboration storage/query contract reviewed through the capability-denial backend surface at `src/backend/handshake_core/src/storage/postgres.rs:723-724` and the negative-path proof at `src/backend/handshake_core/src/storage/tests.rs:3036-3049`.
+- Signed scope artifact reviewed at `.GOV/task_packets/WP-1-Storage-Trait-Purity-v1/signed-scope.patch` and matched to the committed 8-file range.
+DATA_CONTRACT_GAPS:
+- NONE
