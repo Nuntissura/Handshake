@@ -66,8 +66,6 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
-- **[WP-1-Spec-Enrichment-LLM-Core-v1]** - [READY_FOR_DEV]
-- **[WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2]** - [READY_FOR_DEV]
 
 
 
@@ -94,7 +92,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Locus-Phase1-Medallion-Search-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
 - **[WP-1-Storage-No-Runtime-DDL-v1]** - [STUB]
-- **[WP-1-Storage-Trait-Purity-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
 - **[WP-1-Spec-Router-CapabilitySnapshot-v1]** - [STUB]
 - **[WP-1-Spec-Router-Evidence-Portability-v1]** - [STUB]
@@ -205,6 +202,112 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+- **[WP-1-Storage-Trait-Purity-v1]** - [IN_PROGRESS]
+
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
 - **[WP-1-Front-End-Memory-System-v1]** - [VALIDATED]
@@ -279,6 +382,8 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Postgres-MCP-Durable-Progress-v1]** - [VALIDATED]
 
 - **[WP-1-Locus-Phase1-Integration-Occupancy-v1]** - [VALIDATED]
+- **[WP-1-Spec-Enrichment-LLM-Core-v1]** - [OUTDATED_ONLY]
+- **[WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2]** - [OUTDATED_ONLY]
 
 - **[WP-1-Structured-Collaboration-Artifact-Family-v1]** - [VALIDATED]
 
@@ -301,6 +406,21 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Historical Failed Closures Used As Live Smoketest Baselines
 

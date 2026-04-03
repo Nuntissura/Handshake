@@ -167,6 +167,8 @@ Use this governance-maintenance record flow:
   - If the review target touches product code or the Master Spec, classify it as `Handshake (Product)` even when the requirement is governance-shaped, workflow-shaped, or contract-shaped.
   - Reserve `Repo Governance` for `/.GOV/**`, ACP/session/runtime ledgers, governance records, protocols, and root control-file maintenance only.
   - If only one lane applies, still name both lanes and state `NONE` for the other lane.
+  - Lead with the actual finding, risk, or conclusion in plain language. File:line citations remain mandatory evidence, but they should support the explanation rather than replace it.
+  - Do not dump naked citations or raw command output without stating what they mean, unless the user explicitly asks for raw output or exact locations only.
 
 Do not create a WP for pure repo-governance maintenance. If the planned diff touches the Master Spec or product code, stop and use the normal refinement plus WP path instead.
 

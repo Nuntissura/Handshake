@@ -9,7 +9,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- **Status:** Done (historical spec-enrichment capture)
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja040120260108
 
@@ -130,14 +130,14 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: Terminal historical packet; no direct execution remains.
+- What changed in this update: Closed out after confirming the trace_id / llm_inference enrichment is already reflected in SPEC_CURRENT v02.179 and implemented under validated product WP-1-LLM-Core-v3.
+- Next step / handoff hint: Treat this packet as historical closure context only; use SPEC_CURRENT as truth and open a new packet only if future LLM-core deltas are required.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
-
-
+Verdict: OUTDATED_ONLY
+Reason: Historical spec-enrichment packet retained for audit trail only. Current truth is SPEC_CURRENT v02.179, and the implemented product path is already covered by validated WP-1-LLM-Core-v3.

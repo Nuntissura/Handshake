@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja030420260212 | Orchestrator | 2026-04-03 02:12 | Work packet creation: WP-1-Storage-Trait-Purity-v1 | v02.179 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Storage-Trait-Purity-v1.md ). |
 | ilja310320261913 | Orchestrator | 2026-03-31 19:13 | Work packet creation: WP-1-Project-Profile-Extension-Registry-v1 | v02.179 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Project-Profile-Extension-Registry-v1.md ). |
 | ilja290320260124 | Orchestrator | 2026-03-29 01:24 | Work packet creation: WP-1-Workflow-Projection-Correlation-v1 | v02.179 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Workflow-Projection-Correlation-v1.md ). |
 | ilja280320262308 | Orchestrator | 2026-03-28 23:08 | Spec Enrichment v02.179 (workflow-correlation bundle scopes + workflow-run and workflow-node-execution debug-bundle law + workflow-node inventory + FEAT-DEBUG-BUNDLE workflow-scope guidance) | v02.179 | Approved after refinement review for WP-1-Workflow-Projection-Correlation-v1; signature supplied in-chat after `APPROVE REFINEMENT WP-1-Workflow-Projection-Correlation-v1`. |

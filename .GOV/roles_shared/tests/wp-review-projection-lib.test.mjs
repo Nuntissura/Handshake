@@ -31,10 +31,10 @@ test("negative validator review projects packet truth back to active coder remed
       nextExpectedActor: "CODER",
       waitingOn: "CODER_REPAIR_HANDOFF",
     },
-    packetText: packetFixture("Ready for Dev"),
+    packetText: packetFixture("In Progress"),
   });
 
-  const nextPacketText = applyWpReviewPacketProjection(packetFixture("Ready for Dev"), projection);
+  const nextPacketText = applyWpReviewPacketProjection(packetFixture("In Progress"), projection);
 
   assert.equal(projection.packetStatus, "In Progress");
   assert.equal(projection.taskBoardStatus, "IN_PROGRESS");
@@ -43,7 +43,7 @@ test("negative validator review projects packet truth back to active coder remed
   assert.match(nextPacketText, /Next:\s*CODER repairs against the latest VALIDATOR_REVIEW/i);
 });
 
-test("intent checkpoint review projects packet truth into validator-side bootstrap review", () => {
+test("intent checkpoint review preserves ready packet status during validator-side bootstrap review", () => {
   const projection = deriveWpReviewPacketProjection({
     evaluation: {
       applicable: true,
@@ -71,11 +71,33 @@ test("intent checkpoint review projects packet truth into validator-side bootstr
     },
   );
 
-  assert.equal(projection.packetStatus, "In Progress");
-  assert.equal(projection.taskBoardStatus, "IN_PROGRESS");
+  assert.equal(projection.packetStatus, null);
+  assert.equal(projection.taskBoardStatus, null);
+  assert.match(nextPacketText, /\*\*Status:\*\*\s*Ready for Dev/);
   assert.match(nextPacketText, /Bootstrap and skeleton clearance now belongs to the WP validator/i);
   assert.equal(runtime.runtime_status, "working");
   assert.equal(runtime.current_phase, "BOOTSTRAP");
+});
+
+test("missing kickoff preserves ready packet status before coder claim", () => {
+  const projection = deriveWpReviewPacketProjection({
+    evaluation: {
+      applicable: true,
+      state: "COMM_MISSING_KICKOFF",
+    },
+    autoRoute: {
+      nextExpectedActor: "WP_VALIDATOR",
+      waitingOn: "VALIDATOR_KICKOFF",
+    },
+    packetText: packetFixture("Ready for Dev"),
+  });
+
+  const nextPacketText = applyWpReviewPacketProjection(packetFixture("Ready for Dev"), projection);
+
+  assert.equal(projection.packetStatus, null);
+  assert.equal(projection.taskBoardStatus, null);
+  assert.match(nextPacketText, /\*\*Status:\*\*\s*Ready for Dev/);
+  assert.match(nextPacketText, /Awaiting WP validator kickoff/i);
 });
 
 test("workflow invalidity projects packet truth into blocked state", () => {

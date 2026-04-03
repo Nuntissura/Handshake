@@ -7,6 +7,11 @@ const TERMINAL_PACKET_STATUS_VALUES = new Set([
   "Validated (OUTDATED_ONLY)",
   "Validated (ABANDONED)",
 ]);
+const PRE_CLAIM_COMMUNICATION_STATE_VALUES = new Set([
+  "COMM_MISSING_KICKOFF",
+  "COMM_WAITING_FOR_INTENT",
+  "COMM_WAITING_FOR_INTENT_CHECKPOINT",
+]);
 
 function replaceCurrentStateField(text, label, value) {
   const re = new RegExp(`^(\\s*${label}\\s*:\\s*)(.+)\\s*$`, "mi");
@@ -34,15 +39,25 @@ function normalizeState(value) {
 
 function packetStatusForCommunicationState(evaluationState, currentPacketStatus) {
   if (isTerminalPacketStatus(currentPacketStatus)) return null;
-  switch (normalizeState(evaluationState)) {
+  const normalizedState = normalizeState(evaluationState);
+  switch (normalizedState) {
     case "COMM_MISCONFIGURED":
     case "COMM_WORKFLOW_INVALID":
       return "Blocked";
     case "COMM_NA":
       return null;
     default:
-      return "In Progress";
+      break;
   }
+
+  if (
+    String(currentPacketStatus || "").trim() === "Ready for Dev"
+    && PRE_CLAIM_COMMUNICATION_STATE_VALUES.has(normalizedState)
+  ) {
+    return null;
+  }
+
+  return "In Progress";
 }
 
 function taskBoardStatusForPacketStatus(packetStatus) {

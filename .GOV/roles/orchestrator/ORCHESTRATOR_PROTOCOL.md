@@ -259,6 +259,10 @@ Special rule for `just record-refinement`:
 - either paste the full `## TECHNICAL_REFINEMENT (MASTER SPEC)` block from the refinement file or show enough current Master Spec anchors to prove the Orchestrator understands the relevant roadmap items, stubs, and WP context
 - do not summarize the refinement into a hand-wavy approval ask
 - do not request a one-time signature during the refinement pass
+- lead with the actual conclusion, answer, or rationale in plain language
+- use file paths and line anchors as supporting evidence after the explanation, not as a substitute for it
+- do not answer a direct Operator question primarily with naked `path:line` citations or Build Order rows unless the Operator explicitly asks for exact locations only
+- exact line anchors remain appropriate when auditability materially matters, for example disputed packet truth, gate defects, or spec-anchor verification
 
 ## Signature Bundle + Workflow Lane [CX-585C] (HARD)
 

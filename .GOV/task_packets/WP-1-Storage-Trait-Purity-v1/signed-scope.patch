@@ -1,0 +1,2174 @@
+diff --git a/src/backend/handshake_core/src/api/loom.rs b/src/backend/handshake_core/src/api/loom.rs
+index 4b4739d..a1b307a 100644
+--- a/src/backend/handshake_core/src/api/loom.rs
++++ b/src/backend/handshake_core/src/api/loom.rs
+@@ -1057,9 +1057 @@ async fn search_loom_blocks(
+-    let tier_used = if state
+-        .storage
+-        .as_any()
+-        .is::<crate::storage::sqlite::SqliteDatabase>()
+-    {
+-        1
+-    } else {
+-        2
+-    };
++    let tier_used = state.storage.loom_search_observability_tier();
+@@ -1174 +1166 @@ mod tests {
+-        let sqlite = state
++        state
+@@ -1176,17 +1168,8 @@ mod tests {
+-            .as_any()
+-            .downcast_ref::<SqliteDatabase>()
+-            .ok_or("sqlite storage expected")?;
+-        sqlx::query(
+-            r#"
+-            UPDATE loom_blocks
+-            SET mention_count = $1, tag_count = $2, backlink_count = $3
+-            WHERE workspace_id = $4 AND block_id = $5
+-            "#,
+-        )
+-        .bind(mention_count)
+-        .bind(tag_count)
+-        .bind(backlink_count)
+-        .bind(workspace_id)
+-        .bind(block_id)
+-        .execute(sqlite.pool())
+-        .await?;
++            .test_overwrite_loom_block_metrics(
++                workspace_id,
++                block_id,
++                mention_count,
++                tag_count,
++                backlink_count,
++            )
++            .await?;
+@@ -1317,0 +1301,66 @@ mod tests {
++    #[tokio::test]
++    async fn loom_search_backend_tier() -> Result<(), Box<dyn std::error::Error>> {
++        let state = setup_state().await?;
++        let workspace_id = create_workspace(&state).await?;
++
++        let _ = create_loom_block(
++            State(state.clone()),
++            Path(workspace_id.clone()),
++            Json(CreateLoomBlockRequest {
++                block_id: None,
++                content_type: LoomBlockContentType::Note,
++                document_id: None,
++                asset_id: None,
++                title: Some("Alpha".to_string()),
++                pinned: None,
++                journal_date: None,
++            }),
++        )
++        .await
++        .map_err(|(status, Json(body))| LoomApiTestCallError {
++            status,
++            code: body.error.to_string(),
++        })?;
++
++        let _ = search_loom_blocks(
++            State(state.clone()),
++            Path(workspace_id.clone()),
++            Query(LoomSearchQueryParams {
++                q: Some("Alpha".to_string()),
++                ..Default::default()
++            }),
++        )
++        .await
++        .map_err(|(status, Json(body))| LoomApiTestCallError {
++            status,
++            code: body.error.to_string(),
++        })?;
++
++        let search_event = state
++            .flight_recorder
++            .list_events(EventFilter::default())
++            .await?
++            .into_iter()
++            .rev()
++            .find(|event| event.event_type == FlightRecorderEventType::LoomSearchExecuted)
++            .ok_or_else(|| "expected loom_search_executed event".to_string())?;
++
++        let tier_used = search_event
++            .payload
++            .get("tier_used")
++            .and_then(|value| value.as_u64())
++            .ok_or_else(|| "expected tier_used payload".to_string())?;
++
++        assert_eq!(
++            tier_used,
++            u64::from(state.storage.loom_search_observability_tier()),
++            "loom search proof must assert the emitted tier_used payload contract"
++        );
++        assert_eq!(
++            search_event.payload.get("workspace_id").and_then(|value| value.as_str()),
++            Some(workspace_id.as_str())
++        );
++
++        Ok(())
++    }
++
+diff --git a/src/backend/handshake_core/src/storage/locus_sqlite.rs b/src/backend/handshake_core/src/storage/locus_sqlite.rs
+index c32ec53..a16b4e0 100644
+--- a/src/backend/handshake_core/src/storage/locus_sqlite.rs
++++ b/src/backend/handshake_core/src/storage/locus_sqlite.rs
+@@ -18,4 +18,6 @@ use crate::workflows::locus::types::{
+-fn sqlite_db(db: &dyn Database) -> StorageResult<&SqliteDatabase> {
+-    db.as_any()
+-        .downcast_ref::<SqliteDatabase>()
+-        .ok_or(StorageError::NotImplemented("locus sqlite"))
++pub(crate) fn ensure_locus_sqlite(db: &dyn Database) -> StorageResult<()> {
++    if db.supports_locus_runtime() {
++        Ok(())
++    } else {
++        Err(StorageError::NotImplemented("locus runtime"))
++    }
+@@ -24,2 +26,8 @@ fn sqlite_db(db: &dyn Database) -> StorageResult<&SqliteDatabase> {
+-pub(crate) fn ensure_locus_sqlite(db: &dyn Database) -> StorageResult<()> {
+-    sqlite_db(db).map(|_| ())
++pub(crate) fn ensure_structured_collab_artifacts(db: &dyn Database) -> StorageResult<()> {
++    if db.supports_structured_collab_artifacts() {
++        Ok(())
++    } else {
++        Err(StorageError::NotImplemented(
++            "structured collaboration artifacts",
++        ))
++    }
+@@ -32,2 +40 @@ pub(crate) async fn execute_locus_operation(
+-    let sqlite = sqlite_db(db)?;
+-    execute_sqlite_locus_operation(sqlite, op).await
++    db.execute_locus_operation(op).await
+@@ -40,8 +47,2 @@ pub(crate) async fn locus_work_packet_exists(
+-    let sqlite = sqlite_db(db)?;
+-    let exists =
+-        sqlx::query_scalar::<_, i64>("SELECT 1 FROM work_packets WHERE wp_id = $1 LIMIT 1")
+-            .bind(wp_id)
+-            .fetch_optional(sqlite.pool())
+-            .await?
+-            .is_some();
+-    Ok(exists)
++    ensure_structured_collab_artifacts(db)?;
++    Ok(db.structured_collab_work_packet_row(wp_id).await?.is_some())
+@@ -54,8 +55,5 @@ pub(crate) async fn locus_task_board_get_status_and_metadata(
+-    let sqlite = sqlite_db(db)?;
+-    sqlx::query_as::<_, (String, String)>(
+-        "SELECT task_board_status, metadata FROM work_packets WHERE wp_id = $1",
+-    )
+-    .bind(wp_id)
+-    .fetch_optional(sqlite.pool())
+-    .await
+-    .map_err(StorageError::from)
++    ensure_structured_collab_artifacts(db)?;
++    Ok(db
++        .structured_collab_work_packet_row(wp_id)
++        .await?
++        .map(|row| (row.task_board_status, row.metadata)))
+@@ -72,21 +70,2 @@ pub(crate) async fn locus_task_board_update_work_packet(
+-    let sqlite = sqlite_db(db)?;
+-    sqlx::query(
+-        r#"
+-                        UPDATE work_packets
+-                        SET
+-                            version = version + 1,
+-                            status = $1,
+-                            task_board_status = $2,
+-                            updated_at = $3,
+-                            metadata = $4
+-                        WHERE wp_id = $5
+-                        "#,
+-    )
+-    .bind(status)
+-    .bind(task_board_status)
+-    .bind(updated_at)
+-    .bind(metadata)
+-    .bind(wp_id)
+-    .execute(sqlite.pool())
+-    .await?;
+-    Ok(())
++    db.locus_task_board_update_work_packet(status, task_board_status, updated_at, metadata, wp_id)
++        .await
+@@ -98,7 +77,7 @@ pub(crate) async fn locus_task_board_list_rows(
+-    let sqlite = sqlite_db(db)?;
+-    let rows = sqlx::query_as::<_, (String, String, String)>(
+-        "SELECT wp_id, task_board_status, metadata FROM work_packets",
+-    )
+-    .fetch_all(sqlite.pool())
+-    .await?;
+-    Ok(rows)
++    ensure_structured_collab_artifacts(db)?;
++    Ok(db
++        .structured_collab_work_packet_rows()
++        .await?
++        .into_iter()
++        .map(|row| (row.wp_id, row.task_board_status, row.metadata))
++        .collect())
+@@ -1147 +1126 @@ async fn get_mt_progress(
+-async fn execute_sqlite_locus_operation(
++pub(crate) async fn execute_sqlite_locus_operation(
+diff --git a/src/backend/handshake_core/src/storage/mod.rs b/src/backend/handshake_core/src/storage/mod.rs
+index 30975ef..0b7cacd 100644
+--- a/src/backend/handshake_core/src/storage/mod.rs
++++ b/src/backend/handshake_core/src/storage/mod.rs
+@@ -24,2 +24 @@ pub use loom::*;
+-// Test utilities - exposed for integration tests.
+-// The helper function `run_storage_conformance` uses Result-based error handling.
++// Test utilities are exposed for integration tests, but backend-only hooks stay behind cfg(test).
+@@ -1529,0 +1529,29 @@ impl From<GuardError> for StorageError {
++#[derive(Clone, Debug, sqlx::FromRow)]
++pub struct StructuredCollabWorkPacketRow {
++    pub wp_id: String,
++    pub version: i64,
++    pub title: String,
++    pub description: String,
++    pub status: String,
++    pub priority: i64,
++    pub phase: String,
++    pub routing: String,
++    pub task_packet_path: Option<String>,
++    pub task_board_status: String,
++    pub assignee: Option<String>,
++    pub reporter: String,
++    pub created_at: String,
++    pub updated_at: String,
++    pub vector_clock: String,
++    pub metadata: String,
++}
++
++#[derive(Clone, Debug, sqlx::FromRow)]
++pub struct MutationTraceabilityRow {
++    pub last_actor_kind: String,
++    pub last_actor_id: Option<String>,
++    pub last_job_id: Option<String>,
++    pub last_workflow_id: Option<String>,
++    pub edit_event_id: String,
++}
++
+@@ -1568 +1596,17 @@ impl StorageGuard for DefaultStorageGuard {
+-pub trait Database: Send + Sync + std::any::Any {
++pub trait Database: Send + Sync {
++    fn supports_locus_runtime(&self) -> bool {
++        false
++    }
++
++    fn supports_structured_collab_artifacts(&self) -> bool {
++        false
++    }
++
++    fn loom_search_observability_tier(&self) -> u8;
++
++    fn supports_loom_graph_filtering(&self) -> bool {
++        false
++    }
++
++    fn loom_traverse_graph_perf_target_ms(&self) -> u128;
++
+@@ -1900 +1944,129 @@ pub trait Database: Send + Sync + std::any::Any {
+-    fn as_any(&self) -> &dyn std::any::Any;
++    async fn execute_locus_operation(
++        &self,
++        op: crate::workflows::locus::types::LocusOperation,
++    ) -> StorageResult<Value> {
++        let _ = op;
++        Err(StorageError::NotImplemented("locus runtime"))
++    }
++
++    async fn locus_task_board_update_work_packet(
++        &self,
++        status: &str,
++        task_board_status: &str,
++        updated_at: &str,
++        metadata: &str,
++        wp_id: &str,
++    ) -> StorageResult<()> {
++        let _ = (status, task_board_status, updated_at, metadata, wp_id);
++        Err(StorageError::NotImplemented("locus runtime"))
++    }
++
++    async fn structured_collab_work_packet_row(
++        &self,
++        wp_id: &str,
++    ) -> StorageResult<Option<StructuredCollabWorkPacketRow>> {
++        let _ = wp_id;
++        Err(StorageError::NotImplemented(
++            "structured collaboration artifacts",
++        ))
++    }
++
++    async fn structured_collab_work_packet_rows(
++        &self,
++    ) -> StorageResult<Vec<StructuredCollabWorkPacketRow>> {
++        Err(StorageError::NotImplemented(
++            "structured collaboration artifacts",
++        ))
++    }
++
++    async fn structured_collab_micro_task_metadata(
++        &self,
++        wp_id: &str,
++        mt_id: &str,
++    ) -> StorageResult<Option<String>> {
++        let _ = (wp_id, mt_id);
++        Err(StorageError::NotImplemented(
++            "structured collaboration artifacts",
++        ))
++    }
++
++    async fn structured_collab_micro_task_status_rows(
++        &self,
++        wp_id: &str,
++    ) -> StorageResult<Vec<(String, String)>> {
++        let _ = wp_id;
++        Err(StorageError::NotImplemented(
++            "structured collaboration artifacts",
++        ))
++    }
++
++    async fn structured_collab_micro_task_rows(
++        &self,
++        wp_id: &str,
++    ) -> StorageResult<Vec<(String, String)>> {
++        let _ = wp_id;
++        Err(StorageError::NotImplemented(
++            "structured collaboration artifacts",
++        ))
++    }
++
++    #[cfg(test)]
++    async fn test_overwrite_loom_block_metrics(
++        &self,
++        workspace_id: &str,
++        block_id: &str,
++        mention_count: i64,
++        tag_count: i64,
++        backlink_count: i64,
++    ) -> StorageResult<()> {
++        let _ = (
++            workspace_id,
++            block_id,
++            mention_count,
++            tag_count,
++            backlink_count,
++        );
++        Err(StorageError::NotImplemented("test loom metrics backend"))
++    }
++
++    #[cfg(test)]
++    async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
++        let _ = workspace_id;
++        Err(StorageError::NotImplemented("test loom metrics backend"))
++    }
++
++    #[cfg(test)]
++    async fn test_insert_loom_traversal_perf_fixture(
++        &self,
++        workspace_id: &str,
++        total_blocks: usize,
++    ) -> StorageResult<String> {
++        let _ = (workspace_id, total_blocks);
++        Err(StorageError::NotImplemented(
++            "loom traversal performance backend",
++        ))
++    }
++
++    #[cfg(test)]
++    async fn test_update_ai_job_metadata(
++        &self,
++        job_id: Uuid,
++        status: &str,
++        created_at: DateTime<Utc>,
++        is_pinned: bool,
++    ) -> StorageResult<()> {
++        let _ = (job_id, status, created_at, is_pinned);
++        Err(StorageError::NotImplemented("test ai job metadata backend"))
++    }
++
++    #[cfg(test)]
++    async fn test_fetch_mutation_traceability_row(
++        &self,
++        table: &str,
++        id: &str,
++    ) -> StorageResult<MutationTraceabilityRow> {
++        let _ = (table, id);
++        Err(StorageError::NotImplemented(
++            "test mutation traceability backend",
++        ))
++    }
+diff --git a/src/backend/handshake_core/src/storage/postgres.rs b/src/backend/handshake_core/src/storage/postgres.rs
+index 8f0fb85..b36cadb 100644
+--- a/src/backend/handshake_core/src/storage/postgres.rs
++++ b/src/backend/handshake_core/src/storage/postgres.rs
+@@ -719,2 +719,18 @@ impl super::Database for PostgresDatabase {
+-    fn as_any(&self) -> &dyn std::any::Any {
+-        self
++    fn supports_locus_runtime(&self) -> bool {
++        false
++    }
++
++    fn supports_structured_collab_artifacts(&self) -> bool {
++        false
++    }
++
++    fn loom_search_observability_tier(&self) -> u8 {
++        2
++    }
++
++    fn supports_loom_graph_filtering(&self) -> bool {
++        true
++    }
++
++    fn loom_traverse_graph_perf_target_ms(&self) -> u128 {
++        50
+@@ -736,0 +753,205 @@ impl super::Database for PostgresDatabase {
++    async fn structured_collab_work_packet_row(
++        &self,
++        wp_id: &str,
++    ) -> StorageResult<Option<super::StructuredCollabWorkPacketRow>> {
++        let _ = wp_id;
++        Err(StorageError::NotImplemented(
++            "structured collaboration artifacts",
++        ))
++    }
++
++    async fn structured_collab_work_packet_rows(
++        &self,
++    ) -> StorageResult<Vec<super::StructuredCollabWorkPacketRow>> {
++        Err(StorageError::NotImplemented(
++            "structured collaboration artifacts",
++        ))
++    }
++
++    async fn structured_collab_micro_task_metadata(
++        &self,
++        wp_id: &str,
++        mt_id: &str,
++    ) -> StorageResult<Option<String>> {
++        let _ = (wp_id, mt_id);
++        Err(StorageError::NotImplemented(
++            "structured collaboration artifacts",
++        ))
++    }
++
++    async fn structured_collab_micro_task_status_rows(
++        &self,
++        wp_id: &str,
++    ) -> StorageResult<Vec<(String, String)>> {
++        let _ = wp_id;
++        Err(StorageError::NotImplemented(
++            "structured collaboration artifacts",
++        ))
++    }
++
++    async fn structured_collab_micro_task_rows(
++        &self,
++        wp_id: &str,
++    ) -> StorageResult<Vec<(String, String)>> {
++        let _ = wp_id;
++        Err(StorageError::NotImplemented(
++            "structured collaboration artifacts",
++        ))
++    }
++
++    #[cfg(test)]
++    async fn test_overwrite_loom_block_metrics(
++        &self,
++        workspace_id: &str,
++        block_id: &str,
++        mention_count: i64,
++        tag_count: i64,
++        backlink_count: i64,
++    ) -> StorageResult<()> {
++        sqlx::query(
++            r#"
++            UPDATE loom_blocks
++            SET mention_count = $1, tag_count = $2, backlink_count = $3
++            WHERE workspace_id = $4 AND block_id = $5
++            "#,
++        )
++        .bind(mention_count as i32)
++        .bind(tag_count as i32)
++        .bind(backlink_count as i32)
++        .bind(workspace_id)
++        .bind(block_id)
++        .execute(&self.pool)
++        .await?;
++        Ok(())
++    }
++
++    #[cfg(test)]
++    async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
++        sqlx::query(
++            r#"
++            UPDATE loom_blocks
++            SET mention_count = 0, tag_count = 0, backlink_count = 0
++            WHERE workspace_id = $1
++            "#,
++        )
++        .bind(workspace_id)
++        .execute(&self.pool)
++        .await?;
++        Ok(())
++    }
++
++    #[cfg(test)]
++    async fn test_insert_loom_traversal_perf_fixture(
++        &self,
++        workspace_id: &str,
++        total_blocks: usize,
++    ) -> StorageResult<String> {
++        let created_at = Utc::now();
++        let derived_json = serde_json::to_string(&super::LoomBlockDerived::default())?;
++        let start_block_id = "perf-block-00000".to_string();
++        let mut tx = self.pool.begin().await?;
++
++        for idx in 0..total_blocks {
++            let block_id = format!("perf-block-{idx:05}");
++            sqlx::query(
++                r#"
++                INSERT INTO loom_blocks (
++                    block_id,
++                    workspace_id,
++                    content_type,
++                    title,
++                    pinned,
++                    last_actor_kind,
++                    edit_event_id,
++                    created_at,
++                    updated_at,
++                    backlink_count,
++                    mention_count,
++                    tag_count,
++                    derived_json,
++                    preview_status
++                )
++                VALUES (
++                    $1, $2, 'note', $3, 0, 'SYSTEM',
++                    '00000000-0000-0000-0000-000000000000',
++                    $4, $4, 0, 0, 0, $5, 'none'
++                )
++                "#,
++            )
++            .bind(&block_id)
++            .bind(workspace_id)
++            .bind(format!("Perf Block {idx}"))
++            .bind(created_at)
++            .bind(&derived_json)
++            .execute(&mut *tx)
++            .await?;
++
++            if idx > 0 {
++                sqlx::query(
++                    r#"
++                    INSERT INTO loom_edges (
++                        edge_id,
++                        workspace_id,
++                        source_block_id,
++                        target_block_id,
++                        edge_type,
++                        created_by,
++                        last_actor_kind,
++                        edit_event_id,
++                        created_at
++                    )
++                    VALUES (
++                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
++                        '00000000-0000-0000-0000-000000000000',
++                        $5
++                    )
++                    "#,
++                )
++                .bind(format!("perf-edge-{idx:05}"))
++                .bind(workspace_id)
++                .bind(format!("perf-block-{:05}", idx - 1))
++                .bind(&block_id)
++                .bind(created_at)
++                .execute(&mut *tx)
++                .await?;
++            }
++        }
++
++        tx.commit().await?;
++        Ok(start_block_id)
++    }
++
++    #[cfg(test)]
++    async fn test_update_ai_job_metadata(
++        &self,
++        job_id: Uuid,
++        status: &str,
++        created_at: chrono::DateTime<Utc>,
++        is_pinned: bool,
++    ) -> StorageResult<()> {
++        sqlx::query("UPDATE ai_jobs SET status = $1, created_at = $2, is_pinned = $3 WHERE id = $4")
++            .bind(status)
++            .bind(created_at)
++            .bind(is_pinned)
++            .bind(job_id.to_string())
++            .execute(&self.pool)
++        .await?;
++        Ok(())
++    }
++
++    #[cfg(test)]
++    async fn test_fetch_mutation_traceability_row(
++        &self,
++        table: &str,
++        id: &str,
++    ) -> StorageResult<super::MutationTraceabilityRow> {
++        let sql = format!(
++            "SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id FROM {table} WHERE id = $1"
++        );
++        sqlx::query_as::<_, super::MutationTraceabilityRow>(&sql)
++            .bind(id)
++            .fetch_one(&self.pool)
++            .await
++            .map_err(StorageError::from)
++    }
++
+diff --git a/src/backend/handshake_core/src/storage/retention.rs b/src/backend/handshake_core/src/storage/retention.rs
+index 1c12a62..e1c8c5d 100644
+--- a/src/backend/handshake_core/src/storage/retention.rs
++++ b/src/backend/handshake_core/src/storage/retention.rs
+@@ -574,13 +574 @@ mod tests {
+-        if let Some(sqlite_db) = db.as_any().downcast_ref::<SqliteDatabase>() {
+-            let id_str = job.job_id.to_string();
+-            let created_at_str = created_at.to_rfc3339();
+-            let pinned = if is_pinned { 1i32 } else { 0i32 };
+-            // Use sqlx::query instead of query! to avoid compilation issues with missing metadata in tests
+-            sqlx::query(
+-                "UPDATE ai_jobs SET status = ?, created_at = ?, is_pinned = ? WHERE id = ?",
+-            )
+-            .bind(status)
+-            .bind(created_at_str)
+-            .bind(pinned)
+-            .bind(id_str)
+-            .execute(sqlite_db.pool())
++        db.test_update_ai_job_metadata(job.job_id, status, created_at, is_pinned)
+@@ -588 +575,0 @@ mod tests {
+-        }
+diff --git a/src/backend/handshake_core/src/storage/sqlite.rs b/src/backend/handshake_core/src/storage/sqlite.rs
+index 8291153..529e7ed 100644
+--- a/src/backend/handshake_core/src/storage/sqlite.rs
++++ b/src/backend/handshake_core/src/storage/sqlite.rs
+@@ -1035,2 +1035,18 @@ impl super::Database for SqliteDatabase {
+-    fn as_any(&self) -> &dyn std::any::Any {
+-        self
++    fn supports_locus_runtime(&self) -> bool {
++        true
++    }
++
++    fn supports_structured_collab_artifacts(&self) -> bool {
++        true
++    }
++
++    fn loom_search_observability_tier(&self) -> u8 {
++        1
++    }
++
++    fn supports_loom_graph_filtering(&self) -> bool {
++        false
++    }
++
++    fn loom_traverse_graph_perf_target_ms(&self) -> u128 {
++        100
+@@ -1054,0 +1071,302 @@ impl super::Database for SqliteDatabase {
++    async fn execute_locus_operation(
++        &self,
++        op: crate::workflows::locus::types::LocusOperation,
++    ) -> StorageResult<Value> {
++        super::locus_sqlite::execute_sqlite_locus_operation(self, op).await
++    }
++
++    async fn locus_task_board_update_work_packet(
++        &self,
++        status: &str,
++        task_board_status: &str,
++        updated_at: &str,
++        metadata: &str,
++        wp_id: &str,
++    ) -> StorageResult<()> {
++        sqlx::query(
++            r#"
++            UPDATE work_packets
++            SET
++                version = version + 1,
++                status = $1,
++                task_board_status = $2,
++                updated_at = $3,
++                metadata = $4
++            WHERE wp_id = $5
++            "#,
++        )
++        .bind(status)
++        .bind(task_board_status)
++        .bind(updated_at)
++        .bind(metadata)
++        .bind(wp_id)
++        .execute(&self.pool)
++        .await?;
++        Ok(())
++    }
++
++    async fn structured_collab_work_packet_row(
++        &self,
++        wp_id: &str,
++    ) -> StorageResult<Option<super::StructuredCollabWorkPacketRow>> {
++        sqlx::query_as::<_, super::StructuredCollabWorkPacketRow>(
++            r#"
++            SELECT
++                wp_id,
++                version,
++                title,
++                description,
++                status,
++                priority,
++                phase,
++                routing,
++                task_packet_path,
++                task_board_status,
++                assignee,
++                reporter,
++                created_at,
++                updated_at,
++                vector_clock,
++                metadata
++            FROM work_packets
++            WHERE wp_id = $1
++            "#,
++        )
++        .bind(wp_id)
++        .fetch_optional(&self.pool)
++        .await
++        .map_err(StorageError::from)
++    }
++
++    async fn structured_collab_work_packet_rows(
++        &self,
++    ) -> StorageResult<Vec<super::StructuredCollabWorkPacketRow>> {
++        sqlx::query_as::<_, super::StructuredCollabWorkPacketRow>(
++            r#"
++            SELECT
++                wp_id,
++                version,
++                title,
++                description,
++                status,
++                priority,
++                phase,
++                routing,
++                task_packet_path,
++                task_board_status,
++                assignee,
++                reporter,
++                created_at,
++                updated_at,
++                vector_clock,
++                metadata
++            FROM work_packets
++            ORDER BY updated_at ASC, wp_id ASC
++            "#,
++        )
++        .fetch_all(&self.pool)
++        .await
++        .map_err(StorageError::from)
++    }
++
++    async fn structured_collab_micro_task_metadata(
++        &self,
++        wp_id: &str,
++        mt_id: &str,
++    ) -> StorageResult<Option<String>> {
++        sqlx::query_scalar::<_, String>(
++            r#"
++            SELECT metadata
++            FROM micro_tasks
++            WHERE wp_id = $1 AND mt_id = $2
++            "#,
++        )
++        .bind(wp_id)
++        .bind(mt_id)
++        .fetch_optional(&self.pool)
++        .await
++        .map_err(StorageError::from)
++    }
++
++    async fn structured_collab_micro_task_status_rows(
++        &self,
++        wp_id: &str,
++    ) -> StorageResult<Vec<(String, String)>> {
++        sqlx::query_as::<_, (String, String)>(
++            "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
++        )
++        .bind(wp_id)
++        .fetch_all(&self.pool)
++        .await
++        .map_err(StorageError::from)
++    }
++
++    async fn structured_collab_micro_task_rows(
++        &self,
++        wp_id: &str,
++    ) -> StorageResult<Vec<(String, String)>> {
++        sqlx::query_as::<_, (String, String)>(
++            "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
++        )
++        .bind(wp_id)
++        .fetch_all(&self.pool)
++        .await
++        .map_err(StorageError::from)
++    }
++
++    #[cfg(test)]
++    async fn test_overwrite_loom_block_metrics(
++        &self,
++        workspace_id: &str,
++        block_id: &str,
++        mention_count: i64,
++        tag_count: i64,
++        backlink_count: i64,
++    ) -> StorageResult<()> {
++        sqlx::query(
++            r#"
++            UPDATE loom_blocks
++            SET mention_count = $1, tag_count = $2, backlink_count = $3
++            WHERE workspace_id = $4 AND block_id = $5
++            "#,
++        )
++        .bind(mention_count)
++        .bind(tag_count)
++        .bind(backlink_count)
++        .bind(workspace_id)
++        .bind(block_id)
++        .execute(&self.pool)
++        .await?;
++        Ok(())
++    }
++
++    #[cfg(test)]
++    async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
++        sqlx::query(
++            r#"
++            UPDATE loom_blocks
++            SET mention_count = 0, tag_count = 0, backlink_count = 0
++            WHERE workspace_id = $1
++            "#,
++        )
++        .bind(workspace_id)
++        .execute(&self.pool)
++        .await?;
++        Ok(())
++    }
++
++    #[cfg(test)]
++    async fn test_insert_loom_traversal_perf_fixture(
++        &self,
++        workspace_id: &str,
++        total_blocks: usize,
++    ) -> StorageResult<String> {
++        let created_at = Utc::now();
++        let derived_json = serde_json::to_string(&super::LoomBlockDerived::default())?;
++        let start_block_id = "perf-block-00000".to_string();
++        let mut tx = self.pool.begin().await?;
++
++        for idx in 0..total_blocks {
++            let block_id = format!("perf-block-{idx:05}");
++            sqlx::query(
++                r#"
++                INSERT INTO loom_blocks (
++                    block_id,
++                    workspace_id,
++                    content_type,
++                    title,
++                    pinned,
++                    last_actor_kind,
++                    edit_event_id,
++                    created_at,
++                    updated_at,
++                    backlink_count,
++                    mention_count,
++                    tag_count,
++                    derived_json,
++                    preview_status
++                )
++                VALUES (
++                    $1, $2, 'note', $3, 0, 'SYSTEM',
++                    '00000000-0000-0000-0000-000000000000',
++                    $4, $4, 0, 0, 0, $5, 'none'
++                )
++                "#,
++            )
++            .bind(&block_id)
++            .bind(workspace_id)
++            .bind(format!("Perf Block {idx}"))
++            .bind(created_at)
++            .bind(&derived_json)
++            .execute(&mut *tx)
++            .await?;
++
++            if idx > 0 {
++                sqlx::query(
++                    r#"
++                    INSERT INTO loom_edges (
++                        edge_id,
++                        workspace_id,
++                        source_block_id,
++                        target_block_id,
++                        edge_type,
++                        created_by,
++                        last_actor_kind,
++                        edit_event_id,
++                        created_at
++                    )
++                    VALUES (
++                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
++                        '00000000-0000-0000-0000-000000000000',
++                        $5
++                    )
++                    "#,
++                )
++                .bind(format!("perf-edge-{idx:05}"))
++                .bind(workspace_id)
++                .bind(format!("perf-block-{:05}", idx - 1))
++                .bind(&block_id)
++                .bind(created_at)
++                .execute(&mut *tx)
++                .await?;
++            }
++        }
++
++        tx.commit().await?;
++        Ok(start_block_id)
++    }
++
++    #[cfg(test)]
++    async fn test_update_ai_job_metadata(
++        &self,
++        job_id: Uuid,
++        status: &str,
++        created_at: chrono::DateTime<Utc>,
++        is_pinned: bool,
++    ) -> StorageResult<()> {
++        sqlx::query("UPDATE ai_jobs SET status = ?, created_at = ?, is_pinned = ? WHERE id = ?")
++            .bind(status)
++            .bind(created_at.to_rfc3339())
++            .bind(if is_pinned { 1_i32 } else { 0_i32 })
++            .bind(job_id.to_string())
++            .execute(&self.pool)
++        .await?;
++        Ok(())
++    }
++
++    #[cfg(test)]
++    async fn test_fetch_mutation_traceability_row(
++        &self,
++        table: &str,
++        id: &str,
++    ) -> StorageResult<super::MutationTraceabilityRow> {
++        let sql = format!(
++            "SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id FROM {table} WHERE id = ?"
++        );
++        sqlx::query_as::<_, super::MutationTraceabilityRow>(&sql)
++            .bind(id)
++            .fetch_one(&self.pool)
++            .await
++            .map_err(StorageError::from)
++    }
++
+diff --git a/src/backend/handshake_core/src/storage/tests.rs b/src/backend/handshake_core/src/storage/tests.rs
+index 63b4b4f..5484332 100644
+--- a/src/backend/handshake_core/src/storage/tests.rs
++++ b/src/backend/handshake_core/src/storage/tests.rs
+@@ -731,0 +732 @@ async fn build_loom_graph_fixture(
++#[cfg(test)]
+@@ -740,35 +741,9 @@ async fn overwrite_loom_block_metrics(
+-    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
+-        sqlx::query(
+-            r#"
+-            UPDATE loom_blocks
+-            SET mention_count = $1, tag_count = $2, backlink_count = $3
+-            WHERE workspace_id = $4 AND block_id = $5
+-            "#,
+-        )
+-        .bind(mention_count)
+-        .bind(tag_count)
+-        .bind(backlink_count)
+-        .bind(workspace_id)
+-        .bind(block_id)
+-        .execute(sqlite.pool())
+-        .await?;
+-        return Ok(());
+-    }
+-
+-    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
+-        sqlx::query(
+-            r#"
+-            UPDATE loom_blocks
+-            SET mention_count = $1, tag_count = $2, backlink_count = $3
+-            WHERE workspace_id = $4 AND block_id = $5
+-            "#,
+-        )
+-        .bind(mention_count as i32)
+-        .bind(tag_count as i32)
+-        .bind(backlink_count as i32)
+-        .bind(workspace_id)
+-        .bind(block_id)
+-        .execute(postgres.pool())
+-        .await?;
+-        return Ok(());
+-    }
++    db.test_overwrite_loom_block_metrics(
++        workspace_id,
++        block_id,
++        mention_count,
++        tag_count,
++        backlink_count,
++    )
++    .await
++}
+@@ -776 +751,18 @@ async fn overwrite_loom_block_metrics(
+-    Err(StorageError::Validation("unsupported loom metrics backend"))
++#[cfg(not(test))]
++async fn overwrite_loom_block_metrics(
++    db: &Arc<dyn super::Database>,
++    workspace_id: &str,
++    block_id: &str,
++    mention_count: i64,
++    tag_count: i64,
++    backlink_count: i64,
++) -> StorageResult<()> {
++    let _ = (
++        db,
++        workspace_id,
++        block_id,
++        mention_count,
++        tag_count,
++        backlink_count,
++    );
++    Ok(())
+@@ -778,0 +771 @@ async fn overwrite_loom_block_metrics(
++#[cfg(test)]
+@@ -783,27 +776,2 @@ async fn zero_workspace_loom_metrics(
+-    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
+-        sqlx::query(
+-            r#"
+-            UPDATE loom_blocks
+-            SET mention_count = 0, tag_count = 0, backlink_count = 0
+-            WHERE workspace_id = $1
+-            "#,
+-        )
+-        .bind(workspace_id)
+-        .execute(sqlite.pool())
+-        .await?;
+-        return Ok(());
+-    }
+-
+-    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
+-        sqlx::query(
+-            r#"
+-            UPDATE loom_blocks
+-            SET mention_count = 0, tag_count = 0, backlink_count = 0
+-            WHERE workspace_id = $1
+-            "#,
+-        )
+-        .bind(workspace_id)
+-        .execute(postgres.pool())
+-        .await?;
+-        return Ok(());
+-    }
++    db.test_zero_workspace_loom_metrics(workspace_id).await
++}
+@@ -811 +779,7 @@ async fn zero_workspace_loom_metrics(
+-    Err(StorageError::Validation("unsupported loom metrics backend"))
++#[cfg(not(test))]
++async fn zero_workspace_loom_metrics(
++    db: &Arc<dyn super::Database>,
++    workspace_id: &str,
++) -> StorageResult<()> {
++    let _ = (db, workspace_id);
++    Ok(())
+@@ -1031 +1005 @@ async fn loom_directional_edge_queries(
+-async fn loom_search_graph_filter_postgres(
++async fn loom_search_graph_filter_when_supported(
+@@ -1036 +1010 @@ async fn loom_search_graph_filter_postgres(
+-    if !db.as_any().is::<PostgresDatabase>() {
++    if !db.supports_loom_graph_filtering() {
+@@ -1157,0 +1132 @@ async fn loom_source_anchor_round_trip(
++#[cfg(test)]
+@@ -1162,74 +1137,3 @@ async fn insert_loom_traversal_perf_fixture(
+-    let created_at = Utc::now();
+-    let derived_json = serde_json::to_string(&super::LoomBlockDerived::default())?;
+-    let start_block_id = "perf-block-00000".to_string();
+-
+-    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
+-        let mut tx = sqlite.pool().begin().await?;
+-        for idx in 0..LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS {
+-            let block_id = format!("perf-block-{idx:05}");
+-            sqlx::query(
+-                r#"
+-                INSERT INTO loom_blocks (
+-                    block_id,
+-                    workspace_id,
+-                    content_type,
+-                    title,
+-                    pinned,
+-                    last_actor_kind,
+-                    edit_event_id,
+-                    created_at,
+-                    updated_at,
+-                    backlink_count,
+-                    mention_count,
+-                    tag_count,
+-                    derived_json,
+-                    preview_status
+-                )
+-                VALUES (
+-                    $1, $2, 'note', $3, 0, 'SYSTEM',
+-                    '00000000-0000-0000-0000-000000000000',
+-                    $4, $4, 0, 0, 0, $5, 'none'
+-                )
+-                "#,
+-            )
+-            .bind(&block_id)
+-            .bind(workspace_id)
+-            .bind(format!("Perf Block {idx}"))
+-            .bind(created_at)
+-            .bind(&derived_json)
+-            .execute(&mut *tx)
+-            .await?;
+-
+-            if idx > 0 {
+-                sqlx::query(
+-                    r#"
+-                    INSERT INTO loom_edges (
+-                        edge_id,
+-                        workspace_id,
+-                        source_block_id,
+-                        target_block_id,
+-                        edge_type,
+-                        created_by,
+-                        last_actor_kind,
+-                        edit_event_id,
+-                        created_at
+-                    )
+-                    VALUES (
+-                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
+-                        '00000000-0000-0000-0000-000000000000',
+-                        $5
+-                    )
+-                    "#,
+-                )
+-                .bind(format!("perf-edge-{idx:05}"))
+-                .bind(workspace_id)
+-                .bind(format!("perf-block-{:05}", idx - 1))
+-                .bind(&block_id)
+-                .bind(created_at)
+-                .execute(&mut *tx)
+-                .await?;
+-            }
+-        }
+-        tx.commit().await?;
+-        return Ok(start_block_id);
+-    }
++    db.test_insert_loom_traversal_perf_fixture(workspace_id, LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS)
++        .await
++}
+@@ -1237,36 +1141,29 @@ async fn insert_loom_traversal_perf_fixture(
+-    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
+-        let mut tx = postgres.pool().begin().await?;
+-        for idx in 0..LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS {
+-            let block_id = format!("perf-block-{idx:05}");
+-            sqlx::query(
+-                r#"
+-                INSERT INTO loom_blocks (
+-                    block_id,
+-                    workspace_id,
+-                    content_type,
+-                    title,
+-                    pinned,
+-                    last_actor_kind,
+-                    edit_event_id,
+-                    created_at,
+-                    updated_at,
+-                    backlink_count,
+-                    mention_count,
+-                    tag_count,
+-                    derived_json,
+-                    preview_status
+-                )
+-                VALUES (
+-                    $1, $2, 'note', $3, 0, 'SYSTEM',
+-                    '00000000-0000-0000-0000-000000000000',
+-                    $4, $4, 0, 0, 0, $5, 'none'
+-                )
+-                "#,
+-            )
+-            .bind(&block_id)
+-            .bind(workspace_id)
+-            .bind(format!("Perf Block {idx}"))
+-            .bind(created_at)
+-            .bind(&derived_json)
+-            .execute(&mut *tx)
+-            .await?;
++#[cfg(not(test))]
++async fn insert_loom_traversal_perf_fixture(
++    db: &Arc<dyn super::Database>,
++    workspace_id: &str,
++) -> StorageResult<String> {
++    let ctx = WriteContext::system(None);
++    let start_block_id = "perf-block-00000".to_string();
++    db.create_loom_block(
++        &ctx,
++        NewLoomBlock {
++            block_id: Some(start_block_id.clone()),
++            workspace_id: workspace_id.to_string(),
++            content_type: LoomBlockContentType::Note,
++            document_id: None,
++            asset_id: None,
++            title: Some("Perf Block 0".to_string()),
++            original_filename: None,
++            content_hash: None,
++            pinned: false,
++            journal_date: None,
++            imported_at: None,
++            derived: super::LoomBlockDerived {
++                full_text_index: Some("perf traversal start".to_string()),
++                ..Default::default()
++            },
++        },
++    )
++    .await?;
++    let mut previous_block_id = start_block_id.clone();
+@@ -1274,32 +1171,38 @@ async fn insert_loom_traversal_perf_fixture(
+-            if idx > 0 {
+-                sqlx::query(
+-                    r#"
+-                    INSERT INTO loom_edges (
+-                        edge_id,
+-                        workspace_id,
+-                        source_block_id,
+-                        target_block_id,
+-                        edge_type,
+-                        created_by,
+-                        last_actor_kind,
+-                        edit_event_id,
+-                        created_at
+-                    )
+-                    VALUES (
+-                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
+-                        '00000000-0000-0000-0000-000000000000',
+-                        $5
+-                    )
+-                    "#,
+-                )
+-                .bind(format!("perf-edge-{idx:05}"))
+-                .bind(workspace_id)
+-                .bind(format!("perf-block-{:05}", idx - 1))
+-                .bind(&block_id)
+-                .bind(created_at)
+-                .execute(&mut *tx)
+-                .await?;
+-            }
+-        }
+-        tx.commit().await?;
+-        return Ok(start_block_id);
++    for idx in 1..LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS {
++        let block_id = format!("perf-block-{idx:05}");
++        db.create_loom_block(
++            &ctx,
++            NewLoomBlock {
++                block_id: Some(block_id.clone()),
++                workspace_id: workspace_id.to_string(),
++                content_type: LoomBlockContentType::Note,
++                document_id: None,
++                asset_id: None,
++                title: Some(format!("Perf Block {idx}")),
++                original_filename: None,
++                content_hash: None,
++                pinned: false,
++                journal_date: None,
++                imported_at: None,
++                derived: super::LoomBlockDerived {
++                    full_text_index: Some(format!("perf traversal block {idx}")),
++                    ..Default::default()
++                },
++            },
++        )
++        .await?;
++        db.create_loom_edge(
++            &ctx,
++            NewLoomEdge {
++                edge_id: None,
++                workspace_id: workspace_id.to_string(),
++                source_block_id: previous_block_id,
++                target_block_id: block_id.clone(),
++                edge_type: LoomEdgeType::Mention,
++                created_by: LoomEdgeCreatedBy::User,
++                crdt_site_id: None,
++                source_anchor: None,
++            },
++        )
++        .await?;
++        previous_block_id = block_id;
+@@ -1308,3 +1211 @@ async fn insert_loom_traversal_perf_fixture(
+-    Err(StorageError::Validation(
+-        "unsupported loom traversal performance backend",
+-    ))
++    Ok(start_block_id)
+@@ -1329,5 +1230 @@ async fn loom_traverse_graph_meets_performance_target(
+-    let limit_ms = if db.as_any().is::<SqliteDatabase>() {
+-        100_u128
+-    } else {
+-        50_u128
+-    };
++    let limit_ms = db.loom_traverse_graph_perf_target_ms();
+@@ -1960 +1857 @@ pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> Stora
+-    loom_search_graph_filter_postgres(&db, &workspace.id, &graph_fixture).await?;
++    loom_search_graph_filter_when_supported(&db, &workspace.id, &graph_fixture).await?;
+@@ -2524,5 +2420,0 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-    let sqlite = db
+-        .as_any()
+-        .downcast_ref::<SqliteDatabase>()
+-        .ok_or(StorageError::Validation("expected sqlite backend"))?;
+-    let pool = sqlite.pool();
+@@ -2550,10 +2442,3 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-        let workspace_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM workspaces
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&workspace.id)
+-        .fetch_one(pool)
+-        .await?;
++        let workspace_row = db
++            .test_fetch_mutation_traceability_row("workspaces", &workspace.id)
++            .await?;
+@@ -2561,5 +2446,5 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-            &workspace_row.get::<String, _>("last_actor_kind"),
+-            workspace_row.get::<Option<String>, _>("last_actor_id"),
+-            workspace_row.get::<Option<String>, _>("last_job_id"),
+-            workspace_row.get::<Option<String>, _>("last_workflow_id"),
+-            &workspace_row.get::<String, _>("edit_event_id"),
++            &workspace_row.last_actor_kind,
++            workspace_row.last_actor_id,
++            workspace_row.last_job_id,
++            workspace_row.last_workflow_id,
++            &workspace_row.edit_event_id,
+@@ -2579,10 +2464,3 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-        let document_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM documents
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&document.id)
+-        .fetch_one(pool)
+-        .await?;
++        let document_row = db
++            .test_fetch_mutation_traceability_row("documents", &document.id)
++            .await?;
+@@ -2590,5 +2468,5 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-            &document_row.get::<String, _>("last_actor_kind"),
+-            document_row.get::<Option<String>, _>("last_actor_id"),
+-            document_row.get::<Option<String>, _>("last_job_id"),
+-            document_row.get::<Option<String>, _>("last_workflow_id"),
+-            &document_row.get::<String, _>("edit_event_id"),
++            &document_row.last_actor_kind,
++            document_row.last_actor_id,
++            document_row.last_job_id,
++            document_row.last_workflow_id,
++            &document_row.edit_event_id,
+@@ -2615,10 +2493,3 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-        let block_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM blocks
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&block.id)
+-        .fetch_one(pool)
+-        .await?;
++        let block_row = db
++            .test_fetch_mutation_traceability_row("blocks", &block.id)
++            .await?;
+@@ -2626,5 +2497,5 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-            &block_row.get::<String, _>("last_actor_kind"),
+-            block_row.get::<Option<String>, _>("last_actor_id"),
+-            block_row.get::<Option<String>, _>("last_job_id"),
+-            block_row.get::<Option<String>, _>("last_workflow_id"),
+-            &block_row.get::<String, _>("edit_event_id"),
++            &block_row.last_actor_kind,
++            block_row.last_actor_id,
++            block_row.last_job_id,
++            block_row.last_workflow_id,
++            &block_row.edit_event_id,
+@@ -2675,10 +2546,3 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-        let canvas_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvases
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&canvas.id)
+-        .fetch_one(pool)
+-        .await?;
++        let canvas_row = db
++            .test_fetch_mutation_traceability_row("canvases", &canvas.id)
++            .await?;
+@@ -2686,5 +2550,5 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-            &canvas_row.get::<String, _>("last_actor_kind"),
+-            canvas_row.get::<Option<String>, _>("last_actor_id"),
+-            canvas_row.get::<Option<String>, _>("last_job_id"),
+-            canvas_row.get::<Option<String>, _>("last_workflow_id"),
+-            &canvas_row.get::<String, _>("edit_event_id"),
++            &canvas_row.last_actor_kind,
++            canvas_row.last_actor_id,
++            canvas_row.last_job_id,
++            canvas_row.last_workflow_id,
++            &canvas_row.edit_event_id,
+@@ -2694,10 +2558,3 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-        let node_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvas_nodes
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&node_a_id)
+-        .fetch_one(pool)
+-        .await?;
++        let node_row = db
++            .test_fetch_mutation_traceability_row("canvas_nodes", &node_a_id)
++            .await?;
+@@ -2705,5 +2562,5 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-            &node_row.get::<String, _>("last_actor_kind"),
+-            node_row.get::<Option<String>, _>("last_actor_id"),
+-            node_row.get::<Option<String>, _>("last_job_id"),
+-            node_row.get::<Option<String>, _>("last_workflow_id"),
+-            &node_row.get::<String, _>("edit_event_id"),
++            &node_row.last_actor_kind,
++            node_row.last_actor_id,
++            node_row.last_job_id,
++            node_row.last_workflow_id,
++            &node_row.edit_event_id,
+@@ -2713,10 +2570,3 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-        let edge_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvas_edges
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&edge_id)
+-        .fetch_one(pool)
+-        .await?;
++        let edge_row = db
++            .test_fetch_mutation_traceability_row("canvas_edges", &edge_id)
++            .await?;
+@@ -2724,5 +2574,5 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-            &edge_row.get::<String, _>("last_actor_kind"),
+-            edge_row.get::<Option<String>, _>("last_actor_id"),
+-            edge_row.get::<Option<String>, _>("last_job_id"),
+-            edge_row.get::<Option<String>, _>("last_workflow_id"),
+-            &edge_row.get::<String, _>("edit_event_id"),
++            &edge_row.last_actor_kind,
++            edge_row.last_actor_id,
++            edge_row.last_job_id,
++            edge_row.last_workflow_id,
++            &edge_row.edit_event_id,
+@@ -2799,6 +2648,0 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-    let postgres = db
+-        .as_any()
+-        .downcast_ref::<PostgresDatabase>()
+-        .ok_or(StorageError::Validation("expected postgres backend"))?;
+-    let pool = postgres.pool();
+-
+@@ -2825,10 +2669,3 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-        let workspace_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM workspaces
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&workspace.id)
+-        .fetch_one(pool)
+-        .await?;
++        let workspace_row = db
++            .test_fetch_mutation_traceability_row("workspaces", &workspace.id)
++            .await?;
+@@ -2836,5 +2673,5 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-            &workspace_row.get::<String, _>("last_actor_kind"),
+-            workspace_row.get::<Option<String>, _>("last_actor_id"),
+-            workspace_row.get::<Option<String>, _>("last_job_id"),
+-            workspace_row.get::<Option<String>, _>("last_workflow_id"),
+-            &workspace_row.get::<String, _>("edit_event_id"),
++            &workspace_row.last_actor_kind,
++            workspace_row.last_actor_id,
++            workspace_row.last_job_id,
++            workspace_row.last_workflow_id,
++            &workspace_row.edit_event_id,
+@@ -2854,10 +2691,3 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-        let document_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM documents
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&document.id)
+-        .fetch_one(pool)
+-        .await?;
++        let document_row = db
++            .test_fetch_mutation_traceability_row("documents", &document.id)
++            .await?;
+@@ -2865,5 +2695,5 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-            &document_row.get::<String, _>("last_actor_kind"),
+-            document_row.get::<Option<String>, _>("last_actor_id"),
+-            document_row.get::<Option<String>, _>("last_job_id"),
+-            document_row.get::<Option<String>, _>("last_workflow_id"),
+-            &document_row.get::<String, _>("edit_event_id"),
++            &document_row.last_actor_kind,
++            document_row.last_actor_id,
++            document_row.last_job_id,
++            document_row.last_workflow_id,
++            &document_row.edit_event_id,
+@@ -2890,10 +2720,3 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-        let block_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM blocks
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&block.id)
+-        .fetch_one(pool)
+-        .await?;
++        let block_row = db
++            .test_fetch_mutation_traceability_row("blocks", &block.id)
++            .await?;
+@@ -2901,5 +2724,5 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-            &block_row.get::<String, _>("last_actor_kind"),
+-            block_row.get::<Option<String>, _>("last_actor_id"),
+-            block_row.get::<Option<String>, _>("last_job_id"),
+-            block_row.get::<Option<String>, _>("last_workflow_id"),
+-            &block_row.get::<String, _>("edit_event_id"),
++            &block_row.last_actor_kind,
++            block_row.last_actor_id,
++            block_row.last_job_id,
++            block_row.last_workflow_id,
++            &block_row.edit_event_id,
+@@ -2950,10 +2773,3 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-        let canvas_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvases
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&canvas.id)
+-        .fetch_one(pool)
+-        .await?;
++        let canvas_row = db
++            .test_fetch_mutation_traceability_row("canvases", &canvas.id)
++            .await?;
+@@ -2961,5 +2777,5 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-            &canvas_row.get::<String, _>("last_actor_kind"),
+-            canvas_row.get::<Option<String>, _>("last_actor_id"),
+-            canvas_row.get::<Option<String>, _>("last_job_id"),
+-            canvas_row.get::<Option<String>, _>("last_workflow_id"),
+-            &canvas_row.get::<String, _>("edit_event_id"),
++            &canvas_row.last_actor_kind,
++            canvas_row.last_actor_id,
++            canvas_row.last_job_id,
++            canvas_row.last_workflow_id,
++            &canvas_row.edit_event_id,
+@@ -2969,10 +2785,3 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-        let node_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvas_nodes
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&node_a_id)
+-        .fetch_one(pool)
+-        .await?;
++        let node_row = db
++            .test_fetch_mutation_traceability_row("canvas_nodes", &node_a_id)
++            .await?;
+@@ -2980,5 +2789,5 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-            &node_row.get::<String, _>("last_actor_kind"),
+-            node_row.get::<Option<String>, _>("last_actor_id"),
+-            node_row.get::<Option<String>, _>("last_job_id"),
+-            node_row.get::<Option<String>, _>("last_workflow_id"),
+-            &node_row.get::<String, _>("edit_event_id"),
++            &node_row.last_actor_kind,
++            node_row.last_actor_id,
++            node_row.last_job_id,
++            node_row.last_workflow_id,
++            &node_row.edit_event_id,
+@@ -2988,10 +2797,3 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-        let edge_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvas_edges
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&edge_id)
+-        .fetch_one(pool)
+-        .await?;
++        let edge_row = db
++            .test_fetch_mutation_traceability_row("canvas_edges", &edge_id)
++            .await?;
+@@ -2999,5 +2801,5 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-            &edge_row.get::<String, _>("last_actor_kind"),
+-            edge_row.get::<Option<String>, _>("last_actor_id"),
+-            edge_row.get::<Option<String>, _>("last_job_id"),
+-            edge_row.get::<Option<String>, _>("last_workflow_id"),
+-            &edge_row.get::<String, _>("edit_event_id"),
++            &edge_row.last_actor_kind,
++            edge_row.last_actor_id,
++            edge_row.last_job_id,
++            edge_row.last_workflow_id,
++            &edge_row.edit_event_id,
+@@ -3213,0 +3016,92 @@ async fn migrations_are_replay_safe_postgres() -> StorageResult<()> {
++#[cfg(test)]
++async fn assert_postgres_structured_collab_artifacts_capability_denied() -> StorageResult<()> {
++    let Some(url) = postgres_test_url() else {
++        return Ok(());
++    };
++
++    let mut conn = sqlx::PgConnection::connect(&url).await?;
++    let schema = format!("wp1_structured_collab_{}", Uuid::new_v4().simple());
++    sqlx::query(&format!("CREATE SCHEMA {schema}"))
++        .execute(&mut conn)
++        .await?;
++    drop(conn);
++
++    let sep = if url.contains('?') { "&" } else { "?" };
++    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
++
++    let db = PostgresDatabase::connect(&schema_url, 5).await?;
++    db.run_migrations().await?;
++    let db = db.into_arc();
++
++    assert!(!db.supports_structured_collab_artifacts());
++
++    let row_err = db.structured_collab_work_packet_row("WP-TEST").await.unwrap_err();
++    assert!(matches!(
++        row_err,
++        StorageError::NotImplemented("structured collaboration artifacts")
++    ));
++
++    let locus_err = super::locus_sqlite::locus_work_packet_exists(db.as_ref(), "WP-TEST")
++        .await
++        .unwrap_err();
++    assert!(matches!(
++        locus_err,
++        StorageError::NotImplemented("structured collaboration artifacts")
++    ));
++
++    drop(db);
++    let mut conn = sqlx::PgConnection::connect(&url).await?;
++    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
++        .execute(&mut conn)
++        .await?;
++
++    Ok(())
++}
++
++#[tokio::test]
++async fn database_trait_purity() -> StorageResult<()> {
++    let sqlite = sqlite_backend().await?;
++    assert!(sqlite.supports_structured_collab_artifacts());
++    drop(sqlite);
++
++    assert_postgres_structured_collab_artifacts_capability_denied().await?;
++    Ok(())
++}
++
++#[tokio::test]
++async fn locus_backend_capability() -> StorageResult<()> {
++    assert_postgres_structured_collab_artifacts_capability_denied().await
++}
++
++#[tokio::test]
++async fn postgres_structured_collab_artifacts_are_capability_denied() -> StorageResult<()> {
++    assert_postgres_structured_collab_artifacts_capability_denied().await
++}
++
++#[tokio::test]
++async fn loom_search_graph_filter_backend_support() -> StorageResult<()> {
++    let db = sqlite_backend().await?;
++
++    let ctx = WriteContext::human(Some("loom-search-proof".into()));
++    let workspace = db
++        .create_workspace(
++            &ctx,
++            NewWorkspace {
++                name: format!("loom-search-proof-{}", Uuid::new_v4()),
++            },
++        )
++        .await?;
++    let document = db
++        .create_document(
++            &ctx,
++            NewDocument {
++                workspace_id: workspace.id.clone(),
++                title: format!("loom-search-proof-doc-{}", Uuid::new_v4()),
++            },
++        )
++        .await?;
++    let graph_fixture = build_loom_graph_fixture(&db, &ctx, &workspace.id, &document.id).await?;
++
++    loom_search_graph_filter_when_supported(&db, &workspace.id, &graph_fixture).await
++}
++
+diff --git a/src/backend/handshake_core/src/workflows.rs b/src/backend/handshake_core/src/workflows.rs
+index 96df6d0..1b17eda 100644
+--- a/src/backend/handshake_core/src/workflows.rs
++++ b/src/backend/handshake_core/src/workflows.rs
+@@ -49,2 +49,2 @@ use crate::{
+-        sqlite::SqliteDatabase, validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate,
+-        ModelSession, ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
++        validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate, ModelSession,
++        ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
+@@ -67 +66,0 @@ use sha2::{Digest, Sha256};
+-use sqlx::SqlitePool;
+@@ -1590 +1588,0 @@ async fn execute_locus_sync_task_board(
+-            let sqlite = sqlite_database_for_structured_work_packet_projection(db)?;
+@@ -1598,7 +1596,2 @@ async fn execute_locus_sync_task_board(
+-                let wp_ids = sqlx::query_scalar::<_, String>(
+-                    "SELECT wp_id FROM work_packets ORDER BY wp_id ASC",
+-                )
+-                .fetch_all(sqlite.pool())
+-                .await
+-                .map_err(StorageError::from)?;
+-                for wp_id in wp_ids {
++                ensure_structured_collab_artifacts_supported(db)?;
++                for row in db.structured_collab_work_packet_rows().await? {
+@@ -1606 +1599 @@ async fn execute_locus_sync_task_board(
+-                        load_tracked_work_packet_for_artifacts(sqlite.pool(), &wp_id).await?
++                        load_tracked_work_packet_for_artifacts(db, &row.wp_id).await?
+@@ -1614,2 +1607 @@ async fn execute_locus_sync_task_board(
+-                emit_task_board_projection_artifacts(sqlite.pool(), &runtime_governance_paths)
+-                    .await?
++                emit_task_board_projection_artifacts(db, &runtime_governance_paths).await?
+@@ -2581,13 +2572,0 @@ const TASK_BOARD_ENTRY_SCHEMA_ID: &str = "hsk.task_board_entry@1";
+-fn sqlite_pool_for_structured_artifacts(state: &AppState) -> Result<&SqlitePool, WorkflowError> {
+-    state
+-        .storage
+-        .as_any()
+-        .downcast_ref::<SqliteDatabase>()
+-        .map(SqliteDatabase::pool)
+-        .ok_or_else(|| {
+-            WorkflowError::Terminal(
+-                "structured collaboration artifact emission requires sqlite storage".to_string(),
+-            )
+-        })
+-}
+-
+@@ -2817 +2796 @@ async fn load_micro_task_summary_for_wp(
+-    pool: &SqlitePool,
++    db: &dyn crate::storage::Database,
+@@ -2820,7 +2799,2 @@ async fn load_micro_task_summary_for_wp(
+-    let rows = sqlx::query_as::<_, (String, String)>(
+-        "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+-    )
+-    .bind(wp_id)
+-    .fetch_all(pool)
+-    .await
+-    .map_err(StorageError::from)?;
++    ensure_structured_collab_artifacts_supported(db)?;
++    let rows = db.structured_collab_micro_task_status_rows(wp_id).await?;
+@@ -2850 +2824 @@ async fn load_tracked_work_packet_for_artifacts(
+-    pool: &SqlitePool,
++    db: &dyn crate::storage::Database,
+@@ -2853,47 +2827,6 @@ async fn load_tracked_work_packet_for_artifacts(
+-    let row = sqlx::query_as::<
+-        _,
+-        (
+-            i64,
+-            String,
+-            String,
+-            String,
+-            i64,
+-            String,
+-            String,
+-            Option<String>,
+-            String,
+-            Option<String>,
+-            String,
+-            String,
+-            String,
+-            String,
+-            String,
+-        ),
+-    >(
+-        r#"
+-        SELECT
+-            version,
+-            title,
+-            description,
+-            status,
+-            priority,
+-            phase,
+-            routing,
+-            task_packet_path,
+-            task_board_status,
+-            assignee,
+-            reporter,
+-            created_at,
+-            updated_at,
+-            vector_clock,
+-            metadata
+-        FROM work_packets
+-        WHERE wp_id = $1
+-        "#,
+-    )
+-    .bind(wp_id)
+-    .fetch_optional(pool)
+-    .await
+-    .map_err(StorageError::from)?;
+-
+-    let Some((
++    ensure_structured_collab_artifacts_supported(db)?;
++    let Some(row) = db.structured_collab_work_packet_row(wp_id).await? else {
++        return Ok(None);
++    };
++    let crate::storage::StructuredCollabWorkPacketRow {
++        wp_id,
+@@ -2913,6 +2846,3 @@ async fn load_tracked_work_packet_for_artifacts(
+-        vector_clock_raw,
+-        metadata_raw,
+-    )) = row
+-    else {
+-        return Ok(None);
+-    };
++        vector_clock: vector_clock_raw,
++        metadata: metadata_raw,
++    } = row;
+@@ -2931,0 +2862 @@ async fn load_tracked_work_packet_for_artifacts(
++    let micro_tasks = load_micro_task_summary_for_wp(db, &wp_id).await?;
+@@ -2944 +2875 @@ async fn load_tracked_work_packet_for_artifacts(
+-        wp_id: wp_id.to_string(),
++        wp_id,
+@@ -2965 +2896 @@ async fn load_tracked_work_packet_for_artifacts(
+-        micro_tasks: load_micro_task_summary_for_wp(pool, wp_id).await?,
++        micro_tasks,
+@@ -2993 +2924 @@ async fn load_tracked_micro_task_for_artifacts(
+-    pool: &SqlitePool,
++    db: &dyn crate::storage::Database,
+@@ -2997,12 +2928,2 @@ async fn load_tracked_micro_task_for_artifacts(
+-    let metadata = sqlx::query_scalar::<_, String>(
+-        r#"
+-        SELECT metadata
+-        FROM micro_tasks
+-        WHERE wp_id = $1 AND mt_id = $2
+-        "#,
+-    )
+-    .bind(wp_id)
+-    .bind(mt_id)
+-    .fetch_optional(pool)
+-    .await
+-    .map_err(StorageError::from)?;
++    ensure_structured_collab_artifacts_supported(db)?;
++    let metadata = db.structured_collab_micro_task_metadata(wp_id, mt_id).await?;
+@@ -3026 +2947 @@ async fn list_tracked_micro_tasks_for_artifacts(
+-    pool: &SqlitePool,
++    db: &dyn crate::storage::Database,
+@@ -3029,7 +2950,2 @@ async fn list_tracked_micro_tasks_for_artifacts(
+-    let rows = sqlx::query_as::<_, (String, String)>(
+-        "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+-    )
+-    .bind(wp_id)
+-    .fetch_all(pool)
+-    .await
+-    .map_err(StorageError::from)?;
++    ensure_structured_collab_artifacts_supported(db)?;
++    let rows = db.structured_collab_micro_task_rows(wp_id).await?;
+@@ -3494 +3410 @@ async fn emit_task_board_projection_artifacts(
+-    pool: &SqlitePool,
++    db: &dyn crate::storage::Database,
+@@ -3497,10 +3413,2 @@ async fn emit_task_board_projection_artifacts(
+-    let rows = sqlx::query_as::<_, (String, String, String, String)>(
+-        r#"
+-        SELECT wp_id, task_board_status, metadata, updated_at
+-        FROM work_packets
+-        ORDER BY updated_at ASC, wp_id ASC
+-        "#,
+-    )
+-    .fetch_all(pool)
+-    .await
+-    .map_err(StorageError::from)?;
++    ensure_structured_collab_artifacts_supported(db)?;
++    let rows = db.structured_collab_work_packet_rows().await?;
+@@ -3516,3 +3424,4 @@ async fn emit_task_board_projection_artifacts(
+-        .map(|(wp_id, status_raw, metadata_raw, updated_at)| {
+-            let status = parse_task_board_status_db_global(status_raw);
+-            let metadata: Value = serde_json::from_str(metadata_raw).unwrap_or_else(|_| json!({}));
++        .map(|row| {
++            let status = parse_task_board_status_db_global(&row.task_board_status);
++            let metadata: Value =
++                serde_json::from_str(&row.metadata).unwrap_or_else(|_| json!({}));
+@@ -3525 +3434 @@ async fn emit_task_board_projection_artifacts(
+-                "wp_id": wp_id,
++                "wp_id": row.wp_id,
+@@ -3528 +3437 @@ async fn emit_task_board_projection_artifacts(
+-                "updated_at": updated_at,
++                "updated_at": row.updated_at,
+@@ -3534,4 +3443,4 @@ async fn emit_task_board_projection_artifacts(
+-    for (wp_id, status_raw, metadata_raw, updated_at) in &rows {
+-        generated_at = generated_at.max(updated_at.clone());
+-        let status = parse_task_board_status_db_global(status_raw);
+-        let metadata: Value = serde_json::from_str(metadata_raw).unwrap_or_else(|_| json!({}));
++    for row in &rows {
++        generated_at = generated_at.max(row.updated_at.clone());
++        let status = parse_task_board_status_db_global(&row.task_board_status);
++        let metadata: Value = serde_json::from_str(&row.metadata).unwrap_or_else(|_| json!({}));
+@@ -3547 +3456 @@ async fn emit_task_board_projection_artifacts(
+-                wp_id: wp_id.clone(),
++                wp_id: row.wp_id.clone(),
+@@ -3561,3 +3470,3 @@ async fn emit_task_board_projection_artifacts(
+-    for (wp_id, status_raw, metadata_raw, updated_at) in rows {
+-        let status = parse_task_board_status_db_global(&status_raw);
+-        let metadata: Value = serde_json::from_str(&metadata_raw).unwrap_or_else(|_| json!({}));
++    for row in rows {
++        let status = parse_task_board_status_db_global(&row.task_board_status);
++        let metadata: Value = serde_json::from_str(&row.metadata).unwrap_or_else(|_| json!({}));
+@@ -3580 +3489 @@ async fn emit_task_board_projection_artifacts(
+-            record_id: format!("task_board_entry:{wp_id}"),
++            record_id: format!("task_board_entry:{}", row.wp_id),
+@@ -3583 +3492 @@ async fn emit_task_board_projection_artifacts(
+-            updated_at,
++            updated_at: row.updated_at,
+@@ -3585 +3494 @@ async fn emit_task_board_projection_artifacts(
+-            authority_refs: vec![runtime_paths.work_packet_packet_display(&wp_id)],
++            authority_refs: vec![runtime_paths.work_packet_packet_display(&row.wp_id)],
+@@ -3592 +3501 @@ async fn emit_task_board_projection_artifacts(
+-            work_packet_id: wp_id.clone(),
++            work_packet_id: row.wp_id.clone(),
+@@ -3598 +3507 @@ async fn emit_task_board_projection_artifacts(
+-            summary_ref: runtime_paths.work_packet_summary_display(&wp_id),
++            summary_ref: runtime_paths.work_packet_summary_display(&row.wp_id),
+@@ -3750 +3659 @@ async fn materialize_structured_collaboration_artifacts(
+-    let pool = sqlite_pool_for_structured_artifacts(state)?;
++    let db = state.storage.as_ref();
+@@ -3755 +3664 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3759 +3668 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3763 +3672 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3767 +3676 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3771 +3680 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3775 +3684 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3779 +3688 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3783 +3692 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3787 +3696 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3791 +3700 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3795 +3704 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3799 +3708 @@ async fn materialize_structured_collaboration_artifacts(
+-            let micro_tasks = list_tracked_micro_tasks_for_artifacts(pool, &params.wp_id).await?;
++            let micro_tasks = list_tracked_micro_tasks_for_artifacts(db, &params.wp_id).await?;
+@@ -3803 +3712 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3807 +3716 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3812 +3721 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
++                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
+@@ -3816 +3725 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3820 +3729 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3825 +3734 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
++                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
+@@ -3829 +3738 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3833 +3742 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3838 +3747 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
++                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
+@@ -3842 +3751 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3846 +3755 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3851 +3760 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
++                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
+@@ -3855 +3764 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3859 +3768 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3864 +3773 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
++                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
+@@ -3868 +3777 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3871 +3780 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -4361,13 +4270,2 @@ async fn load_tracked_micro_task_from_sqlite(
+-    let sqlite = sqlite_database_for_structured_work_packet_projection(db)?;
+-    let metadata_raw = sqlx::query_scalar::<_, String>(
+-        r#"
+-        SELECT metadata
+-        FROM micro_tasks
+-        WHERE wp_id = $1 AND mt_id = $2
+-        "#,
+-    )
+-    .bind(wp_id)
+-    .bind(mt_id)
+-    .fetch_optional(sqlite.pool())
+-    .await
+-    .map_err(StorageError::from)?;
++    ensure_structured_collab_artifacts_supported(db)?;
++    let metadata_raw = db.structured_collab_micro_task_metadata(wp_id, mt_id).await?;
+@@ -4390,49 +4288,5 @@ async fn load_tracked_work_packet_from_sqlite(
+-    let sqlite = sqlite_database_for_structured_work_packet_projection(db)?;
+-    let row = sqlx::query_as::<
+-        _,
+-        (
+-            String,
+-            i64,
+-            String,
+-            String,
+-            String,
+-            i64,
+-            String,
+-            String,
+-            Option<String>,
+-            String,
+-            Option<String>,
+-            String,
+-            String,
+-            String,
+-            String,
+-            String,
+-        ),
+-    >(
+-        r#"
+-        SELECT
+-            wp_id,
+-            version,
+-            title,
+-            description,
+-            status,
+-            priority,
+-            phase,
+-            routing,
+-            task_packet_path,
+-            task_board_status,
+-            assignee,
+-            reporter,
+-            created_at,
+-            updated_at,
+-            vector_clock,
+-            metadata
+-        FROM work_packets
+-        WHERE wp_id = $1
+-        "#,
+-    )
+-    .bind(wp_id)
+-    .fetch_optional(sqlite.pool())
+-    .await
+-    .map_err(StorageError::from)?;
+-    let Some((
++    ensure_structured_collab_artifacts_supported(db)?;
++    let Some(row) = db.structured_collab_work_packet_row(wp_id).await? else {
++        return Err(WorkflowError::from(StorageError::NotFound("work_packet")));
++    };
++    let crate::storage::StructuredCollabWorkPacketRow {
+@@ -4443 +4297 @@ async fn load_tracked_work_packet_from_sqlite(
+-        status_raw,
++        status: status_raw,
+@@ -4445,2 +4299,2 @@ async fn load_tracked_work_packet_from_sqlite(
+-        phase_raw,
+-        routing_raw,
++        phase: phase_raw,
++        routing: routing_raw,
+@@ -4448 +4302 @@ async fn load_tracked_work_packet_from_sqlite(
+-        task_board_status_raw,
++        task_board_status: task_board_status_raw,
+@@ -4451,8 +4305,5 @@ async fn load_tracked_work_packet_from_sqlite(
+-        created_at_raw,
+-        updated_at_raw,
+-        vector_clock_raw,
+-        metadata_raw,
+-    )) = row
+-    else {
+-        return Err(WorkflowError::from(StorageError::NotFound("work_packet")));
+-    };
++        created_at: created_at_raw,
++        updated_at: updated_at_raw,
++        vector_clock: vector_clock_raw,
++        metadata: metadata_raw,
++    } = row;
+@@ -4514,7 +4365 @@ async fn load_tracked_work_packet_from_sqlite(
+-    let mt_rows = sqlx::query_as::<_, (String, String)>(
+-        "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+-    )
+-    .bind(&wp_id)
+-    .fetch_all(sqlite.pool())
+-    .await
+-    .map_err(StorageError::from)?;
++    let mt_rows = db.structured_collab_micro_task_status_rows(&wp_id).await?;
+@@ -4597,8 +4441,0 @@ async fn load_tracked_work_packet_from_sqlite(
+-fn sqlite_database_for_structured_work_packet_projection(
+-    db: &dyn crate::storage::Database,
+-) -> Result<&crate::storage::sqlite::SqliteDatabase, WorkflowError> {
+-    db.as_any()
+-        .downcast_ref::<crate::storage::sqlite::SqliteDatabase>()
+-        .ok_or_else(|| WorkflowError::from(StorageError::NotImplemented("locus sqlite")))
+-}
+-
+@@ -4616,0 +4454,10 @@ fn parse_optional_timestamp_value(
++fn ensure_structured_collab_artifacts_supported(
++    db: &dyn crate::storage::Database,
++) -> Result<(), WorkflowError> {
++    if db.supports_structured_collab_artifacts() {
++        Ok(())
++    } else {
++        Err(StorageError::NotImplemented("structured collaboration artifacts").into())
++    }
++}
++

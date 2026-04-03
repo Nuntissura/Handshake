@@ -197,7 +197,7 @@ function shortStateFromRegistryCell(taskBoardCell) {
 
 function stateFromBoardToken(boardToken, fallbackState = "UNKNOWN") {
   const token = normalizeEnum(boardToken);
-  if (["VALIDATED", "FAIL", "OUTDATED_ONLY"].includes(token)) return "DONE";
+  if (["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED"].includes(token)) return "DONE";
   if (token === "IN_PROGRESS") return "IN_PROGRESS";
   if (token === "READY_FOR_DEV") return "READY_FOR_DEV";
   if (token === "BLOCKED") return "BLOCKED";
