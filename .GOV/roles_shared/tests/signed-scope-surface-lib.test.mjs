@@ -158,3 +158,26 @@ test("validateCandidateTargetAgainstSignedScope tolerates current-main line shif
   assert.equal(result.ok, true);
   assert.deepEqual(result.errors, []);
 });
+
+test("validateCandidateTargetAgainstSignedScope uses the target first-parent diff when current main already contains the target", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-surface-contained-"));
+  writeFile(path.join(tempRoot, "artifacts", "signed.patch"), matchingDiff);
+
+  const result = validateCandidateTargetAgainstSignedScope(packetFixture(), {
+    repoRoot: tempRoot,
+    targetHeadSha: "abc1234",
+    currentMainHeadSha: "def5678",
+    gitRunner: (args) => {
+      if (args[0] === "merge-base" && args[1] === "--is-ancestor") return { code: 0, output: "" };
+      if (args[0] === "merge-base") return { code: 0, output: "abc1234" };
+      if (args[0] === "rev-list") return { code: 0, output: "abc1234 0123456" };
+      if (args[0] === "diff" && args[3] === "0123456" && args[4] === "abc1234") {
+        return { code: 0, output: matchingDiff };
+      }
+      return { code: 0, output: "" };
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+});
