@@ -720,6 +720,10 @@ impl super::Database for PostgresDatabase {
         false
     }
 
+    fn supports_structured_collab_artifacts(&self) -> bool {
+        false
+    }
+
     fn loom_search_observability_tier(&self) -> u8 {
         2
     }
@@ -750,64 +754,18 @@ impl super::Database for PostgresDatabase {
         &self,
         wp_id: &str,
     ) -> StorageResult<Option<super::StructuredCollabWorkPacketRow>> {
-        sqlx::query_as::<_, super::StructuredCollabWorkPacketRow>(
-            r#"
-            SELECT
-                wp_id,
-                version,
-                title,
-                description,
-                status,
-                priority,
-                phase,
-                routing,
-                task_packet_path,
-                task_board_status,
-                assignee,
-                reporter,
-                created_at,
-                updated_at,
-                vector_clock,
-                metadata
-            FROM work_packets
-            WHERE wp_id = $1
-            "#,
-        )
-        .bind(wp_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(StorageError::from)
+        let _ = wp_id;
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
     }
 
     async fn structured_collab_work_packet_rows(
         &self,
     ) -> StorageResult<Vec<super::StructuredCollabWorkPacketRow>> {
-        sqlx::query_as::<_, super::StructuredCollabWorkPacketRow>(
-            r#"
-            SELECT
-                wp_id,
-                version,
-                title,
-                description,
-                status,
-                priority,
-                phase,
-                routing,
-                task_packet_path,
-                task_board_status,
-                assignee,
-                reporter,
-                created_at,
-                updated_at,
-                vector_clock,
-                metadata
-            FROM work_packets
-            ORDER BY updated_at ASC, wp_id ASC
-            "#,
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(StorageError::from)
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
     }
 
     async fn structured_collab_micro_task_metadata(
@@ -815,46 +773,33 @@ impl super::Database for PostgresDatabase {
         wp_id: &str,
         mt_id: &str,
     ) -> StorageResult<Option<String>> {
-        sqlx::query_scalar::<_, String>(
-            r#"
-            SELECT metadata
-            FROM micro_tasks
-            WHERE wp_id = $1 AND mt_id = $2
-            "#,
-        )
-        .bind(wp_id)
-        .bind(mt_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(StorageError::from)
+        let _ = (wp_id, mt_id);
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
     }
 
     async fn structured_collab_micro_task_status_rows(
         &self,
         wp_id: &str,
     ) -> StorageResult<Vec<(String, String)>> {
-        sqlx::query_as::<_, (String, String)>(
-            "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
-        )
-        .bind(wp_id)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(StorageError::from)
+        let _ = wp_id;
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
     }
 
     async fn structured_collab_micro_task_rows(
         &self,
         wp_id: &str,
     ) -> StorageResult<Vec<(String, String)>> {
-        sqlx::query_as::<_, (String, String)>(
-            "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
-        )
-        .bind(wp_id)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(StorageError::from)
+        let _ = wp_id;
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
     }
 
+    #[cfg(test)]
     async fn test_overwrite_loom_block_metrics(
         &self,
         workspace_id: &str,
@@ -880,6 +825,7 @@ impl super::Database for PostgresDatabase {
         Ok(())
     }
 
+    #[cfg(test)]
     async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
         sqlx::query(
             r#"
@@ -894,6 +840,7 @@ impl super::Database for PostgresDatabase {
         Ok(())
     }
 
+    #[cfg(test)]
     async fn test_insert_loom_traversal_perf_fixture(
         &self,
         workspace_id: &str,
@@ -974,6 +921,7 @@ impl super::Database for PostgresDatabase {
         Ok(start_block_id)
     }
 
+    #[cfg(test)]
     async fn test_update_ai_job_metadata(
         &self,
         job_id: Uuid,
@@ -987,10 +935,11 @@ impl super::Database for PostgresDatabase {
             .bind(is_pinned)
             .bind(job_id.to_string())
             .execute(&self.pool)
-            .await?;
+        .await?;
         Ok(())
     }
 
+    #[cfg(test)]
     async fn test_fetch_mutation_traceability_row(
         &self,
         table: &str,

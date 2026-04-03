@@ -23,6 +23,16 @@ pub(crate) fn ensure_locus_sqlite(db: &dyn Database) -> StorageResult<()> {
     }
 }
 
+pub(crate) fn ensure_structured_collab_artifacts(db: &dyn Database) -> StorageResult<()> {
+    if db.supports_structured_collab_artifacts() {
+        Ok(())
+    } else {
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
+    }
+}
+
 pub(crate) async fn execute_locus_operation(
     db: &dyn Database,
     op: LocusOperation,
@@ -34,6 +44,7 @@ pub(crate) async fn locus_work_packet_exists(
     db: &dyn Database,
     wp_id: &str,
 ) -> StorageResult<bool> {
+    ensure_structured_collab_artifacts(db)?;
     Ok(db.structured_collab_work_packet_row(wp_id).await?.is_some())
 }
 
@@ -41,6 +52,7 @@ pub(crate) async fn locus_task_board_get_status_and_metadata(
     db: &dyn Database,
     wp_id: &str,
 ) -> StorageResult<Option<(String, String)>> {
+    ensure_structured_collab_artifacts(db)?;
     Ok(db
         .structured_collab_work_packet_row(wp_id)
         .await?
@@ -62,6 +74,7 @@ pub(crate) async fn locus_task_board_update_work_packet(
 pub(crate) async fn locus_task_board_list_rows(
     db: &dyn Database,
 ) -> StorageResult<Vec<(String, String, String)>> {
+    ensure_structured_collab_artifacts(db)?;
     Ok(db
         .structured_collab_work_packet_rows()
         .await?

@@ -1036,6 +1036,10 @@ impl super::Database for SqliteDatabase {
         true
     }
 
+    fn supports_structured_collab_artifacts(&self) -> bool {
+        true
+    }
+
     fn loom_search_observability_tier(&self) -> u8 {
         1
     }
@@ -1210,6 +1214,7 @@ impl super::Database for SqliteDatabase {
         .map_err(StorageError::from)
     }
 
+    #[cfg(test)]
     async fn test_overwrite_loom_block_metrics(
         &self,
         workspace_id: &str,
@@ -1235,6 +1240,7 @@ impl super::Database for SqliteDatabase {
         Ok(())
     }
 
+    #[cfg(test)]
     async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
         sqlx::query(
             r#"
@@ -1249,6 +1255,7 @@ impl super::Database for SqliteDatabase {
         Ok(())
     }
 
+    #[cfg(test)]
     async fn test_insert_loom_traversal_perf_fixture(
         &self,
         workspace_id: &str,
@@ -1329,6 +1336,7 @@ impl super::Database for SqliteDatabase {
         Ok(start_block_id)
     }
 
+    #[cfg(test)]
     async fn test_update_ai_job_metadata(
         &self,
         job_id: Uuid,
@@ -1342,10 +1350,11 @@ impl super::Database for SqliteDatabase {
             .bind(if is_pinned { 1_i32 } else { 0_i32 })
             .bind(job_id.to_string())
             .execute(&self.pool)
-            .await?;
+        .await?;
         Ok(())
     }
 
+    #[cfg(test)]
     async fn test_fetch_mutation_traceability_row(
         &self,
         table: &str,

@@ -729,6 +729,7 @@ async fn build_loom_graph_fixture(
     })
 }
 
+#[cfg(test)]
 async fn overwrite_loom_block_metrics(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
@@ -747,11 +748,41 @@ async fn overwrite_loom_block_metrics(
     .await
 }
 
+#[cfg(not(test))]
+async fn overwrite_loom_block_metrics(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+    block_id: &str,
+    mention_count: i64,
+    tag_count: i64,
+    backlink_count: i64,
+) -> StorageResult<()> {
+    let _ = (
+        db,
+        workspace_id,
+        block_id,
+        mention_count,
+        tag_count,
+        backlink_count,
+    );
+    Ok(())
+}
+
+#[cfg(test)]
 async fn zero_workspace_loom_metrics(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
 ) -> StorageResult<()> {
     db.test_zero_workspace_loom_metrics(workspace_id).await
+}
+
+#[cfg(not(test))]
+async fn zero_workspace_loom_metrics(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+) -> StorageResult<()> {
+    let _ = (db, workspace_id);
+    Ok(())
 }
 
 async fn loom_metrics_recompute_idempotent(
@@ -1098,12 +1129,86 @@ async fn loom_source_anchor_round_trip(
     Ok(())
 }
 
+#[cfg(test)]
 async fn insert_loom_traversal_perf_fixture(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
 ) -> StorageResult<String> {
     db.test_insert_loom_traversal_perf_fixture(workspace_id, LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS)
         .await
+}
+
+#[cfg(not(test))]
+async fn insert_loom_traversal_perf_fixture(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+) -> StorageResult<String> {
+    let ctx = WriteContext::system(None);
+    let start_block_id = "perf-block-00000".to_string();
+    db.create_loom_block(
+        &ctx,
+        NewLoomBlock {
+            block_id: Some(start_block_id.clone()),
+            workspace_id: workspace_id.to_string(),
+            content_type: LoomBlockContentType::Note,
+            document_id: None,
+            asset_id: None,
+            title: Some("Perf Block 0".to_string()),
+            original_filename: None,
+            content_hash: None,
+            pinned: false,
+            journal_date: None,
+            imported_at: None,
+            derived: super::LoomBlockDerived {
+                full_text_index: Some("perf traversal start".to_string()),
+                ..Default::default()
+            },
+        },
+    )
+    .await?;
+    let mut previous_block_id = start_block_id.clone();
+
+    for idx in 1..LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS {
+        let block_id = format!("perf-block-{idx:05}");
+        db.create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: Some(block_id.clone()),
+                workspace_id: workspace_id.to_string(),
+                content_type: LoomBlockContentType::Note,
+                document_id: None,
+                asset_id: None,
+                title: Some(format!("Perf Block {idx}")),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some(format!("perf traversal block {idx}")),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+        db.create_loom_edge(
+            &ctx,
+            NewLoomEdge {
+                edge_id: None,
+                workspace_id: workspace_id.to_string(),
+                source_block_id: previous_block_id,
+                target_block_id: block_id.clone(),
+                edge_type: LoomEdgeType::Mention,
+                created_by: LoomEdgeCreatedBy::User,
+                crdt_site_id: None,
+                source_anchor: None,
+            },
+        )
+        .await?;
+        previous_block_id = block_id;
+    }
+
+    Ok(start_block_id)
 }
 
 async fn loom_traverse_graph_meets_performance_target(
@@ -2901,6 +3006,51 @@ async fn migrations_are_replay_safe_postgres() -> StorageResult<()> {
     sqlx::query("SET search_path TO public")
         .execute(&mut conn)
         .await?;
+    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn postgres_structured_collab_artifacts_are_capability_denied() -> StorageResult<()> {
+    let Some(url) = postgres_test_url() else {
+        return Ok(());
+    };
+
+    let mut conn = sqlx::PgConnection::connect(&url).await?;
+    let schema = format!("wp1_structured_collab_{}", Uuid::new_v4().simple());
+    sqlx::query(&format!("CREATE SCHEMA {schema}"))
+        .execute(&mut conn)
+        .await?;
+    drop(conn);
+
+    let sep = if url.contains('?') { "&" } else { "?" };
+    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
+
+    let db = PostgresDatabase::connect(&schema_url, 5).await?;
+    db.run_migrations().await?;
+    let db = db.into_arc();
+
+    assert!(!db.supports_structured_collab_artifacts());
+
+    let row_err = db.structured_collab_work_packet_row("WP-TEST").await.unwrap_err();
+    assert!(matches!(
+        row_err,
+        StorageError::NotImplemented("structured collaboration artifacts")
+    ));
+
+    let locus_err = super::locus_sqlite::locus_work_packet_exists(db.as_ref(), "WP-TEST")
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        locus_err,
+        StorageError::NotImplemented("structured collaboration artifacts")
+    ));
+
+    drop(db);
+    let mut conn = sqlx::PgConnection::connect(&url).await?;
     sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
         .execute(&mut conn)
         .await?;

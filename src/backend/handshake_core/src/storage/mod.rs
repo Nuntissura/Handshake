@@ -21,8 +21,7 @@ pub mod sqlite;
 pub use calendar::*;
 pub use loom::*;
 
-// Test utilities - exposed for integration tests.
-// The helper function `run_storage_conformance` uses Result-based error handling.
+// Test utilities are exposed for integration tests, but backend-only hooks stay behind cfg(test).
 pub mod tests;
 
 pub type StorageResult<T> = Result<T, StorageError>;
@@ -1599,6 +1598,10 @@ pub trait Database: Send + Sync {
         false
     }
 
+    fn supports_structured_collab_artifacts(&self) -> bool {
+        false
+    }
+
     fn loom_search_observability_tier(&self) -> u8;
 
     fn supports_loom_graph_filtering(&self) -> bool {
@@ -1963,13 +1966,17 @@ pub trait Database: Send + Sync {
         wp_id: &str,
     ) -> StorageResult<Option<StructuredCollabWorkPacketRow>> {
         let _ = wp_id;
-        Err(StorageError::NotImplemented("structured collaboration sqlite"))
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
     }
 
     async fn structured_collab_work_packet_rows(
         &self,
     ) -> StorageResult<Vec<StructuredCollabWorkPacketRow>> {
-        Err(StorageError::NotImplemented("structured collaboration sqlite"))
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
     }
 
     async fn structured_collab_micro_task_metadata(
@@ -1978,7 +1985,9 @@ pub trait Database: Send + Sync {
         mt_id: &str,
     ) -> StorageResult<Option<String>> {
         let _ = (wp_id, mt_id);
-        Err(StorageError::NotImplemented("structured collaboration sqlite"))
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
     }
 
     async fn structured_collab_micro_task_status_rows(
@@ -1986,7 +1995,9 @@ pub trait Database: Send + Sync {
         wp_id: &str,
     ) -> StorageResult<Vec<(String, String)>> {
         let _ = wp_id;
-        Err(StorageError::NotImplemented("structured collaboration sqlite"))
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
     }
 
     async fn structured_collab_micro_task_rows(
@@ -1994,9 +2005,12 @@ pub trait Database: Send + Sync {
         wp_id: &str,
     ) -> StorageResult<Vec<(String, String)>> {
         let _ = wp_id;
-        Err(StorageError::NotImplemented("structured collaboration sqlite"))
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
     }
 
+    #[cfg(test)]
     async fn test_overwrite_loom_block_metrics(
         &self,
         workspace_id: &str,
@@ -2015,11 +2029,13 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("test loom metrics backend"))
     }
 
+    #[cfg(test)]
     async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
         let _ = workspace_id;
         Err(StorageError::NotImplemented("test loom metrics backend"))
     }
 
+    #[cfg(test)]
     async fn test_insert_loom_traversal_perf_fixture(
         &self,
         workspace_id: &str,
@@ -2031,6 +2047,7 @@ pub trait Database: Send + Sync {
         ))
     }
 
+    #[cfg(test)]
     async fn test_update_ai_job_metadata(
         &self,
         job_id: Uuid,
@@ -2042,6 +2059,7 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("test ai job metadata backend"))
     }
 
+    #[cfg(test)]
     async fn test_fetch_mutation_traceability_row(
         &self,
         table: &str,

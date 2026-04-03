@@ -1593,6 +1593,7 @@ async fn execute_locus_sync_task_board(
                     locus::StructuredCollaborationRecordFamily::TaskBoardIndex,
                 )
             } else {
+                ensure_structured_collab_artifacts_supported(db)?;
                 for row in db.structured_collab_work_packet_rows().await? {
                     if let Some(work_packet) =
                         load_tracked_work_packet_for_artifacts(db, &row.wp_id).await?
@@ -2795,6 +2796,7 @@ async fn load_micro_task_summary_for_wp(
     db: &dyn crate::storage::Database,
     wp_id: &str,
 ) -> Result<locus::MicroTaskSummary, WorkflowError> {
+    ensure_structured_collab_artifacts_supported(db)?;
     let rows = db.structured_collab_micro_task_status_rows(wp_id).await?;
 
     let mut summary = locus::MicroTaskSummary {
@@ -2822,6 +2824,7 @@ async fn load_tracked_work_packet_for_artifacts(
     db: &dyn crate::storage::Database,
     wp_id: &str,
 ) -> Result<Option<locus::TrackedWorkPacket>, WorkflowError> {
+    ensure_structured_collab_artifacts_supported(db)?;
     let Some(row) = db.structured_collab_work_packet_row(wp_id).await? else {
         return Ok(None);
     };
@@ -2922,6 +2925,7 @@ async fn load_tracked_micro_task_for_artifacts(
     wp_id: &str,
     mt_id: &str,
 ) -> Result<Option<locus::TrackedMicroTask>, WorkflowError> {
+    ensure_structured_collab_artifacts_supported(db)?;
     let metadata = db.structured_collab_micro_task_metadata(wp_id, mt_id).await?;
 
     let Some(metadata) = metadata else {
@@ -2943,6 +2947,7 @@ async fn list_tracked_micro_tasks_for_artifacts(
     db: &dyn crate::storage::Database,
     wp_id: &str,
 ) -> Result<Vec<locus::TrackedMicroTask>, WorkflowError> {
+    ensure_structured_collab_artifacts_supported(db)?;
     let rows = db.structured_collab_micro_task_rows(wp_id).await?;
 
     let mut items = Vec::with_capacity(rows.len());
@@ -3405,6 +3410,7 @@ async fn emit_task_board_projection_artifacts(
     db: &dyn crate::storage::Database,
     runtime_paths: &RuntimeGovernancePaths,
 ) -> Result<locus::StructuredCollaborationValidationResult, WorkflowError> {
+    ensure_structured_collab_artifacts_supported(db)?;
     let rows = db.structured_collab_work_packet_rows().await?;
 
     let task_board_id = runtime_paths.task_board_display();
@@ -4261,6 +4267,7 @@ async fn load_tracked_micro_task_from_sqlite(
     wp_id: &str,
     mt_id: &str,
 ) -> Result<locus::TrackedMicroTask, WorkflowError> {
+    ensure_structured_collab_artifacts_supported(db)?;
     let metadata_raw = db.structured_collab_micro_task_metadata(wp_id, mt_id).await?;
     let Some(metadata_raw) = metadata_raw else {
         return Err(WorkflowError::from(StorageError::NotFound("micro_task")));
@@ -4278,6 +4285,7 @@ async fn load_tracked_work_packet_from_sqlite(
     wp_id: &str,
     kind_hint: Option<locus::WorkPacketType>,
 ) -> Result<locus::TrackedWorkPacket, WorkflowError> {
+    ensure_structured_collab_artifacts_supported(db)?;
     let Some(row) = db.structured_collab_work_packet_row(wp_id).await? else {
         return Err(WorkflowError::from(StorageError::NotFound("work_packet")));
     };
@@ -4440,6 +4448,16 @@ fn parse_optional_timestamp_value(
         Some(other) => serde_json::from_value::<DateTime<Utc>>(other.clone())
             .map(Some)
             .map_err(|e| WorkflowError::Terminal(e.to_string())),
+    }
+}
+
+fn ensure_structured_collab_artifacts_supported(
+    db: &dyn crate::storage::Database,
+) -> Result<(), WorkflowError> {
+    if db.supports_structured_collab_artifacts() {
+        Ok(())
+    } else {
+        Err(StorageError::NotImplemented("structured collaboration artifacts").into())
     }
 }
 
