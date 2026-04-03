@@ -3013,8 +3013,8 @@ async fn migrations_are_replay_safe_postgres() -> StorageResult<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn postgres_structured_collab_artifacts_are_capability_denied() -> StorageResult<()> {
+#[cfg(test)]
+async fn assert_postgres_structured_collab_artifacts_capability_denied() -> StorageResult<()> {
     let Some(url) = postgres_test_url() else {
         return Ok(());
     };
@@ -3056,6 +3056,53 @@ async fn postgres_structured_collab_artifacts_are_capability_denied() -> Storage
         .await?;
 
     Ok(())
+}
+
+#[tokio::test]
+async fn database_trait_purity() -> StorageResult<()> {
+    let sqlite = sqlite_backend().await?;
+    assert!(sqlite.supports_structured_collab_artifacts());
+    drop(sqlite);
+
+    assert_postgres_structured_collab_artifacts_capability_denied().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_backend_capability() -> StorageResult<()> {
+    assert_postgres_structured_collab_artifacts_capability_denied().await
+}
+
+#[tokio::test]
+async fn postgres_structured_collab_artifacts_are_capability_denied() -> StorageResult<()> {
+    assert_postgres_structured_collab_artifacts_capability_denied().await
+}
+
+#[tokio::test]
+async fn loom_search_backend_tier() -> StorageResult<()> {
+    let db = sqlite_backend().await?;
+
+    let ctx = WriteContext::human(Some("loom-search-proof".into()));
+    let workspace = db
+        .create_workspace(
+            &ctx,
+            NewWorkspace {
+                name: format!("loom-search-proof-{}", Uuid::new_v4()),
+            },
+        )
+        .await?;
+    let document = db
+        .create_document(
+            &ctx,
+            NewDocument {
+                workspace_id: workspace.id.clone(),
+                title: format!("loom-search-proof-doc-{}", Uuid::new_v4()),
+            },
+        )
+        .await?;
+    let graph_fixture = build_loom_graph_fixture(&db, &ctx, &workspace.id, &document.id).await?;
+
+    loom_search_graph_filter_when_supported(&db, &workspace.id, &graph_fixture).await
 }
 
 #[tokio::test]
