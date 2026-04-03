@@ -103,9 +103,9 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** In Progress
+- **Status:** Done
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
-- MAIN_CONTAINMENT_STATUS: NOT_STARTED
+- MAIN_CONTAINMENT_STATUS: MERGE_PENDING
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
 - MERGED_MAIN_COMMIT: NONE
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
@@ -115,7 +115,7 @@ Requirements:
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
 - CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: bb66b2b06dd72e0a24438fbe2274620984aca69a
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-03T06:39:02.852Z
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-03T07:24:53.088Z
 <!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
 - PACKET_WIDENING_DECISION: NOT_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
