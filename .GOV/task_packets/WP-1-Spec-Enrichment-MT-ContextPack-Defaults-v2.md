@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 - CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- **Status:** Done (historical spec-enrichment capture)
 - RISK_TIER: LOW
 - USER_SIGNATURE: ilja140220261758
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -168,9 +168,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: Terminal historical packet; no direct execution remains.
+- What changed in this update: Closed out after confirming the ContextPack direction moved forward through SPEC_CURRENT v02.179 and validated product WP-1-Model-Onboarding-ContextPacks-v1 rather than this older v02.126-oriented packet.
+- Next step / handoff hint: Treat this packet as historical closure context only; use SPEC_CURRENT as truth and open a new packet only if current-spec ContextPack semantics need a fresh delta.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
@@ -189,3 +189,5 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+Verdict: OUTDATED_ONLY
+Reason: Historical spec-enrichment packet retained for audit trail only. Current truth is SPEC_CURRENT v02.179, and the implemented product path is already covered by validated WP-1-Model-Onboarding-ContextPacks-v1.

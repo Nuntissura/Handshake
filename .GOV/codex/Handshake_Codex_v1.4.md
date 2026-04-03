@@ -227,6 +227,8 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 
 [CX-410] SPEC_FIND: For non-trivial tasks, the assistant SHOULD identify which provided sections govern the feature/subsystem.
 [CX-411] SPEC_SOURCE_BLOCK: The assistant SHOULD quote or summarise relevant spec fragments in a small SOURCE block in its answer.
+[CX-411A] CHAT_SUBSTANCE_FIRST: When explaining repo/spec findings to the user, the assistant MUST lead with the actual meaning in plain language. File paths and line anchors are supporting evidence, not a substitute for explanation, unless the user explicitly asks for exact locations only.
+[CX-411B] CHAT_REFERENCE_DISCIPLINE: Preferred operator-facing order is: (1) answer or finding, (2) short quote or paraphrase if helpful, (3) file references. Exact line anchors SHOULD be used when auditability materially matters or when the user asks for them.
 [CX-412] SPEC_ALIGN: The assistant SHOULD explain how its proposal aligns with those fragments.
 [CX-413] SPEC_SILENCE: When specs are clearly silent or incomplete, the assistant SHOULD say so directly.
 
