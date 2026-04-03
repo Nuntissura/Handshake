@@ -10,6 +10,7 @@ import {
   evaluateIntegrationValidatorTopology,
   evaluateWpSessionControlCloseoutBundle,
   latestCloseoutSyncEvent,
+  resolveCloseoutValidatorSessionsOfRecord,
 } from "../scripts/lib/integration-validator-closeout-lib.mjs";
 
 function writeFile(targetPath, content) {
@@ -426,4 +427,25 @@ test("appendCloseoutSyncProvenance records and returns the latest closeout event
   assert.equal(latest?.mode, "MERGE_PENDING");
   assert.equal(latest?.actor_role, "INTEGRATION_VALIDATOR");
   assert.equal(latest?.actor_session_id, "integration-validator-session");
+});
+
+test("resolveCloseoutValidatorSessionsOfRecord derives terminal validator-of-record values from receipts and actor context", () => {
+  const sessions = resolveCloseoutValidatorSessionsOfRecord({
+    packetContent: [
+      "## METADATA",
+      "- WP_VALIDATOR_OF_RECORD: <unassigned>",
+      "- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>",
+    ].join("\n"),
+    receipts: [
+      {
+        timestamp_utc: "2026-04-03T05:41:50.089Z",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wp_validator:wp-test-validator-v1",
+      },
+    ],
+    actorContext: actorContextFixture(),
+  });
+
+  assert.equal(sessions.wpValidatorOfRecord, "wp_validator:wp-test-validator-v1");
+  assert.equal(sessions.integrationValidatorOfRecord, "integration-validator-session");
 });

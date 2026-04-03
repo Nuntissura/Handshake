@@ -33,6 +33,18 @@ function normalizeStatus(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
+  const match = String(text || "").match(re);
+  return match ? match[1].trim() : "";
+}
+
+function normalizeSessionOfRecord(value) {
+  const raw = String(value || "").trim();
+  if (!raw || /^(<unassigned>|NONE|N\/A|NA|NULL)$/i.test(raw)) return null;
+  return raw;
+}
+
 function normalizeOutputPath(repoRoot, filePath) {
   return normalizePath(path.resolve(repoRoot, String(filePath || "")));
 }
@@ -76,6 +88,36 @@ function defaultGovernanceViolationReporterSession({
   if (reporterRole === "ORCHESTRATOR") return "orchestrator-role-lock-guard";
   if (reporterRole === "INTEGRATION_VALIDATOR") return "integration-validator-final-lane-guard";
   return "workflow-boundary-guard";
+}
+
+function latestReceiptSessionForRole(receipts = [], role = "") {
+  const normalizedRole = normalizeValidatorRole(role);
+  return [...(Array.isArray(receipts) ? receipts : [])]
+    .filter((entry) => normalizeValidatorRole(entry?.actor_role) === normalizedRole)
+    .sort((left, right) => String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || "")))
+    .map((entry) => normalizeSessionOfRecord(entry?.actor_session))
+    .filter(Boolean)
+    .at(-1) || null;
+}
+
+export function resolveCloseoutValidatorSessionsOfRecord({
+  packetContent = "",
+  receipts = [],
+  actorContext = {},
+} = {}) {
+  const packetWpValidator = normalizeSessionOfRecord(parseSingleField(packetContent, "WP_VALIDATOR_OF_RECORD"));
+  const packetIntegrationValidator = normalizeSessionOfRecord(parseSingleField(packetContent, "INTEGRATION_VALIDATOR_OF_RECORD"));
+  const actorIntegrationValidator = normalizeSessionOfRecord(actorContext?.actorSessionId)
+    || normalizeSessionOfRecord(actorContext?.actorSessionKey);
+
+  return {
+    wpValidatorOfRecord: packetWpValidator || latestReceiptSessionForRole(receipts, "WP_VALIDATOR") || null,
+    integrationValidatorOfRecord:
+      packetIntegrationValidator
+      || actorIntegrationValidator
+      || latestReceiptSessionForRole(receipts, "INTEGRATION_VALIDATOR")
+      || null,
+  };
 }
 
 export function deriveFinalLaneGovernanceInvalidity({

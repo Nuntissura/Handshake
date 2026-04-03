@@ -46,6 +46,8 @@
   - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260325-ORCHESTRATOR-MANAGED-WP-WORKFLOW`
   - `AUDIT_ID: AUDIT-20260329-WORKFLOW-PROJECTION-CORRELATION-V1-SMOKETEST-PROOF-RUN-REVIEW`
   - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1`
+  - `AUDIT_ID: AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW`
+  - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1`
 - Historical comparison driver:
   - `AUDIT_ID: AUDIT-20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT`
 
@@ -112,6 +114,10 @@
 | RGF-57 | DONE | Validator Refinement Path Truth Alignment | RGF-55 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/validator/VALIDATOR_PROTOCOL.md` | validator refinement-completeness guidance now points at the official refinement path with current co-located layout first and legacy flat layout explicitly marked as compatibility-only |
 | RGF-58 | DONE | Coder Packet/Refinement Path Truth Alignment | RGF-55 | `AUDIT-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1-SMOKETEST-STARTUP-REVIEW` / `SMOKETEST-REVIEW-20260331-PROJECT-PROFILE-EXTENSION-REGISTRY-V1` | `roles/coder/CODER_PROTOCOL.md` | coder pre-work and packet-read guidance now use the current co-located packet/refinement layout first, keep legacy flat layout explicit as compatibility-only, and remove the stale wildcard packet-read examples |
 | RGF-59 | DONE | Permanent Worktree Reseed Helper Checked-Out Branch Safety | RGF-43 | `MAINT-20260402-PERMANENT-WORKTREE-RESEED-HELPER` | `roles_shared/scripts/topology/reseed-permanent-worktree-from-main.mjs`, `roles_shared/scripts/topology/git-topology-lib.mjs` | governed reseed of a permanent non-main worktree now succeeds when the target branch is currently checked out, and the post-reseed cleanliness gate ignores expected `.GOV` junction drift while still rejecting non-governance dirt |
+| RGF-60 | DONE | Terminal Closeout Runtime Residue Cleanup | RGF-42, RGF-45 | `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW` / `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1` | `roles/validator/scripts/integration-validator-closeout-sync.mjs`, `roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`, `roles_shared/scripts/session/session-control-self-settle-lib.mjs`, runtime status schema/tests | terminal closeout clears stale `active_role_sessions`, stamps validator-of-record fields, and leaves no misleading runtime residue after `Validated (PASS)` |
+| RGF-61 | DONE | Pre-Implementation Packet Validity Hard Gate | RGF-47, RGF-52, RGF-54 | `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW` / `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1` | `roles_shared/checks/task-packet-claim-check.mjs`, `roles_shared/checks/protocol-alignment-check.mjs`, `roles/orchestrator/scripts/create-task-packet.mjs`, packet/refinement hydration checks, `pre-work` / `post-work` gates | orchestrator-managed `READY_FOR_DEV` packets now leave creation with governed claim fields, and claim-check fails closed if an assigned coder packet is still unclaimed |
+| RGF-62 | READY | Broker-Safe Single-Shot Final-Lane Closeout | RGF-42, RGF-45 | `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW` / `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1` | `roles/validator/scripts/integration-validator-closeout-sync.mjs`, `roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`, ACP session-control settlement helpers, validator gate-state provenance | final-lane closeout either self-settles broker/run state and completes in one governed action or fails before any partial closeout write is attempted |
+| RGF-63 | PLANNED | Review Receipt Deduplication and Verdict Collapse | RGF-40, RGF-47, RGF-48 | `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW` / `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1` | `roles_shared/scripts/wp/wp-receipt-append.mjs`, `roles_shared/scripts/lib/wp-review-projection-lib.mjs`, direct-review helpers, runtime waiting/next-actor projection | once a decisive validator outcome exists for the latest handoff, duplicate approval receipts are suppressed or collapsed into one authoritative verdict surface |
 
 ## Refactor Sequence (Historical)
 
@@ -175,6 +181,10 @@
 49. `RGF-57`
 50. `RGF-58`
 51. `RGF-59`
+52. `RGF-60`
+53. `RGF-61`
+54. `RGF-62`
+55. `RGF-63`
 
 ## Explicit Holds
 

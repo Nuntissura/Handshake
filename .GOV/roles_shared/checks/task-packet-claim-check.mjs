@@ -71,6 +71,16 @@ function extractStrengthToken(value) {
   return (v.split(/[\s(]/)[0] || "").trim();
 }
 
+function hasCoderExecutionOwner(value) {
+  return /^CODER_[A-Z]$/i.test(String(value || "").trim());
+}
+
+function requiresGovernedReadyClaim({ statusNorm, workflowLane, executionOwner }) {
+  return /ready\s*for\s*dev/.test(statusNorm)
+    && /^ORCHESTRATOR_MANAGED$/i.test(String(workflowLane || "").trim())
+    && hasCoderExecutionOwner(executionOwner);
+}
+
 function checkPacket(filePath) {
   const text = fs.readFileSync(filePath, "utf8");
   const status = parseStatus(text);
@@ -82,6 +92,8 @@ function checkPacket(filePath) {
   const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
   const coderModel = parseSingleField(text, "CODER_MODEL");
   const coderStrength = parseSingleField(text, "CODER_REASONING_STRENGTH");
+  const workflowLane = parseSingleField(text, "WORKFLOW_LANE");
+  const executionOwner = parseSingleField(text, "EXECUTION_OWNER");
   const enforceSessionPolicy = packetUsesSessionPolicy(packetFormatVersion);
   const enforceScopeContract = Boolean(packetFormatVersion);
   const enforceScopeDiscipline = scopeDisciplineRequiresEnforcement(packetFormatVersion);
@@ -91,10 +103,20 @@ function checkPacket(filePath) {
 
   const rel = filePath.split(path.sep).join("/");
   const errors = [];
+  const governedReadyClaimRequired = enforceSessionPolicy
+    && requiresGovernedReadyClaim({
+      statusNorm,
+      workflowLane,
+      executionOwner,
+    });
+  const claimFieldsRequired = isClaimedPacket || governedReadyClaimRequired;
 
-  if (isClaimedPacket && isPlaceholder(coderModel)) {
-    errors.push(`${rel}: CODER_MODEL is required when Status is In Progress`);
-  } else if (isClaimedPacket && enforceSessionPolicy) {
+  if (claimFieldsRequired && isPlaceholder(coderModel)) {
+    const reason = isClaimedPacket
+      ? "when Status is In Progress"
+      : "when Status is Ready for Dev on ORCHESTRATOR_MANAGED packets with an assigned EXECUTION_OWNER";
+    errors.push(`${rel}: CODER_MODEL is required ${reason}`);
+  } else if (claimFieldsRequired && enforceSessionPolicy) {
     if (isDisallowedCodexModelAlias(coderModel)) {
       errors.push(`${rel}: CODER_MODEL must use the repo-approved GPT model ids, not Codex model aliases (got: ${coderModel})`);
     } else if (!isAllowedPrimaryOrFallbackModel(coderModel)) {
@@ -102,9 +124,12 @@ function checkPacket(filePath) {
     }
   }
 
-  if (isClaimedPacket && isPlaceholder(coderStrength)) {
-    errors.push(`${rel}: CODER_REASONING_STRENGTH is required when Status is In Progress`);
-  } else if (isClaimedPacket) {
+  if (claimFieldsRequired && isPlaceholder(coderStrength)) {
+    const reason = isClaimedPacket
+      ? "when Status is In Progress"
+      : "when Status is Ready for Dev on ORCHESTRATOR_MANAGED packets with an assigned EXECUTION_OWNER";
+    errors.push(`${rel}: CODER_REASONING_STRENGTH is required ${reason}`);
+  } else if (claimFieldsRequired) {
     const token = extractStrengthToken(coderStrength);
     const norm = normalizeStrength(token);
     const allowed = new Set(["low", "medium", "high", "extrahigh"]);
