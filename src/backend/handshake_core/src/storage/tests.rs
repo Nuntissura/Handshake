@@ -3079,7 +3079,7 @@ async fn postgres_structured_collab_artifacts_are_capability_denied() -> Storage
 }
 
 #[tokio::test]
-async fn loom_search_backend_tier() -> StorageResult<()> {
+async fn loom_search_graph_filter_backend_support() -> StorageResult<()> {
     let db = sqlite_backend().await?;
 
     let ctx = WriteContext::human(Some("loom-search-proof".into()));

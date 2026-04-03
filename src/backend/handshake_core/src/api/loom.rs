@@ -1299,6 +1299,72 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn loom_search_backend_tier() -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let workspace_id = create_workspace(&state).await?;
+
+        let _ = create_loom_block(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(CreateLoomBlockRequest {
+                block_id: None,
+                content_type: LoomBlockContentType::Note,
+                document_id: None,
+                asset_id: None,
+                title: Some("Alpha".to_string()),
+                pinned: None,
+                journal_date: None,
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+
+        let _ = search_loom_blocks(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Query(LoomSearchQueryParams {
+                q: Some("Alpha".to_string()),
+                ..Default::default()
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+
+        let search_event = state
+            .flight_recorder
+            .list_events(EventFilter::default())
+            .await?
+            .into_iter()
+            .rev()
+            .find(|event| event.event_type == FlightRecorderEventType::LoomSearchExecuted)
+            .ok_or_else(|| "expected loom_search_executed event".to_string())?;
+
+        let tier_used = search_event
+            .payload
+            .get("tier_used")
+            .and_then(|value| value.as_u64())
+            .ok_or_else(|| "expected tier_used payload".to_string())?;
+
+        assert_eq!(
+            tier_used,
+            u64::from(state.storage.loom_search_observability_tier()),
+            "loom search proof must assert the emitted tier_used payload contract"
+        );
+        assert_eq!(
+            search_event.payload.get("workspace_id").and_then(|value| value.as_str()),
+            Some(workspace_id.as_str())
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn graph_traversal_and_metrics_routes_work() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
