@@ -885,6 +885,101 @@ test("latest validator assessment reports PASS for explicit PASS summaries", () 
   assert.equal(assessment?.verdict, "PASS");
 });
 
+test("latest validator assessment collapses duplicate decisive approvals for the same review round", () => {
+  const assessment = deriveLatestValidatorAssessment([
+    {
+      receipt_kind: "CODER_HANDOFF",
+      actor_role: "CODER",
+      actor_session: "coder-1",
+      target_role: "WP_VALIDATOR",
+      target_session: "wpv-1",
+      correlation_id: "handoff-1",
+      ack_for: null,
+      summary: "Ready for review.",
+      timestamp_utc: "2026-03-22T10:03:00Z",
+    },
+    {
+      receipt_kind: "VALIDATOR_REVIEW",
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wpv-1",
+      target_role: "CODER",
+      target_session: "coder-1",
+      correlation_id: "handoff-1",
+      ack_for: "handoff-1",
+      summary: "Approved for final review. Suitable for integration review closure.",
+      timestamp_utc: "2026-03-22T10:04:00Z",
+    },
+    {
+      receipt_kind: "VALIDATOR_REVIEW",
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wpv-1",
+      target_role: "CODER",
+      target_session: "coder-1",
+      correlation_id: "handoff-1",
+      ack_for: "handoff-1",
+      summary: "Approved for final review. Suitable for integration review closure.",
+      timestamp_utc: "2026-03-22T10:05:00Z",
+    },
+  ]);
+
+  assert.equal(assessment?.verdict, "PASS");
+  assert.equal(assessment?.timestampUtc, "2026-03-22T10:04:00Z");
+  assert.equal(assessment?.suppressedDuplicateCount, 1);
+});
+
+test("latest validator assessment treats a re-opened handoff as a new review round even on the same correlation", () => {
+  const assessment = deriveLatestValidatorAssessment([
+    {
+      receipt_kind: "CODER_HANDOFF",
+      actor_role: "CODER",
+      actor_session: "coder-1",
+      target_role: "WP_VALIDATOR",
+      target_session: "wpv-1",
+      correlation_id: "handoff-1",
+      ack_for: null,
+      summary: "Ready for review.",
+      timestamp_utc: "2026-03-22T10:03:00Z",
+    },
+    {
+      receipt_kind: "VALIDATOR_REVIEW",
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wpv-1",
+      target_role: "CODER",
+      target_session: "coder-1",
+      correlation_id: "handoff-1",
+      ack_for: "handoff-1",
+      summary: "Repair required. Findings: retry after remediation.",
+      timestamp_utc: "2026-03-22T10:04:00Z",
+    },
+    {
+      receipt_kind: "CODER_HANDOFF",
+      actor_role: "CODER",
+      actor_session: "coder-1",
+      target_role: "WP_VALIDATOR",
+      target_session: "wpv-1",
+      correlation_id: "handoff-1",
+      ack_for: null,
+      summary: "Re-handoff after remediation.",
+      timestamp_utc: "2026-03-22T10:05:00Z",
+    },
+    {
+      receipt_kind: "VALIDATOR_REVIEW",
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wpv-1",
+      target_role: "CODER",
+      target_session: "coder-1",
+      correlation_id: "handoff-1",
+      ack_for: "handoff-1",
+      summary: "Approved for final review. Suitable for integration review closure.",
+      timestamp_utc: "2026-03-22T10:06:00Z",
+    },
+  ]);
+
+  assert.equal(assessment?.verdict, "PASS");
+  assert.equal(assessment?.timestampUtc, "2026-03-22T10:06:00Z");
+  assert.equal(assessment?.suppressedDuplicateCount, 0);
+});
+
 test("a newer coder re-handoff takes precedence over an older repaired review pair", () => {
   const input = baseInput({
     receipts: [

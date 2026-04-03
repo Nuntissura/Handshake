@@ -30,9 +30,19 @@ import {
   appendCloseoutSyncProvenance,
   deriveFinalLaneGovernanceInvalidity,
   evaluateIntegrationValidatorCloseoutState,
+  resolveCloseoutValidatorSessionsOfRecord,
 } from "../scripts/lib/integration-validator-closeout-lib.mjs";
 import { ensureValidatorGateDir, resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
-import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import {
+  loadSessionControlRequests,
+  loadSessionControlResults,
+  loadSessionRegistry,
+  readJsonFile,
+} from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import {
+  SESSION_CONTROL_BROKER_STATE_FILE,
+} from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { settleRecoverableSessionControlResults } from "../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
 import { appendWpReceipt } from "../../../roles_shared/scripts/wp/wp-receipt-append.mjs";
 
 function fail(message, details = []) {
@@ -57,6 +67,14 @@ function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = String(text || "").match(re);
   return match ? match[1].trim() : "";
+}
+
+function replaceSingleField(packetText, label, nextValue) {
+  const re = new RegExp(`^(\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*)(.+)\\s*$`, "mi");
+  if (!re.test(String(packetText || ""))) {
+    throw new Error(`Missing packet field: ${label}`);
+  }
+  return String(packetText || "").replace(re, `$1${nextValue}`);
 }
 
 function sessionNeedsClosure(repoRoot, role, wpId) {
@@ -231,6 +249,7 @@ const originalPacketText = readText(packetAbsPath);
 const originalTaskBoardText = fs.existsSync(taskBoardPath) ? readText(taskBoardPath) : "";
 const receiptsPath = repoPathAbs(parseSingleField(originalPacketText, "WP_RECEIPTS_FILE") || "");
 const originalReceiptsText = receiptsPath && fs.existsSync(receiptsPath) ? readText(receiptsPath) : "";
+const currentReceipts = receiptsPath && fs.existsSync(receiptsPath) ? parseJsonlFile(receiptsPath) : [];
 const runtimeStatusPath = repoPathAbs(parseSingleField(originalPacketText, "WP_RUNTIME_STATUS_FILE") || "");
 const originalRuntimeStatusText = runtimeStatusPath && fs.existsSync(runtimeStatusPath) ? readText(runtimeStatusPath) : "";
 const originalRuntimeStatusData = originalRuntimeStatusText ? JSON.parse(originalRuntimeStatusText) : null;
@@ -275,12 +294,24 @@ const actorContext = resolveValidatorActorContext({
   packetContent: originalPacketText,
   gitContext,
 });
+const initialBrokerState = readJsonFile(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE), { active_runs: [] });
+const settlement = settleRecoverableSessionControlResults(repoRoot, {
+  brokerState: initialBrokerState,
+});
+const requests = loadSessionControlRequests(repoRoot).requests;
+const results = loadSessionControlResults(repoRoot).results;
+const registrySessions = loadSessionRegistry(repoRoot).registry.sessions;
+const brokerState = readJsonFile(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE), { active_runs: [] });
 const evaluation = evaluateIntegrationValidatorCloseoutState({
   repoRoot,
   wpId,
   packetContent: originalPacketText,
   actorContext,
   committedEvidence,
+  requests,
+  results,
+  registrySessions,
+  brokerState,
   requireReadyForPass: false,
   requireRecordedScopeCompatibility: false,
 });
@@ -321,7 +352,23 @@ if (requestedMode.requireMergedMainCommit) {
 }
 
 const timestamp = new Date().toISOString();
-let nextPacketText = updateSignedScopeCompatibilityTruth(originalPacketText, {
+const validatorSessionsOfRecord = resolveCloseoutValidatorSessionsOfRecord({
+  packetContent: originalPacketText,
+  receipts: currentReceipts,
+  actorContext,
+});
+let nextPacketText = originalPacketText;
+if (validatorSessionsOfRecord.wpValidatorOfRecord) {
+  nextPacketText = replaceSingleField(nextPacketText, "WP_VALIDATOR_OF_RECORD", validatorSessionsOfRecord.wpValidatorOfRecord);
+}
+if (validatorSessionsOfRecord.integrationValidatorOfRecord) {
+  nextPacketText = replaceSingleField(
+    nextPacketText,
+    "INTEGRATION_VALIDATOR_OF_RECORD",
+    validatorSessionsOfRecord.integrationValidatorOfRecord,
+  );
+}
+nextPacketText = updateSignedScopeCompatibilityTruth(nextPacketText, {
   currentMainCompatibilityStatus: "COMPATIBLE",
   currentMainCompatibilityBaselineSha: baselineSha,
   currentMainCompatibilityVerifiedAtUtc: timestamp,
@@ -340,6 +387,10 @@ const nextRuntimeStatusData = originalRuntimeStatusData
     eventAt: timestamp,
   })
   : null;
+if (nextRuntimeStatusData) {
+  nextRuntimeStatusData.wp_validator_of_record = validatorSessionsOfRecord.wpValidatorOfRecord;
+  nextRuntimeStatusData.integration_validator_of_record = validatorSessionsOfRecord.integrationValidatorOfRecord;
+}
 if (nextRuntimeStatusData) {
   const runtimeErrors = validateRuntimeStatus(nextRuntimeStatusData);
   if (runtimeErrors.length > 0) {
@@ -445,6 +496,7 @@ console.log(`[INTEGRATION_VALIDATOR_CLOSEOUT_SYNC] PASS: ${wpId} closeout truth 
 console.log(`  mode=${requestedMode.mode}`);
 console.log(`  packet_path=${packetPath.replace(/\\/g, "/")}`);
 console.log(`  current_main_compatibility_baseline_sha=${baselineSha}`);
+console.log(`  self_settled_count=${settlement.settled.length}`);
 if (requestedMode.requireMergedMainCommit) {
   console.log(`  merged_main_commit=${mergedMainCommit}`);
 }

@@ -899,3 +899,96 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
 - OUTCOME: `just reseed-permanent-worktree-from-main wt-ilja ...` now updates the checked-out permanent branch safely with `checkout -B` semantics instead of trying to force-move the live branch ref, and the helper's cleanliness gate now checks for non-`.GOV` dirt so expected governance-junction replacement in permanent non-main worktrees does not cause a false failure after a successful reseed
+
+### 2026.04.03.01 / GOV-CHANGE-20260403-01
+
+- STATUS: APPLIED
+- SUMMARY: captured new governance follow-ons from the storage-trait smoketest closeout review covering terminal runtime residue, pre-implementation packet validity, broker-safe closeout, and review-verdict deduplication
+- CHANGE_TYPE: STORAGE_TRAIT_SMOKETEST_FOLLOW_ON_CAPTURE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW`
+  - `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1`
+- SURFACES:
+  - `.GOV/Audits/smoketest/AUDIT_20260403_STORAGE_TRAIT_PURITY_V1_SMOKETEST_CLOSEOUT_REVIEW.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-60`
+  - `RGF-61`
+  - `RGF-62`
+  - `RGF-63`
+- OUTCOME: the governance board now tracks the four highest-value follow-ons surfaced by the storage-trait closeout review, with `RGF-60` activated first because the current terminal runtime surface still carries stale residue after successful contained-main closure
+
+### 2026.04.03.02 / GOV-CHANGE-20260403-02
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-60` by cleaning terminal runtime projection residue during final-lane closeout and stamping validator-of-record truth from the governed lane
+- CHANGE_TYPE: TERMINAL_CLOSEOUT_RUNTIME_RESIDUE_PATCH
+- DRIVER_EVIDENCE:
+  - `RGF-60`
+  - `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW`
+  - `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1`
+- SURFACES:
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
+  - `.GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: terminal closeout now resolves validator-of-record values from governed receipts and the active final-lane actor, runtime projection writes those values into `RUNTIME_STATUS.json`, and `Validated (...)` packet states now clear stale `active_role_sessions` and touched-file residue instead of leaving misleading live-session artifacts behind after closure
+
+### 2026.04.03.03 / GOV-CHANGE-20260403-03
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-61` by making orchestrator-managed packet claim validity fail closed before implementation starts
+- CHANGE_TYPE: PRE_IMPLEMENTATION_PACKET_CLAIM_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-61`
+  - `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW`
+  - `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles_shared/checks/task-packet-claim-check.mjs`
+  - `.GOV/roles_shared/tests/new-packet-law-regression.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: orchestrator-managed packets with an assigned coder now leave creation with governed session-policy claim fields, and `READY_FOR_DEV` packets fail claim-check immediately if those fields are still unclaimed instead of surfacing only after implementation hardens
+
+### 2026.04.03.04 / GOV-CHANGE-20260403-04
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-62` by making final-lane closeout self-settle stale WP-scoped session-control state and tolerate only the current Integration Validator self-run
+- CHANGE_TYPE: FINAL_LANE_CLOSEOUT_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-62`
+  - `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW`
+  - `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1`
+- SURFACES:
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/checks/integration-validator-closeout-check.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: closeout entrypoints now self-settle stale WP-scoped session-control rows before evaluation, and the closeout bundle no longer self-collides on the Integration Validator's own in-flight broker command while still failing on foreign or extra active runs
+
+### 2026.04.03.05 / GOV-CHANGE-20260403-05
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-63` by deduplicating decisive validator outcomes per review round and collapsing authoritative assessment surfaces
+- CHANGE_TYPE: REVIEW_RECEIPT_DEDUPLICATION
+- DRIVER_EVIDENCE:
+  - `RGF-63`
+  - `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW`
+  - `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-review-projection-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/tests/wp-review-projection-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: duplicate decisive validator approvals or failures for the same review round now fail closed before they enter the receipt ledger, historical duplicate decisive assessments collapse into one authoritative surface for resume/projection consumers, and packet remediation text now points at the authoritative latest validator receipt instead of a raw noisy stream

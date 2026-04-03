@@ -11,10 +11,14 @@ function packetFixture({
   containment = "CONTAINED_IN_MAIN",
   merged = "0123456789abcdef0123456789abcdef01234567",
   verifiedAt = "2026-03-26T12:00:00Z",
+  wpValidatorOfRecord = "wp_validator:wp-test-validator-v1",
+  integrationValidatorOfRecord = "integration_validator:wp-test-validator-v1",
 } = {}) {
   return [
     "## METADATA",
     `- **Status:** ${status}`,
+    `- WP_VALIDATOR_OF_RECORD: ${wpValidatorOfRecord}`,
+    `- INTEGRATION_VALIDATOR_OF_RECORD: ${integrationValidatorOfRecord}`,
     "- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE",
     "- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 89abcdef0123456789abcdef0123456789abcdef",
     "- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-03-26T11:00:00Z",
@@ -30,6 +34,8 @@ test("parseRuntimeProjectionFromPacket normalizes terminal packet truth", () => 
   const projection = parseRuntimeProjectionFromPacket(packetFixture());
   assert.deepEqual(projection, {
     current_packet_status: "Validated (PASS)",
+    wp_validator_of_record: "wp_validator:wp-test-validator-v1",
+    integration_validator_of_record: "integration_validator:wp-test-validator-v1",
     current_main_compatibility_status: "COMPATIBLE",
     current_main_compatibility_baseline_sha: "89abcdef0123456789abcdef0123456789abcdef",
     current_main_compatibility_verified_at_utc: "2026-03-26T11:00:00Z",
@@ -45,6 +51,8 @@ test("syncRuntimeProjectionFromPacket updates runtime projection fields and even
   const runtime = syncRuntimeProjectionFromPacket(
     {
       current_packet_status: "Done",
+      wp_validator_of_record: null,
+      integration_validator_of_record: null,
       current_main_compatibility_status: "NOT_RUN",
       current_main_compatibility_baseline_sha: null,
       current_main_compatibility_verified_at_utc: null,
@@ -64,6 +72,8 @@ test("syncRuntimeProjectionFromPacket updates runtime projection fields and even
   );
 
   assert.equal(runtime.current_packet_status, "Validated (PASS)");
+  assert.equal(runtime.wp_validator_of_record, "wp_validator:wp-test-validator-v1");
+  assert.equal(runtime.integration_validator_of_record, "integration_validator:wp-test-validator-v1");
   assert.equal(runtime.current_main_compatibility_status, "COMPATIBLE");
   assert.equal(runtime.current_main_compatibility_baseline_sha, "89abcdef0123456789abcdef0123456789abcdef");
   assert.equal(runtime.current_main_compatibility_verified_at_utc, "2026-03-26T11:00:00Z");
@@ -86,6 +96,18 @@ test("syncRuntimeProjectionFromPacket drives validated packets into STATUS_SYNC 
       validator_trigger: "HANDOFF_READY",
       ready_for_validation: true,
       attention_required: true,
+      current_files_touched: ["src/demo.rs"],
+      active_role_sessions: [
+        {
+          role: "CODER",
+          session_id: "coder:wp-test-validator-v1",
+          authority_kind: "PRIMARY_CODER",
+          validator_role_kind: null,
+          worktree_dir: "../wtc-test-validator-v1",
+          state: "working",
+          last_heartbeat_at: "2026-03-26T12:55:00Z",
+        },
+      ],
       open_review_items: [{ correlation_id: "review-1" }],
     },
     packetFixture(),
@@ -97,6 +119,10 @@ test("syncRuntimeProjectionFromPacket drives validated packets into STATUS_SYNC 
   assert.equal(runtime.waiting_on, "CLOSED");
   assert.equal(runtime.ready_for_validation, false);
   assert.equal(runtime.attention_required, false);
+  assert.equal(runtime.wp_validator_of_record, "wp_validator:wp-test-validator-v1");
+  assert.equal(runtime.integration_validator_of_record, "integration_validator:wp-test-validator-v1");
+  assert.deepEqual(runtime.current_files_touched, []);
+  assert.deepEqual(runtime.active_role_sessions, []);
   assert.deepEqual(runtime.open_review_items, []);
 });
 

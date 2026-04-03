@@ -40,7 +40,7 @@ test("negative validator review projects packet truth back to active coder remed
   assert.equal(projection.taskBoardStatus, "IN_PROGRESS");
   assert.match(nextPacketText, /\*\*Status:\*\*\s*In Progress/);
   assert.match(nextPacketText, /Blockers:\s*WP validator review requires coder remediation/i);
-  assert.match(nextPacketText, /Next:\s*CODER repairs against the latest VALIDATOR_REVIEW/i);
+  assert.match(nextPacketText, /Next:\s*CODER repairs against the authoritative latest VALIDATOR_REVIEW/i);
 });
 
 test("intent checkpoint review preserves ready packet status during validator-side bootstrap review", () => {

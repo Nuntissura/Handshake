@@ -6,6 +6,12 @@ function parseSingleField(text, label) {
   return match ? match[1].trim() : "";
 }
 
+function normalizeDeclaredSessionValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw || /^(<unassigned>|NONE|N\/A|NA|NULL)$/i.test(raw)) return null;
+  return raw;
+}
+
 export function parsePacketStatus(packetText) {
   return (
     (String(packetText || "").match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
@@ -24,6 +30,8 @@ export function parseRuntimeProjectionFromPacket(packetText) {
   const compatibility = parseSignedScopeCompatibilityTruth(packetText);
   return {
     current_packet_status: parsePacketStatus(packetText),
+    wp_validator_of_record: normalizeDeclaredSessionValue(parseSingleField(packetText, "WP_VALIDATOR_OF_RECORD")),
+    integration_validator_of_record: normalizeDeclaredSessionValue(parseSingleField(packetText, "INTEGRATION_VALIDATOR_OF_RECORD")),
     main_containment_status: normalizeNoneLike(parseSingleField(packetText, "MAIN_CONTAINMENT_STATUS")),
     merged_main_commit: normalizeNoneLike(parseSingleField(packetText, "MERGED_MAIN_COMMIT")),
     main_containment_verified_at_utc: normalizeNoneLike(parseSingleField(packetText, "MAIN_CONTAINMENT_VERIFIED_AT_UTC")),
@@ -67,6 +75,8 @@ function deriveRuntimeCloseoutState(projection = {}, currentRuntime = {}) {
     nextRuntime.ready_for_validation = false;
     nextRuntime.ready_for_validation_reason = null;
     nextRuntime.attention_required = false;
+    nextRuntime.current_files_touched = [];
+    nextRuntime.active_role_sessions = [];
     nextRuntime.open_review_items = [];
     return nextRuntime;
   }
@@ -81,6 +91,8 @@ export function syncRuntimeProjectionFromPacket(runtimeStatus, packetText, {
   const projection = parseRuntimeProjectionFromPacket(packetText);
   const nextRuntime = deriveRuntimeCloseoutState(projection, runtimeStatus || {});
   nextRuntime.current_packet_status = projection.current_packet_status;
+  nextRuntime.wp_validator_of_record = projection.wp_validator_of_record;
+  nextRuntime.integration_validator_of_record = projection.integration_validator_of_record;
   nextRuntime.main_containment_status = projection.main_containment_status;
   nextRuntime.merged_main_commit = projection.merged_main_commit;
   nextRuntime.main_containment_verified_at_utc = projection.main_containment_verified_at_utc;

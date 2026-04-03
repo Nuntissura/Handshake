@@ -164,6 +164,106 @@ test("2026-04-01 packet law passes claim and closure checks when data-contract a
   assert.equal(reportResult.status, 0, reportResult.stderr || reportResult.stdout);
 });
 
+test("orchestrator-managed ready packets with an assigned coder fail fast when claim fields are still unclaimed", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "packet-law-regression-governed-ready-"));
+  const govRoot = path.join(tempRoot, ".GOV");
+  const packetPath = path.join(govRoot, "task_packets", "WP-TEST-GOVERNED-READY-v1", "packet.md");
+
+  writeFile(
+    packetPath,
+    [
+      "# WP-TEST-GOVERNED-READY-v1",
+      "",
+      "- **Status:** Ready for Dev",
+      "- PACKET_FORMAT_VERSION: 2026-04-01",
+      "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+      "- EXECUTION_OWNER: CODER_A",
+      "- CODER_MODEL: <unclaimed>",
+      "- CODER_REASONING_STRENGTH: <unclaimed>",
+      "- TOUCHED_FILE_BUDGET: 1",
+      "- BROAD_TOOL_ALLOWLIST: NONE",
+      "- DATA_CONTRACT_PROFILE: NONE",
+      "- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN",
+      "- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE",
+      "- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A",
+      "- PACKET_WIDENING_DECISION: NONE",
+      "- PACKET_WIDENING_EVIDENCE: N/A",
+      "",
+      "## IN_SCOPE_PATHS",
+      "- .GOV/roles_shared/checks/task-packet-claim-check.mjs",
+      "",
+      "## OUT_OF_SCOPE",
+      "- src/backend/handshake_core/src/locus/types.rs",
+      "",
+      formatDataContractDecisionSection({
+        decision: "WAIVED_NOT_DATA_BEARING",
+        reason: "The packet scope is governance-only and does not introduce governed product data surfaces.",
+        evidence: ["IN_SCOPE_PATH: .GOV/roles_shared/checks/task-packet-claim-check.mjs"],
+      }).trim(),
+      "",
+      formatDataContractMonitoringSection({
+        profile: "NONE",
+        inScopePaths: [],
+      }).trim(),
+      "",
+    ].join("\n"),
+  );
+
+  const claimResult = runNode(claimCheckPath, govRoot);
+  assert.equal(claimResult.status, 1);
+  assert.match(claimResult.stderr, /CODER_MODEL is required when Status is Ready for Dev on ORCHESTRATOR_MANAGED packets with an assigned EXECUTION_OWNER/i);
+  assert.match(claimResult.stderr, /CODER_REASONING_STRENGTH is required when Status is Ready for Dev on ORCHESTRATOR_MANAGED packets with an assigned EXECUTION_OWNER/i);
+});
+
+test("orchestrator-managed ready packets with an assigned coder pass claim check when creation preclaims the governed session policy", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "packet-law-regression-governed-ready-pass-"));
+  const govRoot = path.join(tempRoot, ".GOV");
+  const packetPath = path.join(govRoot, "task_packets", "WP-TEST-GOVERNED-READY-PASS-v1", "packet.md");
+
+  writeFile(
+    packetPath,
+    [
+      "# WP-TEST-GOVERNED-READY-PASS-v1",
+      "",
+      "- **Status:** Ready for Dev",
+      "- PACKET_FORMAT_VERSION: 2026-04-01",
+      "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+      "- EXECUTION_OWNER: CODER_A",
+      "- CODER_MODEL: gpt-5.4",
+      "- CODER_REASONING_STRENGTH: EXTRA_HIGH",
+      "- TOUCHED_FILE_BUDGET: 1",
+      "- BROAD_TOOL_ALLOWLIST: NONE",
+      "- DATA_CONTRACT_PROFILE: NONE",
+      "- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN",
+      "- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE",
+      "- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A",
+      "- PACKET_WIDENING_DECISION: NONE",
+      "- PACKET_WIDENING_EVIDENCE: N/A",
+      "",
+      "## IN_SCOPE_PATHS",
+      "- .GOV/roles_shared/checks/task-packet-claim-check.mjs",
+      "",
+      "## OUT_OF_SCOPE",
+      "- src/backend/handshake_core/src/locus/types.rs",
+      "",
+      formatDataContractDecisionSection({
+        decision: "WAIVED_NOT_DATA_BEARING",
+        reason: "The packet scope is governance-only and does not introduce governed product data surfaces.",
+        evidence: ["IN_SCOPE_PATH: .GOV/roles_shared/checks/task-packet-claim-check.mjs"],
+      }).trim(),
+      "",
+      formatDataContractMonitoringSection({
+        profile: "NONE",
+        inScopePaths: [],
+      }).trim(),
+      "",
+    ].join("\n"),
+  );
+
+  const claimResult = runNode(claimCheckPath, govRoot);
+  assert.equal(claimResult.status, 0, claimResult.stderr || claimResult.stdout);
+});
+
 test("2026-04-01 packet law rejects explicit waiver when in-scope paths are data-bearing", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "packet-law-regression-waiver-"));
   const govRoot = path.join(tempRoot, ".GOV");

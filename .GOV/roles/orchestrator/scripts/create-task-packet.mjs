@@ -800,8 +800,19 @@ template = replaceSingleField(template, 'EXECUTION_OWNER', normalizedExecutionOw
 template = replaceSingleField(template, 'AGENTIC_MODE', 'NO');
 template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'N/A');
 template = replaceSingleField(template, 'ORCHESTRATION_STARTED_AT_UTC', 'N/A');
-template = replaceSingleField(template, 'CODER_MODEL', '<unclaimed>');
-template = replaceSingleField(template, 'CODER_REASONING_STRENGTH', '<unclaimed>');
+const preclaimGovernedCoder =
+  normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED'
+  && /^CODER_[A-Z]$/i.test(normalizedExecutionOwner);
+template = replaceSingleField(
+  template,
+  'CODER_MODEL',
+  preclaimGovernedCoder ? ROLE_SESSION_PRIMARY_MODEL : '<unclaimed>',
+);
+template = replaceSingleField(
+  template,
+  'CODER_REASONING_STRENGTH',
+  preclaimGovernedCoder ? ROLE_SESSION_REASONING_REQUIRED : '<unclaimed>',
+);
 template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'DISALLOWED');
 template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', 'N/A');
 template = replaceSingleField(template, 'TOUCHED_FILE_BUDGET', '1');
