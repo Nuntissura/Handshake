@@ -13,8 +13,8 @@ function writeFile(targetPath, content) {
   fs.writeFileSync(targetPath, content, "utf8");
 }
 
-function packetFixture() {
-  return [
+function packetFixture({ mergeBaseSha = "" } = {}) {
+  const lines = [
     "# Task Packet: WP-TEST-SIGNED-SCOPE-v1",
     "",
     "## METADATA",
@@ -27,7 +27,9 @@ function packetFixture() {
     "- **End**: 20",
     "- **Line Delta**: 3",
     "- **Artifacts**: `artifacts/signed.patch`",
-  ].join("\n");
+  ];
+  if (mergeBaseSha) lines.splice(4, 0, `- MERGE_BASE_SHA: ${mergeBaseSha}`);
+  return lines.join("\n");
 }
 
 const matchingDiff = [
@@ -180,4 +182,30 @@ test("validateCandidateTargetAgainstSignedScope uses the target first-parent dif
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.errors, []);
+});
+
+test("validateCandidateTargetAgainstSignedScope honors MERGE_BASE_SHA for multi-commit signed ranges", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-surface-merge-base-"));
+  writeFile(path.join(tempRoot, "artifacts", "signed.patch"), matchingDiff);
+  const mergeBaseSha = "1111111111111111111111111111111111111111";
+  const targetHeadSha = "2222222222222222222222222222222222222222";
+
+  const result = validateCandidateTargetAgainstSignedScope(packetFixture({ mergeBaseSha }), {
+    repoRoot: tempRoot,
+    targetHeadSha,
+    currentMainHeadSha: "3333333333333333333333333333333333333333",
+    gitRunner: (args) => {
+      if (args[0] === "merge-base" && args[1] === "--is-ancestor" && args[2] === mergeBaseSha && args[3] === targetHeadSha) {
+        return { code: 0, output: "" };
+      }
+      if (args[0] === "diff" && args[3] === mergeBaseSha && args[4] === targetHeadSha) {
+        return { code: 0, output: matchingDiff };
+      }
+      return { code: 0, output: "" };
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.mergeBaseSha, mergeBaseSha);
 });
