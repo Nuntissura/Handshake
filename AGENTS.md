@@ -48,6 +48,7 @@
   - `Repo Governance` includes `/.GOV/**`, ACP/session/runtime ledgers, role protocols, governance task-board/changelog/audits, and root control-file maintenance.
   - If only one lane applies, still name both lanes and state `NONE` for the other lane.
   - Do not use `governance` alone for product-code contract work.
+  - Lead with the actual answer or finding in plain English. Use file paths and line anchors as evidence after the explanation, not instead of it, unless exact locations are the main point.
 - Minimum verification for governance-only changes: `just gov-check`.
 - Use `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md` for the no-WP governance record flow.
 - Governance-maintenance records:
