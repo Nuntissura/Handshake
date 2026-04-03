@@ -1032,8 +1032,20 @@ fn map_calendar_event_row(row: sqlx::sqlite::SqliteRow) -> StorageResult<Calenda
 
 #[async_trait]
 impl super::Database for SqliteDatabase {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+    fn supports_locus_runtime(&self) -> bool {
+        true
+    }
+
+    fn loom_search_observability_tier(&self) -> u8 {
+        1
+    }
+
+    fn supports_loom_graph_filtering(&self) -> bool {
+        false
+    }
+
+    fn loom_traverse_graph_perf_target_ms(&self) -> u128 {
+        100
     }
 
     async fn run_migrations(&self) -> StorageResult<()> {
@@ -1050,6 +1062,303 @@ impl super::Database for SqliteDatabase {
         .fetch_one(&self.pool)
         .await?;
         Ok(version)
+    }
+
+    async fn execute_locus_operation(
+        &self,
+        op: crate::workflows::locus::types::LocusOperation,
+    ) -> StorageResult<Value> {
+        super::locus_sqlite::execute_sqlite_locus_operation(self, op).await
+    }
+
+    async fn locus_task_board_update_work_packet(
+        &self,
+        status: &str,
+        task_board_status: &str,
+        updated_at: &str,
+        metadata: &str,
+        wp_id: &str,
+    ) -> StorageResult<()> {
+        sqlx::query(
+            r#"
+            UPDATE work_packets
+            SET
+                version = version + 1,
+                status = $1,
+                task_board_status = $2,
+                updated_at = $3,
+                metadata = $4
+            WHERE wp_id = $5
+            "#,
+        )
+        .bind(status)
+        .bind(task_board_status)
+        .bind(updated_at)
+        .bind(metadata)
+        .bind(wp_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn structured_collab_work_packet_row(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Option<super::StructuredCollabWorkPacketRow>> {
+        sqlx::query_as::<_, super::StructuredCollabWorkPacketRow>(
+            r#"
+            SELECT
+                wp_id,
+                version,
+                title,
+                description,
+                status,
+                priority,
+                phase,
+                routing,
+                task_packet_path,
+                task_board_status,
+                assignee,
+                reporter,
+                created_at,
+                updated_at,
+                vector_clock,
+                metadata
+            FROM work_packets
+            WHERE wp_id = $1
+            "#,
+        )
+        .bind(wp_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(StorageError::from)
+    }
+
+    async fn structured_collab_work_packet_rows(
+        &self,
+    ) -> StorageResult<Vec<super::StructuredCollabWorkPacketRow>> {
+        sqlx::query_as::<_, super::StructuredCollabWorkPacketRow>(
+            r#"
+            SELECT
+                wp_id,
+                version,
+                title,
+                description,
+                status,
+                priority,
+                phase,
+                routing,
+                task_packet_path,
+                task_board_status,
+                assignee,
+                reporter,
+                created_at,
+                updated_at,
+                vector_clock,
+                metadata
+            FROM work_packets
+            ORDER BY updated_at ASC, wp_id ASC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(StorageError::from)
+    }
+
+    async fn structured_collab_micro_task_metadata(
+        &self,
+        wp_id: &str,
+        mt_id: &str,
+    ) -> StorageResult<Option<String>> {
+        sqlx::query_scalar::<_, String>(
+            r#"
+            SELECT metadata
+            FROM micro_tasks
+            WHERE wp_id = $1 AND mt_id = $2
+            "#,
+        )
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(StorageError::from)
+    }
+
+    async fn structured_collab_micro_task_status_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>> {
+        sqlx::query_as::<_, (String, String)>(
+            "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+        )
+        .bind(wp_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(StorageError::from)
+    }
+
+    async fn structured_collab_micro_task_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>> {
+        sqlx::query_as::<_, (String, String)>(
+            "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+        )
+        .bind(wp_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(StorageError::from)
+    }
+
+    async fn test_overwrite_loom_block_metrics(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        mention_count: i64,
+        tag_count: i64,
+        backlink_count: i64,
+    ) -> StorageResult<()> {
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET mention_count = $1, tag_count = $2, backlink_count = $3
+            WHERE workspace_id = $4 AND block_id = $5
+            "#,
+        )
+        .bind(mention_count)
+        .bind(tag_count)
+        .bind(backlink_count)
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET mention_count = 0, tag_count = 0, backlink_count = 0
+            WHERE workspace_id = $1
+            "#,
+        )
+        .bind(workspace_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn test_insert_loom_traversal_perf_fixture(
+        &self,
+        workspace_id: &str,
+        total_blocks: usize,
+    ) -> StorageResult<String> {
+        let created_at = Utc::now();
+        let derived_json = serde_json::to_string(&super::LoomBlockDerived::default())?;
+        let start_block_id = "perf-block-00000".to_string();
+        let mut tx = self.pool.begin().await?;
+
+        for idx in 0..total_blocks {
+            let block_id = format!("perf-block-{idx:05}");
+            sqlx::query(
+                r#"
+                INSERT INTO loom_blocks (
+                    block_id,
+                    workspace_id,
+                    content_type,
+                    title,
+                    pinned,
+                    last_actor_kind,
+                    edit_event_id,
+                    created_at,
+                    updated_at,
+                    backlink_count,
+                    mention_count,
+                    tag_count,
+                    derived_json,
+                    preview_status
+                )
+                VALUES (
+                    $1, $2, 'note', $3, 0, 'SYSTEM',
+                    '00000000-0000-0000-0000-000000000000',
+                    $4, $4, 0, 0, 0, $5, 'none'
+                )
+                "#,
+            )
+            .bind(&block_id)
+            .bind(workspace_id)
+            .bind(format!("Perf Block {idx}"))
+            .bind(created_at)
+            .bind(&derived_json)
+            .execute(&mut *tx)
+            .await?;
+
+            if idx > 0 {
+                sqlx::query(
+                    r#"
+                    INSERT INTO loom_edges (
+                        edge_id,
+                        workspace_id,
+                        source_block_id,
+                        target_block_id,
+                        edge_type,
+                        created_by,
+                        last_actor_kind,
+                        edit_event_id,
+                        created_at
+                    )
+                    VALUES (
+                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
+                        '00000000-0000-0000-0000-000000000000',
+                        $5
+                    )
+                    "#,
+                )
+                .bind(format!("perf-edge-{idx:05}"))
+                .bind(workspace_id)
+                .bind(format!("perf-block-{:05}", idx - 1))
+                .bind(&block_id)
+                .bind(created_at)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+
+        tx.commit().await?;
+        Ok(start_block_id)
+    }
+
+    async fn test_update_ai_job_metadata(
+        &self,
+        job_id: Uuid,
+        status: &str,
+        created_at: chrono::DateTime<Utc>,
+        is_pinned: bool,
+    ) -> StorageResult<()> {
+        sqlx::query("UPDATE ai_jobs SET status = ?, created_at = ?, is_pinned = ? WHERE id = ?")
+            .bind(status)
+            .bind(created_at.to_rfc3339())
+            .bind(if is_pinned { 1_i32 } else { 0_i32 })
+            .bind(job_id.to_string())
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn test_fetch_mutation_traceability_row(
+        &self,
+        table: &str,
+        id: &str,
+    ) -> StorageResult<super::MutationTraceabilityRow> {
+        let sql = format!(
+            "SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id FROM {table} WHERE id = ?"
+        );
+        sqlx::query_as::<_, super::MutationTraceabilityRow>(&sql)
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(StorageError::from)
     }
 
     async fn ping(&self) -> StorageResult<()> {

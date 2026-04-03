@@ -1054,15 +1054,7 @@ async fn search_loom_blocks(
         .map_err(map_storage_error)?;
     let duration_ms = start.elapsed().as_millis() as u64;
 
-    let tier_used = if state
-        .storage
-        .as_any()
-        .is::<crate::storage::sqlite::SqliteDatabase>()
-    {
-        1
-    } else {
-        2
-    };
+    let tier_used = state.storage.loom_search_observability_tier();
 
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomSearchExecuted,
@@ -1171,25 +1163,16 @@ mod tests {
         tag_count: i64,
         backlink_count: i64,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let sqlite = state
+        state
             .storage
-            .as_any()
-            .downcast_ref::<SqliteDatabase>()
-            .ok_or("sqlite storage expected")?;
-        sqlx::query(
-            r#"
-            UPDATE loom_blocks
-            SET mention_count = $1, tag_count = $2, backlink_count = $3
-            WHERE workspace_id = $4 AND block_id = $5
-            "#,
-        )
-        .bind(mention_count)
-        .bind(tag_count)
-        .bind(backlink_count)
-        .bind(workspace_id)
-        .bind(block_id)
-        .execute(sqlite.pool())
-        .await?;
+            .test_overwrite_loom_block_metrics(
+                workspace_id,
+                block_id,
+                mention_count,
+                tag_count,
+                backlink_count,
+            )
+            .await?;
         Ok(())
     }
 

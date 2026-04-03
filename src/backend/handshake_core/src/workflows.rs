@@ -46,8 +46,8 @@ use crate::{
     models::{AiJob, JobKind, WorkflowRun},
     runtime_governance::RuntimeGovernancePaths,
     storage::{
-        sqlite::SqliteDatabase, validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate,
-        ModelSession, ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
+        validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate, ModelSession,
+        ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
         SessionMessageRole, StorageError,
     },
     terminal::{
@@ -64,7 +64,6 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::SqlitePool;
 use std::{
     collections::BTreeMap,
     collections::HashMap,
@@ -1587,7 +1586,6 @@ async fn execute_locus_sync_task_board(
             )
             .await?;
 
-            let sqlite = sqlite_database_for_structured_work_packet_projection(db)?;
             let mut work_packet_artifacts_written = 0u64;
             let mut structured_projection_written = false;
             let validation_result = if dry_run {
@@ -1595,15 +1593,9 @@ async fn execute_locus_sync_task_board(
                     locus::StructuredCollaborationRecordFamily::TaskBoardIndex,
                 )
             } else {
-                let wp_ids = sqlx::query_scalar::<_, String>(
-                    "SELECT wp_id FROM work_packets ORDER BY wp_id ASC",
-                )
-                .fetch_all(sqlite.pool())
-                .await
-                .map_err(StorageError::from)?;
-                for wp_id in wp_ids {
+                for row in db.structured_collab_work_packet_rows().await? {
                     if let Some(work_packet) =
-                        load_tracked_work_packet_for_artifacts(sqlite.pool(), &wp_id).await?
+                        load_tracked_work_packet_for_artifacts(db, &row.wp_id).await?
                     {
                         emit_work_packet_artifacts(&runtime_governance_paths, &work_packet)?;
                         work_packet_artifacts_written =
@@ -1611,8 +1603,7 @@ async fn execute_locus_sync_task_board(
                     }
                 }
                 structured_projection_written = true;
-                emit_task_board_projection_artifacts(sqlite.pool(), &runtime_governance_paths)
-                    .await?
+                emit_task_board_projection_artifacts(db, &runtime_governance_paths).await?
             };
             if let Some(map) = output.as_object_mut() {
                 map.insert(
@@ -2578,19 +2569,6 @@ const TASK_BOARD_INDEX_SCHEMA_ID: &str = "hsk.task_board_index@1";
 const TASK_BOARD_VIEW_SCHEMA_ID: &str = "hsk.task_board_view@1";
 const TASK_BOARD_ENTRY_SCHEMA_ID: &str = "hsk.task_board_entry@1";
 
-fn sqlite_pool_for_structured_artifacts(state: &AppState) -> Result<&SqlitePool, WorkflowError> {
-    state
-        .storage
-        .as_any()
-        .downcast_ref::<SqliteDatabase>()
-        .map(SqliteDatabase::pool)
-        .ok_or_else(|| {
-            WorkflowError::Terminal(
-                "structured collaboration artifact emission requires sqlite storage".to_string(),
-            )
-        })
-}
-
 fn default_gate_status() -> locus::GateStatus {
     locus::GateStatus {
         status: locus::GateStatusKind::Pending,
@@ -2814,16 +2792,10 @@ fn append_ref_strings_from_value(refs: &mut Vec<String>, value: &Value) {
 }
 
 async fn load_micro_task_summary_for_wp(
-    pool: &SqlitePool,
+    db: &dyn crate::storage::Database,
     wp_id: &str,
 ) -> Result<locus::MicroTaskSummary, WorkflowError> {
-    let rows = sqlx::query_as::<_, (String, String)>(
-        "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
-    )
-    .bind(wp_id)
-    .fetch_all(pool)
-    .await
-    .map_err(StorageError::from)?;
+    let rows = db.structured_collab_micro_task_status_rows(wp_id).await?;
 
     let mut summary = locus::MicroTaskSummary {
         total: rows.len() as u32,
@@ -2847,56 +2819,14 @@ async fn load_micro_task_summary_for_wp(
 }
 
 async fn load_tracked_work_packet_for_artifacts(
-    pool: &SqlitePool,
+    db: &dyn crate::storage::Database,
     wp_id: &str,
 ) -> Result<Option<locus::TrackedWorkPacket>, WorkflowError> {
-    let row = sqlx::query_as::<
-        _,
-        (
-            i64,
-            String,
-            String,
-            String,
-            i64,
-            String,
-            String,
-            Option<String>,
-            String,
-            Option<String>,
-            String,
-            String,
-            String,
-            String,
-            String,
-        ),
-    >(
-        r#"
-        SELECT
-            version,
-            title,
-            description,
-            status,
-            priority,
-            phase,
-            routing,
-            task_packet_path,
-            task_board_status,
-            assignee,
-            reporter,
-            created_at,
-            updated_at,
-            vector_clock,
-            metadata
-        FROM work_packets
-        WHERE wp_id = $1
-        "#,
-    )
-    .bind(wp_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(StorageError::from)?;
-
-    let Some((
+    let Some(row) = db.structured_collab_work_packet_row(wp_id).await? else {
+        return Ok(None);
+    };
+    let crate::storage::StructuredCollabWorkPacketRow {
+        wp_id,
         version,
         title,
         description,
@@ -2910,12 +2840,9 @@ async fn load_tracked_work_packet_for_artifacts(
         reporter,
         created_at,
         updated_at,
-        vector_clock_raw,
-        metadata_raw,
-    )) = row
-    else {
-        return Ok(None);
-    };
+        vector_clock: vector_clock_raw,
+        metadata: metadata_raw,
+    } = row;
 
     let metadata: Value = serde_json::from_str(&metadata_raw).unwrap_or_else(|_| json!({}));
     let labels = string_list(metadata.get("labels"));
@@ -2929,6 +2856,7 @@ async fn load_tracked_work_packet_for_artifacts(
         .get("profile_extension")
         .cloned()
         .filter(|value| !value.is_null());
+    let micro_tasks = load_micro_task_summary_for_wp(db, &wp_id).await?;
 
     let work_packet = locus::TrackedWorkPacket {
         schema_id: String::new(),
@@ -2941,7 +2869,7 @@ async fn load_tracked_work_packet_for_artifacts(
         evidence_refs: Vec::new(),
         summary_record_path: None,
         profile_extension,
-        wp_id: wp_id.to_string(),
+        wp_id,
         version: version.max(0) as u64,
         title,
         description,
@@ -2962,7 +2890,7 @@ async fn load_tracked_work_packet_for_artifacts(
         labels,
         assignee,
         reporter,
-        micro_tasks: load_micro_task_summary_for_wp(pool, wp_id).await?,
+        micro_tasks,
         created_at: parse_timestamp_utc(&created_at, "work_packets.created_at")?,
         updated_at: parse_timestamp_utc(&updated_at, "work_packets.updated_at")?,
         started_at: metadata
@@ -2990,22 +2918,11 @@ async fn load_tracked_work_packet_for_artifacts(
 }
 
 async fn load_tracked_micro_task_for_artifacts(
-    pool: &SqlitePool,
+    db: &dyn crate::storage::Database,
     wp_id: &str,
     mt_id: &str,
 ) -> Result<Option<locus::TrackedMicroTask>, WorkflowError> {
-    let metadata = sqlx::query_scalar::<_, String>(
-        r#"
-        SELECT metadata
-        FROM micro_tasks
-        WHERE wp_id = $1 AND mt_id = $2
-        "#,
-    )
-    .bind(wp_id)
-    .bind(mt_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(StorageError::from)?;
+    let metadata = db.structured_collab_micro_task_metadata(wp_id, mt_id).await?;
 
     let Some(metadata) = metadata else {
         return Ok(None);
@@ -3023,16 +2940,10 @@ async fn load_tracked_micro_task_for_artifacts(
 }
 
 async fn list_tracked_micro_tasks_for_artifacts(
-    pool: &SqlitePool,
+    db: &dyn crate::storage::Database,
     wp_id: &str,
 ) -> Result<Vec<locus::TrackedMicroTask>, WorkflowError> {
-    let rows = sqlx::query_as::<_, (String, String)>(
-        "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
-    )
-    .bind(wp_id)
-    .fetch_all(pool)
-    .await
-    .map_err(StorageError::from)?;
+    let rows = db.structured_collab_micro_task_rows(wp_id).await?;
 
     let mut items = Vec::with_capacity(rows.len());
     for (mt_id, metadata) in rows {
@@ -3491,19 +3402,10 @@ fn task_board_mirror_contract(
 }
 
 async fn emit_task_board_projection_artifacts(
-    pool: &SqlitePool,
+    db: &dyn crate::storage::Database,
     runtime_paths: &RuntimeGovernancePaths,
 ) -> Result<locus::StructuredCollaborationValidationResult, WorkflowError> {
-    let rows = sqlx::query_as::<_, (String, String, String, String)>(
-        r#"
-        SELECT wp_id, task_board_status, metadata, updated_at
-        FROM work_packets
-        ORDER BY updated_at ASC, wp_id ASC
-        "#,
-    )
-    .fetch_all(pool)
-    .await
-    .map_err(StorageError::from)?;
+    let rows = db.structured_collab_work_packet_rows().await?;
 
     let task_board_id = runtime_paths.task_board_display();
     let view_id = locus::task_board::default_view_id().to_string();
@@ -3513,28 +3415,29 @@ async fn emit_task_board_projection_artifacts(
 
     let entry_seeds: Vec<Value> = rows
         .iter()
-        .map(|(wp_id, status_raw, metadata_raw, updated_at)| {
-            let status = parse_task_board_status_db_global(status_raw);
-            let metadata: Value = serde_json::from_str(metadata_raw).unwrap_or_else(|_| json!({}));
+        .map(|row| {
+            let status = parse_task_board_status_db_global(&row.task_board_status);
+            let metadata: Value =
+                serde_json::from_str(&row.metadata).unwrap_or_else(|_| json!({}));
             let token = metadata
                 .get("task_board_token")
                 .and_then(Value::as_str)
                 .map(str::to_string)
                 .unwrap_or_else(|| default_task_board_token_for_artifacts(status).to_string());
             json!({
-                "wp_id": wp_id,
+                "wp_id": row.wp_id,
                 "status": task_board_status_string(status),
                 "token": token,
-                "updated_at": updated_at,
+                "updated_at": row.updated_at,
             })
         })
         .collect();
     let canonical_hash = json_sha256(&entry_seeds)?;
 
-    for (wp_id, status_raw, metadata_raw, updated_at) in &rows {
-        generated_at = generated_at.max(updated_at.clone());
-        let status = parse_task_board_status_db_global(status_raw);
-        let metadata: Value = serde_json::from_str(metadata_raw).unwrap_or_else(|_| json!({}));
+    for row in &rows {
+        generated_at = generated_at.max(row.updated_at.clone());
+        let status = parse_task_board_status_db_global(&row.task_board_status);
+        let metadata: Value = serde_json::from_str(&row.metadata).unwrap_or_else(|_| json!({}));
         let token = metadata
             .get("task_board_token")
             .and_then(Value::as_str)
@@ -3544,7 +3447,7 @@ async fn emit_task_board_projection_artifacts(
         canonical_sections
             .entries_for_status_mut(status)
             .push(locus::task_board::TaskBoardEntry {
-                wp_id: wp_id.clone(),
+                wp_id: row.wp_id.clone(),
                 token,
                 status,
             });
@@ -3558,9 +3461,9 @@ async fn emit_task_board_projection_artifacts(
     )?;
 
     let mut entries: Vec<locus::task_board::TaskBoardEntryRecordV1> = Vec::new();
-    for (wp_id, status_raw, metadata_raw, updated_at) in rows {
-        let status = parse_task_board_status_db_global(&status_raw);
-        let metadata: Value = serde_json::from_str(&metadata_raw).unwrap_or_else(|_| json!({}));
+    for row in rows {
+        let status = parse_task_board_status_db_global(&row.task_board_status);
+        let metadata: Value = serde_json::from_str(&row.metadata).unwrap_or_else(|_| json!({}));
         let token = metadata
             .get("task_board_token")
             .and_then(Value::as_str)
@@ -3577,25 +3480,25 @@ async fn emit_task_board_projection_artifacts(
         entries.push(locus::task_board::TaskBoardEntryRecordV1 {
             schema_id: TASK_BOARD_ENTRY_SCHEMA_ID.to_string(),
             schema_version: locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
-            record_id: format!("task_board_entry:{wp_id}"),
+            record_id: format!("task_board_entry:{}", row.wp_id),
             record_kind: "task_board_entry".to_string(),
             project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-            updated_at,
+            updated_at: row.updated_at,
             mirror_state,
-            authority_refs: vec![runtime_paths.work_packet_packet_display(&wp_id)],
+            authority_refs: vec![runtime_paths.work_packet_packet_display(&row.wp_id)],
             evidence_refs: Vec::new(),
             mirror_contract: mirror_contract.clone(),
             workflow_state_family,
             queue_reason_code,
             allowed_action_ids: allowed_action_ids(workflow_state_family),
             task_board_id: task_board_id.clone(),
-            work_packet_id: wp_id.clone(),
+            work_packet_id: row.wp_id.clone(),
             lane_id,
             display_order,
             view_ids: vec![view_id.clone()],
             token,
             status: task_board_status_string(status).to_string(),
-            summary_ref: runtime_paths.work_packet_summary_display(&wp_id),
+            summary_ref: runtime_paths.work_packet_summary_display(&row.wp_id),
         });
     }
 
@@ -3747,128 +3650,128 @@ async fn materialize_structured_collaboration_artifacts(
             "failed to resolve runtime governance paths for artifact emission: {err}"
         ))
     })?;
-    let pool = sqlite_pool_for_structured_artifacts(state)?;
+    let db = state.storage.as_ref();
 
     match op {
         locus::LocusOperation::CreateWp(params) => {
             if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
+                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
             {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         locus::LocusOperation::UpdateWp(params) => {
             if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
+                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
             {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         locus::LocusOperation::GateWp(params) => {
             if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
+                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
             {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         locus::LocusOperation::CloseWp(params) => {
             if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
+                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
             {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         locus::LocusOperation::DeleteWp(params) => {
             if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
+                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
             {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         locus::LocusOperation::RegisterMts(params) => {
             if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
+                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
             {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
-            let micro_tasks = list_tracked_micro_tasks_for_artifacts(pool, &params.wp_id).await?;
+            let micro_tasks = list_tracked_micro_tasks_for_artifacts(db, &params.wp_id).await?;
             for micro_task in &micro_tasks {
                 emit_micro_task_artifacts(&runtime_paths, micro_task)?;
             }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         locus::LocusOperation::StartMt(params) => {
             if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
+                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
             {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
             if let Some(micro_task) =
-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
+                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
             {
                 emit_micro_task_artifacts(&runtime_paths, &micro_task)?;
             }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         locus::LocusOperation::RecordIteration(params) => {
             if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
+                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
             {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
             if let Some(micro_task) =
-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
+                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
             {
                 emit_micro_task_artifacts(&runtime_paths, &micro_task)?;
             }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         locus::LocusOperation::CompleteMt(params) => {
             if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
+                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
             {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
             if let Some(micro_task) =
-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
+                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
             {
                 emit_micro_task_artifacts(&runtime_paths, &micro_task)?;
             }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         locus::LocusOperation::BindSession(params) => {
             if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
+                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
             {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
             if let Some(micro_task) =
-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
+                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
             {
                 emit_micro_task_artifacts(&runtime_paths, &micro_task)?;
             }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         locus::LocusOperation::UnbindSession(params) => {
             if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
+                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
             {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
             if let Some(micro_task) =
-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
+                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
             {
                 emit_micro_task_artifacts(&runtime_paths, &micro_task)?;
             }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         locus::LocusOperation::SyncTaskBoard(_) => {
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
         }
         _ => {}
     }
@@ -4358,19 +4261,7 @@ async fn load_tracked_micro_task_from_sqlite(
     wp_id: &str,
     mt_id: &str,
 ) -> Result<locus::TrackedMicroTask, WorkflowError> {
-    let sqlite = sqlite_database_for_structured_work_packet_projection(db)?;
-    let metadata_raw = sqlx::query_scalar::<_, String>(
-        r#"
-        SELECT metadata
-        FROM micro_tasks
-        WHERE wp_id = $1 AND mt_id = $2
-        "#,
-    )
-    .bind(wp_id)
-    .bind(mt_id)
-    .fetch_optional(sqlite.pool())
-    .await
-    .map_err(StorageError::from)?;
+    let metadata_raw = db.structured_collab_micro_task_metadata(wp_id, mt_id).await?;
     let Some(metadata_raw) = metadata_raw else {
         return Err(WorkflowError::from(StorageError::NotFound("micro_task")));
     };
@@ -4387,75 +4278,27 @@ async fn load_tracked_work_packet_from_sqlite(
     wp_id: &str,
     kind_hint: Option<locus::WorkPacketType>,
 ) -> Result<locus::TrackedWorkPacket, WorkflowError> {
-    let sqlite = sqlite_database_for_structured_work_packet_projection(db)?;
-    let row = sqlx::query_as::<
-        _,
-        (
-            String,
-            i64,
-            String,
-            String,
-            String,
-            i64,
-            String,
-            String,
-            Option<String>,
-            String,
-            Option<String>,
-            String,
-            String,
-            String,
-            String,
-            String,
-        ),
-    >(
-        r#"
-        SELECT
-            wp_id,
-            version,
-            title,
-            description,
-            status,
-            priority,
-            phase,
-            routing,
-            task_packet_path,
-            task_board_status,
-            assignee,
-            reporter,
-            created_at,
-            updated_at,
-            vector_clock,
-            metadata
-        FROM work_packets
-        WHERE wp_id = $1
-        "#,
-    )
-    .bind(wp_id)
-    .fetch_optional(sqlite.pool())
-    .await
-    .map_err(StorageError::from)?;
-    let Some((
+    let Some(row) = db.structured_collab_work_packet_row(wp_id).await? else {
+        return Err(WorkflowError::from(StorageError::NotFound("work_packet")));
+    };
+    let crate::storage::StructuredCollabWorkPacketRow {
         wp_id,
         version,
         title,
         description,
-        status_raw,
+        status: status_raw,
         priority,
-        phase_raw,
-        routing_raw,
+        phase: phase_raw,
+        routing: routing_raw,
         task_packet_path,
-        task_board_status_raw,
+        task_board_status: task_board_status_raw,
         assignee,
         reporter,
-        created_at_raw,
-        updated_at_raw,
-        vector_clock_raw,
-        metadata_raw,
-    )) = row
-    else {
-        return Err(WorkflowError::from(StorageError::NotFound("work_packet")));
-    };
+        created_at: created_at_raw,
+        updated_at: updated_at_raw,
+        vector_clock: vector_clock_raw,
+        metadata: metadata_raw,
+    } = row;
 
     let mut metadata: Value =
         serde_json::from_str(&metadata_raw).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
@@ -4511,13 +4354,7 @@ async fn load_tracked_work_packet_from_sqlite(
         .cloned()
         .filter(|value| !value.is_null());
 
-    let mt_rows = sqlx::query_as::<_, (String, String)>(
-        "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
-    )
-    .bind(&wp_id)
-    .fetch_all(sqlite.pool())
-    .await
-    .map_err(StorageError::from)?;
+    let mt_rows = db.structured_collab_micro_task_status_rows(&wp_id).await?;
     let mut micro_tasks = locus::MicroTaskSummary {
         total: mt_rows.len() as u32,
         completed: 0,
@@ -4592,14 +4429,6 @@ async fn load_tracked_work_packet_from_sqlite(
         evidence_refs,
     );
     Ok(tracked_wp)
-}
-
-fn sqlite_database_for_structured_work_packet_projection(
-    db: &dyn crate::storage::Database,
-) -> Result<&crate::storage::sqlite::SqliteDatabase, WorkflowError> {
-    db.as_any()
-        .downcast_ref::<crate::storage::sqlite::SqliteDatabase>()
-        .ok_or_else(|| WorkflowError::from(StorageError::NotImplemented("locus sqlite")))
 }
 
 fn parse_optional_timestamp_value(

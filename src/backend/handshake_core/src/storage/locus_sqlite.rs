@@ -15,50 +15,36 @@ use crate::workflows::locus::types::{
     WorkflowStateFamily,
 };
 
-fn sqlite_db(db: &dyn Database) -> StorageResult<&SqliteDatabase> {
-    db.as_any()
-        .downcast_ref::<SqliteDatabase>()
-        .ok_or(StorageError::NotImplemented("locus sqlite"))
-}
-
 pub(crate) fn ensure_locus_sqlite(db: &dyn Database) -> StorageResult<()> {
-    sqlite_db(db).map(|_| ())
+    if db.supports_locus_runtime() {
+        Ok(())
+    } else {
+        Err(StorageError::NotImplemented("locus runtime"))
+    }
 }
 
 pub(crate) async fn execute_locus_operation(
     db: &dyn Database,
     op: LocusOperation,
 ) -> StorageResult<Value> {
-    let sqlite = sqlite_db(db)?;
-    execute_sqlite_locus_operation(sqlite, op).await
+    db.execute_locus_operation(op).await
 }
 
 pub(crate) async fn locus_work_packet_exists(
     db: &dyn Database,
     wp_id: &str,
 ) -> StorageResult<bool> {
-    let sqlite = sqlite_db(db)?;
-    let exists =
-        sqlx::query_scalar::<_, i64>("SELECT 1 FROM work_packets WHERE wp_id = $1 LIMIT 1")
-            .bind(wp_id)
-            .fetch_optional(sqlite.pool())
-            .await?
-            .is_some();
-    Ok(exists)
+    Ok(db.structured_collab_work_packet_row(wp_id).await?.is_some())
 }
 
 pub(crate) async fn locus_task_board_get_status_and_metadata(
     db: &dyn Database,
     wp_id: &str,
 ) -> StorageResult<Option<(String, String)>> {
-    let sqlite = sqlite_db(db)?;
-    sqlx::query_as::<_, (String, String)>(
-        "SELECT task_board_status, metadata FROM work_packets WHERE wp_id = $1",
-    )
-    .bind(wp_id)
-    .fetch_optional(sqlite.pool())
-    .await
-    .map_err(StorageError::from)
+    Ok(db
+        .structured_collab_work_packet_row(wp_id)
+        .await?
+        .map(|row| (row.task_board_status, row.metadata)))
 }
 
 pub(crate) async fn locus_task_board_update_work_packet(
@@ -69,39 +55,19 @@ pub(crate) async fn locus_task_board_update_work_packet(
     metadata: &str,
     wp_id: &str,
 ) -> StorageResult<()> {
-    let sqlite = sqlite_db(db)?;
-    sqlx::query(
-        r#"
-                        UPDATE work_packets
-                        SET
-                            version = version + 1,
-                            status = $1,
-                            task_board_status = $2,
-                            updated_at = $3,
-                            metadata = $4
-                        WHERE wp_id = $5
-                        "#,
-    )
-    .bind(status)
-    .bind(task_board_status)
-    .bind(updated_at)
-    .bind(metadata)
-    .bind(wp_id)
-    .execute(sqlite.pool())
-    .await?;
-    Ok(())
+    db.locus_task_board_update_work_packet(status, task_board_status, updated_at, metadata, wp_id)
+        .await
 }
 
 pub(crate) async fn locus_task_board_list_rows(
     db: &dyn Database,
 ) -> StorageResult<Vec<(String, String, String)>> {
-    let sqlite = sqlite_db(db)?;
-    let rows = sqlx::query_as::<_, (String, String, String)>(
-        "SELECT wp_id, task_board_status, metadata FROM work_packets",
-    )
-    .fetch_all(sqlite.pool())
-    .await?;
-    Ok(rows)
+    Ok(db
+        .structured_collab_work_packet_rows()
+        .await?
+        .into_iter()
+        .map(|row| (row.wp_id, row.task_board_status, row.metadata))
+        .collect())
 }
 
 fn now_rfc3339() -> String {
@@ -1144,7 +1110,7 @@ async fn get_mt_progress(
     }))
 }
 
-async fn execute_sqlite_locus_operation(
+pub(crate) async fn execute_sqlite_locus_operation(
     sqlite: &SqliteDatabase,
     op: LocusOperation,
 ) -> StorageResult<Value> {
