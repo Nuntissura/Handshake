@@ -972,3 +972,23 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
 - OUTCOME: closeout entrypoints now self-settle stale WP-scoped session-control rows before evaluation, and the closeout bundle no longer self-collides on the Integration Validator's own in-flight broker command while still failing on foreign or extra active runs
+
+### 2026.04.03.05 / GOV-CHANGE-20260403-05
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-63` by deduplicating decisive validator outcomes per review round and collapsing authoritative assessment surfaces
+- CHANGE_TYPE: REVIEW_RECEIPT_DEDUPLICATION
+- DRIVER_EVIDENCE:
+  - `RGF-63`
+  - `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW`
+  - `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-review-projection-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/tests/wp-review-projection-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: duplicate decisive validator approvals or failures for the same review round now fail closed before they enter the receipt ledger, historical duplicate decisive assessments collapse into one authoritative surface for resume/projection consumers, and packet remediation text now points at the authoritative latest validator receipt instead of a raw noisy stream

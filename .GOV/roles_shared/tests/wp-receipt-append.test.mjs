@@ -262,6 +262,87 @@ test("review exchange preflight rejects placeholder unassigned target sessions",
   }
 });
 
+test("validator review preflight suppresses duplicate decisive approvals for the same handoff round", () => {
+  const wpId = "WP-TEST-DUPLICATE-VALIDATOR-APPROVAL";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-duplicate-validator-approval-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+
+  writeReviewExchangePacket(packetDir, wpId, commDir);
+  fs.writeFileSync(
+    receiptsPath,
+    [
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:00:00Z",
+        wp_id: wpId,
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        actor_authority_kind: "PRIMARY_CODER",
+        validator_role_kind: null,
+        receipt_kind: "CODER_HANDOFF",
+        summary: "Ready for WP validator review.",
+        branch: "feat/test-review-exchange",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        requires_ack: true,
+        ack_for: null,
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:01:00Z",
+        wp_id: wpId,
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        actor_authority_kind: "WP_VALIDATOR",
+        validator_role_kind: "WP_VALIDATOR",
+        receipt_kind: "VALIDATOR_REVIEW",
+        summary: "Approved for final review. Suitable for integration review closure.",
+        branch: "feat/test-review-exchange",
+        worktree_dir: "../wtv-test",
+        state_before: null,
+        state_after: null,
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        requires_ack: false,
+        ack_for: "handoff-1",
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+    ].join("\n"),
+    "utf8",
+  );
+
+  try {
+    assert.throws(
+      () => validateWpReceiptAppendPreconditions({
+        wpId,
+        actorRole: "WP_VALIDATOR",
+        actorSession: "wpv-1",
+        receiptKind: "VALIDATOR_REVIEW",
+        summary: "Approved for final review. Suitable for integration review closure.",
+        targetRole: "CODER",
+        targetSession: "coder-1",
+        correlationId: "handoff-1",
+        ackFor: "handoff-1",
+      }),
+      /Duplicate decisive validator outcome suppressed/i,
+    );
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
 test("coder handoff preflight rejects missing validator intent checkpoint on contract-heavy packets", () => {
   const wpId = "WP-TEST-INTENT-CHECKPOINT";
   const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);

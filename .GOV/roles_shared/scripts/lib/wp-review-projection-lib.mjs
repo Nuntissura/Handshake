@@ -71,7 +71,8 @@ function taskBoardStatusForPacketStatus(packetStatus) {
   }
 }
 
-function currentStateForEvaluation(evaluationState, autoRoute = {}) {
+function currentStateForEvaluation(evaluationState, autoRoute = {}, evaluation = {}) {
+  const authoritativeReceiptKind = String(evaluation?.latestValidatorAssessment?.receiptKind || "VALIDATOR_REVIEW").trim() || "VALIDATOR_REVIEW";
   switch (normalizeState(evaluationState)) {
     case "COMM_MISSING_KICKOFF":
       return {
@@ -100,8 +101,8 @@ function currentStateForEvaluation(evaluationState, autoRoute = {}) {
     case "COMM_REPAIR_REQUIRED":
       return {
         verdict: "PENDING",
-        blockers: "WP validator review requires coder remediation; see the latest VALIDATOR_REVIEW receipt for authoritative findings.",
-        next: "CODER repairs against the latest VALIDATOR_REVIEW, commits the reviewable state, and re-records CODER_HANDOFF with proof.",
+        blockers: `WP validator review requires coder remediation; see the authoritative latest ${authoritativeReceiptKind} receipt for the active handoff findings.`,
+        next: `CODER repairs against the authoritative latest ${authoritativeReceiptKind}, commits the reviewable state, and re-records CODER_HANDOFF with proof.`,
       };
     case "COMM_WAITING_FOR_REVIEW":
       return {
@@ -125,7 +126,7 @@ function currentStateForEvaluation(evaluationState, autoRoute = {}) {
       return {
         verdict: "PENDING",
         blockers: "NONE",
-        next: "ORCHESTRATOR advances verdict progression and integration closeout from the completed direct-review lane.",
+        next: "ORCHESTRATOR advances verdict progression and integration closeout from the authoritative completed direct-review lane.",
       };
     case "COMM_MISCONFIGURED":
       return {
@@ -157,7 +158,7 @@ export function deriveWpReviewPacketProjection({
 
   const currentPacketStatus = parsePacketStatus(packetText);
   const packetStatus = packetStatusForCommunicationState(evaluation.state, currentPacketStatus);
-  const currentState = currentStateForEvaluation(evaluation.state, autoRoute);
+  const currentState = currentStateForEvaluation(evaluation.state, autoRoute, evaluation);
 
   return {
     packetStatus,

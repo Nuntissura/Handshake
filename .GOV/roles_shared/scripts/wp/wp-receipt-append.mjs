@@ -38,6 +38,7 @@ import {
   deriveLatestValidatorAssessment,
   deriveWpCommunicationAutoRoute,
   evaluateWpCommunicationHealth,
+  isDuplicateDecisiveValidatorAssessment,
   isOverlapMicrotaskReviewItem,
   MAX_OVERLAP_MICROTASK_REVIEW_ITEMS,
 } from "../lib/wp-communication-health-lib.mjs";
@@ -537,6 +538,17 @@ function assertOverlapReviewBackpressurePreflight({ runtimeStatus }) {
   }
 }
 
+function assertNoDuplicateDecisiveValidatorAssessment({ context, entry }) {
+  const receipts = parseJsonlFile(context.receiptsFile);
+  if (!isDuplicateDecisiveValidatorAssessment(receipts, entry)) return;
+  const verdict = String(entry?.summary || "").trim()
+    ? deriveLatestValidatorAssessment([...receipts, entry])?.verdict || "ASSESSMENT"
+    : "ASSESSMENT";
+  throw new Error(
+    `Duplicate decisive validator outcome suppressed: ${entry.receipt_kind} would repeat an existing ${verdict} assessment for the latest review round on correlation ${entry.correlation_id}.`
+  );
+}
+
 export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
   const wpId = String(args?.wpId || "").trim();
   if (!wpId || !/^WP-/.test(wpId)) {
@@ -576,6 +588,8 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
   if (errors.length > 0) {
     throw new Error(`Receipt validation failed: ${errors.join("; ")}`);
   }
+
+  assertNoDuplicateDecisiveValidatorAssessment({ context, entry });
 
   return { context, runtimeStatus, entry };
 }

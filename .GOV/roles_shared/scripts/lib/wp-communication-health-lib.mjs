@@ -7,6 +7,7 @@ import {
   MICROTASK_REVIEW_MODE_VALUES,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
   OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE,
+  REVIEW_OPEN_RECEIPT_KIND_VALUES,
   REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
   REVIEW_TRACKED_RECEIPT_KIND_VALUES,
   workflowInvalidityReceipts,
@@ -176,6 +177,20 @@ function latestOpenReceiptStatus(openReceipts, resolutionReceipts) {
   };
 }
 
+function reviewLaneKey(entry = null) {
+  const correlationId = String(entry?.correlation_id || "").trim();
+  const actorRole = normalizeRole(entry?.actor_role);
+  const targetRole = normalizeRole(entry?.target_role);
+  if (!correlationId || !actorRole || !targetRole) return "";
+  return `${correlationId}::${[actorRole, targetRole].sort().join("::")}`;
+}
+
+function reviewRoundForReceipt(roundByLane, entry = null) {
+  const laneKey = reviewLaneKey(entry);
+  if (!laneKey) return 0;
+  return Number(roundByLane.get(laneKey) || 0);
+}
+
 function summarySuggestsRepairRequired(summary) {
   const normalized = String(summary || "").trim();
   if (!normalized) return false;
@@ -282,29 +297,106 @@ export function deriveValidatorAssessmentVerdict(reviewReceipt = null) {
   return "ASSESSED";
 }
 
-export function deriveLatestValidatorAssessment(receipts = []) {
+function buildValidatorAssessment(entry = null, round = 0) {
+  return {
+    receiptKind: normalizeReceiptKind(entry?.receipt_kind),
+    actorRole: normalizeRole(entry?.actor_role),
+    actorSession: normalizeSession(entry?.actor_session),
+    targetRole: normalizeRole(entry?.target_role) || null,
+    targetSession: normalizeSession(entry?.target_session),
+    timestampUtc: String(entry?.timestamp_utc || "").trim() || null,
+    reviewOutcome: deriveValidatorReviewOutcome(entry),
+    verdict: normalizeAssessmentVerdict(deriveValidatorAssessmentVerdict(entry)),
+    reason: String(entry?.summary || "").trim(),
+    correlationId: String(entry?.correlation_id || "").trim() || null,
+    reviewRound: round,
+  };
+}
+
+function decisiveAssessmentSignature(assessment = null) {
+  const verdict = normalizeAssessmentVerdict(assessment?.verdict);
+  if (!["PASS", "FAIL"].includes(verdict)) return null;
+  const actorRole = normalizeRole(assessment?.actorRole);
+  const actorSession = normalizeSession(assessment?.actorSession) || "";
+  const targetRole = normalizeRole(assessment?.targetRole);
+  const targetSession = normalizeSession(assessment?.targetSession) || "";
+  const correlationId = String(assessment?.correlationId || "").trim();
+  const reviewRound = Number(assessment?.reviewRound || 0);
+  const reviewOutcome = normalizeReviewOutcome(assessment?.reviewOutcome);
+  if (!actorRole || !targetRole || !correlationId) return null;
+  return [
+    correlationId,
+    reviewRound,
+    actorRole,
+    actorSession,
+    targetRole,
+    targetSession,
+    verdict,
+    reviewOutcome,
+  ].join("::");
+}
+
+function deriveValidatorAssessmentCollapseState(receipts = []) {
   const ordered = [...(receipts || [])].sort((left, right) =>
-    String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || ""))
+    String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || ""))
   );
+  const roundByLane = new Map();
+  const decisiveAssessmentSignatures = new Set();
+  let latestAssessment = null;
+  let suppressedDuplicateCount = 0;
+
   for (const entry of ordered) {
+    const receiptKind = normalizeReceiptKind(entry?.receipt_kind);
+    if (REVIEW_OPEN_RECEIPT_KIND_VALUES.includes(receiptKind)) {
+      const laneKey = reviewLaneKey(entry);
+      if (laneKey) {
+        roundByLane.set(laneKey, reviewRoundForReceipt(roundByLane, entry) + 1);
+      }
+      continue;
+    }
+
     const actorRole = normalizeRole(entry?.actor_role);
     if (!["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"].includes(actorRole)) continue;
-    const receiptKind = normalizeReceiptKind(entry?.receipt_kind);
     if (!REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(receiptKind)) continue;
-    return {
-      receiptKind,
-      actorRole,
-      actorSession: normalizeSession(entry?.actor_session),
-      targetRole: normalizeRole(entry?.target_role) || null,
-      targetSession: normalizeSession(entry?.target_session),
-      timestampUtc: String(entry?.timestamp_utc || "").trim() || null,
-      reviewOutcome: deriveValidatorReviewOutcome(entry),
-      verdict: normalizeAssessmentVerdict(deriveValidatorAssessmentVerdict(entry)),
-      reason: String(entry?.summary || "").trim(),
-      correlationId: String(entry?.correlation_id || "").trim() || null,
-    };
+
+    const assessment = buildValidatorAssessment(entry, reviewRoundForReceipt(roundByLane, entry));
+    const decisiveSignature = decisiveAssessmentSignature(assessment);
+    if (decisiveSignature && decisiveAssessmentSignatures.has(decisiveSignature)) {
+      suppressedDuplicateCount += 1;
+      continue;
+    }
+    if (decisiveSignature) decisiveAssessmentSignatures.add(decisiveSignature);
+    latestAssessment = assessment;
   }
-  return null;
+
+  return {
+    latestAssessment,
+    suppressedDuplicateCount,
+    roundByLane,
+    decisiveAssessmentSignatures,
+  };
+}
+
+export function isDuplicateDecisiveValidatorAssessment(receipts = [], reviewReceipt = null) {
+  const actorRole = normalizeRole(reviewReceipt?.actor_role);
+  const receiptKind = normalizeReceiptKind(reviewReceipt?.receipt_kind);
+  if (!["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"].includes(actorRole)) return false;
+  if (!REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(receiptKind)) return false;
+
+  const state = deriveValidatorAssessmentCollapseState(receipts);
+  const candidate = buildValidatorAssessment(reviewReceipt, reviewRoundForReceipt(state.roundByLane, reviewReceipt));
+  const decisiveSignature = decisiveAssessmentSignature(candidate);
+  if (!decisiveSignature) return false;
+  return state.decisiveAssessmentSignatures.has(decisiveSignature);
+}
+
+export function deriveLatestValidatorAssessment(receipts = []) {
+  const state = deriveValidatorAssessmentCollapseState(receipts);
+  if (!state.latestAssessment) return null;
+  return {
+    ...state.latestAssessment,
+    suppressedDuplicateCount: state.suppressedDuplicateCount,
+  };
 }
 
 function receiptFilter(receipts, { receiptKind, actorRole, targetRole }) {
@@ -343,8 +435,9 @@ function buildBaseDetails({
   blockingOpenReviewItems = [],
   overlapOpenReviewItems = [],
   workflowInvalidities = [],
+  validatorAssessmentDuplicatesCollapsed = 0,
 } = {}) {
-  return [
+  const lines = [
     `wp_id=${wpId || "<unknown>"}`,
     `stage=${stage}`,
     `packet=${packetPath || "<unknown>"}`,
@@ -360,6 +453,10 @@ function buildBaseDetails({
     `overlap_open_review_items=${overlapOpenReviewItems.length}`,
     `workflow_invalidities=${workflowInvalidities.length}`,
   ];
+  if (Number(validatorAssessmentDuplicatesCollapsed) > 0) {
+    lines.push(`validator_assessment_duplicates_collapsed=${Number(validatorAssessmentDuplicatesCollapsed)}`);
+  }
+  return lines;
 }
 
 function result({
@@ -371,6 +468,7 @@ function result({
   counts = {},
   correlations = {},
   activeWorkflowInvalidityCode = null,
+  latestValidatorAssessment = null,
   latestWpValidatorReviewOutcome = "UNKNOWN",
 } = {}) {
   return {
@@ -382,6 +480,7 @@ function result({
     counts,
     correlations,
     activeWorkflowInvalidityCode,
+    latestValidatorAssessment,
     latestWpValidatorReviewOutcome: normalizeReviewOutcome(latestWpValidatorReviewOutcome),
   };
 }
@@ -471,6 +570,7 @@ export function evaluateWpCommunicationHealth({
   const intentCheckpointClearance = latestIntentCheckpointClearance(receipts, kickoffIntentPair.reply);
   const handoffReviewPair = latestOpenReceiptStatus(coderHandoffs, validatorReviews);
   const latestWpValidatorReviewOutcome = deriveValidatorReviewOutcome(handoffReviewPair.reply);
+  const latestValidatorAssessment = deriveLatestValidatorAssessment(receipts);
   const integrationFinalOpenReceipts = [
     ...receiptKindsFilter(receipts, {
       receiptKinds: ["CODER_HANDOFF", "REVIEW_REQUEST"],
@@ -511,6 +611,7 @@ export function evaluateWpCommunicationHealth({
     blockingOpenReviewItems: openReviewPartition.blockingQueue,
     overlapOpenReviewItems: openReviewPartition.overlapQueue,
     workflowInvalidities,
+    validatorAssessmentDuplicatesCollapsed: Number(latestValidatorAssessment?.suppressedDuplicateCount || 0),
   });
   const counts = {
     workflowInvalidities: workflowInvalidities.length,
@@ -523,6 +624,7 @@ export function evaluateWpCommunicationHealth({
     openReviewItems: openReviewItems.length,
     blockingOpenReviewItems: openReviewPartition.blockingQueue.length,
     overlapOpenReviewItems: openReviewPartition.overlapQueue.length,
+    validatorAssessmentDuplicatesCollapsed: Number(latestValidatorAssessment?.suppressedDuplicateCount || 0),
   };
   const correlations = {
     kickoff: kickoffIntentPair.openReceipt?.correlation_id || null,
@@ -551,6 +653,7 @@ export function evaluateWpCommunicationHealth({
       ],
       counts,
       correlations,
+      latestValidatorAssessment,
       latestWpValidatorReviewOutcome,
     });
   };
@@ -570,6 +673,7 @@ export function evaluateWpCommunicationHealth({
       counts,
       correlations,
       activeWorkflowInvalidityCode: String(activeWorkflowInvalidity?.workflow_invalidity_code || "").trim().toUpperCase() || null,
+      latestValidatorAssessment,
       latestWpValidatorReviewOutcome,
     });
   }
@@ -613,6 +717,7 @@ export function evaluateWpCommunicationHealth({
         ],
         counts,
         correlations,
+        latestValidatorAssessment,
         latestWpValidatorReviewOutcome,
       });
     }
@@ -636,6 +741,7 @@ export function evaluateWpCommunicationHealth({
         details,
         counts,
         correlations,
+        latestValidatorAssessment,
         latestWpValidatorReviewOutcome,
       });
     }
@@ -651,6 +757,7 @@ export function evaluateWpCommunicationHealth({
         ],
         counts,
         correlations,
+        latestValidatorAssessment,
         latestWpValidatorReviewOutcome,
       });
     }
@@ -666,6 +773,7 @@ export function evaluateWpCommunicationHealth({
         details,
         counts,
         correlations,
+        latestValidatorAssessment,
         latestWpValidatorReviewOutcome,
       });
     }
@@ -677,6 +785,7 @@ export function evaluateWpCommunicationHealth({
       details,
       counts,
       correlations,
+      latestValidatorAssessment,
       latestWpValidatorReviewOutcome,
     });
   }
@@ -690,6 +799,7 @@ export function evaluateWpCommunicationHealth({
       details,
       counts,
       correlations,
+      latestValidatorAssessment,
       latestWpValidatorReviewOutcome,
     });
   }
@@ -703,6 +813,7 @@ export function evaluateWpCommunicationHealth({
       details,
       counts,
       correlations,
+      latestValidatorAssessment,
       latestWpValidatorReviewOutcome,
     });
   }
@@ -716,6 +827,7 @@ export function evaluateWpCommunicationHealth({
       details,
       counts,
       correlations,
+      latestValidatorAssessment,
       latestWpValidatorReviewOutcome,
     });
   }
@@ -734,11 +846,12 @@ export function evaluateWpCommunicationHealth({
         ...details,
         `intent_checkpoint_required=YES`,
         ...intentCheckpoint.reasons.map((reason) => `intent_checkpoint_reason=${reason}`),
-      ],
-      counts,
-      correlations,
-      latestWpValidatorReviewOutcome,
-    });
+        ],
+        counts,
+        correlations,
+        latestValidatorAssessment,
+        latestWpValidatorReviewOutcome,
+      });
   }
 
   if (coderHandoffs.length === 0) {
@@ -774,6 +887,7 @@ export function evaluateWpCommunicationHealth({
       details,
       counts,
       correlations,
+      latestValidatorAssessment,
       latestWpValidatorReviewOutcome,
     });
   }
