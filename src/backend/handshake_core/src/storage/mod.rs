@@ -21,8 +21,7 @@ pub mod sqlite;
 pub use calendar::*;
 pub use loom::*;
 
-// Test utilities - exposed for integration tests.
-// The helper function `run_storage_conformance` uses Result-based error handling.
+// Test utilities are exposed for integration tests, but backend-only hooks stay behind cfg(test).
 pub mod tests;
 
 pub type StorageResult<T> = Result<T, StorageError>;
@@ -1527,6 +1526,35 @@ impl From<GuardError> for StorageError {
     }
 }
 
+#[derive(Clone, Debug, sqlx::FromRow)]
+pub struct StructuredCollabWorkPacketRow {
+    pub wp_id: String,
+    pub version: i64,
+    pub title: String,
+    pub description: String,
+    pub status: String,
+    pub priority: i64,
+    pub phase: String,
+    pub routing: String,
+    pub task_packet_path: Option<String>,
+    pub task_board_status: String,
+    pub assignee: Option<String>,
+    pub reporter: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub vector_clock: String,
+    pub metadata: String,
+}
+
+#[derive(Clone, Debug, sqlx::FromRow)]
+pub struct MutationTraceabilityRow {
+    pub last_actor_kind: String,
+    pub last_actor_id: Option<String>,
+    pub last_job_id: Option<String>,
+    pub last_workflow_id: Option<String>,
+    pub edit_event_id: String,
+}
+
 #[async_trait]
 pub trait StorageGuard: Send + Sync {
     /// Validates the write request against the "No Silent Edits" policy.
@@ -1565,7 +1593,23 @@ impl StorageGuard for DefaultStorageGuard {
 }
 
 #[async_trait]
-pub trait Database: Send + Sync + std::any::Any {
+pub trait Database: Send + Sync {
+    fn supports_locus_runtime(&self) -> bool {
+        false
+    }
+
+    fn supports_structured_collab_artifacts(&self) -> bool {
+        false
+    }
+
+    fn loom_search_observability_tier(&self) -> u8;
+
+    fn supports_loom_graph_filtering(&self) -> bool {
+        false
+    }
+
+    fn loom_traverse_graph_perf_target_ms(&self) -> u128;
+
     // Health check
     async fn ping(&self) -> StorageResult<()>;
 
@@ -1897,7 +1941,135 @@ pub trait Database: Send + Sync + std::any::Any {
     /// Returns the current schema migration version from `_sqlx_migrations`.
     async fn migration_version(&self) -> StorageResult<i64>;
 
-    fn as_any(&self) -> &dyn std::any::Any;
+    async fn execute_locus_operation(
+        &self,
+        op: crate::workflows::locus::types::LocusOperation,
+    ) -> StorageResult<Value> {
+        let _ = op;
+        Err(StorageError::NotImplemented("locus runtime"))
+    }
+
+    async fn locus_task_board_update_work_packet(
+        &self,
+        status: &str,
+        task_board_status: &str,
+        updated_at: &str,
+        metadata: &str,
+        wp_id: &str,
+    ) -> StorageResult<()> {
+        let _ = (status, task_board_status, updated_at, metadata, wp_id);
+        Err(StorageError::NotImplemented("locus runtime"))
+    }
+
+    async fn structured_collab_work_packet_row(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Option<StructuredCollabWorkPacketRow>> {
+        let _ = wp_id;
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
+    }
+
+    async fn structured_collab_work_packet_rows(
+        &self,
+    ) -> StorageResult<Vec<StructuredCollabWorkPacketRow>> {
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
+    }
+
+    async fn structured_collab_micro_task_metadata(
+        &self,
+        wp_id: &str,
+        mt_id: &str,
+    ) -> StorageResult<Option<String>> {
+        let _ = (wp_id, mt_id);
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
+    }
+
+    async fn structured_collab_micro_task_status_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>> {
+        let _ = wp_id;
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
+    }
+
+    async fn structured_collab_micro_task_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>> {
+        let _ = wp_id;
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
+    }
+
+    #[cfg(test)]
+    async fn test_overwrite_loom_block_metrics(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        mention_count: i64,
+        tag_count: i64,
+        backlink_count: i64,
+    ) -> StorageResult<()> {
+        let _ = (
+            workspace_id,
+            block_id,
+            mention_count,
+            tag_count,
+            backlink_count,
+        );
+        Err(StorageError::NotImplemented("test loom metrics backend"))
+    }
+
+    #[cfg(test)]
+    async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
+        let _ = workspace_id;
+        Err(StorageError::NotImplemented("test loom metrics backend"))
+    }
+
+    #[cfg(test)]
+    async fn test_insert_loom_traversal_perf_fixture(
+        &self,
+        workspace_id: &str,
+        total_blocks: usize,
+    ) -> StorageResult<String> {
+        let _ = (workspace_id, total_blocks);
+        Err(StorageError::NotImplemented(
+            "loom traversal performance backend",
+        ))
+    }
+
+    #[cfg(test)]
+    async fn test_update_ai_job_metadata(
+        &self,
+        job_id: Uuid,
+        status: &str,
+        created_at: DateTime<Utc>,
+        is_pinned: bool,
+    ) -> StorageResult<()> {
+        let _ = (job_id, status, created_at, is_pinned);
+        Err(StorageError::NotImplemented("test ai job metadata backend"))
+    }
+
+    #[cfg(test)]
+    async fn test_fetch_mutation_traceability_row(
+        &self,
+        table: &str,
+        id: &str,
+    ) -> StorageResult<MutationTraceabilityRow> {
+        let _ = (table, id);
+        Err(StorageError::NotImplemented(
+            "test mutation traceability backend",
+        ))
+    }
 }
 
 use std::sync::Arc;
