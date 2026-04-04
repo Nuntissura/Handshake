@@ -1922,3 +1922,97 @@ pub async fn init_storage() -> Result<Arc<dyn Database>, StorageError> {
         Err(StorageError::Validation("unsupported database protocol"))
     }
 }
+
+pub(crate) async fn execute_locus_operation(
+    db: &dyn Database,
+    op: crate::workflows::locus::types::LocusOperation,
+) -> StorageResult<Value> {
+    if db.as_any().is::<sqlite::SqliteDatabase>() {
+        return locus_sqlite::execute_locus_operation(db, op).await;
+    }
+
+    if let Some(postgres) = db.as_any().downcast_ref::<postgres::PostgresDatabase>() {
+        return postgres::execute_locus_operation(postgres, op).await;
+    }
+
+    Err(StorageError::NotImplemented("locus storage backend"))
+}
+
+pub(crate) async fn locus_work_packet_exists(
+    db: &dyn Database,
+    wp_id: &str,
+) -> StorageResult<bool> {
+    if db.as_any().is::<sqlite::SqliteDatabase>() {
+        return locus_sqlite::locus_work_packet_exists(db, wp_id).await;
+    }
+
+    if let Some(postgres) = db.as_any().downcast_ref::<postgres::PostgresDatabase>() {
+        return postgres::locus_work_packet_exists(postgres, wp_id).await;
+    }
+
+    Err(StorageError::NotImplemented("locus storage backend"))
+}
+
+pub(crate) async fn locus_task_board_get_status_and_metadata(
+    db: &dyn Database,
+    wp_id: &str,
+) -> StorageResult<Option<(String, String)>> {
+    if db.as_any().is::<sqlite::SqliteDatabase>() {
+        return locus_sqlite::locus_task_board_get_status_and_metadata(db, wp_id).await;
+    }
+
+    if let Some(postgres) = db.as_any().downcast_ref::<postgres::PostgresDatabase>() {
+        return postgres::locus_task_board_get_status_and_metadata(postgres, wp_id).await;
+    }
+
+    Err(StorageError::NotImplemented("locus storage backend"))
+}
+
+pub(crate) async fn locus_task_board_update_work_packet(
+    db: &dyn Database,
+    status: &str,
+    task_board_status: &str,
+    updated_at: &str,
+    metadata: &str,
+    wp_id: &str,
+) -> StorageResult<()> {
+    if db.as_any().is::<sqlite::SqliteDatabase>() {
+        return locus_sqlite::locus_task_board_update_work_packet(
+            db,
+            status,
+            task_board_status,
+            updated_at,
+            metadata,
+            wp_id,
+        )
+        .await;
+    }
+
+    if let Some(postgres) = db.as_any().downcast_ref::<postgres::PostgresDatabase>() {
+        return postgres::locus_task_board_update_work_packet(
+            postgres,
+            status,
+            task_board_status,
+            updated_at,
+            metadata,
+            wp_id,
+        )
+        .await;
+    }
+
+    Err(StorageError::NotImplemented("locus storage backend"))
+}
+
+pub(crate) async fn locus_task_board_list_rows(
+    db: &dyn Database,
+) -> StorageResult<Vec<(String, String, String)>> {
+    if db.as_any().is::<sqlite::SqliteDatabase>() {
+        return locus_sqlite::locus_task_board_list_rows(db).await;
+    }
+
+    if let Some(postgres) = db.as_any().downcast_ref::<postgres::PostgresDatabase>() {
+        return postgres::locus_task_board_list_rows(postgres).await;
+    }
+
+    Err(StorageError::NotImplemented("locus storage backend"))
+}

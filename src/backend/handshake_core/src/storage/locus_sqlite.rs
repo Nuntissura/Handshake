@@ -21,10 +21,6 @@ fn sqlite_db(db: &dyn Database) -> StorageResult<&SqliteDatabase> {
         .ok_or(StorageError::NotImplemented("locus sqlite"))
 }
 
-pub(crate) fn ensure_locus_sqlite(db: &dyn Database) -> StorageResult<()> {
-    sqlite_db(db).map(|_| ())
-}
-
 pub(crate) async fn execute_locus_operation(
     db: &dyn Database,
     op: LocusOperation,
