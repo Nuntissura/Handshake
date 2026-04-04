@@ -3013,7 +3013,7 @@ async fn migrations_are_replay_safe_postgres() -> StorageResult<()> {
 }
 
 #[cfg(test)]
-async fn assert_postgres_structured_collab_artifacts_capability_denied() -> StorageResult<()> {
+async fn assert_postgres_structured_collab_artifacts_supported() -> StorageResult<()> {
     let Some(url) = postgres_test_url() else {
         return Ok(());
     };
@@ -3032,21 +3032,20 @@ async fn assert_postgres_structured_collab_artifacts_capability_denied() -> Stor
     db.run_migrations().await?;
     let db = db.into_arc();
 
-    assert!(!db.supports_structured_collab_artifacts());
-
-    let row_err = db.structured_collab_work_packet_row("WP-TEST").await.unwrap_err();
-    assert!(matches!(
-        row_err,
-        StorageError::NotImplemented("structured collaboration artifacts")
-    ));
-
-    let locus_err = super::locus_sqlite::locus_work_packet_exists(db.as_ref(), "WP-TEST")
-        .await
-        .unwrap_err();
-    assert!(matches!(
-        locus_err,
-        StorageError::NotImplemented("structured collaboration artifacts")
-    ));
+    assert!(db.supports_structured_collab_artifacts());
+    assert!(db.structured_collab_work_packet_row("WP-TEST").await?.is_none());
+    assert!(db.structured_collab_work_packet_rows().await?.is_empty());
+    assert!(db
+        .structured_collab_micro_task_status_rows("WP-TEST")
+        .await?
+        .is_empty());
+    assert!(db.structured_collab_micro_task_rows("WP-TEST").await?.is_empty());
+    assert_eq!(
+        db.structured_collab_micro_task_metadata("WP-TEST", "MT-TEST")
+            .await?,
+        None
+    );
+    assert!(!super::locus_sqlite::locus_work_packet_exists(db.as_ref(), "WP-TEST").await?);
 
     drop(db);
     let mut conn = sqlx::PgConnection::connect(&url).await?;
@@ -3063,18 +3062,18 @@ async fn database_trait_purity() -> StorageResult<()> {
     assert!(sqlite.supports_structured_collab_artifacts());
     drop(sqlite);
 
-    assert_postgres_structured_collab_artifacts_capability_denied().await?;
+    assert_postgres_structured_collab_artifacts_supported().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn locus_backend_capability() -> StorageResult<()> {
-    assert_postgres_structured_collab_artifacts_capability_denied().await
+    assert_postgres_structured_collab_artifacts_supported().await
 }
 
 #[tokio::test]
-async fn postgres_structured_collab_artifacts_are_capability_denied() -> StorageResult<()> {
-    assert_postgres_structured_collab_artifacts_capability_denied().await
+async fn postgres_structured_collab_artifacts_are_supported() -> StorageResult<()> {
+    assert_postgres_structured_collab_artifacts_supported().await
 }
 
 #[tokio::test]
@@ -3193,12 +3192,15 @@ fn database_trait_purity_source_regressions() {
         .split("#[cfg(test)]")
         .next()
         .unwrap_or_default();
+    let retention_prod = include_str!("retention.rs");
+    let sqlite_storage = include_str!("sqlite.rs");
+    let postgres_storage = include_str!("postgres.rs");
     let database_trait_start = storage_mod
-        .find("pub trait Database: Send + Sync + std::any::Any {")
+        .find("pub trait Database: Send + Sync {")
         .expect("Database trait should exist in storage/mod.rs");
     let database_trait_end = storage_mod[database_trait_start..]
-        .find("\n\nfn sqlite_backend(")
-        .expect("Database trait terminator should precede sqlite_backend helper");
+        .find("\n\nimpl<T> StorageCapabilityStore for T")
+        .expect("Database trait terminator should precede StorageCapabilityStore impl");
     let database_trait =
         &storage_mod[database_trait_start..database_trait_start + database_trait_end];
 
@@ -3217,7 +3219,6 @@ fn database_trait_purity_source_regressions() {
         "async fn structured_collab_micro_task_metadata(",
         "async fn structured_collab_micro_task_status_rows(",
         "async fn structured_collab_micro_task_rows(",
-        "fn as_any(",
     ] {
         assert!(
             database_trait.contains(required),
@@ -3241,6 +3242,8 @@ fn database_trait_purity_source_regressions() {
             "Database trait must not accrete boundary-only helper surface: {forbidden}"
         );
     }
+    assert!(!database_trait.contains("std::any::Any"));
+    assert!(!database_trait.contains("fn as_any("));
     assert!(workflows_prod.contains("StructuredCollaborationStore"));
     assert!(workflows_prod.contains("StorageCapabilityStore"));
     assert!(loom_api_prod.contains(".storage_capabilities()"));
@@ -3249,6 +3252,18 @@ fn database_trait_purity_source_regressions() {
     assert!(!workflows_prod.contains(".as_any()"));
     assert!(!loom_api_prod.contains(".as_any()"));
     assert!(!loom_api_prod.contains("state.storage.loom_search_observability_tier()"));
+    assert!(!retention_prod.contains(".as_any()"));
+    assert!(retention_prod.contains(".test_update_ai_job_metadata("));
+    for backend_src in [sqlite_storage, postgres_storage] {
+        assert!(backend_src.contains("fn supports_locus_runtime(&self) -> bool {"));
+        assert!(backend_src.contains("fn supports_structured_collab_artifacts(&self) -> bool {"));
+        assert!(backend_src.contains("fn loom_search_observability_tier(&self) -> u8 {"));
+        assert!(backend_src.contains("fn supports_loom_graph_filtering(&self) -> bool {"));
+        assert!(backend_src.contains("fn loom_traverse_graph_perf_target_ms(&self) -> u128 {"));
+        assert!(backend_src.contains("async fn test_update_ai_job_metadata("));
+        assert!(backend_src.contains("async fn test_fetch_mutation_traceability_row("));
+        assert!(!backend_src.contains("fn as_any("));
+    }
 }
 
 #[tokio::test]
@@ -3274,7 +3289,7 @@ async fn database_trait_purity_capability_snapshot_reports_postgres() -> Storage
     let caps = db.storage_capabilities();
 
     assert_eq!(caps.backend, StorageBackendKind::Postgres);
-    assert!(!caps.supports_structured_collab_artifacts);
+    assert!(caps.supports_structured_collab_artifacts);
     assert!(caps.supports_loom_graph_filtering);
     assert_eq!(caps.loom_search_observability_tier(), 2);
 

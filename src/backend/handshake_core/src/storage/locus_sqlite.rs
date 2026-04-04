@@ -1,6 +1,6 @@
 use super::{
-    Database, sqlite::SqliteDatabase, StorageError, StorageResult,
-    StructuredCollabTaskBoardProjectionRow, StructuredCollabWorkPacketRow,
+    sqlite::SqliteDatabase, Database, StorageError, StorageResult,
+    StructuredCollabTaskBoardProjectionRow,
 };
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -17,12 +17,6 @@ use crate::workflows::locus::types::{
     TrackedMicroTaskArtifactV1, WorkPacketPhase, WorkPacketStatus, WorkflowQueueReasonCode,
     WorkflowStateFamily,
 };
-
-fn sqlite_db(db: &(impl Database + ?Sized)) -> StorageResult<&SqliteDatabase> {
-    db.as_any()
-        .downcast_ref::<SqliteDatabase>()
-        .ok_or(StorageError::NotImplemented("locus sqlite"))
-}
 
 pub(crate) fn ensure_locus_sqlite(db: &(impl Database + ?Sized)) -> StorageResult<()> {
     if db.supports_locus_runtime() {
@@ -48,7 +42,7 @@ pub(crate) async fn execute_locus_operation(
     db: &(impl Database + ?Sized),
     op: LocusOperation,
 ) -> StorageResult<Value> {
-    execute_sqlite_locus_operation(sqlite_db(db)?, op).await
+    db.execute_locus_operation(op).await
 }
 
 pub(crate) async fn locus_work_packet_exists(
@@ -77,34 +71,16 @@ pub(crate) async fn locus_task_board_update_work_packet(
     metadata: &str,
     wp_id: &str,
 ) -> StorageResult<()> {
-    ensure_locus_sqlite(db)?;
-    sqlx::query(
-        r#"
-                        UPDATE work_packets
-                        SET
-                            version = version + 1,
-                            status = $1,
-                            task_board_status = $2,
-                            updated_at = $3,
-                            metadata = $4
-                        WHERE wp_id = $5
-                        "#,
-    )
-    .bind(status)
-    .bind(task_board_status)
-    .bind(updated_at)
-    .bind(metadata)
-    .bind(wp_id)
-    .execute(sqlite_db(db)?.pool())
-    .await?;
-    Ok(())
+    db.locus_task_board_update_work_packet(status, task_board_status, updated_at, metadata, wp_id)
+        .await
 }
 
 pub(crate) async fn locus_task_board_list_rows(
     db: &(impl Database + ?Sized),
 ) -> StorageResult<Vec<(String, String, String)>> {
     ensure_structured_collab_artifacts(db)?;
-    Ok(structured_collab_work_packet_rows(db)
+    Ok(db
+        .structured_collab_work_packet_rows()
         .await?
         .into_iter()
         .map(|row| (row.wp_id, row.task_board_status, row.metadata))
@@ -114,67 +90,16 @@ pub(crate) async fn locus_task_board_list_rows(
 pub(crate) async fn structured_collab_work_packet_row(
     db: &(impl Database + ?Sized),
     wp_id: &str,
-) -> StorageResult<Option<StructuredCollabWorkPacketRow>> {
+) -> StorageResult<Option<super::StructuredCollabWorkPacketRow>> {
     ensure_structured_collab_artifacts(db)?;
-    sqlx::query_as::<_, StructuredCollabWorkPacketRow>(
-        r#"
-        SELECT
-            wp_id,
-            version,
-            title,
-            description,
-            status,
-            priority,
-            phase,
-            routing,
-            task_packet_path,
-            task_board_status,
-            assignee,
-            reporter,
-            created_at,
-            updated_at,
-            vector_clock,
-            metadata
-        FROM work_packets
-        WHERE wp_id = $1
-        "#,
-    )
-    .bind(wp_id)
-    .fetch_optional(sqlite_db(db)?.pool())
-    .await
-    .map_err(StorageError::from)
+    db.structured_collab_work_packet_row(wp_id).await
 }
 
 pub(crate) async fn structured_collab_work_packet_rows(
     db: &(impl Database + ?Sized),
-) -> StorageResult<Vec<StructuredCollabWorkPacketRow>> {
+) -> StorageResult<Vec<super::StructuredCollabWorkPacketRow>> {
     ensure_structured_collab_artifacts(db)?;
-    sqlx::query_as::<_, StructuredCollabWorkPacketRow>(
-        r#"
-        SELECT
-            wp_id,
-            version,
-            title,
-            description,
-            status,
-            priority,
-            phase,
-            routing,
-            task_packet_path,
-            task_board_status,
-            assignee,
-            reporter,
-            created_at,
-            updated_at,
-            vector_clock,
-            metadata
-        FROM work_packets
-        ORDER BY updated_at ASC, wp_id ASC
-        "#,
-    )
-    .fetch_all(sqlite_db(db)?.pool())
-    .await
-    .map_err(StorageError::from)
+    db.structured_collab_work_packet_rows().await
 }
 
 pub(crate) async fn structured_collab_micro_task_status_rows(
@@ -182,13 +107,7 @@ pub(crate) async fn structured_collab_micro_task_status_rows(
     wp_id: &str,
 ) -> StorageResult<Vec<(String, String)>> {
     ensure_structured_collab_artifacts(db)?;
-    sqlx::query_as::<_, (String, String)>(
-        "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
-    )
-    .bind(wp_id)
-    .fetch_all(sqlite_db(db)?.pool())
-    .await
-    .map_err(StorageError::from)
+    db.structured_collab_micro_task_status_rows(wp_id).await
 }
 
 pub(crate) async fn structured_collab_micro_task_metadata(
@@ -197,18 +116,7 @@ pub(crate) async fn structured_collab_micro_task_metadata(
     mt_id: &str,
 ) -> StorageResult<Option<String>> {
     ensure_structured_collab_artifacts(db)?;
-    sqlx::query_scalar::<_, String>(
-        r#"
-        SELECT metadata
-        FROM micro_tasks
-        WHERE wp_id = $1 AND mt_id = $2
-        "#,
-    )
-    .bind(wp_id)
-    .bind(mt_id)
-    .fetch_optional(sqlite_db(db)?.pool())
-    .await
-    .map_err(StorageError::from)
+    db.structured_collab_micro_task_metadata(wp_id, mt_id).await
 }
 
 pub(crate) async fn structured_collab_micro_task_rows(
@@ -216,13 +124,7 @@ pub(crate) async fn structured_collab_micro_task_rows(
     wp_id: &str,
 ) -> StorageResult<Vec<(String, String)>> {
     ensure_structured_collab_artifacts(db)?;
-    sqlx::query_as::<_, (String, String)>(
-        "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
-    )
-    .bind(wp_id)
-    .fetch_all(sqlite_db(db)?.pool())
-    .await
-    .map_err(StorageError::from)
+    db.structured_collab_micro_task_rows(wp_id).await
 }
 
 pub(crate) async fn structured_collab_list_task_board_projection_rows(

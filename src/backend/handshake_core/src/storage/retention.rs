@@ -571,21 +571,8 @@ mod tests {
             })
             .await?;
 
-        if let Some(sqlite_db) = db.as_any().downcast_ref::<SqliteDatabase>() {
-            let id_str = job.job_id.to_string();
-            let created_at_str = created_at.to_rfc3339();
-            let pinned = if is_pinned { 1i32 } else { 0i32 };
-            // Use sqlx::query instead of query! to avoid compilation issues with missing metadata in tests
-            sqlx::query(
-                "UPDATE ai_jobs SET status = ?, created_at = ?, is_pinned = ? WHERE id = ?",
-            )
-            .bind(status)
-            .bind(created_at_str)
-            .bind(pinned)
-            .bind(id_str)
-            .execute(sqlite_db.pool())
+        db.test_update_ai_job_metadata(job.job_id, status, created_at, is_pinned)
             .await?;
-        }
 
         Ok(job.job_id.to_string())
     }
