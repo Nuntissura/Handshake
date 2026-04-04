@@ -1,10 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::{BTreeMap, BTreeSet};
-
-use crate::bundles::redactor::SecretRedactor;
-use crate::bundles::schemas::RedactionMode;
+use std::collections::BTreeMap;
 
 pub type Iso8601Timestamp = DateTime<Utc>;
 pub type VectorClock = Value;
@@ -45,46 +42,6 @@ impl ProjectProfileKind {
         }
     }
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct ProfileExtensionRegistryEntry {
-    project_profile_kind: ProjectProfileKind,
-    schema_id: &'static str,
-    schema_version: &'static str,
-}
-
-const PROFILE_EXTENSION_REGISTRY: &[ProfileExtensionRegistryEntry] = &[
-    ProfileExtensionRegistryEntry {
-        project_profile_kind: ProjectProfileKind::SoftwareDelivery,
-        schema_id: "hsk.profile.software_delivery@1",
-        schema_version: "1",
-    },
-    ProfileExtensionRegistryEntry {
-        project_profile_kind: ProjectProfileKind::Research,
-        schema_id: "hsk.profile.research@1",
-        schema_version: "1",
-    },
-    ProfileExtensionRegistryEntry {
-        project_profile_kind: ProjectProfileKind::Research,
-        schema_id: "hsk.profile.research.exploratory@1",
-        schema_version: "1",
-    },
-    ProfileExtensionRegistryEntry {
-        project_profile_kind: ProjectProfileKind::Worldbuilding,
-        schema_id: "hsk.profile.worldbuilding@1",
-        schema_version: "1",
-    },
-    ProfileExtensionRegistryEntry {
-        project_profile_kind: ProjectProfileKind::Design,
-        schema_id: "hsk.profile.design@1",
-        schema_version: "1",
-    },
-    ProfileExtensionRegistryEntry {
-        project_profile_kind: ProjectProfileKind::Custom,
-        schema_id: "hsk.profile.custom@1",
-        schema_version: "1",
-    },
-];
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
@@ -168,41 +125,6 @@ pub enum WorkflowStateFamily {
     Archived,
 }
 
-impl WorkflowStateFamily {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Intake => "intake",
-            Self::Ready => "ready",
-            Self::Active => "active",
-            Self::Waiting => "waiting",
-            Self::Review => "review",
-            Self::Approval => "approval",
-            Self::Validation => "validation",
-            Self::Blocked => "blocked",
-            Self::Done => "done",
-            Self::Canceled => "canceled",
-            Self::Archived => "archived",
-        }
-    }
-
-    pub fn parse(value: &str) -> Option<Self> {
-        match value.trim() {
-            "intake" => Some(Self::Intake),
-            "ready" => Some(Self::Ready),
-            "active" => Some(Self::Active),
-            "waiting" => Some(Self::Waiting),
-            "review" => Some(Self::Review),
-            "approval" => Some(Self::Approval),
-            "validation" => Some(Self::Validation),
-            "blocked" => Some(Self::Blocked),
-            "done" => Some(Self::Done),
-            "canceled" => Some(Self::Canceled),
-            "archived" => Some(Self::Archived),
-            _ => None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkflowQueueReasonCode {
@@ -222,182 +144,12 @@ pub enum WorkflowQueueReasonCode {
     BlockedError,
 }
 
-impl WorkflowQueueReasonCode {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::NewUntriaged => "new_untriaged",
-            Self::DependencyWait => "dependency_wait",
-            Self::ReadyForLocalSmallModel => "ready_for_local_small_model",
-            Self::ReadyForCloudModel => "ready_for_cloud_model",
-            Self::ReadyForHuman => "ready_for_human",
-            Self::ReviewWait => "review_wait",
-            Self::ApprovalWait => "approval_wait",
-            Self::ValidationWait => "validation_wait",
-            Self::MailboxResponseWait => "mailbox_response_wait",
-            Self::TimerWait => "timer_wait",
-            Self::BlockedMissingContext => "blocked_missing_context",
-            Self::BlockedPolicy => "blocked_policy",
-            Self::BlockedCapability => "blocked_capability",
-            Self::BlockedError => "blocked_error",
-        }
-    }
-
-    pub fn parse(value: &str) -> Option<Self> {
-        match value.trim() {
-            "new_untriaged" => Some(Self::NewUntriaged),
-            "dependency_wait" => Some(Self::DependencyWait),
-            "ready_for_local_small_model" => Some(Self::ReadyForLocalSmallModel),
-            "ready_for_cloud_model" => Some(Self::ReadyForCloudModel),
-            "ready_for_human" => Some(Self::ReadyForHuman),
-            "review_wait" => Some(Self::ReviewWait),
-            "approval_wait" => Some(Self::ApprovalWait),
-            "validation_wait" => Some(Self::ValidationWait),
-            "mailbox_response_wait" => Some(Self::MailboxResponseWait),
-            "timer_wait" => Some(Self::TimerWait),
-            "blocked_missing_context" => Some(Self::BlockedMissingContext),
-            "blocked_policy" => Some(Self::BlockedPolicy),
-            "blocked_capability" => Some(Self::BlockedCapability),
-            "blocked_error" => Some(Self::BlockedError),
-            _ => None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GovernedActionDescriptorV1 {
     pub action_id: String,
     pub title: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-}
-
-const ROLE_MAILBOX_REDACTED_OUTPUT_MAX_LEN: usize = 160;
-
-fn governed_action_registry_entries(
-    family: WorkflowStateFamily,
-) -> &'static [(&'static str, &'static str, &'static str)] {
-    match family {
-        WorkflowStateFamily::Intake => &[
-            (
-                "triage",
-                "Triage work",
-                "Classify or decompose intake work.",
-            ),
-            (
-                "prioritize",
-                "Prioritize work",
-                "Adjust execution priority before start.",
-            ),
-        ],
-        WorkflowStateFamily::Ready => &[
-            ("start", "Start work", "Begin execution from a ready state."),
-            (
-                "assign",
-                "Assign work",
-                "Bind the ready work to an executor.",
-            ),
-        ],
-        WorkflowStateFamily::Active => &[
-            (
-                "update",
-                "Update progress",
-                "Record in-flight execution progress.",
-            ),
-            (
-                "complete",
-                "Complete work",
-                "Mark the active work complete.",
-            ),
-            (
-                "pause",
-                "Pause work",
-                "Pause active execution without canceling it.",
-            ),
-        ],
-        WorkflowStateFamily::Waiting => &[
-            (
-                "resume",
-                "Resume work",
-                "Resume execution after an external wait.",
-            ),
-            (
-                "escalate",
-                "Escalate wait",
-                "Escalate a waiting dependency or blocker.",
-            ),
-        ],
-        WorkflowStateFamily::Review => &[
-            ("review", "Review output", "Review the current output."),
-            (
-                "request_changes",
-                "Request changes",
-                "Send the record back for rework.",
-            ),
-        ],
-        WorkflowStateFamily::Approval => &[
-            ("approve", "Approve work", "Approve the gated work."),
-            (
-                "reject",
-                "Reject work",
-                "Reject the work at the approval gate.",
-            ),
-        ],
-        WorkflowStateFamily::Validation => &[
-            (
-                "validate",
-                "Validate work",
-                "Run the required validation gates.",
-            ),
-            ("repair", "Repair work", "Repair validation failures."),
-        ],
-        WorkflowStateFamily::Blocked => &[
-            (
-                "unblock",
-                "Unblock work",
-                "Clear the blocker so work can resume.",
-            ),
-            (
-                "escalate",
-                "Escalate blocker",
-                "Escalate the blocking condition.",
-            ),
-        ],
-        WorkflowStateFamily::Done | WorkflowStateFamily::Canceled => &[
-            (
-                "archive",
-                "Archive record",
-                "Archive the completed or canceled record.",
-            ),
-            (
-                "reopen",
-                "Reopen record",
-                "Reopen the record for additional work.",
-            ),
-        ],
-        WorkflowStateFamily::Archived => &[],
-    }
-}
-
-pub fn governed_action_descriptors_for_workflow_family(
-    family: WorkflowStateFamily,
-) -> Vec<GovernedActionDescriptorV1> {
-    governed_action_registry_entries(family)
-        .iter()
-        .map(
-            |(action_id, title, description)| GovernedActionDescriptorV1 {
-                action_id: (*action_id).to_string(),
-                title: (*title).to_string(),
-                description: Some((*description).to_string()),
-            },
-        )
-        .collect()
-}
-
-pub fn governed_action_ids_for_workflow_family(family: WorkflowStateFamily) -> Vec<String> {
-    governed_action_descriptors_for_workflow_family(family)
-        .into_iter()
-        .map(|descriptor| descriptor.action_id)
-        .collect()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -920,10 +672,6 @@ pub struct LocusCreateWpParams {
     pub labels: Option<Vec<String>>,
     #[serde(default)]
     pub spec_session_id: Option<String>,
-    #[serde(default)]
-    pub project_profile_kind: Option<ProjectProfileKind>,
-    #[serde(default)]
-    pub profile_extension: Option<Value>,
     pub reporter: String,
 }
 
@@ -1110,16 +858,12 @@ pub struct StructuredCollaborationSummaryRecord {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub profile_extension: Option<Value>,
     pub mirror_state: MirrorSyncState,
-    pub workflow_state_family: WorkflowStateFamily,
     pub status: String,
     pub title_or_objective: String,
     #[serde(default)]
     pub blockers: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub next_action: Option<String>,
+    pub next_action: String,
     pub updated_at: String,
     #[serde(default)]
     pub authority_refs: Vec<String>,
@@ -1324,47 +1068,22 @@ pub fn validate_structured_collaboration_record(
         descriptor.record_kind,
         &mut result,
     );
-    let project_profile_kind = obj
-        .get("project_profile_kind")
-        .and_then(Value::as_str)
-        .and_then(ProjectProfileKind::parse);
     validate_project_profile_kind(obj.get("project_profile_kind"), &mut result);
     require_non_empty_string(obj.get("updated_at"), "updated_at", &mut result);
     validate_mirror_state(obj.get("mirror_state"), &mut result);
     require_string_array(obj.get("authority_refs"), "authority_refs", &mut result);
     require_string_array(obj.get("evidence_refs"), "evidence_refs", &mut result);
-    validate_profile_extension(obj.get("profile_extension"), project_profile_kind, &mut result);
+    validate_profile_extension(obj.get("profile_extension"), &mut result);
 
     match family {
         StructuredCollaborationRecordFamily::WorkPacketPacket
         | StructuredCollaborationRecordFamily::MicroTaskPacket => {
-            let workflow_state_family = validate_workflow_state_family(
-                obj.get("workflow_state_family"),
-                "workflow_state_family",
-                &mut result,
-            );
-            validate_workflow_queue_reason_code(
-                obj.get("queue_reason_code"),
-                "queue_reason_code",
-                &mut result,
-            );
-            validate_allowed_action_ids(
-                obj.get("allowed_action_ids"),
-                "allowed_action_ids",
-                workflow_state_family,
-                &mut result,
-            );
             if let Some(summary_path) = obj.get("summary_record_path") {
                 require_non_empty_string(Some(summary_path), "summary_record_path", &mut result);
             }
         }
         StructuredCollaborationRecordFamily::WorkPacketSummary
         | StructuredCollaborationRecordFamily::MicroTaskSummary => {
-            let workflow_state_family = validate_workflow_state_family(
-                obj.get("workflow_state_family"),
-                "workflow_state_family",
-                &mut result,
-            );
             require_non_empty_string(obj.get("status"), "status", &mut result);
             require_non_empty_string(
                 obj.get("title_or_objective"),
@@ -1372,30 +1091,9 @@ pub fn validate_structured_collaboration_record(
                 &mut result,
             );
             require_string_array(obj.get("blockers"), "blockers", &mut result);
-            validate_optional_governed_action_id(
-                obj.get("next_action"),
-                workflow_state_family,
-                "next_action",
-                &mut result,
-            );
+            require_non_empty_string(obj.get("next_action"), "next_action", &mut result);
         }
         StructuredCollaborationRecordFamily::TaskBoardEntry => {
-            let workflow_state_family = validate_workflow_state_family(
-                obj.get("workflow_state_family"),
-                "workflow_state_family",
-                &mut result,
-            );
-            validate_workflow_queue_reason_code(
-                obj.get("queue_reason_code"),
-                "queue_reason_code",
-                &mut result,
-            );
-            validate_allowed_action_ids(
-                obj.get("allowed_action_ids"),
-                "allowed_action_ids",
-                workflow_state_family,
-                &mut result,
-            );
             require_non_empty_string(obj.get("task_board_id"), "task_board_id", &mut result);
             require_non_empty_string(obj.get("work_packet_id"), "work_packet_id", &mut result);
             require_non_empty_string(obj.get("lane_id"), "lane_id", &mut result);
@@ -1409,19 +1107,16 @@ pub fn validate_structured_collaboration_record(
             require_non_empty_string(obj.get("task_board_id"), "task_board_id", &mut result);
             require_string_array(obj.get("view_ids"), "view_ids", &mut result);
             require_value_array(obj.get("rows"), "rows", &mut result);
-            validate_task_board_rows(obj.get("rows"), "rows", &mut result);
         }
         StructuredCollaborationRecordFamily::TaskBoardView => {
             require_non_empty_string(obj.get("task_board_id"), "task_board_id", &mut result);
             require_non_empty_string(obj.get("view_id"), "view_id", &mut result);
             require_string_array(obj.get("lane_ids"), "lane_ids", &mut result);
             require_value_array(obj.get("rows"), "rows", &mut result);
-            validate_task_board_rows(obj.get("rows"), "rows", &mut result);
         }
         StructuredCollaborationRecordFamily::RoleMailboxIndex => {
             require_non_empty_string(obj.get("generated_at"), "generated_at", &mut result);
             require_value_array(obj.get("threads"), "threads", &mut result);
-            validate_role_mailbox_threads(obj.get("threads"), "threads", &mut result);
         }
         StructuredCollaborationRecordFamily::RoleMailboxThreadLine => {
             require_non_empty_string(obj.get("message_id"), "message_id", &mut result);
@@ -1434,11 +1129,6 @@ pub fn validate_structured_collaboration_record(
             require_non_empty_string(obj.get("body_sha256"), "body_sha256", &mut result);
             require_string_array(obj.get("attachments"), "attachments", &mut result);
             require_value_array(
-                obj.get("transcription_links"),
-                "transcription_links",
-                &mut result,
-            );
-            validate_role_mailbox_transcription_links(
                 obj.get("transcription_links"),
                 "transcription_links",
                 &mut result,
@@ -1489,13 +1179,6 @@ pub fn validate_structured_collaboration_summary_join(
     compare_string_field(detail_obj, summary_obj, "record_id", &mut result);
     compare_string_field(detail_obj, summary_obj, "record_kind", &mut result);
     compare_string_field(detail_obj, summary_obj, "project_profile_kind", &mut result);
-    compare_string_field(
-        detail_obj,
-        summary_obj,
-        "workflow_state_family",
-        &mut result,
-    );
-    compare_optional_value_field(detail_obj, summary_obj, "profile_extension", &mut result);
     compare_string_arrays(detail_obj, summary_obj, "authority_refs", &mut result);
     compare_string_arrays(detail_obj, summary_obj, "evidence_refs", &mut result);
 
@@ -1517,6 +1200,7 @@ pub fn seed_tracked_micro_task_registry_fields(
     )
     .record_kind
     .to_string();
+    tracked_mt.project_profile_kind = ProjectProfileKind::SoftwareDelivery;
     tracked_mt.updated_at = Utc::now();
     tracked_mt.mirror_state = MirrorSyncState::CanonicalOnly;
     tracked_mt.authority_refs = authority_refs;
@@ -1539,6 +1223,7 @@ pub fn seed_tracked_work_packet_registry_fields(
     )
     .record_kind
     .to_string();
+    tracked_wp.project_profile_kind = ProjectProfileKind::SoftwareDelivery;
     tracked_wp.updated_at = Utc::now();
     tracked_wp.mirror_state = MirrorSyncState::CanonicalOnly;
     tracked_wp.authority_refs = authority_refs;
@@ -1643,14 +1328,12 @@ pub fn default_structured_collaboration_summary_record(
     family: StructuredCollaborationRecordFamily,
     record_id: impl Into<String>,
     title_or_objective: impl Into<String>,
-    workflow_state_family: WorkflowStateFamily,
     status: impl Into<String>,
-    next_action: Option<String>,
+    next_action: impl Into<String>,
     authority_refs: Vec<String>,
     evidence_refs: Vec<String>,
     updated_at: impl Into<String>,
     project_profile_kind: ProjectProfileKind,
-    profile_extension: Option<Value>,
     mirror_state: MirrorSyncState,
 ) -> StructuredCollaborationSummaryRecord {
     let summary_family = match family {
@@ -1671,13 +1354,11 @@ pub fn default_structured_collaboration_summary_record(
         record_id: record_id.into(),
         record_kind: descriptor.record_kind.to_string(),
         project_profile_kind,
-        profile_extension,
         mirror_state,
-        workflow_state_family,
         status: status.into(),
         title_or_objective: title_or_objective.into(),
         blockers: Vec::new(),
-        next_action,
+        next_action: next_action.into(),
         updated_at: updated_at.into(),
         authority_refs,
         evidence_refs,
@@ -1883,260 +1564,6 @@ fn require_u64_like(
     }
 }
 
-fn validate_workflow_state_family(
-    value: Option<&Value>,
-    field: &str,
-    result: &mut StructuredCollaborationValidationResult,
-) -> Option<WorkflowStateFamily> {
-    match value {
-        Some(Value::String(actual)) => match WorkflowStateFamily::parse(actual) {
-            Some(parsed) => Some(parsed),
-            None => {
-                result.push_issue(
-                    StructuredCollaborationValidationCode::InvalidFieldValue,
-                    field,
-                    Some("known workflow_state_family".to_string()),
-                    Some(actual.clone()),
-                    format!("{field} is not one of the registry-supported workflow state families"),
-                );
-                None
-            }
-        },
-        Some(other) => {
-            result.push_issue(
-                StructuredCollaborationValidationCode::InvalidFieldType,
-                field,
-                Some("string".to_string()),
-                Some(json_type_name(other).to_string()),
-                format!("{field} must be a string"),
-            );
-            None
-        }
-        None => {
-            result.push_issue(
-                StructuredCollaborationValidationCode::MissingField,
-                field,
-                Some("string".to_string()),
-                None,
-                format!("{field} is required"),
-            );
-            None
-        }
-    }
-}
-
-fn validate_workflow_queue_reason_code(
-    value: Option<&Value>,
-    field: &str,
-    result: &mut StructuredCollaborationValidationResult,
-) -> Option<WorkflowQueueReasonCode> {
-    match value {
-        Some(Value::String(actual)) => match WorkflowQueueReasonCode::parse(actual) {
-            Some(parsed) => Some(parsed),
-            None => {
-                result.push_issue(
-                    StructuredCollaborationValidationCode::InvalidFieldValue,
-                    field,
-                    Some("known queue_reason_code".to_string()),
-                    Some(actual.clone()),
-                    format!("{field} is not one of the registry-supported queue reason codes"),
-                );
-                None
-            }
-        },
-        Some(other) => {
-            result.push_issue(
-                StructuredCollaborationValidationCode::InvalidFieldType,
-                field,
-                Some("string".to_string()),
-                Some(json_type_name(other).to_string()),
-                format!("{field} must be a string"),
-            );
-            None
-        }
-        None => {
-            result.push_issue(
-                StructuredCollaborationValidationCode::MissingField,
-                field,
-                Some("string".to_string()),
-                None,
-                format!("{field} is required"),
-            );
-            None
-        }
-    }
-}
-
-fn validate_allowed_action_ids(
-    value: Option<&Value>,
-    field: &str,
-    workflow_state_family: Option<WorkflowStateFamily>,
-    result: &mut StructuredCollaborationValidationResult,
-) {
-    let Some(workflow_state_family) = workflow_state_family else {
-        require_string_array(value, field, result);
-        return;
-    };
-
-    let allowed_action_ids = governed_action_ids_for_workflow_family(workflow_state_family);
-    let allowed_action_set = allowed_action_ids.iter().cloned().collect::<BTreeSet<_>>();
-    let expected_repr = serde_json::to_string(&allowed_action_ids)
-        .unwrap_or_else(|_| format!("{allowed_action_ids:?}"));
-
-    match value {
-        Some(Value::Array(items)) => {
-            if items.is_empty() && workflow_state_family != WorkflowStateFamily::Archived {
-                result.push_issue(
-                    StructuredCollaborationValidationCode::InvalidFieldValue,
-                    field,
-                    Some(expected_repr.clone()),
-                    Some("[]".to_string()),
-                    format!(
-                        "{field} must contain registered governed action ids for {}",
-                        workflow_state_family.as_str()
-                    ),
-                );
-            }
-
-            let mut seen = BTreeSet::new();
-            for (index, item) in items.iter().enumerate() {
-                let item_field = format!("{field}[{index}]");
-                match item {
-                    Value::String(actual) if actual.trim().is_empty() => result.push_issue(
-                        StructuredCollaborationValidationCode::InvalidFieldValue,
-                        item_field,
-                        Some("non-empty governed action id".to_string()),
-                        Some(actual.clone()),
-                        "allowed_action_ids entries must not be empty",
-                    ),
-                    Value::String(actual) if !allowed_action_set.contains(actual) => result.push_issue(
-                        StructuredCollaborationValidationCode::InvalidFieldValue,
-                        item_field,
-                        Some(expected_repr.clone()),
-                        Some(actual.clone()),
-                        format!(
-                            "{field} entries must be registered GovernedActionDescriptorV1.action_id values for {}",
-                            workflow_state_family.as_str()
-                        ),
-                    ),
-                    Value::String(actual) if !seen.insert(actual.clone()) => result.push_issue(
-                        StructuredCollaborationValidationCode::InvalidFieldValue,
-                        item_field,
-                        Some("unique governed action ids".to_string()),
-                        Some(actual.clone()),
-                        "allowed_action_ids entries must be unique",
-                    ),
-                    Value::String(_) => {}
-                    other => result.push_issue(
-                        StructuredCollaborationValidationCode::InvalidFieldType,
-                        item_field,
-                        Some("string".to_string()),
-                        Some(json_type_name(other).to_string()),
-                        "allowed_action_ids entries must be strings",
-                    ),
-                }
-            }
-        }
-        Some(other) => result.push_issue(
-            StructuredCollaborationValidationCode::InvalidFieldType,
-            field,
-            Some("array".to_string()),
-            Some(json_type_name(other).to_string()),
-            format!("{field} must be an array of registered governed action ids"),
-        ),
-        None => result.push_issue(
-            StructuredCollaborationValidationCode::MissingField,
-            field,
-            Some(expected_repr),
-            None,
-            format!("{field} is required"),
-        ),
-    }
-}
-
-pub fn is_governed_action_id_allowed_for_workflow_family(
-    family: WorkflowStateFamily,
-    action_id: &str,
-) -> bool {
-    let action_id = action_id.trim();
-    governed_action_ids_for_workflow_family(family)
-        .iter()
-        .any(|allowed| allowed == action_id)
-}
-
-pub fn is_registered_governed_action_id(action_id: &str) -> bool {
-    let action_id = action_id.trim();
-    [
-        WorkflowStateFamily::Intake,
-        WorkflowStateFamily::Ready,
-        WorkflowStateFamily::Active,
-        WorkflowStateFamily::Waiting,
-        WorkflowStateFamily::Review,
-        WorkflowStateFamily::Approval,
-        WorkflowStateFamily::Validation,
-        WorkflowStateFamily::Blocked,
-        WorkflowStateFamily::Done,
-        WorkflowStateFamily::Canceled,
-        WorkflowStateFamily::Archived,
-    ]
-    .into_iter()
-    .any(|family| is_governed_action_id_allowed_for_workflow_family(family, action_id))
-}
-
-fn validate_optional_governed_action_id(
-    value: Option<&Value>,
-    workflow_state_family: Option<WorkflowStateFamily>,
-    field: &str,
-    result: &mut StructuredCollaborationValidationResult,
-) {
-    let Some(value) = value else {
-        return;
-    };
-
-    require_non_empty_string(Some(value), field, result);
-    let Some(action_id) = value
-        .as_str()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    else {
-        return;
-    };
-
-    if !is_registered_governed_action_id(action_id) {
-        result.push_issue(
-            StructuredCollaborationValidationCode::InvalidFieldValue,
-            field,
-            Some("registered GovernedActionDescriptorV1.action_id or field omission".to_string()),
-            Some(action_id.to_string()),
-            format!(
-                "{field} must resolve to a registered GovernedActionDescriptorV1.action_id or be omitted"
-            ),
-        );
-        return;
-    }
-
-    let Some(workflow_state_family) = workflow_state_family else {
-        return;
-    };
-
-    if !is_governed_action_id_allowed_for_workflow_family(workflow_state_family, action_id) {
-        result.push_issue(
-            StructuredCollaborationValidationCode::InvalidFieldValue,
-            field,
-            Some(format!(
-                "action id allowed for workflow_state_family={} ({})",
-                workflow_state_family.as_str(),
-                governed_action_ids_for_workflow_family(workflow_state_family).join(", ")
-            )),
-            Some(action_id.to_string()),
-            format!(
-                "{field} must resolve to an action id allowed for workflow_state_family={}",
-                workflow_state_family.as_str()
-            ),
-        );
-    }
-}
-
 fn validate_project_profile_kind(
     value: Option<&Value>,
     result: &mut StructuredCollaborationValidationResult,
@@ -2203,302 +1630,8 @@ fn validate_mirror_state(
     }
 }
 
-fn validate_task_board_rows(
-    value: Option<&Value>,
-    field: &str,
-    result: &mut StructuredCollaborationValidationResult,
-) {
-    let Some(Value::Array(rows)) = value else {
-        return;
-    };
-
-    for (index, row) in rows.iter().enumerate() {
-        let child = validate_structured_collaboration_record(
-            StructuredCollaborationRecordFamily::TaskBoardEntry,
-            row,
-        );
-        merge_child_validation(result, &format!("{field}[{index}]"), child);
-    }
-}
-
-pub fn validate_task_board_entry_authoritative_fields(
-    entry: &super::task_board::TaskBoardEntryRecordV1,
-    expected_work_packet_id: &str,
-    expected_workflow_state_family: WorkflowStateFamily,
-    expected_queue_reason_code: WorkflowQueueReasonCode,
-    expected_allowed_action_ids: &[String],
-) -> StructuredCollaborationValidationResult {
-    let mut result = StructuredCollaborationValidationResult::success(
-        StructuredCollaborationRecordFamily::TaskBoardEntry,
-    );
-
-    if entry.work_packet_id != expected_work_packet_id {
-        result.push_issue(
-            StructuredCollaborationValidationCode::InvalidFieldValue,
-            "work_packet_id",
-            Some(expected_work_packet_id.to_string()),
-            Some(entry.work_packet_id.clone()),
-            "task-board row work_packet_id must match the authoritative packet",
-        );
-    }
-
-    if entry.workflow_state_family != expected_workflow_state_family {
-        result.push_issue(
-            StructuredCollaborationValidationCode::InvalidFieldValue,
-            "workflow_state_family",
-            Some(expected_workflow_state_family.as_str().to_string()),
-            Some(entry.workflow_state_family.as_str().to_string()),
-            "task-board row workflow_state_family must match the authoritative packet",
-        );
-    }
-
-    if entry.queue_reason_code != expected_queue_reason_code {
-        result.push_issue(
-            StructuredCollaborationValidationCode::InvalidFieldValue,
-            "queue_reason_code",
-            Some(expected_queue_reason_code.as_str().to_string()),
-            Some(entry.queue_reason_code.as_str().to_string()),
-            "task-board row queue_reason_code must match the authoritative packet",
-        );
-    }
-
-    if entry.allowed_action_ids != expected_allowed_action_ids {
-        let expected = serde_json::to_string(expected_allowed_action_ids)
-            .unwrap_or_else(|_| format!("{expected_allowed_action_ids:?}"));
-        let actual = serde_json::to_string(&entry.allowed_action_ids)
-            .unwrap_or_else(|_| format!("{:?}", entry.allowed_action_ids));
-        result.push_issue(
-            StructuredCollaborationValidationCode::InvalidFieldValue,
-            "allowed_action_ids",
-            Some(expected),
-            Some(actual),
-            "task-board row allowed_action_ids must match the authoritative packet",
-        );
-    }
-
-    result
-}
-
-fn validate_role_mailbox_threads(
-    value: Option<&Value>,
-    field: &str,
-    result: &mut StructuredCollaborationValidationResult,
-) {
-    let Some(Value::Array(threads)) = value else {
-        return;
-    };
-
-    for (index, thread) in threads.iter().enumerate() {
-        let Some(thread_obj) = thread.as_object() else {
-            result.push_issue(
-                StructuredCollaborationValidationCode::InvalidFieldType,
-                format!("{field}[{index}]"),
-                Some("object".to_string()),
-                Some(json_type_name(thread).to_string()),
-                format!("{field}[{index}] must be an object"),
-            );
-            continue;
-        };
-        validate_redacted_secret_output(
-            thread_obj.get("subject_redacted"),
-            &format!("{field}[{index}].subject_redacted"),
-            result,
-        );
-    }
-}
-
-fn validate_role_mailbox_transcription_links(
-    value: Option<&Value>,
-    field: &str,
-    result: &mut StructuredCollaborationValidationResult,
-) {
-    let Some(Value::Array(links)) = value else {
-        return;
-    };
-
-    for (index, link) in links.iter().enumerate() {
-        let Some(link_obj) = link.as_object() else {
-            result.push_issue(
-                StructuredCollaborationValidationCode::InvalidFieldType,
-                format!("{field}[{index}]"),
-                Some("object".to_string()),
-                Some(json_type_name(link).to_string()),
-                format!("{field}[{index}] must be an object"),
-            );
-            continue;
-        };
-        validate_redacted_secret_output(
-            link_obj.get("note_redacted"),
-            &format!("{field}[{index}].note_redacted"),
-            result,
-        );
-    }
-}
-
-fn validate_redacted_secret_output(
-    value: Option<&Value>,
-    field: &str,
-    result: &mut StructuredCollaborationValidationResult,
-) {
-    match value {
-        Some(Value::String(actual)) => {
-            let canonical = canonical_redacted_secret_output(actual, field);
-            if canonical != *actual {
-                result.push_issue(
-                    StructuredCollaborationValidationCode::InvalidFieldValue,
-                    field,
-                    Some(canonical),
-                    Some(actual.clone()),
-                    format!("{field} must already be a bounded single-line Secret-Redactor output"),
-                );
-            }
-        }
-        Some(other) => result.push_issue(
-            StructuredCollaborationValidationCode::InvalidFieldType,
-            field,
-            Some("string".to_string()),
-            Some(json_type_name(other).to_string()),
-            format!("{field} must be a string"),
-        ),
-        None => result.push_issue(
-            StructuredCollaborationValidationCode::MissingField,
-            field,
-            Some("string".to_string()),
-            None,
-            format!("{field} is required"),
-        ),
-    }
-}
-
-fn canonical_redacted_secret_output(value: &str, field: &str) -> String {
-    let bounded = bounded_single_line(value, ROLE_MAILBOX_REDACTED_OUTPUT_MAX_LEN);
-    if bounded.is_empty() {
-        return "[REDACTED]".to_string();
-    }
-
-    let Some((masked_input, placeholders)) = mask_existing_redaction_markers(&bounded) else {
-        return "[REDACTED]".to_string();
-    };
-
-    let redactor = SecretRedactor::new();
-    let (redacted, _) = redactor.redact_value(
-        &Value::String(masked_input),
-        RedactionMode::SafeDefault,
-        field,
-    );
-    let restored = restore_redaction_markers(redacted.as_str().unwrap_or(""), &placeholders);
-    let bounded = bounded_single_line(&restored, ROLE_MAILBOX_REDACTED_OUTPUT_MAX_LEN);
-    if bounded.is_empty() {
-        "[REDACTED]".to_string()
-    } else {
-        bounded
-    }
-}
-
-fn mask_existing_redaction_markers(value: &str) -> Option<(String, Vec<String>)> {
-    let mut placeholders = Vec::new();
-    let mut masked = String::with_capacity(value.len());
-    let mut remaining = value;
-
-    while let Some(marker_start) = remaining.find("[REDACTED") {
-        masked.push_str(&remaining[..marker_start]);
-        let candidate = &remaining[marker_start..];
-        let end_idx = candidate.find(']')?;
-        let marker = &candidate[..=end_idx];
-        if !is_valid_redaction_marker(marker) {
-            return None;
-        }
-
-        let token = format!("__HSK_REDACTED_{}__", placeholders.len());
-        placeholders.push(marker.to_string());
-        masked.push_str(&token);
-        remaining = &candidate[end_idx + 1..];
-    }
-
-    masked.push_str(remaining);
-    Some((masked, placeholders))
-}
-
-fn is_valid_redaction_marker(value: &str) -> bool {
-    if value == "[REDACTED]" {
-        return true;
-    }
-    let Some(inner) = value
-        .strip_prefix("[REDACTED:")
-        .and_then(|marker| marker.strip_suffix(']'))
-    else {
-        return false;
-    };
-
-    let mut parts = inner.split(':');
-    let Some(category) = parts.next() else {
-        return false;
-    };
-    let Some(detector_id) = parts.next() else {
-        return false;
-    };
-    if parts.next().is_some() {
-        return false;
-    }
-
-    is_safe_redaction_marker_part(category) && is_safe_redaction_marker_part(detector_id)
-}
-
-fn is_safe_redaction_marker_part(value: &str) -> bool {
-    !value.is_empty()
-        && value
-            .chars()
-            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
-}
-
-fn restore_redaction_markers(value: &str, placeholders: &[String]) -> String {
-    let mut restored = value.to_string();
-    for (idx, marker) in placeholders.iter().enumerate() {
-        let token = format!("__HSK_REDACTED_{}__", idx);
-        restored = restored.replace(&token, marker);
-    }
-    restored
-}
-
-fn bounded_single_line(value: &str, max_len: usize) -> String {
-    let mut out = String::with_capacity(value.len().min(max_len));
-    for ch in value.chars() {
-        if ch == '\r' || ch == '\n' {
-            out.push(' ');
-        } else {
-            out.push(ch);
-        }
-        if out.chars().count() >= max_len {
-            break;
-        }
-    }
-    out.trim().to_string()
-}
-
-fn merge_child_validation(
-    parent: &mut StructuredCollaborationValidationResult,
-    prefix: &str,
-    child: StructuredCollaborationValidationResult,
-) {
-    if child.ok {
-        return;
-    }
-
-    parent.ok = false;
-    for issue in child.issues {
-        parent.issues.push(StructuredCollaborationValidationIssue {
-            code: issue.code,
-            field: format!("{prefix}.{}", issue.field),
-            expected: issue.expected,
-            actual: issue.actual,
-            message: issue.message,
-        });
-    }
-}
-
 fn validate_profile_extension(
     value: Option<&Value>,
-    project_profile_kind: Option<ProjectProfileKind>,
     result: &mut StructuredCollaborationValidationResult,
 ) {
     let Some(value) = value else {
@@ -2546,74 +1679,6 @@ fn validate_profile_extension(
             "profile_extension declares breaking compatibility and must be rejected deterministically",
         );
     }
-
-    let Some(project_profile_kind) = project_profile_kind else {
-        return;
-    };
-    let Some(extension_schema_id) = obj
-        .get("extension_schema_id")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    else {
-        return;
-    };
-    let Some(extension_schema_version) = obj
-        .get("extension_schema_version")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    else {
-        return;
-    };
-
-    let registered_entries: Vec<&ProfileExtensionRegistryEntry> =
-        registered_profile_extensions(project_profile_kind).collect();
-    let registered_ids: Vec<&str> = registered_entries.iter().map(|entry| entry.schema_id).collect();
-    if !registered_ids.iter().any(|schema_id| *schema_id == extension_schema_id) {
-        let expected = if registered_ids.is_empty() {
-            format!(
-                "no registered extensions for {}",
-                project_profile_kind.as_str()
-            )
-        } else {
-            registered_ids.join(", ")
-        };
-        result.push_issue(
-            StructuredCollaborationValidationCode::InvalidFieldValue,
-            "profile_extension.extension_schema_id",
-            Some(expected),
-            Some(extension_schema_id.to_string()),
-            "profile_extension.extension_schema_id is not registered for project_profile_kind",
-        );
-        return;
-    }
-
-    if !registered_entries.iter().any(|entry| {
-        entry.schema_id == extension_schema_id && entry.schema_version == extension_schema_version
-    }) {
-        let expected_versions = registered_entries
-            .iter()
-            .filter(|entry| entry.schema_id == extension_schema_id)
-            .map(|entry| entry.schema_version)
-            .collect::<Vec<_>>()
-            .join(", ");
-        result.push_issue(
-            StructuredCollaborationValidationCode::InvalidFieldValue,
-            "profile_extension.extension_schema_version",
-            Some(expected_versions),
-            Some(extension_schema_version.to_string()),
-            "profile_extension.extension_schema_version is not registered for extension_schema_id",
-        );
-    }
-}
-
-fn registered_profile_extensions(
-    project_profile_kind: ProjectProfileKind,
-) -> impl Iterator<Item = &'static ProfileExtensionRegistryEntry> {
-    PROFILE_EXTENSION_REGISTRY
-        .iter()
-        .filter(move |entry| entry.project_profile_kind == project_profile_kind)
 }
 
 fn profile_extension_is_breaking(value: Option<&Value>) -> bool {
@@ -2672,32 +1737,6 @@ fn compare_string_arrays(
             Some(summary_values.join(",")),
             format!("{field} must match between detail and summary records"),
         );
-    }
-}
-
-fn compare_optional_value_field(
-    detail_obj: &serde_json::Map<String, Value>,
-    summary_obj: &serde_json::Map<String, Value>,
-    field: &str,
-    result: &mut StructuredCollaborationValidationResult,
-) {
-    let detail_value = normalized_optional_value(detail_obj.get(field));
-    let summary_value = normalized_optional_value(summary_obj.get(field));
-    if detail_value != summary_value {
-        result.push_issue(
-            StructuredCollaborationValidationCode::SummaryJoinMismatch,
-            field,
-            detail_value.map(Value::to_string),
-            summary_value.map(Value::to_string),
-            format!("{field} must match between detail and summary records"),
-        );
-    }
-}
-
-fn normalized_optional_value(value: Option<&Value>) -> Option<&Value> {
-    match value {
-        Some(Value::Null) | None => None,
-        other => other,
     }
 }
 

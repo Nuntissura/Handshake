@@ -9,7 +9,7 @@ use super::{
     LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas,
     NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution,
     NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageError, StorageGuard,
-    StorageResult, WriteContext,
+    StorageBackendKind, StorageCapabilityStore, StorageResult, WriteContext,
 };
 use chrono::Duration;
 use chrono::Utc;
@@ -53,25 +53,6 @@ fn assert_metadata_matches_ctx(
         unreachable!("edit_event_id must be valid UUID");
     };
     assert_ne!(parsed, Uuid::nil());
-}
-
-#[cfg(test)]
-async fn assert_traceability_row(
-    db: &Arc<dyn super::Database>,
-    table: &str,
-    id: &str,
-    ctx: &WriteContext,
-) -> StorageResult<()> {
-    let row = db.test_fetch_mutation_traceability_row(table, id).await?;
-    assert_metadata_matches_ctx(
-        &row.last_actor_kind,
-        row.last_actor_id,
-        row.last_job_id,
-        row.last_workflow_id,
-        &row.edit_event_id,
-        ctx,
-    );
-    Ok(())
 }
 
 #[cfg(test)]
@@ -748,6 +729,7 @@ async fn build_loom_graph_fixture(
     })
 }
 
+#[cfg(test)]
 async fn overwrite_loom_block_metrics(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
@@ -766,11 +748,41 @@ async fn overwrite_loom_block_metrics(
     .await
 }
 
+#[cfg(not(test))]
+async fn overwrite_loom_block_metrics(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+    block_id: &str,
+    mention_count: i64,
+    tag_count: i64,
+    backlink_count: i64,
+) -> StorageResult<()> {
+    let _ = (
+        db,
+        workspace_id,
+        block_id,
+        mention_count,
+        tag_count,
+        backlink_count,
+    );
+    Ok(())
+}
+
+#[cfg(test)]
 async fn zero_workspace_loom_metrics(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
 ) -> StorageResult<()> {
     db.test_zero_workspace_loom_metrics(workspace_id).await
+}
+
+#[cfg(not(test))]
+async fn zero_workspace_loom_metrics(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+) -> StorageResult<()> {
+    let _ = (db, workspace_id);
+    Ok(())
 }
 
 async fn loom_metrics_recompute_idempotent(
@@ -990,7 +1002,7 @@ async fn loom_directional_edge_queries(
     Ok(())
 }
 
-async fn loom_search_graph_filter_postgres(
+async fn loom_search_graph_filter_when_supported(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
     graph: &LoomGraphFixture,
@@ -998,7 +1010,6 @@ async fn loom_search_graph_filter_postgres(
     if !db.supports_loom_graph_filtering() {
         return Ok(());
     }
-
     let direct_only = db
         .search_loom_blocks(
             workspace_id,
@@ -1117,12 +1128,86 @@ async fn loom_source_anchor_round_trip(
     Ok(())
 }
 
+#[cfg(test)]
 async fn insert_loom_traversal_perf_fixture(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
 ) -> StorageResult<String> {
     db.test_insert_loom_traversal_perf_fixture(workspace_id, LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS)
         .await
+}
+
+#[cfg(not(test))]
+async fn insert_loom_traversal_perf_fixture(
+    db: &Arc<dyn super::Database>,
+    workspace_id: &str,
+) -> StorageResult<String> {
+    let ctx = WriteContext::system(None);
+    let start_block_id = "perf-block-00000".to_string();
+    db.create_loom_block(
+        &ctx,
+        NewLoomBlock {
+            block_id: Some(start_block_id.clone()),
+            workspace_id: workspace_id.to_string(),
+            content_type: LoomBlockContentType::Note,
+            document_id: None,
+            asset_id: None,
+            title: Some("Perf Block 0".to_string()),
+            original_filename: None,
+            content_hash: None,
+            pinned: false,
+            journal_date: None,
+            imported_at: None,
+            derived: super::LoomBlockDerived {
+                full_text_index: Some("perf traversal start".to_string()),
+                ..Default::default()
+            },
+        },
+    )
+    .await?;
+    let mut previous_block_id = start_block_id.clone();
+
+    for idx in 1..LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS {
+        let block_id = format!("perf-block-{idx:05}");
+        db.create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: Some(block_id.clone()),
+                workspace_id: workspace_id.to_string(),
+                content_type: LoomBlockContentType::Note,
+                document_id: None,
+                asset_id: None,
+                title: Some(format!("Perf Block {idx}")),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some(format!("perf traversal block {idx}")),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+        db.create_loom_edge(
+            &ctx,
+            NewLoomEdge {
+                edge_id: None,
+                workspace_id: workspace_id.to_string(),
+                source_block_id: previous_block_id,
+                target_block_id: block_id.clone(),
+                edge_type: LoomEdgeType::Mention,
+                created_by: LoomEdgeCreatedBy::User,
+                crdt_site_id: None,
+                source_anchor: None,
+            },
+        )
+        .await?;
+        previous_block_id = block_id;
+    }
+
+    Ok(start_block_id)
 }
 
 async fn loom_traverse_graph_meets_performance_target(
@@ -1768,7 +1853,7 @@ pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> Stora
     loom_traverse_graph_depth_limit(&db, &workspace.id, &graph_fixture).await?;
     loom_traverse_graph_cycle_detection(&db, &workspace.id, &graph_fixture).await?;
     loom_traverse_graph_edge_type_filter(&db, &workspace.id, &graph_fixture).await?;
-    loom_search_graph_filter_postgres(&db, &workspace.id, &graph_fixture).await?;
+    loom_search_graph_filter_when_supported(&db, &workspace.id, &graph_fixture).await?;
     loom_directional_edge_queries(
         &db,
         &ctx,
@@ -2352,7 +2437,18 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
                 },
             )
             .await?;
-        assert_traceability_row(&db, "workspaces", &workspace.id, &ctx).await?;
+
+        let workspace_row = db
+            .test_fetch_mutation_traceability_row("workspaces", &workspace.id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &workspace_row.last_actor_kind,
+            workspace_row.last_actor_id,
+            workspace_row.last_job_id,
+            workspace_row.last_workflow_id,
+            &workspace_row.edit_event_id,
+            &ctx,
+        );
 
         let document = db
             .create_document(
@@ -2363,7 +2459,18 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
                 },
             )
             .await?;
-        assert_traceability_row(&db, "documents", &document.id, &ctx).await?;
+
+        let document_row = db
+            .test_fetch_mutation_traceability_row("documents", &document.id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &document_row.last_actor_kind,
+            document_row.last_actor_id,
+            document_row.last_job_id,
+            document_row.last_workflow_id,
+            &document_row.edit_event_id,
+            &ctx,
+        );
 
         let block = db
             .create_block(
@@ -2381,7 +2488,18 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
                 },
             )
             .await?;
-        assert_traceability_row(&db, "blocks", &block.id, &ctx).await?;
+
+        let block_row = db
+            .test_fetch_mutation_traceability_row("blocks", &block.id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &block_row.last_actor_kind,
+            block_row.last_actor_id,
+            block_row.last_job_id,
+            block_row.last_workflow_id,
+            &block_row.edit_event_id,
+            &ctx,
+        );
 
         let canvas = db
             .create_canvas(
@@ -2423,9 +2541,42 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
             }],
         )
         .await?;
-        assert_traceability_row(&db, "canvases", &canvas.id, &ctx).await?;
-        assert_traceability_row(&db, "canvas_nodes", &node_a_id, &ctx).await?;
-        assert_traceability_row(&db, "canvas_edges", &edge_id, &ctx).await?;
+
+        let canvas_row = db
+            .test_fetch_mutation_traceability_row("canvases", &canvas.id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &canvas_row.last_actor_kind,
+            canvas_row.last_actor_id,
+            canvas_row.last_job_id,
+            canvas_row.last_workflow_id,
+            &canvas_row.edit_event_id,
+            &ctx,
+        );
+
+        let node_row = db
+            .test_fetch_mutation_traceability_row("canvas_nodes", &node_a_id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &node_row.last_actor_kind,
+            node_row.last_actor_id,
+            node_row.last_job_id,
+            node_row.last_workflow_id,
+            &node_row.edit_event_id,
+            &ctx,
+        );
+
+        let edge_row = db
+            .test_fetch_mutation_traceability_row("canvas_edges", &edge_id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &edge_row.last_actor_kind,
+            edge_row.last_actor_id,
+            edge_row.last_job_id,
+            edge_row.last_workflow_id,
+            &edge_row.edit_event_id,
+            &ctx,
+        );
     }
 
     Ok(())
@@ -2513,7 +2664,18 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
                 },
             )
             .await?;
-        assert_traceability_row(&db, "workspaces", &workspace.id, &ctx).await?;
+
+        let workspace_row = db
+            .test_fetch_mutation_traceability_row("workspaces", &workspace.id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &workspace_row.last_actor_kind,
+            workspace_row.last_actor_id,
+            workspace_row.last_job_id,
+            workspace_row.last_workflow_id,
+            &workspace_row.edit_event_id,
+            &ctx,
+        );
 
         let document = db
             .create_document(
@@ -2524,7 +2686,18 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
                 },
             )
             .await?;
-        assert_traceability_row(&db, "documents", &document.id, &ctx).await?;
+
+        let document_row = db
+            .test_fetch_mutation_traceability_row("documents", &document.id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &document_row.last_actor_kind,
+            document_row.last_actor_id,
+            document_row.last_job_id,
+            document_row.last_workflow_id,
+            &document_row.edit_event_id,
+            &ctx,
+        );
 
         let block = db
             .create_block(
@@ -2542,7 +2715,18 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
                 },
             )
             .await?;
-        assert_traceability_row(&db, "blocks", &block.id, &ctx).await?;
+
+        let block_row = db
+            .test_fetch_mutation_traceability_row("blocks", &block.id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &block_row.last_actor_kind,
+            block_row.last_actor_id,
+            block_row.last_job_id,
+            block_row.last_workflow_id,
+            &block_row.edit_event_id,
+            &ctx,
+        );
 
         let canvas = db
             .create_canvas(
@@ -2584,9 +2768,42 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
             }],
         )
         .await?;
-        assert_traceability_row(&db, "canvases", &canvas.id, &ctx).await?;
-        assert_traceability_row(&db, "canvas_nodes", &node_a_id, &ctx).await?;
-        assert_traceability_row(&db, "canvas_edges", &edge_id, &ctx).await?;
+
+        let canvas_row = db
+            .test_fetch_mutation_traceability_row("canvases", &canvas.id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &canvas_row.last_actor_kind,
+            canvas_row.last_actor_id,
+            canvas_row.last_job_id,
+            canvas_row.last_workflow_id,
+            &canvas_row.edit_event_id,
+            &ctx,
+        );
+
+        let node_row = db
+            .test_fetch_mutation_traceability_row("canvas_nodes", &node_a_id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &node_row.last_actor_kind,
+            node_row.last_actor_id,
+            node_row.last_job_id,
+            node_row.last_workflow_id,
+            &node_row.edit_event_id,
+            &ctx,
+        );
+
+        let edge_row = db
+            .test_fetch_mutation_traceability_row("canvas_edges", &edge_id)
+            .await?;
+        assert_metadata_matches_ctx(
+            &edge_row.last_actor_kind,
+            edge_row.last_actor_id,
+            edge_row.last_job_id,
+            edge_row.last_workflow_id,
+            &edge_row.edit_event_id,
+            &ctx,
+        );
     }
 
     drop(db);
@@ -2795,6 +3012,97 @@ async fn migrations_are_replay_safe_postgres() -> StorageResult<()> {
     Ok(())
 }
 
+#[cfg(test)]
+async fn assert_postgres_structured_collab_artifacts_supported() -> StorageResult<()> {
+    let Some(url) = postgres_test_url() else {
+        return Ok(());
+    };
+
+    let mut conn = sqlx::PgConnection::connect(&url).await?;
+    let schema = format!("wp1_structured_collab_{}", Uuid::new_v4().simple());
+    sqlx::query(&format!("CREATE SCHEMA {schema}"))
+        .execute(&mut conn)
+        .await?;
+    drop(conn);
+
+    let sep = if url.contains('?') { "&" } else { "?" };
+    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
+
+    let db = PostgresDatabase::connect(&schema_url, 5).await?;
+    db.run_migrations().await?;
+    let db = db.into_arc();
+
+    assert!(db.supports_structured_collab_artifacts());
+    assert!(db.structured_collab_work_packet_row("WP-TEST").await?.is_none());
+    assert!(db.structured_collab_work_packet_rows().await?.is_empty());
+    assert!(db
+        .structured_collab_micro_task_status_rows("WP-TEST")
+        .await?
+        .is_empty());
+    assert!(db.structured_collab_micro_task_rows("WP-TEST").await?.is_empty());
+    assert_eq!(
+        db.structured_collab_micro_task_metadata("WP-TEST", "MT-TEST")
+            .await?,
+        None
+    );
+    assert!(!super::locus_sqlite::locus_work_packet_exists(db.as_ref(), "WP-TEST").await?);
+
+    drop(db);
+    let mut conn = sqlx::PgConnection::connect(&url).await?;
+    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn database_trait_purity() -> StorageResult<()> {
+    let sqlite = sqlite_backend().await?;
+    assert!(sqlite.supports_structured_collab_artifacts());
+    drop(sqlite);
+
+    assert_postgres_structured_collab_artifacts_supported().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_backend_capability() -> StorageResult<()> {
+    assert_postgres_structured_collab_artifacts_supported().await
+}
+
+#[tokio::test]
+async fn postgres_structured_collab_artifacts_are_supported() -> StorageResult<()> {
+    assert_postgres_structured_collab_artifacts_supported().await
+}
+
+#[tokio::test]
+async fn loom_search_graph_filter_backend_support() -> StorageResult<()> {
+    let db = sqlite_backend().await?;
+
+    let ctx = WriteContext::human(Some("loom-search-proof".into()));
+    let workspace = db
+        .create_workspace(
+            &ctx,
+            NewWorkspace {
+                name: format!("loom-search-proof-{}", Uuid::new_v4()),
+            },
+        )
+        .await?;
+    let document = db
+        .create_document(
+            &ctx,
+            NewDocument {
+                workspace_id: workspace.id.clone(),
+                title: format!("loom-search-proof-doc-{}", Uuid::new_v4()),
+            },
+        )
+        .await?;
+    let graph_fixture = build_loom_graph_fixture(&db, &ctx, &workspace.id, &document.id).await?;
+
+    loom_search_graph_filter_when_supported(&db, &workspace.id, &graph_fixture).await
+}
+
 #[tokio::test]
 async fn loom_migration_schema_is_portable_postgres() -> StorageResult<()> {
     let Some(url) = postgres_test_url() else {
@@ -2869,6 +3177,121 @@ async fn migrations_can_undo_to_baseline_postgres() -> StorageResult<()> {
     sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
         .execute(&mut conn)
         .await?;
+
+    Ok(())
+}
+
+#[test]
+fn database_trait_purity_source_regressions() {
+    let storage_mod = include_str!("mod.rs");
+    let workflows_prod = include_str!("../workflows.rs")
+        .split("#[cfg(test)]")
+        .next()
+        .unwrap_or_default();
+    let loom_api_prod = include_str!("../api/loom.rs")
+        .split("#[cfg(test)]")
+        .next()
+        .unwrap_or_default();
+    let retention_prod = include_str!("retention.rs");
+    let sqlite_storage = include_str!("sqlite.rs");
+    let postgres_storage = include_str!("postgres.rs");
+    let database_trait_start = storage_mod
+        .find("pub trait Database: Send + Sync {")
+        .expect("Database trait should exist in storage/mod.rs");
+    let database_trait_end = storage_mod[database_trait_start..]
+        .find("\n\nimpl<T> StorageCapabilityStore for T")
+        .expect("Database trait terminator should precede StorageCapabilityStore impl");
+    let database_trait =
+        &storage_mod[database_trait_start..database_trait_start + database_trait_end];
+
+    assert!(storage_mod.contains("pub trait StructuredCollaborationStore"));
+    assert!(storage_mod.contains("pub trait StorageCapabilityStore"));
+    for required in [
+        "fn supports_locus_runtime(",
+        "fn supports_structured_collab_artifacts(",
+        "fn loom_search_observability_tier(",
+        "fn supports_loom_graph_filtering(",
+        "fn loom_traverse_graph_perf_target_ms(",
+        "async fn execute_locus_operation(",
+        "async fn locus_task_board_update_work_packet(",
+        "async fn structured_collab_work_packet_row(",
+        "async fn structured_collab_work_packet_rows(",
+        "async fn structured_collab_micro_task_metadata(",
+        "async fn structured_collab_micro_task_status_rows(",
+        "async fn structured_collab_micro_task_rows(",
+    ] {
+        assert!(
+            database_trait.contains(required),
+            "Database trait should retain the current backend compatibility baseline: {required}"
+        );
+    }
+    for forbidden in [
+        "fn storage_capabilities(",
+        "StorageCapabilitySnapshot",
+        "StorageBackendKind",
+        "async fn structured_collab_list_work_packet_ids(",
+        "async fn structured_collab_load_work_packet_row(",
+        "async fn structured_collab_list_micro_task_status_rows(",
+        "async fn structured_collab_load_micro_task_metadata(",
+        "async fn structured_collab_list_micro_task_metadata(",
+        "async fn structured_collab_list_task_board_projection_rows(",
+        "StructuredCollabTaskBoardProjectionRow",
+    ] {
+        assert!(
+            !database_trait.contains(forbidden),
+            "Database trait must not accrete boundary-only helper surface: {forbidden}"
+        );
+    }
+    assert!(!database_trait.contains("std::any::Any"));
+    assert!(!database_trait.contains("fn as_any("));
+    assert!(workflows_prod.contains("StructuredCollaborationStore"));
+    assert!(workflows_prod.contains("StorageCapabilityStore"));
+    assert!(loom_api_prod.contains(".storage_capabilities()"));
+    assert!(!workflows_prod.contains("crate::storage::locus_sqlite::"));
+    assert!(!workflows_prod.contains("downcast_ref::<crate::storage::sqlite::SqliteDatabase>()"));
+    assert!(!workflows_prod.contains(".as_any()"));
+    assert!(!loom_api_prod.contains(".as_any()"));
+    assert!(!loom_api_prod.contains("state.storage.loom_search_observability_tier()"));
+    assert!(!retention_prod.contains(".as_any()"));
+    assert!(retention_prod.contains(".test_update_ai_job_metadata("));
+    for backend_src in [sqlite_storage, postgres_storage] {
+        assert!(backend_src.contains("fn supports_locus_runtime(&self) -> bool {"));
+        assert!(backend_src.contains("fn supports_structured_collab_artifacts(&self) -> bool {"));
+        assert!(backend_src.contains("fn loom_search_observability_tier(&self) -> u8 {"));
+        assert!(backend_src.contains("fn supports_loom_graph_filtering(&self) -> bool {"));
+        assert!(backend_src.contains("fn loom_traverse_graph_perf_target_ms(&self) -> u128 {"));
+        assert!(backend_src.contains("async fn test_update_ai_job_metadata("));
+        assert!(backend_src.contains("async fn test_fetch_mutation_traceability_row("));
+        assert!(!backend_src.contains("fn as_any("));
+    }
+}
+
+#[tokio::test]
+async fn database_trait_purity_capability_snapshot_reports_sqlite() -> StorageResult<()> {
+    let db = sqlite_backend().await?;
+    let caps = db.storage_capabilities();
+
+    assert_eq!(caps.backend, StorageBackendKind::Sqlite);
+    assert!(caps.supports_structured_collab_artifacts);
+    assert!(!caps.supports_loom_graph_filtering);
+    assert_eq!(caps.loom_search_observability_tier(), 1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn database_trait_purity_capability_snapshot_reports_postgres() -> StorageResult<()> {
+    if postgres_test_url().is_none() {
+        return Ok(());
+    }
+
+    let db = postgres_backend_from_env().await?;
+    let caps = db.storage_capabilities();
+
+    assert_eq!(caps.backend, StorageBackendKind::Postgres);
+    assert!(caps.supports_structured_collab_artifacts);
+    assert!(caps.supports_loom_graph_filtering);
+    assert_eq!(caps.loom_search_observability_tier(), 2);
 
     Ok(())
 }

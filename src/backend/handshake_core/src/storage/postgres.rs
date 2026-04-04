@@ -8,8 +8,7 @@ use super::{
     JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult,
     LoomBlockUpdate, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters,
     LoomSourceAnchor, LoomViewFilters, LoomViewGroup, LoomViewResponse, LoomViewType, ModelSession,
-    ModelSessionState, MutationMetadata, MutationTraceabilityRow, NewAiJob, NewAsset, NewBlock,
-    NewBronzeRecord, NewCanvas,
+    ModelSessionState, MutationMetadata, NewAiJob, NewAsset, NewBlock, NewBronzeRecord, NewCanvas,
     NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewModelSession,
     NewNodeExecution, NewSessionMessage, NewSilverRecord, NewWorkspace, PlannedOperation,
     PreviewStatus, SafetyMode, SessionMessage, SessionMessageRole, SilverRecord, StorageError,
@@ -43,122 +42,6 @@ pub struct PostgresDatabase {
 impl PostgresDatabase {
     pub(crate) fn pool(&self) -> &PgPool {
         &self.pool
-    }
-}
-
-impl PostgresDatabase {
-    pub async fn connect(db_url: &str, max_connections: u32) -> StorageResult<Self> {
-        let guard: Arc<dyn StorageGuard> = Arc::new(DefaultStorageGuard);
-        Self::connect_with_guard(db_url, max_connections, guard).await
-    }
-
-    pub async fn connect_with_guard(
-        db_url: &str,
-        max_connections: u32,
-        guard: Arc<dyn StorageGuard>,
-    ) -> StorageResult<Self> {
-        let pool = PgPoolOptions::new()
-            .max_connections(max_connections)
-            .connect(db_url)
-            .await?;
-        Ok(Self { pool, guard })
-    }
-
-    pub fn new(pool: PgPool) -> Self {
-        Self {
-            pool,
-            guard: Arc::new(DefaultStorageGuard),
-        }
-    }
-
-    pub fn into_arc(self) -> Arc<dyn super::Database> {
-        Arc::new(self)
-    }
-
-    async fn ensure_model_session_schema(&self) -> StorageResult<()> {
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS model_sessions (
-                session_id TEXT PRIMARY KEY,
-                parent_session_id TEXT,
-                spawn_depth INTEGER NOT NULL DEFAULT 0,
-                state TEXT NOT NULL,
-                model_id TEXT NOT NULL,
-                backend TEXT NOT NULL,
-                parameter_class TEXT NOT NULL,
-                role TEXT NOT NULL,
-                wp_id TEXT,
-                mt_id TEXT,
-                work_profile_id TEXT,
-                execution_mode TEXT NOT NULL,
-                memory_policy TEXT NOT NULL,
-                consent_receipt_id TEXT,
-                capability_grants TEXT NOT NULL DEFAULT '[]',
-                capability_token_ids TEXT,
-                job_id TEXT,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-            "#,
-        )
-        .execute(&self.pool)
-        .await?;
-
-        sqlx::query(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_model_sessions_job_id ON model_sessions(job_id)",
-        )
-        .execute(&self.pool)
-        .await?;
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_model_sessions_parent ON model_sessions(parent_session_id)",
-        )
-        .execute(&self.pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS session_messages (
-                message_id TEXT PRIMARY KEY,
-                session_id TEXT NOT NULL REFERENCES model_sessions(session_id) ON DELETE CASCADE,
-                role TEXT NOT NULL,
-                content_hash TEXT NOT NULL,
-                content_artifact_id TEXT NOT NULL,
-                token_count INTEGER,
-                redacted BOOLEAN NOT NULL DEFAULT FALSE,
-                tool_call_id TEXT,
-                attachments TEXT NOT NULL DEFAULT '[]',
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-            "#,
-        )
-        .execute(&self.pool)
-        .await?;
-
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_session_messages_session_created ON session_messages(session_id, created_at)",
-        )
-        .execute(&self.pool)
-        .await?;
-
-        // Deterministic runtime schema upgrades for existing installs.
-        sqlx::query("ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS token_count INTEGER")
-            .execute(&self.pool)
-            .await?;
-        sqlx::query(
-            "ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS redacted BOOLEAN NOT NULL DEFAULT FALSE",
-        )
-        .execute(&self.pool)
-        .await?;
-        sqlx::query("ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS tool_call_id TEXT")
-            .execute(&self.pool)
-            .await?;
-        sqlx::query(
-            "ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS attachments TEXT NOT NULL DEFAULT '[]'",
-        )
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
     }
 }
 
@@ -311,9 +194,9 @@ fn mt_iteration_outcome_str(outcome: MicroTaskIterationOutcome) -> &'static str 
 async fn ensure_wp_exists(pool: &PgPool, wp_id: &str) -> StorageResult<()> {
     let exists =
         sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM work_packets WHERE wp_id = $1)")
-        .bind(wp_id)
-        .fetch_one(pool)
-        .await?;
+            .bind(wp_id)
+            .fetch_one(pool)
+            .await?;
 
     if !exists {
         return Err(StorageError::NotFound("work_packet"));
@@ -447,9 +330,9 @@ async fn create_wp(pool: &PgPool, params: LocusCreateWpParams) -> StorageResult<
 
     let existing =
         sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM work_packets WHERE wp_id = $1)")
-        .bind(&params.wp_id)
-        .fetch_one(pool)
-        .await?;
+            .bind(&params.wp_id)
+            .fetch_one(pool)
+            .await?;
     if existing {
         return Err(StorageError::Conflict("work_packet already exists"));
     }
@@ -969,9 +852,7 @@ pub(crate) async fn execute_locus_operation(
             | LocusOperation::QueryReady(_)
             | LocusOperation::GetWpStatus(_)
             | LocusOperation::GetMtProgress(_)
-            | LocusOperation::SyncTaskBoard(_) => {
-                "locus operation not yet supported for postgres"
-            }
+            | LocusOperation::SyncTaskBoard(_) => "locus operation not yet supported for postgres",
             _ => "unsupported locus operation",
         })),
     }
@@ -1041,6 +922,122 @@ pub(crate) async fn locus_task_board_list_rows(
     .fetch_all(postgres.pool())
     .await?;
     Ok(rows)
+}
+
+impl PostgresDatabase {
+    pub async fn connect(db_url: &str, max_connections: u32) -> StorageResult<Self> {
+        let guard: Arc<dyn StorageGuard> = Arc::new(DefaultStorageGuard);
+        Self::connect_with_guard(db_url, max_connections, guard).await
+    }
+
+    pub async fn connect_with_guard(
+        db_url: &str,
+        max_connections: u32,
+        guard: Arc<dyn StorageGuard>,
+    ) -> StorageResult<Self> {
+        let pool = PgPoolOptions::new()
+            .max_connections(max_connections)
+            .connect(db_url)
+            .await?;
+        Ok(Self { pool, guard })
+    }
+
+    pub fn new(pool: PgPool) -> Self {
+        Self {
+            pool,
+            guard: Arc::new(DefaultStorageGuard),
+        }
+    }
+
+    pub fn into_arc(self) -> Arc<dyn super::Database> {
+        Arc::new(self)
+    }
+
+    async fn ensure_model_session_schema(&self) -> StorageResult<()> {
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS model_sessions (
+                session_id TEXT PRIMARY KEY,
+                parent_session_id TEXT,
+                spawn_depth INTEGER NOT NULL DEFAULT 0,
+                state TEXT NOT NULL,
+                model_id TEXT NOT NULL,
+                backend TEXT NOT NULL,
+                parameter_class TEXT NOT NULL,
+                role TEXT NOT NULL,
+                wp_id TEXT,
+                mt_id TEXT,
+                work_profile_id TEXT,
+                execution_mode TEXT NOT NULL,
+                memory_policy TEXT NOT NULL,
+                consent_receipt_id TEXT,
+                capability_grants TEXT NOT NULL DEFAULT '[]',
+                capability_token_ids TEXT,
+                job_id TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_model_sessions_job_id ON model_sessions(job_id)",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_model_sessions_parent ON model_sessions(parent_session_id)",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS session_messages (
+                message_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL REFERENCES model_sessions(session_id) ON DELETE CASCADE,
+                role TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                content_artifact_id TEXT NOT NULL,
+                token_count INTEGER,
+                redacted BOOLEAN NOT NULL DEFAULT FALSE,
+                tool_call_id TEXT,
+                attachments TEXT NOT NULL DEFAULT '[]',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_session_messages_session_created ON session_messages(session_id, created_at)",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        // Deterministic runtime schema upgrades for existing installs.
+        sqlx::query("ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS token_count INTEGER")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(
+            "ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS redacted BOOLEAN NOT NULL DEFAULT FALSE",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query("ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS tool_call_id TEXT")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(
+            "ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS attachments TEXT NOT NULL DEFAULT '[]'",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
 }
 
 fn map_workspace(row: PgRow) -> Workspace {
@@ -1626,6 +1623,156 @@ impl super::Database for PostgresDatabase {
         50
     }
 
+    async fn run_migrations(&self) -> StorageResult<()> {
+        sqlx::migrate!("./migrations").run(&self.pool).await?;
+        ensure_locus_schema_postgres(&self.pool).await?;
+        Ok(())
+    }
+
+    async fn migration_version(&self) -> StorageResult<i64> {
+        let version = sqlx::query_scalar::<_, i64>(
+            "SELECT COALESCE(MAX(version), 0) FROM _sqlx_migrations WHERE success = TRUE",
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(version)
+    }
+
+    async fn execute_locus_operation(
+        &self,
+        op: crate::workflows::locus::types::LocusOperation,
+    ) -> StorageResult<Value> {
+        execute_locus_operation(self, op).await
+    }
+
+    async fn locus_task_board_update_work_packet(
+        &self,
+        status: &str,
+        task_board_status: &str,
+        updated_at: &str,
+        metadata: &str,
+        wp_id: &str,
+    ) -> StorageResult<()> {
+        locus_task_board_update_work_packet(
+            self,
+            status,
+            task_board_status,
+            updated_at,
+            metadata,
+            wp_id,
+        )
+        .await
+    }
+
+    async fn structured_collab_work_packet_row(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Option<super::StructuredCollabWorkPacketRow>> {
+        sqlx::query_as::<_, super::StructuredCollabWorkPacketRow>(
+            r#"
+            SELECT
+                wp_id,
+                version,
+                title,
+                description,
+                status,
+                priority,
+                phase,
+                routing,
+                task_packet_path,
+                task_board_status,
+                assignee,
+                reporter,
+                created_at,
+                updated_at,
+                vector_clock,
+                metadata
+            FROM work_packets
+            WHERE wp_id = $1
+            "#,
+        )
+        .bind(wp_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(StorageError::from)
+    }
+
+    async fn structured_collab_work_packet_rows(
+        &self,
+    ) -> StorageResult<Vec<super::StructuredCollabWorkPacketRow>> {
+        sqlx::query_as::<_, super::StructuredCollabWorkPacketRow>(
+            r#"
+            SELECT
+                wp_id,
+                version,
+                title,
+                description,
+                status,
+                priority,
+                phase,
+                routing,
+                task_packet_path,
+                task_board_status,
+                assignee,
+                reporter,
+                created_at,
+                updated_at,
+                vector_clock,
+                metadata
+            FROM work_packets
+            ORDER BY updated_at ASC, wp_id ASC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(StorageError::from)
+    }
+
+    async fn structured_collab_micro_task_metadata(
+        &self,
+        wp_id: &str,
+        mt_id: &str,
+    ) -> StorageResult<Option<String>> {
+        sqlx::query_scalar::<_, String>(
+            r#"
+            SELECT metadata
+            FROM micro_tasks
+            WHERE wp_id = $1 AND mt_id = $2
+            "#,
+        )
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(StorageError::from)
+    }
+
+    async fn structured_collab_micro_task_status_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>> {
+        sqlx::query_as::<_, (String, String)>(
+            "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+        )
+        .bind(wp_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(StorageError::from)
+    }
+
+    async fn structured_collab_micro_task_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>> {
+        sqlx::query_as::<_, (String, String)>(
+            "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+        )
+        .bind(wp_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(StorageError::from)
+    }
+
     #[cfg(test)]
     async fn test_overwrite_loom_block_metrics(
         &self,
@@ -1698,22 +1845,21 @@ impl super::Database for PostgresDatabase {
                     derived_json,
                     preview_status
                 )
-                VALUES (
-                    $1, $2, 'note', $3, 0, 'SYSTEM',
-                    '00000000-0000-0000-0000-000000000000',
-                    $4, $4, 0, 0, 0, $5, 'none'
-                )
+                VALUES ($1, $2, 'note', $3, FALSE, 'system', $4, $5, $6, 0, 0, 0, $7, 'not_generated')
                 "#,
             )
             .bind(&block_id)
             .bind(workspace_id)
             .bind(format!("Perf Block {idx}"))
+            .bind(Uuid::new_v4().to_string())
+            .bind(created_at)
             .bind(created_at)
             .bind(&derived_json)
             .execute(&mut *tx)
             .await?;
 
             if idx > 0 {
+                let previous_block_id = format!("perf-block-{:05}", idx - 1);
                 sqlx::query(
                     r#"
                     INSERT INTO loom_edges (
@@ -1723,21 +1869,17 @@ impl super::Database for PostgresDatabase {
                         target_block_id,
                         edge_type,
                         created_by,
-                        last_actor_kind,
-                        edit_event_id,
-                        created_at
+                        created_at,
+                        updated_at
                     )
-                    VALUES (
-                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
-                        '00000000-0000-0000-0000-000000000000',
-                        $5
-                    )
+                    VALUES ($1, $2, $3, $4, 'mention', 'user', $5, $6)
                     "#,
                 )
-                .bind(format!("perf-edge-{idx:05}"))
+                .bind(Uuid::new_v4().to_string())
                 .bind(workspace_id)
-                .bind(format!("perf-block-{:05}", idx - 1))
+                .bind(previous_block_id)
                 .bind(&block_id)
+                .bind(created_at)
                 .bind(created_at)
                 .execute(&mut *tx)
                 .await?;
@@ -1756,13 +1898,15 @@ impl super::Database for PostgresDatabase {
         created_at: chrono::DateTime<Utc>,
         is_pinned: bool,
     ) -> StorageResult<()> {
-        sqlx::query("UPDATE ai_jobs SET status = $1, created_at = $2, is_pinned = $3 WHERE id = $4")
-            .bind(status)
-            .bind(created_at)
-            .bind(if is_pinned { 1_i32 } else { 0_i32 })
-            .bind(job_id.to_string())
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "UPDATE ai_jobs SET status = $1, created_at = $2, is_pinned = $3 WHERE id = $4",
+        )
+        .bind(status)
+        .bind(created_at)
+        .bind(if is_pinned { 1_i32 } else { 0_i32 })
+        .bind(job_id.to_string())
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -1771,30 +1915,15 @@ impl super::Database for PostgresDatabase {
         &self,
         table: &str,
         id: &str,
-    ) -> StorageResult<MutationTraceabilityRow> {
+    ) -> StorageResult<super::MutationTraceabilityRow> {
         let sql = format!(
             "SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id FROM {table} WHERE id = $1"
         );
-        sqlx::query_as::<_, MutationTraceabilityRow>(&sql)
+        sqlx::query_as::<_, super::MutationTraceabilityRow>(&sql)
             .bind(id)
             .fetch_one(&self.pool)
             .await
             .map_err(StorageError::from)
-    }
-
-    async fn run_migrations(&self) -> StorageResult<()> {
-        sqlx::migrate!("./migrations").run(&self.pool).await?;
-        ensure_locus_schema_postgres(&self.pool).await?;
-        Ok(())
-    }
-
-    async fn migration_version(&self) -> StorageResult<i64> {
-        let version = sqlx::query_scalar::<_, i64>(
-            "SELECT COALESCE(MAX(version), 0) FROM _sqlx_migrations WHERE success = TRUE",
-        )
-        .fetch_one(&self.pool)
-        .await?;
-        Ok(version)
     }
 
     async fn ping(&self) -> StorageResult<()> {

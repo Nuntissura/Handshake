@@ -1,21 +1,24 @@
-use super::{sqlite::SqliteDatabase, Database, StorageError, StorageResult};
+use super::{
+    sqlite::SqliteDatabase, Database, StorageError, StorageResult,
+    StructuredCollabTaskBoardProjectionRow,
+};
 use chrono::Utc;
 use serde_json::{json, Value};
 use sqlx::{Sqlite, SqlitePool};
 use std::collections::HashSet;
 
 use crate::workflows::locus::types::{
-    governed_action_ids_for_workflow_family, DependencyType, LocusAddDependencyParams,
-    LocusBindSessionParams, LocusCloseWpParams, LocusCompleteMtParams, LocusCreateWpParams,
-    LocusDeleteWpParams, LocusGateKind, LocusGateWpParams, LocusGetMtProgressParams,
-    LocusGetWpStatusParams, LocusOperation, LocusQueryReadyParams, LocusRecordIterationParams,
-    LocusRegisterMtsParams, LocusRemoveDependencyParams, LocusStartMtParams,
-    LocusUnbindSessionParams, LocusUpdateWpParams, MicroTaskIterationOutcome, MicroTaskStatus,
-    RoutingPolicy, TaskBoardStatus, TrackedMicroTask, TrackedMicroTaskArtifactV1,
-    WorkPacketPhase, WorkPacketStatus, WorkflowQueueReasonCode, WorkflowStateFamily,
+    DependencyType, LocusAddDependencyParams, LocusBindSessionParams, LocusCloseWpParams,
+    LocusCompleteMtParams, LocusCreateWpParams, LocusDeleteWpParams, LocusGateKind,
+    LocusGateWpParams, LocusGetMtProgressParams, LocusGetWpStatusParams, LocusOperation,
+    LocusQueryReadyParams, LocusRecordIterationParams, LocusRegisterMtsParams,
+    LocusRemoveDependencyParams, LocusStartMtParams, LocusUnbindSessionParams, LocusUpdateWpParams,
+    MicroTaskIterationOutcome, MicroTaskStatus, RoutingPolicy, TaskBoardStatus, TrackedMicroTask,
+    TrackedMicroTaskArtifactV1, WorkPacketPhase, WorkPacketStatus, WorkflowQueueReasonCode,
+    WorkflowStateFamily,
 };
 
-pub(crate) fn ensure_locus_sqlite(db: &dyn Database) -> StorageResult<()> {
+pub(crate) fn ensure_locus_sqlite(db: &(impl Database + ?Sized)) -> StorageResult<()> {
     if db.supports_locus_runtime() {
         Ok(())
     } else {
@@ -23,7 +26,9 @@ pub(crate) fn ensure_locus_sqlite(db: &dyn Database) -> StorageResult<()> {
     }
 }
 
-pub(crate) fn ensure_structured_collab_artifacts(db: &dyn Database) -> StorageResult<()> {
+pub(crate) fn ensure_structured_collab_artifacts(
+    db: &(impl Database + ?Sized),
+) -> StorageResult<()> {
     if db.supports_structured_collab_artifacts() {
         Ok(())
     } else {
@@ -34,33 +39,32 @@ pub(crate) fn ensure_structured_collab_artifacts(db: &dyn Database) -> StorageRe
 }
 
 pub(crate) async fn execute_locus_operation(
-    db: &dyn Database,
+    db: &(impl Database + ?Sized),
     op: LocusOperation,
 ) -> StorageResult<Value> {
     db.execute_locus_operation(op).await
 }
 
 pub(crate) async fn locus_work_packet_exists(
-    db: &dyn Database,
+    db: &(impl Database + ?Sized),
     wp_id: &str,
 ) -> StorageResult<bool> {
     ensure_structured_collab_artifacts(db)?;
-    Ok(db.structured_collab_work_packet_row(wp_id).await?.is_some())
+    Ok(structured_collab_work_packet_row(db, wp_id).await?.is_some())
 }
 
 pub(crate) async fn locus_task_board_get_status_and_metadata(
-    db: &dyn Database,
+    db: &(impl Database + ?Sized),
     wp_id: &str,
 ) -> StorageResult<Option<(String, String)>> {
     ensure_structured_collab_artifacts(db)?;
-    Ok(db
-        .structured_collab_work_packet_row(wp_id)
+    Ok(structured_collab_work_packet_row(db, wp_id)
         .await?
         .map(|row| (row.task_board_status, row.metadata)))
 }
 
 pub(crate) async fn locus_task_board_update_work_packet(
-    db: &dyn Database,
+    db: &(impl Database + ?Sized),
     status: &str,
     task_board_status: &str,
     updated_at: &str,
@@ -72,7 +76,7 @@ pub(crate) async fn locus_task_board_update_work_packet(
 }
 
 pub(crate) async fn locus_task_board_list_rows(
-    db: &dyn Database,
+    db: &(impl Database + ?Sized),
 ) -> StorageResult<Vec<(String, String, String)>> {
     ensure_structured_collab_artifacts(db)?;
     Ok(db
@@ -80,6 +84,72 @@ pub(crate) async fn locus_task_board_list_rows(
         .await?
         .into_iter()
         .map(|row| (row.wp_id, row.task_board_status, row.metadata))
+        .collect())
+}
+
+pub(crate) async fn structured_collab_work_packet_row(
+    db: &(impl Database + ?Sized),
+    wp_id: &str,
+) -> StorageResult<Option<super::StructuredCollabWorkPacketRow>> {
+    ensure_structured_collab_artifacts(db)?;
+    db.structured_collab_work_packet_row(wp_id).await
+}
+
+pub(crate) async fn structured_collab_work_packet_rows(
+    db: &(impl Database + ?Sized),
+) -> StorageResult<Vec<super::StructuredCollabWorkPacketRow>> {
+    ensure_structured_collab_artifacts(db)?;
+    db.structured_collab_work_packet_rows().await
+}
+
+pub(crate) async fn structured_collab_micro_task_status_rows(
+    db: &(impl Database + ?Sized),
+    wp_id: &str,
+) -> StorageResult<Vec<(String, String)>> {
+    ensure_structured_collab_artifacts(db)?;
+    db.structured_collab_micro_task_status_rows(wp_id).await
+}
+
+pub(crate) async fn structured_collab_micro_task_metadata(
+    db: &(impl Database + ?Sized),
+    wp_id: &str,
+    mt_id: &str,
+) -> StorageResult<Option<String>> {
+    ensure_structured_collab_artifacts(db)?;
+    db.structured_collab_micro_task_metadata(wp_id, mt_id).await
+}
+
+pub(crate) async fn structured_collab_micro_task_rows(
+    db: &(impl Database + ?Sized),
+    wp_id: &str,
+) -> StorageResult<Vec<(String, String)>> {
+    ensure_structured_collab_artifacts(db)?;
+    db.structured_collab_micro_task_rows(wp_id).await
+}
+
+pub(crate) async fn structured_collab_list_task_board_projection_rows(
+    sqlite: &SqliteDatabase,
+) -> StorageResult<Vec<StructuredCollabTaskBoardProjectionRow>> {
+    let rows = sqlx::query_as::<_, (String, String, String, String)>(
+        r#"
+        SELECT wp_id, task_board_status, metadata, updated_at
+        FROM work_packets
+        ORDER BY updated_at ASC, wp_id ASC
+        "#,
+    )
+    .fetch_all(sqlite.pool())
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|(wp_id, task_board_status, metadata, updated_at)| {
+            StructuredCollabTaskBoardProjectionRow {
+                wp_id,
+                task_board_status,
+                metadata,
+                updated_at,
+            }
+        })
         .collect())
 }
 
@@ -130,6 +200,23 @@ fn micro_task_workflow_state(
     }
 }
 
+fn allowed_action_ids(family: WorkflowStateFamily) -> Vec<String> {
+    let actions = match family {
+        WorkflowStateFamily::Intake => &["triage", "prioritize"][..],
+        WorkflowStateFamily::Ready => &["start", "assign"],
+        WorkflowStateFamily::Active => &["update", "complete", "pause"],
+        WorkflowStateFamily::Waiting => &["resume", "escalate"],
+        WorkflowStateFamily::Review => &["review", "request_changes"],
+        WorkflowStateFamily::Approval => &["approve", "reject"],
+        WorkflowStateFamily::Validation => &["validate", "repair"],
+        WorkflowStateFamily::Blocked => &["unblock", "escalate"],
+        WorkflowStateFamily::Done => &["archive", "reopen"],
+        WorkflowStateFamily::Canceled => &["archive", "reopen"],
+        WorkflowStateFamily::Archived => &[],
+    };
+    actions.iter().map(|action| (*action).to_string()).collect()
+}
+
 fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
     let (workflow_state_family, queue_reason_code) = micro_task_workflow_state(tracked_mt.status);
     let summary_ref = tracked_mt
@@ -158,7 +245,7 @@ fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
         mirror_contract: None,
         workflow_state_family,
         queue_reason_code,
-        allowed_action_ids: governed_action_ids_for_workflow_family(workflow_state_family),
+        allowed_action_ids: allowed_action_ids(workflow_state_family),
         summary_ref,
         mt_id: tracked_mt.mt_id.clone(),
         wp_id: tracked_mt.wp_id.clone(),

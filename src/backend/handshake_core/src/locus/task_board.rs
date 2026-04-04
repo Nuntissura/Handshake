@@ -135,11 +135,11 @@ pub fn validate_task_board_entry_authoritative_fields(
             "workflow_state_family",
             Some(
                 serde_json::to_string(&expected_workflow_state_family)
-                    .unwrap_or_else(|_| expected_workflow_state_family.as_str().to_string()),
+                    .unwrap_or_else(|_| format!("{expected_workflow_state_family:?}")),
             ),
             Some(
                 serde_json::to_string(&entry.workflow_state_family)
-                    .unwrap_or_else(|_| entry.workflow_state_family.as_str().to_string()),
+                    .unwrap_or_else(|_| format!("{:?}", entry.workflow_state_family)),
             ),
             "task-board row must preserve the authoritative workflow_state_family",
         );
@@ -151,11 +151,11 @@ pub fn validate_task_board_entry_authoritative_fields(
             "queue_reason_code",
             Some(
                 serde_json::to_string(&expected_queue_reason_code)
-                    .unwrap_or_else(|_| expected_queue_reason_code.as_str().to_string()),
+                    .unwrap_or_else(|_| format!("{expected_queue_reason_code:?}")),
             ),
             Some(
                 serde_json::to_string(&entry.queue_reason_code)
-                    .unwrap_or_else(|_| entry.queue_reason_code.as_str().to_string()),
+                    .unwrap_or_else(|_| format!("{:?}", entry.queue_reason_code)),
             ),
             "task-board row must preserve the authoritative queue_reason_code",
         );

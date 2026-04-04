@@ -1286,22 +1286,21 @@ impl super::Database for SqliteDatabase {
                     derived_json,
                     preview_status
                 )
-                VALUES (
-                    $1, $2, 'note', $3, 0, 'SYSTEM',
-                    '00000000-0000-0000-0000-000000000000',
-                    $4, $4, 0, 0, 0, $5, 'none'
-                )
+                VALUES (?, ?, 'note', ?, 0, 'system', ?, ?, ?, 0, 0, 0, ?, 'not_generated')
                 "#,
             )
             .bind(&block_id)
             .bind(workspace_id)
             .bind(format!("Perf Block {idx}"))
-            .bind(created_at)
+            .bind(Uuid::new_v4().to_string())
+            .bind(created_at.to_rfc3339())
+            .bind(created_at.to_rfc3339())
             .bind(&derived_json)
             .execute(&mut *tx)
             .await?;
 
             if idx > 0 {
+                let previous_block_id = format!("perf-block-{:05}", idx - 1);
                 sqlx::query(
                     r#"
                     INSERT INTO loom_edges (
@@ -1311,22 +1310,18 @@ impl super::Database for SqliteDatabase {
                         target_block_id,
                         edge_type,
                         created_by,
-                        last_actor_kind,
-                        edit_event_id,
-                        created_at
+                        created_at,
+                        updated_at
                     )
-                    VALUES (
-                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
-                        '00000000-0000-0000-0000-000000000000',
-                        $5
-                    )
+                    VALUES (?, ?, ?, ?, 'mention', 'user', ?, ?)
                     "#,
                 )
-                .bind(format!("perf-edge-{idx:05}"))
+                .bind(Uuid::new_v4().to_string())
                 .bind(workspace_id)
-                .bind(format!("perf-block-{:05}", idx - 1))
+                .bind(previous_block_id)
                 .bind(&block_id)
-                .bind(created_at)
+                .bind(created_at.to_rfc3339())
+                .bind(created_at.to_rfc3339())
                 .execute(&mut *tx)
                 .await?;
             }
@@ -1350,7 +1345,7 @@ impl super::Database for SqliteDatabase {
             .bind(if is_pinned { 1_i32 } else { 0_i32 })
             .bind(job_id.to_string())
             .execute(&self.pool)
-        .await?;
+            .await?;
         Ok(())
     }
 
@@ -3494,90 +3489,28 @@ impl super::Database for SqliteDatabase {
             qb.push("a.mime = ").push_bind(mime);
         }
 
-        let backlink_depth = filters.backlink_depth.unwrap_or(1);
-
         if !filters.tag_ids.is_empty() {
             push_clause(&mut qb);
-            if backlink_depth <= 1 {
-                qb.push(
-                    "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'tag' AND e.target_block_id IN (",
-                );
-                let mut separated = qb.separated(", ");
-                for tag_id in &filters.tag_ids {
-                    separated.push_bind(tag_id);
-                }
-                separated.push_unseparated("))");
-            } else {
-                qb.push(
-                    "EXISTS (WITH RECURSIVE reachable(block_id, depth, edge_type, path) AS (\
-                        SELECT e.target_block_id, 1, e.edge_type, '|' || e.source_block_id || '|' || e.target_block_id || '|' \
-                        FROM loom_edges e \
-                        WHERE e.workspace_id = b.workspace_id \
-                          AND e.source_block_id = b.block_id \
-                        UNION ALL \
-                        SELECT e.target_block_id, r.depth + 1, e.edge_type, r.path || e.target_block_id || '|' \
-                        FROM loom_edges e \
-                        JOIN reachable r ON e.source_block_id = r.block_id \
-                        WHERE e.workspace_id = b.workspace_id \
-                          AND r.depth < ",
-                );
-                qb.push_bind(backlink_depth as i64);
-                qb.push(
-                    " \
-                          AND instr(r.path, '|' || e.target_block_id || '|') = 0 \
-                    ) \
-                    SELECT 1 FROM reachable r \
-                    WHERE r.edge_type = 'tag' \
-                      AND r.block_id IN (",
-                );
-                let mut separated = qb.separated(", ");
-                for tag_id in &filters.tag_ids {
-                    separated.push_bind(tag_id);
-                }
-                separated.push_unseparated("))");
+            qb.push(
+                "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'tag' AND e.target_block_id IN (",
+            );
+            let mut separated = qb.separated(", ");
+            for tag_id in &filters.tag_ids {
+                separated.push_bind(tag_id);
             }
+            separated.push_unseparated("))");
         }
 
         if !filters.mention_ids.is_empty() {
             push_clause(&mut qb);
-            if backlink_depth <= 1 {
-                qb.push(
-                    "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'mention' AND e.target_block_id IN (",
-                );
-                let mut separated = qb.separated(", ");
-                for mention_id in &filters.mention_ids {
-                    separated.push_bind(mention_id);
-                }
-                separated.push_unseparated("))");
-            } else {
-                qb.push(
-                    "EXISTS (WITH RECURSIVE reachable(block_id, depth, edge_type, path) AS (\
-                        SELECT e.target_block_id, 1, e.edge_type, '|' || e.source_block_id || '|' || e.target_block_id || '|' \
-                        FROM loom_edges e \
-                        WHERE e.workspace_id = b.workspace_id \
-                          AND e.source_block_id = b.block_id \
-                        UNION ALL \
-                        SELECT e.target_block_id, r.depth + 1, e.edge_type, r.path || e.target_block_id || '|' \
-                        FROM loom_edges e \
-                        JOIN reachable r ON e.source_block_id = r.block_id \
-                        WHERE e.workspace_id = b.workspace_id \
-                          AND r.depth < ",
-                );
-                qb.push_bind(backlink_depth as i64);
-                qb.push(
-                    " \
-                          AND instr(r.path, '|' || e.target_block_id || '|') = 0 \
-                    ) \
-                    SELECT 1 FROM reachable r \
-                    WHERE r.edge_type = 'mention' \
-                      AND r.block_id IN (",
-                );
-                let mut separated = qb.separated(", ");
-                for mention_id in &filters.mention_ids {
-                    separated.push_bind(mention_id);
-                }
-                separated.push_unseparated("))");
+            qb.push(
+                "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'mention' AND e.target_block_id IN (",
+            );
+            let mut separated = qb.separated(", ");
+            for mention_id in &filters.mention_ids {
+                separated.push_bind(mention_id);
             }
+            separated.push_unseparated("))");
         }
 
         qb.push(" ORDER BY score ASC, b.updated_at DESC ");

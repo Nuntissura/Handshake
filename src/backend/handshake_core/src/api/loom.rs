@@ -4,7 +4,8 @@ use crate::models::ErrorResponse;
 use crate::storage::{
     artifacts, Asset, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, LoomEdge,
     LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomViewFilters, LoomViewResponse,
-    LoomViewType, NewAsset, NewLoomBlock, NewLoomEdge, PreviewStatus, StorageError, WriteContext,
+    LoomViewType, NewAsset, NewLoomBlock, NewLoomEdge, PreviewStatus, StorageCapabilityStore,
+    StorageError, WriteContext,
 };
 use crate::AppState;
 use axum::{
@@ -1054,7 +1055,10 @@ async fn search_loom_blocks(
         .map_err(map_storage_error)?;
     let duration_ms = start.elapsed().as_millis() as u64;
 
-    let tier_used = state.storage.loom_search_observability_tier();
+    let tier_used = state
+        .storage
+        .storage_capabilities()
+        .loom_search_observability_tier();
 
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomSearchExecuted,

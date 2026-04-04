@@ -21,10 +21,62 @@ pub mod sqlite;
 pub use calendar::*;
 pub use loom::*;
 
-// Test utilities are exposed for integration tests, but backend-only hooks stay behind cfg(test).
+// Test utilities - exposed for integration tests.
+// The helper function `run_storage_conformance` uses Result-based error handling.
 pub mod tests;
 
 pub type StorageResult<T> = Result<T, StorageError>;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StorageBackendKind {
+    Sqlite,
+    Postgres,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StorageCapabilitySnapshot {
+    pub backend: StorageBackendKind,
+    pub supports_structured_collab_artifacts: bool,
+    pub supports_loom_graph_filtering: bool,
+}
+
+impl StorageCapabilitySnapshot {
+    pub fn loom_search_observability_tier(&self) -> u8 {
+        match self.backend {
+            StorageBackendKind::Sqlite => 1,
+            StorageBackendKind::Postgres => 2,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, sqlx::FromRow)]
+pub struct StructuredCollabWorkPacketRow {
+    pub wp_id: String,
+    pub version: i64,
+    pub title: String,
+    pub description: String,
+    pub status: String,
+    pub priority: i64,
+    pub phase: String,
+    pub routing: String,
+    pub task_packet_path: Option<String>,
+    pub task_board_status: String,
+    pub assignee: Option<String>,
+    pub reporter: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub vector_clock: String,
+    pub metadata: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StructuredCollabTaskBoardProjectionRow {
+    pub wp_id: String,
+    pub task_board_status: String,
+    pub metadata: String,
+    pub updated_at: String,
+}
 
 /// Unified storage error type so callers don't leak provider-specific details.
 #[derive(Debug, Error)]
@@ -1527,26 +1579,6 @@ impl From<GuardError> for StorageError {
 }
 
 #[derive(Clone, Debug, sqlx::FromRow)]
-pub struct StructuredCollabWorkPacketRow {
-    pub wp_id: String,
-    pub version: i64,
-    pub title: String,
-    pub description: String,
-    pub status: String,
-    pub priority: i64,
-    pub phase: String,
-    pub routing: String,
-    pub task_packet_path: Option<String>,
-    pub task_board_status: String,
-    pub assignee: Option<String>,
-    pub reporter: String,
-    pub created_at: String,
-    pub updated_at: String,
-    pub vector_clock: String,
-    pub metadata: String,
-}
-
-#[derive(Clone, Debug, sqlx::FromRow)]
 pub struct MutationTraceabilityRow {
     pub last_actor_kind: String,
     pub last_actor_id: Option<String>,
@@ -1590,6 +1622,52 @@ impl StorageGuard for DefaultStorageGuard {
             timestamp: Utc::now(),
         })
     }
+}
+
+pub trait StorageCapabilityStore: Send + Sync {
+    fn storage_capabilities(&self) -> StorageCapabilitySnapshot;
+}
+
+#[async_trait]
+pub trait StructuredCollaborationStore: StorageCapabilityStore + Send + Sync {
+    async fn locus_work_packet_exists(&self, wp_id: &str) -> StorageResult<bool>;
+    async fn execute_locus_operation(
+        &self,
+        op: crate::workflows::locus::types::LocusOperation,
+    ) -> StorageResult<Value>;
+    async fn locus_task_board_get_status_and_metadata(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Option<(String, String)>>;
+    async fn locus_task_board_update_work_packet(
+        &self,
+        status: &str,
+        task_board_status: &str,
+        updated_at: &str,
+        metadata: &str,
+        wp_id: &str,
+    ) -> StorageResult<()>;
+    async fn locus_task_board_list_rows(&self) -> StorageResult<Vec<(String, String, String)>>;
+    async fn structured_collab_work_packet_row(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Option<StructuredCollabWorkPacketRow>>;
+    async fn structured_collab_work_packet_rows(
+        &self,
+    ) -> StorageResult<Vec<StructuredCollabWorkPacketRow>>;
+    async fn structured_collab_micro_task_status_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>>;
+    async fn structured_collab_micro_task_metadata(
+        &self,
+        wp_id: &str,
+        mt_id: &str,
+    ) -> StorageResult<Option<String>>;
+    async fn structured_collab_micro_task_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>>;
 }
 
 #[async_trait]
@@ -2069,6 +2147,112 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented(
             "test mutation traceability backend",
         ))
+    }
+}
+
+impl<T> StorageCapabilityStore for T
+where
+    T: Database + ?Sized,
+{
+    fn storage_capabilities(&self) -> StorageCapabilitySnapshot {
+        let backend = match (
+            self.loom_search_observability_tier(),
+            self.supports_loom_graph_filtering(),
+        ) {
+            (1, false) => StorageBackendKind::Sqlite,
+            (1, true) => StorageBackendKind::Sqlite,
+            (2, _) => StorageBackendKind::Postgres,
+            (_, true) => StorageBackendKind::Postgres,
+            _ => StorageBackendKind::Sqlite,
+        };
+
+        StorageCapabilitySnapshot {
+            backend,
+            supports_structured_collab_artifacts: self.supports_structured_collab_artifacts(),
+            supports_loom_graph_filtering: self.supports_loom_graph_filtering(),
+        }
+    }
+}
+
+#[async_trait]
+impl<T> StructuredCollaborationStore for T
+where
+    T: Database + ?Sized,
+{
+    async fn locus_work_packet_exists(&self, wp_id: &str) -> StorageResult<bool> {
+        locus_sqlite::locus_work_packet_exists(self, wp_id).await
+    }
+
+    async fn execute_locus_operation(
+        &self,
+        op: crate::workflows::locus::types::LocusOperation,
+    ) -> StorageResult<Value> {
+        Database::execute_locus_operation(self, op).await
+    }
+
+    async fn locus_task_board_get_status_and_metadata(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Option<(String, String)>> {
+        locus_sqlite::locus_task_board_get_status_and_metadata(self, wp_id).await
+    }
+
+    async fn locus_task_board_update_work_packet(
+        &self,
+        status: &str,
+        task_board_status: &str,
+        updated_at: &str,
+        metadata: &str,
+        wp_id: &str,
+    ) -> StorageResult<()> {
+        Database::locus_task_board_update_work_packet(
+            self,
+            status,
+            task_board_status,
+            updated_at,
+            metadata,
+            wp_id,
+        )
+        .await
+    }
+
+    async fn locus_task_board_list_rows(&self) -> StorageResult<Vec<(String, String, String)>> {
+        locus_sqlite::locus_task_board_list_rows(self).await
+    }
+
+    async fn structured_collab_work_packet_row(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Option<StructuredCollabWorkPacketRow>> {
+        Database::structured_collab_work_packet_row(self, wp_id).await
+    }
+
+    async fn structured_collab_work_packet_rows(
+        &self,
+    ) -> StorageResult<Vec<StructuredCollabWorkPacketRow>> {
+        Database::structured_collab_work_packet_rows(self).await
+    }
+
+    async fn structured_collab_micro_task_status_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>> {
+        Database::structured_collab_micro_task_status_rows(self, wp_id).await
+    }
+
+    async fn structured_collab_micro_task_metadata(
+        &self,
+        wp_id: &str,
+        mt_id: &str,
+    ) -> StorageResult<Option<String>> {
+        Database::structured_collab_micro_task_metadata(self, wp_id, mt_id).await
+    }
+
+    async fn structured_collab_micro_task_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>> {
+        Database::structured_collab_micro_task_rows(self, wp_id).await
     }
 }
 
