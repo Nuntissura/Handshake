@@ -3143,7 +3143,9 @@ async fn list_work_packet_ids_for_artifacts(
     match structured_collaboration_backend(db)? {
         StructuredCollaborationBackend::Sqlite(sqlite) => {
             Ok(
-                sqlx::query_scalar::<_, String>("SELECT wp_id FROM work_packets ORDER BY wp_id ASC")
+                sqlx::query_scalar::<_, String>(
+                    "SELECT wp_id FROM work_packets ORDER BY updated_at ASC, wp_id ASC",
+                )
                 .fetch_all(sqlite.pool())
                 .await
                 .map_err(StorageError::from)?,
@@ -3151,7 +3153,9 @@ async fn list_work_packet_ids_for_artifacts(
         }
         StructuredCollaborationBackend::Postgres(postgres) => {
             Ok(
-                sqlx::query_scalar::<_, String>("SELECT wp_id FROM work_packets ORDER BY wp_id ASC")
+                sqlx::query_scalar::<_, String>(
+                    "SELECT wp_id FROM work_packets ORDER BY updated_at ASC, wp_id ASC",
+                )
                 .fetch_all(postgres.pool())
                 .await
                 .map_err(StorageError::from)?,
@@ -23906,6 +23910,25 @@ mod tests {
         }
     }
 
+    fn sample_create_wp_params(wp_id: &str) -> locus::LocusCreateWpParams {
+        locus::LocusCreateWpParams {
+            wp_id: wp_id.to_string(),
+            title: format!("Structured collaboration artifact parity for {wp_id}"),
+            description: format!(
+                "Prove runtime structured collaboration artifacts emit for {wp_id}"
+            ),
+            priority: 1,
+            kind: locus::WorkPacketType::Feature,
+            phase: locus::WorkPacketPhase::Phase1,
+            routing: locus::RoutingPolicy::GovStandard,
+            task_packet_path: Some(".GOV/task_packets/WP-1/packet.md".to_string()),
+            assignee: Some("CODER".to_string()),
+            labels: Some(vec!["postgres".to_string(), "artifact-parity".to_string()]),
+            spec_session_id: Some("spec-session-1".to_string()),
+            reporter: "operator".to_string(),
+        }
+    }
+
     fn terminal_command() -> (String, Vec<String>) {
         if cfg!(target_os = "windows") {
             (
@@ -23932,21 +23955,7 @@ mod tests {
             EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
 
         let wp_id = "WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1";
-        let create_params = locus::LocusCreateWpParams {
-            wp_id: wp_id.to_string(),
-            title: "Postgres artifact parity".to_string(),
-            description: "Prove runtime structured collaboration artifacts emit from Postgres"
-                .to_string(),
-            priority: 1,
-            kind: locus::WorkPacketType::Feature,
-            phase: locus::WorkPacketPhase::Phase1,
-            routing: locus::RoutingPolicy::GovStandard,
-            task_packet_path: Some(".GOV/task_packets/WP-1/packet.md".to_string()),
-            assignee: Some("CODER".to_string()),
-            labels: Some(vec!["postgres".to_string(), "artifact-parity".to_string()]),
-            spec_session_id: Some("spec-session-1".to_string()),
-            reporter: "operator".to_string(),
-        };
+        let create_params = sample_create_wp_params(wp_id);
         execute_locus_work_packet_operation(
             state.storage.as_ref(),
             locus::LocusOperation::CreateWp(create_params.clone()),
@@ -23998,6 +24007,77 @@ mod tests {
         assert_eq!(task_board_row["mirror_state"], "canonical_only");
         assert_eq!(task_board_row["workflow_state_family"], "intake");
         assert_eq!(task_board_row["queue_reason_code"], "new_untriaged");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn task_board_projection_preserves_updated_at_then_wp_id_order(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+
+        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
+        let tmp = tempfile::tempdir()?;
+        let _workspace_root =
+            EnvVarGuard::set("HANDSHAKE_WORKSPACE_ROOT", &tmp.path().display().to_string());
+        let _gov_root =
+            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
+
+        let first_wp_id = "WP-B";
+        let second_wp_id = "WP-A";
+
+        let first_create = sample_create_wp_params(first_wp_id);
+        execute_locus_work_packet_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::CreateWp(first_create.clone()),
+        )
+        .await?;
+        materialize_structured_collaboration_artifacts(
+            &state,
+            &locus::LocusOperation::CreateWp(first_create),
+        )
+        .await?;
+
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+
+        let second_create = sample_create_wp_params(second_wp_id);
+        execute_locus_work_packet_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::CreateWp(second_create.clone()),
+        )
+        .await?;
+        materialize_structured_collaboration_artifacts(
+            &state,
+            &locus::LocusOperation::CreateWp(second_create),
+        )
+        .await?;
+
+        let runtime_paths = RuntimeGovernancePaths::resolve()?;
+        let task_board_index: Value =
+            serde_json::from_slice(&std::fs::read(runtime_paths.task_board_index_path())?)?;
+        let rows = task_board_index["rows"]
+            .as_array()
+            .expect("task-board index rows should be an array");
+
+        let ordered_wp_ids: Vec<&str> = rows
+            .iter()
+            .map(|row| {
+                row["work_packet_id"]
+                    .as_str()
+                    .expect("task-board row should carry a work packet id")
+            })
+            .collect();
+        assert_eq!(ordered_wp_ids, vec![first_wp_id, second_wp_id]);
+
+        let display_orders: Vec<u64> = rows
+            .iter()
+            .map(|row| {
+                row["display_order"]
+                    .as_u64()
+                    .expect("task-board row should carry a display_order")
+            })
+            .collect();
+        assert_eq!(display_orders, vec![0, 1]);
 
         Ok(())
     }
