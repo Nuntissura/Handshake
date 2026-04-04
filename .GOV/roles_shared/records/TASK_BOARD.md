@@ -75,9 +75,7 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
-- **[WP-1-Storage-Capability-Boundary-Refactor-v1]** - [READY_FOR_DEV]
 
-- **[WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 
@@ -315,6 +313,86 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
 - **[WP-1-Front-End-Memory-System-v1]** - [VALIDATED]
@@ -413,6 +491,12 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 - **[WP-1-Storage-Trait-Purity-v1]** - [VALIDATED]
+
+
+
+- **[WP-1-Storage-Capability-Boundary-Refactor-v1]** - [VALIDATED]
+
+- **[WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1]** - [VALIDATED]
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]

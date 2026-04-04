@@ -1,0 +1,3075 @@
+diff --git a/src/backend/handshake_core/migrations/0016_locus_structured_collaboration.down.sql b/src/backend/handshake_core/migrations/0016_locus_structured_collaboration.down.sql
+new file mode 100644
+index 0000000..9f9f5f0
+--- /dev/null
++++ b/src/backend/handshake_core/migrations/0016_locus_structured_collaboration.down.sql
+@@ -0,0 +1,4 @@
++-- WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1 rollback
++
++DROP TABLE IF EXISTS micro_tasks;
++DROP TABLE IF EXISTS work_packets;
+diff --git a/src/backend/handshake_core/migrations/0016_locus_structured_collaboration.sql b/src/backend/handshake_core/migrations/0016_locus_structured_collaboration.sql
+new file mode 100644
+index 0000000..531451d
+--- /dev/null
++++ b/src/backend/handshake_core/migrations/0016_locus_structured_collaboration.sql
+@@ -0,0 +1,36 @@
++-- WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1:
++-- bounded structured-collaboration schema coverage for migration portability
++
++CREATE TABLE IF NOT EXISTS work_packets (
++    wp_id TEXT PRIMARY KEY,
++    version BIGINT NOT NULL,
++    title TEXT NOT NULL,
++    description TEXT,
++    status TEXT NOT NULL,
++    priority BIGINT NOT NULL,
++    phase TEXT,
++    routing TEXT,
++    task_packet_path TEXT,
++    task_board_status TEXT NOT NULL,
++    assignee TEXT,
++    reporter TEXT NOT NULL,
++    created_at TEXT NOT NULL,
++    updated_at TEXT NOT NULL,
++    vector_clock TEXT NOT NULL,
++    metadata TEXT NOT NULL
++);
++
++CREATE INDEX IF NOT EXISTS idx_wp_status ON work_packets(status);
++CREATE INDEX IF NOT EXISTS idx_wp_priority ON work_packets(priority);
++CREATE INDEX IF NOT EXISTS idx_wp_task_board_status ON work_packets(task_board_status);
++
++CREATE TABLE IF NOT EXISTS micro_tasks (
++    mt_id TEXT PRIMARY KEY,
++    wp_id TEXT NOT NULL,
++    name TEXT NOT NULL,
++    status TEXT NOT NULL,
++    current_iteration BIGINT,
++    escalation_level BIGINT,
++    metadata TEXT NOT NULL,
++    FOREIGN KEY (wp_id) REFERENCES work_packets(wp_id) ON DELETE CASCADE
++);
+diff --git a/src/backend/handshake_core/src/storage/locus_sqlite.rs b/src/backend/handshake_core/src/storage/locus_sqlite.rs
+index c32ec53..d44e4df 100644
+--- a/src/backend/handshake_core/src/storage/locus_sqlite.rs
++++ b/src/backend/handshake_core/src/storage/locus_sqlite.rs
+@@ -24,4 +23,0 @@ fn sqlite_db(db: &dyn Database) -> StorageResult<&SqliteDatabase> {
+-pub(crate) fn ensure_locus_sqlite(db: &dyn Database) -> StorageResult<()> {
+-    sqlite_db(db).map(|_| ())
+-}
+-
+diff --git a/src/backend/handshake_core/src/storage/mod.rs b/src/backend/handshake_core/src/storage/mod.rs
+index 30975ef..a9a60c0 100644
+--- a/src/backend/handshake_core/src/storage/mod.rs
++++ b/src/backend/handshake_core/src/storage/mod.rs
+@@ -1529,0 +1530,9 @@ impl From<GuardError> for StorageError {
++#[derive(Clone, Debug, sqlx::FromRow)]
++pub struct MutationTraceabilityRow {
++    pub last_actor_kind: String,
++    pub last_actor_id: Option<String>,
++    pub last_job_id: Option<String>,
++    pub last_workflow_id: Option<String>,
++    pub edit_event_id: String,
++}
++
+@@ -1568,0 +1578,8 @@ pub trait Database: Send + Sync + std::any::Any {
++    fn supports_loom_graph_filtering(&self) -> bool {
++        false
++    }
++
++    fn loom_traverse_graph_perf_target_ms(&self) -> u128 {
++        100
++    }
++
+@@ -1899,0 +1917,49 @@ pub trait Database: Send + Sync + std::any::Any {
++    #[cfg(test)]
++    async fn test_overwrite_loom_block_metrics(
++        &self,
++        workspace_id: &str,
++        block_id: &str,
++        mention_count: i64,
++        tag_count: i64,
++        backlink_count: i64,
++    ) -> StorageResult<()> {
++        let _ = (
++            workspace_id,
++            block_id,
++            mention_count,
++            tag_count,
++            backlink_count,
++        );
++        Err(StorageError::NotImplemented("test loom metrics backend"))
++    }
++
++    #[cfg(test)]
++    async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
++        let _ = workspace_id;
++        Err(StorageError::NotImplemented("test loom metrics backend"))
++    }
++
++    #[cfg(test)]
++    async fn test_insert_loom_traversal_perf_fixture(
++        &self,
++        workspace_id: &str,
++        total_blocks: usize,
++    ) -> StorageResult<String> {
++        let _ = (workspace_id, total_blocks);
++        Err(StorageError::NotImplemented(
++            "loom traversal performance backend",
++        ))
++    }
++
++    #[cfg(test)]
++    async fn test_fetch_mutation_traceability_row(
++        &self,
++        table: &str,
++        id: &str,
++    ) -> StorageResult<MutationTraceabilityRow> {
++        let _ = (table, id);
++        Err(StorageError::NotImplemented(
++            "test mutation traceability backend",
++        ))
++    }
++
+@@ -1924,0 +1991,94 @@ pub async fn init_storage() -> Result<Arc<dyn Database>, StorageError> {
++
++pub(crate) async fn execute_locus_operation(
++    db: &dyn Database,
++    op: crate::workflows::locus::types::LocusOperation,
++) -> StorageResult<Value> {
++    if db.as_any().is::<sqlite::SqliteDatabase>() {
++        return locus_sqlite::execute_locus_operation(db, op).await;
++    }
++
++    if let Some(postgres) = db.as_any().downcast_ref::<postgres::PostgresDatabase>() {
++        return postgres::execute_locus_operation(postgres, op).await;
++    }
++
++    Err(StorageError::NotImplemented("locus storage backend"))
++}
++
++pub(crate) async fn locus_work_packet_exists(
++    db: &dyn Database,
++    wp_id: &str,
++) -> StorageResult<bool> {
++    if db.as_any().is::<sqlite::SqliteDatabase>() {
++        return locus_sqlite::locus_work_packet_exists(db, wp_id).await;
++    }
++
++    if let Some(postgres) = db.as_any().downcast_ref::<postgres::PostgresDatabase>() {
++        return postgres::locus_work_packet_exists(postgres, wp_id).await;
++    }
++
++    Err(StorageError::NotImplemented("locus storage backend"))
++}
++
++pub(crate) async fn locus_task_board_get_status_and_metadata(
++    db: &dyn Database,
++    wp_id: &str,
++) -> StorageResult<Option<(String, String)>> {
++    if db.as_any().is::<sqlite::SqliteDatabase>() {
++        return locus_sqlite::locus_task_board_get_status_and_metadata(db, wp_id).await;
++    }
++
++    if let Some(postgres) = db.as_any().downcast_ref::<postgres::PostgresDatabase>() {
++        return postgres::locus_task_board_get_status_and_metadata(postgres, wp_id).await;
++    }
++
++    Err(StorageError::NotImplemented("locus storage backend"))
++}
++
++pub(crate) async fn locus_task_board_update_work_packet(
++    db: &dyn Database,
++    status: &str,
++    task_board_status: &str,
++    updated_at: &str,
++    metadata: &str,
++    wp_id: &str,
++) -> StorageResult<()> {
++    if db.as_any().is::<sqlite::SqliteDatabase>() {
++        return locus_sqlite::locus_task_board_update_work_packet(
++            db,
++            status,
++            task_board_status,
++            updated_at,
++            metadata,
++            wp_id,
++        )
++        .await;
++    }
++
++    if let Some(postgres) = db.as_any().downcast_ref::<postgres::PostgresDatabase>() {
++        return postgres::locus_task_board_update_work_packet(
++            postgres,
++            status,
++            task_board_status,
++            updated_at,
++            metadata,
++            wp_id,
++        )
++        .await;
++    }
++
++    Err(StorageError::NotImplemented("locus storage backend"))
++}
++
++pub(crate) async fn locus_task_board_list_rows(
++    db: &dyn Database,
++) -> StorageResult<Vec<(String, String, String)>> {
++    if db.as_any().is::<sqlite::SqliteDatabase>() {
++        return locus_sqlite::locus_task_board_list_rows(db).await;
++    }
++
++    if let Some(postgres) = db.as_any().downcast_ref::<postgres::PostgresDatabase>() {
++        return postgres::locus_task_board_list_rows(postgres).await;
++    }
++
++    Err(StorageError::NotImplemented("locus storage backend"))
++}
+diff --git a/src/backend/handshake_core/src/storage/postgres.rs b/src/backend/handshake_core/src/storage/postgres.rs
+index 8f0fb85..97bc5a8 100644
+--- a/src/backend/handshake_core/src/storage/postgres.rs
++++ b/src/backend/handshake_core/src/storage/postgres.rs
+@@ -19 +19 @@ use chrono::{NaiveDateTime, Utc};
+-use serde_json::Value;
++use serde_json::{json, Value};
+@@ -22 +22 @@ use sqlx::{
+-    Row,
++    Postgres, Row,
+@@ -24 +24 @@ use sqlx::{
+-use std::collections::BTreeSet;
++use std::collections::{BTreeSet, HashSet};
+@@ -28,0 +29,8 @@ use uuid::Uuid;
++use crate::workflows::locus::types::{
++    LocusBindSessionParams, LocusCloseWpParams, LocusCompleteMtParams, LocusCreateWpParams,
++    LocusDeleteWpParams, LocusGateKind, LocusGateWpParams, LocusOperation,
++    LocusRecordIterationParams, LocusRegisterMtsParams, LocusStartMtParams,
++    LocusUnbindSessionParams, LocusUpdateWpParams, MicroTaskIterationOutcome, MicroTaskStatus,
++    RoutingPolicy, TaskBoardStatus, TrackedMicroTask, WorkPacketPhase, WorkPacketStatus,
++};
++
+@@ -155,0 +164,881 @@ impl PostgresDatabase {
++async fn ensure_locus_schema_postgres(pool: &PgPool) -> StorageResult<()> {
++    let mut tx = pool.begin().await?;
++
++    let statements = [
++        r#"
++        CREATE TABLE IF NOT EXISTS work_packets (
++            wp_id TEXT PRIMARY KEY,
++            version BIGINT NOT NULL,
++            title TEXT NOT NULL,
++            description TEXT,
++            status TEXT NOT NULL,
++            priority BIGINT NOT NULL,
++            phase TEXT,
++            routing TEXT,
++            task_packet_path TEXT,
++            task_board_status TEXT NOT NULL,
++            assignee TEXT,
++            reporter TEXT NOT NULL,
++            created_at TEXT NOT NULL,
++            updated_at TEXT NOT NULL,
++            vector_clock TEXT NOT NULL,
++            metadata TEXT NOT NULL
++        )
++        "#,
++        r#"CREATE INDEX IF NOT EXISTS idx_wp_status ON work_packets(status)"#,
++        r#"CREATE INDEX IF NOT EXISTS idx_wp_priority ON work_packets(priority)"#,
++        r#"CREATE INDEX IF NOT EXISTS idx_wp_task_board_status ON work_packets(task_board_status)"#,
++        r#"
++        CREATE TABLE IF NOT EXISTS micro_tasks (
++            mt_id TEXT PRIMARY KEY,
++            wp_id TEXT NOT NULL,
++            name TEXT NOT NULL,
++            status TEXT NOT NULL,
++            current_iteration BIGINT,
++            escalation_level BIGINT,
++            metadata TEXT NOT NULL,
++            FOREIGN KEY (wp_id) REFERENCES work_packets(wp_id) ON DELETE CASCADE
++        )
++        "#,
++        r#"
++        CREATE TABLE IF NOT EXISTS mt_iterations (
++            iteration_id BIGSERIAL PRIMARY KEY,
++            mt_id TEXT NOT NULL,
++            iteration BIGINT NOT NULL,
++            model_id TEXT NOT NULL,
++            lora_id TEXT,
++            outcome TEXT NOT NULL,
++            validation_passed BIGINT,
++            duration_ms BIGINT NOT NULL,
++            FOREIGN KEY (mt_id) REFERENCES micro_tasks(mt_id) ON DELETE CASCADE
++        )
++        "#,
++        r#"
++        CREATE TABLE IF NOT EXISTS dependencies (
++            dependency_id TEXT PRIMARY KEY,
++            from_wp_id TEXT NOT NULL,
++            to_wp_id TEXT NOT NULL,
++            type TEXT NOT NULL,
++            created_at TEXT NOT NULL,
++            vector_clock TEXT NOT NULL,
++            FOREIGN KEY (from_wp_id) REFERENCES work_packets(wp_id) ON DELETE CASCADE,
++            FOREIGN KEY (to_wp_id) REFERENCES work_packets(wp_id) ON DELETE CASCADE
++        )
++        "#,
++        r#"CREATE INDEX IF NOT EXISTS idx_dep_from ON dependencies(from_wp_id)"#,
++        r#"CREATE INDEX IF NOT EXISTS idx_dep_to ON dependencies(to_wp_id)"#,
++        r#"CREATE INDEX IF NOT EXISTS idx_dep_type ON dependencies(type)"#,
++    ];
++
++    for statement in statements {
++        sqlx::query(statement).execute(&mut *tx).await?;
++    }
++
++    tx.commit().await?;
++    Ok(())
++}
++
++fn now_rfc3339() -> String {
++    Utc::now().to_rfc3339()
++}
++
++fn work_packet_status_str(status: WorkPacketStatus) -> &'static str {
++    match status {
++        WorkPacketStatus::Unknown => "stub",
++        WorkPacketStatus::Ready => "ready",
++        WorkPacketStatus::InProgress => "in_progress",
++        WorkPacketStatus::Blocked => "blocked",
++        WorkPacketStatus::Gated => "gated",
++        WorkPacketStatus::Done => "done",
++        WorkPacketStatus::Cancelled => "cancelled",
++    }
++}
++
++fn task_board_status_str(status: TaskBoardStatus) -> &'static str {
++    match status {
++        TaskBoardStatus::Unknown => "STUB",
++        TaskBoardStatus::Ready => "READY",
++        TaskBoardStatus::InProgress => "IN_PROGRESS",
++        TaskBoardStatus::Blocked => "BLOCKED",
++        TaskBoardStatus::Gated => "GATED",
++        TaskBoardStatus::Done => "DONE",
++        TaskBoardStatus::Cancelled => "CANCELLED",
++    }
++}
++
++fn micro_task_status_str(status: MicroTaskStatus) -> &'static str {
++    match status {
++        MicroTaskStatus::Pending => "pending",
++        MicroTaskStatus::InProgress => "in_progress",
++        MicroTaskStatus::Completed => "completed",
++        MicroTaskStatus::Failed => "failed",
++        MicroTaskStatus::Blocked => "blocked",
++        MicroTaskStatus::Skipped => "skipped",
++    }
++}
++
++fn phase_str(phase: WorkPacketPhase) -> &'static str {
++    match phase {
++        WorkPacketPhase::Phase0 => "0",
++        WorkPacketPhase::Phase0_5 => "0.5",
++        WorkPacketPhase::Phase1 => "1",
++        WorkPacketPhase::Phase2 => "2",
++        WorkPacketPhase::Phase3 => "3",
++        WorkPacketPhase::Phase4 => "4",
++    }
++}
++
++fn routing_str(routing: RoutingPolicy) -> &'static str {
++    match routing {
++        RoutingPolicy::GovStrict => "GOV_STRICT",
++        RoutingPolicy::GovStandard => "GOV_STANDARD",
++        RoutingPolicy::GovLight => "GOV_LIGHT",
++        RoutingPolicy::GovNone => "GOV_NONE",
++    }
++}
++
++fn mt_iteration_outcome_str(outcome: MicroTaskIterationOutcome) -> &'static str {
++    match outcome {
++        MicroTaskIterationOutcome::Success => "SUCCESS",
++        MicroTaskIterationOutcome::Retry => "RETRY",
++        MicroTaskIterationOutcome::Escalate => "ESCALATE",
++        MicroTaskIterationOutcome::Blocked => "BLOCKED",
++        MicroTaskIterationOutcome::Skipped => "SKIPPED",
++    }
++}
++
++async fn ensure_wp_exists(pool: &PgPool, wp_id: &str) -> StorageResult<()> {
++    let exists =
++        sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM work_packets WHERE wp_id = $1)")
++        .bind(wp_id)
++        .fetch_one(pool)
++        .await?;
++
++    if !exists {
++        return Err(StorageError::NotFound("work_packet"));
++    }
++
++    Ok(())
++}
++
++async fn ensure_mt_exists_for_wp(pool: &PgPool, wp_id: &str, mt_id: &str) -> StorageResult<()> {
++    let exists = sqlx::query_scalar::<_, bool>(
++        "SELECT EXISTS(SELECT 1 FROM micro_tasks WHERE mt_id = $1 AND wp_id = $2)",
++    )
++    .bind(mt_id)
++    .bind(wp_id)
++    .fetch_one(pool)
++    .await?;
++
++    if !exists {
++        return Err(StorageError::NotFound("micro_task"));
++    }
++
++    Ok(())
++}
++
++fn dedupe_session_ids(active_session_ids: &mut Vec<String>) {
++    let mut seen = HashSet::new();
++    let normalized = active_session_ids
++        .iter()
++        .filter_map(|session_id| {
++            let trimmed = session_id.trim();
++            if trimmed.is_empty() {
++                return None;
++            }
++
++            let normalized = trimmed.to_string();
++            if seen.insert(normalized.clone()) {
++                Some(normalized)
++            } else {
++                None
++            }
++        })
++        .collect();
++    *active_session_ids = normalized;
++}
++
++fn tracked_mt_iteration_index(
++    tracked_mt: &TrackedMicroTask,
++    iteration: &crate::workflows::locus::types::MicroTaskIterationRecord,
++) -> Option<usize> {
++    tracked_mt.iterations.iter().position(|existing| {
++        existing.iteration == iteration.iteration
++            && existing.escalation_level == iteration.escalation_level
++    })
++}
++
++fn upsert_tracked_mt_iteration(
++    tracked_mt: &mut TrackedMicroTask,
++    iteration: crate::workflows::locus::types::MicroTaskIterationRecord,
++) {
++    if let Some(index) = tracked_mt_iteration_index(tracked_mt, &iteration) {
++        tracked_mt.iterations[index] = iteration;
++    } else {
++        tracked_mt.iterations.push(iteration);
++    }
++}
++
++async fn load_tracked_mt_for_update(
++    tx: &mut sqlx::Transaction<'_, Postgres>,
++    wp_id: &str,
++    mt_id: &str,
++) -> StorageResult<TrackedMicroTask> {
++    let metadata = sqlx::query_scalar::<_, String>(
++        r#"
++        SELECT metadata
++        FROM micro_tasks
++        WHERE mt_id = $1 AND wp_id = $2
++        "#,
++    )
++    .bind(mt_id)
++    .bind(wp_id)
++    .fetch_optional(&mut **tx)
++    .await?;
++
++    let Some(metadata) = metadata else {
++        return Err(StorageError::NotFound("micro_task"));
++    };
++
++    let mut tracked_mt: TrackedMicroTask = serde_json::from_str(&metadata)?;
++    dedupe_session_ids(&mut tracked_mt.active_session_ids);
++    Ok(tracked_mt)
++}
++
++async fn persist_tracked_mt(
++    tx: &mut sqlx::Transaction<'_, Postgres>,
++    tracked_mt: &TrackedMicroTask,
++) -> StorageResult<()> {
++    let metadata = serde_json::to_string(tracked_mt)?;
++    let result = sqlx::query(
++        r#"
++        UPDATE micro_tasks
++        SET
++            name = $1,
++            status = $2,
++            current_iteration = $3,
++            escalation_level = $4,
++            metadata = $5
++        WHERE mt_id = $6 AND wp_id = $7
++        "#,
++    )
++    .bind(&tracked_mt.name)
++    .bind(micro_task_status_str(tracked_mt.status))
++    .bind(tracked_mt.current_iteration as i64)
++    .bind(tracked_mt.escalation.current_level as i64)
++    .bind(metadata)
++    .bind(&tracked_mt.mt_id)
++    .bind(&tracked_mt.wp_id)
++    .execute(&mut **tx)
++    .await?;
++
++    if result.rows_affected() == 0 {
++        return Err(StorageError::NotFound("micro_task"));
++    }
++
++    Ok(())
++}
++
++async fn create_wp(pool: &PgPool, params: LocusCreateWpParams) -> StorageResult<Value> {
++    if params.priority > 4 {
++        return Err(StorageError::Validation("priority must be between 0 and 4"));
++    }
++
++    let existing =
++        sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM work_packets WHERE wp_id = $1)")
++        .bind(&params.wp_id)
++        .fetch_one(pool)
++        .await?;
++    if existing {
++        return Err(StorageError::Conflict("work_packet already exists"));
++    }
++
++    let now = now_rfc3339();
++    let status = WorkPacketStatus::Unknown;
++    let task_board_status = TaskBoardStatus::Unknown;
++    let vector_clock = json!({"local": 1});
++    let metadata = json!({
++        "labels": params.labels.unwrap_or_default(),
++        "spec_session_id": params.spec_session_id,
++        "notes": [],
++        "gates": {
++            "pre_work": { "status": "pending" },
++            "post_work": { "status": "pending" }
++        },
++        "started_at": null,
++        "completed_at": null,
++        "due_at": null,
++        "tombstone": null,
++        "work_packet_type": serde_json::to_value(params.kind)?,
++    });
++
++    sqlx::query(
++        r#"
++        INSERT INTO work_packets (
++            wp_id, version, title, description, status, priority, phase, routing, task_packet_path,
++            task_board_status, assignee, reporter, created_at, updated_at, vector_clock, metadata
++        )
++        VALUES (
++            $1, $2, $3, $4, $5, $6, $7, $8, $9,
++            $10, $11, $12, $13, $14, $15, $16
++        )
++        "#,
++    )
++    .bind(&params.wp_id)
++    .bind(1i64)
++    .bind(&params.title)
++    .bind(&params.description)
++    .bind(work_packet_status_str(status))
++    .bind(params.priority as i64)
++    .bind(phase_str(params.phase))
++    .bind(routing_str(params.routing))
++    .bind(params.task_packet_path.as_deref())
++    .bind(task_board_status_str(task_board_status))
++    .bind(params.assignee.as_deref())
++    .bind(&params.reporter)
++    .bind(&now)
++    .bind(&now)
++    .bind(serde_json::to_string(&vector_clock)?)
++    .bind(serde_json::to_string(&metadata)?)
++    .execute(pool)
++    .await?;
++
++    Ok(json!({
++        "wp_id": params.wp_id,
++        "version": 1,
++        "status": work_packet_status_str(status),
++        "task_board_status": task_board_status_str(task_board_status),
++        "created_at": now,
++        "updated_at": now,
++    }))
++}
++
++async fn update_wp(pool: &PgPool, params: LocusUpdateWpParams) -> StorageResult<Value> {
++    ensure_wp_exists(pool, &params.wp_id).await?;
++
++    let now = now_rfc3339();
++
++    let mut cols: Vec<(&'static str, Value)> = Vec::new();
++    for (key, value) in params.updates {
++        let col = match key.as_str() {
++            "title" => "title",
++            "description" => "description",
++            "priority" => "priority",
++            "status" => "status",
++            "assignee" => "assignee",
++            "governance.phase" | "phase" => "phase",
++            "governance.routing" | "routing" => "routing",
++            "governance.task_packet_path" | "task_packet_path" => "task_packet_path",
++            "governance.task_board_status" | "task_board_status" => "task_board_status",
++            other => {
++                return Err(StorageError::Validation(match other {
++                    "" => "empty update key",
++                    _ => "unsupported update key",
++                }));
++            }
++        };
++        cols.push((col, value));
++    }
++
++    if cols.is_empty() {
++        return Ok(json!({
++            "wp_id": params.wp_id,
++            "updated_at": now,
++            "no_op": true,
++        }));
++    }
++
++    let mut sql = String::from("UPDATE work_packets SET version = version + 1, updated_at = $1");
++    for (idx, (col, _)) in cols.iter().enumerate() {
++        sql.push_str(", ");
++        sql.push_str(col);
++        sql.push_str(" = $");
++        sql.push_str(&(idx + 2).to_string());
++    }
++    sql.push_str(" WHERE wp_id = $");
++    sql.push_str(&(cols.len() + 2).to_string());
++
++    let mut query = sqlx::query(&sql).bind(&now);
++    for (col, value) in cols {
++        match col {
++            "priority" => match value {
++                Value::Number(n) => {
++                    let prio = n
++                        .as_i64()
++                        .ok_or(StorageError::Validation("priority must be an integer"))?;
++                    if !(0..=4).contains(&prio) {
++                        return Err(StorageError::Validation("priority must be between 0 and 4"));
++                    }
++                    query = query.bind(prio);
++                }
++                _ => return Err(StorageError::Validation("priority must be an integer")),
++            },
++            _ => match value {
++                Value::String(s) => query = query.bind(s),
++                Value::Null => query = query.bind(Option::<String>::None),
++                _ => return Err(StorageError::Validation("unsupported update value type")),
++            },
++        }
++    }
++    query = query.bind(&params.wp_id);
++
++    let result = query.execute(pool).await?;
++    if result.rows_affected() == 0 {
++        return Err(StorageError::NotFound("work_packet"));
++    }
++
++    Ok(json!({
++        "wp_id": params.wp_id,
++        "updated_at": now,
++    }))
++}
++
++async fn gate_wp(pool: &PgPool, params: LocusGateWpParams) -> StorageResult<Value> {
++    ensure_wp_exists(pool, &params.wp_id).await?;
++
++    let row = sqlx::query_scalar::<_, String>("SELECT metadata FROM work_packets WHERE wp_id = $1")
++        .bind(&params.wp_id)
++        .fetch_one(pool)
++        .await?;
++    let mut metadata: Value = serde_json::from_str(&row)?;
++
++    let gate_key = match params.gate {
++        LocusGateKind::PreWork => "pre_work",
++        LocusGateKind::PostWork => "post_work",
++    };
++
++    let gate_value = serde_json::to_value(&params.result)?;
++    metadata
++        .as_object_mut()
++        .ok_or(StorageError::Validation("metadata must be an object"))?
++        .entry("gates".to_string())
++        .or_insert_with(|| json!({}))
++        .as_object_mut()
++        .ok_or(StorageError::Validation("metadata.gates must be an object"))?
++        .insert(gate_key.to_string(), gate_value);
++
++    let now = now_rfc3339();
++    sqlx::query(
++        "UPDATE work_packets SET version = version + 1, updated_at = $1, metadata = $2 WHERE wp_id = $3",
++    )
++    .bind(&now)
++    .bind(serde_json::to_string(&metadata)?)
++    .bind(&params.wp_id)
++    .execute(pool)
++    .await?;
++
++    Ok(json!({
++        "wp_id": params.wp_id,
++        "gate": gate_key,
++        "updated_at": now,
++    }))
++}
++
++async fn close_wp(pool: &PgPool, params: LocusCloseWpParams) -> StorageResult<Value> {
++    ensure_wp_exists(pool, &params.wp_id).await?;
++    let now = now_rfc3339();
++    sqlx::query(
++        r#"
++        UPDATE work_packets
++        SET
++            version = version + 1,
++            status = $1,
++            task_board_status = $2,
++            updated_at = $3
++        WHERE wp_id = $4
++        "#,
++    )
++    .bind(work_packet_status_str(WorkPacketStatus::Done))
++    .bind(task_board_status_str(TaskBoardStatus::Done))
++    .bind(&now)
++    .bind(&params.wp_id)
++    .execute(pool)
++    .await?;
++
++    Ok(json!({
++        "wp_id": params.wp_id,
++        "status": "done",
++        "updated_at": now,
++    }))
++}
++
++async fn delete_wp(pool: &PgPool, params: LocusDeleteWpParams) -> StorageResult<Value> {
++    ensure_wp_exists(pool, &params.wp_id).await?;
++    let now = now_rfc3339();
++
++    let row = sqlx::query_scalar::<_, String>("SELECT metadata FROM work_packets WHERE wp_id = $1")
++        .bind(&params.wp_id)
++        .fetch_one(pool)
++        .await?;
++    let mut metadata: Value = serde_json::from_str(&row)?;
++    metadata
++        .as_object_mut()
++        .ok_or(StorageError::Validation("metadata must be an object"))?
++        .insert("tombstone".to_string(), json!({ "deleted_at": now }));
++
++    sqlx::query(
++        r#"
++        UPDATE work_packets
++        SET
++            version = version + 1,
++            status = $1,
++            task_board_status = $2,
++            updated_at = $3,
++            metadata = $4
++        WHERE wp_id = $5
++        "#,
++    )
++    .bind(work_packet_status_str(WorkPacketStatus::Cancelled))
++    .bind(task_board_status_str(TaskBoardStatus::Cancelled))
++    .bind(&now)
++    .bind(serde_json::to_string(&metadata)?)
++    .bind(&params.wp_id)
++    .execute(pool)
++    .await?;
++
++    Ok(json!({
++        "wp_id": params.wp_id,
++        "status": "cancelled",
++        "updated_at": now,
++    }))
++}
++
++async fn register_mts(pool: &PgPool, params: LocusRegisterMtsParams) -> StorageResult<Value> {
++    ensure_wp_exists(pool, &params.wp_id).await?;
++
++    let mut tx = pool.begin().await?;
++    for mut mt in params.micro_tasks {
++        if mt.wp_id != params.wp_id {
++            return Err(StorageError::Validation("micro task wp_id mismatch"));
++        }
++
++        dedupe_session_ids(&mut mt.active_session_ids);
++        let existing_wp_id = sqlx::query_scalar::<_, String>(
++            "SELECT wp_id FROM micro_tasks WHERE mt_id = $1 LIMIT 1",
++        )
++        .bind(&mt.mt_id)
++        .fetch_optional(&mut *tx)
++        .await?;
++        if let Some(existing_wp_id) = existing_wp_id {
++            if existing_wp_id != params.wp_id {
++                return Err(StorageError::Conflict(
++                    "micro_task already registered to a different work_packet",
++                ));
++            }
++            continue;
++        }
++
++        let metadata = serde_json::to_string(&mt)?;
++        sqlx::query(
++            r#"
++            INSERT INTO micro_tasks (
++                mt_id, wp_id, name, status, current_iteration, escalation_level, metadata
++            )
++            VALUES ($1, $2, $3, $4, $5, $6, $7)
++            "#,
++        )
++        .bind(&mt.mt_id)
++        .bind(&mt.wp_id)
++        .bind(&mt.name)
++        .bind(micro_task_status_str(mt.status))
++        .bind(mt.current_iteration as i64)
++        .bind(mt.escalation.current_level as i64)
++        .bind(metadata)
++        .execute(&mut *tx)
++        .await?;
++    }
++
++    tx.commit().await?;
++    Ok(json!({
++        "wp_id": params.wp_id,
++        "registered": true,
++    }))
++}
++
++async fn start_mt(pool: &PgPool, params: LocusStartMtParams) -> StorageResult<Value> {
++    ensure_wp_exists(pool, &params.wp_id).await?;
++    ensure_mt_exists_for_wp(pool, &params.wp_id, &params.mt_id).await?;
++    let now = now_rfc3339();
++    let mut tx = pool.begin().await?;
++    let mut tracked_mt = load_tracked_mt_for_update(&mut tx, &params.wp_id, &params.mt_id).await?;
++    tracked_mt.status = MicroTaskStatus::InProgress;
++    tracked_mt.escalation.current_level = params.escalation_level;
++    if tracked_mt.started_at.is_none() {
++        tracked_mt.started_at = Some(Utc::now());
++    }
++    persist_tracked_mt(&mut tx, &tracked_mt).await?;
++    tx.commit().await?;
++
++    Ok(json!({
++        "wp_id": params.wp_id,
++        "mt_id": params.mt_id,
++        "status": "in_progress",
++        "model_id": params.model_id,
++        "lora_id": params.lora_id,
++        "escalation_level": params.escalation_level,
++        "updated_at": now,
++    }))
++}
++
++async fn record_iteration(
++    pool: &PgPool,
++    params: LocusRecordIterationParams,
++) -> StorageResult<Value> {
++    ensure_wp_exists(pool, &params.wp_id).await?;
++    ensure_mt_exists_for_wp(pool, &params.wp_id, &params.mt_id).await?;
++
++    let mut tx = pool.begin().await?;
++    let mut tracked_mt = load_tracked_mt_for_update(&mut tx, &params.wp_id, &params.mt_id).await?;
++    let recorded_iteration = tracked_mt_iteration_index(&tracked_mt, &params.iteration)
++        .map(|index| index as u32 + 1)
++        .unwrap_or(tracked_mt.iterations.len() as u32 + 1);
++    let existing_iteration_id = sqlx::query_scalar::<_, i64>(
++        r#"
++        SELECT iteration_id
++        FROM mt_iterations
++        WHERE mt_id = $1 AND iteration = $2
++        LIMIT 1
++        "#,
++    )
++    .bind(&params.mt_id)
++    .bind(recorded_iteration as i64)
++    .fetch_optional(&mut *tx)
++    .await?;
++    if let Some(iteration_id) = existing_iteration_id {
++        sqlx::query(
++            r#"
++            UPDATE mt_iterations
++            SET
++                model_id = $1,
++                lora_id = $2,
++                outcome = $3,
++                validation_passed = $4,
++                duration_ms = $5
++            WHERE iteration_id = $6
++            "#,
++        )
++        .bind(&params.iteration.model_id)
++        .bind(params.iteration.lora_id.as_deref())
++        .bind(mt_iteration_outcome_str(params.iteration.outcome))
++        .bind(
++            params
++                .iteration
++                .validation_passed
++                .map(|v| if v { 1i64 } else { 0i64 }),
++        )
++        .bind(params.iteration.duration_ms as i64)
++        .bind(iteration_id)
++        .execute(&mut *tx)
++        .await?;
++    } else {
++        sqlx::query(
++            r#"
++            INSERT INTO mt_iterations (
++                mt_id, iteration, model_id, lora_id, outcome, validation_passed, duration_ms
++            )
++            VALUES ($1, $2, $3, $4, $5, $6, $7)
++            "#,
++        )
++        .bind(&params.mt_id)
++        .bind(recorded_iteration as i64)
++        .bind(&params.iteration.model_id)
++        .bind(params.iteration.lora_id.as_deref())
++        .bind(mt_iteration_outcome_str(params.iteration.outcome))
++        .bind(
++            params
++                .iteration
++                .validation_passed
++                .map(|v| if v { 1i64 } else { 0i64 }),
++        )
++        .bind(params.iteration.duration_ms as i64)
++        .execute(&mut *tx)
++        .await?;
++    }
++
++    tracked_mt.status = MicroTaskStatus::InProgress;
++    tracked_mt.current_iteration = tracked_mt.current_iteration.max(recorded_iteration);
++    tracked_mt.escalation.current_level = params.iteration.escalation_level;
++    upsert_tracked_mt_iteration(&mut tracked_mt, params.iteration.clone());
++    persist_tracked_mt(&mut tx, &tracked_mt).await?;
++
++    tx.commit().await?;
++
++    Ok(json!({
++        "wp_id": params.wp_id,
++        "mt_id": params.mt_id,
++        "iteration": params.iteration.iteration,
++        "recorded_iteration": recorded_iteration,
++    }))
++}
++
++async fn complete_mt(pool: &PgPool, params: LocusCompleteMtParams) -> StorageResult<Value> {
++    ensure_wp_exists(pool, &params.wp_id).await?;
++    ensure_mt_exists_for_wp(pool, &params.wp_id, &params.mt_id).await?;
++    let mut tx = pool.begin().await?;
++    let mut tracked_mt = load_tracked_mt_for_update(&mut tx, &params.wp_id, &params.mt_id).await?;
++    tracked_mt.status = MicroTaskStatus::Completed;
++    tracked_mt.current_iteration = tracked_mt
++        .current_iteration
++        .max(tracked_mt.iterations.len() as u32)
++        .max(params.final_iteration);
++    tracked_mt.active_session_ids.clear();
++    if tracked_mt.completed_at.is_none() {
++        tracked_mt.completed_at = Some(Utc::now());
++    }
++    persist_tracked_mt(&mut tx, &tracked_mt).await?;
++    tx.commit().await?;
++
++    Ok(json!({
++        "wp_id": params.wp_id,
++        "mt_id": params.mt_id,
++        "status": "completed",
++    }))
++}
++
++async fn bind_session(pool: &PgPool, params: LocusBindSessionParams) -> StorageResult<Value> {
++    ensure_wp_exists(pool, &params.wp_id).await?;
++    ensure_mt_exists_for_wp(pool, &params.wp_id, &params.mt_id).await?;
++    let session_id = params.session_id.trim().to_string();
++    if session_id.is_empty() {
++        return Err(StorageError::Validation("session_id"));
++    }
++
++    let mut tx = pool.begin().await?;
++    let mut tracked_mt = load_tracked_mt_for_update(&mut tx, &params.wp_id, &params.mt_id).await?;
++    tracked_mt.status = MicroTaskStatus::InProgress;
++    tracked_mt.escalation.current_level = params.escalation_level;
++    tracked_mt.active_session_ids.push(session_id.clone());
++    dedupe_session_ids(&mut tracked_mt.active_session_ids);
++    persist_tracked_mt(&mut tx, &tracked_mt).await?;
++    tx.commit().await?;
++
++    Ok(json!({
++        "wp_id": params.wp_id,
++        "mt_id": params.mt_id,
++        "session_id": session_id,
++        "active_session_ids": tracked_mt.active_session_ids,
++    }))
++}
++
++async fn unbind_session(pool: &PgPool, params: LocusUnbindSessionParams) -> StorageResult<Value> {
++    ensure_wp_exists(pool, &params.wp_id).await?;
++    ensure_mt_exists_for_wp(pool, &params.wp_id, &params.mt_id).await?;
++    let session_id = params.session_id.trim().to_string();
++    if session_id.is_empty() {
++        return Err(StorageError::Validation("session_id"));
++    }
++
++    let mut tx = pool.begin().await?;
++    let mut tracked_mt = load_tracked_mt_for_update(&mut tx, &params.wp_id, &params.mt_id).await?;
++    tracked_mt
++        .active_session_ids
++        .retain(|existing_session_id| existing_session_id != &session_id);
++    persist_tracked_mt(&mut tx, &tracked_mt).await?;
++    tx.commit().await?;
++
++    Ok(json!({
++        "wp_id": params.wp_id,
++        "mt_id": params.mt_id,
++        "session_id": session_id,
++        "active_session_ids": tracked_mt.active_session_ids,
++        "reason": params.reason,
++    }))
++}
++
++pub(crate) async fn execute_locus_operation(
++    postgres: &PostgresDatabase,
++    op: LocusOperation,
++) -> StorageResult<Value> {
++    let pool = postgres.pool();
++    match op {
++        LocusOperation::CreateWp(params) => create_wp(pool, params).await,
++        LocusOperation::UpdateWp(params) => update_wp(pool, params).await,
++        LocusOperation::GateWp(params) => gate_wp(pool, params).await,
++        LocusOperation::CloseWp(params) => close_wp(pool, params).await,
++        LocusOperation::DeleteWp(params) => delete_wp(pool, params).await,
++        LocusOperation::RegisterMts(params) => register_mts(pool, params).await,
++        LocusOperation::StartMt(params) => start_mt(pool, params).await,
++        LocusOperation::BindSession(params) => bind_session(pool, params).await,
++        LocusOperation::UnbindSession(params) => unbind_session(pool, params).await,
++        LocusOperation::RecordIteration(params) => record_iteration(pool, params).await,
++        LocusOperation::CompleteMt(params) => complete_mt(pool, params).await,
++        other => Err(StorageError::NotImplemented(match other {
++            LocusOperation::AddDependency(_)
++            | LocusOperation::RemoveDependency(_)
++            | LocusOperation::QueryReady(_)
++            | LocusOperation::GetWpStatus(_)
++            | LocusOperation::GetMtProgress(_)
++            | LocusOperation::SyncTaskBoard(_) => {
++                "locus operation not yet supported for postgres"
++            }
++            _ => "unsupported locus operation",
++        })),
++    }
++}
++
++pub(crate) async fn locus_work_packet_exists(
++    postgres: &PostgresDatabase,
++    wp_id: &str,
++) -> StorageResult<bool> {
++    let exists =
++        sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM work_packets WHERE wp_id = $1)")
++            .bind(wp_id)
++            .fetch_one(postgres.pool())
++            .await?;
++    Ok(exists)
++}
++
++pub(crate) async fn locus_task_board_get_status_and_metadata(
++    postgres: &PostgresDatabase,
++    wp_id: &str,
++) -> StorageResult<Option<(String, String)>> {
++    sqlx::query_as::<_, (String, String)>(
++        "SELECT task_board_status, metadata FROM work_packets WHERE wp_id = $1",
++    )
++    .bind(wp_id)
++    .fetch_optional(postgres.pool())
++    .await
++    .map_err(StorageError::from)
++}
++
++pub(crate) async fn locus_task_board_update_work_packet(
++    postgres: &PostgresDatabase,
++    status: &str,
++    task_board_status: &str,
++    updated_at: &str,
++    metadata: &str,
++    wp_id: &str,
++) -> StorageResult<()> {
++    sqlx::query(
++        r#"
++        UPDATE work_packets
++        SET
++            version = version + 1,
++            status = $1,
++            task_board_status = $2,
++            updated_at = $3,
++            metadata = $4
++        WHERE wp_id = $5
++        "#,
++    )
++    .bind(status)
++    .bind(task_board_status)
++    .bind(updated_at)
++    .bind(metadata)
++    .bind(wp_id)
++    .execute(postgres.pool())
++    .await?;
++    Ok(())
++}
++
++pub(crate) async fn locus_task_board_list_rows(
++    postgres: &PostgresDatabase,
++) -> StorageResult<Vec<(String, String, String)>> {
++    let rows = sqlx::query_as::<_, (String, String, String)>(
++        "SELECT wp_id, task_board_status, metadata FROM work_packets",
++    )
++    .fetch_all(postgres.pool())
++    .await?;
++    Ok(rows)
++}
++
+@@ -722,0 +1612,8 @@ impl super::Database for PostgresDatabase {
++    fn supports_loom_graph_filtering(&self) -> bool {
++        true
++    }
++
++    fn loom_traverse_graph_perf_target_ms(&self) -> u128 {
++        50
++    }
++
+@@ -724,0 +1622 @@ impl super::Database for PostgresDatabase {
++        ensure_locus_schema_postgres(&self.pool).await?;
+@@ -736,0 +1635,138 @@ impl super::Database for PostgresDatabase {
++    #[cfg(test)]
++    async fn test_overwrite_loom_block_metrics(
++        &self,
++        workspace_id: &str,
++        block_id: &str,
++        mention_count: i64,
++        tag_count: i64,
++        backlink_count: i64,
++    ) -> StorageResult<()> {
++        sqlx::query(
++            r#"
++            UPDATE loom_blocks
++            SET mention_count = $1, tag_count = $2, backlink_count = $3
++            WHERE workspace_id = $4 AND block_id = $5
++            "#,
++        )
++        .bind(mention_count as i32)
++        .bind(tag_count as i32)
++        .bind(backlink_count as i32)
++        .bind(workspace_id)
++        .bind(block_id)
++        .execute(&self.pool)
++        .await?;
++        Ok(())
++    }
++
++    #[cfg(test)]
++    async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
++        sqlx::query(
++            r#"
++            UPDATE loom_blocks
++            SET mention_count = 0, tag_count = 0, backlink_count = 0
++            WHERE workspace_id = $1
++            "#,
++        )
++        .bind(workspace_id)
++        .execute(&self.pool)
++        .await?;
++        Ok(())
++    }
++
++    #[cfg(test)]
++    async fn test_insert_loom_traversal_perf_fixture(
++        &self,
++        workspace_id: &str,
++        total_blocks: usize,
++    ) -> StorageResult<String> {
++        let created_at = Utc::now();
++        let derived_json = serde_json::to_string(&super::LoomBlockDerived::default())?;
++        let start_block_id = "perf-block-00000".to_string();
++        let mut tx = self.pool.begin().await?;
++
++        for idx in 0..total_blocks {
++            let block_id = format!("perf-block-{idx:05}");
++            sqlx::query(
++                r#"
++                INSERT INTO loom_blocks (
++                    block_id,
++                    workspace_id,
++                    content_type,
++                    title,
++                    pinned,
++                    last_actor_kind,
++                    edit_event_id,
++                    created_at,
++                    updated_at,
++                    backlink_count,
++                    mention_count,
++                    tag_count,
++                    derived_json,
++                    preview_status
++                )
++                VALUES (
++                    $1, $2, 'note', $3, 0, 'SYSTEM',
++                    '00000000-0000-0000-0000-000000000000',
++                    $4, $4, 0, 0, 0, $5, 'none'
++                )
++                "#,
++            )
++            .bind(&block_id)
++            .bind(workspace_id)
++            .bind(format!("Perf Block {idx}"))
++            .bind(created_at)
++            .bind(&derived_json)
++            .execute(&mut *tx)
++            .await?;
++
++            if idx > 0 {
++                sqlx::query(
++                    r#"
++                    INSERT INTO loom_edges (
++                        edge_id,
++                        workspace_id,
++                        source_block_id,
++                        target_block_id,
++                        edge_type,
++                        created_by,
++                        last_actor_kind,
++                        edit_event_id,
++                        created_at
++                    )
++                    VALUES (
++                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
++                        '00000000-0000-0000-0000-000000000000',
++                        $5
++                    )
++                    "#,
++                )
++                .bind(format!("perf-edge-{idx:05}"))
++                .bind(workspace_id)
++                .bind(format!("perf-block-{:05}", idx - 1))
++                .bind(&block_id)
++                .bind(created_at)
++                .execute(&mut *tx)
++                .await?;
++            }
++        }
++
++        tx.commit().await?;
++        Ok(start_block_id)
++    }
++
++    #[cfg(test)]
++    async fn test_fetch_mutation_traceability_row(
++        &self,
++        table: &str,
++        id: &str,
++    ) -> StorageResult<super::MutationTraceabilityRow> {
++        let sql = format!(
++            "SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id FROM {table} WHERE id = $1"
++        );
++        sqlx::query_as::<_, super::MutationTraceabilityRow>(&sql)
++            .bind(id)
++            .fetch_one(&self.pool)
++            .await
++            .map_err(StorageError::from)
++    }
++
+diff --git a/src/backend/handshake_core/src/storage/sqlite.rs b/src/backend/handshake_core/src/storage/sqlite.rs
+index 8291153..abcb98b 100644
+--- a/src/backend/handshake_core/src/storage/sqlite.rs
++++ b/src/backend/handshake_core/src/storage/sqlite.rs
+@@ -1038,0 +1039,8 @@ impl super::Database for SqliteDatabase {
++    fn supports_loom_graph_filtering(&self) -> bool {
++        false
++    }
++
++    fn loom_traverse_graph_perf_target_ms(&self) -> u128 {
++        100
++    }
++
+@@ -1054,0 +1063,138 @@ impl super::Database for SqliteDatabase {
++    #[cfg(test)]
++    async fn test_overwrite_loom_block_metrics(
++        &self,
++        workspace_id: &str,
++        block_id: &str,
++        mention_count: i64,
++        tag_count: i64,
++        backlink_count: i64,
++    ) -> StorageResult<()> {
++        sqlx::query(
++            r#"
++            UPDATE loom_blocks
++            SET mention_count = $1, tag_count = $2, backlink_count = $3
++            WHERE workspace_id = $4 AND block_id = $5
++            "#,
++        )
++        .bind(mention_count)
++        .bind(tag_count)
++        .bind(backlink_count)
++        .bind(workspace_id)
++        .bind(block_id)
++        .execute(&self.pool)
++        .await?;
++        Ok(())
++    }
++
++    #[cfg(test)]
++    async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
++        sqlx::query(
++            r#"
++            UPDATE loom_blocks
++            SET mention_count = 0, tag_count = 0, backlink_count = 0
++            WHERE workspace_id = $1
++            "#,
++        )
++        .bind(workspace_id)
++        .execute(&self.pool)
++        .await?;
++        Ok(())
++    }
++
++    #[cfg(test)]
++    async fn test_insert_loom_traversal_perf_fixture(
++        &self,
++        workspace_id: &str,
++        total_blocks: usize,
++    ) -> StorageResult<String> {
++        let created_at = Utc::now();
++        let derived_json = serde_json::to_string(&super::LoomBlockDerived::default())?;
++        let start_block_id = "perf-block-00000".to_string();
++        let mut tx = self.pool.begin().await?;
++
++        for idx in 0..total_blocks {
++            let block_id = format!("perf-block-{idx:05}");
++            sqlx::query(
++                r#"
++                INSERT INTO loom_blocks (
++                    block_id,
++                    workspace_id,
++                    content_type,
++                    title,
++                    pinned,
++                    last_actor_kind,
++                    edit_event_id,
++                    created_at,
++                    updated_at,
++                    backlink_count,
++                    mention_count,
++                    tag_count,
++                    derived_json,
++                    preview_status
++                )
++                VALUES (
++                    $1, $2, 'note', $3, 0, 'SYSTEM',
++                    '00000000-0000-0000-0000-000000000000',
++                    $4, $4, 0, 0, 0, $5, 'none'
++                )
++                "#,
++            )
++            .bind(&block_id)
++            .bind(workspace_id)
++            .bind(format!("Perf Block {idx}"))
++            .bind(created_at)
++            .bind(&derived_json)
++            .execute(&mut *tx)
++            .await?;
++
++            if idx > 0 {
++                sqlx::query(
++                    r#"
++                    INSERT INTO loom_edges (
++                        edge_id,
++                        workspace_id,
++                        source_block_id,
++                        target_block_id,
++                        edge_type,
++                        created_by,
++                        last_actor_kind,
++                        edit_event_id,
++                        created_at
++                    )
++                    VALUES (
++                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
++                        '00000000-0000-0000-0000-000000000000',
++                        $5
++                    )
++                    "#,
++                )
++                .bind(format!("perf-edge-{idx:05}"))
++                .bind(workspace_id)
++                .bind(format!("perf-block-{:05}", idx - 1))
++                .bind(&block_id)
++                .bind(created_at)
++                .execute(&mut *tx)
++                .await?;
++            }
++        }
++
++        tx.commit().await?;
++        Ok(start_block_id)
++    }
++
++    #[cfg(test)]
++    async fn test_fetch_mutation_traceability_row(
++        &self,
++        table: &str,
++        id: &str,
++    ) -> StorageResult<super::MutationTraceabilityRow> {
++        let sql = format!(
++            "SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id FROM {table} WHERE id = ?"
++        );
++        sqlx::query_as::<_, super::MutationTraceabilityRow>(&sql)
++            .bind(id)
++            .fetch_one(&self.pool)
++            .await
++            .map_err(StorageError::from)
++    }
++
+diff --git a/src/backend/handshake_core/src/storage/tests.rs b/src/backend/handshake_core/src/storage/tests.rs
+index 63b4b4f..e4f911a 100644
+--- a/src/backend/handshake_core/src/storage/tests.rs
++++ b/src/backend/handshake_core/src/storage/tests.rs
+@@ -57,0 +58,19 @@ fn assert_metadata_matches_ctx(
++#[cfg(test)]
++async fn assert_traceability_row(
++    db: &Arc<dyn super::Database>,
++    table: &str,
++    id: &str,
++    ctx: &WriteContext,
++) -> StorageResult<()> {
++    let row = db.test_fetch_mutation_traceability_row(table, id).await?;
++    assert_metadata_matches_ctx(
++        &row.last_actor_kind,
++        row.last_actor_id,
++        row.last_job_id,
++        row.last_workflow_id,
++        &row.edit_event_id,
++        ctx,
++    );
++    Ok(())
++}
++
+@@ -740,37 +759,8 @@ async fn overwrite_loom_block_metrics(
+-    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
+-        sqlx::query(
+-            r#"
+-            UPDATE loom_blocks
+-            SET mention_count = $1, tag_count = $2, backlink_count = $3
+-            WHERE workspace_id = $4 AND block_id = $5
+-            "#,
+-        )
+-        .bind(mention_count)
+-        .bind(tag_count)
+-        .bind(backlink_count)
+-        .bind(workspace_id)
+-        .bind(block_id)
+-        .execute(sqlite.pool())
+-        .await?;
+-        return Ok(());
+-    }
+-
+-    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
+-        sqlx::query(
+-            r#"
+-            UPDATE loom_blocks
+-            SET mention_count = $1, tag_count = $2, backlink_count = $3
+-            WHERE workspace_id = $4 AND block_id = $5
+-            "#,
+-        )
+-        .bind(mention_count as i32)
+-        .bind(tag_count as i32)
+-        .bind(backlink_count as i32)
+-        .bind(workspace_id)
+-        .bind(block_id)
+-        .execute(postgres.pool())
+-        .await?;
+-        return Ok(());
+-    }
+-
+-    Err(StorageError::Validation("unsupported loom metrics backend"))
++    db.test_overwrite_loom_block_metrics(
++        workspace_id,
++        block_id,
++        mention_count,
++        tag_count,
++        backlink_count,
++    )
++    .await
+@@ -783,29 +773 @@ async fn zero_workspace_loom_metrics(
+-    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
+-        sqlx::query(
+-            r#"
+-            UPDATE loom_blocks
+-            SET mention_count = 0, tag_count = 0, backlink_count = 0
+-            WHERE workspace_id = $1
+-            "#,
+-        )
+-        .bind(workspace_id)
+-        .execute(sqlite.pool())
+-        .await?;
+-        return Ok(());
+-    }
+-
+-    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
+-        sqlx::query(
+-            r#"
+-            UPDATE loom_blocks
+-            SET mention_count = 0, tag_count = 0, backlink_count = 0
+-            WHERE workspace_id = $1
+-            "#,
+-        )
+-        .bind(workspace_id)
+-        .execute(postgres.pool())
+-        .await?;
+-        return Ok(());
+-    }
+-
+-    Err(StorageError::Validation("unsupported loom metrics backend"))
++    db.test_zero_workspace_loom_metrics(workspace_id).await
+@@ -1036 +998 @@ async fn loom_search_graph_filter_postgres(
+-    if !db.as_any().is::<PostgresDatabase>() {
++    if !db.supports_loom_graph_filtering() {
+@@ -1162,149 +1124,2 @@ async fn insert_loom_traversal_perf_fixture(
+-    let created_at = Utc::now();
+-    let derived_json = serde_json::to_string(&super::LoomBlockDerived::default())?;
+-    let start_block_id = "perf-block-00000".to_string();
+-
+-    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
+-        let mut tx = sqlite.pool().begin().await?;
+-        for idx in 0..LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS {
+-            let block_id = format!("perf-block-{idx:05}");
+-            sqlx::query(
+-                r#"
+-                INSERT INTO loom_blocks (
+-                    block_id,
+-                    workspace_id,
+-                    content_type,
+-                    title,
+-                    pinned,
+-                    last_actor_kind,
+-                    edit_event_id,
+-                    created_at,
+-                    updated_at,
+-                    backlink_count,
+-                    mention_count,
+-                    tag_count,
+-                    derived_json,
+-                    preview_status
+-                )
+-                VALUES (
+-                    $1, $2, 'note', $3, 0, 'SYSTEM',
+-                    '00000000-0000-0000-0000-000000000000',
+-                    $4, $4, 0, 0, 0, $5, 'none'
+-                )
+-                "#,
+-            )
+-            .bind(&block_id)
+-            .bind(workspace_id)
+-            .bind(format!("Perf Block {idx}"))
+-            .bind(created_at)
+-            .bind(&derived_json)
+-            .execute(&mut *tx)
+-            .await?;
+-
+-            if idx > 0 {
+-                sqlx::query(
+-                    r#"
+-                    INSERT INTO loom_edges (
+-                        edge_id,
+-                        workspace_id,
+-                        source_block_id,
+-                        target_block_id,
+-                        edge_type,
+-                        created_by,
+-                        last_actor_kind,
+-                        edit_event_id,
+-                        created_at
+-                    )
+-                    VALUES (
+-                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
+-                        '00000000-0000-0000-0000-000000000000',
+-                        $5
+-                    )
+-                    "#,
+-                )
+-                .bind(format!("perf-edge-{idx:05}"))
+-                .bind(workspace_id)
+-                .bind(format!("perf-block-{:05}", idx - 1))
+-                .bind(&block_id)
+-                .bind(created_at)
+-                .execute(&mut *tx)
+-                .await?;
+-            }
+-        }
+-        tx.commit().await?;
+-        return Ok(start_block_id);
+-    }
+-
+-    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
+-        let mut tx = postgres.pool().begin().await?;
+-        for idx in 0..LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS {
+-            let block_id = format!("perf-block-{idx:05}");
+-            sqlx::query(
+-                r#"
+-                INSERT INTO loom_blocks (
+-                    block_id,
+-                    workspace_id,
+-                    content_type,
+-                    title,
+-                    pinned,
+-                    last_actor_kind,
+-                    edit_event_id,
+-                    created_at,
+-                    updated_at,
+-                    backlink_count,
+-                    mention_count,
+-                    tag_count,
+-                    derived_json,
+-                    preview_status
+-                )
+-                VALUES (
+-                    $1, $2, 'note', $3, 0, 'SYSTEM',
+-                    '00000000-0000-0000-0000-000000000000',
+-                    $4, $4, 0, 0, 0, $5, 'none'
+-                )
+-                "#,
+-            )
+-            .bind(&block_id)
+-            .bind(workspace_id)
+-            .bind(format!("Perf Block {idx}"))
+-            .bind(created_at)
+-            .bind(&derived_json)
+-            .execute(&mut *tx)
+-            .await?;
+-
+-            if idx > 0 {
+-                sqlx::query(
+-                    r#"
+-                    INSERT INTO loom_edges (
+-                        edge_id,
+-                        workspace_id,
+-                        source_block_id,
+-                        target_block_id,
+-                        edge_type,
+-                        created_by,
+-                        last_actor_kind,
+-                        edit_event_id,
+-                        created_at
+-                    )
+-                    VALUES (
+-                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
+-                        '00000000-0000-0000-0000-000000000000',
+-                        $5
+-                    )
+-                    "#,
+-                )
+-                .bind(format!("perf-edge-{idx:05}"))
+-                .bind(workspace_id)
+-                .bind(format!("perf-block-{:05}", idx - 1))
+-                .bind(&block_id)
+-                .bind(created_at)
+-                .execute(&mut *tx)
+-                .await?;
+-            }
+-        }
+-        tx.commit().await?;
+-        return Ok(start_block_id);
+-    }
+-
+-    Err(StorageError::Validation(
+-        "unsupported loom traversal performance backend",
+-    ))
++    db.test_insert_loom_traversal_perf_fixture(workspace_id, LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS)
++        .await
+@@ -1329,5 +1144 @@ async fn loom_traverse_graph_meets_performance_target(
+-    let limit_ms = if db.as_any().is::<SqliteDatabase>() {
+-        100_u128
+-    } else {
+-        50_u128
+-    };
++    let limit_ms = db.loom_traverse_graph_perf_target_ms();
+@@ -2524,5 +2334,0 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-    let sqlite = db
+-        .as_any()
+-        .downcast_ref::<SqliteDatabase>()
+-        .ok_or(StorageError::Validation("expected sqlite backend"))?;
+-    let pool = sqlite.pool();
+@@ -2549,19 +2355 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-
+-        let workspace_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM workspaces
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&workspace.id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &workspace_row.get::<String, _>("last_actor_kind"),
+-            workspace_row.get::<Option<String>, _>("last_actor_id"),
+-            workspace_row.get::<Option<String>, _>("last_job_id"),
+-            workspace_row.get::<Option<String>, _>("last_workflow_id"),
+-            &workspace_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
++        assert_traceability_row(&db, "workspaces", &workspace.id, &ctx).await?;
+@@ -2578,19 +2366 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-
+-        let document_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM documents
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&document.id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &document_row.get::<String, _>("last_actor_kind"),
+-            document_row.get::<Option<String>, _>("last_actor_id"),
+-            document_row.get::<Option<String>, _>("last_job_id"),
+-            document_row.get::<Option<String>, _>("last_workflow_id"),
+-            &document_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
++        assert_traceability_row(&db, "documents", &document.id, &ctx).await?;
+@@ -2614,19 +2384 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-
+-        let block_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM blocks
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&block.id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &block_row.get::<String, _>("last_actor_kind"),
+-            block_row.get::<Option<String>, _>("last_actor_id"),
+-            block_row.get::<Option<String>, _>("last_job_id"),
+-            block_row.get::<Option<String>, _>("last_workflow_id"),
+-            &block_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
++        assert_traceability_row(&db, "blocks", &block.id, &ctx).await?;
+@@ -2674,57 +2426,3 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
+-
+-        let canvas_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvases
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&canvas.id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &canvas_row.get::<String, _>("last_actor_kind"),
+-            canvas_row.get::<Option<String>, _>("last_actor_id"),
+-            canvas_row.get::<Option<String>, _>("last_job_id"),
+-            canvas_row.get::<Option<String>, _>("last_workflow_id"),
+-            &canvas_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
+-
+-        let node_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvas_nodes
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&node_a_id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &node_row.get::<String, _>("last_actor_kind"),
+-            node_row.get::<Option<String>, _>("last_actor_id"),
+-            node_row.get::<Option<String>, _>("last_job_id"),
+-            node_row.get::<Option<String>, _>("last_workflow_id"),
+-            &node_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
+-
+-        let edge_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvas_edges
+-            WHERE id = ?
+-            "#,
+-        )
+-        .bind(&edge_id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &edge_row.get::<String, _>("last_actor_kind"),
+-            edge_row.get::<Option<String>, _>("last_actor_id"),
+-            edge_row.get::<Option<String>, _>("last_job_id"),
+-            edge_row.get::<Option<String>, _>("last_workflow_id"),
+-            &edge_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
++        assert_traceability_row(&db, "canvases", &canvas.id, &ctx).await?;
++        assert_traceability_row(&db, "canvas_nodes", &node_a_id, &ctx).await?;
++        assert_traceability_row(&db, "canvas_edges", &edge_id, &ctx).await?;
+@@ -2799,6 +2496,0 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-    let postgres = db
+-        .as_any()
+-        .downcast_ref::<PostgresDatabase>()
+-        .ok_or(StorageError::Validation("expected postgres backend"))?;
+-    let pool = postgres.pool();
+-
+@@ -2824,19 +2516 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-
+-        let workspace_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM workspaces
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&workspace.id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &workspace_row.get::<String, _>("last_actor_kind"),
+-            workspace_row.get::<Option<String>, _>("last_actor_id"),
+-            workspace_row.get::<Option<String>, _>("last_job_id"),
+-            workspace_row.get::<Option<String>, _>("last_workflow_id"),
+-            &workspace_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
++        assert_traceability_row(&db, "workspaces", &workspace.id, &ctx).await?;
+@@ -2853,19 +2527 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-
+-        let document_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM documents
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&document.id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &document_row.get::<String, _>("last_actor_kind"),
+-            document_row.get::<Option<String>, _>("last_actor_id"),
+-            document_row.get::<Option<String>, _>("last_job_id"),
+-            document_row.get::<Option<String>, _>("last_workflow_id"),
+-            &document_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
++        assert_traceability_row(&db, "documents", &document.id, &ctx).await?;
+@@ -2889,19 +2545 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-
+-        let block_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM blocks
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&block.id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &block_row.get::<String, _>("last_actor_kind"),
+-            block_row.get::<Option<String>, _>("last_actor_id"),
+-            block_row.get::<Option<String>, _>("last_job_id"),
+-            block_row.get::<Option<String>, _>("last_workflow_id"),
+-            &block_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
++        assert_traceability_row(&db, "blocks", &block.id, &ctx).await?;
+@@ -2949,57 +2587,3 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
+-
+-        let canvas_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvases
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&canvas.id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &canvas_row.get::<String, _>("last_actor_kind"),
+-            canvas_row.get::<Option<String>, _>("last_actor_id"),
+-            canvas_row.get::<Option<String>, _>("last_job_id"),
+-            canvas_row.get::<Option<String>, _>("last_workflow_id"),
+-            &canvas_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
+-
+-        let node_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvas_nodes
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&node_a_id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &node_row.get::<String, _>("last_actor_kind"),
+-            node_row.get::<Option<String>, _>("last_actor_id"),
+-            node_row.get::<Option<String>, _>("last_job_id"),
+-            node_row.get::<Option<String>, _>("last_workflow_id"),
+-            &node_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
+-
+-        let edge_row = sqlx::query(
+-            r#"
+-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
+-            FROM canvas_edges
+-            WHERE id = $1
+-            "#,
+-        )
+-        .bind(&edge_id)
+-        .fetch_one(pool)
+-        .await?;
+-        assert_metadata_matches_ctx(
+-            &edge_row.get::<String, _>("last_actor_kind"),
+-            edge_row.get::<Option<String>, _>("last_actor_id"),
+-            edge_row.get::<Option<String>, _>("last_job_id"),
+-            edge_row.get::<Option<String>, _>("last_workflow_id"),
+-            &edge_row.get::<String, _>("edit_event_id"),
+-            &ctx,
+-        );
++        assert_traceability_row(&db, "canvases", &canvas.id, &ctx).await?;
++        assert_traceability_row(&db, "canvas_nodes", &node_a_id, &ctx).await?;
++        assert_traceability_row(&db, "canvas_edges", &edge_id, &ctx).await?;
+diff --git a/src/backend/handshake_core/src/workflows.rs b/src/backend/handshake_core/src/workflows.rs
+index 96df6d0..f0e7f9e 100644
+--- a/src/backend/handshake_core/src/workflows.rs
++++ b/src/backend/handshake_core/src/workflows.rs
+@@ -49,3 +49,3 @@ use crate::{
+-        sqlite::SqliteDatabase, validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate,
+-        ModelSession, ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
+-        SessionMessageRole, StorageError,
++        postgres::PostgresDatabase, sqlite::SqliteDatabase, validate_job_contract, AiJobListFilter,
++        JobState, JobStatusUpdate, ModelSession, ModelSessionState, NewModelSession,
++        NewNodeExecution, NewSessionMessage, SessionMessageRole, StorageError,
+@@ -67 +66,0 @@ use sha2::{Digest, Sha256};
+-use sqlx::SqlitePool;
+@@ -1219,2 +1217,0 @@ async fn execute_locus_sync_task_board(
+-    crate::storage::locus_sqlite::ensure_locus_sqlite(db)?;
+-
+@@ -1302,5 +1299,3 @@ async fn execute_locus_sync_task_board(
+-                let row = crate::storage::locus_sqlite::locus_task_board_get_status_and_metadata(
+-                    db,
+-                    &entry.wp_id,
+-                )
+-                .await?;
++                let row =
++                    crate::storage::locus_task_board_get_status_and_metadata(db, &entry.wp_id)
++                        .await?;
+@@ -1352 +1347 @@ async fn execute_locus_sync_task_board(
+-                    crate::storage::locus_sqlite::locus_task_board_update_work_packet(
++                    crate::storage::locus_task_board_update_work_packet(
+@@ -1374 +1369 @@ async fn execute_locus_sync_task_board(
+-        let rows = crate::storage::locus_sqlite::locus_task_board_list_rows(db).await?;
++        let rows = crate::storage::locus_task_board_list_rows(db).await?;
+@@ -1590 +1584,0 @@ async fn execute_locus_sync_task_board(
+-            let sqlite = sqlite_database_for_structured_work_packet_projection(db)?;
+@@ -1598,6 +1592 @@ async fn execute_locus_sync_task_board(
+-                let wp_ids = sqlx::query_scalar::<_, String>(
+-                    "SELECT wp_id FROM work_packets ORDER BY wp_id ASC",
+-                )
+-                .fetch_all(sqlite.pool())
+-                .await
+-                .map_err(StorageError::from)?;
++                let wp_ids = list_work_packet_ids_for_artifacts(db).await?;
+@@ -1606 +1595 @@ async fn execute_locus_sync_task_board(
+-                        load_tracked_work_packet_for_artifacts(sqlite.pool(), &wp_id).await?
++                        load_tracked_work_packet_for_artifacts(db, &wp_id).await?
+@@ -1614,2 +1603 @@ async fn execute_locus_sync_task_board(
+-                emit_task_board_projection_artifacts(sqlite.pool(), &runtime_governance_paths)
+-                    .await?
++                emit_task_board_projection_artifacts(db, &runtime_governance_paths).await?
+@@ -2573,4 +2560,0 @@ async fn emit_locus_operation_event(
+-const STRUCTURED_COLLAB_SCHEMA_VERSION: &str = "structured_collaboration_v1";
+-const WORK_PACKET_ARTIFACT_SCHEMA_ID: &str = "hsk.tracked_work_packet@1";
+-const MICRO_TASK_ARTIFACT_SCHEMA_ID: &str = "hsk.tracked_micro_task@1";
+-const STRUCTURED_SUMMARY_SCHEMA_ID: &str = "hsk.structured_collaboration_summary@1";
+@@ -2581,11 +2565,20 @@ const TASK_BOARD_ENTRY_SCHEMA_ID: &str = "hsk.task_board_entry@1";
+-fn sqlite_pool_for_structured_artifacts(state: &AppState) -> Result<&SqlitePool, WorkflowError> {
+-    state
+-        .storage
+-        .as_any()
+-        .downcast_ref::<SqliteDatabase>()
+-        .map(SqliteDatabase::pool)
+-        .ok_or_else(|| {
+-            WorkflowError::Terminal(
+-                "structured collaboration artifact emission requires sqlite storage".to_string(),
+-            )
+-        })
++enum StructuredCollaborationBackend<'a> {
++    Sqlite(&'a SqliteDatabase),
++    Postgres(&'a PostgresDatabase),
++}
++
++fn structured_collaboration_backend(
++    db: &dyn crate::storage::Database,
++) -> Result<StructuredCollaborationBackend<'_>, WorkflowError> {
++    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
++        return Ok(StructuredCollaborationBackend::Sqlite(sqlite));
++    }
++
++    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
++        return Ok(StructuredCollaborationBackend::Postgres(postgres));
++    }
++
++    Err(WorkflowError::Terminal(
++        "structured collaboration artifact emission requires sqlite or postgres storage"
++            .to_string(),
++    ))
+@@ -2817 +2810 @@ async fn load_micro_task_summary_for_wp(
+-    pool: &SqlitePool,
++    db: &dyn crate::storage::Database,
+@@ -2820,7 +2813,20 @@ async fn load_micro_task_summary_for_wp(
+-    let rows = sqlx::query_as::<_, (String, String)>(
+-        "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+-    )
+-    .bind(wp_id)
+-    .fetch_all(pool)
+-    .await
+-    .map_err(StorageError::from)?;
++    let rows = match structured_collaboration_backend(db)? {
++        StructuredCollaborationBackend::Sqlite(sqlite) => {
++            sqlx::query_as::<_, (String, String)>(
++                "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
++            )
++            .bind(wp_id)
++            .fetch_all(sqlite.pool())
++            .await
++            .map_err(StorageError::from)?
++        }
++        StructuredCollaborationBackend::Postgres(postgres) => {
++            sqlx::query_as::<_, (String, String)>(
++                "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
++            )
++            .bind(wp_id)
++            .fetch_all(postgres.pool())
++            .await
++            .map_err(StorageError::from)?
++        }
++    };
+@@ -2850 +2856 @@ async fn load_tracked_work_packet_for_artifacts(
+-    pool: &SqlitePool,
++    db: &dyn crate::storage::Database,
+@@ -2853,45 +2859,96 @@ async fn load_tracked_work_packet_for_artifacts(
+-    let row = sqlx::query_as::<
+-        _,
+-        (
+-            i64,
+-            String,
+-            String,
+-            String,
+-            i64,
+-            String,
+-            String,
+-            Option<String>,
+-            String,
+-            Option<String>,
+-            String,
+-            String,
+-            String,
+-            String,
+-            String,
+-        ),
+-    >(
+-        r#"
+-        SELECT
+-            version,
+-            title,
+-            description,
+-            status,
+-            priority,
+-            phase,
+-            routing,
+-            task_packet_path,
+-            task_board_status,
+-            assignee,
+-            reporter,
+-            created_at,
+-            updated_at,
+-            vector_clock,
+-            metadata
+-        FROM work_packets
+-        WHERE wp_id = $1
+-        "#,
+-    )
+-    .bind(wp_id)
+-    .fetch_optional(pool)
+-    .await
+-    .map_err(StorageError::from)?;
++    let row = match structured_collaboration_backend(db)? {
++        StructuredCollaborationBackend::Sqlite(sqlite) => {
++            sqlx::query_as::<
++                _,
++                (
++                    i64,
++                    String,
++                    String,
++                    String,
++                    i64,
++                    String,
++                    String,
++                    Option<String>,
++                    String,
++                    Option<String>,
++                    String,
++                    String,
++                    String,
++                    String,
++                    String,
++                ),
++            >(
++                r#"
++                SELECT
++                    version,
++                    title,
++                    description,
++                    status,
++                    priority,
++                    phase,
++                    routing,
++                    task_packet_path,
++                    task_board_status,
++                    assignee,
++                    reporter,
++                    created_at,
++                    updated_at,
++                    vector_clock,
++                    metadata
++                FROM work_packets
++                WHERE wp_id = $1
++                "#,
++            )
++            .bind(wp_id)
++            .fetch_optional(sqlite.pool())
++            .await
++            .map_err(StorageError::from)?
++        }
++        StructuredCollaborationBackend::Postgres(postgres) => {
++            sqlx::query_as::<
++                _,
++                (
++                    i64,
++                    String,
++                    String,
++                    String,
++                    i64,
++                    String,
++                    String,
++                    Option<String>,
++                    String,
++                    Option<String>,
++                    String,
++                    String,
++                    String,
++                    String,
++                    String,
++                ),
++            >(
++                r#"
++                SELECT
++                    version,
++                    title,
++                    description,
++                    status,
++                    priority,
++                    phase,
++                    routing,
++                    task_packet_path,
++                    task_board_status,
++                    assignee,
++                    reporter,
++                    created_at,
++                    updated_at,
++                    vector_clock,
++                    metadata
++                FROM work_packets
++                WHERE wp_id = $1
++                "#,
++            )
++            .bind(wp_id)
++            .fetch_optional(postgres.pool())
++            .await
++            .map_err(StorageError::from)?
++        }
++    };
+@@ -2965 +3022 @@ async fn load_tracked_work_packet_for_artifacts(
+-        micro_tasks: load_micro_task_summary_for_wp(pool, wp_id).await?,
++        micro_tasks: load_micro_task_summary_for_wp(db, wp_id).await?,
+@@ -2993 +3050 @@ async fn load_tracked_micro_task_for_artifacts(
+-    pool: &SqlitePool,
++    db: &dyn crate::storage::Database,
+@@ -2997,12 +3054,30 @@ async fn load_tracked_micro_task_for_artifacts(
+-    let metadata = sqlx::query_scalar::<_, String>(
+-        r#"
+-        SELECT metadata
+-        FROM micro_tasks
+-        WHERE wp_id = $1 AND mt_id = $2
+-        "#,
+-    )
+-    .bind(wp_id)
+-    .bind(mt_id)
+-    .fetch_optional(pool)
+-    .await
+-    .map_err(StorageError::from)?;
++    let metadata = match structured_collaboration_backend(db)? {
++        StructuredCollaborationBackend::Sqlite(sqlite) => {
++            sqlx::query_scalar::<_, String>(
++                r#"
++                SELECT metadata
++                FROM micro_tasks
++                WHERE wp_id = $1 AND mt_id = $2
++                "#,
++            )
++            .bind(wp_id)
++            .bind(mt_id)
++            .fetch_optional(sqlite.pool())
++            .await
++            .map_err(StorageError::from)?
++        }
++        StructuredCollaborationBackend::Postgres(postgres) => {
++            sqlx::query_scalar::<_, String>(
++                r#"
++                SELECT metadata
++                FROM micro_tasks
++                WHERE wp_id = $1 AND mt_id = $2
++                "#,
++            )
++            .bind(wp_id)
++            .bind(mt_id)
++            .fetch_optional(postgres.pool())
++            .await
++            .map_err(StorageError::from)?
++        }
++    };
+@@ -3026 +3101 @@ async fn list_tracked_micro_tasks_for_artifacts(
+-    pool: &SqlitePool,
++    db: &dyn crate::storage::Database,
+@@ -3029,7 +3104,20 @@ async fn list_tracked_micro_tasks_for_artifacts(
+-    let rows = sqlx::query_as::<_, (String, String)>(
+-        "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+-    )
+-    .bind(wp_id)
+-    .fetch_all(pool)
+-    .await
+-    .map_err(StorageError::from)?;
++    let rows = match structured_collaboration_backend(db)? {
++        StructuredCollaborationBackend::Sqlite(sqlite) => {
++            sqlx::query_as::<_, (String, String)>(
++                "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
++            )
++            .bind(wp_id)
++            .fetch_all(sqlite.pool())
++            .await
++            .map_err(StorageError::from)?
++        }
++        StructuredCollaborationBackend::Postgres(postgres) => {
++            sqlx::query_as::<_, (String, String)>(
++                "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
++            )
++            .bind(wp_id)
++            .fetch_all(postgres.pool())
++            .await
++            .map_err(StorageError::from)?
++        }
++    };
+@@ -3051,0 +3140,27 @@ async fn list_tracked_micro_tasks_for_artifacts(
++async fn list_work_packet_ids_for_artifacts(
++    db: &dyn crate::storage::Database,
++) -> Result<Vec<String>, WorkflowError> {
++    match structured_collaboration_backend(db)? {
++        StructuredCollaborationBackend::Sqlite(sqlite) => {
++            Ok(
++                sqlx::query_scalar::<_, String>(
++                    "SELECT wp_id FROM work_packets ORDER BY updated_at ASC, wp_id ASC",
++                )
++                .fetch_all(sqlite.pool())
++                .await
++                .map_err(StorageError::from)?,
++            )
++        }
++        StructuredCollaborationBackend::Postgres(postgres) => {
++            Ok(
++                sqlx::query_scalar::<_, String>(
++                    "SELECT wp_id FROM work_packets ORDER BY updated_at ASC, wp_id ASC",
++                )
++                .fetch_all(postgres.pool())
++                .await
++                .map_err(StorageError::from)?,
++            )
++        }
++    }
++}
++
+@@ -3494 +3609 @@ async fn emit_task_board_projection_artifacts(
+-    pool: &SqlitePool,
++    db: &dyn crate::storage::Database,
+@@ -3497,10 +3612,21 @@ async fn emit_task_board_projection_artifacts(
+-    let rows = sqlx::query_as::<_, (String, String, String, String)>(
+-        r#"
+-        SELECT wp_id, task_board_status, metadata, updated_at
+-        FROM work_packets
+-        ORDER BY updated_at ASC, wp_id ASC
+-        "#,
+-    )
+-    .fetch_all(pool)
+-    .await
+-    .map_err(StorageError::from)?;
++    let mut rows: Vec<(String, locus::TaskBoardStatus, String, String)> = Vec::new();
++    for wp_id in list_work_packet_ids_for_artifacts(db).await? {
++        let Some(work_packet) = load_tracked_work_packet_for_artifacts(db, &wp_id).await? else {
++            continue;
++        };
++        let token = work_packet
++            .metadata
++            .get("task_board_token")
++            .and_then(Value::as_str)
++            .map(str::to_string)
++            .unwrap_or_else(|| {
++                default_task_board_token_for_artifacts(work_packet.governance.task_board_status)
++                    .to_string()
++            });
++        rows.push((
++            work_packet.wp_id,
++            work_packet.governance.task_board_status,
++            token,
++            work_packet.updated_at.to_rfc3339(),
++        ));
++    }
+@@ -3516,8 +3642 @@ async fn emit_task_board_projection_artifacts(
+-        .map(|(wp_id, status_raw, metadata_raw, updated_at)| {
+-            let status = parse_task_board_status_db_global(status_raw);
+-            let metadata: Value = serde_json::from_str(metadata_raw).unwrap_or_else(|_| json!({}));
+-            let token = metadata
+-                .get("task_board_token")
+-                .and_then(Value::as_str)
+-                .map(str::to_string)
+-                .unwrap_or_else(|| default_task_board_token_for_artifacts(status).to_string());
++        .map(|(wp_id, status, token, updated_at)| {
+@@ -3526 +3645 @@ async fn emit_task_board_projection_artifacts(
+-                "status": task_board_status_string(status),
++                "status": task_board_status_string(*status),
+@@ -3534 +3653 @@ async fn emit_task_board_projection_artifacts(
+-    for (wp_id, status_raw, metadata_raw, updated_at) in &rows {
++    for (wp_id, status, token, updated_at) in &rows {
+@@ -3536,7 +3654,0 @@ async fn emit_task_board_projection_artifacts(
+-        let status = parse_task_board_status_db_global(status_raw);
+-        let metadata: Value = serde_json::from_str(metadata_raw).unwrap_or_else(|_| json!({}));
+-        let token = metadata
+-            .get("task_board_token")
+-            .and_then(Value::as_str)
+-            .map(str::to_string)
+-            .unwrap_or_else(|| default_task_board_token_for_artifacts(status).to_string());
+@@ -3545 +3657 @@ async fn emit_task_board_projection_artifacts(
+-            .entries_for_status_mut(status)
++            .entries_for_status_mut(*status)
+@@ -3548,2 +3660,2 @@ async fn emit_task_board_projection_artifacts(
+-                token,
+-                status,
++                token: token.clone(),
++                status: *status,
+@@ -3561,8 +3673 @@ async fn emit_task_board_projection_artifacts(
+-    for (wp_id, status_raw, metadata_raw, updated_at) in rows {
+-        let status = parse_task_board_status_db_global(&status_raw);
+-        let metadata: Value = serde_json::from_str(&metadata_raw).unwrap_or_else(|_| json!({}));
+-        let token = metadata
+-            .get("task_board_token")
+-            .and_then(Value::as_str)
+-            .map(str::to_string)
+-            .unwrap_or_else(|| default_task_board_token_for_artifacts(status).to_string());
++    for (wp_id, status, token, updated_at) in rows {
+@@ -3750 +3855 @@ async fn materialize_structured_collaboration_artifacts(
+-    let pool = sqlite_pool_for_structured_artifacts(state)?;
++    let db = state.storage.as_ref();
+@@ -3755 +3860 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3759 +3864 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3763 +3868 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3767 +3872 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3771 +3876 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3775 +3880 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3779 +3884 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3783 +3888 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3787 +3892 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3791 +3896 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3795 +3900 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3799 +3904 @@ async fn materialize_structured_collaboration_artifacts(
+-            let micro_tasks = list_tracked_micro_tasks_for_artifacts(pool, &params.wp_id).await?;
++            let micro_tasks = list_tracked_micro_tasks_for_artifacts(db, &params.wp_id).await?;
+@@ -3803 +3908 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3807 +3912 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3812 +3917 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
++                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
+@@ -3816 +3921 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3820 +3925 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3825 +3930 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
++                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
+@@ -3829 +3934 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3833 +3938 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3838 +3943 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
++                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
+@@ -3842 +3947 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3846 +3951 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3851 +3956 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
++                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
+@@ -3855 +3960 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3859 +3964 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
++                load_tracked_work_packet_for_artifacts(db, &params.wp_id).await?
+@@ -3864 +3969 @@ async fn materialize_structured_collaboration_artifacts(
+-                load_tracked_micro_task_for_artifacts(pool, &params.wp_id, &params.mt_id).await?
++                load_tracked_micro_task_for_artifacts(db, &params.wp_id, &params.mt_id).await?
+@@ -3868 +3973 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -3871 +3976 @@ async fn materialize_structured_collaboration_artifacts(
+-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
++            emit_task_board_projection_artifacts(db, &runtime_paths).await?;
+@@ -4148,6 +4253,4 @@ async fn execute_locus_register_mts(
+-    let payload = crate::storage::locus_sqlite::execute_locus_operation(
+-        db,
+-        locus::LocusOperation::RegisterMts(normalized),
+-    )
+-    .await
+-    .map_err(WorkflowError::from)?;
++    let payload =
++        crate::storage::execute_locus_operation(db, locus::LocusOperation::RegisterMts(normalized))
++            .await
++            .map_err(WorkflowError::from)?;
+@@ -4186 +4289 @@ async fn execute_locus_micro_task_operation(
+-    let payload = crate::storage::locus_sqlite::execute_locus_operation(db, op).await?;
++    let payload = crate::storage::execute_locus_operation(db, op).await?;
+@@ -4213 +4316 @@ async fn execute_locus_work_packet_operation(
+-    let payload = crate::storage::locus_sqlite::execute_locus_operation(db, op).await?;
++    let payload = crate::storage::execute_locus_operation(db, op).await?;
+@@ -4228 +4331 @@ async fn emit_runtime_structured_work_packet_artifacts(
+-        load_tracked_work_packet_from_sqlite(runtime_paths, db, wp_id, kind_hint).await?;
++        load_tracked_work_packet_from_storage(runtime_paths, db, wp_id, kind_hint).await?;
+@@ -4295 +4398 @@ async fn emit_runtime_structured_micro_task_artifacts(
+-        load_tracked_micro_task_from_sqlite(runtime_paths, db, wp_id, mt_id).await?;
++        load_tracked_micro_task_from_storage(runtime_paths, db, wp_id, mt_id).await?;
+@@ -4355 +4458 @@ async fn emit_runtime_structured_micro_task_artifacts(
+-async fn load_tracked_micro_task_from_sqlite(
++async fn load_tracked_micro_task_from_storage(
+@@ -4361,14 +4464,2 @@ async fn load_tracked_micro_task_from_sqlite(
+-    let sqlite = sqlite_database_for_structured_work_packet_projection(db)?;
+-    let metadata_raw = sqlx::query_scalar::<_, String>(
+-        r#"
+-        SELECT metadata
+-        FROM micro_tasks
+-        WHERE wp_id = $1 AND mt_id = $2
+-        "#,
+-    )
+-    .bind(wp_id)
+-    .bind(mt_id)
+-    .fetch_optional(sqlite.pool())
+-    .await
+-    .map_err(StorageError::from)?;
+-    let Some(metadata_raw) = metadata_raw else {
++    let Some(mut tracked_mt) = load_tracked_micro_task_for_artifacts(db, wp_id, mt_id).await?
++    else {
+@@ -4377,3 +4467,0 @@ async fn load_tracked_micro_task_from_sqlite(
+-
+-    let mut tracked_mt: locus::TrackedMicroTask =
+-        serde_json::from_str(&metadata_raw).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+@@ -4384 +4472 @@ async fn load_tracked_micro_task_from_sqlite(
+-async fn load_tracked_work_packet_from_sqlite(
++async fn load_tracked_work_packet_from_storage(
+@@ -4390,67 +4478 @@ async fn load_tracked_work_packet_from_sqlite(
+-    let sqlite = sqlite_database_for_structured_work_packet_projection(db)?;
+-    let row = sqlx::query_as::<
+-        _,
+-        (
+-            String,
+-            i64,
+-            String,
+-            String,
+-            String,
+-            i64,
+-            String,
+-            String,
+-            Option<String>,
+-            String,
+-            Option<String>,
+-            String,
+-            String,
+-            String,
+-            String,
+-            String,
+-        ),
+-    >(
+-        r#"
+-        SELECT
+-            wp_id,
+-            version,
+-            title,
+-            description,
+-            status,
+-            priority,
+-            phase,
+-            routing,
+-            task_packet_path,
+-            task_board_status,
+-            assignee,
+-            reporter,
+-            created_at,
+-            updated_at,
+-            vector_clock,
+-            metadata
+-        FROM work_packets
+-        WHERE wp_id = $1
+-        "#,
+-    )
+-    .bind(wp_id)
+-    .fetch_optional(sqlite.pool())
+-    .await
+-    .map_err(StorageError::from)?;
+-    let Some((
+-        wp_id,
+-        version,
+-        title,
+-        description,
+-        status_raw,
+-        priority,
+-        phase_raw,
+-        routing_raw,
+-        task_packet_path,
+-        task_board_status_raw,
+-        assignee,
+-        reporter,
+-        created_at_raw,
+-        updated_at_raw,
+-        vector_clock_raw,
+-        metadata_raw,
+-    )) = row
+-    else {
++    let Some(mut tracked_wp) = load_tracked_work_packet_for_artifacts(db, wp_id).await? else {
+@@ -4460,10 +4482,5 @@ async fn load_tracked_work_packet_from_sqlite(
+-    let mut metadata: Value =
+-        serde_json::from_str(&metadata_raw).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+-    if !metadata.is_object() {
+-        metadata = json!({});
+-    }
+-
+-    let packet_display = runtime_paths.work_packet_packet_display(&wp_id);
+-    let summary_display = runtime_paths.work_packet_summary_display(&wp_id);
+-    let existing_packet_kind = read_existing_work_packet_type(runtime_paths, &wp_id);
+-    let kind = metadata
++    let packet_display = runtime_paths.work_packet_packet_display(wp_id);
++    let summary_display = runtime_paths.work_packet_summary_display(wp_id);
++    let existing_packet_kind = read_existing_work_packet_type(runtime_paths, wp_id);
++    tracked_wp.kind = tracked_wp
++        .metadata
+@@ -4476 +4493,3 @@ async fn load_tracked_work_packet_from_sqlite(
+-    let evidence_refs = task_packet_path
++    let evidence_refs = tracked_wp
++        .governance
++        .task_packet_path
+@@ -4480,108 +4498,0 @@ async fn load_tracked_work_packet_from_sqlite(
+-
+-    let labels = metadata
+-        .get("labels")
+-        .cloned()
+-        .map(serde_json::from_value::<Vec<String>>)
+-        .transpose()
+-        .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+-        .unwrap_or_default();
+-    let notes = metadata
+-        .get("notes")
+-        .cloned()
+-        .map(serde_json::from_value::<Vec<locus::WorkNote>>)
+-        .transpose()
+-        .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+-        .unwrap_or_default();
+-    let gates = metadata
+-        .get("gates")
+-        .cloned()
+-        .map(serde_json::from_value::<locus::GateStatuses>)
+-        .transpose()
+-        .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+-        .unwrap_or_else(default_gate_statuses);
+-    let started_at = parse_optional_timestamp_value(metadata.get("started_at"))?;
+-    let completed_at = parse_optional_timestamp_value(metadata.get("completed_at"))?;
+-    let due_at = parse_optional_timestamp_value(metadata.get("due_at"))?;
+-    let profile_extension = metadata
+-        .get("profile_extension")
+-        .cloned()
+-        .filter(|value| !value.is_null());
+-    let tombstone = metadata
+-        .get("tombstone")
+-        .cloned()
+-        .filter(|value| !value.is_null());
+-
+-    let mt_rows = sqlx::query_as::<_, (String, String)>(
+-        "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+-    )
+-    .bind(&wp_id)
+-    .fetch_all(sqlite.pool())
+-    .await
+-    .map_err(StorageError::from)?;
+-    let mut micro_tasks = locus::MicroTaskSummary {
+-        total: mt_rows.len() as u32,
+-        completed: 0,
+-        failed: 0,
+-        in_progress: 0,
+-        mt_ids: Vec::with_capacity(mt_rows.len()),
+-    };
+-    for (mt_id, mt_status_raw) in mt_rows {
+-        micro_tasks.mt_ids.push(mt_id);
+-        match parse_micro_task_status_value(&mt_status_raw)? {
+-            locus::MicroTaskStatus::InProgress => {
+-                micro_tasks.in_progress = micro_tasks.in_progress.saturating_add(1);
+-            }
+-            locus::MicroTaskStatus::Completed => {
+-                micro_tasks.completed = micro_tasks.completed.saturating_add(1);
+-            }
+-            locus::MicroTaskStatus::Failed => {
+-                micro_tasks.failed = micro_tasks.failed.saturating_add(1);
+-            }
+-            _ => {}
+-        }
+-    }
+-
+-    let mut tracked_wp = locus::TrackedWorkPacket {
+-        schema_id: String::new(),
+-        schema_version: String::new(),
+-        record_id: String::new(),
+-        record_kind: String::new(),
+-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+-        mirror_state: locus::MirrorSyncState::CanonicalOnly,
+-        authority_refs: Vec::new(),
+-        evidence_refs: Vec::new(),
+-        summary_record_path: None,
+-        profile_extension,
+-        wp_id,
+-        version: version.max(0) as u64,
+-        title,
+-        description,
+-        status: parse_work_packet_status_value(&status_raw)?,
+-        priority: priority.clamp(0, 4) as u8,
+-        governance: locus::WorkPacketGovernance {
+-            phase: parse_work_packet_phase_value(&phase_raw)?,
+-            routing: parse_routing_policy_value(&routing_raw)?,
+-            spec_session_id: metadata
+-                .get("spec_session_id")
+-                .and_then(Value::as_str)
+-                .map(|value| value.to_string()),
+-            gates,
+-            task_packet_path,
+-            task_board_status: parse_task_board_status_value(&task_board_status_raw)?,
+-        },
+-        kind,
+-        labels,
+-        assignee,
+-        reporter,
+-        micro_tasks,
+-        created_at: parse_rfc3339_timestamp("created_at", &created_at_raw)?,
+-        updated_at: parse_rfc3339_timestamp("updated_at", &updated_at_raw)?,
+-        started_at,
+-        completed_at,
+-        due_at,
+-        notes,
+-        metadata,
+-        vector_clock: serde_json::from_str(&vector_clock_raw)
+-            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+-        tombstone,
+-    };
+@@ -4597,55 +4507,0 @@ async fn load_tracked_work_packet_from_sqlite(
+-fn sqlite_database_for_structured_work_packet_projection(
+-    db: &dyn crate::storage::Database,
+-) -> Result<&crate::storage::sqlite::SqliteDatabase, WorkflowError> {
+-    db.as_any()
+-        .downcast_ref::<crate::storage::sqlite::SqliteDatabase>()
+-        .ok_or_else(|| WorkflowError::from(StorageError::NotImplemented("locus sqlite")))
+-}
+-
+-fn parse_optional_timestamp_value(
+-    value: Option<&Value>,
+-) -> Result<Option<DateTime<Utc>>, WorkflowError> {
+-    match value {
+-        None => Ok(None),
+-        Some(Value::Null) => Ok(None),
+-        Some(other) => serde_json::from_value::<DateTime<Utc>>(other.clone())
+-            .map(Some)
+-            .map_err(|e| WorkflowError::Terminal(e.to_string())),
+-    }
+-}
+-
+-fn parse_rfc3339_timestamp(field: &str, value: &str) -> Result<DateTime<Utc>, WorkflowError> {
+-    DateTime::parse_from_rfc3339(value)
+-        .map(|ts| ts.with_timezone(&Utc))
+-        .map_err(|e| {
+-            WorkflowError::Terminal(format!(
+-                "invalid structured collaboration timestamp {field}={value}: {e}"
+-            ))
+-        })
+-}
+-
+-fn parse_work_packet_status_value(value: &str) -> Result<locus::WorkPacketStatus, WorkflowError> {
+-    serde_json::from_value(Value::String(value.to_string()))
+-        .map_err(|e| WorkflowError::Terminal(format!("invalid work packet status {value}: {e}")))
+-}
+-
+-fn parse_task_board_status_value(value: &str) -> Result<locus::TaskBoardStatus, WorkflowError> {
+-    serde_json::from_value(Value::String(value.to_string()))
+-        .map_err(|e| WorkflowError::Terminal(format!("invalid task board status {value}: {e}")))
+-}
+-
+-fn parse_routing_policy_value(value: &str) -> Result<locus::RoutingPolicy, WorkflowError> {
+-    serde_json::from_value(Value::String(value.to_string()))
+-        .map_err(|e| WorkflowError::Terminal(format!("invalid routing policy {value}: {e}")))
+-}
+-
+-fn parse_work_packet_phase_value(value: &str) -> Result<locus::WorkPacketPhase, WorkflowError> {
+-    serde_json::from_value(Value::String(value.to_string()))
+-        .map_err(|e| WorkflowError::Terminal(format!("invalid work packet phase {value}: {e}")))
+-}
+-
+-fn parse_micro_task_status_value(value: &str) -> Result<locus::MicroTaskStatus, WorkflowError> {
+-    serde_json::from_value(Value::String(value.to_string()))
+-        .map_err(|e| WorkflowError::Terminal(format!("invalid micro-task status {value}: {e}")))
+-}
+-
+@@ -6744,3 +6600 @@ async fn enforce_work_packet_binding_if_required(
+-    let exists =
+-        crate::storage::locus_sqlite::locus_work_packet_exists(state.storage.as_ref(), wp_id)
+-            .await?;
++    let exists = crate::storage::locus_work_packet_exists(state.storage.as_ref(), wp_id).await?;
+@@ -7596,2 +7450 @@ async fn run_job(
+-                crate::storage::locus_sqlite::execute_locus_operation(state.storage.as_ref(), other)
+-                    .await?
++                crate::storage::execute_locus_operation(state.storage.as_ref(), other).await?
+@@ -23941,0 +23795 @@ mod tests {
++    use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
+@@ -23943 +23797,2 @@ mod tests {
+-        sqlite::SqliteDatabase, AccessMode, Database, JobKind, JobMetrics, JobState, SafetyMode,
++        sqlite::SqliteDatabase, tests::postgres_backend_from_env, AccessMode, Database, JobKind,
++        JobMetrics, JobState, SafetyMode,
+@@ -23946 +23801,3 @@ mod tests {
+-    use std::sync::Arc;
++    use std::sync::{Arc, Mutex};
++
++    static RUNTIME_ENV_LOCK: Mutex<()> = Mutex::new(());
+@@ -23963,0 +23821,111 @@ mod tests {
++    async fn setup_postgres_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
++        if std::env::var("POSTGRES_TEST_URL").is_err() {
++            return Ok(None);
++        }
++
++        let storage = postgres_backend_from_env().await?;
++        let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
++        Ok(Some(AppState {
++            storage,
++            flight_recorder: flight_recorder.clone(),
++            diagnostics: flight_recorder,
++            llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
++            capability_registry: Arc::new(CapabilityRegistry::new()),
++            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
++        }))
++    }
++
++    struct EnvVarGuard {
++        key: &'static str,
++        previous: Option<String>,
++    }
++
++    impl EnvVarGuard {
++        fn set(key: &'static str, value: &str) -> Self {
++            let previous = std::env::var(key).ok();
++            std::env::set_var(key, value);
++            Self { key, previous }
++        }
++    }
++
++    impl Drop for EnvVarGuard {
++        fn drop(&mut self) {
++            if let Some(previous) = &self.previous {
++                std::env::set_var(self.key, previous);
++            } else {
++                std::env::remove_var(self.key);
++            }
++        }
++    }
++
++    fn sample_register_mt_params(wp_id: &str) -> locus::LocusRegisterMtsParams {
++        locus::LocusRegisterMtsParams {
++            wp_id: wp_id.to_string(),
++            micro_tasks: vec![locus::TrackedMicroTask {
++                schema_id: String::new(),
++                schema_version: String::new(),
++                record_id: String::new(),
++                record_kind: String::new(),
++                project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++                updated_at: Utc::now(),
++                mirror_state: locus::MirrorSyncState::CanonicalOnly,
++                authority_refs: Vec::new(),
++                evidence_refs: Vec::new(),
++                summary_record_path: None,
++                profile_extension: None,
++                mt_id: "MT-001".to_string(),
++                wp_id: wp_id.to_string(),
++                name: "Port projection writer".to_string(),
++                scope: "Emit structured collaboration artifacts from portable storage".to_string(),
++                files: locus::MicroTaskFiles {
++                    read: vec![
++                        "src/backend/handshake_core/src/storage/postgres.rs".to_string(),
++                        "src/backend/handshake_core/src/workflows.rs".to_string(),
++                    ],
++                    modify: vec![
++                        "src/backend/handshake_core/src/storage/mod.rs".to_string(),
++                        "src/backend/handshake_core/src/workflows.rs".to_string(),
++                    ],
++                    create: Vec::new(),
++                },
++                done_criteria: vec!["task-board projection emits from postgres".to_string()],
++                status: locus::MicroTaskStatus::Pending,
++                active_session_ids: Vec::new(),
++                iterations: Vec::new(),
++                current_iteration: 0,
++                max_iterations: 3,
++                validation_result: None,
++                escalation: locus::MicroTaskEscalation {
++                    current_level: 0,
++                    escalation_chain: Vec::new(),
++                    escalations_count: 0,
++                    drop_backs_count: 0,
++                },
++                started_at: None,
++                completed_at: None,
++                duration_ms: None,
++                depends_on: Vec::new(),
++                metadata: json!({ "source": "workflow_test" }),
++            }],
++        }
++    }
++
++    fn sample_create_wp_params(wp_id: &str) -> locus::LocusCreateWpParams {
++        locus::LocusCreateWpParams {
++            wp_id: wp_id.to_string(),
++            title: format!("Structured collaboration artifact parity for {wp_id}"),
++            description: format!(
++                "Prove runtime structured collaboration artifacts emit for {wp_id}"
++            ),
++            priority: 1,
++            kind: locus::WorkPacketType::Feature,
++            phase: locus::WorkPacketPhase::Phase1,
++            routing: locus::RoutingPolicy::GovStandard,
++            task_packet_path: Some(".GOV/task_packets/WP-1/packet.md".to_string()),
++            assignee: Some("CODER".to_string()),
++            labels: Some(vec!["postgres".to_string(), "artifact-parity".to_string()]),
++            spec_session_id: Some("spec-session-1".to_string()),
++            reporter: "operator".to_string(),
++        }
++    }
++
+@@ -23974,0 +23943,142 @@ mod tests {
++    #[tokio::test]
++    async fn postgres_structured_collab_artifacts_materialize_parity_fields(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let Some(state) = setup_postgres_state().await? else {
++            return Ok(());
++        };
++
++        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
++        let tmp = tempfile::tempdir()?;
++        let _workspace_root =
++            EnvVarGuard::set("HANDSHAKE_WORKSPACE_ROOT", &tmp.path().display().to_string());
++        let _gov_root =
++            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
++
++        let wp_id = "WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1";
++        let create_params = sample_create_wp_params(wp_id);
++        execute_locus_work_packet_operation(
++            state.storage.as_ref(),
++            locus::LocusOperation::CreateWp(create_params.clone()),
++        )
++        .await?;
++        materialize_structured_collaboration_artifacts(
++            &state,
++            &locus::LocusOperation::CreateWp(create_params),
++        )
++        .await?;
++
++        let register_params = sample_register_mt_params(wp_id);
++        execute_locus_register_mts(state.storage.as_ref(), register_params.clone()).await?;
++        materialize_structured_collaboration_artifacts(
++            &state,
++            &locus::LocusOperation::RegisterMts(register_params),
++        )
++        .await?;
++
++        let runtime_paths = RuntimeGovernancePaths::resolve()?;
++        let packet_value: Value =
++            serde_json::from_slice(&std::fs::read(runtime_paths.work_packet_packet_path(wp_id))?)?;
++        let micro_task_value: Value = serde_json::from_slice(&std::fs::read(
++            runtime_paths.micro_task_packet_path(wp_id, "MT-001"),
++        )?)?;
++        let task_board_index: Value =
++            serde_json::from_slice(&std::fs::read(runtime_paths.task_board_index_path())?)?;
++        let task_board_row = task_board_index["rows"]
++            .as_array()
++            .and_then(|rows| rows.iter().find(|row| row["work_packet_id"] == wp_id))
++            .expect("task-board projection should include the postgres-backed work packet");
++
++        assert_eq!(packet_value["wp_id"], wp_id);
++        assert_eq!(packet_value["project_profile_kind"], "software_delivery");
++        assert_eq!(packet_value["mirror_state"], "canonical_only");
++        assert_eq!(packet_value["workflow_state_family"], "intake");
++        assert_eq!(packet_value["queue_reason_code"], "new_untriaged");
++
++        assert_eq!(micro_task_value["mt_id"], "MT-001");
++        assert_eq!(micro_task_value["project_profile_kind"], "software_delivery");
++        assert_eq!(micro_task_value["mirror_state"], "canonical_only");
++        assert_eq!(micro_task_value["workflow_state_family"], "ready");
++        assert_eq!(
++            micro_task_value["queue_reason_code"],
++            "ready_for_local_small_model"
++        );
++
++        assert_eq!(task_board_row["project_profile_kind"], "software_delivery");
++        assert_eq!(task_board_row["mirror_state"], "canonical_only");
++        assert_eq!(task_board_row["workflow_state_family"], "intake");
++        assert_eq!(task_board_row["queue_reason_code"], "new_untriaged");
++
++        Ok(())
++    }
++
++    #[tokio::test]
++    async fn task_board_projection_preserves_updated_at_then_wp_id_order(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let state = setup_state().await?;
++
++        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
++        let tmp = tempfile::tempdir()?;
++        let _workspace_root =
++            EnvVarGuard::set("HANDSHAKE_WORKSPACE_ROOT", &tmp.path().display().to_string());
++        let _gov_root =
++            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
++
++        let first_wp_id = "WP-B";
++        let second_wp_id = "WP-A";
++
++        let first_create = sample_create_wp_params(first_wp_id);
++        execute_locus_work_packet_operation(
++            state.storage.as_ref(),
++            locus::LocusOperation::CreateWp(first_create.clone()),
++        )
++        .await?;
++        materialize_structured_collaboration_artifacts(
++            &state,
++            &locus::LocusOperation::CreateWp(first_create),
++        )
++        .await?;
++
++        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
++
++        let second_create = sample_create_wp_params(second_wp_id);
++        execute_locus_work_packet_operation(
++            state.storage.as_ref(),
++            locus::LocusOperation::CreateWp(second_create.clone()),
++        )
++        .await?;
++        materialize_structured_collaboration_artifacts(
++            &state,
++            &locus::LocusOperation::CreateWp(second_create),
++        )
++        .await?;
++
++        let runtime_paths = RuntimeGovernancePaths::resolve()?;
++        let task_board_index: Value =
++            serde_json::from_slice(&std::fs::read(runtime_paths.task_board_index_path())?)?;
++        let rows = task_board_index["rows"]
++            .as_array()
++            .expect("task-board index rows should be an array");
++
++        let ordered_wp_ids: Vec<&str> = rows
++            .iter()
++            .map(|row| {
++                row["work_packet_id"]
++                    .as_str()
++                    .expect("task-board row should carry a work packet id")
++            })
++            .collect();
++        assert_eq!(ordered_wp_ids, vec![first_wp_id, second_wp_id]);
++
++        let display_orders: Vec<u64> = rows
++            .iter()
++            .map(|row| {
++                row["display_order"]
++                    .as_u64()
++                    .expect("task-board row should carry a display_order")
++            })
++            .collect();
++        assert_eq!(display_orders, vec![0, 1]);
++
++        Ok(())
++    }
++

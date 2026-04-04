@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_TEMPLATE
+# TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
 
@@ -21,7 +21,8 @@ Requirements:
 - WP_ID: WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1
 - BASE_WP_ID: WP-1-Postgres-Structured-Collaboration-Artifact-Parity
 - DATE: 2026-04-03T23:39:59.457Z
-- MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: f85d767d8ae8a56121f224f6e12ed2df6f973d6b
+- MERGE_BASE_NOTE: authoritative reviewable closeout surface is the full merge-base candidate `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af`, preserving the bounded eight-file migration/runtime/storage/workflow parity bundle for final-lane containment
 - REQUESTOR: Operator
 - AGENT_ID: Orchestrator
 - ROLE: Orchestrator
@@ -102,21 +103,21 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
-- MAIN_CONTAINMENT_STATUS: NOT_STARTED
+- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
-- MERGED_MAIN_COMMIT: NONE
+- MERGED_MAIN_COMMIT: ad680e3a4071e05e207ea9d562ee397f0eaded30
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
-- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-04-04T23:45:47.196Z
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
-- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
+- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: ad680e3a4071e05e207ea9d562ee397f0eaded30
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-04T23:45:47.196Z
 <!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
-- PACKET_WIDENING_DECISION: NONE
+- PACKET_WIDENING_DECISION: NOT_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
 - PACKET_WIDENING_EVIDENCE: N/A
 <!-- Use follow-on/superseding WP id, audit id, or short rationale when widening is required. -->
@@ -159,8 +160,8 @@ Requirements:
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
-- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: wp_validator:wp-1-postgres-structured-collaboration-artifact-parity-v1
+- INTEGRATION_VALIDATOR_OF_RECORD: integration_validator:wp-1-postgres-structured-collaboration-artifact-parity-v1
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
@@ -174,16 +175,15 @@ Requirements:
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
 Blockers: NONE
-Next: N/A
-
+Next: ORCHESTRATOR advances verdict progression and integration closeout from the authoritative completed direct-review lane.
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: Storage Backend Portability Architecture [CX-DBP-001] plus Dual-Backend Testing Early [CX-DBP-013] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs; src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/storage/tests.rs; src/backend/handshake_core/migrations/ | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml postgres_structured_collab; cargo test --manifest-path src/backend/handshake_core/Cargo.toml | EXAMPLES: the same canonical work-packet row round-trips on SQLite and PostgreSQL with matching `project_profile_kind`, `mirror_state`, and summary semantics, the same canonical micro-task metadata and status rows round-trip on SQLite and PostgreSQL with matching workflow-state and queue-reason fields, a bounded task-board projection path reads or updates the same authoritative structured state on SQLite and PostgreSQL | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Canonical structured collaboration artifact family [ADD v02.167] | CODE_SURFACES: src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/storage/sqlite.rs; src/backend/handshake_core/src/workflows.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml structured_collab | EXAMPLES: the same canonical work-packet row round-trips on SQLite and PostgreSQL with matching `project_profile_kind`, `mirror_state`, and summary semantics, the same canonical micro-task metadata and status rows round-trip on SQLite and PostgreSQL with matching workflow-state and queue-reason fields, a bounded task-board projection path reads or updates the same authoritative structured state on SQLite and PostgreSQL | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Base structured schema and project-profile extension contract [ADD v02.168] | CODE_SURFACES: src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/storage/sqlite.rs; src/backend/handshake_core/src/locus/types.rs; src/backend/handshake_core/src/storage/tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml structured_collab | EXAMPLES: the same canonical work-packet row round-trips on SQLite and PostgreSQL with matching `project_profile_kind`, `mirror_state`, and summary semantics, the same canonical micro-task metadata and status rows round-trip on SQLite and PostgreSQL with matching workflow-state and queue-reason fields, a bounded task-board projection path reads or updates the same authoritative structured state on SQLite and PostgreSQL | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171] | CODE_SURFACES: src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/workflows.rs; src/backend/handshake_core/src/locus/task_board.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml task_board; cargo test --manifest-path src/backend/handshake_core/Cargo.toml structured_collab | EXAMPLES: the same canonical work-packet row round-trips on SQLite and PostgreSQL with matching `project_profile_kind`, `mirror_state`, and summary semantics, the same canonical micro-task metadata and status rows round-trip on SQLite and PostgreSQL with matching workflow-state and queue-reason fields, a bounded task-board projection path reads or updates the same authoritative structured state on SQLite and PostgreSQL | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Conformance requirement 11 structured-record readability [ADD v02.166] | CODE_SURFACES: src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/workflows.rs; src/backend/handshake_core/src/storage/tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml postgres_structured_collab; cargo test --manifest-path src/backend/handshake_core/Cargo.toml task_board | EXAMPLES: the same canonical work-packet row round-trips on SQLite and PostgreSQL with matching `project_profile_kind`, `mirror_state`, and summary semantics, the same canonical micro-task metadata and status rows round-trip on SQLite and PostgreSQL with matching workflow-state and queue-reason fields, a bounded task-board projection path reads or updates the same authoritative structured state on SQLite and PostgreSQL | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Storage Backend Portability Architecture [CX-DBP-001] plus Dual-Backend Testing Early [CX-DBP-013] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs; src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/storage/tests.rs; src/backend/handshake_core/migrations/ | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml postgres_structured_collab; cargo test --manifest-path src/backend/handshake_core/Cargo.toml | EXAMPLES: the same canonical work-packet row round-trips on SQLite and PostgreSQL with matching `project_profile_kind`, `mirror_state`, and summary semantics, the same canonical micro-task metadata and status rows round-trip on SQLite and PostgreSQL with matching workflow-state and queue-reason fields, a bounded task-board projection path reads or updates the same authoritative structured state on SQLite and PostgreSQL | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Canonical structured collaboration artifact family [ADD v02.167] | CODE_SURFACES: src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/storage/sqlite.rs; src/backend/handshake_core/src/workflows.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml structured_collab | EXAMPLES: the same canonical work-packet row round-trips on SQLite and PostgreSQL with matching `project_profile_kind`, `mirror_state`, and summary semantics, the same canonical micro-task metadata and status rows round-trip on SQLite and PostgreSQL with matching workflow-state and queue-reason fields, a bounded task-board projection path reads or updates the same authoritative structured state on SQLite and PostgreSQL | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Base structured schema and project-profile extension contract [ADD v02.168] | CODE_SURFACES: src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/storage/sqlite.rs; src/backend/handshake_core/src/locus/types.rs; src/backend/handshake_core/src/storage/tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml structured_collab | EXAMPLES: the same canonical work-packet row round-trips on SQLite and PostgreSQL with matching `project_profile_kind`, `mirror_state`, and summary semantics, the same canonical micro-task metadata and status rows round-trip on SQLite and PostgreSQL with matching workflow-state and queue-reason fields, a bounded task-board projection path reads or updates the same authoritative structured state on SQLite and PostgreSQL | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171] | CODE_SURFACES: src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/workflows.rs; src/backend/handshake_core/src/locus/task_board.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml task_board; cargo test --manifest-path src/backend/handshake_core/Cargo.toml structured_collab | EXAMPLES: the same canonical work-packet row round-trips on SQLite and PostgreSQL with matching `project_profile_kind`, `mirror_state`, and summary semantics, the same canonical micro-task metadata and status rows round-trip on SQLite and PostgreSQL with matching workflow-state and queue-reason fields, a bounded task-board projection path reads or updates the same authoritative structured state on SQLite and PostgreSQL | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Conformance requirement 11 structured-record readability [ADD v02.166] | CODE_SURFACES: src/backend/handshake_core/src/storage/postgres.rs; src/backend/handshake_core/src/workflows.rs; src/backend/handshake_core/src/storage/tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml postgres_structured_collab; cargo test --manifest-path src/backend/handshake_core/Cargo.toml task_board | EXAMPLES: the same canonical work-packet row round-trips on SQLite and PostgreSQL with matching `project_profile_kind`, `mirror_state`, and summary semantics, the same canonical micro-task metadata and status rows round-trip on SQLite and PostgreSQL with matching workflow-state and queue-reason fields, a bounded task-board projection path reads or updates the same authoritative structured state on SQLite and PostgreSQL | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -621,7 +621,8 @@ Next: N/A
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Prefer pipe records so the computed policy gate can classify them deterministically.)
 - (Format: `- WAIVER_ID: CX-... | STATUS: ACTIVE | COVERS: SCOPE, PROOF, TEST, ENVIRONMENT, PROTECTED_SURFACE, HEURISTIC | SCOPE: <WP/local scope> | JUSTIFICATION: <why> | APPROVER: <user/operator> | EXPIRES: <date or condition>`.)
-- NONE
+- WAIVER_ID: CX-573F-20260404-PARITY-MAIN-STORAGE-TESTS | STATUS: ACTIVE | COVERS: SCOPE | SCOPE: authoritative-main assessment of already-performed `src/backend/handshake_core/src/storage/tests.rs` drift during parity v1 contained-main accounting | JUSTIFICATION: Operator granted a conditional waiver on 2026-04-04 for already-performed out-of-scope work if it is correct versus the Master Spec; both CODER and INTEGRATION_VALIDATOR later assessed the authoritative-main `storage/tests.rs` drift as correct enough and non-semantic outside test-facing/backend-proof hooks. | APPROVER: Operator (chat, 2026-04-04) | EXPIRES: when WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1 closeout is resolved
+- WAIVER_ID: CX-573F-20260404-PARITY-TOKEN-BUDGET-CONTINUATION | STATUS: ACTIVE | COVERS: GOVERNANCE | SCOPE: post-signature orchestrator-managed continuation after TOKEN_BUDGET_EXCEEDED / POLICY_CONFLICT on WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1 during crash-recovery finish pass | JUSTIFICATION: Operator explicitly instructed autonomous continuation until this WP is finished and governance is satisfied after the prior orchestrator-managed parallel run had already exceeded the governed token budget. This waiver authorizes bounded continuation without pretending the budget overrun did not occur. | APPROVER: Operator (chat, 2026-04-04) | EXPIRES: when WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1 reaches an honest closeout verdict
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -734,51 +735,211 @@ rg -n "supports_structured_collab_artifacts|structured_collab_work_packet_row|st
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Target File**: `src/backend/handshake_core/migrations/0016_locus_structured_collaboration.down.sql`
+- **Start**: 1
+- **End**: 4
+- **Line Delta**: 4
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `10f91d67f4986604a02ab7aec3b7bd21d15c558b`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: refreshed deterministic manifest for committed full candidate range `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af`; final-lane proof commands recorded below
+- **Artifacts**: refreshed full signed candidate surface at `.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/signed-scope.patch`
+- **Timestamp**: 2026-04-04T21:20:00Z
+- **Operator**: `orchestrator:wp-1-postgres-structured-collaboration-artifact-parity-v1-recovery`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: full closeout candidate includes the bounded numbered rollback pair from the real merge-base, not only the final storage-hook repair
+- **Target File**: `src/backend/handshake_core/migrations/0016_locus_structured_collaboration.sql`
+- **Start**: 1
+- **End**: 36
+- **Line Delta**: 36
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `b184d1c31073ce7beb88f67c4bba4358423ba280`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: refreshed deterministic manifest for committed full candidate range `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af`; final-lane proof commands recorded below
+- **Artifacts**: refreshed full signed candidate surface at `.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/signed-scope.patch`
+- **Timestamp**: 2026-04-04T21:20:00Z
+- **Operator**: `orchestrator:wp-1-postgres-structured-collaboration-artifact-parity-v1-recovery`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: full closeout candidate includes the bounded numbered schema bootstrap pair from the real merge-base, not only the final storage-hook repair
+- **Target File**: `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Start**: 1
+- **End**: 1169
+- **Line Delta**: -4
+- **Pre-SHA1**: `a3bdbe81c302f8fdbefd260bff808c12b2181ee8`
+- **Post-SHA1**: `6e47ee37dea39cfaa04a6dbcd650242b4aca1ca0`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: refreshed deterministic manifest for committed full candidate range `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af`; final-lane proof commands recorded below
+- **Artifacts**: refreshed full signed candidate surface at `.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/signed-scope.patch`
+- **Timestamp**: 2026-04-04T21:20:00Z
+- **Operator**: `orchestrator:wp-1-postgres-structured-collaboration-artifact-parity-v1-recovery`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: full closeout candidate still carries the earlier SQLite-side bounded locus helper narrowing that validators already reviewed on the same packet surface
+- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
+- **Start**: 1
+- **End**: 2085
+- **Line Delta**: 160
+- **Pre-SHA1**: `931b2f54ed60b3415e588a23b076b670e0419d74`
+- **Post-SHA1**: `70cc848c40debdcfcdaa4442c1644781b38d6ad9`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: refreshed deterministic manifest for committed full candidate range `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af`; final-lane proof commands recorded below
+- **Artifacts**: refreshed full signed candidate surface at `.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/signed-scope.patch`
+- **Timestamp**: 2026-04-04T21:20:00Z
+- **Operator**: `orchestrator:wp-1-postgres-structured-collaboration-artifact-parity-v1-recovery`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: full closeout candidate still carries the earlier shared test-hook and capability seam changes from the real merge-base
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 19
+- **End**: 6619
+- **Line Delta**: 1036
+- **Pre-SHA1**: `d1b3b82d78a9fe77716cb7762449b8c2cc6ace88`
+- **Post-SHA1**: `1ed62dcea80beb0242ad25a889d31a7b14692888`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: refreshed deterministic manifest for committed full candidate range `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af`; final-lane proof commands recorded below
+- **Artifacts**: refreshed full signed candidate surface at `.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/signed-scope.patch`
+- **Timestamp**: 2026-04-04T21:20:00Z
+- **Operator**: `orchestrator:wp-1-postgres-structured-collaboration-artifact-parity-v1-recovery`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: full closeout candidate still carries the earlier bounded runtime bootstrap, row reader, and parity proof deltas from the real merge-base
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 1
+- **End**: 6377
+- **Line Delta**: 146
+- **Pre-SHA1**: `1b2af0d384fc9bd7d5f04679cb60a63c062bed59`
+- **Post-SHA1**: `5736f281a5531b3fd9b8a5e5912b3ea8d3fd23b4`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: refreshed deterministic manifest for committed full candidate range `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af`; final-lane proof commands recorded below
+- **Artifacts**: refreshed full signed candidate surface at `.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/signed-scope.patch`
+- **Timestamp**: 2026-04-04T21:20:00Z
+- **Operator**: `orchestrator:wp-1-postgres-structured-collaboration-artifact-parity-v1-recovery`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: full closeout candidate still carries the earlier SQLite-side artifact and row-shape alignment from the real merge-base
+- **Target File**: `src/backend/handshake_core/src/storage/tests.rs`
+- **Start**: 1
+- **End**: 3291
+- **Line Delta**: -416
+- **Pre-SHA1**: `be0a61ca3a6f05cc015729a901ab952d911e5b6f`
+- **Post-SHA1**: `9363f58aedbf4e96cc50fcb02be33292f2942fbd`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] current_file_matches_preimage
+- **Lint Results**: refreshed deterministic manifest for committed full candidate range `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af`; final-lane proof commands recorded below
+- **Artifacts**: refreshed full signed candidate surface at `.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/signed-scope.patch`
+- **Timestamp**: 2026-04-04T21:20:00Z
+- **Operator**: `orchestrator:wp-1-postgres-structured-collaboration-artifact-parity-v1-recovery`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: full closeout candidate now truthfully records the accepted authoritative-main test-surface drift inside the full merge-base candidate, not only the final incremental repair
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 24777
+- **Line Delta**: 110
+- **Pre-SHA1**: `a77b1a14aad10787f4fb5b4c8347de5b8ec484e2`
+- **Post-SHA1**: `9cc3dda93d199334bca2aeaf9a3234319f344bc0`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: refreshed deterministic manifest for committed full candidate range `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af`; final-lane proof commands recorded below
+- **Artifacts**: refreshed full signed candidate surface at `.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/signed-scope.patch`
+- **Timestamp**: 2026-04-04T21:20:00Z
+- **Operator**: `orchestrator:wp-1-postgres-structured-collaboration-artifact-parity-v1-recovery`
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.179.md
+- **Notes**: full closeout candidate still carries the earlier chronology-preserving task-board projection and structured artifact emission repairs from the real merge-base
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
+- Current WP_STATUS: Done; committed head `8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af` is the current closeout candidate, the authoritative merge-base candidate surface is `f85d767d8ae8a56121f224f6e12ed2df6f973d6b..8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af`, and the lane is ready for renewed `INTEGRATION_VALIDATOR` closeout once the packet-declared backup branch resolves to this head in `handshake_main`.
+- What changed in this update: Rehydrated the full committed parity candidate into authoritative packet truth instead of describing only the last four-file repair. From the real merge-base, the closeout candidate carries the bounded `0016` migration pair, the `src/backend/handshake_core/src/storage/locus_sqlite.rs` helper narrowing, the chronology-preserving and structured-artifact repairs in `src/backend/handshake_core/src/workflows.rs`, and the final storage-hook alignment in `src/backend/handshake_core/src/storage/mod.rs`, `src/backend/handshake_core/src/storage/postgres.rs`, `src/backend/handshake_core/src/storage/sqlite.rs`, and `src/backend/handshake_core/src/storage/tests.rs`. The signed patch artifact has been refreshed to that full candidate surface so closeout truth matches the actual committed head.
+- Requirements / clauses self-audited: Storage Backend Portability Architecture [CX-DBP-001] and Dual-Backend Testing Early [CX-DBP-013]; Canonical structured collaboration artifact family [ADD v02.167]; Base structured schema and project-profile extension contract [ADD v02.168]; Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171]; Conformance requirement 11 structured-record readability [ADD v02.166].
+- Checks actually run: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib storage::tests::sqlite_persists_mutation_traceability_metadata_on_writes -- --exact --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib storage::tests::postgres_persists_mutation_traceability_metadata_on_writes -- --exact --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib workflows::tests::postgres_structured_collab_artifacts_materialize_parity_fields -- --exact --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib postgres_structured_collab`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib workflows::tests::task_board_projection_preserves_updated_at_then_wp_id_order -- --exact --nocapture`; `git diff --name-only f85d767d8ae8a56121f224f6e12ed2df6f973d6b 8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af -- src/backend/handshake_core`; `git diff --numstat f85d767d8ae8a56121f224f6e12ed2df6f973d6b 8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af -- src/backend/handshake_core`; `git diff --check f85d767d8ae8a56121f224f6e12ed2df6f973d6b 8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af -- src/backend/handshake_core`.
+- Known gaps / weak spots: No new in-scope product blocker remains from this repair. The packet still intentionally leaves broader Postgres Locus dependency/query-ready/get-status/get-progress/sync-task-board operations explicit `NotImplemented`, because the signed scope remains bounded to the canonical artifact/work-packet/micro-task path and its test proof surface.
+- Heuristic risks / maintainability concerns: Future shared storage tests should keep using trait-level backend hooks instead of per-test backend downcasts, or the packet-owned test surface will drift against authoritative `main` again without changing product semantics. The Loom graph capability/perf metadata now lives on the shared backend trait for test intent clarity; future backend-specific performance expectations should update those trait hooks rather than hardcoding backend checks in tests.
+- Validator focus request: Recheck the full merge-base candidate surface on `8e90cc8`: the packet-declared signed patch artifact must now match the actual committed head across the `0016` migration pair, `storage/locus_sqlite.rs`, `storage/mod.rs`, `storage/postgres.rs`, `storage/sqlite.rs`, `storage/tests.rs`, and `workflows.rs`, and current-local-main compatibility should remain honest against baseline `cc00f1187e233b0bf228522e9f716d3f9ef2478e` without widening.
+- Rubric contract understanding proof: The packet does not ask for generic Postgres enablement; it asks for parity on the canonical structured collaboration storage and emitted artifact surfaces, including bounded task-board projection, while preserving scope discipline and truthful unsupported paths.
+- Rubric scope discipline proof: The authoritative closeout candidate is the full signed packet surface from merge-base `f85d767d8ae8a56121f224f6e12ed2df6f973d6b` to head `8e90cc87eb262b1d56039ce0f581d9d7f9b4b2af`: `src/backend/handshake_core/migrations/0016_locus_structured_collaboration.down.sql`, `src/backend/handshake_core/migrations/0016_locus_structured_collaboration.sql`, `src/backend/handshake_core/src/storage/locus_sqlite.rs`, `src/backend/handshake_core/src/storage/mod.rs`, `src/backend/handshake_core/src/storage/postgres.rs`, `src/backend/handshake_core/src/storage/sqlite.rs`, `src/backend/handshake_core/src/storage/tests.rs`, and `src/backend/handshake_core/src/workflows.rs`. No additional product file outside that signed surface is being introduced by this governance recovery repair.
+- Rubric baseline comparison: Before this packet truth repair, the packet and signed patch artifact had collapsed onto only the last four-file storage-hook update, so final-lane closeout could not honestly compare the actual committed head against the declared clean-room surface. After this repair, the packet, manifest, and signed patch artifact all describe the same full candidate already reviewed across the packet's bounded parity history, and the remaining blocker is mechanical final-lane reachability plus closeout rerun rather than undisclosed product scope.
+- Rubric end-to-end proof: Both exact storage traceability tests pass through the new shared hooks, the exact Postgres parity proof still passes, the broader `postgres_structured_collab` filter still resolves to that proof and passes, and the exact task-board ordering proof still passes on the committed head.
+- Rubric architecture fit self-review: The repair keeps backend-specific behavior in the storage trait/backends rather than in duplicated test SQL. The tests now express intent through backend-neutral hooks, which is the right seam for shared storage conformance behavior.
+- Rubric heuristic quality self-review: I aligned with authoritative `main` instead of inventing a branch-local test abstraction. The shared trait hooks are narrow, test-only where appropriate, and avoid dragging packet semantics into production callers.
+- Rubric anti-gaming / counterfactual check: If the shared `MutationTraceabilityRow` or backend hook methods were absent, the exact SQLite/Postgres traceability tests would either fail to compile or fall back to duplicated backend SQL again. If the storage tests still depended on backend downcasts and inline SQL only, the previously blocking authoritative-main drift would still exist after this closeout turn.
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01 and CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2, also include: -->
-- Rubric anti-vibe / substance self-check:
-- Signed-scope debt ledger:
-- Data contract self-check:
-- Next step / handoff hint:
+- Rubric anti-vibe / substance self-check: The containment claim is backed by exact storage traceability tests, exact Postgres/task-board parity proofs, and a deterministic `post-work --range` pass on the committed head, not by a claim that the files merely "look aligned." The remaining unsupported operations are still called out explicitly rather than hidden behind vague success paths.
+- Signed-scope debt ledger: NONE within signed scope. Remaining unsupported Postgres Locus operations and tables are outside the validator-approved narrow parity seam and stay explicitly unsupported for now.
+- Data contract self-check: The emitted packet, micro-task, and task-board artifacts are still built from the same tracked structures and compact metadata envelopes across both backends. I did not introduce any new SQLite-only record shape or backend-specific artifact schema.
+- Next step / handoff hint: Hand the WP to `INTEGRATION_VALIDATOR` for renewed final-lane closeout on committed head `8e90cc8`, focused on the full merge-base candidate surface, refreshed signed-scope patch artifact, packet-declared backup-branch reachability, and truthful current-main compatibility against `cc00f1187e233b0bf228522e9f716d3f9ef2478e`.
 
 ## MERGE_PROGRESSION_TRUTH
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, PASS closure is two-step and must stay explicit:
@@ -824,6 +985,16 @@ rg -n "supports_structured_collab_artifacts|structured_collab_work_packet_row|st
 - Format (repeat as needed):
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `N/A (fill during implementation)`
+- REQUIREMENT: "Storage Backend Portability Architecture [CX-DBP-001] plus Dual-Backend Testing Early [CX-DBP-013]"
+- EVIDENCE: `src/backend/handshake_core/src/storage/mod.rs:1926`, `src/backend/handshake_core/src/storage/postgres.rs:164`, `src/backend/handshake_core/src/storage/postgres.rs:1615`
+- REQUIREMENT: "Canonical structured collaboration artifact family [ADD v02.167]"
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2570`, `src/backend/handshake_core/src/workflows.rs:3604`, `src/backend/handshake_core/src/workflows.rs:3842`
+- REQUIREMENT: "Base structured schema and project-profile extension contract [ADD v02.168]"
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:948`, `src/backend/handshake_core/src/workflows.rs:4468`
+- REQUIREMENT: "Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171]"
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:4250`, `src/backend/handshake_core/src/workflows.rs:4285`, `src/backend/handshake_core/src/workflows.rs:6596`
+- REQUIREMENT: "Conformance requirement 11 structured-record readability [ADD v02.166]"
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:23921`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
@@ -832,6 +1003,42 @@ rg -n "supports_structured_collab_artifacts|structured_collab_work_packet_row|st
   - LOG_PATH: `.handshake/logs/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `cargo check --manifest-path src/backend/handshake_core/Cargo.toml`
+- EXIT_CODE: 0
+- PROOF_LINES: existing unrelated dead-code warnings remained; the handshake_core crate completed `cargo check` with the new Postgres parity seam in place
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib workflows::tests::postgres_structured_collab_artifacts_materialize_parity_fields -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES: `test workflows::tests::postgres_structured_collab_artifacts_materialize_parity_fields ... ok`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib postgres_structured_collab`
+- EXIT_CODE: 0
+- PROOF_LINES: `test workflows::tests::postgres_structured_collab_artifacts_materialize_parity_fields ... ok`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib migrations_are_replay_safe_postgres`
+- EXIT_CODE: 0
+- PROOF_LINES: `test storage::tests::migrations_are_replay_safe_postgres ... ok` (rerun as unchanged-migration regression coverage; no numbered migration file changed in this repair)
+- COMMAND: `git diff --check -- src/backend/handshake_core/src/storage/postgres.rs`
+- EXIT_CODE: 0
+- PROOF_LINES: git reported no whitespace or patch-shape violations; only CRLF normalization warnings were emitted during staging
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib storage::tests::sqlite_persists_mutation_traceability_metadata_on_writes -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES: `test storage::tests::sqlite_persists_mutation_traceability_metadata_on_writes ... ok`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib storage::tests::postgres_persists_mutation_traceability_metadata_on_writes -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES: `test storage::tests::postgres_persists_mutation_traceability_metadata_on_writes ... ok`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib workflows::tests::postgres_structured_collab_artifacts_materialize_parity_fields -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES: `test workflows::tests::postgres_structured_collab_artifacts_materialize_parity_fields ... ok`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib postgres_structured_collab`
+- EXIT_CODE: 0
+- PROOF_LINES: `test workflows::tests::postgres_structured_collab_artifacts_materialize_parity_fields ... ok`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib workflows::tests::task_board_projection_preserves_updated_at_then_wp_id_order -- --exact --nocapture`
+- EXIT_CODE: 0
+- PROOF_LINES: `test workflows::tests::task_board_projection_preserves_updated_at_then_wp_id_order ... ok`
+- COMMAND: `git diff --check -- src/backend/handshake_core/src/storage/mod.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/src/storage/tests.rs`
+- EXIT_CODE: 0
+- PROOF_LINES: git reported no whitespace or patch-shape violations across the full eight-file closeout candidate surface; only CRLF normalization warnings were emitted during checkout/staging
+- COMMAND: `just post-work WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1 --range f85d767d8ae8a56121f224f6e12ed2df6f973d6b..HEAD`
+- EXIT_CODE: 0
+- PROOF_LINES: `post-work-check: PASS`; `wp-communication-health-check: PASS`; `RESULT: PASS`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -932,3 +1139,85 @@ rg -n "supports_structured_collab_artifacts|structured_collab_work_packet_row|st
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+### 2026-04-04T08:25:20.648Z | INTEGRATION_VALIDATOR PASS REPORT
+VALIDATOR_ROLE: INTEGRATION_VALIDATOR
+ACTOR_SESSION: integration_validator:wp-1-postgres-structured-collaboration-artifact-parity-v1
+COMMITTED_RANGE: f85d767d8ae8a56121f224f6e12ed2df6f973d6b..c2af3df1ba52bc762c6c5542b19753eda65a5438
+SIGNED_PATCH_ARTIFACT: .GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/signed-scope.patch
+REVIEW_EXCHANGE_PROOF: CODER `CODER_HANDOFF` at `2026-04-04T07:59:07.557Z`, WP_VALIDATOR `VALIDATOR_REVIEW` `PASS` at `2026-04-04T08:19:33.949Z`, and INTEGRATION_VALIDATOR `VALIDATOR_RESPONSE` `PASS` at `2026-04-04T08:25:20.648Z` are all recorded under `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/RECEIPTS.jsonl` on correlation `review:WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1:coder_handoff:mnk1jscx:c3c115`.
+Verdict: PASS
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+CLAUSES_REVIEWED:
+- Storage Backend Portability Architecture [CX-DBP-001] plus Dual-Backend Testing Early [CX-DBP-013] reviewed against the committed range and confirmed by the Postgres schema bootstrap at `src/backend/handshake_core/src/storage/postgres.rs:164`, the backend activation path at `src/backend/handshake_core/src/storage/postgres.rs:1614`, the shared task-board ordering seam at `src/backend/handshake_core/src/workflows.rs:3140`, and the Postgres replay and undo tripwires at `src/backend/handshake_core/src/storage/tests.rs:3175` and `src/backend/handshake_core/src/storage/tests.rs:3253`.
+- Canonical structured collaboration artifact family [ADD v02.167] reviewed against the committed range and confirmed by the work-packet, micro-task, and task-board artifact materialization paths at `src/backend/handshake_core/src/workflows.rs:3613`, `src/backend/handshake_core/src/workflows.rs:4553`, `src/backend/handshake_core/src/workflows.rs:4614`, and the exact parity proof at `src/backend/handshake_core/src/workflows.rs:23944`.
+- Base structured schema and project-profile extension contract [ADD v02.168] reviewed against the committed range and confirmed by base-envelope field emission at `src/backend/handshake_core/src/workflows.rs:4553`, `src/backend/handshake_core/src/workflows.rs:4614`, and the Postgres artifact assertions for `project_profile_kind` and `mirror_state` at `src/backend/handshake_core/src/workflows.rs:23992`, `src/backend/handshake_core/src/workflows.rs:23993`, `src/backend/handshake_core/src/workflows.rs:23998`, and `src/backend/handshake_core/src/workflows.rs:23999`.
+- Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171] reviewed against the committed range and confirmed by task-board row projection at `src/backend/handshake_core/src/workflows.rs:3681`, `src/backend/handshake_core/src/workflows.rs:3693`, `src/backend/handshake_core/src/workflows.rs:3694`, `src/backend/handshake_core/src/workflows.rs:3695`, the work-packet and micro-task artifact emitters at `src/backend/handshake_core/src/workflows.rs:4559`, `src/backend/handshake_core/src/workflows.rs:4560`, `src/backend/handshake_core/src/workflows.rs:4561`, `src/backend/handshake_core/src/workflows.rs:4620`, `src/backend/handshake_core/src/workflows.rs:4621`, and `src/backend/handshake_core/src/workflows.rs:4622`, plus the shared ordering proof at `src/backend/handshake_core/src/workflows.rs:24015`.
+- Conformance requirement 11 structured-record readability [ADD v02.166] reviewed against the committed range and confirmed by the structured JSON artifact assertions at `src/backend/handshake_core/src/workflows.rs:23992` through `src/backend/handshake_core/src/workflows.rs:24008` and the chronology-preserving task-board projection proof at `src/backend/handshake_core/src/workflows.rs:24015`.
+NOT_PROVEN:
+- NONE
+MAIN_BODY_GAPS:
+- NONE
+QUALITY_RISKS:
+- NONE
+VALIDATOR_RISK_TIER: HIGH
+DIFF_ATTACK_SURFACES:
+- Shared task-board ordering can drift from persisted chronology and silently rewrite canonical row order, `display_order`, and downstream canonical hashes.
+- Postgres schema bootstrap can drift from the numbered migration pair and create false parity that only works in one boot path.
+- Canonical work-packet, micro-task, and task-board artifact fields can diverge by backend even when a row still exists.
+- Signed-scope closeout can overclaim broader PostgreSQL Locus parity if unsupported operations stop failing explicitly.
+INDEPENDENT_CHECKS_RUN:
+- `git diff --check 814078e..c2af3df -- src/backend/handshake_core/src/workflows.rs` => clean; the final repair is scoped to `workflows.rs` only and introduces no patch-shape violations.
+- `cargo test --manifest-path ..\\wtc-artifact-parity-v1\\src\\backend\\handshake_core\\Cargo.toml --lib workflows::tests::task_board_projection_preserves_updated_at_then_wp_id_order -- --exact --nocapture` => PASS; chronology now beats lexical `wp_id` order in emitted task-board rows.
+- `cargo test --manifest-path ..\\wtc-artifact-parity-v1\\src\\backend\\handshake_core\\Cargo.toml --lib workflows::tests::postgres_structured_collab_artifacts_materialize_parity_fields -- --exact --nocapture` => PASS; Postgres emits the same bounded structured-collaboration fields as SQLite.
+- `cargo test --manifest-path ..\\wtc-artifact-parity-v1\\src\\backend\\handshake_core\\Cargo.toml --lib postgres_structured_collab` => PASS; the packet-scoped Postgres tripwire still resolves to the exact artifact proof.
+- `cargo test --manifest-path ..\\wtc-artifact-parity-v1\\src\\backend\\handshake_core\\Cargo.toml --lib storage::tests::migrations_are_replay_safe_postgres -- --exact --nocapture` => PASS; the numbered migration pair replays cleanly on PostgreSQL.
+- `cargo test --manifest-path ..\\wtc-artifact-parity-v1\\src\\backend\\handshake_core\\Cargo.toml --lib storage::tests::migrations_can_undo_to_baseline_postgres -- --exact --nocapture` => PASS; the numbered migration pair unwinds cleanly back to baseline.
+COUNTERFACTUAL_CHECKS:
+- If `src/backend/handshake_core/src/workflows.rs:3140` reverts to `ORDER BY wp_id ASC`, `emit_task_board_projection_artifacts` will again derive canonical row order and `display_order` from lexical ids instead of persisted chronology.
+- If `src/backend/handshake_core/src/storage/postgres.rs:164` or `src/backend/handshake_core/migrations/0016_locus_structured_collaboration.sql:4` stop agreeing on the bounded `work_packets` and `micro_tasks` schema, one bootstrap path will pass while the other silently diverges.
+- If `src/backend/handshake_core/src/workflows.rs:4553` or `src/backend/handshake_core/src/workflows.rs:4614` stop emitting the shared base-envelope fields, the exact Postgres parity proof at `src/backend/handshake_core/src/workflows.rs:23944` will lose `project_profile_kind`, `mirror_state`, `workflow_state_family`, or `queue_reason_code`.
+BOUNDARY_PROBES:
+- Storage-to-artifact boundary checked at `src/backend/handshake_core/src/workflows.rs:3140` -> `src/backend/handshake_core/src/workflows.rs:3613`; both SQLite and Postgres now feed task-board projection through the same chronology-preserving `ORDER BY updated_at ASC, wp_id ASC`.
+- Schema-bootstrap boundary checked between `src/backend/handshake_core/src/storage/postgres.rs:164`, `src/backend/handshake_core/src/storage/postgres.rs:1614`, and `src/backend/handshake_core/migrations/0016_locus_structured_collaboration.sql:4`; the bounded tables and fields match the runtime bootstrap and numbered migration pair.
+NEGATIVE_PATH_CHECKS:
+- `src/backend/handshake_core/src/workflows.rs:24015` exercises the prior failure mode directly by making lexical `wp_id` order disagree with chronological creation order and proving the emitted task-board rows still preserve chronology.
+- `src/backend/handshake_core/src/storage/postgres.rs:956` keeps broader unsupported Locus operations explicit `NotImplemented`, so this packet does not silently widen into unrelated Postgres parity claims.
+INDEPENDENT_FINDINGS:
+- The final repair on `c2af3df` is genuinely narrow; only `src/backend/handshake_core/src/workflows.rs` changed relative to `814078e`, and the earlier Postgres migration pair plus runtime `SELECT EXISTS(...)` repair remain intact underneath it.
+- No blocking product findings remain inside the signed bounded scope after the chronology fix.
+RESIDUAL_UNCERTAINTY:
+- `postgres_structured_collab` still resolves to a single exact proof test, so breadth confidence for the bounded scope still relies on the migration replay or undo tripwires plus direct code inspection.
+- Cargo emitted non-fatal shared-target object-copy warnings during validation because another build lane had touched the shared target tree, but the validator-owned commands completed successfully.
+SPEC_CLAUSE_MAP:
+- Storage Backend Portability Architecture [CX-DBP-001] plus Dual-Backend Testing Early [CX-DBP-013] => `src/backend/handshake_core/src/storage/postgres.rs:164`, `src/backend/handshake_core/src/storage/postgres.rs:1614`, `src/backend/handshake_core/src/workflows.rs:3140`, `src/backend/handshake_core/src/storage/tests.rs:3175`, `src/backend/handshake_core/src/storage/tests.rs:3253`.
+- Canonical structured collaboration artifact family [ADD v02.167] => `src/backend/handshake_core/src/workflows.rs:3613`, `src/backend/handshake_core/src/workflows.rs:4553`, `src/backend/handshake_core/src/workflows.rs:4614`, `src/backend/handshake_core/src/workflows.rs:23944`.
+- Base structured schema and project-profile extension contract [ADD v02.168] => `src/backend/handshake_core/src/workflows.rs:4553`, `src/backend/handshake_core/src/workflows.rs:4614`, `src/backend/handshake_core/src/workflows.rs:23992`, `src/backend/handshake_core/src/workflows.rs:23993`, `src/backend/handshake_core/src/workflows.rs:23998`, `src/backend/handshake_core/src/workflows.rs:23999`.
+- Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171] => `src/backend/handshake_core/src/workflows.rs:3681`, `src/backend/handshake_core/src/workflows.rs:3693`, `src/backend/handshake_core/src/workflows.rs:3694`, `src/backend/handshake_core/src/workflows.rs:3695`, `src/backend/handshake_core/src/workflows.rs:4559`, `src/backend/handshake_core/src/workflows.rs:4560`, `src/backend/handshake_core/src/workflows.rs:4561`, `src/backend/handshake_core/src/workflows.rs:4620`, `src/backend/handshake_core/src/workflows.rs:4621`, `src/backend/handshake_core/src/workflows.rs:4622`, `src/backend/handshake_core/src/workflows.rs:24015`.
+- Conformance requirement 11 structured-record readability [ADD v02.166] => `src/backend/handshake_core/src/workflows.rs:23992`, `src/backend/handshake_core/src/workflows.rs:23993`, `src/backend/handshake_core/src/workflows.rs:23998`, `src/backend/handshake_core/src/workflows.rs:23999`, `src/backend/handshake_core/src/workflows.rs:24003`, `src/backend/handshake_core/src/workflows.rs:24004`, `src/backend/handshake_core/src/workflows.rs:24015`.
+NEGATIVE_PROOF:
+- Broader PostgreSQL Locus operation parity is still not fully implemented. The validator confirmed that `AddDependency`, `RemoveDependency`, `QueryReady`, `GetWpStatus`, `GetMtProgress`, and `SyncTaskBoard` remain explicit `NotImplemented` at `src/backend/handshake_core/src/storage/postgres.rs:956`, so this packet proves bounded canonical artifact parity only and does not overclaim wider Postgres support.
+ANTI_VIBE_FINDINGS:
+- NONE
+SIGNED_SCOPE_DEBT:
+- NONE
+DATA_CONTRACT_PROOF:
+- The numbered migration contract for bounded structured-collaboration tables was reviewed at `src/backend/handshake_core/migrations/0016_locus_structured_collaboration.sql:4` and `src/backend/handshake_core/migrations/0016_locus_structured_collaboration.down.sql:3`, then revalidated by `src/backend/handshake_core/src/storage/tests.rs:3175` and `src/backend/handshake_core/src/storage/tests.rs:3253`.
+- The emitted LLM-readable artifact contract was reviewed through the structured JSON assertions at `src/backend/handshake_core/src/workflows.rs:23992` through `src/backend/handshake_core/src/workflows.rs:24008`.
+- The task-board chronology and row-order contract was reviewed through `src/backend/handshake_core/src/workflows.rs:3140` and proved by `src/backend/handshake_core/src/workflows.rs:24015`.
+DATA_CONTRACT_GAPS:
+- NONE
