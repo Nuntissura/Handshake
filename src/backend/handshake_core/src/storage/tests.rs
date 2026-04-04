@@ -3300,9 +3300,40 @@ fn database_trait_purity_source_regressions() {
         .split("#[cfg(test)]")
         .next()
         .unwrap_or_default();
+    let database_trait_start = storage_mod
+        .find("pub trait Database: Send + Sync + std::any::Any {")
+        .expect("Database trait should exist in storage/mod.rs");
+    let database_trait_end = storage_mod[database_trait_start..]
+        .find("\n\nfn sqlite_backend(")
+        .expect("Database trait terminator should precede sqlite_backend helper");
+    let database_trait =
+        &storage_mod[database_trait_start..database_trait_start + database_trait_end];
 
     assert!(storage_mod.contains("pub trait StructuredCollaborationStore"));
     assert!(storage_mod.contains("pub trait StorageCapabilityStore"));
+    for forbidden in [
+        "fn storage_capabilities(",
+        "StorageCapabilitySnapshot",
+        "async fn locus_work_packet_exists(",
+        "async fn execute_locus_operation(",
+        "LocusOperation",
+        "async fn locus_task_board_get_status_and_metadata(",
+        "async fn locus_task_board_update_work_packet(",
+        "async fn locus_task_board_list_rows(",
+        "async fn structured_collab_list_work_packet_ids(",
+        "async fn structured_collab_load_work_packet_row(",
+        "StructuredCollabWorkPacketRow",
+        "async fn structured_collab_list_micro_task_status_rows(",
+        "async fn structured_collab_load_micro_task_metadata(",
+        "async fn structured_collab_list_micro_task_metadata(",
+        "async fn structured_collab_list_task_board_projection_rows(",
+        "StructuredCollabTaskBoardProjectionRow",
+    ] {
+        assert!(
+            !database_trait.contains(forbidden),
+            "Database trait must not accrete backend-sensitive helper surface: {forbidden}"
+        );
+    }
     assert!(!workflows_prod.contains("crate::storage::locus_sqlite::"));
     assert!(!workflows_prod.contains("downcast_ref::<crate::storage::sqlite::SqliteDatabase>()"));
     assert!(!loom_api_prod.contains(".as_any()"));
