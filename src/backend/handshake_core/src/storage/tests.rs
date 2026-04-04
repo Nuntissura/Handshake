@@ -9,7 +9,7 @@ use super::{
     LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas,
     NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution,
     NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageError, StorageGuard,
-    StorageResult, WriteContext,
+    StorageBackendKind, StorageCapabilityStore, StorageResult, WriteContext,
 };
 use chrono::Duration;
 use chrono::Utc;
@@ -3285,6 +3285,55 @@ async fn migrations_can_undo_to_baseline_postgres() -> StorageResult<()> {
     sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
         .execute(&mut conn)
         .await?;
+
+    Ok(())
+}
+
+#[test]
+fn database_trait_purity_source_regressions() {
+    let storage_mod = include_str!("mod.rs");
+    let workflows_prod = include_str!("../workflows.rs")
+        .split("#[cfg(test)]")
+        .next()
+        .unwrap_or_default();
+    let loom_api_prod = include_str!("../api/loom.rs")
+        .split("#[cfg(test)]")
+        .next()
+        .unwrap_or_default();
+
+    assert!(storage_mod.contains("pub trait StructuredCollaborationStore"));
+    assert!(storage_mod.contains("pub trait StorageCapabilityStore"));
+    assert!(!workflows_prod.contains("crate::storage::locus_sqlite::"));
+    assert!(!workflows_prod.contains("downcast_ref::<crate::storage::sqlite::SqliteDatabase>()"));
+    assert!(!loom_api_prod.contains(".as_any()"));
+}
+
+#[tokio::test]
+async fn database_trait_purity_capability_snapshot_reports_sqlite() -> StorageResult<()> {
+    let db = sqlite_backend().await?;
+    let caps = db.storage_capabilities();
+
+    assert_eq!(caps.backend, StorageBackendKind::Sqlite);
+    assert!(caps.supports_structured_collab_artifacts);
+    assert!(!caps.supports_loom_graph_filtering);
+    assert_eq!(caps.loom_search_observability_tier(), 1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn database_trait_purity_capability_snapshot_reports_postgres() -> StorageResult<()> {
+    if postgres_test_url().is_none() {
+        return Ok(());
+    }
+
+    let db = postgres_backend_from_env().await?;
+    let caps = db.storage_capabilities();
+
+    assert_eq!(caps.backend, StorageBackendKind::Postgres);
+    assert!(!caps.supports_structured_collab_artifacts);
+    assert!(caps.supports_loom_graph_filtering);
+    assert_eq!(caps.loom_search_observability_tier(), 2);
 
     Ok(())
 }
