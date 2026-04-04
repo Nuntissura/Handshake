@@ -23918,7 +23918,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn structured_collaboration_artifacts_materialize_on_postgres(
+    async fn postgres_structured_collab_artifacts_materialize_parity_fields(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_postgres_state().await? else {
             return Ok(());
@@ -23974,17 +23974,30 @@ mod tests {
         )?)?;
         let task_board_index: Value =
             serde_json::from_slice(&std::fs::read(runtime_paths.task_board_index_path())?)?;
+        let task_board_row = task_board_index["rows"]
+            .as_array()
+            .and_then(|rows| rows.iter().find(|row| row["work_packet_id"] == wp_id))
+            .expect("task-board projection should include the postgres-backed work packet");
 
         assert_eq!(packet_value["wp_id"], wp_id);
+        assert_eq!(packet_value["project_profile_kind"], "software_delivery");
+        assert_eq!(packet_value["mirror_state"], "canonical_only");
+        assert_eq!(packet_value["workflow_state_family"], "intake");
+        assert_eq!(packet_value["queue_reason_code"], "new_untriaged");
+
         assert_eq!(micro_task_value["mt_id"], "MT-001");
-        assert!(
-            task_board_index["rows"]
-                .as_array()
-                .unwrap_or(&Vec::new())
-                .iter()
-                .any(|row| row["work_packet_id"] == wp_id),
-            "task-board projection should include the postgres-backed work packet"
+        assert_eq!(micro_task_value["project_profile_kind"], "software_delivery");
+        assert_eq!(micro_task_value["mirror_state"], "canonical_only");
+        assert_eq!(micro_task_value["workflow_state_family"], "ready");
+        assert_eq!(
+            micro_task_value["queue_reason_code"],
+            "ready_for_local_small_model"
         );
+
+        assert_eq!(task_board_row["project_profile_kind"], "software_delivery");
+        assert_eq!(task_board_row["mirror_state"], "canonical_only");
+        assert_eq!(task_board_row["workflow_state_family"], "intake");
+        assert_eq!(task_board_row["queue_reason_code"], "new_untriaged");
 
         Ok(())
     }
