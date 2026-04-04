@@ -308,11 +308,11 @@ fn mt_iteration_outcome_str(outcome: MicroTaskIterationOutcome) -> &'static str 
 }
 
 async fn ensure_wp_exists(pool: &PgPool, wp_id: &str) -> StorageResult<()> {
-    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM work_packets WHERE wp_id = $1")
+    let exists =
+        sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM work_packets WHERE wp_id = $1)")
         .bind(wp_id)
-        .fetch_optional(pool)
-        .await?
-        .is_some();
+        .fetch_one(pool)
+        .await?;
 
     if !exists {
         return Err(StorageError::NotFound("work_packet"));
@@ -322,14 +322,13 @@ async fn ensure_wp_exists(pool: &PgPool, wp_id: &str) -> StorageResult<()> {
 }
 
 async fn ensure_mt_exists_for_wp(pool: &PgPool, wp_id: &str, mt_id: &str) -> StorageResult<()> {
-    let exists = sqlx::query_scalar::<_, i64>(
-        "SELECT 1 FROM micro_tasks WHERE mt_id = $1 AND wp_id = $2 LIMIT 1",
+    let exists = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM micro_tasks WHERE mt_id = $1 AND wp_id = $2)",
     )
     .bind(mt_id)
     .bind(wp_id)
-    .fetch_optional(pool)
-    .await?
-    .is_some();
+    .fetch_one(pool)
+    .await?;
 
     if !exists {
         return Err(StorageError::NotFound("micro_task"));
@@ -445,11 +444,12 @@ async fn create_wp(pool: &PgPool, params: LocusCreateWpParams) -> StorageResult<
         return Err(StorageError::Validation("priority must be between 0 and 4"));
     }
 
-    let existing = sqlx::query_scalar::<_, i64>("SELECT 1 FROM work_packets WHERE wp_id = $1")
+    let existing =
+        sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM work_packets WHERE wp_id = $1)")
         .bind(&params.wp_id)
-        .fetch_optional(pool)
+        .fetch_one(pool)
         .await?;
-    if existing.is_some() {
+    if existing {
         return Err(StorageError::Conflict("work_packet already exists"));
     }
 
@@ -981,11 +981,10 @@ pub(crate) async fn locus_work_packet_exists(
     wp_id: &str,
 ) -> StorageResult<bool> {
     let exists =
-        sqlx::query_scalar::<_, i64>("SELECT 1 FROM work_packets WHERE wp_id = $1 LIMIT 1")
+        sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM work_packets WHERE wp_id = $1)")
             .bind(wp_id)
-            .fetch_optional(postgres.pool())
-            .await?
-            .is_some();
+            .fetch_one(postgres.pool())
+            .await?;
     Ok(exists)
 }
 
