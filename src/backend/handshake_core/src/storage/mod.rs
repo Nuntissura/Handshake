@@ -1527,6 +1527,15 @@ impl From<GuardError> for StorageError {
     }
 }
 
+#[derive(Clone, Debug, sqlx::FromRow)]
+pub struct MutationTraceabilityRow {
+    pub last_actor_kind: String,
+    pub last_actor_id: Option<String>,
+    pub last_job_id: Option<String>,
+    pub last_workflow_id: Option<String>,
+    pub edit_event_id: String,
+}
+
 #[async_trait]
 pub trait StorageGuard: Send + Sync {
     /// Validates the write request against the "No Silent Edits" policy.
@@ -1566,6 +1575,14 @@ impl StorageGuard for DefaultStorageGuard {
 
 #[async_trait]
 pub trait Database: Send + Sync + std::any::Any {
+    fn supports_loom_graph_filtering(&self) -> bool {
+        false
+    }
+
+    fn loom_traverse_graph_perf_target_ms(&self) -> u128 {
+        100
+    }
+
     // Health check
     async fn ping(&self) -> StorageResult<()>;
 
@@ -1896,6 +1913,55 @@ pub trait Database: Send + Sync + std::any::Any {
 
     /// Returns the current schema migration version from `_sqlx_migrations`.
     async fn migration_version(&self) -> StorageResult<i64>;
+
+    #[cfg(test)]
+    async fn test_overwrite_loom_block_metrics(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        mention_count: i64,
+        tag_count: i64,
+        backlink_count: i64,
+    ) -> StorageResult<()> {
+        let _ = (
+            workspace_id,
+            block_id,
+            mention_count,
+            tag_count,
+            backlink_count,
+        );
+        Err(StorageError::NotImplemented("test loom metrics backend"))
+    }
+
+    #[cfg(test)]
+    async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
+        let _ = workspace_id;
+        Err(StorageError::NotImplemented("test loom metrics backend"))
+    }
+
+    #[cfg(test)]
+    async fn test_insert_loom_traversal_perf_fixture(
+        &self,
+        workspace_id: &str,
+        total_blocks: usize,
+    ) -> StorageResult<String> {
+        let _ = (workspace_id, total_blocks);
+        Err(StorageError::NotImplemented(
+            "loom traversal performance backend",
+        ))
+    }
+
+    #[cfg(test)]
+    async fn test_fetch_mutation_traceability_row(
+        &self,
+        table: &str,
+        id: &str,
+    ) -> StorageResult<MutationTraceabilityRow> {
+        let _ = (table, id);
+        Err(StorageError::NotImplemented(
+            "test mutation traceability backend",
+        ))
+    }
 
     fn as_any(&self) -> &dyn std::any::Any;
 }

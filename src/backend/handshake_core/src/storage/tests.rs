@@ -56,6 +56,25 @@ fn assert_metadata_matches_ctx(
 }
 
 #[cfg(test)]
+async fn assert_traceability_row(
+    db: &Arc<dyn super::Database>,
+    table: &str,
+    id: &str,
+    ctx: &WriteContext,
+) -> StorageResult<()> {
+    let row = db.test_fetch_mutation_traceability_row(table, id).await?;
+    assert_metadata_matches_ctx(
+        &row.last_actor_kind,
+        row.last_actor_id,
+        row.last_job_id,
+        row.last_workflow_id,
+        &row.edit_event_id,
+        ctx,
+    );
+    Ok(())
+}
+
+#[cfg(test)]
 async fn sqlite_user_table_names(conn: &mut sqlx::SqliteConnection) -> StorageResult<Vec<String>> {
     let rows = sqlx::query(
         r#"
@@ -737,78 +756,21 @@ async fn overwrite_loom_block_metrics(
     tag_count: i64,
     backlink_count: i64,
 ) -> StorageResult<()> {
-    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
-        sqlx::query(
-            r#"
-            UPDATE loom_blocks
-            SET mention_count = $1, tag_count = $2, backlink_count = $3
-            WHERE workspace_id = $4 AND block_id = $5
-            "#,
-        )
-        .bind(mention_count)
-        .bind(tag_count)
-        .bind(backlink_count)
-        .bind(workspace_id)
-        .bind(block_id)
-        .execute(sqlite.pool())
-        .await?;
-        return Ok(());
-    }
-
-    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
-        sqlx::query(
-            r#"
-            UPDATE loom_blocks
-            SET mention_count = $1, tag_count = $2, backlink_count = $3
-            WHERE workspace_id = $4 AND block_id = $5
-            "#,
-        )
-        .bind(mention_count as i32)
-        .bind(tag_count as i32)
-        .bind(backlink_count as i32)
-        .bind(workspace_id)
-        .bind(block_id)
-        .execute(postgres.pool())
-        .await?;
-        return Ok(());
-    }
-
-    Err(StorageError::Validation("unsupported loom metrics backend"))
+    db.test_overwrite_loom_block_metrics(
+        workspace_id,
+        block_id,
+        mention_count,
+        tag_count,
+        backlink_count,
+    )
+    .await
 }
 
 async fn zero_workspace_loom_metrics(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
 ) -> StorageResult<()> {
-    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
-        sqlx::query(
-            r#"
-            UPDATE loom_blocks
-            SET mention_count = 0, tag_count = 0, backlink_count = 0
-            WHERE workspace_id = $1
-            "#,
-        )
-        .bind(workspace_id)
-        .execute(sqlite.pool())
-        .await?;
-        return Ok(());
-    }
-
-    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
-        sqlx::query(
-            r#"
-            UPDATE loom_blocks
-            SET mention_count = 0, tag_count = 0, backlink_count = 0
-            WHERE workspace_id = $1
-            "#,
-        )
-        .bind(workspace_id)
-        .execute(postgres.pool())
-        .await?;
-        return Ok(());
-    }
-
-    Err(StorageError::Validation("unsupported loom metrics backend"))
+    db.test_zero_workspace_loom_metrics(workspace_id).await
 }
 
 async fn loom_metrics_recompute_idempotent(
@@ -1033,7 +995,7 @@ async fn loom_search_graph_filter_postgres(
     workspace_id: &str,
     graph: &LoomGraphFixture,
 ) -> StorageResult<()> {
-    if !db.as_any().is::<PostgresDatabase>() {
+    if !db.supports_loom_graph_filtering() {
         return Ok(());
     }
 
@@ -1159,155 +1121,8 @@ async fn insert_loom_traversal_perf_fixture(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
 ) -> StorageResult<String> {
-    let created_at = Utc::now();
-    let derived_json = serde_json::to_string(&super::LoomBlockDerived::default())?;
-    let start_block_id = "perf-block-00000".to_string();
-
-    if let Some(sqlite) = db.as_any().downcast_ref::<SqliteDatabase>() {
-        let mut tx = sqlite.pool().begin().await?;
-        for idx in 0..LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS {
-            let block_id = format!("perf-block-{idx:05}");
-            sqlx::query(
-                r#"
-                INSERT INTO loom_blocks (
-                    block_id,
-                    workspace_id,
-                    content_type,
-                    title,
-                    pinned,
-                    last_actor_kind,
-                    edit_event_id,
-                    created_at,
-                    updated_at,
-                    backlink_count,
-                    mention_count,
-                    tag_count,
-                    derived_json,
-                    preview_status
-                )
-                VALUES (
-                    $1, $2, 'note', $3, 0, 'SYSTEM',
-                    '00000000-0000-0000-0000-000000000000',
-                    $4, $4, 0, 0, 0, $5, 'none'
-                )
-                "#,
-            )
-            .bind(&block_id)
-            .bind(workspace_id)
-            .bind(format!("Perf Block {idx}"))
-            .bind(created_at)
-            .bind(&derived_json)
-            .execute(&mut *tx)
-            .await?;
-
-            if idx > 0 {
-                sqlx::query(
-                    r#"
-                    INSERT INTO loom_edges (
-                        edge_id,
-                        workspace_id,
-                        source_block_id,
-                        target_block_id,
-                        edge_type,
-                        created_by,
-                        last_actor_kind,
-                        edit_event_id,
-                        created_at
-                    )
-                    VALUES (
-                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
-                        '00000000-0000-0000-0000-000000000000',
-                        $5
-                    )
-                    "#,
-                )
-                .bind(format!("perf-edge-{idx:05}"))
-                .bind(workspace_id)
-                .bind(format!("perf-block-{:05}", idx - 1))
-                .bind(&block_id)
-                .bind(created_at)
-                .execute(&mut *tx)
-                .await?;
-            }
-        }
-        tx.commit().await?;
-        return Ok(start_block_id);
-    }
-
-    if let Some(postgres) = db.as_any().downcast_ref::<PostgresDatabase>() {
-        let mut tx = postgres.pool().begin().await?;
-        for idx in 0..LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS {
-            let block_id = format!("perf-block-{idx:05}");
-            sqlx::query(
-                r#"
-                INSERT INTO loom_blocks (
-                    block_id,
-                    workspace_id,
-                    content_type,
-                    title,
-                    pinned,
-                    last_actor_kind,
-                    edit_event_id,
-                    created_at,
-                    updated_at,
-                    backlink_count,
-                    mention_count,
-                    tag_count,
-                    derived_json,
-                    preview_status
-                )
-                VALUES (
-                    $1, $2, 'note', $3, 0, 'SYSTEM',
-                    '00000000-0000-0000-0000-000000000000',
-                    $4, $4, 0, 0, 0, $5, 'none'
-                )
-                "#,
-            )
-            .bind(&block_id)
-            .bind(workspace_id)
-            .bind(format!("Perf Block {idx}"))
-            .bind(created_at)
-            .bind(&derived_json)
-            .execute(&mut *tx)
-            .await?;
-
-            if idx > 0 {
-                sqlx::query(
-                    r#"
-                    INSERT INTO loom_edges (
-                        edge_id,
-                        workspace_id,
-                        source_block_id,
-                        target_block_id,
-                        edge_type,
-                        created_by,
-                        last_actor_kind,
-                        edit_event_id,
-                        created_at
-                    )
-                    VALUES (
-                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
-                        '00000000-0000-0000-0000-000000000000',
-                        $5
-                    )
-                    "#,
-                )
-                .bind(format!("perf-edge-{idx:05}"))
-                .bind(workspace_id)
-                .bind(format!("perf-block-{:05}", idx - 1))
-                .bind(&block_id)
-                .bind(created_at)
-                .execute(&mut *tx)
-                .await?;
-            }
-        }
-        tx.commit().await?;
-        return Ok(start_block_id);
-    }
-
-    Err(StorageError::Validation(
-        "unsupported loom traversal performance backend",
-    ))
+    db.test_insert_loom_traversal_perf_fixture(workspace_id, LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS)
+        .await
 }
 
 async fn loom_traverse_graph_meets_performance_target(
@@ -1326,11 +1141,7 @@ async fn loom_traverse_graph_meets_performance_target(
         .await?;
     assert_eq!(loom_traversal_signature(&warmed), expected);
 
-    let limit_ms = if db.as_any().is::<SqliteDatabase>() {
-        100_u128
-    } else {
-        50_u128
-    };
+    let limit_ms = db.loom_traverse_graph_perf_target_ms();
     let mut samples_ms = Vec::new();
     for _ in 0..3 {
         let started = Instant::now();
@@ -2521,11 +2332,6 @@ async fn sqlite_rejects_ai_writes_without_context_with_hsk_403_silent_edit() -> 
 #[tokio::test]
 async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageResult<()> {
     let db = sqlite_backend().await?;
-    let sqlite = db
-        .as_any()
-        .downcast_ref::<SqliteDatabase>()
-        .ok_or(StorageError::Validation("expected sqlite backend"))?;
-    let pool = sqlite.pool();
 
     let contexts = vec![
         WriteContext::human(Some("human-1".into())),
@@ -2546,25 +2352,7 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
                 },
             )
             .await?;
-
-        let workspace_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM workspaces
-            WHERE id = ?
-            "#,
-        )
-        .bind(&workspace.id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &workspace_row.get::<String, _>("last_actor_kind"),
-            workspace_row.get::<Option<String>, _>("last_actor_id"),
-            workspace_row.get::<Option<String>, _>("last_job_id"),
-            workspace_row.get::<Option<String>, _>("last_workflow_id"),
-            &workspace_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
+        assert_traceability_row(&db, "workspaces", &workspace.id, &ctx).await?;
 
         let document = db
             .create_document(
@@ -2575,25 +2363,7 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
                 },
             )
             .await?;
-
-        let document_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM documents
-            WHERE id = ?
-            "#,
-        )
-        .bind(&document.id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &document_row.get::<String, _>("last_actor_kind"),
-            document_row.get::<Option<String>, _>("last_actor_id"),
-            document_row.get::<Option<String>, _>("last_job_id"),
-            document_row.get::<Option<String>, _>("last_workflow_id"),
-            &document_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
+        assert_traceability_row(&db, "documents", &document.id, &ctx).await?;
 
         let block = db
             .create_block(
@@ -2611,25 +2381,7 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
                 },
             )
             .await?;
-
-        let block_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM blocks
-            WHERE id = ?
-            "#,
-        )
-        .bind(&block.id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &block_row.get::<String, _>("last_actor_kind"),
-            block_row.get::<Option<String>, _>("last_actor_id"),
-            block_row.get::<Option<String>, _>("last_job_id"),
-            block_row.get::<Option<String>, _>("last_workflow_id"),
-            &block_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
+        assert_traceability_row(&db, "blocks", &block.id, &ctx).await?;
 
         let canvas = db
             .create_canvas(
@@ -2671,63 +2423,9 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
             }],
         )
         .await?;
-
-        let canvas_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM canvases
-            WHERE id = ?
-            "#,
-        )
-        .bind(&canvas.id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &canvas_row.get::<String, _>("last_actor_kind"),
-            canvas_row.get::<Option<String>, _>("last_actor_id"),
-            canvas_row.get::<Option<String>, _>("last_job_id"),
-            canvas_row.get::<Option<String>, _>("last_workflow_id"),
-            &canvas_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
-
-        let node_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM canvas_nodes
-            WHERE id = ?
-            "#,
-        )
-        .bind(&node_a_id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &node_row.get::<String, _>("last_actor_kind"),
-            node_row.get::<Option<String>, _>("last_actor_id"),
-            node_row.get::<Option<String>, _>("last_job_id"),
-            node_row.get::<Option<String>, _>("last_workflow_id"),
-            &node_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
-
-        let edge_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM canvas_edges
-            WHERE id = ?
-            "#,
-        )
-        .bind(&edge_id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &edge_row.get::<String, _>("last_actor_kind"),
-            edge_row.get::<Option<String>, _>("last_actor_id"),
-            edge_row.get::<Option<String>, _>("last_job_id"),
-            edge_row.get::<Option<String>, _>("last_workflow_id"),
-            &edge_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
+        assert_traceability_row(&db, "canvases", &canvas.id, &ctx).await?;
+        assert_traceability_row(&db, "canvas_nodes", &node_a_id, &ctx).await?;
+        assert_traceability_row(&db, "canvas_edges", &edge_id, &ctx).await?;
     }
 
     Ok(())
@@ -2796,12 +2494,6 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
     db.run_migrations().await?;
     let db = db.into_arc();
 
-    let postgres = db
-        .as_any()
-        .downcast_ref::<PostgresDatabase>()
-        .ok_or(StorageError::Validation("expected postgres backend"))?;
-    let pool = postgres.pool();
-
     let contexts = vec![
         WriteContext::human(Some("human-1".into())),
         WriteContext::system(Some("system-1".into())),
@@ -2821,25 +2513,7 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
                 },
             )
             .await?;
-
-        let workspace_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM workspaces
-            WHERE id = $1
-            "#,
-        )
-        .bind(&workspace.id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &workspace_row.get::<String, _>("last_actor_kind"),
-            workspace_row.get::<Option<String>, _>("last_actor_id"),
-            workspace_row.get::<Option<String>, _>("last_job_id"),
-            workspace_row.get::<Option<String>, _>("last_workflow_id"),
-            &workspace_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
+        assert_traceability_row(&db, "workspaces", &workspace.id, &ctx).await?;
 
         let document = db
             .create_document(
@@ -2850,25 +2524,7 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
                 },
             )
             .await?;
-
-        let document_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM documents
-            WHERE id = $1
-            "#,
-        )
-        .bind(&document.id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &document_row.get::<String, _>("last_actor_kind"),
-            document_row.get::<Option<String>, _>("last_actor_id"),
-            document_row.get::<Option<String>, _>("last_job_id"),
-            document_row.get::<Option<String>, _>("last_workflow_id"),
-            &document_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
+        assert_traceability_row(&db, "documents", &document.id, &ctx).await?;
 
         let block = db
             .create_block(
@@ -2886,25 +2542,7 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
                 },
             )
             .await?;
-
-        let block_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM blocks
-            WHERE id = $1
-            "#,
-        )
-        .bind(&block.id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &block_row.get::<String, _>("last_actor_kind"),
-            block_row.get::<Option<String>, _>("last_actor_id"),
-            block_row.get::<Option<String>, _>("last_job_id"),
-            block_row.get::<Option<String>, _>("last_workflow_id"),
-            &block_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
+        assert_traceability_row(&db, "blocks", &block.id, &ctx).await?;
 
         let canvas = db
             .create_canvas(
@@ -2946,63 +2584,9 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
             }],
         )
         .await?;
-
-        let canvas_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM canvases
-            WHERE id = $1
-            "#,
-        )
-        .bind(&canvas.id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &canvas_row.get::<String, _>("last_actor_kind"),
-            canvas_row.get::<Option<String>, _>("last_actor_id"),
-            canvas_row.get::<Option<String>, _>("last_job_id"),
-            canvas_row.get::<Option<String>, _>("last_workflow_id"),
-            &canvas_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
-
-        let node_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM canvas_nodes
-            WHERE id = $1
-            "#,
-        )
-        .bind(&node_a_id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &node_row.get::<String, _>("last_actor_kind"),
-            node_row.get::<Option<String>, _>("last_actor_id"),
-            node_row.get::<Option<String>, _>("last_job_id"),
-            node_row.get::<Option<String>, _>("last_workflow_id"),
-            &node_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
-
-        let edge_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
-            FROM canvas_edges
-            WHERE id = $1
-            "#,
-        )
-        .bind(&edge_id)
-        .fetch_one(pool)
-        .await?;
-        assert_metadata_matches_ctx(
-            &edge_row.get::<String, _>("last_actor_kind"),
-            edge_row.get::<Option<String>, _>("last_actor_id"),
-            edge_row.get::<Option<String>, _>("last_job_id"),
-            edge_row.get::<Option<String>, _>("last_workflow_id"),
-            &edge_row.get::<String, _>("edit_event_id"),
-            &ctx,
-        );
+        assert_traceability_row(&db, "canvases", &canvas.id, &ctx).await?;
+        assert_traceability_row(&db, "canvas_nodes", &node_a_id, &ctx).await?;
+        assert_traceability_row(&db, "canvas_edges", &edge_id, &ctx).await?;
     }
 
     drop(db);

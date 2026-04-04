@@ -1036,6 +1036,14 @@ impl super::Database for SqliteDatabase {
         self
     }
 
+    fn supports_loom_graph_filtering(&self) -> bool {
+        false
+    }
+
+    fn loom_traverse_graph_perf_target_ms(&self) -> u128 {
+        100
+    }
+
     async fn run_migrations(&self) -> StorageResult<()> {
         sqlx::migrate!("./migrations").run(&self.pool).await?;
         ensure_locus_schema_sqlite(&self.pool).await?;
@@ -1050,6 +1058,144 @@ impl super::Database for SqliteDatabase {
         .fetch_one(&self.pool)
         .await?;
         Ok(version)
+    }
+
+    #[cfg(test)]
+    async fn test_overwrite_loom_block_metrics(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        mention_count: i64,
+        tag_count: i64,
+        backlink_count: i64,
+    ) -> StorageResult<()> {
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET mention_count = $1, tag_count = $2, backlink_count = $3
+            WHERE workspace_id = $4 AND block_id = $5
+            "#,
+        )
+        .bind(mention_count)
+        .bind(tag_count)
+        .bind(backlink_count)
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET mention_count = 0, tag_count = 0, backlink_count = 0
+            WHERE workspace_id = $1
+            "#,
+        )
+        .bind(workspace_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    async fn test_insert_loom_traversal_perf_fixture(
+        &self,
+        workspace_id: &str,
+        total_blocks: usize,
+    ) -> StorageResult<String> {
+        let created_at = Utc::now();
+        let derived_json = serde_json::to_string(&super::LoomBlockDerived::default())?;
+        let start_block_id = "perf-block-00000".to_string();
+        let mut tx = self.pool.begin().await?;
+
+        for idx in 0..total_blocks {
+            let block_id = format!("perf-block-{idx:05}");
+            sqlx::query(
+                r#"
+                INSERT INTO loom_blocks (
+                    block_id,
+                    workspace_id,
+                    content_type,
+                    title,
+                    pinned,
+                    last_actor_kind,
+                    edit_event_id,
+                    created_at,
+                    updated_at,
+                    backlink_count,
+                    mention_count,
+                    tag_count,
+                    derived_json,
+                    preview_status
+                )
+                VALUES (
+                    $1, $2, 'note', $3, 0, 'SYSTEM',
+                    '00000000-0000-0000-0000-000000000000',
+                    $4, $4, 0, 0, 0, $5, 'none'
+                )
+                "#,
+            )
+            .bind(&block_id)
+            .bind(workspace_id)
+            .bind(format!("Perf Block {idx}"))
+            .bind(created_at)
+            .bind(&derived_json)
+            .execute(&mut *tx)
+            .await?;
+
+            if idx > 0 {
+                sqlx::query(
+                    r#"
+                    INSERT INTO loom_edges (
+                        edge_id,
+                        workspace_id,
+                        source_block_id,
+                        target_block_id,
+                        edge_type,
+                        created_by,
+                        last_actor_kind,
+                        edit_event_id,
+                        created_at
+                    )
+                    VALUES (
+                        $1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
+                        '00000000-0000-0000-0000-000000000000',
+                        $5
+                    )
+                    "#,
+                )
+                .bind(format!("perf-edge-{idx:05}"))
+                .bind(workspace_id)
+                .bind(format!("perf-block-{:05}", idx - 1))
+                .bind(&block_id)
+                .bind(created_at)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+
+        tx.commit().await?;
+        Ok(start_block_id)
+    }
+
+    #[cfg(test)]
+    async fn test_fetch_mutation_traceability_row(
+        &self,
+        table: &str,
+        id: &str,
+    ) -> StorageResult<super::MutationTraceabilityRow> {
+        let sql = format!(
+            "SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id FROM {table} WHERE id = ?"
+        );
+        sqlx::query_as::<_, super::MutationTraceabilityRow>(&sql)
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(StorageError::from)
     }
 
     async fn ping(&self) -> StorageResult<()> {
