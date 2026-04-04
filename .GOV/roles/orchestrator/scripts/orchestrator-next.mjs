@@ -38,6 +38,7 @@ import { deriveLatestValidatorAssessment, evaluateWpCommunicationHealth } from "
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
+import { parsePolicyWaiverLedger } from "../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
 
 const STATE_FILE = resolveOrchestratorGatesPath();
 const STATE_FILE_ABS = repoPathAbs(STATE_FILE);
@@ -46,6 +47,7 @@ const TASK_BOARD_ABS_PATH = repoPathAbs(TASK_BOARD_PATH);
 const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
 const GOVERNED_ROLE_RELAY_TARGETS = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const TERMINAL_ORCHESTRATOR_BOARD_STATUSES = new Set(["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"]);
+const TOKEN_POLICY_CONFLICT_RE = /TOKEN_BUDGET_EXCEEDED|POLICY_CONFLICT|token\s+budget|token-ledger\s+drift/i;
 
 function fail(message, details = []) {
   console.error(`[ORCHESTRATOR_NEXT] ${message}`);
@@ -148,6 +150,22 @@ export function latestOrchestratorGovernanceCheckpoint(notificationsByRole = {})
   const notifications = notificationsByRole?.ORCHESTRATOR?.notifications || [];
   const checkpoints = notifications.filter((entry) => String(entry?.source_kind || "").trim().toUpperCase() === "GOVERNANCE_CHECKPOINT");
   return checkpoints.sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
+}
+
+export function findActiveTokenBudgetContinuationWaiver(packetText = "") {
+  const waiverLedger = parsePolicyWaiverLedger(packetText);
+  return waiverLedger.activeEntries.find((entry) => {
+    if (!entry.coverage.includes("GOVERNANCE")) return false;
+    if (!String(entry.approver || "").trim()) return false;
+    const joinedText = [entry.scope, entry.justification, entry.raw].filter(Boolean).join(" | ");
+    return TOKEN_POLICY_CONFLICT_RE.test(joinedText);
+  }) || null;
+}
+
+function confidenceDetailWithPolicyConflictWaiver(detail = "", waiver = null) {
+  if (!waiver) return detail;
+  const note = `token-budget continuation waiver active (${waiver.waiverId})`;
+  return detail ? `${detail}; ${note}` : note;
 }
 
 function orchestratorAssessmentState(checkpointNotification, assessment = null, runtimeStatus = {}) {
@@ -423,6 +441,7 @@ function main() {
   let refinementSigned = false;
   let refinementErrors = [];
   let refinementParsed = null;
+  let confidenceDetail = confidence.detail;
   if (refinementExists) {
     const ready = validateRefinementFile(refinementPath, {
       expectedWpId: wpId,
@@ -444,7 +463,7 @@ function main() {
   if (!refinementExists) {
     printLifecycle({ wpId, stage: "REFINEMENT", next: "REFINEMENT" });
     printOperatorEnvelope("NONE", "NONE");
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     printState("Refinement file does not exist yet.");
     printNextCommands([
       `just create-task-packet ${wpId}  # scaffolds ${refinementPath.replace(/\\/g, "/")} and exits BLOCKED`,
@@ -458,7 +477,7 @@ function main() {
   if (!refinementReady) {
     printLifecycle({ wpId, stage: "REFINEMENT", next: "REFINEMENT" });
     printOperatorEnvelope("NONE", "NONE");
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     const detail = refinementErrors.length > 0 ? refinementErrors[0] : "Refinement is incomplete.";
     printState(detail);
     printNextCommands([
@@ -472,7 +491,7 @@ function main() {
   if (!lastRefinement) {
     printLifecycle({ wpId, stage: "REFINEMENT", next: "APPROVAL" });
     printOperatorEnvelope("NONE", "NONE");
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     printState("Refinement file looks reviewable, but no refinement gate log exists yet.");
     printNextCommands([`just record-refinement ${wpId}`]);
     return;
@@ -484,7 +503,7 @@ function main() {
       `Collect explicit approval + one-time signature bundle for ${wpId} (signature + workflow lane + execution owner)`,
       "PRE_SIGNATURE_APPROVAL_REQUIRED",
     );
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     printState("Refinement recorded; signature not yet recorded.");
     printNextCommands([
       `# Paste the FULL Technical Refinement Block from ${refinementPath.replace(/\\/g, "/")} in chat (verbatim; no summary).`,
@@ -505,7 +524,7 @@ function main() {
           ? `Choose workflow lane for legacy PREPARE recovery (${executionLane}; MANUAL_RELAY|ORCHESTRATOR_MANAGED)`
           : `Choose execution owner for legacy PREPARE recovery (${EXECUTION_OWNER_RANGE_HELP})`;
       printOperatorEnvelope(prompt, "LEGACY_SIGNATURE_TUPLE_REPAIR");
-      printConfidence(confidence.level, confidence.detail);
+      printConfidence(confidence.level, confidenceDetail);
       printState("Signature recorded; WP prepare record missing and the legacy signature bundle did not capture the full workflow tuple.");
       printNextCommands([
         `just record-signature ${wpId} ${lastSignature.signature} ${workflowLane || '{MANUAL_RELAY|ORCHESTRATOR_MANAGED}'} ${executionLane || EXECUTION_OWNER_USAGE}`,
@@ -514,7 +533,7 @@ function main() {
     }
 
     printOperatorEnvelope("NONE", "NONE");
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     printState(`Signature recorded; WP prepare record missing. Workflow lane from signature bundle: ${workflowLane}; execution owner: ${executionLane}.`);
     printNextCommands([
       `just orchestrator-prepare-and-packet ${wpId}`,
@@ -525,7 +544,7 @@ function main() {
   if (!packetExists) {
     printLifecycle({ wpId, stage: "PACKET_CREATE", next: "PRE_WORK" });
     printOperatorEnvelope("NONE", "NONE");
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     printState("Prepare recorded; work packet file does not exist yet.");
     const nextCommands = [`just create-task-packet ${wpId}`];
     if (!/^HYDRATED_RESEARCH_V1$/i.test(refinementParsed?.refinementEnforcementProfile || "")) {
@@ -545,6 +564,11 @@ function main() {
   const dataContractProfile = parseSingleField(packetText, "DATA_CONTRACT_PROFILE") || "NONE";
   const coderHandoffRigorProfile = parseSingleField(packetText, "CODER_HANDOFF_RIGOR_PROFILE");
   const validatorReportProfile = parseSingleField(packetText, "GOVERNED_VALIDATOR_REPORT_PROFILE");
+  const tokenBudgetContinuationWaiver = findActiveTokenBudgetContinuationWaiver(packetText);
+  confidenceDetail = confidenceDetailWithPolicyConflictWaiver(
+    confidence.detail,
+    tokenBudgetContinuationWaiver,
+  );
   const tokenLedger = readWpTokenUsageLedger(repoRoot, wpId).ledger;
   const tokenBudget = evaluateWpTokenBudget(tokenLedger);
   if (
@@ -554,7 +578,7 @@ function main() {
   ) {
     printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
     printOperatorEnvelope("NONE", tokenLedger.ledger_health.blocker_class || "POLICY_CONFLICT");
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     printState(tokenLedger.ledger_health.summary);
     printFindings([
       `WP token ledger policy: ${tokenLedger.ledger_health.policy_id}`,
@@ -571,10 +595,11 @@ function main() {
     String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED"
     && String(boardStatus || "").trim().toUpperCase() !== "VALIDATED"
     && tokenBudget.status === "FAIL"
+    && !tokenBudgetContinuationWaiver
   ) {
     printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
     printOperatorEnvelope("NONE", tokenBudget.blocker_class || "POLICY_CONFLICT");
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     printState(tokenBudget.summary);
     printFindings([
       `WP token budget policy: ${tokenBudget.policy_id}`,
@@ -604,7 +629,7 @@ function main() {
   if (packetRuntimeState && !packetRuntimeState.drift.ok) {
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorEnvelope("NONE", "NONE");
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     printState("Packet/runtime closeout projection drift is blocking further delegation until status truth is reconciled.");
     printFindings([
       `Packet: ${packetPath}`,
@@ -626,7 +651,7 @@ function main() {
   if (relayEscalation?.applicable && relayEscalation.status === "ESCALATED") {
     printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
     printOperatorEnvelope("NONE", "NONE");
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     printState(
       assessmentState
         ? `${assessmentState.state} ${relayEscalation.summary}`
@@ -652,7 +677,7 @@ function main() {
   if (!syncState.ok) {
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorEnvelope("NONE", "NONE");
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     printState("Work packet exists, but the assigned WP worktree is stale and coder handoff is blocked.");
     printFindings([
       `Assigned worktree: ${syncState.worktreeAbs || "<missing>"}`,
@@ -670,7 +695,7 @@ function main() {
   if (assessmentState) {
     printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
     printOperatorEnvelope("NONE", "NONE");
-    printConfidence(confidence.level, confidence.detail);
+    printConfidence(confidence.level, confidenceDetail);
     printState(assessmentState.state);
     printFindings([
       `Resume source: ${inferred.source}`,
@@ -700,7 +725,7 @@ function main() {
   }
   printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
   printOperatorEnvelope("NONE", "NONE");
-  printConfidence(confidence.level, confidence.detail);
+  printConfidence(confidence.level, confidenceDetail);
   printState(
     needsStubCleanup
       ? "Work packet exists; Task Board still lists this WP as [STUB]."

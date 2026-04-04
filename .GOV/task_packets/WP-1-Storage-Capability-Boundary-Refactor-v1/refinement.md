@@ -245,10 +245,9 @@ Requirements (HARD):
 - SCAN_SCOPE: current stub backlog, completed storage/structured-collaboration packets, current Master Spec v02.179, and local product code under `../handshake_main/src/backend/handshake_core`
 - MATCHED_STUBS:
   - Artifact: WP-1-Storage-Capability-Boundary-Refactor-v1 | BoardStatus: STUB | Intent: SAME | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: N/A | Resolution: EXPAND_IN_THIS_WP | Stub: NONE | Notes: this is the correct governed shell for the current boundary-shape remediation
-  - Artifact: WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1 | BoardStatus: STUB | Intent: PARTIAL | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: N/A | Resolution: KEEP_SEPARATE | Stub: NONE | Notes: parity implementation is a downstream consumer of this boundary and should not proceed on the same overlapping file-lock set first
   - Artifact: WP-1-Storage-No-Runtime-DDL-v1 | BoardStatus: STUB | Intent: PARTIAL | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: N/A | Resolution: KEEP_SEPARATE | Stub: NONE | Notes: related storage remediation, but focused on migration discipline instead of caller-boundary composition
 - MATCHED_ACTIVE_PACKETS:
-  - NONE
+  - Artifact: WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1 | BoardStatus: IN_PROGRESS | Intent: PARTIAL | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: N/A | Resolution: KEEP_SEPARATE | Stub: NONE | Notes: parity implementation is a downstream consumer of this boundary and should not proceed on the same overlapping file-lock set first
 - MATCHED_COMPLETED_PACKETS:
   - Artifact: WP-1-Dual-Backend-Tests-v2 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: PARTIAL | Resolution: KEEP_SEPARATE | Stub: NONE | Notes: provides test posture, but not the storage-boundary split or trait-growth tripwires required here
 - CODE_REALITY_EVIDENCE:

@@ -35,6 +35,10 @@ function normalizeProofRecord(raw, fallbackKind = "LIVE_PREPARE_WORKTREE_HEALTH"
     proof_kind: normalizeProofKind(record.proof_kind, fallbackKind),
     wp_id: normalizeText(record.wp_id),
     status: normalizeStatus(record.status),
+    live_prepare_worktree_status:
+      normalizeText(record.live_prepare_worktree_status).toUpperCase() || normalizeStatus(record.status),
+    committed_target_status:
+      normalizeText(record.committed_target_status).toUpperCase() || normalizeStatus(record.status),
     validated_at: normalizeText(record.validated_at),
     source_truth: normalizeText(record.source_truth),
     prepare_branch: normalizeText(record.prepare_branch),
@@ -132,28 +136,45 @@ export function recordCommittedValidationRun(existingRaw, runEvidence) {
   const normalizedRun = normalizeProofRecord(runEvidence, "LIVE_PREPARE_WORKTREE_HEALTH");
   if (!normalizedRun) return existing;
 
-  const committedTargetProof = {
+  const livePrepareStatus = normalizeStatus(
+    runEvidence?.live_prepare_worktree_status || normalizedRun.live_prepare_worktree_status || normalizedRun.status,
+  );
+  const committedTargetStatus = normalizeStatus(
+    runEvidence?.committed_target_status || normalizedRun.committed_target_status || normalizedRun.status,
+  );
+
+  const latestRun = {
     ...normalizedRun,
+    status: committedTargetStatus,
+    live_prepare_worktree_status: livePrepareStatus,
+    committed_target_status: committedTargetStatus,
+  };
+
+  const committedTargetProof = {
+    ...latestRun,
     proof_kind: "COMMITTED_TARGET_PROOF",
+    status: committedTargetStatus,
   };
 
   const next = {
     schema_id: EVIDENCE_SCHEMA_ID,
     schema_version: EVIDENCE_SCHEMA_VERSION,
-    wp_id: normalizeText(normalizedRun.wp_id || existing.wp_id),
-    latest_run: clone(normalizedRun),
+    wp_id: normalizeText(latestRun.wp_id || existing.wp_id),
+    latest_run: clone(latestRun),
     latest_live_prepare_worktree_health: clone({
-      ...normalizedRun,
+      ...latestRun,
       proof_kind: "LIVE_PREPARE_WORKTREE_HEALTH",
+      status: livePrepareStatus,
     }),
     latest_committed_target_proof: clone(committedTargetProof),
     last_successful_committed_target_proof:
-      normalizedRun.status === "PASS"
+      committedTargetStatus === "PASS"
         ? clone(committedTargetProof)
         : clone(existing.last_successful_committed_target_proof),
     proof_history: appendHistory(existing.proof_history, {
-      ...normalizedRun,
+      ...latestRun,
       proof_kind: "LIVE_PREPARE_WORKTREE_HEALTH",
+      status: livePrepareStatus,
     }),
   };
 

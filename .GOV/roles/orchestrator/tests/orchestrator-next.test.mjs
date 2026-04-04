@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   closeoutModeFromPacketStatus,
+  findActiveTokenBudgetContinuationWaiver,
   isTerminalOrchestratorBoardStatus,
   latestOrchestratorGovernanceCheckpoint,
 } from "../scripts/orchestrator-next.mjs";
@@ -48,4 +49,22 @@ test("orchestrator-next picks the latest governance checkpoint notification for 
   });
 
   assert.equal(notification?.summary, "latest checkpoint");
+});
+
+test("orchestrator-next detects an active governance waiver for token-budget continuation", () => {
+  const waiver = findActiveTokenBudgetContinuationWaiver(`
+## WAIVERS GRANTED
+- WAIVER_ID: CX-TEST-TOKEN-001 | STATUS: ACTIVE | COVERS: GOVERNANCE | SCOPE: post-signature orchestrator-managed continuation after TOKEN_BUDGET_EXCEEDED on WP-TEST | JUSTIFICATION: Operator authorized bounded continuation after POLICY_CONFLICT during crash recovery. | APPROVER: Operator | EXPIRES: until closeout
+`);
+
+  assert.equal(waiver?.waiverId, "CX-TEST-TOKEN-001");
+});
+
+test("orchestrator-next ignores unrelated governance waivers for token-budget continuation", () => {
+  const waiver = findActiveTokenBudgetContinuationWaiver(`
+## WAIVERS GRANTED
+- WAIVER_ID: CX-TEST-GOV-001 | STATUS: ACTIVE | COVERS: GOVERNANCE | SCOPE: workflow bookkeeping note | JUSTIFICATION: operator approved a governance docs cleanup | APPROVER: Operator | EXPIRES: until cleanup
+`);
+
+  assert.equal(waiver, null);
 });

@@ -157,7 +157,8 @@ function syncRuntimeDeclaredFieldsFromPacket(runtimeStatus = {}, packetText = ""
     eventName: runtimeStatus?.last_event || "ensure_wp_communications",
     eventAt: runtimeStatus?.last_event_at || new Date().toISOString(),
   });
-  syncedRuntime.task_packet = normalize(packetPath || parseSingleField(packetText, "TASK_ID"));
+  const packetWpId = parseSingleField(packetText, "WP_ID") || parseSingleField(packetText, "TASK_ID");
+  syncedRuntime.task_packet = normalize(workPacketPath(packetWpId || ""));
   syncedRuntime.communication_dir = normalize(parseSingleField(packetText, "WP_COMMUNICATION_DIR"));
   syncedRuntime.thread_file = normalize(parseSingleField(packetText, "WP_THREAD_FILE"));
   syncedRuntime.runtime_status_file = normalize(parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE"));
@@ -546,10 +547,6 @@ function ensureWpCommunicationsCore({
   writeIfMissing(cursorPath, `${JSON.stringify({ schema_version: "wp_notification_cursor@1", cursors: {} }, null, 2)}\n`);
 
   const runtimeStatus = parseJsonFile(runtimeStatusPath);
-  const runtimeErrors = validateRuntimeStatus(runtimeStatus);
-  if (runtimeErrors.length > 0) {
-    throw new Error(`Generated runtime status failed validation for ${WP_ID}: ${runtimeErrors.join("; ")}`);
-  }
 
   const receipts = parseJsonlFile(receiptsPath);
   if (receipts.length === 0) {

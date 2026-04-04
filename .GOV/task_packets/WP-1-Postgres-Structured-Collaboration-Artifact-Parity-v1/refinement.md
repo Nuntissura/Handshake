@@ -243,9 +243,9 @@ Requirements (HARD):
 - Rule: before creating a new stub or activating a new packet, scan existing stubs, active packets, completed packets, primitive/index coverage, interaction-matrix coverage, same-intent UI surfaces, and product code. If an equivalent capability already exists and code/UI evidence confirms it, reuse the existing artifact instead of creating a duplicate. If only partial coverage exists, expand this WP. If the gap is real, create a stub and/or spec update.
 - SCAN_SCOPE: current stub backlog, completed storage and structured-collaboration packets, current Master Spec v02.179, and local product code under `../handshake_main/src/backend/handshake_core`
 - MATCHED_STUBS:
-  - Artifact: WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1 | BoardStatus: STUB | Intent: SAME | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: N/A | Resolution: EXPAND_IN_THIS_WP | Stub: NONE | Notes: this is the correct governed shell for the PostgreSQL parity gap
-- MATCHED_ACTIVE_PACKETS:
   - NONE
+- MATCHED_ACTIVE_PACKETS:
+  - Artifact: WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1 | BoardStatus: IN_PROGRESS | Intent: SAME | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: N/A | Resolution: EXPAND_IN_THIS_WP | Stub: NONE | Notes: this is the correct governed shell for the PostgreSQL parity gap
 - MATCHED_COMPLETED_PACKETS:
   - Artifact: WP-1-Structured-Collaboration-Artifact-Family-v1 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: IMPLEMENTED | Resolution: KEEP_SEPARATE | Stub: NONE | Notes: defines the artifact family and portable paths that this packet now has to implement on PostgreSQL
   - Artifact: WP-1-Dual-Backend-Tests-v2 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: PARTIAL | Resolution: KEEP_SEPARATE | Stub: NONE | Notes: provides the dual-backend test posture this packet must extend with structured-collaboration parity cases

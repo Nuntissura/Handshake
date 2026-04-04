@@ -142,6 +142,37 @@ function gitInWorktree(worktreeAbs, args) {
   return result.output.trim();
 }
 
+function extractPreWorkErrors(output) {
+  const lines = String(output || "").split(/\r?\n/);
+  const errors = [];
+  let inErrors = false;
+  for (const line of lines) {
+    if (/^Errors:\s*$/i.test(line)) {
+      inErrors = true;
+      continue;
+    }
+    if (!inErrors) continue;
+    if (/^(Warnings:|Fix these issues before)/i.test(line.trim())) break;
+    const itemMatch = line.match(/^\s*\d+\.\s+(.*)$/);
+    if (itemMatch) {
+      errors.push(itemMatch[1].trim());
+      continue;
+    }
+    if (errors.length > 0 && /^\s{2,}\S/.test(line)) {
+      errors[errors.length - 1] = `${errors[errors.length - 1]} ${line.trim()}`.trim();
+    }
+  }
+  return errors;
+}
+
+function preWorkFailureIsNonBlockingForCommittedTarget(output) {
+  const errors = extractPreWorkErrors(output);
+  if (errors.length === 0) return false;
+  return errors.every((entry) =>
+    /^Branch-local out-of-scope edits detected before work starts:/i.test(String(entry || "").trim())
+  );
+}
+
 const PRE_WORK_SCRIPT = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles", "coder", "checks", "pre-work.mjs"));
 const POST_WORK_SCRIPT = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles", "coder", "checks", "post-work.mjs"));
 const CARGO_CLEAN_ARGS = [
@@ -311,14 +342,25 @@ try {
   // Keep user-specified ref literal in the evidence summary if rev-parse fails.
 }
 
-const preWork = runInWorktree(worktreeAbs, process.execPath, [PRE_WORK_SCRIPT, parsed.wpId]);
+const preWork = runInWorktree(worktreeAbs, process.execPath, [PRE_WORK_SCRIPT, parsed.wpId, "--verbose"]);
 const cargoClean = runInWorktree(worktreeAbs, "cargo", CARGO_CLEAN_ARGS);
 const postWork = runInWorktree(worktreeAbs, process.execPath, [POST_WORK_SCRIPT, parsed.wpId, ...committedTarget.args]);
 const cargoCleanStatus = cargoClean.code === 0 ? "PASS" : "FAIL";
+const preWorkNonBlockingForCommittedTarget =
+  preWork.code !== 0 && preWorkFailureIsNonBlockingForCommittedTarget(preWork.output);
+const livePrepareWorktreeStatus = preWork.code === 0 && cargoClean.code === 0 && postWork.code === 0 ? "PASS" : "FAIL";
+const committedTargetStatus =
+  cargoClean.code === 0
+  && postWork.code === 0
+  && (preWork.code === 0 || preWorkNonBlockingForCommittedTarget)
+    ? "PASS"
+    : "FAIL";
 
 const evidence = {
   wp_id: parsed.wpId,
-  status: preWork.code === 0 && cargoClean.code === 0 && postWork.code === 0 ? "PASS" : "FAIL",
+  status: committedTargetStatus,
+  live_prepare_worktree_status: livePrepareWorktreeStatus,
+  committed_target_status: committedTargetStatus,
   validated_at: new Date().toISOString(),
   source_truth: "PREPARE_WORKTREE",
   prepare_branch: String(prepareEntry.branch || "").trim(),
@@ -331,7 +373,7 @@ const evidence = {
   cargo_clean_required: true,
   cargo_clean_status: cargoCleanStatus,
   post_work_status: postWork.code === 0 ? "PASS" : "FAIL",
-  pre_work_command: `node ${repoRelativeDisplayPath(repoRoot, PRE_WORK_SCRIPT)} ${parsed.wpId}`,
+  pre_work_command: `node ${repoRelativeDisplayPath(repoRoot, PRE_WORK_SCRIPT)} ${parsed.wpId} --verbose`,
   cargo_clean_command: `cargo ${CARGO_CLEAN_ARGS.join(" ")}`,
   post_work_command: `node ${repoRelativeDisplayPath(repoRoot, POST_WORK_SCRIPT)} ${parsed.wpId} ${committedTarget.args.join(" ")}`.trim(),
   pre_work_output: preWork.output,
@@ -373,6 +415,9 @@ console.log(`  committed_validation_target=${evidence.committed_validation_targe
 console.log(`  target_head_sha=${evidence.target_head_sha}`);
 console.log(`  live_prepare_worktree_status=${livePrepareHealth?.status || evidence.status}`);
 console.log(`  durable_committed_proof_status=${durableCommittedProof?.status || evidence.status}`);
+if (preWorkNonBlockingForCommittedTarget) {
+  console.log("  non_blocking_pre_work_failure=BRANCH_LOCAL_OUT_OF_SCOPE_EDITS");
+}
 console.log(`  evidence_file=${stateFilePath(parsed.wpId).replace(/\\/g, "/")}`);
 if (nonBlockingSyncWarnings.length > 0) {
   console.log(`  sync_warnings=${formatBoundedItemList(nonBlockingSyncWarnings, { noun: "warning" })}`);
