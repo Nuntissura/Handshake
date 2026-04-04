@@ -3411,13 +3411,12 @@ fn emit_work_packet_artifacts(
     let note_refs = emit_work_packet_notes(runtime_paths, work_packet)?;
     let mut tracked_wp = work_packet.clone();
     apply_runtime_structured_work_packet_registry(runtime_paths, &mut tracked_wp)?;
-    let summary = build_structured_work_packet_summary(&tracked_wp);
-    tracked_wp.metadata["structured_collaboration_summary"] =
-        serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let summary_value = build_structured_work_packet_summary_value(&tracked_wp)?;
+    tracked_wp.metadata["structured_collaboration_summary"] = summary_value.clone();
     write_json_atomic(
         runtime_paths.workspace_root(),
         &runtime_paths.work_packet_summary_path(&tracked_wp.wp_id),
-        &summary,
+        &summary_value,
     )?;
     let packet = build_structured_work_packet_packet(runtime_paths, &tracked_wp, note_refs);
     write_json_atomic(
@@ -3439,13 +3438,12 @@ fn emit_micro_task_artifacts(
     let mut tracked_mt = micro_task.clone();
     let wp_id = tracked_mt.wp_id.clone();
     apply_runtime_structured_micro_task_registry(runtime_paths, &wp_id, &mut tracked_mt)?;
-    let summary = build_structured_micro_task_summary(&tracked_mt);
-    tracked_mt.metadata["structured_collaboration_summary"] =
-        serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let summary_value = build_structured_micro_task_summary_value(&tracked_mt)?;
+    tracked_mt.metadata["structured_collaboration_summary"] = summary_value.clone();
     write_json_atomic(
         runtime_paths.workspace_root(),
         &runtime_paths.micro_task_summary_path(&tracked_mt.wp_id, &tracked_mt.mt_id),
-        &summary,
+        &summary_value,
     )?;
     let packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
     write_json_atomic(
@@ -3691,10 +3689,7 @@ async fn emit_task_board_projection_artifacts(
     let mut validation = locus::StructuredCollaborationValidationResult::success(
         locus::StructuredCollaborationRecordFamily::TaskBoardIndex,
     );
-    for (entry, authoritative_truth) in entries
-        .iter()
-        .zip(authoritative_entry_truths.iter())
-    {
+    for (entry, authoritative_truth) in entries.iter().zip(authoritative_entry_truths.iter()) {
         let entry_value =
             serde_json::to_value(entry).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
         let mut entry_validation = locus::validate_structured_collaboration_record(
@@ -3712,13 +3707,15 @@ async fn emit_task_board_projection_artifacts(
                 "task-board entry authority_refs must stay within the product-runtime .handshake/gov boundary",
             );
         }
-        entry_validation.merge(locus::task_board::validate_task_board_entry_authoritative_fields(
-            entry,
-            &authoritative_truth.0,
-            authoritative_truth.1,
-            authoritative_truth.2,
-            &authoritative_truth.3,
-        ));
+        entry_validation.merge(
+            locus::task_board::validate_task_board_entry_authoritative_fields(
+                entry,
+                &authoritative_truth.0,
+                authoritative_truth.1,
+                authoritative_truth.2,
+                &authoritative_truth.3,
+            ),
+        );
         validation.merge(entry_validation);
     }
 
@@ -4273,13 +4270,20 @@ async fn emit_runtime_structured_work_packet_artifacts(
     let workspace_root = runtime_paths.workspace_root().to_path_buf();
     let packet_path = runtime_paths.work_packet_packet_path(wp_id);
     let summary_path = runtime_paths.work_packet_summary_path(wp_id);
+    let summary_display = runtime_paths.work_packet_summary_display(wp_id);
     let mut tracked_wp =
         load_tracked_work_packet_from_store(runtime_paths, db, wp_id, kind_hint).await?;
-    let detail_value =
-        serde_json::to_value(&tracked_wp).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    let summary = build_structured_work_packet_summary(&tracked_wp);
-    let summary_value =
-        serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let note_refs = emit_work_packet_notes(runtime_paths, &tracked_wp)?;
+    tracked_wp.metadata["structured_collaboration_summary_path"] = Value::String(summary_display);
+    let summary_value = build_structured_work_packet_summary_value(&tracked_wp)?;
+    tracked_wp.metadata["structured_collaboration_summary"] = summary_value.clone();
+    let mut detail_packet =
+        build_structured_work_packet_packet(runtime_paths, &tracked_wp, note_refs.clone());
+    let mut detail_value =
+        serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if let Some(profile_extension) = tracked_wp.profile_extension.clone() {
+        detail_value["profile_extension"] = profile_extension;
+    }
 
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::WorkPacketPacket,
@@ -4327,8 +4331,9 @@ async fn emit_runtime_structured_work_packet_artifacts(
         ));
     }
 
-    write_json_atomic(&workspace_root, &packet_path, &tracked_wp)?;
-    write_json_atomic(&workspace_root, &summary_path, &summary)?;
+    detail_packet = build_structured_work_packet_packet(runtime_paths, &tracked_wp, note_refs);
+    write_json_atomic(&workspace_root, &packet_path, &detail_packet)?;
+    write_json_atomic(&workspace_root, &summary_path, &summary_value)?;
     Ok(())
 }
 
@@ -4344,9 +4349,7 @@ async fn emit_runtime_structured_micro_task_artifacts(
     let summary_display = runtime_paths.micro_task_summary_display(wp_id, mt_id);
     let mut tracked_mt =
         load_tracked_micro_task_from_store(runtime_paths, db, wp_id, mt_id).await?;
-    let summary = build_structured_micro_task_summary(&tracked_mt);
-    let summary_value =
-        serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let summary_value = build_structured_micro_task_summary_value(&tracked_mt)?;
     tracked_mt.metadata["structured_collaboration_summary_path"] = Value::String(summary_display);
     tracked_mt.metadata["structured_collaboration_summary"] = summary_value.clone();
 
@@ -4401,7 +4404,7 @@ async fn emit_runtime_structured_micro_task_artifacts(
 
     detail_packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
     write_json_atomic(&workspace_root, &packet_path, &detail_packet)?;
-    write_json_atomic(&workspace_root, &summary_path, &summary)?;
+    write_json_atomic(&workspace_root, &summary_path, &summary_value)?;
     Ok(())
 }
 
@@ -4677,6 +4680,27 @@ fn build_structured_work_packet_summary(
     )
 }
 
+fn build_structured_work_packet_summary_value(
+    tracked_wp: &locus::TrackedWorkPacket,
+) -> Result<Value, WorkflowError> {
+    let summary = build_structured_work_packet_summary(tracked_wp);
+    let (workflow_state_family, _) = work_packet_workflow_state(tracked_wp.status);
+    let mut summary_value =
+        serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let summary_object = summary_value.as_object_mut().ok_or_else(|| {
+        WorkflowError::Terminal("work-packet summary must serialize to an object".to_string())
+    })?;
+    summary_object.insert(
+        "workflow_state_family".to_string(),
+        serde_json::to_value(workflow_state_family)
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    );
+    if let Some(profile_extension) = tracked_wp.profile_extension.clone() {
+        summary_object.insert("profile_extension".to_string(), profile_extension);
+    }
+    Ok(summary_value)
+}
+
 fn build_structured_work_packet_packet(
     runtime_paths: &RuntimeGovernancePaths,
     tracked_wp: &locus::TrackedWorkPacket,
@@ -4738,6 +4762,27 @@ fn build_structured_micro_task_summary(
         tracked_mt.project_profile_kind,
         tracked_mt.mirror_state,
     )
+}
+
+fn build_structured_micro_task_summary_value(
+    tracked_mt: &locus::TrackedMicroTask,
+) -> Result<Value, WorkflowError> {
+    let summary = build_structured_micro_task_summary(tracked_mt);
+    let (workflow_state_family, _) = micro_task_workflow_state(tracked_mt.status);
+    let mut summary_value =
+        serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let summary_object = summary_value.as_object_mut().ok_or_else(|| {
+        WorkflowError::Terminal("micro-task summary must serialize to an object".to_string())
+    })?;
+    summary_object.insert(
+        "workflow_state_family".to_string(),
+        serde_json::to_value(workflow_state_family)
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    );
+    if let Some(profile_extension) = tracked_mt.profile_extension.clone() {
+        summary_object.insert("profile_extension".to_string(), profile_extension);
+    }
+    Ok(summary_value)
 }
 
 fn build_structured_micro_task_packet(
@@ -11732,12 +11777,13 @@ fn apply_runtime_structured_work_packet_registry(
     tracked_wp.metadata["structured_collaboration_summary_path"] =
         Value::String(summary_display.clone());
 
-    let summary = build_structured_work_packet_summary(tracked_wp);
+    let summary_value = build_structured_work_packet_summary_value(tracked_wp)?;
     let detail_packet = build_structured_work_packet_packet(runtime_paths, tracked_wp, Vec::new());
-    let summary_value =
-        serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    let detail_value =
+    let mut detail_value =
         serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if let Some(profile_extension) = tracked_wp.profile_extension.clone() {
+        detail_value["profile_extension"] = profile_extension;
+    }
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::WorkPacketPacket,
         &detail_value,
@@ -11819,24 +11865,15 @@ fn apply_runtime_structured_micro_task_registry(
             .is_some();
     if should_refresh_summary {
         tracked_mt.metadata["structured_collaboration_summary"] =
-            serde_json::to_value(locus::default_structured_collaboration_summary_record(
-                locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
-                tracked_mt.record_id.clone(),
-                tracked_mt.name.clone(),
-                structured_micro_task_status(tracked_mt.status),
-                structured_micro_task_next_action(tracked_mt.status),
-                tracked_mt.authority_refs.clone(),
-                tracked_mt.evidence_refs.clone(),
-                tracked_mt.updated_at.to_rfc3339(),
-                tracked_mt.project_profile_kind,
-                tracked_mt.mirror_state,
-            ))
-            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            build_structured_micro_task_summary_value(tracked_mt)?;
     }
 
     let detail_packet = build_structured_micro_task_packet(runtime_paths, tracked_mt);
-    let detail_value =
+    let mut detail_value =
         serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if let Some(profile_extension) = tracked_mt.profile_extension.clone() {
+        detail_value["profile_extension"] = profile_extension;
+    }
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         &detail_value,
@@ -24189,8 +24226,14 @@ mod tests {
         let packet_value: Value = serde_json::from_slice(&std::fs::read(
             runtime_paths.work_packet_packet_path(wp_id),
         )?)?;
+        let summary_value: Value = serde_json::from_slice(&std::fs::read(
+            runtime_paths.work_packet_summary_path(wp_id),
+        )?)?;
         let micro_task_value: Value = serde_json::from_slice(&std::fs::read(
             runtime_paths.micro_task_packet_path(wp_id, "MT-001"),
+        )?)?;
+        let micro_task_summary_value: Value = serde_json::from_slice(&std::fs::read(
+            runtime_paths.micro_task_summary_path(wp_id, "MT-001"),
         )?)?;
         let task_board_index: Value =
             serde_json::from_slice(&std::fs::read(runtime_paths.task_board_index_path())?)?;
@@ -24208,6 +24251,11 @@ mod tests {
         assert_eq!(packet_value["mirror_state"], "canonical_only");
         assert_eq!(packet_value["workflow_state_family"], "intake");
         assert_eq!(packet_value["queue_reason_code"], "new_untriaged");
+        assert_eq!(summary_value["workflow_state_family"], "intake");
+        assert_eq!(
+            summary_value["profile_extension"]["extension_schema_id"],
+            "handshake.project_profile.software_delivery"
+        );
 
         assert_eq!(micro_task_value["mt_id"], "MT-001");
         assert_eq!(
@@ -24219,6 +24267,11 @@ mod tests {
         assert_eq!(
             micro_task_value["queue_reason_code"],
             "ready_for_local_small_model"
+        );
+        assert_eq!(micro_task_summary_value["workflow_state_family"], "ready");
+        assert_eq!(
+            micro_task_summary_value["profile_extension"]["extension_schema_id"],
+            "handshake.project_profile.software_delivery"
         );
 
         assert_eq!(task_board_row["project_profile_kind"], "software_delivery");
