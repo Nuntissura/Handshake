@@ -50,7 +50,7 @@ impl StorageCapabilitySnapshot {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, sqlx::FromRow)]
 pub struct StructuredCollabWorkPacketRow {
     pub wp_id: String,
     pub version: i64,
@@ -1578,6 +1578,15 @@ impl From<GuardError> for StorageError {
     }
 }
 
+#[derive(Clone, Debug, sqlx::FromRow)]
+pub struct MutationTraceabilityRow {
+    pub last_actor_kind: String,
+    pub last_actor_id: Option<String>,
+    pub last_job_id: Option<String>,
+    pub last_workflow_id: Option<String>,
+    pub edit_event_id: String,
+}
+
 #[async_trait]
 pub trait StorageGuard: Send + Sync {
     /// Validates the write request against the "No Silent Edits" policy.
@@ -1620,11 +1629,11 @@ pub trait StorageCapabilityStore: Send + Sync {
 }
 
 #[async_trait]
-pub trait StructuredCollaborationStore: Send + Sync {
+pub trait StructuredCollaborationStore: StorageCapabilityStore + Send + Sync {
     async fn locus_work_packet_exists(&self, wp_id: &str) -> StorageResult<bool>;
     async fn execute_locus_operation(
         &self,
-        op: crate::workflows::locus::LocusOperation,
+        op: crate::workflows::locus::types::LocusOperation,
     ) -> StorageResult<Value>;
     async fn locus_task_board_get_status_and_metadata(
         &self,
@@ -1639,31 +1648,58 @@ pub trait StructuredCollaborationStore: Send + Sync {
         wp_id: &str,
     ) -> StorageResult<()>;
     async fn locus_task_board_list_rows(&self) -> StorageResult<Vec<(String, String, String)>>;
-    async fn structured_collab_list_work_packet_ids(&self) -> StorageResult<Vec<String>>;
-    async fn structured_collab_load_work_packet_row(
+    async fn structured_collab_work_packet_row(
         &self,
         wp_id: &str,
     ) -> StorageResult<Option<StructuredCollabWorkPacketRow>>;
-    async fn structured_collab_list_micro_task_status_rows(
+    async fn structured_collab_work_packet_rows(
+        &self,
+    ) -> StorageResult<Vec<StructuredCollabWorkPacketRow>>;
+    async fn structured_collab_micro_task_status_rows(
         &self,
         wp_id: &str,
     ) -> StorageResult<Vec<(String, String)>>;
-    async fn structured_collab_load_micro_task_metadata(
+    async fn structured_collab_micro_task_metadata(
         &self,
         wp_id: &str,
         mt_id: &str,
     ) -> StorageResult<Option<String>>;
-    async fn structured_collab_list_micro_task_metadata(
+    async fn structured_collab_micro_task_rows(
         &self,
         wp_id: &str,
     ) -> StorageResult<Vec<(String, String)>>;
-    async fn structured_collab_list_task_board_projection_rows(
-        &self,
-    ) -> StorageResult<Vec<StructuredCollabTaskBoardProjectionRow>>;
 }
 
 #[async_trait]
 pub trait Database: Send + Sync + std::any::Any {
+    fn supports_locus_runtime(&self) -> bool {
+        self.as_any().is::<sqlite::SqliteDatabase>()
+    }
+
+    fn supports_structured_collab_artifacts(&self) -> bool {
+        self.as_any().is::<sqlite::SqliteDatabase>()
+    }
+
+    fn loom_search_observability_tier(&self) -> u8 {
+        if self.as_any().is::<sqlite::SqliteDatabase>() {
+            1
+        } else {
+            2
+        }
+    }
+
+    fn supports_loom_graph_filtering(&self) -> bool {
+        !self.as_any().is::<sqlite::SqliteDatabase>()
+    }
+
+    fn loom_traverse_graph_perf_target_ms(&self) -> u128 {
+        if self.as_any().is::<sqlite::SqliteDatabase>() {
+            100
+        } else {
+            50
+        }
+    }
+
     // Health check
     async fn ping(&self) -> StorageResult<()>;
 
@@ -1995,6 +2031,291 @@ pub trait Database: Send + Sync + std::any::Any {
     /// Returns the current schema migration version from `_sqlx_migrations`.
     async fn migration_version(&self) -> StorageResult<i64>;
 
+    async fn execute_locus_operation(
+        &self,
+        op: crate::workflows::locus::types::LocusOperation,
+    ) -> StorageResult<Value> {
+        locus_sqlite::execute_locus_operation(self, op).await
+    }
+
+    async fn locus_task_board_update_work_packet(
+        &self,
+        status: &str,
+        task_board_status: &str,
+        updated_at: &str,
+        metadata: &str,
+        wp_id: &str,
+    ) -> StorageResult<()> {
+        locus_sqlite::locus_task_board_update_work_packet(
+            self,
+            status,
+            task_board_status,
+            updated_at,
+            metadata,
+            wp_id,
+        )
+        .await
+    }
+
+    async fn structured_collab_work_packet_row(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Option<StructuredCollabWorkPacketRow>> {
+        locus_sqlite::structured_collab_work_packet_row(self, wp_id).await
+    }
+
+    async fn structured_collab_work_packet_rows(
+        &self,
+    ) -> StorageResult<Vec<StructuredCollabWorkPacketRow>> {
+        locus_sqlite::structured_collab_work_packet_rows(self).await
+    }
+
+    async fn structured_collab_micro_task_metadata(
+        &self,
+        wp_id: &str,
+        mt_id: &str,
+    ) -> StorageResult<Option<String>> {
+        locus_sqlite::structured_collab_micro_task_metadata(self, wp_id, mt_id).await
+    }
+
+    async fn structured_collab_micro_task_status_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>> {
+        locus_sqlite::structured_collab_micro_task_status_rows(self, wp_id).await
+    }
+
+    async fn structured_collab_micro_task_rows(
+        &self,
+        wp_id: &str,
+    ) -> StorageResult<Vec<(String, String)>> {
+        locus_sqlite::structured_collab_micro_task_rows(self, wp_id).await
+    }
+
+    #[cfg(test)]
+    async fn test_overwrite_loom_block_metrics(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        mention_count: i64,
+        tag_count: i64,
+        backlink_count: i64,
+    ) -> StorageResult<()> {
+        if let Ok(db) = sqlite_backend(self) {
+            sqlx::query(
+                r#"
+                UPDATE loom_blocks
+                SET mention_count = $1, tag_count = $2, backlink_count = $3
+                WHERE workspace_id = $4 AND block_id = $5
+                "#,
+            )
+            .bind(mention_count)
+            .bind(tag_count)
+            .bind(backlink_count)
+            .bind(workspace_id)
+            .bind(block_id)
+            .execute(db.pool())
+            .await?;
+            return Ok(());
+        }
+
+        if let Ok(db) = postgres_backend(self) {
+            sqlx::query(
+                r#"
+                UPDATE loom_blocks
+                SET mention_count = $1, tag_count = $2, backlink_count = $3
+                WHERE workspace_id = $4 AND block_id = $5
+                "#,
+            )
+            .bind(mention_count as i32)
+            .bind(tag_count as i32)
+            .bind(backlink_count as i32)
+            .bind(workspace_id)
+            .bind(block_id)
+            .execute(db.pool())
+            .await?;
+            return Ok(());
+        }
+
+        Err(StorageError::NotImplemented("test loom metrics backend"))
+    }
+
+    #[cfg(test)]
+    async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
+        if let Ok(db) = sqlite_backend(self) {
+            sqlx::query(
+                r#"
+                UPDATE loom_blocks
+                SET mention_count = 0, tag_count = 0, backlink_count = 0
+                WHERE workspace_id = $1
+                "#,
+            )
+            .bind(workspace_id)
+            .execute(db.pool())
+            .await?;
+            return Ok(());
+        }
+
+        if let Ok(db) = postgres_backend(self) {
+            sqlx::query(
+                r#"
+                UPDATE loom_blocks
+                SET mention_count = 0, tag_count = 0, backlink_count = 0
+                WHERE workspace_id = $1
+                "#,
+            )
+            .bind(workspace_id)
+            .execute(db.pool())
+            .await?;
+            return Ok(());
+        }
+
+        Err(StorageError::NotImplemented("test loom metrics backend"))
+    }
+
+    #[cfg(test)]
+    async fn test_insert_loom_traversal_perf_fixture(
+        &self,
+        workspace_id: &str,
+        total_blocks: usize,
+    ) -> StorageResult<String> {
+        let ctx = WriteContext::system(None);
+        let start_block_id = "perf-block-00000".to_string();
+
+        self.create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: Some(start_block_id.clone()),
+                workspace_id: workspace_id.to_string(),
+                content_type: LoomBlockContentType::Note,
+                document_id: None,
+                asset_id: None,
+                title: Some("Perf Block 0".to_string()),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: LoomBlockDerived {
+                    full_text_index: Some("perf traversal start".to_string()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+
+        let mut previous_block_id = start_block_id.clone();
+        for idx in 1..total_blocks {
+            let block_id = format!("perf-block-{idx:05}");
+            self.create_loom_block(
+                &ctx,
+                NewLoomBlock {
+                    block_id: Some(block_id.clone()),
+                    workspace_id: workspace_id.to_string(),
+                    content_type: LoomBlockContentType::Note,
+                    document_id: None,
+                    asset_id: None,
+                    title: Some(format!("Perf Block {idx}")),
+                    original_filename: None,
+                    content_hash: None,
+                    pinned: false,
+                    journal_date: None,
+                    imported_at: None,
+                    derived: LoomBlockDerived {
+                        full_text_index: Some(format!("perf traversal block {idx}")),
+                        ..Default::default()
+                    },
+                },
+            )
+            .await?;
+            self.create_loom_edge(
+                &ctx,
+                NewLoomEdge {
+                    edge_id: None,
+                    workspace_id: workspace_id.to_string(),
+                    source_block_id: previous_block_id,
+                    target_block_id: block_id.clone(),
+                    edge_type: LoomEdgeType::Mention,
+                    created_by: LoomEdgeCreatedBy::User,
+                    crdt_site_id: None,
+                    source_anchor: None,
+                },
+            )
+            .await?;
+            previous_block_id = block_id;
+        }
+
+        Ok(start_block_id)
+    }
+
+    #[cfg(test)]
+    async fn test_update_ai_job_metadata(
+        &self,
+        job_id: Uuid,
+        status: &str,
+        created_at: DateTime<Utc>,
+        is_pinned: bool,
+    ) -> StorageResult<()> {
+        if let Ok(db) = sqlite_backend(self) {
+            sqlx::query("UPDATE ai_jobs SET status = ?, created_at = ?, is_pinned = ? WHERE id = ?")
+                .bind(status)
+                .bind(created_at.to_rfc3339())
+                .bind(if is_pinned { 1_i32 } else { 0_i32 })
+                .bind(job_id.to_string())
+                .execute(db.pool())
+                .await?;
+            return Ok(());
+        }
+
+        if let Ok(db) = postgres_backend(self) {
+            sqlx::query("UPDATE ai_jobs SET status = $1, created_at = $2, is_pinned = $3 WHERE id = $4")
+                .bind(status)
+                .bind(created_at)
+                .bind(is_pinned)
+                .bind(job_id.to_string())
+                .execute(db.pool())
+                .await?;
+            return Ok(());
+        }
+
+        Err(StorageError::NotImplemented("test ai job metadata backend"))
+    }
+
+    #[cfg(test)]
+    async fn test_fetch_mutation_traceability_row(
+        &self,
+        table: &str,
+        id: &str,
+    ) -> StorageResult<MutationTraceabilityRow> {
+        let table = test_traceability_table_name(table)?;
+
+        if let Ok(db) = sqlite_backend(self) {
+            let sql = format!(
+                "SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id FROM {table} WHERE id = ?"
+            );
+            return sqlx::query_as::<_, MutationTraceabilityRow>(&sql)
+                .bind(id)
+                .fetch_one(db.pool())
+                .await
+                .map_err(StorageError::from);
+        }
+
+        if let Ok(db) = postgres_backend(self) {
+            let sql = format!(
+                "SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id FROM {table} WHERE id = $1"
+            );
+            return sqlx::query_as::<_, MutationTraceabilityRow>(&sql)
+                .bind(id)
+                .fetch_one(db.pool())
+                .await
+                .map_err(StorageError::from);
+        }
+
+        Err(StorageError::NotImplemented(
+            "test mutation traceability backend",
+        ))
+    }
+
     fn as_any(&self) -> &dyn std::any::Any;
 }
 
@@ -2002,6 +2323,22 @@ fn sqlite_backend(db: &(impl Database + ?Sized)) -> StorageResult<&sqlite::Sqlit
     db.as_any()
         .downcast_ref::<sqlite::SqliteDatabase>()
         .ok_or(StorageError::NotImplemented("structured collaboration sqlite"))
+}
+
+fn postgres_backend(db: &(impl Database + ?Sized)) -> StorageResult<&postgres::PostgresDatabase> {
+    db.as_any()
+        .downcast_ref::<postgres::PostgresDatabase>()
+        .ok_or(StorageError::NotImplemented("structured collaboration postgres"))
+}
+
+#[cfg(test)]
+fn test_traceability_table_name(table: &str) -> StorageResult<&str> {
+    match table {
+        "workspaces" | "documents" | "blocks" | "canvases" | "canvas_nodes" | "canvas_edges" => {
+            Ok(table)
+        }
+        _ => Err(StorageError::Validation("unsupported test traceability table")),
+    }
 }
 
 impl<T> StorageCapabilityStore for T
@@ -2017,8 +2354,8 @@ where
 
         StorageCapabilitySnapshot {
             backend,
-            supports_structured_collab_artifacts: matches!(backend, StorageBackendKind::Sqlite),
-            supports_loom_graph_filtering: matches!(backend, StorageBackendKind::Postgres),
+            supports_structured_collab_artifacts: self.supports_structured_collab_artifacts(),
+            supports_loom_graph_filtering: self.supports_loom_graph_filtering(),
         }
     }
 }
@@ -2029,21 +2366,21 @@ where
     T: Database + ?Sized,
 {
     async fn locus_work_packet_exists(&self, wp_id: &str) -> StorageResult<bool> {
-        locus_sqlite::locus_work_packet_exists(sqlite_backend(self)?, wp_id).await
+        locus_sqlite::locus_work_packet_exists(self, wp_id).await
     }
 
     async fn execute_locus_operation(
         &self,
-        op: crate::workflows::locus::LocusOperation,
+        op: crate::workflows::locus::types::LocusOperation,
     ) -> StorageResult<Value> {
-        locus_sqlite::execute_locus_operation(sqlite_backend(self)?, op).await
+        Database::execute_locus_operation(self, op).await
     }
 
     async fn locus_task_board_get_status_and_metadata(
         &self,
         wp_id: &str,
     ) -> StorageResult<Option<(String, String)>> {
-        locus_sqlite::locus_task_board_get_status_and_metadata(sqlite_backend(self)?, wp_id).await
+        locus_sqlite::locus_task_board_get_status_and_metadata(self, wp_id).await
     }
 
     async fn locus_task_board_update_work_packet(
@@ -2054,8 +2391,8 @@ where
         metadata: &str,
         wp_id: &str,
     ) -> StorageResult<()> {
-        locus_sqlite::locus_task_board_update_work_packet(
-            sqlite_backend(self)?,
+        Database::locus_task_board_update_work_packet(
+            self,
             status,
             task_board_status,
             updated_at,
@@ -2066,54 +2403,42 @@ where
     }
 
     async fn locus_task_board_list_rows(&self) -> StorageResult<Vec<(String, String, String)>> {
-        locus_sqlite::locus_task_board_list_rows(sqlite_backend(self)?).await
+        locus_sqlite::locus_task_board_list_rows(self).await
     }
 
-    async fn structured_collab_list_work_packet_ids(&self) -> StorageResult<Vec<String>> {
-        locus_sqlite::structured_collab_list_work_packet_ids(sqlite_backend(self)?).await
-    }
-
-    async fn structured_collab_load_work_packet_row(
+    async fn structured_collab_work_packet_row(
         &self,
         wp_id: &str,
     ) -> StorageResult<Option<StructuredCollabWorkPacketRow>> {
-        locus_sqlite::structured_collab_load_work_packet_row(sqlite_backend(self)?, wp_id).await
+        Database::structured_collab_work_packet_row(self, wp_id).await
     }
 
-    async fn structured_collab_list_micro_task_status_rows(
+    async fn structured_collab_work_packet_rows(
+        &self,
+    ) -> StorageResult<Vec<StructuredCollabWorkPacketRow>> {
+        Database::structured_collab_work_packet_rows(self).await
+    }
+
+    async fn structured_collab_micro_task_status_rows(
         &self,
         wp_id: &str,
     ) -> StorageResult<Vec<(String, String)>> {
-        locus_sqlite::structured_collab_list_micro_task_status_rows(sqlite_backend(self)?, wp_id)
-            .await
+        Database::structured_collab_micro_task_status_rows(self, wp_id).await
     }
 
-    async fn structured_collab_load_micro_task_metadata(
+    async fn structured_collab_micro_task_metadata(
         &self,
         wp_id: &str,
         mt_id: &str,
     ) -> StorageResult<Option<String>> {
-        locus_sqlite::structured_collab_load_micro_task_metadata(
-            sqlite_backend(self)?,
-            wp_id,
-            mt_id,
-        )
-        .await
+        Database::structured_collab_micro_task_metadata(self, wp_id, mt_id).await
     }
 
-    async fn structured_collab_list_micro_task_metadata(
+    async fn structured_collab_micro_task_rows(
         &self,
         wp_id: &str,
     ) -> StorageResult<Vec<(String, String)>> {
-        locus_sqlite::structured_collab_list_micro_task_metadata(sqlite_backend(self)?, wp_id)
-            .await
-    }
-
-    async fn structured_collab_list_task_board_projection_rows(
-        &self,
-    ) -> StorageResult<Vec<StructuredCollabTaskBoardProjectionRow>> {
-        locus_sqlite::structured_collab_list_task_board_projection_rows(sqlite_backend(self)?)
-            .await
+        Database::structured_collab_micro_task_rows(self, wp_id).await
     }
 }
 

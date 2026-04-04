@@ -48,8 +48,7 @@ use crate::{
     storage::{
         validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate, ModelSession,
         ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
-        SessionMessageRole, StorageCapabilityStore, StorageError,
-        StructuredCollabTaskBoardProjectionRow, StructuredCollabWorkPacketRow,
+        SessionMessageRole, StorageCapabilityStore, StorageError, StructuredCollabWorkPacketRow,
         StructuredCollaborationStore,
     },
     terminal::{
@@ -1590,9 +1589,11 @@ async fn execute_locus_sync_task_board(
                     locus::StructuredCollaborationRecordFamily::TaskBoardIndex,
                 )
             } else {
-                let wp_ids = db.structured_collab_list_work_packet_ids().await?;
-                for wp_id in wp_ids {
-                    if let Some(work_packet) = load_tracked_work_packet_for_artifacts(db, &wp_id).await? {
+                ensure_structured_collab_artifacts_supported(db)?;
+                for row in db.structured_collab_work_packet_rows().await? {
+                    if let Some(work_packet) =
+                        load_tracked_work_packet_for_artifacts(db, &row.wp_id).await?
+                    {
                         emit_work_packet_artifacts(&runtime_governance_paths, &work_packet)?;
                         work_packet_artifacts_written =
                             work_packet_artifacts_written.saturating_add(1);
@@ -2616,6 +2617,109 @@ fn parse_gate_statuses_from_metadata(metadata: &Value) -> locus::GateStatuses {
     }
 }
 
+fn project_profile_kind_from_metadata(metadata: &Value) -> locus::ProjectProfileKind {
+    metadata
+        .get("project_profile_kind")
+        .and_then(Value::as_str)
+        .and_then(locus::ProjectProfileKind::parse)
+        .unwrap_or_default()
+}
+
+fn profile_extension_from_metadata(metadata: &Value) -> Option<Value> {
+    metadata
+        .get("profile_extension")
+        .cloned()
+        .filter(|value| !value.is_null())
+}
+
+fn aggregate_project_profile_kind(
+    kinds: impl IntoIterator<Item = locus::ProjectProfileKind>,
+) -> locus::ProjectProfileKind {
+    let mut iter = kinds.into_iter();
+    let Some(first) = iter.next() else {
+        return locus::ProjectProfileKind::Generic;
+    };
+    if iter.all(|kind| kind == first) {
+        first
+    } else {
+        locus::ProjectProfileKind::Generic
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct WorkPacketProfileBoundary {
+    project_profile_kind: locus::ProjectProfileKind,
+    profile_extension: Option<Value>,
+}
+
+fn aggregate_profile_extension(values: impl IntoIterator<Item = Option<Value>>) -> Option<Value> {
+    let mut iter = values.into_iter();
+    let Some(first) = iter.next() else {
+        return None;
+    };
+    if iter.all(|value| value == first) {
+        first
+    } else {
+        None
+    }
+}
+
+fn work_packet_profile_boundary_from_value(value: &Value) -> Option<WorkPacketProfileBoundary> {
+    let project_profile_kind = value
+        .get("project_profile_kind")
+        .and_then(Value::as_str)
+        .and_then(locus::ProjectProfileKind::parse)
+        .unwrap_or_default();
+    let profile_extension = profile_extension_from_metadata(value);
+    if project_profile_kind == locus::ProjectProfileKind::Generic && profile_extension.is_none() {
+        return None;
+    }
+    Some(WorkPacketProfileBoundary {
+        project_profile_kind,
+        profile_extension,
+    })
+}
+
+fn read_work_packet_profile_boundary_from_runtime(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+) -> Option<WorkPacketProfileBoundary> {
+    let packet_value = fs::read(runtime_paths.work_packet_packet_path(wp_id))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .and_then(|value| work_packet_profile_boundary_from_value(&value));
+    if packet_value.is_some() {
+        return packet_value;
+    }
+
+    fs::read(runtime_paths.work_packet_summary_path(wp_id))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .and_then(|value| work_packet_profile_boundary_from_value(&value))
+}
+
+fn resolve_work_packet_profile_boundary(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+    metadata: &Value,
+) -> WorkPacketProfileBoundary {
+    let project_profile_kind = project_profile_kind_from_metadata(metadata);
+    let profile_extension = profile_extension_from_metadata(metadata);
+    if project_profile_kind != locus::ProjectProfileKind::Generic || profile_extension.is_some() {
+        return WorkPacketProfileBoundary {
+            project_profile_kind,
+            profile_extension,
+        };
+    }
+
+    read_work_packet_profile_boundary_from_runtime(runtime_paths, wp_id).unwrap_or(
+        WorkPacketProfileBoundary {
+            project_profile_kind,
+            profile_extension,
+        },
+    )
+}
+
 fn parse_timestamp_utc(value: &str, field: &str) -> Result<DateTime<Utc>, WorkflowError> {
     DateTime::parse_from_rfc3339(value)
         .map(|timestamp| timestamp.with_timezone(&Utc))
@@ -2803,7 +2907,7 @@ async fn load_micro_task_summary_for_wp(
     store: &(impl StructuredCollaborationStore + ?Sized),
     wp_id: &str,
 ) -> Result<locus::MicroTaskSummary, WorkflowError> {
-    let rows = store.structured_collab_list_micro_task_status_rows(wp_id).await?;
+    let rows = store.structured_collab_micro_task_status_rows(wp_id).await?;
 
     let mut summary = locus::MicroTaskSummary {
         total: rows.len() as u32,
@@ -2830,8 +2934,6 @@ async fn load_tracked_work_packet_for_artifacts(
     store: &(impl StructuredCollaborationStore + ?Sized),
     wp_id: &str,
 ) -> Result<Option<locus::TrackedWorkPacket>, WorkflowError> {
-    let row = store.structured_collab_load_work_packet_row(wp_id).await?;
-
     let Some(StructuredCollabWorkPacketRow {
         wp_id,
         version,
@@ -2849,7 +2951,7 @@ async fn load_tracked_work_packet_for_artifacts(
         updated_at,
         vector_clock: vector_clock_raw,
         metadata: metadata_raw,
-    }) = row
+    }) = store.structured_collab_work_packet_row(wp_id).await?
     else {
         return Ok(None);
     };
@@ -2862,23 +2964,30 @@ async fn load_tracked_work_packet_for_artifacts(
         .and_then(|value| serde_json::from_value::<Vec<locus::WorkNote>>(value).ok())
         .unwrap_or_default();
     let vector_clock = serde_json::from_str(&vector_clock_raw).unwrap_or_else(|_| json!({}));
-    let profile_extension = metadata
-        .get("profile_extension")
-        .cloned()
-        .filter(|value| !value.is_null());
+    let WorkPacketProfileBoundary {
+        project_profile_kind,
+        profile_extension,
+    } = RuntimeGovernancePaths::resolve()
+        .ok()
+        .map(|runtime_paths| resolve_work_packet_profile_boundary(&runtime_paths, &wp_id, &metadata))
+        .unwrap_or(WorkPacketProfileBoundary {
+            project_profile_kind: project_profile_kind_from_metadata(&metadata),
+            profile_extension: profile_extension_from_metadata(&metadata),
+        });
+    let micro_tasks = load_micro_task_summary_for_wp(store, &wp_id).await?;
 
     let work_packet = locus::TrackedWorkPacket {
         schema_id: String::new(),
         schema_version: String::new(),
         record_id: String::new(),
         record_kind: String::new(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+        project_profile_kind,
         mirror_state: locus::MirrorSyncState::CanonicalOnly,
         authority_refs: Vec::new(),
         evidence_refs: Vec::new(),
         summary_record_path: None,
         profile_extension,
-        wp_id: wp_id.clone(),
+        wp_id,
         version: version.max(0) as u64,
         title,
         description,
@@ -2899,7 +3008,7 @@ async fn load_tracked_work_packet_for_artifacts(
         labels,
         assignee,
         reporter,
-        micro_tasks: load_micro_task_summary_for_wp(store, &wp_id).await?,
+        micro_tasks,
         created_at: parse_timestamp_utc(&created_at, "work_packets.created_at")?,
         updated_at: parse_timestamp_utc(&updated_at, "work_packets.updated_at")?,
         started_at: metadata
@@ -2931,9 +3040,7 @@ async fn load_tracked_micro_task_for_artifacts(
     wp_id: &str,
     mt_id: &str,
 ) -> Result<Option<locus::TrackedMicroTask>, WorkflowError> {
-    let metadata = store
-        .structured_collab_load_micro_task_metadata(wp_id, mt_id)
-        .await?;
+    let metadata = store.structured_collab_micro_task_metadata(wp_id, mt_id).await?;
 
     let Some(metadata) = metadata else {
         return Ok(None);
@@ -2954,7 +3061,7 @@ async fn list_tracked_micro_tasks_for_artifacts(
     store: &(impl StructuredCollaborationStore + ?Sized),
     wp_id: &str,
 ) -> Result<Vec<locus::TrackedMicroTask>, WorkflowError> {
-    let rows = store.structured_collab_list_micro_task_metadata(wp_id).await?;
+    let rows = store.structured_collab_micro_task_rows(wp_id).await?;
 
     let mut items = Vec::with_capacity(rows.len());
     for (mt_id, metadata) in rows {
@@ -3144,47 +3251,29 @@ fn micro_task_blockers(micro_task: &locus::TrackedMicroTask) -> Vec<String> {
 }
 
 fn next_action_for_work_packet(family: locus::WorkflowStateFamily) -> Option<String> {
-    let action = match family {
-        locus::WorkflowStateFamily::Intake => "triage work packet",
-        locus::WorkflowStateFamily::Ready => "start implementation",
-        locus::WorkflowStateFamily::Active => "continue implementation",
-        locus::WorkflowStateFamily::Waiting => "resume once dependency clears",
-        locus::WorkflowStateFamily::Review => "collect review feedback",
-        locus::WorkflowStateFamily::Approval => "obtain approval",
-        locus::WorkflowStateFamily::Validation => "run validation",
-        locus::WorkflowStateFamily::Blocked => "resolve blocker",
-        locus::WorkflowStateFamily::Done => "archive or hand off",
-        locus::WorkflowStateFamily::Canceled => "reopen only if work resumes",
-        locus::WorkflowStateFamily::Archived => "",
-    };
-
-    if action.is_empty() {
-        None
-    } else {
-        Some(action.to_string())
-    }
+    governed_next_action_for_family(family)
 }
 
 fn next_action_for_micro_task(family: locus::WorkflowStateFamily) -> Option<String> {
-    let action = match family {
-        locus::WorkflowStateFamily::Intake => "triage micro-task",
-        locus::WorkflowStateFamily::Ready => "start the next iteration",
-        locus::WorkflowStateFamily::Active => "continue the current iteration",
-        locus::WorkflowStateFamily::Waiting => "resume after dependency response",
-        locus::WorkflowStateFamily::Review => "review the iteration output",
-        locus::WorkflowStateFamily::Approval => "obtain approval to proceed",
-        locus::WorkflowStateFamily::Validation => "run validation checks",
-        locus::WorkflowStateFamily::Blocked => "repair or unblock the micro-task",
-        locus::WorkflowStateFamily::Done => "archive or fold into the work packet",
-        locus::WorkflowStateFamily::Canceled => "reopen only if execution resumes",
-        locus::WorkflowStateFamily::Archived => "",
+    governed_next_action_for_family(family)
+}
+
+fn governed_next_action_for_family(family: locus::WorkflowStateFamily) -> Option<String> {
+    let action_id = match family {
+        locus::WorkflowStateFamily::Intake => Some("triage"),
+        locus::WorkflowStateFamily::Ready => Some("start"),
+        locus::WorkflowStateFamily::Active => None,
+        locus::WorkflowStateFamily::Waiting => Some("resume"),
+        locus::WorkflowStateFamily::Review => Some("review"),
+        locus::WorkflowStateFamily::Approval => None,
+        locus::WorkflowStateFamily::Validation => Some("validate"),
+        locus::WorkflowStateFamily::Blocked => None,
+        locus::WorkflowStateFamily::Done => Some("archive"),
+        locus::WorkflowStateFamily::Canceled => None,
+        locus::WorkflowStateFamily::Archived => None,
     };
 
-    if action.is_empty() {
-        None
-    } else {
-        Some(action.to_string())
-    }
+    action_id.map(str::to_string)
 }
 
 fn work_packet_authority_refs(work_packet: &locus::TrackedWorkPacket) -> Vec<String> {
@@ -3416,7 +3505,7 @@ async fn emit_task_board_projection_artifacts(
     store: &(impl StructuredCollaborationStore + ?Sized),
     runtime_paths: &RuntimeGovernancePaths,
 ) -> Result<locus::StructuredCollaborationValidationResult, WorkflowError> {
-    let rows = store.structured_collab_list_task_board_projection_rows().await?;
+    let rows = store.structured_collab_work_packet_rows().await?;
 
     let task_board_id = runtime_paths.task_board_display();
     let view_id = locus::task_board::default_view_id().to_string();
@@ -3471,15 +3560,10 @@ async fn emit_task_board_projection_artifacts(
     )?;
 
     let mut entries: Vec<locus::task_board::TaskBoardEntryRecordV1> = Vec::new();
-    for StructuredCollabTaskBoardProjectionRow {
-        wp_id,
-        task_board_status,
-        metadata,
-        updated_at,
-    } in rows
-    {
-        let status = parse_task_board_status_db_global(&task_board_status);
-        let metadata: Value = serde_json::from_str(&metadata).unwrap_or_else(|_| json!({}));
+    for row in rows {
+        let status = parse_task_board_status_db_global(&row.task_board_status);
+        let metadata: Value = serde_json::from_str(&row.metadata).unwrap_or_else(|_| json!({}));
+        let boundary = resolve_work_packet_profile_boundary(runtime_paths, &row.wp_id, &metadata);
         let token = metadata
             .get("task_board_token")
             .and_then(Value::as_str)
@@ -3493,37 +3577,40 @@ async fn emit_task_board_projection_artifacts(
             current
         };
         let (workflow_state_family, queue_reason_code) = task_board_workflow_state(status);
-        entries.push(locus::task_board::TaskBoardEntryRecordV1 {
+        let entry = locus::task_board::TaskBoardEntryRecordV1 {
             schema_id: TASK_BOARD_ENTRY_SCHEMA_ID.to_string(),
             schema_version: locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
-            record_id: format!("task_board_entry:{wp_id}"),
+            record_id: format!("task_board_entry:{}", row.wp_id),
             record_kind: "task_board_entry".to_string(),
-            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-            updated_at,
+            project_profile_kind: boundary.project_profile_kind,
+            updated_at: row.updated_at,
             mirror_state,
-            authority_refs: vec![runtime_paths.work_packet_packet_display(&wp_id)],
+            authority_refs: vec![runtime_paths.work_packet_packet_display(&row.wp_id)],
             evidence_refs: Vec::new(),
             mirror_contract: mirror_contract.clone(),
             workflow_state_family,
             queue_reason_code,
             allowed_action_ids: allowed_action_ids(workflow_state_family),
             task_board_id: task_board_id.clone(),
-            work_packet_id: wp_id.clone(),
+            work_packet_id: row.wp_id.clone(),
             lane_id,
             display_order,
             view_ids: vec![view_id.clone()],
             token,
             status: task_board_status_string(status).to_string(),
-            summary_ref: runtime_paths.work_packet_summary_display(&wp_id),
-        });
+            summary_ref: runtime_paths.work_packet_summary_display(&row.wp_id),
+        };
+        entries.push(entry);
     }
+    let task_board_profile_kind =
+        aggregate_project_profile_kind(entries.iter().map(|entry| entry.project_profile_kind));
 
     let index = locus::task_board::TaskBoardIndexV1 {
         schema_id: TASK_BOARD_INDEX_SCHEMA_ID.to_string(),
         schema_version: locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
         record_id: "task_board_index".to_string(),
         record_kind: "task_board_index".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+        project_profile_kind: task_board_profile_kind,
         updated_at: generated_at.clone(),
         mirror_state,
         authority_refs: vec![runtime_paths.task_board_index_display()],
@@ -3553,7 +3640,7 @@ async fn emit_task_board_projection_artifacts(
         schema_version: locus::STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
         record_id: format!("task_board_view:{view_id}"),
         record_kind: "task_board_view".to_string(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+        project_profile_kind: task_board_profile_kind,
         updated_at: generated_at.clone(),
         mirror_state,
         authority_refs: vec![runtime_paths.task_board_view_display(&view_id)],
@@ -3671,7 +3758,9 @@ async fn materialize_structured_collaboration_artifacts(
 
     match op {
         locus::LocusOperation::CreateWp(params) => {
-            if let Some(work_packet) = load_tracked_work_packet_for_artifacts(store, &params.wp_id).await? {
+            if let Some(work_packet) =
+                load_tracked_work_packet_for_artifacts(store, &params.wp_id).await?
+            {
                 emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
             }
             emit_task_board_projection_artifacts(store, &runtime_paths).await?;
@@ -3932,7 +4021,6 @@ fn build_spec_router_locus_create_wp_params(
             "/work_packet/spec_session_id",
         ],
     );
-
     Ok(Some(locus::LocusCreateWpParams {
         wp_id,
         title,
@@ -4110,7 +4198,8 @@ async fn emit_runtime_structured_work_packet_artifacts(
     let workspace_root = runtime_paths.workspace_root().to_path_buf();
     let packet_path = runtime_paths.work_packet_packet_path(wp_id);
     let summary_path = runtime_paths.work_packet_summary_path(wp_id);
-    let tracked_wp = load_tracked_work_packet_from_store(runtime_paths, db, wp_id, kind_hint).await?;
+    let mut tracked_wp =
+        load_tracked_work_packet_from_store(runtime_paths, db, wp_id, kind_hint).await?;
     let detail_value =
         serde_json::to_value(&tracked_wp).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let summary = build_structured_work_packet_summary(&tracked_wp);
@@ -4153,6 +4242,8 @@ async fn emit_runtime_structured_work_packet_artifacts(
         );
     }
     validation.merge(summary_validation);
+    tracked_wp.metadata["structured_collaboration_validation"] =
+        serde_json::to_value(&validation).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     if !validation.ok {
         return Err(WorkflowError::Terminal(
             serde_json::to_string(&validation).unwrap_or_else(|_| {
@@ -4183,8 +4274,12 @@ async fn emit_runtime_structured_micro_task_artifacts(
     tracked_mt.metadata["structured_collaboration_summary_path"] = Value::String(summary_display);
     tracked_mt.metadata["structured_collaboration_summary"] = summary_value.clone();
 
-    let detail_value =
-        serde_json::to_value(&tracked_mt).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut detail_packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
+    let mut detail_value =
+        serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if let Some(profile_extension) = tracked_mt.profile_extension.clone() {
+        detail_value["profile_extension"] = profile_extension;
+    }
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         &detail_value,
@@ -4231,7 +4326,8 @@ async fn emit_runtime_structured_micro_task_artifacts(
         ));
     }
 
-    write_json_atomic(&workspace_root, &packet_path, &tracked_mt)?;
+    detail_packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
+    write_json_atomic(&workspace_root, &packet_path, &detail_packet)?;
     write_json_atomic(&workspace_root, &summary_path, &summary)?;
     Ok(())
 }
@@ -4242,9 +4338,7 @@ async fn load_tracked_micro_task_from_store(
     wp_id: &str,
     mt_id: &str,
 ) -> Result<locus::TrackedMicroTask, WorkflowError> {
-    let metadata_raw = db
-        .structured_collab_load_micro_task_metadata(wp_id, mt_id)
-        .await?;
+    let metadata_raw = db.structured_collab_micro_task_metadata(wp_id, mt_id).await?;
     let Some(metadata_raw) = metadata_raw else {
         return Err(WorkflowError::from(StorageError::NotFound("micro_task")));
     };
@@ -4261,7 +4355,6 @@ async fn load_tracked_work_packet_from_store(
     wp_id: &str,
     kind_hint: Option<locus::WorkPacketType>,
 ) -> Result<locus::TrackedWorkPacket, WorkflowError> {
-    let row = db.structured_collab_load_work_packet_row(wp_id).await?;
     let Some(StructuredCollabWorkPacketRow {
         wp_id,
         version,
@@ -4279,7 +4372,7 @@ async fn load_tracked_work_packet_from_store(
         updated_at: updated_at_raw,
         vector_clock: vector_clock_raw,
         metadata: metadata_raw,
-    }) = row
+    }) = db.structured_collab_work_packet_row(wp_id).await?
     else {
         return Err(WorkflowError::from(StorageError::NotFound("work_packet")));
     };
@@ -4329,18 +4422,16 @@ async fn load_tracked_work_packet_from_store(
     let started_at = parse_optional_timestamp_value(metadata.get("started_at"))?;
     let completed_at = parse_optional_timestamp_value(metadata.get("completed_at"))?;
     let due_at = parse_optional_timestamp_value(metadata.get("due_at"))?;
-    let profile_extension = metadata
-        .get("profile_extension")
-        .cloned()
-        .filter(|value| !value.is_null());
+    let WorkPacketProfileBoundary {
+        project_profile_kind,
+        profile_extension,
+    } = resolve_work_packet_profile_boundary(&runtime_paths, &wp_id, &metadata);
     let tombstone = metadata
         .get("tombstone")
         .cloned()
         .filter(|value| !value.is_null());
 
-    let mt_rows = db
-        .structured_collab_list_micro_task_status_rows(&wp_id)
-        .await?;
+    let mt_rows = db.structured_collab_micro_task_status_rows(&wp_id).await?;
     let mut micro_tasks = locus::MicroTaskSummary {
         total: mt_rows.len() as u32,
         completed: 0,
@@ -4369,7 +4460,7 @@ async fn load_tracked_work_packet_from_store(
         schema_version: String::new(),
         record_id: String::new(),
         record_kind: String::new(),
-        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+        project_profile_kind,
         mirror_state: locus::MirrorSyncState::CanonicalOnly,
         authority_refs: Vec::new(),
         evidence_refs: Vec::new(),
@@ -4426,6 +4517,16 @@ fn parse_optional_timestamp_value(
         Some(other) => serde_json::from_value::<DateTime<Utc>>(other.clone())
             .map(Some)
             .map_err(|e| WorkflowError::Terminal(e.to_string())),
+    }
+}
+
+fn ensure_structured_collab_artifacts_supported(
+    store: &(impl StorageCapabilityStore + ?Sized),
+) -> Result<(), WorkflowError> {
+    if store.storage_capabilities().supports_structured_collab_artifacts {
+        Ok(())
+    } else {
+        Err(StorageError::NotImplemented("structured collaboration artifacts").into())
     }
 }
 
@@ -7684,6 +7785,40 @@ async fn run_job(
                 .ok_or_else(|| {
                     WorkflowError::Terminal("wsid missing for workspace scope".into())
                 })?,
+            "workflow_run" => scope_value
+                .get("workflow_run_id")
+                .and_then(|v| v.as_str())
+                .map(|workflow_run_id| workflow_run_id.to_string())
+                .ok_or_else(|| {
+                    WorkflowError::Terminal("workflow_run_id missing for workflow_run scope".into())
+                })
+                .and_then(|workflow_run_id| {
+                    Err(WorkflowError::Terminal(format!(
+                        "workflow_run scope is not supported by the current bundle exporter: {workflow_run_id}"
+                    )))
+                })?,
+            "workflow_node_execution" => {
+                let workflow_run_id = scope_value
+                    .get("workflow_run_id")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        WorkflowError::Terminal(
+                            "workflow_run_id missing for workflow_node_execution scope".into(),
+                        )
+                    })?;
+                let workflow_node_execution_id = scope_value
+                    .get("workflow_node_execution_id")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        WorkflowError::Terminal(
+                            "workflow_node_execution_id missing for workflow_node_execution scope"
+                                .into(),
+                        )
+                    })?;
+                return Err(WorkflowError::Terminal(format!(
+                    "workflow_node_execution scope is not supported by the current bundle exporter: {workflow_run_id}/{workflow_node_execution_id}"
+                )));
+            }
             _ => scope_value
                 .get("job_id")
                 .and_then(|v| v.as_str())
@@ -11408,7 +11543,7 @@ fn build_locus_register_mts_params(
                 schema_version: String::new(),
                 record_id: String::new(),
                 record_kind: String::new(),
-                project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+                project_profile_kind: locus::ProjectProfileKind::Generic,
                 updated_at: Utc::now(),
                 mirror_state: locus::MirrorSyncState::CanonicalOnly,
                 authority_refs: Vec::new(),
@@ -11508,10 +11643,14 @@ fn apply_runtime_structured_work_packet_registry(
         Value::String(summary_display.clone());
 
     let summary = build_structured_work_packet_summary(tracked_wp);
+    let detail_packet = build_structured_work_packet_packet(runtime_paths, tracked_wp, Vec::new());
     let summary_value =
         serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    let detail_value =
-        serde_json::to_value(&*tracked_wp).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut detail_value =
+        serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if let Some(profile_extension) = tracked_wp.profile_extension.clone() {
+        detail_value["profile_extension"] = profile_extension;
+    }
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::WorkPacketPacket,
         &detail_value,
@@ -11582,19 +11721,23 @@ fn apply_runtime_structured_micro_task_registry(
     }
     tracked_mt.metadata["structured_collaboration_summary_path"] =
         Value::String(summary_display.clone());
-    if tracked_mt
+    let should_refresh_summary = tracked_mt
         .metadata
         .get("structured_collaboration_summary")
         .map(Value::is_null)
         .unwrap_or(true)
-    {
+        || tracked_mt
+            .metadata
+            .get("structured_collaboration_validation")
+            .is_some();
+    if should_refresh_summary {
         tracked_mt.metadata["structured_collaboration_summary"] =
             serde_json::to_value(locus::default_structured_collaboration_summary_record(
                 locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
                 tracked_mt.record_id.clone(),
                 tracked_mt.name.clone(),
                 structured_micro_task_status(tracked_mt.status),
-                "start_micro_task",
+                structured_micro_task_next_action(tracked_mt.status),
                 tracked_mt.authority_refs.clone(),
                 tracked_mt.evidence_refs.clone(),
                 tracked_mt.updated_at.to_rfc3339(),
@@ -11604,8 +11747,12 @@ fn apply_runtime_structured_micro_task_registry(
             .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     }
 
-    let detail_value =
-        serde_json::to_value(&*tracked_mt).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let detail_packet = build_structured_micro_task_packet(runtime_paths, tracked_mt);
+    let mut detail_value =
+        serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if let Some(profile_extension) = tracked_mt.profile_extension.clone() {
+        detail_value["profile_extension"] = profile_extension;
+    }
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         &detail_value,
@@ -23782,6 +23929,29 @@ mod tests {
         }
     }
 
+    async fn create_debug_bundle_job(
+        state: &AppState,
+        scope: serde_json::Value,
+    ) -> Result<crate::storage::AiJob, Box<dyn std::error::Error>> {
+        Ok(state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::new_v4(),
+                job_kind: JobKind::DebugBundleExport,
+                protocol_id: "protocol-default".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "Analyst".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({ "scope": scope })),
+            })
+            .await?)
+    }
+
     #[test]
     fn model_swap_request_v0_4_rejects_wrong_schema_version() {
         let req = ModelSwapRequestV0_4 {
@@ -24024,6 +24194,101 @@ mod tests {
         let node = &nodes[0];
         assert!(matches!(node.status, JobState::Completed));
         assert!(node.output_payload.is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn debug_bundle_export_rejects_workflow_run_scope_without_workflow_run_id(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let job = create_debug_bundle_job(&state, json!({ "kind": "workflow_run" })).await?;
+        let job_id = job.job_id;
+
+        let result = start_workflow_for_job(&state, job).await;
+        assert!(result.is_err(), "expected workflow_run scope to require workflow_run_id");
+
+        let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+        assert!(matches!(updated_job.state, JobState::Failed));
+        let failure_surface = updated_job
+            .error_message
+            .clone()
+            .unwrap_or_else(|| updated_job.status_reason.clone());
+        assert!(
+            failure_surface.contains("workflow_run_id missing for workflow_run scope"),
+            "unexpected workflow_run failure surface: {} / {:?}",
+            updated_job.status_reason,
+            updated_job.error_message
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_workflow_run_id(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let job = create_debug_bundle_job(
+            &state,
+            json!({
+                "kind": "workflow_node_execution",
+                "workflow_node_execution_id": Uuid::new_v4().to_string(),
+            }),
+        )
+        .await?;
+        let job_id = job.job_id;
+
+        let result = start_workflow_for_job(&state, job).await;
+        assert!(
+            result.is_err(),
+            "expected workflow_node_execution scope to require workflow_run_id"
+        );
+
+        let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+        assert!(matches!(updated_job.state, JobState::Failed));
+        let failure_surface = updated_job
+            .error_message
+            .clone()
+            .unwrap_or_else(|| updated_job.status_reason.clone());
+        assert!(
+            failure_surface.contains("workflow_run_id missing for workflow_node_execution scope"),
+            "unexpected workflow_node_execution(workflow_run_id) failure surface: {} / {:?}",
+            updated_job.status_reason,
+            updated_job.error_message
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_node_id(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let job = create_debug_bundle_job(
+            &state,
+            json!({
+                "kind": "workflow_node_execution",
+                "workflow_run_id": Uuid::new_v4().to_string(),
+            }),
+        )
+        .await?;
+        let job_id = job.job_id;
+
+        let result = start_workflow_for_job(&state, job).await;
+        assert!(
+            result.is_err(),
+            "expected workflow_node_execution scope to require workflow_node_execution_id"
+        );
+
+        let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+        assert!(matches!(updated_job.state, JobState::Failed));
+        let failure_surface = updated_job
+            .error_message
+            .clone()
+            .unwrap_or_else(|| updated_job.status_reason.clone());
+        assert!(
+            failure_surface.contains("workflow_node_execution_id missing for workflow_node_execution scope"),
+            "unexpected workflow_node_execution(node_id) failure surface: {} / {:?}",
+            updated_job.status_reason,
+            updated_job.error_message
+        );
         Ok(())
     }
 

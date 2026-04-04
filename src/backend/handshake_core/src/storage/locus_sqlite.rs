@@ -1,6 +1,6 @@
 use super::{
-    sqlite::SqliteDatabase, StorageError, StorageResult, StructuredCollabTaskBoardProjectionRow,
-    StructuredCollabWorkPacketRow,
+    Database, sqlite::SqliteDatabase, StorageError, StorageResult,
+    StructuredCollabTaskBoardProjectionRow, StructuredCollabWorkPacketRow,
 };
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -18,47 +18,66 @@ use crate::workflows::locus::types::{
     WorkflowStateFamily,
 };
 
+fn sqlite_db(db: &(impl Database + ?Sized)) -> StorageResult<&SqliteDatabase> {
+    db.as_any()
+        .downcast_ref::<SqliteDatabase>()
+        .ok_or(StorageError::NotImplemented("locus sqlite"))
+}
+
+pub(crate) fn ensure_locus_sqlite(db: &(impl Database + ?Sized)) -> StorageResult<()> {
+    if db.supports_locus_runtime() {
+        Ok(())
+    } else {
+        Err(StorageError::NotImplemented("locus runtime"))
+    }
+}
+
+pub(crate) fn ensure_structured_collab_artifacts(
+    db: &(impl Database + ?Sized),
+) -> StorageResult<()> {
+    if db.supports_structured_collab_artifacts() {
+        Ok(())
+    } else {
+        Err(StorageError::NotImplemented(
+            "structured collaboration artifacts",
+        ))
+    }
+}
+
 pub(crate) async fn execute_locus_operation(
-    sqlite: &SqliteDatabase,
+    db: &(impl Database + ?Sized),
     op: LocusOperation,
 ) -> StorageResult<Value> {
-    execute_sqlite_locus_operation(sqlite, op).await
+    execute_sqlite_locus_operation(sqlite_db(db)?, op).await
 }
 
 pub(crate) async fn locus_work_packet_exists(
-    sqlite: &SqliteDatabase,
+    db: &(impl Database + ?Sized),
     wp_id: &str,
 ) -> StorageResult<bool> {
-    let exists =
-        sqlx::query_scalar::<_, i64>("SELECT 1 FROM work_packets WHERE wp_id = $1 LIMIT 1")
-            .bind(wp_id)
-            .fetch_optional(sqlite.pool())
-            .await?
-            .is_some();
-    Ok(exists)
+    ensure_structured_collab_artifacts(db)?;
+    Ok(structured_collab_work_packet_row(db, wp_id).await?.is_some())
 }
 
 pub(crate) async fn locus_task_board_get_status_and_metadata(
-    sqlite: &SqliteDatabase,
+    db: &(impl Database + ?Sized),
     wp_id: &str,
 ) -> StorageResult<Option<(String, String)>> {
-    sqlx::query_as::<_, (String, String)>(
-        "SELECT task_board_status, metadata FROM work_packets WHERE wp_id = $1",
-    )
-    .bind(wp_id)
-    .fetch_optional(sqlite.pool())
-    .await
-    .map_err(StorageError::from)
+    ensure_structured_collab_artifacts(db)?;
+    Ok(structured_collab_work_packet_row(db, wp_id)
+        .await?
+        .map(|row| (row.task_board_status, row.metadata)))
 }
 
 pub(crate) async fn locus_task_board_update_work_packet(
-    sqlite: &SqliteDatabase,
+    db: &(impl Database + ?Sized),
     status: &str,
     task_board_status: &str,
     updated_at: &str,
     metadata: &str,
     wp_id: &str,
 ) -> StorageResult<()> {
+    ensure_locus_sqlite(db)?;
     sqlx::query(
         r#"
                         UPDATE work_packets
@@ -76,56 +95,28 @@ pub(crate) async fn locus_task_board_update_work_packet(
     .bind(updated_at)
     .bind(metadata)
     .bind(wp_id)
-    .execute(sqlite.pool())
+    .execute(sqlite_db(db)?.pool())
     .await?;
     Ok(())
 }
 
 pub(crate) async fn locus_task_board_list_rows(
-    sqlite: &SqliteDatabase,
+    db: &(impl Database + ?Sized),
 ) -> StorageResult<Vec<(String, String, String)>> {
-    let rows = sqlx::query_as::<_, (String, String, String)>(
-        "SELECT wp_id, task_board_status, metadata FROM work_packets",
-    )
-    .fetch_all(sqlite.pool())
-    .await?;
-    Ok(rows)
+    ensure_structured_collab_artifacts(db)?;
+    Ok(structured_collab_work_packet_rows(db)
+        .await?
+        .into_iter()
+        .map(|row| (row.wp_id, row.task_board_status, row.metadata))
+        .collect())
 }
 
-pub(crate) async fn structured_collab_list_work_packet_ids(
-    sqlite: &SqliteDatabase,
-) -> StorageResult<Vec<String>> {
-    sqlx::query_scalar::<_, String>("SELECT wp_id FROM work_packets ORDER BY wp_id ASC")
-        .fetch_all(sqlite.pool())
-        .await
-        .map_err(StorageError::from)
-}
-
-pub(crate) async fn structured_collab_load_work_packet_row(
-    sqlite: &SqliteDatabase,
+pub(crate) async fn structured_collab_work_packet_row(
+    db: &(impl Database + ?Sized),
     wp_id: &str,
 ) -> StorageResult<Option<StructuredCollabWorkPacketRow>> {
-    let row = sqlx::query_as::<
-        _,
-        (
-            String,
-            i64,
-            String,
-            String,
-            String,
-            i64,
-            String,
-            String,
-            Option<String>,
-            String,
-            Option<String>,
-            String,
-            String,
-            String,
-            String,
-            String,
-        ),
-    >(
+    ensure_structured_collab_artifacts(db)?;
+    sqlx::query_as::<_, StructuredCollabWorkPacketRow>(
         r#"
         SELECT
             wp_id,
@@ -149,66 +140,63 @@ pub(crate) async fn structured_collab_load_work_packet_row(
         "#,
     )
     .bind(wp_id)
-    .fetch_optional(sqlite.pool())
-    .await?;
-
-    Ok(row.map(
-        |(
-            wp_id,
-            version,
-            title,
-            description,
-            status,
-            priority,
-            phase,
-            routing,
-            task_packet_path,
-            task_board_status,
-            assignee,
-            reporter,
-            created_at,
-            updated_at,
-            vector_clock,
-            metadata,
-        )| StructuredCollabWorkPacketRow {
-            wp_id,
-            version,
-            title,
-            description,
-            status,
-            priority,
-            phase,
-            routing,
-            task_packet_path,
-            task_board_status,
-            assignee,
-            reporter,
-            created_at,
-            updated_at,
-            vector_clock,
-            metadata,
-        },
-    ))
-}
-
-pub(crate) async fn structured_collab_list_micro_task_status_rows(
-    sqlite: &SqliteDatabase,
-    wp_id: &str,
-) -> StorageResult<Vec<(String, String)>> {
-    sqlx::query_as::<_, (String, String)>(
-        "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
-    )
-    .bind(wp_id)
-    .fetch_all(sqlite.pool())
+    .fetch_optional(sqlite_db(db)?.pool())
     .await
     .map_err(StorageError::from)
 }
 
-pub(crate) async fn structured_collab_load_micro_task_metadata(
-    sqlite: &SqliteDatabase,
+pub(crate) async fn structured_collab_work_packet_rows(
+    db: &(impl Database + ?Sized),
+) -> StorageResult<Vec<StructuredCollabWorkPacketRow>> {
+    ensure_structured_collab_artifacts(db)?;
+    sqlx::query_as::<_, StructuredCollabWorkPacketRow>(
+        r#"
+        SELECT
+            wp_id,
+            version,
+            title,
+            description,
+            status,
+            priority,
+            phase,
+            routing,
+            task_packet_path,
+            task_board_status,
+            assignee,
+            reporter,
+            created_at,
+            updated_at,
+            vector_clock,
+            metadata
+        FROM work_packets
+        ORDER BY updated_at ASC, wp_id ASC
+        "#,
+    )
+    .fetch_all(sqlite_db(db)?.pool())
+    .await
+    .map_err(StorageError::from)
+}
+
+pub(crate) async fn structured_collab_micro_task_status_rows(
+    db: &(impl Database + ?Sized),
+    wp_id: &str,
+) -> StorageResult<Vec<(String, String)>> {
+    ensure_structured_collab_artifacts(db)?;
+    sqlx::query_as::<_, (String, String)>(
+        "SELECT mt_id, status FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
+    )
+    .bind(wp_id)
+    .fetch_all(sqlite_db(db)?.pool())
+    .await
+    .map_err(StorageError::from)
+}
+
+pub(crate) async fn structured_collab_micro_task_metadata(
+    db: &(impl Database + ?Sized),
     wp_id: &str,
     mt_id: &str,
 ) -> StorageResult<Option<String>> {
+    ensure_structured_collab_artifacts(db)?;
     sqlx::query_scalar::<_, String>(
         r#"
         SELECT metadata
@@ -218,20 +206,21 @@ pub(crate) async fn structured_collab_load_micro_task_metadata(
     )
     .bind(wp_id)
     .bind(mt_id)
-    .fetch_optional(sqlite.pool())
+    .fetch_optional(sqlite_db(db)?.pool())
     .await
     .map_err(StorageError::from)
 }
 
-pub(crate) async fn structured_collab_list_micro_task_metadata(
-    sqlite: &SqliteDatabase,
+pub(crate) async fn structured_collab_micro_task_rows(
+    db: &(impl Database + ?Sized),
     wp_id: &str,
 ) -> StorageResult<Vec<(String, String)>> {
+    ensure_structured_collab_artifacts(db)?;
     sqlx::query_as::<_, (String, String)>(
         "SELECT mt_id, metadata FROM micro_tasks WHERE wp_id = $1 ORDER BY mt_id ASC",
     )
     .bind(wp_id)
-    .fetch_all(sqlite.pool())
+    .fetch_all(sqlite_db(db)?.pool())
     .await
     .map_err(StorageError::from)
 }
@@ -1302,7 +1291,7 @@ async fn get_mt_progress(
     }))
 }
 
-async fn execute_sqlite_locus_operation(
+pub(crate) async fn execute_sqlite_locus_operation(
     sqlite: &SqliteDatabase,
     op: LocusOperation,
 ) -> StorageResult<Value> {
