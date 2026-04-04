@@ -23934,11 +23934,13 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
     use crate::llm::ollama::InMemoryLlmClient;
+    use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
     use crate::storage::{
-        sqlite::SqliteDatabase, AccessMode, Database, JobKind, JobMetrics, JobState, SafetyMode,
+        sqlite::SqliteDatabase, tests::postgres_backend_from_env, AccessMode, Database, JobKind,
+        JobMetrics, JobState, SafetyMode,
     };
     use serde_json::json;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
     async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
         let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
@@ -23954,6 +23956,264 @@ mod tests {
             capability_registry: Arc::new(CapabilityRegistry::new()),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
         })
+    }
+
+    static RUNTIME_ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    async fn setup_postgres_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+        if std::env::var("POSTGRES_TEST_URL").is_err() {
+            return Ok(None);
+        }
+
+        let storage = postgres_backend_from_env().await?;
+        let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+
+        Ok(Some(AppState {
+            storage,
+            flight_recorder: flight_recorder.clone(),
+            diagnostics: flight_recorder,
+            llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
+            capability_registry: Arc::new(CapabilityRegistry::new()),
+            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        }))
+    }
+
+    struct EnvVarGuard {
+        key: &'static str,
+        previous: Option<String>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let previous = std::env::var(key).ok();
+            std::env::set_var(key, value);
+            Self { key, previous }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            if let Some(previous) = &self.previous {
+                std::env::set_var(self.key, previous);
+            } else {
+                std::env::remove_var(self.key);
+            }
+        }
+    }
+
+    fn sample_register_mt_params(wp_id: &str) -> locus::LocusRegisterMtsParams {
+        locus::LocusRegisterMtsParams {
+            wp_id: wp_id.to_string(),
+            micro_tasks: vec![locus::TrackedMicroTask {
+                schema_id: String::new(),
+                schema_version: String::new(),
+                record_id: String::new(),
+                record_kind: String::new(),
+                project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+                updated_at: Utc::now(),
+                mirror_state: locus::MirrorSyncState::CanonicalOnly,
+                authority_refs: Vec::new(),
+                evidence_refs: Vec::new(),
+                summary_record_path: None,
+                profile_extension: None,
+                mt_id: "MT-001".to_string(),
+                wp_id: wp_id.to_string(),
+                name: "Port projection writer".to_string(),
+                scope: "Emit structured collaboration artifacts from portable storage".to_string(),
+                files: locus::MicroTaskFiles {
+                    read: vec![
+                        "src/backend/handshake_core/src/storage/postgres.rs".to_string(),
+                        "src/backend/handshake_core/src/workflows.rs".to_string(),
+                    ],
+                    modify: vec![
+                        "src/backend/handshake_core/src/storage/mod.rs".to_string(),
+                        "src/backend/handshake_core/src/workflows.rs".to_string(),
+                    ],
+                    create: Vec::new(),
+                },
+                done_criteria: vec!["task-board projection emits from postgres".to_string()],
+                status: locus::MicroTaskStatus::Pending,
+                active_session_ids: Vec::new(),
+                iterations: Vec::new(),
+                current_iteration: 0,
+                max_iterations: 3,
+                validation_result: None,
+                escalation: locus::MicroTaskEscalation {
+                    current_level: 0,
+                    escalation_chain: Vec::new(),
+                    escalations_count: 0,
+                    drop_backs_count: 0,
+                },
+                started_at: None,
+                completed_at: None,
+                duration_ms: None,
+                depends_on: Vec::new(),
+                metadata: json!({ "source": "workflow_test" }),
+            }],
+        }
+    }
+
+    fn sample_create_wp_params(wp_id: &str) -> locus::LocusCreateWpParams {
+        locus::LocusCreateWpParams {
+            wp_id: wp_id.to_string(),
+            title: format!("Structured collaboration artifact parity for {wp_id}"),
+            description: format!(
+                "Prove runtime structured collaboration artifacts emit for {wp_id}"
+            ),
+            priority: 1,
+            kind: locus::WorkPacketType::Feature,
+            phase: locus::WorkPacketPhase::Phase1,
+            routing: locus::RoutingPolicy::GovStandard,
+            task_packet_path: Some(".GOV/task_packets/WP-1/packet.md".to_string()),
+            assignee: Some("CODER".to_string()),
+            labels: Some(vec!["postgres".to_string(), "artifact-parity".to_string()]),
+            spec_session_id: Some("spec-session-1".to_string()),
+            project_profile_kind: Some(locus::ProjectProfileKind::SoftwareDelivery),
+            profile_extension: None,
+            reporter: "operator".to_string(),
+        }
+    }
+
+    #[tokio::test]
+    async fn postgres_structured_collab_artifacts_materialize_parity_fields(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_postgres_state().await? else {
+            return Ok(());
+        };
+
+        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
+        let tmp = tempfile::tempdir()?;
+        let _workspace_root =
+            EnvVarGuard::set("HANDSHAKE_WORKSPACE_ROOT", &tmp.path().display().to_string());
+        let _gov_root =
+            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
+
+        let wp_id = "WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1";
+        let create_params = sample_create_wp_params(wp_id);
+        execute_locus_work_packet_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::CreateWp(create_params.clone()),
+        )
+        .await?;
+        materialize_structured_collaboration_artifacts(
+            &state,
+            &locus::LocusOperation::CreateWp(create_params),
+        )
+        .await?;
+
+        let register_params = sample_register_mt_params(wp_id);
+        execute_locus_register_mts(state.storage.as_ref(), register_params.clone()).await?;
+        materialize_structured_collaboration_artifacts(
+            &state,
+            &locus::LocusOperation::RegisterMts(register_params),
+        )
+        .await?;
+
+        let runtime_paths = RuntimeGovernancePaths::resolve()?;
+        let packet_value: Value =
+            serde_json::from_slice(&std::fs::read(runtime_paths.work_packet_packet_path(wp_id))?)?;
+        let micro_task_value: Value = serde_json::from_slice(&std::fs::read(
+            runtime_paths.micro_task_packet_path(wp_id, "MT-001"),
+        )?)?;
+        let task_board_index: Value =
+            serde_json::from_slice(&std::fs::read(runtime_paths.task_board_index_path())?)?;
+        let task_board_row = task_board_index["rows"]
+            .as_array()
+            .and_then(|rows| rows.iter().find(|row| row["work_packet_id"] == wp_id))
+            .expect("task-board projection should include the postgres-backed work packet");
+
+        assert_eq!(packet_value["wp_id"], wp_id);
+        assert_eq!(packet_value["project_profile_kind"], "software_delivery");
+        assert_eq!(packet_value["mirror_state"], "canonical_only");
+        assert_eq!(packet_value["workflow_state_family"], "intake");
+        assert_eq!(packet_value["queue_reason_code"], "new_untriaged");
+
+        assert_eq!(micro_task_value["mt_id"], "MT-001");
+        assert_eq!(micro_task_value["project_profile_kind"], "software_delivery");
+        assert_eq!(micro_task_value["mirror_state"], "canonical_only");
+        assert_eq!(micro_task_value["workflow_state_family"], "ready");
+        assert_eq!(
+            micro_task_value["queue_reason_code"],
+            "ready_for_local_small_model"
+        );
+
+        assert_eq!(task_board_row["project_profile_kind"], "software_delivery");
+        assert_eq!(task_board_row["mirror_state"], "canonical_only");
+        assert_eq!(task_board_row["workflow_state_family"], "intake");
+        assert_eq!(task_board_row["queue_reason_code"], "new_untriaged");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn task_board_projection_preserves_updated_at_then_wp_id_order(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+
+        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
+        let tmp = tempfile::tempdir()?;
+        let _workspace_root =
+            EnvVarGuard::set("HANDSHAKE_WORKSPACE_ROOT", &tmp.path().display().to_string());
+        let _gov_root =
+            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
+
+        let first_wp_id = "WP-B";
+        let second_wp_id = "WP-A";
+
+        let first_create = sample_create_wp_params(first_wp_id);
+        execute_locus_work_packet_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::CreateWp(first_create.clone()),
+        )
+        .await?;
+        materialize_structured_collaboration_artifacts(
+            &state,
+            &locus::LocusOperation::CreateWp(first_create),
+        )
+        .await?;
+
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+
+        let second_create = sample_create_wp_params(second_wp_id);
+        execute_locus_work_packet_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::CreateWp(second_create.clone()),
+        )
+        .await?;
+        materialize_structured_collaboration_artifacts(
+            &state,
+            &locus::LocusOperation::CreateWp(second_create),
+        )
+        .await?;
+
+        let runtime_paths = RuntimeGovernancePaths::resolve()?;
+        let task_board_index: Value =
+            serde_json::from_slice(&std::fs::read(runtime_paths.task_board_index_path())?)?;
+        let rows = task_board_index["rows"]
+            .as_array()
+            .expect("task-board index rows should be an array");
+
+        let ordered_wp_ids: Vec<&str> = rows
+            .iter()
+            .map(|row| {
+                row["work_packet_id"]
+                    .as_str()
+                    .expect("task-board row should carry a work packet id")
+            })
+            .collect();
+        assert_eq!(ordered_wp_ids, vec![first_wp_id, second_wp_id]);
+
+        let display_orders: Vec<u64> = rows
+            .iter()
+            .map(|row| {
+                row["display_order"]
+                    .as_u64()
+                    .expect("task-board row should carry a display_order")
+            })
+            .collect();
+        assert_eq!(display_orders, vec![0, 1]);
+
+        Ok(())
     }
 
     fn terminal_command() -> (String, Vec<String>) {
