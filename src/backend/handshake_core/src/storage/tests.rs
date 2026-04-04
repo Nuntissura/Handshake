@@ -3183,7 +3183,7 @@ async fn migrations_can_undo_to_baseline_postgres() -> StorageResult<()> {
 
 #[test]
 fn database_trait_purity_source_regressions() {
-    let storage_mod = include_str!("mod.rs");
+    let storage_mod = include_str!("mod.rs").replace("\r\n", "\n");
     let workflows_prod = include_str!("../workflows.rs")
         .split("#[cfg(test)]")
         .next()
