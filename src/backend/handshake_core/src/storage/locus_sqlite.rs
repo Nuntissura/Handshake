@@ -237,6 +237,7 @@ fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
         record_id: tracked_mt.record_id.clone(),
         record_kind: tracked_mt.record_kind.clone(),
         project_profile_kind: tracked_mt.project_profile_kind,
+        profile_extension: tracked_mt.profile_extension.clone(),
         updated_at: tracked_mt.updated_at.to_rfc3339(),
         mirror_state: tracked_mt.mirror_state,
         authority_refs: tracked_mt.authority_refs.clone(),

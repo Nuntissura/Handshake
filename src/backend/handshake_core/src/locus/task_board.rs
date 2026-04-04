@@ -1,8 +1,11 @@
 use super::types::{
-    MarkdownMirrorContractV1, MirrorSyncState, ProjectProfileKind, TaskBoardStatus,
-    WorkflowQueueReasonCode, WorkflowStateFamily,
+    MarkdownMirrorContractV1, MirrorSyncState, ProjectProfileKind,
+    StructuredCollaborationRecordFamily, StructuredCollaborationValidationCode,
+    StructuredCollaborationValidationResult, TaskBoardStatus, WorkflowQueueReasonCode,
+    WorkflowStateFamily,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaskBoardEntry {
@@ -29,6 +32,8 @@ pub struct TaskBoardEntryRecordV1 {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
+    #[serde(default)]
+    pub profile_extension: Option<Value>,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
     #[serde(default)]
@@ -59,6 +64,8 @@ pub struct TaskBoardIndexV1 {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
+    #[serde(default)]
+    pub profile_extension: Option<Value>,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
     #[serde(default)]
@@ -82,6 +89,8 @@ pub struct TaskBoardViewV1 {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
+    #[serde(default)]
+    pub profile_extension: Option<Value>,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
     #[serde(default)]
@@ -97,6 +106,78 @@ pub struct TaskBoardViewV1 {
     pub lane_ids: Vec<String>,
     #[serde(default)]
     pub rows: Vec<TaskBoardEntryRecordV1>,
+}
+
+pub fn validate_task_board_entry_authoritative_fields(
+    entry: &TaskBoardEntryRecordV1,
+    expected_work_packet_id: &str,
+    expected_workflow_state_family: WorkflowStateFamily,
+    expected_queue_reason_code: WorkflowQueueReasonCode,
+    expected_allowed_action_ids: &[String],
+) -> StructuredCollaborationValidationResult {
+    let mut result = StructuredCollaborationValidationResult::success(
+        StructuredCollaborationRecordFamily::TaskBoardEntry,
+    );
+
+    if entry.work_packet_id != expected_work_packet_id {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "work_packet_id",
+            Some(expected_work_packet_id.to_string()),
+            Some(entry.work_packet_id.clone()),
+            "task-board entry must stay linked to the authoritative work packet id",
+        );
+    }
+
+    if entry.workflow_state_family != expected_workflow_state_family {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "workflow_state_family",
+            Some(
+                serde_json::to_string(&expected_workflow_state_family)
+                    .unwrap_or_else(|_| format!("{expected_workflow_state_family:?}")),
+            ),
+            Some(
+                serde_json::to_string(&entry.workflow_state_family)
+                    .unwrap_or_else(|_| format!("{:?}", entry.workflow_state_family)),
+            ),
+            "task-board row must preserve the authoritative workflow_state_family",
+        );
+    }
+
+    if entry.queue_reason_code != expected_queue_reason_code {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "queue_reason_code",
+            Some(
+                serde_json::to_string(&expected_queue_reason_code)
+                    .unwrap_or_else(|_| format!("{expected_queue_reason_code:?}")),
+            ),
+            Some(
+                serde_json::to_string(&entry.queue_reason_code)
+                    .unwrap_or_else(|_| format!("{:?}", entry.queue_reason_code)),
+            ),
+            "task-board row must preserve the authoritative queue_reason_code",
+        );
+    }
+
+    if entry.allowed_action_ids != expected_allowed_action_ids {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "allowed_action_ids",
+            Some(
+                serde_json::to_string(expected_allowed_action_ids)
+                    .unwrap_or_else(|_| format!("{expected_allowed_action_ids:?}")),
+            ),
+            Some(
+                serde_json::to_string(&entry.allowed_action_ids)
+                    .unwrap_or_else(|_| format!("{:?}", entry.allowed_action_ids)),
+            ),
+            "task-board row must preserve the authoritative allowed_action_ids",
+        );
+    }
+
+    result
 }
 
 impl TaskBoardSections {

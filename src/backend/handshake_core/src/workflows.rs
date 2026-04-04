@@ -2725,18 +2725,6 @@ fn resolve_work_packet_profile_boundary(
     )
 }
 
-fn set_profile_extension_field(value: &mut Value, profile_extension: Option<&Value>) {
-    let Some(object) = value.as_object_mut() else {
-        return;
-    };
-
-    if let Some(profile_extension) = profile_extension {
-        object.insert("profile_extension".to_string(), profile_extension.clone());
-    } else {
-        object.remove("profile_extension");
-    }
-}
-
 fn parse_timestamp_utc(value: &str, field: &str) -> Result<DateTime<Utc>, WorkflowError> {
     DateTime::parse_from_rfc3339(value)
         .map(|timestamp| timestamp.with_timezone(&Utc))
@@ -3219,78 +3207,6 @@ fn allowed_action_ids(family: locus::WorkflowStateFamily) -> Vec<String> {
     actions.iter().map(|action| (*action).to_string()).collect()
 }
 
-fn validate_task_board_entry_authoritative_fields(
-    entry: &locus::task_board::TaskBoardEntryRecordV1,
-    expected_work_packet_id: &str,
-    expected_workflow_state_family: locus::WorkflowStateFamily,
-    expected_queue_reason_code: locus::WorkflowQueueReasonCode,
-    expected_allowed_action_ids: &[String],
-) -> locus::StructuredCollaborationValidationResult {
-    let mut result = locus::StructuredCollaborationValidationResult::success(
-        locus::StructuredCollaborationRecordFamily::TaskBoardEntry,
-    );
-
-    if entry.work_packet_id != expected_work_packet_id {
-        result.push_issue(
-            locus::StructuredCollaborationValidationCode::InvalidFieldValue,
-            "work_packet_id",
-            Some(expected_work_packet_id.to_string()),
-            Some(entry.work_packet_id.clone()),
-            "task-board entry must stay linked to the authoritative work packet id",
-        );
-    }
-
-    if entry.workflow_state_family != expected_workflow_state_family {
-        result.push_issue(
-            locus::StructuredCollaborationValidationCode::InvalidFieldValue,
-            "workflow_state_family",
-            Some(
-                serde_json::to_string(&expected_workflow_state_family)
-                    .unwrap_or_else(|_| format!("{expected_workflow_state_family:?}")),
-            ),
-            Some(
-                serde_json::to_string(&entry.workflow_state_family)
-                    .unwrap_or_else(|_| format!("{:?}", entry.workflow_state_family)),
-            ),
-            "task-board row must preserve the authoritative workflow_state_family",
-        );
-    }
-
-    if entry.queue_reason_code != expected_queue_reason_code {
-        result.push_issue(
-            locus::StructuredCollaborationValidationCode::InvalidFieldValue,
-            "queue_reason_code",
-            Some(
-                serde_json::to_string(&expected_queue_reason_code)
-                    .unwrap_or_else(|_| format!("{expected_queue_reason_code:?}")),
-            ),
-            Some(
-                serde_json::to_string(&entry.queue_reason_code)
-                    .unwrap_or_else(|_| format!("{:?}", entry.queue_reason_code)),
-            ),
-            "task-board row must preserve the authoritative queue_reason_code",
-        );
-    }
-
-    if entry.allowed_action_ids != expected_allowed_action_ids {
-        result.push_issue(
-            locus::StructuredCollaborationValidationCode::InvalidFieldValue,
-            "allowed_action_ids",
-            Some(
-                serde_json::to_string(expected_allowed_action_ids)
-                    .unwrap_or_else(|_| format!("{expected_allowed_action_ids:?}")),
-            ),
-            Some(
-                serde_json::to_string(&entry.allowed_action_ids)
-                    .unwrap_or_else(|_| format!("{:?}", entry.allowed_action_ids)),
-            ),
-            "task-board row must preserve the authoritative allowed_action_ids",
-        );
-    }
-
-    result
-}
-
 fn work_packet_blockers(work_packet: &locus::TrackedWorkPacket) -> Vec<String> {
     let mut blockers: Vec<String> = work_packet
         .notes
@@ -3659,7 +3575,6 @@ async fn emit_task_board_projection_artifacts(
     )?;
 
     let mut entries: Vec<locus::task_board::TaskBoardEntryRecordV1> = Vec::new();
-    let mut entry_profile_extensions: Vec<Option<Value>> = Vec::new();
     let mut authoritative_entry_truths: Vec<(
         String,
         locus::WorkflowStateFamily,
@@ -3692,6 +3607,7 @@ async fn emit_task_board_projection_artifacts(
             record_id: format!("task_board_entry:{}", row.wp_id),
             record_kind: "task_board_entry".to_string(),
             project_profile_kind: boundary.project_profile_kind,
+            profile_extension: boundary.profile_extension.clone(),
             updated_at: row.updated_at,
             mirror_state,
             authority_refs: vec![runtime_paths.work_packet_packet_display(&row.wp_id)],
@@ -3715,13 +3631,12 @@ async fn emit_task_board_projection_artifacts(
             queue_reason_code,
             allowed_action_ids,
         ));
-        entry_profile_extensions.push(boundary.profile_extension);
         entries.push(entry);
     }
     let task_board_profile_kind =
         aggregate_project_profile_kind(entries.iter().map(|entry| entry.project_profile_kind));
     let task_board_profile_extension =
-        aggregate_profile_extension(entry_profile_extensions.iter().cloned());
+        aggregate_profile_extension(entries.iter().map(|entry| entry.profile_extension.clone()));
 
     let index = locus::task_board::TaskBoardIndexV1 {
         schema_id: TASK_BOARD_INDEX_SCHEMA_ID.to_string(),
@@ -3729,6 +3644,7 @@ async fn emit_task_board_projection_artifacts(
         record_id: "task_board_index".to_string(),
         record_kind: "task_board_index".to_string(),
         project_profile_kind: task_board_profile_kind,
+        profile_extension: task_board_profile_extension.clone(),
         updated_at: generated_at.clone(),
         mirror_state,
         authority_refs: vec![runtime_paths.task_board_index_display()],
@@ -3759,6 +3675,7 @@ async fn emit_task_board_projection_artifacts(
         record_id: format!("task_board_view:{view_id}"),
         record_kind: "task_board_view".to_string(),
         project_profile_kind: task_board_profile_kind,
+        profile_extension: task_board_profile_extension,
         updated_at: generated_at.clone(),
         mirror_state,
         authority_refs: vec![runtime_paths.task_board_view_display(&view_id)],
@@ -3774,22 +3691,12 @@ async fn emit_task_board_projection_artifacts(
     let mut validation = locus::StructuredCollaborationValidationResult::success(
         locus::StructuredCollaborationRecordFamily::TaskBoardIndex,
     );
-    let mut entry_values: Vec<Value> = entries
-        .iter()
-        .map(|entry| {
-            serde_json::to_value(entry).map_err(|e| WorkflowError::Terminal(e.to_string()))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    for (entry_value, profile_extension) in
-        entry_values.iter_mut().zip(entry_profile_extensions.iter())
-    {
-        set_profile_extension_field(entry_value, profile_extension.as_ref());
-    }
-    for ((entry, authoritative_truth), entry_value) in entries
+    for (entry, authoritative_truth) in entries
         .iter()
         .zip(authoritative_entry_truths.iter())
-        .zip(entry_values.iter())
     {
+        let entry_value =
+            serde_json::to_value(entry).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
         let mut entry_validation = locus::validate_structured_collaboration_record(
             locus::StructuredCollaborationRecordFamily::TaskBoardEntry,
             &entry_value,
@@ -3805,7 +3712,7 @@ async fn emit_task_board_projection_artifacts(
                 "task-board entry authority_refs must stay within the product-runtime .handshake/gov boundary",
             );
         }
-        entry_validation.merge(validate_task_board_entry_authoritative_fields(
+        entry_validation.merge(locus::task_board::validate_task_board_entry_authoritative_fields(
             entry,
             &authoritative_truth.0,
             authoritative_truth.1,
@@ -3815,16 +3722,8 @@ async fn emit_task_board_projection_artifacts(
         validation.merge(entry_validation);
     }
 
-    let mut index_value =
+    let index_value =
         serde_json::to_value(&index).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    set_profile_extension_field(&mut index_value, task_board_profile_extension.as_ref());
-    if let Some(index_rows) = index_value.get_mut("rows").and_then(Value::as_array_mut) {
-        for (row_value, profile_extension) in
-            index_rows.iter_mut().zip(entry_profile_extensions.iter())
-        {
-            set_profile_extension_field(row_value, profile_extension.as_ref());
-        }
-    }
     let mut index_validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::TaskBoardIndex,
         &index_value,
@@ -3842,16 +3741,8 @@ async fn emit_task_board_projection_artifacts(
     }
     validation.merge(index_validation);
 
-    let mut view_value =
+    let view_value =
         serde_json::to_value(&view).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    set_profile_extension_field(&mut view_value, task_board_profile_extension.as_ref());
-    if let Some(view_rows) = view_value.get_mut("rows").and_then(Value::as_array_mut) {
-        for (row_value, profile_extension) in
-            view_rows.iter_mut().zip(entry_profile_extensions.iter())
-        {
-            set_profile_extension_field(row_value, profile_extension.as_ref());
-        }
-    }
     let mut view_validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::TaskBoardView,
         &view_value,
@@ -4460,11 +4351,8 @@ async fn emit_runtime_structured_micro_task_artifacts(
     tracked_mt.metadata["structured_collaboration_summary"] = summary_value.clone();
 
     let mut detail_packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
-    let mut detail_value =
+    let detail_value =
         serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    if let Some(profile_extension) = tracked_mt.profile_extension.clone() {
-        detail_value["profile_extension"] = profile_extension;
-    }
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         &detail_value,
@@ -4801,6 +4689,7 @@ fn build_structured_work_packet_packet(
         record_id: tracked_wp.record_id.clone(),
         record_kind: tracked_wp.record_kind.clone(),
         project_profile_kind: tracked_wp.project_profile_kind,
+        profile_extension: tracked_wp.profile_extension.clone(),
         updated_at: tracked_wp.updated_at.to_rfc3339(),
         mirror_state: tracked_wp.mirror_state,
         authority_refs: tracked_wp.authority_refs.clone(),
@@ -4862,6 +4751,7 @@ fn build_structured_micro_task_packet(
         record_id: tracked_mt.record_id.clone(),
         record_kind: tracked_mt.record_kind.clone(),
         project_profile_kind: tracked_mt.project_profile_kind,
+        profile_extension: tracked_mt.profile_extension.clone(),
         updated_at: tracked_mt.updated_at.to_rfc3339(),
         mirror_state: tracked_mt.mirror_state,
         authority_refs: tracked_mt.authority_refs.clone(),
@@ -11846,11 +11736,8 @@ fn apply_runtime_structured_work_packet_registry(
     let detail_packet = build_structured_work_packet_packet(runtime_paths, tracked_wp, Vec::new());
     let summary_value =
         serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    let mut detail_value =
+    let detail_value =
         serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    if let Some(profile_extension) = tracked_wp.profile_extension.clone() {
-        detail_value["profile_extension"] = profile_extension;
-    }
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::WorkPacketPacket,
         &detail_value,
@@ -11948,11 +11835,8 @@ fn apply_runtime_structured_micro_task_registry(
     }
 
     let detail_packet = build_structured_micro_task_packet(runtime_paths, tracked_mt);
-    let mut detail_value =
+    let detail_value =
         serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    if let Some(profile_extension) = tracked_mt.profile_extension.clone() {
-        detail_value["profile_extension"] = profile_extension;
-    }
     let mut validation = locus::validate_structured_collaboration_record(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         &detail_value,

@@ -188,6 +188,8 @@ pub struct TrackedWorkPacketArtifactV1 {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_extension: Option<Value>,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
     #[serde(default)]
@@ -242,6 +244,8 @@ pub struct TrackedMicroTaskArtifactV1 {
     pub record_id: String,
     pub record_kind: String,
     pub project_profile_kind: ProjectProfileKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_extension: Option<Value>,
     pub updated_at: String,
     pub mirror_state: MirrorSyncState,
     #[serde(default)]
