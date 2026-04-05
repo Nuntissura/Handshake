@@ -235,6 +235,7 @@ export function buildStartupPrompt({
   selectedProfile = null,
 }) {
   const authorityPacketPath = workPacketPath(wpId);
+  const isClaudeCodeProfile = selectedProfile && selectedProfile.provider === "ANTHROPIC";
   const modelProfileLine = selectedProfileId && selectedProfile
     ? `MODEL PROFILE: ${selectedProfileId} (${selectedProfile.provider}, tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}, claim_model=${selectedProfile.claim_model}, reasoning=${selectedProfile.reasoning_strength}${selectedProfile.reasoning_policy_note ? `, policy=${selectedProfile.reasoning_policy_note}` : ""}).`
     : `MODEL PROFILE POLICY: ${ROLE_MODEL_PROFILE_POLICY} (legacy/default packet fields may omit explicit per-role profile ids).`;
@@ -244,9 +245,23 @@ export function buildStartupPrompt({
     `WORKTREE: ${roleConfig.worktreeDir}`,
     `BRANCH: ${roleConfig.branch}`,
     modelProfileLine,
-    `MODEL POLICY: selected ${selectedModel}; primary ${ROLE_SESSION_PRIMARY_MODEL} with ${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}; fallback ${ROLE_SESSION_FALLBACK_MODEL} with the same reasoning value if primary is unavailable.`,
-    `REPO POLICY: do not switch to Codex model aliases for repo-governed sessions.`,
-    `SESSION ISOLATION: do not spawn or use helper agents/subagents inside this governed role lane.`,
+    ...(isClaudeCodeProfile
+      ? [
+        `MODEL POLICY: selected ${selectedModel} with ${selectedProfile.launch_reasoning_config_key}=${selectedProfile.launch_reasoning_config_value}. This session is locked to ${selectedModel}; do not use sonnet, haiku, or any model other than opus. Do not set --model or ANTHROPIC_MODEL to anything other than ${selectedProfile.launch_model}.`,
+        `REPO POLICY: this is a Claude Code governed session. Do not reference Codex model aliases or OpenAI model conventions.`,
+      ]
+      : [
+        `MODEL POLICY: selected ${selectedModel}; primary ${ROLE_SESSION_PRIMARY_MODEL} with ${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}; fallback ${ROLE_SESSION_FALLBACK_MODEL} with the same reasoning value if primary is unavailable.`,
+        `REPO POLICY: do not switch to Codex model aliases for repo-governed sessions.`,
+      ]
+    ),
+    ...(isClaudeCodeProfile
+      ? [
+        `AGENT GOVERNANCE (HARD): You MAY use the Agent tool with subagent_type="Explore" or subagent_type="Plan" for read-only research, codebase inspection, and reporting. You MUST NOT delegate product code writes (Edit, Write, NotebookEdit) or governance decisions to any agent or subagent. All agent/subagent output is UNTRUSTED — you (the primary ${selectedModel} model) must independently verify any finding before it becomes truth or drives a code change. Subagents lack the reasoning strength and context depth to hold governance rules, WP topology, and signed scope simultaneously; treat their output as draft research only.`,
+        `AGENT MODEL LOCK (HARD): Never configure subagents to use a model other than the governing session model. The --model flag and ANTHROPIC_MODEL env var are set at session level; do not override them in agent invocations.`,
+      ]
+      : [`SESSION ISOLATION: do not spawn or use helper agents/subagents inside this governed role lane.`]
+    ),
     `MINIMAL LIVE READ SET (MANDATORY): After startup and assignment, work from startup output + active packet + active WP thread/notifications + .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md when command choice is unclear.`,
     `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use just active-lane-brief ${role} ${wpId} instead of rereading packet/runtime/task-board/session surfaces separately.`,
     `ANTI-REDISCOVERY RULE: Do not keep rereading large governance protocols, rerunning just --list, or repeating path/source-of-truth checks after context is already stable. If you need that repeated rereading, report ambiguity instead of silently paying for it.`,
