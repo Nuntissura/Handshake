@@ -58,6 +58,12 @@ Entry format (recommended):
 - `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
 
 
+## Current Focus (2026-04-05)
+
+- Self-hosting priority is backend-first. Handshake already has meaningful backend runtime for terminal execution, ModelSession scheduling, Ollama integration, Locus storage, Role Mailbox, and Flight Recorder; the next unblocked tranche is the control-plane and governance substrate that lets those systems work together inside the product.
+- Repo governance is being ported into Handshake as an additive software-delivery overlay. It does not replace Handshake-native governance, and it must not collapse Handshake's broader topology, worksurface model, project-profile extension model, or four-layer architecture into repo-only assumptions.
+- The oversized "port all repo governance" idea is therefore split into bounded backend-first packets. See `.GOV/roles_shared/docs/PRODUCT_SELF_HOSTING_BACKEND_FOCUS_20260405.md` before activating governance-overlay, session-substrate, or Dev Command Center work.
+
 ---
 
 
@@ -131,6 +137,8 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-ContextPack-Recorder-Visibility-v1]** - [STUB]
 - **[WP-1-Governance-Hooks-v2]** - [STUB]
 - **[WP-1-Governance-Workflow-Mirror-v1]** - [STUB]
+- **[WP-1-Product-Governance-Artifact-Registry-v1]** - [STUB]
+- **[WP-1-Product-Governance-Check-Runner-v1]** - [STUB]
 - **[WP-1-Workspace-Bundle-v2]** - [STUB]
 - **[WP-1-Semantic-Catalog-v2]** - [STUB]
 - **[WP-1-Metrics-Traces-v2]** - [STUB]
@@ -153,6 +161,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Project-Agnostic-Workflow-State-Registry-v1]** - [STUB]
 - **[WP-1-Workflow-Transition-Automation-Registry-v1]** - [STUB]
 - **[WP-1-Markdown-Mirror-Sync-Drift-Guard-v1]** - [STUB]
+- **[WP-1-Dev-Command-Center-Control-Plane-Backend-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-MVP-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-Layout-Projection-Registry-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1]** - [STUB]

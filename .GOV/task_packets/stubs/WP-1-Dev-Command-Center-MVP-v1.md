@@ -18,6 +18,12 @@ Rules:
 - BASE_WP_ID: WP-1-Dev-Command-Center-MVP
 - CREATED_AT: 2026-02-18T00:00:00Z
 - STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: FRONTEND
+- BUILD_ORDER_TECH_BLOCKER: NO
+- BUILD_ORDER_VALUE_TIER: HIGH
+- BUILD_ORDER_RISK_TIER: MEDIUM
+- BUILD_ORDER_DEPENDS_ON: WP-1-Dev-Command-Center-Control-Plane-Backend
+- BUILD_ORDER_BLOCKS: WP-1-Dev-Command-Center-Layout-Projection-Registry, WP-1-Dev-Command-Center-Structured-Artifact-Viewer
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.131.md 7.6.3 (Phase 1) -> [ADD v02.127 - Dev Command Center (DCC) MVP (Sidecar-derived)]
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
@@ -33,6 +39,7 @@ Rules:
 ## INTENT (DRAFT)
 - What: Deliver the Phase 1 Dev Command Center (DCC) MVP: a canonical control surface that binds Locus work (WP/MT) <-> git workspaces (worktrees) <-> execution sessions <-> approvals/logs/diffs, without bypassing Workflow Engine, gates, or Flight Recorder.
 - Why: Make governed development usable (approvals as inbox, VCS as panel, predictable traceable operations) while enabling safe parallel work and deterministic recovery/handoffs.
+- Backend-first rule: this UI packet activates only after the DCC control-plane backend exists. The DCC screen is not the authority; it is a projection and steering surface over backend artifacts.
 
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:

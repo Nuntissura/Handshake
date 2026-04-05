@@ -23,7 +23,7 @@ Rules:
 - BUILD_ORDER_TECH_BLOCKER: NO
 - BUILD_ORDER_VALUE_TIER: HIGH
 - BUILD_ORDER_RISK_TIER: HIGH
-- BUILD_ORDER_DEPENDS_ON: WP-1-Project-Agnostic-Workflow-State-Registry, WP-1-Dev-Command-Center-Layout-Projection-Registry
+- BUILD_ORDER_DEPENDS_ON: WP-1-Project-Agnostic-Workflow-State-Registry, WP-1-Governance-Workflow-Mirror
 - BUILD_ORDER_BLOCKS: NONE
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.172.md 7.6.3 (Phase 1) -> [ADD v02.172] Workflow transition matrix, queue automation, and executor eligibility contracts

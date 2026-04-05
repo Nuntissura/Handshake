@@ -19,11 +19,11 @@ Rules:
 - CREATED_AT: 2026-03-04T00:00:00Z
 - STUB_STATUS: STUB (NOT READY FOR DEV)
 - BUILD_ORDER_DOMAIN: BACKEND
-- BUILD_ORDER_TECH_BLOCKER: NO
-- BUILD_ORDER_VALUE_TIER: MEDIUM
-- BUILD_ORDER_RISK_TIER: MEDIUM
+- BUILD_ORDER_TECH_BLOCKER: YES
+- BUILD_ORDER_VALUE_TIER: HIGH
+- BUILD_ORDER_RISK_TIER: HIGH
 - BUILD_ORDER_DEPENDS_ON: WP-1-Flight-Recorder, WP-1-ModelSession-Core-Scheduler
-- BUILD_ORDER_BLOCKS: WP-1-Session-Observability-Spans-FR
+- BUILD_ORDER_BLOCKS: WP-1-Session-Observability-Spans-FR, WP-1-Dev-Command-Center-Control-Plane-Backend
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Audit remediation against Handshake_Master_Spec_v02.139.md (FR model_session_id correlation)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
