@@ -136,8 +136,8 @@ session-cancel role wp-id:
 session-close role wp-id:
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-control-command.mjs" CLOSE_SESSION {{role}} {{wp-id}}
 
-session-reclaim-terminals wp-id role="":
-	node "{{GOV_ROOT}}/roles_shared/scripts/session/reclaim-owned-terminals.mjs" {{wp-id}} {{role}}
+session-reclaim-terminals wp-id role="" batch="CURRENT_BATCH":
+	node "{{GOV_ROOT}}/roles_shared/scripts/session/reclaim-owned-terminals.mjs" {{wp-id}} {{role}} {{batch}}
 
 session-registry-status wp-id="":
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-registry-status.mjs" {{wp-id}}
