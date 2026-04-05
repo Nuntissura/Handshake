@@ -596,6 +596,93 @@ test("validator checkpoint clearance unlocks handoff after contract-heavy intent
   assert.equal(route.waitingOn, "CODER_HANDOFF");
 });
 
+test("later WP validator review also clears the bootstrap checkpoint once handoff progression has begun", () => {
+  const input = baseInput({
+    packetContent: contractHeavyPacketFixture(),
+    packetFormatVersion: "2026-03-29",
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap, skeleton, and implementation order drafted.",
+        microtask_contract: {
+          scope_ref: "MT-001",
+          file_targets: ["src/demo.rs", "src/demo_support.rs"],
+          proof_commands: ["cargo test demo::tests::smoke -- --exact"],
+          expected_receipt_kind: "VALIDATOR_RESPONSE",
+        },
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "CODER_HANDOFF",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        timestamp_utc: "2026-03-22T10:05:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_REVIEW",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        ack_for: "handoff-1",
+        summary: "PASS. Ready for final review.",
+        timestamp_utc: "2026-03-22T10:06:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_REQUEST",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "INTEGRATION_VALIDATOR",
+        target_session: "intval-1",
+        correlation_id: "final-review-1",
+        timestamp_utc: "2026-03-22T10:07:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_RESPONSE",
+        actor_role: "INTEGRATION_VALIDATOR",
+        actor_session: "intval-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "final-review-1",
+        ack_for: "final-review-1",
+        summary: "PASS. No further coder repair is requested.",
+        timestamp_utc: "2026-03-22T10:08:00Z",
+      },
+    ],
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+
+  assert.equal(evaluation.state, "COMM_OK");
+  assert.equal(route.nextExpectedActor, "ORCHESTRATOR");
+  assert.equal(route.waitingOn, "VERDICT_PROGRESSION");
+});
+
 test("overlap microtask review requests do not block coder progression while backlog stays bounded", () => {
   const input = baseInput({
     packetContent: contractHeavyPacketFixture(),

@@ -34,6 +34,7 @@ test("parseRuntimeProjectionFromPacket normalizes terminal packet truth", () => 
   const projection = parseRuntimeProjectionFromPacket(packetFixture());
   assert.deepEqual(projection, {
     current_packet_status: "Validated (PASS)",
+    current_task_board_status: "DONE_VALIDATED",
     wp_validator_of_record: "wp_validator:wp-test-validator-v1",
     integration_validator_of_record: "integration_validator:wp-test-validator-v1",
     current_main_compatibility_status: "COMPATIBLE",
@@ -72,6 +73,8 @@ test("syncRuntimeProjectionFromPacket updates runtime projection fields and even
   );
 
   assert.equal(runtime.current_packet_status, "Validated (PASS)");
+  assert.equal(runtime.current_task_board_status, "DONE_VALIDATED");
+  assert.equal(runtime.current_milestone, "CONTAINMENT");
   assert.equal(runtime.wp_validator_of_record, "wp_validator:wp-test-validator-v1");
   assert.equal(runtime.integration_validator_of_record, "integration_validator:wp-test-validator-v1");
   assert.equal(runtime.current_main_compatibility_status, "COMPATIBLE");
@@ -114,6 +117,7 @@ test("syncRuntimeProjectionFromPacket drives validated packets into STATUS_SYNC 
   );
 
   assert.equal(runtime.current_phase, "STATUS_SYNC");
+  assert.equal(runtime.current_milestone, "CONTAINMENT");
   assert.equal(runtime.runtime_status, "completed");
   assert.equal(runtime.next_expected_actor, "NONE");
   assert.equal(runtime.waiting_on, "CLOSED");
@@ -147,6 +151,7 @@ test("syncRuntimeProjectionFromPacket treats Validated (ABANDONED) as a closed t
   );
 
   assert.equal(runtime.current_phase, "STATUS_SYNC");
+  assert.equal(runtime.current_milestone, "CONTAINMENT");
   assert.equal(runtime.runtime_status, "completed");
   assert.equal(runtime.next_expected_actor, "NONE");
   assert.equal(runtime.waiting_on, "CLOSED");
@@ -186,5 +191,6 @@ test("evaluatePacketRuntimeProjectionDrift flags stale bootstrap runtime after d
 
   assert.equal(drift.ok, false);
   assert.match(drift.issues.join("\n"), /runtime\.current_phase is still BOOTSTRAP/i);
+  assert.match(drift.issues.join("\n"), /runtime\.current_milestone .* should be VERDICT/i);
   assert.match(drift.issues.join("\n"), /CURRENT_MAIN_COMPATIBILITY_STATUS=NOT_RUN/i);
 });

@@ -39,7 +39,184 @@ This section supersedes the stale intermediate state elsewhere in this audit.
 - Boundary WP:
   - recovery repair commit on WP branch: `4cadfb5bed6c88ac88f6feafabe6afecc820c9a2`
   - contained-main repair commit: `ad680e3a4071e05e207ea9d562ee397f0eaded30`
-  - `just integration-validator-closeout-sync WP-1-Storage-Capability-Boundary-Refactor-v1 CONTAINED_IN_MAIN ad680e3a4071e05e207ea9d562ee397f0eaded30` passed
+- `just integration-validator-closeout-sync WP-1-Storage-Capability-Boundary-Refactor-v1 CONTAINED_IN_MAIN ad680e3a4071e05e207ea9d562ee397f0eaded30` passed
+
+## Structured Failure Ledger Addendum (2026-04-05T01:30Z)
+
+### SMOKE-FIND-20260404-01
+
+- CATEGORY: ACP_RUNTIME
+- SURFACE: `wp-receipt-append.mjs`, notification routing, relay wake path
+- SEVERITY: HIGH
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-64`
+- REGRESSION_HOOKS:
+  - `node --test .GOV/roles_shared/tests/wp-auto-relay-paths.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+- Evidence:
+  - duplicate review-triggered wake paths were present during ACP-managed parallel WP steering
+- What went wrong:
+  - review receipts and derived notifications could both steer the next lane, burning prompts and operator attention
+- Impact:
+  - token and time waste increased on every review transition
+- Mechanical fix direction:
+  - keep a single authoritative auto-relay source and deliver typed route payloads
+
+### SMOKE-FIND-20260404-02
+
+- CATEGORY: WORKFLOW_DISCIPLINE
+- SURFACE: manual relay lane, operator message brokerage
+- SEVERITY: MEDIUM
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-67`
+- REGRESSION_HOOKS:
+  - `node --test .GOV/roles/orchestrator/tests/manual-relay-next.test.mjs`
+- Evidence:
+  - old manual relay output interwove checks, prompts, and explanations into unreadable walls of text
+- What went wrong:
+  - handoff vs explainer vs question semantics were not typed
+- Impact:
+  - operator brokerage remained cheaper than ACP but too ambiguous to be reliable at scale
+- Mechanical fix direction:
+  - enforce relay envelopes with `ROLE_TO_ROLE_MESSAGE` and `OPERATOR_EXPLAINER` separation
+
+### SMOKE-FIND-20260404-03
+
+- CATEGORY: TIMELINE
+- SURFACE: runtime, receipts, control ledger, token ledger
+- SEVERITY: MEDIUM
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-65`
+- REGRESSION_HOOKS:
+  - `just wp-timeline WP-1-Storage-Capability-Boundary-Refactor-v1`
+- Evidence:
+  - the recovery required manually reconstructing launch, handoff, and closeout timing from multiple files
+- What went wrong:
+  - no single normalized WP timeline existed
+- Impact:
+  - cost attribution and stall analysis were slow and lossy
+- Mechanical fix direction:
+  - expose one merged timeline surface per WP
+
+### SMOKE-FIND-20260404-04
+
+- CATEGORY: PRODUCT_SCOPE
+- SURFACE: coder intent and microtask scope budgeting
+- SEVERITY: HIGH
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-66`
+- REGRESSION_HOOKS:
+  - `node --test .GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+- Evidence:
+  - coders could still drift into adjacent work because declared microtask scope was not enforced at receipt time
+- What went wrong:
+  - microtasks existed as narrative artifacts, not as enforced write-budget truth
+- Impact:
+  - remediation scope widened and review cost increased
+- Mechanical fix direction:
+  - fail closed when `microtask_contract` scope or file targets do not match declared `MT-*` surfaces
+
+### SMOKE-FIND-20260404-05
+
+- CATEGORY: GOVERNANCE_CHECK
+- SURFACE: packet/runtime/task-board/build-order truth
+- SEVERITY: HIGH
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-68`
+  - `RGF-70`
+- REGRESSION_HOOKS:
+  - `node --test .GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/ensure-wp-communications.test.mjs`
+- Evidence:
+  - closeout required late repair of packet status, clause-monitor truth, runtime packet paths, and containment status
+- What went wrong:
+  - milestone and task-board truth were duplicated across helpers instead of projected from one authority surface
+- Impact:
+  - closeout spiraled into long repair loops
+- Mechanical fix direction:
+  - derive runtime milestone and board status from shared packet-authority projection helpers
+
+### SMOKE-FIND-20260404-06
+
+- CATEGORY: ROLE_INTEGRATION_VALIDATOR
+- SURFACE: governed validator report law and current-main interaction audit
+- SEVERITY: HIGH
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-69`
+- REGRESSION_HOOKS:
+  - `node --test .GOV/roles/validator/tests/validator-report-structure-check.test.mjs`
+  - `node --test .GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs`
+- Evidence:
+  - earlier workflow law proved many mechanics but did not require explicit primitive-retention and current-main interaction proof
+- What went wrong:
+  - validators could PASS without a strong enough retained-feature and shared-surface composition audit
+- Impact:
+  - feature-loss and overwrite risk stayed under-proved for medium/high-risk WPs
+- Mechanical fix direction:
+  - introduce `SPLIT_DIFF_SCOPED_RIGOR_V4` with primitive-retention and interaction proof sections
+
+### SMOKE-FIND-20260404-07
+
+- CATEGORY: TOOLING
+- SURFACE: smoketest review template and audit skeleton
+- SEVERITY: MEDIUM
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-73`
+- REGRESSION_HOOKS:
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+- Evidence:
+  - the original review format captured narrative well but did not provide stable finding IDs, board linkage, or positive controls
+- What went wrong:
+  - postmortem signal was trapped in prose
+- Impact:
+  - linking smoke findings into governance planning stayed manual and lossy
+- Mechanical fix direction:
+  - standardize a structured failure ledger and positive-control ledger
+
+## Governance Linkage Addendum (2026-04-05T01:30Z)
+
+- BOARD_LINKS:
+  - `SMOKE-FIND-20260404-01 -> RGF-64`
+  - `SMOKE-FIND-20260404-02 -> RGF-67`
+  - `SMOKE-FIND-20260404-03 -> RGF-65`
+  - `SMOKE-FIND-20260404-04 -> RGF-66`
+  - `SMOKE-FIND-20260404-05 -> RGF-68, RGF-70`
+  - `SMOKE-FIND-20260404-06 -> RGF-69`
+  - `SMOKE-FIND-20260404-07 -> RGF-73`
+- CHANGESET_LINKS:
+  - `SMOKE-FIND-20260404-01 -> GOV-CHANGE-20260405-02`
+  - `SMOKE-FIND-20260404-02 -> GOV-CHANGE-20260405-02`
+  - `SMOKE-FIND-20260404-03 -> GOV-CHANGE-20260405-02`
+  - `SMOKE-FIND-20260404-04 -> GOV-CHANGE-20260405-02`
+  - `SMOKE-FIND-20260404-05 -> GOV-CHANGE-20260405-03`
+  - `SMOKE-FIND-20260404-06 -> GOV-CHANGE-20260405-03`
+  - `SMOKE-FIND-20260404-07 -> GOV-CHANGE-20260405-03`
+
+## Positive Controls Addendum (2026-04-05T01:30Z)
+
+### SMOKE-CONTROL-20260404-01
+
+- SURFACE: contained-main recovery proof
+- Why it mattered:
+  - the final recovery converged on one real product blocker instead of continuing broad speculative churn
+- Evidence:
+  - the CRLF normalization fix in `src/backend/handshake_core/src/storage/tests.rs` cleanly removed the false negative and unblocked honest containment proof
+
+### SMOKE-CONTROL-20260404-02
+
+- SURFACE: closeout truth enforcement
+- Why it mattered:
+  - even after crash recovery, the governed closure checks forced packet/runtime/main truth back into an honest terminal state
+- Evidence:
+  - both WPs closed only after `integration-validator-closeout-sync` and `gov-check` passed with contained-main truth recorded
 
 ## Recorded Failures And Findings Used For Recovery
 

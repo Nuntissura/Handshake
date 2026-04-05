@@ -12,7 +12,7 @@ Authoring rules:
 - Include the required `Silent Failures, Command Surface Misuse, and Ambiguity Scan` section using `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`.
 - If the rubric document is not open, this template remains authoritative. Do not omit or collapse the rubric or ambiguity-scan sections.
 - Write `NONE` explicitly when a subsection truly has no findings. Do not leave sections blank.
-- Do not write only a verdict summary. Capture the failure inventory, role review, runtime truth, positive signals, and concrete remediations.
+- Do not write only a verdict summary. Capture the failure ledger, role review, runtime truth, positive controls, and concrete remediations.
 - A closeout review should be honest about both what the WP fixed and what still remains adjacent debt outside the packet.
 - If the packet or remediation touches data-bearing surfaces and declares an active data contract, assess SQL/PostgreSQL readiness, LLM-first readability/parseability, and Loom-intertwined structure explicitly rather than folding that judgment into generic product prose.
 - Call out anti-vibe findings, accepted signed-scope debt, or shallow easy-surface work explicitly when they influenced the review. Do not leave those concerns implicit.
@@ -75,25 +75,29 @@ Authoring rules:
 
 - <key lifecycle moments from kickoff through closeout>
 
-## 5. Failure Inventory
+## 5. Structured Failure Ledger
+
+Repeat this block for every material workflow, runtime, governance, or product finding.
 
 ### 5.1 <severity + short title>
 
-Evidence:
-
-- <receipt, code, runtime, or git evidence>
-
-Reason:
-
-- <why it happened>
-
-Impact:
-
-- <what it blocked or weakened>
-
-Judgment:
-
-- <why this matters>
+- FINDING_ID: <SMOKE-FIND-YYYYMMDD-01>
+- CATEGORY: <WORKFLOW_DISCIPLINE|ACP_RUNTIME|ROLE_ORCHESTRATOR|ROLE_CODER|ROLE_WP_VALIDATOR|ROLE_INTEGRATION_VALIDATOR|GOVERNANCE_CHECK|TOOLING|PRODUCT_SCOPE|TOKEN_COST|TIMELINE>
+- SURFACE: <packet path / runtime surface / helper / session / role lane>
+- SEVERITY: <HIGH|MEDIUM|LOW>
+- STATUS: <OPEN|TRACKED|FIXED_DURING_RUN|MONITOR>
+- RELATED_GOVERNANCE_ITEMS:
+  - <RGF-... or NONE>
+- REGRESSION_HOOKS:
+  - <test, command, audit probe, or runtime evidence path>
+- Evidence:
+  - <receipt, code, runtime, git, or timeline evidence>
+- What went wrong:
+  - <concise failure description>
+- Impact:
+  - <what it blocked, slowed, or made ambiguous>
+- Mechanical fix direction:
+  - <gate, helper, template, projection, or lifecycle fix>
 
 ### 5.2 <repeat as needed>
 
@@ -164,13 +168,27 @@ Assessment:
 - <broker, queue, session-control, topology, or closeout issues>
 - <whether runtime truth was clean or repaired>
 
-## 9. Governance Implications
+## 9. Governance Linkage and Board Mapping
 
-- <policy ambiguity, split truth, missing hard gates, record drift, or confirmed follow-on items>
+- BOARD_LINKS:
+  - <FINDING_ID -> RGF-... | NONE>
+- CHANGESET_LINKS:
+  - <FINDING_ID -> GOV-CHANGE-... | NONE>
+- POLICY_OR_TEMPLATE_FOLLOWUPS:
+  - <template/check/protocol/helper drift exposed by this review>
 
-## 10. Positive Signals Worth Preserving
+## 10. Positive Controls Worth Preserving
 
-- <specific workflow or product behaviors that should remain the baseline>
+### 10.1 <short positive control title>
+
+- CONTROL_ID: <SMOKE-CONTROL-YYYYMMDD-01>
+- SURFACE: <role lane / helper / packet law / runtime surface>
+- Why it mattered:
+  - <what worked and why it should remain the baseline>
+- Evidence:
+  - <test, receipt, command, code path, or audit evidence>
+
+### 10.2 <repeat as needed>
 
 ## 11. Remaining Product or Spec Debt
 

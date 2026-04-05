@@ -17,6 +17,7 @@ import {
   parsePacketScopeList,
   parsePacketSingleField,
 } from "./scope-surface-lib.mjs";
+import { validatorReportProfileUsesHeuristicRigor } from "./validator-report-profile-lib.mjs";
 
 export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
 export const COMMUNICATION_MONITOR_STATE_VALUES = [
@@ -42,10 +43,10 @@ export const VALIDATOR_REVIEW_OUTCOME_VALUES = [
 ];
 export const VALIDATOR_ASSESSMENT_VERDICT_VALUES = ["ASSESSED", "FAIL", "PASS"];
 export const MAX_OVERLAP_MICROTASK_REVIEW_ITEMS = 2;
-const INTENT_CHECKPOINT_CLEARANCE_RECEIPT_KIND_VALUES = new Set(["VALIDATOR_RESPONSE", "SPEC_CONFIRMATION"]);
-const CONTRACT_HEAVY_GOVERNED_VALIDATOR_REPORT_PROFILE_VALUES = new Set([
-  "SPLIT_DIFF_SCOPED_RIGOR_V2",
-  "SPLIT_DIFF_SCOPED_RIGOR_V3",
+const INTENT_CHECKPOINT_CLEARANCE_RECEIPT_KIND_VALUES = new Set([
+  "VALIDATOR_RESPONSE",
+  "SPEC_CONFIRMATION",
+  "VALIDATOR_REVIEW",
 ]);
 const CONTRACT_HEAVY_CODER_HANDOFF_RIGOR_PROFILE_VALUES = new Set(["RUBRIC_SELF_AUDIT_V2"]);
 const CONTRACT_HEAVY_CLAUSE_MONITOR_PROFILE_VALUES = new Set(["CLAUSE_MONITOR_V1"]);
@@ -222,12 +223,12 @@ function explicitSummaryAssessmentVerdict(summary) {
 }
 
 function packetIsContractHeavy(packetContent = "") {
-  const reportProfile = normalizeRole(parsePacketSingleField(packetContent, "GOVERNED_VALIDATOR_REPORT_PROFILE"));
+  const reportProfile = parsePacketSingleField(packetContent, "GOVERNED_VALIDATOR_REPORT_PROFILE");
   const handoffProfile = normalizeRole(parsePacketSingleField(packetContent, "CODER_HANDOFF_RIGOR_PROFILE"));
   const clauseMonitorProfile = normalizeRole(parsePacketSingleField(packetContent, "CLAUSE_CLOSURE_MONITOR_PROFILE"));
   const semanticProofProfile = normalizeRole(parsePacketSingleField(packetContent, "SEMANTIC_PROOF_PROFILE"));
 
-  return CONTRACT_HEAVY_GOVERNED_VALIDATOR_REPORT_PROFILE_VALUES.has(reportProfile)
+  return validatorReportProfileUsesHeuristicRigor(reportProfile)
     || CONTRACT_HEAVY_CODER_HANDOFF_RIGOR_PROFILE_VALUES.has(handoffProfile)
     || CONTRACT_HEAVY_CLAUSE_MONITOR_PROFILE_VALUES.has(clauseMonitorProfile)
     || CONTRACT_HEAVY_SEMANTIC_PROOF_PROFILE_VALUES.has(semanticProofProfile)

@@ -6,6 +6,10 @@ import {
 } from "../session/session-policy.mjs";
 import { validateClauseReportConsistency, validatePacketClosureMonitoring } from "./packet-closure-monitor-lib.mjs";
 import { validateSemanticProofAssets } from "./semantic-proof-lib.mjs";
+import {
+  validatorReportProfileRequiresPrimitiveAudit,
+  validatorReportProfileRequiresRiskAudit,
+} from "./validator-report-profile-lib.mjs";
 
 export const COMPUTED_POLICY_OUTCOMES = ["PASS", "FAIL", "REVIEW_REQUIRED", "WAIVED", "BLOCKED"];
 export const POLICY_WAIVER_STATUS_VALUES = ["ACTIVE", "EXPIRED", "REVOKED", "CLOSED"];
@@ -101,6 +105,29 @@ function normalizeNoneFiltered(items) {
 
 function hasOnlyNoneList(items) {
   return items.length === 1 && String(items[0] || "").trim().toUpperCase() === "NONE";
+}
+
+function riskTierRank(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "LOW") return 1;
+  if (normalized === "MEDIUM") return 2;
+  if (normalized === "HIGH") return 3;
+  return 0;
+}
+
+function lacksConcreteListEvidence(items = []) {
+  return items.some((item) => !/^NONE$/i.test(String(item || "").trim()) && !hasConcreteCodeReference(item));
+}
+
+function hasConcreteCodeReference(value) {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  return (
+    /`[^`]+`/.test(text) ||
+    /\b[\w./-]+\.(?:rs|ts|tsx|js|jsx|mjs|cjs|py|go|java|cs|cpp|c|h|hpp|json|ya?ml|toml|sql)(?::\d+)?\b/i.test(text) ||
+    /\b[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*\b/.test(text) ||
+    /\b[A-Za-z_][A-Za-z0-9_]*\([^)]*\)/.test(text)
+  );
 }
 
 function parsePipeRecord(item) {
@@ -215,6 +242,10 @@ function parseValidationReport(packetText) {
     residualUncertainty: normalizeNoneFiltered(extractListItemsAfterLabel(section, "RESIDUAL_UNCERTAINTY")),
     specClauseMap: normalizeNoneFiltered(extractListItemsAfterLabel(section, "SPEC_CLAUSE_MAP")),
     negativeProof: normalizeNoneFiltered(extractListItemsAfterLabel(section, "NEGATIVE_PROOF")),
+    primitiveRetentionProof: normalizeNoneFiltered(extractListItemsAfterLabel(section, "PRIMITIVE_RETENTION_PROOF")),
+    primitiveRetentionGaps: normalizeNoneFiltered(extractListItemsAfterLabel(section, "PRIMITIVE_RETENTION_GAPS")),
+    sharedSurfaceInteractionChecks: normalizeNoneFiltered(extractListItemsAfterLabel(section, "SHARED_SURFACE_INTERACTION_CHECKS")),
+    currentMainInteractionChecks: normalizeNoneFiltered(extractListItemsAfterLabel(section, "CURRENT_MAIN_INTERACTION_CHECKS")),
   };
 }
 
@@ -313,11 +344,17 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
   requireClosedStatus = true,
 } = {}) {
   const packetFormatVersion = parseSingleField(packetText, "PACKET_FORMAT_VERSION");
+  const packetRiskTier = parseSingleField(packetText, "RISK_TIER").toUpperCase();
+  const validatorReportProfile = parseSingleField(packetText, "GOVERNED_VALIDATOR_REPORT_PROFILE");
+  const sharedSurfaceRisk = parseSingleField(packetText, "SHARED_SURFACE_RISK").toUpperCase();
+  const currentMainCompatibilityStatus = parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS").toUpperCase();
   const status = parseStatus(packetText);
   const report = parseValidationReport(packetText);
   const waiverLedger = parsePolicyWaiverLedger(packetText);
   const usesStructuredReport = packetUsesStructuredValidationReport(packetFormatVersion);
   const requiresCompletionLayer = packetRequiresCompletionLayerVerdicts(packetFormatVersion);
+  const requiresRiskAudit = validatorReportProfileRequiresRiskAudit(validatorReportProfile);
+  const requiresPrimitiveAudit = validatorReportProfileRequiresPrimitiveAudit(validatorReportProfile);
   const closedStatus = isClosedStatus(status);
   const folderPacket = /\/packet\.md$/i.test(String(packetPath || "").trim());
   const applicable = usesStructuredReport && requiresCompletionLayer && (!requireClosedStatus || closedStatus);
@@ -549,6 +586,107 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
     issues.push(issue("SPEC_CLAUSE_MAP_MISSING", "BLOCKED", "SPEC_CLAUSE_MAP missing for packet format that requires it", {
       source: "REPORT",
     }));
+  }
+
+  if (requiresPrimitiveAudit) {
+    if (report.primitiveRetentionProof.length === 0) {
+      issues.push(issue("PRIMITIVE_RETENTION_PROOF_MISSING", "BLOCKED", "PRIMITIVE_RETENTION_PROOF missing for V4 validator report", {
+        coverage: "SPEC",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (report.primitiveRetentionGaps.length === 0 && !/PRIMITIVE_RETENTION_GAPS\s*:/i.test(report.raw)) {
+      issues.push(issue("PRIMITIVE_RETENTION_GAPS_MISSING", "BLOCKED", "PRIMITIVE_RETENTION_GAPS missing for V4 validator report", {
+        coverage: "SPEC",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (report.sharedSurfaceInteractionChecks.length === 0 && !/SHARED_SURFACE_INTERACTION_CHECKS\s*:/i.test(report.raw)) {
+      issues.push(issue("SHARED_SURFACE_INTERACTION_CHECKS_MISSING", "BLOCKED", "SHARED_SURFACE_INTERACTION_CHECKS missing for V4 validator report", {
+        coverage: "PROTECTED_SURFACE",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (report.currentMainInteractionChecks.length === 0 && !/CURRENT_MAIN_INTERACTION_CHECKS\s*:/i.test(report.raw)) {
+      issues.push(issue("CURRENT_MAIN_INTERACTION_CHECKS_MISSING", "BLOCKED", "CURRENT_MAIN_INTERACTION_CHECKS missing for V4 validator report", {
+        coverage: "INTEGRATION",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (report.specAlignmentVerdict === "PASS" && report.primitiveRetentionGaps.length > 0) {
+      issues.push(issue("PRIMITIVE_RETENTION_GAPS_OPEN", "FAIL", "SPEC_ALIGNMENT_VERDICT=PASS conflicts with non-empty PRIMITIVE_RETENTION_GAPS", {
+        coverage: "SPEC",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (report.verdict === "PASS" && report.primitiveRetentionGaps.length > 0) {
+      issues.push(issue("PASS_PRIMITIVE_RETENTION_GAPS_OPEN", "FAIL", "Verdict=PASS conflicts with non-empty PRIMITIVE_RETENTION_GAPS", {
+        coverage: "SPEC",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (lacksConcreteListEvidence(report.primitiveRetentionProof)) {
+      issues.push(issue("PRIMITIVE_RETENTION_PROOF_NON_CONCRETE", "FAIL", "PRIMITIVE_RETENTION_PROOF must cite concrete code or symbol evidence", {
+        coverage: "SPEC",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (lacksConcreteListEvidence(report.sharedSurfaceInteractionChecks)) {
+      issues.push(issue("SHARED_SURFACE_INTERACTION_NON_CONCRETE", "FAIL", "SHARED_SURFACE_INTERACTION_CHECKS must cite concrete code or symbol evidence", {
+        coverage: "PROTECTED_SURFACE",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (lacksConcreteListEvidence(report.currentMainInteractionChecks)) {
+      issues.push(issue("CURRENT_MAIN_INTERACTION_NON_CONCRETE", "FAIL", "CURRENT_MAIN_INTERACTION_CHECKS must cite concrete code or symbol evidence", {
+        coverage: "INTEGRATION",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (riskTierRank(packetRiskTier) >= riskTierRank("MEDIUM") && report.primitiveRetentionProof.length === 0) {
+      issues.push(issue("PRIMITIVE_RETENTION_AUDIT_MISSING", "FAIL", `Packet RISK_TIER=${packetRiskTier} requires explicit PRIMITIVE_RETENTION_PROOF`, {
+        coverage: "SPEC",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (riskTierRank(packetRiskTier) >= riskTierRank("MEDIUM") && report.sharedSurfaceInteractionChecks.length === 0) {
+      issues.push(issue("SHARED_SURFACE_INTERACTION_AUDIT_MISSING", "FAIL", `Packet RISK_TIER=${packetRiskTier} requires explicit SHARED_SURFACE_INTERACTION_CHECKS`, {
+        coverage: "PROTECTED_SURFACE",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (riskTierRank(packetRiskTier) >= riskTierRank("MEDIUM") && report.currentMainInteractionChecks.length === 0) {
+      issues.push(issue("CURRENT_MAIN_INTERACTION_AUDIT_MISSING", "FAIL", `Packet RISK_TIER=${packetRiskTier} requires explicit CURRENT_MAIN_INTERACTION_CHECKS`, {
+        coverage: "INTEGRATION",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (sharedSurfaceRisk === "YES" && report.sharedSurfaceInteractionChecks.length === 0) {
+      issues.push(issue("SHARED_SURFACE_INTERACTION_REQUIRED", "FAIL", "SHARED_SURFACE_RISK=YES requires explicit SHARED_SURFACE_INTERACTION_CHECKS", {
+        coverage: "PROTECTED_SURFACE",
+        waivable: true,
+        source: "REPORT",
+      }));
+    }
+    if (currentMainCompatibilityStatus === "PASS" && report.currentMainInteractionChecks.length === 0) {
+      issues.push(issue("CURRENT_MAIN_INTERACTION_REQUIRED", "FAIL", "CURRENT_MAIN_COMPATIBILITY_STATUS=PASS requires explicit CURRENT_MAIN_INTERACTION_CHECKS", {
+        coverage: "INTEGRATION",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
   }
 
   const protectedSurfaceState = classifyProtectedSurfaceState(clauseClosure.parsed, report);

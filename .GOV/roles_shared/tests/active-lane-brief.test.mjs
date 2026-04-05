@@ -90,6 +90,9 @@ function createFixture({ terminal = false } = {}) {
       main_containment_verified_at_utc: null,
       runtime_status: "working",
       current_phase: "IMPLEMENTATION",
+      current_task_board_status: "IN_PROGRESS",
+      current_milestone: "MICROTASK",
+      last_milestone_sync_at: "2099-01-01T10:00:00Z",
       next_expected_actor: "CODER",
       next_expected_session: "coder-1",
       waiting_on: "CODER_INTENT",
@@ -208,6 +211,8 @@ test("active-lane-brief reports compact authority and relay summary", () => {
   assert.match(brief.authority, /\.GOV\/codex\/Handshake_Codex_v1\.4\.md/);
   assert.equal(brief.notifications.pending_count, 1);
   assert.equal(brief.runtime.next_expected_actor, "CODER");
+  assert.equal(brief.runtime.milestone, "MICROTASK");
+  assert.equal(brief.runtime.task_board_status, "IN_PROGRESS");
   assert.equal(brief.relay.status, "NORMAL");
   assert.match(brief.relay.summary, /Relay is healthy/i);
   assert.equal(brief.microtasks.declared_count, 1);

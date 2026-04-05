@@ -735,7 +735,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - `MAIN_BODY_GAPS:` with `- NONE` only when no unresolved main-body requirement remains
   - `QUALITY_RISKS:` with `- NONE` only when no material maintainability or heuristic-quality concern remains
 - `HEURISTIC_REVIEW_VERDICT=PASS` is legal only when `QUALITY_RISKS` is exactly `- NONE`.
-- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`, also append:
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3|SPLIT_DIFF_SCOPED_RIGOR_V4`, also append:
   - `MAIN_BODY_GAPS:` with `- NONE` only when no unresolved main-body requirement remains
   - `QUALITY_RISKS:` with `- NONE` only when no material maintainability or heuristic-quality concern remains
   - `VALIDATOR_RISK_TIER: LOW | MEDIUM | HIGH`
@@ -746,9 +746,14 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - `NEGATIVE_PATH_CHECKS:` for invalid, missing, adversarial, or failure-path checks
   - `INDEPENDENT_FINDINGS:` with deliberate independent findings or baseline-confirmation notes
   - `RESIDUAL_UNCERTAINTY:` with explicit remaining uncertainty; `- NONE` is illegal for `VALIDATOR_RISK_TIER=HIGH`
-- For `PACKET_FORMAT_VERSION >= 2026-04-01`, `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3` also appends:
+- For `PACKET_FORMAT_VERSION >= 2026-04-01`, `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3|SPLIT_DIFF_SCOPED_RIGOR_V4` also appends:
   - `ANTI_VIBE_FINDINGS:` with `- NONE` only when the implementation is substantively grounded, not easy-surface or vibe-coded, and no shallow review concern remains inside signed scope
   - `SIGNED_SCOPE_DEBT:` with `- NONE` only when no signed-scope debt, cleanup IOU, or "fix later" residue was accepted
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, also append:
+  - `PRIMITIVE_RETENTION_PROOF:` with concrete file:line or symbol evidence proving touched primitives remain present and callable after the change
+  - `PRIMITIVE_RETENTION_GAPS:` with `- NONE` only when no primitive-retention gap remains inside signed scope
+  - `SHARED_SURFACE_INTERACTION_CHECKS:` with concrete producer/consumer, registry, type, runtime, or contract interaction evidence across shared surfaces
+  - `CURRENT_MAIN_INTERACTION_CHECKS:` with concrete current-`main` caller/consumer compatibility evidence against the packet diff
 - When `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, also append:
   - `DATA_CONTRACT_PROOF:` with concrete code, query, schema, or emitted-artifact evidence showing the packet was reviewed for SQL portability, LLM-first readability/parseability, and Loom-intertwined requirements
   - `DATA_CONTRACT_GAPS:` with `- NONE` only when no gap remains in those data-contract obligations inside signed scope
@@ -757,6 +762,9 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - `HEURISTIC_REVIEW_VERDICT=PASS` is legal only when `QUALITY_RISKS` is exactly `- NONE`.
 - For `PACKET_FORMAT_VERSION >= 2026-04-01`, `HEURISTIC_REVIEW_VERDICT=PASS` is legal only when `ANTI_VIBE_FINDINGS` and `SIGNED_SCOPE_DEBT` are also exactly `- NONE`.
 - For `PACKET_FORMAT_VERSION >= 2026-04-01`, `LEGAL_VERDICT=PASS` is legal only when `ANTI_VIBE_FINDINGS` and `SIGNED_SCOPE_DEBT` are both exactly `- NONE`.
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, `SPEC_ALIGNMENT_VERDICT=PASS` and `Verdict: PASS` are legal only when `PRIMITIVE_RETENTION_GAPS` is exactly `- NONE`.
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, `LEGAL_VERDICT=PASS` is legal only when `PRIMITIVE_RETENTION_PROOF`, `SHARED_SURFACE_INTERACTION_CHECKS`, and `CURRENT_MAIN_INTERACTION_CHECKS` all contain concrete code or symbol evidence.
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, `RISK_TIER=MEDIUM|HIGH` requires non-empty `PRIMITIVE_RETENTION_PROOF`, `SHARED_SURFACE_INTERACTION_CHECKS`, and `CURRENT_MAIN_INTERACTION_CHECKS`.
 - When `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, `SPEC_ALIGNMENT_VERDICT=PASS` is legal only when `DATA_CONTRACT_GAPS` is exactly `- NONE`.
 - When `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, `LEGAL_VERDICT=PASS` is legal only when `DATA_CONTRACT_PROOF` is present and `DATA_CONTRACT_GAPS` is exactly `- NONE`.
 - `Verdict: PASS` is legal only when `VALIDATION_CONTEXT=OK`, `WORKFLOW_VALIDITY=VALID`, `SCOPE_VALIDITY=IN_SCOPE`, `PROOF_COMPLETENESS=PROVEN`, `INTEGRATION_READINESS=READY`, `DOMAIN_GOAL_COMPLETION=COMPLETE`, and `LEGAL_VERDICT=PASS`.

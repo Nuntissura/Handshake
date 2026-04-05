@@ -1030,3 +1030,69 @@
   - `RGF-72`
   - `RGF-73`
 - OUTCOME: orchestrator-managed relay no longer requires a separate start turn and later steer turn for the same routine wakeup, governed prompts now carry typed route payloads instead of generic resume prose, `wp-timeline` computes control-command and review-exchange spans on top of the merged event stream, manual relay remains structured and first-class, continuation waivers are honored mechanically, and the compact role resume surfaces now expose declared active/next microtasks so coder and validator work can continue at MT granularity instead of broad WP guesswork
+
+### 2026.04.05.02 / GOV-CHANGE-20260405-02
+
+- STATUS: APPLIED
+- SUMMARY: completed Wave 2 authority and validator hardening (`RGF-68` through `RGF-70`) by projecting milestone/task-board truth from shared helpers and upgrading validator law to `SPLIT_DIFF_SCOPED_RIGOR_V4`
+- CHANGE_TYPE: AUTHORITY_REDUCTION_AND_VALIDATOR_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-68`
+  - `RGF-69`
+  - `RGF-70`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-05`
+  - `SMOKE-FIND-20260404-06`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-authority-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-review-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/validator-report-profile-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/computed-policy-gate-lib.mjs`
+  - `.GOV/roles_shared/checks/session-policy-check.mjs`
+  - `.GOV/roles/validator/checks/validator-packet-complete.mjs`
+  - `.GOV/roles/validator/checks/validator-report-structure-check.mjs`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/templates/WP_RUNTIME_STATUS_TEMPLATE.json`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-review-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/ensure-wp-communications.test.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs`
+  - `.GOV/roles/validator/tests/validator-report-structure-check.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-71`
+  - `RGF-72`
+  - `RGF-74`
+  - `RGF-75`
+- OUTCOME: runtime and review projections now stamp derived milestone and task-board truth from one authority layer instead of scattered status mappers, contract-heavy direct-review lanes no longer stay pinned to stale bootstrap checkpoints once later validator proof exists, and new packets now default to `SPLIT_DIFF_SCOPED_RIGOR_V4`, forcing explicit primitive-retention, shared-surface, and current-main interaction evidence for stronger medium/high-risk closure audits
+
+### 2026.04.05.03 / GOV-CHANGE-20260405-03
+
+- STATUS: APPLIED
+- SUMMARY: completed Wave 2 smoketest ledger hardening (`RGF-73`) by converting smoke reviews from narrative-only postmortems into stable finding and positive-control ledgers linked back to board items
+- CHANGE_TYPE: RECORDKEEPING_AND_POSTMORTEM_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-73`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-07`
+- SURFACES:
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/Audits/smoketest/AUDIT_20260404_PARALLEL_WP_ACP_STEERING_RECOVERY_REVIEW.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-71`
+  - `RGF-72`
+  - `RGF-74`
+  - `RGF-75`
+- OUTCOME: smoketest reviews now have stable `SMOKE-FIND-*` and `SMOKE-CONTROL-*` surfaces, board items can cite exact smoke findings instead of only whole audit documents, and the recovery audit now records both failure linkage and positive controls in a mechanically traceable format

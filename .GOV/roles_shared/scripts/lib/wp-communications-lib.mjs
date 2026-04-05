@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { EXECUTION_OWNER_VALUES } from "../session/session-policy.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "./merge-progression-truth-lib.mjs";
+import { RUNTIME_MILESTONE_VALUES, TASK_BOARD_STATUS_VALUES } from "./wp-authority-projection-lib.mjs";
 import {
   GOV_ROOT_REPO_REL,
   LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT,
@@ -363,6 +364,9 @@ export function validateRuntimeStatus(data) {
     "next_expected_session",
     "waiting_on_session",
     "open_review_items",
+    "current_task_board_status",
+    "current_milestone",
+    "last_milestone_sync_at",
     "main_containment_status",
     "merged_main_commit",
     "main_containment_verified_at_utc",
@@ -457,6 +461,19 @@ export function validateRuntimeStatus(data) {
   if (!RUNTIME_STATUS_VALUES.includes(data.runtime_status)) errors.push(`runtime_status invalid (${data.runtime_status})`);
   if (!isNonEmptyString(data.current_phase) || !/^[A-Z][A-Z0-9_]*$/.test(data.current_phase)) {
     errors.push(`current_phase invalid (${data.current_phase})`);
+  }
+  if ("current_task_board_status" in data) {
+    if (!(data.current_task_board_status === null || TASK_BOARD_STATUS_VALUES.includes(data.current_task_board_status))) {
+      errors.push(`current_task_board_status invalid (${data.current_task_board_status})`);
+    }
+  }
+  if ("current_milestone" in data) {
+    if (!(data.current_milestone === null || RUNTIME_MILESTONE_VALUES.includes(data.current_milestone))) {
+      errors.push(`current_milestone invalid (${data.current_milestone})`);
+    }
+  }
+  if ("last_milestone_sync_at" in data && !isNullableRfc3339Utc(data.last_milestone_sync_at)) {
+    errors.push(`last_milestone_sync_at invalid (${data.last_milestone_sync_at})`);
   }
   if (!NEXT_ACTOR_VALUES.includes(data.next_expected_actor)) {
     errors.push(`next_expected_actor invalid (${data.next_expected_actor})`);

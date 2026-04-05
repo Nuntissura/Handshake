@@ -1,4 +1,10 @@
 import { parseSignedScopeCompatibilityTruth } from "./signed-scope-compatibility-lib.mjs";
+import {
+  derivePacketMilestone,
+  parsePacketStatus,
+  taskBoardStatusForPacketStatus,
+  runtimePhaseForMilestone,
+} from "./wp-authority-projection-lib.mjs";
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -12,13 +18,7 @@ function normalizeDeclaredSessionValue(value) {
   return raw;
 }
 
-export function parsePacketStatus(packetText) {
-  return (
-    (String(packetText || "").match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
-    || (String(packetText || "").match(/^\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
-    || ""
-  ).trim() || "Ready for Dev";
-}
+export { parsePacketStatus } from "./wp-authority-projection-lib.mjs";
 
 function normalizeNoneLike(value) {
   const raw = String(value || "").trim();
@@ -28,8 +28,10 @@ function normalizeNoneLike(value) {
 
 export function parseRuntimeProjectionFromPacket(packetText) {
   const compatibility = parseSignedScopeCompatibilityTruth(packetText);
+  const currentPacketStatus = parsePacketStatus(packetText);
   return {
-    current_packet_status: parsePacketStatus(packetText),
+    current_packet_status: currentPacketStatus,
+    current_task_board_status: taskBoardStatusForPacketStatus(currentPacketStatus),
     wp_validator_of_record: normalizeDeclaredSessionValue(parseSingleField(packetText, "WP_VALIDATOR_OF_RECORD")),
     integration_validator_of_record: normalizeDeclaredSessionValue(parseSingleField(packetText, "INTEGRATION_VALIDATOR_OF_RECORD")),
     main_containment_status: normalizeNoneLike(parseSingleField(packetText, "MAIN_CONTAINMENT_STATUS")),
@@ -90,7 +92,15 @@ export function syncRuntimeProjectionFromPacket(runtimeStatus, packetText, {
 } = {}) {
   const projection = parseRuntimeProjectionFromPacket(packetText);
   const nextRuntime = deriveRuntimeCloseoutState(projection, runtimeStatus || {});
+  const currentMilestone = derivePacketMilestone({
+    packetStatus: projection.current_packet_status,
+    currentMilestone: runtimeStatus?.current_milestone,
+  });
   nextRuntime.current_packet_status = projection.current_packet_status;
+  nextRuntime.current_task_board_status = projection.current_task_board_status;
+  nextRuntime.current_milestone = currentMilestone;
+  nextRuntime.current_phase = runtimePhaseForMilestone(currentMilestone, nextRuntime.current_phase || "BOOTSTRAP");
+  nextRuntime.last_milestone_sync_at = eventAt;
   nextRuntime.wp_validator_of_record = projection.wp_validator_of_record;
   nextRuntime.integration_validator_of_record = projection.integration_validator_of_record;
   nextRuntime.main_containment_status = projection.main_containment_status;
@@ -124,6 +134,15 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
   }
 
   if (
+    projection.current_task_board_status
+    && String(runtimeStatus?.current_task_board_status || "").trim().toUpperCase() !== String(projection.current_task_board_status || "").trim().toUpperCase()
+  ) {
+    issues.push(
+      `runtime.current_task_board_status (${runtimeStatus?.current_task_board_status || "<missing>"}) does not match packet/task-board projection (${projection.current_task_board_status})`,
+    );
+  }
+
+  if (
     projection.main_containment_status
     && String(runtimeStatus?.main_containment_status || "").trim().toUpperCase() !== String(projection.main_containment_status || "").trim().toUpperCase()
   ) {
@@ -148,6 +167,9 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
   ) {
     if (runtimePhase === "BOOTSTRAP") {
       issues.push("runtime.current_phase is still BOOTSTRAP even though direct review is already complete");
+    }
+    if (String(runtimeStatus?.current_milestone || "").trim().toUpperCase() !== "VERDICT") {
+      issues.push(`runtime.current_milestone (${runtimeStatus?.current_milestone || "<missing>"}) should be VERDICT once the direct-review lane is complete`);
     }
     if (String(projection.current_main_compatibility_status || "").trim().toUpperCase() === "NOT_RUN") {
       issues.push("packet still reports CURRENT_MAIN_COMPATIBILITY_STATUS=NOT_RUN even though the final direct-review lane is complete");

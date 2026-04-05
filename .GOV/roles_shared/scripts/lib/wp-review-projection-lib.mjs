@@ -1,17 +1,11 @@
 import { parsePacketStatus } from "./packet-runtime-projection-lib.mjs";
-
-const TERMINAL_PACKET_STATUS_VALUES = new Set([
-  "Done",
-  "Validated (PASS)",
-  "Validated (FAIL)",
-  "Validated (OUTDATED_ONLY)",
-  "Validated (ABANDONED)",
-]);
-const PRE_CLAIM_COMMUNICATION_STATE_VALUES = new Set([
-  "COMM_MISSING_KICKOFF",
-  "COMM_WAITING_FOR_INTENT",
-  "COMM_WAITING_FOR_INTENT_CHECKPOINT",
-]);
+import {
+  derivePacketMilestone,
+  isTerminalPacketStatus,
+  packetStatusForCommunicationState,
+  runtimePhaseForMilestone,
+  taskBoardStatusForPacketStatus,
+} from "./wp-authority-projection-lib.mjs";
 
 function replaceCurrentStateField(text, label, value) {
   const re = new RegExp(`^(\\s*${label}\\s*:\\s*)(.+)\\s*$`, "mi");
@@ -29,46 +23,8 @@ function replacePacketStatusField(text, value) {
   return String(text || "").replace(re, `$1${value}`);
 }
 
-function isTerminalPacketStatus(status) {
-  return TERMINAL_PACKET_STATUS_VALUES.has(String(status || "").trim());
-}
-
 function normalizeState(value) {
   return String(value || "").trim().toUpperCase();
-}
-
-function packetStatusForCommunicationState(evaluationState, currentPacketStatus) {
-  if (isTerminalPacketStatus(currentPacketStatus)) return null;
-  const normalizedState = normalizeState(evaluationState);
-  switch (normalizedState) {
-    case "COMM_MISCONFIGURED":
-    case "COMM_WORKFLOW_INVALID":
-      return "Blocked";
-    case "COMM_NA":
-      return null;
-    default:
-      break;
-  }
-
-  if (
-    String(currentPacketStatus || "").trim() === "Ready for Dev"
-    && PRE_CLAIM_COMMUNICATION_STATE_VALUES.has(normalizedState)
-  ) {
-    return null;
-  }
-
-  return "In Progress";
-}
-
-function taskBoardStatusForPacketStatus(packetStatus) {
-  switch (String(packetStatus || "").trim()) {
-    case "In Progress":
-      return "IN_PROGRESS";
-    case "Blocked":
-      return "BLOCKED";
-    default:
-      return null;
-  }
 }
 
 function currentStateForEvaluation(evaluationState, autoRoute = {}, evaluation = {}) {
@@ -227,6 +183,16 @@ export function applyWpReviewRuntimeProjection(runtimeStatus, {
     default:
       break;
   }
+
+  const milestone = derivePacketMilestone({
+    packetStatus: nextRuntime.current_packet_status,
+    communicationState: evaluation.state,
+    currentMilestone: nextRuntime.current_milestone,
+  });
+  nextRuntime.current_task_board_status = taskBoardStatusForPacketStatus(nextRuntime.current_packet_status);
+  nextRuntime.current_milestone = milestone;
+  nextRuntime.current_phase = runtimePhaseForMilestone(milestone, nextRuntime.current_phase || "BOOTSTRAP");
+  nextRuntime.last_milestone_sync_at = nextRuntime.last_event_at || nextRuntime.last_milestone_sync_at || new Date().toISOString();
 
   return nextRuntime;
 }

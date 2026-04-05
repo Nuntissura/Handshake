@@ -207,6 +207,8 @@ export function buildActiveLaneBrief({
     runtime: {
       status: normalize(runtimeStatus.runtime_status),
       phase: normalize(runtimeStatus.current_phase),
+      milestone: normalize(runtimeStatus.current_milestone),
+      task_board_status: normalize(runtimeStatus.current_task_board_status),
       next_expected_actor: normalize(runtimeStatus.next_expected_actor),
       next_expected_session: normalize(runtimeStatus.next_expected_session),
       waiting_on: normalize(runtimeStatus.waiting_on),
@@ -263,7 +265,7 @@ export function formatActiveLaneBrief(brief) {
     `- AUTHORITY: ${brief.authority}`,
     `- PACKET: ${brief.packet_path}`,
     `- ROLE_CONTEXT: branch=${brief.role_config.branch} | worktree=${brief.role_config.worktree_dir}`,
-    `- RUNTIME: status=${brief.runtime.status} | phase=${brief.runtime.phase} | next=${brief.runtime.next_expected_actor}${brief.runtime.next_expected_session !== "<none>" ? `:${brief.runtime.next_expected_session}` : ""} | waiting_on=${brief.runtime.waiting_on}${brief.runtime.waiting_on_session !== "<none>" ? ` (${brief.runtime.waiting_on_session})` : ""}`,
+    `- RUNTIME: status=${brief.runtime.status} | phase=${brief.runtime.phase} | milestone=${brief.runtime.milestone} | board=${brief.runtime.task_board_status} | next=${brief.runtime.next_expected_actor}${brief.runtime.next_expected_session !== "<none>" ? `:${brief.runtime.next_expected_session}` : ""} | waiting_on=${brief.runtime.waiting_on}${brief.runtime.waiting_on_session !== "<none>" ? ` (${brief.runtime.waiting_on_session})` : ""}`,
     `- SESSION: key=${brief.session.session_key} | actor_session=${brief.session.actor_session} | runtime_state=${brief.session.runtime_state} | thread=${brief.session.thread_id} | last_command=${brief.session.last_command_kind}/${brief.session.last_command_status}`,
     `- NOTIFICATIONS: pending=${brief.notifications.pending_count} | by_kind=${JSON.stringify(brief.notifications.by_kind)}`,
     `- MICROTASKS: declared=${brief.microtasks.declared_count} | active=${brief.microtasks.active_microtask?.mt_id || "<none>"} | next=${brief.microtasks.suggested_next_microtask?.mt_id || "<none>"}`,

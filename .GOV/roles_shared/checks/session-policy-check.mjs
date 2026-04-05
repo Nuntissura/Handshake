@@ -44,6 +44,10 @@ import {
   SPEC_CLAUSE_MAP_MIN_VERSION,
 } from "../scripts/session/session-policy.mjs";
 import { inferWpIdFromPacketPath, listOfficialWorkPacketPaths, listStubWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import {
+  GOVERNED_VALIDATOR_REPORT_PROFILE_VALUES,
+  validatorReportProfileRequiresRiskAudit,
+} from "../scripts/lib/validator-report-profile-lib.mjs";
 
 function fail(message, details = []) {
   console.error(`[SESSION_POLICY_CHECK] ${message}`);
@@ -176,11 +180,8 @@ function checkPacket(filePath) {
   }
   if (packetUsesStructuredValidationReport(version)) {
     const reportProfile = parseSingleField(text, "GOVERNED_VALIDATOR_REPORT_PROFILE");
-    checkAllowed(errors, rel, text, "GOVERNED_VALIDATOR_REPORT_PROFILE", [
-      "SPLIT_DIFF_SCOPED_V1",
-      "SPLIT_DIFF_SCOPED_RIGOR_V3",
-    ]);
-    if (/^SPLIT_DIFF_SCOPED_RIGOR_V3$/i.test(reportProfile)) {
+    checkAllowed(errors, rel, text, "GOVERNED_VALIDATOR_REPORT_PROFILE", GOVERNED_VALIDATOR_REPORT_PROFILE_VALUES);
+    if (validatorReportProfileRequiresRiskAudit(reportProfile)) {
       checkExpected(
         errors,
         rel,

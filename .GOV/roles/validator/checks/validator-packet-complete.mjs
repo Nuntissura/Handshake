@@ -32,6 +32,12 @@ import {
   workflowInvalidityReceipts,
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { evaluateWpDeclaredTopology } from "../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
+import {
+  validatorReportProfileRequiresAntiVibe,
+  validatorReportProfileRequiresPrimitiveAudit,
+  validatorReportProfileRequiresRiskAudit,
+  validatorReportProfileUsesHeuristicRigor,
+} from "../../../roles_shared/scripts/lib/validator-report-profile-lib.mjs";
 
 const wpId = process.argv[2];
 if (!wpId) {
@@ -200,6 +206,10 @@ function hasConcreteCodeReference(value) {
   );
 }
 
+function lacksConcreteListEvidence(items = []) {
+  return items.some((item) => !/^NONE$/i.test(String(item || "").trim()) && !hasConcreteCodeReference(item));
+}
+
 const statusMatch = text.match(/(?:\*\*Status:\*\*|STATUS:)\s*(Ready for Dev|In Progress|Blocked|Done(?:\s*\(Historical\))?|Validated\s*\((?:PASS|FAIL|OUTDATED_ONLY|ABANDONED)\))(?=\s|$)/i);
 if (!statusMatch) {
   fail("STATUS missing or invalid (must be Ready for Dev / In Progress / Blocked / Done / Done (Historical) / Validated (PASS|FAIL|OUTDATED_ONLY|ABANDONED))");
@@ -235,7 +245,6 @@ const workflowInvalidityState = loadWorkflowInvalidityEntries();
 const workflowInvalidityEntries = workflowInvalidityState.history;
 const activeWorkflowInvalidity = workflowInvalidityState.active;
 const usesDataContractProfile = packetUsesDataContractProfile(packetFormatVersion);
-const enforcesAntiVibeRigor = packetFormatVersion >= "2026-04-01";
 const dataContractProfile = parseDataContractProfile(text);
 const inScopePaths = parsePacketScopeList(text, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
 const topologyEvaluation = evaluateWpDeclaredTopology({
@@ -283,10 +292,11 @@ if (packetFormatVersion) {
   const usesClauseClosureMonitor = /^CLAUSE_MONITOR_V1$/i.test(clauseClosureMonitorProfile);
   const semanticProofProfile = parseSingleField("SEMANTIC_PROOF_PROFILE");
   const usesSemanticProofProfile = /^DIFF_SCOPED_SEMANTIC_V1$/i.test(semanticProofProfile);
-  const validatorReportProfile = parseSingleField("GOVERNED_VALIDATOR_REPORT_PROFILE");
-  const usesRigorV2Report = /^SPLIT_DIFF_SCOPED_RIGOR_V2$/i.test(validatorReportProfile);
-  const usesRigorV3Report = /^SPLIT_DIFF_SCOPED_RIGOR_V3$/i.test(validatorReportProfile);
-  const usesHeuristicRigorReport = usesRigorV2Report || usesRigorV3Report;
+const validatorReportProfile = parseSingleField("GOVERNED_VALIDATOR_REPORT_PROFILE");
+  const usesHeuristicRigorReport = validatorReportProfileUsesHeuristicRigor(validatorReportProfile);
+  const usesRiskAuditReport = validatorReportProfileRequiresRiskAudit(validatorReportProfile);
+  const usesPrimitiveAuditReport = validatorReportProfileRequiresPrimitiveAudit(validatorReportProfile);
+  const usesAntiVibeRigorReport = validatorReportProfileRequiresAntiVibe(validatorReportProfile, packetFormatVersion);
   const usesCompletionLayerVerdicts = packetRequiresCompletionLayerVerdicts(packetFormatVersion);
   let computedPolicy = null;
 
@@ -381,7 +391,7 @@ if (packetFormatVersion) {
     if (usesHeuristicRigorReport) {
       requiredSingleFields.splice(4, 0, "HEURISTIC_REVIEW_VERDICT");
     }
-    if (usesRigorV3Report) {
+    if (usesRiskAuditReport) {
       requiredSingleFields.push("VALIDATOR_RISK_TIER");
     }
     if (usesCompletionLayerVerdicts) {
@@ -420,35 +430,47 @@ if (packetFormatVersion) {
     if (usesHeuristicRigorReport && !hasListItemAfterLabel(validationReports, "QUALITY_RISKS")) {
       fail("QUALITY_RISKS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
-    if (usesRigorV3Report && enforcesAntiVibeRigor && !hasListItemAfterLabel(validationReports, "ANTI_VIBE_FINDINGS")) {
+    if (usesRiskAuditReport && usesAntiVibeRigorReport && !hasListItemAfterLabel(validationReports, "ANTI_VIBE_FINDINGS")) {
       fail("ANTI_VIBE_FINDINGS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
-    if (usesRigorV3Report && enforcesAntiVibeRigor && !hasListItemAfterLabel(validationReports, "SIGNED_SCOPE_DEBT")) {
+    if (usesRiskAuditReport && usesAntiVibeRigorReport && !hasListItemAfterLabel(validationReports, "SIGNED_SCOPE_DEBT")) {
       fail("SIGNED_SCOPE_DEBT missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
-    if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "DIFF_ATTACK_SURFACES")) {
+    if (usesRiskAuditReport && !hasListItemAfterLabel(validationReports, "DIFF_ATTACK_SURFACES")) {
       fail("DIFF_ATTACK_SURFACES missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
-    if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "INDEPENDENT_CHECKS_RUN")) {
+    if (usesRiskAuditReport && !hasListItemAfterLabel(validationReports, "INDEPENDENT_CHECKS_RUN")) {
       fail("INDEPENDENT_CHECKS_RUN missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
-    if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "COUNTERFACTUAL_CHECKS")) {
+    if (usesRiskAuditReport && !hasListItemAfterLabel(validationReports, "COUNTERFACTUAL_CHECKS")) {
       fail("COUNTERFACTUAL_CHECKS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
-    if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "INDEPENDENT_FINDINGS")) {
+    if (usesRiskAuditReport && !hasListItemAfterLabel(validationReports, "INDEPENDENT_FINDINGS")) {
       fail("INDEPENDENT_FINDINGS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
-    if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "RESIDUAL_UNCERTAINTY")) {
+    if (usesRiskAuditReport && !hasListItemAfterLabel(validationReports, "RESIDUAL_UNCERTAINTY")) {
       fail("RESIDUAL_UNCERTAINTY missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
-    if (usesRigorV3Report && packetRequiresSpecClauseMap(packetFormatVersion) && !hasListItemAfterLabel(validationReports, "SPEC_CLAUSE_MAP")) {
+    if (usesRiskAuditReport && packetRequiresSpecClauseMap(packetFormatVersion) && !hasListItemAfterLabel(validationReports, "SPEC_CLAUSE_MAP")) {
       fail("SPEC_CLAUSE_MAP missing/placeholder list items in VALIDATION_REPORTS for closed packet (required for RIGOR_V3)");
     }
-    if (usesRigorV3Report && packetRequiresSpecClauseMap(packetFormatVersion)) {
+    if (usesRiskAuditReport && packetRequiresSpecClauseMap(packetFormatVersion)) {
       const negativeProofItems = extractListItemsAfterLabel(validationReports, "NEGATIVE_PROOF");
       if (negativeProofItems.length === 0 || hasOnlyNoneList(negativeProofItems)) {
         fail("NEGATIVE_PROOF must list at least one spec requirement verified as NOT fully implemented (required for RIGOR_V3)");
       }
+    }
+    if (usesPrimitiveAuditReport && !hasListItemAfterLabel(validationReports, "PRIMITIVE_RETENTION_PROOF")) {
+      fail("PRIMITIVE_RETENTION_PROOF missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
+    if (usesPrimitiveAuditReport && !hasListItemAfterLabel(validationReports, "PRIMITIVE_RETENTION_GAPS")) {
+      fail("PRIMITIVE_RETENTION_GAPS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
+    if (usesPrimitiveAuditReport && !hasListItemAfterLabel(validationReports, "SHARED_SURFACE_INTERACTION_CHECKS")) {
+      fail("SHARED_SURFACE_INTERACTION_CHECKS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
+    if (usesPrimitiveAuditReport && !hasListItemAfterLabel(validationReports, "CURRENT_MAIN_INTERACTION_CHECKS")) {
+      fail("CURRENT_MAIN_INTERACTION_CHECKS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
     if (dataContractProfile === "LLM_FIRST_DATA_V1") {
       const dataContractProofItems = extractListItemsAfterLabel(validationReports, "DATA_CONTRACT_PROOF");
@@ -497,6 +519,13 @@ if (packetFormatVersion) {
     const negativeProofItems = extractListItemsAfterLabel(validationReports, "NEGATIVE_PROOF");
     const dataContractProof = extractListItemsAfterLabel(validationReports, "DATA_CONTRACT_PROOF");
     const dataContractGaps = extractListItemsAfterLabel(validationReports, "DATA_CONTRACT_GAPS");
+    const primitiveRetentionProof = extractListItemsAfterLabel(validationReports, "PRIMITIVE_RETENTION_PROOF");
+    const primitiveRetentionGaps = extractListItemsAfterLabel(validationReports, "PRIMITIVE_RETENTION_GAPS");
+    const sharedSurfaceInteractionChecks = extractListItemsAfterLabel(validationReports, "SHARED_SURFACE_INTERACTION_CHECKS");
+    const currentMainInteractionChecks = extractListItemsAfterLabel(validationReports, "CURRENT_MAIN_INTERACTION_CHECKS");
+    const packetRiskTier = parseSingleField("RISK_TIER").toUpperCase();
+    const currentMainCompatibilityStatus = parseSingleField("CURRENT_MAIN_COMPATIBILITY_STATUS").toUpperCase();
+    const sharedSurfaceRisk = parseSingleField("SHARED_SURFACE_RISK").toUpperCase();
     const abandonedClosure = topLevelVerdict === "ABANDONED" || /^Validated\s*\(\s*ABANDONED\s*\)$/i.test(statusValue);
     if (abandonedClosure) {
       if (topLevelVerdict !== "ABANDONED") {
@@ -520,6 +549,9 @@ if (packetFormatVersion) {
     }
     if (dataContractProfile === "LLM_FIRST_DATA_V1" && specAlignmentVerdict === "PASS" && !hasOnlyNoneList(dataContractGaps)) {
       fail("SPEC_ALIGNMENT_VERDICT=PASS requires DATA_CONTRACT_GAPS to be exactly '- NONE' for active data contract packet");
+    }
+    if (usesPrimitiveAuditReport && specAlignmentVerdict === "PASS" && !hasOnlyNoneList(primitiveRetentionGaps)) {
+      fail("SPEC_ALIGNMENT_VERDICT=PASS requires PRIMITIVE_RETENTION_GAPS to be exactly '- NONE'");
     }
     if (usesCompletionLayerVerdicts) {
       const workflowValidityMatch = validationReports.match(/^\s*WORKFLOW_VALIDITY\s*:\s*(.+)\s*$/im);
@@ -579,25 +611,27 @@ if (packetFormatVersion) {
             fail(`Verdict=PASS requires NEGATIVE_PROOF to stay inside signed product scope with concrete product code evidence (${item})`);
           }
         }
-        if (usesRigorV3Report && enforcesAntiVibeRigor && !hasOnlyNoneList(antiVibeFindings)) {
+        if (usesRiskAuditReport && usesAntiVibeRigorReport && !hasOnlyNoneList(antiVibeFindings)) {
           fail("Verdict=PASS requires ANTI_VIBE_FINDINGS to be exactly '- NONE'");
         }
-        if (usesRigorV3Report && enforcesAntiVibeRigor && !hasOnlyNoneList(signedScopeDebt)) {
+        if (usesRiskAuditReport && usesAntiVibeRigorReport && !hasOnlyNoneList(signedScopeDebt)) {
           fail("Verdict=PASS requires SIGNED_SCOPE_DEBT to be exactly '- NONE'");
+        }
+        if (usesPrimitiveAuditReport && !hasOnlyNoneList(primitiveRetentionGaps)) {
+          fail("Verdict=PASS requires PRIMITIVE_RETENTION_GAPS to be exactly '- NONE'");
         }
       }
     }
     if (usesHeuristicRigorReport && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(qualityRisks)) {
       fail("HEURISTIC_REVIEW_VERDICT=PASS requires QUALITY_RISKS to be exactly '- NONE'");
     }
-    if (usesRigorV3Report && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(antiVibeFindings)) {
+    if (usesRiskAuditReport && usesAntiVibeRigorReport && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(antiVibeFindings)) {
       fail("HEURISTIC_REVIEW_VERDICT=PASS requires ANTI_VIBE_FINDINGS to be exactly '- NONE'");
     }
-    if (usesRigorV3Report && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt)) {
+    if (usesRiskAuditReport && usesAntiVibeRigorReport && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt)) {
       fail("HEURISTIC_REVIEW_VERDICT=PASS requires SIGNED_SCOPE_DEBT to be exactly '- NONE'");
     }
-    if (usesRigorV3Report) {
-      const packetRiskTier = parseSingleField("RISK_TIER").toUpperCase();
+    if (usesRiskAuditReport) {
       const validatorRiskTierMatch = validationReports.match(/^\s*VALIDATOR_RISK_TIER\s*:\s*(.+)\s*$/im);
       const validatorRiskTier = validatorRiskTierMatch ? (validatorRiskTierMatch[1] || "").trim().toUpperCase() : "";
       const validatorRiskTierRank = riskTierRank(validatorRiskTier);
@@ -630,8 +664,8 @@ if (packetFormatVersion) {
         if (attackSurfaces.length === 0) fail("LEGAL_VERDICT=PASS requires DIFF_ATTACK_SURFACES");
         if (independentChecks.length === 0) fail("LEGAL_VERDICT=PASS requires INDEPENDENT_CHECKS_RUN");
         if (counterfactualChecks.length === 0) fail("LEGAL_VERDICT=PASS requires COUNTERFACTUAL_CHECKS");
-        if (enforcesAntiVibeRigor && !hasOnlyNoneList(antiVibeFindings)) fail("LEGAL_VERDICT=PASS requires ANTI_VIBE_FINDINGS to be exactly '- NONE'");
-        if (enforcesAntiVibeRigor && !hasOnlyNoneList(signedScopeDebt)) fail("LEGAL_VERDICT=PASS requires SIGNED_SCOPE_DEBT to be exactly '- NONE'");
+        if (usesAntiVibeRigorReport && !hasOnlyNoneList(antiVibeFindings)) fail("LEGAL_VERDICT=PASS requires ANTI_VIBE_FINDINGS to be exactly '- NONE'");
+        if (usesAntiVibeRigorReport && !hasOnlyNoneList(signedScopeDebt)) fail("LEGAL_VERDICT=PASS requires SIGNED_SCOPE_DEBT to be exactly '- NONE'");
         if ((validatorRiskTier === "MEDIUM" || validatorRiskTier === "HIGH") && boundaryProbes.length === 0) {
           fail(`LEGAL_VERDICT=PASS requires BOUNDARY_PROBES for ${validatorRiskTier} risk`);
         }
@@ -662,6 +696,35 @@ if (packetFormatVersion) {
             if (!hasConcreteCodeReference(item)) {
               fail(`LEGAL_VERDICT=PASS requires DATA_CONTRACT_PROOF entries to include concrete code or query evidence (${item})`);
             }
+          }
+        }
+        if (usesPrimitiveAuditReport) {
+          if (!hasOnlyNoneList(primitiveRetentionGaps)) {
+            fail("LEGAL_VERDICT=PASS requires PRIMITIVE_RETENTION_GAPS to be exactly '- NONE'");
+          }
+          if (lacksConcreteListEvidence(primitiveRetentionProof)) {
+            fail("LEGAL_VERDICT=PASS requires PRIMITIVE_RETENTION_PROOF entries to include concrete code or symbol evidence");
+          }
+          if (lacksConcreteListEvidence(sharedSurfaceInteractionChecks)) {
+            fail("LEGAL_VERDICT=PASS requires SHARED_SURFACE_INTERACTION_CHECKS entries to include concrete code or symbol evidence");
+          }
+          if (lacksConcreteListEvidence(currentMainInteractionChecks)) {
+            fail("LEGAL_VERDICT=PASS requires CURRENT_MAIN_INTERACTION_CHECKS entries to include concrete code or symbol evidence");
+          }
+          if (packetRiskTierRank >= riskTierRank("MEDIUM") && (primitiveRetentionProof.length === 0 || hasOnlyNoneList(primitiveRetentionProof))) {
+            fail(`LEGAL_VERDICT=PASS requires non-empty PRIMITIVE_RETENTION_PROOF for packet RISK_TIER=${packetRiskTier}`);
+          }
+          if (packetRiskTierRank >= riskTierRank("MEDIUM") && (sharedSurfaceInteractionChecks.length === 0 || hasOnlyNoneList(sharedSurfaceInteractionChecks))) {
+            fail(`LEGAL_VERDICT=PASS requires non-empty SHARED_SURFACE_INTERACTION_CHECKS for packet RISK_TIER=${packetRiskTier}`);
+          }
+          if (packetRiskTierRank >= riskTierRank("MEDIUM") && (currentMainInteractionChecks.length === 0 || hasOnlyNoneList(currentMainInteractionChecks))) {
+            fail(`LEGAL_VERDICT=PASS requires non-empty CURRENT_MAIN_INTERACTION_CHECKS for packet RISK_TIER=${packetRiskTier}`);
+          }
+          if (sharedSurfaceRisk === "YES" && (sharedSurfaceInteractionChecks.length === 0 || hasOnlyNoneList(sharedSurfaceInteractionChecks))) {
+            fail("LEGAL_VERDICT=PASS requires non-empty SHARED_SURFACE_INTERACTION_CHECKS when SHARED_SURFACE_RISK=YES");
+          }
+          if (currentMainCompatibilityStatus === "PASS" && (currentMainInteractionChecks.length === 0 || hasOnlyNoneList(currentMainInteractionChecks))) {
+            fail("LEGAL_VERDICT=PASS requires non-empty CURRENT_MAIN_INTERACTION_CHECKS when CURRENT_MAIN_COMPATIBILITY_STATUS=PASS");
           }
         }
       }
