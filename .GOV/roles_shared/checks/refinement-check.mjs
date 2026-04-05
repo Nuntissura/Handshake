@@ -850,9 +850,10 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     }
   }
 
-  requiredSections.forEach((h) => {
-    if (!hasHeading(content, h)) errors.push(`Missing required section heading: ${h}`);
-  });
+  const missingSections = requiredSections.filter((h) => !hasHeading(content, h));
+  if (missingSections.length > 0) {
+    errors.push(`Missing ${missingSections.length} required section heading(s): ${missingSections.join(', ')}. All required sections for this profile: ${requiredSections.join(', ')}`);
+  }
 
   const lines = content.split('\n');
 
@@ -1049,7 +1050,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
         if (!githubProjectMatches.found || githubProjectMatches.rows.length === 0) {
           errors.push('GITHUB_PROJECT_SCOUTING MATCHED_PROJECTS must include at least one concrete GitHub project when RESEARCH_CURRENCY_REQUIRED=YES');
         } else if (githubProjectMatches.rows.length !== githubProjectMatches.rawItems.length) {
-          errors.push('GITHUB_PROJECT_SCOUTING MATCHED_PROJECTS contains malformed entries; each item must match the required Source|Repo|URL|Intent|Decision|Impact|Stub|Notes format');
+          errors.push('GITHUB_PROJECT_SCOUTING MATCHED_PROJECTS contains malformed entries; each item must match: Source: <name> | Repo: <owner/repo> | URL: https://github.com/<owner/repo> | Intent: SAME|ADJACENT|IMPLEMENTATION|UI_PATTERN|ARCH_PATTERN | Decision: ADOPT|ADAPT|REJECT|TRACK_ONLY | Impact: NONE|EXPAND_SCOPE|NEW_STUB|SPEC_UPDATE_NOW|UI_ENRICHMENT | Stub: <WP-... or NONE> | Notes: <text>');
         }
         parsed.githubProjectDecisions = [];
         for (const project of githubProjectMatches.rows) {
@@ -1152,12 +1153,12 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
           if (!matrixSourceScan.found || matrixSourceScan.rows.length === 0) {
             errors.push('MATRIX_RESEARCH_RUBRIC SOURCE_SCAN must include at least one concrete row when MATRIX_RESEARCH_REQUIRED=YES');
           } else if (matrixSourceScan.rows.length !== matrixSourceScan.rawItems.length) {
-            errors.push('MATRIX_RESEARCH_RUBRIC SOURCE_SCAN contains malformed entries; each row must match the required Source|Kind|Angle|Pattern|Decision|EngineeringTrick|ROI|Resolution|Stub|Notes format');
+            errors.push('MATRIX_RESEARCH_RUBRIC SOURCE_SCAN contains malformed entries; each row must match: Source: <name> | Kind: BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC | Angle: <text> | Pattern: <text> | Decision: ADOPT|ADAPT|REJECT | EngineeringTrick: <text> | ROI: HIGH|MEDIUM|LOW | Resolution: IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|REJECT_LOW_ROI|REJECT_DUPLICATE | Stub: <WP-... or NONE> | Notes: <text>');
           }
           if (!matrixGrowthCandidates.found || matrixGrowthCandidates.rows.length === 0) {
             errors.push('MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES must include at least one concrete row when MATRIX_RESEARCH_REQUIRED=YES');
           } else if (matrixGrowthCandidates.rows.length !== matrixGrowthCandidates.rawItems.length) {
-            errors.push('MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES contains malformed entries; each row must match the required Combo|Sources|WhatToSteal|HandshakeCarryOver|RuntimeConsequences|ROI|Resolution|Stub|Notes format');
+            errors.push('MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES contains malformed entries; each row must match: Combo: <text> | Sources: <csv> | WhatToSteal: <text> | HandshakeCarryOver: <text> | RuntimeConsequences: <text> | ROI: HIGH|MEDIUM|LOW | Resolution: IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|REJECT_LOW_ROI|REJECT_DUPLICATE | Stub: <WP-... or NONE> | Notes: <text>');
           }
           if (!matrixEngineeringTricks.found || matrixEngineeringTricks.items.length === 0 || matrixEngineeringTricks.items.every((item) => isPlaceholderValue(item) || /^NONE$/i.test(item))) {
             errors.push('MATRIX_RESEARCH_RUBRIC ENGINEERING_TRICKS_CARRIED_OVER must list one or more concrete carry-over notes when MATRIX_RESEARCH_REQUIRED=YES');
@@ -1440,7 +1441,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     if (specPrimitiveIds) {
       for (const primId of primIds) {
         if (!specPrimitiveIds.has(primId)) {
-          errors.push(`Primitive ${primId} is referenced in refinement but is missing from Spec Appendix 12.4 (HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX)`);
+          errors.push(`Primitive ${primId} is referenced in refinement but is missing from Spec Appendix 12.4 (HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX). Use only PRIM-IDs that exist in the spec. If creating new primitives, set PRIMITIVES_CREATED: NONE and note them in NOTES instead, or set ENRICHMENT_NEEDED=YES and add them to the spec.`);
         }
       }
     }
@@ -1914,7 +1915,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
         for (const pillar of pillarRefs) {
           const canonicalPillar = pillarLookup.get(pillar.toUpperCase());
           if (!canonicalPillar) {
-            errors.push(`FORCE_MULTIPLIER_EXPANSION candidate "${candidate.combo || '<missing>'}" references unknown pillar: ${pillar}`);
+            errors.push(`FORCE_MULTIPLIER_EXPANSION candidate "${candidate.combo || '<missing>'}" references unknown pillar: ${pillar}. Known touched pillars: ${[...touchedPillars].join('; ')}. NOTE: Pillars field is CSV-split; commas inside pillar names will break parsing.`);
           } else {
             candidatePillarsSeen.add(canonicalPillar);
           }
@@ -2023,7 +2024,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
           continue;
         }
         if (!group.parsedMatches.hasNone && group.parsedMatches.rows.length !== group.parsedMatches.rawItems.length) {
-          errors.push(`${group.label} contains malformed entries; each item must match the required Artifact|BoardStatus|Intent|PrimitiveIndex|Matrix|UI|CodeReality|Resolution|Stub|Notes format`);
+          errors.push(`${group.label} contains malformed entries; each item must match: Artifact: <WP-...> | BoardStatus: <STATUS> | Intent: SAME|PARTIAL|DISTINCT | PrimitiveIndex: COVERED|MISSING|N/A | Matrix: COVERED|MISSING|N/A | UI: SAME|PARTIAL|NONE|N/A | CodeReality: IMPLEMENTED|PARTIAL|NOT_PRESENT|N/A | Resolution: REUSE_EXISTING|EXPAND_IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|KEEP_SEPARATE | Stub: <WP-... or NONE> | Notes: <text>`);
         }
         for (const row of group.parsedMatches.rows) {
           allRows.push(row);
@@ -2131,7 +2132,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       if (!codeRealityEvidence.found) {
         errors.push('EXISTING_CAPABILITY_ALIGNMENT must include CODE_REALITY_EVIDENCE (use NONE if there is no applicable code evidence)');
       } else if (!codeRealityEvidence.hasNone && evidenceRows.length !== codeRealityEvidence.rawItems.length) {
-        errors.push('CODE_REALITY_EVIDENCE contains malformed entries; each item must match the required Path|Artifact|Covers|Verdict|Notes format');
+        errors.push('CODE_REALITY_EVIDENCE contains malformed entries; each item must match: Path: <file-path> | Artifact: <WP-... or NONE> | Covers: primitive|combo|ui-intent|execution | Verdict: IMPLEMENTED|PARTIAL|NOT_PRESENT | Notes: <text>');
       }
 
       for (const row of evidenceRows) {

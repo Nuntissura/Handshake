@@ -63,16 +63,18 @@ function extractSectionAfterHeading(text, heading) {
 }
 
 function parseSectionField(sectionText, label) {
-  const re = new RegExp(`^\\s*${label}\\s*:\\s*(.+)\\s*$`, "im");
+  // RGF-90: accept optional "- " bullet prefix so validator reports with markdown bullets parse correctly.
+  const re = new RegExp(`^\\s*(?:-\\s*)?${label}\\s*:\\s*(.+)\\s*$`, "im");
   const match = String(sectionText || "").match(re);
   return match ? match[1].trim() : "";
 }
 
 function extractListItemsAfterLabel(sectionText, label) {
   const lines = String(sectionText || "").split(/\r?\n/);
-  const labelRe = new RegExp(`^\\s*${label}\\s*:\\s*$`, "i");
+  // RGF-90: accept optional "- " bullet prefix on label lines.
+  const labelRe = new RegExp(`^\\s*(?:-\\s*)?${label}\\s*:\\s*$`, "i");
   const headingRe = /^#{1,6}\s+\S/;
-  const nextLabelRe = /^\s*[A-Z][A-Z0-9_ ()/-]*\s*:\s*$/;
+  const nextLabelRe = /^\s*(?:-\s*)?[A-Z][A-Z0-9_ ()/-]*\s*:\s*$/;
 
   const labelIdx = lines.findIndex((line) => labelRe.test(line));
   if (labelIdx === -1) return [];

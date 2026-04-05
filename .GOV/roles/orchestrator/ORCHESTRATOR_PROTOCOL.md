@@ -70,11 +70,13 @@ See also:
 ## Current Execution Policy (Additional LAW)
 
 - The Orchestrator role is one single coordinator CLI session for the active WP.
+- **The Orchestrator MUST NOT edit, write, or create product code files** (anything under `src/`, `app/`, `tests/`, or other IN_SCOPE_PATHS). Even a one-line fix to a compile error MUST be routed through the governed coder session via `just session-send CODER WP-{ID} "..."`. If the coder session has settled, restart it. The Orchestrator steers and communicates; the Coder writes code. [RGF-88 / SMOKE-FIND-20260405-01]
 - Orchestrator-managed execution MUST use governed ACP/CLI sessions (`launch-*`, `start-*`, `steer-*`, `session-send`) for Coder and Validator lanes.
 - Orchestrator-managed execution MUST NOT reintroduce manual skeleton checkpoint or skeleton approval commands. `just coder-skeleton-checkpoint` and `just skeleton-approved` are `MANUAL_RELAY`-only surfaces; invoking them on an orchestrator-managed WP is workflow-invalid and must be recorded as `WORKFLOW_INVALIDITY`.
 - For an active orchestrator-managed WP, the Orchestrator MUST NOT use helper agents/subagents to perform coding, validation, evidence review, or other in-lane work. The governed `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR` sessions are the only allowed execution lanes.
 - If the Operator explicitly authorizes separate helper-agent use for bounded governance maintenance outside the active lane, keep that work isolated from the governed role sessions and do not let it stand in for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`.
 - Absent explicit recorded approval in the work packet (`SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`), helper agents MUST NOT write or change product code.
+- **The ACP broker is a mechanical session-control relay, not an LLM or model provider.** All governed model sessions (GPT, Claude Code, Codex Spark, future local models) dispatch through the ACP broker. The broker is transport; the model is the engine. Do not confuse the broker with a model alternative. [RGF-89 / SMOKE-FIND-20260405-02]
 - New repo-governed sessions must be launched explicitly:
   - packet-declared role model profiles are authoritative for launch and claim truth
   - default repo profile: `OPENAI_GPT_5_4_XHIGH`
@@ -111,6 +113,10 @@ See also:
   - the active packet
   - active WP communications and notifications
   - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` when a command choice is unclear
+- **Before starting a refinement**, read the refinement check's key parsing functions once as a context investment [RGF-89]:
+  - `just generate-refinement-rubric` to get the pillar/engine rubric lines
+  - The field format examples in the refinement check's error messages (RGF-88)
+  - This one-time pre-read eliminates iterative format discovery
 - Repeated full rereads of large governance protocols, repeated command-surface rediscovery, repeated `just --list`-style inspection, and repeated path/source-of-truth checks after context is already stable are ambiguity signals, not neutral diligence.
 - If the Orchestrator needs that repeated rereading to keep a run moving, treat it as governance debt and capture it in the next smoketest review under the ambiguity scan.
 
@@ -204,6 +210,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
   - contained-main harmonization is a final-lane activity owned by `INTEGRATION_VALIDATOR` (or another explicitly reassigned governed actor), and successful closeout sync must leave machine-readable provenance in validator gate state/receipts
   - if final-lane closeout is attempted from a role-locked orchestrator/kernel surface, from a non-final validator lane, or with `HANDSHAKE_GOV_ROOT` still resolving to `handshake_main/.GOV`, treat that as `WORKFLOW_INVALIDITY` (`ROLE_BOUNDARY_BREACH`, `FINAL_LANE_AUTHORITY_VIOLATION`, or `FINAL_LANE_GOV_ROOT_VIOLATION`) and repair the lane before any packet/task-board/runtime promotion
   This keeps closeout truth synchronized and reduces orchestrator repair work.
+- **After closeout**, reclaim governed terminal windows: `just session-reclaim-terminals WP-{ID}`. Terminal windows do not close automatically after governed sessions complete. Unreclamed windows accumulate on the Operator's desktop. [SMOKE-FIND-20260405-04]
 
 ## Branching & Concurrency
 
@@ -292,6 +299,23 @@ Workflow semantics:
 - `just manual-relay-dispatch` must pass the same typed relay context into the governed target prompt (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) so the role sees whether the incoming payload is a handoff, question, answer, verdict, or intent without rediscovering it.
 - If the projected target session is not running yet, `just manual-relay-dispatch` must start that governed session and then immediately deliver the typed relay prompt in the same command invocation.
 - Use `just wp-timeline WP-{ID} [--json]` after a run to inspect measured relay burden. If the timeline reports visible or high relay overhead and the next WP is not autonomy-sensitive, route the next comparable packet through `MANUAL_RELAY`.
+
+## Microtask Loop Enforcement [RGF-89] (HARD)
+
+- Every orchestrator-managed WP with declared microtasks (MT-001, MT-002, ...) MUST use the per-microtask loop.
+- **Coder session startup prompt MUST reference the microtask plan**: "Follow the microtask plan in the packet. Complete MT-001 first, commit on the feature branch, then send a REVIEW_REQUEST before starting MT-002."
+- **Validator session prompt MUST enforce per-MT inspection**: "Inspect each microtask incrementally. After the coder completes MT-001, review it. If MT-001 has issues, send a REVIEW_RESPONSE with fix instructions before the coder starts MT-002."
+- Do not send monolithic "implement everything" instructions. Each MT is a bounded unit of work that even a small local model can complete.
+- The per-MT loop exists to enable future mixed-model execution: cloud models handle MTs now, but the structure must be proven so local models (Ollama) can handle individual MTs later.
+- Post-work gate SHOULD verify at least one MT-completion receipt per declared microtask.
+
+## Fire-and-Forget Dispatch [RGF-93] (RECOMMENDED)
+
+- After dispatching work via `just session-send`, the Orchestrator SHOULD NOT poll for results using `sleep && cat` loops.
+- Polling wastes orchestrator tokens (the most expensive resource) on waiting.
+- Preferred pattern: dispatch work, then either return control to the Operator or move to other tasks.
+- When the session completes, the ACP broker writes a completion entry to SESSION_CONTROL_RESULTS.jsonl. Future versions will inject a mechanical notification into WP_COMMUNICATIONS so the orchestrator can resume without polling.
+- If polling is unavoidable in the current infrastructure, minimize it: one check after a reasonable delay, not repeated short-interval polls.
 
 ## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
 
