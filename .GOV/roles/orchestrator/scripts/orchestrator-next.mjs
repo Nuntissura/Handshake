@@ -168,6 +168,45 @@ function confidenceDetailWithPolicyConflictWaiver(detail = "", waiver = null) {
   return detail ? `${detail}; ${note}` : note;
 }
 
+export function tokenPolicyContinuationDecision({
+  workflowLane = "",
+  boardStatus = "",
+  ledgerHealthSeverity = "",
+  tokenBudgetStatus = "",
+  waiver = null,
+} = {}) {
+  const orchestratorManaged = String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED";
+  const boardTerminal = String(boardStatus || "").trim().toUpperCase() === "VALIDATED";
+  const continuationActive = orchestratorManaged && !boardTerminal && Boolean(waiver);
+  const blockLedgerHealth = orchestratorManaged
+    && !boardTerminal
+    && String(ledgerHealthSeverity || "").trim().toUpperCase() === "FAIL"
+    && !continuationActive;
+  const blockBudget = orchestratorManaged
+    && !boardTerminal
+    && String(tokenBudgetStatus || "").trim().toUpperCase() === "FAIL"
+    && !continuationActive;
+  const findings = [];
+
+  if (continuationActive && String(ledgerHealthSeverity || "").trim().toUpperCase() === "FAIL") {
+    findings.push(
+      `Continuation waiver ${waiver.waiverId} active: token-ledger policy remains FAIL and is tolerated for bounded continuation.`,
+    );
+  }
+  if (continuationActive && String(tokenBudgetStatus || "").trim().toUpperCase() === "FAIL") {
+    findings.push(
+      `Continuation waiver ${waiver.waiverId} active: token-budget policy remains FAIL and is tolerated for bounded continuation.`,
+    );
+  }
+
+  return {
+    continuationActive,
+    blockLedgerHealth,
+    blockBudget,
+    findings,
+  };
+}
+
 function orchestratorAssessmentState(checkpointNotification, assessment = null, runtimeStatus = {}) {
   const nextActor = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase() || "UNCHANGED";
   if (!checkpointNotification && !(assessment && nextActor === "ORCHESTRATOR")) return null;
@@ -571,11 +610,14 @@ function main() {
   );
   const tokenLedger = readWpTokenUsageLedger(repoRoot, wpId).ledger;
   const tokenBudget = evaluateWpTokenBudget(tokenLedger);
-  if (
-    String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED"
-    && String(boardStatus || "").trim().toUpperCase() !== "VALIDATED"
-    && tokenLedger.ledger_health.severity === "FAIL"
-  ) {
+  const tokenPolicyContinuation = tokenPolicyContinuationDecision({
+    workflowLane,
+    boardStatus,
+    ledgerHealthSeverity: tokenLedger?.ledger_health?.severity,
+    tokenBudgetStatus: tokenBudget?.status,
+    waiver: tokenBudgetContinuationWaiver,
+  });
+  if (tokenPolicyContinuation.blockLedgerHealth) {
     printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
     printOperatorEnvelope("NONE", tokenLedger.ledger_health.blocker_class || "POLICY_CONFLICT");
     printConfidence(confidence.level, confidenceDetail);
@@ -591,12 +633,7 @@ function main() {
     ]);
     return;
   }
-  if (
-    String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED"
-    && String(boardStatus || "").trim().toUpperCase() !== "VALIDATED"
-    && tokenBudget.status === "FAIL"
-    && !tokenBudgetContinuationWaiver
-  ) {
+  if (tokenPolicyContinuation.blockBudget) {
     printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
     printOperatorEnvelope("NONE", tokenBudget.blocker_class || "POLICY_CONFLICT");
     printConfidence(confidence.level, confidenceDetail);
@@ -632,6 +669,7 @@ function main() {
     printConfidence(confidence.level, confidenceDetail);
     printState("Packet/runtime closeout projection drift is blocking further delegation until status truth is reconciled.");
     printFindings([
+      ...tokenPolicyContinuation.findings,
       `Packet: ${packetPath}`,
       `Runtime: ${parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE") || "<missing>"}`,
       ...packetRuntimeState.drift.issues,
@@ -658,6 +696,7 @@ function main() {
         : relayEscalation.summary
     );
     printFindings([
+      ...tokenPolicyContinuation.findings,
       ...(assessmentState?.findings || []),
       `Target: ${relayEscalation.target_role}${relayEscalation.target_session ? `:${relayEscalation.target_session}` : ""}`,
       `Route anchor: ${relayEscalation.metrics.route_anchor_at || "<missing>"}`,
@@ -680,6 +719,7 @@ function main() {
     printConfidence(confidence.level, confidenceDetail);
     printState("Work packet exists, but the assigned WP worktree is stale and coder handoff is blocked.");
     printFindings([
+      ...tokenPolicyContinuation.findings,
       `Assigned worktree: ${syncState.worktreeAbs || "<missing>"}`,
       `Expected branch: ${syncState.expectedBranch || "<missing>"}`,
       ...(syncState.actualBranch ? [`Actual branch: ${syncState.actualBranch}`] : []),
@@ -698,6 +738,7 @@ function main() {
     printConfidence(confidence.level, confidenceDetail);
     printState(assessmentState.state);
     printFindings([
+      ...tokenPolicyContinuation.findings,
       `Resume source: ${inferred.source}`,
       `Current branch: ${gitContext.branch || "<unknown>"}`,
       `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
@@ -732,6 +773,7 @@ function main() {
       : "Work packet exists; ready to delegate to Coder."
   );
   printFindings([
+    ...tokenPolicyContinuation.findings,
     `Resume source: ${inferred.source}`,
     `Current branch: ${gitContext.branch || "<unknown>"}`,
     `Current worktree: ${gitContext.topLevel || "<unknown>"}`,

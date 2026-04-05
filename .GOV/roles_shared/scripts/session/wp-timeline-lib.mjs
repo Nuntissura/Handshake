@@ -1,0 +1,330 @@
+import fs from "node:fs";
+import path from "node:path";
+import {
+  parseJsonFile,
+  parseJsonlFile,
+} from "../lib/wp-communications-lib.mjs";
+import {
+  repoPathAbs,
+  resolveWorkPacketPath,
+} from "../lib/runtime-paths.mjs";
+import {
+  SESSION_CONTROL_REQUESTS_FILE,
+  SESSION_CONTROL_RESULTS_FILE,
+} from "./session-policy.mjs";
+import {
+  evaluateWpTokenBudget,
+} from "./wp-token-budget-lib.mjs";
+import {
+  readWpTokenUsageLedger,
+} from "./wp-token-usage-lib.mjs";
+
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
+  const match = String(text || "").match(re);
+  return match ? match[1].trim() : "";
+}
+
+function normalizeText(value) {
+  return String(value || "").trim();
+}
+
+function normalizeRole(value) {
+  return normalizeText(value).toUpperCase();
+}
+
+function normalizePath(value) {
+  return String(value || "").replace(/\\/g, "/");
+}
+
+function parseTimestamp(value) {
+  const text = normalizeText(value);
+  if (!text) return null;
+  const parsed = Date.parse(text);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function isoOrNull(value) {
+  return Number.isFinite(value) ? new Date(value).toISOString() : null;
+}
+
+function durationMs(startTs, endTs) {
+  if (!Number.isFinite(startTs) || !Number.isFinite(endTs) || endTs < startTs) return null;
+  return endTs - startTs;
+}
+
+export function parseThreadEntriesText(threadText = "") {
+  const lines = String(threadText || "").split(/\r?\n/);
+  const entries = [];
+  let current = null;
+  for (const line of lines) {
+    if (/^\s*-\s+\d{4}-\d{2}-\d{2}T[^\s]+Z\s+\|/.test(line)) {
+      const parts = line.replace(/^\s*-\s+/, "").split("|").map((value) => value.trim()).filter(Boolean);
+      const [timestamp, actorRole, ...metadata] = parts;
+      const entry = {
+        timestamp: timestamp || "",
+        actorRole: actorRole || "",
+        actorSession: "",
+        targetRole: "",
+        targetSession: "",
+        correlationId: "",
+        specAnchor: "",
+        packetRowRef: "",
+        messageLines: [],
+      };
+      for (const item of metadata) {
+        if (item.startsWith("session=")) entry.actorSession = item.slice("session=".length).trim();
+        else if (item.startsWith("target_role=")) entry.targetRole = item.slice("target_role=".length).trim();
+        else if (item.startsWith("target_session=")) entry.targetSession = item.slice("target_session=".length).trim();
+        else if (item.startsWith("correlation_id=")) entry.correlationId = item.slice("correlation_id=".length).trim();
+        else if (item.startsWith("spec_anchor=")) entry.specAnchor = item.slice("spec_anchor=".length).trim();
+        else if (item.startsWith("packet_row_ref=")) entry.packetRowRef = item.slice("packet_row_ref=".length).trim();
+      }
+      if (current) entries.push(current);
+      current = entry;
+      continue;
+    }
+    if (current && /^\s{2,}\S/.test(line)) {
+      current.messageLines.push(line.trim());
+    }
+  }
+  if (current) entries.push(current);
+  return entries;
+}
+
+function formatTarget(role, session) {
+  const targetRole = normalizeText(role);
+  const targetSession = normalizeText(session);
+  if (!targetRole) return "";
+  return targetSession ? `${targetRole}:${targetSession}` : targetRole;
+}
+
+export function buildWpTimelineEntries({
+  threadEntries = [],
+  receipts = [],
+  notifications = [],
+  controlRequests = [],
+  controlResults = [],
+  tokenCommands = [],
+} = {}) {
+  const entries = [];
+  let sequence = 0;
+
+  for (const entry of threadEntries) {
+    const target = formatTarget(entry.targetRole, entry.targetSession);
+    entries.push({
+      timestamp: entry.timestamp || "",
+      timestamp_ms: parseTimestamp(entry.timestamp),
+      sequence: sequence += 1,
+      kind: "THREAD",
+      role: normalizeRole(entry.actorRole),
+      header: `${entry.timestamp || "<no-ts>"} | THREAD | ${entry.actorRole || "<unknown>"}${entry.actorSession ? `:${entry.actorSession}` : ""}${target ? ` -> ${target}` : ""}`,
+      detailLines: [
+        ...(entry.messageLines?.length ? entry.messageLines : ["<no body>"]),
+        ...(entry.correlationId ? [`corr=${entry.correlationId}`] : []),
+        ...(entry.specAnchor ? [`spec=${entry.specAnchor}`] : []),
+        ...(entry.packetRowRef ? [`packet=${entry.packetRowRef}`] : []),
+      ],
+    });
+  }
+
+  for (const entry of receipts) {
+    const target = formatTarget(entry.target_role, entry.target_session);
+    entries.push({
+      timestamp: entry.timestamp_utc || "",
+      timestamp_ms: parseTimestamp(entry.timestamp_utc),
+      sequence: sequence += 1,
+      kind: "RECEIPT",
+      role: normalizeRole(entry.actor_role),
+      header: `${entry.timestamp_utc || "<no-ts>"} | RECEIPT | ${entry.actor_role || "<unknown>"} | ${entry.receipt_kind || "<unknown>"}`,
+      detailLines: [
+        entry.summary || "<no summary>",
+        ...(target ? [`target=${target}`] : []),
+        ...(entry.correlation_id ? [`corr=${entry.correlation_id}`] : []),
+        ...(entry.spec_anchor ? [`spec=${entry.spec_anchor}`] : []),
+        ...(entry.packet_row_ref ? [`packet=${entry.packet_row_ref}`] : []),
+      ],
+    });
+  }
+
+  for (const entry of notifications) {
+    const target = formatTarget(entry.target_role, entry.target_session);
+    entries.push({
+      timestamp: entry.timestamp_utc || "",
+      timestamp_ms: parseTimestamp(entry.timestamp_utc),
+      sequence: sequence += 1,
+      kind: "NOTIFICATION",
+      role: normalizeRole(entry.source_role),
+      header: `${entry.timestamp_utc || "<no-ts>"} | NOTIFICATION | ${entry.source_role || "<unknown>"} -> ${target || "<unknown>"}`,
+      detailLines: [
+        `${entry.source_kind || "THREAD_MESSAGE"} | ${entry.summary || "<no summary>"}`,
+        ...(entry.correlation_id ? [`corr=${entry.correlation_id}`] : []),
+      ],
+    });
+  }
+
+  for (const entry of controlRequests) {
+    entries.push({
+      timestamp: entry.created_at || "",
+      timestamp_ms: parseTimestamp(entry.created_at),
+      sequence: sequence += 1,
+      kind: "CONTROL_REQUEST",
+      role: normalizeRole(entry.role),
+      header: `${entry.created_at || "<no-ts>"} | CONTROL_REQUEST | ${entry.role || "<unknown>"} | ${entry.command_kind || "<unknown>"}`,
+      detailLines: [
+        entry.summary || String(entry.prompt || "").split(/\r?\n/, 1)[0] || "<no summary>",
+        ...(entry.command_id ? [`command_id=${entry.command_id}`] : []),
+      ],
+    });
+  }
+
+  for (const entry of controlResults) {
+    entries.push({
+      timestamp: entry.processed_at || "",
+      timestamp_ms: parseTimestamp(entry.processed_at),
+      sequence: sequence += 1,
+      kind: "CONTROL_RESULT",
+      role: normalizeRole(entry.role),
+      header: `${entry.processed_at || "<no-ts>"} | CONTROL_RESULT | ${entry.role || "<unknown>"} | ${entry.command_kind || "<unknown>"} | ${entry.status || "<unknown>"}`,
+      detailLines: [
+        entry.summary || entry.error || "<no summary>",
+        ...(entry.command_id ? [`command_id=${entry.command_id}`] : []),
+        ...(Number.isFinite(Number(entry.duration_ms)) ? [`duration_ms=${Number(entry.duration_ms)}`] : []),
+      ],
+    });
+  }
+
+  for (const command of tokenCommands) {
+    const role = normalizeRole(command.role);
+    const turnUsage = Array.isArray(command.turn_usage) ? command.turn_usage : [];
+    for (const usageEntry of turnUsage) {
+      entries.push({
+        timestamp: usageEntry.timestamp || "",
+        timestamp_ms: parseTimestamp(usageEntry.timestamp),
+        sequence: sequence += 1,
+        kind: "TURN_USAGE",
+        role,
+        header: `${usageEntry.timestamp || "<no-ts>"} | TURN_USAGE | ${role || "<unknown>"} | ${command.command_kind || "<unknown>"}`,
+        detailLines: [
+          `command_id=${command.command_id || "<missing>"}`,
+          `input=${Number(usageEntry.input_tokens || 0)} | cached=${Number(usageEntry.cached_input_tokens || 0)} | output=${Number(usageEntry.output_tokens || 0)}`,
+        ],
+      });
+    }
+  }
+
+  return entries.sort((left, right) =>
+    String(left.timestamp || "").localeCompare(String(right.timestamp || ""))
+    || (left.sequence - right.sequence)
+  );
+}
+
+export function buildWpTimelineSummary({
+  wpId = "",
+  packetPath = "",
+  workflowLane = "",
+  runtimeStatus = null,
+  receipts = [],
+  notifications = [],
+  controlRequests = [],
+  controlResults = [],
+  tokenLedger = {},
+  entries = [],
+} = {}) {
+  const timestamps = entries
+    .map((entry) => entry.timestamp_ms)
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right);
+  const firstEventAt = timestamps.length > 0 ? timestamps[0] : null;
+  const lastEventAt = timestamps.length > 0 ? timestamps[timestamps.length - 1] : null;
+  const tokenBudget = evaluateWpTokenBudget(tokenLedger);
+
+  return {
+    wp_id: wpId,
+    packet_path: packetPath,
+    workflow_lane: workflowLane || "<missing>",
+    runtime_status: runtimeStatus?.runtime_status || "<missing>",
+    current_phase: runtimeStatus?.current_phase || "<missing>",
+    next_expected_actor: runtimeStatus?.next_expected_actor || "<missing>",
+    waiting_on: runtimeStatus?.waiting_on || "<missing>",
+    event_window_start: isoOrNull(firstEventAt),
+    event_window_end: isoOrNull(lastEventAt),
+    event_window_duration_ms: durationMs(firstEventAt, lastEventAt),
+    event_count: entries.length,
+    thread_count: threadEntriesCount(entries),
+    receipt_count: receipts.length,
+    notification_count: notifications.length,
+    control_request_count: controlRequests.length,
+    control_result_count: controlResults.length,
+    turn_usage_count: turnUsageCount(entries),
+    token_summary_source: tokenLedger?.summary_source || "<missing>",
+    token_input_total: Number(tokenLedger?.summary?.usage_totals?.input_tokens || 0),
+    token_cached_input_total: Number(tokenLedger?.summary?.usage_totals?.cached_input_tokens || 0),
+    token_output_total: Number(tokenLedger?.summary?.usage_totals?.output_tokens || 0),
+    token_turn_count: Number(tokenLedger?.summary?.turn_count || 0),
+    token_command_count: Number(tokenLedger?.summary?.command_count || 0),
+    ledger_health_status: tokenLedger?.ledger_health?.status || "<missing>",
+    ledger_health_severity: tokenLedger?.ledger_health?.severity || "<missing>",
+    budget_status: tokenBudget.status,
+    budget_summary: tokenBudget.summary,
+    cost_estimate: null,
+    cost_estimate_note: "unavailable",
+  };
+}
+
+function threadEntriesCount(entries = []) {
+  return entries.filter((entry) => entry.kind === "THREAD").length;
+}
+
+function turnUsageCount(entries = []) {
+  return entries.filter((entry) => entry.kind === "TURN_USAGE").length;
+}
+
+export function loadWpTimelineArtifacts(repoRoot, wpId) {
+  const packet = resolveWorkPacketPath(wpId);
+  if (!packet?.packetPath) {
+    throw new Error(`Official packet not found for ${wpId}`);
+  }
+  const packetText = fs.readFileSync(packet.packetAbsPath, "utf8");
+  const workflowLane = parseSingleField(packetText, "WORKFLOW_LANE");
+  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  const threadFile = parseSingleField(packetText, "WP_THREAD_FILE");
+  const communicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
+  const notificationsFile = communicationDir
+    ? normalizePath(path.join(communicationDir, "NOTIFICATIONS.jsonl"))
+    : "";
+
+  const runtimeStatus = runtimeStatusFile && fs.existsSync(repoPathAbs(runtimeStatusFile))
+    ? parseJsonFile(runtimeStatusFile)
+    : null;
+  const receipts = receiptsFile && fs.existsSync(repoPathAbs(receiptsFile))
+    ? parseJsonlFile(receiptsFile)
+    : [];
+  const threadEntries = threadFile && fs.existsSync(repoPathAbs(threadFile))
+    ? parseThreadEntriesText(fs.readFileSync(repoPathAbs(threadFile), "utf8"))
+    : [];
+  const notifications = notificationsFile && fs.existsSync(repoPathAbs(notificationsFile))
+    ? parseJsonlFile(notificationsFile)
+    : [];
+  const controlRequests = fs.existsSync(repoPathAbs(SESSION_CONTROL_REQUESTS_FILE))
+    ? parseJsonlFile(SESSION_CONTROL_REQUESTS_FILE).filter((entry) => normalizeText(entry.wp_id) === wpId)
+    : [];
+  const controlResults = fs.existsSync(repoPathAbs(SESSION_CONTROL_RESULTS_FILE))
+    ? parseJsonlFile(SESSION_CONTROL_RESULTS_FILE).filter((entry) => normalizeText(entry.wp_id) === wpId)
+    : [];
+  const tokenLedger = readWpTokenUsageLedger(repoRoot, wpId).ledger;
+
+  return {
+    wpId,
+    packetPath: packet.packetPath,
+    workflowLane,
+    runtimeStatus,
+    threadEntries,
+    receipts,
+    notifications,
+    controlRequests,
+    controlResults,
+    tokenLedger,
+  };
+}

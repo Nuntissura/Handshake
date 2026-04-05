@@ -138,6 +138,9 @@ active-lane-brief role wp-id json="":
 wp-token-usage wp-id:
 	node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-token-usage-report.mjs" {{wp-id}}
 
+wp-timeline wp-id json="":
+	node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-timeline-report.mjs" {{wp-id}} {{json}}
+
 wp-token-usage-settle wp-id reason="HISTORICAL_BACKFILL" settled-by="SYSTEM":
 	node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-token-usage-settle.mjs" {{wp-id}} {{reason}} {{settled-by}}
 

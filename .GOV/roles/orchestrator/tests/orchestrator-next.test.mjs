@@ -6,6 +6,7 @@ import {
   findActiveTokenBudgetContinuationWaiver,
   isTerminalOrchestratorBoardStatus,
   latestOrchestratorGovernanceCheckpoint,
+  tokenPolicyContinuationDecision,
 } from "../scripts/orchestrator-next.mjs";
 
 test("orchestrator-next maps packet closeout states to the correct task-board closeout modes", () => {
@@ -67,4 +68,36 @@ test("orchestrator-next ignores unrelated governance waivers for token-budget co
 `);
 
   assert.equal(waiver, null);
+});
+
+test("orchestrator-next continuation waiver suppresses token policy hard stops but keeps findings", () => {
+  const decision = tokenPolicyContinuationDecision({
+    workflowLane: "ORCHESTRATOR_MANAGED",
+    boardStatus: "IN_PROGRESS",
+    ledgerHealthSeverity: "FAIL",
+    tokenBudgetStatus: "FAIL",
+    waiver: { waiverId: "CX-TEST-TOKEN-001" },
+  });
+
+  assert.equal(decision.continuationActive, true);
+  assert.equal(decision.blockLedgerHealth, false);
+  assert.equal(decision.blockBudget, false);
+  assert.match(decision.findings.join(" | "), /CX-TEST-TOKEN-001/);
+  assert.match(decision.findings.join(" | "), /token-ledger policy remains FAIL/i);
+  assert.match(decision.findings.join(" | "), /token-budget policy remains FAIL/i);
+});
+
+test("orchestrator-next blocks token policy conflicts without a continuation waiver", () => {
+  const decision = tokenPolicyContinuationDecision({
+    workflowLane: "ORCHESTRATOR_MANAGED",
+    boardStatus: "IN_PROGRESS",
+    ledgerHealthSeverity: "FAIL",
+    tokenBudgetStatus: "FAIL",
+    waiver: null,
+  });
+
+  assert.equal(decision.continuationActive, false);
+  assert.equal(decision.blockLedgerHealth, true);
+  assert.equal(decision.blockBudget, true);
+  assert.deepEqual(decision.findings, []);
 });

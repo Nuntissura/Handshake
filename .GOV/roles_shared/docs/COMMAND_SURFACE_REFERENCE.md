@@ -53,6 +53,9 @@ These are safe starting points for orientation and health checks.
 - `just wp-token-usage WP-{ID}`
   - `read-only`
   - print the governed per-WP token ledger aggregated from settled ACP session outputs
+- `just wp-timeline WP-{ID} [--json]`
+  - `read-only`
+  - print one merged WP timeline across thread traffic, receipts, notifications, session-control requests/results, and per-command turn usage, plus token totals and budget health
 - `just wp-token-usage-settle WP-{ID} [REASON] [SETTLED_BY]`
   - `writes-runtime`
   - settle a historical WP token ledger to raw ACP session outputs after the lane is terminal so compact views stop surfacing old drift as live noise
