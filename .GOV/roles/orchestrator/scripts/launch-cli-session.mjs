@@ -42,7 +42,8 @@ import {
   buildRoleEnvironmentOverrides,
   buildStartupPrompt,
   resolveRoleConfig,
-  selectModel,
+  resolveRoleLaunchSelection,
+  assertRoleLaunchProfileSupported,
 } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
 import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
@@ -71,13 +72,27 @@ function runGit(args) {
 
 const roleConfig = resolveRoleConfig(role, wpId);
 if (!roleConfig) fail(`Unknown role: ${role}`);
-const selectedModel = selectModel(requestedModel);
 const launchEnvironmentOverrides = buildRoleEnvironmentOverrides({ role });
 
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const currentBranch = runGit(["branch", "--show-current"]);
 assertOrchestratorLaunchAuthority(currentBranch);
 const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
+const {
+  selectedProfileId,
+  selectedProfile,
+} = resolveRoleLaunchSelection({
+  role,
+  wpId,
+  modelSelector: requestedModel,
+});
+assertRoleLaunchProfileSupported({
+  role,
+  wpId,
+  selectedProfileId,
+  selectedProfile,
+});
+const selectedModel = selectedProfile.launch_model;
 const sessionDescriptor = {
   wp_id: wpId,
   role,
@@ -85,8 +100,9 @@ const sessionDescriptor = {
   local_worktree_dir: roleConfig.worktreeDir,
   terminal_title: roleConfig.title,
   requested_model: selectedModel,
-  reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
-  reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
+  requested_profile_id: selectedProfileId,
+  reasoning_config_key: selectedProfile.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY,
+  reasoning_config_value: selectedProfile.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE,
 };
 const governance = evaluateSessionGovernanceState(repoRoot, sessionDescriptor);
 
@@ -102,13 +118,20 @@ if (!fs.existsSync(absWorktreeDir)) {
   );
 }
 
-const prompt = buildStartupPrompt({ role, wpId, roleConfig, selectedModel });
+const prompt = buildStartupPrompt({
+  role,
+  wpId,
+  roleConfig,
+  selectedModel,
+  selectedProfileId,
+  selectedProfile,
+});
 
 const codexArgs = [
   "-m",
   selectedModel,
   "-c",
-  `${ROLE_SESSION_REASONING_CONFIG_KEY}="${ROLE_SESSION_REASONING_CONFIG_VALUE}"`,
+  `${selectedProfile.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY}="${selectedProfile.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE}"`,
   "-C",
   absWorktreeDir,
   prompt,
@@ -168,6 +191,7 @@ function launchSystemTerminal() {
   console.log(`[LAUNCH_CLI_SESSION] launched via ${CLI_ESCALATION_HOST_DEFAULT} (${roleConfig.title})`);
   console.log(`[LAUNCH_CLI_SESSION] worktree=${absWorktreeDir}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
+  console.log(`[LAUNCH_CLI_SESSION] selected_profile_id=${selectedProfileId}`);
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] terminal_pid=${launch.processId}`);
@@ -181,6 +205,7 @@ function printOnly(reason, resolvedHost) {
   console.log(`[LAUNCH_CLI_SESSION] worktree=${absWorktreeDir}`);
   console.log(`[LAUNCH_CLI_SESSION] branch=${roleConfig.branch}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
+  console.log(`[LAUNCH_CLI_SESSION] selected_profile_id=${selectedProfileId}`);
   console.log(`[LAUNCH_CLI_SESSION] launch_script=${launchScriptPath}`);
   if (Object.keys(launchEnvironmentOverrides).length > 0) {
     console.log(`[LAUNCH_CLI_SESSION] env_overrides=${JSON.stringify(launchEnvironmentOverrides)}`);
@@ -294,8 +319,9 @@ function queueVsCodePluginLaunch() {
       localWorktreeDir: roleConfig.worktreeDir,
       absWorktreeDir,
       selectedModel,
-      reasoningConfigKey: ROLE_SESSION_REASONING_CONFIG_KEY,
-      reasoningConfigValue: ROLE_SESSION_REASONING_CONFIG_VALUE,
+      selectedProfileId,
+      reasoningConfigKey: selectedProfile.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY,
+      reasoningConfigValue: selectedProfile.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE,
       startupCommand: roleConfig.startupCommand,
       nextCommand: roleConfig.nextCommand,
       terminalTitleValue: roleConfig.title,

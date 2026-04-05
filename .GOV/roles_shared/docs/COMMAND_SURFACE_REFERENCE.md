@@ -182,12 +182,16 @@ These mutate packet, board, traceability, or related governed surfaces.
   - shell/tool output does not count as "shown in chat"
   - if the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages before requesting approval
 - `just record-signature WP-{ID} <signature> <workflow_lane> <execution_lane>`
+- `just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
 - `just record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
   - `governance-write`
   - orchestrator-owned workflow state writes
+  - `record-role-model-profiles` is the explicit per-role model/CLI policy gate for new packet families; omit args to record deliberate defaults (`OPENAI_GPT_5_4_XHIGH` for all roles)
+  - `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is now a valid declared packet profile, but governed launch/control remains fail-closed until provider-specific runtime support is implemented
 - `just create-task-packet WP-{ID}`
   - `governance-write`
   - packet creation from the template
+  - for `PACKET_FORMAT_VERSION >= 2026-04-06`, packet creation is blocked until `just record-role-model-profiles` has recorded the authoritative per-role bundle
   - for `PACKET_FORMAT_VERSION >= 2026-04-01`, treat packet creation as law activation, not mere scaffolding: inspect `DATA_CONTRACT_PROFILE`, `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4` before delegation
   - on that packet family, coder handoff must include anti-vibe + signed-scope-debt self-audit; validator PASS requires both lists to be exactly `- NONE`
   - for `PACKET_FORMAT_VERSION >= 2026-04-05` and `RISK_TIER=MEDIUM|HIGH`, validator closeout is dual-track: PASS requires both `MECHANICAL_TRACK_VERDICT=PASS` and `SPEC_RETENTION_TRACK_VERDICT=PASS`
@@ -217,6 +221,7 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just launch-integration-validator-session WP-{ID} ...`
   - `runtime-write`
   - launch/bootstrap lane
+  - launch selection now resolves through the packet-declared role-model profile bundle, not only implicit GPT defaults
   - on the ordinary orchestrator-managed path, supported launch hosts now auto-issue the first governed `START_SESSION` so launch does not stop at a launch-only false green
   - governed launch/control must preserve kernel governance authority with `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`; `handshake_main/.GOV` is not valid live governance for orchestrator-managed integration validation
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`

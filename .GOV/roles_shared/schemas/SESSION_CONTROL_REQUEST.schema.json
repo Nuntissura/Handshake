@@ -68,6 +68,9 @@
     "selected_model": {
       "type": "string"
     },
+    "selected_profile_id": {
+      "type": "string"
+    },
     "reasoning_config_key": {
       "type": "string"
     },

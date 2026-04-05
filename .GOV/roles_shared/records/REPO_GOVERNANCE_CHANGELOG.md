@@ -1456,3 +1456,40 @@
   - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: governed system-terminal launches now stamp `owned_terminal_batch_id` plus the active registry batch, manual reclaim defaults to `CURRENT_BATCH` and can optionally target `ALL_BATCHES` or one explicit `BATCH_ID`, and operator-visible status surfaces now expose the active batch id so only the intended governed terminal set is reclaimed
+
+### 2026.04.05.17 / GOV-CHANGE-20260405-17
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-86` by introducing an explicit per-role model-profile catalog into packet/stub law, launch/session-control enforcement, and claim/session policy checks
+- CHANGE_TYPE: ROLE_MODEL_PROFILE_CATALOG
+- DRIVER_EVIDENCE:
+  - `RGF-86`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles/orchestrator/checks/orchestrator_gates.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles_shared/checks/task-packet-claim-check.mjs`
+  - `.GOV/roles_shared/checks/session-policy-check.mjs`
+  - `.GOV/roles/coder/checks/pre-work-check.mjs`
+  - `.GOV/roles_shared/schemas/ROLE_SESSION_REGISTRY.schema.json`
+  - `.GOV/roles_shared/schemas/SESSION_CONTROL_REQUEST.schema.json`
+  - `.GOV/roles_shared/schemas/SESSION_LAUNCH_REQUEST.schema.json`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-87`
+- OUTCOME: new packet families now record explicit role-model-profile ids, GPT remains the governed default, Claude Code Opus 4.6 Thinking Max is declared and auditable at packet level, and governed launch/session control fail closed instead of silently pretending unsupported provider runtime exists

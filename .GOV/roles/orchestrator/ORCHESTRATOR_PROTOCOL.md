@@ -76,10 +76,11 @@ See also:
 - If the Operator explicitly authorizes separate helper-agent use for bounded governance maintenance outside the active lane, keep that work isolated from the governed role sessions and do not let it stand in for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`.
 - Absent explicit recorded approval in the work packet (`SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`), helper agents MUST NOT write or change product code.
 - New repo-governed sessions must be launched explicitly:
-  - primary model: `gpt-5.4`
-  - fallback: `gpt-5.2`
-  - reasoning: `EXTRA_HIGH`
-  - config: `model_reasoning_effort=xhigh`
+  - packet-declared role model profiles are authoritative for launch and claim truth
+  - default repo profile: `OPENAI_GPT_5_4_XHIGH`
+  - governed fallback profile: `OPENAI_GPT_5_2_XHIGH`
+  - current default launch mapping remains `gpt-5.4` primary, `gpt-5.2` fallback, `model_reasoning_effort=xhigh`
+  - declared-only profile: `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` (auditable in packets now; governed launch must fail closed until provider-specific runtime support exists)
 - Repo-governed Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
 - Primary launch path is the VS Code bridge using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
   - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
@@ -300,7 +301,14 @@ Workflow semantics:
   - an explicit decision is required
   - the next step needs a one-time user input
 
-After `just record-signature ...` returns PASS with `OPERATOR_ACTION: NONE`, continue directly to `just orchestrator-prepare-and-packet WP-{ID}`.
+After `just record-signature ...` returns PASS with `OPERATOR_ACTION: NONE`, continue to `just record-role-model-profiles WP-{ID}` and then `just orchestrator-prepare-and-packet WP-{ID}`.
+
+Before packet creation on new packet families, record the explicit per-role model bundle:
+
+- `just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
+- This writes `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1` into the packet/stub family and makes the role-profile bundle authoritative for later claim and launch checks.
+- If omitted, the gate records deliberate defaults (`OPENAI_GPT_5_4_XHIGH` for every role).
+- Use this gate to declare mixed-provider intent, for example GPT orchestration/validation with Claude Code coding, even when governed Claude launch support is not implemented yet.
 
 ## Preflight and Resume
 

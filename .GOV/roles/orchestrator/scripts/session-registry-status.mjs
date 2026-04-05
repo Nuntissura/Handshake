@@ -123,6 +123,7 @@ for (const session of sessions) {
   console.log(`  role: ${session.role}`);
   console.log(`  wp_id: ${session.wp_id}`);
   console.log(`  runtime_state: ${session.runtime_state}`);
+  console.log(`  requested_profile_id: ${session.requested_profile_id || "<none>"}`);
   console.log(`  task_board_status: ${governance.taskBoardStatus || "<missing>"}`);
   console.log(`  packet_status: ${governance.packetStatus || "<missing>"}`);
   console.log(`  local_worktree_exists: ${governance.localWorktreeExists ? "YES" : "NO"}`);

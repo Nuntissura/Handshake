@@ -219,6 +219,7 @@ export function buildActiveLaneBrief({
     session: {
       session_key: normalize(session?.session_key),
       actor_session: normalize(preferredSession),
+      requested_profile_id: normalize(session?.requested_profile_id),
       runtime_state: normalize(session?.runtime_state),
       thread_id: normalize(session?.session_thread_id),
       last_command_kind: normalize(session?.last_command_kind),

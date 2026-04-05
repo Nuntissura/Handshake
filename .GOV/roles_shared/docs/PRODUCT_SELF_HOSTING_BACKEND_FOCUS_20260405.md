@@ -12,6 +12,7 @@ The current priority is a backend-first self-hosting slice.
 - Repo governance ports into Handshake as an additive software-delivery overlay.
 - Repo governance MUST NOT overwrite Handshake-native governance, topology, worksurface model, project-profile extension model, or the broader multi-domain product scope.
 - Dev Command Center, Monaco, and terminal UI work stay downstream of the missing backend control-plane contracts.
+- Mixed-provider role profiles are now a repo-governance prerequisite for self-hosting: the software-delivery overlay must support GPT orchestration/validation, Claude Code coding, and later local-model execution without collapsing back into one-provider launch assumptions.
 
 ## Product Reality Check
 

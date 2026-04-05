@@ -43,8 +43,14 @@ Requirements:
 <!-- Allowed: YES | NO. Default NO; set to YES only with explicit operator-authorized sub-agent use. -->
 - ORCHESTRATOR_MODEL: N/A
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
+- ORCHESTRATOR_MODEL_PROFILE: <pending>
+<!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. Allowed: repo role-model-profile catalog ids. -->
+- ORCHESTRATOR_REASONING_STRENGTH: <pending>
+<!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
+- CODER_MODEL_PROFILE: <pending>
+<!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
 - CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed>
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
@@ -65,6 +71,7 @@ Requirements:
 - SESSION_WAKE_CHANNEL_FALLBACK: {{SESSION_WAKE_CHANNEL_FALLBACK}}
 - CLI_ESCALATION_HOST_DEFAULT: {{CLI_ESCALATION_HOST_DEFAULT}}
 - MODEL_FAMILY_POLICY: {{MODEL_FAMILY_POLICY}}
+- ROLE_MODEL_PROFILE_POLICY: {{ROLE_MODEL_PROFILE_POLICY}}
 - CODEX_MODEL_ALIASES_ALLOWED: {{CODEX_MODEL_ALIASES_ALLOWED}}
 - ROLE_SESSION_PRIMARY_MODEL: {{ROLE_SESSION_PRIMARY_MODEL}}
 - ROLE_SESSION_FALLBACK_MODEL: {{ROLE_SESSION_FALLBACK_MODEL}}
@@ -74,12 +81,20 @@ Requirements:
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next {{WP_ID}}
 <!-- The WP Validator uses a dedicated local review branch/worktree rooted from the coder branch. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
+- WP_VALIDATOR_MODEL_PROFILE: <pending>
+<!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
+- WP_VALIDATOR_MODEL: <pending>
+- WP_VALIDATOR_REASONING_STRENGTH: <pending>
 - WP_VALIDATOR_LOCAL_BRANCH: {{WP_VALIDATOR_LOCAL_BRANCH}}
 - WP_VALIDATOR_LOCAL_WORKTREE_DIR: {{WP_VALIDATOR_LOCAL_WORKTREE_DIR}}
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: {{WP_VALIDATOR_REMOTE_BACKUP_BRANCH}}
 - WP_VALIDATOR_REMOTE_BACKUP_URL: {{WP_VALIDATOR_REMOTE_BACKUP_URL}}
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
 - WP_VALIDATOR_RESUME_COMMAND: just validator-next {{WP_ID}}
+- INTEGRATION_VALIDATOR_MODEL_PROFILE: <pending>
+<!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
+- INTEGRATION_VALIDATOR_MODEL: <pending>
+- INTEGRATION_VALIDATOR_REASONING_STRENGTH: <pending>
 - INTEGRATION_VALIDATOR_LOCAL_BRANCH: {{INTEGRATION_VALIDATOR_LOCAL_BRANCH}}
 - INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: {{INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR}}
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: {{INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH}}

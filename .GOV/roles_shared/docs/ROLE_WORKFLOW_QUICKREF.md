@@ -63,7 +63,7 @@ Product-scanning / product-boundary enforcement:
 ## Session Host + Operator Monitor
 
 - When available, prefer VS Code integrated terminals for multi-session work instead of many floating desktop terminals.
-- Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs assume `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
+- Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs record per-role model profiles explicitly. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` may be declared, but governed launch stays fail-closed until runtime support exists.
 - Repo-governed role-session start is `ORCHESTRATOR_ONLY`.
 - Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
@@ -101,6 +101,8 @@ Primary commands:
 - `just record-refinement WP-...`
 - `just record-signature WP-... <sig> <MANUAL_RELAY|ORCHESTRATOR_MANAGED> <Coder-A..Coder-Z>`
 - lane default: choose `MANUAL_RELAY` for small and medium WPs unless you explicitly need autonomous steering or multi-WP parallel management; use `ORCHESTRATOR_MANAGED` only when that extra control-plane cost is justified
+- `just record-role-model-profiles WP-... [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
+- omit args only when you deliberately want the default all-GPT bundle recorded into the packet
 - `just worktree-add WP-...`
 - `just record-prepare WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>] [branch] [worktree_dir]`
 - `just create-task-packet WP-...`

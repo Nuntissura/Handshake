@@ -39,17 +39,23 @@ import {
   defaultIntegrationValidatorBranch,
   defaultIntegrationValidatorWorktreeDir,
   buildRemoteBackupUrl,
+  packetUsesRoleModelProfiles,
   packetUsesSharedRemoteWpBackup,
   packetUsesStructuredValidationReport,
   defaultWpValidatorBranch,
   defaultWpValidatorWorktreeDir,
-  MODEL_FAMILY_POLICY,
+  modelFamilyPolicyForPacketVersion,
+  ROLE_MODEL_PROFILE_POLICY,
   ROLE_SESSION_FALLBACK_MODEL,
   ROLE_SESSION_PRIMARY_MODEL,
   ROLE_SESSION_REASONING_CONFIG_KEY,
   ROLE_SESSION_REASONING_CONFIG_VALUE,
   ROLE_SESSION_REASONING_REQUIRED,
   ROLE_SESSION_RUNTIME,
+  roleModelProfileField,
+  roleModelProfileFromPacket,
+  roleModelProfileMatchesClaim,
+  roleModelProfileMatchesReasoningStrength,
   SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
   SESSION_PLUGIN_BRIDGE_COMMAND,
   SESSION_PLUGIN_BRIDGE_ID,
@@ -668,7 +674,8 @@ if (!fs.existsSync(taskPacketDir)) {
       ['SESSION_WAKE_CHANNEL_PRIMARY', SESSION_WAKE_CHANNEL_PRIMARY],
       ['SESSION_WAKE_CHANNEL_FALLBACK', SESSION_WAKE_CHANNEL_FALLBACK],
       ['CLI_ESCALATION_HOST_DEFAULT', CLI_ESCALATION_HOST_DEFAULT],
-      ['MODEL_FAMILY_POLICY', MODEL_FAMILY_POLICY],
+      ['MODEL_FAMILY_POLICY', modelFamilyPolicyForPacketVersion(packetFormatVersion)],
+      ['ROLE_MODEL_PROFILE_POLICY', ROLE_MODEL_PROFILE_POLICY],
       ['CODEX_MODEL_ALIASES_ALLOWED', CODEX_MODEL_ALIASES_ALLOWED],
       ['ROLE_SESSION_PRIMARY_MODEL', ROLE_SESSION_PRIMARY_MODEL],
       ['ROLE_SESSION_FALLBACK_MODEL', ROLE_SESSION_FALLBACK_MODEL],
@@ -701,6 +708,43 @@ if (!fs.existsSync(taskPacketDir)) {
       const actual = parseSingleField(packetContent, label);
       if (actual !== expected) {
         errors.push(`${label} missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-03-12 (expected ${expected}; got: ${actual || '<missing>'})`);
+      }
+    }
+
+    if (packetUsesRoleModelProfiles(packetFormatVersion)) {
+      const roleProfiles = [
+        ['ORCHESTRATOR', '', 'ORCHESTRATOR_REASONING_STRENGTH'],
+        ['CODER', 'CODER_MODEL', 'CODER_REASONING_STRENGTH'],
+        ['WP_VALIDATOR', 'WP_VALIDATOR_MODEL', 'WP_VALIDATOR_REASONING_STRENGTH'],
+        ['INTEGRATION_VALIDATOR', 'INTEGRATION_VALIDATOR_MODEL', 'INTEGRATION_VALIDATOR_REASONING_STRENGTH'],
+      ];
+
+      for (const [roleName, modelLabel, reasoningLabel] of roleProfiles) {
+        const field = roleModelProfileField(roleName);
+        const profileId = roleModelProfileFromPacket(packetContent, roleName, { fallbackToDefault: false });
+        if (!profileId) {
+          errors.push(`${field} missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-04-06`);
+          continue;
+        }
+
+        const reasoningValue = parseSingleField(packetContent, reasoningLabel);
+        if (!reasoningValue || looksPlaceholder(reasoningValue)) {
+          errors.push(`${reasoningLabel} missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-04-06`);
+        } else if (!roleModelProfileMatchesReasoningStrength(profileId, reasoningValue)) {
+          errors.push(`${reasoningLabel} must match ${field} (${profileId}; got: ${reasoningValue})`);
+        }
+
+        if (!modelLabel) continue;
+        const modelValue = parseSingleField(packetContent, modelLabel);
+        if (roleName === 'CODER' && looksPlaceholder(modelValue)) {
+          // Bootstrap/manual packets may stay unclaimed before coder claim.
+          continue;
+        }
+        if (!modelValue || looksPlaceholder(modelValue)) {
+          errors.push(`${modelLabel} missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-04-06`);
+        } else if (!roleModelProfileMatchesClaim(profileId, modelValue)) {
+          errors.push(`${modelLabel} must match ${field} (${profileId}; got: ${modelValue})`);
+        }
       }
     }
 

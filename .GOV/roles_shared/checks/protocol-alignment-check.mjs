@@ -3,6 +3,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
+  ROLE_MODEL_PROFILE_POLICY,
+  ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
+  ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   CLI_ESCALATION_HOST_DEFAULT,
   CLI_ESCALATION_HOST_LEGACY_ALIAS,
   EXECUTION_OWNER_RANGE_HELP,
@@ -188,6 +191,9 @@ requireRecipe(errors, justfileContent, "worktree-add", [
 requireRecipe(errors, justfileContent, "ensure-wp-communications", [
   `${JUSTFILE_GOV_PREFIX}/roles_shared/scripts/wp/ensure-wp-communications.mjs`,
 ]);
+requireRecipe(errors, justfileContent, "record-role-model-profiles", [
+  `${JUSTFILE_GOV_PREFIX}/roles/orchestrator/checks/orchestrator_gates.mjs" profiles`,
+]);
 requireRecipe(errors, justfileContent, "coder-worktree-add", [
   quotedJustGovScript("roles/orchestrator/scripts/role-session-worktree-add.mjs", "CODER"),
 ]);
@@ -254,6 +260,7 @@ for (const protocolPath of [ORCHESTRATOR_PROTOCOL_PATH, CODER_PROTOCOL_PATH, VAL
   requireSubstring(errors, protocolPath, content, ROLE_SESSION_PRIMARY_MODEL);
   requireSubstring(errors, protocolPath, content, ROLE_SESSION_FALLBACK_MODEL);
   requireSubstring(errors, protocolPath, content, reasoningConfigPair, reasoningConfigPair);
+  requireSubstring(errors, protocolPath, content, ROLE_MODEL_PROFILE_POLICY);
 }
 
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "MANUAL_RELAY");
@@ -263,10 +270,14 @@ requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-wp-validator-session");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-integration-validator-session");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just integration-validator-closeout-check");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just record-role-model-profiles");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH);
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
 
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just coder-startup");
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just coder-next");
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just launch-coder-session");
+requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "CODER_MODEL_PROFILE");
 
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-startup");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-next");
@@ -274,6 +285,7 @@ requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launc
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-integration-validator-session");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just integration-validator-closeout-check");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "shared remote WP backup branch");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "## Read-Amplification and Ambiguity Discipline");
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "## Read-Amplification and Ambiguity Discipline");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "## Read-Amplification and Ambiguity Discipline");
@@ -282,6 +294,7 @@ requireSubstring(errors, LAUNCH_CLI_SESSION_PATH, launchCliSession, "session-con
 requireSubstring(errors, LAUNCH_CLI_SESSION_PATH, launchCliSession, '"START_SESSION"');
 requireSubstring(errors, SESSION_CONTROL_COMMAND_PATH, sessionControlCommand, "buildStartupPrompt");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "MINIMAL LIVE READ SET (MANDATORY):");
+requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "MODEL PROFILE:");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, ".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "ANTI-REDISCOVERY RULE:");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "just --list");
@@ -357,6 +370,7 @@ requireRegex(
 );
 
 requireSubstring(errors, ORCHESTRATOR_GATES_PATH, orchestratorGates, "MANUAL_RELAY|ORCHESTRATOR_MANAGED");
+requireSubstring(errors, ORCHESTRATOR_GATES_PATH, orchestratorGates, "ROLE_MODEL_PROFILES");
 requireSubstring(
   errors,
   ORCHESTRATOR_GATES_PATH,

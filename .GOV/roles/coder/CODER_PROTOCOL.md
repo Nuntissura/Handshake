@@ -311,7 +311,7 @@ Resume rule (hard, anti-babysit):
 - If the assigned packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a coder-local worktree as a competing inbox.
 - When available, prefer VS Code integrated terminals for coder sessions so the Operator can monitor active WPs alongside `just operator-viewport` (`just operator-monitor` remains a compatibility alias).
-- Do not rely on ambient editor defaults for model choice or reasoning strength. For newly created repo-governed sessions, claim/launch explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
+- Do not rely on ambient editor defaults for model choice or reasoning strength. For packet families with `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`, the packet-declared `CODER_MODEL_PROFILE` is authoritative for claim truth. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback, which currently map to `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` may be declared in packets, but governed launch must fail closed until provider-specific runtime support exists.
 - Fresh repo-governed coder session start is `ORCHESTRATOR_ONLY`. Do not self-start a new repo-governed coder session.
 - Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
@@ -470,7 +470,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 
 ## Active Workflow Adjustment [2025-12-28]
 - Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
-- At start: set the work packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH` through the `.GOV/` junction (edits land in the governance kernel). For newly created repo-governed packets, claim `gpt-5.4` + `EXTRA_HIGH`, or `gpt-5.2` + `EXTRA_HIGH` only when the primary model is unavailable. [CX-212F] Do NOT commit `.GOV/` files on your feature branch — the orchestrator commits governance changes on `gov_kernel`.
+- At start: set the work packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH` through the `.GOV/` junction so they match the packet-declared `CODER_MODEL_PROFILE` (edits land in the governance kernel). [CX-212F] Do NOT commit `.GOV/` files on your feature branch — the orchestrator commits governance changes on `gov_kernel`.
 - **Micro Task Workflow:** Work through micro tasks in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, `MT-002.md`, etc.) in order. For each MT:
   1. Set `CODER STATUS: IN_PROGRESS`
   2. Implement the clause described in the MT

@@ -16,8 +16,8 @@ import {
 } from "../lib/runtime-paths.mjs";
 import { ACP_BUILD_ID } from "./acp-build-id.mjs";
 
-export const PACKET_FORMAT_VERSION = "2026-04-05";
-export const STUB_FORMAT_VERSION = "2026-03-16";
+export const PACKET_FORMAT_VERSION = "2026-04-06";
+export const STUB_FORMAT_VERSION = "2026-04-06";
 export const SESSION_POLICY_PACKET_MIN_VERSION = "2026-03-12";
 export const SESSION_POLICY_STUB_MIN_VERSION = "2026-03-12";
 export const EXTERNAL_GOV_RUNTIME_PACKET_MIN_VERSION = "2026-03-16";
@@ -28,6 +28,8 @@ export const SPEC_CLAUSE_MAP_MIN_VERSION = "2026-03-18";
 export const COMPLETION_LAYER_VERDICTS_MIN_VERSION = "2026-03-22";
 export const MERGE_CONTAINMENT_PACKET_MIN_VERSION = "2026-03-25";
 export const DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION = "2026-03-29";
+export const ROLE_MODEL_PROFILE_PACKET_MIN_VERSION = "2026-04-06";
+export const ROLE_MODEL_PROFILE_STUB_MIN_VERSION = "2026-04-06";
 
 export const SESSION_START_AUTHORITY = "ORCHESTRATOR_ONLY";
 export const SESSION_HOST_PREFERENCE = "VSCODE_EXTENSION_TERMINAL";
@@ -67,14 +69,85 @@ export const SESSION_WAKE_CHANNEL_FALLBACK = "WP_HEARTBEAT";
 export const CLI_ESCALATION_HOST_DEFAULT = "SYSTEM_TERMINAL";
 export const CLI_ESCALATION_HOST_LEGACY_ALIAS = "WINDOWS_TERMINAL";
 
-export const MODEL_FAMILY_POLICY = "OPENAI_GPT_SERIES_ONLY";
+export const LEGACY_MODEL_FAMILY_POLICY = "OPENAI_GPT_SERIES_ONLY";
+export const MODEL_FAMILY_POLICY = "ROLE_MODEL_PROFILE_CATALOG_PRIMARY_OPENAI_DECLARED_MULTI_PROVIDER_V1";
 export const CODEX_MODEL_ALIASES_ALLOWED = "NO";
+export const ROLE_MODEL_PROFILE_POLICY = "ROLE_MODEL_PROFILE_CATALOG_V1";
+export const ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED = "GOVERNED_LAUNCH_SUPPORTED";
+export const ROLE_MODEL_PROFILE_RUNTIME_DECLARED_ONLY = "DECLARED_ONLY";
+export const ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH = "OPENAI_GPT_5_4_XHIGH";
+export const ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH = "OPENAI_GPT_5_2_XHIGH";
+export const ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX = "CLAUDE_CODE_OPUS_4_6_THINKING_MAX";
 export const ROLE_SESSION_PRIMARY_MODEL = "gpt-5.4";
 export const ROLE_SESSION_FALLBACK_MODEL = "gpt-5.2";
 export const ROLE_SESSION_REASONING_REQUIRED = "EXTRA_HIGH";
 export const REASONING_ENFORCEMENT_MODE = "SESSION_BRIEF_AND_CLAIM_CHECK";
 export const ROLE_SESSION_REASONING_CONFIG_KEY = "model_reasoning_effort";
 export const ROLE_SESSION_REASONING_CONFIG_VALUE = "xhigh";
+export const ROLE_MODEL_PROFILE_FIELD_BY_ROLE = Object.freeze({
+  ORCHESTRATOR: "ORCHESTRATOR_MODEL_PROFILE",
+  CODER: "CODER_MODEL_PROFILE",
+  WP_VALIDATOR: "WP_VALIDATOR_MODEL_PROFILE",
+  INTEGRATION_VALIDATOR: "INTEGRATION_VALIDATOR_MODEL_PROFILE",
+});
+export const ROLE_MODEL_PROFILE_CATALOG = Object.freeze({
+  [ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH]: Object.freeze({
+    profile_id: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+    provider: "OPENAI",
+    session_tool: CLI_SESSION_TOOL,
+    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED,
+    claim_model: ROLE_SESSION_PRIMARY_MODEL,
+    claim_model_aliases: Object.freeze(["gpt-5.4", "GPT-5.4"]),
+    reasoning_strength: ROLE_SESSION_REASONING_REQUIRED,
+    launch_model: ROLE_SESSION_PRIMARY_MODEL,
+    launch_reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
+    launch_reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
+    reasoning_policy_note: `${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}`,
+  }),
+  [ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH]: Object.freeze({
+    profile_id: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
+    provider: "OPENAI",
+    session_tool: CLI_SESSION_TOOL,
+    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED,
+    claim_model: ROLE_SESSION_FALLBACK_MODEL,
+    claim_model_aliases: Object.freeze(["gpt-5.2", "GPT-5.2", "GPT-5.2 (Codex CLI)"]),
+    reasoning_strength: ROLE_SESSION_REASONING_REQUIRED,
+    launch_model: ROLE_SESSION_FALLBACK_MODEL,
+    launch_reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
+    launch_reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
+    reasoning_policy_note: `${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}`,
+  }),
+  [ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX]: Object.freeze({
+    profile_id: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
+    provider: "ANTHROPIC",
+    session_tool: "claude-code",
+    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_DECLARED_ONLY,
+    claim_model: "claude-code-opus-4.6-thinking-max",
+    claim_model_aliases: Object.freeze([
+      "claude-code-opus-4.6-thinking-max",
+      "Claude Code Opus 4.6 Thinking (Highest Available)",
+      "Claude Code Opus 4.6",
+    ]),
+    reasoning_strength: ROLE_SESSION_REASONING_REQUIRED,
+    launch_model: "",
+    launch_reasoning_config_key: "",
+    launch_reasoning_config_value: "",
+    reasoning_policy_note: "Opus 4.6 Thinking / highest available in Claude Code CLI",
+  }),
+});
+export const ROLE_MODEL_PROFILE_IDS = Object.freeze(Object.keys(ROLE_MODEL_PROFILE_CATALOG));
+export const ROLE_MODEL_PROFILE_HELP = ROLE_MODEL_PROFILE_IDS.join(" | ");
+export const DEFAULT_ROLE_MODEL_PROFILE_IDS = Object.freeze({
+  ORCHESTRATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+  CODER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+  WP_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+  INTEGRATION_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+});
+export const ROLE_MODEL_PROFILE_FALLBACKS = Object.freeze({
+  [ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
+  [ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
+  [ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX]: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
+});
 export const WP_TOKEN_BUDGET_POLICY_ID = "ORCHESTRATOR_MANAGED_V1";
 export const WP_TOKEN_LEDGER_HEALTH_POLICY_ID = "ORCHESTRATOR_MANAGED_LEDGER_V1";
 export const WP_TOKEN_LEDGER_HEALTH_THRESHOLDS = Object.freeze({
@@ -320,6 +393,107 @@ export function executionOwnerToPacketValue(raw) {
 export function executionOwnerDisplay(value) {
   const normalized = normalizeExecutionOwner(value);
   return normalized || "";
+}
+
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
+  const match = String(text || "").match(re);
+  return match ? match[1].trim() : "";
+}
+
+export function packetUsesRoleModelProfiles(packetFormatVersion) {
+  const version = String(packetFormatVersion || "").trim();
+  return version >= ROLE_MODEL_PROFILE_PACKET_MIN_VERSION;
+}
+
+export function modelFamilyPolicyForPacketVersion(packetFormatVersion) {
+  return packetUsesRoleModelProfiles(packetFormatVersion) ? MODEL_FAMILY_POLICY : LEGACY_MODEL_FAMILY_POLICY;
+}
+
+export function modelFamilyPolicyForStubVersion(stubFormatVersion) {
+  return stubUsesRoleModelProfiles(stubFormatVersion) ? MODEL_FAMILY_POLICY : LEGACY_MODEL_FAMILY_POLICY;
+}
+
+export function stubUsesRoleModelProfiles(stubFormatVersion) {
+  const version = String(stubFormatVersion || "").trim();
+  return version >= ROLE_MODEL_PROFILE_STUB_MIN_VERSION;
+}
+
+export function roleModelProfileField(role) {
+  return ROLE_MODEL_PROFILE_FIELD_BY_ROLE[String(role || "").trim().toUpperCase()] || "";
+}
+
+export function normalizeRoleModelProfileId(value) {
+  const token = String(value || "").trim().toUpperCase();
+  return ROLE_MODEL_PROFILE_IDS.includes(token) ? token : "";
+}
+
+export function defaultRoleModelProfileId(role) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  return DEFAULT_ROLE_MODEL_PROFILE_IDS[normalizedRole] || DEFAULT_ROLE_MODEL_PROFILE_IDS.CODER;
+}
+
+export function roleModelProfile(profileId) {
+  const normalizedProfileId = normalizeRoleModelProfileId(profileId);
+  return normalizedProfileId ? ROLE_MODEL_PROFILE_CATALOG[normalizedProfileId] || null : null;
+}
+
+export function roleModelProfileFromPacket(packetContent, role, { fallbackToDefault = true } = {}) {
+  const label = roleModelProfileField(role);
+  const claimed = label ? normalizeRoleModelProfileId(parseSingleField(packetContent, label)) : "";
+  if (claimed) return claimed;
+  return fallbackToDefault ? defaultRoleModelProfileId(role) : "";
+}
+
+export function fallbackRoleModelProfileId(profileId) {
+  const normalizedProfileId = normalizeRoleModelProfileId(profileId);
+  return ROLE_MODEL_PROFILE_FALLBACKS[normalizedProfileId] || normalizedProfileId || "";
+}
+
+export function resolveRoleModelProfileSelection(role, packetContent, selector = "PRIMARY") {
+  const primaryProfileId = roleModelProfileFromPacket(packetContent, role, { fallbackToDefault: true });
+  const selectedProfileId =
+    String(selector || "").trim().toUpperCase() === "FALLBACK"
+      ? fallbackRoleModelProfileId(primaryProfileId)
+      : primaryProfileId;
+  return {
+    primary_profile_id: primaryProfileId,
+    selected_profile_id: selectedProfileId,
+    profile: roleModelProfile(selectedProfileId),
+  };
+}
+
+export function roleModelProfileSupportsGovernedLaunch(profileId) {
+  const profile = roleModelProfile(profileId);
+  return profile?.runtime_support === ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED;
+}
+
+export function roleModelProfileMatchesClaim(profileId, modelValue) {
+  const profile = roleModelProfile(profileId);
+  if (!profile) return false;
+  const token = String(modelValue || "").trim().toLowerCase();
+  const accepted = [
+    profile.claim_model,
+    ...(Array.isArray(profile.claim_model_aliases) ? profile.claim_model_aliases : []),
+  ]
+    .map((entry) => String(entry || "").trim().toLowerCase())
+    .filter(Boolean);
+  return accepted.includes(token);
+}
+
+export function roleModelProfileRequiresReasoningStrength(profileId) {
+  const profile = roleModelProfile(profileId);
+  return profile?.reasoning_strength || ROLE_SESSION_REASONING_REQUIRED;
+}
+
+export function normalizeReasoningStrengthToken(value) {
+  return String(value || "").trim().toUpperCase().replace(/[\s_-]+/g, "_");
+}
+
+export function roleModelProfileMatchesReasoningStrength(profileId, reasoningStrengthValue) {
+  const expected = normalizeReasoningStrengthToken(roleModelProfileRequiresReasoningStrength(profileId));
+  const actual = normalizeReasoningStrengthToken(reasoningStrengthValue);
+  return Boolean(expected) && actual === expected;
 }
 
 export function isDisallowedCodexModelAlias(value) {

@@ -219,6 +219,7 @@ function normalizeSessionRecord(session) {
   session.active_host = normalizeActiveHost(session.active_host);
   session.active_terminal_title = session.active_terminal_title || "";
   session.active_terminal_kind = normalizeActiveTerminalKind(session.active_terminal_kind);
+  session.requested_profile_id = session.requested_profile_id || "";
   session.terminal_ownership_scope = SESSION_TERMINAL_OWNERSHIP_SCOPE_VALUES.includes(session.terminal_ownership_scope)
     ? session.terminal_ownership_scope
     : SESSION_TERMINAL_OWNERSHIP_SCOPE_NONE;
@@ -541,6 +542,7 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
       local_worktree_dir: normalizePath(sessionDescriptor.local_worktree_dir || ""),
       terminal_title: sessionDescriptor.terminal_title || terminalTitle(sessionDescriptor.role, sessionDescriptor.wp_id),
       requested_model: sessionDescriptor.requested_model || "",
+      requested_profile_id: sessionDescriptor.requested_profile_id || "",
       reasoning_config_key: sessionDescriptor.reasoning_config_key || "",
       reasoning_config_value: sessionDescriptor.reasoning_config_value || "",
       control_mode: SESSION_CONTROL_MODE,
@@ -587,6 +589,7 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
     session.local_worktree_dir = normalizePath(session.local_worktree_dir || sessionDescriptor.local_worktree_dir || "");
     session.terminal_title = sessionDescriptor.terminal_title || session.terminal_title || terminalTitle(sessionDescriptor.role, sessionDescriptor.wp_id);
     session.requested_model = session.requested_model || sessionDescriptor.requested_model || "";
+    session.requested_profile_id = session.requested_profile_id || sessionDescriptor.requested_profile_id || "";
     session.reasoning_config_key = session.reasoning_config_key || sessionDescriptor.reasoning_config_key || "";
     session.reasoning_config_value = session.reasoning_config_value || sessionDescriptor.reasoning_config_value || "";
     normalizeSessionRecord(session);
@@ -600,6 +603,7 @@ export function buildLaunchRequest({
   localBranch,
   localWorktreeDir,
   selectedModel,
+  selectedProfileId = "",
   reasoningConfigKey,
   reasoningConfigValue,
   startupCommand,
@@ -627,6 +631,7 @@ export function buildLaunchRequest({
     local_branch: normalizePath(localBranch),
     local_worktree_dir: normalizePath(localWorktreeDir),
     selected_model: selectedModel,
+    selected_profile_id: selectedProfileId,
     reasoning_config_key: reasoningConfigKey,
     reasoning_config_value: reasoningConfigValue,
     startup_command: startupCommand,
@@ -644,6 +649,7 @@ export function queuePluginLaunch(repoRoot, registry, request) {
     local_worktree_dir: request.local_worktree_dir,
     terminal_title: request.terminal_title,
     requested_model: request.selected_model,
+    requested_profile_id: request.selected_profile_id || "",
     reasoning_config_key: request.reasoning_config_key,
     reasoning_config_value: request.reasoning_config_value,
   });
@@ -859,6 +865,7 @@ export function registrySessionSummary(session) {
     wp_id: session.wp_id,
     local_branch: session.local_branch || "",
     local_worktree_dir: session.local_worktree_dir || "",
+    requested_profile_id: session.requested_profile_id || "",
     runtime_state: session.runtime_state,
     control_mode: session.control_mode || SESSION_CONTROL_MODE,
     control_transport: session.control_transport || SESSION_CONTROL_TRANSPORT_PRIMARY,

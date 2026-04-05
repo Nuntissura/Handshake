@@ -11,10 +11,13 @@ import {
     preparedWorktreeSyncState,
 } from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
 import {
+    DEFAULT_ROLE_MODEL_PROFILE_IDS,
     defaultCoderBranch,
     defaultCoderWorktreeDir,
     EXECUTION_OWNER_RANGE_HELP,
     normalizeExecutionOwner,
+    normalizeRoleModelProfileId,
+    ROLE_MODEL_PROFILE_HELP,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
@@ -127,6 +130,11 @@ function v2ResolveLastSignature() {
 function v2ResolveLastPrepare() {
     const logs = state.gate_logs.filter((l) => l.wpId === wpId);
     return [...logs].reverse().find((l) => l.type === 'PREPARE') || null;
+}
+
+function v2ResolveLastRoleModelProfiles() {
+    const logs = state.gate_logs.filter((l) => l.wpId === wpId);
+    return [...logs].reverse().find((l) => l.type === 'ROLE_MODEL_PROFILES') || null;
 }
 
 function v2NormalizeBranch(branch) {
@@ -420,6 +428,7 @@ if (action === 'sign') {
 
     if (workflowLane && executionLane) {
         const nextCommands = [
+            `just record-role-model-profiles ${wpId}`,
             `just orchestrator-prepare-and-packet ${wpId}`,
             '# Before coder handoff after packet creation, run pre-work and prepare the relayable implementation brief in chat:',
             `just pre-work ${wpId}`,
@@ -433,13 +442,14 @@ if (action === 'sign') {
             gateRan: `just record-signature ${wpId} ${signature} ${workflowLane} ${executionLane}`,
             result: 'PASS',
             why: `One-time signature recorded + audited with workflow lane ${workflowLane} and execution owner ${executionLane}; continue without a separate branch/worktree or ownership prompt.`,
-            gateOutputLines: [
-                `[ORCHESTRATOR GATE] Signature recorded for ${wpId}.`,
-                `- workflow_lane: ${workflowLane}`,
-                `- execution_lane: ${executionLane}`,
-            ],
-            nextCommands,
-        });
+        gateOutputLines: [
+            `[ORCHESTRATOR GATE] Signature recorded for ${wpId}.`,
+            `- workflow_lane: ${workflowLane}`,
+            `- execution_lane: ${executionLane}`,
+            `- next_gate: ROLE_MODEL_PROFILES (explicit per-role model selection; defaults may be recorded deliberately)`,
+        ],
+        nextCommands,
+    });
         process.exit(0);
     }
 
@@ -460,7 +470,73 @@ if (action === 'sign') {
         ],
         nextCommands: [
             `just record-signature ${wpId} ${signature} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${executionLane || EXECUTION_OWNER_USAGE}`,
+            `just record-role-model-profiles ${wpId}`,
             `# After closeout, use: just wp-timeline ${wpId} --json`,
+        ],
+    });
+    process.exit(0);
+}
+
+if (action === 'profiles') {
+    v2AssertWpId(wpId);
+    const lastSignature = v2ResolveLastSignature();
+    if (!lastSignature) {
+        v2Fail(`No signature recorded for ${wpId}. Run: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`);
+    }
+
+    const orchestratorProfileArg = (argvData[0] || '').trim();
+    const coderProfileArg = (argvData[1] || '').trim();
+    const wpValidatorProfileArg = (argvData[2] || '').trim();
+    const integrationValidatorProfileArg = (argvData[3] || '').trim();
+
+    const orchestratorProfile = normalizeRoleModelProfileId(orchestratorProfileArg) || DEFAULT_ROLE_MODEL_PROFILE_IDS.ORCHESTRATOR;
+    const coderProfile = normalizeRoleModelProfileId(coderProfileArg) || DEFAULT_ROLE_MODEL_PROFILE_IDS.CODER;
+    const wpValidatorProfile = normalizeRoleModelProfileId(wpValidatorProfileArg) || DEFAULT_ROLE_MODEL_PROFILE_IDS.WP_VALIDATOR;
+    const integrationValidatorProfile = normalizeRoleModelProfileId(integrationValidatorProfileArg) || DEFAULT_ROLE_MODEL_PROFILE_IDS.INTEGRATION_VALIDATOR;
+
+    const invalidProfiles = [];
+    if (orchestratorProfileArg && !normalizeRoleModelProfileId(orchestratorProfileArg)) invalidProfiles.push(`ORCHESTRATOR_MODEL_PROFILE=${orchestratorProfileArg}`);
+    if (coderProfileArg && !normalizeRoleModelProfileId(coderProfileArg)) invalidProfiles.push(`CODER_MODEL_PROFILE=${coderProfileArg}`);
+    if (wpValidatorProfileArg && !normalizeRoleModelProfileId(wpValidatorProfileArg)) invalidProfiles.push(`WP_VALIDATOR_MODEL_PROFILE=${wpValidatorProfileArg}`);
+    if (integrationValidatorProfileArg && !normalizeRoleModelProfileId(integrationValidatorProfileArg)) invalidProfiles.push(`INTEGRATION_VALIDATOR_MODEL_PROFILE=${integrationValidatorProfileArg}`);
+    if (invalidProfiles.length > 0) {
+        v2Fail('Invalid role model profile id(s).', [
+            ...invalidProfiles,
+            `Allowed: ${ROLE_MODEL_PROFILE_HELP}`,
+            `Usage: just record-role-model-profiles ${wpId} [orchestrator_profile] [coder_profile] [wp_validator_profile] [integration_validator_profile]`,
+        ]);
+    }
+
+    const now = new Date().toISOString();
+    state.gate_logs.push({
+        wpId,
+        type: 'ROLE_MODEL_PROFILES',
+        orchestrator_model_profile: orchestratorProfile,
+        coder_model_profile: coderProfile,
+        wp_validator_model_profile: wpValidatorProfile,
+        integration_validator_model_profile: integrationValidatorProfile,
+        timestamp: now,
+    });
+    saveState(state);
+
+    v2PrintGateBlocks({
+        wpId,
+        stage: 'ROLE_MODEL_PROFILES',
+        next: 'PREPARE',
+        operatorAction: 'NONE',
+        gateRan: `just record-role-model-profiles ${wpId} ${orchestratorProfileArg} ${coderProfileArg} ${wpValidatorProfileArg} ${integrationValidatorProfileArg}`.trim(),
+        result: 'PASS',
+        why: 'Per-role model profiles recorded for packet creation and governed runtime/session policy enforcement.',
+        gateOutputLines: [
+            `[ORCHESTRATOR GATE] Role model profiles recorded for ${wpId}.`,
+            `- ORCHESTRATOR_MODEL_PROFILE: ${orchestratorProfile}`,
+            `- CODER_MODEL_PROFILE: ${coderProfile}`,
+            `- WP_VALIDATOR_MODEL_PROFILE: ${wpValidatorProfile}`,
+            `- INTEGRATION_VALIDATOR_MODEL_PROFILE: ${integrationValidatorProfile}`,
+            `- note: profiles with provider-specific runtime_support=DECLARED_ONLY remain auditable in packets, but governed launch/session-control will fail closed until runtime support exists.`,
+        ],
+        nextCommands: [
+            `just orchestrator-prepare-and-packet ${wpId}`,
         ],
     });
     process.exit(0);
@@ -633,4 +709,4 @@ if (action === 'prepare') {
     process.exit(0);
 }
 
-v2Fail('Unknown action. Expected: refine|sign|prepare');
+v2Fail('Unknown action. Expected: refine|sign|profiles|prepare');

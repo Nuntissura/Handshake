@@ -274,6 +274,9 @@
           "requested_model": {
             "type": "string"
           },
+          "requested_profile_id": {
+            "type": "string"
+          },
           "reasoning_config_key": {
             "type": "string"
           },
