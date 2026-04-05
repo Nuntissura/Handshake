@@ -12,10 +12,14 @@ function runFixture({
   status = "PASS",
   targetHeadSha = "abc123",
   validatedAt = "2026-03-29T10:00:00Z",
+  livePrepareWorktreeStatus = status,
+  committedTargetStatus = status,
 } = {}) {
   return {
     wp_id: "WP-TEST-COMMITTED-EVIDENCE-v1",
     status,
+    live_prepare_worktree_status: livePrepareWorktreeStatus,
+    committed_target_status: committedTargetStatus,
     validated_at: validatedAt,
     prepare_worktree_dir: "../wtc-test",
     committed_validation_mode: "HEAD",
@@ -63,4 +67,23 @@ test("normalizeCommittedValidationEvidence upgrades legacy flat evidence into th
   assert.equal(normalized.latest_run.status, "PASS");
   assert.equal(normalized.last_successful_committed_target_proof.target_head_sha, "aaa111");
   assert.equal(normalized.proof_history.length >= 0, true);
+});
+
+test("recordCommittedValidationRun preserves a durable committed PASS when live prepare health fails", () => {
+  const evidence = recordCommittedValidationRun(null, runFixture({
+    status: "PASS",
+    livePrepareWorktreeStatus: "FAIL",
+    committedTargetStatus: "PASS",
+    targetHeadSha: "ccc333",
+    validatedAt: "2026-03-29T12:00:00Z",
+  }));
+
+  const durableProof = committedEvidenceForCloseout(evidence);
+  const liveHealth = livePrepareWorktreeHealthEvidence(evidence);
+
+  assert.equal(durableProof.status, "PASS");
+  assert.equal(durableProof.target_head_sha, "ccc333");
+  assert.equal(liveHealth.status, "FAIL");
+  assert.equal(liveHealth.target_head_sha, "ccc333");
+  assert.equal(committedEvidenceHasDurablePass(evidence), true);
 });

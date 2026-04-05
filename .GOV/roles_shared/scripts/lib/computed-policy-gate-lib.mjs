@@ -141,7 +141,7 @@ function inferCoverageTokens(rawLine) {
   return uniqueOrdered(coverage);
 }
 
-function parseWaiverLedger(packetText) {
+export function parsePolicyWaiverLedger(packetText) {
   const section = extractSectionAfterHeading(packetText, "WAIVERS GRANTED");
   const lines = String(section || "")
     .split(/\r?\n/)
@@ -315,7 +315,7 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
   const packetFormatVersion = parseSingleField(packetText, "PACKET_FORMAT_VERSION");
   const status = parseStatus(packetText);
   const report = parseValidationReport(packetText);
-  const waiverLedger = parseWaiverLedger(packetText);
+  const waiverLedger = parsePolicyWaiverLedger(packetText);
   const usesStructuredReport = packetUsesStructuredValidationReport(packetFormatVersion);
   const requiresCompletionLayer = packetRequiresCompletionLayerVerdicts(packetFormatVersion);
   const closedStatus = isClosedStatus(status);

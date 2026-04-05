@@ -75,6 +75,8 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
+
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -91,9 +93,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Locus-Phase1-QueryContract-Autosync-v1]** - [STUB]
 - **[WP-1-Locus-Phase1-Medallion-Search-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
-- **[WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1]** - [STUB]
 - **[WP-1-Storage-No-Runtime-DDL-v1]** - [STUB]
-- **[WP-1-Storage-Capability-Boundary-Refactor-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
 - **[WP-1-Spec-Router-CapabilitySnapshot-v1]** - [STUB]
 - **[WP-1-Spec-Router-Evidence-Portability-v1]** - [STUB]
@@ -181,6 +181,86 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -411,6 +491,12 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 - **[WP-1-Storage-Trait-Purity-v1]** - [VALIDATED]
+
+
+
+- **[WP-1-Storage-Capability-Boundary-Refactor-v1]** - [VALIDATED]
+
+- **[WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1]** - [VALIDATED]
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]

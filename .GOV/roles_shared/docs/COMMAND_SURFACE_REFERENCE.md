@@ -93,6 +93,7 @@ For orchestrator-managed lanes after signature/prepare:
 - routine Operator asks such as "proceed", checkpoint approval, or generic approval relapse are invalid
 - real escalations must name one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`
 - legacy pre-launch repair may still surface `LEGACY_SIGNATURE_TUPLE_REPAIR` from `just orchestrator-next`
+- if the Operator explicitly authorizes bounded continuation after `TOKEN_BUDGET_EXCEEDED`, record it in the packet `## WAIVERS GRANTED` section as an active `GOVERNANCE` waiver that explicitly mentions `TOKEN_BUDGET_EXCEEDED` or `POLICY_CONFLICT`; `just orchestrator-next` may then continue while still surfacing the waiver in resume output
 
 If a role keeps needing those rereads:
 

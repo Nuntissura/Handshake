@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { GOV_ROOT_REPO_REL, repoPathAbs, resolveRefinementPath } from '../scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, repoPathAbs, resolveRefinementPath, resolveWorkPacketPath } from '../scripts/lib/runtime-paths.mjs';
 
 const SPEC_CURRENT_PATH = path.join(GOV_ROOT_REPO_REL, 'spec', 'SPEC_CURRENT.md');
 const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'TASK_BOARD.md');
@@ -2055,8 +2055,9 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
             }
           }
           if (group.expectsOfficialPacket) {
-            const packetPath = path.join(GOV_ROOT_REPO_REL, 'task_packets', `${row.artifact}.md`);
-            if (!fs.existsSync(packetPath)) {
+            const resolvedPacket = resolveWorkPacketPath(row.artifact);
+            const packetPath = resolvedPacket?.packetPath || path.join(GOV_ROOT_REPO_REL, 'task_packets', `${row.artifact}.md`);
+            if (!resolvedPacket && !fs.existsSync(packetPath)) {
               errors.push(`${group.label} ${row.artifact} is missing official task packet ${packetPath.replace(/\\/g, '/')}`);
             }
           }

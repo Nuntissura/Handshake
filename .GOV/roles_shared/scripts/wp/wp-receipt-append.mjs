@@ -77,6 +77,14 @@ const BUILD_ORDER_SYNC_SCRIPT_PATH = path.resolve(
   "scripts",
   "build-order-sync.mjs",
 );
+const POST_WORK_CHECK_SCRIPT_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+  "roles",
+  "coder",
+  "checks",
+  "post-work-check.mjs",
+);
 const TASK_BOARD_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`);
 const BUILD_ORDER_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md`);
 const RUNTIME_ROUTE_FIELD_NAMES = [
@@ -459,10 +467,10 @@ function assertCommittedCoderHandoffPreflight({ wpId, context }) {
 
   const mergeBaseSha = parseMergeBaseSha(context.packetText);
   const postWorkArgs = mergeBaseSha
-    ? ["post-work", wpId, "--range", `${mergeBaseSha}..HEAD`]
-    : ["post-work", wpId];
+    ? [POST_WORK_CHECK_SCRIPT_PATH, wpId, "--range", `${mergeBaseSha}..HEAD`]
+    : [POST_WORK_CHECK_SCRIPT_PATH, wpId];
   try {
-    runInWorktree(worktreeAbs, "just", postWorkArgs);
+    runInWorktree(worktreeAbs, process.execPath, postWorkArgs);
   } catch (error) {
     const output = String(error?.stdout || error?.stderr || error?.message || "").trim();
     throw new Error(`Governed CODER_HANDOFF rejected: ${buildPostWorkCommand(wpId, context.packetText)} failed${output ? ` (${output})` : ""}.`);
