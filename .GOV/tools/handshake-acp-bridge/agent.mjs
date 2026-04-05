@@ -15,6 +15,7 @@ import {
   markSessionCommandRunning,
   writeJsonFile,
 } from "../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { reclaimOwnedSessionTerminals } from "../../roles_shared/scripts/session/terminal-ownership-lib.mjs";
 import {
   buildSessionControlResult,
   defaultSessionOutputFile,
@@ -579,6 +580,21 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
       duration_ms: result.duration_ms,
       broker_run_id: requestRecord.command_id,
     });
+
+    try {
+      const reclaimResults = reclaimOwnedSessionTerminals(repoRoot, { sessionKey: requestRecord.session_key });
+      for (const r of reclaimResults) {
+        notify(socket, "session/update", {
+          session_id: requestRecord.session_key,
+          stage: "terminal.reclaimed",
+          command_id: requestRecord.command_id,
+          reclaim_status: r.reclaim_status,
+          process_id: r.process_id,
+          terminal_batch_id: r.terminal_batch_id,
+          timestamp: nowIso(),
+        });
+      }
+    } catch { /* reclaim is best-effort; do not fail the settled run */ }
   };
 
   runState.timer = setTimeout(() => {
