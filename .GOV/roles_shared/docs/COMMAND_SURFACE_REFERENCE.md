@@ -52,7 +52,7 @@ These are safe starting points for orientation and health checks.
   - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, and next commands
 - `just manual-relay-next WP-{ID}`
   - `read-only`
-  - operator-facing next-step helper for `WORKFLOW_LANE=MANUAL_RELAY`; prints the runtime-projected next actor, target session, and exact governed follow-up commands without auto-steering
+  - operator-facing next-step helper for `WORKFLOW_LANE=MANUAL_RELAY`; prints the runtime-projected next actor, target session, a structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`), and exact governed follow-up commands without auto-steering
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK]`
   - `runtime-write`
   - operator-invoked broker for `WORKFLOW_LANE=MANUAL_RELAY`; starts or steers only the currently projected governed next actor and does not auto-discover future hops

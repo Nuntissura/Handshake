@@ -283,6 +283,7 @@ Workflow semantics:
 - `MANUAL_RELAY` = Operator remains the main relay, but governed artifacts still apply
 - `ORCHESTRATOR_MANAGED` = Orchestrator steers sessions and workflow, but remains non-agentic and non-coding
 - For `MANUAL_RELAY`, prefer `just manual-relay-next WP-{ID}` to read the runtime-projected next actor and use `just manual-relay-dispatch WP-{ID}` only when the Operator explicitly wants to broker one governed role hop mechanically.
+- Manual relay outputs must keep role-to-role content separate from operator-only explanation. Use the structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`) instead of mixing handoff/question/reply content into hard-gate prose.
 
 ## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
 
