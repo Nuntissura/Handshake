@@ -2618,6 +2618,40 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     }
   }
 
+  // RGF-94: Feature Discovery Checkpoint.
+  // Refinement is a feature discovery engine, not just a cross-check.
+  // Every WP should yield primitive discoveries, stub candidates, matrix edges, or UI controls.
+  if (isHydratedResearchProfile) {
+    const discoveryPrimitives = getSingleField(content, 'DISCOVERY_PRIMITIVES');
+    const discoveryStubs = getSingleField(content, 'DISCOVERY_STUBS');
+    const discoveryMatrixEdges = getSingleField(content, 'DISCOVERY_MATRIX_EDGES');
+    const discoveryUiControls = getSingleField(content, 'DISCOVERY_UI_CONTROLS');
+    const discoverySpecEnrichment = getSingleField(content, 'DISCOVERY_SPEC_ENRICHMENT');
+    const discoveryJustification = getSingleField(content, 'DISCOVERY_JUSTIFICATION');
+
+    if (isPlaceholderValue(discoveryPrimitives)) {
+      errors.push('DISCOVERY_PRIMITIVES must list new PRIM-IDs discovered or NONE_DISCOVERED with reason');
+    }
+    if (isPlaceholderValue(discoveryStubs)) {
+      errors.push('DISCOVERY_STUBS must list new WP stub IDs created or NONE_CREATED with reason');
+    }
+    if (isPlaceholderValue(discoveryMatrixEdges)) {
+      errors.push('DISCOVERY_MATRIX_EDGES must list new IMX-IDs or NONE_FOUND with reason');
+    }
+    if (isPlaceholderValue(discoveryUiControls)) {
+      errors.push('DISCOVERY_UI_CONTROLS must list UI elements identified or NONE_APPLICABLE with reason');
+    }
+    if (isPlaceholderValue(discoverySpecEnrichment)) {
+      errors.push('DISCOVERY_SPEC_ENRICHMENT must be YES or NO_ENRICHMENT_NEEDED with reason');
+    }
+
+    const allNone = [discoveryPrimitives, discoveryStubs, discoveryMatrixEdges, discoveryUiControls]
+      .every((v) => /^NONE|^N\/A/i.test(String(v || '').trim()));
+    if (allNone && isPlaceholderValue(discoveryJustification)) {
+      errors.push('All discovery fields are NONE — DISCOVERY_JUSTIFICATION must explain why this WP yielded zero new discoveries. Consecutive zero-discovery WPs are a regression signal.');
+    }
+  }
+
   // Anchors: must exist and be filled + token-in-window.
   const anchors = parseAnchors(content);
   parsed.specAnchors = anchors;

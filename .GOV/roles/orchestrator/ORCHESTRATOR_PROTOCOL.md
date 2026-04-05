@@ -506,6 +506,14 @@ Legacy flat compatibility:
   - then end-of-file appendix / index / matrix updates
   - then Roadmap phase updates
   - then Task Board / Build Order / stub backlog synchronization
+- **Feature Discovery Checkpoint [RGF-94] (HARD):** Before the refinement can be shown for approval, the Orchestrator MUST declare:
+  - **DISCOVERY_PRIMITIVES**: New primitives discovered (PRIM-IDs) or explicit `NONE_DISCOVERED` with reason. A refinement that touches multiple pillars or engines and discovers zero new primitives should be flagged as a missed opportunity.
+  - **DISCOVERY_STUBS**: New stubs created from cross-pillar/engine/primitive analysis, or explicit `NONE_CREATED` with reason. Zero new stubs is acceptable only when the WP is genuinely isolated.
+  - **DISCOVERY_MATRIX_EDGES**: New interaction matrix edges (IMX-IDs) discovered, or explicit `NONE_FOUND` with reason. A WP that creates new primitives or touches multiple pillars should almost always produce at least one new edge.
+  - **DISCOVERY_UI_CONTROLS**: New UI controls, buttons, interactions, or state transitions identified for future GUI work, or explicit `NONE_APPLICABLE` with reason. Prefer declaring too many controls now and removing later over discovering missing interface elements after backend work ships.
+  - **DISCOVERY_SPEC_ENRICHMENT**: Whether the discoveries require a spec version bump (`YES` or `NO_ENRICHMENT_NEEDED` with reason).
+  - The old manual relay workflow yielded more feature growth per WP because the operator actively spotted combinations. The orchestrator-managed flow MUST compensate by treating discovery as a mandatory output, not an optional side effect.
+  - If all discovery fields are NONE/NO, the Orchestrator MUST include a `DISCOVERY_JUSTIFICATION` explaining why this WP is an exception. A pattern of consecutive zero-discovery WPs is a regression signal.
 - Show the refinement in chat before any signature request:
   - either the full `## TECHNICAL_REFINEMENT (MASTER SPEC)` block
   - or enough current Master Spec anchors to prove the Orchestrator understands the relevant roadmap items, stubs, and WP context
