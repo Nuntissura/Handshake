@@ -25,6 +25,7 @@ import {
   validateSessionControlRequestShape,
 } from "../../roles_shared/scripts/session/session-control-lib.mjs";
 import { settleRecoverableSessionControlResults } from "../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
+import { appendWpNotificationCore } from "../../roles_shared/scripts/wp/wp-notification-append.mjs";
 import {
   SESSION_ACTIVE_TERMINAL_KIND_NONE,
   SESSION_CONTROL_BROKER_AUTH_MODE,
@@ -214,6 +215,28 @@ function ensureResultPersisted(request, session, result) {
   session.active_host = SESSION_CONTROL_HOST_PRIMARY;
   session.active_terminal_kind = SESSION_ACTIVE_TERMINAL_KIND_NONE;
   markSessionCommandResult(session, result);
+
+  // RGF-93: Mechanical completion notification.
+  // Fire-and-forget: inject a notification into WP communications so the orchestrator
+  // does not need to poll for session results. The notification targets the ORCHESTRATOR
+  // so it can resume lifecycle progression without sleeping and reading output files.
+  const status = String(result.status || "").toUpperCase();
+  if ((status === "COMPLETED" || status === "FAILED") && request.wp_id && request.command_kind !== "CANCEL_SESSION") {
+    try {
+      appendWpNotificationCore({
+        wpId: request.wp_id,
+        sourceKind: "SESSION_COMPLETION",
+        sourceRole: String(request.role || "BROKER").toUpperCase(),
+        sourceSession: request.session_key || "",
+        targetRole: "ORCHESTRATOR",
+        correlationId: request.command_id || "",
+        summary: `${request.role || "ROLE"} session ${status.toLowerCase()} for ${request.command_kind || "command"}: ${String(result.summary || result.last_agent_message || "").slice(0, 200)}`,
+      });
+    } catch {
+      // Non-fatal: notification is a convenience, not a hard requirement.
+      // The orchestrator can still poll or check session-registry-status as fallback.
+    }
+  }
 }
 
 function settleRejectedRequest(request, reason) {

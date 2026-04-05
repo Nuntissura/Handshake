@@ -93,7 +93,7 @@ export function orchestratorSteerScriptPath() {
   return ORCHESTRATOR_STEER_SCRIPT_PATH;
 }
 
-function appendWpNotificationCore({
+export function appendWpNotificationCore({
   wpId,
   sourceKind,
   sourceRole,
