@@ -1135,3 +1135,18 @@
 - FOLLOW_ON_ITEMS:
   - `RGF-75`
 - OUTCOME: repo-local `target/` directories and stale non-canonical artifact folders now fail closed and are cleaned mechanically, governed system-terminal sessions record ownership and can be reclaimed without touching unrelated operator terminals, and high-authority work-packet helpers/docs now resolve through `runtime-paths.mjs` with `work_packets` as the canonical logical name while legacy `.GOV/task_packets/` storage remains read-compatible during the migration window
+
+### 2026.04.05.05 / GOV-CHANGE-20260405-05
+
+- STATUS: APPLIED
+- SUMMARY: closed `RGF-75` by evaluating branch topology after Wave 3 and confirming that `main` remains the only required stable product integration branch
+- CHANGE_TYPE: TOPOLOGY_POLICY_EVALUATION
+- DRIVER_EVIDENCE:
+  - `RGF-75`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/roles_shared/docs/REPO_RESILIENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: after artifact enforcement and worktree-hygiene hardening, `handshake_main` is clean, no repo-local `target/` remains, and no additional stable product integration branch is justified; `main` stays canonical and branch-topology expansion remains closed unless future evidence shows `main` becoming operationally unsuitable again

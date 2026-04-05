@@ -26,6 +26,7 @@ This document defines the repo-resilience layer for Handshake governance.
 ## Policy
 
 - `main` is the only canonical integrated branch.
+- Post-`RGF-75` evaluation outcome: no separate stable product integration branch is required while `main` remains clean, repo-local artifact leakage stays blocked, and governed worktree hygiene continues to pass.
 - `user_ilja` and `gov_kernel` are backup branches on GitHub.
 - Permanent non-main worktrees (`wt-ilja`, `wt-gov-kernel`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - Permanent non-main worktrees with a live `.GOV` kernel junction must suppress `.GOV` git noise locally. The supported model is worktree-local git metadata: add `.GOV/` to that worktree's `info/exclude` for untracked kernel files and mark tracked `.GOV` paths `skip-worktree`. Do not rely on the shared repo `.gitignore` to hide tracked `.GOV` drift.

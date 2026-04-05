@@ -131,7 +131,7 @@
 | RGF-72 | DONE | Terminal Ownership and Reclamation | RGF-36 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | session registry, launcher helpers, session closeout helpers, operator viewport surfaces | governed session launch records terminal PID and window ownership, and closeout can reclaim only terminals created by the current governed batch |
 | RGF-73 | DONE | Structured Smoketest Failure Ledger and Board Linkage | RGF-65 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-07` | smoketest review templates, audit generators, governance changelog, refactor board linkage | workflow failures, systemic regressions, and positive controls are recorded with stable IDs, owners, role surfaces, regression hooks, and board linkage instead of narrative-only review prose |
 | RGF-74 | DONE | Work-Packet Path Migration | RGF-70 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | runtime path resolvers, orchestrator/shared docs, packet creation helpers, compatibility shims | `work_packets` is now the canonical logical resolver name, high-authority helpers/docs resolve through `runtime-paths.mjs`, and legacy `task_packets` physical storage remains compatibility-safe until any future filesystem move |
-| RGF-75 | HOLD | Stable Product Integration Branch Evaluation | RGF-71 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | topology docs, product branch policy, artifact hygiene evidence | only reopen branch-topology expansion if `main` still proves operationally unsuitable after artifact enforcement and worktree hygiene are fixed |
+| RGF-75 | DONE | Stable Product Integration Branch Evaluation | RGF-71 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | topology docs, product branch policy, artifact hygiene evidence | evaluation proved `main` is operationally suitable after artifact enforcement and worktree hygiene; no additional stable product integration branch is needed |
 
 ## Refactor Sequence (Historical)
 
@@ -213,7 +213,7 @@
 9. `RGF-71`
 10. `RGF-72`
 11. `RGF-74`
-12. `RGF-75` (`HOLD`)
+12. `RGF-75`
 
 ## Explicit Holds
 
