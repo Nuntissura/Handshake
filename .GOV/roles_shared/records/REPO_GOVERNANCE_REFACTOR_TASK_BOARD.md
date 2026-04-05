@@ -48,6 +48,8 @@
   - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260329-WORKFLOW-PROJECTION-CORRELATION-V1`
   - `AUDIT_ID: AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW`
   - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1`
+- `AUDIT_ID: AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
 - Historical comparison driver:
   - `AUDIT_ID: AUDIT-20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT`
 
@@ -118,6 +120,18 @@
 | RGF-61 | DONE | Pre-Implementation Packet Validity Hard Gate | RGF-47, RGF-52, RGF-54 | `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW` / `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1` | `roles_shared/checks/task-packet-claim-check.mjs`, `roles_shared/checks/protocol-alignment-check.mjs`, `roles/orchestrator/scripts/create-task-packet.mjs`, packet/refinement hydration checks, `pre-work` / `post-work` gates | orchestrator-managed `READY_FOR_DEV` packets now leave creation with governed claim fields, and claim-check fails closed if an assigned coder packet is still unclaimed |
 | RGF-62 | DONE | Broker-Safe Single-Shot Final-Lane Closeout | RGF-42, RGF-45 | `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW` / `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1` | `roles/validator/scripts/integration-validator-closeout-sync.mjs`, `roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`, ACP session-control settlement helpers, validator gate-state provenance | closeout entrypoints now self-settle stale WP-scoped session-control rows before evaluation and tolerate only the current Integration Validator self-run while still failing on any foreign or extra active broker run |
 | RGF-63 | DONE | Review Receipt Deduplication and Verdict Collapse | RGF-40, RGF-47, RGF-48 | `AUDIT-20260403-STORAGE-TRAIT-PURITY-V1-SMOKETEST-CLOSEOUT-REVIEW` / `SMOKETEST-REVIEW-20260403-STORAGE-TRAIT-PURITY-V1` | `roles_shared/scripts/wp/wp-receipt-append.mjs`, `roles_shared/scripts/lib/wp-communication-health-lib.mjs`, `roles_shared/scripts/lib/wp-review-projection-lib.mjs`, direct-review helpers, runtime waiting/next-actor projection | duplicate decisive validator outcomes for the same review round now fail closed at receipt append time, and authoritative validator assessment surfaces collapse historical duplicate approvals into one review-round verdict |
+| RGF-64 | READY | Event-Driven Relay Completion | RGF-30, RGF-40 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | receipt appenders, notification routing, orchestrator/session-control dispatch, runtime next-actor projection | routine coder, WP-validator, and orchestrator transitions wake the next governed actor mechanically from receipt and notification truth without repeated relay prompts or polling |
+| RGF-65 | READY | Unified WP Span and Cost Timeline | RGF-18, RGF-22, RGF-36 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | token ledgers, runtime event logs, receipt/control ledgers, operator viewport surfaces | each WP exposes one normalized duration and cost timeline for launch, handoff, check, build, test, merge, and closeout spans instead of fragmented timestamps |
+| RGF-66 | READY | Microtask-First Scheduling and Scope Budget | RGF-31, RGF-48, RGF-49 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | microtask exchange helpers, packet schema, scope-governance helpers, coder/validator protocols | every coder write is attached to an active declared microtask budget, overlap review remains bounded, and adjacent-scope work fails closed or routes to a follow-on packet instead of silent drift |
+| RGF-67 | READY | Operator-Authorized Continuation and Manual Relay Lane | RGF-22, RGF-24 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | session policy, operator viewport surfaces, invalidity helpers, lane-control docs | fail-budget breaches can switch into explicit operator-authorized continuation or `MANUAL_RELAY` without policy churn, and the old lower-token relay lane remains a first-class governed option |
+| RGF-68 | READY | Progressive Milestone Sync Bundles | RGF-42, RGF-63 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | packet/runtime projection helpers, handoff gates, closeout sync helpers, task-board/build-order projections | bootstrap, skeleton, microtask, handoff, verdict, and containment each run one bundled sync and gate so packet/runtime/task-board truth stays aligned before final closeout |
+| RGF-69 | READY | Dual-Layer Validator and Primitive-Retention Audit | RGF-51, RGF-63 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | validator protocols, review rubrics, audit templates, current-main compatibility helpers | medium and high-risk WPs require both mechanical PASS proof and explicit Master-Spec primitive-retention and shared-surface interaction audit before closure |
+| RGF-70 | READY | Single-Source Authority Reduction | RGF-42, RGF-55 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | packet header schema, runtime/task-board/build-order projections, truth-mutation helpers | packet headers become the single writable authority for WP state while runtime, task board, and build-order surfaces become derived projections with fewer manual mutation points |
+| RGF-71 | READY | External Artifact Enforcement and Cleanup | RGF-59 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | topology helpers, build/test command wrappers, artifact-root docs, cleanup scripts | repo-local `target` directories fail closed, build and test output is forced into `Handshake Artifacts`, and stale WP-specific artifact folders are cleaned mechanically at closeout |
+| RGF-72 | READY | Terminal Ownership and Reclamation | RGF-36 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | session registry, launcher helpers, session closeout helpers, operator viewport surfaces | governed session launch records terminal PID and window ownership, and closeout can reclaim only terminals created by the current governed batch |
+| RGF-73 | READY | Structured Smoketest Failure Ledger and Board Linkage | RGF-65 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | smoketest review templates, audit generators, governance changelog, refactor board linkage | workflow failures, systemic regressions, and positive controls are recorded with stable IDs, owners, role surfaces, regression hooks, and board linkage instead of narrative-only review prose |
+| RGF-74 | PLANNED | Work-Packet Path Migration | RGF-70 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | runtime path resolvers, orchestrator/shared docs, packet creation helpers, compatibility shims | `work_packets` becomes the canonical resolver name first, docs and helpers migrate second, and the physical folder move happens last without breaking legacy paths |
+| RGF-75 | HOLD | Stable Product Integration Branch Evaluation | RGF-71 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | topology docs, product branch policy, artifact hygiene evidence | only reopen branch-topology expansion if `main` still proves operationally unsuitable after artifact enforcement and worktree hygiene are fixed |
 
 ## Refactor Sequence (Historical)
 
@@ -185,6 +199,21 @@
 53. `RGF-61`
 54. `RGF-62`
 55. `RGF-63`
+
+## Proposed Next Sequence
+
+1. `RGF-64`
+2. `RGF-65`
+3. `RGF-66`
+4. `RGF-67`
+5. `RGF-68`
+6. `RGF-69`
+7. `RGF-70`
+8. `RGF-73`
+9. `RGF-71`
+10. `RGF-72`
+11. `RGF-74`
+12. `RGF-75` (`HOLD`)
 
 ## Explicit Holds
 
