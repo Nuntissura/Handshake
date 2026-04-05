@@ -179,6 +179,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Role-Mailbox-Triage-Queue-Controls-v1]** - [STUB]
 - **[WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1]** - [STUB]
 - **[WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back-v1]** - [STUB]
+- **[WP-1-Product-Screenshot-Visual-Validation-v1]** - [STUB]
 
 
 - **[WP-1-Charts-Dashboards-Backfill-v1]** - [STUB]
