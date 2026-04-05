@@ -212,7 +212,7 @@ Format:
 | WP-1-LocalFirst-Agentic-MCP-Posture | .GOV/task_packets/stubs/WP-1-LocalFirst-Agentic-MCP-Posture-v1.md | Stub Backlog (Not Activated): WP-1-LocalFirst-Agentic-MCP-Posture-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-RAG-Retrieval-Mode-Policy | .GOV/task_packets/stubs/WP-1-RAG-Retrieval-Mode-Policy-v1.md | Stub Backlog (Not Activated): WP-1-RAG-Retrieval-Mode-Policy-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Studio-Runtime-Visibility | .GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.md | Stub Backlog (Not Activated): WP-1-Studio-Runtime-Visibility-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
-| WP-1-Session-Spawn-Contract | .GOV/task_packets/stubs/WP-1-Session-Spawn-Contract-v1.md | Stub Backlog (Not Activated): WP-1-Session-Spawn-Contract-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
+| WP-1-Session-Spawn-Contract | .GOV/task_packets/WP-1-Session-Spawn-Contract-v1/packet.md | Stub Backlog (Not Activated): WP-1-Session-Spawn-Contract-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Provider-Feature-Coverage-Agentic-Ready | .GOV/task_packets/stubs/WP-1-Provider-Feature-Coverage-Agentic-Ready-v1.md | Stub Backlog (Not Activated): WP-1-Provider-Feature-Coverage-Agentic-Ready-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Workspace-Safety-Parallel-Sessions | .GOV/task_packets/stubs/WP-1-Workspace-Safety-Parallel-Sessions-v1.md | Stub Backlog (Not Activated): WP-1-Workspace-Safety-Parallel-Sessions-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Session-Crash-Recovery-Checkpointing | .GOV/task_packets/stubs/WP-1-Session-Crash-Recovery-Checkpointing-v1.md | Stub Backlog (Not Activated): WP-1-Session-Crash-Recovery-Checkpointing-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
@@ -242,6 +242,8 @@ Format:
 | WP-1-Project-Brain-Runtime-Backfill | .GOV/task_packets/stubs/WP-1-Project-Brain-Runtime-Backfill-v1.md | Stub Backlog (Not Activated): WP-1-Project-Brain-Runtime-Backfill-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-LLM-Provider-Registry | .GOV/task_packets/WP-1-LLM-Provider-Registry-v1.md | Done: WP-1-LLM-Provider-Registry-v1 | active=WP-1-LLM-Provider-Registry-v1; activated from stub .GOV/task_packets/stubs/WP-1-LLM-Provider-Registry-v1.md |
 | WP-1-Spec-Appendices-Backfill | .GOV/task_packets/WP-1-Spec-Appendices-Backfill-v1.md | Done: WP-1-Spec-Appendices-Backfill-v1 | active=WP-1-Spec-Appendices-Backfill-v1; canonical appendix and matrix backfill passes validated through v02.178 |
+| WP-1-Session-Spawn-Tree-DCC-Visualization | .GOV/task_packets/stubs/WP-1-Session-Spawn-Tree-DCC-Visualization-v1.md | TBD | |
+| WP-1-Session-Spawn-Conversation-Distillation | .GOV/task_packets/stubs/WP-1-Session-Spawn-Conversation-Distillation-v1.md | TBD | |
 
 ## Historical Failure + Live Smoketest Lineage
 
