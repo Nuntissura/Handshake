@@ -95,7 +95,7 @@ Sub-agents MUST:
 - STOP and ask if anything is ambiguous.
 
 Sub-agents MUST NOT:
-- edit any governance surface: `.GOV/**` (including `.GOV/task_packets/**`, `.GOV/refinements/**`, and any `## VALIDATION_REPORTS` section),
+- edit any governance surface: `.GOV/**` (including logical `.GOV/work_packets/**`, current physical `.GOV/task_packets/**`, `.GOV/refinements/**`, and any `## VALIDATION_REPORTS` section),
 - run workflow gates (`just pre-work`, `just post-work`, validator gates) as "official evidence",
 - commit, merge, push, pull, fast-forward, rebase, switch branches, or otherwise modify git history/worktree state.
 

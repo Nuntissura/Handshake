@@ -3,7 +3,11 @@ import path from "node:path";
 import {
   isAllowedPrimaryOrFallbackModel,
   isDisallowedCodexModelAlias,
+  packetUsesRoleModelProfiles,
   packetUsesSessionPolicy,
+  roleModelProfileFromPacket,
+  roleModelProfileMatchesClaim,
+  roleModelProfileMatchesReasoningStrength,
   ROLE_SESSION_REASONING_REQUIRED,
 } from "../scripts/session/session-policy.mjs";
 import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
@@ -25,8 +29,8 @@ import {
   validateDataContractSection,
 } from "../scripts/lib/data-contract-lib.mjs";
 
-// Canonical governance workspace packets live under `/.GOV/task_packets/`.
-// Legacy compatibility bundles must not be treated as governance SSoT.
+// Canonical governance packet truth resolves through the logical `/.GOV/work_packets/`
+// surface, with current physical storage still under `/.GOV/task_packets/`.
 const TASK_PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
 function fail(message, details = []) {
@@ -95,6 +99,7 @@ function checkPacket(filePath) {
   const workflowLane = parseSingleField(text, "WORKFLOW_LANE");
   const executionOwner = parseSingleField(text, "EXECUTION_OWNER");
   const enforceSessionPolicy = packetUsesSessionPolicy(packetFormatVersion);
+  const enforceRoleModelProfiles = packetUsesRoleModelProfiles(packetFormatVersion);
   const enforceScopeContract = Boolean(packetFormatVersion);
   const enforceScopeDiscipline = scopeDisciplineRequiresEnforcement(packetFormatVersion);
   const inScopePaths = parsePacketScopeList(text, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
@@ -116,6 +121,13 @@ function checkPacket(filePath) {
       ? "when Status is In Progress"
       : "when Status is Ready for Dev on ORCHESTRATOR_MANAGED packets with an assigned EXECUTION_OWNER";
     errors.push(`${rel}: CODER_MODEL is required ${reason}`);
+  } else if (claimFieldsRequired && enforceRoleModelProfiles) {
+    const coderModelProfile = roleModelProfileFromPacket(text, "CODER", { fallbackToDefault: false });
+    if (!coderModelProfile) {
+      errors.push(`${rel}: CODER_MODEL_PROFILE is required for PACKET_FORMAT_VERSION >= 2026-04-06`);
+    } else if (!roleModelProfileMatchesClaim(coderModelProfile, coderModel)) {
+      errors.push(`${rel}: CODER_MODEL must match CODER_MODEL_PROFILE ${coderModelProfile} (got: ${coderModel})`);
+    }
   } else if (claimFieldsRequired && enforceSessionPolicy) {
     if (isDisallowedCodexModelAlias(coderModel)) {
       errors.push(`${rel}: CODER_MODEL must use the repo-approved GPT model ids, not Codex model aliases (got: ${coderModel})`);
@@ -137,6 +149,13 @@ function checkPacket(filePath) {
       errors.push(
         `${rel}: CODER_REASONING_STRENGTH must be LOW|MEDIUM|HIGH|EXTRA_HIGH (got: ${coderStrength})`
       );
+    } else if (enforceRoleModelProfiles) {
+      const coderModelProfile = roleModelProfileFromPacket(text, "CODER", { fallbackToDefault: false });
+      if (!coderModelProfile) {
+        errors.push(`${rel}: CODER_MODEL_PROFILE is required for PACKET_FORMAT_VERSION >= 2026-04-06`);
+      } else if (!roleModelProfileMatchesReasoningStrength(coderModelProfile, coderStrength)) {
+        errors.push(`${rel}: CODER_REASONING_STRENGTH must match CODER_MODEL_PROFILE ${coderModelProfile} (got: ${coderStrength})`);
+      }
     } else if (enforceSessionPolicy && norm !== "extrahigh") {
       errors.push(
         `${rel}: CODER_REASONING_STRENGTH must be ${ROLE_SESSION_REASONING_REQUIRED} for PACKET_FORMAT_VERSION >= 2026-03-12 (got: ${coderStrength})`

@@ -57,14 +57,17 @@ import {
   defaultWpValidatorWorktreeDir,
   EXECUTION_OWNER_RANGE_HELP,
   executionOwnerToPacketValue,
-  MODEL_FAMILY_POLICY,
+  modelFamilyPolicyForPacketVersion,
   PACKET_FORMAT_VERSION,
+  ROLE_MODEL_PROFILE_POLICY,
   ROLE_SESSION_FALLBACK_MODEL,
   ROLE_SESSION_PRIMARY_MODEL,
   ROLE_SESSION_REASONING_CONFIG_KEY,
   ROLE_SESSION_REASONING_CONFIG_VALUE,
   ROLE_SESSION_REASONING_REQUIRED,
   ROLE_SESSION_RUNTIME,
+  roleModelProfile,
+  roleModelProfileRequiresReasoningStrength,
   SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
   SESSION_PLUGIN_BRIDGE_COMMAND,
   SESSION_PLUGIN_BRIDGE_ID,
@@ -79,7 +82,14 @@ import {
   SESSION_HOST_PREFERENCE,
   SESSION_LAUNCH_POLICY,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
-import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import {
+  ensureWorkPacketLifecycleLayout,
+  GOV_ROOT_REPO_REL,
+  REPO_ROOT,
+  repoPathAbs,
+  resolveOrchestratorGatesPath,
+  WORK_PACKET_STORAGE_ROOT_REPO_REL,
+} from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const WP_ID = process.argv[2];
 const allowOverwriteExisting = process.argv.includes('--overwrite-existing') || process.env.ALLOW_PACKET_OVERWRITE === '1';
@@ -300,6 +310,7 @@ try {
 // Gate: signature must be recorded in ORCHESTRATOR_GATES.json (prevents manual bypass).
 let signatureGate = null;
 let prepareGate = null;
+let roleModelProfilesGate = null;
 try {
   const gatesPath = resolveOrchestratorGatesPath();
   const gates = JSON.parse(fs.readFileSync(repoPathAbs(gatesPath), 'utf8'));
@@ -341,6 +352,70 @@ try {
       nextCommands: [
         `cat ${refinementPath.replace(/\\/g, '/')}`,
         `# If refinement was manually edited, revert USER_SIGNATURE to <pending> and re-run: just record-signature ${WP_ID} {newSignature} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}.`,
+      ],
+    });
+    process.exit(1);
+  }
+
+  const lastRoleModelProfiles = [...logs].reverse().find((l) => l.wpId === WP_ID && l.type === 'ROLE_MODEL_PROFILES');
+  if (!lastRoleModelProfiles) {
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'ROLE_MODEL_PROFILES',
+      next: 'ROLE_MODEL_PROFILES',
+      operatorAction: `Record explicit per-role model profiles for ${WP_ID}`,
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'BLOCKED',
+      why: 'Packet creation now requires a recorded per-role model profile bundle so launch/session/check policy can be enforced deterministically.',
+      gateOutputLines: [
+        `BLOCKED: No ROLE_MODEL_PROFILES record found for ${WP_ID} in ${gatesPath.replace(/\\/g, '/')}.`,
+      ],
+      nextCommands: [
+        `just record-role-model-profiles ${WP_ID}`,
+        `just create-task-packet ${WP_ID}`,
+      ],
+    });
+    process.exit(1);
+  }
+  try {
+    const sigTs = Date.parse(lastSig.timestamp);
+    const profileTs = Date.parse(lastRoleModelProfiles.timestamp);
+    if (!Number.isNaN(sigTs) && !Number.isNaN(profileTs) && profileTs <= sigTs) {
+      printGateBlocks({
+        wpId: WP_ID,
+        stage: 'ROLE_MODEL_PROFILES',
+        next: 'ROLE_MODEL_PROFILES',
+        operatorAction: `Re-record explicit per-role model profiles for ${WP_ID}`,
+        gateRan: `just create-task-packet ${WP_ID}`,
+        result: 'BLOCKED',
+        why: 'ROLE_MODEL_PROFILES must be recorded after SIGNATURE so the signed workflow contract and role model selections stay aligned.',
+        gateOutputLines: [
+          `BLOCKED: ROLE_MODEL_PROFILES record must occur after SIGNATURE for ${WP_ID}.`,
+          `- signature_ts=${lastSig.timestamp}`,
+          `- role_model_profiles_ts=${lastRoleModelProfiles.timestamp}`,
+        ],
+        nextCommands: [
+          `just record-role-model-profiles ${WP_ID}`,
+          `just create-task-packet ${WP_ID}`,
+        ],
+      });
+      process.exit(1);
+    }
+  } catch {
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'ROLE_MODEL_PROFILES',
+      next: 'ROLE_MODEL_PROFILES',
+      operatorAction: `Re-record explicit per-role model profiles for ${WP_ID}`,
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'BLOCKED',
+      why: 'Unable to verify ROLE_MODEL_PROFILES ordering deterministically; re-record the gate.',
+      gateOutputLines: [
+        `BLOCKED: Unable to verify ROLE_MODEL_PROFILES ordering for ${WP_ID}.`,
+      ],
+      nextCommands: [
+        `just record-role-model-profiles ${WP_ID}`,
+        `just create-task-packet ${WP_ID}`,
       ],
     });
     process.exit(1);
@@ -411,6 +486,7 @@ try {
     process.exit(1);
   }
   signatureGate = lastSig;
+  roleModelProfilesGate = lastRoleModelProfiles;
   prepareGate = lastPrepare;
 } catch {
   printGateBlocks({
@@ -473,8 +549,11 @@ try {
   process.exit(1);
 }
 
-// Ensure WP folder exists (new folder structure: .GOV/task_packets/WP-{ID}/)
-const taskPacketBaseDir = `${GOV_ROOT_REPO_REL}/task_packets`;
+// Ensure the active + archive lifecycle layout exists before creating a new packet.
+ensureWorkPacketLifecycleLayout();
+
+// Ensure WP folder exists in the active storage root (current physical compatibility: .GOV/task_packets/WP-{ID}/)
+const taskPacketBaseDir = WORK_PACKET_STORAGE_ROOT_REPO_REL;
 const wpDir = path.join(taskPacketBaseDir, WP_ID);
 if (!fs.existsSync(wpDir)) {
   fs.mkdirSync(wpDir, { recursive: true });
@@ -705,6 +784,38 @@ const integrationValidatorWorktreeDir = defaultIntegrationValidatorWorktreeDir(W
 const integrationValidatorRemoteBackupBranch = remoteBackupBranch;
 const integrationValidatorRemoteBackupUrl = remoteBackupUrl;
 const packetWpCommunicationPaths = communicationPathsForWp(WP_ID);
+const orchestratorModelProfileId = (roleModelProfilesGate?.orchestrator_model_profile || '').trim();
+const coderModelProfileId = (roleModelProfilesGate?.coder_model_profile || '').trim();
+const wpValidatorModelProfileId = (roleModelProfilesGate?.wp_validator_model_profile || '').trim();
+const integrationValidatorModelProfileId = (roleModelProfilesGate?.integration_validator_model_profile || '').trim();
+const orchestratorModelProfile = roleModelProfile(orchestratorModelProfileId);
+const coderModelProfile = roleModelProfile(coderModelProfileId);
+const wpValidatorModelProfile = roleModelProfile(wpValidatorModelProfileId);
+const integrationValidatorModelProfile = roleModelProfile(integrationValidatorModelProfileId);
+
+if (!orchestratorModelProfile || !coderModelProfile || !wpValidatorModelProfile || !integrationValidatorModelProfile) {
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'ROLE_MODEL_PROFILES',
+    next: 'ROLE_MODEL_PROFILES',
+    operatorAction: `Repair role-model-profile selection for ${WP_ID}`,
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'BLOCKED',
+    why: 'Recorded role-model-profile ids must resolve to the active profile catalog before a packet can be created.',
+    gateOutputLines: [
+      `BLOCKED: unresolved role-model-profile selection for ${WP_ID}.`,
+      `- ORCHESTRATOR_MODEL_PROFILE: ${orchestratorModelProfileId || '<missing>'}`,
+      `- CODER_MODEL_PROFILE: ${coderModelProfileId || '<missing>'}`,
+      `- WP_VALIDATOR_MODEL_PROFILE: ${wpValidatorModelProfileId || '<missing>'}`,
+      `- INTEGRATION_VALIDATOR_MODEL_PROFILE: ${integrationValidatorModelProfileId || '<missing>'}`,
+    ],
+    nextCommands: [
+      `just record-role-model-profiles ${WP_ID}`,
+      `just create-task-packet ${WP_ID}`,
+    ],
+  });
+  process.exit(1);
+}
 template = replaceSingleField(template, 'BASE_WP_ID', baseWpId);
 template = replaceSingleField(template, 'LOCAL_BRANCH', localBranch);
 template = replaceSingleField(template, 'LOCAL_WORKTREE_DIR', localWorktreeDir);
@@ -726,7 +837,8 @@ template = replaceSingleField(template, 'SESSION_WATCH_POLICY', SESSION_WATCH_PO
 template = replaceSingleField(template, 'SESSION_WAKE_CHANNEL_PRIMARY', SESSION_WAKE_CHANNEL_PRIMARY);
 template = replaceSingleField(template, 'SESSION_WAKE_CHANNEL_FALLBACK', SESSION_WAKE_CHANNEL_FALLBACK);
 template = replaceSingleField(template, 'CLI_ESCALATION_HOST_DEFAULT', CLI_ESCALATION_HOST_DEFAULT);
-template = replaceSingleField(template, 'MODEL_FAMILY_POLICY', MODEL_FAMILY_POLICY);
+template = replaceSingleField(template, 'MODEL_FAMILY_POLICY', modelFamilyPolicyForPacketVersion(PACKET_FORMAT_VERSION));
+template = replaceSingleField(template, 'ROLE_MODEL_PROFILE_POLICY', ROLE_MODEL_PROFILE_POLICY);
 template = replaceSingleField(template, 'CODEX_MODEL_ALIASES_ALLOWED', CODEX_MODEL_ALIASES_ALLOWED);
 template = replaceSingleField(template, 'ROLE_SESSION_PRIMARY_MODEL', ROLE_SESSION_PRIMARY_MODEL);
 template = replaceSingleField(template, 'ROLE_SESSION_FALLBACK_MODEL', ROLE_SESSION_FALLBACK_MODEL);
@@ -799,19 +911,40 @@ template = replaceSingleField(template, 'WORKFLOW_LANE', normalizedWorkflowLane)
 template = replaceSingleField(template, 'EXECUTION_OWNER', normalizedExecutionOwner);
 template = replaceSingleField(template, 'AGENTIC_MODE', 'NO');
 template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'N/A');
+template = replaceSingleField(template, 'ORCHESTRATOR_MODEL_PROFILE', orchestratorModelProfileId);
+template = replaceSingleField(
+  template,
+  'ORCHESTRATOR_REASONING_STRENGTH',
+  roleModelProfileRequiresReasoningStrength(orchestratorModelProfileId),
+);
 template = replaceSingleField(template, 'ORCHESTRATION_STARTED_AT_UTC', 'N/A');
+template = replaceSingleField(template, 'CODER_MODEL_PROFILE', coderModelProfileId);
 const preclaimGovernedCoder =
   normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED'
   && /^CODER_[A-Z]$/i.test(normalizedExecutionOwner);
 template = replaceSingleField(
   template,
   'CODER_MODEL',
-  preclaimGovernedCoder ? ROLE_SESSION_PRIMARY_MODEL : '<unclaimed>',
+  preclaimGovernedCoder ? coderModelProfile.claim_model : '<unclaimed>',
 );
 template = replaceSingleField(
   template,
   'CODER_REASONING_STRENGTH',
-  preclaimGovernedCoder ? ROLE_SESSION_REASONING_REQUIRED : '<unclaimed>',
+  preclaimGovernedCoder ? roleModelProfileRequiresReasoningStrength(coderModelProfileId) : '<unclaimed>',
+);
+template = replaceSingleField(template, 'WP_VALIDATOR_MODEL_PROFILE', wpValidatorModelProfileId);
+template = replaceSingleField(template, 'WP_VALIDATOR_MODEL', wpValidatorModelProfile.claim_model);
+template = replaceSingleField(
+  template,
+  'WP_VALIDATOR_REASONING_STRENGTH',
+  roleModelProfileRequiresReasoningStrength(wpValidatorModelProfileId),
+);
+template = replaceSingleField(template, 'INTEGRATION_VALIDATOR_MODEL_PROFILE', integrationValidatorModelProfileId);
+template = replaceSingleField(template, 'INTEGRATION_VALIDATOR_MODEL', integrationValidatorModelProfile.claim_model);
+template = replaceSingleField(
+  template,
+  'INTEGRATION_VALIDATOR_REASONING_STRENGTH',
+  roleModelProfileRequiresReasoningStrength(integrationValidatorModelProfileId),
 );
 template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'DISALLOWED');
 template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', 'N/A');
@@ -1273,11 +1406,16 @@ try {
   const packetLawLines = [];
   if (PACKET_FORMAT_VERSION >= '2026-04-01') {
     packetLawLines.push(
-      `LAW_BUNDLE: PACKET_FORMAT_VERSION=${PACKET_FORMAT_VERSION} | DATA_CONTRACT_PROFILE=${dataContractProfile} | DATA_CONTRACT_DECISION=${parseSingleField(template, 'DECISION') || 'UNSET'} | CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2 | GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`,
+      `LAW_BUNDLE: PACKET_FORMAT_VERSION=${PACKET_FORMAT_VERSION} | DATA_CONTRACT_PROFILE=${dataContractProfile} | DATA_CONTRACT_DECISION=${parseSingleField(template, 'DECISION') || 'UNSET'} | CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2 | GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`,
     );
     packetLawLines.push(
       'LAW_BUNDLE: coder handoff now requires anti-vibe + signed-scope-debt self-audit fields; validator PASS requires those lists to be exactly "- NONE".',
     );
+    if (PACKET_FORMAT_VERSION >= '2026-04-05') {
+      packetLawLines.push(
+        'LAW_BUNDLE: medium/high V4 validator closeout now uses explicit dual-track verdicts. PASS requires both MECHANICAL_TRACK_VERDICT=PASS and SPEC_RETENTION_TRACK_VERDICT=PASS.',
+      );
+    }
     if (dataContractProfile === 'LLM_FIRST_DATA_V1') {
       packetLawLines.push(
         'LAW_BUNDLE: active data contract packet - keep DATA_CONTRACT_MONITORING honest now, and expect concrete DATA_CONTRACT_PROOF plus DATA_CONTRACT_GAPS at validator closeout.',
@@ -1290,10 +1428,13 @@ try {
     `just task-board-set ${WP_ID} READY_FOR_DEV`,
   ];
   if (PACKET_FORMAT_VERSION >= '2026-04-01') {
-    nextCommands.splice(1, 0, `# Review packet law bundle: format=${PACKET_FORMAT_VERSION}, data_contract=${dataContractProfile}, coder_handoff_rigor=RUBRIC_SELF_AUDIT_V2, validator_report=SPLIT_DIFF_SCOPED_RIGOR_V3.`);
+    nextCommands.splice(1, 0, `# Review packet law bundle: format=${PACKET_FORMAT_VERSION}, data_contract=${dataContractProfile}, coder_handoff_rigor=RUBRIC_SELF_AUDIT_V2, validator_report=SPLIT_DIFF_SCOPED_RIGOR_V4.`);
     nextCommands.splice(2, 0, '# On this packet family, shallow handoff is illegal: coder must supply anti-vibe + signed-scope-debt self-audit, and validator PASS requires both lists to be exactly "- NONE".');
+    if (PACKET_FORMAT_VERSION >= '2026-04-05') {
+      nextCommands.splice(3, 0, '# Medium/high V4 validator closeout is now dual-track: PASS later requires both MECHANICAL_TRACK_VERDICT=PASS and SPEC_RETENTION_TRACK_VERDICT=PASS.');
+    }
     if (dataContractProfile === 'LLM_FIRST_DATA_V1') {
-      nextCommands.splice(3, 0, '# Active data contract: confirm DATA_CONTRACT_MONITORING is credible before launch; validator closeout later requires concrete DATA_CONTRACT_PROOF and DATA_CONTRACT_GAPS.');
+      nextCommands.splice(PACKET_FORMAT_VERSION >= '2026-04-05' ? 4 : 3, 0, '# Active data contract: confirm DATA_CONTRACT_MONITORING is credible before launch; validator closeout later requires concrete DATA_CONTRACT_PROOF and DATA_CONTRACT_GAPS.');
     }
   }
   if (!isHydratedProfile) {

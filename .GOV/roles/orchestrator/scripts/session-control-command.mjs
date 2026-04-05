@@ -18,11 +18,13 @@ import {
   buildStartupPrompt,
   defaultSessionOutputFile,
   resolveRoleConfig,
-  selectModel,
+  resolveRoleLaunchSelection,
+  assertRoleLaunchProfileSupported,
 } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { settleRecoverableSessionControlResults } from "../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
 import { syncWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { callHandshakeAcpMethod } from "../../../roles_shared/scripts/session/handshake-acp-client.mjs";
+import { reclaimOwnedSessionTerminals } from "../../../roles_shared/scripts/session/terminal-ownership-lib.mjs";
 import {
   SESSION_CONTROL_RUN_STALE_GRACE_SECONDS,
   SESSION_CONTROL_RUN_TIMEOUT_SECONDS,
@@ -75,15 +77,36 @@ assertOrchestratorLaunchAuthority(currentBranch);
 const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
 const environmentOverrides = buildRoleEnvironmentOverrides({ role });
 
-const selectedModel = selectModel(requestedModel);
 const sessionDescriptor = {
   wp_id: wpId,
   role,
   local_branch: roleConfig.branch,
   local_worktree_dir: roleConfig.worktreeDir,
   terminal_title: roleConfig.title,
-  requested_model: selectedModel,
 };
+let selectedModel = "";
+let selectedProfileId = "";
+let selectedProfile = null;
+
+if (commandKind === "START_SESSION") {
+  const selection = resolveRoleLaunchSelection({
+    role,
+    wpId,
+    modelSelector: requestedModel,
+  });
+  selectedProfileId = selection.selectedProfileId;
+  selectedProfile = assertRoleLaunchProfileSupported({
+    role,
+    wpId,
+    selectedProfileId,
+    selectedProfile: selection.selectedProfile,
+  });
+  selectedModel = selectedProfile.launch_model;
+  sessionDescriptor.requested_model = selectedModel;
+  sessionDescriptor.requested_profile_id = selectedProfileId;
+  sessionDescriptor.reasoning_config_key = selectedProfile.launch_reasoning_config_key;
+  sessionDescriptor.reasoning_config_value = selectedProfile.launch_reasoning_config_value;
+}
 function ensureSessionRecord() {
   return mutateSessionRegistrySync(repoRoot, (registry) => {
     const session = getOrCreateSessionRecord(registry, sessionDescriptor);
@@ -93,6 +116,9 @@ function ensureSessionRecord() {
       last_command_status: session.last_command_status || "NONE",
       last_command_id: session.last_command_id || "",
       requested_model: session.requested_model || selectedModel,
+      requested_profile_id: session.requested_profile_id || selectedProfileId,
+      reasoning_config_key: session.reasoning_config_key || selectedProfile?.launch_reasoning_config_key || "",
+      reasoning_config_value: session.reasoning_config_value || selectedProfile?.launch_reasoning_config_value || "",
       runtime_state: session.runtime_state || "UNSTARTED",
     };
   });
@@ -110,6 +136,8 @@ if (commandKind === "START_SESSION" && startGovernance && !startGovernance.launc
 
 ensureSessionStateFiles(repoRoot);
 let session = ensureSessionRecord();
+selectedModel = commandKind === "START_SESSION" ? selectedModel : (session.requested_model || "");
+selectedProfileId = commandKind === "START_SESSION" ? selectedProfileId : (session.requested_profile_id || "");
 const governance = commandKind === "START_SESSION"
   ? startGovernance
   : evaluateSessionGovernanceState(repoRoot, {
@@ -312,6 +340,15 @@ if (commandKind === "CLOSE_SESSION") {
   if (settledClose.summary) console.log(`[SESSION_CONTROL] summary=${settledClose.summary}`);
   if (settledClose.error) console.log(`[SESSION_CONTROL] error=${settledClose.error}`);
   syncWpTokenUsageLedger(repoRoot, settledClose, { session });
+  const reclaimResults = reclaimOwnedSessionTerminals(repoRoot, { sessionKey: session.session_key });
+  if (reclaimResults.length > 0) {
+    for (const reclaim of reclaimResults) {
+      console.log(`[SESSION_CONTROL] terminal_reclaim_session=${reclaim.session_key}`);
+      console.log(`[SESSION_CONTROL] terminal_reclaim_process_id=${reclaim.process_id}`);
+      console.log(`[SESSION_CONTROL] terminal_reclaim_status=${reclaim.reclaim_status}`);
+      if (reclaim.error) console.log(`[SESSION_CONTROL] terminal_reclaim_error=${reclaim.error}`);
+    }
+  }
   process.exit(0);
 }
 
@@ -324,7 +361,7 @@ if (!fs.existsSync(absWorktreeDir)) {
 }
 
 const prompt = commandKind === "START_SESSION"
-  ? buildStartupPrompt({ role, wpId, roleConfig, selectedModel })
+  ? buildStartupPrompt({ role, wpId, roleConfig, selectedModel, selectedProfileId, selectedProfile })
   : promptArg;
 
 if (!prompt) {
@@ -352,11 +389,18 @@ const request = buildSessionControlRequest({
   localWorktreeDir: roleConfig.worktreeDir,
   absWorktreeDir,
   selectedModel,
+  selectedProfileId: commandKind === "START_SESSION" ? selectedProfileId : (session.requested_profile_id || ""),
   prompt,
   threadId: session.session_thread_id || "",
   summary,
   outputJsonlFile: defaultSessionOutputFile(repoRoot, session.session_key, commandId),
   environmentOverrides,
+  reasoningConfigKey: commandKind === "START_SESSION"
+    ? (selectedProfile?.launch_reasoning_config_key || "")
+    : (session.reasoning_config_key || ""),
+  reasoningConfigValue: commandKind === "START_SESSION"
+    ? (selectedProfile?.launch_reasoning_config_value || "")
+    : (session.reasoning_config_value || ""),
 });
 
 let acpResponse;

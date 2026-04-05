@@ -77,6 +77,7 @@ test("intent checkpoint review preserves ready packet status during validator-si
   assert.match(nextPacketText, /Bootstrap and skeleton clearance now belongs to the WP validator/i);
   assert.equal(runtime.runtime_status, "working");
   assert.equal(runtime.current_phase, "BOOTSTRAP");
+  assert.equal(runtime.current_milestone, "SKELETON");
 });
 
 test("missing kickoff preserves ready packet status before coder claim", () => {
@@ -138,6 +139,7 @@ test("active review projection moves runtime out of stale bootstrap when remedia
 
   assert.equal(runtime.runtime_status, "working");
   assert.equal(runtime.current_phase, "IMPLEMENTATION");
+  assert.equal(runtime.current_milestone, "MICROTASK");
 });
 
 test("active review projection keeps terminal packet runtime untouched", () => {

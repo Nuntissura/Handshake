@@ -46,12 +46,17 @@ Rules:
 - SESSION_WAKE_CHANNEL_FALLBACK: {{SESSION_WAKE_CHANNEL_FALLBACK}}
 - CLI_ESCALATION_HOST_DEFAULT: {{CLI_ESCALATION_HOST_DEFAULT}}
 - MODEL_FAMILY_POLICY: {{MODEL_FAMILY_POLICY}}
+- ROLE_MODEL_PROFILE_POLICY: {{ROLE_MODEL_PROFILE_POLICY}}
 - CODEX_MODEL_ALIASES_ALLOWED: {{CODEX_MODEL_ALIASES_ALLOWED}}
 - ROLE_SESSION_PRIMARY_MODEL: {{ROLE_SESSION_PRIMARY_MODEL}}
 - ROLE_SESSION_FALLBACK_MODEL: {{ROLE_SESSION_FALLBACK_MODEL}}
 - ROLE_SESSION_REASONING_REQUIRED: {{ROLE_SESSION_REASONING_REQUIRED}}
 - ROLE_SESSION_REASONING_CONFIG_KEY: {{ROLE_SESSION_REASONING_CONFIG_KEY}}
 - ROLE_SESSION_REASONING_CONFIG_VALUE: {{ROLE_SESSION_REASONING_CONFIG_VALUE}}
+- ORCHESTRATOR_MODEL_PROFILE: {{ORCHESTRATOR_MODEL_PROFILE}}
+- CODER_MODEL_PROFILE: {{CODER_MODEL_PROFILE}}
+- WP_VALIDATOR_MODEL_PROFILE: {{WP_VALIDATOR_MODEL_PROFILE}}
+- INTEGRATION_VALIDATOR_MODEL_PROFILE: {{INTEGRATION_VALIDATOR_MODEL_PROFILE}}
 - PLANNED_EXECUTION_OWNER_RANGE: {{EXECUTION_OWNER_RANGE_HELP}}
 - ROADMAP_POINTER: {{ROADMAP_POINTER}}
 - ROADMAP_ADD_COVERAGE: SPEC=vXX.XXX; PHASE=7.6.3; LINES={{LINE_NUMBERS_COMMA_SEPARATED}}
@@ -159,7 +164,7 @@ Rules:
 - [ ] Produce the in-chat Technical Refinement Block (per `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).
 - [ ] Obtain USER_SIGNATURE for the WP.
 - [ ] Create `.GOV/refinements/{{WP_ID}}.md` (approved/signed).
-- [ ] Create the official task packet via `just create-task-packet {{WP_ID}}` (in `.GOV/task_packets/`).
+- [ ] Create the official Work Packet via `just create-task-packet {{WP_ID}}` (logical resolver: `.GOV/work_packets/`; current physical storage: `.GOV/task_packets/`).
 - [ ] Confirm `just create-task-packet {{WP_ID}}` also created the packet-declared `WP_COMMUNICATION_DIR` with `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl`.
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/records/TASK_BOARD.md` entry from STUB to Ready for Dev.

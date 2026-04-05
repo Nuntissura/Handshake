@@ -23,7 +23,7 @@ Rules:
 - BUILD_ORDER_VALUE_TIER: MEDIUM
 - BUILD_ORDER_RISK_TIER: MEDIUM
 - BUILD_ORDER_DEPENDS_ON: WP-1-Locus-Phase1-Integration-Occupancy, WP-1-Flight-Recorder
-- BUILD_ORDER_BLOCKS: NONE
+- BUILD_ORDER_BLOCKS: WP-1-Dev-Command-Center-Control-Plane-Backend
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Audit remediation against Handshake_Master_Spec_v02.139.md (Locus query interface + autosync)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):

@@ -55,6 +55,8 @@ If the planned change touches product code or the Master Spec, stop and use the 
    - If it follows an earlier smoketest review, include a short explicit subsection named `What Improved vs Previous Smoketest` so recovery and closeout passes stay directly comparable.
    - Every smoketest review, closeout review, workflow-proof review, or workflow comparison audit must include the required `Post-Smoketest Improvement Rubric` section using `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`.
    - Every such review must also include the required `Silent Failures, Command Surface Misuse, and Ambiguity Scan` section. Treat repeated governance-document rereads, repeated command discovery, repeated wrong-tool usage, and repeated path/source-of-truth checks as explicit evidence of ambiguity and token-cost waste.
+   - Use the typed smoketest failure ledger fields. Distinguish `CATEGORY`, `ROLE_OWNER`, `SYSTEM_SCOPE`, and `FAILURE_CLASS` instead of collapsing all workflow problems into generic prose.
+   - Record at least one positive control with `CONTROL_ID`, `CONTROL_TYPE`, `What went well`, and `REGRESSION_GUARDS` whenever the run exposed a behavior worth preserving.
 3. Open or update the governance item.
    - Add or update the row in `REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`.
    - Record dependencies, evidence IDs, primary surfaces, and the exit signal.

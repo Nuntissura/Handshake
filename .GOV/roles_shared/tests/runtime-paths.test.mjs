@@ -3,7 +3,16 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { listWorkPacketEntriesAt, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import {
+  ensureWorkPacketLifecycleLayout,
+  listArchivedWorkPacketEntriesAtRepo,
+  listWorkPacketEntriesAt,
+  repoPathAbs,
+  resolveWorkPacketPathAtRepo,
+  taskBoardPathAtRepo,
+  workPacketAbsPathAtRepo,
+  workPacketPathAtRepo,
+} from "../scripts/lib/runtime-paths.mjs";
 
 test("listWorkPacketEntriesAt discovers flat and folder packets while skipping README and excluded dirs", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-"));
@@ -45,4 +54,74 @@ test("repoPathAbs anchors repo-relative paths while preserving absolute paths", 
 
   const absolutePath = path.resolve(os.tmpdir(), "handshake-runtime-paths-absolute.txt");
   assert.equal(repoPathAbs(absolutePath), absolutePath);
+});
+
+test("resolveWorkPacketPathAtRepo accepts canonical work_packets roots during compatibility migration", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-work-packets-"));
+  try {
+    const packetPath = path.join(repoRoot, ".GOV", "work_packets", "WP-TEST-WORK-PACKETS-v1", "packet.md");
+    fs.mkdirSync(path.dirname(packetPath), { recursive: true });
+    fs.writeFileSync(packetPath, "# packet\n", "utf8");
+
+    const resolved = resolveWorkPacketPathAtRepo(repoRoot, "WP-TEST-WORK-PACKETS-v1");
+    assert.ok(resolved);
+    assert.equal(resolved.packetPath, ".GOV/work_packets/WP-TEST-WORK-PACKETS-v1/packet.md");
+    assert.equal(resolved.isFolder, true);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("workPacketPathAtRepo and workPacketAbsPathAtRepo use shared fallback truth", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-fallback-"));
+  try {
+    assert.equal(
+      workPacketPathAtRepo(repoRoot, "WP-TEST-FALLBACK-v1"),
+      ".GOV/task_packets/WP-TEST-FALLBACK-v1.md",
+    );
+    assert.equal(
+      workPacketAbsPathAtRepo(repoRoot, "WP-TEST-FALLBACK-v1"),
+      path.join(repoRoot, ".GOV", "task_packets", "WP-TEST-FALLBACK-v1.md"),
+    );
+    assert.equal(
+      taskBoardPathAtRepo(repoRoot),
+      path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md"),
+    );
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("ensureWorkPacketLifecycleLayout creates active and archive roots", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-layout-"));
+  try {
+    const layout = ensureWorkPacketLifecycleLayout(repoRoot, ".GOV");
+    assert.equal(fs.existsSync(layout.activeRootAbs), true);
+    assert.equal(fs.existsSync(layout.stubRootAbs), true);
+    assert.equal(fs.existsSync(layout.supersededArchiveRootAbs), true);
+    assert.equal(fs.existsSync(layout.validatedClosedArchiveRootAbs), true);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("resolveWorkPacketPathAtRepo can resolve archived packets without treating them as active", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-archive-"));
+  try {
+    const archivePacket = path.join(repoRoot, ".GOV", "task_packets", "_archive", "superseded", "WP-TEST-ARCHIVE-v1", "packet.md");
+    fs.mkdirSync(path.dirname(archivePacket), { recursive: true });
+    fs.writeFileSync(archivePacket, "# archived packet\n", "utf8");
+
+    const resolved = resolveWorkPacketPathAtRepo(repoRoot, "WP-TEST-ARCHIVE-v1");
+    assert.ok(resolved);
+    assert.equal(resolved.packetPath, ".GOV/task_packets/_archive/superseded/WP-TEST-ARCHIVE-v1/packet.md");
+    assert.equal(resolved.lifecycleClass, "SUPERSEDED");
+
+    const archivedEntries = listArchivedWorkPacketEntriesAtRepo(repoRoot, ".GOV");
+    assert.deepEqual(archivedEntries.map((entry) => ({ wpId: entry.wpId, lifecycleClass: entry.lifecycleClass })), [
+      { wpId: "WP-TEST-ARCHIVE-v1", lifecycleClass: "SUPERSEDED" },
+    ]);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
 });

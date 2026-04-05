@@ -11,10 +11,17 @@ import {
   defaultWpValidatorBranch,
   defaultWpValidatorWorktreeDir,
   EXECUTION_OWNER_RANGE_HELP,
-  MODEL_FAMILY_POLICY,
+  modelFamilyPolicyForPacketVersion,
+  modelFamilyPolicyForStubVersion,
   PACKET_FORMAT_VERSION,
+  packetUsesRoleModelProfiles,
   packetUsesSharedRemoteWpBackup,
   packetUsesStructuredValidationReport,
+  ROLE_MODEL_PROFILE_POLICY,
+  roleModelProfileField,
+  roleModelProfileFromPacket,
+  roleModelProfileMatchesClaim,
+  roleModelProfileMatchesReasoningStrength,
   packetUsesSessionPolicy,
   ROLE_SESSION_FALLBACK_MODEL,
   ROLE_SESSION_PRIMARY_MODEL,
@@ -36,6 +43,7 @@ import {
   SESSION_HOST_PREFERENCE,
   SESSION_LAUNCH_POLICY,
   STUB_FORMAT_VERSION,
+  stubUsesRoleModelProfiles,
   sessionPluginRequestsFileForPacketVersion,
   sessionPluginRequestsFileForStubVersion,
   sessionRegistryFileForPacketVersion,
@@ -44,6 +52,10 @@ import {
   SPEC_CLAUSE_MAP_MIN_VERSION,
 } from "../scripts/session/session-policy.mjs";
 import { inferWpIdFromPacketPath, listOfficialWorkPacketPaths, listStubWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import {
+  GOVERNED_VALIDATOR_REPORT_PROFILE_VALUES,
+  validatorReportProfileRequiresRiskAudit,
+} from "../scripts/lib/validator-report-profile-lib.mjs";
 
 function fail(message, details = []) {
   console.error(`[SESSION_POLICY_CHECK] ${message}`);
@@ -101,6 +113,62 @@ function checkMirrorField(errors, rel, text, label, sourceLabel) {
   }
 }
 
+function checkRoleModelProfileFields(errors, rel, text, {
+  isStub = false,
+} = {}) {
+  const versionLabel = isStub ? "STUB_FORMAT_VERSION" : "PACKET_FORMAT_VERSION";
+  const version = parseSingleField(text, versionLabel);
+  const usesRoleProfiles = isStub ? stubUsesRoleModelProfiles(version) : packetUsesRoleModelProfiles(version);
+  if (!usesRoleProfiles) return;
+
+  checkExpected(errors, rel, text, "ROLE_MODEL_PROFILE_POLICY", ROLE_MODEL_PROFILE_POLICY);
+  const roles = ["ORCHESTRATOR", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
+  for (const role of roles) {
+    const field = roleModelProfileField(role);
+    const profileId = roleModelProfileFromPacket(text, role, { fallbackToDefault: false });
+    if (!profileId) {
+      errors.push(`${rel}: ${field} must be a valid role-model-profile id for ${versionLabel} >= 2026-04-06`);
+      continue;
+    }
+    if (isStub) continue;
+    if (role === "CODER") {
+      const coderModel = parseSingleField(text, "CODER_MODEL");
+      const coderReasoning = parseSingleField(text, "CODER_REASONING_STRENGTH");
+      if (coderModel && !isPlaceholder(coderModel) && !roleModelProfileMatchesClaim(profileId, coderModel)) {
+        errors.push(`${rel}: CODER_MODEL must match CODER_MODEL_PROFILE (${profileId}; got: ${coderModel})`);
+      }
+      if (coderReasoning && !isPlaceholder(coderReasoning) && !roleModelProfileMatchesReasoningStrength(profileId, coderReasoning)) {
+        errors.push(`${rel}: CODER_REASONING_STRENGTH must match CODER_MODEL_PROFILE (${profileId}; got: ${coderReasoning})`);
+      }
+      continue;
+    }
+    if (role === "ORCHESTRATOR") {
+      const orchestratorReasoning = parseSingleField(text, "ORCHESTRATOR_REASONING_STRENGTH");
+      if (!orchestratorReasoning || isPlaceholder(orchestratorReasoning)) {
+        errors.push(`${rel}: ORCHESTRATOR_REASONING_STRENGTH is required for ${versionLabel} >= 2026-04-06`);
+      } else if (!roleModelProfileMatchesReasoningStrength(profileId, orchestratorReasoning)) {
+        errors.push(`${rel}: ORCHESTRATOR_REASONING_STRENGTH must match ORCHESTRATOR_MODEL_PROFILE (${profileId}; got: ${orchestratorReasoning})`);
+      }
+      continue;
+    }
+
+    const modelLabel = `${role}_MODEL`;
+    const reasoningLabel = `${role}_REASONING_STRENGTH`;
+    const model = parseSingleField(text, modelLabel);
+    const reasoning = parseSingleField(text, reasoningLabel);
+    if (!model || isPlaceholder(model)) {
+      errors.push(`${rel}: ${modelLabel} is required for ${versionLabel} >= 2026-04-06`);
+    } else if (!roleModelProfileMatchesClaim(profileId, model)) {
+      errors.push(`${rel}: ${modelLabel} must match ${field} (${profileId}; got: ${model})`);
+    }
+    if (!reasoning || isPlaceholder(reasoning)) {
+      errors.push(`${rel}: ${reasoningLabel} is required for ${versionLabel} >= 2026-04-06`);
+    } else if (!roleModelProfileMatchesReasoningStrength(profileId, reasoning)) {
+      errors.push(`${rel}: ${reasoningLabel} must match ${field} (${profileId}; got: ${reasoning})`);
+    }
+  }
+}
+
 function checkPacket(filePath) {
   const text = fs.readFileSync(repoPathAbs(filePath), "utf8");
   const rel = filePath.replace(/\\/g, "/");
@@ -132,7 +200,7 @@ function checkPacket(filePath) {
   checkExpected(errors, rel, text, "SESSION_WAKE_CHANNEL_PRIMARY", SESSION_WAKE_CHANNEL_PRIMARY);
   checkExpected(errors, rel, text, "SESSION_WAKE_CHANNEL_FALLBACK", SESSION_WAKE_CHANNEL_FALLBACK);
   checkExpectedWithLegacyAlias(errors, rel, text, "CLI_ESCALATION_HOST_DEFAULT", CLI_ESCALATION_HOST_DEFAULT, CLI_ESCALATION_HOST_LEGACY_ALIAS);
-  checkExpected(errors, rel, text, "MODEL_FAMILY_POLICY", MODEL_FAMILY_POLICY);
+  checkExpected(errors, rel, text, "MODEL_FAMILY_POLICY", modelFamilyPolicyForPacketVersion(version));
   checkExpected(errors, rel, text, "CODEX_MODEL_ALIASES_ALLOWED", CODEX_MODEL_ALIASES_ALLOWED);
   checkExpected(errors, rel, text, "ROLE_SESSION_PRIMARY_MODEL", ROLE_SESSION_PRIMARY_MODEL);
   checkExpected(errors, rel, text, "ROLE_SESSION_FALLBACK_MODEL", ROLE_SESSION_FALLBACK_MODEL);
@@ -176,11 +244,8 @@ function checkPacket(filePath) {
   }
   if (packetUsesStructuredValidationReport(version)) {
     const reportProfile = parseSingleField(text, "GOVERNED_VALIDATOR_REPORT_PROFILE");
-    checkAllowed(errors, rel, text, "GOVERNED_VALIDATOR_REPORT_PROFILE", [
-      "SPLIT_DIFF_SCOPED_V1",
-      "SPLIT_DIFF_SCOPED_RIGOR_V3",
-    ]);
-    if (/^SPLIT_DIFF_SCOPED_RIGOR_V3$/i.test(reportProfile)) {
+    checkAllowed(errors, rel, text, "GOVERNED_VALIDATOR_REPORT_PROFILE", GOVERNED_VALIDATOR_REPORT_PROFILE_VALUES);
+    if (validatorReportProfileRequiresRiskAudit(reportProfile)) {
       checkExpected(
         errors,
         rel,
@@ -207,6 +272,8 @@ function checkPacket(filePath) {
   if (coderStrength && !isPlaceholder(coderStrength) && !/^(LOW|MEDIUM|HIGH|EXTRA_HIGH)$/i.test(coderStrength)) {
     errors.push(`${rel}: CODER_REASONING_STRENGTH must be LOW|MEDIUM|HIGH|EXTRA_HIGH when claimed`);
   }
+
+  checkRoleModelProfileFields(errors, rel, text);
 
   if (errors.length > 0) fail("Packet session policy violations found", errors);
 }
@@ -240,7 +307,7 @@ function checkStub(filePath) {
   checkExpected(errors, rel, text, "SESSION_WAKE_CHANNEL_PRIMARY", SESSION_WAKE_CHANNEL_PRIMARY);
   checkExpected(errors, rel, text, "SESSION_WAKE_CHANNEL_FALLBACK", SESSION_WAKE_CHANNEL_FALLBACK);
   checkExpectedWithLegacyAlias(errors, rel, text, "CLI_ESCALATION_HOST_DEFAULT", CLI_ESCALATION_HOST_DEFAULT, CLI_ESCALATION_HOST_LEGACY_ALIAS);
-  checkExpected(errors, rel, text, "MODEL_FAMILY_POLICY", MODEL_FAMILY_POLICY);
+  checkExpected(errors, rel, text, "MODEL_FAMILY_POLICY", modelFamilyPolicyForStubVersion(version));
   checkExpected(errors, rel, text, "CODEX_MODEL_ALIASES_ALLOWED", CODEX_MODEL_ALIASES_ALLOWED);
   checkExpected(errors, rel, text, "ROLE_SESSION_PRIMARY_MODEL", ROLE_SESSION_PRIMARY_MODEL);
   checkExpected(errors, rel, text, "ROLE_SESSION_FALLBACK_MODEL", ROLE_SESSION_FALLBACK_MODEL);
@@ -248,6 +315,7 @@ function checkStub(filePath) {
   checkExpected(errors, rel, text, "ROLE_SESSION_REASONING_CONFIG_KEY", ROLE_SESSION_REASONING_CONFIG_KEY);
   checkExpected(errors, rel, text, "ROLE_SESSION_REASONING_CONFIG_VALUE", ROLE_SESSION_REASONING_CONFIG_VALUE);
   checkExpected(errors, rel, text, "PLANNED_EXECUTION_OWNER_RANGE", EXECUTION_OWNER_RANGE_HELP);
+  checkRoleModelProfileFields(errors, rel, text, { isStub: true });
 
   if (errors.length > 0) fail("Stub session policy violations found", errors);
 }

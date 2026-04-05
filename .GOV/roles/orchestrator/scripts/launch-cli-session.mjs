@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import {
   SESSION_BATCH_MODE_CLI_ESCALATION,
   CLI_ESCALATION_HOST_DEFAULT,
@@ -35,10 +35,15 @@ import {
   mutateSessionRegistrySync,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
+  launchOwnedSystemTerminal,
+  recordOwnedTerminalLaunch,
+} from "../../../roles_shared/scripts/session/terminal-ownership-lib.mjs";
+import {
   buildRoleEnvironmentOverrides,
   buildStartupPrompt,
   resolveRoleConfig,
-  selectModel,
+  resolveRoleLaunchSelection,
+  assertRoleLaunchProfileSupported,
 } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
 import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
@@ -65,21 +70,29 @@ function runGit(args) {
   return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 }
 
-function commandExists(command) {
-  const lookup = process.platform === "win32" ? "where.exe" : "which";
-  const result = spawnSync(lookup, [command], { stdio: "ignore" });
-  return result.status === 0;
-}
-
 const roleConfig = resolveRoleConfig(role, wpId);
 if (!roleConfig) fail(`Unknown role: ${role}`);
-const selectedModel = selectModel(requestedModel);
 const launchEnvironmentOverrides = buildRoleEnvironmentOverrides({ role });
 
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const currentBranch = runGit(["branch", "--show-current"]);
 assertOrchestratorLaunchAuthority(currentBranch);
 const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
+const {
+  selectedProfileId,
+  selectedProfile,
+} = resolveRoleLaunchSelection({
+  role,
+  wpId,
+  modelSelector: requestedModel,
+});
+assertRoleLaunchProfileSupported({
+  role,
+  wpId,
+  selectedProfileId,
+  selectedProfile,
+});
+const selectedModel = selectedProfile.launch_model;
 const sessionDescriptor = {
   wp_id: wpId,
   role,
@@ -87,8 +100,9 @@ const sessionDescriptor = {
   local_worktree_dir: roleConfig.worktreeDir,
   terminal_title: roleConfig.title,
   requested_model: selectedModel,
-  reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
-  reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
+  requested_profile_id: selectedProfileId,
+  reasoning_config_key: selectedProfile.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY,
+  reasoning_config_value: selectedProfile.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE,
 };
 const governance = evaluateSessionGovernanceState(repoRoot, sessionDescriptor);
 
@@ -104,13 +118,20 @@ if (!fs.existsSync(absWorktreeDir)) {
   );
 }
 
-const prompt = buildStartupPrompt({ role, wpId, roleConfig, selectedModel });
+const prompt = buildStartupPrompt({
+  role,
+  wpId,
+  roleConfig,
+  selectedModel,
+  selectedProfileId,
+  selectedProfile,
+});
 
 const codexArgs = [
   "-m",
   selectedModel,
   "-c",
-  `${ROLE_SESSION_REASONING_CONFIG_KEY}="${ROLE_SESSION_REASONING_CONFIG_VALUE}"`,
+  `${selectedProfile.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY}="${selectedProfile.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE}"`,
   "-C",
   absWorktreeDir,
   prompt,
@@ -130,6 +151,7 @@ function writeLaunchScript() {
     `$ErrorActionPreference = 'Stop'`,
     envLines,
     `Set-Location -LiteralPath ${psQuote(absWorktreeDir)}`,
+    `$Host.UI.RawUI.WindowTitle = ${psQuote(roleConfig.title)}`,
     `$codexArgs = @(`,
     psArgsLines,
     `)`,
@@ -155,31 +177,24 @@ function launchCurrent() {
   child.on("exit", (code) => process.exit(code ?? 0));
 }
 
-function launchWindowsTerminal() {
-  const child = spawn(
-    "wt.exe",
-    [
-      "new-tab",
-      "--title",
-      roleConfig.title,
-      "powershell.exe",
-      "-NoLogo",
-      "-NoExit",
-      "-File",
-      launchScriptPath,
-    ],
-    {
-      cwd: repoRoot,
-      detached: true,
-      stdio: "ignore",
-    },
-  );
-  child.unref();
+function launchSystemTerminal() {
+  const launch = launchOwnedSystemTerminal({
+    worktreeAbs: absWorktreeDir,
+    launchScriptPath,
+    terminalTitle: roleConfig.title,
+  });
+  recordOwnedTerminalLaunch(repoRoot, sessionDescriptor, {
+    processId: launch.processId,
+    hostKind: launch.hostKind,
+    terminalTitle: roleConfig.title,
+  });
   console.log(`[LAUNCH_CLI_SESSION] launched via ${CLI_ESCALATION_HOST_DEFAULT} (${roleConfig.title})`);
   console.log(`[LAUNCH_CLI_SESSION] worktree=${absWorktreeDir}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
+  console.log(`[LAUNCH_CLI_SESSION] selected_profile_id=${selectedProfileId}`);
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
+  console.log(`[LAUNCH_CLI_SESSION] terminal_pid=${launch.processId}`);
 }
 
 function printOnly(reason, resolvedHost) {
@@ -190,6 +205,7 @@ function printOnly(reason, resolvedHost) {
   console.log(`[LAUNCH_CLI_SESSION] worktree=${absWorktreeDir}`);
   console.log(`[LAUNCH_CLI_SESSION] branch=${roleConfig.branch}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
+  console.log(`[LAUNCH_CLI_SESSION] selected_profile_id=${selectedProfileId}`);
   console.log(`[LAUNCH_CLI_SESSION] launch_script=${launchScriptPath}`);
   if (Object.keys(launchEnvironmentOverrides).length > 0) {
     console.log(`[LAUNCH_CLI_SESSION] env_overrides=${JSON.stringify(launchEnvironmentOverrides)}`);
@@ -221,6 +237,7 @@ function printSessionSummary() {
   console.log(`[LAUNCH_CLI_SESSION] cli_escalation_allowed=${sessionSummary.cli_escalation_allowed ? "YES" : "NO"}`);
   console.log(`[LAUNCH_CLI_SESSION] launch_batch_mode=${batchSummary.launch_batch_mode}`);
   console.log(`[LAUNCH_CLI_SESSION] launch_batch_plugin_failure_count=${batchSummary.launch_batch_plugin_failure_count}`);
+  console.log(`[LAUNCH_CLI_SESSION] active_terminal_batch_id=${batchSummary.active_terminal_batch_id || "<none>"}`);
   if (batchSummary.launch_batch_switched_at) {
     console.log(`[LAUNCH_CLI_SESSION] launch_batch_switched_at=${batchSummary.launch_batch_switched_at}`);
   }
@@ -302,8 +319,9 @@ function queueVsCodePluginLaunch() {
       localWorktreeDir: roleConfig.worktreeDir,
       absWorktreeDir,
       selectedModel,
-      reasoningConfigKey: ROLE_SESSION_REASONING_CONFIG_KEY,
-      reasoningConfigValue: ROLE_SESSION_REASONING_CONFIG_VALUE,
+      selectedProfileId,
+      reasoningConfigKey: selectedProfile.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY,
+      reasoningConfigValue: selectedProfile.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE,
       startupCommand: roleConfig.startupCommand,
       nextCommand: roleConfig.nextCommand,
       terminalTitleValue: roleConfig.title,
@@ -413,28 +431,17 @@ if (requestedHost === "CURRENT") {
 }
 
 if (isSystemTerminalMode(requestedHost)) {
-  if (!commandExists("wt")) {
-    printOnly("wt.exe is unavailable on this host", "PRINT");
-    printSessionSummary();
-    process.exit(0);
-  }
   maybeRecordCliEscalation(CLI_ESCALATION_HOST_DEFAULT);
-  launchWindowsTerminal();
+  launchSystemTerminal();
   autoStartGovernedSession("system terminal launch");
   printSessionSummary();
   process.exit(0);
 }
 
 if (requestedHost === "AUTO") {
-  if (commandExists("wt")) {
-    maybeRecordCliEscalation(CLI_ESCALATION_HOST_DEFAULT);
-    launchWindowsTerminal();
-    autoStartGovernedSession("auto-resolved system terminal launch");
-    printSessionSummary();
-    process.exit(0);
-  }
-  maybeRecordCliEscalation("PRINT");
-  printOnly("Plugin retry budget exhausted and no CLI window host is available; run the printed command manually in an escalation window", "PRINT");
+  maybeRecordCliEscalation(CLI_ESCALATION_HOST_DEFAULT);
+  launchSystemTerminal();
+  autoStartGovernedSession("auto-resolved system terminal launch");
   printSessionSummary();
   process.exit(0);
 }

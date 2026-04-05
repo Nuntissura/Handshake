@@ -47,6 +47,12 @@ import {
   applyWpReviewRuntimeProjection,
   deriveWpReviewPacketProjection,
 } from "../lib/wp-review-projection-lib.mjs";
+import {
+  deriveWpMicrotaskPlan,
+  listDeclaredWpMicrotasks,
+  resolveDeclaredWpMicrotaskByScopeRef,
+  summarizeMicrotaskFileTargetBudget,
+} from "../lib/wp-microtask-lib.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification } from "./wp-notification-append.mjs";
@@ -54,6 +60,10 @@ import { appendWpNotification } from "./wp-notification-append.mjs";
 const ACTIVE_AUTO_RELAY_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const VALIDATOR_ASSESSMENT_ROLE_VALUES = new Set(["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"]);
 const GOVERNANCE_CHECKPOINT_RECEIPT_KIND_VALUES = new Set(REVIEW_RESOLUTION_RECEIPT_KIND_VALUES);
+export const REVIEW_NOTIFICATION_APPEND_OPTIONS = Object.freeze({
+  assumeTransactionLock: true,
+  autoRelay: false,
+});
 const ORCHESTRATOR_STEER_SCRIPT_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
@@ -87,6 +97,7 @@ const POST_WORK_CHECK_SCRIPT_PATH = path.resolve(
 );
 const TASK_BOARD_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`);
 const BUILD_ORDER_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md`);
+const MICROTASK_SCOPE_BUDGET_RECEIPT_KIND_VALUES = new Set(["CODER_INTENT", "REVIEW_REQUEST"]);
 const RUNTIME_ROUTE_FIELD_NAMES = [
   "open_review_items",
   "next_expected_actor",
@@ -546,6 +557,160 @@ function assertOverlapReviewBackpressurePreflight({ runtimeStatus }) {
   }
 }
 
+function overlapReviewResolutionPreflightApplies({ context, actorRole, receiptKind, microtaskContract }) {
+  return normalizeRole(context?.workflowLane) === "ORCHESTRATOR_MANAGED"
+    && VALIDATOR_ASSESSMENT_ROLE_VALUES.has(normalizeRole(actorRole))
+    && REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(normalizeReceiptKind(receiptKind))
+    && String(microtaskContract?.review_mode || "").trim().toUpperCase() === "OVERLAP";
+}
+
+function microtaskScopeBudgetPreflightApplies({ context, actorRole, receiptKind }) {
+  return normalizeRole(context?.workflowLane) === "ORCHESTRATOR_MANAGED"
+    && normalizeRole(actorRole) === "CODER"
+    && MICROTASK_SCOPE_BUDGET_RECEIPT_KIND_VALUES.has(normalizeReceiptKind(receiptKind));
+}
+
+function deriveDeclaredMicrotaskContext({ wpId, context, runtimeStatus, scopeRef }) {
+  const declaredMicrotasks = listDeclaredWpMicrotasks(wpId);
+  if (declaredMicrotasks.length === 0) {
+    return {
+      declaredMicrotasks,
+      resolution: { match: null, ambiguousMatches: [] },
+      plan: { declared_count: 0, active_microtask: null, previous_microtask: null, suggested_next_microtask: null, items: [] },
+    };
+  }
+
+  const receipts = parseJsonlFile(context.receiptsFile);
+  return {
+    declaredMicrotasks,
+    resolution: resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef, declaredMicrotasks),
+    plan: deriveWpMicrotaskPlan({
+      wpId,
+      receipts,
+      runtimeStatus,
+      microtasks: declaredMicrotasks,
+    }),
+  };
+}
+
+function assertDeclaredMicrotaskScopeBudgetPreflight({
+  wpId,
+  context,
+  runtimeStatus,
+  actorRole,
+  receiptKind,
+  targetRole,
+  microtaskContract,
+}) {
+  const scopeRef = String(microtaskContract?.scope_ref || "").trim();
+  const {
+    declaredMicrotasks,
+    resolution,
+    plan,
+  } = deriveDeclaredMicrotaskContext({
+    wpId,
+    context,
+    runtimeStatus,
+    scopeRef,
+  });
+  if (declaredMicrotasks.length === 0) return;
+
+  if (!microtaskContract || typeof microtaskContract !== "object" || Array.isArray(microtaskContract)) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: declared microtask contract is required when MT packets exist for ${wpId}.`,
+    );
+  }
+
+  if (!scopeRef) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.scope_ref must point to a declared MT (for example MT-001 or CLAUSE_CLOSURE_MATRIX/CX-...).`,
+    );
+  }
+
+  if (resolution.ambiguousMatches.length > 0) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.scope_ref=${scopeRef} matches multiple MT packets (${formatBoundedItemList(resolution.ambiguousMatches.map((item) => item.mtId), { noun: "MT" })}).`,
+    );
+  }
+  if (!resolution.match) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.scope_ref=${scopeRef} does not resolve to a declared MT in ${wpId}.`,
+    );
+  }
+
+  const budget = summarizeMicrotaskFileTargetBudget(microtaskContract.file_targets, resolution.match);
+  if (budget.normalizedTargets.length === 0) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.file_targets must name concrete files inside ${resolution.match.mtId}.`,
+    );
+  }
+  if (!budget.ok) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.file_targets escape ${resolution.match.mtId} CODE_SURFACES (${formatBoundedItemList(budget.outOfBudgetTargets, { noun: "path" })}).`,
+    );
+  }
+
+  const proofCommands = Array.isArray(microtaskContract.proof_commands)
+    ? microtaskContract.proof_commands.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : [];
+  if (proofCommands.length === 0) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.proof_commands must declare proof for ${resolution.match.mtId}.`,
+    );
+  }
+
+  const normalizedActorRole = normalizeRole(actorRole);
+  const normalizedReceiptKind = normalizeReceiptKind(receiptKind);
+  const activeMicrotask = plan.active_microtask;
+  const previousMicrotask = plan.previous_microtask;
+  if (normalizedActorRole === "CODER" && normalizedReceiptKind === "CODER_INTENT") {
+    const expectedMtId = activeMicrotask?.mt_id || declaredMicrotasks[0]?.mtId || null;
+    if (expectedMtId && resolution.match.mtId !== expectedMtId) {
+      throw new Error(
+        `Governed ${receiptKind} rejected: microtask_contract.scope_ref=${scopeRef} is out of sequence; active execution budget is ${expectedMtId}, not ${resolution.match.mtId}.`,
+      );
+    }
+  }
+
+  const overlapMode = String(microtaskContract.review_mode || "").trim().toUpperCase();
+  if (
+    normalizedActorRole === "CODER"
+    && normalizedReceiptKind === "REVIEW_REQUEST"
+    && normalizeRole(targetRole) === "WP_VALIDATOR"
+    && overlapMode === "OVERLAP"
+  ) {
+    const expectedMtId = activeMicrotask?.mt_id || declaredMicrotasks[0]?.mtId || null;
+    if (!expectedMtId) {
+      throw new Error(
+        `Governed ${receiptKind} rejected: no active microtask execution budget is available for overlap review in ${wpId}.`,
+      );
+    }
+    if (resolution.match.mtId !== expectedMtId) {
+      throw new Error(
+        `Governed ${receiptKind} rejected: overlap review must bind to the current active microtask ${expectedMtId}, not ${resolution.match.mtId}.`,
+      );
+    }
+  }
+
+  if (
+    VALIDATOR_ASSESSMENT_ROLE_VALUES.has(normalizedActorRole)
+    && REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(normalizedReceiptKind)
+    && overlapMode === "OVERLAP"
+  ) {
+    const expectedMtId = previousMicrotask?.mt_id || null;
+    if (!expectedMtId) {
+      throw new Error(
+        `Governed ${receiptKind} rejected: overlap review resolution requires an immediately previous microtask under review, but none is projected for ${wpId}.`,
+      );
+    }
+    if (resolution.match.mtId !== expectedMtId) {
+      throw new Error(
+        `Governed ${receiptKind} rejected: overlap review resolution must bind to previous microtask ${expectedMtId}, not ${resolution.match.mtId}.`,
+      );
+    }
+  }
+}
+
 function assertNoDuplicateDecisiveValidatorAssessment({ context, entry }) {
   const receipts = parseJsonlFile(context.receiptsFile);
   if (!isDuplicateDecisiveValidatorAssessment(receipts, entry)) return;
@@ -586,6 +751,37 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
   })) {
     assertOverlapReviewBackpressurePreflight({ runtimeStatus });
   }
+  if (microtaskScopeBudgetPreflightApplies({
+    context,
+    actorRole: args?.actorRole,
+    receiptKind: args?.receiptKind,
+  })) {
+    assertDeclaredMicrotaskScopeBudgetPreflight({
+      wpId,
+      context,
+      runtimeStatus,
+      actorRole: args?.actorRole,
+      receiptKind: normalizeReceiptKind(args?.receiptKind),
+      targetRole: args?.targetRole,
+      microtaskContract: args?.microtaskContract,
+    });
+  }
+  if (overlapReviewResolutionPreflightApplies({
+    context,
+    actorRole: args?.actorRole,
+    receiptKind: args?.receiptKind,
+    microtaskContract: args?.microtaskContract,
+  })) {
+    assertDeclaredMicrotaskScopeBudgetPreflight({
+      wpId,
+      context,
+      runtimeStatus,
+      actorRole: args?.actorRole,
+      receiptKind: normalizeReceiptKind(args?.receiptKind),
+      targetRole: args?.targetRole,
+      microtaskContract: args?.microtaskContract,
+    });
+  }
 
   const entry = buildReceiptValidationEntry({
     args,
@@ -605,6 +801,8 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
 function appendReviewNotifications({ wpId, workflowLane, entry, autoRoute }) {
   const targets = deriveReviewNotificationTargets({ workflowLane, entry, autoRoute });
   for (const target of targets) {
+    // Review receipts already execute one route-aware auto-relay. Derived notifications must not
+    // trigger additional relay attempts, or the same review event fans out into duplicate prompts.
     appendWpNotification({
       wpId,
       sourceKind: target.sourceKind,
@@ -615,7 +813,7 @@ function appendReviewNotifications({ wpId, workflowLane, entry, autoRoute }) {
       correlationId: entry.correlation_id ?? null,
       summary: target.summary,
       timestamp: entry.timestamp_utc,
-    }, { assumeTransactionLock: true });
+    }, REVIEW_NOTIFICATION_APPEND_OPTIONS);
   }
 }
 

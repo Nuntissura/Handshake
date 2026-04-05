@@ -18,7 +18,7 @@ if (!wpId) {
 
 const wpPath = workPacketAbsPath(wpId);
 if (!fs.existsSync(wpPath)) {
-  console.error(`? GATE FAIL: Task Packet ${wpId}.md not found.`);
+  console.error(`? GATE FAIL: Work Packet ${wpId} not found at the resolved packet path.`);
   process.exit(1);
 }
 

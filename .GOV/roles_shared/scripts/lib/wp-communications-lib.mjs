@@ -2,11 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { EXECUTION_OWNER_VALUES } from "../session/session-policy.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "./merge-progression-truth-lib.mjs";
+import { RUNTIME_MILESTONE_VALUES, TASK_BOARD_STATUS_VALUES } from "./wp-authority-projection-lib.mjs";
 import {
   GOV_ROOT_REPO_REL,
+  LEGACY_TASK_PACKETS_DIRNAME,
   LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT,
   repoPathAbs,
   SHARED_GOV_WP_COMMUNICATIONS_ROOT,
+  WORK_PACKETS_LOGICAL_DIRNAME,
 } from "./runtime-paths.mjs";
 
 export const COMM_ROOT = SHARED_GOV_WP_COMMUNICATIONS_ROOT;
@@ -363,6 +366,9 @@ export function validateRuntimeStatus(data) {
     "next_expected_session",
     "waiting_on_session",
     "open_review_items",
+    "current_task_board_status",
+    "current_milestone",
+    "last_milestone_sync_at",
     "main_containment_status",
     "merged_main_commit",
     "main_containment_verified_at_utc",
@@ -387,13 +393,15 @@ export function validateRuntimeStatus(data) {
   const taskPacketFallback = "\\.GOV";
   const normalizedTaskPacket = normalize(data.task_packet);
   const matchesPacketPath = (prefix) =>
-    new RegExp(`^${prefix}/task_packets/WP-.*\\.md$`).test(normalizedTaskPacket)
-    || new RegExp(`^${prefix}/task_packets/WP-[^/]+/packet\\.md$`).test(normalizedTaskPacket);
+    [LEGACY_TASK_PACKETS_DIRNAME, WORK_PACKETS_LOGICAL_DIRNAME].some((dirName) =>
+      new RegExp(`^${prefix}/${dirName}/WP-.*\\.md$`).test(normalizedTaskPacket)
+      || new RegExp(`^${prefix}/${dirName}/WP-[^/]+/packet\\.md$`).test(normalizedTaskPacket)
+    );
   if (!isNonEmptyString(data.task_packet) || !(
     matchesPacketPath(taskPacketPrefix)
     || matchesPacketPath(taskPacketFallback)
   )) {
-    errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md or ${GOV_ROOT_REPO_REL}/task_packets/WP-*/packet.md`);
+    errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md, ${GOV_ROOT_REPO_REL}/task_packets/WP-*/packet.md, or the logical ${GOV_ROOT_REPO_REL}/work_packets equivalents`);
   }
   const currentPaths = communicationPathsForWp(data.wp_id);
   const declaredCommDir = normalize(data.communication_dir);
@@ -457,6 +465,19 @@ export function validateRuntimeStatus(data) {
   if (!RUNTIME_STATUS_VALUES.includes(data.runtime_status)) errors.push(`runtime_status invalid (${data.runtime_status})`);
   if (!isNonEmptyString(data.current_phase) || !/^[A-Z][A-Z0-9_]*$/.test(data.current_phase)) {
     errors.push(`current_phase invalid (${data.current_phase})`);
+  }
+  if ("current_task_board_status" in data) {
+    if (!(data.current_task_board_status === null || TASK_BOARD_STATUS_VALUES.includes(data.current_task_board_status))) {
+      errors.push(`current_task_board_status invalid (${data.current_task_board_status})`);
+    }
+  }
+  if ("current_milestone" in data) {
+    if (!(data.current_milestone === null || RUNTIME_MILESTONE_VALUES.includes(data.current_milestone))) {
+      errors.push(`current_milestone invalid (${data.current_milestone})`);
+    }
+  }
+  if ("last_milestone_sync_at" in data && !isNullableRfc3339Utc(data.last_milestone_sync_at)) {
+    errors.push(`last_milestone_sync_at invalid (${data.last_milestone_sync_at})`);
   }
   if (!NEXT_ACTOR_VALUES.includes(data.next_expected_actor)) {
     errors.push(`next_expected_actor invalid (${data.next_expected_actor})`);

@@ -6,9 +6,13 @@ import { spawn, spawnSync } from "node:child_process";
 import {
   CLI_SESSION_TOOL,
   ROLE_SESSION_FALLBACK_MODEL,
+  ROLE_MODEL_PROFILE_POLICY,
   ROLE_SESSION_PRIMARY_MODEL,
   ROLE_SESSION_REASONING_CONFIG_KEY,
   ROLE_SESSION_REASONING_CONFIG_VALUE,
+  resolveRoleModelProfileSelection,
+  roleModelProfileField,
+  roleModelProfileSupportsGovernedLaunch,
   SESSION_COMMAND_KINDS,
   SESSION_COMMAND_STATUSES,
   SESSION_CONTROL_BROKER_AUTH_MODE,
@@ -23,7 +27,7 @@ import {
   roleNextCommand,
   roleStartupCommand,
 } from "./session-policy.mjs";
-import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, workPacketPath } from "../lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, repoPathAbs, resolveWorkPacketPath, workPacketPath } from "../lib/runtime-paths.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
@@ -163,13 +167,66 @@ export function buildRoleEnvironmentOverrides({
   };
 }
 
-export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
+export function loadWorkPacketContent(wpId) {
+  const packetPath = resolveWorkPacketPath(wpId)?.packetPath || workPacketPath(wpId);
+  const packetAbs = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbs)) return "";
+  return fs.readFileSync(packetAbs, "utf8");
+}
+
+export function resolveRoleLaunchSelection({
+  role,
+  wpId,
+  modelSelector = "PRIMARY",
+  packetContent = "",
+} = {}) {
+  const effectivePacketContent = packetContent || loadWorkPacketContent(wpId);
+  const selection = resolveRoleModelProfileSelection(role, effectivePacketContent, modelSelector);
+  return {
+    packetContent: effectivePacketContent,
+    primaryProfileId: selection.primary_profile_id,
+    selectedProfileId: selection.selected_profile_id,
+    selectedProfile: selection.profile,
+  };
+}
+
+export function assertRoleLaunchProfileSupported({
+  role,
+  wpId,
+  selectedProfileId,
+  selectedProfile,
+} = {}) {
+  if (!selectedProfileId || !selectedProfile) {
+    throw new Error(
+      `Missing governed role model profile for ${role}:${wpId}. Expected packet field ${roleModelProfileField(role) || "<unknown>"}.`,
+    );
+  }
+  if (!roleModelProfileSupportsGovernedLaunch(selectedProfileId)) {
+    throw new Error(
+      `Role profile ${selectedProfileId} for ${role}:${wpId} is governance-declared only (tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}). Implement provider-specific governed launch support before using it in ACP/session-control.`,
+    );
+  }
+  return selectedProfile;
+}
+
+export function buildStartupPrompt({
+  role,
+  wpId,
+  roleConfig,
+  selectedModel,
+  selectedProfileId = "",
+  selectedProfile = null,
+}) {
   const authorityPacketPath = workPacketPath(wpId);
+  const modelProfileLine = selectedProfileId && selectedProfile
+    ? `MODEL PROFILE: ${selectedProfileId} (${selectedProfile.provider}, tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}, claim_model=${selectedProfile.claim_model}, reasoning=${selectedProfile.reasoning_strength}${selectedProfile.reasoning_policy_note ? `, policy=${selectedProfile.reasoning_policy_note}` : ""}).`
+    : `MODEL PROFILE POLICY: ${ROLE_MODEL_PROFILE_POLICY} (legacy/default packet fields may omit explicit per-role profile ids).`;
   const commonLines = [
     `ROLE LOCK: You are the ${role}. Do not change roles unless explicitly reassigned.`,
     `WP_ID: ${wpId}`,
     `WORKTREE: ${roleConfig.worktreeDir}`,
     `BRANCH: ${roleConfig.branch}`,
+    modelProfileLine,
     `MODEL POLICY: selected ${selectedModel}; primary ${ROLE_SESSION_PRIMARY_MODEL} with ${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}; fallback ${ROLE_SESSION_FALLBACK_MODEL} with the same reasoning value if primary is unavailable.`,
     `REPO POLICY: do not switch to Codex model aliases for repo-governed sessions.`,
     `SESSION ISOLATION: do not spawn or use helper agents/subagents inside this governed role lane.`,
@@ -292,6 +349,7 @@ export function buildSessionControlRequest({
   localWorktreeDir,
   absWorktreeDir,
   selectedModel,
+  selectedProfileId = "",
   prompt,
   threadId = "",
   summary = "",
@@ -299,6 +357,8 @@ export function buildSessionControlRequest({
   environmentOverrides = null,
   targetCommandId = "",
   createdByRole = "ORCHESTRATOR",
+  reasoningConfigKey = ROLE_SESSION_REASONING_CONFIG_KEY,
+  reasoningConfigValue = ROLE_SESSION_REASONING_CONFIG_VALUE,
 }) {
   const COMMAND_KIND = String(commandKind || "").trim().toUpperCase();
   if (!SESSION_COMMAND_KINDS.includes(COMMAND_KIND)) {
@@ -318,8 +378,9 @@ export function buildSessionControlRequest({
     local_branch: normalizePath(localBranch),
     local_worktree_dir: normalizePath(localWorktreeDir),
     selected_model: selectedModel,
-    reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
-    reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
+    selected_profile_id: selectedProfileId,
+    reasoning_config_key: reasoningConfigKey,
+    reasoning_config_value: reasoningConfigValue,
     prompt,
     summary,
     output_jsonl_file: normalizePath(outputJsonlFile),

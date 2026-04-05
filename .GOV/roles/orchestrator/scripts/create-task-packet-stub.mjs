@@ -2,7 +2,8 @@
 /**
  * Work packet stub generator
  *
- * Creates a backlog-only stub under `.GOV/task_packets/stubs/` from the canonical template:
+ * Creates a backlog-only stub under the resolved Work Packet stub root
+ * (current physical storage: `.GOV/task_packets/stubs/`) from the canonical template:
  * - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
  *
  * Usage:
@@ -12,11 +13,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  ensureWorkPacketLifecycleLayout,
   CLI_ESCALATION_HOST_DEFAULT,
   CLI_SESSION_TOOL,
   CODEX_MODEL_ALIASES_ALLOWED,
+  DEFAULT_ROLE_MODEL_PROFILE_IDS,
   EXECUTION_OWNER_RANGE_HELP,
-  MODEL_FAMILY_POLICY,
+  modelFamilyPolicyForStubVersion,
+  ROLE_MODEL_PROFILE_POLICY,
   ROLE_SESSION_FALLBACK_MODEL,
   ROLE_SESSION_PRIMARY_MODEL,
   ROLE_SESSION_REASONING_CONFIG_KEY,
@@ -38,7 +42,7 @@ import {
   SESSION_LAUNCH_POLICY,
   STUB_FORMAT_VERSION,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const WP_ID = process.argv[2];
 const ROADMAP_POINTER = process.argv[3] || "<fill>";
@@ -50,7 +54,9 @@ if (!WP_ID || !WP_ID.startsWith("WP-")) {
   process.exit(1);
 }
 
-const stubsDir = path.join(GOV_ROOT_REPO_REL, "task_packets", "stubs");
+ensureWorkPacketLifecycleLayout();
+
+const stubsDir = WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL;
 if (!fs.existsSync(stubsDir)) {
   fs.mkdirSync(stubsDir, { recursive: true });
 }
@@ -95,13 +101,18 @@ content = fill(content, "{{SESSION_WATCH_POLICY}}", SESSION_WATCH_POLICY);
 content = fill(content, "{{SESSION_WAKE_CHANNEL_PRIMARY}}", SESSION_WAKE_CHANNEL_PRIMARY);
 content = fill(content, "{{SESSION_WAKE_CHANNEL_FALLBACK}}", SESSION_WAKE_CHANNEL_FALLBACK);
 content = fill(content, "{{CLI_ESCALATION_HOST_DEFAULT}}", CLI_ESCALATION_HOST_DEFAULT);
-content = fill(content, "{{MODEL_FAMILY_POLICY}}", MODEL_FAMILY_POLICY);
+content = fill(content, "{{MODEL_FAMILY_POLICY}}", modelFamilyPolicyForStubVersion(STUB_FORMAT_VERSION));
+content = fill(content, "{{ROLE_MODEL_PROFILE_POLICY}}", ROLE_MODEL_PROFILE_POLICY);
 content = fill(content, "{{CODEX_MODEL_ALIASES_ALLOWED}}", CODEX_MODEL_ALIASES_ALLOWED);
 content = fill(content, "{{ROLE_SESSION_PRIMARY_MODEL}}", ROLE_SESSION_PRIMARY_MODEL);
 content = fill(content, "{{ROLE_SESSION_FALLBACK_MODEL}}", ROLE_SESSION_FALLBACK_MODEL);
 content = fill(content, "{{ROLE_SESSION_REASONING_REQUIRED}}", ROLE_SESSION_REASONING_REQUIRED);
 content = fill(content, "{{ROLE_SESSION_REASONING_CONFIG_KEY}}", ROLE_SESSION_REASONING_CONFIG_KEY);
 content = fill(content, "{{ROLE_SESSION_REASONING_CONFIG_VALUE}}", ROLE_SESSION_REASONING_CONFIG_VALUE);
+content = fill(content, "{{ORCHESTRATOR_MODEL_PROFILE}}", DEFAULT_ROLE_MODEL_PROFILE_IDS.ORCHESTRATOR);
+content = fill(content, "{{CODER_MODEL_PROFILE}}", DEFAULT_ROLE_MODEL_PROFILE_IDS.CODER);
+content = fill(content, "{{WP_VALIDATOR_MODEL_PROFILE}}", DEFAULT_ROLE_MODEL_PROFILE_IDS.WP_VALIDATOR);
+content = fill(content, "{{INTEGRATION_VALIDATOR_MODEL_PROFILE}}", DEFAULT_ROLE_MODEL_PROFILE_IDS.INTEGRATION_VALIDATOR);
 content = fill(content, "{{EXECUTION_OWNER_RANGE_HELP}}", EXECUTION_OWNER_RANGE_HELP);
 
 fs.writeFileSync(filePath, content, "utf8");
@@ -113,5 +124,3 @@ console.log(`1) Fill BUILD_ORDER_* + SPEC_ANCHOR_CANDIDATES + DEPENDENCIES/BLOCK
 console.log("2) Fill UI_UX_SKETCH + PRIMITIVES_AND_MATRIX_NOTES (draft; prefer too many UI controls early)");
 console.log("3) Ensure TASK_BOARD lists the stub under 'Stub Backlog (Not Activated)'");
 console.log("4) Run: just build-order-sync");
-
-

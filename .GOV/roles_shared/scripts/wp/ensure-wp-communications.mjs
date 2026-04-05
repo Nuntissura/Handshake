@@ -34,6 +34,11 @@ import {
   deriveWpReviewPacketProjection,
 } from "../lib/wp-review-projection-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
+import {
+  derivePacketMilestone,
+  parsePacketStatus,
+  taskBoardStatusForPacketStatus,
+} from "../lib/wp-authority-projection-lib.mjs";
 import { GOV_ROOT_REPO_REL, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "../lib/merge-progression-truth-lib.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
@@ -84,14 +89,6 @@ function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = text.match(re);
   return match ? match[1].trim() : "";
-}
-
-function parsePacketStatus(text) {
-  return (
-    (text.match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1] ||
-    (text.match(/^\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1] ||
-    ""
-  ).trim() || "Ready for Dev";
 }
 
 function fillAll(text, replacements) {
@@ -291,6 +288,8 @@ export function buildWpCommunicationTemplateReplacements({
   currentMainCompatibilityVerifiedAtUtcJson,
   packetWideningDecisionJson,
   packetWideningEvidenceJson,
+  currentTaskBoardStatusJson,
+  currentMilestoneJson,
   taskPacketPath,
   communicationDir,
   threadFile,
@@ -328,6 +327,8 @@ export function buildWpCommunicationTemplateReplacements({
     "{{CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC}}": currentMainCompatibilityVerifiedAtUtcJson,
     "{{PACKET_WIDENING_DECISION}}": packetWideningDecisionJson,
     "{{PACKET_WIDENING_EVIDENCE}}": packetWideningEvidenceJson,
+    "{{CURRENT_TASK_BOARD_STATUS}}": currentTaskBoardStatusJson,
+    "{{CURRENT_MILESTONE}}": currentMilestoneJson,
     "{{TASK_PACKET_PATH}}": taskPacketPath,
     "{{WP_COMMUNICATION_DIR}}": communicationDir,
     "{{WP_THREAD_FILE}}": threadFile,
@@ -512,6 +513,8 @@ function ensureWpCommunicationsCore({
     currentMainCompatibilityVerifiedAtUtcJson: CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC ? JSON.stringify(CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC) : "null",
     packetWideningDecisionJson: JSON.stringify(PACKET_WIDENING_DECISION),
     packetWideningEvidenceJson: PACKET_WIDENING_EVIDENCE ? JSON.stringify(PACKET_WIDENING_EVIDENCE) : "null",
+    currentTaskBoardStatusJson: JSON.stringify(taskBoardStatusForPacketStatus(PACKET_STATUS) || "READY_FOR_DEV"),
+    currentMilestoneJson: JSON.stringify(derivePacketMilestone({ packetStatus: PACKET_STATUS })),
     taskPacketPath: normalize(packetPath),
     communicationDir: normalize(wpCommDir),
     threadFile: normalize(threadPath),

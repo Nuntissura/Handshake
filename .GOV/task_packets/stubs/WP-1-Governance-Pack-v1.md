@@ -18,6 +18,12 @@ Rules:
 - BASE_WP_ID: WP-1-Governance-Pack
 - CREATED_AT: 2026-01-12T21:49:00Z
 - STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
+- BUILD_ORDER_TECH_BLOCKER: NO
+- BUILD_ORDER_VALUE_TIER: HIGH
+- BUILD_ORDER_RISK_TIER: HIGH
+- BUILD_ORDER_DEPENDS_ON: WP-1-Product-Governance-Artifact-Registry, WP-1-Product-Governance-Check-Runner, WP-1-Governance-Workflow-Mirror, WP-1-Project-Agnostic-Workflow-State-Registry, WP-1-Workflow-Transition-Automation-Registry
+- BUILD_ORDER_BLOCKS: NONE
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: AÂ§7.6.3 (Phase 1) -> governance kernel adoption; local-first agentic posture
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
@@ -28,6 +34,7 @@ Rules:
 ## INTENT (DRAFT)
 - What: Implement Governance Pack generation/instantiation in Handshake so projects can adopt the same strict workflow without Handshake-specific hardcoding.
 - Why: Handshake must "use itself" as a governance engine for other projects; the repo workflow becomes a reusable product capability.
+- Additive rule: imported repo-governance assets are one software-delivery profile overlay inside the pack, not a replacement for Handshake-native governance or future non-software kernels.
 
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:
@@ -63,5 +70,4 @@ Rules:
 - [ ] Create the official task packet via `just create-task-packet WP-1-Governance-Pack-v1` (in `.GOV/task_packets/`).
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
-
 

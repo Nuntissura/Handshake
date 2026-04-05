@@ -8,6 +8,7 @@ This document defines the repo-resilience layer for Handshake governance.
 - Preserve both committed git history and working-file snapshots outside the repo tree.
 - Keep permanent topology deterministic across `handshake_main`, `wt-ilja`, and `wt-gov-kernel`.
 - Keep offline backups safe from mass-deletion sync by using append-only timestamped snapshots instead of destructive mirrors.
+- Keep `../Handshake Artifacts/` bounded by governed cleanup and retention manifests instead of ad hoc manual deletion.
 
 ## Commands
 
@@ -26,10 +27,12 @@ This document defines the repo-resilience layer for Handshake governance.
 ## Policy
 
 - `main` is the only canonical integrated branch.
+- Post-`RGF-75` evaluation outcome: no separate stable product integration branch is required while `main` remains clean, repo-local artifact leakage stays blocked, and governed worktree hygiene continues to pass.
 - `user_ilja` and `gov_kernel` are backup branches on GitHub.
 - Permanent non-main worktrees (`wt-ilja`, `wt-gov-kernel`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- Permanent non-main worktrees with a live `.GOV` kernel junction must suppress `.GOV` git noise locally. The supported model is worktree-local git metadata: add `.GOV/` to that worktree's `info/exclude` for untracked kernel files and mark tracked `.GOV` paths `skip-worktree`. Do not rely on the shared repo `.gitignore` to hide tracked `.GOV` drift.
 - `just sync-all-role-worktrees` is limited to refreshing the local `main` branch across the permanent worktrees when they are clean.
-- `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` is the governed helper for refreshing a permanent non-main role/user worktree from local `main`. It safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
+- `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` is the governed helper for refreshing a permanent non-main role/user worktree from local `main`. It safety-pushes the matching backup branch, creates an immutable snapshot, detaches any shared external `.GOV` junction that would block checkout, resets the local role/user branch to local `main`, repairs the `.GOV/` junction, and reapplies the worktree-local `.GOV` suppression model so the reseeded worktree comes back clean.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Worktree deletion must go through `just delete-local-worktree`. Never fall back to `Remove-Item`, `rm`, `del`, or other direct filesystem deletion for worktree paths.
 - For orchestrator-managed WP closeout, prefer the generated single-target cleanup script flow:
@@ -42,6 +45,11 @@ This document defines the repo-resilience layer for Handshake governance.
 - Backup snapshots do two things:
   - create git bundles for committed refs
   - copy current worktree files outside the repo tree so dirty state survives deletion incidents
+- Artifact retention is governed separately from snapshots:
+  - canonical roots under `../Handshake Artifacts/` stay durable
+  - cleanup may remove only reclaimable residue
+  - every governed artifact cleanup or integration-validator closeout writes a retention manifest under `handshake-tool/artifact-retention/`
+  - authority: `.GOV/roles_shared/docs/ARTIFACT_RETENTION_POLICY.md`
 - Backup storage is append-only by default. Each run writes a new timestamped directory and must never mirror-delete older snapshots.
 - Live mirrors are allowed for convenience, but they are not disaster recovery. Immutable snapshots are the authoritative recovery layer.
 

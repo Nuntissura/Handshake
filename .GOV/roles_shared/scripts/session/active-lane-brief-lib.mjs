@@ -3,6 +3,7 @@ import path from "node:path";
 import { REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { parseJsonFile, parseJsonlFile } from "../lib/wp-communications-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../lib/wp-communication-health-lib.mjs";
+import { deriveWpMicrotaskPlan } from "../lib/wp-microtask-lib.mjs";
 import { evaluateWpRelayEscalation } from "../lib/wp-relay-escalation-lib.mjs";
 import { checkAllNotifications, checkNotifications } from "../wp/wp-check-notifications.mjs";
 import { evaluateSessionGovernanceState } from "./session-governance-state-lib.mjs";
@@ -46,6 +47,21 @@ function summarizeMicrotaskContract(value = null) {
 function normalizeSession(value) {
   const text = String(value || "").trim();
   return text || null;
+}
+
+function summarizeMicrotaskEntry(entry = null) {
+  if (!entry || typeof entry !== "object") return null;
+  return {
+    mt_id: normalize(entry.mt_id),
+    clause: normalize(entry.clause),
+    state: normalize(entry.state),
+    state_reason: normalize(entry.state_reason),
+    correlation_id: normalize(entry.correlation_id),
+    last_receipt_kind: normalize(entry.last_receipt_kind),
+    last_actor_role: normalize(entry.last_actor_role),
+    last_activity_at: normalize(entry.last_activity_at),
+    code_surfaces: Array.isArray(entry.code_surfaces) ? entry.code_surfaces.slice(0, 6) : [],
+  };
 }
 
 function preferredRoleSession(runtimeStatus = {}, role = "") {
@@ -166,6 +182,13 @@ export function buildActiveLaneBrief({
           packet_row_ref: normalize(item?.packet_row_ref),
           microtask_contract: summarizeMicrotaskContract(item?.microtask_contract),
         }));
+  const microtaskPlan = terminalNoiseSuppressed
+    ? { declared_count: 0, active_microtask: null, previous_microtask: null, suggested_next_microtask: null, items: [] }
+    : deriveWpMicrotaskPlan({
+        wpId,
+        receipts,
+        runtimeStatus,
+      });
 
   return {
     schema_id: "hsk.active_lane_brief@1",
@@ -184,6 +207,8 @@ export function buildActiveLaneBrief({
     runtime: {
       status: normalize(runtimeStatus.runtime_status),
       phase: normalize(runtimeStatus.current_phase),
+      milestone: normalize(runtimeStatus.current_milestone),
+      task_board_status: normalize(runtimeStatus.current_task_board_status),
       next_expected_actor: normalize(runtimeStatus.next_expected_actor),
       next_expected_session: normalize(runtimeStatus.next_expected_session),
       waiting_on: normalize(runtimeStatus.waiting_on),
@@ -194,6 +219,7 @@ export function buildActiveLaneBrief({
     session: {
       session_key: normalize(session?.session_key),
       actor_session: normalize(preferredSession),
+      requested_profile_id: normalize(session?.requested_profile_id),
       runtime_state: normalize(session?.runtime_state),
       thread_id: normalize(session?.session_thread_id),
       last_command_kind: normalize(session?.last_command_kind),
@@ -204,6 +230,13 @@ export function buildActiveLaneBrief({
       by_kind: visibleNotifications.byKind || {},
       history_hidden: terminalNoiseSuppressed,
       hidden_history: hiddenHistory,
+    },
+    microtasks: {
+      declared_count: Number(microtaskPlan.declared_count || 0),
+      active_microtask: summarizeMicrotaskEntry(microtaskPlan.active_microtask),
+      previous_microtask: summarizeMicrotaskEntry(microtaskPlan.previous_microtask),
+      suggested_next_microtask: summarizeMicrotaskEntry(microtaskPlan.suggested_next_microtask),
+      items: Array.isArray(microtaskPlan.items) ? microtaskPlan.items.map((entry) => summarizeMicrotaskEntry(entry)) : [],
     },
     review_queue: reviewQueue,
     relay: {
@@ -234,9 +267,29 @@ export function formatActiveLaneBrief(brief) {
     `- AUTHORITY: ${brief.authority}`,
     `- PACKET: ${brief.packet_path}`,
     `- ROLE_CONTEXT: branch=${brief.role_config.branch} | worktree=${brief.role_config.worktree_dir}`,
-    `- RUNTIME: status=${brief.runtime.status} | phase=${brief.runtime.phase} | next=${brief.runtime.next_expected_actor}${brief.runtime.next_expected_session !== "<none>" ? `:${brief.runtime.next_expected_session}` : ""} | waiting_on=${brief.runtime.waiting_on}${brief.runtime.waiting_on_session !== "<none>" ? ` (${brief.runtime.waiting_on_session})` : ""}`,
+    `- RUNTIME: status=${brief.runtime.status} | phase=${brief.runtime.phase} | milestone=${brief.runtime.milestone} | board=${brief.runtime.task_board_status} | next=${brief.runtime.next_expected_actor}${brief.runtime.next_expected_session !== "<none>" ? `:${brief.runtime.next_expected_session}` : ""} | waiting_on=${brief.runtime.waiting_on}${brief.runtime.waiting_on_session !== "<none>" ? ` (${brief.runtime.waiting_on_session})` : ""}`,
     `- SESSION: key=${brief.session.session_key} | actor_session=${brief.session.actor_session} | runtime_state=${brief.session.runtime_state} | thread=${brief.session.thread_id} | last_command=${brief.session.last_command_kind}/${brief.session.last_command_status}`,
     `- NOTIFICATIONS: pending=${brief.notifications.pending_count} | by_kind=${JSON.stringify(brief.notifications.by_kind)}`,
+    `- MICROTASKS: declared=${brief.microtasks.declared_count} | active=${brief.microtasks.active_microtask?.mt_id || "<none>"} | next=${brief.microtasks.suggested_next_microtask?.mt_id || "<none>"}`,
+    ...(brief.microtasks.active_microtask
+      ? [
+          `- ACTIVE_MICROTASK: ${brief.microtasks.active_microtask.mt_id} | state=${brief.microtasks.active_microtask.state} | reason=${brief.microtasks.active_microtask.state_reason}`,
+          `- ACTIVE_MICROTASK_CLAUSE: ${brief.microtasks.active_microtask.clause}`,
+        ]
+      : []),
+    ...(brief.microtasks.previous_microtask
+      ? [
+          `- PREVIOUS_MICROTASK: ${brief.microtasks.previous_microtask.mt_id} | state=${brief.microtasks.previous_microtask.state}`,
+          `- PREVIOUS_MICROTASK_CLAUSE: ${brief.microtasks.previous_microtask.clause}`,
+        ]
+      : []),
+    ...(brief.microtasks.suggested_next_microtask
+      && brief.microtasks.suggested_next_microtask.mt_id !== brief.microtasks.active_microtask?.mt_id
+      ? [
+          `- NEXT_MICROTASK: ${brief.microtasks.suggested_next_microtask.mt_id} | state=${brief.microtasks.suggested_next_microtask.state}`,
+          `- NEXT_MICROTASK_CLAUSE: ${brief.microtasks.suggested_next_microtask.clause}`,
+        ]
+      : []),
     ...(brief.notifications.history_hidden
       ? [`- NOTIFICATIONS_HISTORY_HIDDEN: pending=${brief.notifications.hidden_history?.pending_notification_count || 0} | by_kind=${JSON.stringify(brief.notifications.hidden_history?.pending_notification_by_kind || {})}`]
       : []),

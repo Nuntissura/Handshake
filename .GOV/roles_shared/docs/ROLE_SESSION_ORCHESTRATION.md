@@ -30,7 +30,7 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - Orchestrator-managed workflow uses these governed ACP/CLI sessions as the only normal delegation surface for Coder and Validator lanes.
 - Helper agents/subagents may assist the Orchestrator on governance/spec/runtime/orchestrator tasks, but they are not Coder or Validator lanes.
 - Do not use helper agents/subagents to perform Coder or Validator duties, and do not let them write product code, unless the Operator explicitly approved that path and the work packet records `SUB_AGENT_DELEGATION: ALLOWED` plus the exact `OPERATOR_APPROVAL_EVIDENCE`.
-- `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows carry a target-command reference. Close rows clear the steerable thread registration for that governed role/WP session and settle through the same append-only request/result ledgers.
+- `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows carry a target-command reference. Close rows clear the steerable thread registration for that governed role/WP session, settle through the same append-only request/result ledgers, and attempt deterministic reclaim of any governed system-terminal window owned by that exact session.
 - The registry `session_thread_id` is the steering identity for that role/WP session.
 
 ## Fallback Law
@@ -40,6 +40,7 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - Default escalation host: `SYSTEM_TERMINAL`
 - Legacy compatibility: `WINDOWS_TERMINAL` is accepted as an older token, but new packets/protocol examples should use `SYSTEM_TERMINAL`.
 - Manual `PRINT` output is a repair/debug surface, not the preferred runtime.
+- Governed system-terminal launches must record terminal ownership in the session registry (`owned_terminal_process_id`, host kind, window title, recorded time, `owned_terminal_batch_id`) so closeout can reclaim only registry-owned governed windows from the intended governed batch.
 
 ## Wake-Up / Notice Protocol
 - Primary wake channel: `VS_CODE_FILE_WATCH`
@@ -116,6 +117,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
 - Broker startup and the governed `session-*` helpers now run a recoverable self-settlement pass for missing terminal result rows. If an old request was rejected, already terminal in the session registry, or left without an active broker run, prefer the governed helpers over manual ledger edits and let runtime truth converge first.
 - If packet communication routing looks wrong, run `just wp-communication-health-check`, `just check-notifications`, and `just ack-notifications` with the explicit role/session identity before considering any deeper repair.
 - Do not hand-edit session-control ledgers, broker state, packet receipts, or packet notifications to "unstick" a session. Prefer the governed helpers or a controlled session close/recreate flow.
+- If a governed session launched through a system terminal remains open after closeout, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` instead of killing terminals by guesswork.
 - If session/runtime truth disagrees with packet truth, packet truth still wins for scope, verdict, and acceptance. Repair the runtime projection; do not rewrite packet truth to match stale runtime state.
 - `PRINT` launch output is a repair/debug surface only. It is not proof that a governed session is healthy or resumable.
 
@@ -151,6 +153,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
   - `just session-send <ROLE> WP-{ID} "<prompt>"`
   - `just session-cancel <ROLE> WP-{ID}`
   - `just session-close <ROLE> WP-{ID}`
+  - `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`
   - `just handshake-acp-broker-status`
   - `just handshake-acp-broker-stop`
 - `just session-registry-status [WP-{ID}]`

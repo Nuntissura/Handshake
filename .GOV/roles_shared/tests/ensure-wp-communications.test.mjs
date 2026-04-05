@@ -40,6 +40,8 @@ test("WP communication template replacements cover all current template tokens",
     currentMainCompatibilityVerifiedAtUtcJson: "null",
     packetWideningDecisionJson: "\"NONE\"",
     packetWideningEvidenceJson: "null",
+    currentTaskBoardStatusJson: "\"READY_FOR_DEV\"",
+    currentMilestoneJson: "\"BOOTSTRAP\"",
     taskPacketPath: ".GOV/task_packets/WP-TEST-COMMS-v1/packet.md",
     communicationDir: "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-TEST-COMMS-v1",
     threadFile: "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-TEST-COMMS-v1/THREAD.md",
@@ -224,11 +226,12 @@ test("reconcileWpCommunicationTruth replays final review receipts into packet an
   assert.match(reconciliation.nextPacketText, /Blockers:\s*NONE/);
   assert.match(
     reconciliation.nextPacketText,
-    /Next:\s*ORCHESTRATOR advances verdict progression and integration closeout from the completed direct-review lane\./,
+    /Next:\s*ORCHESTRATOR advances verdict progression and integration closeout from the authoritative completed direct-review lane\./,
   );
   assert.equal(reconciliation.nextRuntimeStatus.next_expected_actor, "ORCHESTRATOR");
   assert.equal(reconciliation.nextRuntimeStatus.waiting_on, "VERDICT_PROGRESSION");
   assert.equal(reconciliation.nextRuntimeStatus.current_phase, "VALIDATION");
+  assert.equal(reconciliation.nextRuntimeStatus.current_milestone, "VERDICT");
   assert.equal(reconciliation.nextRuntimeStatus.runtime_status, "working");
   assert.equal(reconciliation.nextRuntimeStatus.wp_validator_of_record, "wp_validator:test-session");
   assert.equal(

@@ -8,18 +8,27 @@ import {
   CODEX_AUTHORITY_PATH,
   resolveRoleConfig,
 } from "../scripts/session/session-control-lib.mjs";
-import { ROLE_SESSION_PRIMARY_MODEL } from "../scripts/session/session-policy.mjs";
+import {
+  ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
+  ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+  ROLE_SESSION_PRIMARY_MODEL,
+  roleModelProfile,
+} from "../scripts/session/session-policy.mjs";
 
 test("coder startup prompt carries orchestrator-managed relapse guard and lane-aware flow", () => {
   const wpId = "WP-TEST-CODER-v1";
   const roleConfig = resolveRoleConfig("CODER", wpId);
+  const selectedProfile = roleModelProfile(ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH);
   const prompt = buildStartupPrompt({
     role: "CODER",
     wpId,
     roleConfig,
     selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    selectedProfileId: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+    selectedProfile,
   });
 
+  assert.match(prompt, /MODEL PROFILE: OPENAI_GPT_5_4_XHIGH/i);
   assert.match(prompt, /POST-SIGNATURE RELAPSE GUARD \(MANDATORY\):/i);
   assert.match(prompt, /POLICY_CONFLICT, AUTHORITY_OVERRIDE_REQUIRED, OPERATOR_ARTIFACT_REQUIRED, ENVIRONMENT_FAILURE/i);
   assert.match(prompt, /`MANUAL_RELAY` = .*skeleton approval when required/i);
@@ -65,7 +74,7 @@ test("wp-validator startup prompt uses the dedicated validator lane and early st
   assert.match(roleConfig.worktreeDir, /^\.\.\/wtv-/);
   assert.match(prompt, /SESSION ISOLATION: do not spawn or use helper agents\/subagents/i);
   assert.match(prompt, /judge bootstrap\/skeleton\/micro-task direction early/i);
-  assert.match(prompt, /EARLY STEERING \(MANDATORY\): You are the first technical judge for coder BOOTSTRAP, SKELETON, and completed micro tasks/i);
+  assert.match(prompt, /EARLY STEERING \(MANDATORY\): You own the governed bootstrap\/skeleton checkpoint/i);
   assert.match(prompt, /WORKTREE SYNC \(MANDATORY\): Keep your dedicated validator branch\/worktree reviewable against the coder branch/i);
   assert.match(prompt, /just check-notifications WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
 });
@@ -102,6 +111,7 @@ test("integration-validator control requests carry kernel governance env overrid
     localWorktreeDir: "../handshake_main",
     absWorktreeDir: "D:/Handshake/Handshake Worktrees/handshake_main",
     selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    selectedProfileId: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
     prompt: "just validator-startup",
     outputJsonlFile: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/test.jsonl",
     environmentOverrides: env,
@@ -110,4 +120,5 @@ test("integration-validator control requests carry kernel governance env overrid
   assert.deepEqual(request.environment_overrides, {
     HANDSHAKE_GOV_ROOT: "D:/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV",
   });
+  assert.equal(request.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
 });

@@ -185,3 +185,77 @@ test("generate-post-run-audit-skeleton loads session control state from the pack
     fs.rmSync(repoRoot, { recursive: true, force: true });
   }
 });
+
+test("generate-post-run-audit-skeleton emits typed failure-ledger and positive-control placeholders", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-audit-skeleton-shape-"));
+  const govRoot = path.join(repoRoot, ".GOV");
+  const govRuntimeRoot = path.join(repoRoot, "gov_runtime");
+  const wpId = "WP-1-Test-v1";
+  const packetPath = path.join(govRoot, "task_packets", wpId, "packet.md");
+  const commDir = path.join(govRuntimeRoot, "roles_shared", "WP_COMMUNICATIONS", wpId);
+  const runtimeStatusPath = path.join(commDir, "RUNTIME_STATUS.json");
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const threadPath = path.join(commDir, "THREAD.md");
+  const outputPath = path.join(repoRoot, "audit.md");
+
+  try {
+    writeText(
+      path.join(govRoot, "roles_shared", "records", "TASK_BOARD.md"),
+      "# Board\n\n## Done\n- **[WP-1-Test-v1]** - [VALIDATED]\n",
+    );
+    writeText(
+      packetPath,
+      [
+        `- WP_RUNTIME_STATUS_FILE: ${normalizePath(runtimeStatusPath)}`,
+        `- WP_RECEIPTS_FILE: ${normalizePath(receiptsPath)}`,
+        `- WP_THREAD_FILE: ${normalizePath(threadPath)}`,
+        `- WP_COMMUNICATION_DIR: ${normalizePath(commDir)}`,
+        "- PACKET_FORMAT_VERSION: 2026-03-29",
+        "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+        "- COMMUNICATION_CONTRACT: DIRECT_REVIEW_REQUIRED",
+        "- COMMUNICATION_HEALTH_GATE: WP_COMMUNICATION_HEALTH_V1",
+        "- **Status:** Validated (PASS)",
+      ].join("\n"),
+    );
+    writeText(
+      runtimeStatusPath,
+      `${JSON.stringify({
+        schema_version: "wp_runtime_status@1",
+        wp_id: wpId,
+        current_packet_status: "Validated (PASS)",
+        runtime_status: "completed",
+        current_phase: "CLOSED",
+        next_expected_actor: "NONE",
+        open_review_items: [],
+        last_event_at: "2026-03-31T10:00:00Z",
+      }, null, 2)}\n`,
+    );
+    writeText(receiptsPath, "\n");
+    writeText(threadPath, "# thread\n");
+
+    const result = spawnSync(
+      process.execPath,
+      [".GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs", wpId, "--output", outputPath],
+      {
+        cwd: path.resolve("D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel"),
+        env: {
+          ...process.env,
+          HANDSHAKE_GOV_ROOT: govRoot,
+          HANDSHAKE_GOV_RUNTIME_ROOT: govRuntimeRoot,
+        },
+        encoding: "utf8",
+      },
+    );
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const audit = fs.readFileSync(outputPath, "utf8");
+    assert.match(audit, /- ROLE_OWNER: SHARED/);
+    assert.match(audit, /- SYSTEM_SCOPE: CONTROL_PLANE/);
+    assert.match(audit, /- FAILURE_CLASS: UX_AMBIGUITY/);
+    assert.match(audit, /- CONTROL_TYPE: REGRESSION_GUARD/);
+    assert.match(audit, /- REGRESSION_GUARDS:/);
+    assert.match(audit, /## Failure Classification Summary/);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});

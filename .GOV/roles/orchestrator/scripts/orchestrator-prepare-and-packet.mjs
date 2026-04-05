@@ -26,6 +26,7 @@ import {
   repoPathAbs,
   resolveOrchestratorGatesPath,
   resolveWorkPacketPath,
+  WORK_PACKET_STORAGE_ROOT_REPO_REL,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { communicationPathsForWp } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 
@@ -52,13 +53,13 @@ function normalize(value) {
 }
 
 function packetDirForWp(targetWpId) {
-  return repoPathAbs(path.join(GOV_ROOT_REPO_REL, "task_packets", targetWpId));
+  return repoPathAbs(path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, targetWpId));
 }
 
 function packetPathForWp(targetWpId) {
   return normalize(
     resolveWorkPacketPath(targetWpId)?.packetPath
-      || path.join(GOV_ROOT_REPO_REL, "task_packets", targetWpId, "packet.md"),
+      || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, targetWpId, "packet.md"),
   );
 }
 

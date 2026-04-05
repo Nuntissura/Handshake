@@ -23,7 +23,7 @@ Rules:
 - BUILD_ORDER_TECH_BLOCKER: NO
 - BUILD_ORDER_VALUE_TIER: HIGH
 - BUILD_ORDER_RISK_TIER: HIGH
-- BUILD_ORDER_DEPENDS_ON: WP-1-Structured-Collaboration-Schema-Registry, WP-1-Project-Profile-Extension-Registry, WP-1-Dev-Command-Center-Layout-Projection-Registry
+- BUILD_ORDER_DEPENDS_ON: WP-1-Structured-Collaboration-Schema-Registry, WP-1-Project-Profile-Extension-Registry, WP-1-Governance-Workflow-Mirror
 - BUILD_ORDER_BLOCKS: NONE
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.171.md 7.6.3 (Phase 1) -> [ADD v02.171] Project-agnostic workflow-state and governed-action contracts

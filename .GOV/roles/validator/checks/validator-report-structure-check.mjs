@@ -5,7 +5,7 @@ import {
   packetRequiresSpecClauseMap,
   packetUsesStructuredValidationReport,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL, listOfficialWorkPacketPaths } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { listOfficialWorkPacketPaths, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   packetUsesDataContractProfile,
   parseDataContractProfile,
@@ -13,6 +13,13 @@ import {
   validateDataContractSection,
 } from "../../../roles_shared/scripts/lib/data-contract-lib.mjs";
 import { parsePacketScopeList } from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
+import {
+  validatorReportProfileRequiresDualTrack,
+  validatorReportProfileRequiresAntiVibe,
+  validatorReportProfileRequiresPrimitiveAudit,
+  validatorReportProfileRequiresRiskAudit,
+  validatorReportProfileUsesHeuristicRigor,
+} from "../../../roles_shared/scripts/lib/validator-report-profile-lib.mjs";
 
 function fail(message, details = []) {
   console.error(`[VALIDATOR_REPORT_STRUCTURE_CHECK] ${message}`);
@@ -104,13 +111,17 @@ function negativeProofLeaksToGovernance(value) {
   return /\.GOV\/|gov_runtime\/|TASK_BOARD|RUNTIME_STATUS|ROLE_SESSION_REGISTRY|SESSION_CONTROL|VALIDATOR_PROTOCOL|ORCHESTRATOR_PROTOCOL|COMMAND_SURFACE_REFERENCE|governance closeout|outside the signed product scope/i.test(String(value || ""));
 }
 
+function lacksConcreteListEvidence(items = []) {
+  return items.some((item) => !/^NONE$/i.test(String(item || "").trim()) && !hasConcreteCodeReference(item));
+}
+
 function isClosedStatus(status) {
   return /\b(done|validated)\b/i.test(String(status || ""));
 }
 
 const files = listOfficialWorkPacketPaths();
 if (files.length === 0) {
-  fail("No official work packets found", [path.join(GOV_ROOT_REPO_REL, "task_packets").replace(/\\/g, "/")]);
+  fail("No official work packets found", [WORK_PACKET_STORAGE_ROOT_REPO_REL]);
 }
 const violations = [];
 
@@ -119,13 +130,17 @@ for (const rel of files) {
   const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
   if (!packetUsesStructuredValidationReport(packetFormatVersion)) continue;
   const usesDataContractProfile = packetUsesDataContractProfile(packetFormatVersion);
-  const enforcesAntiVibeRigor = packetFormatVersion >= "2026-04-01";
   const dataContractProfile = parseDataContractProfile(text);
   const inScopePaths = parsePacketScopeList(text, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
   const reportProfile = parseSingleField(text, "GOVERNED_VALIDATOR_REPORT_PROFILE");
-  const requiresRigorV2 = /^SPLIT_DIFF_SCOPED_RIGOR_V2$/i.test(reportProfile);
-  const requiresRigorV3 = /^SPLIT_DIFF_SCOPED_RIGOR_V3$/i.test(reportProfile);
-  const requiresHeuristicRigor = requiresRigorV2 || requiresRigorV3;
+  const packetRiskTier = parseSingleField(text, "RISK_TIER").toUpperCase();
+  const currentMainCompatibilityStatus = parseSingleField(text, "CURRENT_MAIN_COMPATIBILITY_STATUS").toUpperCase();
+  const sharedSurfaceRisk = parseSingleField(text, "SHARED_SURFACE_RISK").toUpperCase();
+  const requiresHeuristicRigor = validatorReportProfileUsesHeuristicRigor(reportProfile);
+  const requiresRiskAudit = validatorReportProfileRequiresRiskAudit(reportProfile);
+  const requiresPrimitiveAudit = validatorReportProfileRequiresPrimitiveAudit(reportProfile);
+  const requiresDualTrack = validatorReportProfileRequiresDualTrack(reportProfile, packetFormatVersion, packetRiskTier);
+  const enforcesAntiVibeRigor = validatorReportProfileRequiresAntiVibe(reportProfile, packetFormatVersion);
   const requiresCompletionLayerVerdicts = packetRequiresCompletionLayerVerdicts(packetFormatVersion);
 
   const status = parseStatus(text);
@@ -161,7 +176,7 @@ for (const rel of files) {
   if (requiresHeuristicRigor) {
     requiredFields.splice(4, 0, "HEURISTIC_REVIEW_VERDICT");
   }
-  if (requiresRigorV3) {
+  if (requiresRiskAudit) {
     requiredFields.push("VALIDATOR_RISK_TIER");
   }
   if (requiresCompletionLayerVerdicts) {
@@ -171,6 +186,12 @@ for (const rel of files) {
       "PROOF_COMPLETENESS",
       "INTEGRATION_READINESS",
       "DOMAIN_GOAL_COMPLETION",
+    );
+  }
+  if (requiresDualTrack) {
+    requiredFields.push(
+      "MECHANICAL_TRACK_VERDICT",
+      "SPEC_RETENTION_TRACK_VERDICT",
     );
   }
 
@@ -216,26 +237,42 @@ for (const rel of files) {
   const signedScopeDebt = extractListItemsAfterLabel(reports, "SIGNED_SCOPE_DEBT");
   const dataContractProof = extractListItemsAfterLabel(reports, "DATA_CONTRACT_PROOF");
   const dataContractGaps = extractListItemsAfterLabel(reports, "DATA_CONTRACT_GAPS");
-  if (requiresRigorV3 && attackSurfaces.length === 0) {
+  if (requiresRiskAudit && attackSurfaces.length === 0) {
     violations.push(`${rel}: DIFF_ATTACK_SURFACES missing bullet items in VALIDATION_REPORTS`);
   }
-  if (requiresRigorV3 && independentChecks.length === 0) {
+  if (requiresRiskAudit && independentChecks.length === 0) {
     violations.push(`${rel}: INDEPENDENT_CHECKS_RUN missing bullet items in VALIDATION_REPORTS`);
   }
-  if (requiresRigorV3 && counterfactualChecks.length === 0) {
+  if (requiresRiskAudit && counterfactualChecks.length === 0) {
     violations.push(`${rel}: COUNTERFACTUAL_CHECKS missing bullet items in VALIDATION_REPORTS`);
   }
-  if (requiresRigorV3 && independentFindings.length === 0) {
+  if (requiresRiskAudit && independentFindings.length === 0) {
     violations.push(`${rel}: INDEPENDENT_FINDINGS missing bullet items in VALIDATION_REPORTS`);
   }
-  if (requiresRigorV3 && residualUncertainty.length === 0) {
+  if (requiresRiskAudit && residualUncertainty.length === 0) {
     violations.push(`${rel}: RESIDUAL_UNCERTAINTY missing bullet items in VALIDATION_REPORTS`);
   }
-  if (requiresRigorV3 && enforcesAntiVibeRigor && antiVibeFindings.length === 0) {
+  if (requiresRiskAudit && enforcesAntiVibeRigor && antiVibeFindings.length === 0) {
     violations.push(`${rel}: ANTI_VIBE_FINDINGS missing bullet items in VALIDATION_REPORTS`);
   }
-  if (requiresRigorV3 && enforcesAntiVibeRigor && signedScopeDebt.length === 0) {
+  if (requiresRiskAudit && enforcesAntiVibeRigor && signedScopeDebt.length === 0) {
     violations.push(`${rel}: SIGNED_SCOPE_DEBT missing bullet items in VALIDATION_REPORTS`);
+  }
+  const primitiveRetentionProof = extractListItemsAfterLabel(reports, "PRIMITIVE_RETENTION_PROOF");
+  const primitiveRetentionGaps = extractListItemsAfterLabel(reports, "PRIMITIVE_RETENTION_GAPS");
+  const sharedSurfaceInteractionChecks = extractListItemsAfterLabel(reports, "SHARED_SURFACE_INTERACTION_CHECKS");
+  const currentMainInteractionChecks = extractListItemsAfterLabel(reports, "CURRENT_MAIN_INTERACTION_CHECKS");
+  if (requiresPrimitiveAudit && primitiveRetentionProof.length === 0) {
+    violations.push(`${rel}: PRIMITIVE_RETENTION_PROOF missing bullet items in VALIDATION_REPORTS`);
+  }
+  if (requiresPrimitiveAudit && primitiveRetentionGaps.length === 0) {
+    violations.push(`${rel}: PRIMITIVE_RETENTION_GAPS missing bullet items in VALIDATION_REPORTS`);
+  }
+  if (requiresPrimitiveAudit && sharedSurfaceInteractionChecks.length === 0) {
+    violations.push(`${rel}: SHARED_SURFACE_INTERACTION_CHECKS missing bullet items in VALIDATION_REPORTS`);
+  }
+  if (requiresPrimitiveAudit && currentMainInteractionChecks.length === 0) {
+    violations.push(`${rel}: CURRENT_MAIN_INTERACTION_CHECKS missing bullet items in VALIDATION_REPORTS`);
   }
   if (dataContractProfile === "LLM_FIRST_DATA_V1" && (dataContractProof.length === 0 || hasOnlyNoneList(dataContractProof))) {
     violations.push(`${rel}: DATA_CONTRACT_PROOF must list concrete proof items in VALIDATION_REPORTS for active data contract packet`);
@@ -264,6 +301,8 @@ for (const rel of files) {
   const disposition = parseSectionField(reports, "DISPOSITION").toUpperCase();
   const legalVerdict = parseSectionField(reports, "LEGAL_VERDICT").toUpperCase();
   const heuristicReviewVerdict = parseSectionField(reports, "HEURISTIC_REVIEW_VERDICT").toUpperCase();
+  const mechanicalTrackVerdict = parseSectionField(reports, "MECHANICAL_TRACK_VERDICT").toUpperCase();
+  const specRetentionTrackVerdict = parseSectionField(reports, "SPEC_RETENTION_TRACK_VERDICT").toUpperCase();
   if (topLevelVerdict === "ABANDONED") {
     if (!/^Validated\s*\(\s*ABANDONED\s*\)$/i.test(status)) {
       violations.push(`${rel}: Verdict=ABANDONED requires packet Status: Validated (ABANDONED)`);
@@ -279,6 +318,31 @@ for (const rel of files) {
     const proofCompleteness = parseSectionField(reports, "PROOF_COMPLETENESS").toUpperCase();
     const integrationReadiness = parseSectionField(reports, "INTEGRATION_READINESS").toUpperCase();
     const domainGoalCompletion = parseSectionField(reports, "DOMAIN_GOAL_COMPLETION").toUpperCase();
+    const mechanicalPassStates = [
+      governanceVerdict === "PASS",
+      parseSectionField(reports, "TEST_VERDICT").toUpperCase() === "PASS",
+      parseSectionField(reports, "CODE_REVIEW_VERDICT").toUpperCase() === "PASS",
+      heuristicReviewVerdict === "PASS",
+      environmentVerdict === "PASS",
+      workflowValidity === "VALID",
+      scopeValidity === "IN_SCOPE",
+      proofCompleteness === "PROVEN",
+      integrationReadiness === "READY",
+      domainGoalCompletion === "COMPLETE",
+    ];
+    const specRetentionPassState =
+      specAlignmentVerdict === "PASS"
+      && hasOnlyNoneList(notProven)
+      && (!requiresHeuristicRigor || hasOnlyNoneList(mainBodyGaps))
+      && (!requiresPrimitiveAudit || hasOnlyNoneList(primitiveRetentionGaps))
+      && (!requiresPrimitiveAudit || !lacksConcreteListEvidence(primitiveRetentionProof))
+      && (!requiresPrimitiveAudit || !lacksConcreteListEvidence(sharedSurfaceInteractionChecks))
+      && (!requiresPrimitiveAudit || !lacksConcreteListEvidence(currentMainInteractionChecks))
+      && (!packetRequiresSpecClauseMap(packetFormatVersion) || !lacksConcreteListEvidence(specClauseMap))
+      && negativeProof.length > 0
+      && !lacksConcreteListEvidence(negativeProof)
+      && !negativeProof.some((item) => negativeProofLeaksToGovernance(item))
+      && (dataContractProfile !== "LLM_FIRST_DATA_V1" || (hasOnlyNoneList(dataContractGaps) && !lacksConcreteListEvidence(dataContractProof)));
 
     if (workflowValidity === "VALID" && validationContext !== "OK") {
       violations.push(`${rel}: WORKFLOW_VALIDITY=VALID requires VALIDATION_CONTEXT=OK`);
@@ -291,6 +355,18 @@ for (const rel of files) {
     }
     if (legalVerdict === "PASS" && proofCompleteness !== "PROVEN") {
       violations.push(`${rel}: LEGAL_VERDICT=PASS requires PROOF_COMPLETENESS=PROVEN`);
+    }
+    if (requiresDualTrack && mechanicalTrackVerdict === "PASS" && mechanicalPassStates.some((item) => item !== true)) {
+      violations.push(`${rel}: MECHANICAL_TRACK_VERDICT=PASS requires all mechanical verdict and completion-layer fields to be in their PASS states`);
+    }
+    if (requiresDualTrack && specRetentionTrackVerdict === "PASS" && !specRetentionPassState) {
+      violations.push(`${rel}: SPEC_RETENTION_TRACK_VERDICT=PASS requires fully proven spec-retention and interaction evidence`);
+    }
+    if (requiresDualTrack && legalVerdict === "PASS" && mechanicalTrackVerdict !== "PASS") {
+      violations.push(`${rel}: LEGAL_VERDICT=PASS requires MECHANICAL_TRACK_VERDICT=PASS for dual-track packets`);
+    }
+    if (requiresDualTrack && legalVerdict === "PASS" && specRetentionTrackVerdict !== "PASS") {
+      violations.push(`${rel}: LEGAL_VERDICT=PASS requires SPEC_RETENTION_TRACK_VERDICT=PASS for dual-track packets`);
     }
     if (topLevelVerdict === "PASS") {
       if (validationContext !== "OK") {
@@ -320,21 +396,26 @@ for (const rel of files) {
       if (disposition !== "NONE") {
         violations.push(`${rel}: Verdict=PASS requires DISPOSITION=NONE`);
       }
+      if (requiresDualTrack && mechanicalTrackVerdict !== "PASS") {
+        violations.push(`${rel}: Verdict=PASS requires MECHANICAL_TRACK_VERDICT=PASS for dual-track packets`);
+      }
+      if (requiresDualTrack && specRetentionTrackVerdict !== "PASS") {
+        violations.push(`${rel}: Verdict=PASS requires SPEC_RETENTION_TRACK_VERDICT=PASS for dual-track packets`);
+      }
     }
   }
 
   if (requiresHeuristicRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(qualityRisks)) {
     violations.push(`${rel}: HEURISTIC_REVIEW_VERDICT=PASS requires QUALITY_RISKS to be exactly "- NONE"`);
   }
-  if (requiresRigorV3 && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(antiVibeFindings)) {
+  if (requiresRiskAudit && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(antiVibeFindings)) {
     violations.push(`${rel}: HEURISTIC_REVIEW_VERDICT=PASS requires ANTI_VIBE_FINDINGS to be exactly "- NONE"`);
   }
-  if (requiresRigorV3 && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt)) {
+  if (requiresRiskAudit && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt)) {
     violations.push(`${rel}: HEURISTIC_REVIEW_VERDICT=PASS requires SIGNED_SCOPE_DEBT to be exactly "- NONE"`);
   }
 
-  if (requiresRigorV3) {
-    const packetRiskTier = parseSingleField(text, "RISK_TIER").toUpperCase();
+  if (requiresRiskAudit) {
     const validatorRiskTier = parseSectionField(reports, "VALIDATOR_RISK_TIER").toUpperCase();
     const validatorRiskTierRank = riskTierRank(validatorRiskTier);
     const packetRiskTierRank = riskTierRank(packetRiskTier);
@@ -425,6 +506,35 @@ for (const rel of files) {
           }
         }
       }
+      if (requiresPrimitiveAudit) {
+        if (!hasOnlyNoneList(primitiveRetentionGaps)) {
+          violations.push(`${rel}: LEGAL_VERDICT=PASS requires PRIMITIVE_RETENTION_GAPS to be exactly "- NONE"`);
+        }
+        if (lacksConcreteListEvidence(primitiveRetentionProof)) {
+          violations.push(`${rel}: LEGAL_VERDICT=PASS requires PRIMITIVE_RETENTION_PROOF entries to include concrete code or symbol evidence`);
+        }
+        if (lacksConcreteListEvidence(sharedSurfaceInteractionChecks)) {
+          violations.push(`${rel}: LEGAL_VERDICT=PASS requires SHARED_SURFACE_INTERACTION_CHECKS entries to include concrete code or symbol evidence`);
+        }
+        if (lacksConcreteListEvidence(currentMainInteractionChecks)) {
+          violations.push(`${rel}: LEGAL_VERDICT=PASS requires CURRENT_MAIN_INTERACTION_CHECKS entries to include concrete code or symbol evidence`);
+        }
+        if (packetRiskTierRank >= riskTierRank("MEDIUM") && (primitiveRetentionProof.length === 0 || hasOnlyNoneList(primitiveRetentionProof))) {
+          violations.push(`${rel}: LEGAL_VERDICT=PASS requires non-empty PRIMITIVE_RETENTION_PROOF for packet RISK_TIER=${packetRiskTier}`);
+        }
+        if (packetRiskTierRank >= riskTierRank("MEDIUM") && (sharedSurfaceInteractionChecks.length === 0 || hasOnlyNoneList(sharedSurfaceInteractionChecks))) {
+          violations.push(`${rel}: LEGAL_VERDICT=PASS requires non-empty SHARED_SURFACE_INTERACTION_CHECKS for packet RISK_TIER=${packetRiskTier}`);
+        }
+        if (packetRiskTierRank >= riskTierRank("MEDIUM") && (currentMainInteractionChecks.length === 0 || hasOnlyNoneList(currentMainInteractionChecks))) {
+          violations.push(`${rel}: LEGAL_VERDICT=PASS requires non-empty CURRENT_MAIN_INTERACTION_CHECKS for packet RISK_TIER=${packetRiskTier}`);
+        }
+        if (sharedSurfaceRisk === "YES" && (sharedSurfaceInteractionChecks.length === 0 || hasOnlyNoneList(sharedSurfaceInteractionChecks))) {
+          violations.push(`${rel}: LEGAL_VERDICT=PASS requires non-empty SHARED_SURFACE_INTERACTION_CHECKS when SHARED_SURFACE_RISK=YES`);
+        }
+        if (currentMainCompatibilityStatus === "PASS" && (currentMainInteractionChecks.length === 0 || hasOnlyNoneList(currentMainInteractionChecks))) {
+          violations.push(`${rel}: LEGAL_VERDICT=PASS requires non-empty CURRENT_MAIN_INTERACTION_CHECKS when CURRENT_MAIN_COMPATIBILITY_STATUS=PASS`);
+        }
+      }
     }
 
     if (packetRequiresSpecClauseMap(packetFormatVersion) && specClauseMap.length === 0) {
@@ -438,6 +548,9 @@ for (const rel of files) {
     }
     if (enforcesAntiVibeRigor && topLevelVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt)) {
       violations.push(`${rel}: Verdict=PASS requires SIGNED_SCOPE_DEBT to be exactly "- NONE"`);
+    }
+    if (requiresPrimitiveAudit && topLevelVerdict === "PASS" && !hasOnlyNoneList(primitiveRetentionGaps)) {
+      violations.push(`${rel}: Verdict=PASS requires PRIMITIVE_RETENTION_GAPS to be exactly "- NONE"`);
     }
   }
 }

@@ -18,6 +18,12 @@ Rules:
 - BASE_WP_ID: WP-1-Session-Observability-Spans-FR
 - CREATED_AT: 2026-02-24T00:00:00Z
 - STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: BACKEND
+- BUILD_ORDER_TECH_BLOCKER: YES
+- BUILD_ORDER_VALUE_TIER: HIGH
+- BUILD_ORDER_RISK_TIER: HIGH
+- BUILD_ORDER_DEPENDS_ON: WP-1-FR-ModelSessionId, WP-1-ModelSession-Core-Scheduler, WP-1-Session-Spawn-Contract
+- BUILD_ORDER_BLOCKS: WP-1-Dev-Command-Center-Control-Plane-Backend
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.137.md 7.6.3 (Phase 1) -> items 36-37 (FR-EVT-SESS* + model_session_id correlation + ModelSessionSpan/ActivitySpan binding)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
@@ -66,4 +72,3 @@ Rules:
 - [ ] Create the official task packet via `just create-task-packet WP-1-Session-Observability-Spans-FR-v1` (in `.GOV/task_packets/`).
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
-

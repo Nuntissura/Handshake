@@ -2,6 +2,8 @@
 
 ## Scope
 
+- Audit ID: `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+- Smoketest review ID: `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
 - Audit date: 2026-04-04
 - Surface: ACP-managed crash recovery for parallel orchestrator-managed WPs
 - Worktree: `wt-gov-kernel`
@@ -37,7 +39,184 @@ This section supersedes the stale intermediate state elsewhere in this audit.
 - Boundary WP:
   - recovery repair commit on WP branch: `4cadfb5bed6c88ac88f6feafabe6afecc820c9a2`
   - contained-main repair commit: `ad680e3a4071e05e207ea9d562ee397f0eaded30`
-  - `just integration-validator-closeout-sync WP-1-Storage-Capability-Boundary-Refactor-v1 CONTAINED_IN_MAIN ad680e3a4071e05e207ea9d562ee397f0eaded30` passed
+- `just integration-validator-closeout-sync WP-1-Storage-Capability-Boundary-Refactor-v1 CONTAINED_IN_MAIN ad680e3a4071e05e207ea9d562ee397f0eaded30` passed
+
+## Structured Failure Ledger Addendum (2026-04-05T01:30Z)
+
+### SMOKE-FIND-20260404-01
+
+- CATEGORY: ACP_RUNTIME
+- SURFACE: `wp-receipt-append.mjs`, notification routing, relay wake path
+- SEVERITY: HIGH
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-64`
+- REGRESSION_HOOKS:
+  - `node --test .GOV/roles_shared/tests/wp-auto-relay-paths.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+- Evidence:
+  - duplicate review-triggered wake paths were present during ACP-managed parallel WP steering
+- What went wrong:
+  - review receipts and derived notifications could both steer the next lane, burning prompts and operator attention
+- Impact:
+  - token and time waste increased on every review transition
+- Mechanical fix direction:
+  - keep a single authoritative auto-relay source and deliver typed route payloads
+
+### SMOKE-FIND-20260404-02
+
+- CATEGORY: WORKFLOW_DISCIPLINE
+- SURFACE: manual relay lane, operator message brokerage
+- SEVERITY: MEDIUM
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-67`
+- REGRESSION_HOOKS:
+  - `node --test .GOV/roles/orchestrator/tests/manual-relay-next.test.mjs`
+- Evidence:
+  - old manual relay output interwove checks, prompts, and explanations into unreadable walls of text
+- What went wrong:
+  - handoff vs explainer vs question semantics were not typed
+- Impact:
+  - operator brokerage remained cheaper than ACP but too ambiguous to be reliable at scale
+- Mechanical fix direction:
+  - enforce relay envelopes with `ROLE_TO_ROLE_MESSAGE` and `OPERATOR_EXPLAINER` separation
+
+### SMOKE-FIND-20260404-03
+
+- CATEGORY: TIMELINE
+- SURFACE: runtime, receipts, control ledger, token ledger
+- SEVERITY: MEDIUM
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-65`
+- REGRESSION_HOOKS:
+  - `just wp-timeline WP-1-Storage-Capability-Boundary-Refactor-v1`
+- Evidence:
+  - the recovery required manually reconstructing launch, handoff, and closeout timing from multiple files
+- What went wrong:
+  - no single normalized WP timeline existed
+- Impact:
+  - cost attribution and stall analysis were slow and lossy
+- Mechanical fix direction:
+  - expose one merged timeline surface per WP
+
+### SMOKE-FIND-20260404-04
+
+- CATEGORY: PRODUCT_SCOPE
+- SURFACE: coder intent and microtask scope budgeting
+- SEVERITY: HIGH
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-66`
+- REGRESSION_HOOKS:
+  - `node --test .GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+- Evidence:
+  - coders could still drift into adjacent work because declared microtask scope was not enforced at receipt time
+- What went wrong:
+  - microtasks existed as narrative artifacts, not as enforced write-budget truth
+- Impact:
+  - remediation scope widened and review cost increased
+- Mechanical fix direction:
+  - fail closed when `microtask_contract` scope or file targets do not match declared `MT-*` surfaces
+
+### SMOKE-FIND-20260404-05
+
+- CATEGORY: GOVERNANCE_CHECK
+- SURFACE: packet/runtime/task-board/build-order truth
+- SEVERITY: HIGH
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-68`
+  - `RGF-70`
+- REGRESSION_HOOKS:
+  - `node --test .GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/ensure-wp-communications.test.mjs`
+- Evidence:
+  - closeout required late repair of packet status, clause-monitor truth, runtime packet paths, and containment status
+- What went wrong:
+  - milestone and task-board truth were duplicated across helpers instead of projected from one authority surface
+- Impact:
+  - closeout spiraled into long repair loops
+- Mechanical fix direction:
+  - derive runtime milestone and board status from shared packet-authority projection helpers
+
+### SMOKE-FIND-20260404-06
+
+- CATEGORY: ROLE_INTEGRATION_VALIDATOR
+- SURFACE: governed validator report law and current-main interaction audit
+- SEVERITY: HIGH
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-69`
+- REGRESSION_HOOKS:
+  - `node --test .GOV/roles/validator/tests/validator-report-structure-check.test.mjs`
+  - `node --test .GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs`
+- Evidence:
+  - earlier workflow law proved many mechanics but did not require explicit primitive-retention and current-main interaction proof
+- What went wrong:
+  - validators could PASS without a strong enough retained-feature and shared-surface composition audit
+- Impact:
+  - feature-loss and overwrite risk stayed under-proved for medium/high-risk WPs
+- Mechanical fix direction:
+  - introduce `SPLIT_DIFF_SCOPED_RIGOR_V4` with primitive-retention and interaction proof sections
+
+### SMOKE-FIND-20260404-07
+
+- CATEGORY: TOOLING
+- SURFACE: smoketest review template and audit skeleton
+- SEVERITY: MEDIUM
+- STATUS: FIXED_DURING_RUN
+- RELATED_GOVERNANCE_ITEMS:
+  - `RGF-73`
+- REGRESSION_HOOKS:
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+- Evidence:
+  - the original review format captured narrative well but did not provide stable finding IDs, board linkage, or positive controls
+- What went wrong:
+  - postmortem signal was trapped in prose
+- Impact:
+  - linking smoke findings into governance planning stayed manual and lossy
+- Mechanical fix direction:
+  - standardize a structured failure ledger and positive-control ledger
+
+## Governance Linkage Addendum (2026-04-05T01:30Z)
+
+- BOARD_LINKS:
+  - `SMOKE-FIND-20260404-01 -> RGF-64`
+  - `SMOKE-FIND-20260404-02 -> RGF-67`
+  - `SMOKE-FIND-20260404-03 -> RGF-65`
+  - `SMOKE-FIND-20260404-04 -> RGF-66`
+  - `SMOKE-FIND-20260404-05 -> RGF-68, RGF-70`
+  - `SMOKE-FIND-20260404-06 -> RGF-69`
+  - `SMOKE-FIND-20260404-07 -> RGF-73`
+- CHANGESET_LINKS:
+  - `SMOKE-FIND-20260404-01 -> GOV-CHANGE-20260405-02`
+  - `SMOKE-FIND-20260404-02 -> GOV-CHANGE-20260405-02`
+  - `SMOKE-FIND-20260404-03 -> GOV-CHANGE-20260405-02`
+  - `SMOKE-FIND-20260404-04 -> GOV-CHANGE-20260405-02`
+  - `SMOKE-FIND-20260404-05 -> GOV-CHANGE-20260405-03`
+  - `SMOKE-FIND-20260404-06 -> GOV-CHANGE-20260405-03`
+  - `SMOKE-FIND-20260404-07 -> GOV-CHANGE-20260405-03`
+
+## Positive Controls Addendum (2026-04-05T01:30Z)
+
+### SMOKE-CONTROL-20260404-01
+
+- SURFACE: contained-main recovery proof
+- Why it mattered:
+  - the final recovery converged on one real product blocker instead of continuing broad speculative churn
+- Evidence:
+  - the CRLF normalization fix in `src/backend/handshake_core/src/storage/tests.rs` cleanly removed the false negative and unblocked honest containment proof
+
+### SMOKE-CONTROL-20260404-02
+
+- SURFACE: closeout truth enforcement
+- Why it mattered:
+  - even after crash recovery, the governed closure checks forced packet/runtime/main truth back into an honest terminal state
+- Evidence:
+  - both WPs closed only after `integration-validator-closeout-sync` and `gov-check` passed with contained-main truth recorded
 
 ## Recorded Failures And Findings Used For Recovery
 
@@ -358,3 +537,61 @@ This means the governance surface currently lacks a sanctioned "continue under o
 Recovery succeeded in restoring truthful ACP lane state and in repairing several governance/runtime defects that had become hard blockers during the crash-restart window. The parity WP is technically complete and already contained on authoritative `main`, but still blocked on honest signed-scope accounting before contained-main closeout can be synced. The boundary WP remains the only live product blocker, with one remaining packet-owned current-main compatibility defect in `src/backend/handshake_core/src/workflows.rs`.
 
 The governance surface is still not healthy enough to call this parallel ACP flow robust. The missing audit file, malformed review request, stale active-run projection, packet/runtime drift, and missing sanctioned path for operator-authorized continuation after `POLICY_CONFLICT` are all real control-plane defects, not mere operator inconvenience.
+
+## Postmortem Addendum (2026-04-05)
+
+### Findings First
+
+- Finding `SMK-PAR-001`: orchestrator-managed ACP still behaves like manual relay plus extra ledgers, not like true event-driven delegation.
+  - Evidence: runtime routing depends on explicit `check-notifications` / `ack-notifications` / `wp-review-exchange` command use, and `orchestrator-steer-next.mjs` still has to inspect packet/runtime state and then actively `START_SESSION` or `SEND_PROMPT` for the next lane.
+  - Impact: every handoff adds extra prompts, extra runtime reads, extra self-settlement risk, and extra idle time between productive turns.
+- Finding `SMK-PAR-002`: microtasks exist as packet files and receipt metadata, but the governed lane does not schedule on them as the primary unit of work.
+  - Evidence: `create-task-packet.mjs` generates `MT-*.md`, while runtime steering and health logic mainly treat `microtask_contract` as optional review metadata on receipts.
+  - Impact: coders still reason over whole-WP context windows, validators still review at WP scope by default, and overlap review only trims a small part of the token load.
+- Finding `SMK-PAR-003`: fail-budget policy currently dead-ends long-running remediation instead of switching cleanly into an operator-authorized continuation mode.
+  - Evidence: boundary and parity both reached `POLICY_CONFLICT`, and the audit already records that no sanctioned override path existed even when the Operator explicitly wanted autonomous continuation.
+  - Impact: the orchestrator keeps paying for recovery, settlement, and truth repair around the stop condition instead of transitioning to a cheaper governed override mode.
+- Finding `SMK-PAR-004`: governance/runtime drift is now a first-class source of token burn.
+  - Evidence: this recovery required repairs to packet/refinement mirrors, packet-path canonicalization, receipt append locking, stale session projection, clause monitor truth, signed-scope patch generation, and closeout sync state before the remaining product delta could close.
+  - Impact: the workflow spends large effort proving that control-plane state is truthful again before any new product reasoning can happen.
+- Finding `SMK-PAR-005`: non-authoritative runtime/build data still leaks into expensive places despite the external-artifacts policy.
+  - Evidence:
+    - `handshake_main` is clean in git and its object store is small (`size-pack: 38.96 MiB`), but the checkout is about `27.11 GB` because `src/backend/handshake_core/target/` exists inside the repo tree.
+    - `Handshake Artifacts` is about `139 GB`, dominated by `handshake-cargo-target` (`102.11 GB`) plus stale WP-specific targets `validator_wp1_f69f9c5_target` (`25.66 GB`) and `intval-wp1-boundary-target` (`11.33 GB`).
+  - Impact: canonical worktrees stay heavy, backups and scans get slower, and cleanup is not happening mechanically at WP closeout.
+- Finding `SMK-PAR-006`: terminal/session host lifecycle is not governed tightly enough.
+  - Evidence: session registry tracks `active_terminal_title` / kind, but not durable OS PID / window handle ownership. Current runtime can prove dispatch, not exact terminal-window ownership. The desktop still shows many `Code`, `cmd`, `powershell`, and `codex` processes with no safe per-WP closeout binding.
+  - Impact: session windows accumulate and cannot be closed mechanically without risking unrelated terminals.
+- Finding `SMK-PAR-007`: validator rigor is still split between strong mechanical checks and weaker spec-to-code reading than the Master Spec surface now demands.
+  - Evidence: the recovery audit shows several cases where validator outputs were useful, but closeout truth still depended on later direct code/spec reading, adjacent-scope accounting, and contained-main compatibility reasoning.
+  - Impact: validators can pass narrow packet proofs while cross-feature integration, primitive retention, or current-main fit still remains under-read.
+
+### Root-Cause Readout
+
+- Root cause `RC-01`: too many workflow transitions are prompt-mediated instead of event-applied.
+  - Mechanical route truth exists, but the next lane still needs a new governed prompt to notice it and act.
+- Root cause `RC-02`: microtask structure is not yet the main scheduler contract.
+  - It helps bounded overlap review, but not planning, budgeting, or closeout segmentation.
+- Root cause `RC-03`: governance law, checks, and docs are still evolving faster than the models can keep the whole surface stable in one pass.
+  - The repo is still in active control-plane construction, so drift and repair churn are currently expected but too costly.
+- Root cause `RC-04`: current packet scope and current-main compatibility surfaces interact badly during remediation.
+  - Small product fixes turn into larger governance repairs when signed surface, adjacent scope, and contained-main proof diverge.
+- Root cause `RC-05`: external artifact policy is not enforced end-to-end.
+  - The policy exists, but nested repo-local `target/` trees and stale per-WP artifact folders still survive.
+- Root cause `RC-06`: session launch and session cleanup are asymmetric.
+  - Launch is governed; shutdown and window reclamation are only partially governed.
+
+### What Went Well
+
+- Direct coder-validator receipt routing is better than pure manual narration.
+- Packet-scoped runtime truth and review queues make many hidden failures visible.
+- The system did eventually converge and preserve an auditable trail instead of silently losing history.
+
+### Remediation Themes To Track
+
+- Theme `RT-01`: event-driven relay instead of prompt-driven relay
+- Theme `RT-02`: microtask-first orchestration and budgeting
+- Theme `RT-03`: operator-authorized fail-budget override lane
+- Theme `RT-04`: control-plane drift reduction and audit consolidation
+- Theme `RT-05`: artifact and terminal lifecycle enforcement
+- Theme `RT-06`: stronger validator spec-reading and primitive-retention review

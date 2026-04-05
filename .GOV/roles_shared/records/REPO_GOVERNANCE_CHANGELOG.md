@@ -992,3 +992,504 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
 - OUTCOME: duplicate decisive validator approvals or failures for the same review round now fail closed before they enter the receipt ledger, historical duplicate decisive assessments collapse into one authoritative surface for resume/projection consumers, and packet remediation text now points at the authoritative latest validator receipt instead of a raw noisy stream
+
+### 2026.04.05.01 / GOV-CHANGE-20260405-01
+
+- STATUS: APPLIED
+- SUMMARY: completed Wave 1 (`RGF-64` through `RGF-67`) by finishing one-hop relay dispatch, typed route payloads, computed WP spans, and microtask-first resume surfaces
+- CHANGE_TYPE: WORKFLOW_EFFICIENCY_AND_LANE_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-64`
+  - `RGF-65`
+  - `RGF-66`
+  - `RGF-67`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/lib/manual-relay-envelope-lib.mjs`
+  - `.GOV/roles/coder/scripts/coder-next.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-report.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-microtask-lib.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/tests/wp-timeline-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-microtask-lib.test.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `.GOV/roles/orchestrator/tests/manual-relay-envelope-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-68`
+  - `RGF-69`
+  - `RGF-70`
+  - `RGF-71`
+  - `RGF-72`
+  - `RGF-73`
+- OUTCOME: orchestrator-managed relay no longer requires a separate start turn and later steer turn for the same routine wakeup, governed prompts now carry typed route payloads instead of generic resume prose, `wp-timeline` computes control-command and review-exchange spans on top of the merged event stream, manual relay remains structured and first-class, continuation waivers are honored mechanically, and the compact role resume surfaces now expose declared active/next microtasks so coder and validator work can continue at MT granularity instead of broad WP guesswork
+
+### 2026.04.05.02 / GOV-CHANGE-20260405-02
+
+- STATUS: APPLIED
+- SUMMARY: completed Wave 2 authority and validator hardening (`RGF-68` through `RGF-70`) by projecting milestone/task-board truth from shared helpers and upgrading validator law to `SPLIT_DIFF_SCOPED_RIGOR_V4`
+- CHANGE_TYPE: AUTHORITY_REDUCTION_AND_VALIDATOR_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-68`
+  - `RGF-69`
+  - `RGF-70`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-05`
+  - `SMOKE-FIND-20260404-06`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-authority-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-review-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/validator-report-profile-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/computed-policy-gate-lib.mjs`
+  - `.GOV/roles_shared/checks/session-policy-check.mjs`
+  - `.GOV/roles/validator/checks/validator-packet-complete.mjs`
+  - `.GOV/roles/validator/checks/validator-report-structure-check.mjs`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/templates/WP_RUNTIME_STATUS_TEMPLATE.json`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-review-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/ensure-wp-communications.test.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs`
+  - `.GOV/roles/validator/tests/validator-report-structure-check.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-71`
+  - `RGF-72`
+  - `RGF-74`
+  - `RGF-75`
+- OUTCOME: runtime and review projections now stamp derived milestone and task-board truth from one authority layer instead of scattered status mappers, contract-heavy direct-review lanes no longer stay pinned to stale bootstrap checkpoints once later validator proof exists, and new packets now default to `SPLIT_DIFF_SCOPED_RIGOR_V4`, forcing explicit primitive-retention, shared-surface, and current-main interaction evidence for stronger medium/high-risk closure audits
+
+### 2026.04.05.03 / GOV-CHANGE-20260405-03
+
+- STATUS: APPLIED
+- SUMMARY: completed Wave 2 smoketest ledger hardening (`RGF-73`) by converting smoke reviews from narrative-only postmortems into stable finding and positive-control ledgers linked back to board items
+- CHANGE_TYPE: RECORDKEEPING_AND_POSTMORTEM_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-73`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-07`
+- SURFACES:
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/Audits/smoketest/AUDIT_20260404_PARALLEL_WP_ACP_STEERING_RECOVERY_REVIEW.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-71`
+  - `RGF-72`
+  - `RGF-74`
+  - `RGF-75`
+- OUTCOME: smoketest reviews now have stable `SMOKE-FIND-*` and `SMOKE-CONTROL-*` surfaces, board items can cite exact smoke findings instead of only whole audit documents, and the recovery audit now records both failure linkage and positive controls in a mechanically traceable format
+
+### 2026.04.05.04 / GOV-CHANGE-20260405-04
+
+- STATUS: APPLIED
+- SUMMARY: completed Wave 3 hygiene and runtime-ownership hardening (`RGF-71`, `RGF-72`, `RGF-74`) by enforcing external artifact law, reclaiming registry-owned governed terminals, and moving work-packet naming into a compatibility-safe resolver layer
+- CHANGE_TYPE: RUNTIME_HYGIENE_AND_PATH_AUTHORITY_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-71`
+  - `RGF-72`
+  - `RGF-74`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/lib/artifact-hygiene-lib.mjs`
+  - `.GOV/roles_shared/scripts/topology/artifact-hygiene-check.mjs`
+  - `.GOV/roles_shared/scripts/topology/artifact-cleanup.mjs`
+  - `.GOV/roles/validator/checks/validator-git-hygiene.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/terminal-ownership-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/reclaim-owned-terminals.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles_shared/scripts/lib/runtime-paths.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-75`
+- OUTCOME: repo-local `target/` directories and stale non-canonical artifact folders now fail closed and are cleaned mechanically, governed system-terminal sessions record ownership and can be reclaimed without touching unrelated operator terminals, and high-authority work-packet helpers/docs now resolve through `runtime-paths.mjs` with `work_packets` as the canonical logical name while legacy `.GOV/task_packets/` storage remains read-compatible during the migration window
+
+### 2026.04.05.05 / GOV-CHANGE-20260405-05
+
+- STATUS: APPLIED
+- SUMMARY: closed `RGF-75` by evaluating branch topology after Wave 3 and confirming that `main` remains the only required stable product integration branch
+- CHANGE_TYPE: TOPOLOGY_POLICY_EVALUATION
+- DRIVER_EVIDENCE:
+  - `RGF-75`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/roles_shared/docs/REPO_RESILIENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: after artifact enforcement and worktree-hygiene hardening, `handshake_main` is clean, no repo-local `target/` remains, and no additional stable product integration branch is justified; `main` stays canonical and branch-topology expansion remains closed unless future evidence shows `main` becoming operationally unsuitable again
+
+### 2026.04.05.06 / GOV-CHANGE-20260405-06
+
+- STATUS: APPLIED
+- SUMMARY: registered the next governance follow-on tranche (`RGF-76` through `RGF-85`) so the post-wave roadmap is explicit before implementation begins
+- CHANGE_TYPE: ROADMAP_AND_SEQUENCING_UPDATE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-76`
+  - `RGF-77`
+  - `RGF-78`
+  - `RGF-79`
+  - `RGF-80`
+  - `RGF-81`
+  - `RGF-82`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-85`
+- OUTCOME: the board now carries the next mechanical remediation set covering microtask-state hardening, full span ledgers, relay cost compression, dual-track validation, failure-ledger expansion, authority shrink, archival layout, legacy path cleanup, artifact retention, and session-batch terminal ownership
+
+### 2026.04.05.07 / GOV-CHANGE-20260405-07
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-76` by converting microtask handling from loose declared scope checks into a governed execution state machine with explicit active and previous microtask semantics
+- CHANGE_TYPE: MICROTASK_EXECUTION_STATE_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-76`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-04`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-microtask-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles/coder/scripts/coder-next.mjs`
+  - `.GOV/roles_shared/tests/wp-microtask-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-77`
+  - `RGF-78`
+  - `RGF-79`
+  - `RGF-80`
+  - `RGF-81`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: kickoff-reviewed microtasks remain the active execution budget, overlap review shifts execution to the next declared microtask while retaining the previous reviewed slice explicitly, coder intent cannot jump ahead out of sequence, and validator overlap resolutions now fail closed unless they bind to the immediately previous governed microtask
+
+### 2026.04.05.08 / GOV-CHANGE-20260405-08
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-77` by upgrading `wp-timeline` from a compact report view into a richer span ledger with stage-tagged control, token, review, and microtask execution windows
+- CHANGE_TYPE: TIMELINE_AND_COST_LEDGER_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-77`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-03`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-report.mjs`
+  - `.GOV/roles_shared/tests/wp-timeline-lib.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-78`
+  - `RGF-79`
+  - `RGF-80`
+  - `RGF-81`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: `just wp-timeline` now emits stage-tagged span rows with stable span ids, explicit token-command windows, review-exchange durations, and microtask execution spans, plus summary counts for span families and measured span coverage so relay and delay hot spots are attributable without rereading scattered ledgers
+
+### 2026.04.05.09 / GOV-CHANGE-20260405-09
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-78` by attaching measured relay burden and default lane policy to the timeline surface, then surfacing the cheaper-lane guidance in the operator workflow docs and lane-selection gate output
+- CHANGE_TYPE: RELAY_COST_POLICY_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-78`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-01`
+  - `SMOKE-FIND-20260404-02`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-report.mjs`
+  - `.GOV/roles_shared/tests/wp-timeline-lib.test.mjs`
+  - `.GOV/roles/orchestrator/checks/orchestrator_gates.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-79`
+  - `RGF-80`
+  - `RGF-81`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: `just wp-timeline` now reports relay command counts, relay token share, burden level, and a recommended lane, while signature-time operator guidance now states the default policy explicitly: use `MANUAL_RELAY` for small and medium WPs unless autonomous steering or multi-WP parallelism is clearly worth the extra prompt tax
+
+### 2026.04.05.10 / GOV-CHANGE-20260405-10
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-79` by making the validator split explicit for new medium/high V4 packets, with separate mechanical and spec-retention track verdicts enforced in both structure checks and computed closure policy
+- CHANGE_TYPE: DUAL_TRACK_VALIDATOR_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-79`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-06`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/validator-report-profile-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/checks/validator-report-structure-check.mjs`
+  - `.GOV/roles_shared/scripts/lib/computed-policy-gate-lib.mjs`
+  - `.GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs`
+  - `.GOV/roles/validator/tests/validator-report-structure-check.test.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-80`
+  - `RGF-81`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: new packets default to `PACKET_FORMAT_VERSION=2026-04-05`, creation/resume output now surfaces the dual-track law, and medium/high V4 validator closure must explicitly prove both the mechanical closure track and the deep spec-retention/shared-surface/current-main track before PASS remains legal
+
+### 2026.04.05.11 / GOV-CHANGE-20260405-11
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-80` by turning smoketest reviews into a typed failure/control ledger shape, then hardening the audit skeleton and maintenance workflow around that richer schema
+- CHANGE_TYPE: FAILURE_LEDGER_SCHEMA_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-80`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-07`
+- SURFACES:
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/roles_shared/tests/generate-post-run-audit-skeleton.test.mjs`
+  - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-81`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: new smoketest reviews now declare typed `CATEGORY`, `ROLE_OWNER`, `SYSTEM_SCOPE`, and `FAILURE_CLASS` fields plus typed positive controls with `CONTROL_TYPE`, `What went well`, and `REGRESSION_GUARDS`, and the post-run audit skeleton emits those placeholders by default instead of leaving the structure half-narrative
+
+### 2026.04.05.12 / GOV-CHANGE-20260405-12
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-81` by collapsing duplicated task-board status truth and repo-root work-packet path fallback logic into shared authority helpers, then rewiring resume/governance consumers to read those helpers instead of re-implementing local variants
+- CHANGE_TYPE: AUTHORITY_SURFACE_SHRINK
+- DRIVER_EVIDENCE:
+  - `RGF-81`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-05`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-authority-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/runtime-paths.mjs`
+  - `.GOV/roles_shared/scripts/session/session-governance-state-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/role-resume-utils.mjs`
+  - `.GOV/roles_shared/tests/runtime-paths.test.mjs`
+  - `.GOV/roles_shared/tests/session-governance-state-lib.test.mjs`
+  - `.GOV/roles_shared/tests/role-resume-utils.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: task-board terminal and active-status truth plus repo-root work-packet/task-board resolution now come from shared helpers, so resume/governance surfaces stop carrying their own packet-path fallback and board-status regex copies
+
+### 2026.04.05.13 / GOV-CHANGE-20260405-13
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-83` by sweeping high-authority guidance, templates, and user-facing governance messages so they describe the logical `work_packets` model first and only mention `.GOV/task_packets/` as current physical compatibility storage
+- CHANGE_TYPE: PATH_LANGUAGE_ALIGNMENT
+- DRIVER_EVIDENCE:
+  - `RGF-83`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/templates/AI_WORKFLOW_TEMPLATE.md`
+  - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
+  - `.GOV/roles/validator/README.md`
+  - `.GOV/roles_shared/docs/VALIDATOR_FILE_TOUCH_MAP.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/EVIDENCE_LEDGER.md`
+  - `.GOV/roles_shared/docs/QUALITY_GATE.md`
+  - `.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/checks/task-packet-claim-check.mjs`
+  - `.GOV/roles_shared/checks/gate-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-traceability-set.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: the authoritative human-facing surfaces now teach “resolve Work Packets through the logical `work_packets` model, with `.GOV/task_packets/` as compatibility storage” instead of presenting `task_packets` as the conceptual source of truth
+
+### 2026.04.05.14 / GOV-CHANGE-20260405-14
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-84` by turning governed artifact cleanup into a policy-backed retention workflow with durable manifests, so closeout now records exactly what residue was removed versus retained under `Handshake Artifacts`
+- CHANGE_TYPE: ARTIFACT_RETENTION_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-84`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/artifact-hygiene-lib.mjs`
+  - `.GOV/roles_shared/scripts/topology/artifact-cleanup.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles_shared/tests/artifact-hygiene-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ARTIFACT_RETENTION_POLICY.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/REPO_RESILIENCE.md`
+  - `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: manual `artifact-cleanup` and integration-validator closeout now emit JSON retention manifests under `../Handshake Artifacts/handshake-tool/artifact-retention/`, preserving durable cleanup evidence while keeping canonical artifact roots and non-reclaimable residue out of the auto-delete set
+
+### 2026.04.05.15 / GOV-CHANGE-20260405-15
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-82` by introducing a governed Work Packet lifecycle layout with reserved archive roots and archive-aware resolver support, without migrating existing packets or breaking active-path compatibility
+- CHANGE_TYPE: WORK_PACKET_LIFECYCLE_LAYOUT
+- DRIVER_EVIDENCE:
+  - `RGF-82`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/runtime-paths.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs`
+  - `.GOV/roles_shared/tests/runtime-paths.test.mjs`
+  - `.GOV/roles_shared/docs/WORK_PACKET_LIFECYCLE_LAYOUT.md`
+  - `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/task_packets/_archive/README.md`
+  - `.GOV/task_packets/_archive/superseded/README.md`
+  - `.GOV/task_packets/_archive/validated_closed/README.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-85`
+- OUTCOME: the runtime-path resolver now understands reserved archive roots for `superseded` and `validated_closed` packets, packet creation ensures the lifecycle layout exists, and the repo carries explicit archive directories plus policy docs without forcing a risky bulk packet move
+
+### 2026.04.05.16 / GOV-CHANGE-20260405-16
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-85` by grouping registry-owned governed terminals under explicit terminal batch ids so closeout and manual reclaim can target only the intended governed run
+- CHANGE_TYPE: TERMINAL_BATCH_OWNERSHIP_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-85`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `Justfile`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/terminal-ownership-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/reclaim-owned-terminals.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-reset-batch-launch-mode.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles_shared/tests/session-registry-lib.test.mjs`
+  - `.GOV/roles_shared/tests/terminal-ownership-lib.test.mjs`
+  - `.GOV/roles_shared/schemas/ROLE_SESSION_REGISTRY.schema.json`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: governed system-terminal launches now stamp `owned_terminal_batch_id` plus the active registry batch, manual reclaim defaults to `CURRENT_BATCH` and can optionally target `ALL_BATCHES` or one explicit `BATCH_ID`, and operator-visible status surfaces now expose the active batch id so only the intended governed terminal set is reclaimed
+
+### 2026.04.05.17 / GOV-CHANGE-20260405-17
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-86` by introducing an explicit per-role model-profile catalog into packet/stub law, launch/session-control enforcement, and claim/session policy checks
+- CHANGE_TYPE: ROLE_MODEL_PROFILE_CATALOG
+- DRIVER_EVIDENCE:
+  - `RGF-86`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles/orchestrator/checks/orchestrator_gates.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles_shared/checks/task-packet-claim-check.mjs`
+  - `.GOV/roles_shared/checks/session-policy-check.mjs`
+  - `.GOV/roles/coder/checks/pre-work-check.mjs`
+  - `.GOV/roles_shared/schemas/ROLE_SESSION_REGISTRY.schema.json`
+  - `.GOV/roles_shared/schemas/SESSION_CONTROL_REQUEST.schema.json`
+  - `.GOV/roles_shared/schemas/SESSION_LAUNCH_REQUEST.schema.json`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-87`
+- OUTCOME: new packet families now record explicit role-model-profile ids, GPT remains the governed default, Claude Code Opus 4.6 Thinking Max is declared and auditable at packet level, and governed launch/session control fail closed instead of silently pretending unsupported provider runtime exists

@@ -72,6 +72,12 @@
         },
         {
           "pattern": "^\\.GOV/task_packets/WP-[^/]+/packet\\.md$"
+        },
+        {
+          "pattern": "^\\.GOV/work_packets/WP-.*\\.md$"
+        },
+        {
+          "pattern": "^\\.GOV/work_packets/WP-[^/]+/packet\\.md$"
         }
       ]
     },
@@ -246,6 +252,48 @@
         "failed",
         "canceled"
       ]
+    },
+    "current_task_board_status": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "READY_FOR_DEV",
+        "STUB",
+        "IN_PROGRESS",
+        "DONE_VALIDATED",
+        "DONE_MERGE_PENDING",
+        "DONE_FAIL",
+        "DONE_OUTDATED_ONLY",
+        "DONE_ABANDONED",
+        "BLOCKED",
+        "SUPERSEDED",
+        null
+      ]
+    },
+    "current_milestone": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "BOOTSTRAP",
+        "SKELETON",
+        "MICROTASK",
+        "HANDOFF",
+        "VERDICT",
+        "CONTAINMENT",
+        "WORKFLOW_REPAIR",
+        null
+      ]
+    },
+    "last_milestone_sync_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
     },
     "current_phase": {
       "type": "string",

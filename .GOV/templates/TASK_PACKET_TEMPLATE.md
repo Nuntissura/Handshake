@@ -43,8 +43,14 @@ Requirements:
 <!-- Allowed: YES | NO. Default NO; set to YES only with explicit operator-authorized sub-agent use. -->
 - ORCHESTRATOR_MODEL: N/A
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
+- ORCHESTRATOR_MODEL_PROFILE: <pending>
+<!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. Allowed: repo role-model-profile catalog ids. -->
+- ORCHESTRATOR_REASONING_STRENGTH: <pending>
+<!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
+- CODER_MODEL_PROFILE: <pending>
+<!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
 - CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed>
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
@@ -65,6 +71,7 @@ Requirements:
 - SESSION_WAKE_CHANNEL_FALLBACK: {{SESSION_WAKE_CHANNEL_FALLBACK}}
 - CLI_ESCALATION_HOST_DEFAULT: {{CLI_ESCALATION_HOST_DEFAULT}}
 - MODEL_FAMILY_POLICY: {{MODEL_FAMILY_POLICY}}
+- ROLE_MODEL_PROFILE_POLICY: {{ROLE_MODEL_PROFILE_POLICY}}
 - CODEX_MODEL_ALIASES_ALLOWED: {{CODEX_MODEL_ALIASES_ALLOWED}}
 - ROLE_SESSION_PRIMARY_MODEL: {{ROLE_SESSION_PRIMARY_MODEL}}
 - ROLE_SESSION_FALLBACK_MODEL: {{ROLE_SESSION_FALLBACK_MODEL}}
@@ -74,12 +81,20 @@ Requirements:
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next {{WP_ID}}
 <!-- The WP Validator uses a dedicated local review branch/worktree rooted from the coder branch. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
+- WP_VALIDATOR_MODEL_PROFILE: <pending>
+<!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
+- WP_VALIDATOR_MODEL: <pending>
+- WP_VALIDATOR_REASONING_STRENGTH: <pending>
 - WP_VALIDATOR_LOCAL_BRANCH: {{WP_VALIDATOR_LOCAL_BRANCH}}
 - WP_VALIDATOR_LOCAL_WORKTREE_DIR: {{WP_VALIDATOR_LOCAL_WORKTREE_DIR}}
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: {{WP_VALIDATOR_REMOTE_BACKUP_BRANCH}}
 - WP_VALIDATOR_REMOTE_BACKUP_URL: {{WP_VALIDATOR_REMOTE_BACKUP_URL}}
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
 - WP_VALIDATOR_RESUME_COMMAND: just validator-next {{WP_ID}}
+- INTEGRATION_VALIDATOR_MODEL_PROFILE: <pending>
+<!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
+- INTEGRATION_VALIDATOR_MODEL: <pending>
+- INTEGRATION_VALIDATOR_REASONING_STRENGTH: <pending>
 - INTEGRATION_VALIDATOR_LOCAL_BRANCH: {{INTEGRATION_VALIDATOR_LOCAL_BRANCH}}
 - INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: {{INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR}}
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: {{INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH}}
@@ -91,8 +106,10 @@ Requirements:
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY | ABANDONED
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING
-- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V3
+- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V4
 - GOVERNED_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | GOVERNANCE_VERDICT | TEST_VERDICT | CODE_REVIEW_VERDICT | HEURISTIC_REVIEW_VERDICT | SPEC_ALIGNMENT_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT | SPEC_CONFIDENCE
+- GOVERNED_VALIDATOR_DUAL_TRACK_FIELDS: MECHANICAL_TRACK_VERDICT | SPEC_RETENTION_TRACK_VERDICT
+<!-- For PACKET_FORMAT_VERSION >= 2026-04-05 and RISK_TIER=MEDIUM|HIGH, both governed dual-track fields become mandatory at validator closeout. -->
 - GOVERNED_VALIDATOR_COMPLETION_FIELDS: WORKFLOW_VALIDITY | SCOPE_VALIDITY | PROOF_COMPLETENESS | INTEGRATION_READINESS | DOMAIN_GOAL_COMPLETION
 - CODER_HANDOFF_RIGOR_PROFILE: RUBRIC_SELF_AUDIT_V2
 - CLAUSE_CLOSURE_MONITOR_PROFILE: <pending>
@@ -667,6 +684,9 @@ git revert <commit-sha>
   - `PROOF_COMPLETENESS: PROVEN | NOT_PROVEN | PARTIAL | BLOCKED | NOT_RUN`
   - `INTEGRATION_READINESS: READY | NOT_READY | PARTIAL | BLOCKED | NOT_RUN`
   - `DOMAIN_GOAL_COMPLETION: COMPLETE | INCOMPLETE | PARTIAL | BLOCKED | NOT_RUN`
+- For `PACKET_FORMAT_VERSION >= 2026-04-05`, `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, and `RISK_TIER=MEDIUM|HIGH`, every appended governed validation report MUST also include:
+  - `MECHANICAL_TRACK_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `SPEC_RETENTION_TRACK_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
 - For `PACKET_FORMAT_VERSION >= 2026-03-15`, every appended governed validation report MUST also include:
   - `CLAUSES_REVIEWED:`
     - one bullet per in-scope MUST/SHOULD clause reviewed, each with file:line evidence or an explicit proof note
@@ -674,7 +694,7 @@ git revert <commit-sha>
   - `NOT_PROVEN:`
     - `- NONE` only when nothing remains unproven
     - otherwise list each unresolved clause/gap explicitly
-- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`, every appended governed validation report MUST also include:
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3|SPLIT_DIFF_SCOPED_RIGOR_V4`, every appended governed validation report MUST also include:
   - `MAIN_BODY_GAPS:`
     - `- NONE` only when no main-body requirement remains unproven, partial, or weakly evidenced
     - otherwise list each unresolved MUST/SHOULD gap explicitly
@@ -703,19 +723,32 @@ git revert <commit-sha>
   - `SPEC_CLAUSE_MAP:`
     - map each packet requirement to `file:line` evidence proving it is implemented
     - entries must include concrete code references (file paths, line numbers, or symbol names)
-    - required for `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`
+    - required for `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3|SPLIT_DIFF_SCOPED_RIGOR_V4`
   - `NEGATIVE_PROOF:`
     - list at least one spec requirement the validator verified is NOT fully implemented
     - this proves the validator independently read the code rather than trusting coder summaries
     - `- NONE` is illegal; every codebase has at least one gap or partial implementation
-    - required for `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`
-- For `PACKET_FORMAT_VERSION >= 2026-04-01` and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`, every appended governed validation report MUST also include:
+    - required for `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3|SPLIT_DIFF_SCOPED_RIGOR_V4`
+- For `PACKET_FORMAT_VERSION >= 2026-04-01` and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3|SPLIT_DIFF_SCOPED_RIGOR_V4`, every appended governed validation report MUST also include:
   - `ANTI_VIBE_FINDINGS:`
     - `- NONE` only when the validator found no shallow easy-surface work, no weakly justified implementation, and no vibe-coded behavior inside signed scope
     - otherwise list each anti-vibe finding explicitly
   - `SIGNED_SCOPE_DEBT:`
     - `- NONE` only when no signed-scope debt, cleanup IOU, or "fix later" residue was accepted
     - otherwise list each signed-scope debt item explicitly
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, every appended governed validation report MUST also include:
+  - `PRIMITIVE_RETENTION_PROOF:`
+    - record the concrete file:line or symbol evidence proving previously exposed or expected primitives remain present after the change
+    - for `RISK_TIER=MEDIUM|HIGH`, `- NONE` is illegal
+  - `PRIMITIVE_RETENTION_GAPS:`
+    - `- NONE` only when no primitive was weakened, dropped, or silently re-shaped inside signed scope
+    - otherwise list each retained-feature or primitive-composition gap explicitly
+  - `SHARED_SURFACE_INTERACTION_CHECKS:`
+    - record the concrete producer/consumer, registry, type, runtime, or contract interaction checks reviewed across shared surfaces
+    - for `RISK_TIER=MEDIUM|HIGH` or `SHARED_SURFACE_RISK=YES`, `- NONE` is illegal
+  - `CURRENT_MAIN_INTERACTION_CHECKS:`
+    - record the concrete current-`main` caller, consumer, or compatibility interactions reviewed against the packet diff
+    - for `RISK_TIER=MEDIUM|HIGH` or `CURRENT_MAIN_COMPATIBILITY_STATUS=PASS`, `- NONE` is illegal
 - When `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, every appended governed validation report MUST also include:
   - `DATA_CONTRACT_PROOF:`
     - list concrete code paths, emitted artifacts, or storage/query surfaces proving the active data contract was reviewed
@@ -724,10 +757,16 @@ git revert <commit-sha>
     - otherwise list each remaining gap explicitly
 - Rule: do not claim spec correctness with a generic PASS paragraph. `SPEC_ALIGNMENT_VERDICT=PASS` is only valid when the diff-scoped clauses are listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `- NONE`.
 - Rule: `HEURISTIC_REVIEW_VERDICT=PASS` is only valid when `QUALITY_RISKS` is exactly `- NONE`.
-- Rule: for `PACKET_FORMAT_VERSION >= 2026-04-01` and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`, `HEURISTIC_REVIEW_VERDICT=PASS` is legal only when `ANTI_VIBE_FINDINGS` and `SIGNED_SCOPE_DEBT` are both exactly `- NONE`.
+- Rule: for `PACKET_FORMAT_VERSION >= 2026-04-01` and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3|SPLIT_DIFF_SCOPED_RIGOR_V4`, `HEURISTIC_REVIEW_VERDICT=PASS` is legal only when `ANTI_VIBE_FINDINGS` and `SIGNED_SCOPE_DEBT` are both exactly `- NONE`.
 - Rule: when `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, `SPEC_ALIGNMENT_VERDICT=PASS` is legal only when `DATA_CONTRACT_GAPS` is exactly `- NONE`.
 - Rule: `LEGAL_VERDICT=PASS` is only valid when `DIFF_ATTACK_SURFACES`, `INDEPENDENT_CHECKS_RUN`, `COUNTERFACTUAL_CHECKS`, and `SPEC_CLAUSE_MAP` are all present and non-empty, and `SPEC_CLAUSE_MAP` entries include file:line evidence.
-- Rule: for `PACKET_FORMAT_VERSION >= 2026-04-01` and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`, `LEGAL_VERDICT=PASS` is legal only when `ANTI_VIBE_FINDINGS` and `SIGNED_SCOPE_DEBT` are both exactly `- NONE`.
+- Rule: for `PACKET_FORMAT_VERSION >= 2026-04-01` and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3|SPLIT_DIFF_SCOPED_RIGOR_V4`, `LEGAL_VERDICT=PASS` is legal only when `ANTI_VIBE_FINDINGS` and `SIGNED_SCOPE_DEBT` are both exactly `- NONE`.
+- Rule: for `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, `SPEC_ALIGNMENT_VERDICT=PASS` and `Verdict: PASS` are legal only when `PRIMITIVE_RETENTION_GAPS` is exactly `- NONE`.
+- Rule: for `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, `LEGAL_VERDICT=PASS` is legal only when `PRIMITIVE_RETENTION_PROOF`, `SHARED_SURFACE_INTERACTION_CHECKS`, and `CURRENT_MAIN_INTERACTION_CHECKS` all contain concrete code or symbol evidence.
+- Rule: for `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, `RISK_TIER=MEDIUM|HIGH` requires non-empty `PRIMITIVE_RETENTION_PROOF`, `SHARED_SURFACE_INTERACTION_CHECKS`, and `CURRENT_MAIN_INTERACTION_CHECKS`.
+- Rule: for `PACKET_FORMAT_VERSION >= 2026-04-05`, `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, and `RISK_TIER=MEDIUM|HIGH`, `MECHANICAL_TRACK_VERDICT=PASS` is legal only when `GOVERNANCE_VERDICT`, `TEST_VERDICT`, `CODE_REVIEW_VERDICT`, `HEURISTIC_REVIEW_VERDICT`, `ENVIRONMENT_VERDICT`, `WORKFLOW_VALIDITY`, `SCOPE_VALIDITY`, `PROOF_COMPLETENESS`, `INTEGRATION_READINESS`, and `DOMAIN_GOAL_COMPLETION` are all in their PASS states.
+- Rule: for `PACKET_FORMAT_VERSION >= 2026-04-05`, `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, and `RISK_TIER=MEDIUM|HIGH`, `SPEC_RETENTION_TRACK_VERDICT=PASS` is legal only when `SPEC_ALIGNMENT_VERDICT=PASS`, `NOT_PROVEN`, `MAIN_BODY_GAPS`, and `PRIMITIVE_RETENTION_GAPS` are all exactly `- NONE`, and the report contains concrete `PRIMITIVE_RETENTION_PROOF`, `SHARED_SURFACE_INTERACTION_CHECKS`, `CURRENT_MAIN_INTERACTION_CHECKS`, `SPEC_CLAUSE_MAP`, and `NEGATIVE_PROOF` evidence.
+- Rule: for `PACKET_FORMAT_VERSION >= 2026-04-05`, `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`, and `RISK_TIER=MEDIUM|HIGH`, `LEGAL_VERDICT=PASS` and `Verdict: PASS` are legal only when `MECHANICAL_TRACK_VERDICT=PASS` and `SPEC_RETENTION_TRACK_VERDICT=PASS`.
 - Rule: when `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, `LEGAL_VERDICT=PASS` is legal only when `DATA_CONTRACT_PROOF` is present and `DATA_CONTRACT_GAPS` is exactly `- NONE`.
 - Rule: `Verdict: PASS` is legal only when `VALIDATION_CONTEXT=OK`, `WORKFLOW_VALIDITY=VALID`, `SCOPE_VALIDITY=IN_SCOPE`, `PROOF_COMPLETENESS=PROVEN`, `INTEGRATION_READINESS=READY`, `DOMAIN_GOAL_COMPLETION=COMPLETE`, and `LEGAL_VERDICT=PASS`.
 - Rule: if `PROOF_COMPLETENESS` is anything other than `PROVEN`, the top-line `Verdict` MUST NOT be `PASS`; use `NOT_PROVEN`, `FAIL`, `BLOCKED`, `OUTDATED_ONLY`, or `ABANDONED` honestly.

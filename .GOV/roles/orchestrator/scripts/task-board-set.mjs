@@ -10,6 +10,10 @@ import fs from "node:fs";
 import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { parseJsonFile, validateRuntimeStatus } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
+import {
+  expectedPacketStatusForTaskBoardStatus,
+  parsePacketStatus,
+} from "../../../roles_shared/scripts/lib/wp-authority-projection-lib.mjs";
 import { writeJsonFile } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { reconcileWpCommunicationTruth } from "../../../roles_shared/scripts/wp/ensure-wp-communications.mjs";
 
@@ -33,14 +37,6 @@ function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = String(text || "").match(re);
   return match ? match[1].trim() : "";
-}
-
-function parsePacketStatus(text) {
-  return (
-    (String(text || "").match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
-    || (String(text || "").match(/^\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
-    || ""
-  ).trim() || "Ready for Dev";
 }
 
 function writeText(p, text) {
@@ -121,29 +117,6 @@ function sectionForStatus(status) {
   }
 }
 
-function expectedPacketStatusForBoardStatus(status) {
-  switch (status) {
-    case "READY_FOR_DEV":
-      return "Ready for Dev";
-    case "IN_PROGRESS":
-      return "In Progress";
-    case "BLOCKED":
-      return "Blocked";
-    case "DONE_MERGE_PENDING":
-      return "Done";
-    case "DONE_VALIDATED":
-      return "Validated (PASS)";
-    case "DONE_FAIL":
-      return "Validated (FAIL)";
-    case "DONE_OUTDATED_ONLY":
-      return "Validated (OUTDATED_ONLY)";
-    case "DONE_ABANDONED":
-      return "Validated (ABANDONED)";
-    default:
-      return null;
-  }
-}
-
 function syncRuntimeProjectionIfDeclared(wpId, packetText) {
   const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   if (!runtimeStatusFile) return null;
@@ -200,7 +173,7 @@ function main() {
     fail("Official packet not found", [packetPath || `<missing packet path for ${wpId}>`]);
   }
   const packetText = readText(packetAbsPath);
-  const expectedPacketStatus = expectedPacketStatusForBoardStatus(status);
+  const expectedPacketStatus = expectedPacketStatusForTaskBoardStatus(status);
   const actualPacketStatus = parsePacketStatus(packetText);
   if (expectedPacketStatus && actualPacketStatus !== expectedPacketStatus) {
     fail("TASK_BOARD status transition conflicts with packet truth", [

@@ -63,7 +63,7 @@ Product-scanning / product-boundary enforcement:
 ## Session Host + Operator Monitor
 
 - When available, prefer VS Code integrated terminals for multi-session work instead of many floating desktop terminals.
-- Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs assume `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
+- Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs record per-role model profiles explicitly. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` may be declared, but governed launch stays fail-closed until runtime support exists.
 - Repo-governed role-session start is `ORCHESTRATOR_ONLY`.
 - Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
@@ -100,11 +100,15 @@ Authoritative inputs:
 Primary commands:
 - `just record-refinement WP-...`
 - `just record-signature WP-... <sig> <MANUAL_RELAY|ORCHESTRATOR_MANAGED> <Coder-A..Coder-Z>`
+- lane default: choose `MANUAL_RELAY` for small and medium WPs unless you explicitly need autonomous steering or multi-WP parallel management; use `ORCHESTRATOR_MANAGED` only when that extra control-plane cost is justified
+- `just record-role-model-profiles WP-... [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
+- omit args only when you deliberately want the default all-GPT bundle recorded into the packet
 - `just worktree-add WP-...`
 - `just record-prepare WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>] [branch] [worktree_dir]`
 - `just create-task-packet WP-...`
-- for `PACKET_FORMAT_VERSION >= 2026-04-01`, inspect the packet law bundle immediately after creation: `DATA_CONTRACT_PROFILE`, `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`
+- for `PACKET_FORMAT_VERSION >= 2026-04-01`, inspect the packet law bundle immediately after creation: `DATA_CONTRACT_PROFILE`, `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`
 - on that packet family, coder handoff must include anti-vibe + signed-scope-debt self-audit, and validator PASS requires both lists to be exactly `- NONE`
+- for `PACKET_FORMAT_VERSION >= 2026-04-05` and `RISK_TIER=MEDIUM|HIGH`, validator closeout is dual-track: PASS requires both `MECHANICAL_TRACK_VERDICT=PASS` and `SPEC_RETENTION_TRACK_VERDICT=PASS`
 - if `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, keep `DATA_CONTRACT_MONITORING` credible from the start; validator closeout later requires concrete `DATA_CONTRACT_PROOF` plus `DATA_CONTRACT_GAPS`
 - `just orchestrator-prepare-and-packet WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>]`
 - `just coder-worktree-add WP-...`
@@ -113,6 +117,8 @@ Primary commands:
 - `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just manual-relay-next WP-...`
+- `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK]`
 - `just start-coder-session WP-... [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-... [PRIMARY|FALLBACK]`
 - `just start-integration-validator-session WP-... [PRIMARY|FALLBACK]`
@@ -128,6 +134,8 @@ Primary commands:
 - `just session-registry-status [WP-...]`
 - `just active-lane-brief <ROLE> WP-... [--json]`
 - `just orchestrator-steer-next WP-... [PRIMARY|FALLBACK]`
+- `just manual-relay-next WP-...`
+- `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK]`
 - `just pre-work WP-...`
 - `just wp-heartbeat WP-... ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`
@@ -136,6 +144,7 @@ Primary commands:
 - Heartbeat note: `wp-heartbeat` is liveness-only. `next_actor` / `waiting_on` must match current runtime route and cannot be used to steer the lane.
 - `just session-registry-status WP-...` now also surfaces derived stalled-relay state for the filtered WP.
 - If relay state is `ESCALATED`, use `just orchestrator-steer-next WP-...` instead of waiting silently.
+- `just orchestrator-steer-next` now performs a one-hop wakeup: if the projected target session is not running yet, it starts that governed session and immediately injects the typed route payload in the same invocation.
 - Inside the monitor:
   - `c` closes governed sessions for the selected WP after a role prompt + confirmation.
   - `b` stops the ACP broker after confirmation, but only if no governed runs are active.
@@ -158,6 +167,7 @@ Primary commands:
 - `just wp-thread-append WP-... CODER <session> "<message>" [target]`
 - Heartbeat note: `wp-heartbeat` is liveness-only. Use receipts/notifications to change routing, not heartbeat.
 - If context/routing feels fragmented, use `just active-lane-brief CODER WP-...` instead of rereading packet/runtime/session truth separately.
+- `just active-lane-brief` now also names the declared active/next MT when microtask files exist, so coder work should resume at MT granularity instead of broad WP scope.
 - Use `just check-notifications WP-... CODER <your-session>` so you only consume notifications targeted to your governed session.
 
 Role rule:
@@ -181,6 +191,7 @@ Primary commands (per WP validation):
 - `just wp-thread-append WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - Heartbeat note: `wp-heartbeat` is liveness-only. Route changes must come from receipts/notifications or closeout projection.
 - If context/routing feels fragmented, use `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-...` instead of rereading packet/runtime/session truth separately.
+- The same brief now surfaces declared active/next MT truth so validator overlap review can target the correct microtask without re-deriving it from raw receipts.
 - Use `just check-notifications WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <your-session>` so you only consume notifications targeted to your governed session.
 - `just wp-review-exchange VALIDATOR_QUERY WP-... CODER <session> WP_VALIDATOR <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
 - `just wp-validator-response WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`

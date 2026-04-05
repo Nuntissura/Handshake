@@ -62,6 +62,8 @@ See also:
 ## Product Runtime Root (Current Default)
 
 - External build, test, and tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
+- Repo-local `target/` directories are workflow-invalid residue. Run `just artifact-hygiene-check` before claiming clean governance/product state, and use `just artifact-cleanup` or the governed closeout path to remove reclaimable residue.
+- Governed artifact cleanup now writes a retention manifest under `../Handshake Artifacts/handshake-tool/artifact-retention/`; treat that manifest as the durable proof of what was removed versus retained.
 - Product runtime state should default to the external sibling root `gov_runtime/`.
 - Do not treat repo-root `data/` or `.handshake/` as the template for new runtime work.
 
@@ -74,10 +76,11 @@ See also:
 - If the Operator explicitly authorizes separate helper-agent use for bounded governance maintenance outside the active lane, keep that work isolated from the governed role sessions and do not let it stand in for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`.
 - Absent explicit recorded approval in the work packet (`SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`), helper agents MUST NOT write or change product code.
 - New repo-governed sessions must be launched explicitly:
-  - primary model: `gpt-5.4`
-  - fallback: `gpt-5.2`
-  - reasoning: `EXTRA_HIGH`
-  - config: `model_reasoning_effort=xhigh`
+  - packet-declared role model profiles are authoritative for launch and claim truth
+  - default repo profile: `OPENAI_GPT_5_4_XHIGH`
+  - governed fallback profile: `OPENAI_GPT_5_2_XHIGH`
+  - current default launch mapping remains `gpt-5.4` primary, `gpt-5.2` fallback, `model_reasoning_effort=xhigh`
+  - declared-only profile: `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` (auditable in packets now; governed launch must fail closed until provider-specific runtime support exists)
 - Repo-governed Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
 - Primary launch path is the VS Code bridge using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
   - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
@@ -87,6 +90,7 @@ See also:
 - Primary steering path is the governed session-control ledgers under that same external repo-governance runtime root:
   - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
   - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- Governed system-terminal launches must record ownership in the session registry so closeout can reclaim only the windows created by the governed session batch. If reclaim needs manual repair, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`; defaulting to `CURRENT_BATCH` is the safe path.
 - CLI escalation is allowed only after 2 plugin failures or timeouts for the same role/WP session unless the Operator explicitly waives that policy.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
@@ -282,6 +286,12 @@ Rules:
 Workflow semantics:
 - `MANUAL_RELAY` = Operator remains the main relay, but governed artifacts still apply
 - `ORCHESTRATOR_MANAGED` = Orchestrator steers sessions and workflow, but remains non-agentic and non-coding
+- Default lane policy: prefer `MANUAL_RELAY` for small and medium WPs because it is the cheaper default; choose `ORCHESTRATOR_MANAGED` only when autonomous steering, operator absence, or multi-WP parallelism is explicitly worth the added relay prompt tax.
+- For `MANUAL_RELAY`, prefer `just manual-relay-next WP-{ID}` to read the runtime-projected next actor and use `just manual-relay-dispatch WP-{ID}` only when the Operator explicitly wants to broker one governed role hop mechanically.
+- Manual relay outputs must keep role-to-role content separate from operator-only explanation. Use the structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`) instead of mixing handoff/question/reply content into hard-gate prose.
+- `just manual-relay-dispatch` must pass the same typed relay context into the governed target prompt (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) so the role sees whether the incoming payload is a handoff, question, answer, verdict, or intent without rediscovering it.
+- If the projected target session is not running yet, `just manual-relay-dispatch` must start that governed session and then immediately deliver the typed relay prompt in the same command invocation.
+- Use `just wp-timeline WP-{ID} [--json]` after a run to inspect measured relay burden. If the timeline reports visible or high relay overhead and the next WP is not autonomy-sensitive, route the next comparable packet through `MANUAL_RELAY`.
 
 ## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
 
@@ -291,7 +301,14 @@ Workflow semantics:
   - an explicit decision is required
   - the next step needs a one-time user input
 
-After `just record-signature ...` returns PASS with `OPERATOR_ACTION: NONE`, continue directly to `just orchestrator-prepare-and-packet WP-{ID}`.
+After `just record-signature ...` returns PASS with `OPERATOR_ACTION: NONE`, continue to `just record-role-model-profiles WP-{ID}` and then `just orchestrator-prepare-and-packet WP-{ID}`.
+
+Before packet creation on new packet families, record the explicit per-role model bundle:
+
+- `just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
+- This writes `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1` into the packet/stub family and makes the role-profile bundle authoritative for later claim and launch checks.
+- If omitted, the gate records deliberate defaults (`OPENAI_GPT_5_4_XHIGH` for every role).
+- Use this gate to declare mixed-provider intent, for example GPT orchestration/validation with Claude Code coding, even when governed Claude launch support is not implemented yet.
 
 ## Preflight and Resume
 
@@ -325,6 +342,7 @@ Resume rule:
 - `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
 - `just wp-heartbeat ...` is liveness-only. The route fields are assertions against current runtime truth; use receipts, notifications, or closeout projection to change next-actor routing.
 - `just session-registry-status WP-{ID}` now also surfaces derived stalled-relay state; when that state is `ESCALATED`, use `just orchestrator-steer-next WP-{ID}` instead of waiting silently.
+- `just orchestrator-steer-next WP-{ID}` must behave as a one-hop wakeup: if the projected target session is not running yet, start it and then immediately inject the typed route payload (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) in the same invocation.
 - `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - `just wp-validator-query WP-{ID} CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
 - `just wp-validator-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
@@ -337,6 +355,8 @@ Resume rule:
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just manual-relay-next WP-{ID}`
+- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK]`
 - supported launch hosts must auto-issue the first governed `START_SESSION` on the ordinary path; `start-*` remains the explicit repair surface when launch could not complete autonomously
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
@@ -345,7 +365,9 @@ Resume rule:
 - `just session-cancel <ROLE> WP-{ID}`
 - `just session-registry-status [WP-{ID}]`
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
+- `just active-lane-brief ...` now also surfaces the declared microtask plan (`active` / `next`) so coder and validator lanes do not have to infer the current MT from scattered receipts.
 - `just wp-token-usage WP-{ID}`
+- `just wp-timeline WP-{ID} [--json]` now emits structured control-command, token-command, review-exchange, and microtask-execution span rows in addition to the raw merged event stream.
 - `just orchestrator-prepare-and-packet WP-{ID}`
 
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
@@ -378,7 +400,11 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 - the official packet path resolved for the WP
 - the official refinement path resolved for the WP
 
-Current folder-packet default:
+Current logical resolver:
+- `.GOV/work_packets/WP-{ID}/packet.md`
+- `.GOV/work_packets/WP-{ID}/refinement.md`
+
+Current physical storage compatibility:
 - `.GOV/task_packets/WP-{ID}/packet.md`
 - `.GOV/task_packets/WP-{ID}/refinement.md`
 
@@ -482,15 +508,17 @@ Legacy flat compatibility:
 - For `PACKET_FORMAT_VERSION >= 2026-04-01`, packet creation and resume output must surface the active law bundle, not hide it:
   - `DATA_CONTRACT_PROFILE` and whether `DATA_CONTRACT_MONITORING` is active
   - `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`
-  - `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`
+  - `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`
   - the consequence that coder handoff must carry anti-vibe + signed-scope-debt self-audit, and validator PASS cannot coexist with unresolved anti-vibe or signed-scope debt
+  - for `PACKET_FORMAT_VERSION >= 2026-04-05` and `RISK_TIER=MEDIUM|HIGH`, the additional consequence that validator closeout is dual-track and PASS later requires both `MECHANICAL_TRACK_VERDICT=PASS` and `SPEC_RETENTION_TRACK_VERDICT=PASS`
   - when `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, the additional consequence that validator closeout later requires concrete `DATA_CONTRACT_PROOF` plus explicit `DATA_CONTRACT_GAPS`
 - `just pre-work WP-{ID}` is the blocking packet-integrity gate before delegation.
 
 ### 3. Delegation and Monitoring
 
 - Before launching coder sessions, `just orchestrator-prepare-and-packet WP-{ID}` commits the work packet, refinement, and micro tasks on `gov_kernel` and creates a backup snapshot.
-- Micro tasks (one per CLAUSE_CLOSURE_MATRIX row) are generated in the WP folder (`.GOV/task_packets/WP-{ID}/MT-001.md`, etc.) during packet creation.
+- Micro tasks (one per CLAUSE_CLOSURE_MATRIX row) are generated in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, etc.) during packet creation.
+- During the work-packet compatibility migration, scripts must resolve those packet/MT paths through `runtime-paths.mjs` rather than assuming the literal `task_packets` folder name.
 - Use only the packet-declared communication artifacts for shared session/runtime coordination.
 - The Orchestrator remains workflow authority after delegation:
   - starts governed sessions

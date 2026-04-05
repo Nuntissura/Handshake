@@ -18,6 +18,12 @@ Rules:
 - BASE_WP_ID: WP-1-Session-Spawn-Contract
 - CREATED_AT: 2026-02-24T00:00:00Z
 - STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: BACKEND
+- BUILD_ORDER_TECH_BLOCKER: YES
+- BUILD_ORDER_VALUE_TIER: HIGH
+- BUILD_ORDER_RISK_TIER: HIGH
+- BUILD_ORDER_DEPENDS_ON: WP-1-ModelSession-Core-Scheduler, WP-1-Session-Scoped-Capabilities-Consent-Gate, WP-1-Role-Mailbox
+- BUILD_ORDER_BLOCKS: WP-1-Workspace-Safety-Parallel-Sessions, WP-1-Session-Observability-Spans-FR, WP-1-Dev-Command-Center-Control-Plane-Backend
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.137.md 7.6.3 (Phase 1) -> item 30 (Session spawn contract / OpenClaw pattern)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
@@ -62,4 +68,3 @@ Rules:
 - [ ] Create the official task packet via `just create-task-packet WP-1-Session-Spawn-Contract-v1` (in `.GOV/task_packets/`).
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
-

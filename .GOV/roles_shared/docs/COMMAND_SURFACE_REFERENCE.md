@@ -44,15 +44,29 @@ These are safe starting points for orientation and health checks.
 - `just docs-check`
   - `read-only`
   - presence check for required governance docs
+- `just artifact-hygiene-check`
+  - `read-only`
+  - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake Artifacts` residue fail closed
+  - retention policy authority: `.GOV/roles_shared/docs/ARTIFACT_RETENTION_POLICY.md`
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
-  - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role plus derived stalled-relay status
+  - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role, derived stalled-relay status, the active terminal batch id, and owned-terminal metadata/reclaim status
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
   - `read-only`
-  - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, and next commands
+  - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, declared microtask plan (`active` / `next`), and next commands
+- `just manual-relay-next WP-{ID}`
+  - `read-only`
+  - operator-facing next-step helper for `WORKFLOW_LANE=MANUAL_RELAY`; prints the runtime-projected next actor, target session, a structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`), and exact governed follow-up commands without auto-steering
+- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK]`
+  - `runtime-write`
+  - operator-invoked broker for `WORKFLOW_LANE=MANUAL_RELAY`; starts the projected target session when needed, immediately delivers the active role-to-role payload, and injects typed relay context (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) into the target prompt instead of a generic resume-only steer
 - `just wp-token-usage WP-{ID}`
   - `read-only`
   - print the governed per-WP token ledger aggregated from settled ACP session outputs
+- `just wp-timeline WP-{ID} [--json]`
+  - `read-only`
+  - print one merged WP timeline plus structured span rows for control commands, token-command windows, review exchanges, and microtask execution windows, together with stage counts, token totals, and budget health
+  - the summary now includes `relay_policy`: measured relay prompt burden for the current WP plus the default lane recommendation (`MANUAL_RELAY` unless autonomous steering is explicitly worth the extra prompt tax)
 - `just wp-token-usage-settle WP-{ID} [REASON] [SETTLED_BY]`
   - `writes-runtime`
   - settle a historical WP token ledger to raw ACP session outputs after the lane is terminal so compact views stop surfacing old drift as live noise
@@ -74,7 +88,15 @@ These are safe starting points for orientation and health checks.
 - `just orchestrator-steer-next WP-{ID} [PRIMARY|FALLBACK]`
   - `runtime-write`
   - launch or steer the next expected governed actor directly from runtime/receipt projection without a manually written relay prompt
+  - if the target session is not running yet, this helper now starts it and immediately sends the typed route payload in the same invocation
+  - the governed prompt carries typed route context (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) derived from receipt/notification truth instead of generic resume prose
   - when stalled-relay escalation is active, this is the canonical continue/repair command instead of silent waiting
+- `just manual-relay-next WP-{ID}`
+  - `read-only`
+  - for `WORKFLOW_LANE=MANUAL_RELAY`, inspect runtime next-actor truth without dispatching any prompt
+- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK]`
+  - `runtime-write`
+  - for `WORKFLOW_LANE=MANUAL_RELAY`, let the operator explicitly broker one governed start/send action against the currently projected next actor
 
 ## Minimal Live Read Set (Token Discipline)
 
@@ -138,6 +160,10 @@ Use this flow only for repo-governance maintenance that stays out of product cod
 - `just build-order-sync`
   - `governance-write`
   - required only when governance changes affect `TASK_BOARD.md` or `WP_TRACEABILITY_REGISTRY.md`
+- `just artifact-cleanup [--dry-run]`
+  - `runtime-write`
+  - removes only reclaimable stale external artifact folders and repo-local `target/` residue; closeout now runs this mechanically before containment sync
+  - writes a retention manifest under `../Handshake Artifacts/handshake-tool/artifact-retention/`
 - `just sync-gov-to-main`
   - `governance-write`
   - mirrors kernel `/.GOV/` into `handshake_main` and auto-commits on local `main`
@@ -156,14 +182,19 @@ These mutate packet, board, traceability, or related governed surfaces.
   - shell/tool output does not count as "shown in chat"
   - if the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages before requesting approval
 - `just record-signature WP-{ID} <signature> <workflow_lane> <execution_lane>`
+- `just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
 - `just record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
   - `governance-write`
   - orchestrator-owned workflow state writes
+  - `record-role-model-profiles` is the explicit per-role model/CLI policy gate for new packet families; omit args to record deliberate defaults (`OPENAI_GPT_5_4_XHIGH` for all roles)
+  - `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is now a valid declared packet profile, but governed launch/control remains fail-closed until provider-specific runtime support is implemented
 - `just create-task-packet WP-{ID}`
   - `governance-write`
   - packet creation from the template
-  - for `PACKET_FORMAT_VERSION >= 2026-04-01`, treat packet creation as law activation, not mere scaffolding: inspect `DATA_CONTRACT_PROFILE`, `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3` before delegation
+  - for `PACKET_FORMAT_VERSION >= 2026-04-06`, packet creation is blocked until `just record-role-model-profiles` has recorded the authoritative per-role bundle
+  - for `PACKET_FORMAT_VERSION >= 2026-04-01`, treat packet creation as law activation, not mere scaffolding: inspect `DATA_CONTRACT_PROFILE`, `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, and `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4` before delegation
   - on that packet family, coder handoff must include anti-vibe + signed-scope-debt self-audit; validator PASS requires both lists to be exactly `- NONE`
+  - for `PACKET_FORMAT_VERSION >= 2026-04-05` and `RISK_TIER=MEDIUM|HIGH`, validator closeout is dual-track: PASS requires both `MECHANICAL_TRACK_VERDICT=PASS` and `SPEC_RETENTION_TRACK_VERDICT=PASS`
   - if `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, ensure `DATA_CONTRACT_MONITORING` is credible at packet create time; validator closeout later requires concrete `DATA_CONTRACT_PROOF` plus `DATA_CONTRACT_GAPS`
 - `just orchestrator-prepare-and-packet WP-{ID}`
   - `governance-write`
@@ -190,6 +221,7 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just launch-integration-validator-session WP-{ID} ...`
   - `runtime-write`
   - launch/bootstrap lane
+  - launch selection now resolves through the packet-declared role-model profile bundle, not only implicit GPT defaults
   - on the ordinary orchestrator-managed path, supported launch hosts now auto-issue the first governed `START_SESSION` so launch does not stop at a launch-only false green
   - governed launch/control must preserve kernel governance authority with `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`; `handshake_main/.GOV` is not valid live governance for orchestrator-managed integration validation
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
@@ -211,13 +243,16 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just close-wp-validator-session WP-{ID}`
 - `just close-integration-validator-session WP-{ID}`
   - `runtime-write`
-  - retire steerable thread registration for that lane
+  - retire steerable thread registration for that lane and attempt deterministic reclaim of any governed system-terminal window owned by that exact session
 - Generic wrappers:
 - `just session-start <ROLE> WP-{ID} [PRIMARY|FALLBACK]`
 - `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
 - `just session-cancel <ROLE> WP-{ID}`
 - `just session-close <ROLE> WP-{ID}`
     - these governed helpers now attempt deterministic self-settlement for their own request ids when a broker dispatch or wait path returns without a terminal result row
+- `just session-reclaim-terminals WP-{ID} [CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`
+  - `runtime-write`
+  - manual repair helper that reclaims only registry-owned governed system-terminal windows for the selected WP/session scope; it defaults to `CURRENT_BATCH` so older batch windows are left alone unless `ALL_BATCHES` or an exact `BATCH_ID` is requested
 
 ## Packet communication surface
 
@@ -252,6 +287,7 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
   - structured direct-review / review-resolution helpers
   - validator-owned bootstrap/skeleton gate: on governed lanes, after `wp-coder-intent` the lane now requires one explicit WP-validator checkpoint before implementation hardens or full `wp-coder-handoff` is legal; use `wp-validator-response` to clear the early plan or `wp-spec-gap` / `VALIDATOR_QUERY` to keep the lane in early review
   - optional final `microtask_json` argument may carry a compact steering contract with `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, `expected_receipt_kind`, `review_mode`, `phase_gate`, and `review_outcome`
+  - when the resolved Work Packet folder contains `MT-*.md` files (current physical storage: `.GOV/task_packets/WP-{ID}/MT-*.md`) on an orchestrator-managed lane, governed coder `wp-coder-intent` and overlap `REVIEW_REQUEST` receipts now fail closed unless `microtask_json.scope_ref` resolves to one declared MT (`MT-001` or `CLAUSE_CLOSURE_MATRIX/CX-...`), `file_targets` are concrete, and those targets stay inside that MT's `CODE_SURFACES`
   - use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` when the receipt is part of that mandatory early validator gate
   - rolling microtask overlap: use `wp-review-exchange REVIEW_REQUEST ...` with `review_mode=OVERLAP` for completed narrow slices while the coder advances the next declared microtask; the unresolved overlap queue is bounded to 2 and full `wp-coder-handoff` is blocked until those overlap review items are drained
 - `just wp-communication-health-check WP-{ID} [STATUS|KICKOFF|HANDOFF|VERDICT]`
@@ -286,6 +322,9 @@ These are typically run from the WP-assigned worktree.
 - `just validator-git-hygiene`
   - `product-scan`
   - coder hygiene surface before handoff
+- work-packet path note:
+  - the logical Work Packet resolver name is `work_packets`, but the current physical storage root remains `.GOV/task_packets/` during compatibility migration. Scripts should resolve packet paths through `runtime-paths.mjs`, not by hard-coding folder names.
+  - reserved archive roots now exist under `.GOV/task_packets/_archive/` for `superseded/` and `validated_closed/`; do not move packets there by hand, but the resolver already understands those future archive targets
 - `just cargo-clean`
   - `product-scan`
   - workspace cleanup targeting `handshake_core`

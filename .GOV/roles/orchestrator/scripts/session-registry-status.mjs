@@ -97,6 +97,11 @@ console.log(`- total_control_requests: ${controlRequests.length}`);
 console.log(`- total_control_results: ${controlResults.length}`);
 console.log(`- launch_batch_mode: ${batchSummary.launch_batch_mode}`);
 console.log(`- launch_batch_plugin_failure_count: ${batchSummary.launch_batch_plugin_failure_count}`);
+console.log(`- active_terminal_batch_id: ${batchSummary.active_terminal_batch_id || "<none>"}`);
+console.log(`- active_terminal_batch_started_at: ${batchSummary.active_terminal_batch_started_at || "<none>"}`);
+console.log(`- active_terminal_batch_last_rotated_at: ${batchSummary.active_terminal_batch_last_rotated_at || "<none>"}`);
+console.log(`- active_terminal_batch_claimed_at: ${batchSummary.active_terminal_batch_claimed_at || "<none>"}`);
+console.log(`- active_terminal_batch_reason: ${batchSummary.active_terminal_batch_reason || "<none>"}`);
 if (batchSummary.launch_batch_switched_at) {
   console.log(`- launch_batch_switched_at: ${batchSummary.launch_batch_switched_at}`);
 }
@@ -118,6 +123,7 @@ for (const session of sessions) {
   console.log(`  role: ${session.role}`);
   console.log(`  wp_id: ${session.wp_id}`);
   console.log(`  runtime_state: ${session.runtime_state}`);
+  console.log(`  requested_profile_id: ${session.requested_profile_id || "<none>"}`);
   console.log(`  task_board_status: ${governance.taskBoardStatus || "<missing>"}`);
   console.log(`  packet_status: ${governance.packetStatus || "<missing>"}`);
   console.log(`  local_worktree_exists: ${governance.localWorktreeExists ? "YES" : "NO"}`);
@@ -136,6 +142,18 @@ for (const session of sessions) {
   console.log(`  cli_escalation_allowed: ${session.cli_escalation_allowed ? "YES" : "NO"}`);
   console.log(`  cli_escalation_used: ${session.cli_escalation_used ? "YES" : "NO"}`);
   console.log(`  active_terminal_title: ${session.active_terminal_title || "<none>"}`);
+  console.log(`  terminal_ownership_scope: ${session.terminal_ownership_scope || "<none>"}`);
+  console.log(`  owned_terminal_process_id: ${session.owned_terminal_process_id || 0}`);
+  console.log(`  owned_terminal_host_kind: ${session.owned_terminal_host_kind || "<none>"}`);
+  console.log(`  owned_terminal_window_title: ${session.owned_terminal_window_title || "<none>"}`);
+  console.log(`  owned_terminal_batch_id: ${session.owned_terminal_batch_id || "<none>"}`);
+  console.log(`  owned_terminal_reclaim_status: ${session.owned_terminal_reclaim_status || "<none>"}`);
+  if (session.owned_terminal_recorded_at) {
+    console.log(`  owned_terminal_recorded_at: ${session.owned_terminal_recorded_at}`);
+  }
+  if (session.owned_terminal_reclaimed_at) {
+    console.log(`  owned_terminal_reclaimed_at: ${session.owned_terminal_reclaimed_at}`);
+  }
   console.log(`  last_command_kind: ${session.last_command_kind}`);
   console.log(`  last_command_status: ${session.last_command_status}`);
   console.log(`  last_command_output_file: ${session.last_command_output_file || "<none>"}`);

@@ -2,14 +2,31 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import crypto from "node:crypto";
-import { GOV_ROOT_REPO_REL, GOVERNANCE_RUNTIME_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "./runtime-paths.mjs";
+import {
+  GOV_ROOT_REPO_REL,
+  GOVERNANCE_RUNTIME_ROOT_REPO_REL,
+  REPO_ROOT,
+  repoPathAbs,
+  resolveOrchestratorGatesPath,
+  resolveWorkPacketPath,
+  taskBoardPathAtRepo,
+  workPacketAbsPathAtRepo,
+  WORK_PACKET_STORAGE_ROOT_REPO_REL,
+} from "./runtime-paths.mjs";
 import { executionOwnerToPacketValue } from "../session/session-policy.mjs";
+import {
+  ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUS_VALUES,
+  isActiveOrchestratorTaskBoardStatus,
+  isTerminalTaskBoardStatus as isTerminalTaskBoardStatusValue,
+  parseTaskBoardStatus,
+  TERMINAL_TASK_BOARD_STATUS_VALUES,
+} from "./wp-authority-projection-lib.mjs";
 
 export const ORCHESTRATOR_GATES_PATH = resolveOrchestratorGatesPath();
 export const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
-export const TERMINAL_TASK_BOARD_STATUSES = ["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"];
+export const TERMINAL_TASK_BOARD_STATUSES = [...TERMINAL_TASK_BOARD_STATUS_VALUES];
 export const IMPLICIT_ORCHESTRATOR_RESUME_LOOKBACK_HOURS = 168;
-export const ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES = ["READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "MERGE_PENDING"];
+export const ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES = [...ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUS_VALUES];
 const LOCAL_GOV_ROOT_REPO_REL = ".GOV";
 
 function safeExec(command) {
@@ -89,14 +106,11 @@ export function packetPath(wpId) {
 
 export function packetPathAtRepo(wpId, referenceRepoRoot = "") {
   if (!referenceRepoRoot) {
-    const packetPathRel = resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+    const packetPathRel = resolveWorkPacketPath(wpId)?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
     return packetPathRel;
   }
 
-  const repoRoot = path.resolve(referenceRepoRoot);
-  const folderPacket = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "task_packets", wpId, "packet.md");
-  if (exists(folderPacket)) return folderPacket;
-  return path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  return workPacketAbsPathAtRepo(path.resolve(referenceRepoRoot), wpId, LOCAL_GOV_ROOT_REPO_REL);
 }
 
 export function packetExists(wpId) {
@@ -252,15 +266,11 @@ export function inferWpIdFromPrepare(logs, gitContext, referenceRepoRoot = "") {
 
 export function taskBoardStatus(wpId) {
   if (!exists(TASK_BOARD_PATH)) return "";
-  const content = readUtf8(TASK_BOARD_PATH);
-  const match = content.match(
-    new RegExp(`- \\*\\*\\[${escapeRegex(wpId)}\\]\\*\\* - \\[([^\\]]+)\\]`, "i"),
-  );
-  return match ? match[1].trim().toUpperCase() : "";
+  return parseTaskBoardStatus(readUtf8(TASK_BOARD_PATH), wpId);
 }
 
 export function isTerminalTaskBoardStatus(status) {
-  return TERMINAL_TASK_BOARD_STATUSES.includes(String(status || "").trim().toUpperCase());
+  return isTerminalTaskBoardStatusValue(status);
 }
 
 function isRecentImplicitResumeTimestamp(timestamp) {
@@ -295,13 +305,9 @@ export function taskBoardEntriesAtRepo(repoRoot = "") {
 }
 
 function taskBoardStatusAtRepo(repoRoot, wpId) {
-  const taskBoardPath = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
+  const taskBoardPath = taskBoardPathAtRepo(repoRoot, LOCAL_GOV_ROOT_REPO_REL);
   if (!exists(taskBoardPath)) return "";
-  const content = readUtf8(taskBoardPath);
-  const match = content.match(
-    new RegExp(`- \\*\\*\\[${escapeRegex(wpId)}\\]\\*\\* - \\[([^\\]]+)\\]`, "i"),
-  );
-  return match ? match[1].trim().toUpperCase() : "";
+  return parseTaskBoardStatus(readUtf8(taskBoardPath), wpId);
 }
 
 function traceabilityPacketPathAtRepo(repoRoot, baseWpId) {
@@ -458,7 +464,7 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
   }
 
   const resolvedPacket = resolveWorkPacketPath(wpId);
-  const packetPathRel = resolvedPacket?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  const packetPathRel = resolvedPacket?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
   const packetPath = path.join(worktreeAbs, packetPathRel);
   const referencePacketPath = path.join(repoRoot, packetPathRel);
   if (!exists(packetPath)) {
@@ -562,7 +568,7 @@ export function workflowStartReadinessState({ repoRoot, gateLogs } = {}) {
   const resolvedRepoRoot = repoRoot || currentGitContext().topLevel || REPO_ROOT;
   const logs = Array.isArray(gateLogs) ? gateLogs : loadOrchestratorGateLogsAtRepo(resolvedRepoRoot);
   const activeBoardEntries = taskBoardEntriesAtRepo(resolvedRepoRoot)
-    .filter((entry) => ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES.includes(String(entry.status || "").trim().toUpperCase()));
+    .filter((entry) => isActiveOrchestratorTaskBoardStatus(entry.status));
   const activeBoardWpIds = uniqueSorted(activeBoardEntries.map((entry) => entry.wpId));
   const activeCandidateWpIds = uniqueSorted(activeOrchestratorCandidates(logs, resolvedRepoRoot).map((entry) => entry.wpId));
   const candidateWpIdSet = new Set(activeCandidateWpIds);
@@ -573,7 +579,7 @@ export function workflowStartReadinessState({ repoRoot, gateLogs } = {}) {
     const boardStatus = taskBoardStatusAtRepo(resolvedRepoRoot, wpId) || "<none>";
     const prepareEntry = lastGateLog(logs, wpId, "PREPARE");
     const hasPacket = packetExistsAtRepo(wpId, resolvedRepoRoot);
-    const boardSaysActive = ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUSES.includes(boardStatus);
+    const boardSaysActive = isActiveOrchestratorTaskBoardStatus(boardStatus);
     const candidateSaysActive = candidateWpIdSet.has(wpId);
     const requiresPreparedAuthority = boardStatus === "IN_PROGRESS" || candidateSaysActive;
 

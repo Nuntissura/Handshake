@@ -19,7 +19,7 @@ import {
   ensureValidatorGateDir,
   resolveValidatorGatePath,
 } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
-import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { formatBoundedItemList } from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
 import { evaluateValidatorPacketGovernanceState } from "../scripts/lib/validator-governance-lib.mjs";
 import {
@@ -304,7 +304,7 @@ const nonBlockingSyncWarnings = (syncState.issues || []).filter((issue) =>
 );
 
 const resolvedPacket = resolveWorkPacketPath(parsed.wpId);
-const packetPathRel = resolvedPacket?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${parsed.wpId}.md`);
+const packetPathRel = resolvedPacket?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${parsed.wpId}.md`);
 const worktreePacketPath = path.join(worktreeAbs, packetPathRel);
 const packetContent = fs.existsSync(worktreePacketPath)
   ? fs.readFileSync(worktreePacketPath, "utf8")

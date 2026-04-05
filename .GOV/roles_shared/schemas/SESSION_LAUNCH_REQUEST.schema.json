@@ -95,6 +95,9 @@
         "gpt-5.2"
       ]
     },
+    "selected_profile_id": {
+      "type": "string"
+    },
     "reasoning_config_key": {
       "const": "model_reasoning_effort"
     },

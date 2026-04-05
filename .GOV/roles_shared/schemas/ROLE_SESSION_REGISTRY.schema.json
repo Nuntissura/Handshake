@@ -30,6 +30,12 @@
     "launch_batch_switched_at",
     "launch_batch_switch_reason",
     "launch_batch_last_reset_at",
+    "terminal_batch_scope",
+    "active_terminal_batch_id",
+    "active_terminal_batch_started_at",
+    "active_terminal_batch_last_rotated_at",
+    "active_terminal_batch_claimed_at",
+    "active_terminal_batch_reason",
     "sessions",
     "processed_requests"
   ],
@@ -120,6 +126,24 @@
       "type": "string"
     },
     "launch_batch_last_reset_at": {
+      "type": "string"
+    },
+    "terminal_batch_scope": {
+      "const": "REPO_GOVERNED_BATCH"
+    },
+    "active_terminal_batch_id": {
+      "type": "string"
+    },
+    "active_terminal_batch_started_at": {
+      "type": "string"
+    },
+    "active_terminal_batch_last_rotated_at": {
+      "type": "string"
+    },
+    "active_terminal_batch_claimed_at": {
+      "type": "string"
+    },
+    "active_terminal_batch_reason": {
       "type": "string"
     },
     "sessions": {
@@ -250,6 +274,9 @@
           "requested_model": {
             "type": "string"
           },
+          "requested_profile_id": {
+            "type": "string"
+          },
           "reasoning_config_key": {
             "type": "string"
           },
@@ -329,6 +356,34 @@
               "CURRENT",
               "PRINT"
             ]
+          },
+          "terminal_ownership_scope": {
+            "type": "string"
+          },
+          "owned_terminal_process_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "owned_terminal_host_kind": {
+            "type": "string"
+          },
+          "owned_terminal_window_title": {
+            "type": "string"
+          },
+          "owned_terminal_batch_scope": {
+            "type": "string"
+          },
+          "owned_terminal_batch_id": {
+            "type": "string"
+          },
+          "owned_terminal_recorded_at": {
+            "type": "string"
+          },
+          "owned_terminal_reclaimed_at": {
+            "type": "string"
+          },
+          "owned_terminal_reclaim_status": {
+            "type": "string"
           },
           "last_heartbeat_at": {
             "type": "string"
