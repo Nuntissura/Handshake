@@ -825,6 +825,11 @@ pub const TASK_BOARD_INDEX_SCHEMA_ID_V1: &str = "hsk.task_board_index@1";
 pub const TASK_BOARD_VIEW_SCHEMA_ID_V1: &str = "hsk.task_board_view@1";
 pub const ROLE_MAILBOX_INDEX_SCHEMA_ID_V1: &str = "hsk.role_mailbox_index@1";
 pub const ROLE_MAILBOX_THREAD_LINE_SCHEMA_ID_V1: &str = "hsk.role_mailbox_thread_line@1";
+pub const GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1: &str =
+    "hsk.governance_artifact_registry@1";
+pub const GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1: &str =
+    "hsk.ext.software_delivery.governance_artifact_registry@1";
+pub const GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1: &str = "1";
 pub const STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1: &str = "1";
 pub const ROLE_MAILBOX_EXPORT_SCHEMA_VERSION_V1: &str = "role_mailbox_export_v1";
 
@@ -835,6 +840,7 @@ pub enum StructuredCollaborationRecordFamily {
     WorkPacketSummary,
     MicroTaskPacket,
     MicroTaskSummary,
+    GovernanceArtifactRegistry,
     TaskBoardEntry,
     TaskBoardIndex,
     TaskBoardView,
@@ -983,6 +989,15 @@ pub fn structured_collaboration_schema_descriptor(
                 summary_family: Some(StructuredCollaborationRecordFamily::MicroTaskPacket),
             }
         }
+        StructuredCollaborationRecordFamily::GovernanceArtifactRegistry => {
+            StructuredCollaborationSchemaDescriptor {
+                family,
+                schema_id: GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1,
+                schema_version: GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1,
+                record_kind: "governance_artifact_registry",
+                summary_family: None,
+            }
+        }
         StructuredCollaborationRecordFamily::TaskBoardEntry => {
             StructuredCollaborationSchemaDescriptor {
                 family,
@@ -1069,11 +1084,18 @@ pub fn validate_structured_collaboration_record(
         &mut result,
     );
     validate_project_profile_kind(obj.get("project_profile_kind"), &mut result);
+    let project_profile_kind = ProjectProfileKind::parse(
+        obj.get("project_profile_kind").and_then(Value::as_str).unwrap_or_default(),
+    );
     require_non_empty_string(obj.get("updated_at"), "updated_at", &mut result);
     validate_mirror_state(obj.get("mirror_state"), &mut result);
     require_string_array(obj.get("authority_refs"), "authority_refs", &mut result);
     require_string_array(obj.get("evidence_refs"), "evidence_refs", &mut result);
-    validate_profile_extension(obj.get("profile_extension"), &mut result);
+    validate_profile_extension(
+        obj.get("profile_extension"),
+        project_profile_kind,
+        &mut result,
+    );
 
     match family {
         StructuredCollaborationRecordFamily::WorkPacketPacket
@@ -1082,6 +1104,7 @@ pub fn validate_structured_collaboration_record(
                 require_non_empty_string(Some(summary_path), "summary_record_path", &mut result);
             }
         }
+        StructuredCollaborationRecordFamily::GovernanceArtifactRegistry => {}
         StructuredCollaborationRecordFamily::WorkPacketSummary
         | StructuredCollaborationRecordFamily::MicroTaskSummary => {
             require_non_empty_string(obj.get("status"), "status", &mut result);
@@ -1632,6 +1655,7 @@ fn validate_mirror_state(
 
 fn validate_profile_extension(
     value: Option<&Value>,
+    project_profile_kind: Option<ProjectProfileKind>,
     result: &mut StructuredCollaborationValidationResult,
 ) {
     let Some(value) = value else {
@@ -1652,6 +1676,9 @@ fn validate_profile_extension(
         return;
     };
 
+    let extension_schema_id = obj.get("extension_schema_id").and_then(Value::as_str);
+    let extension_schema_version = obj.get("extension_schema_version").and_then(Value::as_str);
+
     require_non_empty_string(
         obj.get("extension_schema_id"),
         "profile_extension.extension_schema_id",
@@ -1662,6 +1689,28 @@ fn validate_profile_extension(
         "profile_extension.extension_schema_version",
         result,
     );
+    if extension_schema_id == Some(GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1) {
+        if !matches!(project_profile_kind, Some(ProjectProfileKind::SoftwareDelivery)) {
+            result.push_issue(
+                StructuredCollaborationValidationCode::IncompatibleProfileExtension,
+                "profile_extension.extension_schema_id",
+                Some(ProjectProfileKind::SoftwareDelivery.as_str().to_string()),
+                project_profile_kind
+                    .map(|kind| kind.as_str().to_string())
+                    .or(Some("unknown".to_string())),
+                "governance artifact registry extension is only compatible with software_delivery profiles",
+            );
+        }
+        if extension_schema_version != Some(GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1) {
+            result.push_issue(
+                StructuredCollaborationValidationCode::SchemaVersionMismatch,
+                "profile_extension.extension_schema_version",
+                Some(GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1.to_string()),
+                extension_schema_version.map(str::to_string),
+                "governance artifact registry extension_schema_version does not match expected schema version",
+            );
+        }
+    }
     if obj.get("compatibility").is_none() {
         result.push_issue(
             StructuredCollaborationValidationCode::IncompatibleProfileExtension,
@@ -1752,4 +1801,83 @@ fn normalized_string_array(value: Option<&Value>) -> Vec<String> {
     values.sort();
     values.dedup();
     values
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn governance_artifact_registry_record(project_profile_kind: &str, extension_schema_id: &str) -> Value {
+        json!({
+            "schema_id": GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1,
+            "schema_version": GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1,
+            "record_id": "00000000-0000-0000-0000-000000000001",
+            "record_kind": "governance_artifact_registry",
+            "project_profile_kind": project_profile_kind,
+            "updated_at": "2026-04-05T00:00:00Z",
+            "mirror_state": "canonical_only",
+            "authority_refs": [],
+            "evidence_refs": [],
+            "profile_extension": {
+                "extension_schema_id": extension_schema_id,
+                "extension_schema_version": GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1,
+                "compatibility": {
+                    "mode": "non-breaking"
+                }
+            }
+        })
+    }
+
+    #[test]
+    fn governance_artifact_registry_has_schema_descriptor() {
+        let descriptor = structured_collaboration_schema_descriptor(
+            StructuredCollaborationRecordFamily::GovernanceArtifactRegistry,
+        );
+        assert_eq!(descriptor.schema_id, GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1);
+        assert_eq!(
+            descriptor.schema_version,
+            GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1
+        );
+        assert_eq!(descriptor.record_kind, "governance_artifact_registry");
+        assert_eq!(descriptor.summary_family, None);
+    }
+
+    #[test]
+    fn profile_extension_validation_allows_governance_artifact_registry_extension_for_software_delivery() {
+        let record = governance_artifact_registry_record(
+            ProjectProfileKind::SoftwareDelivery.as_str(),
+            GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1,
+        );
+        let result = validate_structured_collaboration_record(
+            StructuredCollaborationRecordFamily::GovernanceArtifactRegistry,
+            &record,
+        );
+        assert!(result.ok);
+        assert!(
+            !result
+                .issues
+                .iter()
+                .any(|issue| issue.code == StructuredCollaborationValidationCode::IncompatibleProfileExtension)
+        );
+    }
+
+    #[test]
+    fn profile_extension_validation_rejects_governance_artifact_registry_extension_for_non_software_delivery() {
+        let record = governance_artifact_registry_record(
+            ProjectProfileKind::Research.as_str(),
+            GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1,
+        );
+        let result = validate_structured_collaboration_record(
+            StructuredCollaborationRecordFamily::GovernanceArtifactRegistry,
+            &record,
+        );
+        assert!(!result.ok);
+        assert!(
+            result
+                .issues
+                .iter()
+                .any(|issue| issue.code == StructuredCollaborationValidationCode::IncompatibleProfileExtension)
+        );
+    }
 }
