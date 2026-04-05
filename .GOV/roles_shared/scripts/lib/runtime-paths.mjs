@@ -238,12 +238,26 @@ export function resolveWorkPacketPathAtRepo(repoRoot, wpId, localGovRootRel = ".
   return null;
 }
 
+export function workPacketPathAtRepo(repoRoot, wpId, localGovRootRel = ".GOV") {
+  return resolveWorkPacketPathAtRepo(repoRoot, wpId, localGovRootRel)?.packetPath
+    || normalizePath(path.join(localGovRootRel || ".GOV", LEGACY_TASK_PACKETS_DIRNAME, `${wpId}.md`));
+}
+
+export function workPacketAbsPathAtRepo(repoRoot, wpId, localGovRootRel = ".GOV") {
+  return resolveWorkPacketPathAtRepo(repoRoot, wpId, localGovRootRel)?.packetAbsPath
+    || path.resolve(String(repoRoot || REPO_ROOT), workPacketPathAtRepo(repoRoot, wpId, localGovRootRel));
+}
+
 export function workPacketPath(wpId) {
   return resolveWorkPacketPath(wpId)?.packetPath || normalizePath(path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`));
 }
 
 export function workPacketAbsPath(wpId) {
   return resolveWorkPacketPath(wpId)?.packetAbsPath || path.join(WORK_PACKET_STORAGE_ROOT_ABS, `${wpId}.md`);
+}
+
+export function taskBoardPathAtRepo(repoRoot, localGovRootRel = ".GOV") {
+  return path.resolve(String(repoRoot || REPO_ROOT), normalizePath(path.join(localGovRootRel || ".GOV", "roles_shared", "records", "TASK_BOARD.md")));
 }
 
 export function inferWpIdFromPacketPath(packetPath) {

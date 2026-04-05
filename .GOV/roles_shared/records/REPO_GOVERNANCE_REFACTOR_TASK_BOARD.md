@@ -137,7 +137,7 @@
 | RGF-78 | DONE | Relay Cost Compression Policy and Measurement | RGF-64, RGF-67 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-01` / `SMOKE-FIND-20260404-02` | orchestrator/manual relay policy docs, timeline cost reports, operator routing guidance | governed relay now exposes measured orchestrator-versus-manual cost and ships a default-routing policy so small and medium WPs can take the cheaper lane without losing paperwork or control truth |
 | RGF-79 | DONE | Dual-Track Validator Model | RGF-69 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-06` | validator protocols, review templates, audit generators, packet-law defaults | medium/high V4 validator closure now declares explicit `MECHANICAL_TRACK_VERDICT` and `SPEC_RETENTION_TRACK_VERDICT`, and PASS is legal only when both tracks are honestly satisfied by the underlying evidence |
 | RGF-80 | DONE | Failure Ledger Expansion | RGF-73 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-07` | smoketest schemas/templates, audit generators, board linkage helpers, positive-control records | smoketest reviews now use typed failure-ledger ownership and failure-class fields plus typed positive controls, so orchestrator/coder/validator/runtime/script/governance-drift/operator-UX failures stay mechanically distinguishable from what went well |
-| RGF-81 | READY | Authority Surface Shrink Phase 2 | RGF-70, RGF-74 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-05` | packet authority helpers, runtime/task-board/build-order projections, compatibility docs and scripts | remaining duplicated status and path truth is collapsed further so packet headers and resolvers stay authoritative while projections and docs become thinner read-only surfaces |
+| RGF-81 | DONE | Authority Surface Shrink Phase 2 | RGF-70, RGF-74 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-05` | packet authority helpers, runtime/task-board/build-order projections, compatibility docs and scripts | remaining duplicated status and path truth is collapsed further so packet headers and resolvers stay authoritative while projections and docs become thinner read-only surfaces |
 | RGF-82 | READY | Work-Packet Lifecycle Archival Layout | RGF-74, RGF-81 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | work-packet resolver layer, recordkeeping docs, archive/migration helpers | work-packet storage gains a governed lifecycle layout for active, superseded, and validated-closed packets without breaking resolver compatibility or forcing risky filesystem churn |
 | RGF-83 | READY | Legacy Path Reference Sweep | RGF-74, RGF-81 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | docs, tests, fixtures, compatibility wording, operator quickrefs | stale literal `task_packets` references outside legacy-compatibility contexts are removed so role guidance and helper fixtures consistently describe the logical `work_packets` model |
 | RGF-84 | READY | Artifact Retention Policy | RGF-71 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | artifact cleanup helpers, closeout policy docs, retention manifests, topology records | closeout distinguishes evidence worth retaining from disposable build/test/runtime output, keeping `Handshake Artifacts` bounded without losing governed proof required for audits and recovery |
@@ -214,11 +214,10 @@
 
 1. `RGF-79`
 2. `RGF-80`
-3. `RGF-81`
-4. `RGF-83`
-5. `RGF-84`
-6. `RGF-82`
-7. `RGF-85`
+3. `RGF-83`
+4. `RGF-84`
+5. `RGF-82`
+6. `RGF-85`
 
 ## Explicit Holds
 

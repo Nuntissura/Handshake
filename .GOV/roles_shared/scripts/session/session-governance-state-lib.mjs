@@ -1,48 +1,38 @@
 import fs from "node:fs";
 import path from "node:path";
-import { REPO_ROOT, resolveWorkPacketPathAtRepo, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
+import {
+  REPO_ROOT,
+  taskBoardPathAtRepo,
+  WORK_PACKET_STORAGE_ROOT_REPO_REL,
+  workPacketAbsPathAtRepo,
+  workPacketPathAtRepo,
+} from "../lib/runtime-paths.mjs";
+import {
+  isTerminalTaskBoardStatus,
+  parsePacketStatus,
+  parseTaskBoardStatus,
+} from "../lib/wp-authority-projection-lib.mjs";
 
 export const TERMINAL_SESSION_TASK_BOARD_STATUSES = new Set(["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"]);
 const LOCAL_GOV_ROOT_REPO_REL = ".GOV";
 
-function escapeRegex(value) {
-  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function parsePacketStatus(packetContent) {
-  const match =
-    String(packetContent || "").match(/^\s*-\s*\*\*Status:\*\*[ \t]*([^\r\n]+)[ \t]*$/mi) ||
-    String(packetContent || "").match(/^\s*\*\*Status:\*\*[ \t]*([^\r\n]+)[ \t]*$/mi) ||
-    String(packetContent || "").match(/^\s*Status:[ \t]*([^\r\n]+)[ \t]*$/mi);
-  return match ? match[1].trim() : "";
-}
-
 function taskBoardStatusAtRepo(repoRoot, wpId) {
-  const taskBoardPath = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
+  const taskBoardPath = taskBoardPathAtRepo(repoRoot, LOCAL_GOV_ROOT_REPO_REL);
   if (!fs.existsSync(taskBoardPath)) return "";
-  const content = fs.readFileSync(taskBoardPath, "utf8");
-  const match = content.match(
-    new RegExp(`- \\*\\*\\[${escapeRegex(wpId)}\\]\\*\\* - \\[([^\\]]+)\\]`, "i"),
-  );
-  return match ? match[1].trim().toUpperCase() : "";
+  return parseTaskBoardStatus(fs.readFileSync(taskBoardPath, "utf8"), wpId);
 }
 
 export function isTerminalSessionTaskBoardStatus(status) {
-  return TERMINAL_SESSION_TASK_BOARD_STATUSES.has(String(status || "").trim().toUpperCase());
+  return TERMINAL_SESSION_TASK_BOARD_STATUSES.has(String(status || "").trim().toUpperCase())
+    || isTerminalTaskBoardStatus(status);
 }
 
 function packetPathAtRepo(repoRoot, wpId) {
-  const resolved = resolveWorkPacketPathAtRepo(repoRoot, wpId, LOCAL_GOV_ROOT_REPO_REL);
-  if (resolved?.packetAbsPath) {
-    return {
-      packetPathRel: resolved.packetPath,
-      packetPathAbs: resolved.packetAbsPath,
-    };
-  }
-  const fallbackRel = path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
   return {
-    packetPathRel: fallbackRel,
-    packetPathAbs: path.resolve(repoRoot, fallbackRel),
+    packetPathRel: workPacketPathAtRepo(repoRoot, wpId, LOCAL_GOV_ROOT_REPO_REL)
+      || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`),
+    packetPathAbs: workPacketAbsPathAtRepo(repoRoot, wpId, LOCAL_GOV_ROOT_REPO_REL)
+      || path.resolve(repoRoot, path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`)),
   };
 }
 

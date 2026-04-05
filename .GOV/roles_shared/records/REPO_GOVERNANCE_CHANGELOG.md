@@ -1321,3 +1321,29 @@
   - `RGF-82`
   - `RGF-85`
 - OUTCOME: new smoketest reviews now declare typed `CATEGORY`, `ROLE_OWNER`, `SYSTEM_SCOPE`, and `FAILURE_CLASS` fields plus typed positive controls with `CONTROL_TYPE`, `What went well`, and `REGRESSION_GUARDS`, and the post-run audit skeleton emits those placeholders by default instead of leaving the structure half-narrative
+
+### 2026.04.05.12 / GOV-CHANGE-20260405-12
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-81` by collapsing duplicated task-board status truth and repo-root work-packet path fallback logic into shared authority helpers, then rewiring resume/governance consumers to read those helpers instead of re-implementing local variants
+- CHANGE_TYPE: AUTHORITY_SURFACE_SHRINK
+- DRIVER_EVIDENCE:
+  - `RGF-81`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-05`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-authority-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/runtime-paths.mjs`
+  - `.GOV/roles_shared/scripts/session/session-governance-state-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/role-resume-utils.mjs`
+  - `.GOV/roles_shared/tests/runtime-paths.test.mjs`
+  - `.GOV/roles_shared/tests/session-governance-state-lib.test.mjs`
+  - `.GOV/roles_shared/tests/role-resume-utils.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: task-board terminal and active-status truth plus repo-root work-packet/task-board resolution now come from shared helpers, so resume/governance surfaces stop carrying their own packet-path fallback and board-status regex copies

@@ -3,7 +3,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { listWorkPacketEntriesAt, repoPathAbs, resolveWorkPacketPathAtRepo } from "../scripts/lib/runtime-paths.mjs";
+import {
+  listWorkPacketEntriesAt,
+  repoPathAbs,
+  resolveWorkPacketPathAtRepo,
+  taskBoardPathAtRepo,
+  workPacketAbsPathAtRepo,
+  workPacketPathAtRepo,
+} from "../scripts/lib/runtime-paths.mjs";
 
 test("listWorkPacketEntriesAt discovers flat and folder packets while skipping README and excluded dirs", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-"));
@@ -58,6 +65,26 @@ test("resolveWorkPacketPathAtRepo accepts canonical work_packets roots during co
     assert.ok(resolved);
     assert.equal(resolved.packetPath, ".GOV/work_packets/WP-TEST-WORK-PACKETS-v1/packet.md");
     assert.equal(resolved.isFolder, true);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("workPacketPathAtRepo and workPacketAbsPathAtRepo use shared fallback truth", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-fallback-"));
+  try {
+    assert.equal(
+      workPacketPathAtRepo(repoRoot, "WP-TEST-FALLBACK-v1"),
+      ".GOV/task_packets/WP-TEST-FALLBACK-v1.md",
+    );
+    assert.equal(
+      workPacketAbsPathAtRepo(repoRoot, "WP-TEST-FALLBACK-v1"),
+      path.join(repoRoot, ".GOV", "task_packets", "WP-TEST-FALLBACK-v1.md"),
+    );
+    assert.equal(
+      taskBoardPathAtRepo(repoRoot),
+      path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md"),
+    );
   } finally {
     fs.rmSync(repoRoot, { recursive: true, force: true });
   }

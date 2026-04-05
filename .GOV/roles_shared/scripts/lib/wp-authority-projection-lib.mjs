@@ -19,6 +19,21 @@ export const TASK_BOARD_STATUS_VALUES = Object.freeze([
   "SUPERSEDED",
 ]);
 
+export const TERMINAL_TASK_BOARD_STATUS_VALUES = Object.freeze([
+  "VALIDATED",
+  "FAIL",
+  "OUTDATED_ONLY",
+  "ABANDONED",
+  "SUPERSEDED",
+]);
+
+export const ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUS_VALUES = Object.freeze([
+  "READY_FOR_DEV",
+  "IN_PROGRESS",
+  "BLOCKED",
+  "MERGE_PENDING",
+]);
+
 export const RUNTIME_MILESTONE_VALUES = Object.freeze([
   "BOOTSTRAP",
   "SKELETON",
@@ -57,6 +72,10 @@ function normalizeUpper(value) {
   return normalize(value).toUpperCase();
 }
 
+function escapeRegex(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function parsePacketStatus(packetText) {
   return (
     (String(packetText || "").match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
@@ -71,6 +90,23 @@ export function isTerminalPacketStatus(status) {
 
 export function isClosedPacketStatus(status) {
   return isTerminalPacketStatus(status);
+}
+
+export function isTerminalTaskBoardStatus(status) {
+  return TERMINAL_TASK_BOARD_STATUS_VALUES.includes(normalizeUpper(status));
+}
+
+export function isActiveOrchestratorTaskBoardStatus(status) {
+  return ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUS_VALUES.includes(normalizeUpper(status));
+}
+
+export function parseTaskBoardStatus(taskBoardText, wpId) {
+  const normalizedWpId = normalize(wpId);
+  if (!normalizedWpId) return "";
+  const match = String(taskBoardText || "").match(
+    new RegExp(`- \\*\\*\\[${escapeRegex(normalizedWpId)}\\]\\*\\* - \\[([^\\]]+)\\]`, "i"),
+  );
+  return match ? normalizeUpper(match[1]) : "";
 }
 
 export function taskBoardStatusForPacketStatus(packetStatus) {
