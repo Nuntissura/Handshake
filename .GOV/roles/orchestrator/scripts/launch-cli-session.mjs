@@ -6,11 +6,8 @@ import {
   SESSION_BATCH_MODE_CLI_ESCALATION,
   CLI_ESCALATION_HOST_DEFAULT,
   CLI_ESCALATION_HOST_LEGACY_ALIAS,
-  CLI_SESSION_TOOL,
-  ROLE_SESSION_PRIMARY_MODEL,
   ROLE_SESSION_REASONING_CONFIG_KEY,
   ROLE_SESSION_REASONING_CONFIG_VALUE,
-  ROLE_SESSION_FALLBACK_MODEL,
   SESSION_HOST_PREFERENCE,
   SESSION_HOST_FALLBACK,
   SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
@@ -41,6 +38,7 @@ import {
 import {
   buildRoleEnvironmentOverrides,
   buildStartupPrompt,
+  resolveCliToolForProfile,
   resolveRoleConfig,
   resolveRoleLaunchSelection,
   assertRoleLaunchProfileSupported,
@@ -127,15 +125,32 @@ const prompt = buildStartupPrompt({
   selectedProfile,
 });
 
-const codexArgs = [
-  "-m",
-  selectedModel,
-  "-c",
-  `${selectedProfile.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY}="${selectedProfile.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE}"`,
-  "-C",
-  absWorktreeDir,
-  prompt,
-];
+const isClaudeCode = selectedProfile.provider === "ANTHROPIC";
+const cliTool = resolveCliToolForProfile(selectedProfile);
+
+function buildCodexArgs() {
+  return [
+    "-m",
+    selectedModel,
+    "-c",
+    `${selectedProfile.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY}="${selectedProfile.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE}"`,
+    "-C",
+    absWorktreeDir,
+    prompt,
+  ];
+}
+
+function buildClaudeCodeArgs() {
+  return [
+    "--model", selectedModel,
+    "--effort", selectedProfile.launch_reasoning_config_value || "max",
+    "--dangerously-skip-permissions",
+    "--bare",
+    prompt,
+  ];
+}
+
+const cliArgs = isClaudeCode ? buildClaudeCodeArgs() : buildCodexArgs();
 
 function psQuote(value) {
   return `'${String(value).replace(/'/g, "''")}'`;
@@ -143,7 +158,7 @@ function psQuote(value) {
 
 function writeLaunchScript() {
   const psPath = path.join(os.tmpdir(), `handshake-${role.toLowerCase()}-${wpId}-${Date.now()}.ps1`);
-  const psArgsLines = codexArgs.map((arg) => `  ${psQuote(arg)}`).join(",\r\n");
+  const psArgsLines = cliArgs.map((arg) => `  ${psQuote(arg)}`).join(",\r\n");
   const envLines = Object.entries(launchEnvironmentOverrides)
     .map(([key, value]) => `$env:${key} = ${psQuote(value)}`)
     .join("\r\n");
@@ -152,20 +167,20 @@ function writeLaunchScript() {
     envLines,
     `Set-Location -LiteralPath ${psQuote(absWorktreeDir)}`,
     `$Host.UI.RawUI.WindowTitle = ${psQuote(roleConfig.title)}`,
-    `$codexArgs = @(`,
+    `$cliArgs = @(`,
     psArgsLines,
     `)`,
-    `& ${psQuote(CLI_SESSION_TOOL)} @codexArgs`,
+    `& ${psQuote(cliTool)} @cliArgs`,
   ].join("\r\n");
   fs.writeFileSync(psPath, script, "utf8");
   return psPath;
 }
 
 const launchScriptPath = writeLaunchScript();
-const codexCommand = `& ${psQuote(launchScriptPath)}`;
+const launchCommand = `& ${psQuote(launchScriptPath)}`;
 
 function launchCurrent() {
-  const child = spawn(CLI_SESSION_TOOL, codexArgs, {
+  const child = spawn(cliTool, cliArgs, {
     cwd: absWorktreeDir,
     env: {
       ...process.env,
@@ -212,7 +227,7 @@ function printOnly(reason, resolvedHost) {
   }
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
-  console.log(`[LAUNCH_CLI_SESSION] command=${codexCommand}`);
+  console.log(`[LAUNCH_CLI_SESSION] command=${launchCommand}`);
 }
 
 ensureSessionStateFiles(repoRoot);
@@ -325,7 +340,7 @@ function queueVsCodePluginLaunch() {
       startupCommand: roleConfig.startupCommand,
       nextCommand: roleConfig.nextCommand,
       terminalTitleValue: roleConfig.title,
-      command: codexCommand,
+      command: launchCommand,
       pluginAttemptNumber: session.plugin_request_count + 1,
     });
     queuePluginLaunch(repoRoot, registry, request);

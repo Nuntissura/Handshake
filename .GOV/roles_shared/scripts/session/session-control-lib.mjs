@@ -59,15 +59,32 @@ function writeJsonlEvent(outputStream, event) {
   outputStream.write(`${JSON.stringify({ timestamp: nowIso(), ...event })}\n`);
 }
 
-function resolveCliTool() {
-  if (process.platform !== "win32") return CLI_SESSION_TOOL;
-  const result = spawnSync("where.exe", [CLI_SESSION_TOOL], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-  if (result.status !== 0) return `${CLI_SESSION_TOOL}.cmd`;
+function resolveCliToolByName(toolName) {
+  if (process.platform !== "win32") return toolName;
+  const result = spawnSync("where.exe", [toolName], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  if (result.status !== 0) return `${toolName}.cmd`;
   const matches = result.stdout
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  return matches.find((entry) => /\.cmd$/i.test(entry)) || matches[0] || `${CLI_SESSION_TOOL}.cmd`;
+  const exeMatch = matches.find((entry) => /\.exe$/i.test(entry));
+  if (exeMatch) return exeMatch;
+  return matches.find((entry) => /\.cmd$/i.test(entry)) || matches[0] || `${toolName}.cmd`;
+}
+
+function resolveCliTool() {
+  return resolveCliToolByName(CLI_SESSION_TOOL);
+}
+
+const CLAUDE_CODE_CLI_TOOL = "claude";
+
+function resolveClaudeCodeCliTool() {
+  return resolveCliToolByName(CLAUDE_CODE_CLI_TOOL);
+}
+
+export function resolveCliToolForProfile(profile) {
+  if (profile.provider === "ANTHROPIC") return resolveClaudeCodeCliTool();
+  return resolveCliTool();
 }
 
 function quotePsLiteral(value) {
@@ -596,6 +613,184 @@ export async function runCodexThreadCommand({
         outputFile: outputPath,
       });
     });
+  });
+}
+
+export async function runClaudeCodeCommand({
+  absWorktreeDir,
+  selectedModel,
+  prompt,
+  outputFile,
+  sessionId = "",
+  environmentOverrides = null,
+  onEvent = null,
+  onSpawn = null,
+}) {
+  const outputPath = path.resolve(outputFile);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  const outputStream = fs.createWriteStream(outputPath, { flags: "a" });
+  const startedAt = Date.now();
+  const cliToolPath = resolveClaudeCodeCliTool();
+  const childEnvironment = {
+    ...process.env,
+    ...(environmentOverrides && typeof environmentOverrides === "object" ? environmentOverrides : {}),
+  };
+
+  const baseArgs = [
+    "-p",
+    "--model", selectedModel,
+    "--effort", "max",
+    "--output-format", "stream-json",
+    "--dangerously-skip-permissions",
+    "--bare",
+  ];
+
+  const args = sessionId
+    ? [...baseArgs, "--resume", sessionId, prompt]
+    : [...baseArgs, prompt];
+
+  return await new Promise((resolve) => {
+    const child = spawn(cliToolPath, args, {
+      cwd: absWorktreeDir,
+      env: childEnvironment,
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    if (typeof onSpawn === "function") onSpawn(child);
+
+    let stderr = "";
+    let stdoutBuffer = "";
+    let observedSessionId = sessionId || "";
+    let lastAgentMessage = "";
+    let observedModelUsage = {};
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      outputStream.end();
+      resolve(result);
+    };
+
+    const handleLine = (line) => {
+      if (!line) return;
+      try {
+        const event = JSON.parse(line);
+        const normalized = { timestamp: nowIso(), ...event };
+        writeJsonlEvent(outputStream, event);
+        if (typeof onEvent === "function") onEvent(normalized);
+
+        if (normalized.type === "result") {
+          if (normalized.session_id) observedSessionId = normalized.session_id;
+          if (normalized.result) lastAgentMessage = normalized.result;
+          if (normalized.modelUsage) observedModelUsage = normalized.modelUsage;
+        }
+        if (normalized.type === "assistant" && normalized.message?.content) {
+          const textParts = normalized.message.content.filter((p) => p.type === "text");
+          if (textParts.length > 0) lastAgentMessage = textParts.map((p) => p.text).join("\n");
+        }
+      } catch {
+        const rawEvent = { type: "stdout.raw", text: line };
+        writeJsonlEvent(outputStream, rawEvent);
+        if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...rawEvent });
+      }
+    };
+
+    child.stdout.on("data", (chunk) => {
+      stdoutBuffer += chunk.toString("utf8");
+      const lines = stdoutBuffer.split(/\r?\n/);
+      stdoutBuffer = lines.pop() || "";
+      for (const line of lines) handleLine(line.trim());
+    });
+
+    child.stderr.on("data", (chunk) => {
+      const text = chunk.toString("utf8");
+      stderr += text;
+      const event = { type: "stderr", text };
+      writeJsonlEvent(outputStream, event);
+      if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...event });
+    });
+
+    child.on("error", (error) => {
+      stderr += error.message;
+      const event = { type: "spawn.error", message: error.message };
+      writeJsonlEvent(outputStream, event);
+      if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...event });
+      finish({
+        ok: false,
+        exitCode: 1,
+        threadId: observedSessionId,
+        lastAgentMessage,
+        stderr: stderr.trim(),
+        durationMs: Date.now() - startedAt,
+        outputFile: outputPath,
+        modelUsage: observedModelUsage,
+      });
+    });
+
+    child.on("close", (code) => {
+      if (stdoutBuffer.trim()) handleLine(stdoutBuffer.trim());
+
+      const modelKeys = Object.keys(observedModelUsage);
+      const modelMismatch = modelKeys.length > 0 && !modelKeys.includes(selectedModel);
+      if (modelMismatch) {
+        const violation = `MODEL_LOCK_VIOLATION: expected only ${selectedModel} but observed ${modelKeys.join(", ")}`;
+        stderr += `\n${violation}`;
+        const event = { type: "model.lock.violation", expected: selectedModel, observed: modelKeys };
+        writeJsonlEvent(outputStream, event);
+        if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...event });
+      }
+
+      const closedEvent = { type: "process.closed", exit_code: code ?? 1 };
+      writeJsonlEvent(outputStream, closedEvent);
+      if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...closedEvent });
+      finish({
+        ok: code === 0 && !modelMismatch,
+        exitCode: code ?? 1,
+        threadId: observedSessionId,
+        lastAgentMessage,
+        stderr: stderr.trim(),
+        durationMs: Date.now() - startedAt,
+        outputFile: outputPath,
+        modelUsage: observedModelUsage,
+      });
+    });
+  });
+}
+
+export async function runGovernedRoleCommand({
+  profile,
+  absWorktreeDir,
+  selectedModel,
+  prompt,
+  outputFile,
+  threadId = "",
+  environmentOverrides = null,
+  onEvent = null,
+  onSpawn = null,
+}) {
+  if (profile.provider === "ANTHROPIC") {
+    return runClaudeCodeCommand({
+      absWorktreeDir,
+      selectedModel,
+      prompt,
+      outputFile,
+      sessionId: threadId,
+      environmentOverrides,
+      onEvent,
+      onSpawn,
+    });
+  }
+  return runCodexThreadCommand({
+    absWorktreeDir,
+    selectedModel,
+    prompt,
+    outputFile,
+    threadId,
+    environmentOverrides,
+    onEvent,
+    onSpawn,
   });
 }
 

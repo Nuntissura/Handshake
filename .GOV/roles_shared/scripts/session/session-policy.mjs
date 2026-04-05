@@ -121,18 +121,18 @@ export const ROLE_MODEL_PROFILE_CATALOG = Object.freeze({
     profile_id: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
     provider: "ANTHROPIC",
     session_tool: "claude-code",
-    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_DECLARED_ONLY,
-    claim_model: "claude-code-opus-4.6-thinking-max",
+    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED,
+    claim_model: "claude-opus-4-6",
     claim_model_aliases: Object.freeze([
-      "claude-code-opus-4.6-thinking-max",
+      "claude-opus-4-6",
       "Claude Code Opus 4.6 Thinking (Highest Available)",
       "Claude Code Opus 4.6",
     ]),
     reasoning_strength: ROLE_SESSION_REASONING_REQUIRED,
-    launch_model: "",
-    launch_reasoning_config_key: "",
-    launch_reasoning_config_value: "",
-    reasoning_policy_note: "Opus 4.6 Thinking / highest available in Claude Code CLI",
+    launch_model: "claude-opus-4-6",
+    launch_reasoning_config_key: "effort",
+    launch_reasoning_config_value: "max",
+    reasoning_policy_note: "effort=max (Opus 4.6 extended thinking, highest available in Claude Code CLI)",
   }),
 });
 export const ROLE_MODEL_PROFILE_IDS = Object.freeze(Object.keys(ROLE_MODEL_PROFILE_CATALOG));
@@ -503,6 +503,16 @@ export function isDisallowedCodexModelAlias(value) {
 export function isAllowedPrimaryOrFallbackModel(value) {
   const token = String(value || "").trim().toLowerCase();
   return token === ROLE_SESSION_PRIMARY_MODEL || token === ROLE_SESSION_FALLBACK_MODEL;
+}
+
+export function isAllowedProfileModel(value) {
+  const token = String(value || "").trim().toLowerCase();
+  for (const profile of Object.values(ROLE_MODEL_PROFILE_CATALOG)) {
+    if (profile.runtime_support !== ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED) continue;
+    if (token === String(profile.launch_model || "").toLowerCase()) return true;
+    if (token === String(profile.claim_model || "").toLowerCase()) return true;
+  }
+  return false;
 }
 
 export function buildRemoteBackupUrl(originTreeBase, branch) {
