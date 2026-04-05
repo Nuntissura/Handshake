@@ -100,6 +100,7 @@ Authoritative inputs:
 Primary commands:
 - `just record-refinement WP-...`
 - `just record-signature WP-... <sig> <MANUAL_RELAY|ORCHESTRATOR_MANAGED> <Coder-A..Coder-Z>`
+- lane default: choose `MANUAL_RELAY` for small and medium WPs unless you explicitly need autonomous steering or multi-WP parallel management; use `ORCHESTRATOR_MANAGED` only when that extra control-plane cost is justified
 - `just worktree-add WP-...`
 - `just record-prepare WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>] [branch] [worktree_dir]`
 - `just create-task-packet WP-...`

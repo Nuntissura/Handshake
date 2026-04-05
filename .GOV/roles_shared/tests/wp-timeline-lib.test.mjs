@@ -5,6 +5,7 @@ import {
   buildWpTimelineEntries,
   buildWpTimelineSpans,
   buildWpTimelineSummary,
+  evaluateWpRelayCostPolicy,
   parseThreadEntriesText,
 } from "../scripts/session/wp-timeline-lib.mjs";
 
@@ -153,6 +154,9 @@ test("buildWpTimelineSummary computes counts and event window", () => {
   assert.equal(summary.event_window_duration_ms, 300000);
   assert.equal(summary.microtask_execution_span_count, 0);
   assert.deepEqual(summary.stage_counts, {});
+  assert.equal(summary.relay_policy.current_lane, "ORCHESTRATOR_MANAGED");
+  assert.equal(summary.relay_policy.default_lane, "MANUAL_RELAY");
+  assert.equal(summary.relay_policy.recommended_lane, "MANUAL_RELAY");
   assert.equal(summary.cost_estimate, null);
 });
 
@@ -274,4 +278,42 @@ test("buildWpTimelineSpans derives microtask execution spans from coder intent t
   assert.equal(microtaskSpan.ended_at, "2026-04-05T10:02:00Z");
   assert.equal(microtaskSpan.duration_ms, 120000);
   assert.equal(microtaskSpan.terminal_receipt_kind, "REVIEW_REQUEST");
+});
+
+test("evaluateWpRelayCostPolicy recommends MANUAL_RELAY when relay prompt tax is visible", () => {
+  const policy = evaluateWpRelayCostPolicy({
+    workflowLane: "ORCHESTRATOR_MANAGED",
+    spans: [
+      {
+        span_kind: "CONTROL_COMMAND",
+        span_stage: "RELAY",
+        command_id: "cmd-1",
+        duration_ms: 600000,
+      },
+      {
+        span_kind: "TOKEN_COMMAND",
+        span_stage: "RELAY",
+        command_id: "cmd-1",
+        turn_count: 5,
+        token_input_total: 900,
+        token_cached_input_total: 100,
+        token_output_total: 200,
+      },
+    ],
+    tokenLedger: {
+      summary: {
+        usage_totals: {
+          input_tokens: 1600,
+          output_tokens: 300,
+        },
+      },
+    },
+  });
+
+  assert.equal(policy.default_lane, "MANUAL_RELAY");
+  assert.equal(policy.recommended_lane, "MANUAL_RELAY");
+  assert.equal(policy.burden_level, "HIGH");
+  assert.equal(policy.relay_command_count, 1);
+  assert.equal(policy.relay_turn_count, 5);
+  assert.match(policy.recommendation_reason, /Observed orchestrator-managed relay burden is high/i);
 });

@@ -1233,3 +1233,33 @@
   - `RGF-82`
   - `RGF-85`
 - OUTCOME: `just wp-timeline` now emits stage-tagged span rows with stable span ids, explicit token-command windows, review-exchange durations, and microtask execution spans, plus summary counts for span families and measured span coverage so relay and delay hot spots are attributable without rereading scattered ledgers
+
+### 2026.04.05.09 / GOV-CHANGE-20260405-09
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-78` by attaching measured relay burden and default lane policy to the timeline surface, then surfacing the cheaper-lane guidance in the operator workflow docs and lane-selection gate output
+- CHANGE_TYPE: RELAY_COST_POLICY_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-78`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-01`
+  - `SMOKE-FIND-20260404-02`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-report.mjs`
+  - `.GOV/roles_shared/tests/wp-timeline-lib.test.mjs`
+  - `.GOV/roles/orchestrator/checks/orchestrator_gates.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-79`
+  - `RGF-80`
+  - `RGF-81`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: `just wp-timeline` now reports relay command counts, relay token share, burden level, and a recommended lane, while signature-time operator guidance now states the default policy explicitly: use `MANUAL_RELAY` for small and medium WPs unless autonomous steering or multi-WP parallelism is clearly worth the extra prompt tax

@@ -60,6 +60,16 @@ function printTextReport(summary, spans, entries) {
   console.log(`- ledger_health_severity: ${summary.ledger_health_severity}`);
   console.log(`- budget_status: ${summary.budget_status}`);
   console.log(`- budget_summary: ${summary.budget_summary}`);
+  console.log(`- relay_current_lane: ${summary.relay_policy?.current_lane || "<none>"}`);
+  console.log(`- relay_default_lane: ${summary.relay_policy?.default_lane || "<none>"}`);
+  console.log(`- relay_recommended_lane: ${summary.relay_policy?.recommended_lane || "<none>"}`);
+  console.log(`- relay_assessment: ${summary.relay_policy?.assessment || "<none>"}`);
+  console.log(`- relay_burden_level: ${summary.relay_policy?.burden_level || "<none>"}`);
+  console.log(`- relay_command_count: ${summary.relay_policy?.relay_command_count ?? "<none>"}`);
+  console.log(`- relay_turn_count: ${summary.relay_policy?.relay_turn_count ?? "<none>"}`);
+  console.log(`- relay_duration_ms: ${summary.relay_policy?.relay_duration_ms ?? "<none>"}`);
+  console.log(`- relay_token_share: ${summary.relay_policy?.relay_token_share ?? "<none>"}`);
+  console.log(`- relay_recommendation: ${summary.relay_policy?.recommendation_reason || "<none>"}`);
   console.log(`- cost_estimate: ${summary.cost_estimate === null ? summary.cost_estimate_note : summary.cost_estimate}`);
   console.log("");
   console.log("SPANS");

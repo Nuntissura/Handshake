@@ -168,6 +168,88 @@ function countByKind(spans = [], spanKind = "") {
   return spans.filter((entry) => entry.span_kind === spanKind).length;
 }
 
+function sumBy(spans = [], predicate = () => true, selector = () => 0) {
+  return spans.reduce((total, entry) => (
+    predicate(entry) ? total + Number(selector(entry) || 0) : total
+  ), 0);
+}
+
+export function evaluateWpRelayCostPolicy({
+  workflowLane = "",
+  spans = [],
+  tokenLedger = {},
+} = {}) {
+  const relayControlSpans = (Array.isArray(spans) ? spans : []).filter((entry) =>
+    entry?.span_kind === "CONTROL_COMMAND" && entry?.span_stage === "RELAY"
+  );
+  const relayTokenSpans = (Array.isArray(spans) ? spans : []).filter((entry) =>
+    entry?.span_kind === "TOKEN_COMMAND" && entry?.span_stage === "RELAY"
+  );
+  const relayCommandIds = new Set([
+    ...relayControlSpans.map((entry) => compactLabel(entry?.command_id, "")).filter(Boolean),
+    ...relayTokenSpans.map((entry) => compactLabel(entry?.command_id, "")).filter(Boolean),
+  ]);
+  const relayDurationMs = sumBy(relayControlSpans, () => true, (entry) => entry.duration_ms);
+  const relayTurnCount = sumBy(relayTokenSpans, () => true, (entry) => entry.turn_count);
+  const relayInputTotal = sumBy(relayTokenSpans, () => true, (entry) => entry.token_input_total);
+  const relayCachedInputTotal = sumBy(relayTokenSpans, () => true, (entry) => entry.token_cached_input_total);
+  const relayOutputTotal = sumBy(relayTokenSpans, () => true, (entry) => entry.token_output_total);
+  const totalInput = Number(tokenLedger?.summary?.usage_totals?.input_tokens || 0);
+  const totalOutput = Number(tokenLedger?.summary?.usage_totals?.output_tokens || 0);
+  const totalLiveTokens = totalInput + totalOutput;
+  const relayLiveTokens = relayInputTotal + relayOutputTotal;
+  const relayTokenShare = totalLiveTokens > 0 ? Number((relayLiveTokens / totalLiveTokens).toFixed(4)) : 0;
+
+  let burdenLevel = "LOW";
+  if (relayTurnCount >= 8 || relayDurationMs >= (15 * 60 * 1000) || relayTokenShare >= 0.35) {
+    burdenLevel = "HIGH";
+  } else if (relayTurnCount >= 4 || relayDurationMs >= (5 * 60 * 1000) || relayTokenShare >= 0.15) {
+    burdenLevel = "MEDIUM";
+  }
+
+  const currentLane = compactLabel(workflowLane, "<missing>");
+  const defaultLane = "MANUAL_RELAY";
+  let recommendedLane = defaultLane;
+  let recommendationReason = "Default to MANUAL_RELAY for small and medium WPs; reserve ORCHESTRATOR_MANAGED for explicit autonomy or multi-WP concurrency needs.";
+  let assessment = "DEFAULT_MANUAL";
+
+  if (currentLane === "MANUAL_RELAY") {
+    assessment = "ALIGNED_WITH_DEFAULT";
+    recommendedLane = "MANUAL_RELAY";
+    recommendationReason = "Current lane already matches the cheaper default. Only switch to ORCHESTRATOR_MANAGED when autonomy or parallel steering is materially needed.";
+  } else if (currentLane === "ORCHESTRATOR_MANAGED") {
+    assessment = burdenLevel === "HIGH"
+      ? "ORCHESTRATOR_OVERHEAD_HIGH"
+      : burdenLevel === "MEDIUM"
+        ? "ORCHESTRATOR_OVERHEAD_VISIBLE"
+        : "ORCHESTRATOR_OVERHEAD_LIGHT";
+    recommendedLane = "MANUAL_RELAY";
+    recommendationReason = burdenLevel === "HIGH"
+      ? "Observed orchestrator-managed relay burden is high; future small/medium WPs should default to MANUAL_RELAY unless explicit autonomous steering is required."
+      : burdenLevel === "MEDIUM"
+        ? "Observed relay burden is visible; future medium WPs should default to MANUAL_RELAY unless the operator expects meaningful autonomy or concurrency gains."
+        : "Observed relay burden is light, but the cheaper default remains MANUAL_RELAY unless autonomous steering is explicitly worth the extra prompt tax.";
+  }
+
+  return {
+    current_lane: currentLane,
+    default_lane: defaultLane,
+    recommended_lane: recommendedLane,
+    assessment,
+    burden_level: burdenLevel,
+    relay_command_count: relayCommandIds.size,
+    relay_control_span_count: relayControlSpans.length,
+    relay_token_span_count: relayTokenSpans.length,
+    relay_turn_count: relayTurnCount,
+    relay_duration_ms: relayDurationMs,
+    relay_input_total: relayInputTotal,
+    relay_cached_input_total: relayCachedInputTotal,
+    relay_output_total: relayOutputTotal,
+    relay_token_share: relayTokenShare,
+    recommendation_reason: recommendationReason,
+  };
+}
+
 export function parseThreadEntriesText(threadText = "") {
   const lines = String(threadText || "").split(/\r?\n/);
   const entries = [];
@@ -584,6 +666,11 @@ export function buildWpTimelineSummary({
     if (Number.isFinite(span?.duration_ms)) measuredSpanDurationMs += Number(span.duration_ms);
   }
   const tokenBudget = evaluateWpTokenBudget(tokenLedger);
+  const relayPolicy = evaluateWpRelayCostPolicy({
+    workflowLane,
+    spans,
+    tokenLedger,
+  });
 
   return {
     wp_id: wpId,
@@ -626,6 +713,7 @@ export function buildWpTimelineSummary({
     ledger_health_severity: tokenLedger?.ledger_health?.severity || "<missing>",
     budget_status: tokenBudget.status,
     budget_summary: tokenBudget.summary,
+    relay_policy: relayPolicy,
     cost_estimate: null,
     cost_estimate_note: "unavailable_without_pricing_manifest",
   };
