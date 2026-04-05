@@ -20,6 +20,7 @@ import {
   defaultSessionOutputFile,
   ensureBrokerAuthToken,
   runCodexThreadCommand,
+  runGovernedRoleCommand,
   validateSessionControlRequestShape,
 } from "../../roles_shared/scripts/session/session-control-lib.mjs";
 import { settleRecoverableSessionControlResults } from "../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
@@ -35,6 +36,8 @@ import {
   SESSION_CONTROL_RUN_TIMEOUT_SECONDS,
   SESSION_CONTROL_TRANSPORT_PRIMARY,
   isAllowedPrimaryOrFallbackModel,
+  isAllowedProfileModel,
+  roleModelProfile,
   sessionKey,
 } from "../../roles_shared/scripts/session/session-policy.mjs";
 
@@ -345,7 +348,13 @@ function validateGovernedRequest(request, expectedCommandKind) {
   }
   if (expectedCommandKind !== "CANCEL_SESSION") {
     const selectedModel = session.requested_model || request.selected_model;
-    if (!isAllowedPrimaryOrFallbackModel(selectedModel)) {
+    const selectedProfileId = session.requested_profile_id || request.selected_profile_id || "";
+    const selectedProfile = selectedProfileId ? roleModelProfile(selectedProfileId) : null;
+    if (selectedProfile && selectedProfile.runtime_support === "GOVERNED_LAUNCH_SUPPORTED") {
+      if (String(selectedModel || "").toLowerCase() !== String(selectedProfile.launch_model || "").toLowerCase()) {
+        return { ok: false, reason: `Selected model ${selectedModel} does not match profile ${selectedProfileId} launch_model ${selectedProfile.launch_model}` };
+      }
+    } else if (!isAllowedPrimaryOrFallbackModel(selectedModel) && !isAllowedProfileModel(selectedModel)) {
       return { ok: false, reason: `Selected model is not repo-governed for ${request.session_key}` };
     }
     if (request.command_kind === "SEND_PROMPT" && !session.session_thread_id) {
@@ -357,6 +366,7 @@ function validateGovernedRequest(request, expectedCommandKind) {
       session,
       absWorktreeDir,
       selectedModel,
+      selectedProfile,
       outputFile: expectedOutputFile,
       threadId: session.session_thread_id || "",
     };
@@ -471,7 +481,7 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
     return;
   }
 
-  const { absWorktreeDir, selectedModel, outputFile, threadId } = validation;
+  const { absWorktreeDir, selectedModel, selectedProfile, outputFile, threadId } = validation;
   const requestRecord = {
     ...request,
     selected_model: selectedModel,
@@ -548,7 +558,7 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
         summary,
         outputJsonlFile: outputFile,
         lastAgentMessage: execution.lastAgentMessage || "",
-        error: execution.ok && !runState.terminationReason ? "" : (errorMessage || `codex exited with ${execution.exitCode}`),
+        error: execution.ok && !runState.terminationReason ? "" : (errorMessage || `governed role command exited with ${execution.exitCode}`),
         durationMs: execution.durationMs,
         targetCommandId: requestRecord.target_command_id || "",
         cancelStatus: "",
@@ -576,7 +586,9 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
     if (runState.childPid) killProcessTree(runState.childPid);
   }, SESSION_CONTROL_RUN_TIMEOUT_SECONDS * 1000);
 
-  void runCodexThreadCommand({
+  const runFn = selectedProfile ? runGovernedRoleCommand : runCodexThreadCommand;
+  void runFn({
+    profile: selectedProfile || null,
     absWorktreeDir,
     selectedModel,
     prompt: requestRecord.prompt,
@@ -599,13 +611,14 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
       });
     },
     onEvent: (event) => {
-      if (event.type === "thread.started" && event.thread_id) {
+      const observedThreadId = event.thread_id || event.session_id || "";
+      if ((event.type === "thread.started" || event.type === "result") && observedThreadId) {
         mutateSessionRegistrySync(repoRoot, (registry) => {
           const liveSession = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
           if (!liveSession) return;
           markSessionThreadObserved(
             liveSession,
-            event.thread_id,
+            observedThreadId,
             event.timestamp || nowIso(),
           );
         });
@@ -614,7 +627,7 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
         session_id: requestRecord.session_key,
         command_id: requestRecord.command_id,
         stage: event.type || "event",
-        thread_id: event.thread_id || "",
+        thread_id: observedThreadId,
         timestamp: nowIso(),
       });
     },

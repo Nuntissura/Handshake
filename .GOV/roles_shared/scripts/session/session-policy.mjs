@@ -78,6 +78,7 @@ export const ROLE_MODEL_PROFILE_RUNTIME_DECLARED_ONLY = "DECLARED_ONLY";
 export const ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH = "OPENAI_GPT_5_4_XHIGH";
 export const ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH = "OPENAI_GPT_5_2_XHIGH";
 export const ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX = "CLAUDE_CODE_OPUS_4_6_THINKING_MAX";
+export const ROLE_MODEL_PROFILE_OPENAI_CODEX_SPARK_5_3_XHIGH = "OPENAI_CODEX_SPARK_5_3_XHIGH";
 export const ROLE_SESSION_PRIMARY_MODEL = "gpt-5.4";
 export const ROLE_SESSION_FALLBACK_MODEL = "gpt-5.2";
 export const ROLE_SESSION_REASONING_REQUIRED = "EXTRA_HIGH";
@@ -121,18 +122,32 @@ export const ROLE_MODEL_PROFILE_CATALOG = Object.freeze({
     profile_id: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
     provider: "ANTHROPIC",
     session_tool: "claude-code",
-    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_DECLARED_ONLY,
-    claim_model: "claude-code-opus-4.6-thinking-max",
+    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED,
+    claim_model: "claude-opus-4-6",
     claim_model_aliases: Object.freeze([
-      "claude-code-opus-4.6-thinking-max",
+      "claude-opus-4-6",
       "Claude Code Opus 4.6 Thinking (Highest Available)",
       "Claude Code Opus 4.6",
     ]),
     reasoning_strength: ROLE_SESSION_REASONING_REQUIRED,
-    launch_model: "",
-    launch_reasoning_config_key: "",
-    launch_reasoning_config_value: "",
-    reasoning_policy_note: "Opus 4.6 Thinking / highest available in Claude Code CLI",
+    launch_model: "claude-opus-4-6",
+    launch_reasoning_config_key: "effort",
+    launch_reasoning_config_value: "max",
+    reasoning_policy_note: "effort=max (Opus 4.6 extended thinking, highest available in Claude Code CLI)",
+  }),
+  [ROLE_MODEL_PROFILE_OPENAI_CODEX_SPARK_5_3_XHIGH]: Object.freeze({
+    profile_id: ROLE_MODEL_PROFILE_OPENAI_CODEX_SPARK_5_3_XHIGH,
+    provider: "OPENAI",
+    session_tool: CLI_SESSION_TOOL,
+    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED,
+    claim_model: "gpt-5.3-codex-spark",
+    claim_model_aliases: Object.freeze(["gpt-5.3-codex-spark", "GPT-5.3-Codex-Spark", "Codex Spark"]),
+    reasoning_strength: ROLE_SESSION_REASONING_REQUIRED,
+    launch_model: "gpt-5.3-codex-spark",
+    launch_reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
+    launch_reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
+    reasoning_policy_note: `${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE} (Codex Spark: fast coder, lower token cost)`,
+    allowed_roles: Object.freeze(["CODER"]),
   }),
 });
 export const ROLE_MODEL_PROFILE_IDS = Object.freeze(Object.keys(ROLE_MODEL_PROFILE_CATALOG));
@@ -147,6 +162,7 @@ export const ROLE_MODEL_PROFILE_FALLBACKS = Object.freeze({
   [ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
   [ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
   [ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX]: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
+  [ROLE_MODEL_PROFILE_OPENAI_CODEX_SPARK_5_3_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
 });
 export const WP_TOKEN_BUDGET_POLICY_ID = "ORCHESTRATOR_MANAGED_V1";
 export const WP_TOKEN_LEDGER_HEALTH_POLICY_ID = "ORCHESTRATOR_MANAGED_LEDGER_V1";
@@ -503,6 +519,16 @@ export function isDisallowedCodexModelAlias(value) {
 export function isAllowedPrimaryOrFallbackModel(value) {
   const token = String(value || "").trim().toLowerCase();
   return token === ROLE_SESSION_PRIMARY_MODEL || token === ROLE_SESSION_FALLBACK_MODEL;
+}
+
+export function isAllowedProfileModel(value) {
+  const token = String(value || "").trim().toLowerCase();
+  for (const profile of Object.values(ROLE_MODEL_PROFILE_CATALOG)) {
+    if (profile.runtime_support !== ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED) continue;
+    if (token === String(profile.launch_model || "").toLowerCase()) return true;
+    if (token === String(profile.claim_model || "").toLowerCase()) return true;
+  }
+  return false;
 }
 
 export function buildRemoteBackupUrl(originTreeBase, branch) {
