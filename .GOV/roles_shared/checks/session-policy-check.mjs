@@ -266,7 +266,8 @@ function checkPacket(filePath) {
 
   const coderModel = parseSingleField(text, "CODER_MODEL");
   const coderStrength = parseSingleField(text, "CODER_REASONING_STRENGTH");
-  if (coderModel && !isPlaceholder(coderModel) && /codex/i.test(coderModel)) {
+  const roleModelProfilePolicy = parseSingleField(text, "ROLE_MODEL_PROFILE_POLICY");
+  if (coderModel && !isPlaceholder(coderModel) && /codex/i.test(coderModel) && !roleModelProfilePolicy) {
     errors.push(`${rel}: CODER_MODEL must not use Codex model aliases in new-format packets`);
   }
   if (coderStrength && !isPlaceholder(coderStrength) && !/^(LOW|MEDIUM|HIGH|EXTRA_HIGH)$/i.test(coderStrength)) {
