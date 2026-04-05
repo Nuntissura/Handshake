@@ -403,7 +403,6 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 
-- **[WP-1-Product-Governance-Artifact-Registry-v1]** - [IN_PROGRESS]
 
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
@@ -509,6 +508,8 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Storage-Capability-Boundary-Refactor-v1]** - [VALIDATED]
 
 - **[WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1]** - [VALIDATED]
+
+- **[WP-1-Product-Governance-Artifact-Registry-v1]** - [VALIDATED]
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]

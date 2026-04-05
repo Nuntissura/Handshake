@@ -119,15 +119,15 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** In Progress
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
-- MAIN_CONTAINMENT_STATUS: NOT_STARTED
+- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
-- MERGED_MAIN_COMMIT: NONE
+- MERGED_MAIN_COMMIT: 4ee814b
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
-- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-04-05T19:15:00Z
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
-- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
+- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
 - CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
@@ -189,16 +189,16 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
-Next: N/A
+Next: CLOSED
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: Governance Pack project-specific instantiation 7.5.4.8 | CODE_SURFACES: src/backend/handshake_core/src/governance_artifact_registry.rs; src/backend/handshake_core/src/storage/mod.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_artifact_registry | EXAMPLES: a GovernanceArtifactRegistryManifest with SoftwareDelivery profile can be serialized, stored, loaded, and deserialized with schema ID hsk.governance_artifact_registry@1 and all entries retain their artifact_id, kind, provenance, and content_hash, a GovernanceArtifactRegistryEntry with kind Codex correctly serializes to and from JSON with the expected schema version, profile extension validation passes for the governance registry extension when attached to a SoftwareDelivery structured collaboration record, profile extension validation rejects the governance registry extension when attached to a non-SoftwareDelivery record (e.g. Research or Generic), GovernanceArtifactKind enum covers all canonical types from spec 7.5.4.3 and serialization is exhaustive | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Canonical structured collaboration artifact family [ADD v02.167] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs; src/backend/handshake_core/src/governance_artifact_registry.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml structured_collaboration_schema | EXAMPLES: a GovernanceArtifactRegistryManifest with SoftwareDelivery profile can be serialized, stored, loaded, and deserialized with schema ID hsk.governance_artifact_registry@1 and all entries retain their artifact_id, kind, provenance, and content_hash, a GovernanceArtifactRegistryEntry with kind Codex correctly serializes to and from JSON with the expected schema version, profile extension validation passes for the governance registry extension when attached to a SoftwareDelivery structured collaboration record, profile extension validation rejects the governance registry extension when attached to a non-SoftwareDelivery record (e.g. Research or Generic), GovernanceArtifactKind enum covers all canonical types from spec 7.5.4.3 and serialization is exhaustive | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Base envelope + profile extension contract [ADD v02.168] | CODE_SURFACES: src/backend/handshake_core/src/governance_artifact_registry.rs; src/backend/handshake_core/src/locus/types.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_artifact_registry | EXAMPLES: a GovernanceArtifactRegistryManifest with SoftwareDelivery profile can be serialized, stored, loaded, and deserialized with schema ID hsk.governance_artifact_registry@1 and all entries retain their artifact_id, kind, provenance, and content_hash, a GovernanceArtifactRegistryEntry with kind Codex correctly serializes to and from JSON with the expected schema version, profile extension validation passes for the governance registry extension when attached to a SoftwareDelivery structured collaboration record, profile extension validation rejects the governance registry extension when attached to a non-SoftwareDelivery record (e.g. Research or Generic), GovernanceArtifactKind enum covers all canonical types from spec 7.5.4.3 and serialization is exhaustive | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Governance Pack project-specific instantiation 7.5.4.8 | CODE_SURFACES: src/backend/handshake_core/src/governance_artifact_registry.rs; src/backend/handshake_core/src/storage/mod.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_artifact_registry | EXAMPLES: a GovernanceArtifactRegistryManifest with SoftwareDelivery profile can be serialized, stored, loaded, and deserialized with schema ID hsk.governance_artifact_registry@1 and all entries retain their artifact_id, kind, provenance, and content_hash, a GovernanceArtifactRegistryEntry with kind Codex correctly serializes to and from JSON with the expected schema version, profile extension validation passes for the governance registry extension when attached to a SoftwareDelivery structured collaboration record, profile extension validation rejects the governance registry extension when attached to a non-SoftwareDelivery record (e.g. Research or Generic), GovernanceArtifactKind enum covers all canonical types from spec 7.5.4.3 and serialization is exhaustive | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Canonical structured collaboration artifact family [ADD v02.167] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs; src/backend/handshake_core/src/governance_artifact_registry.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml structured_collaboration_schema | EXAMPLES: a GovernanceArtifactRegistryManifest with SoftwareDelivery profile can be serialized, stored, loaded, and deserialized with schema ID hsk.governance_artifact_registry@1 and all entries retain their artifact_id, kind, provenance, and content_hash, a GovernanceArtifactRegistryEntry with kind Codex correctly serializes to and from JSON with the expected schema version, profile extension validation passes for the governance registry extension when attached to a SoftwareDelivery structured collaboration record, profile extension validation rejects the governance registry extension when attached to a non-SoftwareDelivery record (e.g. Research or Generic), GovernanceArtifactKind enum covers all canonical types from spec 7.5.4.3 and serialization is exhaustive | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Base envelope + profile extension contract [ADD v02.168] | CODE_SURFACES: src/backend/handshake_core/src/governance_artifact_registry.rs; src/backend/handshake_core/src/locus/types.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_artifact_registry | EXAMPLES: a GovernanceArtifactRegistryManifest with SoftwareDelivery profile can be serialized, stored, loaded, and deserialized with schema ID hsk.governance_artifact_registry@1 and all entries retain their artifact_id, kind, provenance, and content_hash, a GovernanceArtifactRegistryEntry with kind Codex correctly serializes to and from JSON with the expected schema version, profile extension validation passes for the governance registry extension when attached to a SoftwareDelivery structured collaboration record, profile extension validation rejects the governance registry extension when attached to a non-SoftwareDelivery record (e.g. Research or Generic), GovernanceArtifactKind enum covers all canonical types from spec 7.5.4.3 and serialization is exhaustive | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -839,131 +839,132 @@ rg -n "GovernanceArtifactKind|governance_artifact_registry" src/backend/handshak
 - (Validator appends official audits and verdicts here. Append-only.)
 
 ### WP Validator Report 1
-- DATE: 2026-04-05T19:05:00Z
-- VALIDATOR_ROLE: WP_VALIDATOR
-- VALIDATOR_MODEL: claude-opus-4-6
-- VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX
-- COMMIT: 277410a
-- BRANCH: validate/WP-1-Product-Governance-Artifact-Registry-v1
-- SPEC_TARGET: Handshake_Master_Spec_v02.179.md
-- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V4
-- VALIDATION_CONTEXT: OK
-- GOVERNANCE_VERDICT: PASS
-- TEST_VERDICT: PASS
-- CODE_REVIEW_VERDICT: PASS
-- HEURISTIC_REVIEW_VERDICT: PASS
-- SPEC_ALIGNMENT_VERDICT: PASS
-- ENVIRONMENT_VERDICT: PASS
-- DISPOSITION: NONE
-- LEGAL_VERDICT: PASS
-- SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
-- WORKFLOW_VALIDITY: VALID
-- SCOPE_VALIDITY: IN_SCOPE
-- PROOF_COMPLETENESS: PROVEN
-- INTEGRATION_READINESS: READY
-- DOMAIN_GOAL_COMPLETION: COMPLETE
-- MECHANICAL_TRACK_VERDICT: PASS
-- SPEC_RETENTION_TRACK_VERDICT: PASS
-- Verdict: PASS
+DATE: 2026-04-05T19:05:00Z
+VALIDATOR_ROLE: WP_VALIDATOR
+VALIDATOR_MODEL: claude-opus-4-6
+VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX
+COMMIT: 277410a
+BRANCH: validate/WP-1-Product-Governance-Artifact-Registry-v1
+SPEC_TARGET: Handshake_Master_Spec_v02.179.md
+GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V4
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+MECHANICAL_TRACK_VERDICT: PASS
+SPEC_RETENTION_TRACK_VERDICT: PASS
+VALIDATOR_RISK_TIER: HIGH
+Verdict: PASS
 
-- CLAUSES_REVIEWED:
+CLAUSES_REVIEWED:
   - Governance Pack project-specific instantiation 7.5.4.8: GovernanceArtifactKind enum (governance_artifact_registry.rs:18-25) defines 6 governance pack component kinds {Codex, Protocols, Rubrics, Checks, Templates, Schemas}. GovernanceArtifactRegistryManifest (governance_artifact_registry.rs:72-88) carries schema_id, schema_version, registry_id, entries. GovernanceArtifactRegistryStore trait (governance_artifact_registry.rs:86-97) provides load_manifest, save_manifest, list_manifests with StorageError boundary. InMemoryGovernanceArtifactRegistryStore (governance_artifact_registry.rs:103-139) implements test-time contract. Tests at governance_artifact_registry.rs:142-245 cover round-trip, kind exhaustiveness, store contract, and serde extension fields.
   - Canonical structured collaboration artifact family [ADD v02.167]: GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1 = "hsk.governance_artifact_registry@1" (locus/types.rs:824-825). GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1 = "1" (locus/types.rs:828). GovernanceArtifactRegistry variant added to StructuredCollaborationRecordFamily (locus/types.rs:839). Schema descriptor wired at locus/types.rs:988-996 with schema_id, schema_version, record_kind="governance_artifact_registry", summary_family=None. Test at locus/types.rs:1820-1833 verifies descriptor correctness.
   - Base envelope + profile extension contract [ADD v02.168]: GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1 = "hsk.ext.software_delivery.governance_artifact_registry@1" (locus/types.rs:826-827). validate_profile_extension signature extended with project_profile_kind parameter (locus/types.rs:1652-1653). SoftwareDelivery-only guard at locus/types.rs:1688-1698 pushes IncompatibleProfileExtension when profile is non-SoftwareDelivery. Schema version consistency check at locus/types.rs:1700-1708. Acceptance test at locus/types.rs:1835-1853 confirms SoftwareDelivery passes. Rejection test at locus/types.rs:1855-1873 confirms Research profile is rejected with IncompatibleProfileExtension issue.
 
-- NOT_PROVEN:
+NOT_PROVEN:
   - NONE
 
-- MAIN_BODY_GAPS:
+MAIN_BODY_GAPS:
   - NONE
 
-- QUALITY_RISKS:
+QUALITY_RISKS:
   - NONE
 
-- VALIDATOR_RISK_TIER: HIGH
-
-- DIFF_ATTACK_SURFACES:
+DIFF_ATTACK_SURFACES:
   - GovernanceArtifactKind serde: snake_case rename_all could produce unexpected wire values if new variants are added with multi-word names; current variants are all single-word so this is safe now
   - validate_profile_extension now takes an additional parameter -- callers outside locus/types.rs could break if the function were pub; it is fn (private), so safe
   - InMemoryGovernanceArtifactRegistryStore empty-entries validation in save_manifest: returns StorageError::Validation, which is a &str reference -- must not introduce lifetime issues (it uses a static str literal, so safe)
   - GovernanceArtifactRegistryManifest serde defaults: default_governance_artifact_registry_schema_id and default_governance_artifact_registry_schema_version inject the V1 constants, so deserialization of records without schema_id/version still produces valid V1 records
 
-- INDEPENDENT_CHECKS_RUN:
+INDEPENDENT_CHECKS_RUN:
   - cargo test --lib -- governance_artifact_registry => 7 passed, 0 failed
   - cargo test --lib (full suite, no filter) => 214 passed, 0 failed, 0 regressions
   - Verified GovernanceArtifactKind::all() length (6) matches the enum variant count in governance_artifact_registry.rs:18-25 => exhaustive
   - Verified push_issue sets ok=false at locus/types.rs:930 => IncompatibleProfileExtension truly fails validation
 
-- COUNTERFACTUAL_CHECKS:
+COUNTERFACTUAL_CHECKS:
   - If GovernanceArtifactRegistry variant were removed from StructuredCollaborationRecordFamily (locus/types.rs:839), the match arm at locus/types.rs:988-996 would produce a compile error (non-exhaustive pattern)
   - If GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1 (locus/types.rs:826-827) were changed, the guard at locus/types.rs:1688 would never match and SoftwareDelivery-only enforcement would silently pass all profiles -- the rejection test at locus/types.rs:1855-1873 would catch this
   - If validate_profile_extension lost the project_profile_kind parameter (locus/types.rs:1652), the call site at locus/types.rs:1090-1094 would fail to compile (arity mismatch)
   - If GovernanceArtifactKind::Codex were removed, the all() const array at governance_artifact_registry.rs:29-36 would still compile but the governance_artifact_kind_is_exhaustive test would fail because assert_eq!(kinds.len(), 6) expects 6
 
-- BOUNDARY_PROBES:
+BOUNDARY_PROBES:
   - GovernanceArtifactRegistryStore trait uses crate::storage::StorageError (governance_artifact_registry.rs:12), establishing the same boundary contract as DiagnosticsStore (diagnostics/mod.rs:899-901); this is a codebase-established pattern for domain-specific store traits
   - The Database trait (storage/mod.rs:1568) is a monolithic trait for workspace/document/block/loom operations; domain stores like DiagnosticsStore and GovernanceArtifactRegistryStore are correctly kept separate
   - GovernanceArtifactRegistryManifest references GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1 and GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1 from crate::workflows::locus (governance_artifact_registry.rs:9-11), creating a compile-time dependency on the locus type constants
 
-- NEGATIVE_PATH_CHECKS:
+NEGATIVE_PATH_CHECKS:
   - InMemoryGovernanceArtifactRegistryStore::save_manifest rejects empty entries with StorageError::Validation at governance_artifact_registry.rs:123-124
   - validate_profile_extension pushes IncompatibleProfileExtension for non-SoftwareDelivery profiles at locus/types.rs:1689-1698; the test at locus/types.rs:1855-1873 exercises this path with ProjectProfileKind::Research
   - validate_profile_extension pushes SchemaVersionMismatch when extension_schema_version does not match at locus/types.rs:1700-1707
 
-- INDEPENDENT_FINDINGS:
+INDEPENDENT_FINDINGS:
   - GovernanceArtifactKind enum covers governance pack component kinds from spec 7.5.4.8 {codex, protocols, rubrics, checks, templates, schemas}, NOT the kernel artifact file types from spec 7.5.4.3 {spec, task_board, traceability_registry, refinements, stubs, packets, signatures, gates, templates}. The packet CANONICAL_CONTRACT_EXAMPLES reference to "spec 7.5.4.3" is an inaccurate spec section reference. The code taxonomy is correct for 7.5.4.8.
   - storage/mod.rs is listed in the packet HOT_FILES and EXPECTED_CODE_SURFACES but was not modified. The GovernanceArtifactRegistryStore is a standalone trait following the established DiagnosticsStore pattern. This is architecturally correct -- the Database trait is a monolithic interface for workspace/document/block operations and domain-specific stores are kept separate.
   - InMemoryGovernanceArtifactRegistryStore triggers #[warn(dead_code)] because it is only constructed in #[cfg(test)]. This is expected for a test-only in-memory implementation.
   - The coder's post-work gate fails with 10 errors (non-ASCII in packet, missing EVIDENCE_MAPPING, missing EVIDENCE COMMAND+EXIT_CODE, missing STATUS_HANDOFF hint, missing VALIDATION manifest coverage for all 3 changed files, and placeholder manifest entries). These are coder-side lifecycle completeness items, not code quality issues.
 
-- RESIDUAL_UNCERTAINTY:
+RESIDUAL_UNCERTAINTY:
   - The GovernanceArtifactKind taxonomy {Codex, Protocols, Rubrics, Checks, Templates, Schemas} is a design choice not explicitly enumerated in any single spec section; it represents a reasonable decomposition of 7.5.4.8 governance pack components but is not spec-mandated at this granularity
   - No Database-backed GovernanceArtifactRegistryStore implementation exists yet; only InMemory is provided. The trait boundary is correct for future PostgreSQL implementation but actual persistence is deferred.
 
-- SPEC_CLAUSE_MAP:
+SPEC_CLAUSE_MAP:
   - 7.5.4.8 Governance Pack instantiation -> governance_artifact_registry.rs:18-25 (GovernanceArtifactKind enum), governance_artifact_registry.rs:52-70 (GovernanceArtifactRegistryEntry with artifact_id/kind/provenance/content_hash), governance_artifact_registry.rs:72-88 (GovernanceArtifactRegistryManifest with schema_id/schema_version), governance_artifact_registry.rs:86-97 (GovernanceArtifactRegistryStore trait)
   - [ADD v02.167] Canonical structured collaboration artifact family -> locus/types.rs:824-825 (schema ID "hsk.governance_artifact_registry@1"), locus/types.rs:828 (schema version "1"), locus/types.rs:839 (GovernanceArtifactRegistry record family variant), locus/types.rs:988-996 (schema descriptor)
   - [ADD v02.168] Base envelope + profile extension contract -> locus/types.rs:826-827 (extension schema ID "hsk.ext.software_delivery.governance_artifact_registry@1"), locus/types.rs:1083-1094 (project_profile_kind parsing and forwarding), locus/types.rs:1688-1698 (SoftwareDelivery-only guard), locus/types.rs:1700-1708 (extension schema version check)
 
-- NEGATIVE_PROOF:
-  - GovernanceArtifactKind enum covers governance pack component categories from spec 7.5.4.8 {codex, protocols, rubrics, checks, templates, schemas}. It does NOT cover spec 7.5.4.3 kernel artifact file types {spec, task_board, traceability_registry, refinements, stubs, packets, signatures, gates, templates}. The packet's CANONICAL_CONTRACT_EXAMPLES claim "covers all canonical types from spec 7.5.4.3" is an inaccurate spec section reference. Only "templates" overlaps between the two taxonomies. Verified by reading spec 7.5.4.3 at Handshake_Master_Spec_v02.179.md:31759-31774 and comparing to code at governance_artifact_registry.rs:18-25.
-  - storage/mod.rs (packet HOT_FILES and EXPECTED_CODE_SURFACES) has zero diff lines. The GovernanceArtifactRegistryStore trait at governance_artifact_registry.rs:86-97 is standalone, importing only StorageError. No Database trait integration or registration exists.
+NEGATIVE_PROOF:
+  - GovernanceArtifactKind (governance_artifact_registry.rs:18-25) covers 6 governance pack component kinds but does NOT cover kernel file types from 7.5.4.3; the packet refinement CANONICAL_CONTRACT_EXAMPLES reference to "spec 7.5.4.3" is an inaccurate section reference (code is correct for 7.5.4.8)
+  - storage/mod.rs has zero diff lines despite being in HOT_FILES; GovernanceArtifactRegistryStore (governance_artifact_registry.rs:86-97) is standalone with StorageError import only, no Database trait integration
 
-- ANTI_VIBE_FINDINGS:
+ANTI_VIBE_FINDINGS:
   - NONE
 
-- SIGNED_SCOPE_DEBT:
+SIGNED_SCOPE_DEBT:
   - NONE
 
-- PRIMITIVE_RETENTION_PROOF:
+PRIMITIVE_RETENTION_PROOF:
   - StructuredCollaborationRecordFamily enum at locus/types.rs:834-855: all pre-existing variants (WorkPacketPacket, WorkPacketSummary, MicroTaskPacket, MicroTaskSummary, TaskBoardEntry, TaskBoardIndex, TaskBoardView, RoleMailboxIndex, RoleMailboxThreadLine) remain present; GovernanceArtifactRegistry is purely additive
   - structured_collaboration_schema_descriptor at locus/types.rs:960-1051: all pre-existing match arms retained; new GovernanceArtifactRegistry arm added at locus/types.rs:988-996
   - validate_structured_collaboration_record at locus/types.rs:1057-1130: pre-existing validation logic for WorkPacketPacket, MicroTaskPacket, WorkPacketSummary, MicroTaskSummary, TaskBoardEntry, TaskBoardIndex, TaskBoardView, RoleMailboxIndex, RoleMailboxThreadLine unchanged; GovernanceArtifactRegistry arm at locus/types.rs:1103 is empty (no additional validation beyond base envelope)
   - validate_profile_extension at locus/types.rs:1652: signature extended with project_profile_kind parameter; existing validation logic for extension_schema_id, extension_schema_version, compatibility preserved at locus/types.rs:1678-1718; new governance-specific guard is additive (locus/types.rs:1688-1709)
 
-- PRIMITIVE_RETENTION_GAPS:
+PRIMITIVE_RETENTION_GAPS:
   - NONE
 
-- SHARED_SURFACE_INTERACTION_CHECKS:
+SHARED_SURFACE_INTERACTION_CHECKS:
   - locus/types.rs StructuredCollaborationRecordFamily: new GovernanceArtifactRegistry variant is purely additive to the existing enum; serde rename_all="snake_case" serializes as "governance_artifact_registry" which does not conflict with existing variant names
   - locus/types.rs structured_collaboration_schema_descriptor: GovernanceArtifactRegistry arm at locus/types.rs:988-996 follows the same StructuredCollaborationSchemaDescriptor pattern as all other families; no existing arm modified
   - locus/types.rs validate_structured_collaboration_record: the GovernanceArtifactRegistry match arm at locus/types.rs:1103 is empty, meaning it relies solely on base envelope validation (same as RoleMailbox families). No new required fields beyond the base envelope.
   - lib.rs: pub mod governance_artifact_registry at lib.rs:9 is purely additive (alphabetically inserted); no existing module declarations disturbed
 
-- CURRENT_MAIN_INTERACTION_CHECKS:
+CURRENT_MAIN_INTERACTION_CHECKS:
   - Verified locus/types.rs on main (via merge-base): StructuredCollaborationRecordFamily has no GovernanceArtifactRegistry variant. The addition is non-conflicting.
-  - Verified validate_profile_extension on main has 2-parameter signature (value, result). The 3-parameter version (value, project_profile_kind, result) in this branch changes the private function signature; no external callers exist since fn is private to the module.
+  - Verified validate_profile_extension in locus/types.rs on main has 2-parameter signature (value, result). The 3-parameter version (value, project_profile_kind, result) in this branch changes the private function signature; no external callers exist since fn is private to the module.
   - lib.rs on main has no governance_artifact_registry module. Addition is purely additive at the correct alphabetical position.
 
-- DATA_CONTRACT_PROOF:
+DATA_CONTRACT_PROOF:
   - GovernanceArtifactRegistryManifest (governance_artifact_registry.rs:72-88): JSON-serializable with schema_id, schema_version, registry_id (UUID), entries. All fields are explicit machine-readable values with stable field names.
   - GovernanceArtifactRegistryEntry (governance_artifact_registry.rs:62-70): artifact_id (UUID), kind (enum -> snake_case string), provenance (structured with source_artifact, snapshot_version, imported_at DateTime), content_hash (string). Explicit structured fields, no overloaded text blobs.
   - GovernanceArtifactRegistryStore trait (governance_artifact_registry.rs:86-97): load/save/list pattern using StorageError from crate::storage, keeping PostgreSQL portability path open. No SQLite-specific semantics introduced.
   - GovernanceArtifactKind serde (governance_artifact_registry.rs:17): rename_all="snake_case" produces stable wire values {"codex", "protocols", "rubrics", "checks", "templates", "schemas"}.
   - Schema constants (locus/types.rs:824-828): "hsk.governance_artifact_registry@1" and version "1" follow the existing hsk.* namespace convention.
 
-- DATA_CONTRACT_GAPS:
+DATA_CONTRACT_GAPS:
   - NONE
+
+## GOVERNANCE_TEMPLATE_REFERENCE
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, merge progression truth is part of closure law:
   - `**Status:** Done` means PASS is recorded but main containment is still pending and requires:
     - `MAIN_CONTAINMENT_STATUS: MERGE_PENDING`
