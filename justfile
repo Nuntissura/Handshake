@@ -139,6 +139,9 @@ session-close role wp-id:
 session-reclaim-terminals wp-id role="" batch="CURRENT_BATCH":
 	node "{{GOV_ROOT}}/roles_shared/scripts/session/reclaim-owned-terminals.mjs" {{wp-id}} {{role}} {{batch}}
 
+session-scan-orphan-terminals *args="":
+	node "{{GOV_ROOT}}/roles_shared/scripts/session/scan-orphan-terminals.mjs" {{args}}
+
 session-registry-status wp-id="":
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-registry-status.mjs" {{wp-id}}
 
@@ -211,6 +214,7 @@ orchestrator-preflight:
 	@just gov-check
 	@just orchestrator-startup-truth-check
 	@just validator-spec-regression
+	@node "{{GOV_ROOT}}/roles_shared/scripts/session/scan-orphan-terminals.mjs"
 
 validator-preflight:
 	@just hard-gate-wt-001
