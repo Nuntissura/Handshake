@@ -13,7 +13,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { repoPathAbs, resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL, WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { repoPathAbs, resolveWorkPacketPath, GOV_ROOT_REPO_REL, WORK_PACKET_STORAGE_ROOT_REPO_REL, WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 const OFFICIAL_DIR = WORK_PACKET_STORAGE_ROOT_REPO_REL;
