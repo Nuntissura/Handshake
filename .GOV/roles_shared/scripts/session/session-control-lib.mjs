@@ -223,6 +223,11 @@ export function assertRoleLaunchProfileSupported({
       `Role profile ${selectedProfileId} for ${role}:${wpId} is governance-declared only (tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}). Implement provider-specific governed launch support before using it in ACP/session-control.`,
     );
   }
+  if (selectedProfile.allowed_roles && !selectedProfile.allowed_roles.includes(role)) {
+    throw new Error(
+      `Role profile ${selectedProfileId} is restricted to roles [${selectedProfile.allowed_roles.join(", ")}] but was assigned to ${role}:${wpId}. Choose a profile that supports this role.`,
+    );
+  }
   return selectedProfile;
 }
 
