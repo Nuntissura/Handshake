@@ -97,6 +97,11 @@ console.log(`- total_control_requests: ${controlRequests.length}`);
 console.log(`- total_control_results: ${controlResults.length}`);
 console.log(`- launch_batch_mode: ${batchSummary.launch_batch_mode}`);
 console.log(`- launch_batch_plugin_failure_count: ${batchSummary.launch_batch_plugin_failure_count}`);
+console.log(`- active_terminal_batch_id: ${batchSummary.active_terminal_batch_id || "<none>"}`);
+console.log(`- active_terminal_batch_started_at: ${batchSummary.active_terminal_batch_started_at || "<none>"}`);
+console.log(`- active_terminal_batch_last_rotated_at: ${batchSummary.active_terminal_batch_last_rotated_at || "<none>"}`);
+console.log(`- active_terminal_batch_claimed_at: ${batchSummary.active_terminal_batch_claimed_at || "<none>"}`);
+console.log(`- active_terminal_batch_reason: ${batchSummary.active_terminal_batch_reason || "<none>"}`);
 if (batchSummary.launch_batch_switched_at) {
   console.log(`- launch_batch_switched_at: ${batchSummary.launch_batch_switched_at}`);
 }
@@ -140,6 +145,7 @@ for (const session of sessions) {
   console.log(`  owned_terminal_process_id: ${session.owned_terminal_process_id || 0}`);
   console.log(`  owned_terminal_host_kind: ${session.owned_terminal_host_kind || "<none>"}`);
   console.log(`  owned_terminal_window_title: ${session.owned_terminal_window_title || "<none>"}`);
+  console.log(`  owned_terminal_batch_id: ${session.owned_terminal_batch_id || "<none>"}`);
   console.log(`  owned_terminal_reclaim_status: ${session.owned_terminal_reclaim_status || "<none>"}`);
   if (session.owned_terminal_recorded_at) {
     console.log(`  owned_terminal_recorded_at: ${session.owned_terminal_recorded_at}`);

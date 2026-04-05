@@ -9,6 +9,7 @@ import {
   appendJsonlLine,
   defaultRegistry,
   getOrCreateSessionRecord,
+  loadSessionRegistry,
   markCliEscalationUsed,
   markPluginResult,
   parseJsonlFile,
@@ -112,6 +113,7 @@ test("appendJsonlLine preserves all entries across concurrent writers", async ()
 
 test("batch launch mode flips after repeated plugin failures and can be reset", () => {
   const registry = defaultRegistry();
+  const initialTerminalBatchId = registry.active_terminal_batch_id;
   const session = getOrCreateSessionRecord(registry, {
     wp_id: "WP-TEST",
     role: "CODER",
@@ -138,6 +140,32 @@ test("batch launch mode flips after repeated plugin failures and can be reset", 
   assert.equal(batchSummary.launch_batch_plugin_failure_count, 0);
   assert.equal(Boolean(batchSummary.launch_batch_last_reset_at), true);
   assert.equal(batchSummary.launch_batch_switch_reason, "new governed batch");
+  assert.match(batchSummary.active_terminal_batch_id, /^TBATCH-/);
+  assert.notEqual(batchSummary.active_terminal_batch_id, initialTerminalBatchId);
+});
+
+test("loadSessionRegistry derives a stable terminal batch id for legacy registries missing the new fields", () => {
+  const repoRoot = makeTempRepoRoot("handshake-legacy-terminal-batch-");
+  try {
+    const registryPath = path.resolve(repoRoot, SESSION_REGISTRY_FILE);
+    fs.mkdirSync(path.dirname(registryPath), { recursive: true });
+    fs.writeFileSync(registryPath, JSON.stringify({
+      ...defaultRegistry(),
+      active_terminal_batch_id: undefined,
+      active_terminal_batch_started_at: undefined,
+      active_terminal_batch_last_rotated_at: undefined,
+      active_terminal_batch_claimed_at: undefined,
+      active_terminal_batch_reason: undefined,
+      terminal_batch_scope: undefined,
+    }, null, 2));
+
+    const first = loadSessionRegistry(repoRoot).registry;
+    const second = loadSessionRegistry(repoRoot).registry;
+    assert.match(first.active_terminal_batch_id, /^TBATCH-/);
+    assert.equal(first.active_terminal_batch_id, second.active_terminal_batch_id);
+  } finally {
+    removeTree(repoRoot);
+  }
 });
 
 test("getOrCreateSessionRecord preserves original authority fields for existing sessions", () => {

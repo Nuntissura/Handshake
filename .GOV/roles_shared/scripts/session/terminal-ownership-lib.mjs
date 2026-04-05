@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import {
+  ensureActiveTerminalBatch,
   getOrCreateSessionRecord,
   loadSessionRegistry,
   mutateSessionRegistrySync,
@@ -97,16 +98,24 @@ export function recordOwnedTerminalLaunch(repoRoot, sessionDescriptor, {
   if (!Number.isInteger(processId) || processId <= 0) return null;
   return mutateSessionRegistrySync(repoRoot, (registry) => {
     const session = getOrCreateSessionRecord(registry, sessionDescriptor);
+    const activeBatch = ensureActiveTerminalBatch(registry, {
+      reason: `governed terminal launch for ${session.session_key}`,
+      currentSessionKey: session.session_key,
+    });
     session.terminal_ownership_scope = SESSION_TERMINAL_OWNERSHIP_SCOPE_GOVERNED_SESSION;
     session.owned_terminal_process_id = processId;
     session.owned_terminal_host_kind = hostKind || CLI_ESCALATION_HOST_DEFAULT;
     session.owned_terminal_window_title = terminalTitle || session.terminal_title || "";
+    session.owned_terminal_batch_scope = activeBatch.terminal_batch_scope || "";
+    session.owned_terminal_batch_id = activeBatch.terminal_batch_id || "";
     session.owned_terminal_recorded_at = nowIso();
+    registry.active_terminal_batch_claimed_at = registry.active_terminal_batch_claimed_at || session.owned_terminal_recorded_at;
     session.owned_terminal_reclaimed_at = "";
     session.owned_terminal_reclaim_status = SESSION_TERMINAL_RECLAIM_STATUS_OWNED;
     return {
       session_key: session.session_key,
       owned_terminal_process_id: session.owned_terminal_process_id,
+      owned_terminal_batch_id: session.owned_terminal_batch_id,
     };
   });
 }
@@ -115,6 +124,7 @@ function matchesSelector(session, selector = {}) {
   if (selector.sessionKey && String(session.session_key || "") !== String(selector.sessionKey || "")) return false;
   if (selector.role && String(session.role || "").toUpperCase() !== String(selector.role || "").toUpperCase()) return false;
   if (selector.wpId && String(session.wp_id || "") !== String(selector.wpId || "")) return false;
+  if (selector.terminalBatchId && String(session.owned_terminal_batch_id || "") !== String(selector.terminalBatchId || "").toUpperCase()) return false;
   return true;
 }
 
@@ -163,6 +173,7 @@ export function reclaimOwnedSessionTerminals(repoRoot, selector = {}, {
     results.push({
       session_key: session.session_key,
       process_id: processId,
+      terminal_batch_id: session.owned_terminal_batch_id || "",
       reclaim_status: reclaimStatus,
       error,
     });

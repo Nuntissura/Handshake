@@ -1429,3 +1429,30 @@
 - FOLLOW_ON_ITEMS:
   - `RGF-85`
 - OUTCOME: the runtime-path resolver now understands reserved archive roots for `superseded` and `validated_closed` packets, packet creation ensures the lifecycle layout exists, and the repo carries explicit archive directories plus policy docs without forcing a risky bulk packet move
+
+### 2026.04.05.16 / GOV-CHANGE-20260405-16
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-85` by grouping registry-owned governed terminals under explicit terminal batch ids so closeout and manual reclaim can target only the intended governed run
+- CHANGE_TYPE: TERMINAL_BATCH_OWNERSHIP_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-85`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `Justfile`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/terminal-ownership-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/reclaim-owned-terminals.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-reset-batch-launch-mode.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles_shared/tests/session-registry-lib.test.mjs`
+  - `.GOV/roles_shared/tests/terminal-ownership-lib.test.mjs`
+  - `.GOV/roles_shared/schemas/ROLE_SESSION_REGISTRY.schema.json`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: governed system-terminal launches now stamp `owned_terminal_batch_id` plus the active registry batch, manual reclaim defaults to `CURRENT_BATCH` and can optionally target `ALL_BATCHES` or one explicit `BATCH_ID`, and operator-visible status surfaces now expose the active batch id so only the intended governed terminal set is reclaimed

@@ -212,6 +212,7 @@ function printSessionSummary() {
   console.log(`[LAUNCH_CLI_SESSION] cli_escalation_allowed=${sessionSummary.cli_escalation_allowed ? "YES" : "NO"}`);
   console.log(`[LAUNCH_CLI_SESSION] launch_batch_mode=${batchSummary.launch_batch_mode}`);
   console.log(`[LAUNCH_CLI_SESSION] launch_batch_plugin_failure_count=${batchSummary.launch_batch_plugin_failure_count}`);
+  console.log(`[LAUNCH_CLI_SESSION] active_terminal_batch_id=${batchSummary.active_terminal_batch_id || "<none>"}`);
   if (batchSummary.launch_batch_switched_at) {
     console.log(`[LAUNCH_CLI_SESSION] launch_batch_switched_at=${batchSummary.launch_batch_switched_at}`);
   }

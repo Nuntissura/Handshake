@@ -3,7 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { defaultRegistry, loadSessionRegistry, saveSessionRegistry } from "../scripts/session/session-registry-lib.mjs";
+import {
+  defaultRegistry,
+  loadSessionRegistry,
+  mutateSessionRegistrySync,
+  resetBatchLaunchMode,
+  saveSessionRegistry,
+} from "../scripts/session/session-registry-lib.mjs";
 import {
   launchOwnedSystemTerminal,
   reclaimOwnedSessionTerminals,
@@ -51,6 +57,7 @@ test("recordOwnedTerminalLaunch writes governed terminal ownership into the sess
     assert.equal(session.terminal_ownership_scope, "GOVERNED_SESSION");
     assert.equal(session.owned_terminal_process_id, 4242);
     assert.equal(session.owned_terminal_host_kind, "SYSTEM_TERMINAL");
+    assert.match(session.owned_terminal_batch_id, /^TBATCH-/);
     assert.equal(session.owned_terminal_reclaim_status, "OWNED");
   } finally {
     removeTree(repoRoot);
@@ -87,6 +94,73 @@ test("reclaimOwnedSessionTerminals marks the owned terminal as reclaimed and cle
     assert.equal(session.owned_terminal_process_id, 0);
     assert.equal(session.owned_terminal_reclaim_status, "RECLAIMED");
     assert.match(session.owned_terminal_reclaimed_at, /\d{4}-\d{2}-\d{2}T/);
+  } finally {
+    removeTree(repoRoot);
+  }
+});
+
+test("reclaimOwnedSessionTerminals honors terminal batch filtering", () => {
+  const repoRoot = makeTempRepoRoot("handshake-reclaim-terminal-batch-");
+  try {
+    saveSessionRegistry(repoRoot, defaultRegistry());
+
+    const firstLaunch = recordOwnedTerminalLaunch(repoRoot, {
+      wp_id: "WP-TEST",
+      role: "CODER",
+      local_branch: "feat/WP-TEST",
+      local_worktree_dir: "../wtc-test",
+      terminal_title: "CODER WP-TEST",
+      requested_model: "gpt-5.4",
+    }, {
+      processId: 1111,
+      hostKind: "SYSTEM_TERMINAL",
+      terminalTitle: "CODER WP-TEST",
+    });
+
+    const { registry: beforeResetRegistry } = loadSessionRegistry(repoRoot);
+    const firstBatchId = beforeResetRegistry.active_terminal_batch_id;
+    assert.equal(firstLaunch.owned_terminal_batch_id, firstBatchId);
+
+    const secondBatchId = mutateSessionRegistrySync(repoRoot, (registry) => {
+      resetBatchLaunchMode(registry, "operator-approved new governed batch");
+      return registry.active_terminal_batch_id;
+    });
+
+    const secondLaunch = recordOwnedTerminalLaunch(repoRoot, {
+      wp_id: "WP-TEST",
+      role: "WP_VALIDATOR",
+      local_branch: "validate/WP-TEST",
+      local_worktree_dir: "../wtv-test",
+      terminal_title: "WPVAL WP-TEST",
+      requested_model: "gpt-5.4",
+    }, {
+      processId: 2222,
+      hostKind: "SYSTEM_TERMINAL",
+      terminalTitle: "WPVAL WP-TEST",
+    });
+
+    assert.notEqual(firstBatchId, secondBatchId);
+    assert.equal(secondLaunch.owned_terminal_batch_id, secondBatchId);
+
+    const results = reclaimOwnedSessionTerminals(repoRoot, {
+      wpId: "WP-TEST",
+      terminalBatchId: secondBatchId,
+    }, {
+      inspectProcess: () => true,
+      stopProcess: () => {},
+    });
+
+    assert.equal(results.length, 1);
+    assert.equal(results[0].process_id, 2222);
+    assert.equal(results[0].terminal_batch_id, secondBatchId);
+
+    const { registry } = loadSessionRegistry(repoRoot);
+    const coderSession = registry.sessions.find((session) => session.role === "CODER");
+    const validatorSession = registry.sessions.find((session) => session.role === "WP_VALIDATOR");
+    assert.equal(coderSession.owned_terminal_process_id, 1111);
+    assert.equal(coderSession.owned_terminal_reclaim_status, "OWNED");
+    assert.equal(validatorSession.owned_terminal_process_id, 0);
+    assert.equal(validatorSession.owned_terminal_reclaim_status, "RECLAIMED");
   } finally {
     removeTree(repoRoot);
   }

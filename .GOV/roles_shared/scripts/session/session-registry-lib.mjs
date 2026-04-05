@@ -11,8 +11,10 @@ import {
   SESSION_ACTIVE_TERMINAL_KIND_NONE,
   SESSION_ACTIVE_TERMINAL_KIND_VALUES,
   SESSION_TERMINAL_OWNERSHIP_SCOPE_NONE,
+  SESSION_TERMINAL_OWNERSHIP_SCOPE_GOVERNED_SESSION,
   SESSION_TERMINAL_OWNERSHIP_SCOPE_VALUES,
   SESSION_TERMINAL_RECLAIM_STATUS_NONE,
+  SESSION_TERMINAL_RECLAIM_STATUS_RECLAIMED,
   SESSION_TERMINAL_RECLAIM_STATUS_VALUES,
   SESSION_COMMAND_STATUSES,
   SESSION_CONTROL_MODE,
@@ -66,6 +68,7 @@ const ACTIVE_BATCH_RUNTIME_STATES = new Set([
   "ACTIVE",
   "WAITING",
 ]);
+const TERMINAL_BATCH_ID_PREFIX = "TBATCH";
 
 function nowIso() {
   return new Date().toISOString();
@@ -152,6 +155,52 @@ function normalizeActiveTerminalKind(value) {
   return SESSION_ACTIVE_TERMINAL_KIND_NONE;
 }
 
+function buildTerminalBatchId() {
+  return `${TERMINAL_BATCH_ID_PREFIX}-${crypto.randomUUID().split("-")[0].toUpperCase()}`;
+}
+
+function deriveTerminalBatchIdFromRegistry(registry) {
+  const seed = [
+    registry?.launch_batch_last_reset_at || "",
+    registry?.launch_batch_switched_at || "",
+    registry?.updated_at || "",
+    registry?.schema_version || "",
+    registry?.schema_id || "",
+  ].join("|");
+  const digest = crypto.createHash("sha1").update(seed || "registry-bootstrap").digest("hex").slice(0, 8).toUpperCase();
+  return `${TERMINAL_BATCH_ID_PREFIX}-${digest}`;
+}
+
+function normalizeTerminalBatchId(value) {
+  const text = String(value || "").trim().toUpperCase();
+  if (!text) return "";
+  return text;
+}
+
+function normalizeTerminalBatchScope(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return text;
+}
+
+function sessionHasOwnedTerminal(session) {
+  return Number.isInteger(session?.owned_terminal_process_id)
+    && session.owned_terminal_process_id > 0
+    && String(session?.terminal_ownership_scope || "") === SESSION_TERMINAL_OWNERSHIP_SCOPE_GOVERNED_SESSION
+    && String(session?.owned_terminal_reclaim_status || "") !== SESSION_TERMINAL_RECLAIM_STATUS_RECLAIMED;
+}
+
+function rotateTerminalBatch(registry, reason = "manual terminal batch rotation") {
+  const rotatedAt = nowIso();
+  registry.terminal_batch_scope = SESSION_BATCH_SCOPE;
+  registry.active_terminal_batch_id = buildTerminalBatchId();
+  registry.active_terminal_batch_started_at = rotatedAt;
+  registry.active_terminal_batch_last_rotated_at = rotatedAt;
+  registry.active_terminal_batch_claimed_at = "";
+  registry.active_terminal_batch_reason = reason ? String(reason) : "";
+  return registry.active_terminal_batch_id;
+}
+
 function normalizeSessionRecord(session) {
   if (!session || typeof session !== "object") return session;
   session.control_mode = session.control_mode || SESSION_CONTROL_MODE;
@@ -179,6 +228,8 @@ function normalizeSessionRecord(session) {
     : 0;
   session.owned_terminal_host_kind = session.owned_terminal_host_kind || "";
   session.owned_terminal_window_title = session.owned_terminal_window_title || "";
+  session.owned_terminal_batch_scope = normalizeTerminalBatchScope(session.owned_terminal_batch_scope);
+  session.owned_terminal_batch_id = normalizeTerminalBatchId(session.owned_terminal_batch_id);
   session.owned_terminal_recorded_at = session.owned_terminal_recorded_at || "";
   session.owned_terminal_reclaimed_at = session.owned_terminal_reclaimed_at || "";
   session.owned_terminal_reclaim_status = SESSION_TERMINAL_RECLAIM_STATUS_VALUES.includes(session.owned_terminal_reclaim_status)
@@ -204,7 +255,47 @@ function normalizeRegistryBatchState(registry) {
   registry.launch_batch_switched_at = registry.launch_batch_switched_at || "";
   registry.launch_batch_switch_reason = registry.launch_batch_switch_reason || "";
   registry.launch_batch_last_reset_at = registry.launch_batch_last_reset_at || "";
+  registry.terminal_batch_scope = registry.terminal_batch_scope || SESSION_BATCH_SCOPE;
+  registry.active_terminal_batch_id = normalizeTerminalBatchId(registry.active_terminal_batch_id) || deriveTerminalBatchIdFromRegistry(registry);
+  registry.active_terminal_batch_started_at = registry.active_terminal_batch_started_at || nowIso();
+  registry.active_terminal_batch_last_rotated_at = registry.active_terminal_batch_last_rotated_at || registry.active_terminal_batch_started_at;
+  registry.active_terminal_batch_claimed_at = registry.active_terminal_batch_claimed_at || "";
+  registry.active_terminal_batch_reason = registry.active_terminal_batch_reason || "registry bootstrap";
   return registry;
+}
+
+function normalizeOwnedTerminalBatchAssignments(registry) {
+  if (!registry || typeof registry !== "object") return registry;
+  normalizeRegistryBatchState(registry);
+  registry.sessions = Array.isArray(registry.sessions) ? registry.sessions : [];
+  for (const session of registry.sessions) {
+    normalizeSessionRecord(session);
+    if (!sessionHasOwnedTerminal(session)) continue;
+    session.owned_terminal_batch_scope = session.owned_terminal_batch_scope || registry.terminal_batch_scope;
+    session.owned_terminal_batch_id = session.owned_terminal_batch_id || registry.active_terminal_batch_id;
+  }
+  return registry;
+}
+
+export function ensureActiveTerminalBatch(registry, {
+  reason = "governed terminal batch activation",
+  currentSessionKey = "",
+} = {}) {
+  normalizeOwnedTerminalBatchAssignments(registry);
+  const otherActiveSessions = (registry.sessions || []).some((session) => {
+    const sessionKeyValue = String(session?.session_key || "");
+    if (currentSessionKey && sessionKeyValue === String(currentSessionKey)) return false;
+    return ACTIVE_BATCH_RUNTIME_STATES.has(String(session?.runtime_state || "").trim().toUpperCase());
+  });
+  const currentSession = (registry.sessions || []).find((session) => String(session?.session_key || "") === String(currentSessionKey || ""));
+  const currentSessionOwnsTerminal = sessionHasOwnedTerminal(currentSession);
+  if (registry.active_terminal_batch_claimed_at && !otherActiveSessions && !currentSessionOwnsTerminal) {
+    rotateTerminalBatch(registry, reason);
+  }
+  return {
+    terminal_batch_scope: registry.terminal_batch_scope,
+    terminal_batch_id: registry.active_terminal_batch_id,
+  };
 }
 
 function recordBatchPluginFailure(registry, {
@@ -242,13 +333,15 @@ export function resetBatchLaunchMode(registry, reason = "manual reset") {
   registry.launch_batch_last_reset_at = nowIso();
   registry.launch_batch_switch_reason = reason ? String(reason) : "";
   registry.launch_batch_switched_at = "";
+  rotateTerminalBatch(registry, reason ? `operator-approved terminal batch reset: ${reason}` : "operator-approved terminal batch reset");
 }
 
 export function defaultRegistry() {
+  const createdAt = nowIso();
   return {
     schema_id: ROLE_SESSION_REGISTRY_SCHEMA_ID,
     schema_version: ROLE_SESSION_REGISTRY_SCHEMA_VERSION,
-    updated_at: nowIso(),
+    updated_at: createdAt,
     session_start_authority: SESSION_START_AUTHORITY,
     session_host_preference: SESSION_HOST_PREFERENCE,
     session_host_fallback: SESSION_HOST_FALLBACK,
@@ -272,6 +365,12 @@ export function defaultRegistry() {
     launch_batch_switched_at: "",
     launch_batch_switch_reason: "",
     launch_batch_last_reset_at: "",
+    terminal_batch_scope: SESSION_BATCH_SCOPE,
+    active_terminal_batch_id: buildTerminalBatchId(),
+    active_terminal_batch_started_at: createdAt,
+    active_terminal_batch_last_rotated_at: createdAt,
+    active_terminal_batch_claimed_at: "",
+    active_terminal_batch_reason: "registry bootstrap",
     sessions: [],
     processed_requests: [],
   };
@@ -324,6 +423,7 @@ export function loadSessionRegistry(repoRoot) {
   const registry = readJsonFile(filePath, defaultRegistry());
   normalizeRegistryBatchState(registry);
   registry.sessions = Array.isArray(registry.sessions) ? registry.sessions.map((session) => normalizeSessionRecord(session)) : [];
+  normalizeOwnedTerminalBatchAssignments(registry);
   registry.processed_requests = Array.isArray(registry.processed_requests) ? registry.processed_requests : [];
   return { filePath, registry };
 }
@@ -335,7 +435,7 @@ export function saveSessionRegistry(repoRoot, registry) {
 
 function saveSessionRegistryUnlocked(repoRoot, registry) {
   const filePath = path.resolve(repoRoot, SESSION_REGISTRY_FILE);
-  normalizeRegistryBatchState(registry);
+  normalizeOwnedTerminalBatchAssignments(registry);
   const next = {
     ...defaultRegistry(),
     ...registry,
@@ -472,6 +572,8 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
       owned_terminal_process_id: 0,
       owned_terminal_host_kind: "",
       owned_terminal_window_title: "",
+      owned_terminal_batch_scope: "",
+      owned_terminal_batch_id: "",
       owned_terminal_recorded_at: "",
       owned_terminal_reclaimed_at: "",
       owned_terminal_reclaim_status: SESSION_TERMINAL_RECLAIM_STATUS_NONE,
@@ -771,6 +873,8 @@ export function registrySessionSummary(session) {
     owned_terminal_process_id: session.owned_terminal_process_id || 0,
     owned_terminal_host_kind: session.owned_terminal_host_kind || "",
     owned_terminal_window_title: session.owned_terminal_window_title || "",
+    owned_terminal_batch_scope: session.owned_terminal_batch_scope || "",
+    owned_terminal_batch_id: session.owned_terminal_batch_id || "",
     owned_terminal_recorded_at: session.owned_terminal_recorded_at || "",
     owned_terminal_reclaimed_at: session.owned_terminal_reclaimed_at || "",
     owned_terminal_reclaim_status: session.owned_terminal_reclaim_status || SESSION_TERMINAL_RECLAIM_STATUS_NONE,
@@ -791,7 +895,7 @@ export function registrySessionSummary(session) {
 }
 
 export function registryBatchLaunchSummary(registry) {
-  normalizeRegistryBatchState(registry);
+  normalizeOwnedTerminalBatchAssignments(registry);
   return {
     launch_batch_mode: registry.launch_batch_mode,
     launch_batch_scope: registry.launch_batch_scope,
@@ -799,6 +903,12 @@ export function registryBatchLaunchSummary(registry) {
     launch_batch_switched_at: registry.launch_batch_switched_at || "",
     launch_batch_switch_reason: registry.launch_batch_switch_reason || "",
     launch_batch_last_reset_at: registry.launch_batch_last_reset_at || "",
+    terminal_batch_scope: registry.terminal_batch_scope || SESSION_BATCH_SCOPE,
+    active_terminal_batch_id: registry.active_terminal_batch_id || "",
+    active_terminal_batch_started_at: registry.active_terminal_batch_started_at || "",
+    active_terminal_batch_last_rotated_at: registry.active_terminal_batch_last_rotated_at || "",
+    active_terminal_batch_claimed_at: registry.active_terminal_batch_claimed_at || "",
+    active_terminal_batch_reason: registry.active_terminal_batch_reason || "",
     batch_cli_escalation_active: registry.launch_batch_mode === SESSION_BATCH_MODE_CLI_ESCALATION,
   };
 }
@@ -831,7 +941,7 @@ export function ensureSessionStateFiles(repoRoot) {
 export function validateRegistryShape(registry) {
   const errors = [];
   if (!registry || typeof registry !== "object") errors.push("registry must be an object");
-  normalizeRegistryBatchState(registry);
+  normalizeOwnedTerminalBatchAssignments(registry);
   if (registry.schema_id !== ROLE_SESSION_REGISTRY_SCHEMA_ID) errors.push(`schema_id must be ${ROLE_SESSION_REGISTRY_SCHEMA_ID}`);
   if (registry.schema_version !== ROLE_SESSION_REGISTRY_SCHEMA_VERSION) errors.push(`schema_version must be ${ROLE_SESSION_REGISTRY_SCHEMA_VERSION}`);
   if (registry.session_control_mode !== SESSION_CONTROL_MODE) errors.push(`session_control_mode must be ${SESSION_CONTROL_MODE}`);
@@ -862,6 +972,12 @@ export function validateRegistryShape(registry) {
   if (!Number.isInteger(registry.launch_batch_plugin_failure_count) || registry.launch_batch_plugin_failure_count < 0) {
     errors.push("launch_batch_plugin_failure_count must be a non-negative integer");
   }
+  if (registry.terminal_batch_scope !== SESSION_BATCH_SCOPE) {
+    errors.push(`terminal_batch_scope must be ${SESSION_BATCH_SCOPE}`);
+  }
+  if (!String(registry.active_terminal_batch_id || "").trim()) {
+    errors.push("active_terminal_batch_id is required");
+  }
   if (!Array.isArray(registry.sessions)) errors.push("sessions must be an array");
   if (!Array.isArray(registry.processed_requests)) errors.push("processed_requests must be an array");
   for (const session of registry.sessions || []) {
@@ -884,6 +1000,14 @@ export function validateRegistryShape(registry) {
     }
     if (!Number.isInteger(session.owned_terminal_process_id || 0) || (session.owned_terminal_process_id || 0) < 0) {
       errors.push(`session ${session.session_key || "<missing>"} has invalid owned_terminal_process_id ${session.owned_terminal_process_id}`);
+    }
+    if (sessionHasOwnedTerminal(session)) {
+      if (!String(session.owned_terminal_batch_id || "").trim()) {
+        errors.push(`session ${session.session_key || "<missing>"} is missing owned_terminal_batch_id`);
+      }
+      if (String(session.owned_terminal_batch_scope || "") !== SESSION_BATCH_SCOPE) {
+        errors.push(`session ${session.session_key || "<missing>"} has invalid owned_terminal_batch_scope ${session.owned_terminal_batch_scope}`);
+      }
     }
     if (!SESSION_TERMINAL_RECLAIM_STATUS_VALUES.includes(session.owned_terminal_reclaim_status || SESSION_TERMINAL_RECLAIM_STATUS_NONE)) {
       errors.push(`session ${session.session_key || "<missing>"} has invalid owned_terminal_reclaim_status ${session.owned_terminal_reclaim_status}`);

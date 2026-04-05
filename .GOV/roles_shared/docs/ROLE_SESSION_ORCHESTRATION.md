@@ -40,7 +40,7 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - Default escalation host: `SYSTEM_TERMINAL`
 - Legacy compatibility: `WINDOWS_TERMINAL` is accepted as an older token, but new packets/protocol examples should use `SYSTEM_TERMINAL`.
 - Manual `PRINT` output is a repair/debug surface, not the preferred runtime.
-- Governed system-terminal launches must record terminal ownership in the session registry (`owned_terminal_process_id`, host kind, window title, recorded time) so closeout can reclaim only registry-owned governed windows.
+- Governed system-terminal launches must record terminal ownership in the session registry (`owned_terminal_process_id`, host kind, window title, recorded time, `owned_terminal_batch_id`) so closeout can reclaim only registry-owned governed windows from the intended governed batch.
 
 ## Wake-Up / Notice Protocol
 - Primary wake channel: `VS_CODE_FILE_WATCH`
@@ -117,7 +117,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
 - Broker startup and the governed `session-*` helpers now run a recoverable self-settlement pass for missing terminal result rows. If an old request was rejected, already terminal in the session registry, or left without an active broker run, prefer the governed helpers over manual ledger edits and let runtime truth converge first.
 - If packet communication routing looks wrong, run `just wp-communication-health-check`, `just check-notifications`, and `just ack-notifications` with the explicit role/session identity before considering any deeper repair.
 - Do not hand-edit session-control ledgers, broker state, packet receipts, or packet notifications to "unstick" a session. Prefer the governed helpers or a controlled session close/recreate flow.
-- If a governed session launched through a system terminal remains open after closeout, use `just session-reclaim-terminals WP-{ID} [ROLE]` instead of killing terminals by guesswork.
+- If a governed session launched through a system terminal remains open after closeout, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` instead of killing terminals by guesswork.
 - If session/runtime truth disagrees with packet truth, packet truth still wins for scope, verdict, and acceptance. Repair the runtime projection; do not rewrite packet truth to match stale runtime state.
 - `PRINT` launch output is a repair/debug surface only. It is not proof that a governed session is healthy or resumable.
 
@@ -153,7 +153,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
   - `just session-send <ROLE> WP-{ID} "<prompt>"`
   - `just session-cancel <ROLE> WP-{ID}`
   - `just session-close <ROLE> WP-{ID}`
-  - `just session-reclaim-terminals WP-{ID} [ROLE]`
+  - `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`
   - `just handshake-acp-broker-status`
   - `just handshake-acp-broker-stop`
 - `just session-registry-status [WP-{ID}]`
