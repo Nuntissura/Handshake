@@ -282,6 +282,7 @@ Rules:
 Workflow semantics:
 - `MANUAL_RELAY` = Operator remains the main relay, but governed artifacts still apply
 - `ORCHESTRATOR_MANAGED` = Orchestrator steers sessions and workflow, but remains non-agentic and non-coding
+- For `MANUAL_RELAY`, prefer `just manual-relay-next WP-{ID}` to read the runtime-projected next actor and use `just manual-relay-dispatch WP-{ID}` only when the Operator explicitly wants to broker one governed role hop mechanically.
 
 ## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
 
@@ -337,6 +338,8 @@ Resume rule:
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just manual-relay-next WP-{ID}`
+- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK]`
 - supported launch hosts must auto-issue the first governed `START_SESSION` on the ordinary path; `start-*` remains the explicit repair surface when launch could not complete autonomously
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`

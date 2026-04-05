@@ -240,6 +240,12 @@ orchestrator-next wp-id="":
 orchestrator-steer-next wp-id model="PRIMARY":
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-steer-next.mjs" {{wp-id}} {{model}}
 
+manual-relay-next wp-id:
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-next.mjs" {{wp-id}}
+
+manual-relay-dispatch wp-id model="PRIMARY":
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-dispatch.mjs" {{wp-id}} {{model}}
+
 coder-next wp-id="":
 	@node "{{GOV_ROOT}}/roles/coder/scripts/coder-next.mjs" {{wp-id}}
 

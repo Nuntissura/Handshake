@@ -50,6 +50,12 @@ These are safe starting points for orientation and health checks.
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
   - `read-only`
   - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, and next commands
+- `just manual-relay-next WP-{ID}`
+  - `read-only`
+  - operator-facing next-step helper for `WORKFLOW_LANE=MANUAL_RELAY`; prints the runtime-projected next actor, target session, and exact governed follow-up commands without auto-steering
+- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK]`
+  - `runtime-write`
+  - operator-invoked broker for `WORKFLOW_LANE=MANUAL_RELAY`; starts or steers only the currently projected governed next actor and does not auto-discover future hops
 - `just wp-token-usage WP-{ID}`
   - `read-only`
   - print the governed per-WP token ledger aggregated from settled ACP session outputs
@@ -78,6 +84,12 @@ These are safe starting points for orientation and health checks.
   - `runtime-write`
   - launch or steer the next expected governed actor directly from runtime/receipt projection without a manually written relay prompt
   - when stalled-relay escalation is active, this is the canonical continue/repair command instead of silent waiting
+- `just manual-relay-next WP-{ID}`
+  - `read-only`
+  - for `WORKFLOW_LANE=MANUAL_RELAY`, inspect runtime next-actor truth without dispatching any prompt
+- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK]`
+  - `runtime-write`
+  - for `WORKFLOW_LANE=MANUAL_RELAY`, let the operator explicitly broker one governed start/send action against the currently projected next actor
 
 ## Minimal Live Read Set (Token Discipline)
 

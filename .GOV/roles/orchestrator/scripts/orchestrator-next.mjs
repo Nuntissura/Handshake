@@ -796,8 +796,11 @@ function main() {
     `just pre-work ${wpId}`,
   ];
   if (runtimeRelayCommand) cmds.push(runtimeRelayCommand);
+  if (String(workflowLane || "").trim().toUpperCase() === "MANUAL_RELAY") {
+    cmds.push(`just manual-relay-next ${wpId}`);
+  }
   if (needsStubCleanup) cmds.push(`just task-board-set ${wpId} READY_FOR_DEV`);
-  if (!runtimeRelayCommand) {
+  if (!runtimeRelayCommand && String(workflowLane || "").trim().toUpperCase() !== "MANUAL_RELAY") {
     cmds.push(`just launch-coder-session ${wpId}`);
     cmds.push(`just launch-wp-validator-session ${wpId}`);
   }

@@ -113,6 +113,8 @@ Primary commands:
 - `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just manual-relay-next WP-...`
+- `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK]`
 - `just start-coder-session WP-... [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-... [PRIMARY|FALLBACK]`
 - `just start-integration-validator-session WP-... [PRIMARY|FALLBACK]`
@@ -128,6 +130,8 @@ Primary commands:
 - `just session-registry-status [WP-...]`
 - `just active-lane-brief <ROLE> WP-... [--json]`
 - `just orchestrator-steer-next WP-... [PRIMARY|FALLBACK]`
+- `just manual-relay-next WP-...`
+- `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK]`
 - `just pre-work WP-...`
 - `just wp-heartbeat WP-... ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`
