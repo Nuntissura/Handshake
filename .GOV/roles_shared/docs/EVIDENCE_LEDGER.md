@@ -15,8 +15,8 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 
 ## Canonical evidence location (HARD)
 
-The canonical evidence for a WP lives INSIDE the WP work packet (append-only):
-- Path: `/.GOV/task_packets/{WP_ID}.md` for legacy flat packets, or `/.GOV/task_packets/{WP_ID}/packet.md` for folder packets
+The canonical evidence for a WP lives INSIDE the resolved Work Packet (append-only):
+- Path: logical `/.GOV/work_packets/{WP_ID}/packet.md`; current physical storage `/.GOV/task_packets/{WP_ID}/packet.md`; legacy flat compatibility `/.GOV/task_packets/{WP_ID}.md`
   - `## EVIDENCE` (commands, proof lines, hashes, artifacts)
   - `## VALIDATION_REPORTS` (Validator report + verdict)
 

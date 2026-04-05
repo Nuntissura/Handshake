@@ -293,7 +293,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
 - `ORCHESTRATOR_GATES.json (in gov_runtime)`
-- `.GOV/task_packets/WP-*/packet.md` or legacy `.GOV/task_packets/WP-*.md`
+- the resolved Work Packet path (logical `.GOV/work_packets/WP-*/packet.md`; current physical `.GOV/task_packets/WP-*/packet.md`; legacy flat `.GOV/task_packets/WP-*.md`)
 
 Noise-control rule:
 - In coder worktrees, `/.GOV/` is a live shared governance junction, not the coder authority surface.
@@ -471,7 +471,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 ## Active Workflow Adjustment [2025-12-28]
 - Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
 - At start: set the work packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH` through the `.GOV/` junction (edits land in the governance kernel). For newly created repo-governed packets, claim `gpt-5.4` + `EXTRA_HIGH`, or `gpt-5.2` + `EXTRA_HIGH` only when the primary model is unavailable. [CX-212F] Do NOT commit `.GOV/` files on your feature branch — the orchestrator commits governance changes on `gov_kernel`.
-- **Micro Task Workflow:** Work through micro tasks (`.GOV/task_packets/WP-{ID}/MT-001.md`, `MT-002.md`, etc.) in order. For each MT:
+- **Micro Task Workflow:** Work through micro tasks in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, `MT-002.md`, etc.) in order. For each MT:
   1. Set `CODER STATUS: IN_PROGRESS`
   2. Implement the clause described in the MT
   3. Set `CODER STATUS: DONE` with file:line evidence in `EVIDENCE` and commands in `TESTS_RUN`
@@ -572,16 +572,16 @@ Complete ALL steps before writing code. If any step fails, STOP and request help
 ### Step 1: Verify work packet Exists âœ‹ STOP
 
 **Check that orchestrator provided:**
-- [ ] work packet path mentioned (e.g., current `.GOV/task_packets/WP-{ID}/packet.md`; legacy `.GOV/task_packets/WP-{ID}.md`)
+- [ ] work packet path mentioned (logical `.GOV/work_packets/WP-{ID}/packet.md`; current physical `.GOV/task_packets/WP-{ID}/packet.md`; legacy `.GOV/task_packets/WP-{ID}.md`)
 - [ ] WP_ID in handoff message
 - [ ] "Orchestrator checklist complete" confirmation
-- [ ] Packet is an official work packet in `.GOV/task_packets/` (NOT a stub in `.GOV/task_packets/stubs/`)
+- [ ] Packet is an official work packet in the resolved Work Packet root (logical `.GOV/work_packets/`; current physical `.GOV/task_packets/`) and NOT a stub in the stub root (current physical `.GOV/task_packets/stubs/`)
 
 **Verification methods (try in order):**
 
 **Method 1: Check for file**
 ```bash
-# Current packet layout
+# Current physical storage compatibility (resolved Work Packet)
 ls -la .GOV/task_packets/WP-{ID}/packet.md
 
 # Legacy compatibility
@@ -598,7 +598,7 @@ Look for TASK_PACKET block in orchestrator's message.
 Orchestrator must create a work packet before I can start.
 
 Missing:
-- work packet file in .GOV/task_packets/
+- work packet file in the resolved Work Packet root (current physical storage: .GOV/task_packets/)
 - TASK_PACKET block in handoff
 
 Orchestrator: Please create work packet using:
@@ -708,7 +708,7 @@ If my understanding is correct, I'll proceed to Step 2. Otherwise, clarify neede
 ### Step 2: Read work packet âœ‹ STOP
 
 ```bash
-# Current packet layout
+# Current physical storage compatibility (resolved Work Packet)
 cat .GOV/task_packets/WP-{ID}/packet.md
 
 # legacy compatibility:
@@ -716,7 +716,7 @@ cat .GOV/task_packets/WP-{ID}.md
 ```
 
 Recommended (Refinement cross-check):
-- Open the official refinement path for the WP and read `LANDSCAPE_SCAN` (current: `.GOV/task_packets/WP-{ID}/refinement.md`; legacy compatibility: `.GOV/refinements/WP-{ID}.md`) before choosing libraries/architectural patterns.
+- Open the official refinement path for the WP and read `LANDSCAPE_SCAN` (logical `.GOV/work_packets/WP-{ID}/refinement.md`; current physical `.GOV/task_packets/WP-{ID}/refinement.md`; legacy compatibility `.GOV/refinements/WP-{ID}.md`) before choosing libraries/architectural patterns.
 - Also review `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` to avoid isolated implementations that miss cross-feature/primitive leverage; if missing/UNKNOWN for a cross-cutting WP, STOP and escalate to the Orchestrator.
 - If the WP requires a non-trivial technical approach choice and there is no `LANDSCAPE_SCAN` recorded: STOP and escalate to the Orchestrator (do not improvise an un-reviewed approach).
 
@@ -845,7 +845,7 @@ cat .GOV/roles_shared/docs/RUNBOOK_DEBUG.md
 BOOTSTRAP [CX-577, CX-622]
 ========================================
 WP_ID: WP-{phase}-{name}
-TASK_PACKET: .GOV/task_packets/WP-{phase}-{name}.md
+TASK_PACKET: logical .GOV/work_packets/WP-{phase}-{name}/packet.md (current physical storage may resolve to .GOV/task_packets/...)
 RISK_TIER: {LOW|MEDIUM|HIGH}
 TASK_TYPE: {DEBUG|FEATURE|REFACTOR|HYGIENE}
 
@@ -909,7 +909,7 @@ For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, skip this subflow entirely. Do not run
 SKELETON [CX-625, CX-GATE-001]
 ========================================
 WP_ID: WP-{phase}-{name}
-TASK_PACKET: .GOV/task_packets/WP-{phase}-{name}.md
+TASK_PACKET: logical .GOV/work_packets/WP-{phase}-{name}/packet.md (current physical storage may resolve to .GOV/task_packets/...)
 
 PROPOSED_CONTRACTS:
 - {Trait/Struct/Interface/SQL header proposal 1}
@@ -1507,7 +1507,7 @@ Ready for Validator review.
 âŒ BLOCKED: No work packet [CX-620]
 
 I searched:
-- .GOV/task_packets/ â†’ No WP-{ID} file found
+- resolved Work Packet root (logical `.GOV/work_packets/`; current physical `.GOV/task_packets/`) â†’ No WP-{ID} file found
 - Handoff message â†’ No TASK_PACKET block
 
 Orchestrator: Please run `just create-task-packet WP-{ID}`
@@ -1561,8 +1561,8 @@ User wants job cancellation. I'll start coding.
 ```
 Checking for work packet...
 
-$ ls .GOV/task_packets/WP-*Cancel*.md
-â†’ Found: .GOV/task_packets/WP-1-Job-Cancel.md
+$ ls .GOV/task_packets/WP-*Cancel*.md  # current physical compatibility probe
+â†’ Found: .GOV/task_packets/WP-1-Job-Cancel.md  # resolved Work Packet path
 
 Reading packet...
 [Outputs BOOTSTRAP block]
@@ -1647,12 +1647,12 @@ Now work is done.
 **Commands:**
 ```bash
 # Verify packet exists
-ls .GOV/task_packets/WP-{ID}/packet.md
+ls .GOV/task_packets/WP-{ID}/packet.md  # current physical compatibility probe
 # legacy compatibility:
 ls .GOV/task_packets/WP-{ID}.md
 
 # Read packet
-cat .GOV/task_packets/WP-{ID}/packet.md
+cat .GOV/task_packets/WP-{ID}/packet.md  # current physical compatibility probe
 # legacy compatibility:
 cat .GOV/task_packets/WP-{ID}.md
 

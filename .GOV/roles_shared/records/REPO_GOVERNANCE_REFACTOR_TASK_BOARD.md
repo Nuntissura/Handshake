@@ -139,7 +139,7 @@
 | RGF-80 | DONE | Failure Ledger Expansion | RGF-73 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-07` | smoketest schemas/templates, audit generators, board linkage helpers, positive-control records | smoketest reviews now use typed failure-ledger ownership and failure-class fields plus typed positive controls, so orchestrator/coder/validator/runtime/script/governance-drift/operator-UX failures stay mechanically distinguishable from what went well |
 | RGF-81 | DONE | Authority Surface Shrink Phase 2 | RGF-70, RGF-74 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-05` | packet authority helpers, runtime/task-board/build-order projections, compatibility docs and scripts | remaining duplicated status and path truth is collapsed further so packet headers and resolvers stay authoritative while projections and docs become thinner read-only surfaces |
 | RGF-82 | READY | Work-Packet Lifecycle Archival Layout | RGF-74, RGF-81 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | work-packet resolver layer, recordkeeping docs, archive/migration helpers | work-packet storage gains a governed lifecycle layout for active, superseded, and validated-closed packets without breaking resolver compatibility or forcing risky filesystem churn |
-| RGF-83 | READY | Legacy Path Reference Sweep | RGF-74, RGF-81 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | docs, tests, fixtures, compatibility wording, operator quickrefs | stale literal `task_packets` references outside legacy-compatibility contexts are removed so role guidance and helper fixtures consistently describe the logical `work_packets` model |
+| RGF-83 | DONE | Legacy Path Reference Sweep | RGF-74, RGF-81 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | docs, tests, fixtures, compatibility wording, operator quickrefs | stale literal `task_packets` references outside legacy-compatibility contexts are removed so role guidance and helper fixtures consistently describe the logical `work_packets` model |
 | RGF-84 | READY | Artifact Retention Policy | RGF-71 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | artifact cleanup helpers, closeout policy docs, retention manifests, topology records | closeout distinguishes evidence worth retaining from disposable build/test/runtime output, keeping `Handshake Artifacts` bounded without losing governed proof required for audits and recovery |
 | RGF-85 | READY | Terminal Session Batch Registry | RGF-72 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | session registry, terminal ownership helpers, closeout commands, operator viewport surfaces | governed terminal ownership is grouped by session batch so closeout can reclaim only windows created for a specific run while leaving all unrelated operator windows untouched |
 
@@ -214,10 +214,9 @@
 
 1. `RGF-79`
 2. `RGF-80`
-3. `RGF-83`
-4. `RGF-84`
-5. `RGF-82`
-6. `RGF-85`
+3. `RGF-84`
+4. `RGF-82`
+5. `RGF-85`
 
 ## Explicit Holds
 

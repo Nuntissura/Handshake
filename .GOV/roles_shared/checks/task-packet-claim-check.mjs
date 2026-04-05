@@ -25,8 +25,8 @@ import {
   validateDataContractSection,
 } from "../scripts/lib/data-contract-lib.mjs";
 
-// Canonical governance workspace packets live under `/.GOV/task_packets/`.
-// Legacy compatibility bundles must not be treated as governance SSoT.
+// Canonical governance packet truth resolves through the logical `/.GOV/work_packets/`
+// surface, with current physical storage still under `/.GOV/task_packets/`.
 const TASK_PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
 function fail(message, details = []) {

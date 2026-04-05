@@ -2,7 +2,8 @@
 /**
  * Work packet stub generator
  *
- * Creates a backlog-only stub under `.GOV/task_packets/stubs/` from the canonical template:
+ * Creates a backlog-only stub under the resolved Work Packet stub root
+ * (current physical storage: `.GOV/task_packets/stubs/`) from the canonical template:
  * - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
  *
  * Usage:
@@ -113,4 +114,3 @@ console.log(`1) Fill BUILD_ORDER_* + SPEC_ANCHOR_CANDIDATES + DEPENDENCIES/BLOCK
 console.log("2) Fill UI_UX_SKETCH + PRIMITIVES_AND_MATRIX_NOTES (draft; prefer too many UI controls early)");
 console.log("3) Ensure TASK_BOARD lists the stub under 'Stub Backlog (Not Activated)'");
 console.log("4) Run: just build-order-sync");
-

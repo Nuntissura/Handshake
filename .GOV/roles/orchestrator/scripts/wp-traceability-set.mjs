@@ -5,8 +5,10 @@
  * Updates `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` without manual table editing.
  *
  * Behavior:
- * - Prefers official packet path if present: `.GOV/task_packets/<ACTIVE>.md` or `.GOV/task_packets/<ACTIVE>/packet.md`
- * - Otherwise falls back to stub path if present: `.GOV/task_packets/stubs/<ACTIVE>.md`
+ * - Prefers the resolved official Work Packet path if present
+ *   (current physical storage: `.GOV/task_packets/<ACTIVE>.md` or `.GOV/task_packets/<ACTIVE>/packet.md`)
+ * - Otherwise falls back to the resolved stub path
+ *   (current physical storage: `.GOV/task_packets/stubs/<ACTIVE>.md`)
  */
 
 import fs from "node:fs";

@@ -159,7 +159,7 @@ Rules:
 - [ ] Produce the in-chat Technical Refinement Block (per `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).
 - [ ] Obtain USER_SIGNATURE for the WP.
 - [ ] Create `.GOV/refinements/{{WP_ID}}.md` (approved/signed).
-- [ ] Create the official task packet via `just create-task-packet {{WP_ID}}` (in `.GOV/task_packets/`).
+- [ ] Create the official Work Packet via `just create-task-packet {{WP_ID}}` (logical resolver: `.GOV/work_packets/`; current physical storage: `.GOV/task_packets/`).
 - [ ] Confirm `just create-task-packet {{WP_ID}}` also created the packet-declared `WP_COMMUNICATION_DIR` with `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl`.
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/records/TASK_BOARD.md` entry from STUB to Ready for Dev.

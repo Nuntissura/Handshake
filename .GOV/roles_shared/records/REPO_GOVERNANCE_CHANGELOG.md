@@ -1347,3 +1347,34 @@
   - `RGF-82`
   - `RGF-85`
 - OUTCOME: task-board terminal and active-status truth plus repo-root work-packet/task-board resolution now come from shared helpers, so resume/governance surfaces stop carrying their own packet-path fallback and board-status regex copies
+
+### 2026.04.05.13 / GOV-CHANGE-20260405-13
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-83` by sweeping high-authority guidance, templates, and user-facing governance messages so they describe the logical `work_packets` model first and only mention `.GOV/task_packets/` as current physical compatibility storage
+- CHANGE_TYPE: PATH_LANGUAGE_ALIGNMENT
+- DRIVER_EVIDENCE:
+  - `RGF-83`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/templates/AI_WORKFLOW_TEMPLATE.md`
+  - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
+  - `.GOV/roles/validator/README.md`
+  - `.GOV/roles_shared/docs/VALIDATOR_FILE_TOUCH_MAP.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/EVIDENCE_LEDGER.md`
+  - `.GOV/roles_shared/docs/QUALITY_GATE.md`
+  - `.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/checks/task-packet-claim-check.mjs`
+  - `.GOV/roles_shared/checks/gate-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-traceability-set.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: the authoritative human-facing surfaces now teach “resolve Work Packets through the logical `work_packets` model, with `.GOV/task_packets/` as compatibility storage” instead of presenting `task_packets` as the conceptual source of truth

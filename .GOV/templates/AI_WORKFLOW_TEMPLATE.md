@@ -23,7 +23,7 @@ This document is intended to be copied into other projects as a starting point. 
 ## Canonical inputs and precedence (template)
 1) `.GOV/spec/SPEC_CURRENT.md` (points to current master spec)
 2) Codex (repo root)
-3) Task Board (`.GOV/roles_shared/records/TASK_BOARD.md`) + task packet for the WP
+3) Task Board (`.GOV/roles_shared/records/TASK_BOARD.md`) + the resolved Work Packet for the WP
 4) Logger (optional; milestones/hard bugs only, root or `log_archive/`)
 5) Optional accepted decision records (if the project chooses to keep them)
 6) Optional historical/reference material (only if the project chooses to keep it)
@@ -41,14 +41,14 @@ This document is intended to be copied into other projects as a starting point. 
 | `.GOV/roles_shared/records/AGENT_REGISTRY.md` | Agent IDs + roles | Traceability for AI work |
 
 ## Roles (template)
-- Orchestrator: builds task packets; may not have repo access.
+- Orchestrator: builds Work Packets (using the task-packet template and resolver); may not have repo access.
 - Coder: implements changes; runs local checks; updates docs if needed.
 - Debugger: triages issues; uses `RUNBOOK_DEBUG`.
 - Validator: performs manual evidence-based review against codex/spec.
 - Owner/Reviewer: required review sign-off per `OWNERSHIP.md`.
 
 ## Task lifecycle (deterministic flow)
-1) Orchestrator produces a task packet using `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
+1) Orchestrator produces a Work Packet using `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
 2) Coder reads `.GOV/roles_shared/docs/START_HERE.md` + `.GOV/spec/SPEC_CURRENT.md`.
 3) Coder classifies task: DEBUG / FEATURE / REVIEW / REFACTOR / HYGIENE.
 4) Coder reads `.GOV/roles_shared/docs/ARCHITECTURE.md` or `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` based on type.
@@ -59,7 +59,7 @@ This document is intended to be copied into other projects as a starting point. 
 9) Reviewer validates against codex + required checks.
 
 ## Commands (single source)
-Keep the authoritative commands in `.GOV/roles_shared/docs/START_HERE.md` and the task packet. Standard set:
+Keep the authoritative commands in `.GOV/roles_shared/docs/START_HERE.md` and the resolved Work Packet. Standard set:
 - `just validate` (docs check + lint/tests + depcruise + fmt/clippy + deny)
 - `just codex-check`
 - `just scaffold-check`
@@ -92,7 +92,7 @@ These checks are designed to run in CI or locally:
 ## Logging and debug anchors
 Use stable error tags like `HSK-####` for repeatable failures.
 Add those tags to `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` with entrypoints and triage notes.
-Task Board + task packet act as the micro-log; the Handshake logger is for milestones/hard bugs when requested.
+Task Board + Work Packet act as the micro-log; the Handshake logger is for milestones/hard bugs when requested.
 
 ## Repository layout conventions (template)
 - `/.GOV/` is canonical operational guidance.
