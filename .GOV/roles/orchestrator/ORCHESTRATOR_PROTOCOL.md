@@ -499,8 +499,9 @@ Legacy flat compatibility:
 - For `PACKET_FORMAT_VERSION >= 2026-04-01`, packet creation and resume output must surface the active law bundle, not hide it:
   - `DATA_CONTRACT_PROFILE` and whether `DATA_CONTRACT_MONITORING` is active
   - `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`
-  - `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`
+  - `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`
   - the consequence that coder handoff must carry anti-vibe + signed-scope-debt self-audit, and validator PASS cannot coexist with unresolved anti-vibe or signed-scope debt
+  - for `PACKET_FORMAT_VERSION >= 2026-04-05` and `RISK_TIER=MEDIUM|HIGH`, the additional consequence that validator closeout is dual-track and PASS later requires both `MECHANICAL_TRACK_VERDICT=PASS` and `SPEC_RETENTION_TRACK_VERDICT=PASS`
   - when `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, the additional consequence that validator closeout later requires concrete `DATA_CONTRACT_PROOF` plus explicit `DATA_CONTRACT_GAPS`
 - `just pre-work WP-{ID}` is the blocking packet-integrity gate before delegation.
 

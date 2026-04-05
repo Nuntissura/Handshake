@@ -7,6 +7,7 @@ import {
 import { validateClauseReportConsistency, validatePacketClosureMonitoring } from "./packet-closure-monitor-lib.mjs";
 import { validateSemanticProofAssets } from "./semantic-proof-lib.mjs";
 import {
+  validatorReportProfileRequiresDualTrack,
   validatorReportProfileRequiresPrimitiveAudit,
   validatorReportProfileRequiresRiskAudit,
 } from "./validator-report-profile-lib.mjs";
@@ -130,6 +131,10 @@ function hasConcreteCodeReference(value) {
   );
 }
 
+function negativeProofLeaksToGovernance(value) {
+  return /\.GOV\/|gov_runtime\/|TASK_BOARD|RUNTIME_STATUS|ROLE_SESSION_REGISTRY|SESSION_CONTROL|VALIDATOR_PROTOCOL|ORCHESTRATOR_PROTOCOL|COMMAND_SURFACE_REFERENCE|governance closeout|outside the signed product scope/i.test(String(value || ""));
+}
+
 function parsePipeRecord(item) {
   const record = {};
   for (const part of String(item || "").split("|")) {
@@ -228,6 +233,8 @@ function parseValidationReport(packetText) {
     proofCompleteness: parseSectionField(section, "PROOF_COMPLETENESS").toUpperCase(),
     integrationReadiness: parseSectionField(section, "INTEGRATION_READINESS").toUpperCase(),
     domainGoalCompletion: parseSectionField(section, "DOMAIN_GOAL_COMPLETION").toUpperCase(),
+    mechanicalTrackVerdict: parseSectionField(section, "MECHANICAL_TRACK_VERDICT").toUpperCase(),
+    specRetentionTrackVerdict: parseSectionField(section, "SPEC_RETENTION_TRACK_VERDICT").toUpperCase(),
     validatorRiskTier: parseSectionField(section, "VALIDATOR_RISK_TIER").toUpperCase(),
     clausesReviewed: normalizeNoneFiltered(extractListItemsAfterLabel(section, "CLAUSES_REVIEWED")),
     notProven: normalizeNoneFiltered(extractListItemsAfterLabel(section, "NOT_PROVEN")),
@@ -246,6 +253,8 @@ function parseValidationReport(packetText) {
     primitiveRetentionGaps: normalizeNoneFiltered(extractListItemsAfterLabel(section, "PRIMITIVE_RETENTION_GAPS")),
     sharedSurfaceInteractionChecks: normalizeNoneFiltered(extractListItemsAfterLabel(section, "SHARED_SURFACE_INTERACTION_CHECKS")),
     currentMainInteractionChecks: normalizeNoneFiltered(extractListItemsAfterLabel(section, "CURRENT_MAIN_INTERACTION_CHECKS")),
+    dataContractProof: normalizeNoneFiltered(extractListItemsAfterLabel(section, "DATA_CONTRACT_PROOF")),
+    dataContractGaps: normalizeNoneFiltered(extractListItemsAfterLabel(section, "DATA_CONTRACT_GAPS")),
   };
 }
 
@@ -346,6 +355,7 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
   const packetFormatVersion = parseSingleField(packetText, "PACKET_FORMAT_VERSION");
   const packetRiskTier = parseSingleField(packetText, "RISK_TIER").toUpperCase();
   const validatorReportProfile = parseSingleField(packetText, "GOVERNED_VALIDATOR_REPORT_PROFILE");
+  const dataContractProfile = parseSingleField(packetText, "DATA_CONTRACT_PROFILE").toUpperCase();
   const sharedSurfaceRisk = parseSingleField(packetText, "SHARED_SURFACE_RISK").toUpperCase();
   const currentMainCompatibilityStatus = parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS").toUpperCase();
   const status = parseStatus(packetText);
@@ -355,6 +365,11 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
   const requiresCompletionLayer = packetRequiresCompletionLayerVerdicts(packetFormatVersion);
   const requiresRiskAudit = validatorReportProfileRequiresRiskAudit(validatorReportProfile);
   const requiresPrimitiveAudit = validatorReportProfileRequiresPrimitiveAudit(validatorReportProfile);
+  const requiresDualTrack = validatorReportProfileRequiresDualTrack(
+    validatorReportProfile,
+    packetFormatVersion,
+    packetRiskTier,
+  );
   const closedStatus = isClosedStatus(status);
   const folderPacket = /\/packet\.md$/i.test(String(packetPath || "").trim());
   const applicable = usesStructuredReport && requiresCompletionLayer && (!requireClosedStatus || closedStatus);
@@ -534,6 +549,36 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
     reviewValues: ["PARTIAL"],
     blockedValues: ["BLOCKED", "NOT_RUN"],
   });
+  if (requiresDualTrack && !report.mechanicalTrackVerdict) {
+    issues.push(issue("MECHANICAL_TRACK_VERDICT_MISSING", "BLOCKED", "MECHANICAL_TRACK_VERDICT missing for dual-track validator packet", {
+      coverage: "GOVERNANCE",
+      waivable: false,
+      source: "REPORT",
+    }));
+  }
+  if (requiresDualTrack && !report.specRetentionTrackVerdict) {
+    issues.push(issue("SPEC_RETENTION_TRACK_VERDICT_MISSING", "BLOCKED", "SPEC_RETENTION_TRACK_VERDICT missing for dual-track validator packet", {
+      coverage: "SPEC",
+      waivable: false,
+      source: "REPORT",
+    }));
+  }
+  if (requiresDualTrack) {
+    addVerdictIssue(issues, report.mechanicalTrackVerdict, "PASS", {
+      codePrefix: "MECHANICAL_TRACK_VERDICT",
+      failValues: ["FAIL"],
+      reviewValues: ["PARTIAL"],
+      blockedValues: ["BLOCKED", "NOT_RUN"],
+      source: "REPORT",
+    });
+    addVerdictIssue(issues, report.specRetentionTrackVerdict, "PASS", {
+      codePrefix: "SPEC_RETENTION_TRACK_VERDICT",
+      failValues: ["FAIL"],
+      reviewValues: ["PARTIAL"],
+      blockedValues: ["BLOCKED", "NOT_RUN"],
+      source: "REPORT",
+    });
+  }
   addVerdictIssue(issues, report.legalVerdict, "PASS", {
     codePrefix: "LEGAL_VERDICT",
     failValues: ["FAIL"],
@@ -689,6 +734,69 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
     }
   }
 
+  const mechanicalTrackPassState = [
+    report.governanceVerdict === "PASS",
+    report.testVerdict === "PASS",
+    report.codeReviewVerdict === "PASS",
+    report.heuristicReviewVerdict === "PASS",
+    report.environmentVerdict === "PASS",
+    report.workflowValidity === "VALID",
+    report.scopeValidity === "IN_SCOPE",
+    report.proofCompleteness === "PROVEN",
+    report.integrationReadiness === "READY",
+    report.domainGoalCompletion === "COMPLETE",
+  ].every(Boolean);
+
+  const specRetentionTrackPassState =
+    report.specAlignmentVerdict === "PASS"
+    && report.notProven.length === 0
+    && (!requiresRiskAudit || report.mainBodyGaps.length === 0)
+    && (!requiresPrimitiveAudit || report.primitiveRetentionGaps.length === 0)
+    && (!packetRequiresSpecClauseMap(packetFormatVersion) || report.specClauseMap.length > 0)
+    && report.negativeProof.length > 0
+    && (!requiresPrimitiveAudit || report.primitiveRetentionProof.length > 0)
+    && (!requiresPrimitiveAudit || report.sharedSurfaceInteractionChecks.length > 0)
+    && (!requiresPrimitiveAudit || report.currentMainInteractionChecks.length > 0)
+    && (!requiresPrimitiveAudit || !lacksConcreteListEvidence(report.primitiveRetentionProof))
+    && (!requiresPrimitiveAudit || !lacksConcreteListEvidence(report.sharedSurfaceInteractionChecks))
+    && (!requiresPrimitiveAudit || !lacksConcreteListEvidence(report.currentMainInteractionChecks))
+    && (!packetRequiresSpecClauseMap(packetFormatVersion) || !lacksConcreteListEvidence(report.specClauseMap))
+    && !lacksConcreteListEvidence(report.negativeProof)
+    && !report.negativeProof.some((item) => negativeProofLeaksToGovernance(item))
+    && (dataContractProfile !== "LLM_FIRST_DATA_V1" || (report.dataContractProof.length > 0 && report.dataContractGaps.length === 0 && !lacksConcreteListEvidence(report.dataContractProof)));
+
+  if (requiresDualTrack && report.mechanicalTrackVerdict === "PASS" && !mechanicalTrackPassState) {
+    issues.push(issue("MECHANICAL_TRACK_OVERRUN", "FAIL", "MECHANICAL_TRACK_VERDICT=PASS conflicts with non-pass mechanical review fields", {
+      coverage: "GOVERNANCE",
+      waivable: false,
+      source: "REPORT",
+    }));
+  }
+
+  if (requiresDualTrack && report.specRetentionTrackVerdict === "PASS" && !specRetentionTrackPassState) {
+    issues.push(issue("SPEC_RETENTION_TRACK_OVERRUN", "FAIL", "SPEC_RETENTION_TRACK_VERDICT=PASS conflicts with non-pass spec-retention evidence", {
+      coverage: "SPEC",
+      waivable: false,
+      source: "REPORT",
+    }));
+  }
+
+  if (requiresDualTrack && report.legalVerdict === "PASS" && report.mechanicalTrackVerdict !== "PASS") {
+    issues.push(issue("LEGAL_TRACK_MECHANICAL_MISMATCH", "FAIL", "LEGAL_VERDICT=PASS requires MECHANICAL_TRACK_VERDICT=PASS for dual-track packets", {
+      coverage: "GOVERNANCE",
+      waivable: false,
+      source: "REPORT",
+    }));
+  }
+
+  if (requiresDualTrack && report.legalVerdict === "PASS" && report.specRetentionTrackVerdict !== "PASS") {
+    issues.push(issue("LEGAL_TRACK_SPEC_RETENTION_MISMATCH", "FAIL", "LEGAL_VERDICT=PASS requires SPEC_RETENTION_TRACK_VERDICT=PASS for dual-track packets", {
+      coverage: "SPEC",
+      waivable: false,
+      source: "REPORT",
+    }));
+  }
+
   const protectedSurfaceState = classifyProtectedSurfaceState(clauseClosure.parsed, report);
   if (clauseClosure.parsed?.sharedSurfaceRisk === "YES" && protectedSurfaceState !== "REVIEWED") {
     issues.push(issue(
@@ -704,6 +812,20 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
   }
 
   if (report.verdict === "PASS") {
+    if (requiresDualTrack && report.mechanicalTrackVerdict !== "PASS") {
+      issues.push(issue("PASS_TRACK_MECHANICAL_MISMATCH", "FAIL", "Verdict=PASS requires MECHANICAL_TRACK_VERDICT=PASS for dual-track packets", {
+        coverage: "GOVERNANCE",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
+    if (requiresDualTrack && report.specRetentionTrackVerdict !== "PASS") {
+      issues.push(issue("PASS_TRACK_SPEC_RETENTION_MISMATCH", "FAIL", "Verdict=PASS requires SPEC_RETENTION_TRACK_VERDICT=PASS for dual-track packets", {
+        coverage: "SPEC",
+        waivable: false,
+        source: "REPORT",
+      }));
+    }
     const rawNonPassIssues = issues.filter((item) => item.severity !== "BLOCKED" ? item.severity !== "PASS" : true);
     const rawUnwaivedPreview = applyWaivers(rawNonPassIssues, waiverLedger).unwaived;
     if (rawUnwaivedPreview.some((item) => item.severity === "FAIL" || item.severity === "REVIEW_REQUIRED" || item.severity === "BLOCKED")) {

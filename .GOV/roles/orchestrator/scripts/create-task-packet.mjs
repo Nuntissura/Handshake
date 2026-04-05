@@ -1278,6 +1278,11 @@ try {
     packetLawLines.push(
       'LAW_BUNDLE: coder handoff now requires anti-vibe + signed-scope-debt self-audit fields; validator PASS requires those lists to be exactly "- NONE".',
     );
+    if (PACKET_FORMAT_VERSION >= '2026-04-05') {
+      packetLawLines.push(
+        'LAW_BUNDLE: medium/high V4 validator closeout now uses explicit dual-track verdicts. PASS requires both MECHANICAL_TRACK_VERDICT=PASS and SPEC_RETENTION_TRACK_VERDICT=PASS.',
+      );
+    }
     if (dataContractProfile === 'LLM_FIRST_DATA_V1') {
       packetLawLines.push(
         'LAW_BUNDLE: active data contract packet - keep DATA_CONTRACT_MONITORING honest now, and expect concrete DATA_CONTRACT_PROOF plus DATA_CONTRACT_GAPS at validator closeout.',
@@ -1292,8 +1297,11 @@ try {
   if (PACKET_FORMAT_VERSION >= '2026-04-01') {
     nextCommands.splice(1, 0, `# Review packet law bundle: format=${PACKET_FORMAT_VERSION}, data_contract=${dataContractProfile}, coder_handoff_rigor=RUBRIC_SELF_AUDIT_V2, validator_report=SPLIT_DIFF_SCOPED_RIGOR_V4.`);
     nextCommands.splice(2, 0, '# On this packet family, shallow handoff is illegal: coder must supply anti-vibe + signed-scope-debt self-audit, and validator PASS requires both lists to be exactly "- NONE".');
+    if (PACKET_FORMAT_VERSION >= '2026-04-05') {
+      nextCommands.splice(3, 0, '# Medium/high V4 validator closeout is now dual-track: PASS later requires both MECHANICAL_TRACK_VERDICT=PASS and SPEC_RETENTION_TRACK_VERDICT=PASS.');
+    }
     if (dataContractProfile === 'LLM_FIRST_DATA_V1') {
-      nextCommands.splice(3, 0, '# Active data contract: confirm DATA_CONTRACT_MONITORING is credible before launch; validator closeout later requires concrete DATA_CONTRACT_PROOF and DATA_CONTRACT_GAPS.');
+      nextCommands.splice(PACKET_FORMAT_VERSION >= '2026-04-05' ? 4 : 3, 0, '# Active data contract: confirm DATA_CONTRACT_MONITORING is credible before launch; validator closeout later requires concrete DATA_CONTRACT_PROOF and DATA_CONTRACT_GAPS.');
     }
   }
   if (!isHydratedProfile) {

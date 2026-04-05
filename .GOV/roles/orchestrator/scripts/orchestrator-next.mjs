@@ -783,6 +783,9 @@ function main() {
     ...(packetFormatVersion >= "2026-04-01"
       ? ['Packet law: coder handoff must include anti-vibe + signed-scope-debt self-audit; validator PASS requires both lists to be exactly "- NONE".']
       : []),
+    ...(packetFormatVersion >= "2026-04-05"
+      ? ['Packet law: medium/high V4 validator closeout is dual-track; PASS later requires both MECHANICAL_TRACK_VERDICT=PASS and SPEC_RETENTION_TRACK_VERDICT=PASS.']
+      : []),
     ...(packetFormatVersion >= "2026-04-01" && /^LLM_FIRST_DATA_V1$/i.test(dataContractProfile)
       ? ['Packet law: active data contract packet - DATA_CONTRACT_MONITORING must stay credible now, and validator closeout later requires concrete DATA_CONTRACT_PROOF plus DATA_CONTRACT_GAPS.']
       : []),

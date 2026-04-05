@@ -1263,3 +1263,37 @@
   - `RGF-82`
   - `RGF-85`
 - OUTCOME: `just wp-timeline` now reports relay command counts, relay token share, burden level, and a recommended lane, while signature-time operator guidance now states the default policy explicitly: use `MANUAL_RELAY` for small and medium WPs unless autonomous steering or multi-WP parallelism is clearly worth the extra prompt tax
+
+### 2026.04.05.10 / GOV-CHANGE-20260405-10
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-79` by making the validator split explicit for new medium/high V4 packets, with separate mechanical and spec-retention track verdicts enforced in both structure checks and computed closure policy
+- CHANGE_TYPE: DUAL_TRACK_VALIDATOR_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-79`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-06`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/validator-report-profile-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/checks/validator-report-structure-check.mjs`
+  - `.GOV/roles_shared/scripts/lib/computed-policy-gate-lib.mjs`
+  - `.GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs`
+  - `.GOV/roles/validator/tests/validator-report-structure-check.test.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-80`
+  - `RGF-81`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: new packets default to `PACKET_FORMAT_VERSION=2026-04-05`, creation/resume output now surfaces the dual-track law, and medium/high V4 validator closure must explicitly prove both the mechanical closure track and the deep spec-retention/shared-surface/current-main track before PASS remains legal
