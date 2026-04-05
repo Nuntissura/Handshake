@@ -1205,3 +1205,31 @@
   - `RGF-82`
   - `RGF-85`
 - OUTCOME: kickoff-reviewed microtasks remain the active execution budget, overlap review shifts execution to the next declared microtask while retaining the previous reviewed slice explicitly, coder intent cannot jump ahead out of sequence, and validator overlap resolutions now fail closed unless they bind to the immediately previous governed microtask
+
+### 2026.04.05.08 / GOV-CHANGE-20260405-08
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-77` by upgrading `wp-timeline` from a compact report view into a richer span ledger with stage-tagged control, token, review, and microtask execution windows
+- CHANGE_TYPE: TIMELINE_AND_COST_LEDGER_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-77`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-03`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-report.mjs`
+  - `.GOV/roles_shared/tests/wp-timeline-lib.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-78`
+  - `RGF-79`
+  - `RGF-80`
+  - `RGF-81`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: `just wp-timeline` now emits stage-tagged span rows with stable span ids, explicit token-command windows, review-exchange durations, and microtask execution spans, plus summary counts for span families and measured span coverage so relay and delay hot spots are attributable without rereading scattered ledgers

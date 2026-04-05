@@ -356,7 +356,7 @@ Resume rule:
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
 - `just active-lane-brief ...` now also surfaces the declared microtask plan (`active` / `next`) so coder and validator lanes do not have to infer the current MT from scattered receipts.
 - `just wp-token-usage WP-{ID}`
-- `just wp-timeline WP-{ID} [--json]` now emits computed control-command and review-exchange spans in addition to the raw merged event stream.
+- `just wp-timeline WP-{ID} [--json]` now emits structured control-command, token-command, review-exchange, and microtask-execution span rows in addition to the raw merged event stream.
 - `just orchestrator-prepare-and-packet WP-{ID}`
 
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)

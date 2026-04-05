@@ -33,10 +33,17 @@ function printTextReport(summary, spans, entries) {
   console.log(`- event_window_start: ${summary.event_window_start || "<none>"}`);
   console.log(`- event_window_end: ${summary.event_window_end || "<none>"}`);
   console.log(`- event_window_duration_ms: ${summary.event_window_duration_ms ?? "<none>"}`);
+  console.log(`- span_window_start: ${summary.span_window_start || "<none>"}`);
+  console.log(`- span_window_end: ${summary.span_window_end || "<none>"}`);
+  console.log(`- span_window_duration_ms: ${summary.span_window_duration_ms ?? "<none>"}`);
+  console.log(`- measured_span_duration_ms: ${summary.measured_span_duration_ms ?? "<none>"}`);
   console.log(`- event_count: ${summary.event_count}`);
   console.log(`- span_count: ${summary.span_count}`);
   console.log(`- control_span_count: ${summary.control_span_count}`);
   console.log(`- review_span_count: ${summary.review_span_count}`);
+  console.log(`- token_command_span_count: ${summary.token_command_span_count}`);
+  console.log(`- microtask_execution_span_count: ${summary.microtask_execution_span_count}`);
+  console.log(`- stage_counts: ${JSON.stringify(summary.stage_counts || {})}`);
   console.log(`- thread_count: ${summary.thread_count}`);
   console.log(`- receipt_count: ${summary.receipt_count}`);
   console.log(`- notification_count: ${summary.notification_count}`);

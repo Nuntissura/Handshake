@@ -151,6 +151,8 @@ test("buildWpTimelineSummary computes counts and event window", () => {
   assert.equal(summary.control_result_count, 1);
   assert.equal(summary.token_input_total, 500);
   assert.equal(summary.event_window_duration_ms, 300000);
+  assert.equal(summary.microtask_execution_span_count, 0);
+  assert.deepEqual(summary.stage_counts, {});
   assert.equal(summary.cost_estimate, null);
 });
 
@@ -209,9 +211,67 @@ test("buildWpTimelineSpans pairs control commands and review exchanges", () => {
     ],
   });
 
-  assert.equal(spans.length, 2);
+  assert.equal(spans.length, 3);
   assert.equal(spans[0].span_kind, "CONTROL_COMMAND");
+  assert.equal(spans[0].span_stage, "RELAY");
   assert.match(spans[0].header, /CONTROL_COMMAND/);
-  assert.match(spans[1].header, /REVIEW_EXCHANGE/);
-  assert.equal(spans[1].duration_ms, 240000);
+  assert.equal(spans[1].span_kind, "TOKEN_COMMAND");
+  assert.match(spans[1].header, /TOKEN_COMMAND/);
+  assert.equal(spans[1].token_input_total, 120);
+  assert.equal(spans[2].span_kind, "REVIEW_EXCHANGE");
+  assert.match(spans[2].header, /REVIEW_EXCHANGE/);
+  assert.equal(spans[2].duration_ms, 240000);
+});
+
+test("buildWpTimelineSpans derives microtask execution spans from coder intent to overlap review", () => {
+  const spans = buildWpTimelineSpans({
+    receipts: [
+      {
+        timestamp_utc: "2026-04-05T10:00:00Z",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        receipt_kind: "CODER_INTENT",
+        correlation_id: "intent-1",
+        summary: "Starting MT-001.",
+        microtask_contract: {
+          scope_ref: "MT-001",
+          phase_gate: "MICROTASK",
+        },
+      },
+      {
+        timestamp_utc: "2026-04-05T10:02:00Z",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        receipt_kind: "REVIEW_REQUEST",
+        correlation_id: "review-1",
+        summary: "Review MT-001 while I continue MT-002.",
+        microtask_contract: {
+          scope_ref: "MT-001",
+          review_mode: "OVERLAP",
+          phase_gate: "MICROTASK",
+        },
+      },
+      {
+        timestamp_utc: "2026-04-05T10:03:00Z",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        receipt_kind: "CODER_INTENT",
+        correlation_id: "intent-2",
+        summary: "Starting MT-002.",
+        microtask_contract: {
+          scope_ref: "MT-002",
+          phase_gate: "MICROTASK",
+        },
+      },
+    ],
+  });
+
+  const microtaskSpan = spans.find((entry) => entry.span_kind === "MICROTASK_EXECUTION" && entry.microtask_scope_ref === "MT-001");
+  assert.ok(microtaskSpan);
+  assert.equal(microtaskSpan.span_stage, "MICROTASK_EXECUTION");
+  assert.equal(microtaskSpan.started_at, "2026-04-05T10:00:00Z");
+  assert.equal(microtaskSpan.ended_at, "2026-04-05T10:02:00Z");
+  assert.equal(microtaskSpan.duration_ms, 120000);
+  assert.equal(microtaskSpan.terminal_receipt_kind, "REVIEW_REQUEST");
 });

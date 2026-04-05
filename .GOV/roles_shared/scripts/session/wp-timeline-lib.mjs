@@ -60,6 +60,64 @@ function compactLabel(value, fallback = "<none>") {
   return text || fallback;
 }
 
+function normalizeReceiptKind(value) {
+  return normalizeText(value).toUpperCase();
+}
+
+function normalizeCommandKind(value) {
+  return normalizeText(value).toUpperCase();
+}
+
+function microtaskScopeRef(entry = {}) {
+  return compactLabel(entry?.microtask_contract?.scope_ref, "");
+}
+
+function microtaskReviewMode(entry = {}) {
+  return normalizeText(entry?.microtask_contract?.review_mode).toUpperCase();
+}
+
+function microtaskPhaseGate(entry = {}) {
+  return normalizeText(entry?.microtask_contract?.phase_gate).toUpperCase();
+}
+
+function buildSpanId(sequence) {
+  return `SPN-${String(sequence).padStart(4, "0")}`;
+}
+
+function deriveControlStage(commandKind = "") {
+  switch (normalizeCommandKind(commandKind)) {
+    case "START_SESSION":
+      return "LAUNCH";
+    case "SEND_PROMPT":
+      return "RELAY";
+    case "CLOSE_SESSION":
+    case "CANCEL_SESSION":
+      return "CLOSEOUT";
+    default:
+      return "CONTROL";
+  }
+}
+
+function deriveReceiptStage(receiptKind = "", entry = {}) {
+  const normalized = normalizeReceiptKind(receiptKind);
+  if (normalized === "VALIDATOR_KICKOFF") return "BOOTSTRAP_GATE";
+  if (normalized === "CODER_INTENT") return "MICROTASK_EXECUTION";
+  if (normalized === "REPAIR") return "REPAIR_LOOP";
+  if (normalized === "CODER_HANDOFF") return "HANDOFF";
+  if (normalized === "REVIEW_REQUEST") {
+    return microtaskReviewMode(entry) === "OVERLAP" ? "MICROTASK_REVIEW" : "REVIEW";
+  }
+  if (REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(normalized)) {
+    return microtaskReviewMode(entry) === "OVERLAP" ? "MICROTASK_REVIEW" : "REVIEW";
+  }
+  return "WORKFLOW";
+}
+
+function detailLineIfValue(label, value) {
+  const normalized = compactLabel(value, "");
+  return normalized ? `${label}=${normalized}` : null;
+}
+
 function matchingResolutionForOpenReceipt(openReceipt, orderedResolutions) {
   const correlationId = compactLabel(openReceipt?.correlation_id, "");
   if (!correlationId) return null;
@@ -73,6 +131,36 @@ function matchingResolutionForOpenReceipt(openReceipt, orderedResolutions) {
     const resolutionTs = parseTimestamp(entry?.timestamp_utc);
     if (Number.isFinite(openTimestamp) && Number.isFinite(resolutionTs) && resolutionTs < openTimestamp) return false;
     return true;
+  }) || null;
+}
+
+function matchingMicrotaskTerminalReceipt(startReceipt, orderedReceipts) {
+  const startTimestamp = parseTimestamp(startReceipt?.timestamp_utc);
+  const startScope = microtaskScopeRef(startReceipt);
+  if (!startScope) return null;
+
+  return orderedReceipts.find((entry) => {
+    const entryTimestamp = parseTimestamp(entry?.timestamp_utc);
+    if (!Number.isFinite(entryTimestamp) || (Number.isFinite(startTimestamp) && entryTimestamp < startTimestamp)) {
+      return false;
+    }
+    if (entry === startReceipt) return false;
+
+    const entryKind = normalizeReceiptKind(entry?.receipt_kind);
+    const entryRole = normalizeRole(entry?.actor_role);
+    const entryScope = microtaskScopeRef(entry);
+
+    if (entryRole === "CODER" && ["CODER_INTENT", "REPAIR"].includes(entryKind) && entryScope && entryScope !== startScope) {
+      return true;
+    }
+    if (entryScope && entryScope === startScope) {
+      if (entryRole === "CODER" && ["REVIEW_REQUEST", "CODER_HANDOFF"].includes(entryKind)) return true;
+      if (REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(entryKind)) return true;
+    }
+    if (!entryScope && entryRole === "CODER" && entryKind === "CODER_HANDOFF") {
+      return true;
+    }
+    return false;
   }) || null;
 }
 
@@ -254,6 +342,14 @@ export function buildWpTimelineSpans({
 } = {}) {
   const spans = [];
   let sequence = 0;
+  const pushSpan = (span) => {
+    const nextSequence = sequence += 1;
+    spans.push({
+      span_id: buildSpanId(nextSequence),
+      sequence: nextSequence,
+      ...span,
+    });
+  };
   const tokenCommandMap = new Map(
     (Array.isArray(tokenCommands) ? tokenCommands : [])
       .filter((entry) => compactLabel(entry.command_id, ""))
@@ -262,6 +358,11 @@ export function buildWpTimelineSpans({
 
   const resultByCommandId = new Map(
     (Array.isArray(controlResults) ? controlResults : [])
+      .filter((entry) => compactLabel(entry.command_id, ""))
+      .map((entry) => [compactLabel(entry.command_id, ""), entry]),
+  );
+  const requestByCommandId = new Map(
+    (Array.isArray(controlRequests) ? controlRequests : [])
       .filter((entry) => compactLabel(entry.command_id, ""))
       .map((entry) => [compactLabel(entry.command_id, ""), entry]),
   );
@@ -275,35 +376,83 @@ export function buildWpTimelineSpans({
     const endedAt = compactLabel(result?.processed_at, "");
     const startedTs = parseTimestamp(startedAt);
     const endedTs = parseTimestamp(endedAt);
+    const turnUsage = Array.isArray(tokenCommand?.turn_usage) ? tokenCommand.turn_usage : [];
+    const turnWindowStart = turnUsage.length > 0 ? compactLabel(turnUsage[0]?.timestamp, "") : "";
+    const turnWindowEnd = turnUsage.length > 0 ? compactLabel(turnUsage.at(-1)?.timestamp, "") : "";
     const turnCount = Number(tokenCommand?.turn_count || 0);
     const usageTotals = tokenCommand?.usage_totals || {};
+    const stage = deriveControlStage(request.command_kind);
 
     const measuredDuration = durationMs(startedTs, endedTs);
     const fallbackDuration = Number(result?.duration_ms || 0);
-    spans.push({
+    pushSpan({
       span_kind: "CONTROL_COMMAND",
+      span_stage: stage,
       started_at: startedAt || null,
       ended_at: endedAt || null,
       started_at_ms: startedTs,
       ended_at_ms: endedTs,
       duration_ms: measuredDuration ?? (fallbackDuration > 0 ? fallbackDuration : null),
-      sequence: sequence += 1,
       role: normalizeRole(request.role),
-      header: `${startedAt || "<no-ts>"} -> ${endedAt || "<open>"} | CONTROL_COMMAND | ${compactLabel(request.role)} | ${compactLabel(request.command_kind)}`,
+      actor_role: normalizeRole(request.role),
+      actor_session: compactLabel(request.session_id, ""),
+      command_id: commandId || null,
+      command_kind: normalizeCommandKind(request.command_kind) || null,
+      command_status: compactLabel(result?.status, "<pending>"),
+      header: `${startedAt || "<no-ts>"} -> ${endedAt || "<open>"} | CONTROL_COMMAND | stage=${stage} | ${compactLabel(request.role)} | ${compactLabel(request.command_kind)}`,
       detailLines: [
         `command_id=${commandId}`,
         `status=${compactLabel(result?.status, "<pending>")}`,
         `summary=${compactLabel(result?.summary || request.summary || String(request.prompt || "").split(/\r?\n/, 1)[0])}`,
         `turn_count=${turnCount} | input=${Number(usageTotals.input_tokens || 0)} | cached=${Number(usageTotals.cached_input_tokens || 0)} | output=${Number(usageTotals.output_tokens || 0)}`,
+        ...(turnWindowStart ? [`turn_window=${turnWindowStart} -> ${turnWindowEnd || turnWindowStart}`] : []),
+      ],
+    });
+  }
+
+  for (const tokenCommand of Array.isArray(tokenCommands) ? tokenCommands : []) {
+    const commandId = compactLabel(tokenCommand.command_id, "");
+    const turnUsage = Array.isArray(tokenCommand.turn_usage) ? tokenCommand.turn_usage : [];
+    if (!commandId) continue;
+    const request = requestByCommandId.get(commandId) || null;
+    const result = resultByCommandId.get(commandId) || null;
+    const startedAt = compactLabel(turnUsage[0]?.timestamp, "") || compactLabel(request?.created_at, "") || compactLabel(result?.processed_at, "");
+    const endedAt = compactLabel(turnUsage.at(-1)?.timestamp, "") || compactLabel(result?.processed_at, "") || compactLabel(request?.created_at, "");
+    if (!startedAt && !endedAt) continue;
+    const startedTs = parseTimestamp(startedAt);
+    const endedTs = parseTimestamp(endedAt);
+    const usageTotals = tokenCommand.usage_totals || {};
+    const stage = deriveControlStage(tokenCommand.command_kind);
+    pushSpan({
+      span_kind: "TOKEN_COMMAND",
+      span_stage: stage,
+      started_at: startedAt || null,
+      ended_at: endedAt || null,
+      started_at_ms: startedTs,
+      ended_at_ms: endedTs,
+      duration_ms: durationMs(startedTs, endedTs),
+      role: normalizeRole(tokenCommand.role),
+      actor_role: normalizeRole(tokenCommand.role),
+      command_id: commandId,
+      command_kind: normalizeCommandKind(tokenCommand.command_kind) || null,
+      turn_count: Number(tokenCommand.turn_count || turnUsage.length || 0),
+      token_input_total: Number(usageTotals.input_tokens || 0),
+      token_cached_input_total: Number(usageTotals.cached_input_tokens || 0),
+      token_output_total: Number(usageTotals.output_tokens || 0),
+      header: `${startedAt || "<no-ts>"} -> ${endedAt || "<open>"} | TOKEN_COMMAND | stage=${stage} | ${compactLabel(tokenCommand.role)} | ${compactLabel(tokenCommand.command_kind)}`,
+      detailLines: [
+        `command_id=${commandId}`,
+        `turn_count=${Number(tokenCommand.turn_count || turnUsage.length || 0)}`,
+        `input=${Number(usageTotals.input_tokens || 0)} | cached=${Number(usageTotals.cached_input_tokens || 0)} | output=${Number(usageTotals.output_tokens || 0)}`,
       ],
     });
   }
 
   const openReceipts = (Array.isArray(receipts) ? receipts : [])
-    .filter((entry) => REVIEW_OPEN_RECEIPT_KIND_VALUES.includes(String(entry?.receipt_kind || "").trim().toUpperCase()))
+    .filter((entry) => REVIEW_OPEN_RECEIPT_KIND_VALUES.includes(normalizeReceiptKind(entry?.receipt_kind)))
     .sort((left, right) => String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || "")));
   const resolutionReceipts = (Array.isArray(receipts) ? receipts : [])
-    .filter((entry) => REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(String(entry?.receipt_kind || "").trim().toUpperCase()))
+    .filter((entry) => REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(normalizeReceiptKind(entry?.receipt_kind)))
     .sort((left, right) => String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || "")));
 
   for (const openReceipt of openReceipts) {
@@ -312,21 +461,84 @@ export function buildWpTimelineSpans({
     const endedAt = compactLabel(resolution?.timestamp_utc, "");
     const startedTs = parseTimestamp(startedAt);
     const endedTs = parseTimestamp(endedAt);
-    spans.push({
+    const spanStage = deriveReceiptStage(openReceipt?.receipt_kind, openReceipt);
+    pushSpan({
       span_kind: "REVIEW_EXCHANGE",
+      span_stage: spanStage,
       started_at: startedAt || null,
       ended_at: endedAt || null,
       started_at_ms: startedTs,
       ended_at_ms: endedTs,
       duration_ms: durationMs(startedTs, endedTs),
-      sequence: sequence += 1,
       role: normalizeRole(openReceipt?.actor_role),
-      header: `${startedAt || "<no-ts>"} -> ${endedAt || "<open>"} | REVIEW_EXCHANGE | ${compactLabel(openReceipt?.receipt_kind)} | ${compactLabel(openReceipt?.actor_role)} -> ${compactLabel(openReceipt?.target_role)}`,
+      actor_role: normalizeRole(openReceipt?.actor_role),
+      actor_session: compactLabel(openReceipt?.actor_session, ""),
+      target_role: normalizeRole(openReceipt?.target_role),
+      target_session: compactLabel(openReceipt?.target_session, ""),
+      receipt_kind: normalizeReceiptKind(openReceipt?.receipt_kind) || null,
+      resolution_receipt_kind: normalizeReceiptKind(resolution?.receipt_kind) || null,
+      correlation_id: compactLabel(openReceipt?.correlation_id, "") || null,
+      microtask_scope_ref: microtaskScopeRef(openReceipt) || null,
+      review_mode: microtaskReviewMode(openReceipt) || null,
+      phase_gate: microtaskPhaseGate(openReceipt) || null,
+      header: `${startedAt || "<no-ts>"} -> ${endedAt || "<open>"} | REVIEW_EXCHANGE | stage=${spanStage} | ${compactLabel(openReceipt?.receipt_kind)} | ${compactLabel(openReceipt?.actor_role)} -> ${compactLabel(openReceipt?.target_role)}`,
       detailLines: [
         `correlation_id=${compactLabel(openReceipt?.correlation_id)}`,
         `open_summary=${compactLabel(openReceipt?.summary)}`,
         `resolution_kind=${compactLabel(resolution?.receipt_kind, "<open>")}`,
         `resolution_summary=${compactLabel(resolution?.summary, "<pending>")}`,
+        ...[
+          detailLineIfValue("microtask_scope_ref", microtaskScopeRef(openReceipt)),
+          detailLineIfValue("review_mode", microtaskReviewMode(openReceipt)),
+          detailLineIfValue("phase_gate", microtaskPhaseGate(openReceipt)),
+        ].filter(Boolean),
+      ],
+    });
+  }
+
+  const orderedReceipts = [...(Array.isArray(receipts) ? receipts : [])]
+    .sort((left, right) => String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || "")));
+  const executionStarts = orderedReceipts.filter((entry) =>
+    normalizeRole(entry?.actor_role) === "CODER"
+    && ["CODER_INTENT", "REPAIR"].includes(normalizeReceiptKind(entry?.receipt_kind))
+    && microtaskScopeRef(entry)
+  );
+
+  for (const startReceipt of executionStarts) {
+    const endReceipt = matchingMicrotaskTerminalReceipt(startReceipt, orderedReceipts);
+    const startedAt = compactLabel(startReceipt?.timestamp_utc, "");
+    const endedAt = compactLabel(endReceipt?.timestamp_utc, "");
+    const startedTs = parseTimestamp(startedAt);
+    const endedTs = parseTimestamp(endedAt);
+    const stage = deriveReceiptStage(startReceipt?.receipt_kind, startReceipt);
+    pushSpan({
+      span_kind: "MICROTASK_EXECUTION",
+      span_stage: stage,
+      started_at: startedAt || null,
+      ended_at: endedAt || null,
+      started_at_ms: startedTs,
+      ended_at_ms: endedTs,
+      duration_ms: durationMs(startedTs, endedTs),
+      role: normalizeRole(startReceipt?.actor_role),
+      actor_role: normalizeRole(startReceipt?.actor_role),
+      actor_session: compactLabel(startReceipt?.actor_session, ""),
+      receipt_kind: normalizeReceiptKind(startReceipt?.receipt_kind) || null,
+      terminal_receipt_kind: normalizeReceiptKind(endReceipt?.receipt_kind) || null,
+      correlation_id: compactLabel(startReceipt?.correlation_id, "") || null,
+      microtask_scope_ref: microtaskScopeRef(startReceipt) || null,
+      review_mode: microtaskReviewMode(startReceipt) || null,
+      phase_gate: microtaskPhaseGate(startReceipt) || null,
+      header: `${startedAt || "<no-ts>"} -> ${endedAt || "<open>"} | MICROTASK_EXECUTION | ${microtaskScopeRef(startReceipt) || "<unknown>"}`,
+      detailLines: [
+        `start_kind=${compactLabel(startReceipt?.receipt_kind)}`,
+        `start_summary=${compactLabel(startReceipt?.summary)}`,
+        `end_kind=${compactLabel(endReceipt?.receipt_kind, "<open>")}`,
+        `end_summary=${compactLabel(endReceipt?.summary, "<pending>")}`,
+        ...[
+          detailLineIfValue("review_mode", microtaskReviewMode(startReceipt)),
+          detailLineIfValue("phase_gate", microtaskPhaseGate(startReceipt)),
+          detailLineIfValue("correlation_id", compactLabel(startReceipt?.correlation_id, "")),
+        ].filter(Boolean),
       ],
     });
   }
@@ -356,6 +568,21 @@ export function buildWpTimelineSummary({
     .sort((left, right) => left - right);
   const firstEventAt = timestamps.length > 0 ? timestamps[0] : null;
   const lastEventAt = timestamps.length > 0 ? timestamps[timestamps.length - 1] : null;
+  const spanStartedTimestamps = spans
+    .map((entry) => entry.started_at_ms)
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right);
+  const spanEndedTimestamps = spans
+    .map((entry) => entry.ended_at_ms)
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right);
+  const stageCounts = {};
+  let measuredSpanDurationMs = 0;
+  for (const span of spans) {
+    const stage = compactLabel(span?.span_stage, "UNKNOWN");
+    stageCounts[stage] = Number(stageCounts[stage] || 0) + 1;
+    if (Number.isFinite(span?.duration_ms)) measuredSpanDurationMs += Number(span.duration_ms);
+  }
   const tokenBudget = evaluateWpTokenBudget(tokenLedger);
 
   return {
@@ -369,10 +596,20 @@ export function buildWpTimelineSummary({
     event_window_start: isoOrNull(firstEventAt),
     event_window_end: isoOrNull(lastEventAt),
     event_window_duration_ms: durationMs(firstEventAt, lastEventAt),
+    span_window_start: isoOrNull(spanStartedTimestamps.length > 0 ? spanStartedTimestamps[0] : null),
+    span_window_end: isoOrNull(spanEndedTimestamps.length > 0 ? spanEndedTimestamps.at(-1) : null),
+    span_window_duration_ms: durationMs(
+      spanStartedTimestamps.length > 0 ? spanStartedTimestamps[0] : null,
+      spanEndedTimestamps.length > 0 ? spanEndedTimestamps.at(-1) : null,
+    ),
+    measured_span_duration_ms: measuredSpanDurationMs,
     event_count: entries.length,
     span_count: spans.length,
     control_span_count: countByKind(spans, "CONTROL_COMMAND"),
     review_span_count: countByKind(spans, "REVIEW_EXCHANGE"),
+    token_command_span_count: countByKind(spans, "TOKEN_COMMAND"),
+    microtask_execution_span_count: countByKind(spans, "MICROTASK_EXECUTION"),
+    stage_counts: stageCounts,
     thread_count: threadEntriesCount(entries),
     receipt_count: receipts.length,
     notification_count: notifications.length,

@@ -133,7 +133,7 @@
 | RGF-74 | DONE | Work-Packet Path Migration | RGF-70 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | runtime path resolvers, orchestrator/shared docs, packet creation helpers, compatibility shims | `work_packets` is now the canonical logical resolver name, high-authority helpers/docs resolve through `runtime-paths.mjs`, and legacy `task_packets` physical storage remains compatibility-safe until any future filesystem move |
 | RGF-75 | DONE | Stable Product Integration Branch Evaluation | RGF-71 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` | topology docs, product branch policy, artifact hygiene evidence | evaluation proved `main` is operationally suitable after artifact enforcement and worktree hygiene; no additional stable product integration branch is needed |
 | RGF-76 | DONE | Microtask State-Machine Hardening | RGF-66 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-04` | microtask projection helpers, receipt gates, coder/validator resume surfaces, overlap review routing | one microtask becomes the governed active execution budget, overlap review binds only to the immediately previous completed microtask, and adjacent microtask jumps fail closed unless routed to explicit follow-on scope |
-| RGF-77 | READY | Full Span Ledger | RGF-65 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-03` | runtime event logs, receipt/control ledgers, token ledgers, operator timeline surfaces | WP and microtask lifecycle now emit append-only start/end span rows for launch, handoff, checks, compile, test, merge, and closeout so delay and token hot spots become mechanically attributable |
+| RGF-77 | DONE | Full Span Ledger | RGF-65 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-03` | runtime event logs, receipt/control ledgers, token ledgers, operator timeline surfaces | WP and microtask lifecycle now emit append-only start/end span rows for launch, handoff, checks, compile, test, merge, and closeout so delay and token hot spots become mechanically attributable |
 | RGF-78 | READY | Relay Cost Compression Policy and Measurement | RGF-64, RGF-67 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-01` / `SMOKE-FIND-20260404-02` | orchestrator/manual relay policy docs, timeline cost reports, operator routing guidance | governed relay now exposes measured orchestrator-versus-manual cost and ships a default-routing policy so small and medium WPs can take the cheaper lane without losing paperwork or control truth |
 | RGF-79 | READY | Dual-Track Validator Model | RGF-69 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-06` | validator protocols, review templates, audit generators, packet-law defaults | governed validation distinguishes mechanical proof from deep Master-Spec retention and shared-feature interaction audit, allowing selected medium/high-risk WPs to demand both tracks explicitly |
 | RGF-80 | READY | Failure Ledger Expansion | RGF-73 | `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW` / `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY` / `SMOKE-FIND-20260404-07` | smoketest schemas/templates, audit generators, board linkage helpers, positive-control records | smoke/failure ledgers now classify orchestrator, coder, validator, ACP runtime, script/check, governance drift, and operator-UX failures separately while retaining “what went well” and regression-prevented controls |
@@ -212,15 +212,14 @@
 
 ## Proposed Next Sequence
 
-1. `RGF-77`
-2. `RGF-78`
-3. `RGF-79`
-4. `RGF-80`
-5. `RGF-81`
-6. `RGF-83`
-7. `RGF-84`
-8. `RGF-82`
-9. `RGF-85`
+1. `RGF-78`
+2. `RGF-79`
+3. `RGF-80`
+4. `RGF-81`
+5. `RGF-83`
+6. `RGF-84`
+7. `RGF-82`
+8. `RGF-85`
 
 ## Explicit Holds
 
