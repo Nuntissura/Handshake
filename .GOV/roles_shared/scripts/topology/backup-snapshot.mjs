@@ -81,6 +81,12 @@ function writeReusableGuide(destRoot) {
   writeFileNormalized(path.join(destRoot, "OFFLINE_GIT_BACKUP_SETUP.md"), sourceText);
 }
 
+function isSnapshotExcludedCheckout(checkout) {
+  const id = String(checkout?.id || "").trim().toLowerCase();
+  // Transient containment rebuild checkouts are cleanup scratch space, not durable recovery surfaces.
+  return id === "wt-main-containment-rebuild" || id.startsWith("wt-main-containment-");
+}
+
 function resolveProtectedBundleRefs() {
   return PROTECTED_BRANCHES.map((branch) => {
     if (refExists(REPO_ROOT, branch)) return branch;
@@ -111,7 +117,11 @@ writeReusableGuide(backupRoot);
 
 const topologyRegistry = buildTopologyRegistry();
 const topologySnapshot = buildDynamicTopologySnapshot();
-const gitCheckouts = discoverGitCheckouts();
+const discoveredGitCheckouts = discoverGitCheckouts();
+const skippedWorktrees = discoveredGitCheckouts
+  .filter((checkout) => isSnapshotExcludedCheckout(checkout))
+  .map((checkout) => checkout.id);
+const gitCheckouts = discoveredGitCheckouts.filter((checkout) => !isSnapshotExcludedCheckout(checkout));
 const originRepo = parseOriginRepo();
 
 createBundle(path.join(bundlesDir, "all_refs.bundle"), ["--all"]);
@@ -144,12 +154,14 @@ const manifest = {
     "bundles/protected_branches.bundle",
   ],
   copied_worktrees: copiedWorktrees,
+  skipped_worktrees: skippedWorktrees,
   topology_registry: topologyRegistry,
   topology_snapshot: topologySnapshot,
   notes: [
     "git bundles preserve committed refs",
     "robocopy worktree copies preserve working files, including dirty state, outside the repo tree",
     "robocopy excludes .git and common build-cache directories to keep snapshots portable",
+    "transient containment-rebuild worktrees are excluded from copied_worktrees",
     "backup roots are append-only timestamped directories; old snapshots are not deleted by the snapshot job",
   ],
 };
@@ -182,4 +194,7 @@ if (nasBackupRoot) {
 console.log(`[BACKUP_SNAPSHOT] snapshot_root=${snapshotRoot}`);
 console.log(`[BACKUP_SNAPSHOT] bundles=all_refs.bundle, protected_branches.bundle`);
 console.log(`[BACKUP_SNAPSHOT] copied_worktrees=${copiedWorktrees.map((row) => row.id).join(", ")}`);
+if (skippedWorktrees.length > 0) {
+  console.log(`[BACKUP_SNAPSHOT] skipped_worktrees=${skippedWorktrees.join(", ")}`);
+}
 console.log(`[BACKUP_SNAPSHOT] nas_copy=${nasCopyStatus}`);
