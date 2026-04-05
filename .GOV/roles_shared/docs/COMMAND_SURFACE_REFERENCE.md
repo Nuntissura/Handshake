@@ -55,7 +55,7 @@ These are safe starting points for orientation and health checks.
   - operator-facing next-step helper for `WORKFLOW_LANE=MANUAL_RELAY`; prints the runtime-projected next actor, target session, a structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`), and exact governed follow-up commands without auto-steering
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK]`
   - `runtime-write`
-  - operator-invoked broker for `WORKFLOW_LANE=MANUAL_RELAY`; starts or steers only the currently projected governed next actor and does not auto-discover future hops
+  - operator-invoked broker for `WORKFLOW_LANE=MANUAL_RELAY`; starts the projected target session when needed, immediately delivers the active role-to-role payload, and injects typed relay context (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) into the target prompt instead of a generic resume-only steer
 - `just wp-token-usage WP-{ID}`
   - `read-only`
   - print the governed per-WP token ledger aggregated from settled ACP session outputs

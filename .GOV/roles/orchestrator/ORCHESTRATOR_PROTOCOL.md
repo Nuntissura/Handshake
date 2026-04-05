@@ -284,6 +284,8 @@ Workflow semantics:
 - `ORCHESTRATOR_MANAGED` = Orchestrator steers sessions and workflow, but remains non-agentic and non-coding
 - For `MANUAL_RELAY`, prefer `just manual-relay-next WP-{ID}` to read the runtime-projected next actor and use `just manual-relay-dispatch WP-{ID}` only when the Operator explicitly wants to broker one governed role hop mechanically.
 - Manual relay outputs must keep role-to-role content separate from operator-only explanation. Use the structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`) instead of mixing handoff/question/reply content into hard-gate prose.
+- `just manual-relay-dispatch` must pass the same typed relay context into the governed target prompt (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) so the role sees whether the incoming payload is a handoff, question, answer, verdict, or intent without rediscovering it.
+- If the projected target session is not running yet, `just manual-relay-dispatch` must start that governed session and then immediately deliver the typed relay prompt in the same command invocation.
 
 ## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
 

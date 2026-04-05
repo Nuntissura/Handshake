@@ -9,7 +9,13 @@ import { loadSessionRegistry } from "../../../roles_shared/scripts/session/sessi
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { parseJsonFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { repoPathAbs, resolveWorkPacketPath, REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { checkNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { steerActionForSession } from "./lib/orchestrator-steer-lib.mjs";
+import {
+  buildManualRelayDispatchPrompt,
+  deriveManualRelayEnvelope,
+  preferredTargetSession,
+} from "./lib/manual-relay-envelope-lib.mjs";
 
 const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const SESSION_CONTROL_COMMAND_PATH = path.resolve(
@@ -31,6 +37,11 @@ function parseSingleField(text, label) {
 
 function normalizeRole(value) {
   return String(value || "").trim().toUpperCase();
+}
+
+function normalizeSession(value) {
+  const raw = String(value || "").trim();
+  return raw || null;
 }
 
 const wpId = String(process.argv[2] || "").trim();
@@ -75,19 +86,40 @@ if (!roleConfig) {
 const { registry } = loadSessionRegistry(REPO_ROOT);
 const governedSession = (registry.sessions || []).find((entry) => entry.session_key === sessionKey(nextActor, wpId)) || null;
 const action = steerActionForSession(governedSession);
-const prompt = buildSteeringPrompt({ role: nextActor, wpId, roleConfig });
+const targetSession = preferredTargetSession(runtimeStatus, governedSession);
+const notifications = checkNotifications({ wpId, role: nextActor, session: targetSession });
+const envelope = deriveManualRelayEnvelope({
+  wpId,
+  runtimeStatus,
+  nextActor,
+  targetSession,
+  notifications,
+  dispatchAction: action,
+});
+const prompt = buildManualRelayDispatchPrompt({
+  basePrompt: buildSteeringPrompt({ role: nextActor, wpId, roleConfig }),
+  envelope,
+});
 
 console.log(`[MANUAL_RELAY_DISPATCH] wp_id=${wpId}`);
 console.log(`[MANUAL_RELAY_DISPATCH] workflow_lane=${workflowLane}`);
 console.log(`[MANUAL_RELAY_DISPATCH] next_actor=${nextActor}`);
+console.log(`[MANUAL_RELAY_DISPATCH] next_session=${targetSession || "<none>"}`);
 console.log(`[MANUAL_RELAY_DISPATCH] action=${action}`);
+console.log(`[MANUAL_RELAY_DISPATCH] relay_kind=${envelope.relayKind}`);
+console.log(`[MANUAL_RELAY_DISPATCH] source_kind=${envelope.sourceKind}`);
+console.log("ROLE_TO_ROLE_MESSAGE [CX-MANUAL-RELAY-002]");
+console.log(`- ${envelope.message}`);
+console.log(`[MANUAL_RELAY_DISPATCH] state=${action === "START_SESSION"
+  ? "Starting the governed target session and then dispatching the structured manual relay payload."
+  : "Dispatching the structured manual relay payload into the governed target session."}`);
 
 if (action === "START_SESSION") {
   execFileSync(process.execPath, [SESSION_CONTROL_COMMAND_PATH, "START_SESSION", nextActor, wpId, "", requestedModel], {
     stdio: "inherit",
   });
-} else {
-  execFileSync(process.execPath, [SESSION_CONTROL_COMMAND_PATH, "SEND_PROMPT", nextActor, wpId, prompt, requestedModel], {
-    stdio: "inherit",
-  });
 }
+
+execFileSync(process.execPath, [SESSION_CONTROL_COMMAND_PATH, "SEND_PROMPT", nextActor, wpId, prompt, requestedModel], {
+  stdio: "inherit",
+});
