@@ -59,6 +59,10 @@ import { appendWpNotification } from "./wp-notification-append.mjs";
 const ACTIVE_AUTO_RELAY_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const VALIDATOR_ASSESSMENT_ROLE_VALUES = new Set(["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"]);
 const GOVERNANCE_CHECKPOINT_RECEIPT_KIND_VALUES = new Set(REVIEW_RESOLUTION_RECEIPT_KIND_VALUES);
+export const REVIEW_NOTIFICATION_APPEND_OPTIONS = Object.freeze({
+  assumeTransactionLock: true,
+  autoRelay: false,
+});
 const ORCHESTRATOR_STEER_SCRIPT_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
@@ -679,6 +683,8 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
 function appendReviewNotifications({ wpId, workflowLane, entry, autoRoute }) {
   const targets = deriveReviewNotificationTargets({ workflowLane, entry, autoRoute });
   for (const target of targets) {
+    // Review receipts already execute one route-aware auto-relay. Derived notifications must not
+    // trigger additional relay attempts, or the same review event fans out into duplicate prompts.
     appendWpNotification({
       wpId,
       sourceKind: target.sourceKind,
@@ -689,7 +695,7 @@ function appendReviewNotifications({ wpId, workflowLane, entry, autoRoute }) {
       correlationId: entry.correlation_id ?? null,
       summary: target.summary,
       timestamp: entry.timestamp_utc,
-    }, { assumeTransactionLock: true });
+    }, REVIEW_NOTIFICATION_APPEND_OPTIONS);
   }
 }
 
