@@ -389,6 +389,9 @@ record-signature wp-id signature workflow_lane="" execution_lane="":
 record-prepare wp-id workflow_lane="" execution_lane="" branch="" worktree_dir="":
 	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" prepare {{wp-id}} {{workflow_lane}} {{execution_lane}} {{branch}} {{worktree_dir}}
 
+record-role-model-profiles wp-id orchestrator_profile="" coder_profile="" wp_validator_profile="" integration_validator_profile="":
+	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" profiles {{wp-id}} {{orchestrator_profile}} {{coder_profile}} {{wp_validator_profile}} {{integration_validator_profile}}
+
 # Orchestrator startup gate: fail if active packet/task-board/runtime/worktree authority is split.
 orchestrator-startup-truth-check:
 	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator-startup-truth-check.mjs"
