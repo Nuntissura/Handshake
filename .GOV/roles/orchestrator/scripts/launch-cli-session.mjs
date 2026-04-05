@@ -145,7 +145,6 @@ function buildClaudeCodeArgs() {
     "--model", selectedModel,
     "--effort", selectedProfile.launch_reasoning_config_value || "max",
     "--dangerously-skip-permissions",
-    "--bare",
     prompt,
   ];
 }

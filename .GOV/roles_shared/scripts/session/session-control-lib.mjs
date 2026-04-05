@@ -656,8 +656,8 @@ export async function runClaudeCodeCommand({
     "--model", selectedModel,
     "--effort", "max",
     "--output-format", "stream-json",
+    "--verbose",
     "--dangerously-skip-permissions",
-    "--bare",
   ];
 
   const args = sessionId
