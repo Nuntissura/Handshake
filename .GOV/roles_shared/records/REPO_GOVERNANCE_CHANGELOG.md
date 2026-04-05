@@ -1150,3 +1150,27 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
 - OUTCOME: after artifact enforcement and worktree-hygiene hardening, `handshake_main` is clean, no repo-local `target/` remains, and no additional stable product integration branch is justified; `main` stays canonical and branch-topology expansion remains closed unless future evidence shows `main` becoming operationally unsuitable again
+
+### 2026.04.05.06 / GOV-CHANGE-20260405-06
+
+- STATUS: APPLIED
+- SUMMARY: registered the next governance follow-on tranche (`RGF-76` through `RGF-85`) so the post-wave roadmap is explicit before implementation begins
+- CHANGE_TYPE: ROADMAP_AND_SEQUENCING_UPDATE
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-76`
+  - `RGF-77`
+  - `RGF-78`
+  - `RGF-79`
+  - `RGF-80`
+  - `RGF-81`
+  - `RGF-82`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-85`
+- OUTCOME: the board now carries the next mechanical remediation set covering microtask-state hardening, full span ledgers, relay cost compression, dual-track validation, failure-ledger expansion, authority shrink, archival layout, legacy path cleanup, artifact retention, and session-batch terminal ownership
