@@ -32,7 +32,7 @@ import { EXECUTION_OWNER_RANGE_HELP } from "../../../roles_shared/scripts/sessio
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
-import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 import { deriveLatestValidatorAssessment, evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
@@ -293,7 +293,7 @@ function summarizeResumeState(state, wpId) {
   const lastPrepare = lastLog(state, wpId, "PREPARE");
 
   const refinementPath = defaultRefinementPath(wpId);
-  const currentPacketPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`)).replace(/\\/g, "/");
+  const currentPacketPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`)).replace(/\\/g, "/");
   const currentPacketAbsPath = repoPathAbs(currentPacketPath);
   const refinementExists = exists(refinementPath);
   const currentPacketExists = exists(currentPacketAbsPath);
@@ -442,7 +442,7 @@ function main() {
 
   const boardStatus = taskBoardStatus(wpId);
   if (isTerminalOrchestratorBoardStatus(boardStatus)) {
-    const packetPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`)).replace(/\\/g, "/");
+    const packetPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`)).replace(/\\/g, "/");
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorEnvelope("NONE", "NONE");
     printConfidence(inferred.source === "explicit" ? "HIGH" : "MEDIUM", inferred.source);
@@ -470,7 +470,7 @@ function main() {
   const lastPrepare = lastLog(state, wpId, "PREPARE");
 
   const refinementPath = defaultRefinementPath(wpId);
-  const packetPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`)).replace(/\\/g, "/");
+  const packetPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`)).replace(/\\/g, "/");
   const packetAbsPath = repoPathAbs(packetPath);
 
   const refinementExists = exists(refinementPath);

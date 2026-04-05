@@ -44,6 +44,11 @@ import {
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { settleRecoverableSessionControlResults } from "../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
 import { appendWpReceipt } from "../../../roles_shared/scripts/wp/wp-receipt-append.mjs";
+import {
+  cleanupArtifactResidue,
+  ensureArtifactRootStructure,
+  evaluateArtifactHygiene,
+} from "../../../roles_shared/scripts/lib/artifact-hygiene-lib.mjs";
 
 function fail(message, details = []) {
   console.error(`[INTEGRATION_VALIDATOR_CLOSEOUT_SYNC] ${message}`);
@@ -334,6 +339,17 @@ if (!evaluation.ok) {
   ].filter(Boolean));
 }
 
+ensureArtifactRootStructure(repoRoot);
+const artifactEvaluationBeforeCleanup = evaluateArtifactHygiene({ repoRoot });
+const artifactCleanup = cleanupArtifactResidue(artifactEvaluationBeforeCleanup);
+if (artifactCleanup.errors.length > 0) {
+  fail("Closeout sync could not clean artifact residue", artifactCleanup.errors);
+}
+const artifactEvaluation = evaluateArtifactHygiene({ repoRoot });
+if (artifactEvaluation.blockingIssues.length > 0) {
+  fail("Closeout sync requires clean artifact hygiene before terminal truth can be promoted", artifactEvaluation.blockingIssues);
+}
+
 const baselineSha = String(evaluation.topology.currentMainHeadSha || "").trim();
 if (!/^[0-9a-f]{40}$/i.test(baselineSha)) {
   fail("Closeout sync could not resolve current local main HEAD for signed-scope compatibility truth");
@@ -455,6 +471,9 @@ try {
       actor_worktree_dir: actorContext.actorWorktreeDir || null,
       live_governance_root_abs: evaluation.topology.liveGovernanceRootAbs || null,
       target_head_sha: evaluation.topology.targetHeadSha || null,
+      artifact_root_abs: normalizePath(artifactEvaluation.artifactRootAbs),
+      artifact_cleanup_removed_repo_local_dirs: artifactCleanup.removedRepoLocalDirs.map((entry) => normalizePath(entry)),
+      artifact_cleanup_removed_external_dirs: artifactCleanup.removedExternalDirs.map((entry) => normalizePath(entry)),
     },
   });
   writeGateState(wpId, nextGateState);
@@ -497,6 +516,8 @@ console.log(`  mode=${requestedMode.mode}`);
 console.log(`  packet_path=${packetPath.replace(/\\/g, "/")}`);
 console.log(`  current_main_compatibility_baseline_sha=${baselineSha}`);
 console.log(`  self_settled_count=${settlement.settled.length}`);
+console.log(`  artifact_cleanup_removed_repo_local_dirs=${artifactCleanup.removedRepoLocalDirs.map((entry) => normalizePath(entry)).join(", ") || "<none>"}`);
+console.log(`  artifact_cleanup_removed_external_dirs=${artifactCleanup.removedExternalDirs.map((entry) => normalizePath(entry)).join(", ") || "<none>"}`);
 if (requestedMode.requireMergedMainCommit) {
   console.log(`  merged_main_commit=${mergedMainCommit}`);
 }

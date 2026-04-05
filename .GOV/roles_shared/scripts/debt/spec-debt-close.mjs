@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
+import { WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 import { loadSpecDebtRegistry, writeSpecDebtRegistryRows } from "../lib/spec-debt-registry-lib.mjs";
 import { parseClauseRows, readPacket } from "../lib/spec-debt-packet-lib.mjs";
 
@@ -26,7 +26,7 @@ if (target.status === "CLOSED") {
   process.exit(0);
 }
 
-const packetsDir = path.join(GOV_ROOT_REPO_REL, "task_packets");
+const packetsDir = WORK_PACKET_STORAGE_ROOT_REPO_REL;
 const referencingPackets = [];
 if (fs.existsSync(packetsDir)) {
   const packetFiles = fs.readdirSync(packetsDir).filter((name) => name.endsWith(".md") && name !== "README.md");

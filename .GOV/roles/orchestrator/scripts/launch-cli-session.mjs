@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import {
   SESSION_BATCH_MODE_CLI_ESCALATION,
   CLI_ESCALATION_HOST_DEFAULT,
@@ -35,6 +35,10 @@ import {
   mutateSessionRegistrySync,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
+  launchOwnedSystemTerminal,
+  recordOwnedTerminalLaunch,
+} from "../../../roles_shared/scripts/session/terminal-ownership-lib.mjs";
+import {
   buildRoleEnvironmentOverrides,
   buildStartupPrompt,
   resolveRoleConfig,
@@ -63,12 +67,6 @@ if (!["PRIMARY", "FALLBACK"].includes(requestedModel)) {
 
 function runGit(args) {
   return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-}
-
-function commandExists(command) {
-  const lookup = process.platform === "win32" ? "where.exe" : "which";
-  const result = spawnSync(lookup, [command], { stdio: "ignore" });
-  return result.status === 0;
 }
 
 const roleConfig = resolveRoleConfig(role, wpId);
@@ -130,6 +128,7 @@ function writeLaunchScript() {
     `$ErrorActionPreference = 'Stop'`,
     envLines,
     `Set-Location -LiteralPath ${psQuote(absWorktreeDir)}`,
+    `$Host.UI.RawUI.WindowTitle = ${psQuote(roleConfig.title)}`,
     `$codexArgs = @(`,
     psArgsLines,
     `)`,
@@ -155,31 +154,23 @@ function launchCurrent() {
   child.on("exit", (code) => process.exit(code ?? 0));
 }
 
-function launchWindowsTerminal() {
-  const child = spawn(
-    "wt.exe",
-    [
-      "new-tab",
-      "--title",
-      roleConfig.title,
-      "powershell.exe",
-      "-NoLogo",
-      "-NoExit",
-      "-File",
-      launchScriptPath,
-    ],
-    {
-      cwd: repoRoot,
-      detached: true,
-      stdio: "ignore",
-    },
-  );
-  child.unref();
+function launchSystemTerminal() {
+  const launch = launchOwnedSystemTerminal({
+    worktreeAbs: absWorktreeDir,
+    launchScriptPath,
+    terminalTitle: roleConfig.title,
+  });
+  recordOwnedTerminalLaunch(repoRoot, sessionDescriptor, {
+    processId: launch.processId,
+    hostKind: launch.hostKind,
+    terminalTitle: roleConfig.title,
+  });
   console.log(`[LAUNCH_CLI_SESSION] launched via ${CLI_ESCALATION_HOST_DEFAULT} (${roleConfig.title})`);
   console.log(`[LAUNCH_CLI_SESSION] worktree=${absWorktreeDir}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
+  console.log(`[LAUNCH_CLI_SESSION] terminal_pid=${launch.processId}`);
 }
 
 function printOnly(reason, resolvedHost) {
@@ -413,28 +404,17 @@ if (requestedHost === "CURRENT") {
 }
 
 if (isSystemTerminalMode(requestedHost)) {
-  if (!commandExists("wt")) {
-    printOnly("wt.exe is unavailable on this host", "PRINT");
-    printSessionSummary();
-    process.exit(0);
-  }
   maybeRecordCliEscalation(CLI_ESCALATION_HOST_DEFAULT);
-  launchWindowsTerminal();
+  launchSystemTerminal();
   autoStartGovernedSession("system terminal launch");
   printSessionSummary();
   process.exit(0);
 }
 
 if (requestedHost === "AUTO") {
-  if (commandExists("wt")) {
-    maybeRecordCliEscalation(CLI_ESCALATION_HOST_DEFAULT);
-    launchWindowsTerminal();
-    autoStartGovernedSession("auto-resolved system terminal launch");
-    printSessionSummary();
-    process.exit(0);
-  }
-  maybeRecordCliEscalation("PRINT");
-  printOnly("Plugin retry budget exhausted and no CLI window host is available; run the printed command manually in an escalation window", "PRINT");
+  maybeRecordCliEscalation(CLI_ESCALATION_HOST_DEFAULT);
+  launchSystemTerminal();
+  autoStartGovernedSession("auto-resolved system terminal launch");
   printSessionSummary();
   process.exit(0);
 }

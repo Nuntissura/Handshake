@@ -5,9 +5,11 @@ import { MAIN_CONTAINMENT_STATUS_VALUES } from "./merge-progression-truth-lib.mj
 import { RUNTIME_MILESTONE_VALUES, TASK_BOARD_STATUS_VALUES } from "./wp-authority-projection-lib.mjs";
 import {
   GOV_ROOT_REPO_REL,
+  LEGACY_TASK_PACKETS_DIRNAME,
   LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT,
   repoPathAbs,
   SHARED_GOV_WP_COMMUNICATIONS_ROOT,
+  WORK_PACKETS_LOGICAL_DIRNAME,
 } from "./runtime-paths.mjs";
 
 export const COMM_ROOT = SHARED_GOV_WP_COMMUNICATIONS_ROOT;
@@ -391,13 +393,15 @@ export function validateRuntimeStatus(data) {
   const taskPacketFallback = "\\.GOV";
   const normalizedTaskPacket = normalize(data.task_packet);
   const matchesPacketPath = (prefix) =>
-    new RegExp(`^${prefix}/task_packets/WP-.*\\.md$`).test(normalizedTaskPacket)
-    || new RegExp(`^${prefix}/task_packets/WP-[^/]+/packet\\.md$`).test(normalizedTaskPacket);
+    [LEGACY_TASK_PACKETS_DIRNAME, WORK_PACKETS_LOGICAL_DIRNAME].some((dirName) =>
+      new RegExp(`^${prefix}/${dirName}/WP-.*\\.md$`).test(normalizedTaskPacket)
+      || new RegExp(`^${prefix}/${dirName}/WP-[^/]+/packet\\.md$`).test(normalizedTaskPacket)
+    );
   if (!isNonEmptyString(data.task_packet) || !(
     matchesPacketPath(taskPacketPrefix)
     || matchesPacketPath(taskPacketFallback)
   )) {
-    errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md or ${GOV_ROOT_REPO_REL}/task_packets/WP-*/packet.md`);
+    errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md, ${GOV_ROOT_REPO_REL}/task_packets/WP-*/packet.md, or the logical ${GOV_ROOT_REPO_REL}/work_packets equivalents`);
   }
   const currentPaths = communicationPathsForWp(data.wp_id);
   const declaredCommDir = normalize(data.communication_dir);

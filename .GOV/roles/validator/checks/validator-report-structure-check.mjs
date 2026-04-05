@@ -5,7 +5,7 @@ import {
   packetRequiresSpecClauseMap,
   packetUsesStructuredValidationReport,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL, listOfficialWorkPacketPaths } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { listOfficialWorkPacketPaths, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   packetUsesDataContractProfile,
   parseDataContractProfile,
@@ -120,7 +120,7 @@ function isClosedStatus(status) {
 
 const files = listOfficialWorkPacketPaths();
 if (files.length === 0) {
-  fail("No official work packets found", [path.join(GOV_ROOT_REPO_REL, "task_packets").replace(/\\/g, "/")]);
+  fail("No official work packets found", [WORK_PACKET_STORAGE_ROOT_REPO_REL]);
 }
 const violations = [];
 

@@ -6,7 +6,7 @@ import { loadSessionRegistry } from "../../../roles_shared/scripts/session/sessi
 import { resolveRoleConfig } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { parseJsonFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
-import { repoPathAbs, resolveWorkPacketPath, REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { repoPathAbs, resolveWorkPacketPath, REPO_ROOT, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { checkNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { steerActionForSession } from "./lib/orchestrator-steer-lib.mjs";
 import { deriveManualRelayEnvelope, preferredTargetSession } from "./lib/manual-relay-envelope-lib.mjs";
@@ -40,7 +40,7 @@ if (!wpId || !/^WP-/.test(wpId)) {
 }
 
 const packetPath = resolveWorkPacketPath(wpId)?.packetPath
-  || path.join(".GOV", "task_packets", `${wpId}.md`);
+  || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
 const packetAbsPath = repoPathAbs(packetPath);
 if (!fs.existsSync(packetAbsPath)) {
   fail("Packet file is missing", [packetPath]);

@@ -3,7 +3,8 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NonInteractive", "-Command"
 
 GOV_ROOT := env_var_or_default('HANDSHAKE_GOV_ROOT', '.GOV')
 MAIN_ROOT := "../handshake_main"
-CARGO_TARGET_DIR := "../Handshake Artifacts/handshake-cargo-target"
+ARTIFACT_ROOT := env_var_or_default('HANDSHAKE_ARTIFACT_ROOT', '../Handshake Artifacts')
+CARGO_TARGET_DIR := "{{ARTIFACT_ROOT}}/handshake-cargo-target"
 
 docs-check:
 	node -e "['{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md', '{{MAIN_ROOT}}/AGENTS.md', '{{GOV_ROOT}}/README.md', '{{GOV_ROOT}}/roles/README.md', '{{GOV_ROOT}}/roles_shared/README.md', '{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md', '{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles_shared/docs/START_HERE.md', '{{GOV_ROOT}}/spec/SPEC_CURRENT.md', '{{GOV_ROOT}}/roles_shared/docs/ARCHITECTURE.md', '{{GOV_ROOT}}/roles_shared/docs/RUNBOOK_DEBUG.md', '{{GOV_ROOT}}/roles_shared/docs/REPO_RESILIENCE.md', '{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md', '{{GOV_ROOT}}/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md', '{{GOV_ROOT}}/docs/vscode-session-bridge/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
@@ -14,6 +15,12 @@ gov-check:
 
 backup-status:
 	node "{{GOV_ROOT}}/roles_shared/scripts/topology/backup-status.mjs"
+
+artifact-hygiene-check:
+	node "{{GOV_ROOT}}/roles_shared/scripts/topology/artifact-hygiene-check.mjs"
+
+artifact-cleanup dry-run="":
+	node "{{GOV_ROOT}}/roles_shared/scripts/topology/artifact-cleanup.mjs" {{dry-run}}
 
 backup-snapshot label="manual" out_root="" nas_root="":
 	node "{{GOV_ROOT}}/roles_shared/scripts/topology/backup-snapshot.mjs" --label "{{label}}" --out-root "{{out_root}}" --nas-root "{{nas_root}}"
@@ -128,6 +135,9 @@ session-cancel role wp-id:
 
 session-close role wp-id:
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-control-command.mjs" CLOSE_SESSION {{role}} {{wp-id}}
+
+session-reclaim-terminals wp-id role="":
+	node "{{GOV_ROOT}}/roles_shared/scripts/session/reclaim-owned-terminals.mjs" {{wp-id}} {{role}}
 
 session-registry-status wp-id="":
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-registry-status.mjs" {{wp-id}}

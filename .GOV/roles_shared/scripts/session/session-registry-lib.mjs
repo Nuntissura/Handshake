@@ -10,6 +10,10 @@ import {
   SESSION_ACTIVE_HOST_VALUES,
   SESSION_ACTIVE_TERMINAL_KIND_NONE,
   SESSION_ACTIVE_TERMINAL_KIND_VALUES,
+  SESSION_TERMINAL_OWNERSHIP_SCOPE_NONE,
+  SESSION_TERMINAL_OWNERSHIP_SCOPE_VALUES,
+  SESSION_TERMINAL_RECLAIM_STATUS_NONE,
+  SESSION_TERMINAL_RECLAIM_STATUS_VALUES,
   SESSION_COMMAND_STATUSES,
   SESSION_CONTROL_MODE,
   SESSION_CONTROL_BROKER_STATE_FILE,
@@ -166,6 +170,20 @@ function normalizeSessionRecord(session) {
   session.active_host = normalizeActiveHost(session.active_host);
   session.active_terminal_title = session.active_terminal_title || "";
   session.active_terminal_kind = normalizeActiveTerminalKind(session.active_terminal_kind);
+  session.terminal_ownership_scope = SESSION_TERMINAL_OWNERSHIP_SCOPE_VALUES.includes(session.terminal_ownership_scope)
+    ? session.terminal_ownership_scope
+    : SESSION_TERMINAL_OWNERSHIP_SCOPE_NONE;
+  session.owned_terminal_process_id = Number.isInteger(session.owned_terminal_process_id)
+    && session.owned_terminal_process_id > 0
+    ? session.owned_terminal_process_id
+    : 0;
+  session.owned_terminal_host_kind = session.owned_terminal_host_kind || "";
+  session.owned_terminal_window_title = session.owned_terminal_window_title || "";
+  session.owned_terminal_recorded_at = session.owned_terminal_recorded_at || "";
+  session.owned_terminal_reclaimed_at = session.owned_terminal_reclaimed_at || "";
+  session.owned_terminal_reclaim_status = SESSION_TERMINAL_RECLAIM_STATUS_VALUES.includes(session.owned_terminal_reclaim_status)
+    ? session.owned_terminal_reclaim_status
+    : SESSION_TERMINAL_RECLAIM_STATUS_NONE;
   session.last_heartbeat_at = session.last_heartbeat_at || "";
   session.last_error = session.last_error || "";
   session.last_event_at = session.last_event_at || "";
@@ -450,6 +468,13 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
       active_host: SESSION_ACTIVE_HOST_NONE,
       active_terminal_title: "",
       active_terminal_kind: SESSION_ACTIVE_TERMINAL_KIND_NONE,
+      terminal_ownership_scope: SESSION_TERMINAL_OWNERSHIP_SCOPE_NONE,
+      owned_terminal_process_id: 0,
+      owned_terminal_host_kind: "",
+      owned_terminal_window_title: "",
+      owned_terminal_recorded_at: "",
+      owned_terminal_reclaimed_at: "",
+      owned_terminal_reclaim_status: SESSION_TERMINAL_RECLAIM_STATUS_NONE,
       last_heartbeat_at: "",
       last_error: "",
       last_event_at: "",
@@ -742,6 +767,13 @@ export function registrySessionSummary(session) {
     preferred_host: session.preferred_host,
     active_host: session.active_host || "NONE",
     active_terminal_kind: session.active_terminal_kind || "NONE",
+    terminal_ownership_scope: session.terminal_ownership_scope || SESSION_TERMINAL_OWNERSHIP_SCOPE_NONE,
+    owned_terminal_process_id: session.owned_terminal_process_id || 0,
+    owned_terminal_host_kind: session.owned_terminal_host_kind || "",
+    owned_terminal_window_title: session.owned_terminal_window_title || "",
+    owned_terminal_recorded_at: session.owned_terminal_recorded_at || "",
+    owned_terminal_reclaimed_at: session.owned_terminal_reclaimed_at || "",
+    owned_terminal_reclaim_status: session.owned_terminal_reclaim_status || SESSION_TERMINAL_RECLAIM_STATUS_NONE,
     plugin_request_count: session.plugin_request_count,
     plugin_failure_count: session.plugin_failure_count,
     cli_escalation_allowed: session.cli_escalation_allowed,
@@ -846,6 +878,15 @@ export function validateRegistryShape(registry) {
     }
     if (!SESSION_ACTIVE_TERMINAL_KIND_VALUES.includes(session.active_terminal_kind || "NONE")) {
       errors.push(`session ${session.session_key || "<missing>"} has invalid active_terminal_kind ${session.active_terminal_kind}`);
+    }
+    if (!SESSION_TERMINAL_OWNERSHIP_SCOPE_VALUES.includes(session.terminal_ownership_scope || SESSION_TERMINAL_OWNERSHIP_SCOPE_NONE)) {
+      errors.push(`session ${session.session_key || "<missing>"} has invalid terminal_ownership_scope ${session.terminal_ownership_scope}`);
+    }
+    if (!Number.isInteger(session.owned_terminal_process_id || 0) || (session.owned_terminal_process_id || 0) < 0) {
+      errors.push(`session ${session.session_key || "<missing>"} has invalid owned_terminal_process_id ${session.owned_terminal_process_id}`);
+    }
+    if (!SESSION_TERMINAL_RECLAIM_STATUS_VALUES.includes(session.owned_terminal_reclaim_status || SESSION_TERMINAL_RECLAIM_STATUS_NONE)) {
+      errors.push(`session ${session.session_key || "<missing>"} has invalid owned_terminal_reclaim_status ${session.owned_terminal_reclaim_status}`);
     }
     if (session.last_command_status && session.last_command_status !== "NONE" && !SESSION_COMMAND_STATUSES.includes(session.last_command_status)) {
       errors.push(`session ${session.session_key || "<missing>"} has invalid last_command_status ${session.last_command_status}`);

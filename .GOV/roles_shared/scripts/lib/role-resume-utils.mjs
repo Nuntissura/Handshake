@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import crypto from "node:crypto";
-import { GOV_ROOT_REPO_REL, GOVERNANCE_RUNTIME_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath } from "./runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, GOVERNANCE_RUNTIME_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath, resolveWorkPacketPathAtRepo, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "./runtime-paths.mjs";
 import { executionOwnerToPacketValue } from "../session/session-policy.mjs";
 
 export const ORCHESTRATOR_GATES_PATH = resolveOrchestratorGatesPath();
@@ -89,14 +89,14 @@ export function packetPath(wpId) {
 
 export function packetPathAtRepo(wpId, referenceRepoRoot = "") {
   if (!referenceRepoRoot) {
-    const packetPathRel = resolveWorkPacketPath(wpId)?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+    const packetPathRel = resolveWorkPacketPath(wpId)?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
     return packetPathRel;
   }
 
   const repoRoot = path.resolve(referenceRepoRoot);
-  const folderPacket = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "task_packets", wpId, "packet.md");
-  if (exists(folderPacket)) return folderPacket;
-  return path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  const resolved = resolveWorkPacketPathAtRepo(repoRoot, wpId, LOCAL_GOV_ROOT_REPO_REL);
+  if (resolved?.packetAbsPath) return resolved.packetAbsPath;
+  return path.resolve(repoRoot, path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`));
 }
 
 export function packetExists(wpId) {
@@ -458,7 +458,7 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
   }
 
   const resolvedPacket = resolveWorkPacketPath(wpId);
-  const packetPathRel = resolvedPacket?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  const packetPathRel = resolvedPacket?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
   const packetPath = path.join(worktreeAbs, packetPathRel);
   const referencePacketPath = path.join(repoRoot, packetPathRel);
   if (!exists(packetPath)) {

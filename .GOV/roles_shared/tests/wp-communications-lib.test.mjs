@@ -91,9 +91,11 @@ function runtimeStatusFixture(taskPacket) {
   };
 }
 
-test("WP runtime schema accepts both flat and folder task packet paths", () => {
+test("WP runtime schema accepts both task_packets and work_packets packet paths", () => {
   assert.equal(schemaTaskPacketMatches(".GOV/task_packets/WP-TEST-RUNTIME-v1.md"), true);
   assert.equal(schemaTaskPacketMatches(".GOV/task_packets/WP-TEST-RUNTIME-v1/packet.md"), true);
+  assert.equal(schemaTaskPacketMatches(".GOV/work_packets/WP-TEST-RUNTIME-v1.md"), true);
+  assert.equal(schemaTaskPacketMatches(".GOV/work_packets/WP-TEST-RUNTIME-v1/packet.md"), true);
   assert.equal(schemaTaskPacketMatches(".GOV/task_packets/README.md"), false);
 });
 

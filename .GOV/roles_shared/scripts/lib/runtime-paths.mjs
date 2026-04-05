@@ -57,6 +57,8 @@ export function repoPathAbs(value) {
 
 export const REPO_ROOT = path.resolve(resolveRepoRoot());
 export const WORKSPACE_ROOT = path.resolve(REPO_ROOT, "..");
+export const WORK_PACKETS_LOGICAL_DIRNAME = "work_packets";
+export const LEGACY_TASK_PACKETS_DIRNAME = "task_packets";
 
 // --- Governance root (kernel worktree) resolution ---
 
@@ -83,6 +85,38 @@ export function govRootAbsPath(...segments) {
 export function govRootRelPath(...segments) {
   return normalizePath(path.join(GOV_ROOT_REPO_REL, ...segments));
 }
+
+function workPacketRootCandidatesAt(govRootAbs, govRootRel) {
+  const normalizedGovRootAbs = path.resolve(String(govRootAbs || GOV_ROOT_ABS));
+  const normalizedGovRootRel = normalizePath(govRootRel || GOV_ROOT_REPO_REL) || ".GOV";
+  return [
+    {
+      dirName: WORK_PACKETS_LOGICAL_DIRNAME,
+      rootAbs: path.join(normalizedGovRootAbs, WORK_PACKETS_LOGICAL_DIRNAME),
+      rootRel: normalizePath(path.join(normalizedGovRootRel, WORK_PACKETS_LOGICAL_DIRNAME)),
+    },
+    {
+      dirName: LEGACY_TASK_PACKETS_DIRNAME,
+      rootAbs: path.join(normalizedGovRootAbs, LEGACY_TASK_PACKETS_DIRNAME),
+      rootRel: normalizePath(path.join(normalizedGovRootRel, LEGACY_TASK_PACKETS_DIRNAME)),
+    },
+  ];
+}
+
+function existingWorkPacketRootCandidatesAt(govRootAbs, govRootRel) {
+  return workPacketRootCandidatesAt(govRootAbs, govRootRel)
+    .filter((candidate) => fs.existsSync(candidate.rootAbs));
+}
+
+function preferredWorkPacketRootCandidateAt(govRootAbs, govRootRel) {
+  return existingWorkPacketRootCandidatesAt(govRootAbs, govRootRel)[0]
+    || workPacketRootCandidatesAt(govRootAbs, govRootRel).at(-1);
+}
+
+export const WORK_PACKET_STORAGE_ROOT_ABS = preferredWorkPacketRootCandidateAt(GOV_ROOT_ABS, GOV_ROOT_REPO_REL).rootAbs;
+export const WORK_PACKET_STORAGE_ROOT_REPO_REL = preferredWorkPacketRootCandidateAt(GOV_ROOT_ABS, GOV_ROOT_REPO_REL).rootRel;
+export const WORK_PACKET_STUB_STORAGE_ROOT_ABS = path.join(WORK_PACKET_STORAGE_ROOT_ABS, "stubs");
+export const WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL = normalizePath(path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, "stubs"));
 
 export function listWorkPacketEntriesAt(taskPacketsRootAbs, taskPacketsRootRel, options = {}) {
   const rootAbs = path.resolve(String(taskPacketsRootAbs || ""));
@@ -124,10 +158,17 @@ export function listWorkPacketEntriesAt(taskPacketsRootAbs, taskPacketsRootRel, 
 }
 
 export function listOfficialWorkPacketEntries() {
-  return listWorkPacketEntriesAt(
-    govRootAbsPath("task_packets"),
-    govRootRelPath("task_packets"),
-    { skipDirNames: ["stubs"] },
+  const entriesByWpId = new Map();
+  for (const candidate of existingWorkPacketRootCandidatesAt(GOV_ROOT_ABS, GOV_ROOT_REPO_REL)) {
+    for (const entry of listWorkPacketEntriesAt(candidate.rootAbs, candidate.rootRel, { skipDirNames: ["stubs"] })) {
+      if (!entriesByWpId.has(entry.wpId)) {
+        entriesByWpId.set(entry.wpId, entry);
+      }
+    }
+  }
+  return [...entriesByWpId.values()].sort((left, right) =>
+    left.wpId.localeCompare(right.wpId)
+    || left.packetPath.localeCompare(right.packetPath)
   );
 }
 
@@ -136,9 +177,19 @@ export function listOfficialWorkPacketPaths() {
 }
 
 export function listStubWorkPacketEntries() {
-  return listWorkPacketEntriesAt(
-    govRootAbsPath("task_packets", "stubs"),
-    govRootRelPath("task_packets", "stubs"),
+  const entriesByWpId = new Map();
+  for (const candidate of existingWorkPacketRootCandidatesAt(GOV_ROOT_ABS, GOV_ROOT_REPO_REL)) {
+    const stubRootAbs = path.join(candidate.rootAbs, "stubs");
+    const stubRootRel = normalizePath(path.join(candidate.rootRel, "stubs"));
+    for (const entry of listWorkPacketEntriesAt(stubRootAbs, stubRootRel)) {
+      if (!entriesByWpId.has(entry.wpId)) {
+        entriesByWpId.set(entry.wpId, entry);
+      }
+    }
+  }
+  return [...entriesByWpId.values()].sort((left, right) =>
+    left.wpId.localeCompare(right.wpId)
+    || left.packetPath.localeCompare(right.packetPath)
   );
 }
 
@@ -153,37 +204,46 @@ export function listStubWorkPacketPaths() {
  * Returns { packetPath, packetDir, isFolder } or null if not found.
  */
 export function resolveWorkPacketPath(wpId) {
-  const folderPath = govRootRelPath("task_packets", wpId, "packet.md");
-  const folderAbsPath = govRootAbsPath("task_packets", wpId, "packet.md");
-  const flatPath = govRootRelPath("task_packets", `${wpId}.md`);
-  const flatAbsPath = govRootAbsPath("task_packets", `${wpId}.md`);
-  if (fs.existsSync(folderAbsPath)) {
-    return {
-      packetPath: folderPath,
-      packetAbsPath: folderAbsPath,
-      packetDir: govRootRelPath("task_packets", wpId),
-      packetDirAbs: govRootAbsPath("task_packets", wpId),
-      isFolder: true,
-    };
-  }
-  if (fs.existsSync(flatAbsPath)) {
-    return {
-      packetPath: flatPath,
-      packetAbsPath: flatAbsPath,
-      packetDir: govRootRelPath("task_packets"),
-      packetDirAbs: govRootAbsPath("task_packets"),
-      isFolder: false,
-    };
+  return resolveWorkPacketPathAtRepo(REPO_ROOT, wpId, GOV_ROOT_REPO_REL);
+}
+
+export function resolveWorkPacketPathAtRepo(repoRoot, wpId, localGovRootRel = ".GOV") {
+  const repoRootAbs = path.resolve(String(repoRoot || REPO_ROOT));
+  const normalizedGovRootRel = normalizePath(localGovRootRel || ".GOV") || ".GOV";
+  const govRootAbs = path.resolve(repoRootAbs, normalizedGovRootRel);
+  for (const candidate of workPacketRootCandidatesAt(govRootAbs, normalizedGovRootRel)) {
+    const folderPath = normalizePath(path.join(candidate.rootRel, wpId, "packet.md"));
+    const folderAbsPath = path.join(candidate.rootAbs, wpId, "packet.md");
+    const flatPath = normalizePath(path.join(candidate.rootRel, `${wpId}.md`));
+    const flatAbsPath = path.join(candidate.rootAbs, `${wpId}.md`);
+    if (fs.existsSync(folderAbsPath)) {
+      return {
+        packetPath: folderPath,
+        packetAbsPath: folderAbsPath,
+        packetDir: normalizePath(path.join(candidate.rootRel, wpId)),
+        packetDirAbs: path.join(candidate.rootAbs, wpId),
+        isFolder: true,
+      };
+    }
+    if (fs.existsSync(flatAbsPath)) {
+      return {
+        packetPath: flatPath,
+        packetAbsPath: flatAbsPath,
+        packetDir: candidate.rootRel,
+        packetDirAbs: candidate.rootAbs,
+        isFolder: false,
+      };
+    }
   }
   return null;
 }
 
 export function workPacketPath(wpId) {
-  return resolveWorkPacketPath(wpId)?.packetPath || govRootRelPath("task_packets", `${wpId}.md`);
+  return resolveWorkPacketPath(wpId)?.packetPath || normalizePath(path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`));
 }
 
 export function workPacketAbsPath(wpId) {
-  return resolveWorkPacketPath(wpId)?.packetAbsPath || govRootAbsPath("task_packets", `${wpId}.md`);
+  return resolveWorkPacketPath(wpId)?.packetAbsPath || path.join(WORK_PACKET_STORAGE_ROOT_ABS, `${wpId}.md`);
 }
 
 export function inferWpIdFromPacketPath(packetPath) {
@@ -204,11 +264,13 @@ export function inferWpIdFromPacketPath(packetPath) {
  * Flat:   .GOV/refinements/WP-{ID}.md (legacy)
  */
 export function resolveRefinementPath(wpId) {
-  const folderPath = govRootRelPath("task_packets", wpId, "refinement.md");
-  const folderAbsPath = govRootAbsPath("task_packets", wpId, "refinement.md");
+  for (const candidate of workPacketRootCandidatesAt(GOV_ROOT_ABS, GOV_ROOT_REPO_REL)) {
+    const folderPath = normalizePath(path.join(candidate.rootRel, wpId, "refinement.md"));
+    const folderAbsPath = path.join(candidate.rootAbs, wpId, "refinement.md");
+    if (fs.existsSync(folderAbsPath)) return folderPath;
+  }
   const flatPath = govRootRelPath("refinements", `${wpId}.md`);
   const flatAbsPath = govRootAbsPath("refinements", `${wpId}.md`);
-  if (fs.existsSync(folderAbsPath)) return folderPath;
   if (fs.existsSync(flatAbsPath)) return flatPath;
   return null;
 }

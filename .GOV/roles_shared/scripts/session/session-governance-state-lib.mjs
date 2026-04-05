@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { REPO_ROOT } from "../lib/runtime-paths.mjs";
+import { REPO_ROOT, resolveWorkPacketPathAtRepo, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 
 export const TERMINAL_SESSION_TASK_BOARD_STATUSES = new Set(["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"]);
 const LOCAL_GOV_ROOT_REPO_REL = ".GOV";
@@ -32,17 +32,17 @@ export function isTerminalSessionTaskBoardStatus(status) {
 }
 
 function packetPathAtRepo(repoRoot, wpId) {
-  const folderPacket = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "task_packets", wpId, "packet.md");
-  if (fs.existsSync(folderPacket)) {
+  const resolved = resolveWorkPacketPathAtRepo(repoRoot, wpId, LOCAL_GOV_ROOT_REPO_REL);
+  if (resolved?.packetAbsPath) {
     return {
-      packetPathRel: path.join(LOCAL_GOV_ROOT_REPO_REL, "task_packets", wpId, "packet.md"),
-      packetPathAbs: folderPacket,
+      packetPathRel: resolved.packetPath,
+      packetPathAbs: resolved.packetAbsPath,
     };
   }
-  const flatPacket = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  const fallbackRel = path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
   return {
-    packetPathRel: path.join(LOCAL_GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`),
-    packetPathAbs: flatPacket,
+    packetPathRel: fallbackRel,
+    packetPathAbs: path.resolve(repoRoot, fallbackRel),
   };
 }
 
@@ -51,7 +51,7 @@ export function evaluateSessionGovernanceState(repoRoot, sessionLike = {}) {
   const wpId = String(sessionLike.wp_id || sessionLike.wpId || "").trim();
   const localWorktreeDir = String(sessionLike.local_worktree_dir || sessionLike.localWorktreeDir || "").trim();
   const packetResolved = wpId ? packetPathAtRepo(root, wpId) : null;
-  const packetPathRel = packetResolved?.packetPathRel || path.join(LOCAL_GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  const packetPathRel = packetResolved?.packetPathRel || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
   const packetPathAbs = packetResolved?.packetPathAbs || path.resolve(root, packetPathRel);
   const packetExists = Boolean(wpId) && fs.existsSync(packetPathAbs);
   const packetStatus = packetExists ? parsePacketStatus(fs.readFileSync(packetPathAbs, "utf8")) : "";

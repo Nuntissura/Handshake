@@ -7,7 +7,7 @@ import { buildSteeringPrompt, resolveRoleConfig } from "../../../roles_shared/sc
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { checkAllNotifications, checkNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { evaluateWpCommunicationBoundary, evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
@@ -63,7 +63,7 @@ if (!wpId || !/^WP-/.test(wpId)) {
 }
 
 const packetPath = resolveWorkPacketPath(wpId)?.packetPath
-  || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+  || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
 if (!fs.existsSync(packetPath)) {
   fail("Packet file is missing", [packetPath]);
 }

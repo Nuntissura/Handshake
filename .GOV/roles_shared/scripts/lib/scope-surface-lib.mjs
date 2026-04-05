@@ -1,5 +1,5 @@
 import path from "node:path";
-import { GOV_ROOT_REPO_REL, resolveRefinementPath, resolveWorkPacketPath } from "./runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, resolveRefinementPath, resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "./runtime-paths.mjs";
 
 const GOV_ROOT_NORMALIZED = normalizeRepoPath(GOV_ROOT_REPO_REL);
 const GOV_DISPLAY_ROOT = ".GOV";
@@ -300,7 +300,7 @@ export function isProductPath(filePath) {
 export function deriveWpScopeContract({ wpId, packetContent }) {
   const packetResolved = resolveWorkPacketPath(wpId);
   const packetPath = normalizeRepoPath(
-    packetResolved?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`,
+    packetResolved?.packetPath || `${WORK_PACKET_STORAGE_ROOT_REPO_REL}/${wpId}.md`,
   );
   const refinementPath = normalizeRepoPath(
     resolveRefinementPath(wpId) || `${GOV_ROOT_REPO_REL}/refinements/${wpId}.md`,

@@ -62,6 +62,7 @@ See also:
 ## Product Runtime Root (Current Default)
 
 - External build, test, and tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
+- Repo-local `target/` directories are workflow-invalid residue. Run `just artifact-hygiene-check` before claiming clean governance/product state, and use `just artifact-cleanup` or the governed closeout path to remove reclaimable residue.
 - Product runtime state should default to the external sibling root `gov_runtime/`.
 - Do not treat repo-root `data/` or `.handshake/` as the template for new runtime work.
 
@@ -87,6 +88,7 @@ See also:
 - Primary steering path is the governed session-control ledgers under that same external repo-governance runtime root:
   - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
   - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- Governed system-terminal launches must record ownership in the session registry so closeout can reclaim only the windows created by the governed session batch. If reclaim needs manual repair, use `just session-reclaim-terminals WP-{ID} [ROLE]`.
 - CLI escalation is allowed only after 2 plugin failures or timeouts for the same role/WP session unless the Operator explicitly waives that policy.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
@@ -387,7 +389,11 @@ Immediately after creating a WP work packet and refinement and obtaining `USER_S
 - the official packet path resolved for the WP
 - the official refinement path resolved for the WP
 
-Current folder-packet default:
+Current logical resolver:
+- `.GOV/work_packets/WP-{ID}/packet.md`
+- `.GOV/work_packets/WP-{ID}/refinement.md`
+
+Current physical storage compatibility:
 - `.GOV/task_packets/WP-{ID}/packet.md`
 - `.GOV/task_packets/WP-{ID}/refinement.md`
 
@@ -500,6 +506,7 @@ Legacy flat compatibility:
 
 - Before launching coder sessions, `just orchestrator-prepare-and-packet WP-{ID}` commits the work packet, refinement, and micro tasks on `gov_kernel` and creates a backup snapshot.
 - Micro tasks (one per CLAUSE_CLOSURE_MATRIX row) are generated in the WP folder (`.GOV/task_packets/WP-{ID}/MT-001.md`, etc.) during packet creation.
+- During the work-packet compatibility migration, scripts must resolve those packet/MT paths through `runtime-paths.mjs` rather than assuming the literal `task_packets` folder name.
 - Use only the packet-declared communication artifacts for shared session/runtime coordination.
 - The Orchestrator remains workflow authority after delegation:
   - starts governed sessions

@@ -69,6 +69,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 
 - External build/test/tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
 - The Integration Validator, or the Orchestrator when explicitly instructed to perform the `origin/main` push, MUST verify `../Handshake Artifacts/` is clean of stale artifacts before pushing to `origin/main`.
+- Repo-local `target/` directories are invalid. Treat them as hygiene failures, not as normal residue, and clear them through `just artifact-cleanup` or the governed closeout path.
 - Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
 - This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
 - Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the WP is explicitly remediating them.
@@ -92,6 +93,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - Validator sessions do not own the steering lane. Only the Orchestrator starts, resumes, or cancels governed validator sessions; validators request repair, pause, or cancel through packet communications or an explicit orchestrator instruction.
 - The external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger is the settled steering ledger; the matching external `SESSION_CONTROL_OUTPUTS/` directory holds the per-command ACP event logs that the Operator monitor can surface.
+- Governed system-terminal launches are registry-owned surfaces. Closeout now attempts deterministic reclaim automatically; if a terminal survives, use `just session-reclaim-terminals WP-{ID} [ROLE]` instead of killing windows manually.
 - Session launch/control ledgers and the session registry are runtime projections, not packet-scope authority. Treat them as operator/runtime evidence only; use the PREPARE worktree plus packet/WP-communications truth for validation decisions.
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
@@ -181,7 +183,7 @@ Minimum verification for governance-only changes: `just gov-check`.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, those checkpoint commands are invalid; do not invoke or require them. If they are attempted, treat that as a `WORKFLOW_INVALIDITY` condition rather than a missing prerequisite.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` after signature/prepare, do not ask the Operator for routine approval, "proceed", or checkpoint actions. If a real blocker exists, route it back to the Orchestrator and name exactly one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`.
 - If the Operator has to restate that rule mid-run, do not continue as if nothing happened; the Orchestrator must record `just wp-operator-rule-restatement ...`, and the lane is reset-required until fresh direction is issued.
-- Refinement completeness (HARD): If the WP requires a non-trivial technical approach choice (new primitives/techniques, new dependencies, security-sensitive patterns, or UI-visible behavior), the Validator MUST confirm a `LANDSCAPE_SCAN` exists in the official refinement path for the WP (current: `.GOV/task_packets/WP-{ID}/refinement.md`; legacy compatibility: `.GOV/refinements/WP-{ID}.md`) or was pasted in-chat, with ADOPT/ADAPT/REJECT decisions. Missing scan = FAIL unless the Operator explicitly waives it for the WP. For cross-cutting WPs, also confirm `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` exist and any required Spec Appendix 12 (index/matrices) updates are either in-scope or tracked as explicit stubs.
+- Refinement completeness (HARD): If the WP requires a non-trivial technical approach choice (new primitives/techniques, new dependencies, security-sensitive patterns, or UI-visible behavior), the Validator MUST confirm a `LANDSCAPE_SCAN` exists in the official refinement path for the WP (logical resolver: `.GOV/work_packets/WP-{ID}/refinement.md`; current physical storage: `.GOV/task_packets/WP-{ID}/refinement.md`; legacy compatibility: `.GOV/refinements/WP-{ID}.md`) or was pasted in-chat, with ADOPT/ADAPT/REJECT decisions. Missing scan = FAIL unless the Operator explicitly waives it for the WP. For cross-cutting WPs, also confirm `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` exist and any required Spec Appendix 12 (index/matrices) updates are either in-scope or tracked as explicit stubs.
 - [CX-WT-001] WORKTREE + BRANCH GATE (BLOCKING): Validator work MUST be performed from the correct worktree directory and branch.
   - Source of truth: `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
   - Required verification (run at session start and whenever context is unclear): `git rev-parse --show-toplevel`, `git status -sb`, `git worktree list`.
@@ -212,7 +214,7 @@ Minimum verification for governance-only changes: `just gov-check`.
 - WP Traceability check (blocking when variants exist): confirm the work packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
 - Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer â†’ Master Spec Main Body (SPEC_TARGET) â†’ repo code. Do NOT validate only â€œwhat changed in v{N}â€. If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
 - When running Validator commands/scripts, use the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
-- If a WP exists only as a stub (e.g., `.GOV/task_packets/stubs/WP-*.md`) and no official packet exists in `.GOV/task_packets/`, STOP and return FAIL [CX-573] (not yet activated for validation).
+- If a WP exists only as a stub (e.g., current physical storage `.GOV/task_packets/stubs/WP-*.md`) and no official packet exists in the resolved Work Packet root, STOP and return FAIL [CX-573] (not yet activated for validation).
 - If work packet is missing or incomplete, return FAIL with reason [CX-573].
 - Preserve User Context sections in packets (do not edit/remove) [CX-654].
 - Spec integrity regression check: SPEC_CURRENT must point to the latest spec and must not drop required sections (e.g., storage portability A2.3.12). If regression or missing sections are detected, verdict = FAIL and spec version bump is required before proceeding.
@@ -285,7 +287,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
 - `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`
-- `.GOV/task_packets/WP-*/packet.md` or legacy `.GOV/task_packets/WP-*.md`
+- resolved Work Packet path (`.GOV/work_packets/WP-*/packet.md` logical; current physical `.GOV/task_packets/WP-*/packet.md`) or legacy flat `.GOV/task_packets/WP-*.md`
 - `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json` (when present)
 
 Resume rule (hard, anti-babysit):
@@ -410,7 +412,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - The Task Board update MUST be carried in the same WP branch closure flow as the PASS report append / packet `**Status:** Done` update, so merge truth stays `[MERGE_PENDING]` until local `main` actually contains the approved closure commit.
 - If the WP packet says `Done`/`PASS` but the Task Board still shows `READY_FOR_DEV` or `IN_PROGRESS`, closure is incomplete and the Validator MUST fix the Task Board before merge.
 - Activation-state reconciliation is part of PASS closure, not an optional cleanup:
-  - If `.GOV/task_packets/{WP_ID}/packet.md` or legacy `.GOV/task_packets/{WP_ID}.md` is an official packet, `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` MUST point the Base WP to that official packet path, not a stub path.
+  - If the resolved official packet path (`.GOV/work_packets/{WP_ID}/packet.md` logical; current physical `.GOV/task_packets/{WP_ID}/packet.md`) or legacy `.GOV/task_packets/{WP_ID}.md` is an official packet, `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` MUST point the Base WP to that official packet path, not a stub path.
   - `.GOV/roles_shared/records/TASK_BOARD.md` MUST NOT keep that Active Packet under `## Stub Backlog (Not Activated)`.
   - `.GOV/roles_shared/records/BUILD_ORDER.md` MUST be regenerated from the reconciled Task Board + traceability state via `just build-order-sync`.
 - Required final verification before merge/push of `main`: `just gov-check`
@@ -458,7 +460,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the WP Validator owns the first-pass judgement of coder BOOTSTRAP and SKELETON quality. Use the kickoff/intent loop to steer corrections directly instead of waiting for the Orchestrator to relay them.
 
 0A) Micro Task Early Review (WP Validator)
-- When micro tasks exist (`.GOV/task_packets/WP-{ID}/MT-*.md`), the WP Validator reviews completed MTs as the coder works — do not wait for all MTs to be done.
+- When micro tasks exist in the resolved Work Packet folder (current physical `.GOV/task_packets/WP-{ID}/MT-*.md`), the WP Validator reviews completed MTs as the coder works — do not wait for all MTs to be done.
 - On orchestrator-managed lanes, treat governed coder `CODER_INTENT` / overlap `REVIEW_REQUEST` receipts without a declared-MT `microtask_contract` as invalid workflow, not merely weak evidence; the contract must resolve to one declared MT and keep `file_targets` inside that MT's `CODE_SURFACES`.
 - For each MT where `CODER STATUS: DONE`:
   - Read the MT file and verify the evidence (file:line proof, tests run)
@@ -613,10 +615,13 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 
 ## Standard Command Set (run when applicable)
 - `just cargo-clean` (cleans external Cargo target dir at `../Handshake Artifacts/handshake-cargo-target` before validation/commit; fail validation if skipped)
+- `just artifact-hygiene-check` (fails if repo-local `target/` exists or blocking non-canonical external artifact residue remains)
+- `just artifact-cleanup [--dry-run]` (mechanically removes reclaimable stale external artifact folders plus repo-local `target/` residue)
 - `just external-validator-brief WP-{ID}` (prints the canonical external/classical validator target contract: code target, governance target, committed handoff command, split report fields, and legal verdict vocabulary)
 - `just validator-handoff-check WP-{ID}` (required before PASS commit clearance for orchestrator-managed WPs; validates the committed PREPARE worktree handoff state)
 - `just integration-validator-context-brief WP-{ID}` (canonical final-lane authority/path/context bundle for orchestrator-managed Integration Validator work; use this instead of rereading protocols or rediscovering branch/worktree/session/main-compatibility truth)
 - `just integration-validator-closeout-check WP-{ID}` (required before PASS commit clearance for orchestrator-managed WPs; fails if the final lane cannot resolve the committed target SHA or if WP-scoped session-control truth is still unsettled)
+- `just session-reclaim-terminals WP-{ID} [ROLE]` (manual repair helper for any still-open registry-owned governed system-terminal windows after closeout)
 - `just gov-check` (required before PASS merge/push and for any governance-only validator changes; catches activation traceability drift, Task Board/build-order drift, and shared governance regressions)
 - `just validator-gate-*` write commands now reject unbound/wrong-lane orchestrator-managed usage early; if the current checkout is not a governed validator lane, use `just validator-next WP-{ID}`, `just integration-validator-context-brief WP-{ID}`, or `just external-validator-brief WP-{ID}` instead of forcing gate writes from the wrong surface
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
@@ -788,7 +793,7 @@ State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.
    - set work packet `**Status:** Done`
    - update `.GOV/roles_shared/records/TASK_BOARD.md` to `## Done` / `[MERGE_PENDING]` before merge, then `[VALIDATED]` only after main containment is verified
    - sync `.GOV/roles_shared/records/BUILD_ORDER.md` via `just build-order-sync`
-3. Validator appends the VALIDATION REPORT to the active official packet path (current: `.GOV/task_packets/{WP_ID}/packet.md`; legacy: `.GOV/task_packets/{WP_ID}.md`) (APPEND-ONLY per [CX-WP-001]).
+3. Validator appends the VALIDATION REPORT to the active official packet path (logical: `.GOV/work_packets/{WP_ID}/packet.md`; current physical: `.GOV/task_packets/{WP_ID}/packet.md`; legacy flat: `.GOV/task_packets/{WP_ID}.md`) (APPEND-ONLY per [CX-WP-001]).
 4. Validator runs: `just validator-gate-append {WP_ID} {PASS|FAIL|ABANDONED}`
 5. Validator does **not** paste the full report to chat yet.
 
@@ -904,7 +909,7 @@ Validation Claims (do not collapse into a single PASS):
 - VALIDATOR_RISK_TIER: LOW | MEDIUM | HIGH
 
 Scope Inputs:
-- Task Packet: `.GOV/task_packets/{WP_ID}/packet.md` (or legacy `.GOV/task_packets/{WP_ID}.md`) (status: {status})
+- Task Packet: resolved Work Packet path (`.GOV/work_packets/{WP_ID}/packet.md` logical; current physical `.GOV/task_packets/{WP_ID}/packet.md`; or legacy `.GOV/task_packets/{WP_ID}.md`) (status: {status})
 - Spec: {spec version/anchors}
 
 Files Checked:
@@ -985,7 +990,7 @@ Split-Verdict Rules:
 - If the environment blocked full proof, record that in `ENVIRONMENT_VERDICT` instead of narrating an unconditional PASS.
  
 Work Packet Update (APPEND-ONLY):
-- [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL/ABANDONED) MUST be APPENDED to the end of the active official packet file (current: `.GOV/task_packets/{WP_ID}/packet.md`; legacy: `.GOV/task_packets/{WP_ID}.md`). OVERWRITING IS FORBIDDEN.
+- [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL/ABANDONED) MUST be APPENDED to the end of the active official packet file (logical: `.GOV/work_packets/{WP_ID}/packet.md`; current physical: `.GOV/task_packets/{WP_ID}/packet.md`; legacy flat: `.GOV/task_packets/{WP_ID}.md`). OVERWRITING IS FORBIDDEN.
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
 - STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL/ABANDONED using the template below, but only after `verdict: PASS` may the Validator set work packet `**Status:** Done`, move TASK_BOARD to Done/Merge Pending, and sync BUILD_ORDER (`just build-order-sync`). Promote to `Validated (PASS)` / `[VALIDATED]` only after main containment is real and recorded. **DO NOT OVERWRITE User Context or previous history [CX-654].**
 - For non-PASS governed verdicts or `DISPOSITION=OUTDATED_ONLY|ABANDONED`, append the report but do not perform normal Done/Validated PASS closure updates on work packet/TASK_BOARD/BUILD_ORDER unless the governed lane explicitly records the non-PASS terminal closure path.

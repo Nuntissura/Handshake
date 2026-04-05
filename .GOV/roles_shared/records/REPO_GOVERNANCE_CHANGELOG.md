@@ -1096,3 +1096,42 @@
   - `RGF-74`
   - `RGF-75`
 - OUTCOME: smoketest reviews now have stable `SMOKE-FIND-*` and `SMOKE-CONTROL-*` surfaces, board items can cite exact smoke findings instead of only whole audit documents, and the recovery audit now records both failure linkage and positive controls in a mechanically traceable format
+
+### 2026.04.05.04 / GOV-CHANGE-20260405-04
+
+- STATUS: APPLIED
+- SUMMARY: completed Wave 3 hygiene and runtime-ownership hardening (`RGF-71`, `RGF-72`, `RGF-74`) by enforcing external artifact law, reclaiming registry-owned governed terminals, and moving work-packet naming into a compatibility-safe resolver layer
+- CHANGE_TYPE: RUNTIME_HYGIENE_AND_PATH_AUTHORITY_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-71`
+  - `RGF-72`
+  - `RGF-74`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/lib/artifact-hygiene-lib.mjs`
+  - `.GOV/roles_shared/scripts/topology/artifact-hygiene-check.mjs`
+  - `.GOV/roles_shared/scripts/topology/artifact-cleanup.mjs`
+  - `.GOV/roles/validator/checks/validator-git-hygiene.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/terminal-ownership-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/reclaim-owned-terminals.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles_shared/scripts/lib/runtime-paths.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-75`
+- OUTCOME: repo-local `target/` directories and stale non-canonical artifact folders now fail closed and are cleaned mechanically, governed system-terminal sessions record ownership and can be reclaimed without touching unrelated operator terminals, and high-authority work-packet helpers/docs now resolve through `runtime-paths.mjs` with `work_packets` as the canonical logical name while legacy `.GOV/task_packets/` storage remains read-compatible during the migration window

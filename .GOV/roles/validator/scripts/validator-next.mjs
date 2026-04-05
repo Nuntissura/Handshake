@@ -26,7 +26,7 @@ import {
   taskBoardStatus,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { listValidatorGateStateFiles, resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
-import { GOV_ROOT_REPO_REL, REPO_ROOT, inferWpIdFromPacketPath, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, inferWpIdFromPacketPath, repoPathAbs, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   buildValidatorReadyCommands,
   deriveValidatorResumeState,
@@ -115,7 +115,7 @@ function collectPendingSessions() {
 }
 
 function collectValidationReadyPackets() {
-  const taskPacketDir = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "task_packets"));
+  const taskPacketDir = repoPathAbs(WORK_PACKET_STORAGE_ROOT_REPO_REL);
   if (!fs.existsSync(taskPacketDir)) return [];
 
   const candidates = [];

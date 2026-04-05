@@ -79,7 +79,7 @@ import {
   SESSION_HOST_PREFERENCE,
   SESSION_LAUNCH_POLICY,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
-import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const WP_ID = process.argv[2];
 const allowOverwriteExisting = process.argv.includes('--overwrite-existing') || process.env.ALLOW_PACKET_OVERWRITE === '1';
@@ -474,7 +474,7 @@ try {
 }
 
 // Ensure WP folder exists (new folder structure: .GOV/task_packets/WP-{ID}/)
-const taskPacketBaseDir = `${GOV_ROOT_REPO_REL}/task_packets`;
+const taskPacketBaseDir = WORK_PACKET_STORAGE_ROOT_REPO_REL;
 const wpDir = path.join(taskPacketBaseDir, WP_ID);
 if (!fs.existsSync(wpDir)) {
   fs.mkdirSync(wpDir, { recursive: true });

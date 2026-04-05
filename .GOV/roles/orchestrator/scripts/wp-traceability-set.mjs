@@ -11,11 +11,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { repoPathAbs, resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL, WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
-const OFFICIAL_DIR = `${GOV_ROOT_REPO_REL}/task_packets`;
-const STUB_DIR = `${GOV_ROOT_REPO_REL}/task_packets/stubs`;
+const OFFICIAL_DIR = WORK_PACKET_STORAGE_ROOT_REPO_REL;
+const STUB_DIR = WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL;
 
 function fail(message, details = []) {
   console.error(`[WP_TRACEABILITY_SET] ${message}`);

@@ -136,6 +136,17 @@ for (const session of sessions) {
   console.log(`  cli_escalation_allowed: ${session.cli_escalation_allowed ? "YES" : "NO"}`);
   console.log(`  cli_escalation_used: ${session.cli_escalation_used ? "YES" : "NO"}`);
   console.log(`  active_terminal_title: ${session.active_terminal_title || "<none>"}`);
+  console.log(`  terminal_ownership_scope: ${session.terminal_ownership_scope || "<none>"}`);
+  console.log(`  owned_terminal_process_id: ${session.owned_terminal_process_id || 0}`);
+  console.log(`  owned_terminal_host_kind: ${session.owned_terminal_host_kind || "<none>"}`);
+  console.log(`  owned_terminal_window_title: ${session.owned_terminal_window_title || "<none>"}`);
+  console.log(`  owned_terminal_reclaim_status: ${session.owned_terminal_reclaim_status || "<none>"}`);
+  if (session.owned_terminal_recorded_at) {
+    console.log(`  owned_terminal_recorded_at: ${session.owned_terminal_recorded_at}`);
+  }
+  if (session.owned_terminal_reclaimed_at) {
+    console.log(`  owned_terminal_reclaimed_at: ${session.owned_terminal_reclaimed_at}`);
+  }
   console.log(`  last_command_kind: ${session.last_command_kind}`);
   console.log(`  last_command_status: ${session.last_command_status}`);
   console.log(`  last_command_output_file: ${session.last_command_output_file || "<none>"}`);

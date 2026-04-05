@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import path from "node:path";
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
+import { resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 import { loadSpecDebtRegistry } from "../lib/spec-debt-registry-lib.mjs";
 import {
   formatUpdatedPacket,
@@ -21,7 +21,7 @@ if (!/^WP-[A-Za-z0-9][A-Za-z0-9-]*$/i.test(wpId)) {
 }
 
 const resolved = resolveWorkPacketPath(wpId);
-const packetPath = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, "task_packets", `${wpId}.md`);
+const packetPath = resolved?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
 const packetText = readPacket(packetPath);
 const clauseRows = parseClauseRows(packetText);
 const registry = loadSpecDebtRegistry();

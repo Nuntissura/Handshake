@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { listWorkPacketEntriesAt, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { listWorkPacketEntriesAt, repoPathAbs, resolveWorkPacketPathAtRepo } from "../scripts/lib/runtime-paths.mjs";
 
 test("listWorkPacketEntriesAt discovers flat and folder packets while skipping README and excluded dirs", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-"));
@@ -45,4 +45,20 @@ test("repoPathAbs anchors repo-relative paths while preserving absolute paths", 
 
   const absolutePath = path.resolve(os.tmpdir(), "handshake-runtime-paths-absolute.txt");
   assert.equal(repoPathAbs(absolutePath), absolutePath);
+});
+
+test("resolveWorkPacketPathAtRepo accepts canonical work_packets roots during compatibility migration", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-work-packets-"));
+  try {
+    const packetPath = path.join(repoRoot, ".GOV", "work_packets", "WP-TEST-WORK-PACKETS-v1", "packet.md");
+    fs.mkdirSync(path.dirname(packetPath), { recursive: true });
+    fs.writeFileSync(packetPath, "# packet\n", "utf8");
+
+    const resolved = resolveWorkPacketPathAtRepo(repoRoot, "WP-TEST-WORK-PACKETS-v1");
+    assert.ok(resolved);
+    assert.equal(resolved.packetPath, ".GOV/work_packets/WP-TEST-WORK-PACKETS-v1/packet.md");
+    assert.equal(resolved.isFolder, true);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
 });

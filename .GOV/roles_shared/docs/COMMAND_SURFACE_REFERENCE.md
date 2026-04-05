@@ -44,9 +44,12 @@ These are safe starting points for orientation and health checks.
 - `just docs-check`
   - `read-only`
   - presence check for required governance docs
+- `just artifact-hygiene-check`
+  - `read-only`
+  - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake Artifacts` residue fail closed
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
-  - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role plus derived stalled-relay status
+  - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role, derived stalled-relay status, and owned-terminal metadata/reclaim status
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
   - `read-only`
   - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, declared microtask plan (`active` / `next`), and next commands
@@ -155,6 +158,9 @@ Use this flow only for repo-governance maintenance that stays out of product cod
 - `just build-order-sync`
   - `governance-write`
   - required only when governance changes affect `TASK_BOARD.md` or `WP_TRACEABILITY_REGISTRY.md`
+- `just artifact-cleanup [--dry-run]`
+  - `runtime-write`
+  - removes reclaimable stale external artifact folders and repo-local `target/` residue; closeout now runs this mechanically before containment sync
 - `just sync-gov-to-main`
   - `governance-write`
   - mirrors kernel `/.GOV/` into `handshake_main` and auto-commits on local `main`
@@ -228,13 +234,16 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just close-wp-validator-session WP-{ID}`
 - `just close-integration-validator-session WP-{ID}`
   - `runtime-write`
-  - retire steerable thread registration for that lane
+  - retire steerable thread registration for that lane and attempt deterministic reclaim of any governed system-terminal window owned by that exact session
 - Generic wrappers:
 - `just session-start <ROLE> WP-{ID} [PRIMARY|FALLBACK]`
 - `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
 - `just session-cancel <ROLE> WP-{ID}`
 - `just session-close <ROLE> WP-{ID}`
     - these governed helpers now attempt deterministic self-settlement for their own request ids when a broker dispatch or wait path returns without a terminal result row
+- `just session-reclaim-terminals WP-{ID} [CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR]`
+  - `runtime-write`
+  - manual repair helper that reclaims only registry-owned governed system-terminal windows for the selected WP/session scope; it must not touch unrelated operator terminals
 
 ## Packet communication surface
 
@@ -304,6 +313,8 @@ These are typically run from the WP-assigned worktree.
 - `just validator-git-hygiene`
   - `product-scan`
   - coder hygiene surface before handoff
+- work-packet path note:
+  - the logical Work Packet resolver name is `work_packets`, but the current physical storage root remains `.GOV/task_packets/` during compatibility migration. Scripts should resolve packet paths through `runtime-paths.mjs`, not by hard-coding folder names.
 - `just cargo-clean`
   - `product-scan`
   - workspace cleanup targeting `handshake_core`

@@ -72,6 +72,12 @@
         },
         {
           "pattern": "^\\.GOV/task_packets/WP-[^/]+/packet\\.md$"
+        },
+        {
+          "pattern": "^\\.GOV/work_packets/WP-.*\\.md$"
+        },
+        {
+          "pattern": "^\\.GOV/work_packets/WP-[^/]+/packet\\.md$"
         }
       ]
     },

@@ -23,6 +23,7 @@ import {
 import { settleRecoverableSessionControlResults } from "../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
 import { syncWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { callHandshakeAcpMethod } from "../../../roles_shared/scripts/session/handshake-acp-client.mjs";
+import { reclaimOwnedSessionTerminals } from "../../../roles_shared/scripts/session/terminal-ownership-lib.mjs";
 import {
   SESSION_CONTROL_RUN_STALE_GRACE_SECONDS,
   SESSION_CONTROL_RUN_TIMEOUT_SECONDS,
@@ -312,6 +313,15 @@ if (commandKind === "CLOSE_SESSION") {
   if (settledClose.summary) console.log(`[SESSION_CONTROL] summary=${settledClose.summary}`);
   if (settledClose.error) console.log(`[SESSION_CONTROL] error=${settledClose.error}`);
   syncWpTokenUsageLedger(repoRoot, settledClose, { session });
+  const reclaimResults = reclaimOwnedSessionTerminals(repoRoot, { sessionKey: session.session_key });
+  if (reclaimResults.length > 0) {
+    for (const reclaim of reclaimResults) {
+      console.log(`[SESSION_CONTROL] terminal_reclaim_session=${reclaim.session_key}`);
+      console.log(`[SESSION_CONTROL] terminal_reclaim_process_id=${reclaim.process_id}`);
+      console.log(`[SESSION_CONTROL] terminal_reclaim_status=${reclaim.reclaim_status}`);
+      if (reclaim.error) console.log(`[SESSION_CONTROL] terminal_reclaim_error=${reclaim.error}`);
+    }
+  }
   process.exit(0);
 }
 

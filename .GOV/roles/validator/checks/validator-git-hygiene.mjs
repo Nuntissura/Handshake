@@ -1,13 +1,8 @@
 #!/usr/bin/env node
-/**
- * Git/Build hygiene audit:
- * - Ensures .gitignore covers standard build artifacts.
- * - Fails if common artifacts are committed or large untracked files exist.
- *
- * Exits non-zero on findings.
- */
 import { execSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
+import { REPO_ROOT, normalizePath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { evaluateArtifactHygiene } from "../../../roles_shared/scripts/lib/artifact-hygiene-lib.mjs";
 
 const gitignorePath = ".gitignore";
 const requiredPatterns = ["target/", "node_modules/", "*.pdb", "*.dSYM", ".DS_Store", "Thumbs.db"];
@@ -75,4 +70,14 @@ if (largeUntracked.trim().length > 0) {
   fail(`untracked large files detected (>10MB):\n${largeUntracked}`);
 }
 
+const artifactEvaluation = evaluateArtifactHygiene({ repoRoot: REPO_ROOT });
+if (artifactEvaluation.blockingIssues.length > 0) {
+  fail(`artifact hygiene violations detected:\n${artifactEvaluation.blockingIssues.join("\n")}`);
+}
+
 console.log("validator-git-hygiene: PASS — .gitignore coverage and artifact checks clean.");
+if (artifactEvaluation.reclaimableExternalDirs.length > 0) {
+  console.log(
+    `validator-git-hygiene: NOTE — reclaimable stale external artifact dirs: ${artifactEvaluation.reclaimableExternalDirs.map((entry) => normalizePath(entry.absPath)).join(", ")}`,
+  );
+}
