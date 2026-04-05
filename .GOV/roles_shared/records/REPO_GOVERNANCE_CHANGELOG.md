@@ -1297,3 +1297,27 @@
   - `RGF-82`
   - `RGF-85`
 - OUTCOME: new packets default to `PACKET_FORMAT_VERSION=2026-04-05`, creation/resume output now surfaces the dual-track law, and medium/high V4 validator closure must explicitly prove both the mechanical closure track and the deep spec-retention/shared-surface/current-main track before PASS remains legal
+
+### 2026.04.05.11 / GOV-CHANGE-20260405-11
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-80` by turning smoketest reviews into a typed failure/control ledger shape, then hardening the audit skeleton and maintenance workflow around that richer schema
+- CHANGE_TYPE: FAILURE_LEDGER_SCHEMA_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-80`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-07`
+- SURFACES:
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/roles_shared/tests/generate-post-run-audit-skeleton.test.mjs`
+  - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-81`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: new smoketest reviews now declare typed `CATEGORY`, `ROLE_OWNER`, `SYSTEM_SCOPE`, and `FAILURE_CLASS` fields plus typed positive controls with `CONTROL_TYPE`, `What went well`, and `REGRESSION_GUARDS`, and the post-run audit skeleton emits those placeholders by default instead of leaving the structure half-narrative

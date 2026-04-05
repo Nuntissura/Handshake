@@ -16,6 +16,7 @@ Authoring rules:
 - A closeout review should be honest about both what the WP fixed and what still remains adjacent debt outside the packet.
 - If the packet or remediation touches data-bearing surfaces and declares an active data contract, assess SQL/PostgreSQL readiness, LLM-first readability/parseability, and Loom-intertwined structure explicitly rather than folding that judgment into generic product prose.
 - Call out anti-vibe findings, accepted signed-scope debt, or shallow easy-surface work explicitly when they influenced the review. Do not leave those concerns implicit.
+- Use typed failure-ledger categories and typed positive controls. Do not hide script/check defects, governance drift, or operator-UX ambiguity inside generic workflow prose.
 
 ## METADATA
 
@@ -82,7 +83,10 @@ Repeat this block for every material workflow, runtime, governance, or product f
 ### 5.1 <severity + short title>
 
 - FINDING_ID: <SMOKE-FIND-YYYYMMDD-01>
-- CATEGORY: <WORKFLOW_DISCIPLINE|ACP_RUNTIME|ROLE_ORCHESTRATOR|ROLE_CODER|ROLE_WP_VALIDATOR|ROLE_INTEGRATION_VALIDATOR|GOVERNANCE_CHECK|TOOLING|PRODUCT_SCOPE|TOKEN_COST|TIMELINE>
+- CATEGORY: <WORKFLOW_DISCIPLINE|ACP_RUNTIME|ROLE_ORCHESTRATOR|ROLE_CODER|ROLE_WP_VALIDATOR|ROLE_INTEGRATION_VALIDATOR|GOVERNANCE_CHECK|SCRIPT_OR_CHECK|GOVERNANCE_DRIFT|OPERATOR_UX|OUT_OF_SCOPE_WORK|STALLING|TOOLING|PRODUCT_SCOPE|TOKEN_COST|TIMELINE>
+- ROLE_OWNER: <ORCHESTRATOR|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|OPERATOR|SHARED>
+- SYSTEM_SCOPE: <LOCAL|CROSS_ROLE|CONTROL_PLANE>
+- FAILURE_CLASS: <CHECK_FAILURE|SCRIPT_DEFECT|RUNTIME_TRUTH|STATUS_DRIFT|OUT_OF_SCOPE|STALL|COMMAND_SURFACE_MISUSE|UX_AMBIGUITY|TOKEN_WASTE|OTHER>
 - SURFACE: <packet path / runtime surface / helper / session / role lane>
 - SEVERITY: <HIGH|MEDIUM|LOW>
 - STATUS: <OPEN|TRACKED|FIXED_DURING_RUN|MONITOR>
@@ -182,11 +186,16 @@ Assessment:
 ### 10.1 <short positive control title>
 
 - CONTROL_ID: <SMOKE-CONTROL-YYYYMMDD-01>
+- CONTROL_TYPE: <REGRESSION_GUARD|WORKFLOW_STABILITY|RUNTIME_TRUTH|OPERATOR_UX|PRODUCT_PROOF|COST_REDUCTION>
 - SURFACE: <role lane / helper / packet law / runtime surface>
+- What went well:
+  - <the concrete behavior that should remain the baseline>
 - Why it mattered:
   - <what worked and why it should remain the baseline>
 - Evidence:
   - <test, receipt, command, code path, or audit evidence>
+- REGRESSION_GUARDS:
+  - <test, command, invariant, or runtime surface that should keep this control alive>
 
 ### 10.2 <repeat as needed>
 
