@@ -47,6 +47,7 @@ These are safe starting points for orientation and health checks.
 - `just artifact-hygiene-check`
   - `read-only`
   - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake Artifacts` residue fail closed
+  - retention policy authority: `.GOV/roles_shared/docs/ARTIFACT_RETENTION_POLICY.md`
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
   - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role, derived stalled-relay status, and owned-terminal metadata/reclaim status
@@ -161,7 +162,8 @@ Use this flow only for repo-governance maintenance that stays out of product cod
   - required only when governance changes affect `TASK_BOARD.md` or `WP_TRACEABILITY_REGISTRY.md`
 - `just artifact-cleanup [--dry-run]`
   - `runtime-write`
-  - removes reclaimable stale external artifact folders and repo-local `target/` residue; closeout now runs this mechanically before containment sync
+  - removes only reclaimable stale external artifact folders and repo-local `target/` residue; closeout now runs this mechanically before containment sync
+  - writes a retention manifest under `../Handshake Artifacts/handshake-tool/artifact-retention/`
 - `just sync-gov-to-main`
   - `governance-write`
   - mirrors kernel `/.GOV/` into `handshake_main` and auto-commits on local `main`

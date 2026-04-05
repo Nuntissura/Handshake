@@ -70,6 +70,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 - External build/test/tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
 - The Integration Validator, or the Orchestrator when explicitly instructed to perform the `origin/main` push, MUST verify `../Handshake Artifacts/` is clean of stale artifacts before pushing to `origin/main`.
 - Repo-local `target/` directories are invalid. Treat them as hygiene failures, not as normal residue, and clear them through `just artifact-cleanup` or the governed closeout path.
+- Governed artifact cleanup and integration-validator closeout now write a retention manifest under `../Handshake Artifacts/handshake-tool/artifact-retention/`; review that manifest when cleanup scope matters for audit or recovery.
 - Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
 - This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
 - Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the WP is explicitly remediating them.

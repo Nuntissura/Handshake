@@ -11,6 +11,12 @@ export const CANONICAL_ARTIFACT_DIRS = Object.freeze([
   "handshake-test",
   "handshake-tool",
 ]);
+export const ARTIFACT_RETENTION_MANIFEST_SCHEMA = "hsk.artifact_retention_manifest@1";
+export const ARTIFACT_RETENTION_POLICY_VERSION = "2026-04-05";
+export const ARTIFACT_RETENTION_MANIFEST_DIR_SEGMENTS = Object.freeze([
+  "handshake-tool",
+  "artifact-retention",
+]);
 
 const REPO_SCAN_SKIP_DIRS = new Set([
   ".git",
@@ -39,6 +45,15 @@ function safeStat(absPath) {
 
 function normalizeComparablePath(value) {
   return normalizePath(path.resolve(String(value || ""))).toLowerCase();
+}
+
+function sanitizeFileSegment(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    || "artifact";
 }
 
 function directoryChildren(absDir) {
@@ -196,6 +211,7 @@ export function ensureArtifactRootStructure(repoRoot = REPO_ROOT, overrideValue 
   for (const dirName of CANONICAL_ARTIFACT_DIRS) {
     fs.mkdirSync(path.join(artifactRootAbs, dirName), { recursive: true });
   }
+  fs.mkdirSync(path.join(artifactRootAbs, ...ARTIFACT_RETENTION_MANIFEST_DIR_SEGMENTS), { recursive: true });
   return artifactRootAbs;
 }
 
@@ -309,4 +325,108 @@ export function cleanupArtifactResidue(evaluation, { dryRun = false } = {}) {
   }
 
   return summary;
+}
+
+export function artifactRetentionManifestDirAbs(artifactRootAbs) {
+  return path.resolve(String(artifactRootAbs || ""), ...ARTIFACT_RETENTION_MANIFEST_DIR_SEGMENTS);
+}
+
+export function buildArtifactRetentionManifest({
+  repoRoot = REPO_ROOT,
+  wpId = "",
+  lifecycleScope = "MANUAL_CLEANUP",
+  closeoutMode = "",
+  actorRole = "",
+  actorSession = "",
+  dryRun = false,
+  generatedAtUtc = new Date().toISOString(),
+  artifactEvaluationBeforeCleanup = null,
+  artifactCleanupSummary = null,
+  artifactEvaluationAfterCleanup = null,
+} = {}) {
+  const before = artifactEvaluationBeforeCleanup || { artifactRootAbs: resolveArtifactRoot(repoRoot) };
+  const after = artifactEvaluationAfterCleanup || before;
+  const summary = artifactCleanupSummary || {
+    removedRepoLocalDirs: [],
+    removedExternalDirs: [],
+    errors: [],
+  };
+  const artifactRootAbs = path.resolve(after.artifactRootAbs || before.artifactRootAbs || resolveArtifactRoot(repoRoot));
+
+  return {
+    schema_version: ARTIFACT_RETENTION_MANIFEST_SCHEMA,
+    policy_version: ARTIFACT_RETENTION_POLICY_VERSION,
+    generated_at_utc: generatedAtUtc,
+    repo_root_abs: normalizePath(path.resolve(repoRoot)),
+    artifact_root_abs: normalizePath(artifactRootAbs),
+    wp_id: String(wpId || "").trim() || null,
+    lifecycle_scope: String(lifecycleScope || "").trim() || "MANUAL_CLEANUP",
+    closeout_mode: String(closeoutMode || "").trim() || null,
+    actor_role: String(actorRole || "").trim() || null,
+    actor_session: String(actorSession || "").trim() || null,
+    dry_run: Boolean(dryRun),
+    policy: {
+      canonical_dirs_retained: [...CANONICAL_ARTIFACT_DIRS],
+      manifest_dir: normalizePath(path.join(...ARTIFACT_RETENTION_MANIFEST_DIR_SEGMENTS)),
+      auto_delete_classes: [
+        "repo-local target directories",
+        "stale noncanonical external artifact directories classified as NONCANONICAL_EPHEMERAL_STALE",
+      ],
+      retained_noncanonical_classes: [
+        "NONCANONICAL_EPHEMERAL_RECENT",
+        "NONCANONICAL_UNKNOWN",
+      ],
+      evidence_preservation_rule: "cleanup removes reclaimable residue only; canonical artifact roots and retention manifests remain durable audit surfaces",
+    },
+    removed_repo_local_dirs: (summary.removedRepoLocalDirs || []).map((entry) => normalizePath(entry)),
+    removed_external_dirs: (summary.removedExternalDirs || []).map((entry) => normalizePath(entry)),
+    cleanup_errors: (summary.errors || []).map((entry) => String(entry)),
+    retained_canonical_dirs: (after.canonicalArtifactDirs || []).map((entry) => ({
+      dir_name: entry.dirName,
+      abs_path: normalizePath(entry.absPath),
+      exists: Boolean(entry.exists),
+    })),
+    retained_noncanonical_external_dirs: (after.externalArtifactDirs || [])
+      .filter((entry) => !CANONICAL_ARTIFACT_DIRS.includes(entry.dirName))
+      .map((entry) => ({
+        dir_name: entry.dirName,
+        abs_path: normalizePath(entry.absPath),
+        classification: entry.kind,
+        blocking: Boolean(entry.blocking),
+        reclaimable: Boolean(entry.reclaimable),
+        age_ms: Number.isFinite(entry.ageMs) ? Math.round(entry.ageMs) : null,
+        reason: entry.reason,
+      })),
+    cargo_target_configs: (after.cargoTargetConfigs || []).map((entry) => ({
+      repo_root_abs: normalizePath(entry.repoRootAbs),
+      cargo_config_abs: normalizePath(entry.cargoConfigAbs),
+      declared_target_dir: entry.declaredTargetDir || "",
+      resolved_target_dir_abs: normalizePath(entry.resolvedTargetDirAbs || ""),
+      expected_target_dir_abs: normalizePath(entry.expectedTargetDirAbs || ""),
+      matches_canonical_target: Boolean(entry.matchesCanonicalTarget),
+    })),
+    blocking_issues_after_cleanup: [...(after.blockingIssues || [])],
+  };
+}
+
+export function writeArtifactRetentionManifest(manifest, { artifactRootAbs = "" } = {}) {
+  const resolvedArtifactRootAbs = path.resolve(String(artifactRootAbs || manifest?.artifact_root_abs || ""));
+  if (!resolvedArtifactRootAbs) {
+    throw new Error("artifact root is required to write an artifact retention manifest");
+  }
+  const manifestDirAbs = artifactRetentionManifestDirAbs(resolvedArtifactRootAbs);
+  fs.mkdirSync(manifestDirAbs, { recursive: true });
+
+  const generatedAtUtc = String(manifest?.generated_at_utc || new Date().toISOString());
+  const timestampSegment = sanitizeFileSegment(generatedAtUtc.replace(/:/g, "-"));
+  const scopeSegment = sanitizeFileSegment(manifest?.wp_id || manifest?.lifecycle_scope || "manual");
+  const modeSegment = sanitizeFileSegment(manifest?.closeout_mode || (manifest?.dry_run ? "dry-run" : "cleanup"));
+  const fileName = `${timestampSegment}-${scopeSegment}-${modeSegment}.json`;
+  const manifestAbsPath = path.join(manifestDirAbs, fileName);
+  fs.writeFileSync(manifestAbsPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+  return {
+    manifestAbsPath,
+    manifestRelPath: normalizePath(path.relative(resolvedArtifactRootAbs, manifestAbsPath)),
+  };
 }

@@ -1378,3 +1378,29 @@
   - `RGF-82`
   - `RGF-85`
 - OUTCOME: the authoritative human-facing surfaces now teach “resolve Work Packets through the logical `work_packets` model, with `.GOV/task_packets/` as compatibility storage” instead of presenting `task_packets` as the conceptual source of truth
+
+### 2026.04.05.14 / GOV-CHANGE-20260405-14
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-84` by turning governed artifact cleanup into a policy-backed retention workflow with durable manifests, so closeout now records exactly what residue was removed versus retained under `Handshake Artifacts`
+- CHANGE_TYPE: ARTIFACT_RETENTION_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-84`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/artifact-hygiene-lib.mjs`
+  - `.GOV/roles_shared/scripts/topology/artifact-cleanup.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles_shared/tests/artifact-hygiene-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ARTIFACT_RETENTION_POLICY.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/REPO_RESILIENCE.md`
+  - `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: manual `artifact-cleanup` and integration-validator closeout now emit JSON retention manifests under `../Handshake Artifacts/handshake-tool/artifact-retention/`, preserving durable cleanup evidence while keeping canonical artifact roots and non-reclaimable residue out of the auto-delete set
