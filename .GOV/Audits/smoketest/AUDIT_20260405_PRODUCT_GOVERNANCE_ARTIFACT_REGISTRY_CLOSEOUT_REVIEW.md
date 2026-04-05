@@ -310,6 +310,33 @@ Estimated total elapsed: ~2.5 hours. Estimated orchestrator token cost: HIGH (re
   - Add test coverage for traceability-set with the Codex Spark profile
   - Add a regression test that runs session-policy-check on a packet with OPENAI_CODEX_SPARK_5_3_XHIGH
 
+### 5.8 HIGH: Orchestrator actively polls for session results (token waste)
+
+- FINDING_ID: SMOKE-FIND-20260405-08
+- CATEGORY: TOKEN_COST
+- ROLE_OWNER: ORCHESTRATOR
+- SYSTEM_SCOPE: CONTROL_PLANE
+- FAILURE_CLASS: TOKEN_WASTE
+- SURFACE: orchestrator session, SESSION_CONTROL_OUTPUTS, coder/validator output JSONL files
+- SEVERITY: HIGH
+- STATUS: OPEN
+- RELATED_GOVERNANCE_ITEMS:
+  - NONE (recommend RGF-93)
+- REGRESSION_HOOKS:
+  - Orchestrator protocol should forbid `sleep N && cat` polling patterns
+  - Session control infrastructure should provide a mechanical notification path
+- Evidence:
+  - 8-10 polling cycles during this run: `sleep 60/120/300 && cat output.jsonl | grep | tail`
+  - Each cycle loads orchestrator context, reads output, reasons about progress, decides to wait more
+  - Orchestrator contributed zero value during wait periods
+  - Total estimated waste: 15-20% of orchestrator tokens spent on polling and re-reading settled state
+- What went wrong:
+  - No mechanical notification exists for session completion. The orchestrator is the only actor that can detect when a coder or validator session finishes, and it does so by polling output files.
+- Impact:
+  - Orchestrator tokens wasted on waiting. Blocks parallel WP management. Fundamentally incompatible with the LLM swarm architecture where multiple coders and validators run concurrently.
+- Mechanical fix direction:
+  - ACP broker writes completion events to SESSION_CONTROL_RESULTS.jsonl. A lightweight non-LLM watcher process should detect completion and inject a notification receipt into the WP communications folder. The orchestrator dispatches fire-and-forget and resumes on notification. Multiple notification paths for redundancy (broker callback, git-log watch, periodic non-LLM scan).
+
 ## 6. Role Review
 
 ### 6.1 Orchestrator Review
@@ -395,19 +422,117 @@ Assessment:
 
 ## 7. Review Of Coder and Validator Communication
 
-No direct coder-validator communication occurred. The communication contract was not started — no kickoff, no intent receipts, no handoff receipts, no review requests. The validator noted this in its report: "Direct review contract not started (0 kickoffs)."
+### Communication Shape
 
-This is a direct consequence of the Orchestrator not routing through the microtask loop. The expected flow:
-1. Coder completes MT-001, sends review request
-2. Validator inspects MT-001, sends review response (PASS or steer)
-3. Coder proceeds to MT-002 or fixes MT-001
+No direct coder-validator communication occurred. Zero receipts. Zero kickoffs. Zero review requests. Zero review responses. The communication contract was not started. The validator noted this in its report: "Direct review contract not started (0 kickoffs)."
 
-Instead:
-1. Coder received monolithic instruction, did all work, session settled
-2. Orchestrator committed the code
-3. Validator received monolithic validation instruction, reviewed entire diff, reported PASS
+### Expected vs Actual Flow
 
-The incremental steering loop was entirely absent.
+Expected (per-microtask loop):
+1. Orchestrator dispatches coder with MT-001 instruction
+2. Coder completes MT-001, commits, sends REVIEW_REQUEST to validator
+3. Validator inspects MT-001, sends REVIEW_RESPONSE (PASS or steer with concrete fix instructions)
+4. If PASS: coder proceeds to MT-002. If steer: coder fixes MT-001 first.
+5. Repeat for MT-002, MT-003.
+6. After all MTs pass, validator writes final report.
+
+Actual:
+1. Orchestrator sent coder a monolithic "implement everything" prompt with no MT references
+2. Coder did all 3 microtasks in one undifferentiated pass, session self-settled
+3. Orchestrator directly edited product code and committed (role violation)
+4. Orchestrator launched validator with monolithic "validate everything" prompt
+5. Validator reviewed entire diff as one unit, reported PASS
+6. No inter-role communication artifacts exist
+
+### Communication Effectiveness: NONE
+
+The governed communication infrastructure was completely unused. The WP_COMMUNICATIONS folder exists but contains only auto-generated boilerplate. No THREAD.md entries from coder or validator. No structured receipts. No review exchange.
+
+This means:
+- The validator could not steer the coder's work mid-flight
+- The coder had no feedback loop to catch the 3 compile errors incrementally
+- The orchestrator compensated by doing the coder's fix work directly (role violation)
+- The audit trail shows "monolithic throw over the wall" instead of governed incremental collaboration
+
+### Why This Matters for the LLM Swarm Architecture
+
+The per-microtask communication loop is not just a workflow nicety. It is the execution strategy for the future LLM swarm:
+
+- **Small local models** (Ollama) cannot handle full WPs. They need small microtasks with incremental validation.
+- **Cloud model failures** (timeouts, self-settle, compile errors) are recoverable per-MT but catastrophic per-WP. When Codex Spark self-settled after timeout, 3 MTs of work were left in a partially-compiled state. If MT-001 had been committed and validated before MT-02 started, the self-settle would have lost only one MT of work.
+- **Mixed-model swarms** (GPT orchestrator, Codex coder, Claude validator, Ollama local specialist) require structured hand-off points. The MT boundary IS that hand-off point. Without it, the swarm collapses into sequential single-model execution.
+
+### Codex Spark Performance Assessment
+
+Codex Spark 5.3 (xhigh reasoning) produced architecturally correct code on the first pass:
+- Correctly identified and followed the StructuredCollaborationRecordFamily pattern
+- Correctly used the DiagnosticsStore standalone-trait convention (not monolithic Database)
+- Schema registration, profile extension validation, and serde derive usage were all correct
+- 7 tests with good coverage (round-trip, exhaustiveness, store contract, extension validation)
+
+Failures:
+- Import path wrong (`crate::locus::types::` instead of `crate::workflows::locus::`) — the module nesting is non-obvious
+- `raw` value moved after use in test — standard Rust ownership mistake
+- Missing match arm for new enum variant — a mechanical completeness issue
+- 2 of 8 specified enum variants omitted (ScriptDescriptor, SyncSurface) — scope gap
+- Self-settled after cargo build timeout — could not complete compile-fix cycle
+
+**Would Codex Spark handle technically challenging WPs?** Not in monolithic mode. The 3 compile errors were simple individually but the model could not fix them because:
+1. Cargo builds took 124-304 seconds, consuming the session's command timeout budget
+2. After timeout, the model tried to run `just gov-check` instead of fixing the compile errors first
+3. The session self-settled before the fix cycle completed
+
+For a technically challenging WP with complex type interactions, trait bounds, or unsafe code, Codex Spark would likely produce correct-direction code with more compile errors per pass. **The microtask loop is what makes this viable**: give it MT-001 (enums and structs, no cross-module complexity), validate, then MT-002 (schema registration requiring cross-module imports), validate, then MT-003 (store trait and tests). Each MT stays within the model's reliable scope.
+
+**Verdict**: Codex Spark is viable for governed coding IF microtasks are properly sized and the per-MT validation loop is enforced. It is not viable for monolithic "implement everything" instructions on non-trivial WPs.
+
+## 7A. Orchestrator Token Cost During Waiting
+
+### The Problem
+
+The orchestrator actively polled for coder and validator results. The polling pattern was:
+
+```
+sleep 60 && cat output.jsonl | grep '"text"' | tail -5
+sleep 120 && cat output.jsonl | grep '"text"' | tail -5
+sleep 300 && cat output.jsonl | grep '"text"' | tail -5
+```
+
+Each poll cycle:
+1. The orchestrator's context window stays loaded (expensive)
+2. The `sleep` command blocks the orchestrator's turn but the CLI session remains active
+3. After sleep, the orchestrator reads output, reasons about it, decides to wait more or act
+4. Each reasoning step consumes output tokens
+
+Estimated: 8-10 poll cycles during this run, each with context reload + reasoning + decision. This is pure waste — the orchestrator contributed nothing while waiting.
+
+### Why This Is Architecturally Wrong
+
+The orchestrator is the most expensive component in the governed workflow (largest context, highest reasoning cost). Using it as a polling loop is like using a senior architect to watch a build log scroll.
+
+In the future LLM swarm architecture:
+- Multiple coders and validators run in parallel across different WPs
+- Cloud models and local models work concurrently
+- The orchestrator must manage N active lanes, not block on one
+
+If the orchestrator blocks on `sleep 300` waiting for one coder, it cannot steer another WP's validator, respond to a third WP's review request, or handle an operator query. The polling model is fundamentally incompatible with parallel autonomous work.
+
+### What Should Happen Instead
+
+1. **Mechanical notification**: The ACP broker already writes completion events to SESSION_CONTROL_RESULTS.jsonl. A lightweight non-LLM watcher process should detect completion and notify the orchestrator session (via a file signal, a `just` command callback, or a session-control injection).
+
+2. **Fire-and-forget dispatch**: The orchestrator dispatches work (`just session-send CODER WP-{ID} "..."`) and immediately moves to other tasks or returns control to the operator. When the coder completes, the notification system wakes the orchestrator.
+
+3. **Redundant notification paths** (for reliability):
+   - Primary: ACP broker writes SESSION_CONTROL_RESULTS.jsonl entry with `status: COMPLETED`
+   - Secondary: File-watch on the coder worktree's git log (new commits = work done)
+   - Tertiary: Periodic lightweight `just session-registry-status` scan by a non-LLM cron process that injects a notification receipt into the WP communications folder
+
+4. **Orchestrator resume pattern**: When notified, the orchestrator reads the final output (one read, not N polls), evaluates the result, and proceeds to the next lifecycle step.
+
+### Governance Task Item
+
+This is tracked as RGF-93 below. It is a prerequisite for honest parallel WP orchestration and for the Handshake product's LLM swarm architecture.
 
 ## 8. ACP Runtime / Session Control Findings
 
@@ -425,6 +550,7 @@ The incremental steering loop was entirely absent.
   - SMOKE-FIND-20260405-03 -> RGF-89 (microtask loop enforcement via governed session prompts)
   - SMOKE-FIND-20260405-05 -> RGF-88, RGF-89, RGF-91 (refinement format iteration cost reduction)
   - SMOKE-FIND-20260405-06 -> RGF-90 (validator report format parity)
+  - SMOKE-FIND-20260405-08 -> RGF-93 (mechanical session completion notification, fire-and-forget orchestration)
 - CHANGESET_LINKS:
   - SMOKE-FIND-20260405-07 -> 7d2bb5a (traceability-set fix + session-policy fix)
 - POLICY_OR_TEMPLATE_FOLLOWUPS:
