@@ -421,10 +421,10 @@ The incremental steering loop was entirely absent.
 ## 9. Governance Linkage and Board Mapping
 
 - BOARD_LINKS:
-  - SMOKE-FIND-20260405-01 -> (recommend new RGF: ROLE_BOUNDARY_ENFORCEMENT)
-  - SMOKE-FIND-20260405-03 -> (recommend new RGF: MICROTASK_LOOP_ENFORCEMENT)
-  - SMOKE-FIND-20260405-05 -> (recommend new RGF: REFINEMENT_SKELETON_GENERATOR)
-  - SMOKE-FIND-20260405-06 -> (recommend new RGF: VALIDATOR_REPORT_FORMAT_PARITY)
+  - SMOKE-FIND-20260405-01 -> RGF-88 (role boundary enforcement via orchestrator protocol + mechanical guard)
+  - SMOKE-FIND-20260405-03 -> RGF-89 (microtask loop enforcement via governed session prompts)
+  - SMOKE-FIND-20260405-05 -> RGF-88, RGF-89, RGF-91 (refinement format iteration cost reduction)
+  - SMOKE-FIND-20260405-06 -> RGF-90 (validator report format parity)
 - CHANGESET_LINKS:
   - SMOKE-FIND-20260405-07 -> 7d2bb5a (traceability-set fix + session-policy fix)
 - POLICY_OR_TEMPLATE_FOLLOWUPS:
@@ -432,7 +432,10 @@ The incremental steering loop was entirely absent.
   - VALIDATOR_PROTOCOL.md or validator report template needs format guidance matching parseSectionField expectations
   - Session-control architecture docs need "ACP broker is mechanical relay, not a model" clarification
   - Closeout flow needs terminal reclamation step
-  - Refinement format needs a skeleton generator to reduce format iteration cost
+  - Refinement check needs actionable error messages (RGF-88)
+  - Orchestrator should pre-read refinement check validation code (RGF-89)
+  - Pillar/engine rubric lines should be auto-generated (RGF-91)
+  - Product needs a built-in screenshot tool for visual validation (RGF-92)
 
 ## 10. Positive Controls Worth Preserving
 
@@ -541,11 +544,12 @@ The incremental steering loop was entirely absent.
   - Cost-split model profiles (Codex Spark for coding) reduce per-turn cost vs GPT 5.4
   - ACP broker dispatched both model types without separate launch infrastructure
 - What still hurts:
-  - Refinement format iteration is the dominant token cost source for orchestrator-managed WPs
+  - Refinement format iteration: ~40% of tokens on format compliance (not analysis). The check rejects but does not show expected format.
   - Cargo build timeouts (124s default) are too short for the full crate, causing repeated compile attempts
   - Validator report format mismatch caused additional closeout token waste
+  - UI/GUI refinement sections are shallow because there is no way to visually inspect the product during validation
 - Next structural fix:
-  - `just create-refinement-skeleton WP-{ID}` to eliminate format discovery cost
+  - Refinement check actionable error messages (RGF-88): print expected format when validation fails, not just "field X is wrong"
 
 ## 13. Silent Failures, Command Surface Misuse, and Ambiguity Scan
 
@@ -573,21 +577,26 @@ The incremental steering loop was entirely absent.
 
 ### 13.5 Hardening Direction
 
-- `just create-refinement-skeleton WP-{ID}` should be the highest-priority governance tooling addition. It would pre-fill all required sections, engine/pillar rubric lines, and format templates.
-- The validator report template should be emitted by the packet creation flow so the validator fills in values, not format.
-- The `parseSectionField` regex should be updated to handle `- ` bullet prefixes defensively.
+- **RGF-88**: Refinement check should print expected formats when validation fails (the check knows its own regexes; print them).
+- **RGF-89**: Orchestrator should read the refinement check's validation code once at refinement start as a context investment.
+- **RGF-90**: Validator report format parity — either fix parseSectionField to handle `- ` bullet prefixes or fix the validator template.
+- **RGF-91**: Pillar/engine rubric lines auto-generated from the check's expected set (always the same set; orchestrator fills STATUS and NOTES only).
+- **RGF-92**: Built-in product screenshot tool for visual validation by coder/validator/operator.
 - Cargo build timeout for Codex Spark sessions should be configurable per-session or default to a longer value (300s+).
 - Add a mechanical orchestrator-role guard: fail if Edit/Write is used on paths inside IN_SCOPE_PATHS.
 
 ## 14. Suggested Remediations
 
-### Governance / Runtime
+### Governance / Runtime (linked to RGF items)
 
-- Create `just create-refinement-skeleton WP-{ID}` to eliminate refinement format iteration
-- Fix `parseSectionField` to accept `- ` bullet-prefixed field-value lines
+- **RGF-88**: Refinement check actionable error messages — print expected field format, allowed enum values, and regex pattern when validation fails
+- **RGF-89**: Orchestrator refinement-check pre-read — the orchestrator reads the check's validation code once at refinement start as a context investment
+- **RGF-90**: Validator report format parity — fix parseSectionField or validator template
+- **RGF-91**: Pillar/engine rubric auto-generation — the check's expected set is exhaustive and constant; auto-generate the rubric lines
+- **RGF-92**: Product screenshot tool — built-in capture of app windows, panels, and modules for visual validation during coder/validator work and future design library creation
 - Add `just session-reclaim-terminals WP-{ID}` to the closeout flow
 - Add orchestrator protocol language and mechanical guard against product code edits
-- Add ACP broker documentation clarifying it is a mechanical relay
+- Add ACP broker documentation clarifying it is a mechanical relay (not a model)
 - Add regression tests for Codex Spark model profile in session-policy-check and traceability-set
 - Configure cargo build timeout for governed coder sessions to 300s+
 
@@ -596,6 +605,8 @@ The incremental steering loop was entirely absent.
 - Add ScriptDescriptor and SyncSurface variants to GovernanceArtifactKind in a follow-up commit or the next downstream WP
 - Consider a Database-backed GovernanceArtifactRegistryStore implementation in the Check-Runner or DCC-Backend WP
 - Validate that the GovernanceArtifactRegistryManifest JSON shape is LLM-friendly for small model ingestion
+- Begin design library / component registry work — the UI/GUI refinement sections cannot produce real value without a visual design system
+- Screenshot tool should capture: full app window, individual panels, module-level views, responsive states
 
 ### Documentation / Review Practice
 
@@ -603,6 +614,7 @@ The incremental steering loop was entirely absent.
 - Validator report template: match the parseSectionField regex format (no `- ` on field-value lines)
 - Session-control architecture: "ACP broker is mechanical relay, not a model" callout
 - Microtask loop: document the expected coder-validator per-MT communication flow with examples
+- Design guidelines: once the screenshot tool exists, establish visual coherence rules that validators can check against captured state
 
 ## 15. Command Log
 
@@ -626,26 +638,65 @@ The incremental steering loop was entirely absent.
 
 ## ROI Assessment
 
+### What the refinement process is for
+
+The HYDRATED_RESEARCH_V1 refinement format is expensive by design. It is NOT a bureaucratic overhead to minimize. It is a forced exposure mechanism that:
+
+1. **Exposes spec gaps**: every WP must map to concrete spec anchors. If the spec doesn't cover the intent, the gap becomes visible before coding starts — not after.
+2. **Forces primitive and feature mixing**: the exhaustive pillar/engine scan and force-multiplier expansion force the orchestrator to think about how every WP interacts with the broader product surface. Calendar, Loom, Flight Recorder, Stage, Studio, Atelier — they all get checked even for "simple backend" work.
+3. **Forces UI/GUI thinking early**: the UI_UX_RUBRIC and GUI_IMPLEMENTATION_ADVICE sections exist so interface elements are identified upfront. It is better to declare too many UI controls now and remove or hide them later than to discover 1000 missing buttons, interactions, or state transitions after the backend is built.
+4. **Cross-checks are the point**: a WP that touches engine.sovereign and Locus genuinely needs to think about how governance artifacts interact with the structured collaboration family. That's not waste — that's the governance doing its job.
+
+The refinement cost in this run was real (~30-40% of orchestrator tokens), but the cost breakdown was:
+- ~30% on genuine cross-checking content that needed thinking (pillars, engines, primitives, force multipliers)
+- ~40% on format errors where the check's regex expects exact field names/values the orchestrator did not know (Intent: `SAME|PARTIAL|DISTINCT` not `DOWNSTREAM`, Covers: `primitive|combo|ui-intent|execution` not `export`, specific PRIM-IDs that must exist in the spec appendix)
+- ~15% on spec anchor context tokens that didn't match the actual line content
+- ~15% on parsing edge cases (comma in pillar name breaking CSV split)
+
+The genuine cross-checking cost is correct and should not be reduced. The format-error iteration cost is addressable through better tooling (see RGF-88 through RGF-92 below).
+
 ### What the governance delivered
 
 - **Correct product code**: 375 lines, 7 tests, zero regressions, spec-aligned, independently validated.
-- **Honest negative proof**: Validator caught the spec section reference inaccuracy and the unmodified HOT_FILES file, proving independent reading.
+- **Honest negative proof**: Validator caught the spec section reference inaccuracy (7.5.4.3 vs 7.5.4.8) and the unmodified HOT_FILES file, proving independent reading.
 - **Provenance trail**: Every lifecycle step from refinement through closeout is recorded in packets, receipts, session outputs, and this audit.
 - **Bug discovery**: 2 governance runtime bugs found and fixed during the run.
+- **Forced cross-cutting analysis**: The refinement's pillar/engine scan confirmed the governance artifact registry does not collide with Loom, Calendar, Flight Recorder, or Stage surfaces. Without the forced scan, this would have been assumed rather than checked.
 
 ### What the governance cost
 
-- **Refinement format iteration**: ~40-50% of orchestrator tokens. The HYDRATED_RESEARCH_V1 format is comprehensive but the creation cost is too high without tooling.
-- **Validator report reformatting**: ~10% of closeout time spent stripping `- ` prefixes to match the parser.
+- **Refinement format iteration**: ~40% of orchestrator tokens spent on format compliance rather than technical reasoning. This is addressable (RGF-88, RGF-89, RGF-91).
+- **Validator report reformatting**: ~10% of closeout time spent stripping `- ` bullet prefixes to match the computed policy gate parser (RGF-90).
 - **Role violations**: 1 product code edit by the Orchestrator. This is a governance failure that undermines the separation-of-concerns model.
-- **Microtask loop unused**: The incremental steering benefit (the core reason for microtask structure) was entirely absent.
+- **Microtask loop unused**: The incremental steering benefit was entirely absent.
 - **Terminal clutter**: Growing desktop pollution from unreclamed windows.
+
+### Where governance ROI is positive vs negative
+
+The refinement process is worth its cost when:
+- The WP touches multiple pillars or engines (forced cross-check catches real design issues)
+- The WP interacts with UI/GUI surfaces (early control identification prevents late discovery)
+- The WP is HIGH risk or blocks multiple downstream WPs (thorough pre-analysis prevents wasted coding cycles)
+
+For this specific WP, the product code was straightforward backend Rust, but the refinement correctly identified:
+- The SoftwareDelivery profile extension boundary (critical for not polluting non-software projects)
+- The schema namespace separation (prevents collisions with existing structured collaboration records)
+- The store trait convention (DiagnosticsStore pattern, not monolithic Database integration)
+
+These design decisions were validated by the refinement's forced analysis, not by the coder improvising.
+
+### Where the governance is still weak
+
+1. **UI/GUI refinement is shallow**: The UI_UX_RUBRIC and GUI_IMPLEMENTATION_ADVICE sections were marked NOT_APPLICABLE for this backend WP. But even for WPs with UI surfaces, the current refinement process has no way to SEE the actual product UI state. Validators and coders operate on code diffs, not on visual output. A built-in screenshot tool that captures the app's windows, panels, and modules would let coders and validators verify visual coherence and compliance with design guidelines.
+2. **No design library exists**: There is no current Handshake design library, component registry, or visual design system. Every GUI decision is ad hoc. The screenshot tool and a design library are prerequisites for the UI/GUI refinement sections to produce real value instead of theoretical checklists.
+3. **Microtask loop is theoretical**: The microtask structure exists in packets but neither coder nor validator used it. Until the governed session prompts explicitly enforce per-MT work, the microtask loop remains documentation, not execution.
 
 ### Net assessment
 
-The governance produced a correct, well-validated product artifact with honest evidence. The cost was too high, primarily due to refinement format iteration and closeout format mismatch. The two highest-ROI fixes are:
+The governance process is correctly designed: the refinement's forced cross-checking and the validator's independent judgment are working as intended. The cost problem is not the analysis — it is the format iteration overhead and the tooling gaps. The highest-ROI fixes are:
 
-1. **Refinement skeleton generator** — would eliminate ~40-50% of orchestrator token cost.
-2. **Validator report format parity** — would eliminate ~10% of closeout time and all manual reformatting.
-
-With those two fixes, the governance ROI would shift from "expensive but correct" to "efficient and correct."
+1. **Refinement check actionable error messages** (RGF-88) — the check knows its own regexes; it should print expected formats when validation fails.
+2. **Orchestrator refinement-check pre-read** (RGF-89) — read the check's validation code once at refinement start instead of discovering formats by trial and error.
+3. **Validator report format parity** (RGF-90) — either fix the parser or fix the validator template to match.
+4. **Pillar/engine rubric auto-generation** (RGF-91) — the exhaustive rubric lines are always the same set; auto-generate them so the orchestrator only fills STATUS and NOTES.
+5. **Product screenshot tool for visual validation** (RGF-92) — let coders and validators see the actual app, not just code diffs.
