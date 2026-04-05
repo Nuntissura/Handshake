@@ -1174,3 +1174,34 @@
   - `RGF-84`
   - `RGF-85`
 - OUTCOME: the board now carries the next mechanical remediation set covering microtask-state hardening, full span ledgers, relay cost compression, dual-track validation, failure-ledger expansion, authority shrink, archival layout, legacy path cleanup, artifact retention, and session-batch terminal ownership
+
+### 2026.04.05.07 / GOV-CHANGE-20260405-07
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-76` by converting microtask handling from loose declared scope checks into a governed execution state machine with explicit active and previous microtask semantics
+- CHANGE_TYPE: MICROTASK_EXECUTION_STATE_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-76`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+  - `SMOKE-FIND-20260404-04`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-microtask-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles/coder/scripts/coder-next.mjs`
+  - `.GOV/roles_shared/tests/wp-microtask-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-77`
+  - `RGF-78`
+  - `RGF-79`
+  - `RGF-80`
+  - `RGF-81`
+  - `RGF-83`
+  - `RGF-84`
+  - `RGF-82`
+  - `RGF-85`
+- OUTCOME: kickoff-reviewed microtasks remain the active execution budget, overlap review shifts execution to the next declared microtask while retaining the previous reviewed slice explicitly, coder intent cannot jump ahead out of sequence, and validator overlap resolutions now fail closed unless they bind to the immediately previous governed microtask

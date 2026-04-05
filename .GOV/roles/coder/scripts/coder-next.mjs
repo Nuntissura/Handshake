@@ -201,6 +201,7 @@ const coderResumeState = deriveCoderResumeState({
   communicationState: coderCommunicationState,
 });
 const activeMicrotask = microtaskPlan.active_microtask;
+const previousMicrotask = microtaskPlan.previous_microtask;
 const suggestedMicrotask = microtaskPlan.suggested_next_microtask;
 const communicationFindings = [
   coderCommunicationState?.runtimeStatus?.next_expected_actor
@@ -217,6 +218,9 @@ const communicationFindings = [
     : null,
   activeMicrotask
     ? `Active microtask: ${activeMicrotask.mt_id} (${activeMicrotask.state}) - ${activeMicrotask.clause}`
+    : null,
+  previousMicrotask
+    ? `Previous microtask under review: ${previousMicrotask.mt_id} (${previousMicrotask.state}) - ${previousMicrotask.clause}`
     : null,
 ].filter(Boolean);
 const reviewRouteCommands = (() => {

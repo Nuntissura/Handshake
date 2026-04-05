@@ -173,6 +173,15 @@ function statePriority(state = "") {
   }
 }
 
+function executionCompleteState(state = "") {
+  const normalized = String(state || "").trim().toUpperCase();
+  return normalized === "CLEARED" || normalized === "IN_REVIEW";
+}
+
+function normalizeReviewMode(value = "") {
+  return String(value || "").trim().toUpperCase();
+}
+
 function stateFromReceipt(receipt = {}) {
   const actorRole = normalizeRole(receipt?.actor_role);
   const receiptKind = normalizeReceiptKind(receipt?.receipt_kind);
@@ -191,6 +200,38 @@ function stateFromReceipt(receipt = {}) {
   }
 
   return "DECLARED";
+}
+
+function findFirstItemByState(items = [], expectedState = "") {
+  const normalized = String(expectedState || "").trim().toUpperCase();
+  return items.find((entry) => String(entry?.state || "").trim().toUpperCase() === normalized) || null;
+}
+
+function deriveActiveExecutionMicrotask(items = []) {
+  return findFirstItemByState(items, "REPAIR_REQUIRED")
+    || findFirstItemByState(items, "ACTIVE")
+    || items.find((entry) =>
+      String(entry?.state || "").trim().toUpperCase() === "IN_REVIEW"
+      && normalizeReviewMode(entry?.review_mode) !== "OVERLAP"
+    )
+    || findFirstItemByState(items, "DECLARED")
+    || null;
+}
+
+function derivePreviousExecutionMicrotask(items = [], activeMicrotask = null) {
+  if (!Array.isArray(items) || items.length === 0) return null;
+
+  if (activeMicrotask?.mt_id) {
+    const activeIndex = items.findIndex((entry) => entry.mt_id === activeMicrotask.mt_id);
+    if (activeIndex > 0) {
+      const previous = items[activeIndex - 1];
+      return executionCompleteState(previous?.state) ? previous : null;
+    }
+    return null;
+  }
+
+  const reversed = [...items].reverse();
+  return reversed.find((entry) => executionCompleteState(entry?.state)) || null;
 }
 
 export function deriveWpMicrotaskPlan({
@@ -215,6 +256,7 @@ export function deriveWpMicrotaskPlan({
       last_receipt_kind: null,
       last_actor_role: null,
       correlation_id: null,
+      review_mode: null,
     },
   ]));
 
@@ -239,6 +281,7 @@ export function deriveWpMicrotaskPlan({
     entry.last_receipt_kind = normalizeReceiptKind(receipt?.receipt_kind) || null;
     entry.last_actor_role = normalizeRole(receipt?.actor_role) || null;
     entry.correlation_id = String(receipt?.correlation_id || "").trim() || null;
+    entry.review_mode = normalizeReviewMode(receipt?.microtask_contract?.review_mode) || null;
   }
 
   for (const item of Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : []) {
@@ -254,6 +297,7 @@ export function deriveWpMicrotaskPlan({
     entry.last_receipt_kind = normalizeReceiptKind(item?.receipt_kind) || entry.last_receipt_kind;
     entry.last_actor_role = normalizeRole(item?.opened_by_role) || entry.last_actor_role;
     entry.correlation_id = String(item?.correlation_id || "").trim() || entry.correlation_id;
+    entry.review_mode = normalizeReviewMode(item?.microtask_contract?.review_mode) || entry.review_mode;
   }
 
   const items = declaredMicrotasks.map((definition) => byId.get(definition.mtId));
@@ -264,22 +308,26 @@ export function deriveWpMicrotaskPlan({
       || String(right.last_activity_at || "").localeCompare(String(left.last_activity_at || ""))
       || String(left.mt_id || "").localeCompare(String(right.mt_id || ""))
     );
-  const activeMicrotask = rankedActive[0] || null;
+  const attentionMicrotask = rankedActive[0] || null;
+  const activeMicrotask = deriveActiveExecutionMicrotask(items);
+  const previousMicrotask = derivePreviousExecutionMicrotask(items, activeMicrotask);
 
   let suggestedNextMicrotask = null;
-  if (activeMicrotask && ["ACTIVE", "IN_REVIEW", "CLEARED"].includes(activeMicrotask.state)) {
+  if (activeMicrotask && ["ACTIVE", "DECLARED"].includes(activeMicrotask.state)) {
     const activeIndex = items.findIndex((entry) => entry.mt_id === activeMicrotask.mt_id);
     suggestedNextMicrotask = items.slice(activeIndex + 1).find((entry) => entry.state === "DECLARED") || null;
   }
   if (!suggestedNextMicrotask) {
     suggestedNextMicrotask = items.find((entry) => entry.state === "REPAIR_REQUIRED")
-      || items.find((entry) => entry.state === "DECLARED")
+      || items.find((entry) => entry.state === "DECLARED" && entry.mt_id !== activeMicrotask?.mt_id)
       || null;
   }
 
   return {
     declared_count: items.length,
     active_microtask: activeMicrotask,
+    previous_microtask: previousMicrotask,
+    attention_microtask: attentionMicrotask,
     suggested_next_microtask: suggestedNextMicrotask,
     items,
   };

@@ -48,6 +48,7 @@ import {
   deriveWpReviewPacketProjection,
 } from "../lib/wp-review-projection-lib.mjs";
 import {
+  deriveWpMicrotaskPlan,
   listDeclaredWpMicrotasks,
   resolveDeclaredWpMicrotaskByScopeRef,
   summarizeMicrotaskFileTargetBudget,
@@ -556,14 +557,62 @@ function assertOverlapReviewBackpressurePreflight({ runtimeStatus }) {
   }
 }
 
+function overlapReviewResolutionPreflightApplies({ context, actorRole, receiptKind, microtaskContract }) {
+  return normalizeRole(context?.workflowLane) === "ORCHESTRATOR_MANAGED"
+    && VALIDATOR_ASSESSMENT_ROLE_VALUES.has(normalizeRole(actorRole))
+    && REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(normalizeReceiptKind(receiptKind))
+    && String(microtaskContract?.review_mode || "").trim().toUpperCase() === "OVERLAP";
+}
+
 function microtaskScopeBudgetPreflightApplies({ context, actorRole, receiptKind }) {
   return normalizeRole(context?.workflowLane) === "ORCHESTRATOR_MANAGED"
     && normalizeRole(actorRole) === "CODER"
     && MICROTASK_SCOPE_BUDGET_RECEIPT_KIND_VALUES.has(normalizeReceiptKind(receiptKind));
 }
 
-function assertDeclaredMicrotaskScopeBudgetPreflight({ wpId, receiptKind, microtaskContract }) {
+function deriveDeclaredMicrotaskContext({ wpId, context, runtimeStatus, scopeRef }) {
   const declaredMicrotasks = listDeclaredWpMicrotasks(wpId);
+  if (declaredMicrotasks.length === 0) {
+    return {
+      declaredMicrotasks,
+      resolution: { match: null, ambiguousMatches: [] },
+      plan: { declared_count: 0, active_microtask: null, previous_microtask: null, suggested_next_microtask: null, items: [] },
+    };
+  }
+
+  const receipts = parseJsonlFile(context.receiptsFile);
+  return {
+    declaredMicrotasks,
+    resolution: resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef, declaredMicrotasks),
+    plan: deriveWpMicrotaskPlan({
+      wpId,
+      receipts,
+      runtimeStatus,
+      microtasks: declaredMicrotasks,
+    }),
+  };
+}
+
+function assertDeclaredMicrotaskScopeBudgetPreflight({
+  wpId,
+  context,
+  runtimeStatus,
+  actorRole,
+  receiptKind,
+  targetRole,
+  microtaskContract,
+}) {
+  const scopeRef = String(microtaskContract?.scope_ref || "").trim();
+  const {
+    declaredMicrotasks,
+    resolution,
+    plan,
+  } = deriveDeclaredMicrotaskContext({
+    wpId,
+    context,
+    runtimeStatus,
+    scopeRef,
+  });
   if (declaredMicrotasks.length === 0) return;
 
   if (!microtaskContract || typeof microtaskContract !== "object" || Array.isArray(microtaskContract)) {
@@ -572,14 +621,12 @@ function assertDeclaredMicrotaskScopeBudgetPreflight({ wpId, receiptKind, microt
     );
   }
 
-  const scopeRef = String(microtaskContract.scope_ref || "").trim();
   if (!scopeRef) {
     throw new Error(
       `Governed ${receiptKind} rejected: microtask_contract.scope_ref must point to a declared MT (for example MT-001 or CLAUSE_CLOSURE_MATRIX/CX-...).`,
     );
   }
 
-  const resolution = resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef, declaredMicrotasks);
   if (resolution.ambiguousMatches.length > 0) {
     throw new Error(
       `Governed ${receiptKind} rejected: microtask_contract.scope_ref=${scopeRef} matches multiple MT packets (${formatBoundedItemList(resolution.ambiguousMatches.map((item) => item.mtId), { noun: "MT" })}).`,
@@ -610,6 +657,57 @@ function assertDeclaredMicrotaskScopeBudgetPreflight({ wpId, receiptKind, microt
     throw new Error(
       `Governed ${receiptKind} rejected: microtask_contract.proof_commands must declare proof for ${resolution.match.mtId}.`,
     );
+  }
+
+  const normalizedActorRole = normalizeRole(actorRole);
+  const normalizedReceiptKind = normalizeReceiptKind(receiptKind);
+  const activeMicrotask = plan.active_microtask;
+  const previousMicrotask = plan.previous_microtask;
+  if (normalizedActorRole === "CODER" && normalizedReceiptKind === "CODER_INTENT") {
+    const expectedMtId = activeMicrotask?.mt_id || declaredMicrotasks[0]?.mtId || null;
+    if (expectedMtId && resolution.match.mtId !== expectedMtId) {
+      throw new Error(
+        `Governed ${receiptKind} rejected: microtask_contract.scope_ref=${scopeRef} is out of sequence; active execution budget is ${expectedMtId}, not ${resolution.match.mtId}.`,
+      );
+    }
+  }
+
+  const overlapMode = String(microtaskContract.review_mode || "").trim().toUpperCase();
+  if (
+    normalizedActorRole === "CODER"
+    && normalizedReceiptKind === "REVIEW_REQUEST"
+    && normalizeRole(targetRole) === "WP_VALIDATOR"
+    && overlapMode === "OVERLAP"
+  ) {
+    const expectedMtId = activeMicrotask?.mt_id || declaredMicrotasks[0]?.mtId || null;
+    if (!expectedMtId) {
+      throw new Error(
+        `Governed ${receiptKind} rejected: no active microtask execution budget is available for overlap review in ${wpId}.`,
+      );
+    }
+    if (resolution.match.mtId !== expectedMtId) {
+      throw new Error(
+        `Governed ${receiptKind} rejected: overlap review must bind to the current active microtask ${expectedMtId}, not ${resolution.match.mtId}.`,
+      );
+    }
+  }
+
+  if (
+    VALIDATOR_ASSESSMENT_ROLE_VALUES.has(normalizedActorRole)
+    && REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(normalizedReceiptKind)
+    && overlapMode === "OVERLAP"
+  ) {
+    const expectedMtId = previousMicrotask?.mt_id || null;
+    if (!expectedMtId) {
+      throw new Error(
+        `Governed ${receiptKind} rejected: overlap review resolution requires an immediately previous microtask under review, but none is projected for ${wpId}.`,
+      );
+    }
+    if (resolution.match.mtId !== expectedMtId) {
+      throw new Error(
+        `Governed ${receiptKind} rejected: overlap review resolution must bind to previous microtask ${expectedMtId}, not ${resolution.match.mtId}.`,
+      );
+    }
   }
 }
 
@@ -660,7 +758,27 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
   })) {
     assertDeclaredMicrotaskScopeBudgetPreflight({
       wpId,
+      context,
+      runtimeStatus,
+      actorRole: args?.actorRole,
       receiptKind: normalizeReceiptKind(args?.receiptKind),
+      targetRole: args?.targetRole,
+      microtaskContract: args?.microtaskContract,
+    });
+  }
+  if (overlapReviewResolutionPreflightApplies({
+    context,
+    actorRole: args?.actorRole,
+    receiptKind: args?.receiptKind,
+    microtaskContract: args?.microtaskContract,
+  })) {
+    assertDeclaredMicrotaskScopeBudgetPreflight({
+      wpId,
+      context,
+      runtimeStatus,
+      actorRole: args?.actorRole,
+      receiptKind: normalizeReceiptKind(args?.receiptKind),
+      targetRole: args?.targetRole,
       microtaskContract: args?.microtaskContract,
     });
   }

@@ -217,6 +217,7 @@ test("active-lane-brief reports compact authority and relay summary", () => {
   assert.match(brief.relay.summary, /Relay is healthy/i);
   assert.equal(brief.microtasks.declared_count, 1);
   assert.equal(brief.microtasks.active_microtask.mt_id, "MT-001");
+  assert.equal(brief.microtasks.previous_microtask, null);
   assert.equal(brief.review_queue.length, 1);
   assert.equal(brief.review_queue[0].microtask_contract.scope_ref, "CLAUSE_CLOSURE_MATRIX/CX-LANE-001");
   assert.equal(brief.review_queue[0].microtask_contract.expected_receipt_kind, "CODER_INTENT");

@@ -183,7 +183,7 @@ export function buildActiveLaneBrief({
           microtask_contract: summarizeMicrotaskContract(item?.microtask_contract),
         }));
   const microtaskPlan = terminalNoiseSuppressed
-    ? { declared_count: 0, active_microtask: null, suggested_next_microtask: null, items: [] }
+    ? { declared_count: 0, active_microtask: null, previous_microtask: null, suggested_next_microtask: null, items: [] }
     : deriveWpMicrotaskPlan({
         wpId,
         receipts,
@@ -233,6 +233,7 @@ export function buildActiveLaneBrief({
     microtasks: {
       declared_count: Number(microtaskPlan.declared_count || 0),
       active_microtask: summarizeMicrotaskEntry(microtaskPlan.active_microtask),
+      previous_microtask: summarizeMicrotaskEntry(microtaskPlan.previous_microtask),
       suggested_next_microtask: summarizeMicrotaskEntry(microtaskPlan.suggested_next_microtask),
       items: Array.isArray(microtaskPlan.items) ? microtaskPlan.items.map((entry) => summarizeMicrotaskEntry(entry)) : [],
     },
@@ -273,6 +274,12 @@ export function formatActiveLaneBrief(brief) {
       ? [
           `- ACTIVE_MICROTASK: ${brief.microtasks.active_microtask.mt_id} | state=${brief.microtasks.active_microtask.state} | reason=${brief.microtasks.active_microtask.state_reason}`,
           `- ACTIVE_MICROTASK_CLAUSE: ${brief.microtasks.active_microtask.clause}`,
+        ]
+      : []),
+    ...(brief.microtasks.previous_microtask
+      ? [
+          `- PREVIOUS_MICROTASK: ${brief.microtasks.previous_microtask.mt_id} | state=${brief.microtasks.previous_microtask.state}`,
+          `- PREVIOUS_MICROTASK_CLAUSE: ${brief.microtasks.previous_microtask.clause}`,
         ]
       : []),
     ...(brief.microtasks.suggested_next_microtask

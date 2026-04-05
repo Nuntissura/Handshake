@@ -27,7 +27,7 @@ function writeMicrotask(packetDir, wpId, mtId, clause, codeSurfaces) {
   );
 }
 
-test("deriveWpMicrotaskPlan identifies active and next declared MTs from receipts and runtime", () => {
+test("deriveWpMicrotaskPlan keeps kickoff-reviewed microtasks as the active execution budget", () => {
   const wpId = "WP-TEST-MICROTASK-PLAN-v1";
   const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
   fs.mkdirSync(packetDir, { recursive: true });
@@ -69,8 +69,58 @@ test("deriveWpMicrotaskPlan identifies active and next declared MTs from receipt
     assert.equal(plan.declared_count, 2);
     assert.equal(plan.active_microtask?.mt_id, "MT-001");
     assert.equal(plan.active_microtask?.state, "IN_REVIEW");
+    assert.equal(plan.previous_microtask, null);
     assert.equal(plan.suggested_next_microtask?.mt_id, "MT-002");
     assert.equal(plan.items[1].state, "DECLARED");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
+test("deriveWpMicrotaskPlan advances execution to the next declared microtask after overlap review opens", () => {
+  const wpId = "WP-TEST-MICROTASK-OVERLAP-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(path.join(packetDir, "packet.md"), `- WP_ID: ${wpId}\n`, "utf8");
+  writeMicrotask(packetDir, wpId, "MT-001", "Bootstrap scope [CX-MT-101]", ["src/bootstrap.rs"]);
+  writeMicrotask(packetDir, wpId, "MT-002", "Follow-on scope [CX-MT-102]", ["src/follow_on.rs"]);
+
+  try {
+    const plan = deriveWpMicrotaskPlan({
+      wpId,
+      receipts: [
+        {
+          timestamp_utc: "2026-04-05T10:00:00Z",
+          actor_role: "CODER",
+          receipt_kind: "REVIEW_REQUEST",
+          correlation_id: "review-1",
+          microtask_contract: {
+            scope_ref: "MT-001",
+            review_mode: "OVERLAP",
+          },
+        },
+      ],
+      runtimeStatus: {
+        open_review_items: [
+          {
+            correlation_id: "review-1",
+            receipt_kind: "REVIEW_REQUEST",
+            opened_by_role: "CODER",
+            updated_at: "2026-04-05T10:02:00Z",
+            microtask_contract: {
+              scope_ref: "MT-001",
+              review_mode: "OVERLAP",
+            },
+          },
+        ],
+      },
+    });
+
+    assert.equal(plan.active_microtask?.mt_id, "MT-002");
+    assert.equal(plan.active_microtask?.state, "DECLARED");
+    assert.equal(plan.previous_microtask?.mt_id, "MT-001");
+    assert.equal(plan.previous_microtask?.state, "IN_REVIEW");
+    assert.equal(plan.suggested_next_microtask, null);
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
   }
@@ -115,6 +165,7 @@ test("deriveWpMicrotaskPlan promotes validator repair outcomes above later decla
 
     assert.equal(plan.active_microtask?.mt_id, "MT-001");
     assert.equal(plan.active_microtask?.state, "REPAIR_REQUIRED");
+    assert.equal(plan.previous_microtask, null);
     assert.equal(plan.suggested_next_microtask?.mt_id, "MT-001");
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
