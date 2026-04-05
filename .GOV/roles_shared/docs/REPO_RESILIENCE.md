@@ -28,8 +28,9 @@ This document defines the repo-resilience layer for Handshake governance.
 - `main` is the only canonical integrated branch.
 - `user_ilja` and `gov_kernel` are backup branches on GitHub.
 - Permanent non-main worktrees (`wt-ilja`, `wt-gov-kernel`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- Permanent non-main worktrees with a live `.GOV` kernel junction must suppress `.GOV` git noise locally. The supported model is worktree-local git metadata: add `.GOV/` to that worktree's `info/exclude` for untracked kernel files and mark tracked `.GOV` paths `skip-worktree`. Do not rely on the shared repo `.gitignore` to hide tracked `.GOV` drift.
 - `just sync-all-role-worktrees` is limited to refreshing the local `main` branch across the permanent worktrees when they are clean.
-- `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` is the governed helper for refreshing a permanent non-main role/user worktree from local `main`. It safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
+- `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` is the governed helper for refreshing a permanent non-main role/user worktree from local `main`. It safety-pushes the matching backup branch, creates an immutable snapshot, detaches any shared external `.GOV` junction that would block checkout, resets the local role/user branch to local `main`, repairs the `.GOV/` junction, and reapplies the worktree-local `.GOV` suppression model so the reseeded worktree comes back clean.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Worktree deletion must go through `just delete-local-worktree`. Never fall back to `Remove-Item`, `rm`, `del`, or other direct filesystem deletion for worktree paths.
 - For orchestrator-managed WP closeout, prefer the generated single-target cleanup script flow:

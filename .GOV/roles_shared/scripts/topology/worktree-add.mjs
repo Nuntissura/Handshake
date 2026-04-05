@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { defaultCoderWorktreeDir } from "../session/session-policy.mjs";
+import { suppressSharedGovJunctionDirt } from "./reseed-permanent-worktree-from-main.mjs";
 
 function runGit(args) {
   return execFileSync("git", args, { stdio: "pipe" }).toString().trim();
@@ -195,6 +196,8 @@ function main() {
       }
       console.log(`[WORKTREE_ADD] .GOV/ junction created -> ${govKernelAbs}`);
     }
+    suppressSharedGovJunctionDirt(absDir);
+    console.log(`[WORKTREE_ADD] Applied local .GOV suppression for shared kernel junction`);
   }
 
   console.log("");

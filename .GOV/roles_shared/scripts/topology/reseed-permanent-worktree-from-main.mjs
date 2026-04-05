@@ -9,15 +9,20 @@ import {
   WORKTREE_SPECS,
   absFromRepo,
   currentBranchInRepo,
+  dirtyInRepo,
   dirtyOutsideGovInRepo,
   gitCheckoutExists,
   localBranchExists,
   refExists,
+  runGitInRepo,
   runGitInherit,
 } from "./git-topology-lib.mjs";
+import { detachExternalGovLink } from "./delete-local-worktree.mjs";
 
 const RESEEDABLE_WORKTREE_ROLES = new Set(["OPERATOR"]);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const SHARED_GOV_EXCLUDE_MARKER = "# HANDSHAKE_SHARED_GOV_JUNCTION";
+const SHARED_GOV_EXCLUDE_RULE = ".GOV/";
 
 function normalizeComparablePath(value) {
   const normalized = path.resolve(String(value || "")).replace(/\\/g, "/").replace(/\/+$/, "");
@@ -138,6 +143,67 @@ function ensureGovJunction(absDir) {
   console.log(`[RESEED_PERMANENT_WORKTREE_FROM_MAIN] .GOV junction created -> ${govKernelAbs}`);
 }
 
+function gitPathInRepo(repoDir, gitPath) {
+  const resolved = runGitInRepo(repoDir, ["rev-parse", "--git-path", gitPath]);
+  return path.resolve(repoDir, resolved);
+}
+
+function trackedGovEntriesBuffer(repoDir) {
+  return execFileSync("git", ["ls-files", "-z", "--", ".GOV"], {
+    cwd: repoDir,
+    encoding: "buffer",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+}
+
+export function setGovTrackedPathsSkipWorktree(repoDir, enabled) {
+  const trackedGovEntries = trackedGovEntriesBuffer(repoDir);
+  if (!trackedGovEntries.length) return;
+
+  execFileSync(
+    "git",
+    ["update-index", "-z", enabled ? "--skip-worktree" : "--no-skip-worktree", "--stdin"],
+    {
+      cwd: repoDir,
+      input: trackedGovEntries,
+      stdio: ["pipe", "ignore", "ignore"],
+    },
+  );
+}
+
+export function ensureGovWorktreeExclude(repoDir) {
+  const excludePath = gitPathInRepo(repoDir, "info/exclude");
+  const original = fs.existsSync(excludePath) ? fs.readFileSync(excludePath, "utf8") : "";
+  if (original.includes(SHARED_GOV_EXCLUDE_MARKER)) return;
+
+  const next = original.endsWith("\n") || original.length === 0
+    ? `${original}${SHARED_GOV_EXCLUDE_MARKER}\n${SHARED_GOV_EXCLUDE_RULE}\n`
+    : `${original}\n${SHARED_GOV_EXCLUDE_MARKER}\n${SHARED_GOV_EXCLUDE_RULE}\n`;
+  fs.mkdirSync(path.dirname(excludePath), { recursive: true });
+  fs.writeFileSync(excludePath, next, "utf8");
+}
+
+export function clearGovWorktreeExclude(repoDir) {
+  const excludePath = gitPathInRepo(repoDir, "info/exclude");
+  if (!fs.existsSync(excludePath)) return;
+
+  const filtered = fs.readFileSync(excludePath, "utf8")
+    .split(/\r?\n/)
+    .filter((line) => line !== SHARED_GOV_EXCLUDE_MARKER && line !== SHARED_GOV_EXCLUDE_RULE);
+  const next = filtered.join("\n").replace(/\n+$/, "");
+  fs.writeFileSync(excludePath, next.length > 0 ? `${next}\n` : "", "utf8");
+}
+
+export function suppressSharedGovJunctionDirt(repoDir) {
+  ensureGovWorktreeExclude(repoDir);
+  setGovTrackedPathsSkipWorktree(repoDir, true);
+}
+
+export function clearSharedGovJunctionSuppression(repoDir) {
+  clearGovWorktreeExclude(repoDir);
+  setGovTrackedPathsSkipWorktree(repoDir, false);
+}
+
 function main() {
   const { worktreeId, approval, label } = parseArgs();
   requireApproval(worktreeId, approval);
@@ -154,6 +220,8 @@ function main() {
   if (!fs.existsSync(absDir) || !gitCheckoutExists(absDir)) {
     fail("Target worktree is missing or is not a git checkout", [`path=${absDir}`]);
   }
+
+  clearSharedGovJunctionSuppression(absDir);
 
   if (dirtyOutsideGovInRepo(absDir)) {
     fail("Refusing to reseed a dirty worktree", [
@@ -198,6 +266,13 @@ function main() {
     ]);
   }
 
+  const detachedGovLink = detachExternalGovLink(absDir);
+  if (detachedGovLink.detached) {
+    console.log(
+      `[RESEED_PERMANENT_WORKTREE_FROM_MAIN] detached external .GOV link before branch reset -> ${detachedGovLink.targetAbs}`,
+    );
+  }
+
   console.log(`[RESEED_PERMANENT_WORKTREE_FROM_MAIN] resetting local main to origin/main in ${absDir}`);
   runGitInherit(absDir, ["branch", "-f", "main", "origin/main"]);
 
@@ -208,11 +283,12 @@ function main() {
   runGitInherit(absDir, ["branch", "--set-upstream-to", spec.remote_branch, spec.local_branch]);
 
   ensureGovJunction(absDir);
+  suppressSharedGovJunctionDirt(absDir);
 
-  if (dirtyOutsideGovInRepo(absDir)) {
+  if (dirtyInRepo(absDir)) {
     fail("Worktree is dirty after reseed", [
       `path=${absDir}`,
-      "Expected a clean non-.GOV worktree after branch reset and .GOV junction repair.",
+      "Expected a fully clean worktree after branch reset, .GOV junction repair, and local .GOV suppression.",
     ]);
   }
 
@@ -223,4 +299,6 @@ function main() {
   );
 }
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}

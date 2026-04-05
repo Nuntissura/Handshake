@@ -38,6 +38,7 @@ If you are an AI assistant operating in this repo:
 - Exception (WP auto-continue): when the Orchestrator has already recorded a PASS signature gate for a specific WP and the next deterministic step is `just worktree-add WP-{ID}` or `just orchestrator-prepare-and-packet WP-{ID}`, the Orchestrator MUST create that missing WP worktree/branch automatically. Do not bounce that routine post-signature setup back to the Operator for a second approval.
 - `main` is the canonical integrated branch. `user_ilja` and `gov_kernel` on GitHub are backup branches and may diverge from `main`.
 - Permanent non-main worktrees (`wt-ilja`, `wt-gov-kernel`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- Non-main worktrees that replace inherited `/.GOV/` with the live governance-kernel junction must hide `.GOV` git noise via worktree-local git metadata, not by changing the shared repo `.gitignore`: add `.GOV/` to that worktree's `info/exclude` for untracked kernel files and mark tracked `.GOV` paths `skip-worktree`.
 - Before destructive or state-hiding local git actions on a role/user/WP branch, push the current committed state to the matching GitHub backup branch.
 - For WPs, the matching GitHub backup branch should be treated as the phase-boundary recovery branch, not just a pre-destruction safety sink.
 - Minimum WP recovery milestones to preserve remotely are:
@@ -67,7 +68,7 @@ Notes:
 - Permanent role/user branches are backup branches on GitHub. Their purpose is recoverability, not integration. They may be ahead of, equal to, or behind `main`.
 - Refreshing a permanent non-main worktree has two distinct paths:
   - `just sync-all-role-worktrees` refreshes the local `main` branch across the permanent worktrees when all are clean.
-  - `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` resets the checked-out permanent role/user branch to local `main` after a safety push + immutable snapshot, then repairs the `.GOV/` junction.
+  - `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` resets the checked-out permanent role/user branch to local `main` after a safety push + immutable snapshot, detaches any checkout-blocking shared `.GOV` junction, then repairs the `.GOV/` junction and restores the worktree-local `.GOV` suppression layer.
 - A WP backup branch is temporary. Its URL may stop resolving after Operator-approved cleanup and that later 404 must not become a governance failure.
 
 ## Parallel Ownership Model (Current Law)
