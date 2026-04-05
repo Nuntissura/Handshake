@@ -43,6 +43,20 @@ function createFixture({ terminal = false } = {}) {
       `- **Status:** ${terminal ? "Validated (PASS)" : "In Progress"}`,
     ].join("\n"),
   );
+  writeText(
+    path.join(govRoot, "task_packets", wpId, "MT-001.md"),
+    [
+      `# MT-001: Bootstrap lane [CX-LANE-001]`,
+      "",
+      "## METADATA",
+      `- WP_ID: ${wpId}`,
+      "- MT_ID: MT-001",
+      "- CLAUSE: Bootstrap lane [CX-LANE-001]",
+      "- CODE_SURFACES: src/backend/handshake_core/src/workflows.rs",
+      "- EXPECTED_TESTS: cargo test workflows::tests::debug_bundle_export_rejects_missing_run_id -- --exact",
+      "- DEPENDS_ON: NONE",
+    ].join("\n"),
+  );
 
   writeText(
     path.join(govRoot, "roles_shared", "records", "TASK_BOARD.md"),
@@ -196,6 +210,8 @@ test("active-lane-brief reports compact authority and relay summary", () => {
   assert.equal(brief.runtime.next_expected_actor, "CODER");
   assert.equal(brief.relay.status, "NORMAL");
   assert.match(brief.relay.summary, /Relay is healthy/i);
+  assert.equal(brief.microtasks.declared_count, 1);
+  assert.equal(brief.microtasks.active_microtask.mt_id, "MT-001");
   assert.equal(brief.review_queue.length, 1);
   assert.equal(brief.review_queue[0].microtask_contract.scope_ref, "CLAUSE_CLOSURE_MATRIX/CX-LANE-001");
   assert.equal(brief.review_queue[0].microtask_contract.expected_receipt_kind, "CODER_INTENT");

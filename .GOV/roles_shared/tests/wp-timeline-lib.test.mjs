@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildWpTimelineEntries,
+  buildWpTimelineSpans,
   buildWpTimelineSummary,
   parseThreadEntriesText,
 } from "../scripts/session/wp-timeline-lib.mjs";
@@ -141,6 +142,7 @@ test("buildWpTimelineSummary computes counts and event window", () => {
       },
     },
     entries,
+    spans: [],
   });
 
   assert.equal(summary.wp_id, "WP-TEST-TIMELINE-v1");
@@ -150,4 +152,66 @@ test("buildWpTimelineSummary computes counts and event window", () => {
   assert.equal(summary.token_input_total, 500);
   assert.equal(summary.event_window_duration_ms, 300000);
   assert.equal(summary.cost_estimate, null);
+});
+
+test("buildWpTimelineSpans pairs control commands and review exchanges", () => {
+  const spans = buildWpTimelineSpans({
+    receipts: [
+      {
+        timestamp_utc: "2026-04-05T10:00:00Z",
+        actor_role: "CODER",
+        target_role: "WP_VALIDATOR",
+        receipt_kind: "CODER_HANDOFF",
+        correlation_id: "handoff-1",
+        summary: "Ready for validator review.",
+      },
+      {
+        timestamp_utc: "2026-04-05T10:04:00Z",
+        actor_role: "WP_VALIDATOR",
+        target_role: "CODER",
+        receipt_kind: "VALIDATOR_REVIEW",
+        correlation_id: "handoff-1",
+        summary: "Repair required.",
+      },
+    ],
+    controlRequests: [
+      {
+        created_at: "2026-04-05T09:59:00Z",
+        command_id: "cmd-1",
+        role: "CODER",
+        command_kind: "SEND_PROMPT",
+        summary: "steer coder",
+      },
+    ],
+    controlResults: [
+      {
+        processed_at: "2026-04-05T10:00:00Z",
+        command_id: "cmd-1",
+        role: "CODER",
+        command_kind: "SEND_PROMPT",
+        status: "COMPLETED",
+        summary: "coder advanced",
+        duration_ms: 60000,
+      },
+    ],
+    tokenCommands: [
+      {
+        command_id: "cmd-1",
+        command_kind: "SEND_PROMPT",
+        role: "CODER",
+        turn_count: 1,
+        usage_totals: {
+          input_tokens: 120,
+          cached_input_tokens: 10,
+          output_tokens: 40,
+        },
+      },
+    ],
+  });
+
+  assert.equal(spans.length, 2);
+  assert.equal(spans[0].span_kind, "CONTROL_COMMAND");
+  assert.match(spans[0].header, /CONTROL_COMMAND/);
+  assert.match(spans[1].header, /REVIEW_EXCHANGE/);
+  assert.equal(spans[1].duration_ms, 240000);
 });

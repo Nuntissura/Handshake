@@ -3,6 +3,8 @@ import path from "node:path";
 import {
   parseJsonFile,
   parseJsonlFile,
+  REVIEW_OPEN_RECEIPT_KIND_VALUES,
+  REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
 } from "../lib/wp-communications-lib.mjs";
 import {
   repoPathAbs,
@@ -51,6 +53,31 @@ function isoOrNull(value) {
 function durationMs(startTs, endTs) {
   if (!Number.isFinite(startTs) || !Number.isFinite(endTs) || endTs < startTs) return null;
   return endTs - startTs;
+}
+
+function compactLabel(value, fallback = "<none>") {
+  const text = normalizeText(value);
+  return text || fallback;
+}
+
+function matchingResolutionForOpenReceipt(openReceipt, orderedResolutions) {
+  const correlationId = compactLabel(openReceipt?.correlation_id, "");
+  if (!correlationId) return null;
+  const openActor = normalizeRole(openReceipt?.actor_role);
+  const openTarget = normalizeRole(openReceipt?.target_role);
+  const openTimestamp = parseTimestamp(openReceipt?.timestamp_utc);
+  return orderedResolutions.find((entry) => {
+    if (compactLabel(entry?.correlation_id, "") !== correlationId) return false;
+    if (normalizeRole(entry?.actor_role) !== openTarget) return false;
+    if (normalizeRole(entry?.target_role) !== openActor) return false;
+    const resolutionTs = parseTimestamp(entry?.timestamp_utc);
+    if (Number.isFinite(openTimestamp) && Number.isFinite(resolutionTs) && resolutionTs < openTimestamp) return false;
+    return true;
+  }) || null;
+}
+
+function countByKind(spans = [], spanKind = "") {
+  return spans.filter((entry) => entry.span_kind === spanKind).length;
 }
 
 export function parseThreadEntriesText(threadText = "") {
@@ -219,6 +246,97 @@ export function buildWpTimelineEntries({
   );
 }
 
+export function buildWpTimelineSpans({
+  receipts = [],
+  controlRequests = [],
+  controlResults = [],
+  tokenCommands = [],
+} = {}) {
+  const spans = [];
+  let sequence = 0;
+  const tokenCommandMap = new Map(
+    (Array.isArray(tokenCommands) ? tokenCommands : [])
+      .filter((entry) => compactLabel(entry.command_id, ""))
+      .map((entry) => [compactLabel(entry.command_id, ""), entry]),
+  );
+
+  const resultByCommandId = new Map(
+    (Array.isArray(controlResults) ? controlResults : [])
+      .filter((entry) => compactLabel(entry.command_id, ""))
+      .map((entry) => [compactLabel(entry.command_id, ""), entry]),
+  );
+
+  for (const request of Array.isArray(controlRequests) ? controlRequests : []) {
+    const commandId = compactLabel(request.command_id, "");
+    if (!commandId) continue;
+    const result = resultByCommandId.get(commandId) || null;
+    const tokenCommand = tokenCommandMap.get(commandId) || null;
+    const startedAt = compactLabel(request.created_at, "");
+    const endedAt = compactLabel(result?.processed_at, "");
+    const startedTs = parseTimestamp(startedAt);
+    const endedTs = parseTimestamp(endedAt);
+    const turnCount = Number(tokenCommand?.turn_count || 0);
+    const usageTotals = tokenCommand?.usage_totals || {};
+
+    const measuredDuration = durationMs(startedTs, endedTs);
+    const fallbackDuration = Number(result?.duration_ms || 0);
+    spans.push({
+      span_kind: "CONTROL_COMMAND",
+      started_at: startedAt || null,
+      ended_at: endedAt || null,
+      started_at_ms: startedTs,
+      ended_at_ms: endedTs,
+      duration_ms: measuredDuration ?? (fallbackDuration > 0 ? fallbackDuration : null),
+      sequence: sequence += 1,
+      role: normalizeRole(request.role),
+      header: `${startedAt || "<no-ts>"} -> ${endedAt || "<open>"} | CONTROL_COMMAND | ${compactLabel(request.role)} | ${compactLabel(request.command_kind)}`,
+      detailLines: [
+        `command_id=${commandId}`,
+        `status=${compactLabel(result?.status, "<pending>")}`,
+        `summary=${compactLabel(result?.summary || request.summary || String(request.prompt || "").split(/\r?\n/, 1)[0])}`,
+        `turn_count=${turnCount} | input=${Number(usageTotals.input_tokens || 0)} | cached=${Number(usageTotals.cached_input_tokens || 0)} | output=${Number(usageTotals.output_tokens || 0)}`,
+      ],
+    });
+  }
+
+  const openReceipts = (Array.isArray(receipts) ? receipts : [])
+    .filter((entry) => REVIEW_OPEN_RECEIPT_KIND_VALUES.includes(String(entry?.receipt_kind || "").trim().toUpperCase()))
+    .sort((left, right) => String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || "")));
+  const resolutionReceipts = (Array.isArray(receipts) ? receipts : [])
+    .filter((entry) => REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(String(entry?.receipt_kind || "").trim().toUpperCase()))
+    .sort((left, right) => String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || "")));
+
+  for (const openReceipt of openReceipts) {
+    const resolution = matchingResolutionForOpenReceipt(openReceipt, resolutionReceipts);
+    const startedAt = compactLabel(openReceipt?.timestamp_utc, "");
+    const endedAt = compactLabel(resolution?.timestamp_utc, "");
+    const startedTs = parseTimestamp(startedAt);
+    const endedTs = parseTimestamp(endedAt);
+    spans.push({
+      span_kind: "REVIEW_EXCHANGE",
+      started_at: startedAt || null,
+      ended_at: endedAt || null,
+      started_at_ms: startedTs,
+      ended_at_ms: endedTs,
+      duration_ms: durationMs(startedTs, endedTs),
+      sequence: sequence += 1,
+      role: normalizeRole(openReceipt?.actor_role),
+      header: `${startedAt || "<no-ts>"} -> ${endedAt || "<open>"} | REVIEW_EXCHANGE | ${compactLabel(openReceipt?.receipt_kind)} | ${compactLabel(openReceipt?.actor_role)} -> ${compactLabel(openReceipt?.target_role)}`,
+      detailLines: [
+        `correlation_id=${compactLabel(openReceipt?.correlation_id)}`,
+        `open_summary=${compactLabel(openReceipt?.summary)}`,
+        `resolution_kind=${compactLabel(resolution?.receipt_kind, "<open>")}`,
+        `resolution_summary=${compactLabel(resolution?.summary, "<pending>")}`,
+      ],
+    });
+  }
+
+  return spans.sort((left, right) =>
+    String(left.started_at || "").localeCompare(String(right.started_at || ""))
+    || (left.sequence - right.sequence)
+  );
+}
+
 export function buildWpTimelineSummary({
   wpId = "",
   packetPath = "",
@@ -230,6 +348,7 @@ export function buildWpTimelineSummary({
   controlResults = [],
   tokenLedger = {},
   entries = [],
+  spans = [],
 } = {}) {
   const timestamps = entries
     .map((entry) => entry.timestamp_ms)
@@ -251,6 +370,9 @@ export function buildWpTimelineSummary({
     event_window_end: isoOrNull(lastEventAt),
     event_window_duration_ms: durationMs(firstEventAt, lastEventAt),
     event_count: entries.length,
+    span_count: spans.length,
+    control_span_count: countByKind(spans, "CONTROL_COMMAND"),
+    review_span_count: countByKind(spans, "REVIEW_EXCHANGE"),
     thread_count: threadEntriesCount(entries),
     receipt_count: receipts.length,
     notification_count: notifications.length,
@@ -268,7 +390,7 @@ export function buildWpTimelineSummary({
     budget_status: tokenBudget.status,
     budget_summary: tokenBudget.summary,
     cost_estimate: null,
-    cost_estimate_note: "unavailable",
+    cost_estimate_note: "unavailable_without_pricing_manifest",
   };
 }
 

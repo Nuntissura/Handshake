@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildRelayDispatchPrompt,
+  deriveRelayEnvelope,
   buildManualRelayDispatchPrompt,
   deriveManualRelayEnvelope,
 } from "../scripts/lib/manual-relay-envelope-lib.mjs";
@@ -76,4 +78,53 @@ test("buildManualRelayDispatchPrompt injects typed relay context for the target 
   assert.match(prompt, /SOURCE_KIND: REVIEW_REQUEST/);
   assert.match(prompt, /Please confirm whether MT-002 is clear to continue\./);
   assert.doesNotMatch(prompt, /OPERATOR_EXPLAINER/);
+});
+
+test("deriveRelayEnvelope falls back to runtime waiting state when no targeted notification exists", () => {
+  const envelope = deriveRelayEnvelope({
+    wpId: "WP-TEST-GOVERNED-ROUTE",
+    runtimeStatus: {
+      waiting_on: "CODER_INTENT",
+      current_phase: "BOOTSTRAP",
+    },
+    nextActor: "CODER",
+    targetSession: "coder-1",
+    notifications: { notifications: [] },
+    dispatchAction: "START_SESSION",
+  });
+
+  assert.equal(envelope.fromEndpoint, "RUNTIME");
+  assert.equal(envelope.toEndpoint, "CODER:coder-1");
+  assert.equal(envelope.relayKind, "INTENT");
+  assert.equal(envelope.sourceKind, "CODER_INTENT");
+  assert.match(envelope.message, /Runtime is waiting on CODER_INTENT/);
+});
+
+test("buildRelayDispatchPrompt supports orchestrator-managed route labels", () => {
+  const prompt = buildRelayDispatchPrompt({
+    basePrompt: "RESUME GOVERNED CODER lane for WP-TEST-GOVERNED-ROUTE.",
+    envelope: {
+      fromEndpoint: "WP_VALIDATOR:wpv-1",
+      toEndpoint: "CODER:coder-1",
+      relayKind: "QUESTION",
+      sourceKind: "VALIDATOR_QUERY",
+      correlationId: "kick-22",
+      ackRequired: true,
+      message: "Clarify whether the next step stays inside MT-002.",
+    },
+    contextLabel: "GOVERNED_ROUTE_CONTEXT [CX-ROUTE-001]",
+    messageLabel: "DIRECT_ROLE_MESSAGE [CX-ROUTE-002]",
+    terminalInstructions: [
+      "Treat DIRECT_ROLE_MESSAGE as the current receipt/notification-derived payload for WORKFLOW_LANE=ORCHESTRATOR_MANAGED.",
+    ],
+  });
+
+  assert.match(prompt, /GOVERNED_ROUTE_CONTEXT \[CX-ROUTE-001\]/);
+  assert.match(prompt, /DIRECT_ROLE_MESSAGE \[CX-ROUTE-002\]/);
+  assert.match(prompt, /FROM: WP_VALIDATOR:wpv-1/);
+  assert.match(prompt, /TO: CODER:coder-1/);
+  assert.match(prompt, /RELAY_KIND: QUESTION/);
+  assert.match(prompt, /SOURCE_KIND: VALIDATOR_QUERY/);
+  assert.match(prompt, /Clarify whether the next step stays inside MT-002\./);
+  assert.match(prompt, /WORKFLOW_LANE=ORCHESTRATOR_MANAGED/);
 });

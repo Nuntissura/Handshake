@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { REPO_ROOT } from "../lib/runtime-paths.mjs";
 import {
   buildWpTimelineEntries,
+  buildWpTimelineSpans,
   buildWpTimelineSummary,
   loadWpTimelineArtifacts,
 } from "./wp-timeline-lib.mjs";
@@ -21,7 +22,7 @@ function compactLine(value, maxLength = 240) {
   return `${normalized.slice(0, Math.max(0, maxLength - 3))}...`;
 }
 
-function printTextReport(summary, entries) {
+function printTextReport(summary, spans, entries) {
   console.log(`[WP_TIMELINE] wp_id=${summary.wp_id}`);
   console.log(`- packet: ${summary.packet_path}`);
   console.log(`- workflow_lane: ${summary.workflow_lane}`);
@@ -33,6 +34,9 @@ function printTextReport(summary, entries) {
   console.log(`- event_window_end: ${summary.event_window_end || "<none>"}`);
   console.log(`- event_window_duration_ms: ${summary.event_window_duration_ms ?? "<none>"}`);
   console.log(`- event_count: ${summary.event_count}`);
+  console.log(`- span_count: ${summary.span_count}`);
+  console.log(`- control_span_count: ${summary.control_span_count}`);
+  console.log(`- review_span_count: ${summary.review_span_count}`);
   console.log(`- thread_count: ${summary.thread_count}`);
   console.log(`- receipt_count: ${summary.receipt_count}`);
   console.log(`- notification_count: ${summary.notification_count}`);
@@ -50,6 +54,18 @@ function printTextReport(summary, entries) {
   console.log(`- budget_status: ${summary.budget_status}`);
   console.log(`- budget_summary: ${summary.budget_summary}`);
   console.log(`- cost_estimate: ${summary.cost_estimate === null ? summary.cost_estimate_note : summary.cost_estimate}`);
+  console.log("");
+  console.log("SPANS");
+  if (spans.length === 0) {
+    console.log("No computed spans.");
+  } else {
+    for (const span of spans) {
+      console.log(span.header);
+      for (const detailLine of span.detailLines || []) {
+        console.log(`  ${compactLine(detailLine)}`);
+      }
+    }
+  }
   console.log("");
   console.log("TIMELINE");
   if (entries.length === 0) {
@@ -80,6 +96,12 @@ function main() {
     controlResults: artifacts.controlResults,
     tokenCommands: artifacts.tokenLedger?.commands || [],
   });
+  const spans = buildWpTimelineSpans({
+    receipts: artifacts.receipts,
+    controlRequests: artifacts.controlRequests,
+    controlResults: artifacts.controlResults,
+    tokenCommands: artifacts.tokenLedger?.commands || [],
+  });
   const summary = buildWpTimelineSummary({
     wpId,
     packetPath: artifacts.packetPath,
@@ -91,13 +113,14 @@ function main() {
     controlResults: artifacts.controlResults,
     tokenLedger: artifacts.tokenLedger,
     entries,
+    spans,
   });
 
   if (jsonMode) {
-    console.log(JSON.stringify({ summary, entries }, null, 2));
+    console.log(JSON.stringify({ summary, spans, entries }, null, 2));
     return;
   }
-  printTextReport(summary, entries);
+  printTextReport(summary, spans, entries);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

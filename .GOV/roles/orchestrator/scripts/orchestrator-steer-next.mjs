@@ -8,10 +8,15 @@ import { loadSessionRegistry } from "../../../roles_shared/scripts/session/sessi
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
-import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
+import { checkAllNotifications, checkNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { evaluateWpCommunicationBoundary, evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import { steerActionForSession } from "./lib/orchestrator-steer-lib.mjs";
+import {
+  buildRelayDispatchPrompt,
+  deriveRelayEnvelope,
+  preferredTargetSession,
+} from "./lib/manual-relay-envelope-lib.mjs";
 
 const wpId = String(process.argv[2] || "").trim();
 const requestedModel = String(process.argv[3] || "").trim().toUpperCase() || "PRIMARY";
@@ -122,23 +127,48 @@ if (!roleConfig) {
 
 const commandScript = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
 const action = steerActionForSession(governedSession);
+const nextSession = preferredTargetSession(runtimeStatus, governedSession);
+const targetNotifications = checkNotifications({ wpId, role: nextActor, session: nextSession });
+const envelope = deriveRelayEnvelope({
+  wpId,
+  runtimeStatus,
+  nextActor,
+  targetSession: nextSession,
+  notifications: targetNotifications,
+  dispatchAction: action,
+});
+const prompt = buildRelayDispatchPrompt({
+  basePrompt: buildSteeringPrompt({ role: nextActor, wpId, roleConfig }),
+  envelope,
+  contextLabel: "GOVERNED_ROUTE_CONTEXT [CX-ROUTE-001]",
+  messageLabel: "DIRECT_ROLE_MESSAGE [CX-ROUTE-002]",
+  terminalInstructions: [
+    "Treat DIRECT_ROLE_MESSAGE as the current receipt/notification-derived payload for WORKFLOW_LANE=ORCHESTRATOR_MANAGED.",
+    "Do not rediscover the relay type from scratch before acting; use RELAY_KIND and SOURCE_KIND as the current route context.",
+    `If you emit a paired acknowledgement, question, or response, preserve correlation_id=${envelope.correlationId} when applicable.`,
+  ],
+});
 
 console.log(`[ORCHESTRATOR_STEER_NEXT] wp_id=${wpId}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] next_actor=${nextActor}`);
+console.log(`[ORCHESTRATOR_STEER_NEXT] next_session=${nextSession || "<none>"}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] waiting_on=${runtimeStatus.waiting_on || "<missing>"}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] relay_status=${relayEscalation.status}`);
 if (relayEscalation.status !== "NOT_APPLICABLE") {
   console.log(`[ORCHESTRATOR_STEER_NEXT] relay_summary=${relayEscalation.summary}`);
 }
 console.log(`[ORCHESTRATOR_STEER_NEXT] action=${action}`);
+console.log(`[ORCHESTRATOR_STEER_NEXT] relay_kind=${envelope.relayKind}`);
+console.log(`[ORCHESTRATOR_STEER_NEXT] source_kind=${envelope.sourceKind}`);
+console.log("DIRECT_ROLE_MESSAGE [CX-ROUTE-002]");
+console.log(`- ${envelope.message}`);
 
 if (action === "START_SESSION") {
   execFileSync(process.execPath, [commandScript, "START_SESSION", nextActor, wpId, "", requestedModel], {
     stdio: "inherit",
   });
-} else {
-  const prompt = buildSteeringPrompt({ role: nextActor, wpId, roleConfig });
-  execFileSync(process.execPath, [commandScript, "SEND_PROMPT", nextActor, wpId, prompt, requestedModel], {
-    stdio: "inherit",
-  });
 }
+
+execFileSync(process.execPath, [commandScript, "SEND_PROMPT", nextActor, wpId, prompt, requestedModel], {
+  stdio: "inherit",
+});

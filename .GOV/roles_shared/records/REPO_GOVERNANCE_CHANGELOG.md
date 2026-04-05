@@ -992,3 +992,41 @@
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
 - OUTCOME: duplicate decisive validator approvals or failures for the same review round now fail closed before they enter the receipt ledger, historical duplicate decisive assessments collapse into one authoritative surface for resume/projection consumers, and packet remediation text now points at the authoritative latest validator receipt instead of a raw noisy stream
+
+### 2026.04.05.01 / GOV-CHANGE-20260405-01
+
+- STATUS: APPLIED
+- SUMMARY: completed Wave 1 (`RGF-64` through `RGF-67`) by finishing one-hop relay dispatch, typed route payloads, computed WP spans, and microtask-first resume surfaces
+- CHANGE_TYPE: WORKFLOW_EFFICIENCY_AND_LANE_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-64`
+  - `RGF-65`
+  - `RGF-66`
+  - `RGF-67`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/lib/manual-relay-envelope-lib.mjs`
+  - `.GOV/roles/coder/scripts/coder-next.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-report.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-microtask-lib.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/tests/wp-timeline-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-microtask-lib.test.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `.GOV/roles/orchestrator/tests/manual-relay-envelope-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-68`
+  - `RGF-69`
+  - `RGF-70`
+  - `RGF-71`
+  - `RGF-72`
+  - `RGF-73`
+- OUTCOME: orchestrator-managed relay no longer requires a separate start turn and later steer turn for the same routine wakeup, governed prompts now carry typed route payloads instead of generic resume prose, `wp-timeline` computes control-command and review-exchange spans on top of the merged event stream, manual relay remains structured and first-class, continuation waivers are honored mechanically, and the compact role resume surfaces now expose declared active/next microtasks so coder and validator work can continue at MT granularity instead of broad WP guesswork

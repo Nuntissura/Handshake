@@ -140,6 +140,7 @@ Primary commands:
 - Heartbeat note: `wp-heartbeat` is liveness-only. `next_actor` / `waiting_on` must match current runtime route and cannot be used to steer the lane.
 - `just session-registry-status WP-...` now also surfaces derived stalled-relay state for the filtered WP.
 - If relay state is `ESCALATED`, use `just orchestrator-steer-next WP-...` instead of waiting silently.
+- `just orchestrator-steer-next` now performs a one-hop wakeup: if the projected target session is not running yet, it starts that governed session and immediately injects the typed route payload in the same invocation.
 - Inside the monitor:
   - `c` closes governed sessions for the selected WP after a role prompt + confirmation.
   - `b` stops the ACP broker after confirmation, but only if no governed runs are active.
@@ -162,6 +163,7 @@ Primary commands:
 - `just wp-thread-append WP-... CODER <session> "<message>" [target]`
 - Heartbeat note: `wp-heartbeat` is liveness-only. Use receipts/notifications to change routing, not heartbeat.
 - If context/routing feels fragmented, use `just active-lane-brief CODER WP-...` instead of rereading packet/runtime/session truth separately.
+- `just active-lane-brief` now also names the declared active/next MT when microtask files exist, so coder work should resume at MT granularity instead of broad WP scope.
 - Use `just check-notifications WP-... CODER <your-session>` so you only consume notifications targeted to your governed session.
 
 Role rule:
@@ -185,6 +187,7 @@ Primary commands (per WP validation):
 - `just wp-thread-append WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - Heartbeat note: `wp-heartbeat` is liveness-only. Route changes must come from receipts/notifications or closeout projection.
 - If context/routing feels fragmented, use `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-...` instead of rereading packet/runtime/session truth separately.
+- The same brief now surfaces declared active/next MT truth so validator overlap review can target the correct microtask without re-deriving it from raw receipts.
 - Use `just check-notifications WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <your-session>` so you only consume notifications targeted to your governed session.
 - `just wp-review-exchange VALIDATOR_QUERY WP-... CODER <session> WP_VALIDATOR <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
 - `just wp-validator-response WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`

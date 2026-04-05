@@ -49,7 +49,7 @@ These are safe starting points for orientation and health checks.
   - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role plus derived stalled-relay status
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
   - `read-only`
-  - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, and next commands
+  - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, declared microtask plan (`active` / `next`), and next commands
 - `just manual-relay-next WP-{ID}`
   - `read-only`
   - operator-facing next-step helper for `WORKFLOW_LANE=MANUAL_RELAY`; prints the runtime-projected next actor, target session, a structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`), and exact governed follow-up commands without auto-steering
@@ -61,7 +61,7 @@ These are safe starting points for orientation and health checks.
   - print the governed per-WP token ledger aggregated from settled ACP session outputs
 - `just wp-timeline WP-{ID} [--json]`
   - `read-only`
-  - print one merged WP timeline across thread traffic, receipts, notifications, session-control requests/results, and per-command turn usage, plus token totals and budget health
+  - print one merged WP timeline plus computed spans across control-command start/result pairs and review exchanges, together with token totals and budget health
 - `just wp-token-usage-settle WP-{ID} [REASON] [SETTLED_BY]`
   - `writes-runtime`
   - settle a historical WP token ledger to raw ACP session outputs after the lane is terminal so compact views stop surfacing old drift as live noise
@@ -83,6 +83,8 @@ These are safe starting points for orientation and health checks.
 - `just orchestrator-steer-next WP-{ID} [PRIMARY|FALLBACK]`
   - `runtime-write`
   - launch or steer the next expected governed actor directly from runtime/receipt projection without a manually written relay prompt
+  - if the target session is not running yet, this helper now starts it and immediately sends the typed route payload in the same invocation
+  - the governed prompt carries typed route context (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) derived from receipt/notification truth instead of generic resume prose
   - when stalled-relay escalation is active, this is the canonical continue/repair command instead of silent waiting
 - `just manual-relay-next WP-{ID}`
   - `read-only`

@@ -10,6 +10,28 @@ import { normalizePath, resolveWorkPacketPath } from "./runtime-paths.mjs";
 
 const MICROTASK_FILE_RE = /^MT-\d{3}\.md$/i;
 
+function normalizeRole(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function normalizeReceiptKind(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function normalizeReviewOutcome(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "REPAIR_REQUIRED") return "REPAIR_REQUIRED";
+  if (normalized === "APPROVED_FOR_FINAL_REVIEW") return "APPROVED_FOR_FINAL_REVIEW";
+  return "UNKNOWN";
+}
+
+function parseTimestamp(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const parsed = Date.parse(text);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 function normalizeScopeRefKey(value) {
   return String(value || "")
     .trim()
@@ -115,5 +137,150 @@ export function summarizeMicrotaskFileTargetBudget(fileTargets, microtaskDefinit
     allowedSurfaces,
     outOfBudgetTargets,
     ok: outOfBudgetTargets.length === 0,
+  };
+}
+
+function reviewOutcomeFromSummary(summary = "") {
+  const text = String(summary || "").trim();
+  if (!text) return "UNKNOWN";
+  if (/\brepair required\b/i.test(text) || /\bremediation required\b/i.test(text) || /\bfix required\b/i.test(text)) {
+    return "REPAIR_REQUIRED";
+  }
+  if (/\bapproved for final review\b/i.test(text) || /\bready for final review\b/i.test(text) || /\bcleared\b/i.test(text)) {
+    return "APPROVED_FOR_FINAL_REVIEW";
+  }
+  return "UNKNOWN";
+}
+
+function resolvedMicrotaskForScopeRef(wpId, scopeRef, microtasks) {
+  const resolution = resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef, microtasks);
+  return resolution.match || null;
+}
+
+function statePriority(state = "") {
+  switch (String(state || "").trim().toUpperCase()) {
+    case "REPAIR_REQUIRED":
+      return 5;
+    case "IN_REVIEW":
+      return 4;
+    case "ACTIVE":
+      return 3;
+    case "CLEARED":
+      return 2;
+    case "DECLARED":
+    default:
+      return 1;
+  }
+}
+
+function stateFromReceipt(receipt = {}) {
+  const actorRole = normalizeRole(receipt?.actor_role);
+  const receiptKind = normalizeReceiptKind(receipt?.receipt_kind);
+  if (actorRole === "CODER") {
+    if (["CODER_INTENT", "REVIEW_REQUEST", "CODER_HANDOFF", "REPAIR"].includes(receiptKind)) return "ACTIVE";
+    return "DECLARED";
+  }
+
+  if (["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"].includes(actorRole)) {
+    const explicitOutcome = normalizeReviewOutcome(receipt?.microtask_contract?.review_outcome);
+    const derivedOutcome = explicitOutcome !== "UNKNOWN" ? explicitOutcome : reviewOutcomeFromSummary(receipt?.summary);
+    if (derivedOutcome === "REPAIR_REQUIRED") return "REPAIR_REQUIRED";
+    if (["VALIDATOR_RESPONSE", "REVIEW_RESPONSE", "SPEC_CONFIRMATION", "VALIDATOR_REVIEW"].includes(receiptKind)) {
+      return "CLEARED";
+    }
+  }
+
+  return "DECLARED";
+}
+
+export function deriveWpMicrotaskPlan({
+  wpId,
+  receipts = [],
+  runtimeStatus = {},
+  microtasks = null,
+} = {}) {
+  const declaredMicrotasks = Array.isArray(microtasks) ? microtasks : listDeclaredWpMicrotasks(wpId);
+  const byId = new Map(declaredMicrotasks.map((definition) => [
+    definition.mtId,
+    {
+      mt_id: definition.mtId,
+      clause: definition.clause,
+      packet_path: definition.packetPath,
+      depends_on: definition.dependsOn,
+      code_surfaces: definition.codeSurfaces,
+      expected_tests: definition.expectedTests,
+      state: "DECLARED",
+      state_reason: "declared_only",
+      last_activity_at: null,
+      last_receipt_kind: null,
+      last_actor_role: null,
+      correlation_id: null,
+    },
+  ]));
+
+  const orderedReceipts = [...(Array.isArray(receipts) ? receipts : [])].sort((left, right) =>
+    String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || ""))
+  );
+
+  for (const receipt of orderedReceipts) {
+    const scopeRef = String(receipt?.microtask_contract?.scope_ref || "").trim();
+    if (!scopeRef) continue;
+    const definition = resolvedMicrotaskForScopeRef(wpId, scopeRef, declaredMicrotasks);
+    if (!definition) continue;
+    const entry = byId.get(definition.mtId);
+    if (!entry) continue;
+    const nextState = stateFromReceipt(receipt);
+    const currentTs = parseTimestamp(entry.last_activity_at);
+    const receiptTs = parseTimestamp(receipt?.timestamp_utc);
+    if (Number.isFinite(currentTs) && Number.isFinite(receiptTs) && receiptTs < currentTs) continue;
+    entry.state = nextState;
+    entry.state_reason = `receipt:${normalizeReceiptKind(receipt?.receipt_kind)}`;
+    entry.last_activity_at = String(receipt?.timestamp_utc || "").trim() || null;
+    entry.last_receipt_kind = normalizeReceiptKind(receipt?.receipt_kind) || null;
+    entry.last_actor_role = normalizeRole(receipt?.actor_role) || null;
+    entry.correlation_id = String(receipt?.correlation_id || "").trim() || null;
+  }
+
+  for (const item of Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : []) {
+    const scopeRef = String(item?.microtask_contract?.scope_ref || "").trim();
+    if (!scopeRef) continue;
+    const definition = resolvedMicrotaskForScopeRef(wpId, scopeRef, declaredMicrotasks);
+    if (!definition) continue;
+    const entry = byId.get(definition.mtId);
+    if (!entry) continue;
+    entry.state = "IN_REVIEW";
+    entry.state_reason = `open_review_item:${normalizeReceiptKind(item?.receipt_kind)}`;
+    entry.last_activity_at = String(item?.updated_at || item?.opened_at || entry.last_activity_at || "").trim() || entry.last_activity_at;
+    entry.last_receipt_kind = normalizeReceiptKind(item?.receipt_kind) || entry.last_receipt_kind;
+    entry.last_actor_role = normalizeRole(item?.opened_by_role) || entry.last_actor_role;
+    entry.correlation_id = String(item?.correlation_id || "").trim() || entry.correlation_id;
+  }
+
+  const items = declaredMicrotasks.map((definition) => byId.get(definition.mtId));
+  const rankedActive = [...items]
+    .filter((entry) => entry.state !== "DECLARED")
+    .sort((left, right) =>
+      statePriority(right.state) - statePriority(left.state)
+      || String(right.last_activity_at || "").localeCompare(String(left.last_activity_at || ""))
+      || String(left.mt_id || "").localeCompare(String(right.mt_id || ""))
+    );
+  const activeMicrotask = rankedActive[0] || null;
+
+  let suggestedNextMicrotask = null;
+  if (activeMicrotask && ["ACTIVE", "IN_REVIEW", "CLEARED"].includes(activeMicrotask.state)) {
+    const activeIndex = items.findIndex((entry) => entry.mt_id === activeMicrotask.mt_id);
+    suggestedNextMicrotask = items.slice(activeIndex + 1).find((entry) => entry.state === "DECLARED") || null;
+  }
+  if (!suggestedNextMicrotask) {
+    suggestedNextMicrotask = items.find((entry) => entry.state === "REPAIR_REQUIRED")
+      || items.find((entry) => entry.state === "DECLARED")
+      || null;
+  }
+
+  return {
+    declared_count: items.length,
+    active_microtask: activeMicrotask,
+    suggested_next_microtask: suggestedNextMicrotask,
+    items,
   };
 }

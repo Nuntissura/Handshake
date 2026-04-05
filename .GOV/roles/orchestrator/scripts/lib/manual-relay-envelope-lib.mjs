@@ -55,7 +55,7 @@ function latestTargetNotification(notifications = []) {
     .sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
 }
 
-export function deriveManualRelayEnvelope({
+export function deriveRelayEnvelope({
   wpId,
   runtimeStatus = {},
   nextActor = "",
@@ -95,13 +95,22 @@ export function deriveManualRelayEnvelope({
   };
 }
 
-export function buildManualRelayDispatchPrompt({ basePrompt = "", envelope } = {}) {
+export function buildRelayDispatchPrompt({
+  basePrompt = "",
+  envelope,
+  contextLabel = "RELAY_CONTEXT [CX-RELAY-001]",
+  messageLabel = "DIRECT_ROLE_MESSAGE [CX-RELAY-002]",
+  terminalInstructions = [],
+} = {}) {
   const prompt = String(basePrompt || "").trim();
   const relayEnvelope = envelope && typeof envelope === "object" ? envelope : {};
+  const trailingInstructions = Array.isArray(terminalInstructions)
+    ? terminalInstructions.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : [];
   return [
     prompt,
     "",
-    "MANUAL_RELAY_CONTEXT [CX-MANUAL-RELAY-004]",
+    contextLabel,
     `- FROM: ${relayEnvelope.fromEndpoint || formatEndpoint(relayEnvelope.fromRole, relayEnvelope.fromSession)}`,
     `- TO: ${relayEnvelope.toEndpoint || formatEndpoint(relayEnvelope.toRole, relayEnvelope.toSession)}`,
     `- RELAY_KIND: ${normalizeText(relayEnvelope.relayKind, "ACTION")}`,
@@ -109,11 +118,28 @@ export function buildManualRelayDispatchPrompt({ basePrompt = "", envelope } = {
     `- CORRELATION_ID: ${normalizeText(relayEnvelope.correlationId)}`,
     `- ACK_REQUIRED: ${relayEnvelope.ackRequired ? "YES" : "NO"}`,
     "",
-    "DIRECT_ROLE_MESSAGE [CX-MANUAL-RELAY-005]",
+    messageLabel,
     `- ${normalizeText(relayEnvelope.message, "Review the active packet/runtime/notifications and perform the next governed action.")}`,
     "",
-    "Treat DIRECT_ROLE_MESSAGE as the current brokered role-to-role payload for WORKFLOW_LANE=MANUAL_RELAY.",
-    "Do not answer as if the Operator authored the message; respond through the governed role lane.",
-    `If you emit a paired acknowledgement, question, or response, preserve correlation_id=${normalizeText(relayEnvelope.correlationId)} when applicable.`,
+    ...trailingInstructions,
   ].join("\n");
+}
+
+export function deriveManualRelayEnvelope(args = {}) {
+  return deriveRelayEnvelope(args);
+}
+
+export function buildManualRelayDispatchPrompt({ basePrompt = "", envelope } = {}) {
+  const relayEnvelope = envelope && typeof envelope === "object" ? envelope : {};
+  return buildRelayDispatchPrompt({
+    basePrompt,
+    envelope: relayEnvelope,
+    contextLabel: "MANUAL_RELAY_CONTEXT [CX-MANUAL-RELAY-004]",
+    messageLabel: "DIRECT_ROLE_MESSAGE [CX-MANUAL-RELAY-005]",
+    terminalInstructions: [
+      "Treat DIRECT_ROLE_MESSAGE as the current brokered role-to-role payload for WORKFLOW_LANE=MANUAL_RELAY.",
+      "Do not answer as if the Operator authored the message; respond through the governed role lane.",
+      `If you emit a paired acknowledgement, question, or response, preserve correlation_id=${normalizeText(relayEnvelope.correlationId)} when applicable.`,
+    ],
+  });
 }

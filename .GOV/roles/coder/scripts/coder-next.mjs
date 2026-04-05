@@ -23,6 +23,7 @@ import {
   sectionHasMaterialContent,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { deriveWpMicrotaskPlan } from "../../../roles_shared/scripts/lib/wp-microtask-lib.mjs";
 import {
   classifyWpChangedPath,
   deriveWpScopeContract,
@@ -191,9 +192,16 @@ const coderCommunicationState = loadCoderCommunicationState({
   packetPath: packetPath(wpId),
   packetContent,
 });
+const microtaskPlan = deriveWpMicrotaskPlan({
+  wpId,
+  receipts: coderCommunicationState?.receipts || [],
+  runtimeStatus: coderCommunicationState?.runtimeStatus || {},
+});
 const coderResumeState = deriveCoderResumeState({
   communicationState: coderCommunicationState,
 });
+const activeMicrotask = microtaskPlan.active_microtask;
+const suggestedMicrotask = microtaskPlan.suggested_next_microtask;
 const communicationFindings = [
   coderCommunicationState?.runtimeStatus?.next_expected_actor
     ? `Runtime next actor: ${coderCommunicationState.runtimeStatus.next_expected_actor}${coderCommunicationState.runtimeStatus.next_expected_session ? `:${coderCommunicationState.runtimeStatus.next_expected_session}` : ""}`
@@ -203,6 +211,12 @@ const communicationFindings = [
     : null,
   coderResumeState.latestAssessment
     ? `Latest validator assessment: ${coderResumeState.latestAssessment.verdict} via ${coderResumeState.latestAssessment.receiptKind} - ${coderResumeState.latestAssessment.reason}`
+    : null,
+  microtaskPlan.declared_count > 0
+    ? `Declared microtasks: ${microtaskPlan.declared_count} | active=${activeMicrotask?.mt_id || "<none>"} | next=${suggestedMicrotask?.mt_id || "<none>"}`
+    : null,
+  activeMicrotask
+    ? `Active microtask: ${activeMicrotask.mt_id} (${activeMicrotask.state}) - ${activeMicrotask.clause}`
     : null,
 ].filter(Boolean);
 const reviewRouteCommands = (() => {
@@ -219,10 +233,14 @@ const reviewRouteCommands = (() => {
 
   if (waitingOn === "CODER_INTENT") {
     return [
+      `just active-lane-brief CODER ${wpId}`,
       `just check-notifications ${wpId} CODER`,
+      activeMicrotask?.mt_id || suggestedMicrotask?.mt_id
+        ? `# Publish intent against ${activeMicrotask?.mt_id || suggestedMicrotask?.mt_id} with matching microtask_json.scope_ref and bounded file_targets.`
+        : null,
       `just wp-coder-intent ${wpId} <coder-session> ${wpValidatorSession} "<summary>" ${kickoffCorrelation}`,
       `just ack-notifications ${wpId} CODER <coder-session>`,
-    ];
+    ].filter(Boolean);
   }
   if (waitingOn === "FINAL_REVIEW_EXCHANGE") {
     return [
@@ -371,9 +389,12 @@ if (implementationFilled) {
   ]);
   printNextCommands([
     `just pre-work ${wpId}`,
+    microtaskPlan.declared_count > 0
+      ? `just active-lane-brief CODER ${wpId}`
+      : null,
     "just product-scan",
     postWorkCommand,
-  ]);
+  ].filter(Boolean));
   process.exit(0);
 }
 
@@ -394,6 +415,11 @@ printFindings([
 ]);
 printNextCommands([
   `just pre-work ${wpId}`,
-  "# Continue implementation within IN_SCOPE_PATHS.",
+  microtaskPlan.declared_count > 0
+    ? `just active-lane-brief CODER ${wpId}`
+    : null,
+  activeMicrotask?.mt_id || suggestedMicrotask?.mt_id
+    ? `# Continue implementation within ${(activeMicrotask?.mt_id || suggestedMicrotask?.mt_id)} and keep coder writes inside its bounded CODE_SURFACES.`
+    : "# Continue implementation within IN_SCOPE_PATHS.",
   postWorkCommand,
-]);
+].filter(Boolean));
