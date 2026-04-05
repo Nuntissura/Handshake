@@ -1404,3 +1404,28 @@
   - `RGF-82`
   - `RGF-85`
 - OUTCOME: manual `artifact-cleanup` and integration-validator closeout now emit JSON retention manifests under `../Handshake Artifacts/handshake-tool/artifact-retention/`, preserving durable cleanup evidence while keeping canonical artifact roots and non-reclaimable residue out of the auto-delete set
+
+### 2026.04.05.15 / GOV-CHANGE-20260405-15
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-82` by introducing a governed Work Packet lifecycle layout with reserved archive roots and archive-aware resolver support, without migrating existing packets or breaking active-path compatibility
+- CHANGE_TYPE: WORK_PACKET_LIFECYCLE_LAYOUT
+- DRIVER_EVIDENCE:
+  - `RGF-82`
+  - `AUDIT-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY-REVIEW`
+  - `SMOKETEST-REVIEW-20260404-PARALLEL-WP-ACP-STEERING-RECOVERY`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/runtime-paths.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs`
+  - `.GOV/roles_shared/tests/runtime-paths.test.mjs`
+  - `.GOV/roles_shared/docs/WORK_PACKET_LIFECYCLE_LAYOUT.md`
+  - `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/task_packets/_archive/README.md`
+  - `.GOV/task_packets/_archive/superseded/README.md`
+  - `.GOV/task_packets/_archive/validated_closed/README.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-85`
+- OUTCOME: the runtime-path resolver now understands reserved archive roots for `superseded` and `validated_closed` packets, packet creation ensures the lifecycle layout exists, and the repo carries explicit archive directories plus policy docs without forcing a risky bulk packet move

@@ -79,7 +79,14 @@ import {
   SESSION_HOST_PREFERENCE,
   SESSION_LAUNCH_POLICY,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
-import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import {
+  ensureWorkPacketLifecycleLayout,
+  GOV_ROOT_REPO_REL,
+  REPO_ROOT,
+  repoPathAbs,
+  resolveOrchestratorGatesPath,
+  WORK_PACKET_STORAGE_ROOT_REPO_REL,
+} from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 
 const WP_ID = process.argv[2];
 const allowOverwriteExisting = process.argv.includes('--overwrite-existing') || process.env.ALLOW_PACKET_OVERWRITE === '1';
@@ -473,7 +480,10 @@ try {
   process.exit(1);
 }
 
-// Ensure WP folder exists (new folder structure: .GOV/task_packets/WP-{ID}/)
+// Ensure the active + archive lifecycle layout exists before creating a new packet.
+ensureWorkPacketLifecycleLayout();
+
+// Ensure WP folder exists in the active storage root (current physical compatibility: .GOV/task_packets/WP-{ID}/)
 const taskPacketBaseDir = WORK_PACKET_STORAGE_ROOT_REPO_REL;
 const wpDir = path.join(taskPacketBaseDir, WP_ID);
 if (!fs.existsSync(wpDir)) {

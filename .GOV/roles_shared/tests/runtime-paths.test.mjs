@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  ensureWorkPacketLifecycleLayout,
+  listArchivedWorkPacketEntriesAtRepo,
   listWorkPacketEntriesAt,
   repoPathAbs,
   resolveWorkPacketPathAtRepo,
@@ -85,6 +87,40 @@ test("workPacketPathAtRepo and workPacketAbsPathAtRepo use shared fallback truth
       taskBoardPathAtRepo(repoRoot),
       path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md"),
     );
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("ensureWorkPacketLifecycleLayout creates active and archive roots", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-layout-"));
+  try {
+    const layout = ensureWorkPacketLifecycleLayout(repoRoot, ".GOV");
+    assert.equal(fs.existsSync(layout.activeRootAbs), true);
+    assert.equal(fs.existsSync(layout.stubRootAbs), true);
+    assert.equal(fs.existsSync(layout.supersededArchiveRootAbs), true);
+    assert.equal(fs.existsSync(layout.validatedClosedArchiveRootAbs), true);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("resolveWorkPacketPathAtRepo can resolve archived packets without treating them as active", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-archive-"));
+  try {
+    const archivePacket = path.join(repoRoot, ".GOV", "task_packets", "_archive", "superseded", "WP-TEST-ARCHIVE-v1", "packet.md");
+    fs.mkdirSync(path.dirname(archivePacket), { recursive: true });
+    fs.writeFileSync(archivePacket, "# archived packet\n", "utf8");
+
+    const resolved = resolveWorkPacketPathAtRepo(repoRoot, "WP-TEST-ARCHIVE-v1");
+    assert.ok(resolved);
+    assert.equal(resolved.packetPath, ".GOV/task_packets/_archive/superseded/WP-TEST-ARCHIVE-v1/packet.md");
+    assert.equal(resolved.lifecycleClass, "SUPERSEDED");
+
+    const archivedEntries = listArchivedWorkPacketEntriesAtRepo(repoRoot, ".GOV");
+    assert.deepEqual(archivedEntries.map((entry) => ({ wpId: entry.wpId, lifecycleClass: entry.lifecycleClass })), [
+      { wpId: "WP-TEST-ARCHIVE-v1", lifecycleClass: "SUPERSEDED" },
+    ]);
   } finally {
     fs.rmSync(repoRoot, { recursive: true, force: true });
   }

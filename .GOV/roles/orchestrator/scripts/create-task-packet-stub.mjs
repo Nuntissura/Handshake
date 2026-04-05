@@ -13,6 +13,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  ensureWorkPacketLifecycleLayout,
   CLI_ESCALATION_HOST_DEFAULT,
   CLI_SESSION_TOOL,
   CODEX_MODEL_ALIASES_ALLOWED,
@@ -50,6 +51,8 @@ if (!WP_ID || !WP_ID.startsWith("WP-")) {
   console.error(`Example: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/create-task-packet-stub.mjs WP-1-Session-Spawn-Contract "§7.6.3" "123,124-126"`);
   process.exit(1);
 }
+
+ensureWorkPacketLifecycleLayout();
 
 const stubsDir = WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL;
 if (!fs.existsSync(stubsDir)) {

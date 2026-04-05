@@ -26,6 +26,9 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 - NAV_PACK_DIR: `.GOV/roles_shared/`
 - WORK_PACKETS_LOGICAL_DIR: `.GOV/work_packets/` (logical resolver name; do not hard-code)
 - TASK_PACKETS_DIR: `.GOV/task_packets/` (current physical storage root during compatibility migration)
+- WORK_PACKET_ARCHIVE_DIR: `.GOV/task_packets/_archive/` (reserved physical archive root during lifecycle-layout migration)
+- WORK_PACKET_SUPERSEDED_ARCHIVE_DIR: `.GOV/task_packets/_archive/superseded/`
+- WORK_PACKET_VALIDATED_CLOSED_ARCHIVE_DIR: `.GOV/task_packets/_archive/validated_closed/`
 - PACKET_RESOLVER_AUTHORITY: `.GOV/roles_shared/scripts/lib/runtime-paths.mjs`
 - PACKET_CANONICAL_LAYOUT: logical `.GOV/work_packets/WP-{ID}/packet.md`; current physical storage `.GOV/task_packets/WP-{ID}/packet.md`; `.GOV/task_packets/WP-{ID}.md` remains legacy flat compatibility
 - REFINEMENT_CANONICAL_LAYOUT: logical `.GOV/work_packets/WP-{ID}/refinement.md`; current physical storage `.GOV/task_packets/WP-{ID}/refinement.md`; `.GOV/refinements/WP-{ID}.md` remains legacy compatibility and pre-packet staging

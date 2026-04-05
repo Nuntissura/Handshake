@@ -319,6 +319,7 @@ These are typically run from the WP-assigned worktree.
   - coder hygiene surface before handoff
 - work-packet path note:
   - the logical Work Packet resolver name is `work_packets`, but the current physical storage root remains `.GOV/task_packets/` during compatibility migration. Scripts should resolve packet paths through `runtime-paths.mjs`, not by hard-coding folder names.
+  - reserved archive roots now exist under `.GOV/task_packets/_archive/` for `superseded/` and `validated_closed/`; do not move packets there by hand, but the resolver already understands those future archive targets
 - `just cargo-clean`
   - `product-scan`
   - workspace cleanup targeting `handshake_core`
