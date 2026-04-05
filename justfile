@@ -386,6 +386,9 @@ wp-validator-response wp-id actor_role actor_session coder_session summary corre
 wp-review-response wp-id actor_role actor_session target_role target_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" REVIEW_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
 
+generate-refinement-rubric *args:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/generate-refinement-rubric.mjs" {{args}}
+
 record-refinement wp-id detail="":
 	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" refine {{wp-id}} "{{detail}}"
 
