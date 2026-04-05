@@ -477,6 +477,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
   3. Set `CODER STATUS: DONE` with file:line evidence in `EVIDENCE` and commands in `TESTS_RUN`
   4. Write a `CLAUSE_COMPLETE` receipt via `just wp-receipt-append` targeting the WP Validator
   5. Continue to the next MT (do not wait for validator response unless DEPENDS_ON blocks you)
+- When MT files exist on an orchestrator-managed lane, governed `CODER_INTENT` and overlap `REVIEW_REQUEST` receipts must carry `microtask_json` that resolves to the active declared MT (`scope_ref=MT-001` or a clause-token alias such as `CLAUSE_CLOSURE_MATRIX/CX-...`), includes concrete `file_targets`, and keeps those targets inside that MT's `CODE_SURFACES`; receipt preflight now fails closed otherwise.
 - **Evidence Management:** Write proof per micro task, not one dump at the end. You MAY also append to `## EVIDENCE` in the work packet for aggregate evidence.
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
 - **Status Updates:** Update the `## STATUS_HANDOFF` section with a real self-audit, not a generic "tests passing" note. When `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, include both the standard handoff core and the rubric-proof fields.

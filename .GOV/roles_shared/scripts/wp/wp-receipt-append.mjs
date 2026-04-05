@@ -47,6 +47,11 @@ import {
   applyWpReviewRuntimeProjection,
   deriveWpReviewPacketProjection,
 } from "../lib/wp-review-projection-lib.mjs";
+import {
+  listDeclaredWpMicrotasks,
+  resolveDeclaredWpMicrotaskByScopeRef,
+  summarizeMicrotaskFileTargetBudget,
+} from "../lib/wp-microtask-lib.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification } from "./wp-notification-append.mjs";
@@ -87,6 +92,7 @@ const POST_WORK_CHECK_SCRIPT_PATH = path.resolve(
 );
 const TASK_BOARD_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`);
 const BUILD_ORDER_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md`);
+const MICROTASK_SCOPE_BUDGET_RECEIPT_KIND_VALUES = new Set(["CODER_INTENT", "REVIEW_REQUEST"]);
 const RUNTIME_ROUTE_FIELD_NAMES = [
   "open_review_items",
   "next_expected_actor",
@@ -546,6 +552,63 @@ function assertOverlapReviewBackpressurePreflight({ runtimeStatus }) {
   }
 }
 
+function microtaskScopeBudgetPreflightApplies({ context, actorRole, receiptKind }) {
+  return normalizeRole(context?.workflowLane) === "ORCHESTRATOR_MANAGED"
+    && normalizeRole(actorRole) === "CODER"
+    && MICROTASK_SCOPE_BUDGET_RECEIPT_KIND_VALUES.has(normalizeReceiptKind(receiptKind));
+}
+
+function assertDeclaredMicrotaskScopeBudgetPreflight({ wpId, receiptKind, microtaskContract }) {
+  const declaredMicrotasks = listDeclaredWpMicrotasks(wpId);
+  if (declaredMicrotasks.length === 0) return;
+
+  if (!microtaskContract || typeof microtaskContract !== "object" || Array.isArray(microtaskContract)) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: declared microtask contract is required when MT packets exist for ${wpId}.`,
+    );
+  }
+
+  const scopeRef = String(microtaskContract.scope_ref || "").trim();
+  if (!scopeRef) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.scope_ref must point to a declared MT (for example MT-001 or CLAUSE_CLOSURE_MATRIX/CX-...).`,
+    );
+  }
+
+  const resolution = resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef, declaredMicrotasks);
+  if (resolution.ambiguousMatches.length > 0) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.scope_ref=${scopeRef} matches multiple MT packets (${formatBoundedItemList(resolution.ambiguousMatches.map((item) => item.mtId), { noun: "MT" })}).`,
+    );
+  }
+  if (!resolution.match) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.scope_ref=${scopeRef} does not resolve to a declared MT in ${wpId}.`,
+    );
+  }
+
+  const budget = summarizeMicrotaskFileTargetBudget(microtaskContract.file_targets, resolution.match);
+  if (budget.normalizedTargets.length === 0) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.file_targets must name concrete files inside ${resolution.match.mtId}.`,
+    );
+  }
+  if (!budget.ok) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.file_targets escape ${resolution.match.mtId} CODE_SURFACES (${formatBoundedItemList(budget.outOfBudgetTargets, { noun: "path" })}).`,
+    );
+  }
+
+  const proofCommands = Array.isArray(microtaskContract.proof_commands)
+    ? microtaskContract.proof_commands.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : [];
+  if (proofCommands.length === 0) {
+    throw new Error(
+      `Governed ${receiptKind} rejected: microtask_contract.proof_commands must declare proof for ${resolution.match.mtId}.`,
+    );
+  }
+}
+
 function assertNoDuplicateDecisiveValidatorAssessment({ context, entry }) {
   const receipts = parseJsonlFile(context.receiptsFile);
   if (!isDuplicateDecisiveValidatorAssessment(receipts, entry)) return;
@@ -585,6 +648,17 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
     microtaskContract: args?.microtaskContract,
   })) {
     assertOverlapReviewBackpressurePreflight({ runtimeStatus });
+  }
+  if (microtaskScopeBudgetPreflightApplies({
+    context,
+    actorRole: args?.actorRole,
+    receiptKind: args?.receiptKind,
+  })) {
+    assertDeclaredMicrotaskScopeBudgetPreflight({
+      wpId,
+      receiptKind: normalizeReceiptKind(args?.receiptKind),
+      microtaskContract: args?.microtaskContract,
+    });
   }
 
   const entry = buildReceiptValidationEntry({

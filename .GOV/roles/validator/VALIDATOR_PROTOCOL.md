@@ -459,6 +459,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 
 0A) Micro Task Early Review (WP Validator)
 - When micro tasks exist (`.GOV/task_packets/WP-{ID}/MT-*.md`), the WP Validator reviews completed MTs as the coder works — do not wait for all MTs to be done.
+- On orchestrator-managed lanes, treat governed coder `CODER_INTENT` / overlap `REVIEW_REQUEST` receipts without a declared-MT `microtask_contract` as invalid workflow, not merely weak evidence; the contract must resolve to one declared MT and keep `file_targets` inside that MT's `CODE_SURFACES`.
 - For each MT where `CODER STATUS: DONE`:
   - Read the MT file and verify the evidence (file:line proof, tests run)
   - Check the implementation against the clause and the master spec

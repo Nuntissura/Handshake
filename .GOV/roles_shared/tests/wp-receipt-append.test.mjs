@@ -73,6 +73,39 @@ function writeIntentCheckpointPacket(packetDir, wpId, commDir) {
   );
 }
 
+function writeMicrotaskCheckpointPacket(packetDir, wpId, commDir, microtasks = []) {
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  for (const microtask of microtasks) {
+    fs.writeFileSync(
+      path.join(packetDir, `${microtask.mtId}.md`),
+      [
+        `# ${microtask.mtId}: ${microtask.clause}`,
+        "",
+        "## METADATA",
+        `- WP_ID: ${wpId}`,
+        `- MT_ID: ${microtask.mtId}`,
+        `- CLAUSE: ${microtask.clause}`,
+        `- CODE_SURFACES: ${microtask.codeSurfaces.join("; ")}`,
+        `- EXPECTED_TESTS: ${microtask.expectedTests.join("; ")}`,
+        `- DEPENDS_ON: ${microtask.dependsOn || "NONE"}`,
+        "- RISK_IF_MISSED: demo regression slips through",
+        "",
+        "## CODER",
+        "- STATUS: PENDING",
+        "- EVIDENCE:",
+        "- TESTS_RUN:",
+        "- NOTES:",
+        "",
+        "## VALIDATOR",
+        "- STATUS: PENDING",
+        "- FINDINGS:",
+        "- DIRECTION:",
+      ].join("\n"),
+      "utf8",
+    );
+  }
+}
+
 test("validator assessment receipts add an orchestrator governance checkpoint in orchestrator-managed lanes", () => {
   const targets = deriveReviewNotificationTargets({
     workflowLane: "ORCHESTRATOR_MANAGED",
@@ -642,6 +675,123 @@ test("overlap review request preflight rejects queue growth beyond the bounded b
       }),
       /overlap microtask review backlog already reached 2/i,
     );
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("coder intent preflight requires a declared microtask contract when MT packets exist", () => {
+  const wpId = "WP-TEST-MICROTASK-CONTRACT-REQUIRED";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-microtask-contract-required-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+
+  writeMicrotaskCheckpointPacket(packetDir, wpId, commDir, [{
+    mtId: "MT-001",
+    clause: "Demo microtask [CX-MICRO-001]",
+    codeSurfaces: ["src/demo.rs", "src/demo_support.rs"],
+    expectedTests: ["cargo test demo::tests::micro_1 -- --exact"],
+  }]);
+  fs.writeFileSync(receiptsPath, "", "utf8");
+
+  try {
+    assert.throws(
+      () => validateWpReceiptAppendPreconditions({
+        wpId,
+        actorRole: "CODER",
+        actorSession: "coder-1",
+        receiptKind: "CODER_INTENT",
+        summary: "Starting MT-001.",
+        targetRole: "WP_VALIDATOR",
+        targetSession: "wpv-1",
+        correlationId: "intent-1",
+        ackFor: "intent-1",
+      }),
+      /declared microtask contract is required/i,
+    );
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("coder intent preflight rejects file targets outside the declared microtask budget", () => {
+  const wpId = "WP-TEST-MICROTASK-FILE-BUDGET";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-microtask-file-budget-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+
+  writeMicrotaskCheckpointPacket(packetDir, wpId, commDir, [{
+    mtId: "MT-001",
+    clause: "Demo microtask [CX-MICRO-001]",
+    codeSurfaces: ["src/demo.rs", "src/demo_support.rs"],
+    expectedTests: ["cargo test demo::tests::micro_1 -- --exact"],
+  }]);
+  fs.writeFileSync(receiptsPath, "", "utf8");
+
+  try {
+    assert.throws(
+      () => validateWpReceiptAppendPreconditions({
+        wpId,
+        actorRole: "CODER",
+        actorSession: "coder-1",
+        receiptKind: "CODER_INTENT",
+        summary: "Starting MT-001.",
+        targetRole: "WP_VALIDATOR",
+        targetSession: "wpv-1",
+        correlationId: "intent-1",
+        ackFor: "intent-1",
+        microtaskContract: {
+          scope_ref: "MT-001",
+          file_targets: ["src/out_of_budget.rs"],
+          proof_commands: ["cargo test demo::tests::micro_1 -- --exact"],
+          phase_gate: "MICROTASK",
+          expected_receipt_kind: "VALIDATOR_RESPONSE",
+        },
+      }),
+      /file_targets escape MT-001 CODE_SURFACES/i,
+    );
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("coder review request preflight accepts clause-token scope refs inside the declared microtask budget", () => {
+  const wpId = "WP-TEST-MICROTASK-SCOPE-ALIAS";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-microtask-scope-alias-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+
+  writeMicrotaskCheckpointPacket(packetDir, wpId, commDir, [{
+    mtId: "MT-001",
+    clause: "Demo microtask [CX-MICRO-001]",
+    codeSurfaces: ["src/demo.rs", "src/demo_support.rs"],
+    expectedTests: ["cargo test demo::tests::micro_1 -- --exact"],
+  }]);
+  fs.writeFileSync(receiptsPath, "", "utf8");
+
+  try {
+    assert.doesNotThrow(() => validateWpReceiptAppendPreconditions({
+      wpId,
+      actorRole: "CODER",
+      actorSession: "coder-1",
+      receiptKind: "REVIEW_REQUEST",
+      summary: "Review MT-001 while I continue the next slice.",
+      targetRole: "WP_VALIDATOR",
+      targetSession: "wpv-1",
+      correlationId: "review-1",
+      requiresAck: true,
+      microtaskContract: {
+        scope_ref: "CLAUSE_CLOSURE_MATRIX/CX-MICRO-001",
+        file_targets: ["src/demo.rs"],
+        proof_commands: ["cargo test demo::tests::micro_1 -- --exact"],
+        review_mode: "OVERLAP",
+        phase_gate: "MICROTASK",
+        expected_receipt_kind: "REVIEW_RESPONSE",
+      },
+    }));
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
     fs.rmSync(commDir, { recursive: true, force: true });
