@@ -427,6 +427,9 @@ memory-decay *FLAGS:
 memory-migrate-failure-memory:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" migrate-failure-memory
 
+memory-extract wp-id="--all":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-extract-from-receipts.mjs" {{wp-id}}
+
 session-stall-scan role wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/session-stall-scan.mjs" {{role}} {{wp-id}}
 

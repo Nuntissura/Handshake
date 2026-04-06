@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { DatabaseSync } from "node:sqlite";
 import {
   CLI_SESSION_TOOL,
   ROLE_SESSION_FALLBACK_MODEL,
@@ -27,7 +28,7 @@ import {
   roleNextCommand,
   roleStartupCommand,
 } from "./session-policy.mjs";
-import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, repoPathAbs, resolveWorkPacketPath, workPacketPath } from "../lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, GOVERNANCE_RUNTIME_ROOT_ABS, repoPathAbs, resolveWorkPacketPath, workPacketPath } from "../lib/runtime-paths.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
@@ -238,6 +239,27 @@ export function assertRoleLaunchProfileSupported({
   return selectedProfile;
 }
 
+function loadSessionMemoryLines(wpId) {
+  try {
+    const dbPath = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "GOVERNANCE_MEMORY.db");
+    if (!fs.existsSync(dbPath)) return [];
+    const db = new DatabaseSync(dbPath, { readOnly: true });
+    try {
+      const rows = db.prepare(
+        `SELECT memory_type, topic, summary, file_scope FROM memory_index
+         WHERE consolidated = 0 AND (wp_id = ? OR wp_id = '')
+         ORDER BY importance DESC, created_at DESC LIMIT 20`
+      ).all(wpId || "");
+      if (rows.length === 0) return [];
+      return [
+        `SESSION MEMORY (${rows.length} entries from previous sessions):`,
+        ...rows.map(m => `- [${m.memory_type}] ${m.topic}: ${m.summary}${m.file_scope ? ` (${m.file_scope})` : ""}`),
+        `Use \`just memory-search "<query>"\` to retrieve full content for any entry.`,
+      ];
+    } finally { try { db.close(); } catch {} }
+  } catch { return []; }
+}
+
 export function buildStartupPrompt({
   role,
   wpId,
@@ -339,6 +361,8 @@ export function buildStartupPrompt({
     ];
   }
 
+  const memoryLines = loadSessionMemoryLines(wpId);
+
   const bootLines = [
     `Execute only this startup bootstrap now, in order, before any other work:`,
     `1. ${roleConfig.startupCommand}`,
@@ -348,7 +372,7 @@ export function buildStartupPrompt({
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
   ];
 
-  return [...commonLines, ...roleLines, ...bootLines].join("\n");
+  return [...commonLines, ...roleLines, ...memoryLines, ...bootLines].join("\n");
 }
 
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {

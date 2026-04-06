@@ -118,6 +118,9 @@ These are safe starting points for orientation and health checks.
 - `just memory-migrate-failure-memory`
   - `runtime-write`
   - one-time migration of existing FAILURE_MEMORY.json entries into the governance memory SQLite store
+- `just memory-extract [WP-{ID}|--all]`
+  - `runtime-write`
+  - extract episodic and procedural memories from WP RECEIPTS.jsonl; `--all` processes every WP with communications
 
 ## Minimal Live Read Set (Token Discipline)
 
