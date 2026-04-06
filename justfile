@@ -430,6 +430,12 @@ memory-migrate-failure-memory:
 memory-extract wp-id="--all":
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-extract-from-receipts.mjs" {{wp-id}}
 
+memory-extract-smoketests file="":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-extract-from-smoketests.mjs" {{file}}
+
+memory-compact *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-compact.mjs" {{FLAGS}}
+
 session-stall-scan role wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/session-stall-scan.mjs" {{role}} {{wp-id}}
 

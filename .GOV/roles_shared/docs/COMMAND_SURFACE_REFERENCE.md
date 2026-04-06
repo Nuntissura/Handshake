@@ -121,6 +121,12 @@ These are safe starting points for orientation and health checks.
 - `just memory-extract [WP-{ID}|--all]`
   - `runtime-write`
   - extract episodic and procedural memories from WP RECEIPTS.jsonl; `--all` processes every WP with communications
+- `just memory-extract-smoketests [<file.md>]`
+  - `runtime-write`
+  - extract findings (SMOKE-FIND-*) and positive controls (SMOKE-CONTROL-*) from smoketest reviews into semantic/procedural memory
+- `just memory-compact [--older-than 30d] [--dry-run]`
+  - `runtime-write`
+  - full maintenance cycle: dedup, episodic→semantic consolidation, importance decay, orphan cleanup; `--dry-run` for preview
 
 ## Minimal Live Read Set (Token Discipline)
 
