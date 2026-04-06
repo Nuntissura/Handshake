@@ -2,7 +2,26 @@
 
 Use this template for workflow-proof runs, recovery passes, and closeout reviews that must link into repo-governance task-board and changelog records.
 
-Authoring rules:
+## Live Document Model
+
+This review is a LIVE DOCUMENT. It is created at WP activation time and roles append to it during execution:
+
+- **Orchestrator** appends: broker failures, format issues, role boundary decisions, MT dispatch timestamps, relay overhead observations.
+- **Coder** appends: compile errors per MT, timeout issues, scope questions, MT completion timestamps.
+- **Validator** appends: review findings per MT, test results, negative proof, spec misalignments.
+- At closeout, the Orchestrator compiles the final review using the live findings plus the post-smoketest rubric.
+- Do NOT delegate the full review to a subagent that did not observe the run. Subagents produce plausible prose from narrated facts but do not independently verify claims against git diffs, session outputs, or actual code. This produces reviews that LOOK complete but contain factual errors.
+
+## Claim Verification Requirement
+
+Every smoketest review MUST cross-reference at least 3 claims against actual evidence:
+- At least 1 claim verified against `git log` or `git diff` output
+- At least 1 claim verified against session output JSONL (coder or validator messages)
+- At least 1 claim verified against the product code (grep, file read, or test output)
+
+Mark each verified claim with `[VERIFIED: <evidence source>]`. If a claim cannot be verified, mark it `[UNVERIFIED]` and explain why.
+
+## Authoring Rules
 
 - Separate product correctness from workflow/governance/runtime judgment.
 - Link each review with stable `AUDIT_ID` and `SMOKETEST_REVIEW_ID`.
@@ -76,17 +95,46 @@ Authoring rules:
 
 - <key lifecycle moments from kickoff through closeout>
 
-## 5. Structured Failure Ledger
+## 5. Per-Microtask Breakdown
+
+For each declared microtask, record:
+
+| MT | Prompt Summary | Commit | Time Sent | Time Committed | Compile First Pass | Validator Flagged | Fix Cycles |
+|---|---|---|---|---|---|---|---|
+| MT-001 | <what was asked> | <sha> | <HH:MM> | <HH:MM> | YES/NO | YES/NO (which findings) | <count> |
+| MT-002 | ... | ... | ... | ... | ... | ... | ... |
+
+If microtasks were not used, write `MICROTASKS_NOT_USED` with reason. This is a regression signal if the WP had declared MTs.
+
+## 6. Communication Trail Audit
+
+List every inter-role message with timestamps and communication surface used:
+
+| # | Time | From | To | Surface | Content Summary |
+|---|---|---|---|---|---|
+| 1 | HH:MM | ORCHESTRATOR | CODER | SEND_PROMPT | MT-001 instructions |
+| 2 | HH:MM | CODER | ORCHESTRATOR | SESSION_SETTLE | MT-001 committed |
+| ... | ... | ... | ... | ... | ... |
+
+Surface values: `SEND_PROMPT` (raw ACP), `wp-review-request` (governed receipt), `wp-review-response` (governed receipt), `wp-notification` (governed notification), `THREAD.md` (append-only thread), `SESSION_SETTLE` (broker self-settle), `MANUAL_RELAY` (operator-brokered).
+
+Assessment:
+- GOVERNED_RECEIPT_COUNT: <number of wp-review-request/response/notification messages>
+- RAW_PROMPT_COUNT: <number of raw SEND_PROMPT messages>
+- GOVERNED_RATIO: <governed / total> (target: >50% for orchestrator-managed WPs)
+- COMMUNICATION_VERDICT: <GOVERNED|MOSTLY_GOVERNED|IMPLICIT|NONE>
+
+## 7. Structured Failure Ledger
 
 Repeat this block for every material workflow, runtime, governance, or product finding.
 
-### 5.1 <severity + short title>
+### 7.1 <severity + short title>
 
 - FINDING_ID: <SMOKE-FIND-YYYYMMDD-01>
-- CATEGORY: <WORKFLOW_DISCIPLINE|ACP_RUNTIME|ROLE_ORCHESTRATOR|ROLE_CODER|ROLE_WP_VALIDATOR|ROLE_INTEGRATION_VALIDATOR|GOVERNANCE_CHECK|SCRIPT_OR_CHECK|GOVERNANCE_DRIFT|OPERATOR_UX|OUT_OF_SCOPE_WORK|STALLING|TOOLING|PRODUCT_SCOPE|TOKEN_COST|TIMELINE>
+- CATEGORY: <WORKFLOW_DISCIPLINE|ACP_RUNTIME|ROLE_ORCHESTRATOR|ROLE_CODER|ROLE_WP_VALIDATOR|ROLE_INTEGRATION_VALIDATOR|GOVERNANCE_CHECK|SCRIPT_OR_CHECK|GOVERNANCE_DRIFT|OPERATOR_UX|OUT_OF_SCOPE_WORK|STALLING|TOOLING|PRODUCT_SCOPE|TOKEN_COST|TIMELINE|TERMINAL_HYGIENE>
 - ROLE_OWNER: <ORCHESTRATOR|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|OPERATOR|SHARED>
 - SYSTEM_SCOPE: <LOCAL|CROSS_ROLE|CONTROL_PLANE>
-- FAILURE_CLASS: <CHECK_FAILURE|SCRIPT_DEFECT|RUNTIME_TRUTH|STATUS_DRIFT|OUT_OF_SCOPE|STALL|COMMAND_SURFACE_MISUSE|UX_AMBIGUITY|TOKEN_WASTE|OTHER>
+- FAILURE_CLASS: <CHECK_FAILURE|SCRIPT_DEFECT|RUNTIME_TRUTH|STATUS_DRIFT|OUT_OF_SCOPE|STALL|COMMAND_SURFACE_MISUSE|UX_AMBIGUITY|TOKEN_WASTE|TERMINAL_LEAK|OTHER>
 - SURFACE: <packet path / runtime surface / helper / session / role lane>
 - SEVERITY: <HIGH|MEDIUM|LOW>
 - STATUS: <OPEN|TRACKED|FIXED_DURING_RUN|MONITOR>
@@ -103,25 +151,11 @@ Repeat this block for every material workflow, runtime, governance, or product f
 - Mechanical fix direction:
   - <gate, helper, template, projection, or lifecycle fix>
 
-### 5.2 <repeat as needed>
+### 7.2 <repeat as needed>
 
-## 6. Role Review
+## 8. Role Review
 
-### 6.1 Orchestrator Review
-
-Strengths:
-
-- <what worked>
-
-Failures:
-
-- <what failed>
-
-Assessment:
-
-- <overall role judgment>
-
-### 6.2 Coder Review
+### 8.1 Orchestrator Review
 
 Strengths:
 
@@ -135,7 +169,7 @@ Assessment:
 
 - <overall role judgment>
 
-### 6.3 WP Validator Review
+### 8.2 Coder Review
 
 Strengths:
 
@@ -149,7 +183,7 @@ Assessment:
 
 - <overall role judgment>
 
-### 6.4 Integration Validator Review
+### 8.3 WP Validator Review
 
 Strengths:
 
@@ -163,16 +197,47 @@ Assessment:
 
 - <overall role judgment>
 
-## 7. Review Of Coder and Validator Communication
+### 8.4 Integration Validator Review
+
+Strengths:
+
+- <what worked>
+
+Failures:
+
+- <what failed>
+
+Assessment:
+
+- <overall role judgment>
+
+## 9. Review Of Coder and Validator Communication
 
 - <quality of direct review traffic, review loop shape, missed acknowledgements, relay concerns>
+- <did the coder and validator communicate directly or only through orchestrator relay?>
+- <were governed receipts (wp-review-request/response) used or was all communication through raw SEND_PROMPT?>
 
-## 8. ACP Runtime / Session Control Findings
+## 10. ACP Runtime / Session Control Findings
 
 - <broker, queue, session-control, topology, or closeout issues>
 - <whether runtime truth was clean or repaired>
+- <broker dispatch success rate: N successes / M attempts = X%>
 
-## 9. Governance Linkage and Board Mapping
+## 11. Terminal Hygiene
+
+- TERMINALS_LAUNCHED: <count>
+- TERMINALS_CLOSED_ON_COMPLETION: <count>
+- TERMINALS_CLOSED_ON_FAILURE: <count>
+- TERMINALS_RECLAIMED_AT_CLOSEOUT: <count>
+- STALE_BLANK_TERMINALS_REMAINING: <count>
+- TERMINAL_HYGIENE_VERDICT: <CLEAN|PARTIAL|FAILED>
+
+Assessment:
+- <did terminals close automatically after sessions finished?>
+- <were any blank/stale terminals left on the operator's desktop?>
+- <what needs to change in the launch/reclaim mechanism?>
+
+## 12. Governance Linkage and Board Mapping
 
 - BOARD_LINKS:
   - <FINDING_ID -> RGF-... | NONE>
@@ -181,9 +246,9 @@ Assessment:
 - POLICY_OR_TEMPLATE_FOLLOWUPS:
   - <template/check/protocol/helper drift exposed by this review>
 
-## 10. Positive Controls Worth Preserving
+## 13. Positive Controls Worth Preserving
 
-### 10.1 <short positive control title>
+### 13.1 <short positive control title>
 
 - CONTROL_ID: <SMOKE-CONTROL-YYYYMMDD-01>
 - CONTROL_TYPE: <REGRESSION_GUARD|WORKFLOW_STABILITY|RUNTIME_TRUTH|OPERATOR_UX|PRODUCT_PROOF|COST_REDUCTION>
@@ -197,18 +262,50 @@ Assessment:
 - REGRESSION_GUARDS:
   - <test, command, invariant, or runtime surface that should keep this control alive>
 
-### 10.2 <repeat as needed>
+### 13.2 <repeat as needed>
 
-## 11. Remaining Product or Spec Debt
+## 14. Cost Attribution
+
+Break down time and token cost by lifecycle phase:
+
+| Phase | Time (min) | Orchestrator Tokens (est) | Notes |
+|---|---|---|---|
+| Refinement | <N> | <N or %> | <format iteration? discovery? research?> |
+| Per-MT Coding (total) | <N> | <N or %> | <how many MT prompts? retries?> |
+| Validation | <N> | <N or %> | <FAIL/fix cycles?> |
+| Fix Cycle | <N> | <N or %> | <items fixed? coder turns?> |
+| Closeout | <N> | <N or %> | <manual formatting? section ordering?> |
+| Polling/Waiting | <N> | <N or %> | <how many poll cycles? fire-and-forget?> |
+| TOTAL | <N> | <N or %> | |
+
+If exact token counts are unavailable, use percentages of total estimated cost.
+
+## 15. Comparison Table (vs Previous WP)
+
+| Metric | Previous WP | This WP | Trend |
+|---|---|---|---|
+| Total lines changed | <N> | <N> | |
+| Microtask count | <N> | <N> | |
+| Compile errors (first pass) | <N> | <N> | |
+| Validator findings | <N> | <N> | |
+| Fix cycles | <N> | <N> | |
+| Stubs discovered | <N> | <N> | |
+| Governed receipts created | <N> | <N> | |
+| Broker dispatch failures | <N> | <N> | |
+| Stale terminals remaining | <N> | <N> | |
+| Time to close (hours) | <N> | <N> | |
+
+## 16. Remaining Product or Spec Debt
 
 - <adjacent or broader debt that should stay visible even if the WP passed>
 
-## 12. Post-Smoketest Improvement Rubric
+## 17. Post-Smoketest Improvement Rubric
 
-### 12.1 Workflow Smoothness
+### 17.1 Workflow Smoothness
 
 - TREND: <IMPROVED|FLAT|REGRESSED>
 - CURRENT_STATE: <LOW|MEDIUM|HIGH>
+- NUMERIC_SCORE: <0-10> (0=fully manual/broken, 10=fully automated/clean)
 - Evidence:
   - <operator burden, orchestration friction, runtime/status repair, topology drift>
 - What improved:
@@ -218,10 +315,11 @@ Assessment:
 - Next structural fix:
   - <single highest-value governance/runtime fix>
 
-### 12.2 Master Spec Gap Reduction
+### 17.2 Master Spec Gap Reduction
 
 - TREND: <IMPROVED|FLAT|REGRESSED>
 - CURRENT_STATE: <LOW|MEDIUM|HIGH>
+- NUMERIC_SCORE: <0-10> (0=broad open gap surface, 10=all phase-critical gaps closed)
 - Evidence:
   - <gaps closed, gaps still open, new adjacent debt surfaced>
 - What improved:
@@ -231,10 +329,11 @@ Assessment:
 - Next structural fix:
   - <single highest-value next product/proof fix>
 
-### 12.3 Token Cost Pressure
+### 17.3 Token Cost Pressure
 
 - TREND: <IMPROVED|FLAT|REGRESSED>
 - CURRENT_STATE: <LOW|MEDIUM|HIGH>
+- NUMERIC_SCORE: <0-10> (0=most tokens wasted on overhead, 10=nearly all tokens on productive work)
 - Evidence:
   - <repeated prompts, operator clarifications, repair-heavy closeout, duplicate checks>
 - What improved:
@@ -244,29 +343,29 @@ Assessment:
 - Next structural fix:
   - <single highest-value cost-reduction fix>
 
-## 13. Silent Failures, Command Surface Misuse, and Ambiguity Scan
+## 18. Silent Failures, Command Surface Misuse, and Ambiguity Scan
 
-### 13.1 Silent Failures / False Greens
+### 18.1 Silent Failures / False Greens
 
 - <where a surface looked healthy or complete before truth was actually settled>
 
-### 13.2 Systematic Wrong Tool or Command Calls
+### 18.2 Systematic Wrong Tool or Command Calls
 
 - <wrong helper, wrong role surface, wrong command family, stale or invalid command usage>
 
-### 13.3 Task and Path Ambiguity
+### 18.3 Task and Path Ambiguity
 
 - <ambiguous scope, ambiguous file ownership, ambiguous worktree/path source of truth, ambiguous packet wording>
 
-### 13.4 Read Amplification / Governance Document Churn
+### 18.4 Read Amplification / Governance Document Churn
 
 - <repeated protocol rereads, repeated command-surface discovery, repeated path/status re-checking that signals ambiguity>
 
-### 13.5 Hardening Direction
+### 18.5 Hardening Direction
 
 - <what should become a gate, prompt change, template change, canonical shortcut, or status surface>
 
-## 14. Suggested Remediations
+## 19. Suggested Remediations
 
 ### Governance / Runtime
 
@@ -280,6 +379,17 @@ Assessment:
 
 - <template or documentation changes>
 
-## 15. Command Log
+## 20. Command Log
 
 - `<command>` -> <PASS|FAIL|PARTIAL> (<notes>)
+
+## LIVE_FINDINGS_LOG (append-only during WP execution)
+
+This section is append-only. Roles add findings as they occur during WP work.
+
+Format: `- [TIMESTAMP] [ROLE] [CATEGORY] <finding>`
+
+Example:
+- [2026-04-06T01:10Z] [ORCHESTRATOR] [ACP_RUNTIME] Broker dispatch failed for SEND_PROMPT, retrying
+- [2026-04-06T01:32Z] [CODER] [COMPILE_ERROR] MT-001 has 2 borrow errors in workflows.rs
+- [2026-04-06T02:15Z] [WP_VALIDATOR] [CODE_REVIEW] FR-EVT-SESS-SPAWN-004 has no emit function — dead code
