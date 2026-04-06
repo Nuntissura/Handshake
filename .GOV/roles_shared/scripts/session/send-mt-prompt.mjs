@@ -14,8 +14,10 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { sessionKey } from "./session-policy.mjs";
-import { REPO_ROOT } from "../lib/runtime-paths.mjs";
+import fs from "node:fs";
+import { sessionKey, defaultCoderWorktreeDir } from "./session-policy.mjs";
+import { loadSessionRegistry } from "./session-registry-lib.mjs";
+import { REPO_ROOT, repoPathAbs } from "../lib/runtime-paths.mjs";
 import path from "node:path";
 
 const wpId = String(process.argv[2] || "").trim();
@@ -31,6 +33,33 @@ if (!wpId || !mtId || !description) {
 
 const coderKey = sessionKey("CODER", wpId);
 const validatorKey = sessionKey("WP_VALIDATOR", wpId);
+
+// Pre-flight: verify hook is installed
+const worktreeDir = repoPathAbs(defaultCoderWorktreeDir(wpId));
+let hookInstalled = false;
+try {
+  const dotGitPath = path.join(worktreeDir, ".git");
+  if (fs.existsSync(dotGitPath) && fs.statSync(dotGitPath).isFile()) {
+    const gitdirContent = fs.readFileSync(dotGitPath, "utf8").trim();
+    const match = gitdirContent.match(/^gitdir:\s*(.+)$/);
+    if (match) {
+      const realGitDir = path.isAbsolute(match[1]) ? match[1] : path.resolve(worktreeDir, match[1]);
+      hookInstalled = fs.existsSync(path.join(realGitDir, "hooks", "post-commit"));
+    }
+  }
+} catch {}
+if (!hookInstalled) {
+  console.warn(`[SEND_MT] WARNING: post-commit hook not found in coder worktree. Auto-relay will not fire on commits.`);
+  console.warn(`[SEND_MT] Fix: just install-mt-hook ${wpId}`);
+}
+
+// Pre-flight: verify validator session is steerable
+const { registry } = loadSessionRegistry(REPO_ROOT);
+const valSession = registry.sessions.find((s) => s.session_key === validatorKey);
+if (!valSession || !["READY", "COMMAND_RUNNING"].includes(valSession.runtime_state)) {
+  console.warn(`[SEND_MT] WARNING: Validator session ${validatorKey} is not steerable (state: ${valSession?.runtime_state || "NOT_FOUND"}). Auto-relay dispatch will fail.`);
+  console.warn(`[SEND_MT] Fix: just start-wp-validator-session ${wpId} PRIMARY`);
+}
 
 const prompt = [
   `MICROTASK ${mtId}: ${description}`,

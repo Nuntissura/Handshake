@@ -395,6 +395,9 @@ send-mt wp-id mt-id description model="PRIMARY":
 install-mt-hook wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/hooks/install-mt-hook.mjs" {{wp-id}}
 
+wp-lane-health wp-id:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-lane-health.mjs" {{wp-id}}
+
 wp-closeout-format wp-id merged-main-commit:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-closeout-format.mjs" {{wp-id}} {{merged-main-commit}}
 
