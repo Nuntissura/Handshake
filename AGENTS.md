@@ -42,6 +42,7 @@
   - `/.GOV/codex/Handshake_Codex_v1.4.md`
   - `/AGENTS.md`
 - Hard rule: if any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), STOP and require a WP.
+- Build/test/tool outputs MUST live at the external sibling root `../Handshake Artifacts/` (subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`). Repo-local `target/` directories are governance violations.
 - Operator-facing scope split rule:
   - Always separate `Handshake (Product)` from `Repo Governance` in chat.
   - `Handshake (Product)` includes product code, product tests, Master Spec requirements, and product WPs, even when the topic is governed actions, workflow law, or other product-governance contracts.
@@ -79,8 +80,9 @@
 - Repo-governed multi-session launch is plugin-first: queue VS Code bridge requests through the external repo-governance launch queue (default repo-relative: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`), project current state in the external session registry (`../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`), and keep heartbeat as fallback only.
 - Only the Orchestrator may start repo-governed Coder, WP Validator, and Integration Validator sessions. Coder/Validator sessions may resume work, but they do not self-start a fresh repo-governed session.
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts.
-- For newly created stubs/packets, repo-governed CLI session policy is explicit: primary model `gpt-5.4`, fallback `gpt-5.2`, reasoning strength `EXTRA_HIGH`, launcher config `model_reasoning_effort=xhigh`.
+- For newly created stubs/packets, repo-governed CLI session policy is explicit: Model selection uses the per-role model-profile catalog (`ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`). Supported profiles: `OPENAI_GPT_5_4_XHIGH` (default), `OPENAI_GPT_5_2_XHIGH` (fallback), `OPENAI_CODEX_SPARK_5_3_XHIGH` (cost-split coding), `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` (validation). Do not hardcode provider-specific models; use the packet-declared profile.
 - Do not rely on whatever model/reasoning defaults happen to be active in an editor or local CLI profile. Launch or claim the session explicitly.
+- The ACP broker is a mechanical session-control relay, not an LLM or model provider. All governed model sessions (GPT, Claude Code, Codex Spark) dispatch through the broker. The broker is transport; the model is the engine.
 - Repo policy for new repo-governed sessions disallows Codex model aliases in packet claim fields; the CLI tool may still be `codex`.
 - Freeform packet-scoped messages should be appended with `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]`; this writes both the thread entry and a paired structured receipt.
 - For new WP communication writes, validator sessions must identify themselves as `WP_VALIDATOR` or `INTEGRATION_VALIDATOR` in `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl`. Legacy generic `VALIDATOR` entries are compatibility-only and should not be emitted by new governed sessions.
@@ -91,6 +93,7 @@
   - Integration Validator = final technical and merge authority
 
 ### Current role execution policy
+- Orchestrators MUST NEVER edit product code under `src/`, `app/`, or `tests/`. Even one-line fixes must be routed through the governed coder session via `just session-send`. This is a hard role boundary [CX-580A].
 - Orchestrator is non-agentic and single-session, but may coordinate and launch multiple external CLI sessions.
 - Validator duties are non-agentic, but repo governance may run multiple validator CLI sessions concurrently when they are scoped as WP Validator and Integration Validator sessions.
 - Only the Primary Coder may use coder sub-agents, and only when the packet explicitly records operator approval.
@@ -103,7 +106,7 @@
 - `handshake_main` (branch `main`) has a real `/.GOV/` copy as a stable backup, synced from the kernel by the Integration Validator by default, or by the Orchestrator when explicitly instructed by the Operator, using `just sync-gov-to-main`.
 - `wt-ilja` (branch `user_ilja`) is the permanent non-main user worktree created from `main`, so product code and root-level LLM files (`justfile`, `AGENTS.md`) come from `main`. Its inherited `/.GOV/` is then replaced with a junction to `../wt-gov-kernel/.GOV`.
 - Coder worktrees (`wtc-*`) follow the same pattern: create from `main`, then replace inherited `/.GOV/` with a junction by the worktree creation script.
-- WP worktree budget: 1 per WP (coder only). WP Validator operates from the coder worktree; Integration Validator from `handshake_main`.
+- WP worktree budget: 2 per WP (`CODER` worktree `wtc-*` + `WP_VALIDATOR` worktree `wtv-*`). WP Validator operates from a dedicated `wtv-*` validator worktree rooted from the coder branch; Integration Validator operates from `handshake_main` on `main`.
 - The Orchestrator MAY write to the governance kernel. During active multi-session steering, prefer deferring governance edits to reduce cognitive load.
 - Coders and WP Validators read governance through their junction and MUST NOT edit `/.GOV/` directly.
 - Sync responsibilities:
