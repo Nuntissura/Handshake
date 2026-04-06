@@ -63,5 +63,6 @@ await import("./spec-growth-discipline-check.mjs");
 await import("./spec-governance-reference-check.mjs");
 await import("./deprecation-sunset-check.mjs");
 await import("./topology-registry-check.mjs");
+await import("./memory-health-check.mjs");
 
 console.log("gov-check ok");

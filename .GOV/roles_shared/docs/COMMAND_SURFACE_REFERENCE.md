@@ -98,6 +98,27 @@ These are safe starting points for orientation and health checks.
   - `runtime-write`
   - for `WORKFLOW_LANE=MANUAL_RELAY`, let the operator explicitly broker one governed start/send action against the currently projected next actor
 
+## Governance Memory System (RGF-115/116/117)
+
+- `just memory-add <episodic|semantic|procedural> <topic> "<summary>" [--wp WP-{ID}] [--scope "files"] [--content "<full>"] [--source "<artifact>"] [--role "<role>"]`
+  - `runtime-write`
+  - record a new memory entry with FTS5 indexing; provider-agnostic, any model can write
+- `just memory-search "<query>" [--type <type>] [--wp WP-{ID}] [--limit N]`
+  - `read-only`
+  - FTS5 keyword search over all memory layers; returns matching index entries with content preview
+- `just memory-prime <WP-{ID}> [--files "file1,file2"] [--desc "<description>"] [--budget N]`
+  - `read-only`
+  - returns MT-scoped relevant memories within a token budget; designed for injection into session startup
+- `just memory-stats`
+  - `read-only`
+  - database size, entry counts by type, schema version, last compaction, oldest active entry
+- `just memory-decay [--rate 0.1] [--threshold 0.05]`
+  - `runtime-write`
+  - apply importance decay to all active memories; prune entries below threshold; log run
+- `just memory-migrate-failure-memory`
+  - `runtime-write`
+  - one-time migration of existing FAILURE_MEMORY.json entries into the governance memory SQLite store
+
 ## Minimal Live Read Set (Token Discipline)
 
 After startup and assignment, roles should usually be able to operate from a small live read set:

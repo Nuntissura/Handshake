@@ -407,6 +407,26 @@ failure-memory-record category file_surface error_pattern fix_pattern wp_id="":
 failure-memory-query query:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/failure-memory.mjs" query "{{query}}"
 
+# --- Governance Memory System (RGF-115/116/117) ---
+
+memory-add type topic summary *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" add {{type}} "{{topic}}" "{{summary}}" {{FLAGS}}
+
+memory-search query *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" search "{{query}}" {{FLAGS}}
+
+memory-prime wp-id *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" prime {{wp-id}} {{FLAGS}}
+
+memory-stats:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" stats
+
+memory-decay *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" decay {{FLAGS}}
+
+memory-migrate-failure-memory:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" migrate-failure-memory
+
 session-stall-scan role wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/session-stall-scan.mjs" {{role}} {{wp-id}}
 
