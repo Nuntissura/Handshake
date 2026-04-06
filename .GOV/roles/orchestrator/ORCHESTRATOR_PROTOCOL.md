@@ -303,9 +303,16 @@ Workflow semantics:
 ## Microtask Loop Enforcement [RGF-89] (HARD)
 
 - Every orchestrator-managed WP with declared microtasks (MT-001, MT-002, ...) MUST use the per-microtask loop.
-- **Coder session startup prompt MUST reference the microtask plan**: "Follow the microtask plan in the packet. Complete MT-001 first, commit on the feature branch, then run `just wp-review-request WP-{ID} CODER <session> WP_VALIDATOR <target_session> 'MT-001 complete: <summary>'` and STOP."
+- **Coder session startup prompt MUST include session keys and the microtask plan**. The session keys are `CODER:WP-{ID}` and `WP_VALIDATOR:WP-{ID}`. Template:
+  "Follow the microtask plan in the packet. Your session key is `CODER:WP-{ID}`. The validator session key is `WP_VALIDATOR:WP-{ID}`.
+  For each MT: implement, commit with `feat: MT-NNN <desc>`, then run:
+  `just wp-review-request WP-{ID} CODER CODER:WP-{ID} WP_VALIDATOR WP_VALIDATOR:WP-{ID} 'MT-NNN complete: <summary>'`
+  Then STOP and wait for the validator's response before starting the next MT."
 - **Validator session MUST be started BEFORE the coder starts work** (in READY state). This enables the governed auto-relay: when the coder calls `wp-review-request`, the notification triggers `orchestrator-steer-next` which dispatches the review to the validator automatically.
-- **Validator session prompt MUST enforce per-MT inspection**: "When you receive a review request for an MT, inspect it. Then run `just wp-review-response WP-{ID} WP_VALIDATOR <session> CODER <target_session> '<MT-NNN PASS or STEER: findings>'` to send your response back to the coder via auto-relay."
+- **Validator session prompt MUST include session keys**: "Your session key is `WP_VALIDATOR:WP-{ID}`. The coder session key is `CODER:WP-{ID}`.
+  When you receive a review request for an MT, inspect it. Then run:
+  `just wp-review-response WP-{ID} WP_VALIDATOR WP_VALIDATOR:WP-{ID} CODER CODER:WP-{ID} '<MT-NNN PASS or STEER: findings>'`
+  to send your response back to the coder via auto-relay."
 - **After all MTs pass individually**, the validator MUST perform a Final WP Review: full product code check using the validator rubric, red team assessment, and wide-scope Master Spec alignment check. Only then write the validation verdict. If FAIL, send remediation instructions to the coder via `wp-review-response`.
 - Do not send monolithic "implement everything" instructions. Each MT is a bounded unit of work that even a small local model can complete.
 - The per-MT loop exists to enable future mixed-model execution: cloud models handle MTs now, but the structure must be proven so local models (Ollama) can handle individual MTs later.
