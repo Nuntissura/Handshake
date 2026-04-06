@@ -389,6 +389,9 @@ wp-review-response wp-id actor_role actor_session target_role target_session sum
 generate-refinement-rubric *args:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/generate-refinement-rubric.mjs" {{args}}
 
+wp-closeout-format wp-id merged-main-commit:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-closeout-format.mjs" {{wp-id}} {{merged-main-commit}}
+
 record-refinement wp-id detail="":
 	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" refine {{wp-id}} "{{detail}}"
 
