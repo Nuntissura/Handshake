@@ -410,6 +410,18 @@ failure-memory-query query:
 session-stall-scan role wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/session-stall-scan.mjs" {{role}} {{wp-id}}
 
+mt-board wp-id:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/mt-board.mjs" board {{wp-id}}
+
+mt-claim wp-id session-key:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/mt-board.mjs" claim {{wp-id}} {{session-key}}
+
+mt-complete wp-id mt-id:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/mt-board.mjs" complete {{wp-id}} {{mt-id}}
+
+mt-populate wp-id:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/mt-board.mjs" populate {{wp-id}}
+
 wp-closeout-format wp-id merged-main-commit:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-closeout-format.mjs" {{wp-id}} {{merged-main-commit}}
 
