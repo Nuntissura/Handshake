@@ -395,8 +395,20 @@ send-mt wp-id mt-id description model="PRIMARY":
 install-mt-hook wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/hooks/install-mt-hook.mjs" {{wp-id}}
 
+install-validator-guard wp-id:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/hooks/install-validator-guard.mjs" {{wp-id}}
+
 wp-lane-health wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-lane-health.mjs" {{wp-id}}
+
+failure-memory-record category file_surface error_pattern fix_pattern wp_id="":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/failure-memory.mjs" record "{{category}}" "{{file_surface}}" "{{error_pattern}}" "{{fix_pattern}}" "{{wp_id}}"
+
+failure-memory-query query:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/failure-memory.mjs" query "{{query}}"
+
+session-stall-scan role wp-id:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/session/session-stall-scan.mjs" {{role}} {{wp-id}}
 
 wp-closeout-format wp-id merged-main-commit:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-closeout-format.mjs" {{wp-id}} {{merged-main-commit}}
