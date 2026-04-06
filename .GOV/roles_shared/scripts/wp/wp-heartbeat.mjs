@@ -64,8 +64,8 @@ function requirePacketContext(wpId) {
     packetText,
     runtimeStatusFile: normalize(runtimeStatusFile),
     runtimeStatusAbsPath: normalize(runtimeStatusAbsPath),
-    heartbeatIntervalMinutes: parseIntegerField(packetText, "HEARTBEAT_INTERVAL_MINUTES", 15),
-    staleAfterMinutes: parseIntegerField(packetText, "STALE_AFTER_MINUTES", 45),
+    heartbeatIntervalMinutes: parseIntegerField(packetText, "HEARTBEAT_INTERVAL_MINUTES", 8),
+    staleAfterMinutes: parseIntegerField(packetText, "STALE_AFTER_MINUTES", 20),
   };
 }
 

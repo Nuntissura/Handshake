@@ -127,7 +127,7 @@ try {
       const ageMs = Date.now() - new Date(lastTime).getTime();
       const ageMins = Math.round(ageMs / 60000);
       info.push(`Last receipt: ${ageMins}m ago — ${lastReceipt.receipt_kind || "unknown"} from ${lastReceipt.actor_role || "unknown"}`);
-      if (ageMins > 15) issues.push(`Last receipt was ${ageMins}m ago — possible stall`);
+      if (ageMins > 10) issues.push(`Last receipt was ${ageMins}m ago — possible stall (default stale_after: 20m)`);
     }
   }
 } catch {}
