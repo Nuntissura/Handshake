@@ -244,6 +244,10 @@ Format:
 | WP-1-Spec-Appendices-Backfill | .GOV/task_packets/WP-1-Spec-Appendices-Backfill-v1.md | Done: WP-1-Spec-Appendices-Backfill-v1 | active=WP-1-Spec-Appendices-Backfill-v1; canonical appendix and matrix backfill passes validated through v02.178 |
 | WP-1-Session-Spawn-Tree-DCC-Visualization | .GOV/task_packets/stubs/WP-1-Session-Spawn-Tree-DCC-Visualization-v1.md | TBD | |
 | WP-1-Session-Spawn-Conversation-Distillation | .GOV/task_packets/stubs/WP-1-Session-Spawn-Conversation-Distillation-v1.md | TBD | |
+| WP-1-In-Product-Session-Manager | .GOV/task_packets/stubs/WP-1-In-Product-Session-Manager-v1.md | TBD | |
+| WP-1-Distillation-Training-Pair-Extraction | .GOV/task_packets/stubs/WP-1-Distillation-Training-Pair-Extraction-v1.md | TBD | |
+| WP-1-Ollama-Local-Model-MT-Routing | .GOV/task_packets/stubs/WP-1-Ollama-Local-Model-MT-Routing-v1.md | TBD | |
+| WP-1-Visual-Debugging-Loop | .GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.md | TBD | |
 
 ## Historical Failure + Live Smoketest Lineage
 

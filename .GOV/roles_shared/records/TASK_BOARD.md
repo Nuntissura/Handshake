@@ -182,6 +182,10 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Product-Screenshot-Visual-Validation-v1]** - [STUB]
 - **[WP-1-Session-Spawn-Tree-DCC-Visualization-v1]** - [STUB]
 - **[WP-1-Session-Spawn-Conversation-Distillation-v1]** - [STUB]
+- **[WP-1-In-Product-Session-Manager-v1]** - [STUB]
+- **[WP-1-Distillation-Training-Pair-Extraction-v1]** - [STUB]
+- **[WP-1-Ollama-Local-Model-MT-Routing-v1]** - [STUB]
+- **[WP-1-Visual-Debugging-Loop-v1]** - [STUB]
 
 
 - **[WP-1-Charts-Dashboards-Backfill-v1]** - [STUB]
