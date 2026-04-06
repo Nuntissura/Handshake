@@ -236,6 +236,19 @@ function ensureResultPersisted(request, session, result) {
       // Non-fatal: notification is a convenience, not a hard requirement.
       // The orchestrator can still poll or check session-registry-status as fallback.
     }
+
+    // RGF-95: Auto-reclaim the terminal window for this session.
+    // Only reclaim terminals owned by this specific session — never touch other apps or processes.
+    try {
+      const results = reclaimOwnedSessionTerminals(repoRoot, { sessionKey: request.session_key });
+      for (const r of results) {
+        if (r.reclaim_status === "RECLAIMED") {
+          console.log(`[BROKER] Auto-reclaimed terminal for ${r.session_key} (pid ${r.process_id})`);
+        }
+      }
+    } catch {
+      // Non-fatal: terminal cleanup is best-effort.
+    }
   }
 }
 
