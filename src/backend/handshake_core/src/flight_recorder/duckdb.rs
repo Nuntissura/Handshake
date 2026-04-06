@@ -247,6 +247,7 @@ impl DuckDbFlightRecorder {
                 job_id TEXT,
                 workflow_id TEXT,
                 model_id TEXT,
+                model_session_id TEXT,
                 activity_span_id TEXT,
                 session_span_id TEXT,
                 capability_id TEXT,
@@ -266,6 +267,7 @@ impl DuckDbFlightRecorder {
             ALTER TABLE events ADD COLUMN IF NOT EXISTS event_id UUID;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS workflow_id TEXT;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS model_id TEXT;
+            ALTER TABLE events ADD COLUMN IF NOT EXISTS model_session_id TEXT;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS activity_span_id TEXT;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS session_span_id TEXT;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS capability_id TEXT;
@@ -283,6 +285,7 @@ impl DuckDbFlightRecorder {
             r#"
             CREATE INDEX IF NOT EXISTS idx_events_trace_id ON events(trace_id);
             CREATE INDEX IF NOT EXISTS idx_events_job_id ON events(job_id);
+            CREATE INDEX IF NOT EXISTS idx_events_model_session_id ON events(model_session_id);
             CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
         "#,
         )
@@ -557,13 +560,14 @@ impl DuckDbFlightRecorder {
                 job_id,
                 workflow_id,
                 model_id,
+                model_session_id,
                 activity_span_id,
                 session_span_id,
                 capability_id,
                 policy_decision_id,
                 wsids,
                 payload
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
             duckdb::params![
                 event_id_str,
@@ -575,6 +579,7 @@ impl DuckDbFlightRecorder {
                 event.job_id.as_deref(),
                 event.workflow_id.as_deref(),
                 event.model_id.as_deref(),
+                event.model_session_id.as_deref(),
                 event.activity_span_id.as_deref(),
                 event.session_span_id.as_deref(),
                 event.capability_id.as_deref(),
@@ -655,6 +660,11 @@ impl DuckDbFlightRecorder {
             params.push(Box::new(trace_id.to_string()));
         }
 
+        if let Some(model_session_id) = filter.model_session_id {
+            conditions.push("model_session_id = ?".to_string());
+            params.push(Box::new(model_session_id));
+        }
+
         if let Some(from) = filter.from {
             conditions.push("timestamp >= ?".to_string());
             params.push(Box::new(from.to_rfc3339()));
@@ -666,7 +676,7 @@ impl DuckDbFlightRecorder {
         }
 
         // NOTE: Avoid provider-specific datetime formatting; use epoch seconds for portability.
-        let mut query = String::from("SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events");
+        let mut query = String::from("SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events");
         if !conditions.is_empty() {
             query.push_str(" WHERE ");
             query.push_str(&conditions.join(" AND "));
@@ -690,6 +700,7 @@ impl DuckDbFlightRecorder {
             job_id: Option<String>,
             workflow_id: Option<String>,
             model_id: Option<String>,
+            model_session_id: Option<String>,
             wsids: Option<String>,
             activity_span_id: Option<String>,
             session_span_id: Option<String>,
@@ -710,12 +721,13 @@ impl DuckDbFlightRecorder {
                     job_id: row.get(6)?,
                     workflow_id: row.get(7)?,
                     model_id: row.get(8)?,
-                    wsids: row.get(9)?,
-                    activity_span_id: row.get(10)?,
-                    session_span_id: row.get(11)?,
-                    capability_id: row.get(12)?,
-                    policy_decision_id: row.get(13)?,
-                    payload: row.get(14)?,
+                    model_session_id: row.get(9)?,
+                    wsids: row.get(10)?,
+                    activity_span_id: row.get(11)?,
+                    session_span_id: row.get(12)?,
+                    capability_id: row.get(13)?,
+                    policy_decision_id: row.get(14)?,
+                    payload: row.get(15)?,
                 })
             })
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
@@ -930,6 +942,7 @@ impl DuckDbFlightRecorder {
                 job_id: raw.job_id,
                 workflow_id: raw.workflow_id,
                 model_id: raw.model_id,
+                model_session_id: raw.model_session_id,
                 wsids,
                 activity_span_id: raw.activity_span_id,
                 session_span_id: raw.session_span_id,
@@ -1182,6 +1195,12 @@ mod tests {
         assert!(
             index_values
                 .iter()
+                .any(|value| value == "idx_events_model_session_id"),
+            "expected idx_events_model_session_id in DuckDB index introspection; got: {index_values:?}"
+        );
+        assert!(
+            index_values
+                .iter()
                 .any(|value| value == "idx_events_timestamp"),
             "expected idx_events_timestamp in DuckDB index introspection; got: {index_values:?}"
         );
@@ -1203,6 +1222,140 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].trace_id, trace_id);
         assert_eq!(events[0].job_id, Some("job-123".to_string()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn query_by_session() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
+        let trace_id = Uuid::new_v4();
+
+        recorder
+            .record_event(test_event(trace_id, Some("job-a")).with_model_session_id("session-a"))
+            .await?;
+        recorder
+            .record_event(test_event(trace_id, Some("job-b")).with_model_session_id("session-b"))
+            .await?;
+
+        let events = recorder
+            .list_events(EventFilter {
+                model_session_id: Some("session-a".to_string()),
+                ..Default::default()
+            })
+            .await?;
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].job_id, Some("job-a".to_string()));
+        assert_eq!(events[0].model_session_id, Some("session-a".to_string()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn tripwire_session_scoped_events_require_model_session_id(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
+        let trace_id = Uuid::new_v4();
+        let model_session_id = "session-tripwire";
+
+        let session_events = vec![
+            (
+                FlightRecorderEventType::SessionSchedulerEnqueue,
+                json!({
+                    "type": "session_scheduler.enqueue",
+                    "event_id": "FR-EVT-SESS-SCHED-001",
+                    "session_id": "session-tripwire",
+                    "job_id": "job-enqueue",
+                    "job_kind": "model_run",
+                    "lane": "PRIMARY",
+                    "priority": 50,
+                    "concurrency_group": "test",
+                    "queue_depth": 1,
+                    "attempt": 0,
+                    "max_retries": 2,
+                    "retry_backoff": "exponential",
+                    "cancellation_token": "token",
+                }),
+            ),
+            (
+                FlightRecorderEventType::SessionSchedulerDispatch,
+                json!({
+                    "type": "session_scheduler.dispatch",
+                    "event_id": "FR-EVT-SESS-SCHED-002",
+                    "session_id": "session-tripwire",
+                    "job_id": "job-dispatch",
+                    "job_kind": "model_run",
+                    "lane": "PRIMARY",
+                    "priority": 50,
+                    "concurrency_group": "test",
+                    "queue_wait_ms": 10,
+                    "attempt": 1,
+                }),
+            ),
+            (
+                FlightRecorderEventType::SessionSchedulerRateLimited,
+                json!({
+                    "type": "session_scheduler.rate_limited",
+                    "event_id": "FR-EVT-SESS-SCHED-003",
+                    "session_id": "session-tripwire",
+                    "job_id": "job-rate-limited",
+                    "provider": "provider",
+                    "job_kind": "model_run",
+                    "lane": "PRIMARY",
+                    "priority": 50,
+                    "concurrency_group": "test",
+                    "queue_wait_ms": 20,
+                    "attempt": 1,
+                    "backoff_ms": 10,
+                    "reason": "rate limit",
+                }),
+            ),
+            (
+                FlightRecorderEventType::SessionSchedulerCancelled,
+                json!({
+                    "type": "session_scheduler.cancelled",
+                    "event_id": "FR-EVT-SESS-SCHED-004",
+                    "session_id": "session-tripwire",
+                    "job_id": "job-cancelled",
+                    "job_kind": "model_run",
+                    "lane": "PRIMARY",
+                    "priority": 50,
+                    "concurrency_group": "test",
+                    "attempt": 1,
+                    "cancelled_by": "scheduler",
+                    "reason": "test path",
+                }),
+            ),
+        ];
+
+        for (event_type, payload) in session_events {
+            recorder
+                .record_event(
+                    FlightRecorderEvent::new(event_type, FlightRecorderActor::System, trace_id, payload)
+                        .with_model_session_id(model_session_id.to_string()),
+                )
+                .await?;
+        }
+
+        let events = recorder
+            .list_events(EventFilter {
+                model_session_id: Some(model_session_id.to_string()),
+                ..Default::default()
+            })
+            .await?;
+
+        assert_eq!(events.len(), 4);
+        for event in events {
+            match event.event_type {
+                FlightRecorderEventType::SessionSchedulerEnqueue
+                | FlightRecorderEventType::SessionSchedulerDispatch
+                | FlightRecorderEventType::SessionSchedulerRateLimited
+                | FlightRecorderEventType::SessionSchedulerCancelled => {
+                    assert_eq!(event.model_session_id, Some(model_session_id.to_string()))
+                }
+                _ => {}
+            }
+        }
+
         Ok(())
     }
 
@@ -1230,6 +1383,27 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].trace_id, trace_id_a);
         assert_eq!(events[0].job_id, Some("job-a".to_string()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn fr_model_session_id() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
+        let trace_id = Uuid::new_v4();
+
+        recorder
+            .record_event(test_event(trace_id, Some("job-123")).with_model_session_id("session-x"))
+            .await?;
+
+        let events = recorder
+            .list_events(EventFilter {
+                model_session_id: Some("session-x".to_string()),
+                ..Default::default()
+            })
+            .await?;
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].model_session_id, Some("session-x".to_string()));
         Ok(())
     }
 
@@ -1414,6 +1588,64 @@ mod tests {
             assert_eq!(llm_event.job_id, Some("job-456".to_string()));
         }
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn flight_recorder_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
+        let trace_id = Uuid::new_v4();
+        let expected_payload = json!({
+            "type": "session_scheduler_enqueue",
+            "scheduler": "unit-test",
+            "model_session_id": "session-roundtrip"
+        });
+
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionSchedulerEnqueue,
+            FlightRecorderActor::Agent,
+            trace_id,
+            expected_payload,
+        )
+        .with_actor_id("agent")
+        .with_job_id("job-roundtrip")
+        .with_workflow_id("workflow-roundtrip")
+        .with_model_id("model-roundtrip")
+        .with_model_session_id("session-roundtrip")
+        .with_wsids(vec!["ws-1".to_string(), "ws-2".to_string()])
+        .with_activity_span_id("activity-roundtrip")
+        .with_session_span_id("session-span-roundtrip")
+        .with_capability_id("capability-roundtrip")
+        .with_policy_decision_id("policy-roundtrip");
+
+        recorder.record_event(event).await?;
+
+        let events = recorder
+            .list_events(EventFilter {
+                model_session_id: Some("session-roundtrip".to_string()),
+                ..Default::default()
+            })
+            .await?;
+
+        assert_eq!(events.len(), 1);
+        let stored = &events[0];
+        assert_eq!(stored.actor, FlightRecorderActor::Agent);
+        assert_eq!(stored.actor_id, "agent".to_string());
+        assert_eq!(stored.event_type, FlightRecorderEventType::SessionSchedulerEnqueue);
+        assert_eq!(stored.trace_id, trace_id);
+        assert_eq!(stored.job_id, Some("job-roundtrip".to_string()));
+        assert_eq!(stored.workflow_id, Some("workflow-roundtrip".to_string()));
+        assert_eq!(stored.model_id, Some("model-roundtrip".to_string()));
+        assert_eq!(stored.model_session_id, Some("session-roundtrip".to_string()));
+        assert_eq!(stored.activity_span_id, Some("activity-roundtrip".to_string()));
+        assert_eq!(stored.session_span_id, Some("session-span-roundtrip".to_string()));
+        assert_eq!(stored.capability_id, Some("capability-roundtrip".to_string()));
+        assert_eq!(stored.policy_decision_id, Some("policy-roundtrip".to_string()));
+        assert_eq!(
+            stored.wsids,
+            vec!["ws-1".to_string(), "ws-2".to_string()]
+        );
+        assert_eq!(stored.payload["scheduler"], "unit-test");
         Ok(())
     }
 

@@ -5370,7 +5370,8 @@ async fn emit_session_scheduler_enqueue_event(
             trace_id,
             payload,
         )
-        .with_job_id(job.job_id.to_string()),
+        .with_job_id(job.job_id.to_string())
+        .with_model_session_id(metadata.session_id.clone()),
     )
     .await
 }
@@ -5402,7 +5403,8 @@ async fn emit_session_scheduler_dispatch_event(
             trace_id,
             payload,
         )
-        .with_job_id(job.job_id.to_string()),
+        .with_job_id(job.job_id.to_string())
+        .with_model_session_id(metadata.session_id.clone()),
     )
     .await
 }
@@ -5440,7 +5442,8 @@ async fn emit_session_scheduler_rate_limited_event(
             trace_id,
             payload,
         )
-        .with_job_id(job.job_id.to_string()),
+        .with_job_id(job.job_id.to_string())
+        .with_model_session_id(metadata.session_id.clone()),
     )
     .await
 }
@@ -5474,7 +5477,8 @@ async fn emit_session_scheduler_cancelled_event(
             trace_id,
             payload,
         )
-        .with_job_id(job.job_id.to_string()),
+        .with_job_id(job.job_id.to_string())
+        .with_model_session_id(metadata.session_id.clone()),
     )
     .await
 }
@@ -5693,7 +5697,8 @@ async fn ensure_model_session_artifact_refs(
                         "source_trusted": entry.source_trusted,
                     }),
                 )
-                .with_job_id(job.job_id.to_string()),
+                .with_job_id(job.job_id.to_string())
+                .with_model_session_id(metadata.session_id.clone()),
             )
             .await;
         }
@@ -6205,7 +6210,8 @@ async fn run_model_run_job(
                                 "outcome": "denied",
                             }),
                         )
-                        .with_job_id(job.job_id.to_string()),
+                        .with_job_id(job.job_id.to_string())
+                        .with_model_session_id(metadata.session_id.clone()),
                     )
                     .await;
                     return Ok(RunJobOutcome {
@@ -6236,7 +6242,8 @@ async fn run_model_run_job(
                         "outcome": "denied",
                     }),
                 )
-                .with_job_id(job.job_id.to_string()),
+                .with_job_id(job.job_id.to_string())
+                .with_model_session_id(metadata.session_id.clone()),
             )
             .await;
             return Ok(RunJobOutcome {
@@ -6269,7 +6276,8 @@ async fn run_model_run_job(
                         "outcome": "denied",
                     }),
                 )
-                .with_job_id(job.job_id.to_string()),
+                .with_job_id(job.job_id.to_string())
+                .with_model_session_id(metadata.session_id.clone()),
             )
             .await;
             return Ok(RunJobOutcome {
@@ -6303,7 +6311,8 @@ async fn run_model_run_job(
                         "outcome": "denied",
                     }),
                 )
-                .with_job_id(job.job_id.to_string()),
+                .with_job_id(job.job_id.to_string())
+                .with_model_session_id(metadata.session_id.clone()),
             )
             .await;
             return Ok(RunJobOutcome {
@@ -6344,7 +6353,8 @@ async fn run_model_run_job(
                         "outcome": "denied",
                     }),
                 )
-                .with_job_id(job.job_id.to_string()),
+                .with_job_id(job.job_id.to_string())
+                .with_model_session_id(metadata.session_id.clone()),
             )
             .await;
             return Ok(RunJobOutcome {
@@ -6377,8 +6387,9 @@ async fn run_model_run_job(
                     "last_error_summary": bundle.request.last_error_summary.clone(),
                     "outcome": "executed",
                 }),
-            )
-            .with_job_id(job.job_id.to_string()),
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_model_session_id(metadata.session_id.clone()),
         )
         .await;
 
@@ -6830,8 +6841,9 @@ pub async fn revoke_consent_receipt_for_model_runs(
                     "session_id": metadata.session_id.as_str(),
                     "outcome": "denied",
                 }),
-            )
-            .with_job_id(job.job_id.to_string()),
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_model_session_id(metadata.session_id.as_str()),
         )
         .await;
 

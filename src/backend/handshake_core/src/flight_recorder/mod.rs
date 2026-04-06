@@ -369,6 +369,7 @@ pub struct FlightRecorderEvent {
     pub job_id: Option<String>,
     pub workflow_id: Option<String>,
     pub model_id: Option<String>,
+    pub model_session_id: Option<String>,
     pub wsids: Vec<String>,
     pub activity_span_id: Option<String>,
     pub session_span_id: Option<String>,
@@ -395,6 +396,7 @@ impl FlightRecorderEvent {
             job_id: None,
             workflow_id: None,
             model_id: None,
+            model_session_id: None,
             wsids: Vec::new(),
             activity_span_id: None,
             session_span_id: None,
@@ -421,6 +423,11 @@ impl FlightRecorderEvent {
 
     pub fn with_model_id(mut self, model_id: impl Into<String>) -> Self {
         self.model_id = Some(model_id.into());
+        self
+    }
+
+    pub fn with_model_session_id(mut self, model_session_id: impl Into<String>) -> Self {
+        self.model_session_id = Some(model_session_id.into());
         self
     }
 
@@ -5361,6 +5368,7 @@ pub enum RecorderError {
 pub struct EventFilter {
     pub event_id: Option<Uuid>,
     pub job_id: Option<String>,
+    pub model_session_id: Option<String>,
     pub trace_id: Option<Uuid>,
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
