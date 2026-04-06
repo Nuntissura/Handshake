@@ -127,6 +127,12 @@ These are safe starting points for orientation and health checks.
 - `just memory-compact [--older-than 30d] [--dry-run]`
   - `runtime-write`
   - full maintenance cycle: dedup, episodic→semantic consolidation, importance decay, orphan cleanup; `--dry-run` for preview
+- `just memory-embed [--batch N]`
+  - `runtime-write`
+  - generate nomic-embed-text embeddings via local Ollama for unembedded memories; default batch=20; requires Ollama running on localhost:11434
+- `just memory-hybrid-search "<query>" [--type <type>] [--wp WP-{ID}] [--limit N]`
+  - `read-only`
+  - combine FTS5 keyword + vector cosine similarity via Reciprocal Rank Fusion; requires embeddings (run `just memory-embed` first)
 
 ## Minimal Live Read Set (Token Discipline)
 

@@ -436,6 +436,12 @@ memory-extract-smoketests file="":
 memory-compact *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-compact.mjs" {{FLAGS}}
 
+memory-embed *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" embed {{FLAGS}}
+
+memory-hybrid-search query *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" hybrid-search "{{query}}" {{FLAGS}}
+
 session-stall-scan role wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/session-stall-scan.mjs" {{role}} {{wp-id}}
 

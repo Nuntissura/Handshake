@@ -63,6 +63,15 @@ CREATE TABLE IF NOT EXISTS memory_entries (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS memory_embeddings (
+  id INTEGER PRIMARY KEY,
+  index_id INTEGER REFERENCES memory_index(id),
+  embedding_model TEXT NOT NULL DEFAULT 'nomic-embed-text',
+  embedding_dims INTEGER NOT NULL DEFAULT 768,
+  embedding TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS consolidation_log (
   id INTEGER PRIMARY KEY,
   run_type TEXT NOT NULL,
@@ -86,6 +95,7 @@ CREATE INDEX IF NOT EXISTS idx_memory_index_importance ON memory_index(importanc
 CREATE INDEX IF NOT EXISTS idx_memory_index_consolidated ON memory_index(consolidated);
 CREATE INDEX IF NOT EXISTS idx_memory_entries_index ON memory_entries(index_id);
 CREATE INDEX IF NOT EXISTS idx_memory_entries_wp ON memory_entries(source_wp_id);
+CREATE INDEX IF NOT EXISTS idx_memory_embeddings_index ON memory_embeddings(index_id);
 `;
 
 const CREATE_FTS_SQL = `
@@ -422,4 +432,144 @@ export function migrateFailureMemory(db, failureMemoryPath) {
     migrated++;
   }
   return migrated;
+}
+
+// ---------------------------------------------------------------------------
+// Embedding pipeline (RGF-118) — Ollama nomic-embed-text
+// ---------------------------------------------------------------------------
+
+const OLLAMA_EMBED_URL = "http://localhost:11434/api/embed";
+const OLLAMA_EMBED_MODEL = "nomic-embed-text";
+
+export async function generateEmbedding(text) {
+  const body = JSON.stringify({ model: OLLAMA_EMBED_MODEL, input: String(text || "").slice(0, 8000) });
+  const response = await fetch(OLLAMA_EMBED_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!response.ok) throw new Error(`Ollama embed failed: ${response.status}`);
+  const data = await response.json();
+  if (!data.embeddings?.[0]) throw new Error("No embedding returned");
+  return data.embeddings[0];
+}
+
+export async function embedMemoryEntry(db, indexId) {
+  const idx = db.prepare("SELECT topic, summary, file_scope FROM memory_index WHERE id = ?").get(indexId);
+  if (!idx) return false;
+  const existing = db.prepare("SELECT id FROM memory_embeddings WHERE index_id = ?").get(indexId);
+  if (existing) return false;
+
+  const text = `${idx.topic} ${idx.summary} ${idx.file_scope || ""}`.trim();
+  const embedding = await generateEmbedding(text);
+  db.prepare(
+    "INSERT INTO memory_embeddings (index_id, embedding_model, embedding_dims, embedding, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).run(indexId, OLLAMA_EMBED_MODEL, embedding.length, JSON.stringify(embedding), nowIso());
+  return true;
+}
+
+export async function embedAllUnembedded(db, { batchSize = 20 } = {}) {
+  const unembedded = db.prepare(
+    `SELECT mi.id FROM memory_index mi
+     LEFT JOIN memory_embeddings me ON me.index_id = mi.id
+     WHERE me.id IS NULL AND mi.consolidated = 0
+     ORDER BY mi.importance DESC LIMIT ?`
+  ).all(batchSize);
+
+  let embedded = 0;
+  for (const row of unembedded) {
+    try {
+      const added = await embedMemoryEntry(db, row.id);
+      if (added) embedded++;
+    } catch (e) {
+      console.error(`[embedding] Failed for #${row.id}: ${e.message}`);
+      break;
+    }
+  }
+  return embedded;
+}
+
+// ---------------------------------------------------------------------------
+// Vector search (cosine similarity in JS — no sqlite-vec needed)
+// ---------------------------------------------------------------------------
+
+function cosineSimilarity(a, b) {
+  if (a.length !== b.length) return 0;
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+export async function vectorSearch(db, query, { limit = 20 } = {}) {
+  const queryEmbedding = await generateEmbedding(query);
+  const allEmbeddings = db.prepare(
+    `SELECT me.index_id, me.embedding FROM memory_embeddings me
+     JOIN memory_index mi ON mi.id = me.index_id
+     WHERE mi.consolidated = 0`
+  ).all();
+
+  const scored = [];
+  for (const row of allEmbeddings) {
+    try {
+      const embedding = JSON.parse(row.embedding);
+      const similarity = cosineSimilarity(queryEmbedding, embedding);
+      scored.push({ indexId: row.index_id, similarity });
+    } catch {}
+  }
+  scored.sort((a, b) => b.similarity - a.similarity);
+  return scored.slice(0, limit);
+}
+
+// ---------------------------------------------------------------------------
+// Hybrid search: FTS5 + vector + RRF (RGF-119)
+// ---------------------------------------------------------------------------
+
+const RRF_K = 60;
+
+export async function hybridSearch(db, query, { memoryType = "", wpId = "", limit = 20, vectorWeight = 0.6, ftsWeight = 0.4 } = {}) {
+  const ftsResults = searchMemories(db, query, { memoryType, wpId, limit: limit * 2 });
+
+  let vectorResults = [];
+  try {
+    vectorResults = await vectorSearch(db, query, { limit: limit * 2 });
+  } catch {}
+
+  const rrfScores = new Map();
+
+  for (let rank = 0; rank < ftsResults.length; rank++) {
+    const id = ftsResults[rank].id;
+    rrfScores.set(id, (rrfScores.get(id) || 0) + ftsWeight / (RRF_K + rank + 1));
+  }
+
+  for (let rank = 0; rank < vectorResults.length; rank++) {
+    const id = vectorResults[rank].indexId;
+    rrfScores.set(id, (rrfScores.get(id) || 0) + vectorWeight / (RRF_K + rank + 1));
+  }
+
+  const sorted = [...rrfScores.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+
+  const results = [];
+  for (const [id, score] of sorted) {
+    const idx = db.prepare("SELECT * FROM memory_index WHERE id = ?").get(id);
+    if (!idx) continue;
+    if (memoryType && idx.memory_type !== memoryType) continue;
+    if (wpId && idx.wp_id && idx.wp_id !== wpId) continue;
+    const entry = db.prepare("SELECT content, source_artifact, source_role FROM memory_entries WHERE index_id = ? LIMIT 1").get(id);
+    results.push({
+      ...idx,
+      content: entry?.content || "",
+      source_artifact: entry?.source_artifact || "",
+      source_role: entry?.source_role || "",
+      _rrf_score: score,
+    });
+  }
+  return results;
 }

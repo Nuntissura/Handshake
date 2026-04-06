@@ -18,6 +18,8 @@ import {
   addMemory,
   getPointerIndex,
   searchMemories,
+  hybridSearch,
+  embedAllUnembedded,
   primeForMt,
   getStats,
   runDecay,
@@ -144,9 +146,38 @@ try {
     const migrated = migrateFailureMemory(db, failureMemoryPath);
     console.log(`[governance-memory] Migrated ${migrated} failure memory entries`);
 
+  } else if (command === "embed") {
+    const batchSize = Number(flags.batch) || 20;
+    const embedded = await embedAllUnembedded(db, { batchSize });
+    console.log(`[governance-memory] Embedded ${embedded} entries via nomic-embed-text`);
+
+  } else if (command === "hybrid-search") {
+    const [query] = positional;
+    if (!query) {
+      console.error('Usage: hybrid-search "<query>" [--type <type>] [--wp WP-{ID}] [--limit N]');
+      process.exit(1);
+    }
+    const results = await hybridSearch(db, query, {
+      memoryType: flags.type || "",
+      wpId: flags.wp || "",
+      limit: Number(flags.limit) || 20,
+    });
+    if (results.length === 0) {
+      console.log(`[governance-memory] No hybrid matches for "${query}"`);
+    } else {
+      console.log(`[governance-memory] ${results.length} hybrid match(es) for "${query}":\n`);
+      for (const r of results) {
+        console.log(`  #${r.id} [${r.memory_type}] ${r.topic} (rrf=${r._rrf_score?.toFixed(4)})`);
+        console.log(`    ${r.summary}`);
+        if (r.wp_id) console.log(`    wp=${r.wp_id}`);
+        if (r.content) console.log(`    content=${r.content.slice(0, 120)}${r.content.length > 120 ? "..." : ""}`);
+        console.log("");
+      }
+    }
+
   } else {
     console.error(`Unknown command: ${command}`);
-    console.error("Usage: governance-memory-cli.mjs <add|search|prime|stats|decay|migrate-failure-memory>");
+    console.error("Usage: governance-memory-cli.mjs <add|search|hybrid-search|embed|prime|stats|decay|migrate-failure-memory>");
     process.exit(1);
   }
 } finally {
