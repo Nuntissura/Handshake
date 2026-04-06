@@ -373,6 +373,10 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
     `Then perform only the single next governed action implied by the active receipts/notifications and runtime projection.`,
     `Report only lifecycle/gate state, blockers, and next required command(s).`,
     `Do not request routine Operator approval on an orchestrator-managed lane.`,
+    // Adversarial validator review prompt [RGF-99 / CX-503J]
+    role === "WP_VALIDATOR"
+      ? `ADVERSARIAL REVIEW [CX-503J]: After confirming code compiles and tests pass, actively try to break it. Look for race conditions, input validation gaps, error handling omissions, capability escalation paths, spec requirements the coder missed, and edge cases not covered by tests. Your job is not to confirm the code works — it is to find where it does not. Never trust self-reports.`
+      : null,
     // Auto-relay communication instructions per role [CX-503C]
     role === "WP_VALIDATOR"
       ? `AUTO-RELAY: When you finish reviewing a microtask, send your response back to the coder via: just wp-review-response ${wpId} WP_VALIDATOR WP_VALIDATOR:${wpId} CODER CODER:${wpId} '<MT-NNN PASS or STEER: findings>'. This triggers the auto-relay to dispatch your response to the coder session.`

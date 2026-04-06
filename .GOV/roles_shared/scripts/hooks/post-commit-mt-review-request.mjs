@@ -54,6 +54,68 @@ if (!mtMatch) {
 const mtId = mtMatch[1];
 const mtDesc = mtMatch[2];
 
+// ── RGF-98: Per-MT Compile Gate ──────────────────────────────────────
+// Run cargo check before dispatching the review request.
+// If it fails, log the failure and skip the review — but never block the commit.
+const cargoTomlPath = path.join(repoRoot, "src", "backend", "handshake_core", "Cargo.toml");
+if (fs.existsSync(cargoTomlPath)) {
+  console.log(`[POST-COMMIT-HOOK] Compile gate: running cargo check...`);
+  let commitHash;
+  try {
+    commitHash = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  } catch {
+    commitHash = "unknown";
+  }
+
+  try {
+    execSync("cargo check", {
+      encoding: "utf8",
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        CARGO_TARGET_DIR: "../Handshake Artifacts/handshake-cargo-target",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 180_000, // 3 minutes
+    });
+    console.log(`[POST-COMMIT-HOOK] Compile gate PASSED`);
+  } catch (cargoErr) {
+    const stderr = String(cargoErr?.stderr || cargoErr?.message || "");
+    const errorPreview = stderr.slice(0, 500);
+    console.log(`[POST-COMMIT-HOOK] COMPILE GATE FAILED — cargo check returned errors. Review request NOT sent.`);
+    console.log(errorPreview);
+
+    // Write failure entry to COMPILE_GATE_LOG.jsonl in the WP communications dir
+    try {
+      const govRuntimeRoot = (() => {
+        const direct = String(process.env.HANDSHAKE_GOVERNANCE_RUNTIME_ROOT || "").trim();
+        if (direct) return path.resolve(direct);
+        const product = String(process.env.HANDSHAKE_PRODUCT_RUNTIME_ROOT || "").trim();
+        if (product) return path.resolve(product, "repo-governance");
+        return path.resolve(repoRoot, "..", "gov_runtime");
+      })();
+      const wpCommsDir = path.join(govRuntimeRoot, "roles_shared", "WP_COMMUNICATIONS", wpId);
+      if (fs.existsSync(wpCommsDir)) {
+        const logEntry = JSON.stringify({
+          timestamp: new Date().toISOString(),
+          mt_id: mtId,
+          commit: commitHash,
+          gate: "COMPILE_FAILED",
+          error_preview: errorPreview,
+        });
+        fs.appendFileSync(path.join(wpCommsDir, "COMPILE_GATE_LOG.jsonl"), logEntry + "\n");
+      }
+    } catch {
+      // Best-effort log — do not block the commit
+    }
+
+    process.exit(0);
+  }
+} else {
+  console.log(`[POST-COMMIT-HOOK] No Cargo.toml found at ${cargoTomlPath} — skipping compile gate`);
+}
+// ── End RGF-98 ───────────────────────────────────────────────────────
+
 // Build session keys
 const coderKey = `CODER:${wpId}`;
 const validatorKey = `WP_VALIDATOR:${wpId}`;
