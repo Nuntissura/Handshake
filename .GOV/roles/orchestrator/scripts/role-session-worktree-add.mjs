@@ -107,4 +107,8 @@ execFileSync(process.execPath, [repoPathAbs(scriptPath), wpId, baseBranch || "ma
   stdio: "inherit",
 });
 
-console.log(`[ROLE_SESSION_WORKTREE_ADD] role=${role} base=${baseBranch || "main"} branch=${branch} dir=${dir}`);
+if (role === "WP_VALIDATOR" && branch === defaultCoderBranch(wpId)) {
+  console.log(`[ROLE_SESSION_WORKTREE_ADD] WP_VALIDATOR shares coder worktree [CX-503G]: branch=${branch} dir=${dir}`);
+} else {
+  console.log(`[ROLE_SESSION_WORKTREE_ADD] role=${role} base=${baseBranch || "main"} branch=${branch} dir=${dir}`);
+}
