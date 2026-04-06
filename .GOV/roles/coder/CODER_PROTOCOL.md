@@ -29,6 +29,13 @@ You receive a work packet from the Orchestrator. You implement exactly what it s
   - `rm` / `del` / `Remove-Item` on non-temp paths
 - If a cleanup/reset is ever requested, first make it reversible: `git stash push -u -m "SAFETY: before <operation>"`, then show the user exactly what would be deleted (`git clean -nd`) and get explicit approval.
 
+## Multi-Provider Model Awareness
+
+- The system supports multiple model providers: OpenAI (GPT 5.4, GPT 5.2, Codex Spark 5.3), Anthropic (Claude Code Opus 4.6), and future local models (Ollama).
+- The packet-declared `CODER_MODEL_PROFILE` is authoritative for your session. Do not assume GPT-5.4 is the default.
+- The ACP broker is a mechanical session-control relay, not a model. All model sessions dispatch through the broker regardless of provider.
+- Do not reference provider-specific conventions (Codex aliases, Claude model flags) unless your packet explicitly declares that provider.
+
 ---
 
 ## Permanent Branch + Backup Model (HARD)
@@ -471,14 +478,18 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 ## Active Workflow Adjustment [2025-12-28]
 - Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
 - At start: set the work packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH` through the `.GOV/` junction so they match the packet-declared `CODER_MODEL_PROFILE` (edits land in the governance kernel). [CX-212F] Do NOT commit `.GOV/` files on your feature branch — the orchestrator commits governance changes on `gov_kernel`.
-- **Micro Task Workflow:** Work through micro tasks in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, `MT-002.md`, etc.) in order. For each MT:
+- **Micro Task Workflow [RGF-89] (HARD):** Work through micro tasks in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, `MT-002.md`, etc.) in order. For each MT:
   1. Set `CODER STATUS: IN_PROGRESS`
   2. Implement the clause described in the MT
   3. Set `CODER STATUS: DONE` with file:line evidence in `EVIDENCE` and commands in `TESTS_RUN`
-  4. Write a `CLAUSE_COMPLETE` receipt via `just wp-receipt-append` targeting the WP Validator
-  5. Continue to the next MT (do not wait for validator response unless DEPENDS_ON blocks you)
+  4. Commit the MT work on the feature branch with message `feat: MT-NNN <description>`
+  5. Send a governed review request: `just wp-review-request WP-{ID} CODER <session> WP_VALIDATOR <target_session> "MT-NNN complete: <summary>"`
+  6. **STOP.** Wait for validator review response before starting the next MT. Do not batch-implement multiple MTs without intermediate review.
+  7. If the validator steers (sends fix instructions), fix the current MT before proceeding.
+  8. Only proceed to the next MT after the validator confirms the current MT or the orchestrator explicitly instructs continuation.
 - When MT files exist on an orchestrator-managed lane, governed `CODER_INTENT` and overlap `REVIEW_REQUEST` receipts must carry `microtask_json` that resolves to the active declared MT (`scope_ref=MT-001` or a clause-token alias such as `CLAUSE_CLOSURE_MATRIX/CX-...`), includes concrete `file_targets`, and keeps those targets inside that MT's `CODE_SURFACES`; receipt preflight now fails closed otherwise.
 - **Evidence Management:** Write proof per micro task, not one dump at the end. You MAY also append to `## EVIDENCE` in the work packet for aggregate evidence.
+- **Smoketest Live Findings:** During WP execution, append notable findings (compile errors, scope ambiguities, governance friction) to the active smoketest review's `LIVE_FINDINGS_LOG` section if one exists. Format: `- [TIMESTAMP] [CODER] [CATEGORY] <finding>`
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
 - **Status Updates:** Update the `## STATUS_HANDOFF` section with a real self-audit, not a generic "tests passing" note. When `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, include both the standard handoff core and the rubric-proof fields.
 - Compare your implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` is missing the relevant integrated context or remote drift is the subject of the WP.
@@ -543,6 +554,7 @@ Hard gate (ANTI-VIBECODE — no unreviewed, unscoped, or approval-skipping code 
 Forbidden: any product code changes (`src/`, `app/`, `tests/`) before a docs-only skeleton checkpoint commit exists on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
 Forbidden: any product code changes (`src/`, `app/`, `tests/`) without a skeleton approval commit on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
 For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, this checkpoint/approval subflow is forbidden. Do not run `just coder-skeleton-checkpoint` or `just skeleton-approved`; those commands now record `WORKFLOW_INVALIDITY` and fail. In orchestrator-managed lanes, `just pre-work` does not waive BOOTSTRAP/SKELETON review; use the direct-review lane so the WP Validator can judge your bootstrap, skeleton, and early micro-task plan before implementation hardens.
+- **Reminder:** `just coder-skeleton-checkpoint` and `just skeleton-approved` are `MANUAL_RELAY`-only. Attempting them on an `ORCHESTRATOR_MANAGED` lane records `WORKFLOW_INVALIDITY`. Use the direct-review lane (`VALIDATOR_KICKOFF -> CODER_INTENT`) instead.
 For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` after signature/prepare, do not ask the Operator for routine approval, "proceed", or checkpoint actions. If a real blocker exists, route it back to the Orchestrator and name exactly one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`.
 If the Operator has to restate that rule in your lane, stop normal progress and expect the Orchestrator to record `just wp-operator-rule-restatement ...`; that lane becomes reset-required rather than business-as-usual.
 1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.

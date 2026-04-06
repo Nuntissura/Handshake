@@ -2,6 +2,11 @@
 
 **MANDATORY** - Validator must read this before performing any Validator actions (audit, review, remediation, or repo operations)
 
+## Multi-Provider Model Awareness
+
+- The system supports multiple model providers. The packet-declared `WP_VALIDATOR_MODEL_PROFILE` and `INTEGRATION_VALIDATOR_MODEL_PROFILE` are authoritative.
+- The ACP broker is a mechanical session-control relay, not a model. All validator sessions dispatch through the broker regardless of provider.
+
 ## Why Governance Correctness Matters
 
 - Repo governance is a live prototype of the future Handshake control plane for autonomous mass-parallel work.
@@ -88,7 +93,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 - `just sync-gov-to-main` is only valid from committed kernel governance truth. If `wt-gov-kernel/.GOV` has uncommitted changes, commit `gov_kernel` before mirroring to `handshake_main`.
 - Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
-- For newly created repo-governed validator sessions, the packet-declared validator profile is authoritative for claim truth under `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback, which currently map to `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` may be declared in packets, but governed launch must fail closed until provider-specific runtime support exists. Do not rely on ambient editor defaults.
+- For newly created repo-governed validator sessions, the packet-declared validator profile is authoritative for claim truth under `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback, which currently map to `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is now a supported runtime profile. Governed launch and session-control work for Claude Code sessions through the ACP broker. Do not rely on ambient editor defaults.
 - Fresh repo-governed validator session start is `ORCHESTRATOR_ONLY`.
 - Primary launch path is `VSCODE_EXTENSION_TERMINAL` via the external repo-governance launch queue + session registry (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
@@ -165,6 +170,7 @@ Use this governance-maintenance record flow:
   - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
   - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
 - audits: use stable `AUDIT_ID` values and add `SMOKETEST_REVIEW_ID` for smoketest or workflow-proof reviews
+- **Smoketest Live Findings:** During WP validation, append notable findings (dead code, cross-surface gaps, spec misalignments) to the active smoketest review's `LIVE_FINDINGS_LOG` section if one exists. Format: `- [TIMESTAMP] [WP_VALIDATOR] [CATEGORY] <finding>`
 - Operator-facing scope split rule:
   - In chat, always separate `Handshake (Product)` from `Repo Governance`.
   - If the review target touches product code or the Master Spec, classify it as `Handshake (Product)` even when the requirement is governance-shaped, workflow-shaped, or contract-shaped.
@@ -470,6 +476,9 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - Set `VALIDATOR STATUS: NEEDS_REVISION` with `DIRECTION` guidance if the evidence is insufficient or the implementation misses the clause
   - Write a `REVIEW_RESPONSE` receipt via `just wp-receipt-append` targeting the Coder
 - This early review catches spec drift and shallow implementations before the coder claims the WP as done.
+- **Per-Microtask Inspection [RGF-89] (HARD for orchestrator-managed lanes):** When the coder sends a `REVIEW_REQUEST` for a completed MT, the WP Validator MUST inspect that MT before the coder proceeds to the next one. Do not defer all inspection to end-of-WP handoff. Per-MT review catches issues early and prevents compounding errors across MTs.
+- After inspecting each MT, send a governed review response: `just wp-review-response WP-{ID} WP_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id>`
+- If the MT has issues, include specific fix instructions in the response so the coder can fix before starting the next MT.
 - When ALL MTs are `VALIDATOR STATUS: CONFIRMED`, proceed to the wholesale handoff review (0A below).
 
 0B) Handoff Quality Gate
@@ -787,6 +796,22 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - `VALIDATOR_RISK_TIER=HIGH` requires at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - `VALIDATOR_RISK_TIER=MEDIUM|HIGH` requires at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - The lightest valid counterfactual step is still mandatory: one sentence per key changed code path in the form "if X were removed or altered, Y would break", where `X` names a concrete file, symbol, or code path.
+
+Report fields must use bare `FIELD: VALUE` format (no markdown bullet prefix). Both formats are parsed correctly (per RGF-90), but bare format is preferred for consistency:
+
+```text
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+Verdict: PASS
+```
 
 ## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 
