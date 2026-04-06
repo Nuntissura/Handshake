@@ -133,13 +133,14 @@ function main() {
       matchedPaths.set(normalizedPath, wpId);
     }
 
-    // Worktree budget: max 2 WP-specific worktrees per WP (coder + WP validator) [CX-212D].
+    // Worktree budget: max 1 WP-specific worktree per WP (coder + WP validator share it).
     // Integration Validator operates from handshake_main/main.
-    const MAX_WP_WORKTREES = 2;
+    // WP Validator now shares the coder worktree; no separate wtv-* worktree required.
+    const MAX_WP_WORKTREES = 1;
     const wpSpecificWorktrees = topology.relatedWorktrees.filter((entry) => normalizeBranch(entry.branch) !== "main");
     if (wpSpecificWorktrees.length > MAX_WP_WORKTREES) {
       violations.push(
-        `${wpId}: ${wpSpecificWorktrees.length} WP-specific worktrees found (max ${MAX_WP_WORKTREES}). `
+        `${wpId}: ${wpSpecificWorktrees.length} WP-specific worktrees found (max ${MAX_WP_WORKTREES}; coder + WP validator share one worktree). `
         + `Active: ${wpSpecificWorktrees.map((w) => normalizeBranch(w.branch) || `detached:${w.head || "<unknown>"}`).join(", ")}. `
         + "Reuse existing worktrees or clean up superseded ones before creating more.",
       );

@@ -360,11 +360,14 @@ export function defaultCoderWorktreeDir(wpId) {
 }
 
 export function defaultWpValidatorBranch(wpId) {
-  return `validate/${wpId}`;
+  // WP Validator shares the coder worktree and branch. No separate validate/ branch needed.
+  // Governance uses .GOV/ junction (symlink); no worktree-level isolation required.
+  return `feat/${wpId}`;
 }
 
 export function defaultWpValidatorWorktreeDir(wpId) {
-  return shortWorktreeName("wtv", wpId);
+  // WP Validator shares the coder worktree. No separate wtv-* worktree needed.
+  return shortWorktreeName("wtc", wpId);
 }
 
 export function defaultIntegrationValidatorBranch(wpId) {

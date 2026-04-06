@@ -303,19 +303,34 @@ Workflow semantics:
 ## Microtask Loop Enforcement [RGF-89] (HARD)
 
 - Every orchestrator-managed WP with declared microtasks (MT-001, MT-002, ...) MUST use the per-microtask loop.
-- **Coder session startup prompt MUST reference the microtask plan**: "Follow the microtask plan in the packet. Complete MT-001 first, commit on the feature branch, then send a REVIEW_REQUEST before starting MT-002."
-- **Validator session prompt MUST enforce per-MT inspection**: "Inspect each microtask incrementally. After the coder completes MT-001, review it. If MT-001 has issues, send a REVIEW_RESPONSE with fix instructions before the coder starts MT-002."
+- **Coder session startup prompt MUST reference the microtask plan**: "Follow the microtask plan in the packet. Complete MT-001 first, commit on the feature branch, then run `just wp-review-request WP-{ID} CODER <session> WP_VALIDATOR <target_session> 'MT-001 complete: <summary>'` and STOP."
+- **Validator session MUST be started BEFORE the coder starts work** (in READY state). This enables the governed auto-relay: when the coder calls `wp-review-request`, the notification triggers `orchestrator-steer-next` which dispatches the review to the validator automatically.
+- **Validator session prompt MUST enforce per-MT inspection**: "When you receive a review request for an MT, inspect it. Then run `just wp-review-response WP-{ID} WP_VALIDATOR <session> CODER <target_session> '<MT-NNN PASS or STEER: findings>'` to send your response back to the coder via auto-relay."
+- **After all MTs pass individually**, the validator MUST perform a Final WP Review: full product code check using the validator rubric, red team assessment, and wide-scope Master Spec alignment check. Only then write the validation verdict. If FAIL, send remediation instructions to the coder via `wp-review-response`.
 - Do not send monolithic "implement everything" instructions. Each MT is a bounded unit of work that even a small local model can complete.
 - The per-MT loop exists to enable future mixed-model execution: cloud models handle MTs now, but the structure must be proven so local models (Ollama) can handle individual MTs later.
-- Post-work gate SHOULD verify at least one MT-completion receipt per declared microtask.
+- **WP Validator shares the coder worktree** (`wtc-*` on `feat/WP-{ID}`) per [CX-503G]. No separate `wtv-*` worktree needed. The per-MT stop ensures only one role is active at a time.
 
-## Fire-and-Forget Dispatch [RGF-93] (RECOMMENDED)
+## Auto-Relay Loop (Governed Communication)
 
-- After dispatching work via `just session-send`, the Orchestrator SHOULD NOT poll for results using `sleep && cat` loops.
-- Polling wastes orchestrator tokens (the most expensive resource) on waiting.
-- Preferred pattern: dispatch work, then either return control to the Operator or move to other tasks.
-- When the session completes, the ACP broker writes a completion entry to SESSION_CONTROL_RESULTS.jsonl. Future versions will inject a mechanical notification into WP_COMMUNICATIONS so the orchestrator can resume without polling.
-- If polling is unavoidable in the current infrastructure, minimize it: one check after a reasonable delay, not repeated short-interval polls.
+- The governed auto-relay mechanism enables coder-validator communication without orchestrator relay:
+  1. Coder calls `just wp-review-request` → notification created targeting WP_VALIDATOR
+  2. `attemptOrchestratorAutoRelay()` fires → calls `orchestrator-steer-next` → dispatches to validator session
+  3. Validator reviews → calls `just wp-review-response` → notification created targeting CODER
+  4. Auto-relay fires → dispatches to coder session with review results
+- The Orchestrator's role in this loop is MONITOR, not RELAY. Intervene only when:
+  - Auto-relay fails (broker down, session settled)
+  - Stall detection fires (WP_RELAY_ESCALATION `stale_after` crossed)
+  - Validator sends a FAIL verdict (orchestrator decides whether to restart coder or escalate)
+- For parallel WPs, each WP has its own notification/receipt trail. Auto-relay routes independently per WP.
+
+## Fire-and-Forget Dispatch [RGF-93] (HARD)
+
+- After dispatching initial work (coder startup prompt + validator startup), the Orchestrator MUST NOT poll for results.
+- The ACP broker injects SESSION_COMPLETION notifications into WP_COMMUNICATIONS (RGF-93).
+- The auto-relay loop handles per-MT coder-validator communication mechanically.
+- The Orchestrator monitors for: (1) completion notifications, (2) relay escalation alerts, (3) FAIL verdicts.
+- If polling is absolutely necessary, use `just session-registry-status WP-{ID}` once after a reasonable delay, not repeated sleep-and-cat loops.
 
 ## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
 
@@ -374,7 +389,7 @@ Resume rule:
 - `just wp-review-response WP-{ID} <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
 - `just operator-viewport` (`just operator-monitor` remains a compatibility alias)
 - `just coder-worktree-add WP-{ID}`
-- `just wp-validator-worktree-add WP-{ID}`
+- `just wp-validator-worktree-add WP-{ID}` (now reuses the coder worktree per [CX-503G]; no separate wtv-* worktree created)
 - `just integration-validator-worktree-add WP-{ID}`
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
