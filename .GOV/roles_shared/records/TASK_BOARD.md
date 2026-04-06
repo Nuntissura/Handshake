@@ -85,6 +85,7 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -148,7 +149,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [STUB]
 - **[WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1]** - [STUB]
 - **[WP-1-FEMS-Acceptance-Replay-Eval-v1]** - [STUB]
-- **[WP-1-Session-Spawn-Contract-v1]** - [STUB]
 - **[WP-1-Provider-Feature-Coverage-Agentic-Ready-v1]** - [STUB]
 - **[WP-1-Workspace-Safety-Parallel-Sessions-v1]** - [STUB]
 - **[WP-1-Session-Crash-Recovery-Checkpointing-v1]** - [STUB]
@@ -180,6 +180,8 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1]** - [STUB]
 - **[WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back-v1]** - [STUB]
 - **[WP-1-Product-Screenshot-Visual-Validation-v1]** - [STUB]
+- **[WP-1-Session-Spawn-Tree-DCC-Visualization-v1]** - [STUB]
+- **[WP-1-Session-Spawn-Conversation-Distillation-v1]** - [STUB]
 
 
 - **[WP-1-Charts-Dashboards-Backfill-v1]** - [STUB]
@@ -511,6 +513,8 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1]** - [VALIDATED]
 
 - **[WP-1-Product-Governance-Artifact-Registry-v1]** - [VALIDATED]
+
+- **[WP-1-Session-Spawn-Contract-v1]** - [VALIDATED]
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]
