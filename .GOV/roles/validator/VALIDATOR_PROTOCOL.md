@@ -480,6 +480,8 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - **Per-Microtask Inspection [RGF-89] (HARD for orchestrator-managed lanes):** When the coder sends a `REVIEW_REQUEST` for a completed MT, the WP Validator MUST inspect that MT before the coder proceeds to the next one. Do not defer all inspection to end-of-WP handoff. Per-MT review catches issues early and prevents compounding errors across MTs.
 - After inspecting each MT, send a governed review response: `just wp-review-response WP-{ID} WP_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id>`
 - If the MT has issues, include specific fix instructions in the response so the coder can fix before starting the next MT.
+- **Adversarial Review [CX-503J]:** After confirming the code compiles and tests pass, actively try to break it. Look for race conditions, input validation gaps, error handling omissions, capability escalation paths, and spec requirements the coder missed. Your job is not to confirm the code works — it is to find where it does not. "Never trust subagent self-reports." [RGF-99]
+- **Tool-Call Boundary [CX-503H / RGF-105]:** The validator MUST NOT edit product code under `src/`, `app/`, or `tests/`. You may read any file but writing is reserved for governance surfaces (`.GOV/`, reports, receipts). If you find code that needs fixing, send fix instructions to the coder via `wp-review-response`, do not fix it yourself.
 - When ALL MTs are `VALIDATOR STATUS: CONFIRMED`, proceed to the Final WP Review below.
 - **WP Validator shares the coder worktree** (`wtc-*` on `feat/WP-{ID}`) per [CX-503G]. No separate `wtv-*` worktree. The per-MT stop ensures only one role is active at a time.
 
