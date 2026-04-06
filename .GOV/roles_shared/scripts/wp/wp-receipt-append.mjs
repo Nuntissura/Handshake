@@ -36,6 +36,7 @@ import {
 } from "../lib/role-resume-utils.mjs";
 import {
   deriveLatestValidatorAssessment,
+  deriveValidatorAssessmentVerdict,
   deriveWpCommunicationAutoRoute,
   evaluateWpCommunicationHealth,
   isDuplicateDecisiveValidatorAssessment,
@@ -55,7 +56,7 @@ import {
 } from "../lib/wp-microtask-lib.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
-import { appendWpNotification } from "./wp-notification-append.mjs";
+import { appendWpNotification, appendWpNotificationCore } from "./wp-notification-append.mjs";
 
 const ACTIVE_AUTO_RELAY_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const VALIDATOR_ASSESSMENT_ROLE_VALUES = new Set(["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"]);
@@ -98,6 +99,7 @@ const POST_WORK_CHECK_SCRIPT_PATH = path.resolve(
 const TASK_BOARD_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`);
 const BUILD_ORDER_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md`);
 const MICROTASK_SCOPE_BUDGET_RECEIPT_KIND_VALUES = new Set(["CODER_INTENT", "REVIEW_REQUEST"]);
+const MT_FIX_CYCLE_ESCALATION_THRESHOLD = 3;
 const RUNTIME_ROUTE_FIELD_NAMES = [
   "open_review_items",
   "next_expected_actor",
@@ -1115,6 +1117,49 @@ function appendWpReceiptCore({
   if (reviewTrackedReceipt) {
     appendReviewNotifications({ wpId: WP_ID, workflowLane: context.workflowLane, entry, autoRoute });
   }
+
+  // RGF-100: MT retry counter — after a REVIEW_RESPONSE is written, count non-PASS
+  // responses for the same MT. Escalate to orchestrator when the threshold is reached.
+  try {
+    if (entry.receipt_kind === "REVIEW_RESPONSE") {
+      const mtId = String(entry.microtask_contract?.scope_ref || "").trim()
+        || (String(entry.correlation_id || "").match(/(MT-\d+)/i) || [])[1]
+        || (String(entry.summary || "").match(/(MT-\d+)/i) || [])[1]
+        || null;
+      if (mtId) {
+        const allReceipts = parseJsonlFile(context.receiptsFile);
+        const steerCount = allReceipts.filter((r) => {
+          if (String(r.receipt_kind || "").trim().toUpperCase() !== "REVIEW_RESPONSE") return false;
+          const rMtId = String(r.microtask_contract?.scope_ref || "").trim()
+            || (String(r.correlation_id || "").match(/(MT-\d+)/i) || [])[1]
+            || (String(r.summary || "").match(/(MT-\d+)/i) || [])[1]
+            || null;
+          if (rMtId !== mtId) return false;
+          const verdict = deriveValidatorAssessmentVerdict(r);
+          return verdict !== "PASS";
+        }).length;
+        if (steerCount >= MT_FIX_CYCLE_ESCALATION_THRESHOLD) {
+          console.warn(
+            `[WP_RECEIPT] MT fix cycle limit reached (${steerCount} STEER responses for ${mtId}). Escalating to orchestrator.`,
+          );
+          appendWpNotificationCore({
+            wpId: WP_ID,
+            sourceKind: "MT_FIX_CYCLE_ESCALATION",
+            sourceRole: entry.actor_role,
+            targetRole: "ORCHESTRATOR",
+            sourceSession: entry.actor_session,
+            correlationId: entry.correlation_id ?? null,
+            summary: `MT fix cycle limit reached: ${steerCount} STEER responses for ${mtId} without PASS. Review the repeated failure pattern.`,
+            timestamp: entry.timestamp_utc,
+          });
+        }
+      }
+    }
+  } catch (escalationError) {
+    // Best-effort: counter/escalation failure must not block the receipt write.
+    console.warn(`[WP_RECEIPT] MT fix cycle escalation check failed (non-fatal): ${escalationError?.message || escalationError}`);
+  }
+
   return { context, entry, autoRoute };
 }
 
