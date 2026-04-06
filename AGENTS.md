@@ -106,7 +106,7 @@
 - `handshake_main` (branch `main`) has a real `/.GOV/` copy as a stable backup, synced from the kernel by the Integration Validator by default, or by the Orchestrator when explicitly instructed by the Operator, using `just sync-gov-to-main`.
 - `wt-ilja` (branch `user_ilja`) is the permanent non-main user worktree created from `main`, so product code and root-level LLM files (`justfile`, `AGENTS.md`) come from `main`. Its inherited `/.GOV/` is then replaced with a junction to `../wt-gov-kernel/.GOV`.
 - Coder worktrees (`wtc-*`) follow the same pattern: create from `main`, then replace inherited `/.GOV/` with a junction by the worktree creation script.
-- WP worktree budget: 2 per WP (`CODER` worktree `wtc-*` + `WP_VALIDATOR` worktree `wtv-*`). WP Validator operates from a dedicated `wtv-*` validator worktree rooted from the coder branch; Integration Validator operates from `handshake_main` on `main`.
+- WP worktree budget: 1 per WP. Coder and WP Validator share the same `wtc-*` worktree on `feat/WP-{ID}` [CX-503G]. No separate `wtv-*` worktree needed — governance uses `.GOV/` junction. The per-MT stop pattern ensures only one role is active at a time. Integration Validator operates from `handshake_main` on `main`.
 - The Orchestrator MAY write to the governance kernel. During active multi-session steering, prefer deferring governance edits to reduce cognitive load.
 - Coders and WP Validators read governance through their junction and MUST NOT edit `/.GOV/` directly.
 - Sync responsibilities:
