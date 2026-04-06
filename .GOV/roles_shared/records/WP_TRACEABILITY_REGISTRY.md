@@ -248,6 +248,15 @@ Format:
 | WP-1-Distillation-Training-Pair-Extraction | .GOV/task_packets/stubs/WP-1-Distillation-Training-Pair-Extraction-v1.md | TBD | |
 | WP-1-Ollama-Local-Model-MT-Routing | .GOV/task_packets/stubs/WP-1-Ollama-Local-Model-MT-Routing-v1.md | TBD | |
 | WP-1-Visual-Debugging-Loop | .GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.md | TBD | |
+| WP-1-Product-Compile-Validation-Gate | .GOV/task_packets/stubs/WP-1-Product-Compile-Validation-Gate-v1.md | TBD | |
+| WP-1-Product-Red-Team-Agent | .GOV/task_packets/stubs/WP-1-Product-Red-Team-Agent-v1.md | TBD | |
+| WP-1-Product-MT-Lifecycle-Escalation | .GOV/task_packets/stubs/WP-1-Product-MT-Lifecycle-Escalation-v1.md | TBD | |
+| WP-1-Product-Session-Communication-Database | .GOV/task_packets/stubs/WP-1-Product-Session-Communication-Database-v1.md | TBD | |
+| WP-1-Product-MT-Task-Board | .GOV/task_packets/stubs/WP-1-Product-MT-Task-Board-v1.md | TBD | |
+| WP-1-Product-Failure-Knowledge-Base | .GOV/task_packets/stubs/WP-1-Product-Failure-Knowledge-Base-v1.md | TBD | |
+| WP-1-Product-Session-Health-Monitor | .GOV/task_packets/stubs/WP-1-Product-Session-Health-Monitor-v1.md | TBD | |
+| WP-1-Product-Role-Tool-Permissions | .GOV/task_packets/stubs/WP-1-Product-Role-Tool-Permissions-v1.md | TBD | |
+| WP-1-Product-MT-Quality-Gates | .GOV/task_packets/stubs/WP-1-Product-MT-Quality-Gates-v1.md | TBD | |
 
 ## Historical Failure + Live Smoketest Lineage
 
