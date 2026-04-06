@@ -1330,6 +1330,9 @@ pub struct ModelSession {
     pub capability_grants: Vec<String>,
     pub capability_token_ids: Option<Vec<String>>,
     pub job_id: Option<Uuid>,
+    pub checkpoint_artifact_id: Option<String>,
+    pub last_checkpoint_at: Option<DateTime<Utc>>,
+    pub checkpoint_count: i64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -1353,6 +1356,20 @@ pub struct NewModelSession {
     pub capability_grants: Vec<String>,
     pub capability_token_ids: Option<Vec<String>>,
     pub job_id: Option<Uuid>,
+    pub checkpoint_artifact_id: Option<String>,
+    pub last_checkpoint_at: Option<DateTime<Utc>>,
+    pub checkpoint_count: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SessionCheckpoint {
+    pub checkpoint_id: String,
+    pub session_id: String,
+    pub timestamp: DateTime<Utc>,
+    pub session_state_json: String,
+    pub message_thread_tail_id: String,
+    pub pending_tool_calls_json: String,
+    pub checkpoint_artifact_id: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1937,6 +1954,14 @@ pub trait Database: Send + Sync {
         state: ModelSessionState,
         job_id: Option<Uuid>,
     ) -> StorageResult<ModelSession>;
+    async fn create_session_checkpoint(
+        &self,
+        checkpoint: SessionCheckpoint,
+    ) -> StorageResult<SessionCheckpoint>;
+    async fn get_latest_session_checkpoint(
+        &self,
+        session_id: &str,
+    ) -> StorageResult<SessionCheckpoint>;
     async fn append_session_message(
         &self,
         message: NewSessionMessage,

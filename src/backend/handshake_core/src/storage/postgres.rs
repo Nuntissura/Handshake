@@ -11,8 +11,9 @@ use super::{
     ModelSessionState, MutationMetadata, NewAiJob, NewAsset, NewBlock, NewBronzeRecord, NewCanvas,
     NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewModelSession,
     NewNodeExecution, NewSessionMessage, NewSilverRecord, NewWorkspace, PlannedOperation,
-    PreviewStatus, SafetyMode, SessionMessage, SessionMessageRole, SilverRecord, StorageError,
-    StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
+    PreviewStatus, SafetyMode, SessionCheckpoint, SessionMessage, SessionMessageRole, SilverRecord,
+    StorageError, StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace,
+    WriteContext,
 };
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
@@ -974,6 +975,9 @@ impl PostgresDatabase {
                 capability_grants TEXT NOT NULL DEFAULT '[]',
                 capability_token_ids TEXT,
                 job_id TEXT,
+                checkpoint_artifact_id TEXT,
+                last_checkpoint_at TIMESTAMPTZ,
+                checkpoint_count INTEGER NOT NULL DEFAULT 0,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
@@ -989,6 +993,37 @@ impl PostgresDatabase {
         .await?;
         sqlx::query(
             "CREATE INDEX IF NOT EXISTS idx_model_sessions_parent ON model_sessions(parent_session_id)",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "ALTER TABLE model_sessions ADD COLUMN IF NOT EXISTS checkpoint_artifact_id TEXT",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "ALTER TABLE model_sessions ADD COLUMN IF NOT EXISTS last_checkpoint_at TIMESTAMPTZ",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "ALTER TABLE model_sessions ADD COLUMN IF NOT EXISTS checkpoint_count INTEGER NOT NULL DEFAULT 0",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS session_checkpoints (
+                checkpoint_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL REFERENCES model_sessions(session_id) ON DELETE CASCADE,
+                timestamp TIMESTAMPTZ NOT NULL,
+                session_state_json TEXT NOT NULL,
+                message_thread_tail_id TEXT NOT NULL,
+                pending_tool_calls_json TEXT NOT NULL,
+                checkpoint_artifact_id TEXT NOT NULL
+            )
+            "#,
         )
         .execute(&self.pool)
         .await?;
@@ -1275,6 +1310,9 @@ fn map_model_session(row: PgRow) -> StorageResult<ModelSession> {
     let grants_raw: String = row.get("capability_grants");
     let token_ids_raw: Option<String> = row.get("capability_token_ids");
     let job_id_raw: Option<String> = row.get("job_id");
+    let checkpoint_artifact_id: Option<String> = row.get("checkpoint_artifact_id");
+    let last_checkpoint_at = map_optional_timestamp(&row, "last_checkpoint_at");
+    let checkpoint_count: i64 = row.get("checkpoint_count");
 
     Ok(ModelSession {
         session_id: row.get("session_id"),
@@ -1302,8 +1340,23 @@ fn map_model_session(row: PgRow) -> StorageResult<ModelSession> {
             .map(Uuid::parse_str)
             .transpose()
             .map_err(|_| StorageError::Validation("invalid model session job_id"))?,
+        checkpoint_artifact_id,
+        last_checkpoint_at,
+        checkpoint_count,
         created_at: map_timestamp(&row, "created_at"),
         updated_at: map_timestamp(&row, "updated_at"),
+    })
+}
+
+fn map_session_checkpoint_row(row: PgRow) -> StorageResult<SessionCheckpoint> {
+    Ok(SessionCheckpoint {
+        checkpoint_id: row.get("checkpoint_id"),
+        session_id: row.get("session_id"),
+        timestamp: map_timestamp(&row, "timestamp"),
+        session_state_json: row.get("session_state_json"),
+        message_thread_tail_id: row.get("message_thread_tail_id"),
+        pending_tool_calls_json: row.get("pending_tool_calls_json"),
+        checkpoint_artifact_id: row.get("checkpoint_artifact_id"),
     })
 }
 
@@ -6054,10 +6107,13 @@ impl super::Database for PostgresDatabase {
                 capability_grants,
                 capability_token_ids,
                 job_id,
+                checkpoint_artifact_id,
+                last_checkpoint_at,
+                checkpoint_count,
                 created_at,
                 updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
             ON CONFLICT(session_id) DO UPDATE SET
                 parent_session_id = excluded.parent_session_id,
                 spawn_depth = excluded.spawn_depth,
@@ -6074,6 +6130,9 @@ impl super::Database for PostgresDatabase {
                 capability_grants = excluded.capability_grants,
                 capability_token_ids = excluded.capability_token_ids,
                 job_id = excluded.job_id,
+                checkpoint_artifact_id = excluded.checkpoint_artifact_id,
+                last_checkpoint_at = excluded.last_checkpoint_at,
+                checkpoint_count = excluded.checkpoint_count,
                 updated_at = excluded.updated_at
             WHERE model_sessions.memory_policy = excluded.memory_policy
             RETURNING
@@ -6094,6 +6153,9 @@ impl super::Database for PostgresDatabase {
                 capability_grants,
                 capability_token_ids,
                 job_id,
+                checkpoint_artifact_id,
+                last_checkpoint_at,
+                checkpoint_count,
                 created_at,
                 updated_at
             "#,
@@ -6109,15 +6171,18 @@ impl super::Database for PostgresDatabase {
         .bind(session.wp_id)
         .bind(session.mt_id)
         .bind(session.work_profile_id)
-        .bind(session.execution_mode)
-        .bind(session.memory_policy)
-        .bind(session.consent_receipt_id)
-        .bind(capability_grants)
-        .bind(capability_token_ids)
-        .bind(job_id)
-        .bind(now)
-        .bind(now)
-        .fetch_optional(&self.pool)
+                .bind(session.execution_mode)
+                .bind(session.memory_policy)
+                .bind(session.consent_receipt_id)
+                .bind(capability_grants)
+                .bind(capability_token_ids)
+                .bind(job_id)
+                .bind(session.checkpoint_artifact_id)
+                .bind(session.last_checkpoint_at)
+                .bind(session.checkpoint_count)
+                .bind(now)
+                .bind(now)
+                .fetch_optional(&self.pool)
         .await?;
 
         match row {
@@ -6165,6 +6230,9 @@ impl super::Database for PostgresDatabase {
                 capability_grants,
                 capability_token_ids,
                 job_id,
+                checkpoint_artifact_id,
+                last_checkpoint_at,
+                checkpoint_count,
                 created_at,
                 updated_at
             FROM model_sessions
@@ -6203,6 +6271,9 @@ impl super::Database for PostgresDatabase {
                 capability_grants,
                 capability_token_ids,
                 job_id,
+                checkpoint_artifact_id,
+                last_checkpoint_at,
+                checkpoint_count,
                 created_at,
                 updated_at
             FROM model_sessions
@@ -6252,6 +6323,9 @@ impl super::Database for PostgresDatabase {
                 capability_grants,
                 capability_token_ids,
                 job_id,
+                checkpoint_artifact_id,
+                last_checkpoint_at,
+                checkpoint_count,
                 created_at,
                 updated_at
             "#,
@@ -6266,6 +6340,76 @@ impl super::Database for PostgresDatabase {
         match row {
             Some(row) => map_model_session(row),
             None => Err(StorageError::NotFound("model_session")),
+        }
+    }
+
+    async fn create_session_checkpoint(
+        &self,
+        checkpoint: SessionCheckpoint,
+    ) -> StorageResult<SessionCheckpoint> {
+        self.ensure_model_session_schema().await?;
+        let row = sqlx::query(
+            r#"
+            INSERT INTO session_checkpoints (
+                checkpoint_id,
+                session_id,
+                timestamp,
+                session_state_json,
+                message_thread_tail_id,
+                pending_tool_calls_json,
+                checkpoint_artifact_id
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING
+                checkpoint_id,
+                session_id,
+                timestamp,
+                session_state_json,
+                message_thread_tail_id,
+                pending_tool_calls_json,
+                checkpoint_artifact_id
+            "#,
+        )
+        .bind(checkpoint.checkpoint_id)
+        .bind(checkpoint.session_id)
+        .bind(checkpoint.timestamp)
+        .bind(checkpoint.session_state_json)
+        .bind(checkpoint.message_thread_tail_id)
+        .bind(checkpoint.pending_tool_calls_json)
+        .bind(checkpoint.checkpoint_artifact_id)
+        .fetch_one(&self.pool)
+        .await?;
+        map_session_checkpoint_row(row)
+    }
+
+    async fn get_latest_session_checkpoint(
+        &self,
+        session_id: &str,
+    ) -> StorageResult<SessionCheckpoint> {
+        self.ensure_model_session_schema().await?;
+        let row = sqlx::query(
+            r#"
+            SELECT
+                checkpoint_id,
+                session_id,
+                timestamp,
+                session_state_json,
+                message_thread_tail_id,
+                pending_tool_calls_json,
+                checkpoint_artifact_id
+            FROM session_checkpoints
+            WHERE session_id = $1
+            ORDER BY timestamp DESC, checkpoint_id DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(session_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => map_session_checkpoint_row(row),
+            None => Err(StorageError::NotFound("session_checkpoint")),
         }
     }
 

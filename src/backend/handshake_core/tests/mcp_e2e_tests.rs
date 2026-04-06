@@ -320,6 +320,9 @@ async fn run_mcp_e2e(db: Arc<dyn Database>) -> Result<(), Box<dyn std::error::Er
         capability_grants: vec!["fs.read".to_string()],
         capability_token_ids: None,
         job_id: Some(job.job_id),
+        checkpoint_artifact_id: None,
+        last_checkpoint_at: None,
+        checkpoint_count: 0,
     })
     .await?;
 

@@ -26,7 +26,8 @@ use crate::{
     },
     flight_recorder::{
         EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
-        FrEvt008SecurityViolation, FrEvtWorkflowRecovery,
+        FrEvt008SecurityViolation, FrEvtSessionCheckpointCreated, FrEvtSessionRecoveryAttempted,
+        FrEvtWorkflowRecovery,
     },
     governance_pack::{export_governance_pack, GovernancePackExportRequest},
     llm::{
@@ -5241,6 +5242,155 @@ pub fn get_violation_type(error: &AceError) -> SecurityViolationType {
     }
 }
 
+pub async fn create_session_checkpoint(
+    state: &AppState,
+    session_id: &str,
+    reason: &str,
+) -> Result<ModelSession, WorkflowError> {
+    let session = state.storage.get_model_session(session_id).await?;
+    let messages = state.storage.list_session_messages(session_id).await?;
+
+    let now = Utc::now();
+    let checkpoint_id = Uuid::new_v4().to_string();
+    let checkpoint_artifact_id = Uuid::new_v4().to_string();
+    let session_state_json = serde_json::to_string(&session)?;
+    let message_thread_tail_id = messages
+        .last()
+        .map(|message| message.message_id.clone())
+        .unwrap_or_else(|| session_id.to_string());
+    let pending_tool_call_ids: Vec<String> = messages
+        .iter()
+        .filter(|message| matches!(message.role, SessionMessageRole::ToolCall))
+        .filter_map(|message| message.tool_call_id.clone())
+        .collect();
+    let pending_tool_calls_json = serde_json::to_string(&pending_tool_call_ids)?;
+
+    let checkpoint = SessionCheckpoint {
+        checkpoint_id: checkpoint_id.clone(),
+        session_id: session_id.to_string(),
+        timestamp: now,
+        session_state_json,
+        message_thread_tail_id: message_thread_tail_id.clone(),
+        pending_tool_calls_json,
+        checkpoint_artifact_id: checkpoint_artifact_id.clone(),
+    };
+    state.storage.create_session_checkpoint(checkpoint).await?;
+
+    let session = state
+        .storage
+        .upsert_model_session(NewModelSession {
+            session_id: session.session_id,
+            parent_session_id: session.parent_session_id,
+            spawn_depth: session.spawn_depth,
+            state: session.state,
+            model_id: session.model_id,
+            backend: session.backend,
+            parameter_class: session.parameter_class,
+            role: session.role,
+            wp_id: session.wp_id,
+            mt_id: session.mt_id,
+            work_profile_id: session.work_profile_id,
+            execution_mode: session.execution_mode,
+            memory_policy: session.memory_policy,
+            consent_receipt_id: session.consent_receipt_id,
+            capability_grants: session.capability_grants,
+            capability_token_ids: session.capability_token_ids,
+            job_id: session.job_id,
+            checkpoint_artifact_id: Some(checkpoint_artifact_id.clone()),
+            last_checkpoint_at: Some(now),
+            checkpoint_count: session.checkpoint_count.saturating_add(1),
+        })
+        .await?;
+    state.session_registry.upsert_session(session.clone()).await;
+
+    let payload = FrEvtSessionCheckpointCreated {
+        event_id: "FR-EVT-MT-002-001".to_string(),
+        session_id: session_id.to_string(),
+        checkpoint_id,
+        checkpoint_artifact_id,
+        message_thread_tail_id,
+        reason: reason.to_string(),
+        checkpointed_at: now.to_rfc3339(),
+        pending_tool_call_count: pending_tool_call_ids.len(),
+        thread_message_count: messages.len(),
+    };
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionCheckpointCreated,
+            FlightRecorderActor::System,
+            Uuid::new_v4(),
+            serde_json::to_value(&payload).unwrap_or(json!({})),
+        ),
+    )
+    .await;
+
+    Ok(session)
+}
+
+pub async fn recover_session_from_checkpoint(
+    state: &AppState,
+    session_id: &str,
+) -> Result<ModelSession, WorkflowError> {
+    let checkpoint = state.storage.get_latest_session_checkpoint(session_id).await?;
+    let checkpointed_session: ModelSession = serde_json::from_str(&checkpoint.session_state_json).map_err(
+        |err| {
+            WorkflowError::Terminal(format!(
+                "failed to deserialize checkpoint session state for {session_id}: {err}"
+            ))
+        },
+    )?;
+
+    let session = state
+        .storage
+        .upsert_model_session(NewModelSession {
+            session_id: checkpointed_session.session_id,
+            parent_session_id: checkpointed_session.parent_session_id,
+            spawn_depth: checkpointed_session.spawn_depth,
+            state: ModelSessionState::Paused,
+            model_id: checkpointed_session.model_id,
+            backend: checkpointed_session.backend,
+            parameter_class: checkpointed_session.parameter_class,
+            role: checkpointed_session.role,
+            wp_id: checkpointed_session.wp_id,
+            mt_id: checkpointed_session.mt_id,
+            work_profile_id: checkpointed_session.work_profile_id,
+            execution_mode: checkpointed_session.execution_mode,
+            memory_policy: checkpointed_session.memory_policy,
+            consent_receipt_id: checkpointed_session.consent_receipt_id,
+            capability_grants: checkpointed_session.capability_grants,
+            capability_token_ids: checkpointed_session.capability_token_ids,
+            job_id: checkpointed_session.job_id,
+            checkpoint_artifact_id: Some(checkpoint.checkpoint_artifact_id.clone()),
+            last_checkpoint_at: Some(checkpoint.timestamp),
+            checkpoint_count: checkpointed_session.checkpoint_count,
+        })
+        .await?;
+    state.session_registry.upsert_session(session.clone()).await;
+
+    let payload = FrEvtSessionRecoveryAttempted {
+        event_id: "FR-EVT-MT-002-002".to_string(),
+        session_id: session_id.to_string(),
+        checkpoint_id: checkpoint.checkpoint_id,
+        checkpoint_artifact_id: checkpoint.checkpoint_artifact_id,
+        checkpointed_at: checkpoint.timestamp.to_rfc3339(),
+        previous_state: checkpointed_session.state.as_str().to_string(),
+        reason: "crash_recovery".to_string(),
+    };
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionRecoveryAttempted,
+            FlightRecorderActor::System,
+            Uuid::new_v4(),
+            serde_json::to_value(&payload).unwrap_or(json!({})),
+        ),
+    )
+    .await;
+
+    Ok(session)
+}
+
 pub async fn mark_stalled_workflows(
     state: &AppState,
     threshold_secs: u64,
@@ -5300,6 +5450,51 @@ pub async fn mark_stalled_workflows(
             .with_workflow_id(run.id.to_string()),
         )
         .await;
+    }
+
+    let running_jobs = state
+        .storage
+        .list_ai_jobs(AiJobListFilter {
+            status: Some(JobState::Running),
+            job_kind: Some(JobKind::ModelRun),
+            ..Default::default()
+        })
+        .await?;
+    let running_job_ids: HashSet<Uuid> = running_jobs.into_iter().map(|job| job.job_id).collect();
+
+    let active_sessions_snapshot = state.session_registry.snapshot().await;
+    let active_sessions: Vec<_> = active_sessions_snapshot
+        .active_sessions
+        .values()
+        .cloned()
+        .filter(|session| matches!(session.state, ModelSessionState::Active))
+        .collect();
+
+    for session in active_sessions {
+        let has_live_process = session
+            .job_id
+            .as_ref()
+            .map(|job_id| running_job_ids.contains(job_id))
+            .unwrap_or(false);
+
+        if has_live_process {
+            continue;
+        }
+
+        tracing::warn!(
+            target: "handshake_core::recovery",
+            session_id = %session.session_id,
+            "session orphaned from running ACP/broker process; recovering from checkpoint"
+        );
+
+        if let Err(err) = recover_session_from_checkpoint(state, &session.session_id).await {
+            tracing::warn!(
+                target: "handshake_core::recovery",
+                session_id = %session.session_id,
+                error = %err,
+                "orphaned session recovery failed"
+            );
+        }
     }
 
     Ok(stalled)
@@ -5651,6 +5846,9 @@ async fn ensure_model_session_artifact_refs(
             capability_grants: metadata.capability_grants.clone(),
             capability_token_ids: metadata.capability_token_ids.clone(),
             job_id: Some(job.job_id),
+            checkpoint_artifact_id: None,
+            last_checkpoint_at: None,
+            checkpoint_count: 0,
         })
         .await?;
     state.session_registry.upsert_session(session).await;
@@ -24831,6 +25029,49 @@ mod tests {
         assert_eq!(display_orders, vec![0, 1]);
 
         Ok(())
+    async fn create_test_model_session(
+        state: &AppState,
+        session_state: ModelSessionState,
+        job_id: Option<Uuid>,
+    ) -> Result<ModelSession, Box<dyn std::error::Error>> {
+        let session = state
+            .storage
+            .upsert_model_session(NewModelSession {
+                session_id: Uuid::new_v4().to_string(),
+                parent_session_id: None,
+                spawn_depth: 0,
+                state: session_state,
+                model_id: "test-model".to_string(),
+                backend: "test-backend".to_string(),
+                parameter_class: "default".to_string(),
+                role: "assistant".to_string(),
+                wp_id: Some("WP-RECOVERY".to_string()),
+                mt_id: Some("MT-004".to_string()),
+                work_profile_id: Some("default".to_string()),
+                execution_mode: "analysis".to_string(),
+                memory_policy: "default".to_string(),
+                consent_receipt_id: None,
+                capability_grants: vec!["test".to_string()],
+                capability_token_ids: None,
+                job_id,
+                checkpoint_artifact_id: None,
+                last_checkpoint_at: None,
+                checkpoint_count: 0,
+            })
+            .await?;
+
+        Ok(session)
+    }
+
+    fn find_session_recovery_event(
+        events: &[FlightRecorderEvent],
+        session_id: &str,
+    ) -> Option<FrEvtSessionRecoveryAttempted> {
+        events
+            .iter()
+            .filter(|event| event.event_type == FlightRecorderEventType::SessionRecoveryAttempted)
+            .filter_map(|event| serde_json::from_value(event.payload.clone()).ok())
+            .find(|payload: &FrEvtSessionRecoveryAttempted| payload.session_id == session_id)
     }
 
     fn terminal_command() -> (String, Vec<String>) {
@@ -25440,6 +25681,141 @@ mod tests {
         assert_eq!(payload.to_state, "stalled");
         assert_eq!(payload.threshold_secs, 30);
         assert_eq!(payload.last_heartbeat_ts, run.last_heartbeat.to_rfc3339());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_create_session_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let session = create_test_model_session(&state, ModelSessionState::Created, None).await?;
+
+        let checkpointed = create_session_checkpoint(&state, &session.session_id, "integration").await?;
+        assert!(
+            checkpointed
+                .checkpoint_artifact_id
+                .as_ref()
+                .is_some_and(|id| !id.is_empty())
+        );
+
+        let refreshed = state.storage.get_model_session(&session.session_id).await?;
+        assert!(matches!(refreshed.state, ModelSessionState::Created));
+        assert_eq!(
+            refreshed.checkpoint_artifact_id,
+            checkpointed.checkpoint_artifact_id
+        );
+        assert!(refreshed.last_checkpoint_at.is_some());
+
+        let checkpoint = state
+            .storage
+            .get_latest_session_checkpoint(&session.session_id)
+            .await?;
+        assert_eq!(checkpoint.session_id, session.session_id);
+        assert_eq!(checkpoint.checkpoint_artifact_id, refreshed.checkpoint_artifact_id.unwrap());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_recover_session_from_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let session = create_test_model_session(&state, ModelSessionState::Active, None).await?;
+
+        let checkpoint = state
+            .storage
+            .get_latest_session_checkpoint(&session.session_id)
+            .await;
+        assert!(checkpoint.is_err());
+
+        create_session_checkpoint(&state, &session.session_id, "integration").await?;
+        let recovered = recover_session_from_checkpoint(&state, &session.session_id).await?;
+        assert!(matches!(recovered.state, ModelSessionState::Paused));
+
+        let updated = state.storage.get_model_session(&session.session_id).await?;
+        assert!(matches!(updated.state, ModelSessionState::Paused));
+        assert_eq!(updated.checkpoint_artifact_id, recovered.checkpoint_artifact_id);
+
+        let events = state
+            .flight_recorder
+            .list_events(EventFilter::default())
+            .await?;
+        let recovery_event = find_session_recovery_event(&events, &session.session_id)
+            .ok_or_else(|| "Recovery event not found in Flight Recorder".to_string())?;
+        assert_eq!(recovery_event.reason, "crash_recovery");
+        assert_eq!(recovery_event.previous_state, ModelSessionState::Active.as_str());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_mark_stalled_workflows_recovers_orphaned_active_session(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::new_v4(),
+                job_kind: JobKind::ModelRun,
+                protocol_id: "protocol-default".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "Analyst".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "orphaned_recovery".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: None,
+            })
+            .await?;
+
+        let session = create_test_model_session(
+            &state,
+            ModelSessionState::Active,
+            Some(job.job_id),
+        )
+        .await?;
+        create_session_checkpoint(&state, &session.session_id, "integration").await?;
+
+        let recovered = mark_stalled_workflows(&state, 30, true).await?;
+        assert_eq!(recovered.len(), 0);
+
+        let updated = state.storage.get_model_session(&session.session_id).await?;
+        assert!(matches!(updated.state, ModelSessionState::Paused));
+
+        let events = state
+            .flight_recorder
+            .list_events(EventFilter::default())
+            .await?;
+        let recovery_event = find_session_recovery_event(&events, &session.session_id)
+            .ok_or_else(|| "Recovery event not found in Flight Recorder".to_string())?;
+        assert_eq!(recovery_event.reason, "crash_recovery");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_recover_session_from_checkpoint_idempotent(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let session = create_test_model_session(&state, ModelSessionState::Active, None).await?;
+        create_session_checkpoint(&state, &session.session_id, "integration").await?;
+
+        let checkpoint_before = state
+            .storage
+            .get_latest_session_checkpoint(&session.session_id)
+            .await?;
+        let first = recover_session_from_checkpoint(&state, &session.session_id).await?;
+        let second = recover_session_from_checkpoint(&state, &session.session_id).await?;
+
+        let checkpoint_after = state
+            .storage
+            .get_latest_session_checkpoint(&session.session_id)
+            .await?;
+        assert!(matches!(first.state, ModelSessionState::Paused));
+        assert!(matches!(second.state, ModelSessionState::Paused));
+        assert_eq!(first.checkpoint_artifact_id, second.checkpoint_artifact_id);
+        assert_eq!(checkpoint_before.checkpoint_id, checkpoint_after.checkpoint_id);
 
         Ok(())
     }

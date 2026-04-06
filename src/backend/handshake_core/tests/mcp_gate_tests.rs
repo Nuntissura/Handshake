@@ -803,6 +803,9 @@ async fn mcp_tool_call_allows_when_session_scoped_grants_satisfy_required_caps(
         capability_grants: vec!["fs.read".to_string()],
         capability_token_ids: None,
         job_id: Some(job_id),
+        checkpoint_artifact_id: None,
+        last_checkpoint_at: None,
+        checkpoint_count: 0,
     })
     .await?;
 
@@ -890,6 +893,9 @@ async fn mcp_tool_call_denies_when_session_scoped_grants_do_not_satisfy_required
         capability_grants: Vec::new(),
         capability_token_ids: None,
         job_id: Some(job_id),
+        checkpoint_artifact_id: None,
+        last_checkpoint_at: None,
+        checkpoint_count: 0,
     })
     .await?;
 
@@ -1052,6 +1058,9 @@ async fn mcp_tool_call_denies_and_records_tool_call_when_child_session_widens_vs
         capability_grants: Vec::new(),
         capability_token_ids: None,
         job_id: None,
+        checkpoint_artifact_id: None,
+        last_checkpoint_at: None,
+        checkpoint_count: 0,
     })
     .await?;
 
@@ -1073,6 +1082,9 @@ async fn mcp_tool_call_denies_and_records_tool_call_when_child_session_widens_vs
         capability_grants: vec!["fs.read".to_string()],
         capability_token_ids: None,
         job_id: Some(job_id),
+        checkpoint_artifact_id: None,
+        last_checkpoint_at: None,
+        checkpoint_count: 0,
     })
     .await?;
 

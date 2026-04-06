@@ -1602,6 +1602,9 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
             capability_grants: Vec::new(),
             capability_token_ids: None,
             job_id: Some(Uuid::new_v4()),
+            checkpoint_artifact_id: None,
+            last_checkpoint_at: None,
+            checkpoint_count: 0,
         })
         .await?;
     assert_eq!(created.memory_policy, "full");
@@ -1626,6 +1629,9 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
             capability_grants: Vec::new(),
             capability_token_ids: None,
             job_id: Some(Uuid::new_v4()),
+            checkpoint_artifact_id: None,
+            last_checkpoint_at: None,
+            checkpoint_count: 0,
         })
         .await
         .expect_err("expected immutability violation");

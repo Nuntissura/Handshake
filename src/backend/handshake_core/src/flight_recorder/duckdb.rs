@@ -921,6 +921,12 @@ impl DuckDbFlightRecorder {
                 "session.spawn_rejected" => super::FlightRecorderEventType::SessionSpawnRejected,
                 "session.announce_back" => super::FlightRecorderEventType::SessionSpawnAnnounceBack,
                 "session.cascade_cancel" => super::FlightRecorderEventType::SessionCascadeCancel,
+                "session_checkpoint_created" => {
+                    super::FlightRecorderEventType::SessionCheckpointCreated
+                }
+                "session_recovery_attempted" => {
+                    super::FlightRecorderEventType::SessionRecoveryAttempted
+                }
                 "capability_action" => {
                     if payload_type == Some("terminal_command") {
                         super::FlightRecorderEventType::TerminalCommand

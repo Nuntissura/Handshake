@@ -169,6 +169,9 @@ pub enum FlightRecorderEventType {
     SessionSpawnRejected,
     SessionSpawnAnnounceBack,
     SessionCascadeCancel,
+    /// FR-EVT-MT-002: Model-session checkpoint lifecycle
+    SessionCheckpointCreated,
+    SessionRecoveryAttempted,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -352,6 +355,11 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::SessionCascadeCancel => {
                 write!(f, "session.cascade_cancel")
+            FlightRecorderEventType::SessionCheckpointCreated => {
+                write!(f, "session_checkpoint_created")
+            }
+            FlightRecorderEventType::SessionRecoveryAttempted => {
+                write!(f, "session_recovery_attempted")
             }
         }
     }
@@ -868,6 +876,21 @@ impl FlightRecorderEvent {
             }
             FlightRecorderEventType::SessionCascadeCancel => {
                 validate_session_cascade_cancel_payload(&self.payload)
+            FlightRecorderEventType::SessionCheckpointCreated => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "session_checkpoint_created actor must be system".to_string(),
+                    ));
+                }
+                validate_session_checkpoint_created_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionRecoveryAttempted => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "session_recovery_attempted actor must be system".to_string(),
+                    ));
+                }
+                validate_session_recovery_attempted_payload(&self.payload)
             }
             _ => Ok(()),
         }
@@ -4303,6 +4326,60 @@ fn validate_session_cascade_cancel_payload(payload: &Value) -> Result<(), Record
     )?;
     require_safe_token_string(map, "root_session_id", 256)?;
     require_string_array_allow_empty(map, "cancelled_session_ids")?;
+fn validate_session_checkpoint_created_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &[
+            "type",
+            "event_id",
+            "session_id",
+            "checkpoint_id",
+            "checkpoint_artifact_id",
+            "message_thread_tail_id",
+            "reason",
+            "checkpointed_at",
+            "pending_tool_call_count",
+            "thread_message_count",
+        ],
+        &[],
+    )?;
+    require_fixed_string(map, "type", "session_checkpoint_created")?;
+    require_fixed_string(map, "event_id", "FR-EVT-MT-002-001")?;
+    require_string(map, "session_id")?;
+    require_uuid_string_non_nil(map, "checkpoint_id")?;
+    require_string(map, "checkpoint_artifact_id")?;
+    require_string(map, "message_thread_tail_id")?;
+    require_string(map, "reason")?;
+    require_string(map, "checkpointed_at")?;
+    require_non_negative_integer(map, "pending_tool_call_count")?;
+    require_non_negative_integer(map, "thread_message_count")?;
+    Ok(())
+}
+
+fn validate_session_recovery_attempted_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &[
+            "type",
+            "event_id",
+            "session_id",
+            "checkpoint_id",
+            "checkpoint_artifact_id",
+            "checkpointed_at",
+            "previous_state",
+            "reason",
+        ],
+        &[],
+    )?;
+    require_fixed_string(map, "type", "session_recovery_attempted")?;
+    require_fixed_string(map, "event_id", "FR-EVT-MT-002-002")?;
+    require_string(map, "session_id")?;
+    require_uuid_string_non_nil(map, "checkpoint_id")?;
+    require_string(map, "checkpoint_artifact_id")?;
+    require_string(map, "checkpointed_at")?;
+    require_string(map, "previous_state")?;
     require_string(map, "reason")?;
     Ok(())
 }
@@ -5315,6 +5392,32 @@ pub struct FrEvtWorkflowRecovery {
     pub reason: String,
     pub last_heartbeat_ts: String,
     pub threshold_secs: u64,
+}
+
+/// FR-EVT-MT-002: Session checkpoint creation event payload
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrEvtSessionCheckpointCreated {
+    pub event_id: String,
+    pub session_id: String,
+    pub checkpoint_id: String,
+    pub checkpoint_artifact_id: String,
+    pub message_thread_tail_id: String,
+    pub reason: String,
+    pub checkpointed_at: String,
+    pub pending_tool_call_count: usize,
+    pub thread_message_count: usize,
+}
+
+/// FR-EVT-MT-002: Session recovery attempt event payload
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrEvtSessionRecoveryAttempted {
+    pub event_id: String,
+    pub session_id: String,
+    pub checkpoint_id: String,
+    pub checkpoint_artifact_id: String,
+    pub checkpointed_at: String,
+    pub previous_state: String,
+    pub reason: String,
 }
 
 /// FR-EVT-001: Terminal command event payload [A10.1.1]
