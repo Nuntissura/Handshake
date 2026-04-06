@@ -186,6 +186,15 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Distillation-Training-Pair-Extraction-v1]** - [STUB]
 - **[WP-1-Ollama-Local-Model-MT-Routing-v1]** - [STUB]
 - **[WP-1-Visual-Debugging-Loop-v1]** - [STUB]
+- **[WP-1-Product-Compile-Validation-Gate-v1]** - [STUB]
+- **[WP-1-Product-Red-Team-Agent-v1]** - [STUB]
+- **[WP-1-Product-MT-Lifecycle-Escalation-v1]** - [STUB]
+- **[WP-1-Product-Session-Communication-Database-v1]** - [STUB]
+- **[WP-1-Product-MT-Task-Board-v1]** - [STUB]
+- **[WP-1-Product-Failure-Knowledge-Base-v1]** - [STUB]
+- **[WP-1-Product-Session-Health-Monitor-v1]** - [STUB]
+- **[WP-1-Product-Role-Tool-Permissions-v1]** - [STUB]
+- **[WP-1-Product-MT-Quality-Gates-v1]** - [STUB]
 
 
 - **[WP-1-Charts-Dashboards-Backfill-v1]** - [STUB]
