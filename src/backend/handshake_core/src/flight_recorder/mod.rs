@@ -163,6 +163,12 @@ pub enum FlightRecorderEventType {
     SessionSchedulerDispatch,
     SessionSchedulerRateLimited,
     SessionSchedulerCancelled,
+    /// FR-EVT-SESS-SPAWN-001..005: Session Spawn events [4.3.9.14]
+    SessionSpawnRequested,
+    SessionSpawnAccepted,
+    SessionSpawnRejected,
+    SessionSpawnAnnounceBack,
+    SessionCascadeCancel,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -331,6 +337,21 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::SessionSchedulerCancelled => {
                 write!(f, "session_scheduler.cancelled")
+            }
+            FlightRecorderEventType::SessionSpawnRequested => {
+                write!(f, "session.spawn_requested")
+            }
+            FlightRecorderEventType::SessionSpawnAccepted => {
+                write!(f, "session.spawn_accepted")
+            }
+            FlightRecorderEventType::SessionSpawnRejected => {
+                write!(f, "session.spawn_rejected")
+            }
+            FlightRecorderEventType::SessionSpawnAnnounceBack => {
+                write!(f, "session.announce_back")
+            }
+            FlightRecorderEventType::SessionCascadeCancel => {
+                write!(f, "session.cascade_cancel")
             }
         }
     }
@@ -825,6 +846,21 @@ impl FlightRecorderEvent {
             }
             FlightRecorderEventType::SessionSchedulerCancelled => {
                 validate_session_scheduler_cancelled_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionSpawnRequested => {
+                validate_session_spawn_requested_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionSpawnAccepted => {
+                validate_session_spawn_accepted_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionSpawnRejected => {
+                validate_session_spawn_rejected_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionSpawnAnnounceBack => {
+                validate_session_spawn_announce_back_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionCascadeCancel => {
+                validate_session_cascade_cancel_payload(&self.payload)
             }
             _ => Ok(()),
         }
@@ -4130,6 +4166,140 @@ fn validate_session_scheduler_cancelled_payload(payload: &Value) -> Result<(), R
     Ok(())
 }
 
+fn validate_session_spawn_common_payload(
+    map: &Map<String, Value>,
+    expected_type: &str,
+    expected_event_id: &str,
+    required: &[&str],
+) -> Result<(), RecorderError> {
+    require_allowed_keys(map, required, &[])?;
+    require_fixed_string(map, "type", expected_type)?;
+    require_fixed_string(map, "event_id", expected_event_id)?;
+    Ok(())
+}
+
+fn validate_session_spawn_requested_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_spawn_common_payload(
+        map,
+        "session.spawn_requested",
+        "FR-EVT-SESS-SPAWN-001",
+        &[
+            "type",
+            "event_id",
+            "requester_session_id",
+            "child_role",
+            "spawn_depth",
+            "spawn_mode",
+        ],
+    )?;
+    require_safe_token_string(map, "requester_session_id", 256)?;
+    require_safe_token_string(map, "child_role", 128)?;
+    require_non_negative_integer(map, "spawn_depth")?;
+    require_safe_token_string(map, "spawn_mode", 128)?;
+    Ok(())
+}
+
+fn validate_session_spawn_accepted_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_spawn_common_payload(
+        map,
+        "session.spawn_accepted",
+        "FR-EVT-SESS-SPAWN-002",
+        &[
+            "type",
+            "event_id",
+            "requester_session_id",
+            "child_session_id",
+            "child_role",
+            "spawn_depth",
+        ],
+    )?;
+    require_safe_token_string(map, "requester_session_id", 256)?;
+    require_safe_token_string(map, "child_session_id", 256)?;
+    require_safe_token_string(map, "child_role", 128)?;
+    require_non_negative_integer(map, "spawn_depth")?;
+    Ok(())
+}
+
+fn validate_session_spawn_rejected_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_spawn_common_payload(
+        map,
+        "session.spawn_rejected",
+        "FR-EVT-SESS-SPAWN-003",
+        &[
+            "type",
+            "event_id",
+            "requester_session_id",
+            "rejection_reason",
+            "spawn_depth",
+            "active_children_count",
+        ],
+    )?;
+    require_safe_token_string(map, "requester_session_id", 256)?;
+    require_string(map, "rejection_reason")?;
+    require_non_negative_integer(map, "spawn_depth")?;
+    require_non_negative_integer(map, "active_children_count")?;
+    Ok(())
+}
+
+fn validate_session_spawn_announce_back_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_spawn_common_payload(
+        map,
+        "session.announce_back",
+        "FR-EVT-SESS-SPAWN-004",
+        &[
+            "type",
+            "event_id",
+            "child_session_id",
+            "requester_session_id",
+            "status",
+            "summary_artifact_id",
+            "mailbox_message_id",
+        ],
+    )?;
+    require_safe_token_string(map, "child_session_id", 256)?;
+    require_safe_token_string(map, "requester_session_id", 256)?;
+    match require_key(map, "status")? {
+        Value::String(status) if status == "completed" || status == "failed" || status == "cancelled" => {}
+        Value::String(_) => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field status must be one of completed|failed|cancelled".to_string(),
+            ))
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field status must be a string".to_string(),
+            ))
+        }
+    }
+    require_safe_token_string_or_null(map, "summary_artifact_id", 256)?;
+    require_safe_token_string(map, "mailbox_message_id", 256)?;
+    Ok(())
+}
+
+fn validate_session_cascade_cancel_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_spawn_common_payload(
+        map,
+        "session.cascade_cancel",
+        "FR-EVT-SESS-SPAWN-005",
+        &[
+            "type",
+            "event_id",
+            "root_session_id",
+            "cancelled_session_ids",
+            "reason",
+        ],
+    )?;
+    require_safe_token_string(map, "root_session_id", 256)?;
+    require_string_array_allow_empty(map, "cancelled_session_ids")?;
+    require_string(map, "reason")?;
+    Ok(())
+}
+
 fn validate_editor_edit_payload(payload: &Value) -> Result<(), RecorderError> {
     let map = payload_object(payload)?;
     require_string(map, "editor_surface")?;
@@ -4303,7 +4473,8 @@ fn validate_role_id_string(value: &str) -> Result<(), RecorderError> {
 
 fn validate_mailbox_message_type(value: &str) -> Result<(), RecorderError> {
     match value {
-        "clarification_request"
+        "announce_back"
+        | "clarification_request"
         | "clarification_response"
         | "scope_risk"
         | "scope_change_proposal"
@@ -4317,7 +4488,21 @@ fn validate_mailbox_message_type(value: &str) -> Result<(), RecorderError> {
         | "tooling_result"
         | "fyi" => Ok(()),
         _ => Err(RecorderError::InvalidEvent(format!(
-            "payload field message_type has invalid value: {value}"
+        "payload field message_type has invalid value: {value}"
+        ))),
+    }
+}
+
+fn require_safe_token_string_or_null(
+    map: &Map<String, Value>,
+    key: &str,
+    max_len: usize,
+) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::Null => Ok(()),
+        Value::String(value) if is_safe_token(value, max_len) => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a safe token string or null"
         ))),
     }
 }

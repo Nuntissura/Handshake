@@ -330,6 +330,8 @@ pub enum RoutingStrategy {
     WorkProfileDriven,
 }
 
+const SESSION_SPAWN_SCHEMA_VERSION_V1: &str = "hsk.session_spawn@1.0";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoutingPolicy {
     pub strategy: RoutingStrategy,
@@ -346,6 +348,116 @@ impl Default for RoutingPolicy {
             broadcast_max_targets: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub struct SessionSpawnRequest {
+    pub schema_version: String,
+    pub session_id: String,
+    #[serde(default)]
+    pub parent_session_id: Option<String>,
+    pub spawn_depth: i32,
+    #[serde(default)]
+    pub capability_grants: Vec<String>,
+    #[serde(default)]
+    pub capability_token_ids: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub struct SessionSpawnResponse {
+    pub allowed: bool,
+    #[serde(default)]
+    pub reasons: Vec<String>,
+}
+
+impl SessionSpawnResponse {
+    fn deny(reason: impl Into<String>) -> Self {
+        Self {
+            allowed: false,
+            reasons: vec![reason.into()],
+        }
+    }
+
+    fn allow() -> Self {
+        Self {
+            allowed: true,
+            reasons: Vec::new(),
+        }
+    }
+}
+
+fn normalize_session_spawn_capability_grants(
+    mut grants: Vec<String>,
+    token_ids: Option<Vec<String>>,
+) -> Vec<String> {
+    if let Some(tokens) = token_ids {
+        grants.extend(tokens);
+    }
+
+    for cap in &mut grants {
+        *cap = cap.trim().to_string();
+    }
+    grants.retain(|cap| !cap.is_empty());
+    grants.sort();
+    grants.dedup();
+    grants
+}
+
+pub fn validate_spawn_request(
+    request: &SessionSpawnRequest,
+    parent_session: Option<&crate::storage::ModelSession>,
+    parent_children: usize,
+    limits: &SpawnLimits,
+) -> SessionSpawnResponse {
+    if request.schema_version != SESSION_SPAWN_SCHEMA_VERSION_V1 {
+        return SessionSpawnResponse::deny(format!(
+            "INV-SPAWN-001: invalid schema_version expected {} got {}",
+            SESSION_SPAWN_SCHEMA_VERSION_V1,
+            request.schema_version
+        ));
+    }
+
+    if request.spawn_depth < 0 {
+        return SessionSpawnResponse::deny("INV-SPAWN-001: spawn_depth must be non-negative");
+    }
+    if request.spawn_depth > limits.max_spawn_depth {
+        return SessionSpawnResponse::deny("INV-SPAWN-001: spawn_depth exceeds max_spawn_depth");
+    }
+
+    let Some(parent_session) = parent_session else {
+        return SessionSpawnResponse::allow();
+    };
+
+    if parent_children >= limits.max_active_children_per_session as usize {
+        return SessionSpawnResponse::deny(
+            "INV-SPAWN-002: parent session already at max_active_children_per_session",
+        );
+    }
+
+    let child_grants = normalize_session_spawn_capability_grants(
+        request.capability_grants.clone(),
+        request.capability_token_ids.clone(),
+    );
+    let parent_set: std::collections::HashSet<String> = normalize_session_spawn_capability_grants(
+        parent_session.capability_grants.clone(),
+        parent_session.capability_token_ids.clone(),
+    )
+    .into_iter()
+    .collect();
+
+    if let Some(denied_capability) = child_grants
+        .iter()
+        .find(|cap| !parent_set.contains(cap.as_str()))
+    {
+        return SessionSpawnResponse::deny(format!(
+            "TRUST-003: child request capability {} exceeds parent session grants",
+            denied_capability
+        ));
+    }
+
+    SessionSpawnResponse::allow()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -431,6 +543,39 @@ impl SessionRegistry {
             config.rate_limit_tokens_per_minute,
         );
         inner.multi_model_session.scheduler_config = config;
+    }
+
+    pub async fn spawn_limits(&self) -> SpawnLimits {
+        let inner = self.inner.read().await;
+        inner.multi_model_session.spawn_limits.clone()
+    }
+
+    pub async fn active_children_for_parent(&self, parent_session_id: &str) -> usize {
+        let inner = self.inner.read().await;
+        inner
+            .children_by_parent
+            .get(parent_session_id)
+            .map(|children| {
+                children
+                    .iter()
+                    .filter(|child_id| {
+                        inner
+                            .multi_model_session
+                            .active_sessions
+                            .contains_key(child_id.as_str())
+                    })
+                    .count()
+            })
+            .unwrap_or(0)
+    }
+
+    pub async fn children_for_parent(&self, parent_session_id: &str) -> Vec<String> {
+        let inner = self.inner.read().await;
+        inner
+            .children_by_parent
+            .get(parent_session_id)
+            .map(|children| children.iter().cloned().collect())
+            .unwrap_or_default()
     }
 
     pub async fn snapshot(&self) -> MultiModelSession {
@@ -5334,6 +5479,149 @@ async fn emit_session_scheduler_cancelled_event(
     .await
 }
 
+async fn emit_session_spawn_requested_event(
+    state: &AppState,
+    trace_id: Uuid,
+    metadata: &ModelRunMetadata,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session.spawn_requested",
+        "event_id": "FR-EVT-SESS-SPAWN-001",
+        "requester_session_id": metadata.parent_session_id.as_deref().unwrap_or_default(),
+        "child_role": metadata.role,
+        "spawn_depth": metadata.spawn_depth,
+        "spawn_mode": metadata.execution_mode,
+    });
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionSpawnRequested,
+            FlightRecorderActor::System,
+            trace_id,
+            payload,
+        ),
+    )
+    .await
+}
+
+async fn emit_session_spawn_accepted_event(
+    state: &AppState,
+    trace_id: Uuid,
+    metadata: &ModelRunMetadata,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session.spawn_accepted",
+        "event_id": "FR-EVT-SESS-SPAWN-002",
+        "requester_session_id": metadata.parent_session_id.as_deref().unwrap_or_default(),
+        "child_session_id": metadata.session_id,
+        "child_role": metadata.role,
+        "spawn_depth": metadata.spawn_depth,
+    });
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionSpawnAccepted,
+            FlightRecorderActor::System,
+            trace_id,
+            payload,
+        ),
+    )
+    .await
+}
+
+async fn emit_session_spawn_rejected_event(
+    state: &AppState,
+    trace_id: Uuid,
+    metadata: &ModelRunMetadata,
+    reason: &str,
+    active_children_count: usize,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session.spawn_rejected",
+        "event_id": "FR-EVT-SESS-SPAWN-003",
+        "requester_session_id": metadata.parent_session_id.as_deref().unwrap_or_default(),
+        "rejection_reason": reason,
+        "spawn_depth": metadata.spawn_depth,
+        "active_children_count": active_children_count,
+    });
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionSpawnRejected,
+            FlightRecorderActor::System,
+            trace_id,
+            payload,
+        ),
+    )
+    .await
+}
+
+fn spawn_announce_back_status(final_status: &JobState) -> &'static str {
+    match final_status {
+        JobState::Completed | JobState::CompletedWithIssues => "completed",
+        JobState::Cancelled => "cancelled",
+        JobState::Failed | JobState::Poisoned | JobState::Stalled => "failed",
+        JobState::Running | JobState::Queued => "failed",
+        JobState::AwaitingUser | JobState::AwaitingValidation => "failed",
+    }
+}
+
+async fn emit_session_spawn_announce_back_event(
+    state: &AppState,
+    trace_id: Uuid,
+    metadata: &ModelRunMetadata,
+    final_status: &JobState,
+    summary_artifact_id: Option<String>,
+) -> Result<(), WorkflowError> {
+    let status = spawn_announce_back_status(final_status);
+    let mailbox_message_id = format!("mailbox:{}/announce_back", metadata.session_id);
+    let payload = json!({
+        "type": "session.announce_back",
+        "event_id": "FR-EVT-SESS-SPAWN-004",
+        "child_session_id": metadata.session_id,
+        "requester_session_id": metadata.parent_session_id.as_deref().unwrap_or_default(),
+        "status": status,
+        "summary_artifact_id": summary_artifact_id,
+        "mailbox_message_id": mailbox_message_id,
+    });
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionSpawnAnnounceBack,
+            FlightRecorderActor::System,
+            trace_id,
+            payload,
+        ),
+    )
+    .await
+}
+
+async fn emit_session_cascade_cancel_event(
+    state: &AppState,
+    trace_id: Uuid,
+    root_session_id: &str,
+    cancelled_session_ids: &[String],
+    reason: &str,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session.cascade_cancel",
+        "event_id": "FR-EVT-SESS-SPAWN-005",
+        "root_session_id": root_session_id,
+        "cancelled_session_ids": cancelled_session_ids,
+        "reason": reason,
+    });
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionCascadeCancel,
+            FlightRecorderActor::System,
+            trace_id,
+            payload,
+        ),
+    )
+    .await
+}
+
 async fn ensure_model_session_artifact_refs(
     state: &AppState,
     job: &AiJob,
@@ -5469,6 +5757,63 @@ async fn enqueue_model_run_job(
     trace_id: Uuid,
 ) -> Result<WorkflowRun, WorkflowError> {
     let metadata = parse_model_run_metadata(&job)?;
+    let limits = state.session_registry.spawn_limits().await;
+    let parent_session = if let Some(parent_session_id) = metadata.parent_session_id.as_deref() {
+        Some(
+            state
+                .session_registry
+                .get_model_session(state, parent_session_id)
+                .await?,
+        )
+    } else {
+        None
+    };
+    let parent_children = if let Some(parent_session_id) = metadata.parent_session_id.as_deref() {
+        state
+            .session_registry
+            .active_children_for_parent(parent_session_id)
+            .await
+    } else {
+        0
+    };
+    let request = SessionSpawnRequest {
+        schema_version: SESSION_SPAWN_SCHEMA_VERSION_V1.to_string(),
+        session_id: metadata.session_id.clone(),
+        parent_session_id: metadata.parent_session_id.clone(),
+        spawn_depth: metadata.spawn_depth,
+        capability_grants: metadata.capability_grants.clone(),
+        capability_token_ids: metadata.capability_token_ids.clone(),
+    };
+    let validation = validate_spawn_request(
+        &request,
+        parent_session.as_ref(),
+        parent_children,
+        &limits,
+    );
+    if metadata.parent_session_id.is_some() {
+        emit_session_spawn_requested_event(state, trace_id, &metadata).await?;
+    }
+    if !validation.allowed {
+        let reason = validation
+            .reasons
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "session spawn request rejected".to_string());
+        if metadata.parent_session_id.is_some() {
+            emit_session_spawn_rejected_event(
+                state,
+                trace_id,
+                &metadata,
+                reason.as_str(),
+                parent_children,
+            )
+            .await?;
+        }
+        return Err(WorkflowError::Terminal(
+            validation.reasons.first().cloned().unwrap_or(reason)
+        ));
+    }
+
     ensure_model_session_artifact_refs(state, &job, &metadata).await?;
 
     let run = ensure_model_run_workflow_run(state, &job, trace_id).await?;
@@ -5476,6 +5821,9 @@ async fn enqueue_model_run_job(
     let queue_depth = queued.len();
 
     emit_session_scheduler_enqueue_event(state, trace_id, &job, &metadata, queue_depth).await?;
+    if metadata.parent_session_id.is_some() {
+        emit_session_spawn_accepted_event(state, trace_id, &metadata).await?;
+    }
     kick_model_run_dispatcher(state.clone());
 
     Ok(run)
@@ -6179,33 +6527,75 @@ async fn finalize_model_run_after_terminal(
         }
     }
 
+    if metadata.parent_session_id.is_some() {
+        let job_outputs = state.storage.get_ai_job(job.job_id.to_string().as_str()).await?;
+        let summary_artifact_id = job_outputs
+            .job_outputs
+            .as_ref()
+            .and_then(|value| {
+                value
+                    .get("summary_artifact_id")
+                    .and_then(Value::as_str)
+                    .map(ToString::to_string)
+                    .or_else(|| {
+                        value
+                            .get("response_ref")
+                            .and_then(Value::as_object)
+                            .and_then(|value| {
+                                value
+                                    .get("content_artifact_id")
+                                    .and_then(Value::as_str)
+                                    .map(ToString::to_string)
+                            })
+                    })
+            });
+        emit_session_spawn_announce_back_event(
+            state,
+            trace_id,
+            &metadata,
+            final_status,
+            summary_artifact_id,
+        )
+        .await?;
+    }
+
     kick_model_run_dispatcher(state.clone());
     Ok(())
 }
 
-pub async fn cancel_model_run_job(
+fn is_session_terminal_for_cascade(state: &ModelSessionState) -> bool {
+    matches!(
+        state,
+        ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled
+    )
+}
+
+#[derive(Debug, Clone)]
+struct CascadeCancelRecord {
+    cancelled_session_ids: Vec<String>,
+}
+
+async fn cancel_model_run_job_no_cascade(
     state: &AppState,
     job_id: Uuid,
-    cancelled_by: String,
-    reason: String,
-) -> Result<(), WorkflowError> {
-    let mut job = state
-        .storage
-        .get_ai_job(job_id.to_string().as_str())
-        .await?;
+    cancelled_by: &str,
+    reason: &str,
+) -> Result<(Uuid, ModelRunMetadata), WorkflowError> {
+    let mut job = state.storage.get_ai_job(job_id.to_string().as_str()).await?;
     if !matches!(job.job_kind, JobKind::ModelRun) {
         return Err(WorkflowError::Terminal(
             "cancel_model_run_job only supports job_kind=model_run".to_string(),
         ));
     }
+    let trace_id = derive_trace_id(&job, None);
 
     state
         .storage
         .update_ai_job_status(JobStatusUpdate {
             job_id,
             state: JobState::Cancelled,
-            error_message: Some(reason.clone()),
-            status_reason: reason.clone(),
+            error_message: Some(reason.to_string()),
+            status_reason: reason.to_string(),
             metrics: None,
             workflow_run_id: job.workflow_run_id,
             trace_id: Some(derive_trace_id(&job, None)),
@@ -6216,7 +6606,7 @@ pub async fn cancel_model_run_job(
     if let Some(run_id) = job.workflow_run_id {
         let _ = state
             .storage
-            .update_workflow_run_status(run_id, JobState::Cancelled, Some(reason.clone()))
+            .update_workflow_run_status(run_id, JobState::Cancelled, Some(reason.to_string()))
             .await;
     }
 
@@ -6236,18 +6626,90 @@ pub async fn cancel_model_run_job(
 
     emit_session_scheduler_cancelled_event(
         state,
-        derive_trace_id(&job, None),
+        trace_id,
         &job,
         &metadata,
-        cancelled_by.as_str(),
-        reason.as_str(),
+        cancelled_by,
+        reason,
     )
     .await?;
 
     if let Some(inputs) = job.job_inputs.as_mut() {
         if let Some(map) = inputs.as_object_mut() {
-            map.insert("cancelled_by".to_string(), Value::String(cancelled_by));
+            map.insert("cancelled_by".to_string(), Value::String(cancelled_by.to_string()));
         }
+    }
+
+    Ok((trace_id, metadata))
+}
+
+async fn cascade_cancel_session(
+    state: &AppState,
+    root_session_id: &str,
+    cancelled_by: &str,
+    reason: &str,
+) -> Result<CascadeCancelRecord, WorkflowError> {
+    let mut cancelled_session_ids = Vec::new();
+    let mut visited = std::collections::HashSet::new();
+    let mut stack = state
+        .session_registry
+        .children_for_parent(root_session_id)
+        .await;
+
+    while let Some(session_id) = stack.pop() {
+        if !visited.insert(session_id.clone()) {
+            continue;
+        }
+
+        let children = state
+            .session_registry
+            .children_for_parent(session_id.as_str())
+            .await;
+        for child_id in children.into_iter().rev() {
+            stack.push(child_id);
+        }
+
+        let session = state.storage.get_model_session(session_id.as_str()).await?;
+        if is_session_terminal_for_cascade(&session.state) {
+            continue;
+        }
+
+        let Some(job_id) = session.job_id else {
+            continue;
+        };
+        cancel_model_run_job_no_cascade(state, job_id, cancelled_by, reason).await?;
+        cancelled_session_ids.push(session_id);
+    }
+
+    Ok(CascadeCancelRecord {
+        cancelled_session_ids,
+    })
+}
+
+pub async fn cancel_model_run_job(
+    state: &AppState,
+    job_id: Uuid,
+    cancelled_by: String,
+    reason: String,
+) -> Result<(), WorkflowError> {
+    let cancelled_metadata = cancel_model_run_job_no_cascade(state, job_id, &cancelled_by, &reason).await?;
+    let (trace_id, cancelled_metadata) = cancelled_metadata;
+    let cancelled_descendants = cascade_cancel_session(
+        state,
+        cancelled_metadata.session_id.as_str(),
+        &cancelled_by,
+        &reason,
+    )
+    .await?;
+    if !cancelled_descendants.cancelled_session_ids.is_empty() {
+        emit_session_cascade_cancel_event(
+            state,
+            trace_id,
+            cancelled_metadata.session_id.as_str(),
+            &cancelled_descendants.cancelled_session_ids,
+            &reason,
+        )
+        .await?;
     }
 
     kick_model_run_dispatcher(state.clone());
@@ -24020,7 +24482,7 @@ mod tests {
     use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
     use crate::storage::{
         sqlite::SqliteDatabase, tests::postgres_backend_from_env, AccessMode, Database, JobKind,
-        JobMetrics, JobState, SafetyMode,
+        JobMetrics, JobState, SafetyMode, ModelSession, ModelSessionState,
     };
     use serde_json::json;
     use std::sync::{Arc, Mutex};
@@ -24391,6 +24853,128 @@ mod tests {
                 job_inputs: Some(json!({ "scope": scope })),
             })
             .await?)
+    }
+
+    fn test_model_session(session_id: &str, capability_grants: &[&str]) -> ModelSession {
+        ModelSession {
+            session_id: session_id.to_string(),
+            parent_session_id: None,
+            spawn_depth: 0,
+            state: ModelSessionState::Active,
+            model_id: "m".to_string(),
+            backend: "b".to_string(),
+            parameter_class: "p".to_string(),
+            role: "assistant".to_string(),
+            wp_id: None,
+            mt_id: None,
+            work_profile_id: None,
+            execution_mode: "STANDARD".to_string(),
+            memory_policy: "EPHEMERAL".to_string(),
+            consent_receipt_id: None,
+            capability_grants: capability_grants.iter().map(|cap| cap.to_string()).collect(),
+            capability_token_ids: None,
+            job_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    fn test_spawn_request(
+        session_id: &str,
+        parent_session_id: Option<&str>,
+        spawn_depth: i32,
+        capability_grants: Vec<&str>,
+    ) -> SessionSpawnRequest {
+        SessionSpawnRequest {
+            schema_version: SESSION_SPAWN_SCHEMA_VERSION_V1.to_string(),
+            session_id: session_id.to_string(),
+            parent_session_id: parent_session_id.map(ToString::to_string),
+            spawn_depth,
+            capability_grants: capability_grants
+                .into_iter()
+                .map(ToString::to_string)
+                .collect(),
+            capability_token_ids: None,
+        }
+    }
+
+    #[test]
+    fn session_spawn_validation_allows_legal_spawn_request() {
+        let limits = SpawnLimits {
+            max_spawn_depth: 3,
+            max_active_children_per_session: 2,
+            max_total_active_sessions: 12,
+        };
+        let request = test_spawn_request(
+            "child-1",
+            Some("parent-1"),
+            1,
+            vec!["fs.read", "net.http"],
+        );
+        let parent = test_model_session("parent-1", &["fs.read", "net.http", "net.db"]);
+
+        let result = validate_spawn_request(&request, Some(&parent), 1, &limits);
+        assert!(result.allowed);
+    }
+
+    #[test]
+    fn session_spawn_validation_rejects_depth_exceeding_limit() {
+        let limits = SpawnLimits {
+            max_spawn_depth: 1,
+            max_active_children_per_session: 10,
+            max_total_active_sessions: 12,
+        };
+        let request = test_spawn_request("child-2", Some("parent-1"), 2, vec!["fs.read"]);
+        let parent = test_model_session("parent-1", &["fs.read"]);
+
+        let result = validate_spawn_request(&request, Some(&parent), 0, &limits);
+        assert!(!result.allowed);
+        assert!(
+            result
+                .reasons
+                .iter()
+                .any(|reason| reason.contains("INV-SPAWN-001"))
+        );
+    }
+
+    #[test]
+    fn session_spawn_validation_rejects_active_child_cap_overflow() {
+        let limits = SpawnLimits {
+            max_spawn_depth: 4,
+            max_active_children_per_session: 1,
+            max_total_active_sessions: 12,
+        };
+        let request = test_spawn_request("child-3", Some("parent-1"), 1, vec!["fs.read"]);
+        let parent = test_model_session("parent-1", &["fs.read"]);
+
+        let result = validate_spawn_request(&request, Some(&parent), 1, &limits);
+        assert!(!result.allowed);
+        assert!(
+            result
+                .reasons
+                .iter()
+                .any(|reason| reason.contains("INV-SPAWN-002"))
+        );
+    }
+
+    #[test]
+    fn session_spawn_validation_rejects_capability_widening() {
+        let limits = SpawnLimits {
+            max_spawn_depth: 4,
+            max_active_children_per_session: 4,
+            max_total_active_sessions: 12,
+        };
+        let request = test_spawn_request("child-4", Some("parent-1"), 1, vec!["secrets.read"]);
+        let parent = test_model_session("parent-1", &["fs.read"]);
+
+        let result = validate_spawn_request(&request, Some(&parent), 0, &limits);
+        assert!(!result.allowed);
+        assert!(
+            result
+                .reasons
+                .iter()
+                .any(|reason| reason.contains("TRUST-003"))
+        );
     }
 
     #[test]

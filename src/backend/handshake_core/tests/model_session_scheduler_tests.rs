@@ -19,7 +19,8 @@ use handshake_core::llm::{
 };
 use handshake_core::storage::{
     sqlite::SqliteDatabase, AccessMode, AiJob, Database, JobKind, JobMetrics, JobState,
-    ModelSessionState, NewAiJob, NewModelSession, SafetyMode, SessionMessageRole, StorageError,
+    ModelSession, ModelSessionState, NewAiJob, NewModelSession, SafetyMode, SessionMessageRole,
+    StorageError,
 };
 use handshake_core::workflows::{
     cancel_model_run_job, revoke_consent_receipt_for_model_runs, start_workflow_for_job,
@@ -157,6 +158,38 @@ async fn create_model_run_job(
             job_inputs: Some(inputs),
         })
         .await?)
+}
+
+async fn seed_active_model_session(
+    state: &AppState,
+    session_id: &str,
+    parent_session_id: Option<&str>,
+    capability_grants: &[&str],
+) -> Result<ModelSession, Box<dyn std::error::Error>> {
+    let session = state
+        .storage
+        .upsert_model_session(NewModelSession {
+            session_id: session_id.to_string(),
+            parent_session_id: parent_session_id.map(ToString::to_string),
+            spawn_depth: 0,
+            state: ModelSessionState::Active,
+            model_id: "model-session-test".to_string(),
+            backend: "local-test".to_string(),
+            parameter_class: "default".to_string(),
+            role: "assistant".to_string(),
+            wp_id: None,
+            mt_id: None,
+            work_profile_id: None,
+            execution_mode: "STANDARD".to_string(),
+            memory_policy: "EPHEMERAL".to_string(),
+            consent_receipt_id: None,
+            capability_grants: capability_grants.iter().map(ToString::to_string).collect(),
+            capability_token_ids: None,
+            job_id: Some(Uuid::new_v4()),
+        })
+        .await?;
+    state.session_registry.upsert_session(session.clone()).await;
+    Ok(session)
 }
 
 fn model_run_priority(job: &AiJob) -> i64 {
@@ -994,6 +1027,61 @@ fn session_scheduler_event_payloads_are_validated() {
                 "reason": "user_requested"
             }),
         ),
+        (
+            FlightRecorderEventType::SessionSpawnRequested,
+            json!({
+                "type": "session.spawn_requested",
+                "event_id": "FR-EVT-SESS-SPAWN-001",
+                "requester_session_id": "sess-parent",
+                "child_role": "assistant",
+                "spawn_depth": 1,
+                "spawn_mode": "STANDARD"
+            }),
+        ),
+        (
+            FlightRecorderEventType::SessionSpawnAccepted,
+            json!({
+                "type": "session.spawn_accepted",
+                "event_id": "FR-EVT-SESS-SPAWN-002",
+                "requester_session_id": "sess-parent",
+                "child_session_id": "sess-child",
+                "child_role": "assistant",
+                "spawn_depth": 1
+            }),
+        ),
+        (
+            FlightRecorderEventType::SessionSpawnRejected,
+            json!({
+                "type": "session.spawn_rejected",
+                "event_id": "FR-EVT-SESS-SPAWN-003",
+                "requester_session_id": "sess-parent",
+                "rejection_reason": "spawn denied by policy",
+                "spawn_depth": 1,
+                "active_children_count": 2
+            }),
+        ),
+        (
+            FlightRecorderEventType::SessionSpawnAnnounceBack,
+            json!({
+                "type": "session.announce_back",
+                "event_id": "FR-EVT-SESS-SPAWN-004",
+                "child_session_id": "sess-child",
+                "requester_session_id": "sess-parent",
+                "status": "completed",
+                "summary_artifact_id": "artifact:sess-child:summary",
+                "mailbox_message_id": "mailbox:msg-1"
+            }),
+        ),
+        (
+            FlightRecorderEventType::SessionCascadeCancel,
+            json!({
+                "type": "session.cascade_cancel",
+                "event_id": "FR-EVT-SESS-SPAWN-005",
+                "root_session_id": "sess-parent",
+                "cancelled_session_ids": ["sess-child", "sess-grandchild"],
+                "reason": "user_cancelled"
+            }),
+        ),
     ];
 
     for (event_type, payload) in valid_payloads {
@@ -1028,6 +1116,465 @@ fn session_scheduler_event_payloads_are_validated() {
         }),
     );
     assert!(invalid_inline_content.validate().is_err());
+
+    let invalid_spawn = FlightRecorderEvent::new(
+        FlightRecorderEventType::SessionSpawnRequested,
+        FlightRecorderActor::System,
+        trace_id,
+        json!({
+            "type": "session.spawn_requested",
+            "event_id": "FR-EVT-SESS-SPAWN-001",
+            "requester_session_id": "sess-parent",
+            "child_role": "assistant",
+            "spawn_depth": 1,
+            "spawn_mode": "STANDARD",
+            "unexpected": true
+        }),
+    );
+    assert!(invalid_spawn.validate().is_err());
+}
+
+#[tokio::test]
+async fn model_run_spawn_request_within_contracts_is_accepted() -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let parent_session_id = format!("parent-{}", Uuid::new_v4());
+    seed_active_model_session(
+        &state,
+        &parent_session_id,
+        None,
+        &["fs.read", "net.http"],
+    )
+    .await?;
+
+    let child_session_id = format!("child-{}", Uuid::new_v4());
+    let child_job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": child_session_id,
+            "parent_session_id": parent_session_id.as_str(),
+            "spawn_depth": 1,
+            "lane": "PRIMARY",
+            "capability_grants": ["fs.read"],
+            "priority": 10,
+            "prompt": "child with allowed spawn",
+            "simulate_duration_ms": 5_000,
+            "model_id": "model-session-test",
+            "backend": "local-test",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL"
+        }),
+    )
+    .await?;
+
+    start_workflow_for_job(&state, child_job).await?;
+
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter::default())
+        .await?;
+    let requested = events
+        .iter()
+        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnRequested))
+        .expect("spawn requested event");
+    let accepted = events
+        .iter()
+        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnAccepted))
+        .expect("spawn accepted event");
+
+    assert_eq!(
+        requested
+            .payload
+            .get("requester_session_id")
+            .and_then(Value::as_str),
+        Some(parent_session_id.as_str())
+    );
+    assert_eq!(
+        accepted
+            .payload
+            .get("child_session_id")
+            .and_then(Value::as_str),
+        Some(child_session_id.as_str())
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn model_run_spawn_request_rejected_when_depth_exceeds_max() -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let parent_session_id = format!("parent-{}", Uuid::new_v4());
+    seed_active_model_session(
+        &state,
+        &parent_session_id,
+        None,
+        &["fs.read", "net.http", "net.db"],
+    )
+    .await?;
+
+    let child_job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": format!("child-{}", Uuid::new_v4()),
+            "parent_session_id": parent_session_id.as_str(),
+            "spawn_depth": 4,
+            "lane": "PRIMARY",
+            "capability_grants": ["fs.read"],
+            "priority": 10,
+            "prompt": "child with deep spawn",
+            "simulate_duration_ms": 5_000,
+            "model_id": "model-session-test",
+            "backend": "local-test",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL"
+        }),
+    )
+    .await?;
+
+    let err = start_workflow_for_job(&state, child_job).await;
+    assert!(err.is_err());
+    let message = err.expect_err("expected spawn rejection").to_string();
+    assert!(message.contains("INV-SPAWN-001"));
+
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter::default())
+        .await?;
+    let rejected = events
+        .iter()
+        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnRejected))
+        .expect("spawn rejected event");
+    assert_eq!(
+        rejected
+            .payload
+            .get("requester_session_id")
+            .and_then(Value::as_str),
+        Some(parent_session_id.as_str())
+    );
+    assert_eq!(
+        rejected
+            .payload
+            .get("spawn_depth")
+            .and_then(Value::as_i64),
+        Some(4)
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn model_run_spawn_request_rejected_when_children_exceeds_limit() -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let parent_session_id = format!("parent-{}", Uuid::new_v4());
+    seed_active_model_session(
+        &state,
+        &parent_session_id,
+        None,
+        &["fs.read", "net.http", "net.db"],
+    )
+    .await?;
+
+    for idx in 0..4 {
+        let child_id = format!("active-child-{idx}-{}", Uuid::new_v4());
+        seed_active_model_session(
+            &state,
+            &child_id,
+            Some(parent_session_id.as_str()),
+            &["fs.read"],
+        )
+        .await?;
+    }
+
+    let child_count = state
+        .session_registry
+        .active_children_for_parent(parent_session_id.as_str())
+        .await;
+    assert_eq!(child_count, 4);
+
+    let rejected_child_job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": format!("child-{}", Uuid::new_v4()),
+            "parent_session_id": parent_session_id.as_str(),
+            "spawn_depth": 1,
+            "lane": "PRIMARY",
+            "capability_grants": ["fs.read"],
+            "priority": 10,
+            "prompt": "oversubscribed child spawn",
+            "simulate_duration_ms": 5_000,
+            "model_id": "model-session-test",
+            "backend": "local-test",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL"
+        }),
+    )
+    .await?;
+
+    let err = start_workflow_for_job(&state, rejected_child_job).await;
+    assert!(err.is_err());
+    let message = err.expect_err("expected spawn rejection").to_string();
+    assert!(message.contains("INV-SPAWN-002"));
+
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter::default())
+        .await?;
+    let rejected = events
+        .iter()
+        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnRejected))
+        .expect("spawn rejected event");
+    assert_eq!(
+        rejected
+            .payload
+            .get("active_children_count")
+            .and_then(Value::as_u64),
+        Some(4)
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn model_run_spawn_request_rejected_when_capability_widens() -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let parent_session_id = format!("parent-{}", Uuid::new_v4());
+    seed_active_model_session(
+        &state,
+        &parent_session_id,
+        None,
+        &["fs.read"],
+    )
+    .await?;
+
+    let child_job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": format!("child-{}", Uuid::new_v4()),
+            "parent_session_id": parent_session_id.as_str(),
+            "spawn_depth": 1,
+            "lane": "PRIMARY",
+            "capability_grants": ["secrets.read"],
+            "priority": 10,
+            "prompt": "child with invalid capability",
+            "simulate_duration_ms": 5_000,
+            "model_id": "model-session-test",
+            "backend": "local-test",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL"
+        }),
+    )
+    .await?;
+
+    let err = start_workflow_for_job(&state, child_job).await;
+    assert!(err.is_err());
+    let message = err.expect_err("expected spawn rejection").to_string();
+    assert!(message.contains("TRUST-003"));
+
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter::default())
+        .await?;
+    let rejected = events
+        .iter()
+        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnRejected))
+        .expect("spawn rejected event");
+    assert_eq!(
+        rejected
+            .payload
+            .get("rejection_reason")
+            .and_then(Value::as_str),
+        Some("TRUST-003: child request capability secrets.read exceeds parent session grants")
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn model_run_spawn_announce_back_event_is_emitted_for_parented_completion(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let parent_session_id = format!("parent-{}", Uuid::new_v4());
+    seed_active_model_session(
+        &state,
+        &parent_session_id,
+        None,
+        &["fs.read", "net.http"],
+    )
+    .await?;
+
+    let child_session_id = format!("child-{}", Uuid::new_v4());
+    let child_job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": child_session_id,
+            "parent_session_id": parent_session_id.as_str(),
+            "spawn_depth": 1,
+            "lane": "PRIMARY",
+            "priority": 10,
+            "prompt": "spawn announce back",
+            "simulate_duration_ms": 100,
+            "model_id": "model-session-test",
+            "backend": "local-test",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL",
+            "capability_grants": ["fs.read"]
+        }),
+    )
+    .await?;
+
+    start_workflow_for_job(&state, child_job.clone()).await?;
+
+    let terminal_job = wait_for_terminal_job(&state, child_job.job_id, 10_000).await;
+    assert_eq!(terminal_job.state, JobState::Completed);
+
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter::default())
+        .await?;
+    let announce_back = events
+        .iter()
+        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnAnnounceBack))
+        .expect("announce_back event");
+    assert_eq!(
+        announce_back
+            .payload
+            .get("child_session_id")
+            .and_then(Value::as_str),
+        Some(child_session_id.as_str())
+    );
+    assert_eq!(
+        announce_back
+            .payload
+            .get("requester_session_id")
+            .and_then(Value::as_str),
+        Some(parent_session_id.as_str())
+    );
+    assert_eq!(
+        announce_back.payload.get("status").and_then(Value::as_str),
+        Some("completed")
+    );
+    assert!(
+        announce_back
+            .payload
+            .get("summary_artifact_id")
+            .and_then(Value::as_str)
+            .is_some()
+    );
+    assert!(
+        announce_back
+            .payload
+            .get("mailbox_message_id")
+            .and_then(Value::as_str)
+            .is_some()
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn model_run_cancellation_cascades_to_descendants() -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let parent_session_id = format!("parent-{}", Uuid::new_v4());
+    let child_session_id = format!("child-{}", Uuid::new_v4());
+    let grandchild_session_id = format!("grandchild-{}", Uuid::new_v4());
+
+    let parent_job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": parent_session_id,
+            "lane": "PRIMARY",
+            "priority": 10,
+            "prompt": "parent",
+            "simulate_duration_ms": 20_000,
+            "model_id": "model-session-test",
+            "backend": "local-test",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL"
+        }),
+    )
+    .await?;
+
+    let child_job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": child_session_id,
+            "parent_session_id": parent_session_id.as_str(),
+            "spawn_depth": 1,
+            "lane": "PRIMARY",
+            "priority": 9,
+            "prompt": "child",
+            "simulate_duration_ms": 20_000,
+            "model_id": "model-session-test",
+            "backend": "local-test",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL"
+        }),
+    )
+    .await?;
+
+    let grandchild_job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": grandchild_session_id,
+            "parent_session_id": child_session_id.as_str(),
+            "spawn_depth": 2,
+            "lane": "PRIMARY",
+            "priority": 8,
+            "prompt": "grandchild",
+            "simulate_duration_ms": 20_000,
+            "model_id": "model-session-test",
+            "backend": "local-test",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL"
+        }),
+    )
+    .await?;
+
+    start_workflow_for_job(&state, parent_job.clone()).await?;
+    start_workflow_for_job(&state, child_job.clone()).await?;
+    start_workflow_for_job(&state, grandchild_job.clone()).await?;
+
+    cancel_model_run_job(
+        &state,
+        parent_job.job_id,
+        "operator".to_string(),
+        "user_requested".to_string(),
+    )
+    .await?;
+
+    let terminal_parent = wait_for_terminal_job(&state, parent_job.job_id, 10_000).await;
+    let terminal_child = wait_for_terminal_job(&state, child_job.job_id, 10_000).await;
+    let terminal_grandchild = wait_for_terminal_job(&state, grandchild_job.job_id, 10_000).await;
+
+    assert!(matches!(
+        terminal_parent.state,
+        JobState::Cancelled | JobState::Completed
+    ));
+    assert_eq!(terminal_child.state, JobState::Cancelled);
+    assert_eq!(terminal_grandchild.state, JobState::Cancelled);
+
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter::default())
+        .await?;
+    let cascade_event = events
+        .iter()
+        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionCascadeCancel));
+    assert!(cascade_event.is_some());
+
+    let cascade_event = cascade_event.expect("cascade cancel event present");
+    let cancelled_session_ids = cascade_event
+        .payload
+        .get("cancelled_session_ids")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|id| id.as_str().map(ToString::to_string))
+        .collect::<Vec<String>>();
+    assert!(cancelled_session_ids.contains(&child_session_id));
+    assert!(cancelled_session_ids.contains(&grandchild_session_id));
+
+    Ok(())
 }
 
 #[tokio::test]

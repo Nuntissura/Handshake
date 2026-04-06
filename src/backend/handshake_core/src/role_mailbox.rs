@@ -139,6 +139,7 @@ impl<'de> Deserialize<'de> for RoleId {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RoleMailboxMessageType {
+    AnnounceBack,
     ClarificationRequest,
     ClarificationResponse,
     ScopeRisk,
@@ -158,6 +159,7 @@ pub enum RoleMailboxMessageType {
 impl RoleMailboxMessageType {
     pub fn as_str(&self) -> &'static str {
         match self {
+            RoleMailboxMessageType::AnnounceBack => "announce_back",
             RoleMailboxMessageType::ClarificationRequest => "clarification_request",
             RoleMailboxMessageType::ClarificationResponse => "clarification_response",
             RoleMailboxMessageType::ScopeRisk => "scope_risk",
@@ -182,6 +184,33 @@ impl RoleMailboxMessageType {
                 | RoleMailboxMessageType::ValidationFinding
         )
     }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RoleMailboxAnnounceBackStatus {
+    Completed,
+    Failed,
+    Cancelled,
+}
+
+impl RoleMailboxAnnounceBackStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RoleMailboxAnnounceBackStatus::Completed => "completed",
+            RoleMailboxAnnounceBackStatus::Failed => "failed",
+            RoleMailboxAnnounceBackStatus::Cancelled => "cancelled",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RoleMailboxAnnounceBackMessage {
+    pub child_session_id: String,
+    pub requester_session_id: String,
+    pub status: RoleMailboxAnnounceBackStatus,
+    pub summary_artifact_id: Option<ArtifactHandle>,
+    pub correlation_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -903,6 +932,7 @@ impl RoleMailbox {
             .map(|v| RoleId::parse(v))
             .collect::<Result<Vec<_>, _>>()?;
         let message_type = match row.5.as_str() {
+            "announce_back" => RoleMailboxMessageType::AnnounceBack,
             "clarification_request" => RoleMailboxMessageType::ClarificationRequest,
             "clarification_response" => RoleMailboxMessageType::ClarificationResponse,
             "scope_risk" => RoleMailboxMessageType::ScopeRisk,

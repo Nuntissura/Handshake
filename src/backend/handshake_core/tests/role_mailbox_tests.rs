@@ -15,7 +15,8 @@ use handshake_core::{
     llm::{CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage},
     role_mailbox::{
         CreateRoleMailboxMessageRequest, GovernanceMode, RoleId, RoleMailbox, RoleMailboxContext,
-        RoleMailboxMessageType, TranscriptionLink, TranscriptionTargetKind,
+        RoleMailboxAnnounceBackMessage, RoleMailboxAnnounceBackStatus, RoleMailboxMessageType,
+        TranscriptionLink, TranscriptionTargetKind,
     },
     runtime_governance::RuntimeGovernancePaths,
     storage::{sqlite::SqliteDatabase, Database},
@@ -728,6 +729,63 @@ async fn role_mailbox_idempotency_key_is_deduped() {
         .join(format!("{}.jsonl", first.thread_id));
     let lines = fs::read_to_string(&thread_file).unwrap().lines().count();
     assert_eq!(lines, 1);
+}
+
+#[tokio::test]
+async fn role_mailbox_create_announce_back_message_carries_spawn_fields() {
+    let dir = tempdir().unwrap();
+    let root = dir.path().to_path_buf();
+    fs::create_dir_all(root.join("data")).unwrap();
+    let db_path = root.join("data").join("flight_recorder.db");
+
+    let recorder = Arc::new(DuckDbFlightRecorder::new_on_path(&db_path, 7).unwrap());
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let mailbox = RoleMailbox::new_for_root(root.clone(), flight_recorder).unwrap();
+
+    let child_session_id = "session-child-001".to_string();
+    let requester_session_id = "session-parent-001".to_string();
+    let correlation_id = "spawn-correlation-id-001".to_string();
+    let payload = RoleMailboxAnnounceBackMessage {
+        child_session_id: child_session_id.clone(),
+        requester_session_id: requester_session_id.clone(),
+        status: RoleMailboxAnnounceBackStatus::Completed,
+        summary_artifact_id: Some(dummy_artifact("/artifacts/summary.tar.gz")),
+        correlation_id: correlation_id.clone(),
+    };
+    let body = serde_json::to_string(&payload).unwrap();
+    let expected_sha = sha256_hex(body.as_bytes());
+
+    let created = mailbox
+        .create_message(CreateRoleMailboxMessageRequest {
+            thread_id: None,
+            thread_subject: Some("Announce back test".to_string()),
+            thread_participants: Some(vec![RoleId::Operator, RoleId::Coder]),
+            context: test_context(),
+            from_role: RoleId::Operator,
+            to_roles: vec![RoleId::Coder],
+            message_type: RoleMailboxMessageType::AnnounceBack,
+            body,
+            attachments: Vec::new(),
+            relates_to_message_id: None,
+            transcription_links: Vec::new(),
+            idempotency_key: "announce-back-idempotent-1".to_string(),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(created.message_type, RoleMailboxMessageType::AnnounceBack);
+    assert_eq!(created.body_sha256, expected_sha);
+
+    let body_path = root.join(&created.body_ref.path);
+    let stored_body_bytes = fs::read(&body_path).unwrap();
+    let stored_payload: RoleMailboxAnnounceBackMessage =
+        serde_json::from_slice(&stored_body_bytes).unwrap();
+
+    assert_eq!(stored_payload.child_session_id, child_session_id);
+    assert_eq!(stored_payload.requester_session_id, requester_session_id);
+    assert_eq!(stored_payload.status, RoleMailboxAnnounceBackStatus::Completed);
+    assert_eq!(stored_payload.summary_artifact_id, payload.summary_artifact_id);
+    assert_eq!(stored_payload.correlation_id, correlation_id);
 }
 
 #[tokio::test]
