@@ -373,6 +373,13 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
     `Then perform only the single next governed action implied by the active receipts/notifications and runtime projection.`,
     `Report only lifecycle/gate state, blockers, and next required command(s).`,
     `Do not request routine Operator approval on an orchestrator-managed lane.`,
+    // Auto-relay communication instructions per role [CX-503C]
+    role === "WP_VALIDATOR"
+      ? `AUTO-RELAY: When you finish reviewing a microtask, send your response back to the coder via: just wp-review-response ${wpId} WP_VALIDATOR WP_VALIDATOR:${wpId} CODER CODER:${wpId} '<MT-NNN PASS or STEER: findings>'. This triggers the auto-relay to dispatch your response to the coder session.`
+      : null,
+    role === "CODER"
+      ? `AUTO-RELAY: After committing each microtask, a git hook will automatically fire wp-review-request to the validator. If the hook does not fire, run manually: just wp-review-request ${wpId} CODER CODER:${wpId} WP_VALIDATOR WP_VALIDATOR:${wpId} '<MT-NNN complete: summary>'. Then STOP and wait for the validator's response.`
+      : null,
   ].filter(Boolean).join("\n");
 }
 
