@@ -171,9 +171,7 @@
 | RGF-109 | PLANNED | Local Model Integration (Ollama for Simple MTs) | RGF-102 | `RESEARCH-20260406-AGENT-SWARM-PARALLEL-ORCHESTRATION` | model profile catalog, MT task board, session launcher | product WP: WP-1-Ollama-Local-Model-MT-Routing-v1 |
 | RGF-110 | PLANNED | Visual Debugging Loop for GUI WPs | RGF-92 | `RESEARCH-20260406-AGENT-SWARM-PARALLEL-ORCHESTRATION` | screenshot tool, visual comparison, iterative fix cycle | product WP: WP-1-Visual-Debugging-Loop-v1 |
 | RGF-111 | PLANNED | Repo Gov Session Display Enrichment | RGF-95, RGF-107 | `RESEARCH-20260406-AGENT-SWARM-PARALLEL-ORCHESTRATION` | session output formatting, wp-lane-health, operator-viewport | repo governance prototype: enrich operator-viewport and wp-lane-health with richer session state display; prototype for product WP-1-In-Product-Session-Manager-v1 |
-| RGF-112 | PLANNED | Repo Gov Training Pair Extraction | RGF-103, RGF-108 | `RESEARCH-20260406-AGENT-SWARM-PARALLEL-ORCHESTRATION` | smoketest reviews, session output JSONL, failure memory | repo governance prototype: `just extract-training-pairs WP-{ID}` extracts structured training pairs from session outputs; prototype for product WP-1-Distillation-Training-Pair-Extraction-v1 |
 | RGF-113 | PLANNED | Repo Gov Ollama Provider Adapter | RGF-102, RGF-109 | `RESEARCH-20260406-AGENT-SWARM-PARALLEL-ORCHESTRATION` | ACP broker, model profile catalog, session launcher | repo governance prototype: add OLLAMA_LOCAL to model profile catalog and ACP broker; prototype for product WP-1-Ollama-Local-Model-MT-Routing-v1 |
-| RGF-114 | PLANNED | Repo Gov Visual Diff in Smoketest Reviews | RGF-92, RGF-110 | `RESEARCH-20260406-AGENT-SWARM-PARALLEL-ORCHESTRATION` | smoketest review template, screenshot capture | repo governance prototype: capture before/after screenshots for GUI WP diffs in smoketest reviews; prototype for product WP-1-Visual-Debugging-Loop-v1 |
 
 ## Refactor Sequence (Historical)
 
