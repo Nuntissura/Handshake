@@ -21,6 +21,8 @@ import { loadSessionRegistry } from "./session-registry-lib.mjs";
 import { sessionKey, defaultCoderBranch, defaultCoderWorktreeDir } from "./session-policy.mjs";
 import { REPO_ROOT, repoPathAbs } from "../lib/runtime-paths.mjs";
 import { parseJsonlFile } from "../lib/wp-communications-lib.mjs";
+import { readWpTokenUsageLedger } from "./wp-token-usage-lib.mjs";
+import { evaluateWpTokenBudget } from "./wp-token-budget-lib.mjs";
 
 const wpId = String(process.argv[2] || "").trim();
 if (!wpId || !wpId.startsWith("WP-")) {
@@ -132,7 +134,33 @@ try {
   }
 } catch {}
 
-// 6. Summary
+// 6. Token usage and budget
+try {
+  const { ledger } = readWpTokenUsageLedger(REPO_ROOT, wpId);
+  if (ledger && (ledger.summary?.command_count || 0) > 0) {
+    const summary = ledger.summary;
+    const totals = summary.usage_totals || {};
+    const inputK = Math.round((totals.input_tokens || 0) / 1000);
+    const outputK = Math.round((totals.output_tokens || 0) / 1000);
+    info.push(`Tokens: ${summary.command_count} cmds, ${summary.turn_count} turns | in=${inputK}k out=${outputK}k`);
+    const budget = evaluateWpTokenBudget(ledger);
+    if (budget.status === "WARN") issues.push(`Token budget WARNING: ${budget.summary}`);
+    else if (budget.status === "FAIL") issues.push(`Token budget FAIL: ${budget.summary}`);
+    else info.push(`Budget: PASS`);
+    const roleTotals = ledger.role_totals || {};
+    for (const role of ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]) {
+      const rd = roleTotals[role];
+      if (rd && (rd.command_count || 0) > 0) {
+        const ri = Math.round((rd.usage_totals?.input_tokens || 0) / 1000);
+        info.push(`  ${role}: ${rd.command_count} cmds, ${rd.turn_count} turns | in=${ri}k`);
+      }
+    }
+  } else {
+    info.push("Tokens: no usage recorded");
+  }
+} catch {}
+
+// 7. Summary
 console.log(`\nWP_LANE_HEALTH: ${wpId}`);
 console.log("─".repeat(60));
 for (const line of info) console.log(`  ${line}`);

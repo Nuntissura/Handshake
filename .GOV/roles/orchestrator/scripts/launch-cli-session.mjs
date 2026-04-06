@@ -126,6 +126,7 @@ const prompt = buildStartupPrompt({
 });
 
 const isClaudeCode = selectedProfile.provider === "ANTHROPIC";
+const isOllama = selectedProfile.provider === "OLLAMA_LOCAL";
 const cliTool = resolveCliToolForProfile(selectedProfile);
 
 function buildCodexArgs() {
@@ -149,7 +150,14 @@ function buildClaudeCodeArgs() {
   ];
 }
 
-const cliArgs = isClaudeCode ? buildClaudeCodeArgs() : buildCodexArgs();
+function buildOllamaArgs() {
+  return [
+    "run",
+    selectedModel,
+  ];
+}
+
+const cliArgs = isClaudeCode ? buildClaudeCodeArgs() : (isOllama ? buildOllamaArgs() : buildCodexArgs());
 
 function psQuote(value) {
   return `'${String(value).replace(/'/g, "''")}'`;

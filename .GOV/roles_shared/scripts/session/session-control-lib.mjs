@@ -82,8 +82,15 @@ function resolveClaudeCodeCliTool() {
   return resolveCliToolByName(CLAUDE_CODE_CLI_TOOL);
 }
 
+const OLLAMA_CLI_TOOL = "ollama";
+
+function resolveOllamaCliTool() {
+  return resolveCliToolByName(OLLAMA_CLI_TOOL);
+}
+
 export function resolveCliToolForProfile(profile) {
   if (profile.provider === "ANTHROPIC") return resolveClaudeCodeCliTool();
+  if (profile.provider === "OLLAMA_LOCAL") return resolveOllamaCliTool();
   return resolveCliTool();
 }
 
@@ -790,6 +797,123 @@ export async function runClaudeCodeCommand({
   });
 }
 
+export async function runOllamaCommand({
+  absWorktreeDir,
+  selectedModel,
+  prompt,
+  outputFile,
+  environmentOverrides = null,
+  onEvent = null,
+  onSpawn = null,
+}) {
+  const outputPath = path.resolve(outputFile);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  const outputStream = fs.createWriteStream(outputPath, { flags: "a" });
+  const startedAt = Date.now();
+  const cliToolPath = resolveOllamaCliTool();
+  const childEnvironment = {
+    ...process.env,
+    ...(environmentOverrides && typeof environmentOverrides === "object" ? environmentOverrides : {}),
+  };
+
+  const args = ["run", selectedModel];
+
+  return await new Promise((resolve) => {
+    const child = process.platform === "win32"
+      ? spawn("powershell.exe", [
+        "-NoLogo",
+        "-NonInteractive",
+        "-Command",
+        [
+          "$ErrorActionPreference = 'Stop'",
+          `$ollamaArgs = @(${args.map((arg) => quotePsLiteral(arg)).join(", ")})`,
+          `echo ${quotePsLiteral(prompt)} | & ${quotePsLiteral(cliToolPath)} @ollamaArgs`,
+        ].join("; "),
+      ], {
+        cwd: absWorktreeDir,
+        env: childEnvironment,
+        shell: false,
+        stdio: ["ignore", "pipe", "pipe"],
+      })
+      : spawn(cliToolPath, args, {
+        cwd: absWorktreeDir,
+        env: childEnvironment,
+        shell: false,
+        stdio: ["pipe", "pipe", "pipe"],
+        input: prompt,
+      });
+
+    if (typeof onSpawn === "function") onSpawn(child);
+
+    let stderr = "";
+    let stdoutBuffer = "";
+    let lastAgentMessage = "";
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      outputStream.end();
+      resolve(result);
+    };
+
+    const handleLine = (line) => {
+      if (!line) return;
+      const event = { type: "ollama.output", text: line };
+      writeJsonlEvent(outputStream, event);
+      if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...event });
+      lastAgentMessage = line;
+    };
+
+    child.stdout.on("data", (chunk) => {
+      stdoutBuffer += chunk.toString("utf8");
+      const lines = stdoutBuffer.split(/\r?\n/);
+      stdoutBuffer = lines.pop() || "";
+      for (const line of lines) handleLine(line);
+    });
+
+    child.stderr.on("data", (chunk) => {
+      const text = chunk.toString("utf8");
+      stderr += text;
+      const event = { type: "stderr", text };
+      writeJsonlEvent(outputStream, event);
+      if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...event });
+    });
+
+    child.on("error", (error) => {
+      stderr += error.message;
+      const event = { type: "spawn.error", message: error.message };
+      writeJsonlEvent(outputStream, event);
+      if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...event });
+      finish({
+        ok: false,
+        exitCode: 1,
+        threadId: "",
+        lastAgentMessage,
+        stderr: stderr.trim(),
+        durationMs: Date.now() - startedAt,
+        outputFile: outputPath,
+      });
+    });
+
+    child.on("close", (code) => {
+      if (stdoutBuffer.trim()) handleLine(stdoutBuffer.trim());
+      const closedEvent = { type: "process.closed", exit_code: code ?? 1 };
+      writeJsonlEvent(outputStream, closedEvent);
+      if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...closedEvent });
+      finish({
+        ok: code === 0,
+        exitCode: code ?? 1,
+        threadId: "",
+        lastAgentMessage,
+        stderr: stderr.trim(),
+        durationMs: Date.now() - startedAt,
+        outputFile: outputPath,
+      });
+    });
+  });
+}
+
 export async function runGovernedRoleCommand({
   profile,
   absWorktreeDir,
@@ -808,6 +932,17 @@ export async function runGovernedRoleCommand({
       prompt,
       outputFile,
       sessionId: threadId,
+      environmentOverrides,
+      onEvent,
+      onSpawn,
+    });
+  }
+  if (profile.provider === "OLLAMA_LOCAL") {
+    return runOllamaCommand({
+      absWorktreeDir,
+      selectedModel,
+      prompt,
+      outputFile,
       environmentOverrides,
       onEvent,
       onSpawn,
