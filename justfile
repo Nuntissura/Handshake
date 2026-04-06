@@ -389,6 +389,12 @@ wp-review-response wp-id actor_role actor_session target_role target_session sum
 generate-refinement-rubric *args:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/generate-refinement-rubric.mjs" {{args}}
 
+send-mt wp-id mt-id description model="PRIMARY":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/session/send-mt-prompt.mjs" {{wp-id}} {{mt-id}} "{{description}}" {{model}}
+
+install-mt-hook wp-id:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/hooks/install-mt-hook.mjs" {{wp-id}}
+
 wp-closeout-format wp-id merged-main-commit:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-closeout-format.mjs" {{wp-id}} {{merged-main-commit}}
 
@@ -456,6 +462,7 @@ ack-notifications wp-id role session:
 
 orchestrator-prepare-and-packet wp-id workflow_lane="" execution_lane="" label="pre-wp-launch":
 	@just worktree-add {{wp-id}}
+	@just install-mt-hook {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs" {{wp-id}} {{workflow_lane}} {{execution_lane}}
 	@echo "[ORCHESTRATOR] Committing governance checkpoint on gov_kernel..."
 	@git add -A
