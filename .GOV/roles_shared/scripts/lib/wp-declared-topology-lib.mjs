@@ -203,11 +203,8 @@ export function evaluateWpDeclaredTopology({
     : probeDeclaredWorktree(topology.wpValidatorWorktreeAbs, declaredWorktreeProbe);
   const effectiveWpValidatorEntry = wpValidatorBranchEntry || directWpValidatorProbeEntry;
 
-  if (comparablePath(topology.wpValidatorWorktreeAbs) === comparablePath(topology.coderWorktreeAbs)) {
-    issues.push(
-      `wp validator worktree must be distinct from coder worktree (both resolve to ${topology.wpValidatorWorktreeAbs})`,
-    );
-  }
+  // [CX-503G] WP Validator shares coder worktree. No distinct worktree required.
+  // The per-MT stop pattern ensures only one role is active at a time.
 
   if (!effectiveWpValidatorEntry) {
     issues.push(`no linked worktree found for expected WP validator branch ${topology.wpValidatorBranch}`);

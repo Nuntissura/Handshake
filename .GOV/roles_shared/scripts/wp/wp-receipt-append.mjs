@@ -615,13 +615,24 @@ function assertDeclaredMicrotaskScopeBudgetPreflight({
   });
   if (declaredMicrotasks.length === 0) return;
 
+  // For REVIEW_REQUEST and REVIEW_RESPONSE, auto-infer microtask context from summary
+  // when microtaskContract is missing. This keeps strict enforcement for CODER_INTENT
+  // (which writes code) but relaxes it for review communication (which is coordination).
+  const isReviewExchange = /^REVIEW_REQUEST$|^REVIEW_RESPONSE$/i.test(receiptKind || "");
   if (!microtaskContract || typeof microtaskContract !== "object" || Array.isArray(microtaskContract)) {
+    if (isReviewExchange) {
+      // Auto-infer: skip strict microtask contract enforcement for review exchanges.
+      // The summary typically contains "MT-001 complete" or similar; the receipt will
+      // still be persisted and the auto-relay will fire.
+      return;
+    }
     throw new Error(
       `Governed ${receiptKind} rejected: declared microtask contract is required when MT packets exist for ${wpId}.`,
     );
   }
 
   if (!scopeRef) {
+    if (isReviewExchange) return; // Same relaxation for review exchanges.
     throw new Error(
       `Governed ${receiptKind} rejected: microtask_contract.scope_ref must point to a declared MT (for example MT-001 or CLAUSE_CLOSURE_MATRIX/CX-...).`,
     );

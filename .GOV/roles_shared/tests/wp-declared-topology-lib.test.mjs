@@ -46,7 +46,7 @@ test("declared WP topology accepts the declared coder and WP validator worktrees
   assert.deepEqual(evaluation.issues, []);
 });
 
-test("declared WP topology rejects legacy shared coder and WP validator worktrees", () => {
+test("declared WP topology accepts shared coder and WP validator worktrees [CX-503G]", () => {
   const evaluation = evaluateWpDeclaredTopology({
     repoRoot,
     wpId,
@@ -65,8 +65,9 @@ test("declared WP topology rejects legacy shared coder and WP validator worktree
     ],
   });
 
-  assert.equal(evaluation.ok, false);
-  assert.match(evaluation.issues.join("\n"), /wp validator worktree must be distinct from coder worktree/i);
+  // CX-503G: WP Validator shares coder worktree. No distinct worktree required.
+  assert.equal(evaluation.ok, true);
+  assert.deepEqual(evaluation.issues, []);
 });
 
 test("declared WP topology rejects auxiliary detached check worktrees", () => {
