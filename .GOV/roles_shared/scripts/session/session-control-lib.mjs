@@ -239,21 +239,55 @@ export function assertRoleLaunchProfileSupported({
   return selectedProfile;
 }
 
+const SESSION_MEMORY_TOKEN_BUDGET = 1500;
+
+function estimateTokens(text) {
+  return Math.ceil(String(text || "").length / 4);
+}
+
 function loadSessionMemoryLines(wpId) {
   try {
     const dbPath = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "GOVERNANCE_MEMORY.db");
     if (!fs.existsSync(dbPath)) return [];
-    const db = new DatabaseSync(dbPath, { readOnly: true });
+    const db = new DatabaseSync(dbPath);
     try {
-      const rows = db.prepare(
-        `SELECT memory_type, topic, summary, file_scope FROM memory_index
+      const now = Date.now();
+      const candidates = db.prepare(
+        `SELECT id, memory_type, topic, summary, file_scope, importance, access_count, created_at, last_accessed_at
+         FROM memory_index
          WHERE consolidated = 0 AND (wp_id = ? OR wp_id = '')
-         ORDER BY importance DESC, created_at DESC LIMIT 20`
+         ORDER BY importance DESC, created_at DESC LIMIT 50`
       ).all(wpId || "");
-      if (rows.length === 0) return [];
+      if (candidates.length === 0) return [];
+
+      for (const c of candidates) {
+        const ageMs = now - new Date(c.last_accessed_at || c.created_at).getTime();
+        const ageDays = ageMs / (1000 * 60 * 60 * 24);
+        const recencyBoost = Math.exp(-0.05 * ageDays);
+        const accessBoost = 1 + Math.min(c.access_count, 10) * 0.05;
+        c._score = (c.importance || 0.5) * recencyBoost * accessBoost;
+      }
+      candidates.sort((a, b) => b._score - a._score);
+
+      let tokenCount = 0;
+      const selected = [];
+      for (const c of candidates) {
+        const line = `- [${c.memory_type}] ${c.topic}: ${c.summary}${c.file_scope ? ` (${c.file_scope})` : ""}`;
+        const lineTokens = estimateTokens(line);
+        if (tokenCount + lineTokens > SESSION_MEMORY_TOKEN_BUDGET) break;
+        tokenCount += lineTokens;
+        selected.push({ ...c, _line: line });
+      }
+      if (selected.length === 0) return [];
+
+      db.prepare(
+        `UPDATE memory_index SET access_count = access_count + 1, last_accessed_at = ?
+         WHERE id IN (${selected.map(() => "?").join(",")})`
+      ).run(new Date().toISOString(), ...selected.map(s => s.id));
+
       return [
-        `SESSION MEMORY (${rows.length} entries from previous sessions):`,
-        ...rows.map(m => `- [${m.memory_type}] ${m.topic}: ${m.summary}${m.file_scope ? ` (${m.file_scope})` : ""}`),
+        `SESSION MEMORY (${selected.length} entries, ${tokenCount} est. tokens):`,
+        ...selected.map(s => s._line),
         `Use \`just memory-search "<query>"\` to retrieve full content for any entry.`,
       ];
     } finally { try { db.close(); } catch {} }
