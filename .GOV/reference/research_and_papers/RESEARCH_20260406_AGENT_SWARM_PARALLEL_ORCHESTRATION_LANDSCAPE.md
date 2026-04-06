@@ -307,3 +307,149 @@ Key finding: the industry has converged on a shared set of architectural princip
 - [Agentic Coding 2026 Guide](https://www.verdent.ai/guides/ai-coding-agent-2026)
 - [Agent Orchestration Patterns: Swarm vs Mesh vs Hierarchical](https://gurusup.com/blog/agent-orchestration-patterns)
 - [Multi-Agent Frameworks for Enterprise AI](https://www.adopt.ai/blog/multi-agent-frameworks)
+
+---
+
+## 8. Expanded Research: Implementation Details for All 13 Recommendations
+
+### 8.1 RGF-98: Per-MT Compile Gate in Post-Commit Hook
+
+Pattern source: ParaCodex correctness gating -- validate at every stage on actual hardware.
+
+Implementation: Extend the existing post-commit hook to run cargo check BEFORE firing wp-review-request. If compile fails, log error to WP_COMMUNICATIONS and skip the review request. The coder sees the compile error in git output.
+
+SQLite consideration: Compile gate results stored in the WP SQLite database (RGF-101) when available, falling back to log file otherwise.
+
+Risk: Cargo check takes 30-120s. Run asynchronously -- review request fires only after check completes.
+
+### 8.2 RGF-99: Adversarial Validator Review Prompt
+
+Pattern source: Metaswarm "never trust subagent self-reports" + Microsoft BlueCodeAgent.
+
+Research: BlueCodeAgent (Microsoft, 2026) augments static reasoning with dynamic sandbox-based analysis in isolated Docker environments. Promptfoo and DeepTeam provide structured adversarial testing. Novee AI pentesting agent chains attack techniques autonomously.
+
+Implementation: Update validator startup prompt: "After confirming code compiles and tests pass, actively try to break it. Look for race conditions, input validation gaps, error handling omissions, capability escalation paths, and spec requirements the coder missed."
+
+Product consideration: A dedicated red-team agent (like BlueCodeAgent) could run independently of the validator for automated security/robustness assessment.
+
+### 8.3 RGF-100: MT Retry Counter and Escalation
+
+Pattern source: Metaswarm 3-retry-then-escalate + AgentErrorTaxonomy (arxiv 2509.25370).
+
+Research: AgentErrorTaxonomy classifies failure modes across memory, reflection, planning, action, and system-level operations. Cascading failures are the primary risk. 3-retry is the consensus escalation threshold.
+
+Implementation: Track mt_fix_cycle_count in receipts. After 3 STEER responses on same MT, stop coder, create ESCALATION notification to orchestrator with summary of repeated failures.
+
+### 8.4 RGF-101: SQLite Communication Backbone
+
+Pattern source: Overstory SQLite WAL + Handshake Database trait boundary.
+
+Research: SQLx supports PostgreSQL, MySQL, and SQLite with the SAME Rust API. The Any driver enables runtime database switching. Refinery provides database-agnostic migration tooling.
+
+PostgreSQL portability strategy:
+1. Use sqlx Any driver type, not concrete SqlitePool or PgPool
+2. Schema uses ONLY SQL features common to both SQLite and PostgreSQL
+3. No SQLite-specific (AUTOINCREMENT, GLOB, PRAGMA) or PostgreSQL-specific (SERIAL, ARRAY, JSONB)
+4. Timestamps as TEXT in ISO-8601, UUIDs as TEXT
+5. Migrations tested against both backends
+6. Follow existing Handshake Database trait boundary pattern
+
+Schema: wp_messages table (sender_role, target_role, message_type, content JSON, correlation_id, acknowledged) + mt_tasks table (mt_id, status, claimed_by, fix_cycle_count, evidence JSON). Indexes on target+acknowledged and status.
+
+Placement: gov_runtime/roles_shared/WP_COMMUNICATIONS/{WP_ID}/wp_comm.db -- external governance runtime root, not inside repo. Product adoption moves to Database trait backend.
+
+### 8.5 RGF-102: Shared MT Task Board with Self-Claim
+
+Pattern source: Claude Code Agent Teams shared task list with file-lock claiming.
+
+Research: Claude Agent Teams uses file-lock claiming. Tasks have three states: pending, in progress, completed. Dependencies auto-resolve. Teammates self-claim without orchestrator.
+
+Implementation: At packet creation, populate mt_tasks table in WP SQLite. Coder claims via just mt-claim, implements, marks complete via just mt-complete. Post-commit hook fires review request. Validator auto-reviews completed MTs. Orchestrator monitors only.
+
+SQLite claiming: UPDATE mt_tasks SET status=claimed, claimed_by=? WHERE mt_id=? AND status=pending -- implicit row-level locking.
+
+### 8.6 RGF-103: Failure Memory
+
+Pattern source: desplega-ai embedding-indexed memory + A-MEM (arxiv 2502.12110).
+
+Research: A-MEM creates interconnected knowledge networks through dynamic indexing. Retrieval method is the dominant factor -- accuracy spans 20 points across methods (57.1% to 77.2%). Two coupled failure modes: invalid action generation and state drift.
+
+Implementation: Extract error-fix pairs from smoketest reviews into failure_memory.db. At coder startup, query by file surface. Store: error_pattern, error_category, fix_pattern, wp_id, file_surface, occurrences.
+
+Product consideration: Failure memory should be project-scoped and queryable via Locus for cross-WP learning.
+
+### 8.7 RGF-104: Transcript-Based Stall Detection
+
+Pattern source: Overstory Tier 1 AI-assisted transcript analysis.
+
+Implementation: Scan session output JSONL for stuck patterns: same error 3+ times, "I will try again" 3+ times, no file writes in 5 minutes, same command repeated 3+ times. Lightweight watcher writes STALL_DETECTED notification and optionally cancels stuck command.
+
+### 8.8 RGF-105: Mechanical Tool-Call Guards
+
+Pattern source: Overstory tool-call guards.
+
+Implementation: For Claude Code validators, deploy PreToolUse hook blocking Write/Edit on src/app/tests. Allow Read/Grep/Glob/Bash. Allow Write/Edit on .GOV (validator writes reports). For Codex Spark coders, git-hook enforcement is more reliable than per-tool guards.
+
+### 8.9 RGF-106: Per-MT Completion Hooks
+
+Pattern source: Claude Agent Teams TaskCompleted hook.
+
+Implementation: Extend post-commit hook with multiple gates: cargo check (RGF-98) + MT-specific test filter + artifact-hygiene-check. All gates must pass before review request fires. Each gate logs result to WP_COMMUNICATIONS.
+
+### 8.10 RGF-107: In-Product Session Manager
+
+Pattern source: AgentsRoom real-time monitoring + industry shift toward "AI as the development platform."
+
+Research: AgentsRoom shows live terminal output with status indicators. LangSmith provides Studio for interactive visualization. Industry moving from "AI inside IDE" to dedicated agent monitoring surfaces.
+
+Handshake implementation: DCC Session Manager panel with live interaction stream, status indicators, MT progress, inter-session message flow, one-click restart/cancel/redirect. Replaces OS terminal windows entirely.
+
+### 8.11 RGF-108: Distillation from Governed Work
+
+Pattern source: PARL trained orchestrator + Handshake distillation pillar.
+
+Implementation: After WP closure, extract training pairs: task decomposition (refinement to MT plan), code generation (MT prompt to diff), review (diff to findings), fix (issue to fix diff). Store as JSONL in artifact system. Feeds WP-1-Distillation-v2 and WP-1-MTE-LoRA-Wiring-v1.
+
+### 8.12 RGF-109: Local Model Integration (Ollama)
+
+Pattern source: K2.5 frozen sub-agents + OpenClaw Gateway routing.
+
+Research: OpenClaw Gateway routes 80% of tasks to Ollama (free), cloud fallback for complex tasks. Complexity tiering: Tier 1 Frontier (Claude Opus), Tier 2 Local Specialist (qwen2.5-coder:14b), Tier 3 Local Generalist, Tier 4 Local Fast (mistral:7b). OLLAMA_NUM_PARALLEL controls concurrent requests.
+
+Implementation: Add OLLAMA_LOCAL to model profile catalog. MT task board includes complexity_tier (SIMPLE/MEDIUM/COMPLEX). Routing: SIMPLE to Ollama, MEDIUM to Codex Spark, COMPLEX to Claude/GPT. Auto-escalate on local model failure.
+
+### 8.13 RGF-110: Visual Debugging Loop
+
+Pattern source: Kimi K2.5 visual debugging loop.
+
+Implementation: Requires WP-1-Product-Screenshot-Visual-Validation-v1. Flow: coder implements GUI MT, post-commit triggers screenshot, compare against baseline, differences sent to validator as visual evidence alongside code diff, iterate until visual quality threshold met.
+
+Requires Tauri app in headless/test mode for automated screenshots.
+
+---
+
+## 9. Additional Sources (Expanded Research)
+
+### SQLite/PostgreSQL Portability
+- SQLx Rust SQL Toolkit: https://github.com/launchbadge/sqlx
+- Refinery SQL Migration Toolkit: https://github.com/rust-db/refinery
+- sqlx_migrator: https://github.com/iamsauravsharma/sqlx_migrator
+
+### Adversarial Review and Red Team
+- BlueCodeAgent (Microsoft): https://www.microsoft.com/en-us/research/blog/bluecodeagent-a-blue-teaming-agent-enabled-by-automated-red-teaming-for-codegen-ai/
+- DeepTeam: https://github.com/confident-ai/deepteam
+- Promptfoo Red Team: https://www.promptfoo.dev/docs/red-team/
+
+### Failure Memory and Agent Learning
+- A-MEM Agentic Memory: https://arxiv.org/abs/2502.12110
+- Where LLM Agents Fail: https://arxiv.org/abs/2509.25370
+- Agent Memory Paper List: https://github.com/Shichun-Liu/Agent-Memory-Paper-List
+
+### Local Model Orchestration
+- Ollama AI Agents 2026: https://medium.com/@brian-curry-research/ollama-ai-agents-how-to-use-deploy-and-orchestrate-local-llms-in-2026-732d1477f3e2
+- OpenClaw Ollama Setup: https://launchmyopenclaw.com/openclaw-ollama-setup/
+- Local AI Agent Orchestrator: https://github.com/itayhoban/local-ai-agent-orchestrator
+
+### In-App Agent Monitoring
+- AI Agent Observability Tools 2026: https://www.braintrust.dev/articles/best-ai-observability-tools-2026
+- AI Agent Monitoring Best Practices: https://uptimerobot.com/knowledge-hub/monitoring/ai-agent-monitoring-best-practices-tools-and-metrics/
