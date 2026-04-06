@@ -116,6 +116,26 @@ if (fs.existsSync(cargoTomlPath)) {
 }
 // ── End RGF-98 ───────────────────────────────────────────────────────
 
+// ── RGF-106: Per-MT Completion Hooks (Artifact Hygiene Gate) ─────────
+// Check for wrongly-placed build artifacts inside the codebase.
+try {
+  const badPaths = [
+    path.join(repoRoot, "target"),
+    path.join(repoRoot, "src", "backend", "Handshake Artifacts"),
+    path.join(repoRoot, "src", "backend", "handshake_core", "target"),
+  ];
+  const found = badPaths.filter((p) => fs.existsSync(p));
+  if (found.length > 0) {
+    console.log(`[POST-COMMIT-HOOK] ARTIFACT HYGIENE WARNING: found wrongly-placed build artifacts:`);
+    for (const p of found) console.log(`  ${p}`);
+    console.log(`[POST-COMMIT-HOOK] These should be under ../Handshake Artifacts/, not inside the repo.`);
+    // Warning only — does not block the review request
+  }
+} catch {
+  // Best-effort check
+}
+// ── End RGF-106 ──────────────────────────────────────────────────────
+
 // Build session keys
 const coderKey = `CODER:${wpId}`;
 const validatorKey = `WP_VALIDATOR:${wpId}`;
