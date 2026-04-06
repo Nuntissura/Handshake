@@ -74,6 +74,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 
 - External build/test/tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
 - The Integration Validator, or the Orchestrator when explicitly instructed to perform the `origin/main` push, MUST verify `../Handshake Artifacts/` is clean of stale artifacts before pushing to `origin/main`.
+- **Integration Validator Artifact Hygiene Gate [CX-503H] (HARD):** Before merging WP product code to `main`, the Integration Validator MUST: (1) run `just artifact-hygiene-check` to verify no repo-local `target/` directories exist, (2) grep for wrongly-placed `Handshake Artifacts/` directories inside `src/`, `app/`, or `tests/`, (3) verify `../Handshake Artifacts/` does not contain stale WP-specific build residue. Merge is blocked until all artifact hygiene checks pass.
 - Repo-local `target/` directories are invalid. Treat them as hygiene failures, not as normal residue, and clear them through `just artifact-cleanup` or the governed closeout path.
 - Governed artifact cleanup and integration-validator closeout now write a retention manifest under `../Handshake Artifacts/handshake-tool/artifact-retention/`; review that manifest when cleanup scope matters for audit or recovery.
 - Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
@@ -479,7 +480,20 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - **Per-Microtask Inspection [RGF-89] (HARD for orchestrator-managed lanes):** When the coder sends a `REVIEW_REQUEST` for a completed MT, the WP Validator MUST inspect that MT before the coder proceeds to the next one. Do not defer all inspection to end-of-WP handoff. Per-MT review catches issues early and prevents compounding errors across MTs.
 - After inspecting each MT, send a governed review response: `just wp-review-response WP-{ID} WP_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id>`
 - If the MT has issues, include specific fix instructions in the response so the coder can fix before starting the next MT.
-- When ALL MTs are `VALIDATOR STATUS: CONFIRMED`, proceed to the wholesale handoff review (0A below).
+- When ALL MTs are `VALIDATOR STATUS: CONFIRMED`, proceed to the Final WP Review below.
+- **WP Validator shares the coder worktree** (`wtc-*` on `feat/WP-{ID}`) per [CX-503G]. No separate `wtv-*` worktree. The per-MT stop ensures only one role is active at a time.
+
+0A-FINAL) Final WP Review (after all MTs pass)
+
+After all individual MTs pass, the WP Validator MUST perform a complete WP-level review before writing the validation verdict:
+
+1. **Full product code review**: Read the complete diff (`git diff <base>..HEAD`), not just per-MT slices. Check for cross-MT integration issues, naming consistency, and dead code.
+2. **Validator rubric check**: Apply the governed validator report profile (SPLIT_DIFF_SCOPED_RIGOR_V3/V4). All rubric sections must be filled with concrete evidence.
+3. **Red team assessment**: Check for security failure modes, capability escalation paths, race conditions, and input validation gaps across the full diff.
+4. **Master Spec alignment (wide scope)**: Verify the implementation against the spec anchors from the refinement. Check that the implementation satisfies the spec's MUST/SHOULD clauses, not just the packet's acceptance criteria.
+5. **Artifact hygiene**: Run `just artifact-hygiene-check` from the coder worktree. Flag any repo-local `target/` directories or wrongly-placed build artifacts.
+6. **Write validation verdict**: If all checks pass, write `Verdict: PASS` in the validation report. If any check fails, write `Verdict: FAIL` with specific remediation instructions and send them to the coder via `just wp-review-response`.
+7. **If PASS**: Notify the orchestrator (via `wp-notification` with target ORCHESTRATOR) that the WP is ready for integration validation and merge.
 
 0B) Handoff Quality Gate
 - Before treating a coder handoff as review-ready, inspect `## STATUS_HANDOFF` rather than trusting a chat summary alone.
