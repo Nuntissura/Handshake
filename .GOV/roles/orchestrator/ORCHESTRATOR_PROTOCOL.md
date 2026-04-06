@@ -27,7 +27,7 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
 - Permanent protected branches: `main`, `user_ilja`, `gov_kernel`.
 - Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-gov-kernel`.
 - `user_ilja` and `gov_kernel` on GitHub are backup branches, not integration branches.
-- Permanent non-main worktrees (`wt-ilja`, `wtc-*`, `wtv-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
+- Permanent non-main worktrees (`wt-ilja`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - `gov_kernel` MUST NOT be merged into `main`. `.GOV/` changes reach `main` through `just sync-gov-to-main` [CX-212D].
 - Root-level repo control files inherited from `main`, currently `AGENTS.md` and the canonical root `justfile`, are main-only authoring surfaces. If either file needs changes, make that edit in `handshake_main` on local `main`, commit it on `main`, and then reseed/refresh the permanent non-main worktrees from `main`. Do not author or commit those files from WP worktrees. Exception: `wt-gov-kernel` may carry a kernel-local governance launcher `justfile`; it does not replace main ownership of the canonical root file.
 - Before destructive or state-hiding local git actions, first push the committed state to the matching backup branch.
@@ -82,7 +82,8 @@ See also:
   - default repo profile: `OPENAI_GPT_5_4_XHIGH`
   - governed fallback profile: `OPENAI_GPT_5_2_XHIGH`
   - current default launch mapping remains `gpt-5.4` primary, `gpt-5.2` fallback, `model_reasoning_effort=xhigh`
-  - declared-only profile: `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` (auditable in packets now; governed launch must fail closed until provider-specific runtime support exists)
+  - Claude Code profile: `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` (governed launch supported)
+  - local model profiles: `OLLAMA_QWEN_CODER_7B`, `OLLAMA_QWEN_CODER_14B` (coder-only, zero API cost, auto-escalate to cloud on failure)
 - Repo-governed Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
 - Primary launch path is the VS Code bridge using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
   - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
@@ -657,9 +658,8 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 ## Worktree Budget (HARD RULE)
 
-- Maximum WP-specific worktrees per WP: 2 (`CODER` + `WP_VALIDATOR`) [CX-212D].
-- The Coder operates from the packet-declared coder worktree (`wtc-*` on `feat/WP-*`).
-- The WP Validator operates from a dedicated validator worktree (`wtv-*` on `validate/WP-*`) rooted from the coder branch, fast-forwarded as needed for review, and writes governance through the `.GOV/` junction.
+- Maximum WP-specific worktrees per WP: 1 [CX-503G].
+- The Coder and WP Validator share the same worktree (`wtc-*` on `feat/WP-*`). The per-MT stop pattern ensures only one role is active at a time (coder commits and stops, validator reviews and responds, coder resumes). Governance uses the `.GOV/` junction to the kernel.
 - The Integration Validator operates from `handshake_main` on branch `main` — no WP-specific worktree.
 - Do not create ad-hoc temp worktrees (detached checkouts, merge worktrees, revalidation worktrees) outside the governed naming scheme.
 - After a WP reaches VALIDATED or MERGED, require governed cleanup of WP-specific worktrees before starting new WPs.
@@ -668,7 +668,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 ## WP Worktree Creation Rules [CX-212D] (HARD RULE)
 
-- WP worktrees (`wtc-*`, `wtv-*`) are created from `main` or the declared coder branch as appropriate but MUST NOT retain a git-tracked `/.GOV/` directory.
+- WP worktrees (`wtc-*`) are created from `main` but MUST NOT retain a git-tracked `/.GOV/` directory. Legacy `wtv-*` worktrees from the old 2-per-WP model are cleanup candidates.
 - After `git worktree add`, the creation script MUST:
   1. Remove the inherited `/.GOV/` directory from the new worktree.
   2. Create a junction (`mklink /J` on Windows, symlink on Unix) from `/.GOV/` to `../wt-gov-kernel/.GOV`.

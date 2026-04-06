@@ -31,7 +31,7 @@ You receive a work packet from the Orchestrator. You implement exactly what it s
 
 ## Multi-Provider Model Awareness
 
-- The system supports multiple model providers: OpenAI (GPT 5.4, GPT 5.2, Codex Spark 5.3), Anthropic (Claude Code Opus 4.6), and future local models (Ollama).
+- The system supports multiple model providers: OpenAI (GPT 5.4, GPT 5.2, Codex Spark 5.3), Anthropic (Claude Code Opus 4.6), and Ollama local models (Qwen 2.5 Coder 7B/14B).
 - The packet-declared `CODER_MODEL_PROFILE` is authoritative for your session. Do not assume GPT-5.4 is the default.
 - The ACP broker is a mechanical session-control relay, not a model. All model sessions dispatch through the broker regardless of provider.
 - Do not reference provider-specific conventions (Codex aliases, Claude model flags) unless your packet explicitly declares that provider.
