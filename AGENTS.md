@@ -98,6 +98,10 @@
 - Validator duties are non-agentic, but repo governance may run multiple validator CLI sessions concurrently when they are scoped as WP Validator and Integration Validator sessions.
 - Only the Primary Coder may use coder sub-agents, and only when the packet explicitly records operator approval.
 - Shared launch/watch contract: `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`.
+- The ACP broker is a mechanical session-control relay, not an LLM or model provider. All governed sessions dispatch through it. The broker auto-reclaims terminal windows on session completion and injects completion notifications [CX-503D, RGF-93, RGF-95].
+- Per-MT auto-relay: coder commits trigger a git post-commit hook that fires `wp-review-request` mechanically. The auto-relay dispatches to the validator without orchestrator involvement. Validators respond via `wp-review-response` which auto-relays back to the coder [CX-503C].
+- Key orchestrator commands: `just send-mt` (dispatch MT with session keys), `just wp-lane-health` (diagnostic), `just wp-closeout-format` (automated closeout), `just install-mt-hook` (auto-relay hook).
+- Validators SHOULD actively challenge code (adversarial review), not just confirm it works [CX-503J].
 
 ### Governance kernel architecture [CX-212B/C/D/F]
 - **Live junction model:** `/.GOV/` in every non-main worktree is a junction (symlink) to `../wt-gov-kernel/.GOV`. Edits to any `/.GOV/` file are live and immediately visible to all worktrees. There is no branch isolation for governance files.
