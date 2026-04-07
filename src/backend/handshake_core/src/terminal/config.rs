@@ -80,3 +80,14 @@ impl TerminalConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::TerminalConfig;
+
+    #[test]
+    fn with_session_scoped_denies_injects_patterns() {
+        let cfg = TerminalConfig::with_session_scoped_denies(Some("session-123"));
+        assert_eq!(cfg.denied_command_patterns, TerminalConfig::session_denied_command_patterns());
+    }
+}
