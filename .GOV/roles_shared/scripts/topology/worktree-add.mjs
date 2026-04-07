@@ -192,11 +192,9 @@ function main() {
       needsCreate = true;
     }
     if (needsCreate) {
-      if (process.platform === "win32") {
-        execFileSync("cmd", ["/c", `mklink /J "${govDir}" "${govKernelAbs}"`], { stdio: "inherit" });
-      } else {
-        fs.symlinkSync(govKernelAbs, govDir, "junction");
-      }
+      // Use Node.js native junction creation — works on all platforms and avoids
+      // cmd.exe quoting issues with paths containing spaces.
+      fs.symlinkSync(govKernelAbs, govDir, "junction");
       console.log(`[WORKTREE_ADD] .GOV/ junction created -> ${govKernelAbs}`);
     }
     suppressSharedGovJunctionDirt(absDir);
