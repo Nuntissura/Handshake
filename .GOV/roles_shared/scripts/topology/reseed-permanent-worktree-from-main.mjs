@@ -31,7 +31,10 @@ function normalizeComparablePath(value) {
 
 function removeDirectoryLinkOnly(linkPath) {
   if (process.platform === "win32") {
-    execFileSync("cmd", ["/c", "rmdir", linkPath], { stdio: "ignore" });
+    // Use fs.rmdirSync for junctions — it calls Win32 RemoveDirectory which
+    // correctly removes the reparse point without following the junction.
+    // Previous cmd /c rmdir approach silently failed on paths with spaces.
+    fs.rmdirSync(linkPath);
     return;
   }
   fs.unlinkSync(linkPath);
@@ -136,7 +139,10 @@ function ensureGovJunction(absDir) {
   }
 
   if (process.platform === "win32") {
-    execFileSync("cmd", ["/c", "mklink", "/J", govDir, govKernelAbs], { stdio: "inherit" });
+    // Pass the entire mklink command as a single string after /c so cmd.exe
+    // preserves the quoted paths. Splitting into separate args caused junctions
+    // with malformed targets (e.g. D:\D:\...) on paths containing spaces.
+    execFileSync("cmd", ["/c", `mklink /J "${govDir}" "${govKernelAbs}"`], { stdio: "inherit" });
   } else {
     fs.symlinkSync(govKernelAbs, govDir, "junction");
   }
