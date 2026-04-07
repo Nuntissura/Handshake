@@ -217,6 +217,33 @@ Assessment:
 - <did the coder and validator communicate directly or only through orchestrator relay?>
 - <were governed receipts (wp-review-request/response) used or was all communication through raw SEND_PROMPT?>
 
+## 9a. Memory Discipline
+
+- MEMORY_WRITES_BY_ROLE:
+  - ORCHESTRATOR: <count or NONE>
+  - CODER: <count or NONE>
+  - WP_VALIDATOR: <count or NONE>
+  - INTEGRATION_VALIDATOR: <count or NONE>
+- MEMORY_WRITE_EVIDENCE:
+  - <list each memory write with role, type (episodic/semantic/procedural), topic, and source command/artifact>
+- DUAL_WRITE_COMPLIANCE: <YES|NO|PARTIAL> (both Claude memory and repo governance memory DB)
+- MEMORY_VERDICT: <CLEAN|PARTIAL|NONE>
+- Assessment:
+  - <did each role that should have written memory actually do so?>
+  - <were insights captured during the run or only at closeout?>
+  - <was anything written to vendor-locked memory without dual-writing to repo?>
+
+## 9b. Build Artifact Hygiene
+
+- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake Artifacts` (resolve from topology; typically a sibling of the worktree root)
+- BUILD_TARGET_CLEANED_BY: <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|NONE|N/A>
+- BUILD_TARGET_CLEANED_AT: <timestamp or N/A>
+- BUILD_TARGET_STATE_AT_CLOSEOUT: <CLEAN|STALE|NOT_CHECKED>
+- Assessment:
+  - <did the responsible role clean the build target folder after compilation/testing?>
+  - <were stale artifacts left behind that could confuse subsequent WP runs?>
+  - <if N/A, explain why build artifacts were not produced>
+
 ## 10. ACP Runtime / Session Control Findings
 
 - <broker, queue, session-control, topology, or closeout issues>

@@ -49,7 +49,8 @@
 - Broad requests like "clean up branches" or "sync everything" are insufficient for destructive or branch-moving work. Present a deterministic list of exact actions + exact targets first. For that most recently presented list, the only valid approval replies are `approved` or `proceed`. If the list changes, ask again.
 - Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
 - Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the list has been presented. Never use direct filesystem deletion on worktree paths.
-- If `git worktree remove` fails, STOP immediately. Do not continue with manual cleanup inside the shared worktree root.
+- **FORBIDDEN: `git worktree remove` (raw) [CX-122].** NEVER run `git worktree remove` directly. Non-main worktrees use a `.GOV/` directory junction pointing to `wt-gov-kernel/.GOV/`. Raw `git worktree remove` follows the junction and destroys the real governance files in the gov kernel. Always use `just delete-local-worktree`.
+- If `just delete-local-worktree` fails, STOP immediately. Do not continue with manual cleanup (`rm -rf`, `Remove-Item`, `del`) inside the shared worktree root.
 - For orchestrator-managed WP cleanup after merge, do not improvise deletion commands. Use the Orchestrator-generated single-target cleanup script for the exact CODER or WP_VALIDATOR worktree:
   - `just generate-worktree-cleanup-script WP-{ID} CODER`
   - `just generate-worktree-cleanup-script WP-{ID} WP_VALIDATOR`
