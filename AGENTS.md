@@ -92,6 +92,21 @@
   - WP Validator = advisory technical reviewer
   - Integration Validator = final technical and merge authority
 
+### Governance memory system [CX-503K]
+- Governance memory is a cross-session, cross-WP knowledge system stored in `gov_runtime/roles_shared/GOVERNANCE_MEMORY.db` (SQLite). It is NOT a source of truth — work packets, receipts, and governance ledgers remain authoritative. Memory is supplementary context.
+- **Role-scoped injection:** Coder startup receives **procedural memories only** (the fail log, up to 1500 tokens). Validator startup receives **procedural + semantic** (fail log + governance context, up to 1500 tokens). Orchestrator startup receives **full cross-WP memory** (all types, governance-weighted, up to 2000 tokens). Session diversification caps at 3 memories per source session. Treat injected memories as hints — the packet and code win over memory.
+- **Memory types:** procedural (fix patterns — the fail log), semantic (distilled facts), episodic (session events).
+- **Population:** Event-driven: every `wp-receipt-append` immediately extracts high-signal receipts to memory. Batch: `just memory-refresh` runs at every role startup (orchestrator, coder, validator) + during `just gov-check`. Session-end: CLOSE_SESSION captures a session summary. Check failures: validator-scan, validator-handoff-check, pre-work, and post-work failures are auto-captured. Manual: `just memory-capture <type> "<insight>"`.
+- **Maintenance:** Dual-gate compaction (time + activity thresholds). Write-time novelty scoring prevents duplicate patterns. New procedural memories supersede matching old ones. Contradiction detection flags conflicting semantic memories. Connectivity-weighted decay resists pruning well-linked memories. Hard cap of 500 active entries. No LLM required for any operation.
+- **Role responsibilities:**
+  - Orchestrator: owns memory lifecycle. Auto-launches the Memory Manager at startup (staleness-gated) and before WP merge (via closeout check).
+  - Memory Manager: governed ACP session on Codex Spark (reasoning extra-high). Analyzes patterns, resolves contradictions, flags stale memories, drafts RGF candidates. Self-terminates after tasks. Protocol: `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
+  - Coder: receives fail log at startup. `just pre-work` surfaces fail log for the WP. Can capture insights via `just memory-capture procedural "<insight>"`.
+  - Validator: receives fail log + context at startup. Check failures auto-captured. Can capture insights via `just memory-capture semantic "<insight>"`.
+  - All roles: memory is supplementary — the work packet is the execution authority
+- **Backup:** `gov_runtime/` is included in backup snapshots. `just memory-export` provides git-trackable JSONL archival; `just memory-import` restores from export.
+- **Canonical reference:** `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md` — the operational guide for the full memory system.
+
 ### Current role execution policy
 - Orchestrators MUST NEVER edit product code under `src/`, `app/`, or `tests/`. Even one-line fixes must be routed through the governed coder session via `just session-send`. This is a hard role boundary [CX-580A].
 - Orchestrator is non-agentic and single-session, but may coordinate and launch multiple external CLI sessions.
