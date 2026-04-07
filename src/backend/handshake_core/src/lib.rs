@@ -18,8 +18,8 @@ pub mod role_mailbox;
 pub mod runtime_governance;
 pub mod storage;
 pub mod terminal;
-pub mod workspace_safety;
 pub mod tokenization;
+pub mod workspace_safety;
 pub mod workflows;
 
 use std::sync::Arc;

@@ -47,6 +47,10 @@ impl SessionWorktreeRegistry {
     pub fn len(&self) -> usize {
         self.allocations.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.allocations.is_empty()
+    }
 }
 
 #[cfg(test)]
