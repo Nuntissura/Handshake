@@ -53,6 +53,7 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
 - Product code under `/src/`, `/app/`, and `/tests/` must not read or write `/.GOV/`.
 - `/.GOV/docs/` is for repo-level governance docs. Temporary or non-authoritative material belongs only in a clearly named scratch subfolder.
 - `/.GOV/operator/` is Operator-private and non-authoritative unless the Operator explicitly designates a file for the current task.
+- **No spaces in names [CX-109A]:** All new files and folders created by governance or product code MUST use `_` or `-` instead of spaces. This applies to governance artifacts, WP files, scripts, and any product files created during WP work. When delegating to the Coder, the Orchestrator MUST ensure the packet scope and file targets do not introduce spaces. Existing spaces are legacy; rename when touched.
 
 See also:
 - `.GOV/codex/Handshake_Codex_v1.4.md`
