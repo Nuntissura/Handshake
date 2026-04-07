@@ -202,7 +202,7 @@ mod tests {
         .to_string();
 
         let descriptor: CheckDescriptor = serde_json::from_str(&raw)?;
-        let params = descriptor.parameters;
+        let params = &descriptor.parameters;
 
         assert!(params.get("strict").and_then(Value::as_bool).unwrap_or(false));
         assert_eq!(params.get("threshold").and_then(Value::as_f64), Some(0.5));
