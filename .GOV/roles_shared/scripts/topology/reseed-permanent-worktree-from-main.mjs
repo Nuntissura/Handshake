@@ -138,14 +138,9 @@ function ensureGovJunction(absDir) {
     }
   }
 
-  if (process.platform === "win32") {
-    // Pass the entire mklink command as a single string after /c so cmd.exe
-    // preserves the quoted paths. Splitting into separate args caused junctions
-    // with malformed targets (e.g. D:\D:\...) on paths containing spaces.
-    execFileSync("cmd", ["/c", `mklink /J "${govDir}" "${govKernelAbs}"`], { stdio: "inherit" });
-  } else {
-    fs.symlinkSync(govKernelAbs, govDir, "junction");
-  }
+  // Use Node.js native junction creation — works on all platforms and avoids
+  // cmd.exe quoting issues with paths containing spaces.
+  fs.symlinkSync(govKernelAbs, govDir, "junction");
   console.log(`[RESEED_PERMANENT_WORKTREE_FROM_MAIN] .GOV junction created -> ${govKernelAbs}`);
 }
 
