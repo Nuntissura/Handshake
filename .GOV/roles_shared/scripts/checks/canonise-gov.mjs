@@ -236,18 +236,87 @@ if (grouped.WARN.length > 0) {
 
 console.log(`\nSUMMARY: ${results.length} checks — ${grouped.PASS.length} pass, ${warnCount} warn, ${failCount} fail`);
 
-// ─── Review list for orchestrator ────────────────────────────────
-console.log("\nREVIEW LIST (orchestrator: check these files for intent alignment):");
-const reviewFiles = [
-  ...REQUIRED_FILES,
-  "README.md",
-  "roles/README.md",
-  "roles_shared/README.md",
+// ─── Structured review brief ─────────────────────────────────────
+// Each file has a declared purpose and a scoped review directive.
+// The orchestrator reads each file and checks ONLY what the directive says.
+const REVIEW_BRIEF = [
+  {
+    file: "codex/Handshake_Codex_v1.4.md",
+    purpose: "Foundational law — CX invariants, precedence rules, HARD constraints",
+    directive: "Check if the governance change introduces or modifies a HARD rule that needs a new or updated CX invariant. If no new invariant is needed, skip.",
+  },
+  {
+    file: "roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
+    purpose: "Orchestrator execution rules — workflow authority, delegation, safety",
+    directive: "Check if the governance change affects orchestrator workflow, delegation rules, or safety constraints. Update execution rules or 'See also' references if applicable.",
+  },
+  {
+    file: "roles/coder/CODER_PROTOCOL.md",
+    purpose: "Coder execution rules — implementation constraints, handoff evidence, scope boundaries",
+    directive: "Check if the governance change introduces constraints the coder must follow during implementation or handoff. Update rules or references if applicable.",
+  },
+  {
+    file: "roles/validator/VALIDATOR_PROTOCOL.md",
+    purpose: "Validator execution rules — review authority, proof standards, closeout gates",
+    directive: "Check if the governance change affects validation criteria, proof requirements, or closeout rules. Update rules or references if applicable.",
+  },
+  {
+    file: "roles_shared/docs/COMMAND_SURFACE_REFERENCE.md",
+    purpose: "Canonical just-command documentation — grouped by workflow purpose",
+    directive: "Check if the governance change adds, removes, or changes justfile recipes. Add/update/remove command entries with correct read-only/write classification.",
+  },
+  {
+    file: "roles_shared/docs/ARCHITECTURE.md",
+    purpose: "Module responsibility map — system layers, key paths, data model",
+    directive: "Check if the governance change introduces a new system, module, or architectural layer. Add a row if applicable. Do not update for workflow-only changes.",
+  },
+  {
+    file: "roles_shared/docs/START_HERE.md",
+    purpose: "Navigation entrypoint — links to all key governance docs",
+    directive: "Check if the governance change adds a new doc, guide, or authority source that roles need to find. Add a navigation link if applicable. Do not duplicate content from other files.",
+  },
+  {
+    file: "roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md",
+    purpose: "Compact rules index — role responsibilities, key commands, operator UX ordering",
+    directive: "Check if the governance change adds commands the operator needs quick access to, or changes role responsibilities or UX ordering. Add a quickref entry if applicable.",
+  },
+  {
+    file: "roles_shared/docs/RUNBOOK_DEBUG.md",
+    purpose: "Diagnostic guide — symptoms, log locations, recovery procedures",
+    directive: "Check if the governance change introduces new failure modes, log paths, or recovery steps. Add a symptom entry if applicable. Skip for non-diagnostic changes.",
+  },
+  {
+    file: "roles_shared/docs/TOOLING_GUARDRAILS.md",
+    purpose: "Append-only shared memory — recurring repo bad habits and tooling rules",
+    directive: "Check if the governance change exposed a new bad habit or tooling pitfall worth recording. Append only; never edit existing entries.",
+  },
+  {
+    file: "README.md",
+    purpose: "Folder map — .GOV ownership model and directory structure",
+    directive: "Check if the governance change adds or renames folders under .GOV/. Update the folder map if applicable. Skip for content-only changes.",
+  },
+  {
+    file: "roles/README.md",
+    purpose: "Role listing — directs to role-specific bundles",
+    directive: "Check if a new role was added. Update listing if applicable. Skip otherwise.",
+  },
+  {
+    file: "roles_shared/README.md",
+    purpose: "Shared bucket map — shared records, runtime placement, folder inventory",
+    directive: "Check if the governance change adds shared records, runtime files, or new shared folders. Update the bucket map if applicable.",
+  },
 ];
-for (const f of reviewFiles) {
-  const abs = path.resolve(GOV_ROOT_ABS, f);
+
+console.log("\nSTRUCTURED REVIEW BRIEF");
+console.log("(orchestrator: read each file, apply directive only when applicable)\n");
+for (const entry of REVIEW_BRIEF) {
+  const abs = path.resolve(GOV_ROOT_ABS, entry.file);
   const exists = fs.existsSync(abs);
-  console.log(`  ${exists ? "•" : "✗"} ${f}`);
+  const marker = exists ? "•" : "✗ MISSING";
+  console.log(`${marker} ${entry.file}`);
+  console.log(`  PURPOSE:   ${entry.purpose}`);
+  console.log(`  DIRECTIVE: ${entry.directive}`);
+  console.log();
 }
 
 if (failCount > 0) {
