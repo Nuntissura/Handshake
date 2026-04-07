@@ -460,11 +460,11 @@ impl SqliteDatabase {
 
         // Deterministic runtime schema upgrades for existing installs (SQLite has no CREATE TABLE migration runner here).
         // Avoid relying on CREATE TABLE IF NOT EXISTS for new columns.
-        let model_session_columns = sqlx::query("PRAGMA table_info(model_sessions)")
+        let model_session_column_rows = sqlx::query("PRAGMA table_info(model_sessions)")
             .fetch_all(&self.pool)
             .await?;
         let mut model_session_columns = std::collections::HashSet::new();
-        for row in model_session_columns {
+        for row in model_session_column_rows {
             let name: String = row.get("name");
             model_session_columns.insert(name);
         }
