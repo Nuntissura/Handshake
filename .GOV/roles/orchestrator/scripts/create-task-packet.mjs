@@ -90,6 +90,7 @@ import {
   resolveOrchestratorGatesPath,
   WORK_PACKET_STORAGE_ROOT_REPO_REL,
 } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { capturePreTaskSnapshot } from '../../../roles_shared/scripts/memory/memory-snapshot.mjs';
 
 const WP_ID = process.argv[2];
 const allowOverwriteExisting = process.argv.includes('--overwrite-existing') || process.env.ALLOW_PACKET_OVERWRITE === '1';
@@ -149,6 +150,18 @@ function detectCommunicationArtifactDrift(packetPath, packetText) {
   }
   return null;
 }
+
+// RGF-145: pre-task snapshot before packet creation
+capturePreTaskSnapshot({
+  snapshotType: "PRE_PACKET_CREATE",
+  wpId: WP_ID,
+  triggerScript: "create-task-packet.mjs",
+  context: {
+    wpId: WP_ID,
+    allowOverwriteExisting,
+    packetFormatVersion: PACKET_FORMAT_VERSION,
+  },
+});
 
 // HARD GATE: Technical Refinement must exist and be signed before packet creation.
 const refinementsDir = path.join(GOV_ROOT_REPO_REL, 'refinements');

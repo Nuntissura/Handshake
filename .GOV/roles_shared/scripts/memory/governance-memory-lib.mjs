@@ -31,6 +31,19 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+// RGF-143: normalize relative date references to absolute dates at write time
+function normalizeDates(text) {
+  if (!text) return text;
+  const now = new Date();
+  const fmt = (d) => d.toISOString().slice(0, 10);
+  return String(text)
+    .replace(/\byesterday\b/gi, fmt(new Date(now.getTime() - 86400000)))
+    .replace(/\btoday\b/gi, fmt(now))
+    .replace(/\btomorrow\b/gi, fmt(new Date(now.getTime() + 86400000)))
+    .replace(/\blast week\b/gi, `week of ${fmt(new Date(now.getTime() - 7 * 86400000))}`)
+    .replace(/\blast month\b/gi, `${now.getFullYear()}-${String(now.getMonth()).padStart(2, "0")}`);
+}
+
 function governanceMemoryDbPath() {
   return path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", GOVERNANCE_MEMORY_DB_NAME);
 }
@@ -157,6 +170,7 @@ export function openGovernanceMemoryDb() {
   const dbPath = governanceMemoryDbPath();
   const db = new DatabaseSync(dbPath);
   db.exec("PRAGMA journal_mode = WAL");
+  db.exec("PRAGMA busy_timeout = 5000"); // Wait up to 5s for concurrent writers instead of SQLITE_BUSY
   db.exec(CREATE_TABLES_SQL);
   db.exec(CREATE_INDEXES_SQL);
   db.exec(CREATE_FTS_SQL);
@@ -194,19 +208,75 @@ export function addMemory(db, {
   if (!VALID_MEMORY_TYPES.includes(memoryType)) {
     throw new Error(`Invalid memory_type: ${memoryType}. Must be one of: ${VALID_MEMORY_TYPES.join(", ")}`);
   }
+  // RGF-135: write-time novelty scoring — reduce importance if near-duplicate topic exists
+  let adjustedImportance = importance;
+  try {
+    const ftsQuery = sanitizeFtsQuery(topic);
+    if (ftsQuery) {
+      const similar = db.prepare(
+        "SELECT id FROM memory_index_fts WHERE memory_index_fts MATCH ? LIMIT 1"
+      ).get(ftsQuery);
+      if (similar) adjustedImportance = importance * 0.3;
+    }
+  } catch { /* FTS query failure — keep original importance */ }
+
+  // RGF-137: new procedural memories supersede matching old ones (same file_scope + type)
+  if (memoryType === "procedural" && fileScope) {
+    try {
+      const oldMatches = db.prepare(
+        "SELECT id FROM memory_index WHERE memory_type = 'procedural' AND file_scope = ? AND consolidated = 0 AND wp_id = ?"
+      ).all(fileScope, wpId);
+      for (const old of oldMatches) {
+        db.prepare("UPDATE memory_index SET consolidated = 1 WHERE id = ?").run(old.id);
+        const oldEntry = db.prepare("SELECT id, metadata FROM memory_entries WHERE index_id = ? LIMIT 1").get(old.id);
+        if (oldEntry) {
+          let meta = {};
+          try { meta = JSON.parse(oldEntry.metadata || "{}"); } catch {}
+          meta.superseded_by = "pending"; // will be updated with new id below
+          db.prepare("UPDATE memory_entries SET metadata = ? WHERE id = ?").run(JSON.stringify(meta), oldEntry.id);
+        }
+      }
+    } catch { /* best-effort supersession */ }
+  }
+
+  // RGF-141: contradiction detection for semantic memories with same file_scope
+  if (memoryType === "semantic" && fileScope) {
+    try {
+      const conflicts = db.prepare(
+        "SELECT id, topic, summary FROM memory_index WHERE memory_type = 'semantic' AND file_scope = ? AND consolidated = 0 AND topic != ?"
+      ).all(fileScope, topic);
+      for (const conflict of conflicts) {
+        db.prepare("UPDATE memory_index SET importance = MIN(importance, 0.3) WHERE id = ?").run(conflict.id);
+        const cEntry = db.prepare("SELECT id, metadata FROM memory_entries WHERE index_id = ? LIMIT 1").get(conflict.id);
+        if (cEntry) {
+          let meta = {};
+          try { meta = JSON.parse(cEntry.metadata || "{}"); } catch {}
+          meta.contradiction = true;
+          meta.contradicted_by_topic = topic;
+          db.prepare("UPDATE memory_entries SET metadata = ? WHERE id = ?").run(JSON.stringify(meta), cEntry.id);
+        }
+      }
+      if (conflicts.length > 0) adjustedImportance = Math.min(adjustedImportance, 0.3);
+    } catch { /* best-effort */ }
+  }
+
   const now = nowIso();
   const indexStmt = db.prepare(
     `INSERT INTO memory_index (memory_type, topic, summary, wp_id, file_scope, importance, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
   );
-  const result = indexStmt.run(memoryType, topic, summary, wpId, fileScope, importance, now);
+  // RGF-143: normalize relative date references
+  const normalizedSummary = normalizeDates(summary);
+  const normalizedContent = normalizeDates(content);
+
+  const result = indexStmt.run(memoryType, topic, normalizedSummary, wpId, fileScope, adjustedImportance, now);
   const indexId = Number(result.lastInsertRowid);
 
-  if (content) {
+  if (normalizedContent) {
     db.prepare(
       `INSERT INTO memory_entries (index_id, content, source_artifact, source_wp_id, source_role, source_session, metadata, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(indexId, content, sourceArtifact, sourceWpId || wpId, sourceRole, sourceSession, JSON.stringify(metadata), now);
+    ).run(indexId, normalizedContent, sourceArtifact, sourceWpId || wpId, sourceRole, sourceSession, JSON.stringify(metadata), now);
   }
 
   return indexId;
@@ -380,13 +450,23 @@ export function runDecay(db, { decayRate = 0.1, pruneThreshold = 0.05 } = {}) {
   for (const entry of entries) {
     const lastAccess = entry.last_accessed_at || entry.created_at;
     const daysSinceAccess = (now - new Date(lastAccess).getTime()) / (1000 * 60 * 60 * 24);
-    const newImportance = entry.importance * Math.exp(-decayRate * daysSinceAccess);
+    // RGF-142: connectivity scoring — memories linked to many others resist decay
+    const fileScope = db.prepare("SELECT file_scope FROM memory_index WHERE id = ?").get(entry.id)?.file_scope || "";
+    let connectivityBoost = 1.0;
+    if (fileScope) {
+      const linked = db.prepare(
+        "SELECT COUNT(*) as cnt FROM memory_index WHERE file_scope = ? AND id != ? AND consolidated = 0"
+      ).get(fileScope, entry.id)?.cnt || 0;
+      if (linked >= 3) connectivityBoost = 1.3;
+      else if (linked >= 1) connectivityBoost = 1.1;
+    }
+    const newImportance = entry.importance * Math.exp(-decayRate * daysSinceAccess) * connectivityBoost;
 
     if (newImportance < pruneThreshold) {
       db.prepare("UPDATE memory_index SET consolidated = 1, importance = ? WHERE id = ?").run(newImportance, entry.id);
       pruned++;
     } else if (Math.abs(newImportance - entry.importance) > 0.001) {
-      db.prepare("UPDATE memory_index SET importance = ? WHERE id = ?").run(newImportance, entry.id);
+      db.prepare("UPDATE memory_index SET importance = ? WHERE id = ?").run(Math.min(newImportance, 1.0), entry.id);
       decayed++;
     }
   }
@@ -435,6 +515,101 @@ export function migrateFailureMemory(db, failureMemoryPath) {
 }
 
 // ---------------------------------------------------------------------------
+// RGF-126: Single-receipt memory extraction (event-driven)
+// ---------------------------------------------------------------------------
+
+export const HIGH_SIGNAL_RECEIPT_KINDS = new Set([
+  "CODER_INTENT", "CODER_HANDOFF", "VALIDATOR_KICKOFF", "VALIDATOR_REVIEW",
+  "VALIDATOR_RESPONSE", "REVIEW_REQUEST", "REVIEW_RESPONSE",
+  "STEERING", "REPAIR", "WORKFLOW_INVALIDITY", "SPEC_GAP", "SPEC_CONFIRMATION",
+]);
+const HIGH_IMPORTANCE_RECEIPT_KINDS = new Set([
+  "STEERING", "REPAIR", "WORKFLOW_INVALIDITY", "SPEC_GAP",
+]);
+
+export function extractMemoryFromReceipt(db, wpId, receipt) {
+  if (!receipt || !HIGH_SIGNAL_RECEIPT_KINDS.has(receipt.receipt_kind)) return 0;
+
+  const mc = receipt.microtask_contract;
+  const fileScope = mc && Array.isArray(mc.file_targets) && mc.file_targets.length > 0
+    ? mc.file_targets.join(",") : "";
+  const importance = HIGH_IMPORTANCE_RECEIPT_KINDS.has(receipt.receipt_kind) ? 0.8 : 0.5;
+  const mtRef = mc?.scope_ref || "";
+  const topic = mtRef
+    ? `${receipt.receipt_kind} on ${mtRef}`
+    : `${receipt.receipt_kind} by ${receipt.actor_role}`;
+
+  // Dedup: skip if this exact topic+wp+type already exists
+  const existing = db.prepare(
+    "SELECT id FROM memory_index WHERE topic = ? AND wp_id = ? AND memory_type = 'episodic'"
+  ).get(topic, wpId);
+  if (existing) return 0;
+
+  let added = 0;
+
+  // Episodic memory for the receipt
+  const contentLines = [
+    `Kind: ${receipt.receipt_kind}`,
+    `Role: ${receipt.actor_role} (${receipt.actor_authority_kind || ""})`,
+    `Time: ${receipt.timestamp_utc}`,
+    receipt.summary ? `Summary: ${receipt.summary}` : "",
+    receipt.state_before ? `Before: ${receipt.state_before}` : "",
+    receipt.state_after ? `After: ${receipt.state_after}` : "",
+    receipt.target_role ? `Target: ${receipt.target_role}` : "",
+    mc?.scope_ref ? `MT: ${mc.scope_ref}` : "",
+    mc?.review_outcome ? `Outcome: ${mc.review_outcome}` : "",
+    mc?.file_targets?.length ? `Files: ${mc.file_targets.join(", ")}` : "",
+  ].filter(Boolean).join("\n");
+
+  addMemory(db, {
+    memoryType: "episodic",
+    topic,
+    summary: receipt.summary || `${receipt.receipt_kind} from ${receipt.actor_role}`,
+    wpId,
+    fileScope,
+    importance,
+    content: contentLines,
+    sourceArtifact: "RECEIPTS.jsonl",
+    sourceWpId: wpId,
+    sourceRole: receipt.actor_role || "",
+    sourceSession: receipt.actor_session || "",
+    metadata: {
+      receipt_kind: receipt.receipt_kind,
+      timestamp_utc: receipt.timestamp_utc,
+      correlation_id: receipt.correlation_id || "",
+      mt_scope_ref: mtRef,
+    },
+  });
+  added++;
+
+  // Procedural fix pattern for REPAIR receipts with state transitions
+  if (receipt.receipt_kind === "REPAIR" && receipt.state_before && receipt.state_after) {
+    const fixTopic = `Fix pattern: ${mtRef || receipt.actor_role}`;
+    const fixExisting = db.prepare(
+      "SELECT id FROM memory_index WHERE topic = ? AND wp_id = ? AND memory_type = 'procedural'"
+    ).get(fixTopic, wpId);
+    if (!fixExisting) {
+      addMemory(db, {
+        memoryType: "procedural",
+        topic: fixTopic,
+        summary: `${receipt.state_before} → ${receipt.state_after}: ${(receipt.summary || "").slice(0, 120)}`,
+        wpId,
+        fileScope,
+        importance: 0.8,
+        content: `Before: ${receipt.state_before}\nAfter: ${receipt.state_after}\nSummary: ${receipt.summary || ""}\nRole: ${receipt.actor_role}`,
+        sourceArtifact: "RECEIPTS.jsonl",
+        sourceWpId: wpId,
+        sourceRole: receipt.actor_role || "",
+        metadata: { receipt_kind: "REPAIR", timestamp_utc: receipt.timestamp_utc },
+      });
+      added++;
+    }
+  }
+
+  return added;
+}
+
+// ---------------------------------------------------------------------------
 // Embedding pipeline (RGF-118) — Ollama nomic-embed-text
 // ---------------------------------------------------------------------------
 
@@ -478,13 +653,19 @@ export async function embedAllUnembedded(db, { batchSize = 20 } = {}) {
   ).all(batchSize);
 
   let embedded = 0;
+  let errors = 0;
+  const MAX_ERRORS = 3;
   for (const row of unembedded) {
     try {
       const added = await embedMemoryEntry(db, row.id);
       if (added) embedded++;
     } catch (e) {
+      errors++;
       console.error(`[embedding] Failed for #${row.id}: ${e.message}`);
-      break;
+      if (errors >= MAX_ERRORS) {
+        console.error(`[embedding] Stopping after ${MAX_ERRORS} consecutive errors`);
+        break;
+      }
     }
   }
   return embedded;

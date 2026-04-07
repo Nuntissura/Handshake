@@ -290,7 +290,8 @@ Optional (recommended on session start to reduce babysitting):
 ### Context resume (recommended; anti-babysit)
 
 If the session resets, context compacts, or you inherit a half-finished WP, use:
-- `just validator-next [WP-{ID}]`
+- `just validator-next [WP-{ID}] [--debug]`
+- For diagnostic tracing of cross-role resume/routing state, also use `just orchestrator-next [WP-{ID}] --debug`.
 
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
@@ -300,11 +301,24 @@ This prints the inferred WP stage + the minimal next commands based on:
 
 Resume rule (hard, anti-babysit):
 - After `just validator-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
-- Immediately run `just validator-next` (or `just validator-next WP-{ID}` when the WP is known).
+- Immediately run `just validator-next [--debug]` (or `just validator-next WP-{ID} [--debug]` when the WP is known).
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
 - STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a sync/destructive action that still needs explicit authorization.
 - `just validator-startup` remains the universal validator startup command. It is necessary but not sufficient for independent external revalidation of an orchestrator-managed WP; that audit mode requires `just external-validator-brief WP-{ID}` immediately after startup and before any verdict work.
 - Legacy remediation rule (hard): if `just validator-next` or the computed policy gate reports `LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED`, treat the packet as a failed historical closure. Do not reopen validator gates, present PASS, merge, or sync it in place. Request a new remediation WP variant instead.
+
+### Fail log + context [CX-503K1]
+
+Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix patterns** (the fail log) plus **semantic governance facts** (context). This is supplementary, not a source of truth:
+- **What you get:** Fix recipes and error-fix pairs (procedural) plus distilled governance facts and positive controls (semantic). Scoped to your WP. No episodic events — those go to the orchestrator.
+- **Don't trust it blindly.** Memory may be stale. Always verify against the current code, packet, and diff. "No assumptions from memory" still applies — but injected memory gives you pointers worth checking.
+- **Your work feeds memory automatically.** SMOKE-FIND and SMOKE-CONTROL entries in smoketest reviews are extracted. Validation receipts feed event-driven extraction. Check failures from `validator-scan` and `validator-handoff-check` are auto-captured as procedural memories.
+- **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section — high-signal context captures taken before governance decisions (e.g. PRE_CLOSEOUT before this WP entered final validation, PRE_WP_DELEGATION before your session was launched). Use them to understand what was planned; verify against the packet and current state.
+- **Intent snapshots (SHOULD).** Before starting a complex validation (deep multi-file review, cross-surface regression analysis), record your plan: `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role WP_VALIDATOR --reason "<why>"`. Judgment-based — no gate enforces it.
+- **Capture insights.** For ad-hoc findings: `just memory-capture semantic "description" --scope "file.rs" --wp WP-{ID}`.
+- To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`.
+- **Governance doc consistency:** When validating governance refactor work, run `just canonise-gov` as part of your checks to verify that protocols, command surface, architecture, and quickref are in sync.
+- Canonical reference: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`.
 
 ## WP Communication Folder (when the packet defines it)
 

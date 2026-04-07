@@ -34,6 +34,7 @@ import {
 import {
   launchOwnedSystemTerminal,
   recordOwnedTerminalLaunch,
+  reclaimOwnedSessionTerminals,
 } from "../../../roles_shared/scripts/session/terminal-ownership-lib.mjs";
 import {
   buildRoleEnvironmentOverrides,
@@ -45,12 +46,18 @@ import {
 } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
 import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
 
 const role = String(process.argv[2] || "").trim().toUpperCase();
 const wpId = String(process.argv[3] || "").trim();
 const requestedHost = String(process.argv[4] || "").trim().toUpperCase() || "AUTO";
 const requestedModel = String(process.argv[5] || "").trim().toUpperCase() || "PRIMARY";
 const sessionControlCommandPath = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
+const debugMode = process.argv.slice(6).some((arg) => String(arg || "").trim() === "--debug");
+const sessionControlEnv = {
+  ...process.env,
+  ...(debugMode ? { HANDSHAKE_SESSION_CONTROL_DEBUG: "1" } : {}),
+};
 
 function fail(message) {
   console.error(`[LAUNCH_CLI_SESSION] ${message}`);
@@ -103,6 +110,24 @@ const sessionDescriptor = {
   reasoning_config_value: selectedProfile.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE,
 };
 const governance = evaluateSessionGovernanceState(repoRoot, sessionDescriptor);
+
+// RGF-145: pre-task snapshot before WP delegation
+capturePreTaskSnapshot({
+  snapshotType: "PRE_WP_DELEGATION",
+  wpId,
+  triggerScript: "launch-cli-session.mjs",
+  context: {
+    role,
+    selectedModel,
+    selectedProfileId,
+    provider: selectedProfile.provider,
+    branch: roleConfig.branch,
+    worktreeDir: roleConfig.worktreeDir,
+    requestedHost,
+    launchAllowed: governance.launchAllowed,
+    launchBlockers: governance.launchBlockers || [],
+  },
+});
 
 if (!governance.launchAllowed) {
   fail(`Governed session ${role}:${wpId} cannot be launched: ${governance.launchBlockers.join("; ")}`);
@@ -159,6 +184,10 @@ function buildOllamaArgs() {
 
 const cliArgs = isClaudeCode ? buildClaudeCodeArgs() : (isOllama ? buildOllamaArgs() : buildCodexArgs());
 
+if (debugMode) {
+  console.log("[LAUNCH_CLI_SESSION] debug_mode=enabled");
+}
+
 function psQuote(value) {
   return `'${String(value).replace(/'/g, "''")}'`;
 }
@@ -173,7 +202,12 @@ function writeLaunchScript() {
     `$ErrorActionPreference = 'Stop'`,
     envLines,
     `Set-Location -LiteralPath ${psQuote(absWorktreeDir)}`,
-    `$Host.UI.RawUI.WindowTitle = ${psQuote(roleConfig.title)}`,
+    `$targetWindowTitle = ${psQuote(roleConfig.title)}`,
+    `try {`,
+    `  [Console]::Title = $targetWindowTitle`,
+    `} catch {`,
+    `  Write-Host "[LAUNCH_CLI_SESSION] Unable to set terminal title"`,
+    `}`,
     `$cliArgs = @(`,
     psArgsLines,
     `)`,
@@ -268,6 +302,29 @@ function printSessionSummary() {
   }
 }
 
+function reclaimLaunchedTerminal(context = "") {
+  const targetSessionKey = String(sessionSummary?.session_key || "").trim();
+  if (!targetSessionKey) return;
+  if (debugMode) {
+    const tag = context ? `[${context}] ` : "";
+    console.log(`[LAUNCH_CLI_SESSION] ${tag}debug_mode=enabled skip_terminal_reclaim`);
+    return;
+  }
+  try {
+    const reclaimResults = reclaimOwnedSessionTerminals(repoRoot, { sessionKey: targetSessionKey });
+    if (reclaimResults.length === 0) return;
+    const tag = context ? `[${context}] ` : "";
+    for (const reclaim of reclaimResults) {
+      console.log(`[LAUNCH_CLI_SESSION] ${tag}terminal_reclaim_session=${reclaim.session_key}`);
+      console.log(`[LAUNCH_CLI_SESSION] ${tag}terminal_reclaim_process_id=${reclaim.process_id}`);
+      console.log(`[LAUNCH_CLI_SESSION] ${tag}terminal_reclaim_status=${reclaim.reclaim_status}`);
+      if (reclaim.error) console.log(`[LAUNCH_CLI_SESSION] ${tag}terminal_reclaim_error=${reclaim.error}`);
+    }
+  } catch (error) {
+    console.log(`[LAUNCH_CLI_SESSION] terminal_reclaim_error=${String(error?.message || error || "").slice(0, 200)}`);
+  }
+}
+
 function refreshSessionSummary() {
   const registry = loadSessionRegistry(repoRoot).registry;
   const refreshedSession = (registry.sessions || []).find((entry) => entry.session_key === sessionSummary.session_key);
@@ -289,6 +346,24 @@ function needsGovernedAutoStart(summary = sessionSummary) {
   return true;
 }
 
+function previewOutput(value, maxChars = 1400) {
+  const output = String(value || "").replace(/\r/g, "");
+  return output.length <= maxChars ? output : `${output.slice(0, maxChars)}...`;
+}
+
+function isHarmlessAutoStartFailure(output) {
+  const normalized = String(output || "").toLowerCase();
+  if (!normalized) return false;
+  return [
+    "already has thread",
+    "cannot be started",
+    "governed session",
+    "usage limit",
+    "quota exceeded",
+    "credits",
+  ].some((token) => normalized.includes(token));
+}
+
 function autoStartGovernedSession(reason) {
   refreshSessionSummary();
   if (!needsGovernedAutoStart()) {
@@ -298,11 +373,30 @@ function autoStartGovernedSession(reason) {
   }
   console.log(`[LAUNCH_CLI_SESSION] auto_start=START_SESSION`);
   console.log(`[LAUNCH_CLI_SESSION] auto_start_reason=${reason}`);
-  execFileSync(
-    process.execPath,
-    [sessionControlCommandPath, "START_SESSION", role, wpId, "", requestedModel],
-    { stdio: "inherit" },
-  );
+  try {
+    const output = execFileSync(
+      process.execPath,
+      [sessionControlCommandPath, "START_SESSION", role, wpId, "", requestedModel],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        env: sessionControlEnv,
+      },
+    );
+    if (output?.trim()) {
+      console.log(`[LAUNCH_CLI_SESSION] auto_start_output=${previewOutput(output)}`);
+    }
+  } catch (error) {
+    const output = `${error.stdout || ""}${error.stderr || ""}${error.message || ""}`;
+    const normalizedOutput = previewOutput(output);
+    console.log(`[LAUNCH_CLI_SESSION] auto_start_error=${normalizedOutput}`);
+    if (isHarmlessAutoStartFailure(output)) {
+      console.log("[LAUNCH_CLI_SESSION] auto_start_failure_expected=DEFERRED");
+      refreshSessionSummary();
+      return;
+    }
+    throw error;
+  }
   refreshSessionSummary();
 }
 
@@ -454,16 +548,26 @@ if (requestedHost === "CURRENT") {
 
 if (isSystemTerminalMode(requestedHost)) {
   maybeRecordCliEscalation(CLI_ESCALATION_HOST_DEFAULT);
-  launchSystemTerminal();
-  autoStartGovernedSession("system terminal launch");
+  try {
+    launchSystemTerminal();
+    autoStartGovernedSession("system terminal launch");
+  } catch (error) {
+    reclaimLaunchedTerminal("system terminal launch failure");
+    throw error;
+  }
   printSessionSummary();
   process.exit(0);
 }
 
 if (requestedHost === "AUTO") {
   maybeRecordCliEscalation(CLI_ESCALATION_HOST_DEFAULT);
-  launchSystemTerminal();
-  autoStartGovernedSession("auto-resolved system terminal launch");
+  try {
+    launchSystemTerminal();
+    autoStartGovernedSession("auto-resolved system terminal launch");
+  } catch (error) {
+    reclaimLaunchedTerminal("auto-resolved system terminal launch failure");
+    throw error;
+  }
   printSessionSummary();
   process.exit(0);
 }

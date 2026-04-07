@@ -26,6 +26,7 @@ import {
   migrateFailureMemory,
   VALID_MEMORY_TYPES,
 } from "./governance-memory-lib.mjs";
+import { querySnapshots, captureIntentSnapshot, VALID_SNAPSHOT_TYPES } from "./memory-snapshot.mjs";
 import { GOVERNANCE_RUNTIME_ROOT_ABS } from "../lib/runtime-paths.mjs";
 
 function parseFlags(args) {
@@ -175,9 +176,116 @@ try {
       }
     }
 
+  } else if (command === "capture") {
+    const [memoryType, insight] = positional;
+    if (!memoryType || !insight) {
+      console.error('Usage: capture <procedural|semantic|episodic> "<insight>" [--wp WP-{ID}] [--scope "files"] [--role "<role>"]');
+      process.exit(1);
+    }
+    if (!VALID_MEMORY_TYPES.includes(memoryType)) {
+      console.error(`Invalid type: ${memoryType}. Must be one of: ${VALID_MEMORY_TYPES.join(", ")}`);
+      process.exit(1);
+    }
+    const indexId = addMemory(db, {
+      memoryType,
+      topic: insight.slice(0, 80),
+      summary: insight,
+      wpId: flags.wp || "",
+      fileScope: flags.scope || "",
+      importance: 0.7,
+      content: insight,
+      sourceArtifact: "memory-capture",
+      sourceRole: flags.role || "",
+      metadata: { captured_mid_session: true },
+    });
+    console.log(`[memory-capture] Stored ${memoryType} #${indexId}: ${insight.slice(0, 80)}`);
+
+  } else if (command === "flag") {
+    const [idStr, reason] = positional;
+    if (!idStr || !reason) {
+      console.error('Usage: flag <memory-id> "<reason>"');
+      process.exit(1);
+    }
+    const id = Number(idStr);
+    const existing = db.prepare("SELECT id, topic, importance FROM memory_index WHERE id = ?").get(id);
+    if (!existing) {
+      console.error(`[memory-flag] Memory #${id} not found`);
+      process.exit(1);
+    }
+    // Suppress: set importance to 0.1 and record flag in metadata
+    db.prepare("UPDATE memory_index SET importance = 0.1 WHERE id = ?").run(id);
+    const entry = db.prepare("SELECT id, metadata FROM memory_entries WHERE index_id = ? LIMIT 1").get(id);
+    if (entry) {
+      let meta = {};
+      try { meta = JSON.parse(entry.metadata || "{}"); } catch {}
+      meta.flagged = true;
+      meta.flag_reason = reason;
+      meta.flagged_at = new Date().toISOString();
+      meta.importance_before_flag = existing.importance;
+      db.prepare("UPDATE memory_entries SET metadata = ? WHERE id = ?").run(JSON.stringify(meta), entry.id);
+    }
+    console.log(`[memory-flag] Flagged #${id} "${existing.topic}" — importance ${existing.importance.toFixed(2)} → 0.10, reason: ${reason}`);
+
+  } else if (command === "intent-snapshot") {
+    const [intent] = positional;
+    if (!intent) {
+      console.error('Usage: intent-snapshot "<what you are about to do>" [--wp WP-{ID}] [--role ROLE] [--reason "why"] [--expected "outcome"] [--scope "files"]');
+      process.exit(1);
+    }
+    // Close the shared db — captureIntentSnapshot opens its own
+    closeDb(db);
+    const indexId = captureIntentSnapshot({
+      wpId: flags.wp || "",
+      role: flags.role || "",
+      intent,
+      reason: flags.reason || "",
+      expectedOutcome: flags.expected || "",
+      scope: flags.scope || "",
+    });
+    if (indexId) {
+      console.log(`[intent-snapshot] Stored #${indexId}: ${intent.slice(0, 80)}`);
+    } else {
+      console.log(`[intent-snapshot] Skipped (dedup window or empty intent)`);
+    }
+    process.exit(0);
+
+  } else if (command === "debug-snapshot") {
+    const [wpIdOrType] = positional;
+    const wpFilter = flags.wp || (wpIdOrType && wpIdOrType.startsWith("WP-") ? wpIdOrType : "");
+    const typeFilter = flags.type || (wpIdOrType && VALID_SNAPSHOT_TYPES.includes(wpIdOrType) ? wpIdOrType : "");
+    const limit = Number(flags.limit) || 20;
+    const snapshots = querySnapshots(db, { wpId: wpFilter, snapshotType: typeFilter, limit });
+    if (snapshots.length === 0) {
+      console.log(`[governance-memory] No pre-task snapshots found${wpFilter ? ` for ${wpFilter}` : ""}${typeFilter ? ` type=${typeFilter}` : ""}`);
+    } else {
+      console.log(`PRE_TASK_SNAPSHOTS (${snapshots.length} entries):\n`);
+      for (const s of snapshots) {
+        console.log(`  #${s.id} [${s.snapshot_type}] ${s.wp_id || "cross-WP"} @ ${s.created_at}`);
+        console.log(`    ${s.summary}`);
+        if (s.content) {
+          try {
+            const ctx = JSON.parse(s.content);
+            if (s.snapshot_type === "INTENT") {
+              // Intent snapshots have readable sentence fields — show them fully
+              if (ctx.intent) console.log(`    intent: ${ctx.intent}`);
+              if (ctx.reason) console.log(`    reason: ${ctx.reason}`);
+              if (ctx.expectedOutcome) console.log(`    expected: ${ctx.expectedOutcome}`);
+              if (ctx.scope) console.log(`    scope: ${ctx.scope}`);
+            } else {
+              const keys = Object.keys(ctx).slice(0, 6);
+              console.log(`    context: {${keys.map(k => `${k}: ${JSON.stringify(ctx[k]).slice(0, 60)}`).join(", ")}}`);
+            }
+          } catch {
+            console.log(`    content=${s.content.slice(0, 200)}`);
+          }
+        }
+        console.log("");
+      }
+    }
+
   } else {
     console.error(`Unknown command: ${command}`);
-    console.error("Usage: governance-memory-cli.mjs <add|search|hybrid-search|embed|prime|stats|decay|migrate-failure-memory>");
+    console.error("Usage: governance-memory-cli.mjs <add|search|hybrid-search|embed|capture|flag|debug-snapshot|prime|stats|decay|migrate-failure-memory>");
     process.exit(1);
   }
 } finally {

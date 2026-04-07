@@ -373,3 +373,262 @@ If the embedding model changes, re-embed incrementally (batch job). Raw text is 
 - [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) — fastest, CPU-friendly
 - [BGE-M3](https://huggingface.co/BAAI/bge-m3) — MIT, dense+sparse+multi-vector
 - [Qwen3-Embedding-8B](https://huggingface.co/Qwen/Qwen3-Embedding-8B) — MTEB leader, Apache 2.0
+
+---
+
+## ADDENDUM: Post-Implementation Research (2026-04-07)
+
+After implementing RGF-115 through RGF-132, this addendum covers new findings from Claude Code internals, updated GitHub projects, recent papers, and adversarial/red-team analysis. Focus: behavior, workflow triggers, what gets stored, and hygiene patterns we haven't adopted yet.
+
+---
+
+## 9. Claude Code Memory Internals
+
+### 9.1 Write Triggers — Dual Mode
+
+**Automatic (continuous):** Claude writes memory throughout the session as it encounters patterns worth capturing — build commands, debugging solutions, architectural patterns, code style preferences, recurring errors. No explicit user action required. Writes happen asynchronously in the background.
+
+**User-initiated:** Direct request ("remember that we use pnpm") triggers an explicit save. Claude evaluates whether the information would be useful in a future conversation and whether it's not already visible in the codebase.
+
+**Key decision logic:** Claude does NOT save something every session. It evaluates novelty, usefulness-in-future-sessions, and whether the information is already derivable from code.
+
+### 9.2 Storage: Pointer-Index Pattern
+
+```
+~/.claude/projects/<project>/memory/
+├── MEMORY.md              # Lightweight index (< 200 lines, always loaded)
+├── debugging.md           # Detailed debugging patterns (loaded on-demand)
+├── api-conventions.md     # API design decisions (loaded on-demand)
+└── build-system.md        # Build/test commands (loaded on-demand)
+```
+
+- MEMORY.md is the entrypoint — first 200 lines OR 25KB loaded at every session start
+- Each line is ~150 chars: brief pointer + one-liner summary
+- Topic files are NOT loaded at startup — fetched on-demand when Claude recognizes relevance
+- Claude manages the structure: adds/removes topic files, keeps MEMORY.md organized
+
+**Why this design:** Context windows are finite. Pointer-index gives fast startup (200 lines), scalability (topic files grow unbounded), and lazy loading (only relevant details fetched).
+
+### 9.3 Auto Dream (Consolidation)
+
+Runs when BOTH conditions are met:
+1. 24+ hours since last consolidation
+2. 5+ sessions have occurred
+
+**Operations during Auto Dream:**
+- **Date normalization:** converts "yesterday we decided X" to "On 2026-03-15 we decided X"
+- **Contradiction pruning:** removes entries superseded by newer information
+- **Stale reference cleanup:** removes references to deleted files/paths
+- **Merging:** consolidates related insights
+
+This is a **dual-gate trigger** — both time AND activity thresholds must be exceeded. Prevents unnecessary consolidation during quiet periods AND during rapid single-session work.
+
+### 9.4 CLAUDE.md vs Auto-Memory
+
+| Aspect | CLAUDE.md | Auto-Memory (MEMORY.md) |
+|---|---|---|
+| Who writes | User | Claude |
+| Content | Instructions, rules, standards | Learnings, patterns, preferences |
+| Load timing | Full file, every session | First 200 lines, every session |
+| Update frequency | Manual (rarely) | Automatic (every few sessions) |
+| Use case | "Always do X" (enforced) | "We discovered Y" (contextual) |
+
+**Both load at startup.** CLAUDE.md is the persistent instruction set. Auto-memory is the running log of what the project has taught Claude.
+
+---
+
+## 10. Updated GitHub Project Survey (Post-April 2026)
+
+### 10.1 OpenClaw (~210k stars) — NEW
+
+**Write triggers:** Two key moments: (a) during sessions, continuous writes to daily notes (memory/YYYY-MM-DD.md), (b) before context compaction, a **"silent memory flush turn"** forces the agent to save important context to disk without user visibility. Long-term memory (MEMORY.md) updated when information is "repeatedly mentioned, confirmed, or cited."
+
+**Storage:** MEMORY.md for durable facts (loaded every session). Daily notes for running context (today + yesterday loaded). DREAMS.md (experimental) for dreaming sweep summaries. All plain Markdown — files ARE the source of truth, not the vector index.
+
+**Hygiene:** Experimental "dreaming" mechanism: collects short-term signals, scores candidates, promotes only qualified items into long-term memory through "score, recall frequency, and query diversity gates." No contradiction detection. No automated forgetting beyond the 2-day daily note window.
+
+**Architecture:** SQLite-vec + FTS5 hybrid search (semantic 0.7 + BM25 0.3 weighting). Single .sqlite file per agent.
+
+### 10.2 agentmemory (~528 stars) — NEW, Most Granular
+
+**Write triggers:** 12 Claude Code hooks covering the full session lifecycle: SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, PreCompact, SubagentStart/Stop, Notification, TaskCompleted, Stop, SessionEnd. Every tool use, file edit, test run, and error is silently recorded.
+
+**Storage:** Raw observations (tool name, input, output, file paths, errors) with privacy stripping (secrets removed). SHA-256 dedup with 5-minute window. Compressed structured data with type, facts, narrative, concepts, referenced files, quality score (0-100 via LLM validation), vector embeddings.
+
+**Hygiene:** 4-tier consolidation (Working → Episodic → Semantic → Procedural) with Ebbinghaus forgetting curves. **Staleness cascading:** superseded memories auto-flag related graph nodes N hops deep. Stale memories remain searchable but ranked lower, never polluting fresh context. Relationship edges: supersedes, extends, derives, contradicts, related.
+
+**Architecture:** Triple-stream hybrid: BM25 (with coding synonyms like "db" = "database"), vector cosine similarity, knowledge graph traversal. Results fused via RRF (k=60) with session diversification (max 3 per session). 92% token reduction vs grep-all.
+
+### 10.3 Hindsight (Vectorize.io) — NEW
+
+**Storage:** Four separate networks: (a) World — objective facts, (b) Bank — agent's own experiences in first person, (c) Opinion — subjective judgments with **confidence scores that update with new evidence**, (d) Observation — preference-neutral entity summaries.
+
+**Hygiene:** "Reflect" operation updates beliefs and preferences coherently over time. Opinion confidence scores adjust as new evidence arrives. 91.4% on LongMemEval (highest open-source score).
+
+### 10.4 Mem0 (updated, ~60k stars)
+
+**New since original survey:** Graph memory with conflict detector that flags contradictions before writes. "Dynamic forgetting" applies decay to low-relevance entries. Apache Cassandra and Valkey support for distributed deployments. FastEmbed for local embeddings.
+
+**Red team finding:** "Highly-retrieved memories can become confidently wrong rather than just outdated." Frequent retrieval makes staleness MORE dangerous, not less.
+
+### 10.5 Letta/MemGPT (updated, ~40k stars)
+
+**New since original survey:** V1 architecture (Oct 2025) uses native model reasoning instead of deprecated heartbeat system. **Sleep-time compute:** async memory reorganization during idle periods, decoupling conversation speed from memory quality. Letta Code (Dec 2025) adds `/init` for deep codebase research forming memories, `/remember` for explicit search.
+
+### 10.6 Cognee (~5k stars)
+
+**Three-stage pipeline:** `.add()` for ingestion (hashed for dedup), `.cognify()` for knowledge graph construction (classify, chunk, LLM entity extraction, embed, commit graph), `.memify()` for post-ingestion refinement (prunes stale nodes, strengthens frequent connections, reweights edges by usage signals, adds derived facts).
+
+**Key pattern — memify:** New memories don't just get appended; they actively revise the knowledge structure. Stale nodes are pruned, frequent connections are strengthened.
+
+### 10.7 Memori (~13.2k stars) — NEW
+
+SQL-native, LLM-agnostic. Auto-captures LLM interactions by intercepting chat completions. Extracts attributes, events, facts, people, preferences, relationships, rules, skills. 81.95% on LoCoMo with only 1,294 tokens/query.
+
+### 10.8 SuperLocalMemory V3 — NEW
+
+Local-only, zero cloud. Uses differential geometry and algebraic topology instead of LLM calls. 74.8% on LoCoMo without any API calls. **Bayesian trust defense against memory poisoning (OWASP ASI06).** EU AI Act compliant.
+
+### 10.9 AWS AgentCore Memory — NEW
+
+Memory strategies define what gets extracted. Parallel processing for multiple strategy types. **Streaming notifications via Kinesis when records are created/modified (no polling).** 20-40s extraction, ~200ms retrieval.
+
+---
+
+## 11. Recent Academic Papers
+
+### 11.1 A-MEM: Zettelkasten for LLM Agents (arXiv:2502.12110, NeurIPS 2025)
+
+**Key mechanism — Memory Evolution:** "As new memories are integrated, they can trigger updates to the contextual representations and attributes of existing historical memories, allowing the memory network to continuously refine its understanding." New memories don't just get appended — they actively revise old ones. Keywords and tags create a self-organizing linked network.
+
+### 11.2 Novel Memory Forgetting Techniques (arXiv:2604.02280, April 2026)
+
+**Adaptive budgeted forgetting:** Scoring combines recency, frequency, and semantic alignment. Long-horizon F1 > 0.583 baseline, false memory rate < 6.8%. Key finding: **structured forgetting actively improves reasoning** rather than just saving tokens. Agents that forget strategically outperform agents that remember everything.
+
+### 11.3 MemoryBank (arXiv:2305.10250, updated 2025)
+
+Formalizes Ebbinghaus: `R = e^(-t)`, retrieval refreshes decay timer. Practical implementation: `strength *= 0.95^days`. "At query time, importance scales memory strength, so high-importance memories decay slowly while trivial ones fade fast."
+
+### 11.4 Mnemosyne Framework
+
+Hybrid pruning score combining: connectivity (how many other memories link to it), frequency (how often recalled), recency (when last accessed), entropy (information density). **Connectivity scoring:** a memory referenced by many other memories should be harder to prune, even if not directly accessed recently.
+
+### 11.5 CRAG: Corrective RAG (arXiv:2401.15884, ICLR 2024)
+
+**Validation gate between retrieval and injection:** Retrieved memories should never be injected blindly. A lightweight evaluator scores retrieval quality:
+- **Correct:** refine with decompose-then-recompose (strip irrelevant parts)
+- **Incorrect:** discard retrieval entirely, fall back to other sources
+- **Ambiguous:** combine refined retrieval with fallback
+
+### 11.6 Memory in the Age of AI Agents (arXiv:2512.13564, 47 authors)
+
+Three-axis taxonomy: Forms (token/parametric/latent), Functions (factual/experiential/working), Dynamics (formation/evolution/retrieval). Establishes that "long-term vs short-term" is insufficient — need functional + dynamic distinctions. Lifecycle: Formation → Evolution → Retrieval maps to our extraction → compaction → context-assembly.
+
+---
+
+## 12. Adversarial / Red Team Findings
+
+### 12.1 AgentPoison (NeurIPS 2024)
+
+Optimizes backdoor triggers mapping to unique embedding space. **80%+ attack success rate with <0.1% poison rate** and <1% impact on benign performance. Even a SINGLE poisoned entry with ONE trigger token can compromise the agent. Requires no model training. Exhibits transferability across models.
+
+### 12.2 Memory Poisoning via Indirect Prompt Injection
+
+Palo Alto Networks Unit 42: "Indirect prompt injection can silently poison an AI agent's long-term memory, causing it to develop persistent false beliefs about security policies." The agent then enforces those false beliefs in ALL future interactions.
+
+### 12.3 Silent Confidence Amplification
+
+The most dangerous failure mode across all systems. "The agent personalizes based on what it 'knows' about you, which increases your trust, but the personalization is based on incorrect or stale information." The system's confidence becomes inversely correlated with reliability. Frequent retrieval makes stale memories MORE dangerous, not less.
+
+### 12.4 Catastrophic Forgetting Under Compression
+
+Older but relevant facts vanish when compression prioritizes recency. "Sudden failures on tasks that previously worked." A 6-month-old fix pattern may be critical, but recency-biased decay archives it.
+
+### 12.5 Context Drift
+
+Embedding spaces shift as new content is indexed. Queries that once returned correct results surface incorrect items over time. No system we surveyed has a solution for this beyond periodic re-embedding.
+
+### 12.6 Industry Statistics (2025)
+
+- 73% of production AI deployments showed prompt injection vulnerabilities
+- Only 34.7% deployed dedicated defenses
+- 39% of companies reported agents accessing unintended systems
+
+### 12.7 Defensive Patterns
+
+- Treat memory as untrusted input (sanitize like form data)
+- Tag every memory with source, timestamp, and trigger context
+- Memory rotation to reduce persistence of injected content
+- Anomaly detection for behavioral drift
+- Immutable audit logs of all agent actions
+- Layered guardrails: input filters + output filters + context filters
+- Bayesian trust scoring (SuperLocalMemory) against poisoning
+
+---
+
+## 13. Patterns We Haven't Adopted Yet
+
+### Behavioral / Workflow Patterns
+
+| Pattern | Source | What It Does | Gap in Our System |
+|---|---|---|---|
+| **Dual-gate consolidation trigger** | Claude Code Auto Dream | Consolidation only runs when BOTH time (24h+) AND activity (5+ sessions) thresholds met | We use time-only staleness gate (6h/24h) |
+| **Silent memory flush before compaction** | OpenClaw | Before context is lost, force a memory save turn | Our sessions end without capturing what was learned |
+| **Sleep-time compute** | Letta V1 | Async memory reorganization during idle periods | Our maintenance only runs during active sessions |
+| **New memories update old memories** | A-MEM, Cognee memify | Adding a memory triggers revision of related existing memories | We only append; old memories are never revised by new ones |
+| **Write-time importance scoring** | agentmemory, Cognee | Score importance at creation (novelty * relevance * actionability), not just retrieval time | We assign fixed importance by receipt kind (0.5 or 0.8) |
+| **Session diversification** | agentmemory | Max 3 memories per session in injection to prevent one session dominating context | No limit per session; a WP with many receipts could dominate |
+
+### Hygiene Patterns
+
+| Pattern | Source | What It Does | Gap in Our System |
+|---|---|---|---|
+| **Contradiction detection** | Zep/Graphiti, Mem0 | Compare new memory against semantically related existing ones before write | We have dedup by topic but no semantic contradiction check |
+| **Connectivity scoring** | Mnemosyne | Memories linked to many others are harder to prune | We only score by importance * recency * access |
+| **Staleness cascading** | agentmemory | Marking one memory stale auto-flags related memories N hops deep | We only check individual file_scope existence |
+| **Budgeted forgetting** | arXiv:2604.02280 | Hard token cap on memory; system must rank and prune within budget | We cap injection but not total DB size |
+| **Date normalization at write time** | Claude Code Auto Dream | "Yesterday" → "2026-04-06" at consolidation | We store raw timestamps but don't normalize relative references in content |
+
+### Security / Red Team Patterns
+
+| Pattern | Source | What It Does | Gap in Our System |
+|---|---|---|---|
+| **Treat memory as untrusted input** | OWASP ASI, Palo Alto | Sanitize all memory entries like form validation before injection | We trust all memory content |
+| **Source tagging on every entry** | AgentPoison defense | Every memory tagged with source, timestamp, trigger context for audit | We have source_artifact and source_role but no trigger context |
+| **CRAG validation gate** | arXiv:2401.15884 | Evaluate retrieval quality before injection; discard low-quality results | We inject everything that scores above budget threshold |
+| **Memory rotation** | Palo Alto Unit 42 | Periodically rotate oldest memories to reduce persistence of poisoned content | Our decay helps but high-importance memories persist indefinitely |
+| **Bayesian trust scoring** | SuperLocalMemory V3 | Statistical defense against memory poisoning | None |
+
+---
+
+## 14. Updated Sources
+
+### Claude Code
+- [Claude Code Memory Documentation](https://code.claude.com/docs/en/memory)
+- [Claude Code Auto Dream](https://claudefa.st/blog/guide/mechanics/auto-dream)
+- [Anthropic Context Engineering Guide](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
+- [Anthropic Memory Tool API](https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool)
+
+### GitHub Projects (new or updated)
+- [OpenClaw](https://docs.openclaw.ai/concepts/memory) — 210k stars, dreaming mechanism
+- [agentmemory](https://github.com/rohitg00/agentmemory) — 528 stars, 12 hooks, 4-tier consolidation
+- [Hindsight](https://github.com/vectorize-io/hindsight) — 4-network model, 91.4% LongMemEval
+- [Memori](https://github.com/MemoriLabs/Memori) — 13.2k stars, SQL-native, auto-capture
+- [SuperLocalMemory V3](https://github.com/varun369/SuperLocalMemoryV2) — Bayesian trust, zero cloud
+- [AWS AgentCore Memory](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/long-term-memory-long-term.html) — streaming notifications
+
+### Academic Papers (new)
+- [A-MEM (arXiv:2502.12110)](https://arxiv.org/abs/2502.12110) — NeurIPS 2025, Zettelkasten for agents
+- [Novel Memory Forgetting (arXiv:2604.02280)](https://arxiv.org/abs/2604.02280) — budgeted forgetting improves reasoning
+- [MemoryBank (arXiv:2305.10250)](https://arxiv.org/pdf/2305.10250) — Ebbinghaus formalization
+- [Memory in the Age of AI Agents (arXiv:2512.13564)](https://arxiv.org/abs/2512.13564) — 47-author survey
+- [Memory for Autonomous LLM Agents (arXiv:2603.07670)](https://arxiv.org/pdf/2603.07670) — formation-evolution-retrieval
+- [Evo-Memory Benchmark (arXiv:2511.20857)](https://arxiv.org/html/2511.20857v1) — memory evolution testing
+- [Multi-Agent Memory Architecture (arXiv:2603.10062)](https://arxiv.org/html/2603.10062v1) — computer architecture perspective
+
+### Red Team / Adversarial
+- [AgentPoison (NeurIPS 2024)](https://proceedings.neurips.cc/paper_files/paper/2024/file/eb113910e9c3f6242541c1652e30dfd6-Paper-Conference.pdf)
+- [OWASP Agentic Applications Top 10](https://swarmsignal.net/ai-agent-security-2026/)
+- [Lakera: Agentic AI Threats](https://www.lakera.ai/blog/agentic-ai-threats-p1)
+- [Mem0 State of Agent Memory 2026](https://mem0.ai/blog/state-of-ai-agent-memory-2026) — confidence amplification
+- [Dan Giannone: The Problem with AI Agent Memory](https://medium.com/@DanGiannone/the-problem-with-ai-agent-memory-9d47924e7975)

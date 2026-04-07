@@ -295,7 +295,7 @@ Workflow semantics:
 - `MANUAL_RELAY` = Operator remains the main relay, but governed artifacts still apply
 - `ORCHESTRATOR_MANAGED` = Orchestrator steers sessions and workflow, but remains non-agentic and non-coding
 - Default lane policy: prefer `MANUAL_RELAY` for small and medium WPs because it is the cheaper default; choose `ORCHESTRATOR_MANAGED` only when autonomous steering, operator absence, or multi-WP parallelism is explicitly worth the added relay prompt tax.
-- For `MANUAL_RELAY`, prefer `just manual-relay-next WP-{ID}` to read the runtime-projected next actor and use `just manual-relay-dispatch WP-{ID}` only when the Operator explicitly wants to broker one governed role hop mechanically.
+- For `MANUAL_RELAY`, prefer `just manual-relay-next WP-{ID} [--debug]` to read the runtime-projected next actor and use `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]` only when the Operator explicitly wants to broker one governed role hop mechanically.
 - Manual relay outputs must keep role-to-role content separate from operator-only explanation. Use the structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`) instead of mixing handoff/question/reply content into hard-gate prose.
 - `just manual-relay-dispatch` must pass the same typed relay context into the governed target prompt (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) so the role sees whether the incoming payload is a handoff, question, answer, verdict, or intent without rediscovering it.
 - If the projected target session is not running yet, `just manual-relay-dispatch` must start that governed session and then immediately deliver the typed relay prompt in the same command invocation.
@@ -362,13 +362,30 @@ Before packet creation on new packet families, record the explicit per-role mode
 Use:
 - `just orchestrator-preflight`
 - `just orchestrator-startup`
-- `just orchestrator-next [WP-{ID}]`
+- `just orchestrator-next [WP-{ID}] [--debug]`
 
 Resume rule:
 - after reset or compaction, do not stop merely because startup re-ran
-- immediately run `just orchestrator-next`
+- immediately run `just orchestrator-next [--debug]`
 - if it prints `OPERATOR_ACTION: NONE`, continue to the next commands
 - resume inference must prefer active WPs; terminal WPs are history, not implicit resume targets
+
+### Governance memory lifecycle (orchestrator responsibility)
+
+The orchestrator owns the governance memory lifecycle [CX-503K]:
+- **Orchestrator memory injection:** At startup, you receive a `GOVERNANCE MEMORY` block (up to 2000 tokens) containing cross-WP memories — semantic patterns, procedural fixes, and governance lessons scored by type priority (semantic > procedural > episodic) and systemic relevance. Coders receive procedural only (fail log, 1500 tokens). Validators receive procedural + semantic (1500 tokens).
+- **Automatic maintenance:** `just memory-refresh` runs at every role startup (orchestrator, coder, validator) and during `just gov-check`. Dual-gate compaction: triggers only when BOTH time (>24h) AND activity (>5 new entries) thresholds are met. Extraction always runs (idempotent).
+- **Event-driven extraction:** Every `wp-receipt-append` immediately extracts a memory entry for high-signal receipt kinds — memory is a live service, not a batch job [RGF-126]. Check failures (validator-scan, pre-work, post-work) are auto-captured as procedural memories.
+- **Session-end flush:** CLOSE_SESSION captures a semantic summary of the session (WP, MTs, receipt breakdown, outcome) before closing [RGF-136].
+- **Pattern synthesis:** Run `just memory-patterns` to detect systemic issues — recurring failures across WPs, repeated REPAIR transitions, high-access memories worth codifying. Review output and promote candidates to RGF items.
+- **Pre-task snapshots [RGF-144-147]:** Before complex governance operations, the system automatically captures a high-signal context snapshot (importance 0.85) into memory. Snapshot types: `PRE_WP_DELEGATION` (before role launch), `PRE_STEERING` (before steer-next routing), `PRE_RELAY_DISPATCH` (before manual relay), `PRE_PACKET_CREATE` (before packet generation), `PRE_CLOSEOUT` (before integration-validator closeout), `PRE_BOARD_STATUS_CHANGE` (before task-board-set). These capture the full decision context so post-hoc analysis can compare intent vs outcome. Snapshots appear in your `GOVERNANCE MEMORY` startup block under a `SNAPSHOTS:` section. Inspect with `just memory-debug-snapshot [WP-{ID}]`.
+- **Intent snapshots (SHOULD):** Before starting complex multi-step reasoning — refinement analysis, research, cross-WP steering decisions, major governance refactors — record your context and intent with `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role ORCHESTRATOR --reason "<why>" --expected "<outcome>"`. This is judgment-based, not mechanical. No gate enforces it. But it creates the only record of *why* you made a decision, not just *what* the system state was. Use it before: refinement deep-dives, multi-WP steering sessions, governance research, RGF implementation batches, and any task where context loss would be costly.
+- **Hygiene commands:** `just memory-stats` (health), `just memory-search` (keyword), `just memory-capture` (mid-session insight), `just memory-intent-snapshot` (pre-task context+intent), `just memory-flag <id> "<reason>"` (suppress bad memory), `just memory-debug-snapshot` (inspect snapshots), `just memory-patterns` (cross-WP synthesis), `just memory-compact --dry-run` (preview), `just memory-refresh --force-compact` (force cycle), `just memory-export` / `just memory-import` (JSONL archival).
+- **Backup:** `gov_runtime/` is included in backup snapshots. `just memory-export` provides git-trackable archival.
+- **Memory is supplementary, not authoritative.** Work packets, receipts, and governance ledgers remain the source of truth.
+- **Memory Manager:** `just launch-memory-manager` runs a governed Codex Spark session that analyzes patterns, resolves contradictions, flags stale memories, and drafts RGF candidates. Auto-launched at orchestrator startup (staleness-gated: >24h AND >10 new entries) and before WP merge (via closeout check). Guaranteed self-close via try/finally. Protocol: `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
+- **Canonical reference:** `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md` — keep this guide current when changing memory system behavior.
+- **Governance canonisation:** After major governance refactors (new RGF items, protocol changes, command additions), run `just canonise-gov` to audit that all protocols, command surface, architecture, quickref, and codex are consistent. Fix any WARN or FAIL items before closing the refactor.
 
 ## WP Communication Folder (Packet-Declared)
 
@@ -406,8 +423,8 @@ Resume rule:
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just manual-relay-next WP-{ID}`
-- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK]`
+- `just manual-relay-next WP-{ID} [--debug]`
+- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
 - supported launch hosts must auto-issue the first governed `START_SESSION` on the ordinary path; `start-*` remains the explicit repair surface when launch could not complete autonomously
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`

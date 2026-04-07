@@ -13,6 +13,9 @@ gov-check:
 	just docs-check
 	$env:HANDSHAKE_ACTIVE_REPO_ROOT=(Resolve-Path "{{MAIN_ROOT}}").Path; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/gov-check.mjs"
 
+canonise-gov:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/checks/canonise-gov.mjs"
+
 backup-status:
 	node "{{GOV_ROOT}}/roles_shared/scripts/topology/backup-status.mjs"
 
@@ -70,50 +73,50 @@ validator-policy-gate wp-id:
 post-run-audit-skeleton wp-id output="":
 	node "{{GOV_ROOT}}/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs" {{wp-id}} {{if output != "" { "--output " + output } else { "" }}}
 
-launch-coder-session wp-id host="AUTO" model="PRIMARY":
-	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" CODER {{wp-id}} {{host}} {{model}}
+launch-coder-session wp-id host="AUTO" model="PRIMARY" *FLAGS:
+	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" CODER {{wp-id}} {{host}} {{model}} {{FLAGS}}
 
-launch-wp-validator-session wp-id host="AUTO" model="PRIMARY":
-	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" WP_VALIDATOR {{wp-id}} {{host}} {{model}}
+launch-wp-validator-session wp-id host="AUTO" model="PRIMARY" *FLAGS:
+	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" WP_VALIDATOR {{wp-id}} {{host}} {{model}} {{FLAGS}}
 
-launch-integration-validator-session wp-id host="AUTO" model="PRIMARY":
-	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" INTEGRATION_VALIDATOR {{wp-id}} {{host}} {{model}}
+launch-integration-validator-session wp-id host="AUTO" model="PRIMARY" *FLAGS:
+	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" INTEGRATION_VALIDATOR {{wp-id}} {{host}} {{model}} {{FLAGS}}
 
-start-coder-session wp-id model="PRIMARY":
-	@just session-start CODER {{wp-id}} {{model}}
+start-coder-session wp-id model="PRIMARY" *FLAGS:
+	@just session-start CODER {{wp-id}} {{model}} {{FLAGS}}
 
-start-wp-validator-session wp-id model="PRIMARY":
-	@just session-start WP_VALIDATOR {{wp-id}} {{model}}
+start-wp-validator-session wp-id model="PRIMARY" *FLAGS:
+	@just session-start WP_VALIDATOR {{wp-id}} {{model}} {{FLAGS}}
 
-start-integration-validator-session wp-id model="PRIMARY":
-	@just session-start INTEGRATION_VALIDATOR {{wp-id}} {{model}}
+start-integration-validator-session wp-id model="PRIMARY" *FLAGS:
+	@just session-start INTEGRATION_VALIDATOR {{wp-id}} {{model}} {{FLAGS}}
 
-steer-coder-session wp-id prompt model="PRIMARY":
-	@just session-send CODER {{wp-id}} "{{prompt}}" {{model}}
+steer-coder-session wp-id prompt model="PRIMARY" *FLAGS:
+	@just session-send CODER {{wp-id}} "{{prompt}}" {{model}} {{FLAGS}}
 
-steer-wp-validator-session wp-id prompt model="PRIMARY":
-	@just session-send WP_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
+steer-wp-validator-session wp-id prompt model="PRIMARY" *FLAGS:
+	@just session-send WP_VALIDATOR {{wp-id}} "{{prompt}}" {{model}} {{FLAGS}}
 
-steer-integration-validator-session wp-id prompt model="PRIMARY":
-	@just session-send INTEGRATION_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
+steer-integration-validator-session wp-id prompt model="PRIMARY" *FLAGS:
+	@just session-send INTEGRATION_VALIDATOR {{wp-id}} "{{prompt}}" {{model}} {{FLAGS}}
 
-cancel-coder-session wp-id:
-	@just session-cancel CODER {{wp-id}}
+cancel-coder-session wp-id *FLAGS:
+	@just session-cancel CODER {{wp-id}} {{FLAGS}}
 
-cancel-wp-validator-session wp-id:
-	@just session-cancel WP_VALIDATOR {{wp-id}}
+cancel-wp-validator-session wp-id *FLAGS:
+	@just session-cancel WP_VALIDATOR {{wp-id}} {{FLAGS}}
 
-cancel-integration-validator-session wp-id:
-	@just session-cancel INTEGRATION_VALIDATOR {{wp-id}}
+cancel-integration-validator-session wp-id *FLAGS:
+	@just session-cancel INTEGRATION_VALIDATOR {{wp-id}} {{FLAGS}}
 
-close-coder-session wp-id:
-	@just session-close CODER {{wp-id}}
+close-coder-session wp-id *FLAGS:
+	@just session-close CODER {{wp-id}} {{FLAGS}}
 
-close-wp-validator-session wp-id:
-	@just session-close WP_VALIDATOR {{wp-id}}
+close-wp-validator-session wp-id *FLAGS:
+	@just session-close WP_VALIDATOR {{wp-id}} {{FLAGS}}
 
-close-integration-validator-session wp-id:
-	@just session-close INTEGRATION_VALIDATOR {{wp-id}}
+close-integration-validator-session wp-id *FLAGS:
+	@just session-close INTEGRATION_VALIDATOR {{wp-id}} {{FLAGS}}
 
 coder-worktree-add wp-id branch="" dir="":
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/role-session-worktree-add.mjs" CODER {{wp-id}} {{branch}} {{dir}}
@@ -124,17 +127,17 @@ wp-validator-worktree-add wp-id branch="" dir="":
 integration-validator-worktree-add wp-id branch="" dir="":
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/role-session-worktree-add.mjs" INTEGRATION_VALIDATOR {{wp-id}} {{branch}} {{dir}}
 
-session-start role wp-id model="PRIMARY":
-	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-control-command.mjs" START_SESSION {{role}} {{wp-id}} "" {{model}}
+session-start role wp-id model="PRIMARY" *FLAGS:
+	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-control-command.mjs" START_SESSION {{role}} {{wp-id}} "" {{model}} {{FLAGS}}
 
-session-send role wp-id prompt model="PRIMARY":
-	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-control-command.mjs" SEND_PROMPT {{role}} {{wp-id}} "{{prompt}}" {{model}}
+session-send role wp-id prompt model="PRIMARY" *FLAGS:
+	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-control-command.mjs" SEND_PROMPT {{role}} {{wp-id}} "{{prompt}}" {{model}} {{FLAGS}}
 
-session-cancel role wp-id:
-	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-control-cancel.mjs" {{role}} {{wp-id}}
+session-cancel role wp-id *FLAGS:
+	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-control-cancel.mjs" {{role}} {{wp-id}} {{FLAGS}}
 
-session-close role wp-id:
-	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-control-command.mjs" CLOSE_SESSION {{role}} {{wp-id}}
+session-close role wp-id *FLAGS:
+	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-control-command.mjs" CLOSE_SESSION {{role}} {{wp-id}} {{FLAGS}}
 
 session-reclaim-terminals wp-id role="" batch="CURRENT_BATCH":
 	node "{{GOV_ROOT}}/roles_shared/scripts/session/reclaim-owned-terminals.mjs" {{wp-id}} {{role}} {{batch}}
@@ -230,35 +233,39 @@ orchestrator-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
 	@just backup-status
 	@just orchestrator-preflight
-	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
+	@just memory-refresh
+	@just launch-memory-manager
+	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 validator-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md"
 	@just backup-status
 	@just validator-preflight
-	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
+	@just memory-refresh
+	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 coder-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md"
 	@just backup-status
 	@just coder-preflight
+	@just memory-refresh
 	@echo 'RUBRIC_REQUIRED: Read `{{GOV_ROOT}}/roles/coder/docs/CODER_RUBRIC_V2.md` before the first WP-specific BOOTSTRAP or code change, and answer it in `## STATUS_HANDOFF` before validator handoff.'
 	@echo 'RESUME_HINT: After a reset/compaction, run `just coder-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 orchestrator-startup-truth-check:
 	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator-startup-truth-check.mjs"
 
-orchestrator-next wp-id="":
-	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-next.mjs" {{wp-id}}
+orchestrator-next wp-id="" *FLAGS:
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-next.mjs" {{wp-id}} {{FLAGS}}
 
-orchestrator-steer-next wp-id model="PRIMARY":
-	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-steer-next.mjs" {{wp-id}} {{model}}
+orchestrator-steer-next wp-id model="PRIMARY" *FLAGS:
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-steer-next.mjs" {{wp-id}} {{model}} {{FLAGS}}
 
-manual-relay-next wp-id:
-	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-next.mjs" {{wp-id}}
+manual-relay-next wp-id *FLAGS:
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-next.mjs" {{wp-id}} {{FLAGS}}
 
-manual-relay-dispatch wp-id model="PRIMARY":
-	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-dispatch.mjs" {{wp-id}} {{model}}
+manual-relay-dispatch wp-id model="PRIMARY" *FLAGS:
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-dispatch.mjs" {{wp-id}} {{model}} {{FLAGS}}
 
 coder-next wp-id="":
 	@node "{{GOV_ROOT}}/roles/coder/scripts/coder-next.mjs" {{wp-id}}
@@ -299,8 +306,8 @@ spec-debt-open wp-id clause notes blocking="NO":
 spec-debt-sync wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/debt/spec-debt-sync.mjs" {{wp-id}}
 
-validator-next wp-id="":
-	@node "{{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs" {{wp-id}}
+validator-next wp-id="" *FLAGS:
+	@node "{{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs" {{wp-id}} {{FLAGS}}
 
 task-board-set wp-id status reason="":
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs" {{wp-id}} {{status}} "{{reason}}"
@@ -310,9 +317,10 @@ validator-handoff-check wp-id *args:
 
 integration-validator-closeout-check wp-id:
 	@node "{{GOV_ROOT}}/roles/validator/checks/integration-validator-closeout-check.mjs" {{wp-id}}
+	@just launch-memory-manager --force
 
-integration-validator-closeout-sync wp-id mode merged_main_sha="":
-	@node "{{GOV_ROOT}}/roles/validator/scripts/integration-validator-closeout-sync.mjs" {{wp-id}} {{mode}} {{merged_main_sha}}
+integration-validator-closeout-sync wp-id mode merged_main_sha="" *FLAGS:
+	@node "{{GOV_ROOT}}/roles/validator/scripts/integration-validator-closeout-sync.mjs" {{wp-id}} {{mode}} {{merged_main_sha}} {{FLAGS}}
 
 integration-validator-context-brief wp-id *args:
 	@node "{{GOV_ROOT}}/roles/validator/checks/integration-validator-context-brief.mjs" {{wp-id}} {{args}}
@@ -389,8 +397,8 @@ wp-review-response wp-id actor_role actor_session target_role target_session sum
 generate-refinement-rubric *args:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/generate-refinement-rubric.mjs" {{args}}
 
-send-mt wp-id mt-id description model="PRIMARY":
-	@node "{{GOV_ROOT}}/roles_shared/scripts/session/send-mt-prompt.mjs" {{wp-id}} {{mt-id}} "{{description}}" {{model}}
+send-mt wp-id mt-id description model="PRIMARY" *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/session/send-mt-prompt.mjs" {{wp-id}} {{mt-id}} "{{description}}" {{model}} {{FLAGS}}
 
 install-mt-hook wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/hooks/install-mt-hook.mjs" {{wp-id}}
@@ -401,13 +409,18 @@ install-validator-guard wp-id:
 wp-lane-health wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-lane-health.mjs" {{wp-id}}
 
+# DEPRECATED: legacy failure-memory commands — redirect to governance memory DB.
+# Prefer: just memory-capture procedural "<fix>" --scope "<file>" --wp WP-{ID}
+# Prefer: just memory-search "<query>"
 failure-memory-record category file_surface error_pattern fix_pattern wp_id="":
+	@echo "[DEPRECATED] Redirecting to governance memory DB. Prefer: just memory-capture procedural"
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/failure-memory.mjs" record "{{category}}" "{{file_surface}}" "{{error_pattern}}" "{{fix_pattern}}" "{{wp_id}}"
 
 failure-memory-query query:
+	@echo "[DEPRECATED] Redirecting to governance memory DB. Prefer: just memory-search"
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/failure-memory.mjs" query "{{query}}"
 
-# --- Governance Memory System (RGF-115/116/117) ---
+# --- Governance Memory System (RGF-115 through RGF-143) ---
 
 memory-add type topic summary *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" add {{type}} "{{topic}}" "{{summary}}" {{FLAGS}}
@@ -441,6 +454,33 @@ memory-embed *FLAGS:
 
 memory-hybrid-search query *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" hybrid-search "{{query}}" {{FLAGS}}
+
+memory-capture type insight *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" capture {{type}} "{{insight}}" {{FLAGS}}
+
+memory-flag id reason:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" flag {{id}} "{{reason}}"
+
+memory-intent-snapshot intent *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" intent-snapshot "{{intent}}" {{FLAGS}}
+
+memory-debug-snapshot *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" debug-snapshot {{FLAGS}}
+
+memory-export *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-export.mjs" {{FLAGS}}
+
+memory-import file:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-export.mjs" --import "{{file}}"
+
+memory-patterns *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-patterns.mjs" {{FLAGS}}
+
+memory-refresh *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-refresh.mjs" {{FLAGS}}
+
+launch-memory-manager *FLAGS:
+	@node "{{GOV_ROOT}}/roles/memory_manager/scripts/launch-memory-manager.mjs" {{FLAGS}}
 
 session-stall-scan role wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/session-stall-scan.mjs" {{role}} {{wp-id}}
@@ -531,4 +571,3 @@ orchestrator-prepare-and-packet wp-id workflow_lane="" execution_lane="" label="
 	@git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "gov: checkpoint packet+refinement+micro-tasks [{{wp-id}}]" }
 	@echo "[ORCHESTRATOR] Creating backup snapshot before coder launch..."
 	@just backup-snapshot "{{label}}"
-

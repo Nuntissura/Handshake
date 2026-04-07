@@ -50,10 +50,15 @@ if (!fs.existsSync(dbPath)) {
       if (!vtables.includes(required)) fail(`missing FTS5 table: ${required}`);
     }
 
-    const orphaned = db.prepare(
+    const orphanedEntries = db.prepare(
       "SELECT COUNT(*) as count FROM memory_entries WHERE index_id NOT IN (SELECT id FROM memory_index)"
     ).get();
-    if (orphaned.count > 0) fail(`${orphaned.count} orphaned memory_entries (no matching memory_index row)`);
+    if (orphanedEntries.count > 0) fail(`${orphanedEntries.count} orphaned memory_entries (no matching memory_index row)`);
+
+    const orphanedEmbeddings = db.prepare(
+      "SELECT COUNT(*) as count FROM memory_embeddings WHERE index_id NOT IN (SELECT id FROM memory_index)"
+    ).get();
+    if (orphanedEmbeddings.count > 0) fail(`${orphanedEmbeddings.count} orphaned memory_embeddings (no matching memory_index row)`);
 
     db.close();
     console.log("memory-health-check ok");

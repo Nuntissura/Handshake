@@ -155,19 +155,26 @@ function consolidate(db, olderThanMs, dryRun) {
 // ---------------------------------------------------------------------------
 
 function cleanOrphans(db, dryRun) {
-  const orphaned = db.prepare(
+  const orphanedEntries = db.prepare(
     "SELECT id FROM memory_entries WHERE index_id NOT IN (SELECT id FROM memory_index)"
+  ).all();
+  const orphanedEmbeddings = db.prepare(
+    "SELECT id FROM memory_embeddings WHERE index_id NOT IN (SELECT id FROM memory_index)"
   ).all();
 
   if (dryRun) {
-    if (orphaned.length > 0) console.log(`  [integrity] would remove ${orphaned.length} orphaned entries`);
-    return orphaned.length;
+    if (orphanedEntries.length > 0) console.log(`  [integrity] would remove ${orphanedEntries.length} orphaned entries`);
+    if (orphanedEmbeddings.length > 0) console.log(`  [integrity] would remove ${orphanedEmbeddings.length} orphaned embeddings`);
+    return orphanedEntries.length + orphanedEmbeddings.length;
   }
 
-  for (const o of orphaned) {
+  for (const o of orphanedEntries) {
     db.prepare("DELETE FROM memory_entries WHERE id = ?").run(o.id);
   }
-  return orphaned.length;
+  for (const o of orphanedEmbeddings) {
+    db.prepare("DELETE FROM memory_embeddings WHERE id = ?").run(o.id);
+  }
+  return orphanedEntries.length + orphanedEmbeddings.length;
 }
 
 // ---------------------------------------------------------------------------
@@ -182,6 +189,8 @@ if (dryRun) console.log("[memory-compact] DRY RUN — no changes will be made\n"
 
 const { db } = openGovernanceMemoryDb();
 try {
+  if (!dryRun) db.exec("BEGIN");
+
   console.log("[memory-compact] Step 1: Deduplication");
   const merged = dedup(db, dryRun);
   console.log(`  merged: ${merged}`);
@@ -205,14 +214,39 @@ try {
   const orphans = cleanOrphans(db, dryRun);
   console.log(`  orphans removed: ${orphans}`);
 
+  // RGF-140: DB size budget — prune lowest-scoring entries if active count exceeds cap
+  const ACTIVE_MEMORY_CAP = 500;
+  const activeCount = db.prepare("SELECT COUNT(*) as cnt FROM memory_index WHERE consolidated = 0").get()?.cnt || 0;
+  let budgetPruned = 0;
+  if (activeCount > ACTIVE_MEMORY_CAP && !dryRun) {
+    console.log(`[memory-compact] Step 5: Budget pruning (${activeCount} active, cap ${ACTIVE_MEMORY_CAP})`);
+    const excess = activeCount - ACTIVE_MEMORY_CAP;
+    const toPrune = db.prepare(
+      `SELECT id FROM memory_index WHERE consolidated = 0
+       ORDER BY importance ASC, access_count ASC, created_at ASC LIMIT ?`
+    ).all(excess);
+    for (const row of toPrune) {
+      db.prepare("UPDATE memory_index SET consolidated = 1 WHERE id = ?").run(row.id);
+      budgetPruned++;
+    }
+    console.log(`  budget-pruned: ${budgetPruned}`);
+  } else if (dryRun && activeCount > ACTIVE_MEMORY_CAP) {
+    console.log(`[memory-compact] Step 5: Budget pruning — would prune ${activeCount - ACTIVE_MEMORY_CAP} entries`);
+    budgetPruned = activeCount - ACTIVE_MEMORY_CAP;
+  }
+
   if (!dryRun) {
     db.prepare(
       "INSERT INTO consolidation_log (run_type, entries_processed, entries_archived, entries_merged, run_at, summary) VALUES (?, ?, ?, ?, ?, ?)"
-    ).run("compact", consolidated + merged + orphans, consolidated, merged, nowIso(),
-      `dedup=${merged} consolidate=${consolidated} orphans=${orphans}`);
+    ).run("compact", consolidated + merged + orphans + budgetPruned, consolidated + budgetPruned, merged, nowIso(),
+      `dedup=${merged} consolidate=${consolidated} orphans=${orphans} budget_pruned=${budgetPruned}`);
+    db.exec("COMMIT");
   }
 
   console.log("\n[memory-compact] Done.");
+} catch (err) {
+  if (!dryRun) try { db.exec("ROLLBACK"); } catch {}
+  throw err;
 } finally {
   closeDb(db);
 }

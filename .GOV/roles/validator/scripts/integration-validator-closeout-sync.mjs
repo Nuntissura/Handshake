@@ -51,6 +51,7 @@ import {
   evaluateArtifactHygiene,
   writeArtifactRetentionManifest,
 } from "../../../roles_shared/scripts/lib/artifact-hygiene-lib.mjs";
+import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
 
 function fail(message, details = []) {
   console.error(`[INTEGRATION_VALIDATOR_CLOSEOUT_SYNC] ${message}`);
@@ -101,10 +102,7 @@ function closeGovernedSession(role, wpId) {
       cwd: kernelRepoRoot(),
       stdio: "pipe",
       encoding: "utf8",
-      env: {
-        ...process.env,
-        HANDSHAKE_GOV_ROOT: GOV_ROOT_ABS,
-      },
+      env: sessionControlEnv,
     },
   );
 }
@@ -230,11 +228,18 @@ function parseMode(rawMode) {
 }
 
 const wpId = String(process.argv[2] || "").trim();
-const requestedMode = parseMode(process.argv[3]);
-const mergedMainCommit = String(process.argv[4] || "").trim();
+const debugMode = process.argv.slice(3).some((arg) => String(arg || "").trim() === "--debug");
+const commandArgs = process.argv.slice(3).filter((arg) => !String(arg || "").trim().startsWith("--"));
+const requestedMode = parseMode(commandArgs[0]);
+const mergedMainCommit = String(commandArgs[1] || "").trim();
+const sessionControlEnv = {
+  ...process.env,
+  ...(debugMode ? { HANDSHAKE_SESSION_CONTROL_DEBUG: "1" } : {}),
+  HANDSHAKE_GOV_ROOT: GOV_ROOT_ABS,
+};
 
 if (!wpId || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(wpId)) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/integration-validator-closeout-sync.mjs WP-{ID} <MERGE_PENDING|CONTAINED_IN_MAIN|FAIL|OUTDATED_ONLY|ABANDONED> [MERGED_MAIN_SHA]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/integration-validator-closeout-sync.mjs WP-{ID} <MERGE_PENDING|CONTAINED_IN_MAIN|FAIL|OUTDATED_ONLY|ABANDONED> [MERGED_MAIN_SHA] [--debug]`);
 }
 if (!requestedMode) {
   fail("Mode must be MERGE_PENDING, CONTAINED_IN_MAIN, FAIL, OUTDATED_ONLY, or ABANDONED");
@@ -242,6 +247,19 @@ if (!requestedMode) {
 if (requestedMode.requireMergedMainCommit && !/^[0-9a-f]{7,40}$/i.test(mergedMainCommit)) {
   fail("CONTAINED_IN_MAIN requires MERGED_MAIN_SHA");
 }
+
+// RGF-146: pre-task snapshot before WP closeout
+capturePreTaskSnapshot({
+  snapshotType: "PRE_CLOSEOUT",
+  wpId,
+  triggerScript: "integration-validator-closeout-sync.mjs",
+  context: {
+    requestedMode: requestedMode.mode,
+    boardStatus: requestedMode.boardStatus,
+    requireMergedMainCommit: requestedMode.requireMergedMainCommit,
+    mergedMainCommit: mergedMainCommit || "",
+  },
+});
 
 const gitContext = currentGitContext();
 const repoRoot = gitContext.topLevel || REPO_ROOT;

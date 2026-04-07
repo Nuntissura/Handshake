@@ -19,6 +19,7 @@ import {
   compactGateOutputSummary,
   writeGateOutputArtifact,
 } from '../../../roles_shared/scripts/lib/gate-output-artifact-lib.mjs';
+import { captureCheckFindings } from '../../../roles_shared/scripts/memory/memory-capture-from-check.mjs';
 
 const args = process.argv.slice(2);
 const verbose = args.includes('--verbose');
@@ -133,6 +134,35 @@ const artifactPath = writeGateOutputArtifact('pre-work', wpId, [
   { title: 'gate-check', body: gate.out },
   { title: 'pre-work-check', body: pre.out },
 ]);
+
+// G6: Surface fail log (procedural memories) for this WP
+try {
+  const { DatabaseSync } = await import("node:sqlite");
+  const memDbPath = path.join(repoPathAbs(".."), "gov_runtime", "roles_shared", "GOVERNANCE_MEMORY.db");
+  if (fs.existsSync(memDbPath)) {
+    const db = new DatabaseSync(memDbPath, { readOnly: true });
+    try {
+      const patterns = db.prepare(
+        `SELECT topic, summary FROM memory_index
+         WHERE memory_type = 'procedural' AND consolidated = 0
+           AND (wp_id = ? OR wp_id = '')
+         ORDER BY importance DESC LIMIT 5`
+      ).all(wpId);
+      if (patterns.length > 0) {
+        process.stdout.write('\n');
+        printBlockHeader('FAIL_LOG', 'CX-503K');
+        for (const p of patterns) {
+          process.stdout.write(`- ${p.topic}: ${p.summary.slice(0, 120)}\n`);
+        }
+      }
+    } finally { try { db.close(); } catch {} }
+  }
+} catch { /* best-effort */ }
+
+// G7: Capture failures to memory for future sessions
+if (!ok && why) {
+  captureCheckFindings({ check: "pre-work", findings: [why], wpId });
+}
 
 process.stdout.write('\n');
 

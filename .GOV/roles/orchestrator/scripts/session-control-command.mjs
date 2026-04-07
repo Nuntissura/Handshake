@@ -35,8 +35,22 @@ import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-pat
 const commandKind = String(process.argv[2] || "").trim().toUpperCase();
 const role = String(process.argv[3] || "").trim().toUpperCase();
 const wpId = String(process.argv[4] || "").trim();
-const promptArg = String(process.argv[5] || "").trim();
-const requestedModel = String(process.argv[6] || "").trim().toUpperCase() || "PRIMARY";
+const commandContextArgs = process.argv.slice(5);
+const promptArg = String(commandContextArgs[0] || "").trim();
+const debugMode = String(process.env.HANDSHAKE_SESSION_CONTROL_DEBUG || "").trim() === "1"
+  || commandContextArgs.some((arg) => String(arg || "").trim() === "--debug");
+const requestedModel = (() => {
+  const args = commandContextArgs;
+  for (const candidate of args) {
+    const value = String(candidate || "").trim().toUpperCase();
+    if (!value || value.startsWith("--")) continue;
+    return value;
+  }
+  return "PRIMARY";
+})();
+if (debugMode) {
+  console.log("[SESSION_CONTROL] debug_mode=enabled");
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -57,12 +71,36 @@ function fail(message) {
   process.exit(1);
 }
 
+function reclaimOwnedTerminalsForSession(context = "") {
+  if (debugMode) {
+    const tag = context ? ` [${context}]` : "";
+    console.log(`[SESSION_CONTROL] debug_mode=enabled${tag} skip_terminal_reclaim`);
+    return [];
+  }
+  const sessionKey = String(session?.session_key || "").trim();
+  if (!sessionKey) return [];
+  try {
+    const results = reclaimOwnedSessionTerminals(repoRoot, { sessionKey });
+    const prefix = context ? `${context} ` : "";
+    for (const reclaim of results) {
+      console.log(`[SESSION_CONTROL] ${prefix}terminal_reclaim_session=${reclaim.session_key}`);
+      console.log(`[SESSION_CONTROL] ${prefix}terminal_reclaim_process_id=${reclaim.process_id}`);
+      console.log(`[SESSION_CONTROL] ${prefix}terminal_reclaim_status=${reclaim.reclaim_status}`);
+      if (reclaim.error) console.log(`[SESSION_CONTROL] ${prefix}terminal_reclaim_error=${reclaim.error}`);
+    }
+    return results;
+  } catch (error) {
+    console.log(`[SESSION_CONTROL] terminal_reclaim_error=${String(error?.message || error || "").slice(0, 200)}`);
+    return [];
+  }
+}
+
 function runGit(args) {
   return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 }
 
 if (!["START_SESSION", "SEND_PROMPT", "CANCEL_SESSION", "CLOSE_SESSION"].includes(commandKind)) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-command.mjs <START_SESSION|SEND_PROMPT|CANCEL_SESSION|CLOSE_SESSION> <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [PROMPT] [PRIMARY|FALLBACK]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-command.mjs <START_SESSION|SEND_PROMPT|CANCEL_SESSION|CLOSE_SESSION> <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [PROMPT] [PRIMARY|FALLBACK] [--debug]`);
 }
 if (!wpId || !wpId.startsWith("WP-")) {
   fail("WP_ID must start with WP-");
@@ -316,7 +354,8 @@ if (commandKind === "CLOSE_SESSION") {
           },
         };
       } else {
-        fail(`Broker close dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
+      reclaimOwnedTerminalsForSession("CLOSE_SESSION_DISPATCH_FAILURE");
+      fail(`Broker close dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
       }
     }
   }
@@ -328,6 +367,7 @@ if (commandKind === "CLOSE_SESSION") {
     settledClose = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id) || null;
   }
   if (!settledClose) {
+    reclaimOwnedTerminalsForSession("CLOSE_SESSION_SETTLE_TIMEOUT");
     fail(`Close request ${request.command_id} did not settle within 30s`);
   }
 
@@ -340,15 +380,41 @@ if (commandKind === "CLOSE_SESSION") {
   if (settledClose.summary) console.log(`[SESSION_CONTROL] summary=${settledClose.summary}`);
   if (settledClose.error) console.log(`[SESSION_CONTROL] error=${settledClose.error}`);
   syncWpTokenUsageLedger(repoRoot, settledClose, { session });
-  const reclaimResults = reclaimOwnedSessionTerminals(repoRoot, { sessionKey: session.session_key });
-  if (reclaimResults.length > 0) {
-    for (const reclaim of reclaimResults) {
-      console.log(`[SESSION_CONTROL] terminal_reclaim_session=${reclaim.session_key}`);
-      console.log(`[SESSION_CONTROL] terminal_reclaim_process_id=${reclaim.process_id}`);
-      console.log(`[SESSION_CONTROL] terminal_reclaim_status=${reclaim.reclaim_status}`);
-      if (reclaim.error) console.log(`[SESSION_CONTROL] terminal_reclaim_error=${reclaim.error}`);
+
+  // RGF-136: session-end memory flush — capture a semantic summary of the closed session
+  try {
+    const { openGovernanceMemoryDb, closeDb: closeMemDb, addMemory } = await import("../../../roles_shared/scripts/memory/governance-memory-lib.mjs");
+    const { parseJsonlFile } = await import("../../../roles_shared/scripts/lib/wp-communications-lib.mjs");
+    const { communicationPathsForWp } = await import("../../../roles_shared/scripts/lib/wp-communications-lib.mjs");
+    const commPaths = communicationPathsForWp(wpId);
+    const receiptsAbs = path.resolve(repoRoot, commPaths.receiptsFile);
+    if (fs.existsSync(receiptsAbs)) {
+      const receipts = parseJsonlFile(commPaths.receiptsFile);
+      const sessionReceipts = receipts.filter(r => r.actor_session === session.session_key || r.target_session === session.session_key);
+      if (sessionReceipts.length > 0) {
+        const kinds = {};
+        for (const r of sessionReceipts) { kinds[r.receipt_kind] = (kinds[r.receipt_kind] || 0) + 1; }
+        const kindSummary = Object.entries(kinds).map(([k, v]) => `${v}x ${k}`).join(", ");
+        const { db: memDb } = openGovernanceMemoryDb();
+        try {
+          addMemory(memDb, {
+            memoryType: "semantic",
+            topic: `Session closed: ${role} on ${wpId}`,
+            summary: `${role} session produced ${sessionReceipts.length} receipts (${kindSummary})`,
+            wpId,
+            importance: 0.4,
+            content: `Role: ${role}\nSession: ${session.session_key}\nReceipts: ${sessionReceipts.length}\nBreakdown: ${kindSummary}\nOutcome: ${settledClose.status}`,
+            sourceArtifact: "session-control-command",
+            sourceRole: "ORCHESTRATOR",
+            sourceSession: session.session_key,
+            metadata: { session_flush: true, receipt_kinds: kinds },
+          });
+        } finally { closeMemDb(memDb); }
+      }
     }
-  }
+  } catch { /* best-effort: session flush failure must not block close */ }
+
+  reclaimOwnedTerminalsForSession("CLOSE_SESSION_SUCCESS");
   process.exit(0);
 }
 
@@ -443,6 +509,7 @@ try {
         },
       };
     } else {
+      reclaimOwnedTerminalsForSession("START_OR_SEND_DISPATCH_FAILURE");
       fail(`Broker dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
     }
   }
@@ -453,6 +520,7 @@ const refreshedRegistry = loadSessionRegistry(repoRoot).registry;
 const refreshedSession = refreshedRegistry.sessions.find((entry) => entry.session_key === session.session_key) || session;
 
 if (String(response.status || "").toLowerCase() !== "completed") {
+  reclaimOwnedTerminalsForSession("START_OR_SEND_COMPLETION_FAILURE");
   fail(`Command ${request.command_id} failed (${response.error || "no broker error reported"})`);
 }
 

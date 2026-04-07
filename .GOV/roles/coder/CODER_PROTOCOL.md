@@ -313,6 +313,18 @@ Resume rule (hard, anti-babysit):
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
 - STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a protocol-mandated handoff/approval stop.
 
+### Fail log [CX-503K1]
+
+Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns only** from prior sessions. This is the fail log, not a general memory dump. Supplementary context, not a source of truth:
+- **What you get:** Fix recipes, error-fix pairs, and patterns from prior REPAIR receipts, smoketest findings, and check failures. Scoped to your WP. Capped at 3 memories per source session to prevent one WP dominating.
+- **`just pre-work` also surfaces the fail log** — known failure patterns for your WP appear before GATE_STATUS so you see them before starting work.
+- **Don't trust it blindly.** If a fix pattern references a file, verify it still exists. The packet and current code state always win.
+- **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section — context captures taken before governance decisions (e.g. PRE_WP_DELEGATION with the role, model, and branch the orchestrator chose for your session). Use them to understand context; verify against the packet.
+- **Intent snapshots (SHOULD).** Before starting a complex implementation (tricky MT, cross-file refactor, data migration): `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role CODER --reason "<why>"`. Judgment-based — no gate enforces it.
+- **Capture insights.** If you discover a non-obvious fix: `just memory-capture procedural "description" --scope "file.rs" --wp WP-{ID}`. Importance 0.7. Future sessions benefit.
+- To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`.
+- Canonical reference: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`.
+
 ## WP Communication Folder (when the packet defines it)
 
 - If the assigned packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.

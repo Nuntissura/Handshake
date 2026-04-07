@@ -42,16 +42,110 @@ function defaultInspectProcess(processId) {
 }
 
 function defaultStopProcess(processId) {
+  const pid = Number(processId);
   execFileSync(
     "powershell.exe",
     [
       "-NoLogo",
       "-NonInteractive",
       "-Command",
-      `Stop-Process -Id ${Number(processId)} -Force -ErrorAction Stop`,
+      [
+        `$terminalPid = ${pid}`,
+        `if (Get-Process -Id $terminalPid -ErrorAction SilentlyContinue) {`,
+        `  Stop-Process -Id $terminalPid -Force -ErrorAction SilentlyContinue`,
+        `  Start-Sleep -Milliseconds 250`,
+        `  if (Get-Process -Id $terminalPid -ErrorAction SilentlyContinue) {`,
+        `    taskkill /F /T /PID $terminalPid`,
+        "  }",
+        "}",
+      ].join(" "),
     ],
     { stdio: ["ignore", "pipe", "pipe"] },
   );
+}
+
+function defaultFindProcessesByWindowTitle(terminalWindowTitle) {
+  const title = String(terminalWindowTitle || "").trim();
+  if (!title) return [];
+  try {
+    const output = execFileSync(
+      "powershell.exe",
+      [
+        "-NoLogo",
+        "-NonInteractive",
+        "-Command",
+        [
+          `$targetTitle = ${psQuote(title)}`,
+          "Get-Process -ErrorAction SilentlyContinue",
+          "| Where-Object {",
+          "  -not [string]::IsNullOrWhiteSpace($_.MainWindowTitle) -and $_.MainWindowTitle -eq $targetTitle",
+          "} | Select-Object -ExpandProperty Id",
+        ].join(" "),
+      ],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
+    return output
+      .split(/\r?\n/)
+      .map((value) => Number.parseInt(String(value || "").trim(), 10))
+      .filter((pid) => Number.isInteger(pid) && pid > 0);
+  } catch {
+    return [];
+  }
+}
+
+function defaultStopProcessesByWindowTitle(terminalWindowTitle, {
+  excludeProcessId = 0,
+  inspectProcess = defaultInspectProcess,
+  stopProcess = defaultStopProcess,
+} = {}) {
+  const excludedPid = Number(excludeProcessId);
+  const candidates = Array.from(new Set(defaultFindProcessesByWindowTitle(terminalWindowTitle)))
+    .filter((pid) => Number.isInteger(pid) && pid > 0 && pid !== excludedPid);
+  if (candidates.length === 0) {
+    return {
+      candidateProcessIds: [],
+      reclaimedProcessIds: [],
+      failedProcessIds: [],
+      attempted: false,
+      failed: false,
+      error: "",
+    };
+  }
+
+  const failedProcessIds = [];
+  const reclaimedProcessIds = [];
+  if (candidates.length !== 1) {
+    return {
+      candidateProcessIds: candidates,
+      reclaimedProcessIds,
+      failedProcessIds,
+      attempted: candidates.length > 0,
+      failed: candidates.length > 0,
+      error: "window-title reclaim skipped: title did not map to a single terminal PID",
+    };
+  }
+  for (const pid of candidates) {
+    try {
+      stopProcess(pid);
+    } catch {
+      failedProcessIds.push(pid);
+      continue;
+    }
+    if (!inspectProcess(pid)) {
+      reclaimedProcessIds.push(pid);
+      continue;
+    }
+    failedProcessIds.push(pid);
+  }
+
+  return {
+    candidateProcessIds: candidates,
+    reclaimedProcessIds,
+    failedProcessIds,
+    attempted: true,
+    failed: failedProcessIds.length > 0,
+    error: failedProcessIds.length === 0 ? "" : `window_title_reclaim_failed_pids=${failedProcessIds.join(",")}`,
+  };
 }
 
 export function launchOwnedSystemTerminal({
@@ -131,6 +225,7 @@ function matchesSelector(session, selector = {}) {
 export function reclaimOwnedSessionTerminals(repoRoot, selector = {}, {
   inspectProcess = defaultInspectProcess,
   stopProcess = defaultStopProcess,
+  stopProcessesByWindowTitle = defaultStopProcessesByWindowTitle,
 } = {}) {
   const { registry } = loadSessionRegistry(repoRoot);
   const candidates = (registry.sessions || [])
@@ -145,11 +240,34 @@ export function reclaimOwnedSessionTerminals(repoRoot, selector = {}, {
     let reclaimStatus = SESSION_TERMINAL_RECLAIM_STATUS_NONE;
     let error = "";
     try {
+      const terminalTitle = String(session.owned_terminal_window_title || "").trim();
       if (!inspectProcess(processId)) {
         reclaimStatus = SESSION_TERMINAL_RECLAIM_STATUS_ALREADY_EXITED;
       } else {
         stopProcess(processId);
-        reclaimStatus = SESSION_TERMINAL_RECLAIM_STATUS_RECLAIMED;
+        reclaimStatus = inspectProcess(processId)
+          ? SESSION_TERMINAL_RECLAIM_STATUS_FAILED
+          : SESSION_TERMINAL_RECLAIM_STATUS_RECLAIMED;
+        if (reclaimStatus === SESSION_TERMINAL_RECLAIM_STATUS_FAILED) {
+          error = `process ${processId} remained alive after stop attempt`;
+        }
+      }
+      if (terminalTitle && reclaimStatus !== SESSION_TERMINAL_RECLAIM_STATUS_RECLAIMED) {
+        const fallback = stopProcessesByWindowTitle(terminalTitle, {
+          excludeProcessId: processId,
+          inspectProcess,
+          stopProcess,
+        });
+        if (fallback.attempted && fallback.reclaimedProcessIds.length > 0) {
+          reclaimStatus = SESSION_TERMINAL_RECLAIM_STATUS_RECLAIMED;
+          error = "";
+        }
+        if (fallback.attempted && fallback.failed) {
+          reclaimStatus = SESSION_TERMINAL_RECLAIM_STATUS_FAILED;
+          error = error
+            ? `${error}; ${fallback.error || "window-title reclaim encountered failures"}`
+            : (fallback.error || "window-title reclaim encountered failures");
+        }
       }
     } catch (caught) {
       reclaimStatus = SESSION_TERMINAL_RECLAIM_STATUS_FAILED;

@@ -57,7 +57,7 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `.GOV/co
 ## Key Commands
 
 - `just orchestrator-startup`
-- `just orchestrator-next [WP-{ID}]`
+- `just orchestrator-next [WP-{ID}] [--debug]`
 - `just record-refinement WP-{ID}`
 - `just record-signature WP-{ID} ...`
 - `just record-prepare WP-{ID} ...`

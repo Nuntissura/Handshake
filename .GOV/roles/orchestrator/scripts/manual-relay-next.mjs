@@ -35,8 +35,14 @@ function normalizeSession(value) {
 }
 
 const wpId = String(process.argv[2] || "").trim();
+const argList = process.argv.slice(3);
+const debugMode = argList.some((arg) => String(arg || "").trim() === "--debug");
 if (!wpId || !/^WP-/.test(wpId)) {
-  fail("Usage: node .GOV/roles/orchestrator/scripts/manual-relay-next.mjs WP-{ID}");
+  fail("Usage: node .GOV/roles/orchestrator/scripts/manual-relay-next.mjs WP-{ID} [--debug]");
+}
+
+if (debugMode) {
+  console.log("[MANUAL_RELAY_NEXT] debug_mode=enabled");
 }
 
 const packetPath = resolveWorkPacketPath(wpId)?.packetPath
@@ -113,4 +119,4 @@ for (const line of envelope.operatorExplainer) {
   console.log(`- ${line}`);
 }
 console.log("");
-console.log(`[MANUAL_RELAY_NEXT] next_commands=just active-lane-brief ${nextActor} ${wpId} | just check-notifications ${wpId} ${nextActor} ${targetSession || "<your-session>"} | just manual-relay-dispatch ${wpId} | just session-registry-status ${wpId}`);
+console.log(`[MANUAL_RELAY_NEXT] next_commands=just active-lane-brief ${nextActor} ${wpId} | just check-notifications ${wpId} ${nextActor} ${targetSession || "<your-session>"} | just manual-relay-dispatch ${wpId}${debugMode ? " --debug" : ""} | just session-registry-status ${wpId}`);

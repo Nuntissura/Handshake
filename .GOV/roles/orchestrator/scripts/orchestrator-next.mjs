@@ -40,6 +40,35 @@ import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { parsePolicyWaiverLedger } from "../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
 
+// RGF-129/G4: Surface governance memory insights for the active WP
+function loadMemoryInsights(wpId) {
+  try {
+    const { DatabaseSync } = require("node:sqlite");
+    const dbPath = path.join(REPO_ROOT, "..", "gov_runtime", "roles_shared", "GOVERNANCE_MEMORY.db");
+    if (!fs.existsSync(dbPath)) return [];
+    const db = new DatabaseSync(dbPath, { readOnly: true });
+    try {
+      // Count procedural (fail log) entries for this WP
+      const procCount = db.prepare(
+        "SELECT COUNT(*) as cnt FROM memory_index WHERE memory_type = 'procedural' AND consolidated = 0 AND (wp_id = ? OR wp_id = '')"
+      ).get(wpId)?.cnt || 0;
+      // Find high-access systemic patterns (accessed 5+ times)
+      const systemic = db.prepare(
+        "SELECT topic, access_count FROM memory_index WHERE consolidated = 0 AND access_count >= 5 ORDER BY access_count DESC LIMIT 3"
+      ).all();
+      // Count REPAIR receipts for this WP
+      const repairCount = db.prepare(
+        "SELECT COUNT(*) as cnt FROM memory_index WHERE memory_type = 'procedural' AND consolidated = 0 AND wp_id = ? AND topic LIKE 'Fix pattern:%'"
+      ).get(wpId)?.cnt || 0;
+
+      const lines = [];
+      if (procCount > 0) lines.push(`Memory: ${procCount} procedural fix patterns available (${repairCount} WP-specific REPAIRs)`);
+      if (systemic.length > 0) lines.push(`Memory: systemic patterns — ${systemic.map(s => `"${s.topic}" (${s.access_count}x)`).join(", ")}`);
+      return lines;
+    } finally { try { db.close(); } catch {} }
+  } catch { return []; }
+}
+
 const STATE_FILE = resolveOrchestratorGatesPath();
 const STATE_FILE_ABS = repoPathAbs(STATE_FILE);
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
@@ -374,7 +403,19 @@ function summarizeResumeState(state, wpId) {
 }
 
 function main() {
-  const providedWpId = (process.argv[2] || "").trim();
+  const cliArgs = process.argv.slice(2);
+  const debugMode = cliArgs.some((arg) => String(arg || "").trim() === "--debug");
+  const positionalArgs = cliArgs.filter((arg) => {
+    const normalized = String(arg || "").trim();
+    return normalized && !normalized.startsWith("--");
+  });
+
+  const providedWpId = (positionalArgs[0] || "").trim();
+
+  if (debugMode) {
+    console.log("[ORCHESTRATOR_NEXT] debug_mode=enabled");
+  }
+
   const gitContext = currentGitContext();
   const gateLogs = loadOrchestratorGateLogs();
   const repoRoot = gitContext.topLevel || REPO_ROOT;
@@ -792,6 +833,7 @@ function main() {
     ...(relayEscalation?.applicable && relayEscalation.status === "WATCH"
       ? [relayEscalation.summary]
       : []),
+    ...loadMemoryInsights(wpId),
   ]);
   const runtimeRelayCommand = relayCommandForRuntime(wpId, workflowLane, packetRuntimeState?.runtimeStatus || {});
   const cmds = [
