@@ -22,6 +22,9 @@ backup-status:
 artifact-hygiene-check:
 	node "{{GOV_ROOT}}/roles_shared/scripts/topology/artifact-hygiene-check.mjs"
 
+gov-flush:
+	node "{{GOV_ROOT}}/roles_shared/scripts/topology/gov-flush.mjs"
+
 artifact-cleanup dry-run="":
 	node "{{GOV_ROOT}}/roles_shared/scripts/topology/artifact-cleanup.mjs" {{dry-run}}
 

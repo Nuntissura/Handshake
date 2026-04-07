@@ -168,6 +168,15 @@ These are safe starting points for orientation and health checks.
 
 These legacy commands still work (they redirect to the governance memory DB) but will be removed in a future version. The legacy `FAILURE_MEMORY.json` has been migrated and archived.
 
+## Governance flush (full sync cycle)
+
+- `just gov-flush`
+  - `governance-write` + `runtime-write`
+  - deterministic governance flush pipeline: commit dirty .GOV/ files + push gov_kernel, sync gov to main, push main, reseed wt-ilja, push user_ilja, artifact cleanup (dry-run then actual, no force delete), NAS backup (only if cleanup succeeded)
+  - reports all committed files back in the output
+  - artifact cleanup failure is reported but does not undo the commits, pushes, and syncs that preceded it
+  - run after a governance session to propagate all changes and secure them on GitHub + NAS
+
 ## Orchestrator workflow helpers
 
 - `just begin-refinement WP-{ID} "<intent>"`
