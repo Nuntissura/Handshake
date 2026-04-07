@@ -2,6 +2,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
+/// FR-EVT-GOV-CHECK-001
+pub const FR_EVT_GOV_CHECK_STARTED: &str = "FR-EVT-GOV-CHECK-001";
+/// FR-EVT-GOV-CHECK-002
+pub const FR_EVT_GOV_CHECK_COMPLETED: &str = "FR-EVT-GOV-CHECK-002";
+/// FR-EVT-GOV-CHECK-003
+pub const FR_EVT_GOV_CHECK_BLOCKED: &str = "FR-EVT-GOV-CHECK-003";
+
 /// Canonical executable check result status.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "status", content = "details", rename_all = "snake_case")]
@@ -11,6 +18,41 @@ pub enum CheckResult {
     Blocked(CheckBlockedDetails),
     AdvisoryOnly(CheckAdvisoryOnlyDetails),
     Unsupported(CheckUnsupportedDetails),
+}
+
+impl CheckResult {
+    pub fn status(&self) -> &'static str {
+        match self {
+            Self::Pass(_) => "pass",
+            Self::Fail(_) => "fail",
+            Self::Blocked(_) => "blocked",
+            Self::AdvisoryOnly(_) => "advisory_only",
+            Self::Unsupported(_) => "unsupported",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GovernanceCheckStartedEventPayload {
+    pub check_id: Uuid,
+    pub session_id: Uuid,
+    pub check_descriptor_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GovernanceCheckCompletedEventPayload {
+    pub check_id: Uuid,
+    pub session_id: Uuid,
+    pub result_status: String,
+    pub duration_ms: u64,
+    pub evidence_artifact_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GovernanceCheckBlockedEventPayload {
+    pub check_id: Uuid,
+    pub session_id: Uuid,
+    pub blocked_reason: String,
 }
 
 /// Bounded CheckRunner lifecycle phases (PreCheck -> Check -> PostCheck).
@@ -303,6 +345,78 @@ mod tests {
 
         let roundtrip: CheckDescriptor = serde_json::from_str(&serde_json::to_string(&descriptor)?)?;
         assert_eq!(descriptor, roundtrip);
+        Ok(())
+    }
+
+    #[test]
+    fn check_result_status_strings_are_stable() {
+        let pass = CheckResult::Pass(CheckPassDetails::with_summary("pass"));
+        let fail = CheckResult::Fail(CheckFailDetails {
+            reason: "fail".to_string(),
+            failed_checks: vec!["f1".to_string()],
+            remediation: None,
+            checks_failed: 1,
+        });
+        let blocked = CheckResult::Blocked(CheckBlockedDetails {
+            reason: "blocked".to_string(),
+            missing_capabilities: Vec::new(),
+        });
+        let advisory = CheckResult::AdvisoryOnly(CheckAdvisoryOnlyDetails {
+            note: "advisory".to_string(),
+            advisories: vec!["a1".to_string()],
+            evidence_artifact_id: None,
+        });
+        let unsupported = CheckResult::Unsupported(CheckUnsupportedDetails {
+            check_kind: "kind".to_string(),
+            reason: "unsupported".to_string(),
+            remediation: None,
+            supported_kinds: Vec::new(),
+        });
+
+        assert_eq!(pass.status(), "pass");
+        assert_eq!(fail.status(), "fail");
+        assert_eq!(blocked.status(), "blocked");
+        assert_eq!(advisory.status(), "advisory_only");
+        assert_eq!(unsupported.status(), "unsupported");
+    }
+
+    #[test]
+    fn check_governance_events_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+        let check_id = Uuid::new_v4();
+        let session_id = Uuid::new_v4();
+
+        let started = GovernanceCheckStartedEventPayload {
+            check_id,
+            session_id,
+            check_descriptor_hash: "descriptor-hash".to_string(),
+        };
+
+        let completed = GovernanceCheckCompletedEventPayload {
+            check_id,
+            session_id,
+            result_status: CheckResult::Pass(CheckPassDetails::with_summary("ok"))
+                .status()
+                .to_string(),
+            duration_ms: 1_234,
+            evidence_artifact_id: Some("artifact-123".to_string()),
+        };
+
+        let blocked = GovernanceCheckBlockedEventPayload {
+            check_id,
+            session_id,
+            blocked_reason: "missing capability".to_string(),
+        };
+
+        let started_roundtrip: GovernanceCheckStartedEventPayload =
+            serde_json::from_str(&serde_json::to_string(&started)?)?;
+        let completed_roundtrip: GovernanceCheckCompletedEventPayload =
+            serde_json::from_str(&serde_json::to_string(&completed)?)?;
+        let blocked_roundtrip: GovernanceCheckBlockedEventPayload =
+            serde_json::from_str(&serde_json::to_string(&blocked)?)?;
+
+        assert_eq!(started, started_roundtrip);
+        assert_eq!(completed, completed_roundtrip);
+        assert_eq!(blocked, blocked_roundtrip);
         Ok(())
     }
 }

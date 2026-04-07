@@ -858,6 +858,13 @@ impl DuckDbFlightRecorder {
                 "gov_human_intervention_received" => {
                     super::FlightRecorderEventType::GovHumanInterventionReceived
                 }
+                "governance.check.started" => super::FlightRecorderEventType::GovernanceCheckStarted,
+                "governance.check.completed" => {
+                    super::FlightRecorderEventType::GovernanceCheckCompleted
+                }
+                "governance.check.blocked" => {
+                    super::FlightRecorderEventType::GovernanceCheckBlocked
+                }
                 "cloud_escalation_requested" => {
                     super::FlightRecorderEventType::CloudEscalationRequested
                 }

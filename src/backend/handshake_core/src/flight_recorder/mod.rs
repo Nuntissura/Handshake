@@ -104,6 +104,10 @@ pub enum FlightRecorderEventType {
     GovAutoSignatureCreated,
     GovHumanInterventionRequested,
     GovHumanInterventionReceived,
+    /// FR-EVT-GOV-CHECK-001..003: Governance check runner lifecycle events
+    GovernanceCheckStarted,
+    GovernanceCheckCompleted,
+    GovernanceCheckBlocked,
     /// FR-EVT-CLOUD-001..004: Cloud escalation events [11.5.8]
     CloudEscalationRequested,
     CloudEscalationApproved,
@@ -260,6 +264,15 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::GovHumanInterventionReceived => {
                 write!(f, "gov_human_intervention_received")
+            }
+            FlightRecorderEventType::GovernanceCheckStarted => {
+                write!(f, "governance.check.started")
+            }
+            FlightRecorderEventType::GovernanceCheckCompleted => {
+                write!(f, "governance.check.completed")
+            }
+            FlightRecorderEventType::GovernanceCheckBlocked => {
+                write!(f, "governance.check.blocked")
             }
             FlightRecorderEventType::CloudEscalationRequested => {
                 write!(f, "cloud_escalation_requested")
@@ -730,6 +743,15 @@ impl FlightRecorderEvent {
                     "gov_human_intervention_received",
                     true,
                 )
+            }
+            FlightRecorderEventType::GovernanceCheckStarted => {
+                validate_gov_check_started_payload(&self.payload)
+            }
+            FlightRecorderEventType::GovernanceCheckCompleted => {
+                validate_gov_check_completed_payload(&self.payload)
+            }
+            FlightRecorderEventType::GovernanceCheckBlocked => {
+                validate_gov_check_blocked_payload(&self.payload)
             }
             FlightRecorderEventType::CloudEscalationRequested => {
                 if self.actor != FlightRecorderActor::System {
@@ -4840,6 +4862,59 @@ fn validate_gov_mailbox_transcribed_payload(payload: &Value) -> Result<(), Recor
     Ok(())
 }
 
+fn validate_gov_check_started_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &["type", "check_id", "session_id", "check_descriptor_hash"],
+    )?;
+    require_fixed_string(map, "type", "governance.check.started")?;
+    require_uuid_string_non_nil(map, "check_id")?;
+    require_uuid_string_non_nil(map, "session_id")?;
+    require_string(map, "check_descriptor_hash")?;
+    Ok(())
+}
+
+fn validate_gov_check_completed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "check_id",
+            "session_id",
+            "result_status",
+            "duration_ms",
+            "evidence_artifact_id",
+        ],
+    )?;
+    require_fixed_string(map, "type", "governance.check.completed")?;
+    require_uuid_string_non_nil(map, "check_id")?;
+    require_uuid_string_non_nil(map, "session_id")?;
+    require_string(map, "result_status")?;
+    match require_key(map, "duration_ms")? {
+        Value::Number(value) if value.is_u64() || (value.is_i64() && value.as_i64().unwrap_or_default() >= 0) => {
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field duration_ms must be a non-negative integer".to_string(),
+            ));
+        }
+    }
+    require_string_or_null_nonempty(map, "evidence_artifact_id")?;
+    Ok(())
+}
+
+fn validate_gov_check_blocked_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(map, &["type", "check_id", "session_id", "blocked_reason"])?;
+    require_fixed_string(map, "type", "governance.check.blocked")?;
+    require_uuid_string_non_nil(map, "check_id")?;
+    require_uuid_string_non_nil(map, "session_id")?;
+    require_string(map, "blocked_reason")?;
+    Ok(())
+}
+
 fn validate_gov_automation_event_payload(
     payload: &Value,
     expected_type: &str,
@@ -5457,6 +5532,29 @@ pub struct FrEvt005DebugBundleExport {
     pub missing_evidence: Vec<serde_json::Value>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrEvtGovCheckStarted {
+    pub check_id: String,
+    pub session_id: String,
+    pub check_descriptor_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrEvtGovCheckCompleted {
+    pub check_id: String,
+    pub session_id: String,
+    pub result_status: String,
+    pub duration_ms: u64,
+    pub evidence_artifact_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrEvtGovCheckBlocked {
+    pub check_id: String,
+    pub session_id: String,
+    pub blocked_reason: String,
+}
+
 #[derive(Error, Debug)]
 pub enum RecorderError {
     #[error("HSK-400-INVALID-EVENT: Event shape violation: {0}")]
@@ -5796,6 +5894,116 @@ mod tests {
         }
         assert!(matches!(
             validate_gov_mailbox_transcribed_payload(&bad_sha),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    fn valid_gov_check_started_payload() -> Value {
+        json!({
+            "type": "governance.check.started",
+            "check_id": Uuid::new_v4().to_string(),
+            "session_id": Uuid::new_v4().to_string(),
+            "check_descriptor_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+        })
+    }
+
+    #[test]
+    fn test_governance_check_started_payload_validation() {
+        let payload = valid_gov_check_started_payload();
+        assert!(validate_gov_check_started_payload(&payload).is_ok());
+
+        let mut missing = payload.clone();
+        if let Some(obj) = missing.as_object_mut() {
+            obj.remove("session_id");
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_check_started_payload(&missing),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let mut extra = payload.clone();
+        if let Some(obj) = extra.as_object_mut() {
+            obj.insert("extra".to_string(), json!(1));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_check_started_payload(&extra),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    fn valid_gov_check_completed_payload() -> Value {
+        json!({
+            "type": "governance.check.completed",
+            "check_id": Uuid::new_v4().to_string(),
+            "session_id": Uuid::new_v4().to_string(),
+            "result_status": "pass",
+            "duration_ms": 1200,
+            "evidence_artifact_id": "artifact-123",
+        })
+    }
+
+    #[test]
+    fn test_governance_check_completed_payload_validation() {
+        let payload = valid_gov_check_completed_payload();
+        assert!(validate_gov_check_completed_payload(&payload).is_ok());
+
+        let mut null_artifact = payload.clone();
+        if let Some(obj) = null_artifact.as_object_mut() {
+            obj.insert("evidence_artifact_id".to_string(), Value::Null);
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(validate_gov_check_completed_payload(&null_artifact).is_ok());
+
+        let mut negative = payload.clone();
+        if let Some(obj) = negative.as_object_mut() {
+            obj.insert("duration_ms".to_string(), json!(-1));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_check_completed_payload(&negative),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    fn valid_gov_check_blocked_payload() -> Value {
+        json!({
+            "type": "governance.check.blocked",
+            "check_id": Uuid::new_v4().to_string(),
+            "session_id": Uuid::new_v4().to_string(),
+            "blocked_reason": "insufficient permissions",
+        })
+    }
+
+    #[test]
+    fn test_governance_check_blocked_payload_validation() {
+        let payload = valid_gov_check_blocked_payload();
+        assert!(validate_gov_check_blocked_payload(&payload).is_ok());
+
+        let mut missing = payload.clone();
+        if let Some(obj) = missing.as_object_mut() {
+            obj.remove("blocked_reason");
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_check_blocked_payload(&missing),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let mut extra = payload.clone();
+        if let Some(obj) = extra.as_object_mut() {
+            obj.insert("trace_id".to_string(), json!(Uuid::new_v4().to_string()));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_check_blocked_payload(&extra),
             Err(RecorderError::InvalidEvent(_))
         ));
     }
