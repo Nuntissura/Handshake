@@ -7,7 +7,7 @@ use crate::mex::registry::MexRegistry;
 
 pub const GOVERNANCE_CHECK_TOOL_ID: &str = "governance.check.run";
 pub const GOVERNANCE_CHECK_TOOL_CAPABILITY: &str = "governance.check.run";
-pub const GOVERNANCE_CHECK_TOOL_SIDE_EFFECT: &str = "READ";
+pub const GOVERNANCE_CHECK_TOOL_SIDE_EFFECT: &str = "GOVERNED_WRITE";
 pub const GOVERNANCE_CHECK_TOOL_IDEMPOTENCY: &str = "IDEMPOTENT_WITH_KEY";
 pub const GOVERNANCE_CHECK_TOOL_DETERMINISM: &str = "STRUCTURAL";
 pub const GOVERNANCE_CHECK_TOOL_AVAILABILITY: &str = "ALWAYS";
@@ -403,11 +403,11 @@ mod tests {
         let contract = governance_check_tool_contract();
 
         assert_eq!(contract.tool_id, GOVERNANCE_CHECK_TOOL_ID);
-        assert_eq!(contract.side_effect, GOVERNANCE_CHECK_TOOL_SIDE_EFFECT);
-        assert_eq!(contract.idempotency, GOVERNANCE_CHECK_TOOL_IDEMPOTENCY);
-        assert_eq!(contract.determinism, GOVERNANCE_CHECK_TOOL_DETERMINISM);
-        assert_eq!(contract.availability, GOVERNANCE_CHECK_TOOL_AVAILABILITY);
-        assert_eq!(contract.required_capabilities, &GOVERNANCE_CHECK_TOOL_REQUIRED_CAPABILITIES);
+        assert_eq!(contract.side_effect, "GOVERNED_WRITE");
+        assert_eq!(contract.idempotency, "IDEMPOTENT_WITH_KEY");
+        assert_eq!(contract.determinism, "STRUCTURAL");
+        assert_eq!(contract.availability, "ALWAYS");
+        assert_eq!(contract.required_capabilities, ["governance.check.run"].as_slice());
         assert_eq!(contract.required_capabilities.len(), 1);
     }
 
