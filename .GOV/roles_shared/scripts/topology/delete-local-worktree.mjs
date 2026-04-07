@@ -637,7 +637,20 @@ function main() {
       cwd: REPO_ROOT,
       stdio: "inherit",
     });
-  } catch {
+  } catch (removeError) {
+    const message = String(removeError?.message || removeError || "");
+    const isLongPath = /filename too long|name too long|ENAMETOOLONG/i.test(message);
+    if (isLongPath && process.platform === "win32") {
+      fail("git worktree remove failed due to Windows MAX_PATH (260 char) limit", [
+        `path=${absDir}`,
+        "RECOVERY: enable long paths system-wide via Windows Registry:",
+        "  reg add HKLM\\SYSTEM\\CurrentControlSet\\Control\\FileSystem /v LongPathsEnabled /t REG_DWORD /d 1 /f",
+        "  then restart the shell and retry this command.",
+        "ALTERNATIVE: use robocopy to remove the deep directory tree:",
+        "  mkdir empty_dir && robocopy empty_dir \"<target>\" /mir /r:1 /w:0 && rmdir empty_dir \"<target>\"",
+        "Do NOT use rm -rf or force-delete as a workaround.",
+      ]);
+    }
     fail("git worktree remove failed; cleanup is aborted", [
       `path=${absDir}`,
       "Do not attempt direct filesystem deletion. Stop and inspect git/worktree state.",
@@ -648,6 +661,9 @@ function main() {
     fail("Worktree directory still exists after git worktree remove", [
       `path=${absDir}`,
       "Do not attempt manual deletion. Stop and inspect the repo state.",
+      ...(process.platform === "win32" ? [
+        "HINT: if this is a Windows long-path issue, enable LongPathsEnabled in registry or use robocopy /mir with an empty directory.",
+      ] : []),
     ]);
   }
 

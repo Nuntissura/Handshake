@@ -464,6 +464,14 @@ memory-flag id reason:
 memory-intent-snapshot intent *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" intent-snapshot "{{intent}}" {{FLAGS}}
 
+begin-refinement wp-id intent:
+	@just memory-intent-snapshot "{{intent}}" --wp {{wp-id}} --role ORCHESTRATOR --reason "entering refinement" --expected "refined scope with discovery primitives"
+	@echo "[INTENT_GATE] Intent captured for {{wp-id}}. Proceed with refinement analysis, research, and design."
+
+begin-research intent *FLAGS:
+	@just memory-intent-snapshot "{{intent}}" --role ORCHESTRATOR {{FLAGS}}
+	@echo "[INTENT_GATE] Intent captured. Proceed with research."
+
 memory-debug-snapshot *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" debug-snapshot {{FLAGS}}
 
