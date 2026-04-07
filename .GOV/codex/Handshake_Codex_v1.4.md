@@ -222,6 +222,7 @@ Minimum verification for governance-only changes: `just gov-check`. After major 
 [CX-401] SPEC_OVERRULE_PRIORS: Provided specs SHOULD override model priors and generic "best practices" if they conflict.
 
 [CX-402] SPEC_CURRENT_POINTER: If multiple versions of the Master Spec exist in the repo, assistants MUST treat `.GOV/spec/SPEC_CURRENT.md` as the canonical pointer to the current Master Spec for the active workline/session.
+[CX-403] PRODUCT_REFERENCE_IS_NAVIGATION_ONLY: `.GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md` is a navigation aid and summary only. Decisions, technical advice, and implementation guidance MUST be derived from the Master Spec, not from the Product Reference. Do not cite the Product Reference as authority for design choices; always follow the §ref link to the Master Spec section.
 
 [CX-405] SPEC_PROPOSAL_GATE: Before applying any changes to the Master Spec (LAW_2) or Codex (LAW_1), the assistant MUST present a "Spec Proposal" summary to the user.
 

@@ -238,6 +238,11 @@ orchestrator-startup:
 	@just orchestrator-preflight
 	@just memory-refresh
 	@just launch-memory-manager
+	@echo ''
+	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
+	@echo 'Run: just repomem open "<what this session is about>" --role ORCHESTRATOR [--wp WP-ID]'
+	@echo 'This is MANDATORY before any orchestrator-next, steer, relay, or packet commands.'
+	@echo ''
 	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 validator-startup:
@@ -245,6 +250,10 @@ validator-startup:
 	@just backup-status
 	@just validator-preflight
 	@just memory-refresh
+	@echo ''
+	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
+	@echo 'Run: just repomem open "<what this session is about>" --role VALIDATOR [--wp WP-ID]'
+	@echo ''
 	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 coder-startup:
@@ -253,21 +262,31 @@ coder-startup:
 	@just coder-preflight
 	@just memory-refresh
 	@echo 'RUBRIC_REQUIRED: Read `{{GOV_ROOT}}/roles/coder/docs/CODER_RUBRIC_V2.md` before the first WP-specific BOOTSTRAP or code change, and answer it in `## STATUS_HANDOFF` before validator handoff.'
+	@echo ''
+	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
+	@echo 'Run: just repomem open "<what this session is about>" --role CODER [--wp WP-ID]'
+	@echo ''
 	@echo 'RESUME_HINT: After a reset/compaction, run `just coder-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 orchestrator-startup-truth-check:
 	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator-startup-truth-check.mjs"
 
 orchestrator-next wp-id="" *FLAGS:
+	@just repomem-gate
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-next.mjs" {{wp-id}} {{FLAGS}}
 
-orchestrator-steer-next wp-id model="PRIMARY" *FLAGS:
+orchestrator-steer-next wp-id context model="PRIMARY" *FLAGS:
+	@just repomem-gate
+	@just repomem context "{{context}}" --trigger orchestrator-steer-next --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-steer-next.mjs" {{wp-id}} {{model}} {{FLAGS}}
 
 manual-relay-next wp-id *FLAGS:
+	@just repomem-gate
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-next.mjs" {{wp-id}} {{FLAGS}}
 
-manual-relay-dispatch wp-id model="PRIMARY" *FLAGS:
+manual-relay-dispatch wp-id context model="PRIMARY" *FLAGS:
+	@just repomem-gate
+	@just repomem context "{{context}}" --trigger manual-relay-dispatch --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-dispatch.mjs" {{wp-id}} {{model}} {{FLAGS}}
 
 coder-next wp-id="":
@@ -312,7 +331,9 @@ spec-debt-sync wp-id:
 validator-next wp-id="" *FLAGS:
 	@node "{{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs" {{wp-id}} {{FLAGS}}
 
-task-board-set wp-id status reason="":
+task-board-set wp-id status context reason="":
+	@just repomem-gate
+	@just repomem context "{{context}}" --trigger task-board-set --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs" {{wp-id}} {{status}} "{{reason}}"
 
 validator-handoff-check wp-id *args:
@@ -322,7 +343,9 @@ integration-validator-closeout-check wp-id:
 	@node "{{GOV_ROOT}}/roles/validator/checks/integration-validator-closeout-check.mjs" {{wp-id}}
 	@just launch-memory-manager --force
 
-integration-validator-closeout-sync wp-id mode merged_main_sha="" *FLAGS:
+integration-validator-closeout-sync wp-id context mode merged_main_sha="" *FLAGS:
+	@just repomem-gate
+	@just repomem context "{{context}}" --trigger integration-validator-closeout-sync --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/validator/scripts/integration-validator-closeout-sync.mjs" {{wp-id}} {{mode}} {{merged_main_sha}} {{FLAGS}}
 
 integration-validator-context-brief wp-id *args:
@@ -468,10 +491,14 @@ memory-intent-snapshot intent *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" intent-snapshot "{{intent}}" {{FLAGS}}
 
 begin-refinement wp-id intent:
+	@just repomem-gate
+	@just repomem context "{{intent}}" --trigger begin-refinement --wp {{wp-id}}
 	@just memory-intent-snapshot "{{intent}}" --wp {{wp-id}} --role ORCHESTRATOR --reason "entering refinement" --expected "refined scope with discovery primitives"
 	@echo "[INTENT_GATE] Intent captured for {{wp-id}}. Proceed with refinement analysis, research, and design."
 
 begin-research intent *FLAGS:
+	@just repomem-gate
+	@just repomem context "{{intent}}" --trigger begin-research
 	@just memory-intent-snapshot "{{intent}}" --role ORCHESTRATOR {{FLAGS}}
 	@echo "[INTENT_GATE] Intent captured. Proceed with research."
 
@@ -486,6 +513,12 @@ memory-import file:
 
 memory-patterns *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-patterns.mjs" {{FLAGS}}
+
+repomem subcommand content="" *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" {{subcommand}} "{{content}}" {{FLAGS}}
+
+repomem-gate:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" gate
 
 memory-refresh *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-refresh.mjs" {{FLAGS}}
@@ -523,12 +556,16 @@ record-prepare wp-id workflow_lane="" execution_lane="" branch="" worktree_dir="
 record-role-model-profiles wp-id orchestrator_profile="" coder_profile="" wp_validator_profile="" integration_validator_profile="":
 	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" profiles {{wp-id}} {{orchestrator_profile}} {{coder_profile}} {{wp_validator_profile}} {{integration_validator_profile}}
 
-create-task-packet wp-id:
+create-task-packet wp-id context:
+	@just repomem-gate
+	@just repomem context "{{context}}" --trigger create-task-packet --wp {{wp-id}}
 	@echo "Creating task packet: {{wp-id}}..."
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/create-task-packet.mjs" {{wp-id}}
 	@just build-order-sync
 
-wp-traceability-set base_wp_id active_packet_wp_id:
+wp-traceability-set base_wp_id active_packet_wp_id context:
+	@just repomem-gate
+	@just repomem context "{{context}}" --trigger wp-traceability-set --wp {{base_wp_id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/wp-traceability-set.mjs" {{base_wp_id}} {{active_packet_wp_id}}
 
 wp-thread-append wp-id actor_role actor_session message target="" target_role="" target_session="" correlation_id="" requires_ack="" ack_for="" spec_anchor="" packet_row_ref="":

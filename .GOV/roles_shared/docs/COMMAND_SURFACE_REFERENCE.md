@@ -161,6 +161,46 @@ These are safe starting points for orientation and health checks.
   - `runtime-write`
   - extract new memories from receipts + smoketests, then run compaction if stale (>24h with dual-gate); called automatically at every role startup + gov-check; `--force-compact` bypasses staleness check
 
+### Conversation memory (`just repomem`)
+
+- `just repomem open "<what this session is about>" [--role ROLE] [--wp WP-ID]`
+  - `runtime-write`
+  - **MANDATORY** at session start. Creates session marker, writes SESSION_OPEN checkpoint. All mutation commands are blocked (via `repomem-gate`) until this runs. Content >=80 chars enforced. Shows prior session context on success.
+- `just repomem pre "<about to do X because Y>" [--wp WP-ID] [--trigger "just cmd"]`
+  - `runtime-write`
+  - pre-task checkpoint before an action; content >=40 chars; requires active session
+- `just repomem insight "<key realization or operator decision>" [--wp WP-ID] [--files "a,b"] [--decisions "what was decided"]`
+  - `runtime-write`
+  - **MANDATORY** after operator decisions/corrections and after non-obvious discoveries. Content >=80 chars. This is the primary mechanism for capturing institutional knowledge across sessions.
+- `just repomem research-close "<what was found>" [--wp WP-ID] [--files "a,b"] [--decisions "conclusions"]`
+  - `runtime-write`
+  - research conclusion checkpoint; content >=80 chars
+- `just repomem close "<session summary>" --decisions "<key decisions made>"`
+  - `runtime-write`
+  - **MANDATORY** at session end. Content >=80 chars, `--decisions` required. Shows session checkpoint summary. Clears session marker.
+- `just repomem context "<why this action>" --trigger "<just cmd>"` 
+  - `runtime-write`
+  - piggybacked context for mutation commands; content >=40 chars; auto-called by `task-board-set`, `create-task-packet`, `orchestrator-steer-next`, `manual-relay-dispatch`, `integration-validator-closeout-sync`, `begin-refinement`, `begin-research`, `wp-traceability-set`
+- `just repomem log [--session last|current] [--week] [--month] [--search "<query>"] [--wp WP-ID] [--limit N]`
+  - `read-only`
+  - view conversation history; `--session last` shows full prior session; `--week`/`--month` for time range; `--search` for FTS keyword search
+- `just repomem gate`
+  - `read-only`
+  - check if SESSION_OPEN exists; exits 1 if not; used by mutation commands as a blocking gate
+
+### Mutation commands requiring `context` parameter
+
+The following commands now require a `context` string (>=40 chars) that is captured as a conversation checkpoint before the command runs:
+
+- `just task-board-set WP-{ID} <STATUS> "<context>" ["reason"]`
+- `just create-task-packet WP-{ID} "<context>"`
+- `just orchestrator-steer-next WP-{ID} "<context>" [MODEL] [FLAGS]`
+- `just manual-relay-dispatch WP-{ID} "<context>" [MODEL] [FLAGS]`
+- `just integration-validator-closeout-sync WP-{ID} "<context>" <MODE> [MERGED_SHA] [FLAGS]`
+- `just wp-traceability-set BASE_WP ACTIVE_WP "<context>"`
+- `just begin-refinement WP-{ID} "<intent>"` (intent serves as context, >=40 chars)
+- `just begin-research "<intent>"` (intent serves as context, >=40 chars)
+
 ### Deprecated (redirected to governance memory DB)
 
 - `just failure-memory-record` → use `just memory-capture procedural "<fix>" --scope "<file>" --wp WP-{ID}` instead

@@ -317,8 +317,12 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
 - **Your work feeds memory automatically.** SMOKE-FIND and SMOKE-CONTROL entries in smoketest reviews are extracted. Validation receipts feed event-driven extraction. Check failures from `validator-scan` and `validator-handoff-check` are auto-captured as procedural memories.
 - **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section — high-signal context captures taken before governance decisions (e.g. PRE_CLOSEOUT before this WP entered final validation, PRE_WP_DELEGATION before your session was launched). Use them to understand what was planned; verify against the packet and current state.
 - **Intent snapshots (SHOULD).** Before starting a complex validation (deep multi-file review, cross-surface regression analysis), record your plan: `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role WP_VALIDATOR --reason "<why>"`. Judgment-based — no gate enforces it.
+- **Conversation memory (MUST — `just repomem`):** Cross-session conversational memory. **HARD rules:**
+  - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this session is about>" --role VALIDATOR --wp WP-{ID}`. Blocked from mutation commands until done.
+  - **INSIGHT after discoveries (MUST):** When validation reveals a non-obvious regression, spec gap, or systemic pattern, capture with `just repomem insight "<what was found and why it matters>"` before moving on. Minimum 80 characters.
+  - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what happened>" --decisions "<key findings and verdict>"`.
 - **Capture insights.** For ad-hoc findings: `just memory-capture semantic "description" --scope "file.rs" --wp WP-{ID}`.
-- To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`.
+- To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`. For conversation history: `just repomem log`.
 - **Governance doc consistency:** When validating governance refactor work, run `just canonise-gov` as part of your checks to verify that protocols, command surface, architecture, and quickref are in sync.
 - Canonical reference: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`.
 

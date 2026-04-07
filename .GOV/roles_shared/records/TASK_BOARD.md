@@ -88,6 +88,8 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
+- **[WP-1-Workspace-Safety-Parallel-Sessions-v1]** - [READY_FOR_DEV]
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -153,7 +155,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1]** - [STUB]
 - **[WP-1-FEMS-Acceptance-Replay-Eval-v1]** - [STUB]
 - **[WP-1-Provider-Feature-Coverage-Agentic-Ready-v1]** - [STUB]
-- **[WP-1-Workspace-Safety-Parallel-Sessions-v1]** - [STUB]
 - **[WP-1-Session-Observability-Spans-FR-v1]** - [STUB]
 - **[WP-1-Consent-Audit-Projection-v1]** - [STUB]
 - **[WP-1-Cloud-Consent-Evidence-Portability-v1]** - [STUB]
@@ -183,19 +184,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Product-Screenshot-Visual-Validation-v1]** - [STUB]
 - **[WP-1-Session-Spawn-Tree-DCC-Visualization-v1]** - [STUB]
 - **[WP-1-Session-Spawn-Conversation-Distillation-v1]** - [STUB]
-- **[WP-1-In-Product-Session-Manager-v1]** - [STUB]
-- **[WP-1-Distillation-Training-Pair-Extraction-v1]** - [STUB]
-- **[WP-1-Ollama-Local-Model-MT-Routing-v1]** - [STUB]
 - **[WP-1-Visual-Debugging-Loop-v1]** - [STUB]
-- **[WP-1-Product-Compile-Validation-Gate-v1]** - [STUB]
-- **[WP-1-Product-Red-Team-Agent-v1]** - [STUB]
-- **[WP-1-Product-MT-Lifecycle-Escalation-v1]** - [STUB]
-- **[WP-1-Product-Session-Communication-Database-v1]** - [STUB]
-- **[WP-1-Product-MT-Task-Board-v1]** - [STUB]
-- **[WP-1-Product-Failure-Knowledge-Base-v1]** - [STUB]
-- **[WP-1-Product-Session-Health-Monitor-v1]** - [STUB]
-- **[WP-1-Product-Role-Tool-Permissions-v1]** - [STUB]
-- **[WP-1-Product-MT-Quality-Gates-v1]** - [STUB]
 
 
 - **[WP-1-Charts-Dashboards-Backfill-v1]** - [STUB]
