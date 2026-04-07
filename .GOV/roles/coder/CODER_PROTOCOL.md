@@ -73,7 +73,7 @@ You receive a work packet from the Orchestrator. You implement exactly what it s
 - `docs/` is a temporary product compatibility bundle only; governance MUST NOT treat it as authoritative governance state.
 - Enforcement is mandatory (CI/gates) to forbid product code referencing `/.GOV/`.
 
-See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
+See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`, and `/.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (append-only shared tooling memory).
 
 **Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel` by the orchestrator, NEVER on feature branches [CX-212F]. Coders commit only product code (`src/`, `app/`, `tests/`) on `feat/WP-*`. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 

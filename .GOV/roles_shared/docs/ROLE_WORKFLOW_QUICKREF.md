@@ -67,7 +67,7 @@ Pre-task snapshots are captured automatically at: WP delegation, steering, relay
 
 Governance-only (does not scan `src/` or `app/`):
 - `just gov-check`
-- `just canonise-gov` — audit + report protocol/doc consistency after governance refactors
+- `just canonise-gov` — synchronise intent, rules, instructions across governance files; run after any governance change
 - Governance-only maintenance does not require a Work Packet or USER_SIGNATURE (Codex [CX-111]).
 - Shared repo tooling notes live in `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`; use it as short append-only shared tooling memory, not as a second LAW surface.
 

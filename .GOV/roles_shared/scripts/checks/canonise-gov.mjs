@@ -2,17 +2,19 @@
 /**
  * Governance Canonisation Audit
  *
- * Audits consistency across protocol files, command surface, architecture docs,
- * operator quickref, and codex after governance refactors.
+ * Synchronises intent, rules, and instructions across governance files.
+ * When governance rules or workflows change, run this to verify consistency
+ * across protocols, shared docs, codex, and operator references, then
+ * manually review the output file list to propagate the change.
  *
  * Checks:
- *   1. Key justfile recipes are documented in COMMAND_SURFACE_REFERENCE.md
- *   2. Memory commands are referenced in all role protocols
- *   3. Snapshot system is referenced in orchestrator protocol
- *   4. ARCHITECTURE.md references key modules
- *   5. START_HERE.md links to key guides
- *   6. Quickref has current command sections
- *   7. Protocol files reference GOVERNANCE_MEMORY_GUIDE.md
+ *   1. All required governance files exist
+ *   2. Protocol files cross-reference shared docs and key invariants
+ *   3. Navigation hub (START_HERE) links to all key docs
+ *   4. Command surface + quickref document justfile recipes
+ *   5. Codex references key governance mechanisms
+ *   6. Operator cheat sheet references key commands
+ *   7. Architecture doc covers expected layers
  *
  * Usage: just canonise-gov
  */
@@ -41,14 +43,7 @@ function readFile(relPath) {
   return fs.readFileSync(abs, "utf8");
 }
 
-function fileContains(relPath, pattern) {
-  const content = readFile(relPath);
-  if (!content) return false;
-  if (typeof pattern === "string") return content.includes(pattern);
-  return pattern.test(content);
-}
-
-// ─── File existence ─────────────────────────────────────────────
+// ─── 1. Required file existence ──────────────────────────────────
 const REQUIRED_FILES = [
   "codex/Handshake_Codex_v1.4.md",
   "roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
@@ -59,6 +54,7 @@ const REQUIRED_FILES = [
   "roles_shared/docs/START_HERE.md",
   "roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md",
   "roles_shared/docs/RUNBOOK_DEBUG.md",
+  "roles_shared/docs/TOOLING_GUARDRAILS.md",
 ];
 
 for (const f of REQUIRED_FILES) {
@@ -66,221 +62,157 @@ for (const f of REQUIRED_FILES) {
   check(`file-exists: ${f}`, fs.existsSync(abs) ? PASS : FAIL, fs.existsSync(abs) ? "" : "missing");
 }
 
-// ─── Command Surface Reference completeness ─────────────────────
-const EXPECTED_COMMANDS_IN_SURFACE_REF = [
-  "memory-search",
-  "memory-capture",
-  "memory-flag",
-  "memory-debug-snapshot",
-  "memory-patterns",
-  "memory-refresh",
-  "memory-stats",
-  "memory-export",
-  "memory-compact",
-  "memory-embed",
-  "memory-hybrid-search",
-  "memory-intent-snapshot",
-];
-
-const surfaceRef = readFile("roles_shared/docs/COMMAND_SURFACE_REFERENCE.md") || "";
-for (const cmd of EXPECTED_COMMANDS_IN_SURFACE_REF) {
-  check(
-    `command-surface: ${cmd}`,
-    surfaceRef.includes(cmd) ? PASS : WARN,
-    surfaceRef.includes(cmd) ? "" : `not found in COMMAND_SURFACE_REFERENCE.md`,
-  );
-}
-
-// ─── Protocol memory references ────────────────────────────────
-const PROTOCOL_FILES = {
-  "orchestrator": "roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
-  "coder": "roles/coder/CODER_PROTOCOL.md",
-  "validator": "roles/validator/VALIDATOR_PROTOCOL.md",
+// ─── 2. Protocol ↔ shared-doc cross-references ──────────────────
+//   Every role protocol should reference key shared docs and invariants.
+const PROTOCOLS = {
+  orchestrator: "roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
+  coder: "roles/coder/CODER_PROTOCOL.md",
+  validator: "roles/validator/VALIDATOR_PROTOCOL.md",
 };
 
-for (const [role, filePath] of Object.entries(PROTOCOL_FILES)) {
-  const content = readFile(filePath) || "";
+const PROTOCOL_EXPECTED_REFS = [
+  { pattern: "TOOLING_GUARDRAILS", label: "TOOLING_GUARDRAILS ref" },
+  { pattern: "COMMAND_SURFACE_REFERENCE", label: "COMMAND_SURFACE_REFERENCE ref" },
+  { pattern: /permanent.branch/i, label: "permanent branch model" },
+  { pattern: /drive.agnostic/i, label: "drive-agnostic paths" },
+  { pattern: /governance.kernel/i, label: "governance kernel concept" },
+];
 
+for (const [role, filePath] of Object.entries(PROTOCOLS)) {
+  const content = readFile(filePath) || "";
+  for (const ref of PROTOCOL_EXPECTED_REFS) {
+    const found = typeof ref.pattern === "string"
+      ? content.includes(ref.pattern)
+      : ref.pattern.test(content);
+    check(
+      `${role}-protocol: ${ref.label}`,
+      found ? PASS : WARN,
+      found ? "" : `not found in ${role} protocol`,
+    );
+  }
+}
+
+// ─── 3. Navigation hub (START_HERE) completeness ─────────────────
+//   START_HERE is the entrypoint — it should link to all key governance docs.
+const startContent = readFile("roles_shared/docs/START_HERE.md") || "";
+const START_HERE_EXPECTED = [
+  { pattern: "ORCHESTRATOR_PROTOCOL", label: "orchestrator protocol link" },
+  { pattern: "CODER_PROTOCOL", label: "coder protocol link" },
+  { pattern: "VALIDATOR_PROTOCOL", label: "validator protocol link" },
+  { pattern: /[Cc]odex/, label: "codex reference" },
+  { pattern: "ARCHITECTURE", label: "architecture link" },
+  { pattern: "COMMAND_SURFACE_REFERENCE", label: "command surface link" },
+  { pattern: "TOOLING_GUARDRAILS", label: "tooling guardrails link" },
+  { pattern: "ROLE_WORKFLOW_QUICKREF", label: "quickref link" },
+  { pattern: "RUNBOOK_DEBUG", label: "runbook debug link" },
+];
+
+for (const ref of START_HERE_EXPECTED) {
+  const found = typeof ref.pattern === "string"
+    ? startContent.includes(ref.pattern)
+    : ref.pattern.test(startContent);
   check(
-    `${role}-protocol: memory-search ref`,
-    content.includes("memory-search") ? PASS : WARN,
-    content.includes("memory-search") ? "" : "memory-search not mentioned",
-  );
-  check(
-    `${role}-protocol: memory-capture ref`,
-    content.includes("memory-capture") ? PASS : WARN,
-    content.includes("memory-capture") ? "" : "memory-capture not mentioned",
-  );
-  check(
-    `${role}-protocol: GOVERNANCE_MEMORY_GUIDE ref`,
-    content.includes("GOVERNANCE_MEMORY_GUIDE") ? PASS : WARN,
-    content.includes("GOVERNANCE_MEMORY_GUIDE") ? "" : "GOVERNANCE_MEMORY_GUIDE not referenced",
-  );
-  check(
-    `${role}-protocol: snapshot awareness`,
-    /snapshot|SNAPSHOT/i.test(content) ? PASS : WARN,
-    /snapshot|SNAPSHOT/i.test(content) ? "" : "no snapshot/SNAPSHOT reference",
-  );
-  check(
-    `${role}-protocol: intent-snapshot ref`,
-    content.includes("intent-snapshot") ? PASS : WARN,
-    content.includes("intent-snapshot") ? "" : "memory-intent-snapshot not mentioned",
+    `start-here: ${ref.label}`,
+    found ? PASS : WARN,
+    found ? "" : "not found in START_HERE.md",
   );
 }
 
-// ─── Orchestrator-specific checks ──────────────────────────────
-const orchContent = readFile("roles/orchestrator/ORCHESTRATOR_PROTOCOL.md") || "";
-check(
-  "orchestrator-protocol: memory lifecycle section",
-  orchContent.includes("Governance memory lifecycle") ? PASS : FAIL,
-  orchContent.includes("Governance memory lifecycle") ? "" : "missing memory lifecycle section",
-);
-check(
-  "orchestrator-protocol: pre-task snapshot types",
-  orchContent.includes("PRE_WP_DELEGATION") ? PASS : WARN,
-  orchContent.includes("PRE_WP_DELEGATION") ? "" : "snapshot types not documented",
-);
-check(
-  "orchestrator-protocol: memory-debug-snapshot ref",
-  orchContent.includes("memory-debug-snapshot") ? PASS : WARN,
-  orchContent.includes("memory-debug-snapshot") ? "" : "memory-debug-snapshot not mentioned",
-);
-
-// ─── Architecture.md checks ────────────────────────────────────
-const archContent = readFile("roles_shared/docs/ARCHITECTURE.md") || "";
-check(
-  "architecture: governance memory system row",
-  archContent.includes("Governance memory system") ? PASS : FAIL,
-  archContent.includes("Governance memory system") ? "" : "missing governance memory row",
-);
-check(
-  "architecture: memory-snapshot.mjs ref",
-  archContent.includes("memory-snapshot.mjs") ? PASS : WARN,
-  archContent.includes("memory-snapshot.mjs") ? "" : "memory-snapshot.mjs not referenced",
-);
-check(
-  "architecture: session-control-lib injection ref",
-  archContent.includes("loadSessionMemoryLines") ? PASS : WARN,
-  archContent.includes("loadSessionMemoryLines") ? "" : "session injection not referenced",
-);
-
-// ─── START_HERE.md checks ──────────────────────────────────────
-const startContent = readFile("roles_shared/docs/START_HERE.md") || "";
-check(
-  "start-here: memory system ref",
-  startContent.includes("Governance memory system") ? PASS : FAIL,
-  startContent.includes("Governance memory system") ? "" : "missing memory system reference",
-);
-check(
-  "start-here: memory guide link",
-  startContent.includes("GOVERNANCE_MEMORY_GUIDE") ? PASS : WARN,
-  startContent.includes("GOVERNANCE_MEMORY_GUIDE") ? "" : "missing guide link",
-);
-
-// ─── Quickref checks ───────────────────────────────────────────
+// ─── 4. Command surface + quickref recipe coverage ───────────────
+//   Every user-facing justfile recipe should be documented somewhere.
+const surfaceRef = readFile("roles_shared/docs/COMMAND_SURFACE_REFERENCE.md") || "";
 const quickrefContent = readFile("roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md") || "";
-check(
-  "quickref: memory commands section",
-  quickrefContent.includes("Memory Quick Commands") ? PASS : WARN,
-  quickrefContent.includes("Memory Quick Commands") ? "" : "missing memory quick commands section",
-);
-check(
-  "quickref: memory-debug-snapshot",
-  quickrefContent.includes("memory-debug-snapshot") ? PASS : WARN,
-  quickrefContent.includes("memory-debug-snapshot") ? "" : "memory-debug-snapshot not in quickref",
-);
+
+const justfileAbs = path.resolve(GOV_ROOT_ABS, "..", "justfile");
+if (fs.existsSync(justfileAbs)) {
+  const justfileContent = fs.readFileSync(justfileAbs, "utf8");
+  const seen = new Set();
+  for (const line of justfileContent.split("\n")) {
+    const m = line.match(/^([a-z][\w-]*)\s*[^:=]*:/);
+    if (!m) continue;
+    const recipe = m[1];
+    if (seen.has(recipe)) continue;
+    seen.add(recipe);
+    const documented = surfaceRef.includes(recipe) || quickrefContent.includes(recipe);
+    check(
+      `recipe-documented: ${recipe}`,
+      documented ? PASS : WARN,
+      documented ? "" : "not in command surface or quickref",
+    );
+  }
+}
+
+// ─── 5. Quickref governance awareness ────────────────────────────
 check(
   "quickref: canonise-gov ref",
   quickrefContent.includes("canonise-gov") ? PASS : WARN,
   quickrefContent.includes("canonise-gov") ? "" : "canonise-gov not in quickref",
 );
+check(
+  "quickref: gov-check ref",
+  quickrefContent.includes("gov-check") ? PASS : WARN,
+  quickrefContent.includes("gov-check") ? "" : "gov-check not in quickref",
+);
 
-// ─── canonise-gov self-referential checks ──────────────────────
-// The canonise-gov command itself must be documented in key authority files
+// ─── 6. Codex ↔ governance alignment ─────────────────────────────
 const codexContent = readFile("codex/Handshake_Codex_v1.4.md") || "";
-check(
-  "codex: canonise-gov ref",
-  codexContent.includes("canonise-gov") ? PASS : WARN,
-  codexContent.includes("canonise-gov") ? "" : "canonise-gov not mentioned in codex",
-);
-check(
-  "orchestrator-protocol: canonise-gov ref",
-  orchContent.includes("canonise-gov") ? PASS : WARN,
-  orchContent.includes("canonise-gov") ? "" : "canonise-gov not mentioned in orchestrator protocol",
-);
-const valContent = readFile("roles/validator/VALIDATOR_PROTOCOL.md") || "";
-check(
-  "validator-protocol: canonise-gov ref",
-  valContent.includes("canonise-gov") ? PASS : WARN,
-  valContent.includes("canonise-gov") ? "" : "canonise-gov not mentioned in validator protocol",
-);
-check(
-  "command-surface: canonise-gov ref",
-  surfaceRef.includes("canonise-gov") ? PASS : WARN,
-  surfaceRef.includes("canonise-gov") ? "" : "canonise-gov not in command surface reference",
-);
+const CODEX_EXPECTED = [
+  { pattern: "canonise-gov", label: "canonise-gov reference" },
+  { pattern: /governance.kernel/i, label: "governance kernel concept" },
+  { pattern: /permanent.branch/i, label: "permanent branch model" },
+  { pattern: /drive.agnostic/i, label: "drive-agnostic rule" },
+];
 
-// ─── Operator cheat sheet checks ───────────────────────────────
+for (const ref of CODEX_EXPECTED) {
+  const found = typeof ref.pattern === "string"
+    ? codexContent.includes(ref.pattern)
+    : ref.pattern.test(codexContent);
+  check(
+    `codex: ${ref.label}`,
+    found ? PASS : WARN,
+    found ? "" : "not found in codex",
+  );
+}
+
+// ─── 7. Operator cheat sheet ─────────────────────────────────────
 const cheatSheetAbs = path.resolve(GOV_ROOT_ABS, "..", "..", "..", "Prompts", "Handshake_Role_Startup_Prompts.md");
 const cheatSheet = fs.existsSync(cheatSheetAbs) ? fs.readFileSync(cheatSheetAbs, "utf8") : null;
 if (cheatSheet) {
-  check(
-    "cheat-sheet: memory-debug-snapshot ref",
-    cheatSheet.includes("memory-debug-snapshot") ? PASS : WARN,
-    cheatSheet.includes("memory-debug-snapshot") ? "" : "memory-debug-snapshot not in operator cheat sheet",
-  );
-  check(
-    "cheat-sheet: canonise-gov ref",
-    cheatSheet.includes("canonise-gov") ? PASS : WARN,
-    cheatSheet.includes("canonise-gov") ? "" : "canonise-gov not in operator cheat sheet",
-  );
-  check(
-    "cheat-sheet: memory-search ref",
-    cheatSheet.includes("memory-search") ? PASS : WARN,
-    cheatSheet.includes("memory-search") ? "" : "memory-search not in operator cheat sheet",
-  );
-  check(
-    "cheat-sheet: memory-capture ref",
-    cheatSheet.includes("memory-capture") ? PASS : WARN,
-    cheatSheet.includes("memory-capture") ? "" : "memory-capture not in operator cheat sheet",
-  );
-  check(
-    "cheat-sheet: pre-task snapshot ref",
-    /snapshot/i.test(cheatSheet) ? PASS : WARN,
-    /snapshot/i.test(cheatSheet) ? "" : "no snapshot reference in operator cheat sheet",
-  );
-  check(
-    "cheat-sheet: intent-snapshot ref",
-    cheatSheet.includes("intent-snapshot") ? PASS : WARN,
-    cheatSheet.includes("intent-snapshot") ? "" : "memory-intent-snapshot not in operator cheat sheet",
-  );
-} else {
-  check(
-    "cheat-sheet: file exists",
-    WARN,
-    `not found at ${cheatSheetAbs}`,
-  );
-}
-
-// ─── Cross-file justfile recipe audit ──────────────────────────
-// Check that every `just memory-*` recipe in justfile has a doc ref somewhere
-const justfileAbs = path.resolve(GOV_ROOT_ABS, "..", "justfile");
-if (fs.existsSync(justfileAbs)) {
-  const justfileContent = fs.readFileSync(justfileAbs, "utf8");
-  const recipeRe = /^(memory-\S+)/gm;
-  let match;
-  while ((match = recipeRe.exec(justfileContent)) !== null) {
-    const recipe = match[1].replace(/:.*$/, "");
-    const documented = surfaceRef.includes(recipe) || quickrefContent.includes(recipe);
+  const CHEAT_EXPECTED = [
+    { pattern: "canonise-gov", label: "canonise-gov ref" },
+    { pattern: "gov-check", label: "gov-check ref" },
+    { pattern: "orchestrator-startup", label: "orchestrator-startup ref" },
+  ];
+  for (const ref of CHEAT_EXPECTED) {
     check(
-      `justfile-recipe-documented: ${recipe}`,
-      documented ? PASS : WARN,
-      documented ? "" : `${recipe} not found in command surface or quickref`,
+      `cheat-sheet: ${ref.label}`,
+      cheatSheet.includes(ref.pattern) ? PASS : WARN,
+      cheatSheet.includes(ref.pattern) ? "" : "not in operator cheat sheet",
     );
   }
+} else {
+  check("cheat-sheet: file exists", WARN, `not found at ${cheatSheetAbs}`);
 }
 
-// ─── Output ────────────────────────────────────────────────────
+// ─── 8. Architecture doc layer coverage ──────────────────────────
+const archContent = readFile("roles_shared/docs/ARCHITECTURE.md") || "";
+const ARCH_EXPECTED = [
+  { pattern: /[Ff]rontend|[Tt]auri|[Rr]eact/, label: "frontend layer" },
+  { pattern: /[Bb]ackend|[Rr]ust/, label: "backend layer" },
+  { pattern: /[Gg]overnance/, label: "governance layer" },
+  { pattern: /[Ss]ession/, label: "session system" },
+];
+
+for (const ref of ARCH_EXPECTED) {
+  const found = ref.pattern.test(archContent);
+  check(
+    `architecture: ${ref.label}`,
+    found ? PASS : WARN,
+    found ? "" : "not found in ARCHITECTURE.md",
+  );
+}
+
+// ─── Output ──────────────────────────────────────────────────────
 console.log("CANONISE_GOV AUDIT");
 console.log("─".repeat(60));
 
@@ -303,6 +235,89 @@ if (grouped.WARN.length > 0) {
 }
 
 console.log(`\nSUMMARY: ${results.length} checks — ${grouped.PASS.length} pass, ${warnCount} warn, ${failCount} fail`);
+
+// ─── Structured review brief ─────────────────────────────────────
+// Each file has a declared purpose and a scoped review directive.
+// The orchestrator reads each file and checks ONLY what the directive says.
+const REVIEW_BRIEF = [
+  {
+    file: "codex/Handshake_Codex_v1.4.md",
+    purpose: "Foundational law — CX invariants, precedence rules, HARD constraints",
+    directive: "Check if the governance change introduces or modifies a HARD rule that needs a new or updated CX invariant. If no new invariant is needed, skip.",
+  },
+  {
+    file: "roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
+    purpose: "Orchestrator execution rules — workflow authority, delegation, safety",
+    directive: "Check if the governance change affects orchestrator workflow, delegation rules, or safety constraints. Update execution rules or 'See also' references if applicable.",
+  },
+  {
+    file: "roles/coder/CODER_PROTOCOL.md",
+    purpose: "Coder execution rules — implementation constraints, handoff evidence, scope boundaries",
+    directive: "Check if the governance change introduces constraints the coder must follow during implementation or handoff. Update rules or references if applicable.",
+  },
+  {
+    file: "roles/validator/VALIDATOR_PROTOCOL.md",
+    purpose: "Validator execution rules — review authority, proof standards, closeout gates",
+    directive: "Check if the governance change affects validation criteria, proof requirements, or closeout rules. Update rules or references if applicable.",
+  },
+  {
+    file: "roles_shared/docs/COMMAND_SURFACE_REFERENCE.md",
+    purpose: "Canonical just-command documentation — grouped by workflow purpose",
+    directive: "Check if the governance change adds, removes, or changes justfile recipes. Add/update/remove command entries with correct read-only/write classification.",
+  },
+  {
+    file: "roles_shared/docs/ARCHITECTURE.md",
+    purpose: "Module responsibility map — system layers, key paths, data model",
+    directive: "Check if the governance change introduces a new system, module, or architectural layer. Add a row if applicable. Do not update for workflow-only changes.",
+  },
+  {
+    file: "roles_shared/docs/START_HERE.md",
+    purpose: "Navigation entrypoint — links to all key governance docs",
+    directive: "Check if the governance change adds a new doc, guide, or authority source that roles need to find. Add a navigation link if applicable. Do not duplicate content from other files.",
+  },
+  {
+    file: "roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md",
+    purpose: "Compact rules index — role responsibilities, key commands, operator UX ordering",
+    directive: "Check if the governance change adds commands the operator needs quick access to, or changes role responsibilities or UX ordering. Add a quickref entry if applicable.",
+  },
+  {
+    file: "roles_shared/docs/RUNBOOK_DEBUG.md",
+    purpose: "Diagnostic guide — symptoms, log locations, recovery procedures",
+    directive: "Check if the governance change introduces new failure modes, log paths, or recovery steps. Add a symptom entry if applicable. Skip for non-diagnostic changes.",
+  },
+  {
+    file: "roles_shared/docs/TOOLING_GUARDRAILS.md",
+    purpose: "Append-only shared memory — recurring repo bad habits and tooling rules",
+    directive: "Check if the governance change exposed a new bad habit or tooling pitfall worth recording. Append only; never edit existing entries.",
+  },
+  {
+    file: "README.md",
+    purpose: "Folder map — .GOV ownership model and directory structure",
+    directive: "Check if the governance change adds or renames folders under .GOV/. Update the folder map if applicable. Skip for content-only changes.",
+  },
+  {
+    file: "roles/README.md",
+    purpose: "Role listing — directs to role-specific bundles",
+    directive: "Check if a new role was added. Update listing if applicable. Skip otherwise.",
+  },
+  {
+    file: "roles_shared/README.md",
+    purpose: "Shared bucket map — shared records, runtime placement, folder inventory",
+    directive: "Check if the governance change adds shared records, runtime files, or new shared folders. Update the bucket map if applicable.",
+  },
+];
+
+console.log("\nSTRUCTURED REVIEW BRIEF");
+console.log("(orchestrator: read each file, apply directive only when applicable)\n");
+for (const entry of REVIEW_BRIEF) {
+  const abs = path.resolve(GOV_ROOT_ABS, entry.file);
+  const exists = fs.existsSync(abs);
+  const marker = exists ? "•" : "✗ MISSING";
+  console.log(`${marker} ${entry.file}`);
+  console.log(`  PURPOSE:   ${entry.purpose}`);
+  console.log(`  DIRECTIVE: ${entry.directive}`);
+  console.log();
+}
 
 if (failCount > 0) {
   console.log("\ncanonise-gov FAIL");
