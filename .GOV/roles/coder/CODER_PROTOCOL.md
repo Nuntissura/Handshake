@@ -31,7 +31,7 @@ You receive a work packet from the Orchestrator. You implement exactly what it s
 
 ## Multi-Provider Model Awareness
 
-- The system supports multiple model providers: OpenAI (GPT 5.4, GPT 5.2, Codex Spark 5.3), Anthropic (Claude Code Opus 4.6), and future local models (Ollama).
+- The system supports multiple model providers: OpenAI (GPT 5.4, GPT 5.2, Codex Spark 5.3), Anthropic (Claude Code Opus 4.6), and Ollama local models (Qwen 2.5 Coder 7B/14B).
 - The packet-declared `CODER_MODEL_PROFILE` is authoritative for your session. Do not assume GPT-5.4 is the default.
 - The ACP broker is a mechanical session-control relay, not a model. All model sessions dispatch through the broker regardless of provider.
 - Do not reference provider-specific conventions (Codex aliases, Claude model flags) unless your packet explicitly declares that provider.
@@ -312,6 +312,18 @@ Resume rule (hard, anti-babysit):
 - Immediately run `just coder-next` (or `just coder-next WP-{ID}` when the WP is known).
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
 - STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a protocol-mandated handoff/approval stop.
+
+### Fail log [CX-503K1]
+
+Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns only** from prior sessions. This is the fail log, not a general memory dump. Supplementary context, not a source of truth:
+- **What you get:** Fix recipes, error-fix pairs, and patterns from prior REPAIR receipts, smoketest findings, and check failures. Scoped to your WP. Capped at 3 memories per source session to prevent one WP dominating.
+- **`just pre-work` also surfaces the fail log** — known failure patterns for your WP appear before GATE_STATUS so you see them before starting work.
+- **Don't trust it blindly.** If a fix pattern references a file, verify it still exists. The packet and current code state always win.
+- **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section — context captures taken before governance decisions (e.g. PRE_WP_DELEGATION with the role, model, and branch the orchestrator chose for your session). Use them to understand context; verify against the packet.
+- **Intent snapshots (SHOULD).** Before starting a complex implementation (tricky MT, cross-file refactor, data migration): `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role CODER --reason "<why>"`. Judgment-based — no gate enforces it.
+- **Capture insights.** If you discover a non-obvious fix: `just memory-capture procedural "description" --scope "file.rs" --wp WP-{ID}`. Importance 0.7. Future sessions benefit.
+- To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`.
+- Canonical reference: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`.
 
 ## WP Communication Folder (when the packet defines it)
 

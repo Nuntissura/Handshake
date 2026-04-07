@@ -87,14 +87,14 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 
 - Validator work currently has three governance forms:
   - `Classical Validator` = manual-relay / non-orchestrator-managed validator operating from `handshake_main` on branch `main`. This form may own final validation closure and merge-to-`main` authority when no orchestrator-managed Integration Validator lane exists.
-  - `WP Validator` = orchestrator-managed, WP-scoped technical steering validator operating from a dedicated validator worktree (`wtv-*` on `validate/WP-*`, `/.GOV/` junction to kernel) rooted from the coder branch. This form judges BOOTSTRAP, SKELETON, and completed micro tasks early, fast-forwards from the coder branch when review needs the latest product state, challenges vibe-coding/spec drift, and steers the coder through packet communications plus Orchestrator-owned ACP controls, but it is not the final merge authority.
+  - `WP Validator` = orchestrator-managed, WP-scoped technical steering validator sharing the coder worktree (`wtc-*` on `feat/WP-{ID}`, `/.GOV/` junction to kernel) [CX-503G]. The per-MT stop pattern ensures only one role is active at a time. This form judges BOOTSTRAP, SKELETON, and completed micro tasks early, challenges vibe-coding/spec drift, and steers the coder through packet communications plus Orchestrator-owned ACP controls, but it is not the final merge authority.
   - `Integration Validator` = orchestrator-managed final validator operating from `handshake_main` on branch `main` (no WP-specific worktree). This form owns final technical verdict, merge-to-`main` authority, and the default `sync-gov-to-main` responsibility for orchestrator-managed WPs unless the packet explicitly overrides it.
 - `Integration Validator` runtime is product-rooted in `handshake_main`, but live governance authority is kernel-rooted. Governed launch/control must inject `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`, and validator closeout is invalid if the session resolves authority from `handshake_main/.GOV` instead of the kernel.
 - `handshake_main/.GOV` is a synced mirror for main-branch backup/visibility only. Even after `just sync-gov-to-main`, it is not the authoritative live governance surface for orchestrator-managed integration validation.
 - `just sync-gov-to-main` is only valid from committed kernel governance truth. If `wt-gov-kernel/.GOV` has uncommitted changes, commit `gov_kernel` before mirroring to `handshake_main`.
 - Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
-- For newly created repo-governed validator sessions, the packet-declared validator profile is authoritative for claim truth under `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback, which currently map to `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is now a supported runtime profile. Governed launch and session-control work for Claude Code sessions through the ACP broker. Do not rely on ambient editor defaults.
+- For newly created repo-governed validator sessions, the packet-declared validator profile is authoritative for claim truth under `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback, which currently map to `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is a supported runtime profile; `OLLAMA_QWEN_CODER_7B` and `OLLAMA_QWEN_CODER_14B` are local model profiles (coder-only). All profiles dispatch through the ACP broker. Do not rely on ambient editor defaults.
 - Fresh repo-governed validator session start is `ORCHESTRATOR_ONLY`.
 - Primary launch path is `VSCODE_EXTENSION_TERMINAL` via the external repo-governance launch queue + session registry (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
@@ -290,7 +290,8 @@ Optional (recommended on session start to reduce babysitting):
 ### Context resume (recommended; anti-babysit)
 
 If the session resets, context compacts, or you inherit a half-finished WP, use:
-- `just validator-next [WP-{ID}]`
+- `just validator-next [WP-{ID}] [--debug]`
+- For diagnostic tracing of cross-role resume/routing state, also use `just orchestrator-next [WP-{ID}] --debug`.
 
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
@@ -300,11 +301,24 @@ This prints the inferred WP stage + the minimal next commands based on:
 
 Resume rule (hard, anti-babysit):
 - After `just validator-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
-- Immediately run `just validator-next` (or `just validator-next WP-{ID}` when the WP is known).
+- Immediately run `just validator-next [--debug]` (or `just validator-next WP-{ID} [--debug]` when the WP is known).
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
 - STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a sync/destructive action that still needs explicit authorization.
 - `just validator-startup` remains the universal validator startup command. It is necessary but not sufficient for independent external revalidation of an orchestrator-managed WP; that audit mode requires `just external-validator-brief WP-{ID}` immediately after startup and before any verdict work.
 - Legacy remediation rule (hard): if `just validator-next` or the computed policy gate reports `LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED`, treat the packet as a failed historical closure. Do not reopen validator gates, present PASS, merge, or sync it in place. Request a new remediation WP variant instead.
+
+### Fail log + context [CX-503K1]
+
+Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix patterns** (the fail log) plus **semantic governance facts** (context). This is supplementary, not a source of truth:
+- **What you get:** Fix recipes and error-fix pairs (procedural) plus distilled governance facts and positive controls (semantic). Scoped to your WP. No episodic events — those go to the orchestrator.
+- **Don't trust it blindly.** Memory may be stale. Always verify against the current code, packet, and diff. "No assumptions from memory" still applies — but injected memory gives you pointers worth checking.
+- **Your work feeds memory automatically.** SMOKE-FIND and SMOKE-CONTROL entries in smoketest reviews are extracted. Validation receipts feed event-driven extraction. Check failures from `validator-scan` and `validator-handoff-check` are auto-captured as procedural memories.
+- **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section — high-signal context captures taken before governance decisions (e.g. PRE_CLOSEOUT before this WP entered final validation, PRE_WP_DELEGATION before your session was launched). Use them to understand what was planned; verify against the packet and current state.
+- **Intent snapshots (SHOULD).** Before starting a complex validation (deep multi-file review, cross-surface regression analysis), record your plan: `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role WP_VALIDATOR --reason "<why>"`. Judgment-based — no gate enforces it.
+- **Capture insights.** For ad-hoc findings: `just memory-capture semantic "description" --scope "file.rs" --wp WP-{ID}`.
+- To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`.
+- **Governance doc consistency:** When validating governance refactor work, run `just canonise-gov` as part of your checks to verify that protocols, command surface, architecture, and quickref are in sync.
+- Canonical reference: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`.
 
 ## WP Communication Folder (when the packet defines it)
 

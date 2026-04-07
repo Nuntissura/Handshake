@@ -17,10 +17,24 @@ import {
   deriveRelayEnvelope,
   preferredTargetSession,
 } from "./lib/manual-relay-envelope-lib.mjs";
+import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
 
 const wpId = String(process.argv[2] || "").trim();
-const requestedModel = String(process.argv[3] || "").trim().toUpperCase() || "PRIMARY";
+const debugMode = process.argv.slice(3).some((arg) => String(arg || "").trim() === "--debug");
+const requestedModel = (() => {
+  for (const candidate of process.argv.slice(3)) {
+    const value = String(candidate || "").trim().toUpperCase();
+    if (!value || value.startsWith("--")) continue;
+    if (["PRIMARY", "FALLBACK"].includes(value)) return value;
+    fail(`Invalid model selector: ${value} (expected PRIMARY or FALLBACK)`);
+  }
+  return "PRIMARY";
+})();
 const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const sessionControlEnv = {
+  ...process.env,
+  ...(debugMode ? { HANDSHAKE_SESSION_CONTROL_DEBUG: "1" } : {}),
+};
 
 function fail(message, details = []) {
   console.error(`[ORCHESTRATOR_STEER_NEXT] ${message}`);
@@ -62,6 +76,10 @@ if (!wpId || !/^WP-/.test(wpId)) {
   fail("Usage: node .GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs WP-{ID} [PRIMARY|FALLBACK]");
 }
 
+if (debugMode) {
+  console.log("[ORCHESTRATOR_STEER_NEXT] debug_mode=enabled");
+}
+
 const packetPath = resolveWorkPacketPath(wpId)?.packetPath
   || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
 if (!fs.existsSync(packetPath)) {
@@ -76,6 +94,21 @@ if (workflowLane !== "ORCHESTRATOR_MANAGED") {
 
 const { runtimeStatusFile, receiptsFile, runtimeStatus } = loadRuntimeStatus(packetText);
 const receipts = receiptsFile && fs.existsSync(receiptsFile) ? parseJsonlFile(receiptsFile) : [];
+
+// RGF-145: pre-task snapshot before steering evaluation
+capturePreTaskSnapshot({
+  snapshotType: "PRE_STEERING",
+  wpId,
+  triggerScript: "orchestrator-steer-next.mjs",
+  context: {
+    nextExpectedActor: runtimeStatus.next_expected_actor || "",
+    waitingOn: runtimeStatus.waiting_on || "",
+    workflowLane,
+    receiptCount: receipts.length,
+    lastReceiptKind: receipts.at(-1)?.receipt_kind || "",
+  },
+});
+
 const communicationEvaluation = evaluateWpCommunicationHealth({
   wpId,
   stage: "STATUS",
@@ -166,9 +199,11 @@ console.log(`- ${envelope.message}`);
 if (action === "START_SESSION") {
   execFileSync(process.execPath, [commandScript, "START_SESSION", nextActor, wpId, "", requestedModel], {
     stdio: "inherit",
+    env: sessionControlEnv,
   });
 }
 
 execFileSync(process.execPath, [commandScript, "SEND_PROMPT", nextActor, wpId, prompt, requestedModel], {
   stdio: "inherit",
+  env: sessionControlEnv,
 });

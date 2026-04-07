@@ -186,9 +186,19 @@ function loadValidationSession(wpId) {
 }
 
 function resolveWpId() {
-  const provided = String(process.argv[2] || "").trim();
+  const cliArgs = process.argv.slice(2);
+  const debugMode = cliArgs.some((arg) => String(arg || "").trim() === "--debug");
+  const positionalArgs = cliArgs.filter((arg) => {
+    const normalized = String(arg || "").trim();
+    return normalized && !normalized.startsWith("--");
+  });
+  const provided = String(positionalArgs[0] || "").trim();
   const gitContext = currentGitContext();
   const logs = loadOrchestratorGateLogs();
+
+  if (debugMode) {
+    console.log("[VALIDATOR_NEXT] debug_mode=enabled");
+  }
 
   if (provided) {
     return { wpId: provided, gitContext, confidence: "HIGH", confidenceDetail: "explicit" };

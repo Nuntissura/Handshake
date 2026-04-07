@@ -44,6 +44,9 @@ These are safe starting points for orientation and health checks.
 - `just docs-check`
   - `read-only`
   - presence check for required governance docs
+- `just canonise-gov`
+  - `read-only`
+  - audits protocol/doc consistency across codex, role protocols, command surface, architecture, quickref, and START_HERE; checks that key commands, memory references, snapshot types, and guide links are present in all required files; run after major governance refactors
 - `just artifact-hygiene-check`
   - `read-only`
   - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake Artifacts` residue fail closed
@@ -54,10 +57,10 @@ These are safe starting points for orientation and health checks.
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
   - `read-only`
   - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, declared microtask plan (`active` / `next`), and next commands
-- `just manual-relay-next WP-{ID}`
+- `just manual-relay-next WP-{ID} [--debug]`
   - `read-only`
   - operator-facing next-step helper for `WORKFLOW_LANE=MANUAL_RELAY`; prints the runtime-projected next actor, target session, a structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`), and exact governed follow-up commands without auto-steering
-- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK]`
+- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
   - `runtime-write`
   - operator-invoked broker for `WORKFLOW_LANE=MANUAL_RELAY`; starts the projected target session when needed, immediately delivers the active role-to-role payload, and injects typed relay context (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) into the target prompt instead of a generic resume-only steer
 - `just wp-token-usage WP-{ID}`
@@ -79,9 +82,9 @@ These are safe starting points for orientation and health checks.
 - `just operator-monitor`
   - `read-only`
   - compatibility alias for `just operator-viewport`
-- `just orchestrator-next [WP-{ID}]`
+- `just orchestrator-next [WP-{ID}] [--debug]`
 - `just coder-next [WP-{ID}]`
-- `just validator-next [WP-{ID}]`
+- `just validator-next [WP-{ID}] [--debug]`
   - `read-only`
   - role-specific resume helpers after startup/reset/compaction
   - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, post-signature routine Operator interruptions are invalid; `just orchestrator-next` should print `OPERATOR_ACTION: NONE` unless a machine-visible `BLOCKER_CLASS` is present
@@ -91,12 +94,79 @@ These are safe starting points for orientation and health checks.
   - if the target session is not running yet, this helper now starts it and immediately sends the typed route payload in the same invocation
   - the governed prompt carries typed route context (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) derived from receipt/notification truth instead of generic resume prose
   - when stalled-relay escalation is active, this is the canonical continue/repair command instead of silent waiting
-- `just manual-relay-next WP-{ID}`
+- `just manual-relay-next WP-{ID} [--debug]`
   - `read-only`
   - for `WORKFLOW_LANE=MANUAL_RELAY`, inspect runtime next-actor truth without dispatching any prompt
-- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK]`
+- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
   - `runtime-write`
   - for `WORKFLOW_LANE=MANUAL_RELAY`, let the operator explicitly broker one governed start/send action against the currently projected next actor
+
+## Governance Memory System (RGF-115 through RGF-143)
+
+- `just memory-add <episodic|semantic|procedural> <topic> "<summary>" [--wp WP-{ID}] [--scope "files"] [--content "<full>"] [--source "<artifact>"] [--role "<role>"]`
+  - `runtime-write`
+  - record a new memory entry with FTS5 indexing; provider-agnostic, any model can write
+- `just memory-search "<query>" [--type <type>] [--wp WP-{ID}] [--limit N]`
+  - `read-only`
+  - FTS5 keyword search over all memory layers; returns matching index entries with content preview
+- `just memory-prime <WP-{ID}> [--files "file1,file2"] [--desc "<description>"] [--budget N]`
+  - `read-only`
+  - returns MT-scoped relevant memories within a token budget; designed for injection into session startup
+- `just memory-stats`
+  - `read-only`
+  - database size, entry counts by type, schema version, last compaction, oldest active entry
+- `just memory-decay [--rate 0.1] [--threshold 0.05]`
+  - `runtime-write`
+  - apply importance decay to all active memories; prune entries below threshold; log run
+- `just memory-migrate-failure-memory`
+  - `runtime-write`
+  - one-time migration of legacy FAILURE_MEMORY.json entries into the governance memory SQLite store (migration complete; JSON archived as `.migrated`)
+- `just memory-export [--all]`
+  - `read-only`
+  - dump active memories to JSONL on stdout for git-trackable archival; `--all` includes consolidated entries
+- `just memory-import <file.jsonl>`
+  - `runtime-write`
+  - restore memories from a JSONL export; deduplicates by topic+wp+type
+- `just memory-extract [WP-{ID}|--all]`
+  - `runtime-write`
+  - extract episodic and procedural memories from WP RECEIPTS.jsonl; `--all` processes every WP with communications
+- `just memory-extract-smoketests [<file.md>]`
+  - `runtime-write`
+  - extract findings (SMOKE-FIND-*) and positive controls (SMOKE-CONTROL-*) from smoketest reviews into semantic/procedural memory
+- `just memory-compact [--older-than 30d] [--dry-run]`
+  - `runtime-write`
+  - full maintenance cycle: dedup, episodic→semantic consolidation, importance decay, orphan cleanup; `--dry-run` for preview
+- `just memory-embed [--batch N]`
+  - `runtime-write`
+  - generate nomic-embed-text embeddings via local Ollama for unembedded memories; default batch=20; requires Ollama running on localhost:11434
+- `just memory-hybrid-search "<query>" [--type <type>] [--wp WP-{ID}] [--limit N]`
+  - `read-only`
+  - combine FTS5 keyword + vector cosine similarity via Reciprocal Rank Fusion; requires embeddings (run `just memory-embed` first)
+- `just memory-capture <procedural|semantic|episodic> "<insight>" [--wp WP-{ID}] [--scope "files"] [--role "<role>"]`
+  - `runtime-write`
+  - mid-session memory capture for roles; importance 0.7; callable by coders/validators during active work to record fix patterns, systemic issues, or session insights [RGF-127]
+- `just memory-flag <memory-id> "<reason>"`
+  - `runtime-write`
+  - suppress a bad/misleading memory: sets importance to 0.1, records flag reason in metadata; flagged memories are deprioritized in injection until reviewed
+- `just memory-intent-snapshot "<what you are about to do>" [--wp WP-{ID}] [--role ROLE] [--reason "<why>"] [--expected "<outcome>"] [--scope "files"]`
+  - `runtime-write`
+  - judgment-based context+intent capture before complex reasoning tasks; importance 0.9; roles call this when protocol requires it (refinement, deep review, research, refactor batches); no mechanical trigger — the model decides when to use it; 120s dedup window
+- `just memory-debug-snapshot [WP-{ID}|<SNAPSHOT_TYPE>] [--wp WP-{ID}] [--type <type>] [--limit N]`
+  - `read-only`
+  - inspect pre-task and intent snapshots; shows snapshot type, WP, timestamp, and structured context payload; use `INTENT` as type filter to see only intent snapshots [RGF-144]
+- `just memory-patterns [--min-wps N] [--min-access N]`
+  - `read-only`
+  - cross-WP pattern synthesis: clusters similar memories, finds recurring smoketest failures, repeated REPAIR transitions, and high-access systemic patterns; outputs governance improvement candidates report [RGF-129]
+- `just memory-refresh [--force-compact]`
+  - `runtime-write`
+  - extract new memories from receipts + smoketests, then run compaction if stale (>24h with dual-gate); called automatically at every role startup + gov-check; `--force-compact` bypasses staleness check
+
+### Deprecated (redirected to governance memory DB)
+
+- `just failure-memory-record` → use `just memory-capture procedural "<fix>" --scope "<file>" --wp WP-{ID}` instead
+- `just failure-memory-query` → use `just memory-search "<query>"` instead
+
+These legacy commands still work (they redirect to the governance memory DB) but will be removed in a future version. The legacy `FAILURE_MEMORY.json` has been migrated and archived.
 
 ## Minimal Live Read Set (Token Discipline)
 

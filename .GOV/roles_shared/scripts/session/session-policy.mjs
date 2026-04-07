@@ -79,6 +79,8 @@ export const ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH = "OPENAI_GPT_5_4_XHIGH";
 export const ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH = "OPENAI_GPT_5_2_XHIGH";
 export const ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX = "CLAUDE_CODE_OPUS_4_6_THINKING_MAX";
 export const ROLE_MODEL_PROFILE_OPENAI_CODEX_SPARK_5_3_XHIGH = "OPENAI_CODEX_SPARK_5_3_XHIGH";
+export const ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_7B = "OLLAMA_QWEN_CODER_7B";
+export const ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_14B = "OLLAMA_QWEN_CODER_14B";
 export const ROLE_SESSION_PRIMARY_MODEL = "gpt-5.4";
 export const ROLE_SESSION_FALLBACK_MODEL = "gpt-5.2";
 export const ROLE_SESSION_REASONING_REQUIRED = "EXTRA_HIGH";
@@ -149,6 +151,34 @@ export const ROLE_MODEL_PROFILE_CATALOG = Object.freeze({
     reasoning_policy_note: `${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE} (Codex Spark: fast coder, lower token cost)`,
     allowed_roles: Object.freeze(["CODER"]),
   }),
+  [ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_7B]: Object.freeze({
+    profile_id: ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_7B,
+    provider: "OLLAMA_LOCAL",
+    session_tool: "ollama",
+    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED,
+    claim_model: "qwen2.5-coder:7b",
+    claim_model_aliases: Object.freeze(["qwen2.5-coder:7b", "Ollama Qwen 2.5 Coder 7B"]),
+    reasoning_strength: "MEDIUM",
+    launch_model: "qwen2.5-coder:7b",
+    launch_reasoning_config_key: "temperature",
+    launch_reasoning_config_value: "0.3",
+    reasoning_policy_note: "temperature=0.3 (Ollama local: simple MTs only, zero API cost)",
+    allowed_roles: Object.freeze(["CODER"]),
+  }),
+  [ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_14B]: Object.freeze({
+    profile_id: ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_14B,
+    provider: "OLLAMA_LOCAL",
+    session_tool: "ollama",
+    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED,
+    claim_model: "qwen2.5-coder:14b",
+    claim_model_aliases: Object.freeze(["qwen2.5-coder:14b", "Ollama Qwen 2.5 Coder 14B"]),
+    reasoning_strength: "MEDIUM",
+    launch_model: "qwen2.5-coder:14b",
+    launch_reasoning_config_key: "temperature",
+    launch_reasoning_config_value: "0.3",
+    reasoning_policy_note: "temperature=0.3 (Ollama local: medium MTs, zero API cost)",
+    allowed_roles: Object.freeze(["CODER"]),
+  }),
 });
 export const ROLE_MODEL_PROFILE_IDS = Object.freeze(Object.keys(ROLE_MODEL_PROFILE_CATALOG));
 export const ROLE_MODEL_PROFILE_HELP = ROLE_MODEL_PROFILE_IDS.join(" | ");
@@ -163,6 +193,8 @@ export const ROLE_MODEL_PROFILE_FALLBACKS = Object.freeze({
   [ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
   [ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX]: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
   [ROLE_MODEL_PROFILE_OPENAI_CODEX_SPARK_5_3_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
+  [ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_7B]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
+  [ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_14B]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
 });
 export const WP_TOKEN_BUDGET_POLICY_ID = "ORCHESTRATOR_MANAGED_V1";
 export const WP_TOKEN_LEDGER_HEALTH_POLICY_ID = "ORCHESTRATOR_MANAGED_LEDGER_V1";

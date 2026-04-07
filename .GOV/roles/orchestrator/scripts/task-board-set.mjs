@@ -16,6 +16,7 @@ import {
 } from "../../../roles_shared/scripts/lib/wp-authority-projection-lib.mjs";
 import { writeJsonFile } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { reconcileWpCommunicationTruth } from "../../../roles_shared/scripts/wp/ensure-wp-communications.mjs";
+import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
@@ -160,6 +161,17 @@ function main() {
       "Example: node .GOV/roles/orchestrator/scripts/task-board-set.mjs WP-1-ModelSession-Core-Scheduler-v1 DONE_VALIDATED",
     ]);
   }
+
+  // RGF-146: pre-task snapshot before board status change
+  capturePreTaskSnapshot({
+    snapshotType: "PRE_BOARD_STATUS_CHANGE",
+    wpId,
+    triggerScript: "task-board-set.mjs",
+    context: {
+      newStatus: status,
+      reason: reason || "",
+    },
+  });
 
   const taskBoardAbsPath = repoPathAbs(TASK_BOARD_PATH);
   if (!fs.existsSync(taskBoardAbsPath)) {

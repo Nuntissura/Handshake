@@ -19,6 +19,7 @@ import {
   compactGateOutputSummary,
   writeGateOutputArtifact,
 } from '../../../roles_shared/scripts/lib/gate-output-artifact-lib.mjs';
+import { captureCheckFindings } from '../../../roles_shared/scripts/memory/memory-capture-from-check.mjs';
 
 const wpId = process.argv[2];
 const extraArgs = process.argv.slice(3);
@@ -144,6 +145,11 @@ if (ok) {
     process.stdout.write(`- Complete the direct review contract, then re-run: just wp-communication-health-check ${wpId} KICKOFF\n`);
   }
   process.stdout.write(`- Fix issues, then re-run: just post-work ${wpId}\n`);
+}
+
+// G7: Capture post-work failures as procedural memory for future sessions
+if (!ok && why) {
+  captureCheckFindings({ check: "post-work", findings: [why], wpId });
 }
 
 process.exit(ok ? 0 : 1);

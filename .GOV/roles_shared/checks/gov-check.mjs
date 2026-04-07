@@ -63,5 +63,34 @@ await import("./spec-growth-discipline-check.mjs");
 await import("./spec-governance-reference-check.mjs");
 await import("./deprecation-sunset-check.mjs");
 await import("./topology-registry-check.mjs");
+await import("./memory-health-check.mjs");
+
+// Lightweight memory maintenance — runs dedup if >6h stale, full compact if >24h stale.
+// Safe on every gov-check: staleness gates prevent redundant work.
+try {
+  const memFs = await import("node:fs");
+  const memPath = await import("node:path");
+  const { GOVERNANCE_RUNTIME_ROOT_ABS } = await import("../scripts/lib/runtime-paths.mjs");
+  const dbPath = memPath.default.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "GOVERNANCE_MEMORY.db");
+  if (memFs.default.existsSync(dbPath)) {
+    const { DatabaseSync } = await import("node:sqlite");
+    const db = new DatabaseSync(dbPath, { readOnly: true });
+    try {
+      const last = db.prepare("SELECT run_at FROM consolidation_log ORDER BY run_at DESC LIMIT 1").get();
+      const sinceMs = last ? Date.now() - new Date(last.run_at).getTime() : Infinity;
+      db.close();
+      if (sinceMs > 6 * 60 * 60 * 1000) {
+        const { execFileSync } = await import("node:child_process");
+        const scriptPath = memPath.default.join(memPath.default.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1")), "..", "scripts", "memory", "memory-compact.mjs");
+        try {
+          execFileSync(process.execPath, [scriptPath], { stdio: "ignore", timeout: 30000 });
+          console.log("memory-maintenance ok (compaction ran)");
+        } catch {
+          console.log("memory-maintenance ok (compaction attempted, non-fatal)");
+        }
+      }
+    } catch { try { db.close(); } catch {} }
+  }
+} catch { /* memory maintenance is best-effort */ }
 
 console.log("gov-check ok");

@@ -30,9 +30,9 @@ All roles SHOULD follow a strict ordering to avoid interleaving narrative with e
 ## Resume After Reset / Compaction
 
 Use the role-specific read-only resume helper immediately after `just <role>-startup` when a session resets or context compacts:
-- Orchestrator: `just orchestrator-next [WP-{ID}]`
+- Orchestrator: `just orchestrator-next [WP-{ID}] [--debug]`
 - Coder: `just coder-next [WP-{ID}]`
-- Validator: `just validator-next [WP-{ID}]`
+- Validator: `just validator-next [WP-{ID}] [--debug]`
 
 Rule:
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS`.
@@ -49,10 +49,25 @@ Rule:
 - Canonical command surface: `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
 - Golden governed workflow examples: `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
 
+## Governance Memory Quick Commands
+
+- `just memory-stats` — health overview (active/consolidated counts, schema version)
+- `just memory-search "<query>"` — FTS5 keyword search
+- `just memory-intent-snapshot "<intent>" --wp WP-{ID} --role ROLE` — context+intent capture before complex reasoning (judgment-based, SHOULD)
+- `just memory-debug-snapshot [WP-{ID}]` — inspect pre-task + intent snapshots
+- `just memory-capture <type> "<insight>" --wp WP-{ID}` — mid-session memory capture
+- `just memory-flag <id> "<reason>"` — suppress bad memory (importance → 0.1)
+- `just memory-patterns` — cross-WP pattern synthesis → governance improvement candidates
+- `just memory-refresh --force-compact` — force extraction + compaction cycle
+- `just memory-export` / `just memory-import <file>` — JSONL archival
+
+Pre-task snapshots are captured automatically at: WP delegation, steering, relay dispatch, packet creation, closeout, board status change.
+
 ## Governance vs Product Checks
 
 Governance-only (does not scan `src/` or `app/`):
 - `just gov-check`
+- `just canonise-gov` — audit + report protocol/doc consistency after governance refactors
 - Governance-only maintenance does not require a Work Packet or USER_SIGNATURE (Codex [CX-111]).
 - Shared repo tooling notes live in `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`; use it as short append-only shared tooling memory, not as a second LAW surface.
 
@@ -117,8 +132,8 @@ Primary commands:
 - `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just manual-relay-next WP-...`
-- `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK]`
+- `just manual-relay-next WP-... [--debug]`
+- `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK] [--debug]`
 - `just start-coder-session WP-... [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-... [PRIMARY|FALLBACK]`
 - `just start-integration-validator-session WP-... [PRIMARY|FALLBACK]`
@@ -134,8 +149,8 @@ Primary commands:
 - `just session-registry-status [WP-...]`
 - `just active-lane-brief <ROLE> WP-... [--json]`
 - `just orchestrator-steer-next WP-... [PRIMARY|FALLBACK]`
-- `just manual-relay-next WP-...`
-- `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK]`
+- `just manual-relay-next WP-... [--debug]`
+- `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK] [--debug]`
 - `just pre-work WP-...`
 - `just wp-heartbeat WP-... ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`

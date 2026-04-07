@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { DatabaseSync } from "node:sqlite";
 import {
   CLI_SESSION_TOOL,
   ROLE_SESSION_FALLBACK_MODEL,
@@ -27,7 +28,7 @@ import {
   roleNextCommand,
   roleStartupCommand,
 } from "./session-policy.mjs";
-import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, repoPathAbs, resolveWorkPacketPath, workPacketPath } from "../lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, GOVERNANCE_RUNTIME_ROOT_ABS, repoPathAbs, resolveWorkPacketPath, workPacketPath } from "../lib/runtime-paths.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
@@ -43,6 +44,7 @@ export const CODEX_AUTHORITY_PATH = ".GOV/codex/Handshake_Codex_v1.4.md";
 
 export function roleProtocolPath(role) {
   if (role === "CODER") return ".GOV/roles/coder/CODER_PROTOCOL.md";
+  if (role === "MEMORY_MANAGER") return ".GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md";
   if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") return ".GOV/roles/validator/VALIDATOR_PROTOCOL.md";
   return ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md";
 }
@@ -82,8 +84,15 @@ function resolveClaudeCodeCliTool() {
   return resolveCliToolByName(CLAUDE_CODE_CLI_TOOL);
 }
 
+const OLLAMA_CLI_TOOL = "ollama";
+
+function resolveOllamaCliTool() {
+  return resolveCliToolByName(OLLAMA_CLI_TOOL);
+}
+
 export function resolveCliToolForProfile(profile) {
   if (profile.provider === "ANTHROPIC") return resolveClaudeCodeCliTool();
+  if (profile.provider === "OLLAMA_LOCAL") return resolveOllamaCliTool();
   return resolveCliTool();
 }
 
@@ -141,6 +150,16 @@ export function resolveRoleConfig(roleName, workPacketId) {
       startupCommand: roleStartupCommand("CODER"),
       nextCommand: roleNextCommand("CODER", workPacketId),
       focus: "implementation, governance paperwork, and coder-side delegation only when the packet allows it",
+    };
+  }
+  if (roleName === "MEMORY_MANAGER") {
+    return {
+      branch: "gov_kernel",
+      worktreeDir: ".",
+      title: `MEMORY_MANAGER ${workPacketId}`,
+      startupCommand: roleStartupCommand("ORCHESTRATOR"),
+      nextCommand: roleNextCommand("ORCHESTRATOR"),
+      focus: "governance memory hygiene, contradiction analysis, and candidate RGF draft generation",
     };
   }
   if (roleName === "WP_VALIDATOR") {
@@ -229,6 +248,305 @@ export function assertRoleLaunchProfileSupported({
     );
   }
   return selectedProfile;
+}
+
+const SESSION_MEMORY_TOKEN_BUDGET = 1500;
+
+function estimateTokens(text) {
+  return Math.ceil(String(text || "").length / 4);
+}
+
+// Role-scoped type filters: coder gets fail log only, validator adds context, orchestrator gets everything
+const ROLE_MEMORY_TYPE_FILTER = {
+  CODER: new Set(["procedural"]),
+  WP_VALIDATOR: new Set(["procedural", "semantic"]),
+  INTEGRATION_VALIDATOR: new Set(["procedural", "semantic"]),
+};
+
+function loadSessionMemoryLines(wpId, { role = "", fileTargets = [], tokenBudget = SESSION_MEMORY_TOKEN_BUDGET } = {}) {
+  try {
+    const dbPath = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "GOVERNANCE_MEMORY.db");
+    if (!fs.existsSync(dbPath)) return [];
+    const db = new DatabaseSync(dbPath);
+    try {
+      const now = Date.now();
+      const allowedTypes = ROLE_MEMORY_TYPE_FILTER[role] || null; // null = all types
+
+      const candidates = db.prepare(
+        `SELECT id, memory_type, topic, summary, file_scope, importance, access_count, created_at, last_accessed_at
+         FROM memory_index
+         WHERE consolidated = 0 AND (wp_id = ? OR wp_id = '')
+         ORDER BY importance DESC, created_at DESC LIMIT 80`
+      ).all(wpId || "");
+      if (candidates.length === 0) return [];
+
+      // RGF-128: precompute file basenames for file-scope matching
+      const targetBasenames = fileTargets.map(f => path.basename(f).toLowerCase()).filter(Boolean);
+
+      for (const c of candidates) {
+        // Role-scoped type filter
+        if (allowedTypes && !allowedTypes.has(c.memory_type)) { c._score = -1; continue; }
+
+        const ageMs = now - new Date(c.last_accessed_at || c.created_at).getTime();
+        const ageDays = ageMs / (1000 * 60 * 60 * 24);
+        const recencyBoost = Math.exp(-0.05 * ageDays);
+        const accessBoost = 1 + Math.min(c.access_count, 10) * 0.05;
+        // RGF-130: staleness penalty
+        let stalenessFactor = 1;
+        if (c.file_scope && (c.memory_type === "procedural" || c.memory_type === "semantic")) {
+          const scopeFiles = c.file_scope.split(",").map(f => f.trim()).filter(Boolean);
+          if (scopeFiles.length > 0) {
+            const existCount = scopeFiles.filter(f => {
+              try { return fs.existsSync(repoPathAbs(f)); } catch { return false; }
+            }).length;
+            if (existCount === 0) stalenessFactor = 0.5;
+          }
+        }
+        // RGF-128: file-scope match boost
+        let fileScopeBoost = 1;
+        if (targetBasenames.length > 0 && c.file_scope) {
+          const memBasenames = c.file_scope.split(",").map(f => path.basename(f.trim()).toLowerCase()).filter(Boolean);
+          const hasMatch = memBasenames.some(mb => targetBasenames.some(tb => mb.includes(tb) || tb.includes(mb)));
+          if (hasMatch) fileScopeBoost = 2;
+        }
+        c._score = (c.importance || 0.5) * recencyBoost * accessBoost * stalenessFactor * fileScopeBoost;
+      }
+
+      const scored = candidates.filter(c => c._score > 0).sort((a, b) => b._score - a._score);
+      if (scored.length === 0) return [];
+
+      // RGF-133: session diversification + RGF-139: trust scoring
+      const SESSION_DIVERSITY_CAP = 3;
+      const TRUST_SCORES = {
+        receipt_extraction: 1.0, smoketest_extraction: 0.9, check_failure: 0.8,
+        manual_capture: 0.7, "memory-capture": 0.7, session_flush: 0.5,
+      };
+      const sessionCounts = new Map();
+      const diversified = [];
+      for (const c of scored) {
+        const entry = db.prepare("SELECT source_session, source_artifact, metadata FROM memory_entries WHERE index_id = ? LIMIT 1").get(c.id);
+        const sess = entry?.source_session || "_unknown_";
+        const count = sessionCounts.get(sess) || 0;
+        if (count >= SESSION_DIVERSITY_CAP) continue;
+        // RGF-139: apply trust multiplier based on source
+        const source = entry?.source_artifact || "";
+        let meta = {};
+        try { meta = JSON.parse(entry?.metadata || "{}"); } catch {}
+        const trustKey = meta.session_flush ? "session_flush"
+          : meta.captured_mid_session ? "manual_capture"
+          : meta.captured_from_check ? "check_failure"
+          : source === "RECEIPTS.jsonl" ? "receipt_extraction"
+          : source.endsWith(".md") ? "smoketest_extraction"
+          : "receipt_extraction";
+        c._score *= (TRUST_SCORES[trustKey] || 0.8);
+        sessionCounts.set(sess, count + 1);
+        diversified.push(c);
+      }
+      // Re-sort after trust adjustment
+      diversified.sort((a, b) => b._score - a._score);
+
+      // Fetch content for procedural memories (the actual fix recipe)
+      const contentCache = new Map();
+      const proceduralIds = diversified.filter(c => c.memory_type === "procedural").map(c => c.id);
+      for (const id of proceduralIds) {
+        const entry = db.prepare("SELECT content FROM memory_entries WHERE index_id = ? LIMIT 1").get(id);
+        if (entry?.content) contentCache.set(id, entry.content);
+      }
+
+      // Build structured output grouped by type
+      let tokenCount = 0;
+      const patterns = []; // procedural — shown with content snippet
+      const context = [];  // semantic — shown as one-liners
+      const history = [];  // episodic — compressed into timeline
+
+      for (const c of diversified) {
+        if (c.memory_type === "procedural") {
+          const content = contentCache.get(c.id) || "";
+          const snippet = content.split("\n").slice(0, 3).join(" | ").slice(0, 200);
+          const line = `- ${c.topic}${c.file_scope ? ` (${c.file_scope})` : ""}\n  → ${snippet || c.summary.slice(0, 150)}`;
+          const lineTokens = estimateTokens(line);
+          if (tokenCount + lineTokens > tokenBudget) continue;
+          tokenCount += lineTokens;
+          patterns.push({ ...c, _line: line });
+        } else if (c.memory_type === "semantic") {
+          const line = `- ${c.topic}: ${c.summary.slice(0, 150)}`;
+          const lineTokens = estimateTokens(line);
+          if (tokenCount + lineTokens > tokenBudget) continue;
+          tokenCount += lineTokens;
+          context.push({ ...c, _line: line });
+        } else if (c.memory_type === "episodic") {
+          // Compress: just the receipt kind + short outcome
+          const kind = c.topic.split(/\s+/)[0] || "EVENT";
+          const shortSummary = c.summary.slice(0, 80);
+          const line = `${kind}: ${shortSummary}`;
+          const lineTokens = estimateTokens(line);
+          if (tokenCount + lineTokens > tokenBudget) continue;
+          tokenCount += lineTokens;
+          history.push({ ...c, _line: line });
+        }
+      }
+
+      // RGF-147: load recent pre-task snapshots for this WP
+      const snapshots = loadRecentSnapshots(db, { wpId, maxPerType: 1, maxTotal: 3, tokenBudget: tokenBudget - tokenCount });
+      tokenCount += snapshots.tokenCount;
+
+      const allSelected = [...patterns, ...context, ...history, ...snapshots.entries];
+      if (allSelected.length === 0) return [];
+
+      // Update access counts
+      db.prepare(
+        `UPDATE memory_index SET access_count = access_count + 1, last_accessed_at = ?
+         WHERE id IN (${allSelected.map(() => "?").join(",")})`
+      ).run(new Date().toISOString(), ...allSelected.map(s => s.id));
+
+      // Assemble structured output
+      const lines = [];
+      const sectionCounts = [];
+      if (patterns.length > 0) sectionCounts.push(`${patterns.length} patterns`);
+      if (context.length > 0) sectionCounts.push(`${context.length} context`);
+      if (history.length > 0) sectionCounts.push(`${history.length} events`);
+      if (snapshots.entries.length > 0) sectionCounts.push(`${snapshots.entries.length} snapshots`);
+      lines.push(`SESSION MEMORY (${sectionCounts.join(", ")}, ${tokenCount} est. tokens):`);
+
+      if (patterns.length > 0) {
+        lines.push("FAIL LOG:");
+        for (const p of patterns) lines.push(p._line);
+      }
+      if (context.length > 0) {
+        lines.push("CONTEXT:");
+        for (const c of context) lines.push(c._line);
+      }
+      if (history.length > 0) {
+        lines.push(`HISTORY: ${history.map(h => h._line).join(" → ")}`);
+      }
+      if (snapshots.entries.length > 0) {
+        lines.push("SNAPSHOTS:");
+        for (const s of snapshots.entries) lines.push(s._line);
+      }
+
+      return lines;
+    } finally { try { db.close(); } catch {} }
+  } catch { return []; }
+}
+
+// RGF-147: load recent pre-task snapshots from governance memory
+// Returns { entries: [{ id, _line }], tokenCount }
+function loadRecentSnapshots(db, { wpId = "", maxPerType = 1, maxTotal = 3, tokenBudget = 300 } = {}) {
+  const result = { entries: [], tokenCount: 0 };
+  try {
+    // Check if snapshot_type column exists
+    const columns = db.prepare("PRAGMA table_info(memory_index)").all();
+    if (!columns.some(c => c.name === "snapshot_type")) return result;
+
+    let sql = `SELECT id, snapshot_type, topic, summary, wp_id, created_at
+               FROM memory_index
+               WHERE snapshot_type != '' AND consolidated = 0`;
+    const params = [];
+    if (wpId) { sql += " AND (wp_id = ? OR wp_id = '')"; params.push(wpId); }
+    sql += " ORDER BY created_at DESC LIMIT 20";
+    const rows = db.prepare(sql).all(...params);
+    if (rows.length === 0) return result;
+
+    // Keep only the most recent per snapshot_type, up to maxTotal
+    const seenTypes = new Map();
+    for (const row of rows) {
+      if (result.entries.length >= maxTotal) break;
+      const typeCount = seenTypes.get(row.snapshot_type) || 0;
+      if (typeCount >= maxPerType) continue;
+      const age = Math.round((Date.now() - new Date(row.created_at).getTime()) / 3600000);
+      const ageLabel = age < 1 ? "<1h ago" : age < 24 ? `${age}h ago` : `${Math.round(age / 24)}d ago`;
+      const line = `- [${row.snapshot_type}] ${row.wp_id || "cross-WP"} (${ageLabel}): ${row.summary.slice(0, 120)}`;
+      const lineTokens = estimateTokens(line);
+      if (result.tokenCount + lineTokens > tokenBudget) continue;
+      result.tokenCount += lineTokens;
+      seenTypes.set(row.snapshot_type, typeCount + 1);
+      result.entries.push({ id: row.id, _line: line });
+    }
+  } catch { /* best-effort */ }
+  return result;
+}
+
+// RGF-125: Orchestrator memory injection — cross-WP, broader budget, different scoring
+const ORCHESTRATOR_MEMORY_TOKEN_BUDGET = 2000;
+
+function loadOrchestratorMemoryLines() {
+  try {
+    const dbPath = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "GOVERNANCE_MEMORY.db");
+    if (!fs.existsSync(dbPath)) return [];
+    const db = new DatabaseSync(dbPath);
+    try {
+      const now = Date.now();
+      // Cross-WP: no wp_id filter — orchestrator needs governance-wide context
+      const candidates = db.prepare(
+        `SELECT id, memory_type, topic, summary, file_scope, wp_id, importance, access_count, created_at, last_accessed_at
+         FROM memory_index
+         WHERE consolidated = 0
+         ORDER BY importance DESC, created_at DESC LIMIT 80`
+      ).all();
+      if (candidates.length === 0) return [];
+
+      for (const c of candidates) {
+        const ageMs = now - new Date(c.last_accessed_at || c.created_at).getTime();
+        const ageDays = ageMs / (1000 * 60 * 60 * 24);
+        const recencyBoost = Math.exp(-0.05 * ageDays);
+        const accessBoost = 1 + Math.min(c.access_count, 10) * 0.05;
+        // Type priority: semantic > procedural > episodic (orchestrator cares about patterns)
+        const typePriority = c.memory_type === "semantic" ? 1.5
+          : c.memory_type === "procedural" ? 1.2
+          : 1.0;
+        // Systemic boost: memories accessed many times are governance-relevant patterns
+        const systemicBoost = c.access_count >= 5 ? 1.3 : 1.0;
+        c._score = (c.importance || 0.5) * recencyBoost * accessBoost * typePriority * systemicBoost;
+      }
+      candidates.sort((a, b) => b._score - a._score);
+
+      let tokenCount = 0;
+      const selected = [];
+      for (const c of candidates) {
+        const wpTag = c.wp_id ? ` [${c.wp_id}]` : "";
+        const line = `- [${c.memory_type}]${wpTag} ${c.topic}: ${c.summary}`;
+        const lineTokens = estimateTokens(line);
+        if (tokenCount + lineTokens > ORCHESTRATOR_MEMORY_TOKEN_BUDGET) break;
+        tokenCount += lineTokens;
+        selected.push({ ...c, _line: line });
+      }
+      if (selected.length === 0 && tokenCount === 0) {
+        // RGF-147: even if no regular memories, try to load snapshots
+        const snapshotsOnly = loadRecentSnapshots(db, { wpId: "", maxPerType: 1, maxTotal: 3, tokenBudget: ORCHESTRATOR_MEMORY_TOKEN_BUDGET });
+        if (snapshotsOnly.entries.length === 0) return [];
+        db.prepare(
+          `UPDATE memory_index SET access_count = access_count + 1, last_accessed_at = ?
+           WHERE id IN (${snapshotsOnly.entries.map(() => "?").join(",")})`
+        ).run(new Date().toISOString(), ...snapshotsOnly.entries.map(s => s.id));
+        return [
+          `GOVERNANCE MEMORY (${snapshotsOnly.entries.length} snapshots, ${snapshotsOnly.tokenCount} est. tokens, cross-WP):`,
+          "SNAPSHOTS:",
+          ...snapshotsOnly.entries.map(s => s._line),
+        ];
+      }
+
+      // RGF-147: load recent pre-task snapshots (cross-WP for orchestrator)
+      const snapshots = loadRecentSnapshots(db, { wpId: "", maxPerType: 1, maxTotal: 3, tokenBudget: ORCHESTRATOR_MEMORY_TOKEN_BUDGET - tokenCount });
+      tokenCount += snapshots.tokenCount;
+      const allEntries = [...selected, ...snapshots.entries];
+
+      db.prepare(
+        `UPDATE memory_index SET access_count = access_count + 1, last_accessed_at = ?
+         WHERE id IN (${allEntries.map(() => "?").join(",")})`
+      ).run(new Date().toISOString(), ...allEntries.map(s => s.id));
+
+      const lines = [
+        `GOVERNANCE MEMORY (${selected.length} entries${snapshots.entries.length > 0 ? `, ${snapshots.entries.length} snapshots` : ""}, ${tokenCount} est. tokens, cross-WP):`,
+        ...selected.map(s => s._line),
+      ];
+      if (snapshots.entries.length > 0) {
+        lines.push("SNAPSHOTS:");
+        for (const s of snapshots.entries) lines.push(s._line);
+      }
+      lines.push(`Use \`just memory-search "<query>"\` to retrieve full content for any entry.`);
+      return lines;
+    } finally { try { db.close(); } catch {} }
+  } catch { return []; }
 }
 
 export function buildStartupPrompt({
@@ -332,6 +650,11 @@ export function buildStartupPrompt({
     ];
   }
 
+  // RGF-125: orchestrator gets cross-WP governance memory; coder/validator get role-scoped memory
+  const memoryLines = role === "ORCHESTRATOR"
+    ? loadOrchestratorMemoryLines()
+    : loadSessionMemoryLines(wpId, { role });
+
   const bootLines = [
     `Execute only this startup bootstrap now, in order, before any other work:`,
     `1. ${roleConfig.startupCommand}`,
@@ -341,7 +664,7 @@ export function buildStartupPrompt({
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
   ];
 
-  return [...commonLines, ...roleLines, ...bootLines].join("\n");
+  return [...commonLines, ...roleLines, ...memoryLines, ...bootLines].join("\n");
 }
 
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
@@ -790,6 +1113,123 @@ export async function runClaudeCodeCommand({
   });
 }
 
+export async function runOllamaCommand({
+  absWorktreeDir,
+  selectedModel,
+  prompt,
+  outputFile,
+  environmentOverrides = null,
+  onEvent = null,
+  onSpawn = null,
+}) {
+  const outputPath = path.resolve(outputFile);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  const outputStream = fs.createWriteStream(outputPath, { flags: "a" });
+  const startedAt = Date.now();
+  const cliToolPath = resolveOllamaCliTool();
+  const childEnvironment = {
+    ...process.env,
+    ...(environmentOverrides && typeof environmentOverrides === "object" ? environmentOverrides : {}),
+  };
+
+  const args = ["run", selectedModel];
+
+  return await new Promise((resolve) => {
+    const child = process.platform === "win32"
+      ? spawn("powershell.exe", [
+        "-NoLogo",
+        "-NonInteractive",
+        "-Command",
+        [
+          "$ErrorActionPreference = 'Stop'",
+          `$ollamaArgs = @(${args.map((arg) => quotePsLiteral(arg)).join(", ")})`,
+          `echo ${quotePsLiteral(prompt)} | & ${quotePsLiteral(cliToolPath)} @ollamaArgs`,
+        ].join("; "),
+      ], {
+        cwd: absWorktreeDir,
+        env: childEnvironment,
+        shell: false,
+        stdio: ["ignore", "pipe", "pipe"],
+      })
+      : spawn(cliToolPath, args, {
+        cwd: absWorktreeDir,
+        env: childEnvironment,
+        shell: false,
+        stdio: ["pipe", "pipe", "pipe"],
+        input: prompt,
+      });
+
+    if (typeof onSpawn === "function") onSpawn(child);
+
+    let stderr = "";
+    let stdoutBuffer = "";
+    let lastAgentMessage = "";
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      outputStream.end();
+      resolve(result);
+    };
+
+    const handleLine = (line) => {
+      if (!line) return;
+      const event = { type: "ollama.output", text: line };
+      writeJsonlEvent(outputStream, event);
+      if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...event });
+      lastAgentMessage = line;
+    };
+
+    child.stdout.on("data", (chunk) => {
+      stdoutBuffer += chunk.toString("utf8");
+      const lines = stdoutBuffer.split(/\r?\n/);
+      stdoutBuffer = lines.pop() || "";
+      for (const line of lines) handleLine(line);
+    });
+
+    child.stderr.on("data", (chunk) => {
+      const text = chunk.toString("utf8");
+      stderr += text;
+      const event = { type: "stderr", text };
+      writeJsonlEvent(outputStream, event);
+      if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...event });
+    });
+
+    child.on("error", (error) => {
+      stderr += error.message;
+      const event = { type: "spawn.error", message: error.message };
+      writeJsonlEvent(outputStream, event);
+      if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...event });
+      finish({
+        ok: false,
+        exitCode: 1,
+        threadId: "",
+        lastAgentMessage,
+        stderr: stderr.trim(),
+        durationMs: Date.now() - startedAt,
+        outputFile: outputPath,
+      });
+    });
+
+    child.on("close", (code) => {
+      if (stdoutBuffer.trim()) handleLine(stdoutBuffer.trim());
+      const closedEvent = { type: "process.closed", exit_code: code ?? 1 };
+      writeJsonlEvent(outputStream, closedEvent);
+      if (typeof onEvent === "function") onEvent({ timestamp: nowIso(), ...closedEvent });
+      finish({
+        ok: code === 0,
+        exitCode: code ?? 1,
+        threadId: "",
+        lastAgentMessage,
+        stderr: stderr.trim(),
+        durationMs: Date.now() - startedAt,
+        outputFile: outputPath,
+      });
+    });
+  });
+}
+
 export async function runGovernedRoleCommand({
   profile,
   absWorktreeDir,
@@ -808,6 +1248,17 @@ export async function runGovernedRoleCommand({
       prompt,
       outputFile,
       sessionId: threadId,
+      environmentOverrides,
+      onEvent,
+      onSpawn,
+    });
+  }
+  if (profile.provider === "OLLAMA_LOCAL") {
+    return runOllamaCommand({
+      absWorktreeDir,
+      selectedModel,
+      prompt,
+      outputFile,
       environmentOverrides,
       onEvent,
       onSpawn,

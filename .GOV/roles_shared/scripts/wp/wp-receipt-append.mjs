@@ -57,6 +57,7 @@ import {
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification, appendWpNotificationCore } from "./wp-notification-append.mjs";
+import { openGovernanceMemoryDb, closeDb as closeMemDb, extractMemoryFromReceipt, HIGH_SIGNAL_RECEIPT_KINDS } from "../memory/governance-memory-lib.mjs";
 
 const ACTIVE_AUTO_RELAY_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const VALIDATOR_ASSESSMENT_ROLE_VALUES = new Set(["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"]);
@@ -1158,6 +1159,18 @@ function appendWpReceiptCore({
   } catch (escalationError) {
     // Best-effort: counter/escalation failure must not block the receipt write.
     console.warn(`[WP_RECEIPT] MT fix cycle escalation check failed (non-fatal): ${escalationError?.message || escalationError}`);
+  }
+
+  // RGF-126: event-driven memory extraction — skip DB open entirely for non-signal receipts
+  if (HIGH_SIGNAL_RECEIPT_KINDS.has(entry.receipt_kind)) {
+    try {
+      const { db: memDb } = openGovernanceMemoryDb();
+      try {
+        extractMemoryFromReceipt(memDb, WP_ID, entry);
+      } finally { closeMemDb(memDb); }
+    } catch {
+      // Best-effort: memory extraction failure must not block the receipt write
+    }
   }
 
   return { context, entry, autoRoute };

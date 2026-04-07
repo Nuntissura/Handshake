@@ -29,6 +29,8 @@ import {
   SESSION_CONTROL_REQUESTS_FILE,
   SESSION_CONTROL_RESULTS_FILE,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
+import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { TOPOLOGY_REGISTRY_JSON_PATH } from "../../../roles_shared/scripts/topology/git-topology-lib.mjs";
 import {
   GOV_ROOT_REPO_REL,
@@ -712,6 +714,23 @@ function notificationChip(record) {
   return paint(text, count >= 3 ? STATE_COLORS.blocked : "\x1b[38;5;208m", { bold: true });
 }
 
+function formatTokenCount(tokens) {
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
+  if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`;
+  return String(tokens);
+}
+
+function tokenBudgetChip(record) {
+  if (isTerminalRecord(record)) return "";
+  const budget = record.tokenBudget;
+  if (!budget) return "";
+  const inputTokens = record.tokenUsage?.summary?.usage_totals?.input_tokens || 0;
+  if (inputTokens <= 0 && budget.status === "PASS") return "";
+  const label = `TOK:${formatTokenCount(inputTokens)}`;
+  const colors = { PASS: STATE_COLORS.ready, WARN: STATE_COLORS.waiting, FAIL: STATE_COLORS.blocked };
+  return paint(label, colors[budget.status] || STATE_COLORS.none, { bold: budget.status !== "PASS" });
+}
+
 function latestReviewLabel(record) {
   if (isTerminalRecord(record)) {
     return paint("review:hidden", STATE_COLORS.none, { dim: true });
@@ -1116,6 +1135,15 @@ function loadMonitorModel() {
       packetRecord.lastActivityAt = lastActivityAt;
     }
     const stale = Boolean(packetRecord?.runtime?.stale_after && new Date(packetRecord.runtime.stale_after) < new Date());
+    let tokenUsage = null;
+    let tokenBudget = null;
+    try {
+      const { ledger } = readWpTokenUsageLedger(REPO_ROOT, entry.wpId);
+      if (ledger && (ledger.summary?.command_count || 0) > 0) {
+        tokenUsage = ledger;
+        tokenBudget = evaluateWpTokenBudget(ledger);
+      }
+    } catch {}
     return {
       ...entry,
       packetPath,
@@ -1137,6 +1165,8 @@ function loadMonitorModel() {
       currentBoardMatchesSelected,
       lastActivityAt,
       stale,
+      tokenUsage,
+      tokenBudget,
       communicationHealthState: communicationMonitorState(packetRecord?.communicationHealthEvaluation, { stale }),
     };
   });
@@ -1315,7 +1345,8 @@ function renderList(records, selectedIndex, width, height, listHasFocus) {
     ].join(" ");
     const notifChip = notificationChip(record);
     const commChip = communicationHealthChip(record);
-    const line1 = `${marker}${stale}${drift}${worktreeFlag} ${paint(record.wpId, STATUS_COLORS.ACTIVE, { bold: globalIndex === selectedIndex })} ${boardBadge(record.boardSection)} ${reviewChip} ${commChip}${notifChip ? ` ${notifChip}` : ""}`;
+    const tokChip = tokenBudgetChip(record);
+    const line1 = `${marker}${stale}${drift}${worktreeFlag} ${paint(record.wpId, STATUS_COLORS.ACTIVE, { bold: globalIndex === selectedIndex })} ${boardBadge(record.boardSection)} ${reviewChip} ${commChip}${notifChip ? ` ${notifChip}` : ""}${tokChip ? ` ${tokChip}` : ""}`;
     const line2 = `    ${laneSummary} ${paint(latest, STATE_COLORS.ready, { dim: true })} ${latestReview} ${paint(`next:${compactNextActionLabel(record)}`, STATUS_COLORS.OTHER, { dim: true })}`;
     if (globalIndex === selectedIndex) {
       const selectedLine1 = truncateVisible(line1, width);
@@ -1384,11 +1415,18 @@ function buildTopSummary(records, filtered, selected, model, uiState) {
   const escalatedRelayCount = records.reduce((sum, record) =>
     sum + Number(record.packetRecord?.relayEscalation?.status === "ESCALATED"), 0);
   const staleCount = records.reduce((sum, record) => sum + Number(Boolean(record.stale && !isTerminalRecord(record))), 0);
+  const totalInputTokens = records.reduce((sum, record) => sum + Number(record.tokenUsage?.summary?.usage_totals?.input_tokens || 0), 0);
+  const worstBudget = records.reduce((worst, record) => {
+    if (!record.tokenBudget) return worst;
+    const rank = { PASS: 0, WARN: 1, FAIL: 2 };
+    return (rank[record.tokenBudget.status] || 0) > (rank[worst] || 0) ? record.tokenBudget.status : worst;
+  }, "PASS");
+  const budgetColors = { PASS: STATE_COLORS.ready, WARN: STATE_COLORS.waiting, FAIL: STATE_COLORS.blocked };
   const broker = model.brokerState?.summary || "broker=<unknown>";
   const board = model.boardSource?.display || "board=<unknown>";
   return [
     `${paint("Operator Viewport", STATUS_COLORS.ACTIVE, { bold: true })} | mode=${uiState.admin ? "ADMIN" : "VIEW"} | focus=${uiState.focusedPane} | filter=${uiState.filter} | view=${uiState.detailView}`,
-    `${paint(`visible=${filtered.length}/${records.length}`, STATUS_COLORS.ACTIVE, { bold: true })}  ${paint(`sessions=${activeSessions}`, STATUS_COLORS.READY_FOR_DEV)}  ${paint(`runs=${activeRuns}`, STATUS_COLORS.IN_PROGRESS)}  ${paint(`reviews=${openReviews}`, openReviews > 0 ? STATE_COLORS.waiting : STATE_COLORS.none, { bold: openReviews > 0 })}  ${paint(`notif=${pendingNotifications}`, pendingNotifications > 0 ? "\x1b[38;5;208m" : STATE_COLORS.none, { bold: pendingNotifications > 0 })}  ${paint(`relay=${escalatedRelayCount}`, escalatedRelayCount > 0 ? STATE_COLORS.blocked : STATE_COLORS.none, { bold: escalatedRelayCount > 0 })}  ${paint(`stale=${staleCount}`, staleCount > 0 ? STATE_COLORS.blocked : STATE_COLORS.none, { bold: staleCount > 0 })}`,
+    `${paint(`visible=${filtered.length}/${records.length}`, STATUS_COLORS.ACTIVE, { bold: true })}  ${paint(`sessions=${activeSessions}`, STATUS_COLORS.READY_FOR_DEV)}  ${paint(`runs=${activeRuns}`, STATUS_COLORS.IN_PROGRESS)}  ${paint(`reviews=${openReviews}`, openReviews > 0 ? STATE_COLORS.waiting : STATE_COLORS.none, { bold: openReviews > 0 })}  ${paint(`notif=${pendingNotifications}`, pendingNotifications > 0 ? "\x1b[38;5;208m" : STATE_COLORS.none, { bold: pendingNotifications > 0 })}  ${paint(`relay=${escalatedRelayCount}`, escalatedRelayCount > 0 ? STATE_COLORS.blocked : STATE_COLORS.none, { bold: escalatedRelayCount > 0 })}  ${paint(`stale=${staleCount}`, staleCount > 0 ? STATE_COLORS.blocked : STATE_COLORS.none, { bold: staleCount > 0 })}  ${paint(`tokens=${formatTokenCount(totalInputTokens)}/${worstBudget}`, budgetColors[worstBudget] || STATE_COLORS.none, { bold: worstBudget !== "PASS" })}`,
     `${board} | ${broker} | actor=${uiState.actorRole}/${uiState.actorSession}`,
     `next_action=${nextActionSummary(selected)}`,
   ];
@@ -1666,8 +1704,15 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
         lines.push(`${session.role} | ${session.runtime_state} | host=${session.active_host || session.preferred_host}`);
         lines.push(`  thread=${session.session_thread_id || "<none>"} | cmd=${session.last_command_kind || "NONE"}/${session.last_command_status || "NONE"}`);
         lines.push(`  protocol=${session.control_protocol || "<none>"} | transport=${session.control_transport || "<none>"}`);
+        if (session.requested_model) lines.push(`  model=${session.requested_model}${session.reasoning_config_value ? ` | reasoning=${session.reasoning_config_value}` : ""}`);
         if (session.last_command_summary) lines.push(`  ${session.last_command_summary}`);
         if (activeRun) lines.push(`  active_run=${activeRun.command_kind} started=${activeRun.started_at || "<no-ts>"} timeout=${activeRun.timeout_at || "<none>"}`);
+        const sessionTokens = (record.tokenUsage?.commands || []).filter((cmd) => cmd.session_key === session.session_key);
+        if (sessionTokens.length > 0) {
+          const sessionInput = sessionTokens.reduce((sum, cmd) => sum + (cmd.usage_totals?.input_tokens || 0), 0);
+          const sessionOutput = sessionTokens.reduce((sum, cmd) => sum + (cmd.usage_totals?.output_tokens || 0), 0);
+          lines.push(`  tokens: ${sessionTokens.length} cmds | in=${formatTokenCount(sessionInput)} out=${formatTokenCount(sessionOutput)}`);
+        }
       }
     }
     lines.push("");
@@ -1832,6 +1877,30 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
         } else if (session.runtime_state === "READY") {
           lines.push("  note=steerable thread registered; use governed session prompts to continue work");
         }
+      }
+    }
+    lines.push("");
+    lines.push("TOKEN USAGE");
+    if (!record.tokenUsage || (record.tokenUsage.summary?.command_count || 0) === 0) {
+      lines.push("No token usage recorded.");
+    } else {
+      const summary = record.tokenUsage.summary || {};
+      const totals = summary.usage_totals || {};
+      const budget = record.tokenBudget || {};
+      const settlementStatus = record.tokenUsage.settlement?.status || "UNSETTLED";
+      lines.push(`total: ${summary.command_count || 0} cmds, ${summary.turn_count || 0} turns | input=${formatTokenCount(totals.input_tokens || 0)} cached=${formatTokenCount(totals.cached_input_tokens || 0)} output=${formatTokenCount(totals.output_tokens || 0)}`);
+      if (budget.status) {
+        const budgetColor = { PASS: STATE_COLORS.ready, WARN: STATE_COLORS.waiting, FAIL: STATE_COLORS.blocked }[budget.status] || "";
+        lines.push(`budget: ${paint(budget.status, budgetColor, { bold: budget.status !== "PASS" })}${budget.summary ? ` | ${budget.summary}` : ""} | settlement=${settlementStatus}`);
+      }
+      const roleTotals = record.tokenUsage.role_totals || {};
+      for (const roleName of ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]) {
+        const roleData = roleTotals[roleName];
+        if (!roleData || (roleData.command_count || 0) === 0) continue;
+        const roleUsage = roleData.usage_totals || {};
+        const roleBudget = budget.roles?.[roleName];
+        const roleBudgetLabel = roleBudget ? ` [${roleBudget.status}]` : "";
+        lines.push(`  ${paint(roleName, ROLE_COLORS[roleName] || STATUS_COLORS.OTHER)}: ${roleData.command_count} cmds, ${roleData.turn_count} turns | in=${formatTokenCount(roleUsage.input_tokens || 0)} out=${formatTokenCount(roleUsage.output_tokens || 0)}${roleBudgetLabel}`);
       }
     }
     lines.push("");

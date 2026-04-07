@@ -139,6 +139,16 @@ for (const checkout of gitCheckouts) {
   });
 }
 
+// Include gov_runtime (external runtime: memory DB, session state, WP communications)
+const govRuntimeAbs = path.resolve(WORKSPACE_ROOT, "gov_runtime");
+let govRuntimeCopied = false;
+if (fs.existsSync(govRuntimeAbs)) {
+  const govRuntimeDest = path.join(snapshotRoot, "gov_runtime");
+  ensureDir(govRuntimeDest);
+  runRobocopy(govRuntimeAbs, govRuntimeDest);
+  govRuntimeCopied = true;
+}
+
 const manifest = {
   schema_version: "hsk.repo_resilience_snapshot@0.1",
   created_at_utc: new Date().toISOString(),
@@ -157,11 +167,13 @@ const manifest = {
   skipped_worktrees: skippedWorktrees,
   topology_registry: topologyRegistry,
   topology_snapshot: topologySnapshot,
+  gov_runtime_copied: govRuntimeCopied,
   notes: [
     "git bundles preserve committed refs",
     "robocopy worktree copies preserve working files, including dirty state, outside the repo tree",
     "robocopy excludes .git and common build-cache directories to keep snapshots portable",
     "transient containment-rebuild worktrees are excluded from copied_worktrees",
+    "gov_runtime (external runtime: memory DB, session state, WP communications) is copied separately from worktrees",
     "backup roots are append-only timestamped directories; old snapshots are not deleted by the snapshot job",
   ],
 };

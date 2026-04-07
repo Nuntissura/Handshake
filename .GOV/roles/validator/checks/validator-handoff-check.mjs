@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { captureCheckFinding } from "../../../roles_shared/scripts/memory/memory-capture-from-check.mjs";
 import {
   currentGitContext,
   loadOrchestratorGateLogs,
@@ -34,6 +35,7 @@ function usage() {
 }
 
 function fail(kind, message, details = [], exitCode = 1) {
+  if (exitCode === 1) captureCheckFinding({ check: "validator-handoff-check", finding: `${kind}: ${message}` });
   console.error(`[VALIDATOR_HANDOFF_CHECK] ${kind}: ${message}`);
   for (const detail of details) console.error(`  - ${detail}`);
   process.exit(exitCode);

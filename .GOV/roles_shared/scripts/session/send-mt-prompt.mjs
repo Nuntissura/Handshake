@@ -23,10 +23,23 @@ import path from "node:path";
 const wpId = String(process.argv[2] || "").trim();
 const mtId = String(process.argv[3] || "").trim();
 const description = String(process.argv[4] || "").trim();
-const model = String(process.argv[5] || "PRIMARY").trim();
+const modelArgs = process.argv.slice(5);
+const model = (() => {
+  for (const candidate of modelArgs) {
+    const value = String(candidate || "").trim().toUpperCase();
+    if (!value || value.startsWith("--")) continue;
+    return value;
+  }
+  return "PRIMARY";
+})();
+const debugMode = modelArgs.some((arg) => String(arg || "").trim() === "--debug");
+const sessionControlEnv = {
+  ...process.env,
+  ...(debugMode ? { HANDSHAKE_SESSION_CONTROL_DEBUG: "1" } : {}),
+};
 
 if (!wpId || !mtId || !description) {
-  console.error("Usage: node send-mt-prompt.mjs <WP_ID> <MT_ID> <description> [model]");
+  console.error("Usage: node send-mt-prompt.mjs <WP_ID> <MT_ID> <description> [model] [--debug]");
   console.error("Example: node send-mt-prompt.mjs WP-1-FR-ModelSessionId-v1 MT-001 \"Add model_session_id field\"");
   process.exit(1);
 }
@@ -90,6 +103,7 @@ try {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     cwd: REPO_ROOT,
+    env: sessionControlEnv,
   });
   const lines = output.trim().split(/\r?\n/).filter(Boolean);
   for (const line of lines) console.log(line);

@@ -7,6 +7,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { requireValidatorProductTargets } from "../scripts/lib/validator-product-targets-lib.mjs";
+import { captureCheckFindings } from "../../../roles_shared/scripts/memory/memory-capture-from-check.mjs";
 
 const rustTargets = ["src/backend/handshake_core/src"];
 const frontendTargets = ["app/src"];
@@ -147,6 +148,7 @@ for (const pat of placeholderFrontend) {
 }
 
 if (findings.length > 0) {
+  captureCheckFindings({ check: "validator-scan", findings });
   console.error("validator-scan: FAIL - findings detected");
   findings.forEach((f) => {
     console.error("----");
