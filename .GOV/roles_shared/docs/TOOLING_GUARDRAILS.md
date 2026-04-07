@@ -50,6 +50,16 @@ Rules:
 - Context:
   - Recurring in Windows-hosted WP creation/patch flows: valid patch content, failing long header path.
 
+### TG-005
+- Do:
+  - Use `_` or `-` in all new file and folder names. Applies to governance, product code, and runtime artifacts.
+- Don't:
+  - Do not create files or folders with spaces in their names. Do not accept spaces from templates, stubs, or auto-generated paths.
+- Why:
+  - Spaces break `cmd.exe` quoting, junction creation (`mklink /J`), `rmdir`, shell pipelines, and copy-paste of paths. Root cause of the `D:\D:\` malformed junction bug in wt-ilja [CX-109A].
+- Context:
+  - Existing repo paths with spaces (e.g., `Handshake Worktrees/`, `Handshake Artifacts/`) are legacy. Full rename is planned but deferred. All NEW paths must comply immediately.
+
 ### Append Template
 - Do:
   - <short required action>

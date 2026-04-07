@@ -76,6 +76,7 @@ const PROTOCOL_EXPECTED_REFS = [
   { pattern: /permanent.branch/i, label: "permanent branch model" },
   { pattern: /drive.agnostic/i, label: "drive-agnostic paths" },
   { pattern: /governance.kernel/i, label: "governance kernel concept" },
+  { pattern: "CX-109A", label: "no-spaces-in-names rule [CX-109A]" },
 ];
 
 for (const [role, filePath] of Object.entries(PROTOCOLS)) {

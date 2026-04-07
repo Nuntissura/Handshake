@@ -66,6 +66,7 @@
 - Handshake product runtime (code under `/src/`, `/app/`, `/tests/`) MUST NOT read or write `/.GOV/` under any circumstances.
 - `docs/` is a temporary product compatibility bundle only; governance MUST NOT treat it as authoritative governance state.
 - Enforcement is mandatory (CI/gates) to forbid product code referencing `/.GOV/`.
+- **No spaces in names [CX-109A]:** All new files and folders MUST use `_` or `-` instead of spaces. During validation, flag any newly created file or folder with spaces as a FAIL condition. This applies to both governance and product code. Existing spaces are legacy; rename when touched during normal WP work.
 
 See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`, and `/.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (append-only shared tooling memory).
 
