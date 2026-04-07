@@ -42,7 +42,8 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
 - For that most recently presented action/target list, the only valid approval replies are `approved` or `proceed`. If the list changes, ask again.
 - Use `just enumerate-cleanup-targets` before asking for approval so the exact targets are visible.
 - Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the list has been presented.
-- If `git worktree remove` fails, stop. Do not fall back to manual filesystem cleanup.
+- **FORBIDDEN: `git worktree remove` (raw) [CX-122].** NEVER run `git worktree remove` directly. Non-main worktrees use a `.GOV/` directory junction pointing to `wt-gov-kernel/.GOV/`. Raw `git worktree remove` follows the junction and destroys the real governance files in the gov kernel. The governance script (`delete-local-worktree.mjs`) detaches the junction before removal. Always use `just delete-local-worktree`.
+- If `just delete-local-worktree` fails, stop. Do not fall back to manual filesystem cleanup (`rm -rf`, `Remove-Item`, `del`).
 - Use `just sync-all-role-worktrees` only to refresh the local `main` branch across the permanent worktrees when they are clean. It is not the reseed path for `wt-ilja`.
 - Use `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` when the permanent Operator worktree must be refreshed from local `main`. This helper safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
 
