@@ -56,7 +56,9 @@ use crate::{
         redaction::PatternRedactor,
         JobContext, TerminalMode, TerminalRequest, TerminalService,
     },
-    workspace_safety::{SessionWorktreeAllocation, SessionWorktreeRegistry},
+    workspace_safety::{
+        collect_merge_back_artifact, SessionWorktreeAllocation, SessionWorktreeRegistry,
+    },
     AppState,
 };
 use async_trait::async_trait;
@@ -6108,7 +6110,7 @@ async fn finalize_model_run_after_terminal(
     trace_id: Uuid,
 ) -> Result<(), WorkflowError> {
     let metadata = parse_model_run_metadata(job)?;
-    let session_state = match final_status {
+    let mut session_state = match final_status {
         JobState::Completed | JobState::CompletedWithIssues => ModelSessionState::Completed,
         JobState::Cancelled => {
             if status_reason.trim().eq_ignore_ascii_case("consent_revoked") {
@@ -6123,12 +6125,36 @@ async fn finalize_model_run_after_terminal(
         JobState::AwaitingUser | JobState::AwaitingValidation => ModelSessionState::Blocked,
     };
 
+    let mut merge_back_artifact = None;
+    if let Some(worktree_path) = state
+        .session_registry
+        .get_session_worktree_path(&metadata.session_id)
+        .await
+    {
+        match collect_merge_back_artifact(&worktree_path, metadata.session_id.as_str()) {
+            Ok(artifact) => {
+                if artifact.has_conflicts() {
+                    session_state = ModelSessionState::Blocked;
+                }
+                merge_back_artifact = Some(artifact);
+            }
+            Err(err) => {
+                tracing::warn!(
+                    "collect_merge_back_artifact failed for session_id={}: {}",
+                    metadata.session_id,
+                    err,
+                );
+            }
+        }
+    }
+
     let session = state
         .storage
-        .update_model_session_state(
+        .update_model_session_state_with_merge_back_artifact(
             metadata.session_id.as_str(),
             session_state,
             Some(job.job_id),
+            merge_back_artifact,
         )
         .await?;
     state.session_registry.upsert_session(session).await;
