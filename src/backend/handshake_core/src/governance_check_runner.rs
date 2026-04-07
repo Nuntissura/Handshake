@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 
 /// Canonical executable check result status.
@@ -28,8 +27,12 @@ pub struct CheckDescriptor {
     pub timeout_ms: Option<u64>,
     #[serde(default)]
     pub required_capabilities: Vec<String>,
-    #[serde(default)]
-    pub parameters: BTreeMap<String, String>,
+    #[serde(default = "default_descriptor_parameters")]
+    pub parameters: Value,
+}
+
+fn default_descriptor_parameters() -> Value {
+    Value::Object(serde_json::Map::new())
 }
 
 impl CheckDescriptor {
@@ -46,7 +49,7 @@ impl CheckDescriptor {
             tool_id: None,
             timeout_ms: None,
             required_capabilities: Vec::new(),
-            parameters: BTreeMap::new(),
+            parameters: default_descriptor_parameters(),
         }
     }
 }
@@ -170,10 +173,49 @@ mod tests {
 
         let descriptor: CheckDescriptor = serde_json::from_str(&raw)?;
         assert_eq!(descriptor.required_capabilities.len(), 0);
-        assert_eq!(descriptor.parameters.len(), 0);
+        assert_eq!(descriptor.parameters, serde_json::json!({}));
         assert!(descriptor.timeout_ms.is_none());
         assert!(descriptor.profile.is_none());
         assert!(descriptor.tool_id.is_none());
+
+        let roundtrip: CheckDescriptor = serde_json::from_str(&serde_json::to_string(&descriptor)?)?;
+        assert_eq!(descriptor, roundtrip);
+        Ok(())
+    }
+
+    #[test]
+    fn check_descriptor_parameters_support_wide_json_types(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let raw = json!({
+            "check_id": Uuid::new_v4().to_string(),
+            "name": "schema",
+            "check_kind": "governance",
+            "parameters": {
+                "strict": true,
+                "threshold": 0.5,
+                "nested": {
+                    "include": ["lint", "secrets"],
+                    "metadata": { "owner": "validator" },
+                }
+            }
+        })
+        .to_string();
+
+        let descriptor: CheckDescriptor = serde_json::from_str(&raw)?;
+        let params = descriptor.parameters;
+
+        assert!(params.get("strict").and_then(Value::as_bool).unwrap_or(false));
+        assert_eq!(params.get("threshold").and_then(Value::as_f64), Some(0.5));
+        assert_eq!(
+            params
+                .get("nested")
+                .and_then(Value::as_object)
+                .and_then(|obj| obj.get("metadata"))
+                .and_then(|m| m.get("owner"))
+                .and_then(Value::as_str),
+            Some("validator")
+        );
+        assert_eq!(descriptor.required_capabilities.len(), 0);
 
         let roundtrip: CheckDescriptor = serde_json::from_str(&serde_json::to_string(&descriptor)?)?;
         assert_eq!(descriptor, roundtrip);

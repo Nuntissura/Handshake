@@ -5,6 +5,38 @@ use crate::capabilities::{CapabilityRegistry, RegistryError};
 use crate::mex::envelope::{DeterminismLevel, PlannedOperation, POE_SCHEMA_VERSION};
 use crate::mex::registry::MexRegistry;
 
+pub const GOVERNANCE_CHECK_TOOL_ID: &str = "governance.check.run";
+pub const GOVERNANCE_CHECK_TOOL_CAPABILITY: &str = "governance.check.run";
+pub const GOVERNANCE_CHECK_TOOL_SIDE_EFFECT: &str = "READ";
+pub const GOVERNANCE_CHECK_TOOL_IDEMPOTENCY: &str = "IDEMPOTENT_WITH_KEY";
+pub const GOVERNANCE_CHECK_TOOL_DETERMINISM: &str = "STRUCTURAL";
+pub const GOVERNANCE_CHECK_TOOL_AVAILABILITY: &str = "ALWAYS";
+pub const GOVERNANCE_CHECK_TOOL_REQUIRED_CAPABILITIES: [&str; 1] = [GOVERNANCE_CHECK_TOOL_CAPABILITY];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GovernanceCheckToolContract {
+    pub tool_id: &'static str,
+    pub side_effect: &'static str,
+    pub idempotency: &'static str,
+    pub determinism: &'static str,
+    pub availability: &'static str,
+    pub required_capabilities: &'static [&'static str],
+}
+
+pub const GOVERNANCE_CHECK_TOOL_CONTRACT: GovernanceCheckToolContract =
+    GovernanceCheckToolContract {
+        tool_id: GOVERNANCE_CHECK_TOOL_ID,
+        side_effect: GOVERNANCE_CHECK_TOOL_SIDE_EFFECT,
+        idempotency: GOVERNANCE_CHECK_TOOL_IDEMPOTENCY,
+        determinism: GOVERNANCE_CHECK_TOOL_DETERMINISM,
+        availability: GOVERNANCE_CHECK_TOOL_AVAILABILITY,
+        required_capabilities: &GOVERNANCE_CHECK_TOOL_REQUIRED_CAPABILITIES,
+    };
+
+pub fn governance_check_tool_contract() -> GovernanceCheckToolContract {
+    GOVERNANCE_CHECK_TOOL_CONTRACT
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DenialSeverity {
@@ -359,5 +391,28 @@ impl Gate for DetGate {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn governance_check_tool_contract_has_expected_unified_surface() {
+        let contract = governance_check_tool_contract();
+
+        assert_eq!(contract.tool_id, GOVERNANCE_CHECK_TOOL_ID);
+        assert_eq!(contract.side_effect, GOVERNANCE_CHECK_TOOL_SIDE_EFFECT);
+        assert_eq!(contract.idempotency, GOVERNANCE_CHECK_TOOL_IDEMPOTENCY);
+        assert_eq!(contract.determinism, GOVERNANCE_CHECK_TOOL_DETERMINISM);
+        assert_eq!(contract.availability, GOVERNANCE_CHECK_TOOL_AVAILABILITY);
+        assert_eq!(contract.required_capabilities, &GOVERNANCE_CHECK_TOOL_REQUIRED_CAPABILITIES);
+        assert_eq!(contract.required_capabilities.len(), 1);
+    }
+
+    #[test]
+    fn governance_check_tool_contract_capability_matches_capability_gate_input() {
+        assert_eq!(GOVERNANCE_CHECK_TOOL_CAPABILITY, "governance.check.run");
     }
 }
