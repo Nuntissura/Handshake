@@ -46,7 +46,7 @@ These are safe starting points for orientation and health checks.
   - presence check for required governance docs
 - `just canonise-gov`
   - `read-only`
-  - audits protocol/doc consistency across codex, role protocols, command surface, architecture, quickref, and START_HERE; checks that key commands, memory references, snapshot types, and guide links are present in all required files; run after major governance refactors
+  - synchronises intent, rules, and instructions across governance files; audits protocol/doc cross-references, command surface completeness, START_HERE navigation, and codex alignment; outputs a review list for manual propagation; run after any governance rule or workflow change
 - `just artifact-hygiene-check`
   - `read-only`
   - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake Artifacts` residue fail closed
@@ -167,6 +167,92 @@ These are safe starting points for orientation and health checks.
 - `just failure-memory-query` → use `just memory-search "<query>"` instead
 
 These legacy commands still work (they redirect to the governance memory DB) but will be removed in a future version. The legacy `FAILURE_MEMORY.json` has been migrated and archived.
+
+## Orchestrator workflow helpers
+
+- `just begin-refinement WP-{ID} "<intent>"`
+  - `runtime-write`
+  - captures an intent snapshot and opens the refinement gate for a WP; use before starting scope analysis and feature discovery
+- `just begin-research "<intent>" [--wp WP-{ID}] [--role ROLE]`
+  - `runtime-write`
+  - captures an intent snapshot and opens a research pass; use before governance research or cross-WP analysis
+- `just generate-refinement-rubric [args]`
+  - `read-only`
+  - generate a structured refinement rubric for WP scope evaluation
+- `just spec-debt-sync WP-{ID}`
+  - `governance-write`
+  - synchronise spec debt tracking for a WP
+- `just wp-closeout-format WP-{ID} <MERGED_MAIN_COMMIT>`
+  - `read-only`
+  - format the closeout block for a validated WP after merge
+- `just wp-traceability-set <BASE_WP_ID> <ACTIVE_PACKET_WP_ID>`
+  - `governance-write`
+  - set traceability mapping between a base WP and its active packet (supersession, versioning)
+- `just wp-lane-health WP-{ID}`
+  - `read-only`
+  - inspect lane health for a WP: session liveness, relay state, stall detection
+- `just session-stall-scan <ROLE> WP-{ID}`
+  - `read-only`
+  - scan a governed session lane for stall conditions
+
+## Microtask management
+
+- `just mt-board WP-{ID}`
+  - `read-only`
+  - view the microtask board for a WP: status, claims, completion
+- `just mt-claim WP-{ID} <SESSION_KEY>`
+  - `runtime-write`
+  - claim the next available microtask for a governed session
+- `just mt-complete WP-{ID} <MT_ID>`
+  - `runtime-write`
+  - mark a microtask as complete
+- `just mt-populate WP-{ID}`
+  - `governance-write`
+  - populate microtask files from packet scope into the MT board
+- `just install-mt-hook WP-{ID}`
+  - `runtime-write`
+  - install the microtask commit hook for a WP branch
+- `just install-validator-guard WP-{ID}`
+  - `runtime-write`
+  - install the validator guard hook for a WP branch
+
+## Operator admin
+
+- `just operator-viewport-admin [args]`
+  - `runtime-write`
+  - admin mode for operator viewport: manage sessions, force-settle, clear state
+- `just operator-admin [args]`
+  - `runtime-write`
+  - alias for `just operator-viewport-admin`
+- `just handshake-acp-broker-stop`
+  - `runtime-write`
+  - stop the ACP broker process
+- `just launch-memory-manager [FLAGS]`
+  - `runtime-write`
+  - launch the governance memory manager role session
+
+## Internal checks and sub-recipes
+
+These are called by higher-level recipes (`gov-check`, role startup) and are not normally invoked directly. Listed for command surface completeness.
+
+- `just validator-spec-regression`
+  - `read-only`
+  - verify spec file presence and required anchors
+- `just cor701-sha <FILE>`
+  - `read-only`
+  - compute and verify SHA for a governed file
+- `just spec-eof-appendices-check`
+  - `read-only`
+  - verify spec EOF structure and appendices
+- `just session-control-runtime-check`
+  - `read-only`
+  - verify session control runtime files exist
+- `just protocol-ack <CODEX> <AGENTS> <SHARED> <PROTOCOL>`
+  - `read-only`
+  - emit protocol acknowledgment block for startup
+- `just orchestrator-startup-truth-check`
+  - `read-only`
+  - verify orchestrator startup truth: active WPs, task board consistency
 
 ## Minimal Live Read Set (Token Discipline)
 
