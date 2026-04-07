@@ -90,32 +90,33 @@ const govKernelAbs = absFromRepo(GOV_KERNEL_SPEC.rel_path);
 const mainAbs = absFromRepo(MAIN_SPEC.rel_path);
 const iljaAbs = absFromRepo(ILJA_SPEC.rel_path);
 
-// ─── Step 1: Commit dirty .GOV/ files + push gov_kernel ─────────
+// ─── Step 1: Commit all dirty governance files + push gov_kernel ─
 {
-  const s = step("commit-gov-kernel", "commit dirty .GOV/ files + push to origin/gov_kernel");
+  const s = step("commit-gov-kernel", "commit all dirty files in wt-gov-kernel + push to origin/gov_kernel");
   const branch = currentBranchInRepo(govKernelAbs);
   if (branch !== "gov_kernel") fail(`wt-gov-kernel is on branch '${branch}', expected 'gov_kernel'`);
 
-  // Find dirty .GOV/ files
-  const statusOut = runGitInRepo(govKernelAbs, ["status", "--porcelain", "-u"]);
-  const dirtyLines = statusOut.split("\n").filter(l => l.trim());
-  const govDirtyFiles = dirtyLines
-    .map(l => l.slice(3).trim())
-    .filter(f => f.startsWith(".GOV/") || f.startsWith(".GOV\\"));
+  // Stage all governance changes in wt-gov-kernel:
+  //   1. git add -f .GOV/ — catches new files hidden by .git/info/exclude
+  //   2. git add -u — catches tracked modifications (justfile, etc.)
+  // wt-gov-kernel is governance-only, so all dirty files are governance files.
+  try { runGitInRepo(govKernelAbs, ["add", "-f", ".GOV/"]); } catch { /* no new .GOV/ files */ }
+  try { runGitInRepo(govKernelAbs, ["add", "-u"]); } catch { /* no tracked modifications */ }
 
-  if (govDirtyFiles.length === 0) {
-    s.detail = "no dirty .GOV/ files — skip commit";
+  // Check what's actually staged
+  const staged = runGitInRepo(govKernelAbs, ["diff", "--cached", "--name-only"])
+    .split("\n").filter(l => l.trim());
+
+  if (staged.length === 0) {
+    s.detail = "no dirty files — skip commit";
     s.status = "SKIP";
-    log("  no dirty .GOV/ files, skipping commit");
+    log("  no dirty files, skipping commit");
   } else {
-    log(`  dirty .GOV/ files (${govDirtyFiles.length}):`);
-    for (const f of govDirtyFiles) log(`    ${f}`);
-
-    // Stage all dirty .GOV/ files
-    runGitInRepo(govKernelAbs, ["add", "-f", "--", ...govDirtyFiles]);
+    log(`  staged files (${staged.length}):`);
+    for (const f of staged) log(`    ${f}`);
 
     // Auto-generate commit message from file list
-    const fileBasenames = govDirtyFiles.map(f => path.basename(f));
+    const fileBasenames = staged.map(f => path.basename(f));
     const uniqueNames = [...new Set(fileBasenames)];
     const shortList = uniqueNames.length <= 5
       ? uniqueNames.join(", ")
