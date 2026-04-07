@@ -16517,6 +16517,8 @@ async fn execute_terminal_job(
             .collect(),
         None => Vec::new(),
     };
+    let session_id = resolve_job_session_id(state, job, inputs.get("session_id").and_then(|v| v.as_str()))
+        .await;
     let timeout_ms = inputs.get("timeout_ms").and_then(|v| v.as_u64());
     let max_output_bytes = inputs.get("max_output_bytes").and_then(|v| v.as_u64());
     let cwd = inputs
@@ -16554,7 +16556,7 @@ async fn execute_terminal_job(
         job_context: JobContext {
             job_id: job_id.clone(),
             model_id: None,
-            session_id: None,
+            session_id: session_id.clone(),
             capability_profile_id: Some(job.capability_profile_id.clone()),
             capability_id: Some("terminal.exec".to_string()),
             wsids: Vec::new(),
@@ -16565,7 +16567,7 @@ async fn execute_terminal_job(
         human_consent_obtained: false,
     };
 
-    let cfg = TerminalConfig::with_defaults();
+    let cfg = TerminalConfig::with_session_scoped_denies(session_id.as_deref());
     let guards: Vec<Box<dyn TerminalGuard>> = vec![Box::new(DefaultTerminalGuard)];
     let redactor = PatternRedactor;
 

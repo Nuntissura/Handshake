@@ -783,8 +783,12 @@ impl EngineAdapter for ShellEngineAdapter {
         } else {
             ("bash".to_string(), vec!["-lc".to_string(), command.clone()])
         };
+        let session_id = params
+            .get("session_id")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
 
-        let cfg = TerminalConfig::with_defaults();
+        let cfg = TerminalConfig::with_session_scoped_denies(session_id.as_deref());
         let guards: Vec<Box<dyn TerminalGuard>> = vec![Box::new(DefaultTerminalGuard)];
         let redactor = PatternRedactor;
 
@@ -816,7 +820,7 @@ impl EngineAdapter for ShellEngineAdapter {
             job_context: JobContext {
                 job_id: job_id.clone(),
                 model_id: None,
-                session_id: None,
+                session_id: session_id.clone(),
                 capability_profile_id,
                 capability_id: requested_capability.clone(),
                 wsids: Vec::new(),
