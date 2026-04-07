@@ -105,6 +105,7 @@
   - Validator: receives fail log + context at startup. Check failures auto-captured. Can capture insights via `just memory-capture semantic "<insight>"`.
   - All roles: memory is supplementary — the work packet is the execution authority
 - **Backup:** `gov_runtime/` is included in backup snapshots. `just memory-export` provides git-trackable JSONL archival; `just memory-import` restores from export.
+- **Intent-gated entry points (Orchestrator, SHOULD):** Before refinement, research, or complex multi-step reasoning, use `just begin-refinement WP-{ID} "<intent>"` or `just begin-research "<intent>" --wp WP-{ID}` to capture an intent snapshot (importance 0.9) before proceeding. `orchestrator-next` emits an `INTENT_SNAPSHOT [RGF-147]` reminder at REFINEMENT stages. The raw `just memory-intent-snapshot` command remains available for ad-hoc use.
 - **Canonical reference:** `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md` — the operational guide for the full memory system.
 
 ### Current role execution policy
