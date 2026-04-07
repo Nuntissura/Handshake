@@ -58,6 +58,7 @@ const REQUIRED_FILES = [
   "roles_shared/docs/ARCHITECTURE.md",
   "roles_shared/docs/START_HERE.md",
   "roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md",
+  "roles_shared/docs/RUNBOOK_DEBUG.md",
 ];
 
 for (const f of REQUIRED_FILES) {

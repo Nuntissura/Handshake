@@ -22,6 +22,32 @@
 | IPC/bridge issues (frontend <-> backend) | Tauri orchestrator spawn in `app/src-tauri/src/lib.rs`, backend entry `src/backend/handshake_core/src/main.rs` | `rg "Command::new(\"cargo\")" app/src-tauri/src/lib.rs`, `rg "@tauri" app/src` |
 | Data/migration problems | `src/backend/handshake_core/migrations/`, database path under `data/` | `rg "migration" src/backend/handshake_core`, inspect schema diffs |
 | Build/test fails | `justfile`, package configs (`app/package.json`, Rust `Cargo.toml`) | Re-run `pnpm -C app test`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` |
+| Worktree removal "Filename too long" | Windows MAX_PATH (260 char) limit on deeply nested paths | See **Windows long-path recovery** section below |
+
+### Windows long-path recovery
+
+`Filename too long` / `ENAMETOOLONG` is a common Windows error when worktrees contain deeply nested `node_modules`, `target/`, or `.GOV/` paths exceeding 260 characters. `delete-local-worktree.mjs` already passes `core.longpaths=true` to git but the Windows filesystem may still refuse.
+
+**Do NOT force-delete or use rm -rf.** Recovery options:
+
+1. **Enable long paths system-wide (preferred, one-time):**
+   ```
+   reg add HKLM\SYSTEM\CurrentControlSet\Control\FileSystem /v LongPathsEnabled /t REG_DWORD /d 1 /f
+   ```
+   Restart the shell, then retry the governance delete script.
+
+2. **Use robocopy /mir to clear the deep tree (per-incident):**
+   ```
+   mkdir empty_dir
+   robocopy empty_dir "<stuck-worktree-path>" /mir /r:1 /w:0
+   rmdir empty_dir
+   rmdir "<stuck-worktree-path>"
+   ```
+   Then run `git worktree prune` to clean git's worktree list.
+
+3. **Use `\\?\` prefix paths** in PowerShell/cmd for targeted file operations.
+
+After any manual filesystem recovery, always run `git worktree prune` and `just gov-check` to verify consistency.
 
 ## If you only remember one thing
 - Use `rg "<feature or error string>" app/src src/backend/handshake_core` to jump to the owning layer, then open the matching file and cross-check the expected behavior in `.GOV/spec/SPEC_CURRENT.md`.

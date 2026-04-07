@@ -133,6 +133,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Atelier-Lens-v2]** - [STUB]
 - **[WP-1-Studio-Runtime-Visibility-v1]** - [STUB]
 - **[WP-1-Calendar-Lens-v3]** - [STUB]
+- **[WP-1-Calendar-Storage-v2]** - [STUB]
 - **[WP-1-Calendar-Sync-Engine-v1]** - [STUB]
 - **[WP-1-Calendar-Policy-Integration-v1]** - [STUB]
 - **[WP-1-Calendar-Law-Compliance-Tests-v1]** - [STUB]
@@ -536,7 +537,6 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Session-Crash-Recovery-Checkpointing-v1]** - [VALIDATED]
 
 ## Blocked
-- **[WP-1-Calendar-Storage-v1]** - [BLOCKED]
 ---
 
 
@@ -637,6 +637,7 @@ Entry format for this section:
 - **[WP-1-Cloud-Escalation-Consent-v1]** - [SUPERSEDED]
 - **[WP-1-Dev-Experience-ADRs]** - [SUPERSEDED]
 - **[WP-1-Calendar-Lens-v2]** - [SUPERSEDED]
+- **[WP-1-Calendar-Storage-v1]** - [SUPERSEDED]
 - **[WP-1-Workspace-Bundle]** - [SUPERSEDED]
 - **[WP-1-Tokenization-Service]** - [SUPERSEDED]
 ]
