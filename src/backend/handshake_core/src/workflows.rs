@@ -56,6 +56,7 @@ use crate::{
         redaction::PatternRedactor,
         JobContext, TerminalMode, TerminalRequest, TerminalService,
     },
+    workspace_safety::{SessionWorktreeAllocation, SessionWorktreeRegistry},
     AppState,
 };
 use async_trait::async_trait;
@@ -386,6 +387,7 @@ struct SessionRegistryInner {
     multi_model_session: MultiModelSession,
     children_by_parent: HashMap<String, HashSet<String>>,
     session_id_by_job_id: HashMap<Uuid, String>,
+    worktree_registry: SessionWorktreeRegistry,
     rate_limiter: ProviderRateLimiter,
 }
 
@@ -406,6 +408,7 @@ impl SessionRegistry {
                 multi_model_session,
                 children_by_parent: HashMap::new(),
                 session_id_by_job_id: HashMap::new(),
+                worktree_registry: SessionWorktreeRegistry::new(),
                 rate_limiter: ProviderRateLimiter::new(
                     scheduler_config.rate_limit_requests_per_minute,
                     scheduler_config.rate_limit_tokens_per_minute,
@@ -465,12 +468,36 @@ impl SessionRegistry {
                 .multi_model_session
                 .active_sessions
                 .remove(&session_id);
+            inner
+                .worktree_registry
+                .remove(&session_id);
         } else {
             inner
                 .multi_model_session
                 .active_sessions
                 .insert(session_id, session);
         }
+    }
+
+    pub async fn register_session_worktree_allocation(&self, allocation: SessionWorktreeAllocation) {
+        let mut inner = self.inner.write().await;
+        inner.worktree_registry.put(allocation);
+    }
+
+    pub async fn get_session_worktree_path(
+        &self,
+        session_id: &str,
+    ) -> Option<PathBuf> {
+        let inner = self.inner.read().await;
+        inner.worktree_registry.get(session_id).cloned()
+    }
+
+    pub async fn clear_session_worktree_allocation(
+        &self,
+        session_id: &str,
+    ) -> Option<SessionWorktreeAllocation> {
+        let mut inner = self.inner.write().await;
+        inner.worktree_registry.remove(session_id)
     }
 
     pub async fn get_model_session(
