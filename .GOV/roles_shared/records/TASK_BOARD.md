@@ -143,7 +143,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-ContextPack-Recorder-Visibility-v1]** - [STUB]
 - **[WP-1-Governance-Hooks-v2]** - [STUB]
 - **[WP-1-Governance-Workflow-Mirror-v1]** - [STUB]
-- **[WP-1-Product-Governance-Check-Runner-v1]** - [STUB]
 - **[WP-1-Workspace-Bundle-v2]** - [STUB]
 - **[WP-1-Semantic-Catalog-v2]** - [STUB]
 - **[WP-1-Metrics-Traces-v2]** - [STUB]
@@ -152,8 +151,16 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [STUB]
 - **[WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1]** - [STUB]
 - **[WP-1-FEMS-Acceptance-Replay-Eval-v1]** - [STUB]
+- **[WP-1-FEMS-Hygiene-Manager-Job-v1]** - [STUB]
+- **[WP-1-FEMS-Write-Time-Safeguards-v1]** - [STUB]
+- **[WP-1-FEMS-Injection-Scoring-Graceful-Degradation-v1]** - [STUB]
+- **[WP-1-FEMS-Working-Memory-Checkpoint-Schema-v1]** - [STUB]
+- **[WP-1-FEMS-Calibration-Dashboard-v1]** - [STUB]
+- **[WP-1-FEMS-Pinned-Core-Memory-v1]** - [STUB]
+- **[WP-1-FEMS-Bitemporal-Indexing-v1]** - [STUB]
+- **[WP-1-FEMS-Outcome-Feedback-Loop-v1]** - [STUB]
+- **[WP-1-FEMS-MT-Handoff-Memory-Context-v1]** - [STUB]
 - **[WP-1-Provider-Feature-Coverage-Agentic-Ready-v1]** - [STUB]
-- **[WP-1-Workspace-Safety-Parallel-Sessions-v1]** - [STUB]
 - **[WP-1-Session-Observability-Spans-FR-v1]** - [STUB]
 - **[WP-1-Consent-Audit-Projection-v1]** - [STUB]
 - **[WP-1-Cloud-Consent-Evidence-Portability-v1]** - [STUB]
@@ -183,19 +190,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Product-Screenshot-Visual-Validation-v1]** - [STUB]
 - **[WP-1-Session-Spawn-Tree-DCC-Visualization-v1]** - [STUB]
 - **[WP-1-Session-Spawn-Conversation-Distillation-v1]** - [STUB]
-- **[WP-1-In-Product-Session-Manager-v1]** - [STUB]
-- **[WP-1-Distillation-Training-Pair-Extraction-v1]** - [STUB]
-- **[WP-1-Ollama-Local-Model-MT-Routing-v1]** - [STUB]
 - **[WP-1-Visual-Debugging-Loop-v1]** - [STUB]
-- **[WP-1-Product-Compile-Validation-Gate-v1]** - [STUB]
-- **[WP-1-Product-Red-Team-Agent-v1]** - [STUB]
-- **[WP-1-Product-MT-Lifecycle-Escalation-v1]** - [STUB]
-- **[WP-1-Product-Session-Communication-Database-v1]** - [STUB]
-- **[WP-1-Product-MT-Task-Board-v1]** - [STUB]
-- **[WP-1-Product-Failure-Knowledge-Base-v1]** - [STUB]
-- **[WP-1-Product-Session-Health-Monitor-v1]** - [STUB]
-- **[WP-1-Product-Role-Tool-Permissions-v1]** - [STUB]
-- **[WP-1-Product-MT-Quality-Gates-v1]** - [STUB]
 
 
 - **[WP-1-Charts-Dashboards-Backfill-v1]** - [STUB]
@@ -421,6 +416,118 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+- **[WP-1-Workspace-Safety-Parallel-Sessions-v1]** - [IN_PROGRESS]
+
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
 - **[WP-1-Front-End-Memory-System-v1]** - [VALIDATED]
@@ -535,6 +642,11 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-FR-ModelSessionId-v1]** - [VALIDATED]
 
 - **[WP-1-Session-Crash-Recovery-Checkpointing-v1]** - [VALIDATED]
+
+
+- **[WP-1-Product-Governance-Check-Runner-v1]** - [VALIDATED]
+
+
 
 ## Blocked
 ---

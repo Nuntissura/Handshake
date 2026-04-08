@@ -478,7 +478,7 @@ export function withFileLockSync(lockPath, fn, {
       fs.closeSync(fd);
       break;
     } catch (error) {
-      if (error?.code !== "EEXIST") throw error;
+      if (!["EEXIST", "EPERM", "EACCES"].includes(error?.code)) throw error;
       const state = readLockState(lockPath);
       const createdAtMs = Date.parse(state?.created_at || "");
       const isStale = Number.isNaN(createdAtMs) || ((Date.now() - createdAtMs) > staleMs);
@@ -588,10 +588,34 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
     session.local_branch = normalizePath(session.local_branch || sessionDescriptor.local_branch || "");
     session.local_worktree_dir = normalizePath(session.local_worktree_dir || sessionDescriptor.local_worktree_dir || "");
     session.terminal_title = sessionDescriptor.terminal_title || session.terminal_title || terminalTitle(sessionDescriptor.role, sessionDescriptor.wp_id);
-    session.requested_model = session.requested_model || sessionDescriptor.requested_model || "";
-    session.requested_profile_id = session.requested_profile_id || sessionDescriptor.requested_profile_id || "";
-    session.reasoning_config_key = session.reasoning_config_key || sessionDescriptor.reasoning_config_key || "";
-    session.reasoning_config_value = session.reasoning_config_value || sessionDescriptor.reasoning_config_value || "";
+    const runtimeState = String(session.runtime_state || "").trim().toUpperCase();
+    const startupProofState = String(session.startup_proof_state || "").trim().toUpperCase();
+    const hasLaunchSelectionOverride = Boolean(
+      sessionDescriptor.requested_model ||
+      sessionDescriptor.requested_profile_id ||
+      sessionDescriptor.reasoning_config_key ||
+      sessionDescriptor.reasoning_config_value
+    );
+    const allowLaunchSelectionRefresh = hasLaunchSelectionOverride && (
+      ["UNSTARTED", "FAILED", "CLOSED", "CLI_ESCALATION_READY", "CLI_ESCALATION_USED"].includes(runtimeState) ||
+      (!String(session.session_thread_id || "").trim() && startupProofState !== "READY")
+    );
+
+    if (allowLaunchSelectionRefresh) {
+      session.requested_model = sessionDescriptor.requested_model || session.requested_model || "";
+      session.requested_profile_id = sessionDescriptor.requested_profile_id || session.requested_profile_id || "";
+      session.reasoning_config_key = sessionDescriptor.reasoning_config_key || session.reasoning_config_key || "";
+      session.reasoning_config_value = sessionDescriptor.reasoning_config_value || session.reasoning_config_value || "";
+      if (startupProofState !== "READY") {
+        session.session_thread_id = "";
+        session.session_thread_started_at = "";
+      }
+    } else {
+      session.requested_model = session.requested_model || sessionDescriptor.requested_model || "";
+      session.requested_profile_id = session.requested_profile_id || sessionDescriptor.requested_profile_id || "";
+      session.reasoning_config_key = session.reasoning_config_key || sessionDescriptor.reasoning_config_key || "";
+      session.reasoning_config_value = session.reasoning_config_value || sessionDescriptor.reasoning_config_value || "";
+    }
     normalizeSessionRecord(session);
   }
   return session;

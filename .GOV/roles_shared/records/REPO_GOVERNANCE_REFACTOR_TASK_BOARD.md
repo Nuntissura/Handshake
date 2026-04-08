@@ -166,9 +166,9 @@
 | RGF-104 | DONE | Transcript-Based Stall Detection | RGF-93 | `RESEARCH-20260406-AGENT-SWARM-PARALLEL-ORCHESTRATION` | session output JSONL, stall detection | scan coder/validator session output for stuck patterns (repeated errors, "I'll try again" loops, no file writes in N minutes); active detection faster than passive timeout; based on Overstory Tier 1 AI-assisted transcript triage |
 | RGF-105 | DONE | Mechanical Tool-Call Guards (Read-Only Enforcement) | - | `RESEARCH-20260406-AGENT-SWARM-PARALLEL-ORCHESTRATION` | validator session hooks, role boundary enforcement | mechanically enforce read-only file access for validator sessions; validator can read any file but cannot write to src/app/tests; prevents role boundary violations mechanically instead of via prompts; based on Overstory tool-call guard pattern |
 | RGF-106 | DONE | Per-MT Completion Hooks (Quality Gate) | RGF-98 | `RESEARCH-20260406-AGENT-SWARM-PARALLEL-ORCHESTRATION` | post-commit hook, MT lifecycle | extend post-commit hook to run per-MT quality checks: compile gate (RGF-98), test filter for affected modules, artifact hygiene check; blocks review request if any gate fails; based on Claude Agent Teams TaskCompleted hook pattern |
-| ~~RGF-107~~ | REMOVED | ~~In-Product Session Manager (Replace OS Terminals)~~ | - | - | - | removed from governance board: product-scoped item; tracked as product stub WP-1-In-Product-Session-Manager-v1 |
-| ~~RGF-108~~ | REMOVED | ~~Distillation Pipeline from Governed Work~~ | - | - | - | removed from governance board: product-scoped item; tracked as product stub WP-1-Distillation-Training-Pair-Extraction-v1 |
-| ~~RGF-109~~ | REMOVED | ~~Local Model Integration (Ollama for Simple MTs)~~ | - | - | - | removed from governance board: product-scoped item; tracked as product stub WP-1-Ollama-Local-Model-MT-Routing-v1 |
+| ~~RGF-107~~ | REMOVED | ~~In-Product Session Manager (Replace OS Terminals)~~ | - | - | - | removed from governance board: product-scoped item; stub WP-1-In-Product-Session-Manager-v1 purged (drifted language, duplicate of existing spec concepts) |
+| ~~RGF-108~~ | REMOVED | ~~Distillation Pipeline from Governed Work~~ | - | - | - | removed from governance board: product-scoped item; stub WP-1-Distillation-Training-Pair-Extraction-v1 purged (drifted language, duplicate of existing spec concepts) |
+| ~~RGF-109~~ | REMOVED | ~~Local Model Integration (Ollama for Simple MTs)~~ | - | - | - | removed from governance board: product-scoped item; stub WP-1-Ollama-Local-Model-MT-Routing-v1 purged (drifted language, duplicate of existing spec concepts) |
 | ~~RGF-110~~ | REMOVED | ~~Visual Debugging Loop for GUI WPs~~ | - | - | - | removed from governance board: product-scoped item; tracked as product stub WP-1-Visual-Debugging-Loop-v1 |
 | RGF-111 | DONE | Operator Viewport Session State Enrichment | RGF-95 | `RESEARCH-20260406-AGENT-SWARM-PARALLEL-ORCHESTRATION` | `roles/orchestrator/scripts/operator-monitor-tui.mjs`, `roles_shared/scripts/session/wp-lane-health.mjs` | operator-viewport list cards show per-WP token budget chip (TOK:count/status); top summary shows aggregate token spend and worst budget status; OVERVIEW detail pane shows TOKEN USAGE section with per-role breakdown, budget evaluation, and settlement status; SESSIONS detail pane shows per-session model profile and token attribution; wp-lane-health reports token usage and budget warnings |
 | RGF-113 | DONE | Ollama Local Model Provider in Governed Runtime | RGF-102 | `RESEARCH-20260406-AGENT-SWARM-PARALLEL-ORCHESTRATION` | `roles_shared/scripts/session/session-policy.mjs`, `roles_shared/scripts/session/session-control-lib.mjs`, `roles/orchestrator/scripts/launch-cli-session.mjs` | OLLAMA_LOCAL provider added to governed model profile catalog with two profiles (OLLAMA_QWEN_CODER_7B, OLLAMA_QWEN_CODER_14B); CLI tool resolver dispatches to ollama binary; runOllamaCommand executor pipes prompt to ollama run with JSONL event output; launch-cli-session builds Ollama-specific args; fallback chain escalates Ollama failures to OPENAI_GPT_5_2_XHIGH; profiles restricted to CODER role |
@@ -205,6 +205,10 @@
 | RGF-145 | DONE | Pre-Task Snapshots at Orchestrator Decision Points | RGF-144 | - | `roles/orchestrator/scripts/launch-cli-session.mjs`, `roles/orchestrator/scripts/orchestrator-steer-next.mjs`, `roles/orchestrator/scripts/manual-relay-dispatch.mjs`, `roles/orchestrator/scripts/create-task-packet.mjs` | Insert capturePreTaskSnapshot() calls at four orchestrator decision points: (1) WP delegation in launch-cli-session.mjs after model selection, before session launch — captures role, model, branch, scope, governance state; (2) steering correction in orchestrator-steer-next.mjs before communication evaluation — captures health state, next actor, relay escalation; (3) manual relay dispatch in manual-relay-dispatch.mjs before envelope derivation — captures next actor, action, waiting state; (4) packet creation in create-task-packet.mjs at HARD GATE entry — captures refinement scope, spec version, execution owner. Each snapshot records the full decision context so post-hoc analysis can compare intent vs outcome. |
 | RGF-146 | DONE | Pre-Task Snapshots at WP Lifecycle Boundaries | RGF-144 | - | `roles/validator/scripts/integration-validator-closeout-sync.mjs`, `roles/orchestrator/scripts/task-board-set.mjs` | Insert capturePreTaskSnapshot() calls at two WP lifecycle boundaries: (1) WP closeout in integration-validator-closeout-sync.mjs before governance validity evaluation — captures validation state, sessions of record, gate state; (2) task board status change in task-board-set.mjs before status update — captures previous status, new status, packet truth. These boundary snapshots create audit-grade before/after pairs when combined with the existing receipt system. |
 | RGF-147 | DONE | Pre-Task Snapshot Surfacing in Session Priming | RGF-144 | - | `roles_shared/scripts/session/session-control-lib.mjs` | Update loadSessionMemoryLines() and loadOrchestratorMemoryLines() to surface pre-task snapshots in session startup context. Pre-task snapshots get a dedicated SNAPSHOT section in the injected memory block (after FAIL LOG, CONTEXT, HISTORY). Only the most recent snapshot per snapshot_type is included (max 3 snapshots total). Snapshot memories use trust_source=snapshot (trust multiplier 0.95, between receipt_extraction and smoketest). Gives resuming sessions immediate context about what was planned before the current work phase. |
+| RGF-148 | READY | Pre-Start Communication Mesh Gate and Per-WP Role Handshake | RGF-24, RGF-30, RGF-31, RGF-33 | `AUDIT-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT-REVIEW` / `SMOKETEST-REVIEW-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT` | `roles/orchestrator/scripts`, `roles_shared/scripts/lib/wp-communication-health-lib.mjs`, session-control helpers, receipt/notification schemas | before productive work starts, orchestrator<->coder, orchestrator<->wp-validator, coder<->wp-validator, and later orchestrator<->integration-validator communication is mechanically proven per `WP_ID`, role, session, and correlation id |
+| RGF-149 | READY | Phase-Level Composite Check and Test Entrypoints | RGF-15, RGF-19, RGF-32, RGF-33 | `AUDIT-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT-REVIEW` / `SMOKETEST-REVIEW-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT` | `justfile`, `roles_shared/checks`, `roles_shared/tests`, role-facing command docs | each lifecycle phase exposes one stable operator command for required checks/tests, and internal fan-out replaces ad hoc dozens of narrow commands |
+| RGF-150 | READY | Single-Writer Lifecycle Truth and Read-Only Mirror Projections | RGF-14, RGF-17, RGF-24 | `AUDIT-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT-REVIEW` / `SMOKETEST-REVIEW-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT` | packet/runtime projection libs, task-board sync, closeout sync, route-health surfaces | packet headers, runtime status, task board, and route-health views converge on one writable authority per stage and partial truth updates become impossible |
+| RGF-151 | READY | Active Review Projection and Superseded Residue Compaction | RGF-27, RGF-28, RGF-30, RGF-31 | `AUDIT-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT-REVIEW` / `SMOKETEST-REVIEW-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT` | receipts/notifications projections, operator viewport surfaces, communication-health helpers | operators and health checks default to active blocking review items only, while superseded crash-recovery residue is compacted behind explicit history views |
 
 ## Refactor Sequence (Historical)
 
@@ -275,13 +279,17 @@
 
 ## Proposed Next Sequence
 
-1. `RGF-144`
-2. `RGF-145`
-3. `RGF-146`
-4. `RGF-147`
-5. `RGF-79`
-6. `RGF-80`
-7. `RGF-85`
+1. `RGF-148`
+2. `RGF-149`
+3. `RGF-150`
+4. `RGF-151`
+5. `RGF-144`
+6. `RGF-145`
+7. `RGF-146`
+8. `RGF-147`
+9. `RGF-79`
+10. `RGF-80`
+11. `RGF-85`
 
 ## Explicit Holds
 

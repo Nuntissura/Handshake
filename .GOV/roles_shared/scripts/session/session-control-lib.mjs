@@ -549,6 +549,111 @@ function loadOrchestratorMemoryLines() {
   } catch { return []; }
 }
 
+// ---------------------------------------------------------------------------
+// Conversation context injection — cross-session conversational memory
+// ---------------------------------------------------------------------------
+
+function loadConversationContext() {
+  try {
+    const dbPath = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "GOVERNANCE_MEMORY.db");
+    if (!fs.existsSync(dbPath)) return [];
+    const db = new DatabaseSync(dbPath);
+    try {
+      // Check if conversation_log table exists
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_log'").get();
+      if (!tables) return [];
+
+      const MAX_TOKENS = 600;
+      const lines = [];
+      let tokenCount = 0;
+
+      // Find last closed session
+      const lastClose = db.prepare(
+        "SELECT session_id FROM conversation_log WHERE checkpoint_type = 'SESSION_CLOSE' ORDER BY timestamp_utc DESC LIMIT 1"
+      ).get();
+
+      let lastSessionEntries = [];
+      if (lastClose) {
+        lastSessionEntries = db.prepare(
+          "SELECT * FROM conversation_log WHERE session_id = ? ORDER BY timestamp_utc ASC"
+        ).all(lastClose.session_id);
+      } else {
+        // No closed session — try the second-most-recent SESSION_OPEN
+        const opens = db.prepare(
+          "SELECT session_id FROM conversation_log WHERE checkpoint_type = 'SESSION_OPEN' ORDER BY timestamp_utc DESC LIMIT 2"
+        ).all();
+        if (opens.length >= 2) {
+          lastSessionEntries = db.prepare(
+            "SELECT * FROM conversation_log WHERE session_id = ? ORDER BY timestamp_utc ASC"
+          ).all(opens[1].session_id);
+        }
+      }
+
+      if (lastSessionEntries.length > 0) {
+        const sessionDate = lastSessionEntries[0].timestamp_utc?.slice(0, 10) || "unknown";
+        const sessionRole = lastSessionEntries[0].role || "unknown";
+        lines.push(`CONVERSATION CONTEXT (prior session ${sessionDate}, ${sessionRole}):`);
+        tokenCount += 15;
+
+        // Prioritize high-value checkpoints
+        const priority = { SESSION_OPEN: 0, INSIGHT: 1, RESEARCH_CLOSE: 2, SESSION_CLOSE: 3, PRE_TASK: 4 };
+        const sorted = [...lastSessionEntries].sort((a, b) =>
+          (priority[a.checkpoint_type] ?? 99) - (priority[b.checkpoint_type] ?? 99)
+        );
+
+        for (const entry of sorted) {
+          if (tokenCount >= MAX_TOKENS) break;
+          const line = `- [${entry.checkpoint_type}] ${entry.topic}${entry.wp_id ? ` (${entry.wp_id})` : ""}`;
+          const lineTokens = Math.ceil(line.length / 4);
+          if (tokenCount + lineTokens > MAX_TOKENS) break;
+          lines.push(line);
+          tokenCount += lineTokens;
+
+          if (entry.decisions) {
+            const decLine = `  Decisions: ${entry.decisions.slice(0, 150)}`;
+            const decTokens = Math.ceil(decLine.length / 4);
+            if (tokenCount + decTokens <= MAX_TOKENS) {
+              lines.push(decLine);
+              tokenCount += decTokens;
+            }
+          }
+        }
+      }
+
+      // Also show recent insights from older sessions (last 7 days, deduped from last session)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const lastSessionId = lastSessionEntries[0]?.session_id || "";
+      const recentInsights = db.prepare(
+        `SELECT * FROM conversation_log
+         WHERE checkpoint_type = 'INSIGHT'
+           AND timestamp_utc >= ?
+           AND session_id != ?
+         ORDER BY timestamp_utc DESC LIMIT 5`
+      ).all(sevenDaysAgo, lastSessionId);
+
+      if (recentInsights.length > 0 && tokenCount < MAX_TOKENS) {
+        lines.push("RECENT INSIGHTS (past 7 days):");
+        tokenCount += 8;
+        for (const entry of recentInsights) {
+          if (tokenCount >= MAX_TOKENS) break;
+          const date = entry.timestamp_utc?.slice(0, 10) || "?";
+          const line = `- [${date}] ${entry.topic}`;
+          const lineTokens = Math.ceil(line.length / 4);
+          if (tokenCount + lineTokens > MAX_TOKENS) break;
+          lines.push(line);
+          tokenCount += lineTokens;
+        }
+      }
+
+      if (lines.length > 0) {
+        lines.push(`Use \`just repomem log\` for full conversation history.`);
+      }
+
+      return lines;
+    } finally { try { db.close(); } catch {} }
+  } catch { return []; }
+}
+
 export function buildStartupPrompt({
   role,
   wpId,
@@ -650,10 +755,10 @@ export function buildStartupPrompt({
     ];
   }
 
-  // RGF-125: orchestrator gets cross-WP governance memory; coder/validator get role-scoped memory
-  const memoryLines = role === "ORCHESTRATOR"
-    ? loadOrchestratorMemoryLines()
-    : loadSessionMemoryLines(wpId, { role });
+  // Memory is written to the governance DB during orchestrator work (repomem).
+  // Coder/validator sessions do not need memory injection — they have the packet,
+  // refinement, and governed startup commands. Injecting memory bloats the prompt
+  // past the Windows cmd.exe 8191-char command-line limit.
 
   const bootLines = [
     `Execute only this startup bootstrap now, in order, before any other work:`,
@@ -664,7 +769,7 @@ export function buildStartupPrompt({
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
   ];
 
-  return [...commonLines, ...roleLines, ...memoryLines, ...bootLines].join("\n");
+  return [...commonLines, ...roleLines, ...bootLines].join("\n");
 }
 
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {

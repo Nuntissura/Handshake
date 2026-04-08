@@ -33,29 +33,31 @@ function replaceSingleField(packetText, label, nextValue) {
 
 function replaceStatusField(packetText, nextStatus) {
   const candidates = [
-    /^\s*-\s*\*\*Status:\*\*\s*.+\s*$/mi,
-    /^\s*\*\*Status:\*\*\s*.+\s*$/mi,
-    /^\s*Status:\s*.+\s*$/mi,
+    /^(\s*-\s*\*\*Status:\*\*\s*)(.+?)\s*$/mi,
+    /^(\s*\*\*Status:\*\*\s*)(.+?)\s*$/mi,
+    /^(\s*Status:\s*)(.+?)\s*$/mi,
   ];
   for (const candidate of candidates) {
     if (candidate.test(String(packetText || ""))) {
-      return String(packetText || "").replace(candidate, (line) => {
-        if (/^\s*-\s*\*\*Status:\*\*/i.test(line)) return line.replace(/(\*\*Status:\*\*\s*).+$/i, `$1${nextStatus}`);
-        if (/^\s*\*\*Status:\*\*/i.test(line)) return line.replace(/(\*\*Status:\*\*\s*).+$/i, `$1${nextStatus}`);
-        return line.replace(/(Status:\s*).+$/i, `$1${nextStatus}`);
-      });
+      return String(packetText || "").replace(candidate, (_, prefix) => `${prefix}${nextStatus}`);
     }
   }
   throw new Error("Missing packet status field");
 }
 
 function parseStatus(text) {
-  return (
-    (String(text || "").match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
-    || (String(text || "").match(/^\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
-    || (String(text || "").match(/^\s*Status:\s*(.+)\s*$/mi) || [])[1]
-    || ""
-  ).trim();
+  const candidates = [
+    /^\s*-\s*\*\*Status:\*\*\s*(.+?)\s*$/mi,
+    /^\s*\*\*Status:\*\*\s*(.+?)\s*$/mi,
+    /^\s*Status:\s*(.+?)\s*$/mi,
+  ];
+  for (const candidate of candidates) {
+    const match = String(text || "").match(candidate);
+    if (match) {
+      return String(match[1] || "").trim();
+    }
+  }
+  return "";
 }
 
 function extractSectionAfterHeading(text, heading) {

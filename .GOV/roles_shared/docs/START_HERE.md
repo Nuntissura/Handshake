@@ -6,6 +6,7 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 ---
 ## Canonical sources
 - **Spec:** `.GOV/spec/SPEC_CURRENT.md` (points to the current Handshake master spec).
+- **Product Reference (navigation only):** `.GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md` — quick-ref summary of tech stack, pillars, engines, primitives, and force multipliers. **Reference only** — all decisions and implementation guidance MUST come from the Master Spec, not from this summary [CX-403].
 - **Folder-placement law:** `.GOV/codex/Handshake_Codex_v1.4.md` + `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/coder/CODER_PROTOCOL.md` + `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`.
 - **Spec EOF appendices:** Master Spec Â§12 (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance, Interaction Matrix). These blocks are spec-internal and kept at end-of-file; `just gov-check` enforces presence + parseability.
 - **WP Traceability:** `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP â†’ Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).

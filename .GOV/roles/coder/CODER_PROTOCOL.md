@@ -323,8 +323,13 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
 - **Don't trust it blindly.** If a fix pattern references a file, verify it still exists. The packet and current code state always win.
 - **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section — context captures taken before governance decisions (e.g. PRE_WP_DELEGATION with the role, model, and branch the orchestrator chose for your session). Use them to understand context; verify against the packet.
 - **Intent snapshots (SHOULD).** Before starting a complex implementation (tricky MT, cross-file refactor, data migration): `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role CODER --reason "<why>"`. Judgment-based — no gate enforces it.
+- **Conversation memory (MUST — `just repomem`):** Cross-session conversational memory. **HARD rules:**
+  - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this session is about>" --role CODER --wp WP-{ID}`. Blocked from mutation commands until done.
+  - **INSIGHT after operator/orchestrator decisions (MUST):** When steering prompt contains a decision, correction, or key context, run `just repomem insight "<what was decided and why>"` BEFORE implementation. Minimum 80 characters.
+  - **INSIGHT after discoveries (MUST):** When investigation reveals a non-obvious root cause, constraint, or pattern, capture with `just repomem insight` before moving on.
+  - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what happened>" --decisions "<key decisions>"`.
 - **Capture insights.** If you discover a non-obvious fix: `just memory-capture procedural "description" --scope "file.rs" --wp WP-{ID}`. Importance 0.7. Future sessions benefit.
-- To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`.
+- To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`. For conversation history: `just repomem log`.
 - Canonical reference: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`.
 
 ## WP Communication Folder (when the packet defines it)

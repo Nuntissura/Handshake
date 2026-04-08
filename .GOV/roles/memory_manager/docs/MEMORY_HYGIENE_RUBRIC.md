@@ -25,6 +25,15 @@ Decision framework for the Memory Manager. Apply these rules when judging what t
 | Mechanical snapshots (PRE_*) older than 14 days with access_count=0 | Prune | Decision context loses value fast if never accessed |
 | Session-end flush memories (trust 0.5) older than 30 days with access_count < 2 | Prune | Low-trust summaries that didn't prove useful |
 
+### Conversation log pruning
+
+| Condition | Action | Reason |
+|---|---|---|
+| Session >30 days old with no INSIGHT or RESEARCH_CLOSE entries | Delete all entries for that session_id | Sessions without insights are just OPEN/CLOSE bookkeeping |
+| Auto-closed session entries ("auto-closed by new session open") | Delete after 14 days | Marker entries with no real content |
+| PRE_TASK/context entries >60 days old in sessions that do have insights | Keep the insights, delete the PRE_TASK entries | Context entries have short value; insights are permanent |
+| Sessions with insights | NEVER delete, regardless of age | Insights are the primary value; they may be promoted to semantic memories |
+
 ## When to REPAIR
 
 | Condition | Action | Reason |
@@ -33,7 +42,16 @@ Decision framework for the Memory Manager. Apply these rules when judging what t
 | Contradiction flag on two memories where one is clearly correct | FLAG the wrong one, restore importance on the correct one | Contradictions at 0.3 importance starve both; resolve, don't leave in limbo |
 | Novelty-penalized entry (0.3x) that is actually distinct from the "similar" one | Manually set importance to correct level via `memory-flag` then re-add | FTS5 match was a false positive |
 
-## When to PROMOTE (draft as RGF candidate)
+## When to PROMOTE
+
+### Promote to semantic memory (from conversation_log)
+
+| Condition | Action | Reason |
+|---|---|---|
+| Same INSIGHT topic appears across 3+ sessions | Promote to semantic memory (importance 0.8, source=conversation-promotion) | Cross-session institutional knowledge |
+| Same decision in `decisions` column across 2+ sessions | Promote to semantic memory (importance 0.75, source=conversation-promotion) | Repeated decisions should persist beyond conversation context |
+
+### Promote to RGF candidate (from memory_index)
 
 | Condition | Action | Reason |
 |---|---|---|
@@ -42,6 +60,7 @@ Decision framework for the Memory Manager. Apply these rules when judging what t
 | Procedural memory has access_count >= 10 | Draft RGF item to codify as governance rule | Pattern is so useful it should be permanent |
 | Cluster of 5+ procedural memories about the same file_scope | Draft RGF item for that module's quality | Module is a persistent trouble spot |
 | High-value INTENT snapshot that reveals a recurring decision pattern | Draft RGF item to mechanize that decision | Judgment-based decisions that repeat should become mechanical |
+| Promoted conversation insight has access_count >= 5 | Draft RGF item to codify as governance rule | Insight has proven useful across sessions and now drives injection |
 
 ## When to LEAVE ALONE
 
@@ -78,3 +97,6 @@ These are observations for the orchestrator, not direct actions:
 | Active entry count vs 500 cap | <400 | >450 — approaching forced pruning territory |
 | Average importance of active entries | 0.3-0.7 | <0.2 — too much decay; >0.8 — not enough decay |
 | Contradiction count | <5 unresolved | >10 — resolve backlog before it poisons injection |
+| Conversation OPEN:CLOSE ratio (7d) | ~1:1 | OPEN >> CLOSE — models not closing sessions |
+| Conversation INSIGHT count (7d) | 1-5 per session | 0 — models not capturing decisions; >10/session — possible noise |
+| Promoted conversation insights | growing slowly | 0 after 2+ weeks — promotion rules not triggering; >20 — review for quality |

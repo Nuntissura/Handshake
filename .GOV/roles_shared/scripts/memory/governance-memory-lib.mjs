@@ -99,6 +99,20 @@ CREATE TABLE IF NOT EXISTS schema_meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS conversation_log (
+  id INTEGER PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT '',
+  timestamp_utc TEXT NOT NULL,
+  checkpoint_type TEXT NOT NULL,
+  trigger_ref TEXT DEFAULT '',
+  wp_id TEXT DEFAULT '',
+  topic TEXT NOT NULL,
+  content TEXT NOT NULL,
+  files_referenced TEXT DEFAULT '',
+  decisions TEXT DEFAULT ''
+);
 `;
 
 const CREATE_INDEXES_SQL = `
@@ -109,6 +123,10 @@ CREATE INDEX IF NOT EXISTS idx_memory_index_consolidated ON memory_index(consoli
 CREATE INDEX IF NOT EXISTS idx_memory_entries_index ON memory_entries(index_id);
 CREATE INDEX IF NOT EXISTS idx_memory_entries_wp ON memory_entries(source_wp_id);
 CREATE INDEX IF NOT EXISTS idx_memory_embeddings_index ON memory_embeddings(index_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_log_session ON conversation_log(session_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_log_type ON conversation_log(checkpoint_type);
+CREATE INDEX IF NOT EXISTS idx_conversation_log_time ON conversation_log(timestamp_utc);
+CREATE INDEX IF NOT EXISTS idx_conversation_log_wp ON conversation_log(wp_id);
 `;
 
 const CREATE_FTS_SQL = `
@@ -121,6 +139,12 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memory_index_fts USING fts5(
 CREATE VIRTUAL TABLE IF NOT EXISTS memory_entries_fts USING fts5(
   content, source_artifact, source_wp_id,
   content='memory_entries',
+  content_rowid='id'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS conversation_log_fts USING fts5(
+  topic, content, decisions, files_referenced,
+  content='conversation_log',
   content_rowid='id'
 );
 `;
@@ -158,6 +182,23 @@ CREATE TRIGGER IF NOT EXISTS memory_entries_au AFTER UPDATE ON memory_entries BE
   VALUES ('delete', old.id, old.content, old.source_artifact, old.source_wp_id);
   INSERT INTO memory_entries_fts(rowid, content, source_artifact, source_wp_id)
   VALUES (new.id, new.content, new.source_artifact, new.source_wp_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS conversation_log_ai AFTER INSERT ON conversation_log BEGIN
+  INSERT INTO conversation_log_fts(rowid, topic, content, decisions, files_referenced)
+  VALUES (new.id, new.topic, new.content, new.decisions, new.files_referenced);
+END;
+
+CREATE TRIGGER IF NOT EXISTS conversation_log_ad AFTER DELETE ON conversation_log BEGIN
+  INSERT INTO conversation_log_fts(conversation_log_fts, rowid, topic, content, decisions, files_referenced)
+  VALUES ('delete', old.id, old.topic, old.content, old.decisions, old.files_referenced);
+END;
+
+CREATE TRIGGER IF NOT EXISTS conversation_log_au AFTER UPDATE ON conversation_log BEGIN
+  INSERT INTO conversation_log_fts(conversation_log_fts, rowid, topic, content, decisions, files_referenced)
+  VALUES ('delete', old.id, old.topic, old.content, old.decisions, old.files_referenced);
+  INSERT INTO conversation_log_fts(rowid, topic, content, decisions, files_referenced)
+  VALUES (new.id, new.topic, new.content, new.decisions, new.files_referenced);
 END;
 `;
 
@@ -607,6 +648,198 @@ export function extractMemoryFromReceipt(db, wpId, receipt) {
   }
 
   return added;
+}
+
+// ---------------------------------------------------------------------------
+// Conversation log — cross-session conversational memory
+// ---------------------------------------------------------------------------
+
+export const VALID_CHECKPOINT_TYPES = [
+  "SESSION_OPEN", "PRE_TASK", "INSIGHT", "RESEARCH_CLOSE", "SESSION_CLOSE",
+];
+
+const SESSION_MARKER_FILE = "CURRENT_REPOMEM_SESSION.json";
+
+function sessionMarkerPath() {
+  return path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", SESSION_MARKER_FILE);
+}
+
+export function generateSessionId(role) {
+  const ts = new Date().toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
+  return `${(role || "SESSION").toUpperCase()}-${ts}`;
+}
+
+export function getCurrentSession() {
+  const markerPath = sessionMarkerPath();
+  if (!fs.existsSync(markerPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(markerPath, "utf8"));
+  } catch { return null; }
+}
+
+export function writeSessionMarker(session) {
+  fs.writeFileSync(sessionMarkerPath(), JSON.stringify(session, null, 2));
+}
+
+export function clearSessionMarker() {
+  const markerPath = sessionMarkerPath();
+  if (fs.existsSync(markerPath)) fs.unlinkSync(markerPath);
+}
+
+export function addConversationCheckpoint(db, {
+  sessionId,
+  role = "",
+  checkpointType,
+  triggerRef = "",
+  wpId = "",
+  topic,
+  content,
+  filesReferenced = "",
+  decisions = "",
+}) {
+  if (!VALID_CHECKPOINT_TYPES.includes(checkpointType)) {
+    throw new Error(`Invalid checkpoint_type: ${checkpointType}. Must be one of: ${VALID_CHECKPOINT_TYPES.join(", ")}`);
+  }
+  const now = nowIso();
+  const normalizedContent = normalizeDates(content);
+  const normalizedDecisions = normalizeDates(decisions);
+
+  const result = db.prepare(
+    `INSERT INTO conversation_log
+     (session_id, role, timestamp_utc, checkpoint_type, trigger_ref, wp_id, topic, content, files_referenced, decisions)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(sessionId, role, now, checkpointType, triggerRef, wpId, topic, normalizedContent, filesReferenced, normalizedDecisions);
+  return Number(result.lastInsertRowid);
+}
+
+export function getConversationLog(db, { sessionId = "", lastN = 10, sinceDate = "", search = "", wpId = "" } = {}) {
+  let sql = "SELECT * FROM conversation_log WHERE 1=1";
+  const params = [];
+
+  if (sessionId) { sql += " AND session_id = ?"; params.push(sessionId); }
+  if (wpId) { sql += " AND (wp_id = ? OR wp_id = '')"; params.push(wpId); }
+  if (sinceDate) { sql += " AND timestamp_utc >= ?"; params.push(sinceDate); }
+
+  if (search) {
+    const ftsQuery = sanitizeFtsQuery(search);
+    if (ftsQuery) {
+      try {
+        const ftsIds = db.prepare(
+          "SELECT rowid FROM conversation_log_fts WHERE conversation_log_fts MATCH ? ORDER BY rank LIMIT 50"
+        ).all(ftsQuery).map(r => r.rowid);
+        if (ftsIds.length > 0) {
+          sql += ` AND id IN (${ftsIds.map(() => "?").join(",")})`;
+          params.push(...ftsIds);
+        } else {
+          return [];
+        }
+      } catch { return []; }
+    }
+  }
+
+  sql += " ORDER BY timestamp_utc DESC LIMIT ?";
+  params.push(lastN);
+  return db.prepare(sql).all(...params).reverse(); // chronological order
+}
+
+export function getLastSession(db) {
+  // Find the most recent SESSION_CLOSE, then get all entries for that session_id
+  const lastClose = db.prepare(
+    "SELECT session_id FROM conversation_log WHERE checkpoint_type = 'SESSION_CLOSE' ORDER BY timestamp_utc DESC LIMIT 1"
+  ).get();
+  if (!lastClose) {
+    // No closed session — try the second-most-recent SESSION_OPEN (current session is most recent)
+    const opens = db.prepare(
+      "SELECT session_id FROM conversation_log WHERE checkpoint_type = 'SESSION_OPEN' ORDER BY timestamp_utc DESC LIMIT 2"
+    ).all();
+    if (opens.length < 2) return [];
+    return db.prepare(
+      "SELECT * FROM conversation_log WHERE session_id = ? ORDER BY timestamp_utc ASC"
+    ).all(opens[1].session_id);
+  }
+  return db.prepare(
+    "SELECT * FROM conversation_log WHERE session_id = ? ORDER BY timestamp_utc ASC"
+  ).all(lastClose.session_id);
+}
+
+export function getRecentConversationContext(db, { maxEntries = 8, maxTokens = 600 } = {}) {
+  // For injection: get last session's entries + current session's entries
+  const lines = [];
+  let tokenCount = 0;
+
+  const lastSession = getLastSession(db);
+  const currentSession = getCurrentSession();
+
+  if (lastSession.length > 0) {
+    const sessionDate = lastSession[0].timestamp_utc?.slice(0, 10) || "unknown";
+    const openEntry = lastSession.find(e => e.checkpoint_type === "SESSION_OPEN");
+    const closeEntry = lastSession.find(e => e.checkpoint_type === "SESSION_CLOSE");
+
+    lines.push(`PRIOR SESSION (${sessionDate}, ${lastSession[0].role || "unknown role"}):`);
+    tokenCount += 15;
+
+    // Prioritize: SESSION_OPEN, INSIGHTs, RESEARCH_CLOSEs, SESSION_CLOSE
+    const priority = ["SESSION_OPEN", "INSIGHT", "RESEARCH_CLOSE", "SESSION_CLOSE"];
+    const sorted = [...lastSession].sort((a, b) => {
+      const aP = priority.indexOf(a.checkpoint_type);
+      const bP = priority.indexOf(b.checkpoint_type);
+      return (aP === -1 ? 99 : aP) - (bP === -1 ? 99 : bP);
+    });
+
+    let entryCount = 0;
+    for (const entry of sorted) {
+      if (entryCount >= maxEntries || tokenCount >= maxTokens) break;
+      const line = `- [${entry.checkpoint_type}] ${entry.topic}${entry.wp_id ? ` (${entry.wp_id})` : ""}`;
+      const lineTokens = Math.ceil(line.length / 4);
+      if (tokenCount + lineTokens > maxTokens) break;
+      lines.push(line);
+      tokenCount += lineTokens;
+      entryCount++;
+
+      // Add decisions if present
+      if (entry.decisions) {
+        const decLine = `  Decisions: ${entry.decisions.slice(0, 150)}`;
+        const decTokens = Math.ceil(decLine.length / 4);
+        if (tokenCount + decTokens <= maxTokens) {
+          lines.push(decLine);
+          tokenCount += decTokens;
+        }
+      }
+    }
+  }
+
+  if (currentSession) {
+    const currentEntries = db.prepare(
+      "SELECT * FROM conversation_log WHERE session_id = ? ORDER BY timestamp_utc ASC"
+    ).all(currentSession.session_id);
+    if (currentEntries.length > 0) {
+      lines.push(`CURRENT SESSION (${currentSession.role || "unknown"}, opened ${currentSession.opened_at?.slice(11, 16) || "?"}Z):`);
+      tokenCount += 15;
+      for (const entry of currentEntries.slice(-5)) {
+        if (tokenCount >= maxTokens) break;
+        const line = `- [${entry.checkpoint_type}] ${entry.topic}`;
+        const lineTokens = Math.ceil(line.length / 4);
+        if (tokenCount + lineTokens > maxTokens) break;
+        lines.push(line);
+        tokenCount += lineTokens;
+      }
+    }
+  }
+
+  return { lines, tokenCount };
+}
+
+export function checkSessionGate() {
+  const session = getCurrentSession();
+  if (!session) {
+    return { open: false, message: "REPOMEM_GATE_FAIL: No active session. Run `just repomem open \"<what this session is about>\"` first." };
+  }
+  // Check staleness — if marker is older than 12 hours, session is likely stale
+  const age = Date.now() - new Date(session.opened_at).getTime();
+  if (age > 12 * 60 * 60 * 1000) {
+    return { open: false, message: `REPOMEM_GATE_FAIL: Session ${session.session_id} is ${Math.round(age / 3600000)}h old. Run \`just repomem close "<summary>"\` then \`just repomem open "<new intent>"\`.` };
+  }
+  return { open: true, session };
 }
 
 // ---------------------------------------------------------------------------

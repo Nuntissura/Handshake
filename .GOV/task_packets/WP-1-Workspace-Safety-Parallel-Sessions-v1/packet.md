@@ -189,9 +189,9 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PASS
+Verdict: PENDING
 Blockers: NONE
-Next: INTEGRATION_VALIDATOR records MERGE_PENDING, then CONTAINED_IN_MAIN once local main contains the approved closure commit.
+Next: ORCHESTRATOR advances verdict progression and integration closeout from the authoritative completed direct-review lane.
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:

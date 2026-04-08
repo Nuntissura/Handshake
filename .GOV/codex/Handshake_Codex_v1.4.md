@@ -102,6 +102,7 @@ Minimum verification for governance-only changes: `just gov-check`. After major 
 [CX-205C] ROLE_RUNTIME_BUCKET: `/.GOV/roles/<role>/runtime/` SHOULD hold role-owned machine state only. New role-owned state belongs here; legacy role-root state files are migration residue and MUST NOT be used as the template for new files.
 [CX-205D] ROLE_TOOLING_BUCKETS: `/.GOV/roles/<role>/scripts/` SHOULD hold role-owned entrypoints, `scripts/lib/` SHOULD hold helper libraries used only by that role's scripts/checks, `checks/` SHOULD hold role-owned enforcement, `tests/` SHOULD hold role-owned governance tests, and `fixtures/` SHOULD hold role-owned test data/golden inputs.
 [CX-205E] SHARED_VS_ROLE_PLACEMENT: If an active governance artifact is used by more than one role, it MUST live under `/.GOV/roles_shared/` instead of a role-local folder.
+[CX-205G] GOVERNANCE_RETIREMENT_ARCHIVE: When governance scripts or governance tests are retired during repo-governance rationalization, they SHOULD be moved to an operator-designated external archive root outside the repo for safekeeping and posterity instead of being hard-deleted. The archive location MUST remain non-runtime guidance only; governance tooling/state MUST NOT depend on a machine-local absolute path.
 [CX-205F] EXTERNAL_BUILD_ARTIFACT_ROOT: Build/test/tool outputs SHOULD live outside the repo working tree at the external sibling root `../Handshake Artifacts/` unless a tool requires another explicitly documented location.
 [CX-206] ROOT_TESTS: `/tests/` SHOULD host automated tests (unit, integration, end-to-end).
 [CX-207] ROOT_DOCS: Root `*.md` files SHOULD hold Master Spec, Codex, roadmap, and other high-level docs.
@@ -222,6 +223,7 @@ Minimum verification for governance-only changes: `just gov-check`. After major 
 [CX-401] SPEC_OVERRULE_PRIORS: Provided specs SHOULD override model priors and generic "best practices" if they conflict.
 
 [CX-402] SPEC_CURRENT_POINTER: If multiple versions of the Master Spec exist in the repo, assistants MUST treat `.GOV/spec/SPEC_CURRENT.md` as the canonical pointer to the current Master Spec for the active workline/session.
+[CX-403] PRODUCT_REFERENCE_IS_NAVIGATION_ONLY: `.GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md` is a navigation aid and summary only. Decisions, technical advice, and implementation guidance MUST be derived from the Master Spec, not from the Product Reference. Do not cite the Product Reference as authority for design choices; always follow the §ref link to the Master Spec section.
 
 [CX-405] SPEC_PROPOSAL_GATE: Before applying any changes to the Master Spec (LAW_2) or Codex (LAW_1), the assistant MUST present a "Spec Proposal" summary to the user.
 

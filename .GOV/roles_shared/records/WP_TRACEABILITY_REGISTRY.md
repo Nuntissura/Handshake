@@ -207,14 +207,14 @@ Format:
 | WP-1-Runtime-Governance-NoExpect | .GOV/task_packets/WP-1-Runtime-Governance-NoExpect-v1.md | Done: WP-1-Runtime-Governance-NoExpect-v1 | active=WP-1-Runtime-Governance-NoExpect-v1; hygiene remediation (remove expect/unwrap in runtime_governance tests) |
 | WP-1-Governance-Pack | .GOV/task_packets/stubs/WP-1-Governance-Pack-v1.md | Stub Backlog (Not Activated): WP-1-Governance-Pack-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Product-Governance-Artifact-Registry | .GOV/task_packets/WP-1-Product-Governance-Artifact-Registry-v1/packet.md | Stub Backlog (Not Activated): WP-1-Product-Governance-Artifact-Registry-v1 | stub (current focus); additive software-delivery governance overlay registry for imported repo-governance artifacts |
-| WP-1-Product-Governance-Check-Runner | .GOV/task_packets/stubs/WP-1-Product-Governance-Check-Runner-v1.md | Stub Backlog (Not Activated): WP-1-Product-Governance-Check-Runner-v1 | stub (current focus); governed execution layer for selected imported repo-governance checks, rubrics, and scripts |
+| WP-1-Product-Governance-Check-Runner | .GOV/task_packets/WP-1-Product-Governance-Check-Runner-v1/packet.md | Stub Backlog (Not Activated): WP-1-Product-Governance-Check-Runner-v1 | stub (current focus); governed execution layer for selected imported repo-governance checks, rubrics, and scripts |
 | WP-1-Spec-Authoring-Rubric | .GOV/task_packets/stubs/WP-1-Spec-Authoring-Rubric-v1.md | Stub Backlog (Not Activated): WP-1-Spec-Authoring-Rubric-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-LocalFirst-Agentic-MCP-Posture | .GOV/task_packets/stubs/WP-1-LocalFirst-Agentic-MCP-Posture-v1.md | Stub Backlog (Not Activated): WP-1-LocalFirst-Agentic-MCP-Posture-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-RAG-Retrieval-Mode-Policy | .GOV/task_packets/stubs/WP-1-RAG-Retrieval-Mode-Policy-v1.md | Stub Backlog (Not Activated): WP-1-RAG-Retrieval-Mode-Policy-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Studio-Runtime-Visibility | .GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.md | Stub Backlog (Not Activated): WP-1-Studio-Runtime-Visibility-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Session-Spawn-Contract | .GOV/task_packets/WP-1-Session-Spawn-Contract-v1/packet.md | Stub Backlog (Not Activated): WP-1-Session-Spawn-Contract-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Provider-Feature-Coverage-Agentic-Ready | .GOV/task_packets/stubs/WP-1-Provider-Feature-Coverage-Agentic-Ready-v1.md | Stub Backlog (Not Activated): WP-1-Provider-Feature-Coverage-Agentic-Ready-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
-| WP-1-Workspace-Safety-Parallel-Sessions | .GOV/task_packets/stubs/WP-1-Workspace-Safety-Parallel-Sessions-v1.md | Stub Backlog (Not Activated): WP-1-Workspace-Safety-Parallel-Sessions-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
+| WP-1-Workspace-Safety-Parallel-Sessions | .GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/packet.md | Stub Backlog (Not Activated): WP-1-Workspace-Safety-Parallel-Sessions-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Session-Crash-Recovery-Checkpointing | .GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/packet.md | Stub Backlog (Not Activated): WP-1-Session-Crash-Recovery-Checkpointing-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Session-Observability-Spans-FR | .GOV/task_packets/stubs/WP-1-Session-Observability-Spans-FR-v1.md | Stub Backlog (Not Activated): WP-1-Session-Observability-Spans-FR-v1 | stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage |
 | WP-1-Structured-Collaboration-Artifact-Family | .GOV/task_packets/WP-1-Structured-Collaboration-Artifact-Family-v1.md | Done: WP-1-Structured-Collaboration-Artifact-Family-v1 | active=WP-1-Structured-Collaboration-Artifact-Family-v1; activated from stub .GOV/task_packets/stubs/WP-1-Structured-Collaboration-Artifact-Family-v1.md |
@@ -244,19 +244,16 @@ Format:
 | WP-1-Spec-Appendices-Backfill | .GOV/task_packets/WP-1-Spec-Appendices-Backfill-v1.md | Done: WP-1-Spec-Appendices-Backfill-v1 | active=WP-1-Spec-Appendices-Backfill-v1; canonical appendix and matrix backfill passes validated through v02.178 |
 | WP-1-Session-Spawn-Tree-DCC-Visualization | .GOV/task_packets/stubs/WP-1-Session-Spawn-Tree-DCC-Visualization-v1.md | TBD | |
 | WP-1-Session-Spawn-Conversation-Distillation | .GOV/task_packets/stubs/WP-1-Session-Spawn-Conversation-Distillation-v1.md | TBD | |
-| WP-1-In-Product-Session-Manager | .GOV/task_packets/stubs/WP-1-In-Product-Session-Manager-v1.md | TBD | |
-| WP-1-Distillation-Training-Pair-Extraction | .GOV/task_packets/stubs/WP-1-Distillation-Training-Pair-Extraction-v1.md | TBD | |
-| WP-1-Ollama-Local-Model-MT-Routing | .GOV/task_packets/stubs/WP-1-Ollama-Local-Model-MT-Routing-v1.md | TBD | |
 | WP-1-Visual-Debugging-Loop | .GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.md | TBD | |
-| WP-1-Product-Compile-Validation-Gate | .GOV/task_packets/stubs/WP-1-Product-Compile-Validation-Gate-v1.md | TBD | |
-| WP-1-Product-Red-Team-Agent | .GOV/task_packets/stubs/WP-1-Product-Red-Team-Agent-v1.md | TBD | |
-| WP-1-Product-MT-Lifecycle-Escalation | .GOV/task_packets/stubs/WP-1-Product-MT-Lifecycle-Escalation-v1.md | TBD | |
-| WP-1-Product-Session-Communication-Database | .GOV/task_packets/stubs/WP-1-Product-Session-Communication-Database-v1.md | TBD | |
-| WP-1-Product-MT-Task-Board | .GOV/task_packets/stubs/WP-1-Product-MT-Task-Board-v1.md | TBD | |
-| WP-1-Product-Failure-Knowledge-Base | .GOV/task_packets/stubs/WP-1-Product-Failure-Knowledge-Base-v1.md | TBD | |
-| WP-1-Product-Session-Health-Monitor | .GOV/task_packets/stubs/WP-1-Product-Session-Health-Monitor-v1.md | TBD | |
-| WP-1-Product-Role-Tool-Permissions | .GOV/task_packets/stubs/WP-1-Product-Role-Tool-Permissions-v1.md | TBD | |
-| WP-1-Product-MT-Quality-Gates | .GOV/task_packets/stubs/WP-1-Product-MT-Quality-Gates-v1.md | TBD | |
+| WP-1-FEMS-Hygiene-Manager-Job | .GOV/task_packets/stubs/WP-1-FEMS-Hygiene-Manager-Job-v1.md | TBD | |
+| WP-1-FEMS-Write-Time-Safeguards | .GOV/task_packets/stubs/WP-1-FEMS-Write-Time-Safeguards-v1.md | TBD | |
+| WP-1-FEMS-Injection-Scoring-Graceful-Degradation | .GOV/task_packets/stubs/WP-1-FEMS-Injection-Scoring-Graceful-Degradation-v1.md | TBD | |
+| WP-1-FEMS-Working-Memory-Checkpoint-Schema | .GOV/task_packets/stubs/WP-1-FEMS-Working-Memory-Checkpoint-Schema-v1.md | TBD | |
+| WP-1-FEMS-Calibration-Dashboard | .GOV/task_packets/stubs/WP-1-FEMS-Calibration-Dashboard-v1.md | TBD | |
+| WP-1-FEMS-Pinned-Core-Memory | .GOV/task_packets/stubs/WP-1-FEMS-Pinned-Core-Memory-v1.md | TBD | |
+| WP-1-FEMS-Bitemporal-Indexing | .GOV/task_packets/stubs/WP-1-FEMS-Bitemporal-Indexing-v1.md | TBD | |
+| WP-1-FEMS-Outcome-Feedback-Loop | .GOV/task_packets/stubs/WP-1-FEMS-Outcome-Feedback-Loop-v1.md | TBD | |
+| WP-1-FEMS-MT-Handoff-Memory-Context | .GOV/task_packets/stubs/WP-1-FEMS-MT-Handoff-Memory-Context-v1.md | TBD | |
 
 ## Historical Failure + Live Smoketest Lineage
 

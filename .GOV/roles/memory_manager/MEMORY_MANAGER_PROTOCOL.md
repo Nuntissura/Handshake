@@ -22,12 +22,19 @@ The Memory Manager is a governed ACP session focused exclusively on memory syste
 
 ## Memory System Architecture (What You Manage)
 
-The memory DB has 3 memory types, 1 snapshot type, and 5 tables:
+The memory DB has 3 memory types, 1 snapshot type, 1 conversation log, and 6 tables:
 
 **Types stored:**
 - `procedural` — fix patterns, error-fix pairs, smoketest findings (coder-facing fail log)
 - `semantic` — distilled facts, architecture patterns, positive controls (coder+validator context)
 - `episodic` — timestamped session events, receipt extractions, pre-task snapshots (orchestrator history)
+
+**Conversation log (`conversation_log` table):**
+- Cross-session conversational memory — captures what was discussed, decided, and discovered
+- Checkpoint types: `SESSION_OPEN`, `PRE_TASK`, `INSIGHT`, `RESEARCH_CLOSE`, `SESSION_CLOSE`
+- Written by all roles via `just repomem` commands; injected into startup prompts as `CONVERSATION CONTEXT`
+- `INSIGHT` entries are the highest-signal source of institutional knowledge — they capture operator decisions, corrections, and discoveries that would otherwise be lost at session end
+- Quality-gated: >=80 chars for open/close/insight, >=40 for pre-task; close requires `--decisions`
 
 **Snapshot types (stored as episodic with `snapshot_type` column):**
 - `PRE_WP_DELEGATION`, `PRE_STEERING`, `PRE_RELAY_DISPATCH`, `PRE_PACKET_CREATE`, `PRE_CLOSEOUT`, `PRE_BOARD_STATUS_CHANGE` — mechanical, captured automatically at script entry points (importance 0.85)
@@ -76,12 +83,15 @@ Your job is to ensure the data that flows through this formula is clean, relevan
 8. **Supersession chain audit** — check `metadata.superseded_by` chains for correctness; if the superseding memory was itself pruned/flagged, un-consolidate the original
 9. **Novelty calibration check** — count entries with importance < 0.2 that were written with novelty penalty; if >30% of recent entries are novelty-penalized, report as potential over-aggressive dedup signal
 10. **Embedding refresh** — if >20% of active entries lack embeddings and Ollama is available, run `just memory-embed --batch 20`
+11. **Conversation insight promotion** — query `conversation_log` for INSIGHT entries that appear across 3+ sessions (same topic); promote to semantic memory with importance 0.8 and `source_artifact=conversation-promotion`. Also promote decisions from the `decisions` column that repeat across 2+ sessions. This is the bridge from ephemeral conversation memory to persistent governance memory.
+12. **Conversation log pruning** — delete `conversation_log` entries from sessions >30 days old that have no INSIGHT or RESEARCH_CLOSE checkpoints (sessions with only OPEN + CLOSE carry minimal value). Sessions with insights are preserved regardless of age.
 
 ### Phase 3: Pattern Analysis
 
-11. **Pattern scan** — run `just memory-patterns --min-wps 2 --min-access 3`, analyze output for systemic issues
-12. **Session diversity check** — query sessions that contribute >5 memories to the active pool; flag sessions that would dominate injection results
-13. **RGF candidate drafting** — from pattern scan + smoketest trends, draft governance improvement candidates with evidence summary
+13. **Pattern scan** — run `just memory-patterns --min-wps 2 --min-access 3`, analyze output for systemic issues
+14. **Session diversity check** — query sessions that contribute >5 memories to the active pool; flag sessions that would dominate injection results
+15. **Conversation checkpoint compliance** — query `conversation_log` for the last 7 days: count SESSION_OPEN vs SESSION_CLOSE (unclosed sessions signal models aren't calling `just repomem close`), count INSIGHTs (zero means models aren't capturing operator decisions), count PRE_TASK from mutation commands (context piggybacking is working)
+16. **RGF candidate drafting** — from pattern scan + smoketest trends + conversation insight patterns, draft governance improvement candidates with evidence summary
 
 ### Phase 4: Report
 
@@ -133,12 +143,15 @@ Write `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md`:
 - DB size status: <OK | APPROACHING_CAP | OVER_CAP> (<N>/500)
 - Embedding coverage: <N>/<N> (<percent>%)
 - Trust distribution: receipt=<N> smoketest=<N> check=<N> manual=<N> flush=<N>
+- Conversation log: <N> entries, <N> sessions, <N> insights
 
 ## Actions Taken
 - Compacted: <N> entries (dedup=<N>, consolidated=<N>, decayed=<N>, pruned=<N>)
 - Flagged: <list of IDs + reasons>
 - Supersession chains repaired: <N>
 - Embeddings added: <N>
+- Conversation insights promoted: <N>
+- Conversation entries pruned: <N>
 
 ## Contradiction Resolutions
 - #<id> vs #<id>: <resolution + rationale>
@@ -147,6 +160,7 @@ Write `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md`:
 - Novelty penalty rate: <percent> of recent entries hit 0.3x (threshold: 30%)
 - Session diversity: <sessions with >5 memories in active pool>
 - Intent snapshot compliance: <count in last 7d> (<assessment>)
+- Conversation checkpoints (7d): OPEN=<N> CLOSE=<N> INSIGHT=<N> PRE_TASK=<N> RESEARCH_CLOSE=<N>
 
 ## RGF Candidates (for orchestrator review)
 - CANDIDATE: <title> — <evidence summary>
