@@ -60,6 +60,16 @@ Rules:
 - Context:
   - Existing repo paths with spaces (e.g., `Handshake Worktrees/`, `Handshake Artifacts/`) are legacy. Full rename is planned but deferred. All NEW paths must comply immediately.
 
+### TG-006
+- Do:
+  - Inspect worktree topology before assuming Git tracking state for governance files.
+- Don't:
+  - Do not infer "repo ignores this folder" from one hidden file or from one worktree's local behavior.
+- Why:
+  - Worktree-local `.git/info/exclude`, `skip-worktree`, and kernel-junction topology can hide or expose files differently from repo-wide `.gitignore`, and wrong assumptions lead to bad cutovers.
+- Context:
+  - Before retiring or replacing a public governance surface, check `git ls-files <path>`, `git check-ignore -v <path>`, the current worktree/branch, and local `.git/info/exclude`.
+
 ### Append Template
 - Do:
   - <short required action>

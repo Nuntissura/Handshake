@@ -156,7 +156,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
   - `exports/` = canonical shared export surfaces
   - `schemas/` = shared governance schemas
   - `scripts/`, `checks/`, `tests/`, `fixtures/` = shared governance tooling
-- `/.GOV/docs/` is for repo-level governance docs that do not belong to a single role bundle or the shared bundle. Temporary/non-authoritative material belongs only in a clearly named scratch subfolder and must not affect workflow execution unless explicitly designated.
+- `/.GOV/docs_repo/` is for repo-level governance docs and running governance logs that do not belong to a single role bundle or the shared bundle. Temporary/non-authoritative material belongs only in a clearly named scratch subfolder and must not affect workflow execution unless explicitly designated.
 - `/.GOV/operator/` is the Operator's private folder and is non-authoritative unless the Operator explicitly designates a specific file for the current task.
 
 ## Governance/Workflow Changes (No WP Required)
@@ -494,7 +494,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
   6. Run `just phase-check HANDOFF WP-{ID} CODER` on the clean tree
   7. Notify Validator with the PASS output and commit SHA
 - To fill `Pre-SHA1` / `Post-SHA1` deterministically, stage your changes and run `just cor701-sha path/to/file` (use the recommended values it prints).
-- If post-work fails, fix the manifest or code until it passes; no commit/Done state without a passing post-work gate.
+- If the handoff phase check fails, fix the manifest or code until it passes; no commit/Done state without a passing `phase-check HANDOFF` gate.
 
 ## Active Workflow Adjustment [2025-12-28]
 - Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
@@ -1233,7 +1233,7 @@ grep -r "println!\|eprintln!" src/backend/handshake_core/src/ --include="*.rs"
 grep -r "TODO\|FIXME\|XXX" src/backend/handshake_core/src/ --include="*.rs" | grep -v "TODO(HSK-"
 ```
 
-**Result:** If any commands return matches, fix violations before proceeding to post-work.
+**Result:** If any commands return matches, fix violations before proceeding to the handoff phase check.
 
 ---
 
@@ -1319,7 +1319,7 @@ Fix issues, re-run tests, update your evidence in `## EVIDENCE`.
 
 ### Step 7.5: Test Coverage Verification [CX-572A-COVERAGE]
 
-**Purpose:** Ensure test coverage meets minimum thresholds per RISK_TIER before post-work.
+**Purpose:** Ensure test coverage meets minimum thresholds per RISK_TIER before the handoff phase check.
 
 **Coverage Minimums by Risk Tier:**
 
@@ -1370,7 +1370,7 @@ Risk Assessment:
 Approved by: {orchestrator decision or team agreement}
 ```
 
-**Rule:** Do NOT proceed to post-work if coverage below threshold AND no approved waiver.
+**Rule:** Do NOT proceed to the handoff phase check if coverage is below threshold and no approved waiver exists.
 
 ---
 
@@ -1472,7 +1472,7 @@ VALIDATION SUMMARY:
 - pnpm test: âœ… PASS (Y tests)
 - pnpm lint: âœ… PASS
 - cargo clippy: âœ… PASS (0 warnings)
-- gates (post-work): âœ… PASS (deterministic manifest; not tests)
+- gates (handoff phase check): âœ… PASS (deterministic manifest; not tests)
 
 FILES_CHANGED:
 - src/backend/handshake_core/src/api/jobs.rs
@@ -1880,7 +1880,7 @@ Stop immediately if ANY of these are true:
 | **7** | TEST_PLAN has placeholders | BLOCK: Orchestrator fix needed |
 | **8** | Test fails and isn't fixed | BLOCK: Fix code, re-test |
 | **9** | Manual review blocks (HIGH risk) | BLOCK: Fix code, re-run |
-| **10** | post-work validation fails | BLOCK: Fix errors, re-run |
+| **10** | handoff phase check fails | BLOCK: Fix errors, re-run |
 | **11** | DONE_MEANS missing evidence | BLOCK: Cannot claim done |
 | **12** | work packet not updated | BLOCK: Update before commit |
 | **13** | Commit message missing WP-ID | BLOCK: Add reference |
@@ -1906,7 +1906,7 @@ Stop immediately if ANY of these are true:
 
 1. âŒ "Packet incomplete, but I'll proceed anyway" â†’ BLOCK and request fix
 2. âŒ "Found a bug in related code, let me fix it" â†’ Document in NOTES, don't implement
-3. âŒ "Tests passing, so I'm done" â†’ Also complete post-work and request manual review
+3. âŒ "Tests passing, so I'm done" â†’ Also complete the handoff phase check and request manual review
 4. âŒ "I'll update packet after I commit" â†’ Update BEFORE commit
 5. âŒ "Manual review is required" â†’ BLOCK means fix code and re-review
 6. âŒ "This hard invariant is annoying, I'll skip it" â†’ Non-negotiable; Validator will catch it

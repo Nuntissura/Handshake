@@ -110,8 +110,8 @@ Minimum verification for governance-only changes: `just gov-check`. After major 
 [CX-207B] REPO_ROOT_RUNTIME_TRANSITION: Repo-root runtime paths such as `data/` and `.handshake/` are transitional legacy surfaces. Assistants MUST NOT treat them as the placement model for new product runtime outputs when the external product runtime root can be used instead.
 
 [CX-208] ROOT_DOCS_CANONICAL: `/.GOV/` MUST contain canonical operational docs used for onboarding, navigation, and debugging.
-[CX-208A] ROOT_GOV_DOCS: `/.GOV/docs/` SHOULD hold repo-level governance docs that do not belong to a single role bundle or the shared bundle.
-[CX-208B] ROOT_GOV_DOCS_TEMP: Temporary or non-authoritative files under `/.GOV/docs/` MUST live in a clearly named scratch subfolder (for example `/.GOV/docs/tmp/`) and MUST NOT affect workflow execution or governance checks unless explicitly designated for the current task.
+[CX-208A] ROOT_GOV_DOCS: `/.GOV/docs_repo/` SHOULD hold repo-level governance docs, bridge notes, and running governance logs that do not belong to a single role bundle or the shared bundle.
+[CX-208B] ROOT_GOV_DOCS_TEMP: Temporary or non-authoritative files under `/.GOV/docs_repo/` MUST live in a clearly named scratch subfolder (for example `/.GOV/docs_repo/tmp/`) and MUST NOT affect workflow execution or governance checks unless explicitly designated for the current task.
 [CX-208C] GOV_NAV_DOCS_NON_NORMATIVE: `/.GOV/README.md`, `/.GOV/roles/README.md`, `/.GOV/roles_shared/README.md`, and `/.GOV/roles_shared/docs/START_HERE.md` are navigation/onboarding aids only. Folder-placement law MUST live in this Codex plus the active role protocols; navigation docs MUST NOT introduce conflicting or additional placement law.
 [CX-209] SHARED_BUNDLE_ROOT: `/.GOV/roles_shared/` uses a fixed shared structure and SHOULD contain only `README.md` plus the canonical subfolders `docs/`, `records/`, `runtime/`, `exports/`, `schemas/`, `scripts/`, `checks/`, `tests/`, and `fixtures/`.
 [CX-209A] SHARED_DOCS_BUCKET: `/.GOV/roles_shared/docs/` MUST hold active shared guidance such as onboarding, architecture, boundary, debug, quality-gate, and workflow guidance.
@@ -601,8 +601,9 @@ Clarification: governance/workflow/tooling surface lives in `justfile`, `/.GOV/r
 - `just create-task-packet {wp-id}` - Creates task packet from template
 - `just phase-check STARTUP {wp-id} CODER` - Validates readiness before implementation
 - `just phase-check HANDOFF {wp-id} CODER` - Validates completeness before commit
-- `just validate-workflow {wp-id}` - Full workflow compliance check
+- `just phase-check CLOSEOUT {wp-id}` - Canonical final-lane closeout bundle; may also write governed closeout truth through `--sync-mode ... --context ...`
 - `just gov-check` - Governance-only health checks (no product scans)
+- `just canonise-gov` - Governance canonisation review sweep for active authority/navigation surfaces
 
 [CX-904] ENFORCEMENT_CI: GitHub Actions SHOULD verify:
 - All commits reference task packets via WP-ID
@@ -629,7 +630,7 @@ Clarification: governance/workflow/tooling surface lives in `justfile`, `/.GOV/r
 [CX-950] VERSION_ID: This codex is `Handshake Codex v1.4 (AI Autonomy with Deterministic Enforcement)`.
 [CX-951] VERSION_FROM: v1.4 supersedes v1.3 for all use. v1.3 MAY still be referenced for comparison but v1.4 is authoritative.
 
-[CX-960] CHANGE_SUMMARY_V08_1: v0.8 strengthens orchestrator and coder requirements from SHOULD to MUST for AI autonomy. Task packet creation [CX-580] and coder pre-work verification [CX-620] are now mandatory and blocking.
+[CX-960] CHANGE_SUMMARY_V08_1: v0.8 strengthens orchestrator and coder requirements from SHOULD to MUST for AI autonomy. Task packet creation [CX-580] and coder startup-phase verification [CX-620] are now mandatory and blocking.
 
 [CX-961] CHANGE_SUMMARY_V08_2: v0.8 adds Section 9 "Automated Enforcement" defining required scripts, hooks, and CI checks to enforce workflow deterministically without relying on AI agent compliance alone.
 

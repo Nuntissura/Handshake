@@ -157,7 +157,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
   - `exports/` = canonical shared export surfaces
   - `schemas/` = shared governance schemas
   - `scripts/`, `checks/`, `tests/`, `fixtures/` = shared governance tooling
-- `/.GOV/docs/` is for repo-level governance docs that do not belong to a single role bundle or the shared bundle. Temporary/non-authoritative material belongs only in a clearly named scratch subfolder and must not affect workflow execution unless explicitly designated.
+- `/.GOV/docs_repo/` is for repo-level governance docs and running governance logs that do not belong to a single role bundle or the shared bundle. Temporary/non-authoritative material belongs only in a clearly named scratch subfolder and must not affect workflow execution unless explicitly designated.
 - `/.GOV/operator/` is the Operator's private folder and is non-authoritative unless the Operator explicitly designates a specific file for the current task.
 
 Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Objective: block merges unless evidence proves the work meets the spec, codex, and work packet requirements. Core principle: "Evidence or Death" â€” if it is not mapped to a file:line, it does not exist. No rubber-stamping.
@@ -217,7 +217,7 @@ Minimum verification for governance-only changes: `just gov-check`.
     - Locate the WP worktree/branch via `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
     - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --show-toplevel` and `git -C "<worktree_dir>" status -sb`.
     - **Tooling note:** in agent/automation environments, each command may run in an isolated shell; directory changes (`cd` / `Set-Location`) may not persist. Prefer explicit workdir or `git -C "<worktree_dir>" ...` so you cannot accidentally read/validate the wrong tree.
-    - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" pre-work <WP_ID>`; do not trust the role worktree copy if it disagrees.
+    - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" phase-check STARTUP <WP_ID> CODER`; do not trust the role worktree copy if it disagrees.
     - If the work packet/spec is missing or stale in the role worktree, treat that as drift; read from the WP worktree (per PREPARE) as the source of truth.
     - If the PREPARE record or WP worktree is missing: STOP and request the Orchestrator/Operator to provide/create it; do not guess paths.
 - Inputs required: work packet (STATUS not empty), .GOV/spec/SPEC_CURRENT.md, applicable spec slices, current diff.
@@ -563,7 +563,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - For each clause, record one explicit bullet under `CLAUSES_REVIEWED` with the clause identifier/text fragment plus file:line evidence.
 - If any clause is only partially proven, blocked by environment, or inferred indirectly, do not hide that in prose; record it under `NOT_PROVEN` and downgrade `SPEC_ALIGNMENT_VERDICT` accordingly.
 - `SPEC_ALIGNMENT_VERDICT=PASS` is legal only when every diff-scoped clause claimed by DONE_MEANS + SPEC_ANCHOR is listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `- NONE`.
-- Automation gates (`pre-work`, `phase-check HANDOFF`, `phase-check CLOSEOUT`, `gov-check`) prove workflow legality and hygiene. They do not, by themselves, prove spec completeness.
+- Automation gates (`phase-check STARTUP`, `phase-check HANDOFF`, `phase-check CLOSEOUT`, `gov-check`) prove workflow legality and hygiene. They do not, by themselves, prove spec completeness.
 
 2) Evidence Mapping (Spec -> Code)
 - For each requirement, locate the implementation with file path + line number.

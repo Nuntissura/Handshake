@@ -198,6 +198,7 @@ Primary commands (per WP validation):
 - `just phase-check HANDOFF WP-... WP_VALIDATOR`
 - `just phase-check VERDICT WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR`
 - `just phase-check CLOSEOUT WP-...`
+- governed closeout write through the same phase surface: `just phase-check CLOSEOUT WP-... --sync-mode <MODE> --context "<why this truth is being written>"`
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
 - `just product-scan` (product boundary enforcement)

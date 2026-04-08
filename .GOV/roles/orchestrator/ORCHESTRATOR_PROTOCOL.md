@@ -51,7 +51,7 @@ MANDATORY - The Orchestrator is the workflow authority. This file defines the cu
 
 - `/.GOV/` is the governance workspace.
 - Product code under `/src/`, `/app/`, and `/tests/` must not read or write `/.GOV/`.
-- `/.GOV/docs/` is for repo-level governance docs. Temporary or non-authoritative material belongs only in a clearly named scratch subfolder.
+- `/.GOV/docs_repo/` is for repo-level governance docs and running governance logs. Temporary or non-authoritative material belongs only in a clearly named scratch subfolder.
 - `/.GOV/operator/` is Operator-private and non-authoritative unless the Operator explicitly designates a file for the current task.
 - **No spaces in names [CX-109A]:** All new files and folders created by governance or product code MUST use `_` or `-` instead of spaces. This applies to governance artifacts, WP files, scripts, and any product files created during WP work. When delegating to the Coder, the Orchestrator MUST ensure the packet scope and file targets do not introduce spaces. Existing spaces are legacy; rename when touched.
 
@@ -378,7 +378,7 @@ Resume rule:
 The orchestrator owns the governance memory lifecycle [CX-503K]:
 - **Orchestrator memory injection:** At startup, you receive a `GOVERNANCE MEMORY` block (up to 2000 tokens) containing cross-WP memories — semantic patterns, procedural fixes, and governance lessons scored by type priority (semantic > procedural > episodic) and systemic relevance. Coders receive procedural only (fail log, 1500 tokens). Validators receive procedural + semantic (1500 tokens).
 - **Automatic maintenance:** `just memory-refresh` runs at every role startup (orchestrator, coder, validator) and during `just gov-check`. Dual-gate compaction: triggers only when BOTH time (>24h) AND activity (>5 new entries) thresholds are met. Extraction always runs (idempotent).
-- **Event-driven extraction:** Every `wp-receipt-append` immediately extracts a memory entry for high-signal receipt kinds — memory is a live service, not a batch job [RGF-126]. Check failures (validator-scan, pre-work, post-work) are auto-captured as procedural memories.
+- **Event-driven extraction:** Every `wp-receipt-append` immediately extracts a memory entry for high-signal receipt kinds — memory is a live service, not a batch job [RGF-126]. Check failures (`validator-scan`, `phase-check STARTUP`, `phase-check HANDOFF`) are auto-captured as procedural memories.
 - **Session-end flush:** CLOSE_SESSION captures a semantic summary of the session (WP, MTs, receipt breakdown, outcome) before closing [RGF-136].
 - **Pattern synthesis:** Run `just memory-patterns` to detect systemic issues — recurring failures across WPs, repeated REPAIR transitions, high-access memories worth codifying. Review output and promote candidates to RGF items.
 - **Pre-task snapshots [RGF-144-147]:** Before complex governance operations, the system automatically captures a high-signal context snapshot (importance 0.85) into memory. Snapshot types: `PRE_WP_DELEGATION` (before role launch), `PRE_STEERING` (before steer-next routing), `PRE_RELAY_DISPATCH` (before manual relay), `PRE_PACKET_CREATE` (before packet generation), `PRE_CLOSEOUT` (before integration-validator closeout), `PRE_BOARD_STATUS_CHANGE` (before task-board-set). These capture the full decision context so post-hoc analysis can compare intent vs outcome. Snapshots appear in your `GOVERNANCE MEMORY` startup block under a `SNAPSHOTS:` section. Inspect with `just memory-debug-snapshot [WP-{ID}]`.
