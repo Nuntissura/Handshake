@@ -245,6 +245,15 @@ Format:
 | WP-1-Session-Spawn-Tree-DCC-Visualization | .GOV/task_packets/stubs/WP-1-Session-Spawn-Tree-DCC-Visualization-v1.md | TBD | |
 | WP-1-Session-Spawn-Conversation-Distillation | .GOV/task_packets/stubs/WP-1-Session-Spawn-Conversation-Distillation-v1.md | TBD | |
 | WP-1-Visual-Debugging-Loop | .GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.md | TBD | |
+| WP-1-FEMS-Hygiene-Manager-Job | .GOV/task_packets/stubs/WP-1-FEMS-Hygiene-Manager-Job-v1.md | TBD | |
+| WP-1-FEMS-Write-Time-Safeguards | .GOV/task_packets/stubs/WP-1-FEMS-Write-Time-Safeguards-v1.md | TBD | |
+| WP-1-FEMS-Injection-Scoring-Graceful-Degradation | .GOV/task_packets/stubs/WP-1-FEMS-Injection-Scoring-Graceful-Degradation-v1.md | TBD | |
+| WP-1-FEMS-Working-Memory-Checkpoint-Schema | .GOV/task_packets/stubs/WP-1-FEMS-Working-Memory-Checkpoint-Schema-v1.md | TBD | |
+| WP-1-FEMS-Calibration-Dashboard | .GOV/task_packets/stubs/WP-1-FEMS-Calibration-Dashboard-v1.md | TBD | |
+| WP-1-FEMS-Pinned-Core-Memory | .GOV/task_packets/stubs/WP-1-FEMS-Pinned-Core-Memory-v1.md | TBD | |
+| WP-1-FEMS-Bitemporal-Indexing | .GOV/task_packets/stubs/WP-1-FEMS-Bitemporal-Indexing-v1.md | TBD | |
+| WP-1-FEMS-Outcome-Feedback-Loop | .GOV/task_packets/stubs/WP-1-FEMS-Outcome-Feedback-Loop-v1.md | TBD | |
+| WP-1-FEMS-MT-Handoff-Memory-Context | .GOV/task_packets/stubs/WP-1-FEMS-MT-Handoff-Memory-Context-v1.md | TBD | |
 
 ## Historical Failure + Live Smoketest Lineage
 
