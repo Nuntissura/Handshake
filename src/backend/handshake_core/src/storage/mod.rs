@@ -1484,6 +1484,35 @@ pub struct WorkflowRun {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GovernanceCheckRun {
+    pub id: Uuid,
+    pub check_id: Uuid,
+    pub session_id: Uuid,
+    pub check_name: String,
+    pub check_kind: String,
+    pub descriptor_hash: String,
+    pub result_status: String,
+    pub checks_duration_ms: u64,
+    pub evidence_artifact_id: Option<String>,
+    pub evidence_artifact_content_hash: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug)]
+pub struct NewGovernanceCheckRun {
+    pub check_id: Uuid,
+    pub session_id: Uuid,
+    pub check_name: String,
+    pub check_kind: String,
+    pub descriptor_hash: String,
+    pub result_status: String,
+    pub checks_duration_ms: u64,
+    pub evidence_artifact_id: Option<String>,
+    pub evidence_artifact_content_hash: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorkflowNodeExecution {
     pub id: Uuid,
     pub workflow_run_id: Uuid,
@@ -2022,6 +2051,19 @@ pub trait Database: Send + Sync {
         run_id: Uuid,
     ) -> StorageResult<Vec<WorkflowNodeExecution>>;
     async fn find_stalled_workflows(&self, threshold_secs: u64) -> StorageResult<Vec<WorkflowRun>>;
+
+    async fn create_governance_check_run(
+        &self,
+        ctx: &WriteContext,
+        run: NewGovernanceCheckRun,
+    ) -> StorageResult<GovernanceCheckRun> {
+        let _ = (ctx, run);
+        Err(StorageError::NotImplemented("create_governance_check_run"))
+    }
+    async fn list_governance_check_runs(&self, session_id: Uuid) -> StorageResult<Vec<GovernanceCheckRun>> {
+        let _ = session_id;
+        Err(StorageError::NotImplemented("list_governance_check_runs"))
+    }
 
     // Mutation guard
     async fn validate_write_with_guard(

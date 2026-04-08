@@ -1,6 +1,25 @@
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+use tokio::time::timeout;
 use uuid::Uuid;
+
+use crate::flight_recorder::{
+    FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+};
+use crate::mex::gates::GOVERNANCE_CHECK_TOOL_CAPABILITY;
+use crate::storage::{
+    artifacts::{
+        validate_artifact_content_hash, write_file_artifact, ArtifactClassification, ArtifactLayer,
+        ArtifactManifest, ArtifactPayloadKind,
+    },
+    Database, NewGovernanceCheckRun, WriteContext,
+};
 
 /// FR-EVT-GOV-CHECK-001
 pub const FR_EVT_GOV_CHECK_STARTED: &str = "FR-EVT-GOV-CHECK-001";
@@ -8,6 +27,530 @@ pub const FR_EVT_GOV_CHECK_STARTED: &str = "FR-EVT-GOV-CHECK-001";
 pub const FR_EVT_GOV_CHECK_COMPLETED: &str = "FR-EVT-GOV-CHECK-002";
 /// FR-EVT-GOV-CHECK-003
 pub const FR_EVT_GOV_CHECK_BLOCKED: &str = "FR-EVT-GOV-CHECK-003";
+/// Default timeout for governance checks when no check-level timeout is supplied.
+pub const CHECK_RUNNER_DEFAULT_TIMEOUT_MS: u64 = 5_000;
+
+#[derive(Debug)]
+pub enum CheckRunnerError {
+    FlightRecorder(crate::flight_recorder::RecorderError),
+    Artifact(crate::storage::artifacts::ArtifactError),
+    Storage(crate::storage::StorageError),
+    CapabilityGate(Vec<String>),
+    ExecutionTimeout,
+    Serialization(serde_json::Error),
+    Generic(String),
+}
+
+impl From<crate::flight_recorder::RecorderError> for CheckRunnerError {
+    fn from(value: crate::flight_recorder::RecorderError) -> Self {
+        Self::FlightRecorder(value)
+    }
+}
+
+impl From<crate::storage::artifacts::ArtifactError> for CheckRunnerError {
+    fn from(value: crate::storage::artifacts::ArtifactError) -> Self {
+        Self::Artifact(value)
+    }
+}
+
+impl From<crate::storage::StorageError> for CheckRunnerError {
+    fn from(value: crate::storage::StorageError) -> Self {
+        Self::Storage(value)
+    }
+}
+
+impl From<serde_json::Error> for CheckRunnerError {
+    fn from(value: serde_json::Error) -> Self {
+        Self::Serialization(value)
+    }
+}
+
+impl std::fmt::Display for CheckRunnerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::FlightRecorder(err) => write!(f, "{err}"),
+            Self::Artifact(err) => write!(f, "{err}"),
+            Self::Storage(err) => write!(f, "{err}"),
+            Self::CapabilityGate(missing) => {
+                write!(f, "governance precheck denied: missing capabilities {missing:?}")
+            }
+            Self::ExecutionTimeout => write!(f, "check execution timed out"),
+            Self::Serialization(err) => write!(f, "{err}"),
+            Self::Generic(err) => write!(f, "{err}"),
+        }
+    }
+}
+
+impl std::error::Error for CheckRunnerError {}
+
+/// Runtime service that executes governance check descriptors under a bounded lifecycle.
+#[derive(Clone)]
+pub struct CheckRunner {
+    flight_recorder: Arc<dyn FlightRecorder>,
+    database: Option<Arc<dyn Database>>,
+    workspace_root: PathBuf,
+    supported_kinds: Vec<String>,
+    default_timeout_ms: u64,
+}
+
+#[derive(Debug, Clone)]
+struct CapturedEvidence {
+    artifact_id: String,
+    content_hash: String,
+}
+
+impl CheckRunner {
+    pub fn new(flight_recorder: Arc<dyn FlightRecorder>, workspace_root: PathBuf) -> Self {
+        Self {
+            flight_recorder,
+            database: None,
+            workspace_root,
+            supported_kinds: vec!["native".to_string()],
+            default_timeout_ms: CHECK_RUNNER_DEFAULT_TIMEOUT_MS,
+        }
+    }
+
+    pub fn with_database(mut self, database: Arc<dyn Database>) -> Self {
+        self.database = Some(database);
+        self
+    }
+
+    pub fn with_supported_kinds(mut self, supported_kinds: Vec<String>) -> Self {
+        self.supported_kinds = supported_kinds;
+        self
+    }
+
+    pub fn with_default_timeout_ms(mut self, timeout_ms: u64) -> Self {
+        self.default_timeout_ms = timeout_ms;
+        self
+    }
+
+    pub async fn run_check(
+        &self,
+        descriptor: CheckDescriptor,
+        session_id: Uuid,
+        granted_capabilities: &[String],
+    ) -> Result<CheckResult, CheckRunnerError> {
+        let _pre_check = CheckRunnerLifecycle::PreCheck(CheckPreCheck {
+            check_id: descriptor.check_id,
+            descriptor: descriptor.clone(),
+            blocked_reason: None,
+        });
+
+        let started_at = Instant::now();
+        let descriptor_hash = self.compute_descriptor_hash(&descriptor)?;
+        let (result, evidence) = match self
+            .run_pre_check(&descriptor, session_id, &descriptor_hash, granted_capabilities)
+            .await?
+        {
+            Some(result) => (result, None),
+            None => self
+                .run_execution_phase(&descriptor, &descriptor_hash)
+                .await?,
+        };
+        let elapsed_ms = started_at.elapsed().as_millis() as u64;
+
+        self.emit_runtime_completion(
+            &descriptor,
+            session_id,
+            &result,
+            elapsed_ms,
+            evidence.as_ref().and_then(|evidence| Some(evidence.artifact_id.as_str())),
+        )
+        .await?;
+
+        if let Some(db) = &self.database {
+            self.persist_check_run_result(
+                db,
+                &descriptor,
+                session_id,
+                &descriptor_hash,
+                &result,
+                elapsed_ms,
+                evidence.as_ref(),
+            )
+            .await?;
+        }
+
+        let _post_check = CheckRunnerLifecycle::PostCheck(CheckPostCheck {
+            check_id: descriptor.check_id,
+            result: result.clone(),
+            evidence_artifact_id: evidence.as_ref().map(|entry| entry.artifact_id.clone()),
+        });
+
+        Ok(result)
+    }
+
+    async fn run_pre_check(
+        &self,
+        descriptor: &CheckDescriptor,
+        session_id: Uuid,
+        descriptor_hash: &str,
+        granted_capabilities: &[String],
+    ) -> Result<Option<CheckResult>, CheckRunnerError> {
+        let _ = CheckRunnerLifecycle::PreCheck(CheckPreCheck {
+            check_id: descriptor.check_id,
+            descriptor: descriptor.clone(),
+            blocked_reason: None,
+        });
+
+        self.emit_started_event(&descriptor, session_id, descriptor_hash)
+            .await?;
+        let missing = self.missing_capabilities(&descriptor, granted_capabilities);
+
+        if !missing.is_empty() {
+            let blocked = CheckResult::Blocked(CheckBlockedDetails {
+                reason: "missing required check capability".to_string(),
+                missing_capabilities: missing,
+            });
+            return Ok(Some(blocked));
+        }
+
+        if !self.supported_kinds.contains(&descriptor.check_kind) {
+            let unsupported = CheckResult::Unsupported(CheckUnsupportedDetails {
+                check_kind: descriptor.check_kind.clone(),
+                reason: "unsupported check kind".to_string(),
+                remediation: Some(format!(
+                    "Use check_kind {:?} supported by this runtime.",
+                    self.supported_kinds
+                )),
+                supported_kinds: self.supported_kinds.clone(),
+            });
+            return Ok(Some(unsupported));
+        }
+
+        Ok(None)
+    }
+
+    async fn run_execution_phase(
+        &self,
+        descriptor: &CheckDescriptor,
+        descriptor_hash: &str,
+    ) -> Result<(CheckResult, Option<CapturedEvidence>), CheckRunnerError> {
+        let _ = CheckRunnerLifecycle::Check(CheckExecution {
+            check_id: descriptor.check_id,
+            started_at_epoch_ms: Some(self.current_epoch_ms()),
+        });
+
+        let check_timeout_ms = descriptor
+            .timeout_ms
+            .unwrap_or(self.default_timeout_ms.max(1));
+        let execution = self.execute_check(descriptor, descriptor_hash);
+        let mut result = match timeout(Duration::from_millis(check_timeout_ms), execution).await {
+            Ok(execution_result) => execution_result?,
+            Err(_) => CheckResult::Blocked(CheckBlockedDetails {
+                reason: "check execution exceeded timeout".to_string(),
+                missing_capabilities: vec!["execution_timeout".to_string()],
+            }),
+        };
+
+        let evidence = self
+            .capture_evidence_if_applicable(&descriptor, descriptor_hash, &mut result)
+            .await?;
+        Ok((result, evidence))
+    }
+
+    async fn persist_check_run_result(
+        &self,
+        db: &Arc<dyn Database>,
+        descriptor: &CheckDescriptor,
+        session_id: Uuid,
+        descriptor_hash: &str,
+        result: &CheckResult,
+        elapsed_ms: u64,
+        evidence: Option<&CapturedEvidence>,
+    ) -> Result<(), CheckRunnerError> {
+        let persistence = NewGovernanceCheckRun {
+            check_id: descriptor.check_id,
+            session_id,
+            check_name: descriptor.name.clone(),
+            check_kind: descriptor.check_kind.clone(),
+            descriptor_hash: descriptor_hash.to_string(),
+            result_status: result.status().to_string(),
+            checks_duration_ms: elapsed_ms,
+            evidence_artifact_id: evidence.map(|evidence| evidence.artifact_id.clone()),
+            evidence_artifact_content_hash: evidence.map(|evidence| evidence.content_hash.clone()),
+        };
+
+        let _ = db
+            .create_governance_check_run(
+                &WriteContext::system(Some("governance_check_runner".to_string())),
+                persistence,
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn emit_runtime_completion(
+        &self,
+        descriptor: &CheckDescriptor,
+        session_id: Uuid,
+        result: &CheckResult,
+        elapsed_ms: u64,
+        evidence_artifact_id: Option<&str>,
+    ) -> Result<(), CheckRunnerError> {
+        match result {
+            CheckResult::Blocked(details) => {
+                self.emit_blocked_event(descriptor.check_id, session_id, &details.reason)
+                    .await
+            }
+            CheckResult::Unsupported(details) => {
+                self.emit_blocked_event(descriptor.check_id, session_id, &details.reason).await
+            }
+            _ => {
+                self.emit_completed_event(
+                    descriptor.check_id,
+                    session_id,
+                    result.status(),
+                    elapsed_ms,
+                    evidence_artifact_id.map(|id| id.to_string()),
+                )
+                .await
+            }
+        }
+    }
+
+    fn current_epoch_ms(&self) -> u64 {
+        let _ = self;
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |duration| duration.as_millis() as u64)
+    }
+
+    async fn emit_started_event(
+        &self,
+        descriptor: &CheckDescriptor,
+        session_id: Uuid,
+        descriptor_hash: &str,
+    ) -> Result<(), CheckRunnerError> {
+        let payload = json!({
+            "type": "governance.check.started",
+            "check_id": descriptor.check_id,
+            "session_id": session_id,
+            "check_descriptor_hash": descriptor_hash,
+        });
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::GovernanceCheckStarted,
+            FlightRecorderActor::Agent,
+            Uuid::new_v4(),
+            payload,
+        )
+        .with_actor_id("governance_check_runner");
+
+        self.flight_recorder.record_event(event).await?;
+        Ok(())
+    }
+
+    async fn emit_completed_event(
+        &self,
+        check_id: Uuid,
+        session_id: Uuid,
+        result_status: &str,
+        duration_ms: u64,
+        evidence_artifact_id: Option<String>,
+    ) -> Result<(), CheckRunnerError> {
+        let payload = json!({
+            "type": "governance.check.completed",
+            "check_id": check_id,
+            "session_id": session_id,
+            "result_status": result_status,
+            "duration_ms": duration_ms,
+            "evidence_artifact_id": evidence_artifact_id,
+        });
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::GovernanceCheckCompleted,
+            FlightRecorderActor::Agent,
+            Uuid::new_v4(),
+            payload,
+        )
+        .with_actor_id("governance_check_runner");
+
+        self.flight_recorder.record_event(event).await?;
+        Ok(())
+    }
+
+    async fn emit_blocked_event(
+        &self,
+        check_id: Uuid,
+        session_id: Uuid,
+        blocked_reason: &str,
+    ) -> Result<(), CheckRunnerError> {
+        let payload = json!({
+            "type": "governance.check.blocked",
+            "check_id": check_id,
+            "session_id": session_id,
+            "blocked_reason": blocked_reason,
+        });
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::GovernanceCheckBlocked,
+            FlightRecorderActor::Agent,
+            Uuid::new_v4(),
+            payload,
+        )
+        .with_actor_id("governance_check_runner");
+
+        self.flight_recorder.record_event(event).await?;
+        Ok(())
+    }
+
+    async fn execute_check(
+        &self,
+        descriptor: &CheckDescriptor,
+        descriptor_hash: &str,
+    ) -> Result<CheckResult, CheckRunnerError> {
+        if !self
+            .supported_kinds
+            .iter()
+            .any(|kind| kind == &descriptor.check_kind)
+        {
+            return Ok(CheckResult::Unsupported(CheckUnsupportedDetails {
+                check_kind: descriptor.check_kind.clone(),
+                reason: "unsupported check kind".to_string(),
+                remediation: Some(format!(
+                    "Use check_kind {:?} supported by this runtime.",
+                    self.supported_kinds
+                )),
+                supported_kinds: self.supported_kinds.clone(),
+            }));
+        }
+
+        let delay_ms = descriptor
+            .parameters
+            .get("simulate_delay_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        if delay_ms > 0 {
+            tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+        }
+
+        match descriptor.check_kind.as_str() {
+            "native" => {
+                let checks_passed = descriptor
+                    .parameters
+                    .get("checks_passed")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1);
+                Ok(CheckResult::Pass(CheckPassDetails {
+                    summary: format!(
+                        "check {} executed (descriptor_hash={})",
+                        descriptor.name, descriptor_hash,
+                    ),
+                    evidence_artifact_id: None,
+                    checks_passed: checks_passed as usize,
+                    duration_ms: None,
+                }))
+            }
+            _ => Ok(CheckResult::Unsupported(CheckUnsupportedDetails {
+                check_kind: descriptor.check_kind.clone(),
+                reason: "unsupported check kind".to_string(),
+                remediation: Some("use supported check kind".to_string()),
+                supported_kinds: self.supported_kinds.clone(),
+            })),
+        }
+    }
+
+    async fn capture_evidence_if_applicable(
+        &self,
+        descriptor: &CheckDescriptor,
+        descriptor_hash: &str,
+        result: &mut CheckResult,
+    ) -> Result<Option<CapturedEvidence>, CheckRunnerError> {
+        let status = result.status();
+        let should_capture = matches!(
+            status,
+            "pass" | "fail" | "advisory_only"
+        );
+        if !should_capture {
+            return Ok(None);
+        }
+
+        let artifact_id = Uuid::new_v4();
+        let artifact_id_str = artifact_id.to_string();
+        let payload = json!({
+            "check_id": descriptor.check_id,
+            "check_name": descriptor.name,
+            "check_kind": descriptor.check_kind,
+            "descriptor_hash": descriptor_hash,
+            "result": result,
+        });
+        let payload_bytes = serde_json::to_vec_pretty(&payload)?;
+        let content_hash = {
+            let mut hasher = Sha256::new();
+            hasher.update(&payload_bytes);
+            hex::encode(hasher.finalize())
+        };
+
+        let manifest = ArtifactManifest {
+            artifact_id,
+            layer: ArtifactLayer::L1,
+            kind: ArtifactPayloadKind::Report,
+            mime: "application/json".to_string(),
+            filename_hint: Some(format!("governance-check-{}.json", descriptor.check_id)),
+            created_at: chrono::Utc::now(),
+            created_by_job_id: None,
+            source_entity_refs: Vec::new(),
+            source_artifact_refs: Vec::new(),
+            content_hash: content_hash.clone(),
+            size_bytes: payload_bytes.len() as u64,
+            classification: ArtifactClassification::Low,
+            exportable: true,
+            retention_ttl_days: None,
+            pinned: None,
+            hash_basis: Some("payload".to_string()),
+            hash_exclude_paths: Vec::new(),
+        };
+        write_file_artifact(&self.workspace_root, &manifest, &payload_bytes)?;
+        validate_artifact_content_hash(&self.workspace_root, ArtifactLayer::L1, artifact_id)?;
+
+        let evidence = CapturedEvidence {
+            artifact_id: artifact_id_str,
+            content_hash,
+        };
+        self.apply_evidence_to_result(result, Some(evidence.artifact_id.clone()));
+        Ok(Some(evidence))
+    }
+
+    fn apply_evidence_to_result(&self, result: &mut CheckResult, evidence_id: Option<String>) {
+        let Some(id) = evidence_id else {
+            return;
+        };
+
+        match result {
+            CheckResult::Pass(details) => details.evidence_artifact_id = Some(id),
+            CheckResult::AdvisoryOnly(details) => details.evidence_artifact_id = Some(id),
+            _ => {}
+        }
+    }
+
+    fn missing_capabilities(
+        &self,
+        descriptor: &CheckDescriptor,
+        granted_capabilities: &[String],
+    ) -> Vec<String> {
+        let required = self.required_capabilities(descriptor);
+        let mut missing = Vec::new();
+        for capability in required {
+            if !granted_capabilities.contains(&capability) {
+                missing.push(capability);
+            }
+        }
+        missing
+    }
+
+    fn required_capabilities(&self, descriptor: &CheckDescriptor) -> Vec<String> {
+        let mut required: Vec<String> = Vec::new();
+        required.push(GOVERNANCE_CHECK_TOOL_CAPABILITY.to_string());
+        required.extend(descriptor.required_capabilities.iter().cloned());
+        required
+    }
+
+    fn compute_descriptor_hash(&self, descriptor: &CheckDescriptor) -> Result<String, CheckRunnerError> {
+        let bytes = serde_json::to_vec(descriptor)?;
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        Ok(hex::encode(hasher.finalize()))
+    }
+}
 
 /// Canonical executable check result status.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -190,7 +733,55 @@ pub struct CheckUnsupportedDetails {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
     use serde_json::json;
+    use std::sync::{Arc, Mutex};
+    use tempfile::tempdir;
+
+    use crate::storage::artifacts::{
+        read_artifact_manifest, validate_artifact_content_hash, ArtifactLayer, ArtifactPayloadKind,
+    };
+
+    #[derive(Clone, Default)]
+    struct CapturingFlightRecorder {
+        events: Arc<Mutex<Vec<FlightRecorderEvent>>>,
+    }
+
+    impl CapturingFlightRecorder {
+        fn events(&self) -> Vec<FlightRecorderEvent> {
+            let events = match self.events.lock() {
+                Ok(events) => events,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            events.clone()
+        }
+    }
+
+    #[async_trait]
+    impl FlightRecorder for CapturingFlightRecorder {
+        async fn record_event(
+            &self,
+            event: FlightRecorderEvent,
+        ) -> Result<(), crate::flight_recorder::RecorderError> {
+            let mut events = match self.events.lock() {
+                Ok(events) => events,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            events.push(event);
+            Ok(())
+        }
+
+        async fn enforce_retention(&self) -> Result<u64, crate::flight_recorder::RecorderError> {
+            Ok(0)
+        }
+
+        async fn list_events(
+            &self,
+            _filter: crate::flight_recorder::EventFilter,
+        ) -> Result<Vec<FlightRecorderEvent>, crate::flight_recorder::RecorderError> {
+            Ok(self.events())
+        }
+    }
 
     #[test]
     fn check_result_roundtrips_all_variants() -> Result<(), Box<dyn std::error::Error>> {
@@ -378,6 +969,131 @@ mod tests {
         assert_eq!(blocked.status(), "blocked");
         assert_eq!(advisory.status(), "advisory_only");
         assert_eq!(unsupported.status(), "unsupported");
+    }
+
+    #[tokio::test]
+    async fn check_runner_pre_check_blocks_on_missing_capability(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = tempdir()?;
+        let recorder = CapturingFlightRecorder::default();
+        let runner = CheckRunner::new(Arc::new(recorder.clone()), workspace.path().to_path_buf())
+            .with_supported_kinds(vec!["native".to_string()]);
+
+        let mut descriptor = CheckDescriptor::new(Uuid::new_v4(), "guarded-check", "native");
+        descriptor.required_capabilities.push("policy.custom:access".to_string());
+
+        let result = runner
+            .run_check(
+                descriptor,
+                Uuid::new_v4(),
+                &[GOVERNANCE_CHECK_TOOL_CAPABILITY.to_string()],
+            )
+            .await?;
+
+        assert!(matches!(result, CheckResult::Blocked(_)));
+        let events = recorder.events();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].event_type, FlightRecorderEventType::GovernanceCheckStarted);
+        assert_eq!(events[1].event_type, FlightRecorderEventType::GovernanceCheckBlocked);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn check_runner_unsupported_check_kind_blocks_result_and_emits_blocked_event(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = tempdir()?;
+        let recorder = CapturingFlightRecorder::default();
+        let runner = CheckRunner::new(Arc::new(recorder.clone()), workspace.path().to_path_buf())
+            .with_supported_kinds(vec!["native".to_string()]);
+
+        let descriptor = CheckDescriptor::new(Uuid::new_v4(), "legacy-check", "third-party");
+        let result = runner
+            .run_check(
+                descriptor,
+                Uuid::new_v4(),
+                &[GOVERNANCE_CHECK_TOOL_CAPABILITY.to_string()],
+            )
+            .await?;
+
+        assert!(matches!(result, CheckResult::Unsupported(_)));
+        let events = recorder.events();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].event_type, FlightRecorderEventType::GovernanceCheckStarted);
+        assert_eq!(events[1].event_type, FlightRecorderEventType::GovernanceCheckBlocked);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn check_runner_execution_timeout_blocks_without_evidence(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = tempdir()?;
+        let recorder = CapturingFlightRecorder::default();
+        let runner = CheckRunner::new(Arc::new(recorder.clone()), workspace.path().to_path_buf())
+            .with_default_timeout_ms(10)
+            .with_supported_kinds(vec!["native".to_string()]);
+
+        let mut descriptor = CheckDescriptor::new(Uuid::new_v4(), "slow-check", "native");
+        descriptor.parameters = json!({
+            "simulate_delay_ms": 100,
+        });
+
+        let result = runner
+            .run_check(
+                descriptor,
+                Uuid::new_v4(),
+                &[GOVERNANCE_CHECK_TOOL_CAPABILITY.to_string()],
+            )
+            .await?;
+
+        let event_count = recorder.events().len();
+        assert!(matches!(result, CheckResult::Blocked(_)));
+        assert_eq!(event_count, 2);
+        assert_eq!(
+            recorder.events()[1].event_type,
+            FlightRecorderEventType::GovernanceCheckBlocked
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn check_runner_passes_and_stores_evidence_with_hash(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = tempdir()?;
+        let recorder = CapturingFlightRecorder::default();
+        let runner = CheckRunner::new(Arc::new(recorder.clone()), workspace.path().to_path_buf())
+            .with_supported_kinds(vec!["native".to_string()]);
+
+        let mut descriptor = CheckDescriptor::new(Uuid::new_v4(), "unit-pass", "native");
+        descriptor.parameters = json!({
+            "checks_passed": 3,
+        });
+
+        let result = runner
+            .run_check(
+                descriptor,
+                Uuid::new_v4(),
+                &[GOVERNANCE_CHECK_TOOL_CAPABILITY.to_string()],
+            )
+            .await?;
+
+        let pass = match result {
+            CheckResult::Pass(details) => details,
+            _ => unreachable!(),
+        };
+        let artifact_id = pass
+            .evidence_artifact_id
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "missing evidence id"))?;
+        let artifact_uuid = Uuid::parse_str(&artifact_id)?;
+
+        let manifest = read_artifact_manifest(workspace.path(), ArtifactLayer::L1, artifact_uuid)?;
+        assert_eq!(manifest.artifact_id, artifact_uuid);
+        assert_eq!(manifest.kind, ArtifactPayloadKind::Report);
+        validate_artifact_content_hash(workspace.path(), ArtifactLayer::L1, artifact_uuid)?;
+
+        let events = recorder.events();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[1].event_type, FlightRecorderEventType::GovernanceCheckCompleted);
+        Ok(())
     }
 
     #[test]
