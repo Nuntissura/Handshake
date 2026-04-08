@@ -93,6 +93,7 @@ impl TerminalConfig {
 #[cfg(test)]
 mod tests {
     use super::TerminalConfig;
+    use std::path::PathBuf;
 
     #[test]
     fn with_session_scoped_denies_injects_patterns() {
