@@ -1,0 +1,1639 @@
+diff --git a/src/backend/handshake_core/src/flight_recorder/duckdb.rs b/src/backend/handshake_core/src/flight_recorder/duckdb.rs
+index 2eb5c21..800684d 100644
+--- a/src/backend/handshake_core/src/flight_recorder/duckdb.rs
++++ b/src/backend/handshake_core/src/flight_recorder/duckdb.rs
+@@ -906,0 +907,9 @@ impl DuckDbFlightRecorder {
++                "workspace_isolation.denied" => {
++                    super::FlightRecorderEventType::WorkspaceIsolationDenied
++                }
++                "workspace_cross_session.denied" => {
++                    super::FlightRecorderEventType::WorkspaceCrossSessionDenied
++                }
++                "workspace_cross_session.approved" => {
++                    super::FlightRecorderEventType::WorkspaceCrossSessionApproved
++                }
+diff --git a/src/backend/handshake_core/src/flight_recorder/mod.rs b/src/backend/handshake_core/src/flight_recorder/mod.rs
+index 2124dcd..04533a6 100644
+--- a/src/backend/handshake_core/src/flight_recorder/mod.rs
++++ b/src/backend/handshake_core/src/flight_recorder/mod.rs
+@@ -165,0 +166,4 @@ pub enum FlightRecorderEventType {
++    /// FR-EVT-WS-ISO-001..003: Workspace isolation events [4.3.9.17]
++    WorkspaceIsolationDenied,
++    WorkspaceCrossSessionDenied,
++    WorkspaceCrossSessionApproved,
+@@ -334,0 +339,9 @@ impl fmt::Display for FlightRecorderEventType {
++            FlightRecorderEventType::WorkspaceIsolationDenied => {
++                write!(f, "workspace_isolation.denied")
++            }
++            FlightRecorderEventType::WorkspaceCrossSessionDenied => {
++                write!(f, "workspace_cross_session.denied")
++            }
++            FlightRecorderEventType::WorkspaceCrossSessionApproved => {
++                write!(f, "workspace_cross_session.approved")
++            }
+diff --git a/src/backend/handshake_core/src/lib.rs b/src/backend/handshake_core/src/lib.rs
+index a88d6db..d51e958 100644
+--- a/src/backend/handshake_core/src/lib.rs
++++ b/src/backend/handshake_core/src/lib.rs
+@@ -21,0 +22 @@ pub mod tokenization;
++pub mod workspace_safety;
+diff --git a/src/backend/handshake_core/src/mex/gates.rs b/src/backend/handshake_core/src/mex/gates.rs
+index c48cd30..c5575fe 100644
+--- a/src/backend/handshake_core/src/mex/gates.rs
++++ b/src/backend/handshake_core/src/mex/gates.rs
+@@ -2,0 +3,2 @@ use serde_json::{json, Value};
++use std::path::{Path, PathBuf};
++use uuid::Uuid;
+@@ -5 +7,3 @@ use crate::capabilities::{CapabilityRegistry, RegistryError};
+-use crate::mex::envelope::{DeterminismLevel, PlannedOperation, POE_SCHEMA_VERSION};
++use crate::mex::envelope::{
++    BudgetSpec, DeterminismLevel, OutputSpec, PlannedOperation, POE_SCHEMA_VERSION,
++};
+@@ -6,0 +11,3 @@ use crate::mex::registry::MexRegistry;
++use crate::workspace_safety::{
++    enforce_cross_session_access, enforce_workspace_isolation, SessionWorktreeRegistry,
++};
+@@ -41,0 +49,63 @@ impl GatePipeline {
++
++    /// Run all gates against an operation, collecting every denial.
++    /// Unlike the runtime's short-circuit loop, this reports all failures
++    /// so callers can surface a complete problem list.
++    pub fn evaluate(
++        &self,
++        op: &PlannedOperation,
++        registry: &MexRegistry,
++    ) -> Vec<GateDenial> {
++        self.gates
++            .iter()
++            .filter_map(|gate| gate.check(op, registry).err())
++            .collect()
++    }
++}
++
++fn gate_probe_operation() -> PlannedOperation {
++    PlannedOperation {
++        schema_version: POE_SCHEMA_VERSION.to_string(),
++        op_id: Uuid::nil(),
++        engine_id: "workspace_safety".to_string(),
++        engine_version_req: None,
++        operation: "workspace_safety.enforce".to_string(),
++        inputs: Vec::new(),
++        params: json!({}),
++        capabilities_requested: vec!["fs.read".to_string()],
++        capability_profile_id: Some("Coder".to_string()),
++        human_consent_obtained: false,
++        budget: BudgetSpec {
++            cpu_time_ms: None,
++            wall_time_ms: Some(1),
++            memory_bytes: None,
++            output_bytes: Some(1),
++        },
++        determinism: DeterminismLevel::D3,
++        evidence_policy: None,
++        output_spec: OutputSpec {
++            expected_types: Vec::new(),
++            max_bytes: Some(1),
++        },
++    }
++}
++
++pub fn evaluate_session_safety_gates(
++    session_id: &str,
++    target_path: &Path,
++    operator_approved: bool,
++    worktree_registry: SessionWorktreeRegistry,
++) -> Vec<GateDenial> {
++    let pipeline = GatePipeline::new(vec![
++        Box::new(IsolationGate::new(
++            session_id.to_string(),
++            worktree_registry.clone(),
++        )),
++        Box::new(CrossSessionGate::new(
++            session_id.to_string(),
++            target_path.to_path_buf(),
++            operator_approved,
++            worktree_registry,
++        )),
++    ]);
++    let registry = MexRegistry::from_map(std::collections::HashMap::new());
++    pipeline.evaluate(&gate_probe_operation(), &registry)
+@@ -329,0 +400,96 @@ impl Gate for ProvenanceGate {
++/// INV-WS-002: Fail-closed isolation gate.
++/// Denies any operation from a session that has no worktree allocation.
++pub struct IsolationGate {
++    session_id: String,
++    worktree_registry: SessionWorktreeRegistry,
++}
++
++impl IsolationGate {
++    pub fn new(session_id: impl Into<String>, worktree_registry: SessionWorktreeRegistry) -> Self {
++        Self {
++            session_id: session_id.into(),
++            worktree_registry,
++        }
++    }
++}
++
++impl Gate for IsolationGate {
++    fn name(&self) -> &'static str {
++        "G-ISOLATION"
++    }
++
++    fn check(&self, op: &PlannedOperation, _registry: &MexRegistry) -> Result<(), GateDenial> {
++        match enforce_workspace_isolation(&self.worktree_registry, &self.session_id, op.op_id) {
++            Ok(_) => Ok(()),
++            Err((denial, fr_event)) => Err(GateDenial {
++                gate: self.name().to_string(),
++                reason: denial.to_string(),
++                code: Some("INV-WS-002".to_string()),
++                details: Some(json!({
++                    "session_id": self.session_id,
++                    "fr_event_type": fr_event.event_type.to_string(),
++                    "fr_payload": fr_event.payload,
++                })),
++                severity: DenialSeverity::Error,
++            }),
++        }
++    }
++}
++
++/// INV-WS-003: Cross-session access gate.
++/// Denies operations that target paths inside another session's worktree
++/// unless explicit operator approval was provided.
++pub struct CrossSessionGate {
++    session_id: String,
++    target_path: PathBuf,
++    operator_approved: bool,
++    worktree_registry: SessionWorktreeRegistry,
++}
++
++impl CrossSessionGate {
++    pub fn new(
++        session_id: impl Into<String>,
++        target_path: impl Into<PathBuf>,
++        operator_approved: bool,
++        worktree_registry: SessionWorktreeRegistry,
++    ) -> Self {
++        Self {
++            session_id: session_id.into(),
++            target_path: target_path.into(),
++            operator_approved,
++            worktree_registry,
++        }
++    }
++}
++
++impl Gate for CrossSessionGate {
++    fn name(&self) -> &'static str {
++        "G-CROSS-SESSION"
++    }
++
++    fn check(&self, op: &PlannedOperation, _registry: &MexRegistry) -> Result<(), GateDenial> {
++        match enforce_cross_session_access(
++            &self.worktree_registry,
++            &self.session_id,
++            &self.target_path,
++            self.operator_approved,
++            op.op_id,
++        ) {
++            Ok((_result, _fr_event)) => Ok(()),
++            Err((denial, fr_event)) => Err(GateDenial {
++                gate: self.name().to_string(),
++                reason: denial.to_string(),
++                code: Some("INV-WS-003".to_string()),
++                details: Some(json!({
++                    "session_id": self.session_id,
++                    "target_path": self.target_path.display().to_string(),
++                    "operator_approved": self.operator_approved,
++                    "fr_event_type": fr_event.event_type.to_string(),
++                    "fr_payload": fr_event.payload,
++                })),
++                severity: DenialSeverity::Error,
++            }),
++        }
++    }
++}
++
+@@ -363,0 +530,146 @@ impl Gate for DetGate {
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::ace::ArtifactHandle;
++    use crate::mex::envelope::{
++        BudgetSpec, DeterminismLevel, EvidencePolicy, OutputSpec, POE_SCHEMA_VERSION,
++    };
++    use crate::workspace_safety::{SessionWorktreeAllocation, SessionWorktreeRegistry};
++    use std::collections::HashMap;
++    use uuid::Uuid;
++
++    fn dummy_op() -> PlannedOperation {
++        PlannedOperation {
++            schema_version: POE_SCHEMA_VERSION.to_string(),
++            op_id: Uuid::nil(),
++            engine_id: "test_engine".to_string(),
++            engine_version_req: None,
++            operation: "test.op".to_string(),
++            inputs: vec![ArtifactHandle::new(Uuid::nil(), "/test".to_string())],
++            params: serde_json::json!({}),
++            capabilities_requested: vec!["fs.read".to_string()],
++            capability_profile_id: Some("Coder".to_string()),
++            human_consent_obtained: false,
++            budget: BudgetSpec {
++                cpu_time_ms: Some(1000),
++                wall_time_ms: Some(2000),
++                memory_bytes: Some(64 * 1024 * 1024),
++                output_bytes: Some(8 * 1024 * 1024),
++            },
++            determinism: DeterminismLevel::D2,
++            evidence_policy: Some(EvidencePolicy {
++                required: true,
++                notes: None,
++            }),
++            output_spec: OutputSpec {
++                expected_types: vec!["artifact.document".to_string()],
++                max_bytes: Some(8 * 1024 * 1024),
++            },
++        }
++    }
++
++    fn two_session_registry() -> SessionWorktreeRegistry {
++        let mut registry = SessionWorktreeRegistry::new();
++        registry.put(SessionWorktreeAllocation::new(
++            "session-a",
++            "/worktrees/session-a",
++        ));
++        registry.put(SessionWorktreeAllocation::new(
++            "session-b",
++            "/worktrees/session-b",
++        ));
++        registry
++    }
++
++    #[test]
++    fn isolation_gate_passes_when_session_registered() {
++        let registry = two_session_registry();
++        let mex_registry = MexRegistry::from_map(HashMap::new());
++        let gate = IsolationGate::new("session-a", registry);
++        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
++        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
++        assert!(
++            denials.is_empty(),
++            "registered session must pass isolation gate"
++        );
++    }
++
++    #[test]
++    fn isolation_gate_denies_unregistered_session() {
++        let registry = two_session_registry();
++        let mex_registry = MexRegistry::from_map(HashMap::new());
++        let gate = IsolationGate::new("unknown-session", registry);
++        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
++        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
++        assert_eq!(denials.len(), 1);
++        assert_eq!(denials[0].gate, "G-ISOLATION");
++        assert_eq!(denials[0].code.as_deref(), Some("INV-WS-002"));
++    }
++
++    #[test]
++    fn cross_session_gate_passes_for_own_path() {
++        let registry = two_session_registry();
++        let mex_registry = MexRegistry::from_map(HashMap::new());
++        let gate = CrossSessionGate::new(
++            "session-a",
++            "/worktrees/session-a/src/lib.rs",
++            false,
++            registry,
++        );
++        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
++        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
++        assert!(
++            denials.is_empty(),
++            "own session path must pass cross-session gate"
++        );
++    }
++
++    #[test]
++    fn cross_session_gate_denies_other_session_path() {
++        let registry = two_session_registry();
++        let mex_registry = MexRegistry::from_map(HashMap::new());
++        let gate = CrossSessionGate::new(
++            "session-a",
++            "/worktrees/session-b/src/main.rs",
++            false,
++            registry,
++        );
++        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
++        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
++        assert_eq!(denials.len(), 1);
++        assert_eq!(denials[0].gate, "G-CROSS-SESSION");
++        assert_eq!(denials[0].code.as_deref(), Some("INV-WS-003"));
++    }
++
++    #[test]
++    fn cross_session_gate_passes_with_operator_approval() {
++        let registry = two_session_registry();
++        let mex_registry = MexRegistry::from_map(HashMap::new());
++        let gate = CrossSessionGate::new(
++            "session-a",
++            "/worktrees/session-b/src/main.rs",
++            true,
++            registry,
++        );
++        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
++        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
++        assert!(
++            denials.is_empty(),
++            "operator-approved cross-session access must pass"
++        );
++    }
++
++    #[test]
++    fn pipeline_evaluate_collects_multiple_denials() {
++        let registry = SessionWorktreeRegistry::new();
++        let mex_registry = MexRegistry::from_map(HashMap::new());
++        let isolation = IsolationGate::new("no-session", registry.clone());
++        let cross = CrossSessionGate::new("no-session", "/some/path", false, registry);
++        let pipeline = GatePipeline::new(vec![Box::new(isolation), Box::new(cross)]);
++        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
++        // IsolationGate denies; CrossSessionGate passes (empty registry = no other sessions)
++        assert_eq!(denials.len(), 1);
++        assert_eq!(denials[0].gate, "G-ISOLATION");
++    }
++}
+diff --git a/src/backend/handshake_core/src/mex/mod.rs b/src/backend/handshake_core/src/mex/mod.rs
+index 3968e89..33ac718 100644
+--- a/src/backend/handshake_core/src/mex/mod.rs
++++ b/src/backend/handshake_core/src/mex/mod.rs
+@@ -20,2 +20,2 @@ pub use gates::{
+-    BudgetGate, CapabilityGate, DetGate, Gate, GateDenial, GatePipeline, IntegrityGate,
+-    ProvenanceGate, SchemaGate,
++    BudgetGate, CapabilityGate, CrossSessionGate, DetGate, Gate, GateDenial, GatePipeline,
++    IntegrityGate, IsolationGate, ProvenanceGate, SchemaGate,
+diff --git a/src/backend/handshake_core/src/mex/runtime.rs b/src/backend/handshake_core/src/mex/runtime.rs
+index b535805..c6099e9 100644
+--- a/src/backend/handshake_core/src/mex/runtime.rs
++++ b/src/backend/handshake_core/src/mex/runtime.rs
+@@ -785,0 +786,22 @@ impl EngineAdapter for ShellEngineAdapter {
++        let session_id = params
++            .get("session_id")
++            .and_then(|v| v.as_str())
++            .map(str::to_string);
++        let allowed_cwd_roots = params
++            .get("in_scope_paths")
++            .and_then(|v| v.as_array())
++            .map(|paths| {
++                let mut roots = Vec::with_capacity(paths.len());
++                for path_value in paths {
++                    let Some(path) = path_value.as_str() else {
++                        continue;
++                    };
++                    let path = path.trim();
++                    if path.is_empty() || std::path::Path::new(path).is_absolute() {
++                        continue;
++                    }
++                    roots.push(std::path::PathBuf::from(path));
++                }
++                roots
++            })
++            .unwrap_or_default();
+@@ -787 +809,5 @@ impl EngineAdapter for ShellEngineAdapter {
+-        let cfg = TerminalConfig::with_defaults();
++        let cfg =
++            TerminalConfig::with_session_scoped_denies_and_allowed_roots(
++                session_id.as_deref(),
++                allowed_cwd_roots,
++            );
+@@ -819 +845 @@ impl EngineAdapter for ShellEngineAdapter {
+-                session_id: None,
++                session_id: session_id.clone(),
+diff --git a/src/backend/handshake_core/src/storage/mod.rs b/src/backend/handshake_core/src/storage/mod.rs
+index 30975ef..fb5894a 100644
+--- a/src/backend/handshake_core/src/storage/mod.rs
++++ b/src/backend/handshake_core/src/storage/mod.rs
+@@ -8,0 +9,2 @@ use uuid::Uuid;
++use crate::workspace_safety::MergeBackArtifact;
++
+@@ -1281,0 +1284 @@ pub struct ModelSession {
++    pub merge_back_artifact: Option<MergeBackArtifact>,
+@@ -1816,0 +1820,16 @@ pub trait Database: Send + Sync + std::any::Any {
++    ) -> StorageResult<ModelSession> {
++        self.update_model_session_state_with_merge_back_artifact(
++            session_id,
++            state,
++            job_id,
++            None,
++        )
++        .await
++    }
++
++    async fn update_model_session_state_with_merge_back_artifact(
++        &self,
++        session_id: &str,
++        state: ModelSessionState,
++        job_id: Option<Uuid>,
++        merge_back_artifact: Option<MergeBackArtifact>,
+diff --git a/src/backend/handshake_core/src/storage/postgres.rs b/src/backend/handshake_core/src/storage/postgres.rs
+index 8f0fb85..f61b93a 100644
+--- a/src/backend/handshake_core/src/storage/postgres.rs
++++ b/src/backend/handshake_core/src/storage/postgres.rs
+@@ -14,0 +15 @@ use super::{
++    MergeBackArtifact,
+@@ -89,0 +91 @@ impl PostgresDatabase {
++                merge_back_artifact TEXT,
+@@ -96,0 +99,3 @@ impl PostgresDatabase {
++        sqlx::query("ALTER TABLE model_sessions ADD COLUMN IF NOT EXISTS merge_back_artifact TEXT")
++            .execute(&self.pool)
++            .await?;
+@@ -390,0 +396,6 @@ fn map_model_session(row: PgRow) -> StorageResult<ModelSession> {
++    let merge_back_artifact_raw: Option<String> = row.get("merge_back_artifact");
++    let merge_back_artifact = merge_back_artifact_raw
++        .as_deref()
++        .map(serde_json::from_str::<MergeBackArtifact>)
++        .transpose()
++        .map_err(|_| StorageError::Validation("invalid merge_back_artifact"))?;
+@@ -417,0 +429 @@ fn map_model_session(row: PgRow) -> StorageResult<ModelSession> {
++        merge_back_artifact,
+@@ -4904,0 +4917 @@ impl super::Database for PostgresDatabase {
++                merge_back_artifact,
+@@ -4975,0 +4989 @@ impl super::Database for PostgresDatabase {
++                merge_back_artifact,
+@@ -5013,0 +5028 @@ impl super::Database for PostgresDatabase {
++                merge_back_artifact,
+@@ -5034,0 +5050,11 @@ impl super::Database for PostgresDatabase {
++    ) -> StorageResult<ModelSession> {
++        self.update_model_session_state_with_merge_back_artifact(session_id, state, job_id, None)
++            .await
++    }
++
++    async fn update_model_session_state_with_merge_back_artifact(
++        &self,
++        session_id: &str,
++        state: ModelSessionState,
++        job_id: Option<Uuid>,
++        merge_back_artifact: Option<MergeBackArtifact>,
+@@ -5037,0 +5064,4 @@ impl super::Database for PostgresDatabase {
++        let merge_back_artifact = merge_back_artifact
++            .as_ref()
++            .map(serde_json::to_string)
++            .transpose()?;
+@@ -5043,2 +5073,3 @@ impl super::Database for PostgresDatabase {
+-                updated_at = $3
+-            WHERE session_id = $4
++                merge_back_artifact = $3,
++                updated_at = $4
++            WHERE session_id = $5
+@@ -5062,0 +5094 @@ impl super::Database for PostgresDatabase {
++                merge_back_artifact,
+@@ -5068,0 +5101 @@ impl super::Database for PostgresDatabase {
++        .bind(merge_back_artifact)
+diff --git a/src/backend/handshake_core/src/storage/sqlite.rs b/src/backend/handshake_core/src/storage/sqlite.rs
+index 8291153..9e40b59 100644
+--- a/src/backend/handshake_core/src/storage/sqlite.rs
++++ b/src/backend/handshake_core/src/storage/sqlite.rs
+@@ -14,0 +15 @@ use super::{
++    MergeBackArtifact,
+@@ -419,0 +421 @@ impl SqliteDatabase {
++                merge_back_artifact TEXT,
+@@ -460,0 +463,14 @@ impl SqliteDatabase {
++        let model_session_column_rows = sqlx::query("PRAGMA table_info(model_sessions)")
++            .fetch_all(&self.pool)
++            .await?;
++        let mut model_session_columns = std::collections::HashSet::new();
++        for row in model_session_column_rows {
++            let name: String = row.get("name");
++            model_session_columns.insert(name);
++        }
++        if !model_session_columns.contains("merge_back_artifact") {
++            sqlx::query("ALTER TABLE model_sessions ADD COLUMN merge_back_artifact TEXT")
++                .execute(&self.pool)
++                .await?;
++        }
++
+@@ -506,0 +523,6 @@ impl SqliteDatabase {
++        let merge_back_artifact_raw: Option<String> = row.get("merge_back_artifact");
++        let merge_back_artifact = merge_back_artifact_raw
++            .as_deref()
++            .map(serde_json::from_str::<MergeBackArtifact>)
++            .transpose()
++            .map_err(|_| StorageError::Validation("invalid merge_back_artifact"))?;
+@@ -533,0 +556 @@ impl SqliteDatabase {
++            merge_back_artifact,
+@@ -5453,0 +5477 @@ impl super::Database for SqliteDatabase {
++                merge_back_artifact,
+@@ -5525,0 +5550 @@ impl super::Database for SqliteDatabase {
++                merge_back_artifact,
+@@ -5563,0 +5589 @@ impl super::Database for SqliteDatabase {
++                merge_back_artifact,
+@@ -5584,0 +5611,11 @@ impl super::Database for SqliteDatabase {
++    ) -> StorageResult<ModelSession> {
++        self.update_model_session_state_with_merge_back_artifact(session_id, state, job_id, None)
++            .await
++    }
++
++    async fn update_model_session_state_with_merge_back_artifact(
++        &self,
++        session_id: &str,
++        state: ModelSessionState,
++        job_id: Option<Uuid>,
++        merge_back_artifact: Option<MergeBackArtifact>,
+@@ -5587,0 +5625,4 @@ impl super::Database for SqliteDatabase {
++        let merge_back_artifact = merge_back_artifact
++            .as_ref()
++            .map(serde_json::to_string)
++            .transpose()?;
+@@ -5593,2 +5634,3 @@ impl super::Database for SqliteDatabase {
+-                updated_at = $3
+-            WHERE session_id = $4
++                merge_back_artifact = $3,
++                updated_at = $4
++            WHERE session_id = $5
+@@ -5612,0 +5655 @@ impl super::Database for SqliteDatabase {
++                merge_back_artifact,
+@@ -5618,0 +5662 @@ impl super::Database for SqliteDatabase {
++        .bind(merge_back_artifact)
+diff --git a/src/backend/handshake_core/src/terminal/config.rs b/src/backend/handshake_core/src/terminal/config.rs
+index 61936ab..9ec0edf 100644
+--- a/src/backend/handshake_core/src/terminal/config.rs
++++ b/src/backend/handshake_core/src/terminal/config.rs
+@@ -23,0 +24,31 @@ impl TerminalConfig {
++    pub const SESSION_SCOPED_DENIED_COMMAND_PATTERNS: [&str; 4] = [
++        r"(?i)\bgit\s+reset\s+--hard\b",
++        r"(?i)\bgit\s+clean\s+-fd\b",
++        r"(?i)\brm\s+(-[^\s]+\s+)*-rf\b",
++        r"(?i)\.handshake[\\/]+gov",
++    ];
++
++    pub fn with_session_scoped_denies(session_id: Option<&str>) -> Self {
++        let mut cfg = Self::with_defaults();
++        if !session_id.map(str::trim).unwrap_or("").is_empty() {
++            cfg.denied_command_patterns = Self::session_denied_command_patterns();
++        }
++        cfg
++    }
++
++    pub fn with_session_scoped_denies_and_allowed_roots(
++        session_id: Option<&str>,
++        allowed_cwd_roots: Vec<PathBuf>,
++    ) -> Self {
++        let mut cfg = Self::with_session_scoped_denies(session_id);
++        cfg.allowed_cwd_roots = allowed_cwd_roots;
++        cfg
++    }
++
++    pub fn session_denied_command_patterns() -> Vec<String> {
++        Self::SESSION_SCOPED_DENIED_COMMAND_PATTERNS
++            .iter()
++            .map(|pattern| pattern.to_string())
++            .collect()
++    }
++
+@@ -60,0 +92,24 @@ impl TerminalConfig {
++
++#[cfg(test)]
++mod tests {
++    use super::TerminalConfig;
++    use std::path::PathBuf;
++
++    #[test]
++    fn with_session_scoped_denies_injects_patterns() {
++        let cfg = TerminalConfig::with_session_scoped_denies(Some("session-123"));
++        assert_eq!(cfg.denied_command_patterns, TerminalConfig::session_denied_command_patterns());
++    }
++
++    #[test]
++    fn with_session_scoped_denies_injects_allowed_roots() {
++        let cfg = TerminalConfig::with_session_scoped_denies_and_allowed_roots(
++            Some("session-123"),
++            vec![PathBuf::from("src"), PathBuf::from("tests")],
++        );
++        assert_eq!(
++            cfg.allowed_cwd_roots,
++            vec![PathBuf::from("src"), PathBuf::from("tests")]
++        );
++    }
++}
+diff --git a/src/backend/handshake_core/src/workflows.rs b/src/backend/handshake_core/src/workflows.rs
+index 96df6d0..78704b7 100644
+--- a/src/backend/handshake_core/src/workflows.rs
++++ b/src/backend/handshake_core/src/workflows.rs
+@@ -38,0 +39 @@ use crate::{
++    mex::gates::evaluate_session_safety_gates,
+@@ -58,0 +60,5 @@ use crate::{
++    workspace_safety::{
++        cleanup_session_worktree, collect_merge_back_artifact, enforce_cross_session_access,
++        enforce_workspace_isolation, ensure_session_worktree_allocation,
++        SessionWorktreeAllocation, SessionWorktreeRegistry,
++    },
+@@ -388,0 +395 @@ struct SessionRegistryInner {
++    worktree_registry: SessionWorktreeRegistry,
+@@ -408,0 +416 @@ impl SessionRegistry {
++                worktree_registry: SessionWorktreeRegistry::new(),
+@@ -467,0 +476,3 @@ impl SessionRegistry {
++            inner
++                .worktree_registry
++                .remove(&session_id);
+@@ -475,0 +487,26 @@ impl SessionRegistry {
++    pub async fn register_session_worktree_allocation(&self, allocation: SessionWorktreeAllocation) {
++        let mut inner = self.inner.write().await;
++        inner.worktree_registry.put(allocation);
++    }
++
++    pub async fn get_session_worktree_path(
++        &self,
++        session_id: &str,
++    ) -> Option<PathBuf> {
++        let inner = self.inner.read().await;
++        inner.worktree_registry.get(session_id).cloned()
++    }
++
++    pub async fn snapshot_worktree_registry(&self) -> SessionWorktreeRegistry {
++        let inner = self.inner.read().await;
++        inner.worktree_registry.clone()
++    }
++
++    pub async fn clear_session_worktree_allocation(
++        &self,
++        session_id: &str,
++    ) -> Option<SessionWorktreeAllocation> {
++        let mut inner = self.inner.write().await;
++        inner.worktree_registry.remove(session_id)
++    }
++
+@@ -5321,2 +5358,2 @@ async fn ensure_model_session_artifact_refs(
+-        })
+-        .await?;
++    })
++    .await?;
+@@ -5324,0 +5362,16 @@ async fn ensure_model_session_artifact_refs(
++    if state
++        .session_registry
++        .get_session_worktree_path(&metadata.session_id)
++        .await
++        .is_none()
++    {
++        let repo_root = repo_root_from_manifest_dir()
++            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
++        let allocation = ensure_session_worktree_allocation(&repo_root, metadata.session_id.as_str())
++            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
++        state
++            .session_registry
++            .register_session_worktree_allocation(allocation)
++            .await;
++    }
++
+@@ -6084 +6137 @@ async fn finalize_model_run_after_terminal(
+-    let session_state = match final_status {
++    let mut session_state = match final_status {
+@@ -6098,0 +6152,104 @@ async fn finalize_model_run_after_terminal(
++    let repo_root = repo_root_from_manifest_dir()
++        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
++    let worktree_registry = state.session_registry.snapshot_worktree_registry().await;
++    let mut merge_back_artifact = None;
++    let mut worktree_path_for_cleanup = None;
++    if let Some(worktree_path) = state
++        .session_registry
++        .get_session_worktree_path(&metadata.session_id)
++        .await
++    {
++        worktree_path_for_cleanup = Some(worktree_path.clone());
++        let workspace_denial = evaluate_session_safety_gates(
++            metadata.session_id.as_str(),
++            &worktree_path,
++            false,
++            worktree_registry.clone(),
++        )
++        .into_iter()
++        .next();
++
++        if let Some(denial) = workspace_denial {
++            session_state = ModelSessionState::Blocked;
++            match denial.code.as_deref() {
++                Some("INV-WS-002") => {
++                    if let Err((err, event)) = enforce_workspace_isolation(
++                        &worktree_registry,
++                        metadata.session_id.as_str(),
++                        trace_id,
++                    ) {
++                        record_event_safely(
++                            state,
++                            event.with_job_id(job.job_id.to_string()),
++                        )
++                        .await;
++                        tracing::warn!(
++                            "workspace isolation denied merge-back capture for session_id={}: {}",
++                            metadata.session_id,
++                            err,
++                        );
++                    }
++                }
++                Some("INV-WS-003") => {
++                    if let Err((err, event)) = enforce_cross_session_access(
++                        &worktree_registry,
++                        metadata.session_id.as_str(),
++                        &worktree_path,
++                        false,
++                        trace_id,
++                    ) {
++                        record_event_safely(
++                            state,
++                            event.with_job_id(job.job_id.to_string()),
++                        )
++                        .await;
++                        tracing::warn!(
++                            "cross-session access denied merge-back capture for session_id={}: {}",
++                            metadata.session_id,
++                            err,
++                        );
++                    }
++                }
++                _ => {
++                    tracing::warn!(
++                        "workspace safety gate denied merge-back capture for session_id={}: {}",
++                        metadata.session_id,
++                        denial.reason,
++                    );
++                }
++            }
++        } else {
++            match collect_merge_back_artifact(&worktree_path, metadata.session_id.as_str()) {
++                Ok(artifact) => {
++                    if artifact.has_conflicts() {
++                        session_state = ModelSessionState::Blocked;
++                    }
++                    merge_back_artifact = Some(artifact);
++                }
++                Err(err) => {
++                    tracing::warn!(
++                        "collect_merge_back_artifact failed for session_id={}: {}",
++                        metadata.session_id,
++                        err,
++                    );
++                }
++            }
++        }
++    } else if let Err((err, event)) = enforce_workspace_isolation(
++        &worktree_registry,
++        metadata.session_id.as_str(),
++        trace_id,
++    ) {
++        session_state = ModelSessionState::Blocked;
++        record_event_safely(
++            state,
++            event.with_job_id(job.job_id.to_string()),
++        )
++        .await;
++        tracing::warn!(
++            "workspace isolation denied merge-back capture for session_id={}: {}",
++            metadata.session_id,
++            err,
++        );
++    }
++
+@@ -6101 +6258 @@ async fn finalize_model_run_after_terminal(
+-        .update_model_session_state(
++        .update_model_session_state_with_merge_back_artifact(
+@@ -6104,0 +6262 @@ async fn finalize_model_run_after_terminal(
++            merge_back_artifact,
+@@ -6106,0 +6265,14 @@ async fn finalize_model_run_after_terminal(
++    if let Some(worktree_path) = worktree_path_for_cleanup {
++        if let Err(err) = cleanup_session_worktree(&repo_root, &worktree_path) {
++            tracing::warn!(
++                "cleanup_session_worktree failed for session_id={} at {}: {}",
++                metadata.session_id,
++                worktree_path.display(),
++                err,
++            );
++        }
++        let _ = state
++            .session_registry
++            .clear_session_worktree_allocation(&metadata.session_id)
++            .await;
++    }
+@@ -11243,0 +11416,20 @@ fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, W
++fn normalize_in_scope_paths_for_validation(in_scope_paths: &[String]) -> Vec<String> {
++    let mut normalized = Vec::new();
++    let mut seen = HashSet::new();
++
++    for path in in_scope_paths {
++        let normalized_path = path.trim().replace('\\', "/");
++        if normalized_path.is_empty() {
++            continue;
++        }
++        if Path::new(&normalized_path).is_absolute() {
++            continue;
++        }
++        if seen.insert(normalized_path.clone()) {
++            normalized.push(normalized_path);
++        }
++    }
++
++    normalized
++}
++
+@@ -11247,0 +11440 @@ async fn run_validation_via_mex(
++    in_scope_paths: &[String],
+@@ -11258,0 +11452 @@ async fn run_validation_via_mex(
++    let in_scope_paths = normalize_in_scope_paths_for_validation(in_scope_paths);
+@@ -11276,0 +11471 @@ async fn run_validation_via_mex(
++                "in_scope_paths": &in_scope_paths,
+@@ -14332,0 +14528 @@ NEED: {{what you need to unblock}}
++                            &inputs.wp_scope.in_scope_paths,
+@@ -16492,0 +16689,2 @@ async fn execute_terminal_job(
++    let session_id = resolve_job_session_id(state, job, inputs.get("session_id").and_then(|v| v.as_str()))
++        .await;
+@@ -16530 +16728 @@ async fn execute_terminal_job(
+-            session_id: None,
++            session_id: session_id.clone(),
+@@ -16541 +16739 @@ async fn execute_terminal_job(
+-    let cfg = TerminalConfig::with_defaults();
++    let cfg = TerminalConfig::with_session_scoped_denies(session_id.as_deref());
+diff --git a/src/backend/handshake_core/src/workspace_safety.rs b/src/backend/handshake_core/src/workspace_safety.rs
+new file mode 100644
+index 0000000..f039329
+--- /dev/null
++++ b/src/backend/handshake_core/src/workspace_safety.rs
+@@ -0,0 +1,783 @@
++use chrono::{DateTime, Utc};
++use serde::{Deserialize, Serialize};
++use serde_json::json;
++use std::collections::{HashMap, HashSet};
++use std::fs;
++use std::io;
++use std::path::{Path, PathBuf};
++use std::process::Command;
++use std::str;
++use uuid::Uuid;
++
++use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
++
++/// Tracks active session-level workspace allocations.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub struct SessionWorktreeAllocation {
++    pub session_id: String,
++    pub worktree_path: PathBuf,
++}
++
++impl SessionWorktreeAllocation {
++    pub fn new(session_id: impl Into<String>, worktree_path: impl Into<PathBuf>) -> Self {
++        Self {
++            session_id: session_id.into(),
++            worktree_path: worktree_path.into(),
++        }
++    }
++}
++
++#[derive(Debug, Default, Clone)]
++pub struct SessionWorktreeRegistry {
++    allocations: HashMap<String, PathBuf>,
++}
++
++impl SessionWorktreeRegistry {
++    pub fn new() -> Self {
++        Self {
++            allocations: HashMap::new(),
++        }
++    }
++
++    pub fn put(&mut self, allocation: SessionWorktreeAllocation) {
++        self.allocations
++            .insert(allocation.session_id, allocation.worktree_path);
++    }
++
++    pub fn get(&self, session_id: &str) -> Option<&PathBuf> {
++        self.allocations.get(session_id)
++    }
++
++    pub fn remove(&mut self, session_id: &str) -> Option<SessionWorktreeAllocation> {
++        self.allocations
++            .remove(session_id)
++            .map(|worktree_path| SessionWorktreeAllocation::new(session_id, worktree_path))
++    }
++
++    pub fn len(&self) -> usize {
++        self.allocations.len()
++    }
++
++    pub fn is_empty(&self) -> bool {
++        self.allocations.is_empty()
++    }
++
++    pub fn iter(&self) -> impl Iterator<Item = (&String, &PathBuf)> {
++        self.allocations.iter()
++    }
++}
++
++#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
++pub struct MergeBackConflictReport {
++    pub conflicting_files: Vec<String>,
++}
++
++#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
++pub struct MergeBackArtifact {
++    pub session_id: String,
++    pub worktree_path: String,
++    pub produced_at: DateTime<Utc>,
++    pub diff_patch: String,
++    pub conflict_report: Option<MergeBackConflictReport>,
++}
++
++impl MergeBackArtifact {
++    pub fn has_conflicts(&self) -> bool {
++        self.conflict_report
++            .as_ref()
++            .is_some_and(|report| !report.conflicting_files.is_empty())
++    }
++}
++
++/// INV-WS-002: Fail-closed isolation enforcement.
++/// If the session has no worktree allocation in the registry, execution MUST be denied.
++pub fn validate_session_has_isolation<'a>(
++    registry: &'a SessionWorktreeRegistry,
++    session_id: &str,
++) -> Result<&'a PathBuf, IsolationDenial> {
++    registry
++        .get(session_id)
++        .ok_or_else(|| IsolationDenial::NoIsolation {
++            session_id: session_id.to_string(),
++        })
++}
++
++/// Result of a cross-session access check.
++/// When the path falls inside another session's worktree, this captures the
++/// owning session id so callers can emit FR events regardless of approval.
++#[derive(Debug, Clone, PartialEq, Eq)]
++pub enum CrossSessionCheckResult {
++    /// Path does not belong to any other session -- no restriction.
++    NoConflict,
++    /// Path belongs to another session but operator approved access.
++    ApprovedOverride {
++        target_session: String,
++    },
++    /// Path belongs to another session and access is denied (no approval).
++    Denied {
++        target_session: String,
++    },
++}
++
++/// INV-WS-003: Cross-session file access denial.
++/// A session MUST NOT access paths inside another session's worktree unless
++/// explicit operator approval is provided.
++pub fn validate_no_cross_session_access(
++    registry: &SessionWorktreeRegistry,
++    session_id: &str,
++    target_path: &Path,
++    operator_approved: bool,
++) -> Result<CrossSessionCheckResult, IsolationDenial> {
++    for (other_session, worktree_path) in registry.iter() {
++        if other_session == session_id {
++            continue;
++        }
++        if target_path.starts_with(worktree_path) {
++            if operator_approved {
++                return Ok(CrossSessionCheckResult::ApprovedOverride {
++                    target_session: other_session.clone(),
++                });
++            }
++            return Err(IsolationDenial::CrossSessionAccess {
++                source_session: session_id.to_string(),
++                target_session: other_session.clone(),
++                target_path: target_path.to_path_buf(),
++            });
++        }
++    }
++    Ok(CrossSessionCheckResult::NoConflict)
++}
++
++#[derive(Debug, Clone, PartialEq, Eq)]
++pub enum IsolationDenial {
++    /// INV-WS-002: No worktree allocation exists for this session.
++    NoIsolation { session_id: String },
++    /// INV-WS-003: Path belongs to another session's worktree.
++    CrossSessionAccess {
++        source_session: String,
++        target_session: String,
++        target_path: PathBuf,
++    },
++}
++
++impl std::fmt::Display for IsolationDenial {
++    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        match self {
++            IsolationDenial::NoIsolation { session_id } => {
++                write!(
++                    f,
++                    "INV-WS-002: no isolation established for session {session_id}; execution denied"
++                )
++            }
++            IsolationDenial::CrossSessionAccess {
++                source_session,
++                target_session,
++                target_path,
++            } => {
++                write!(
++                    f,
++                    "INV-WS-003: session {source_session} denied access to {} (owned by session {target_session})",
++                    target_path.display()
++                )
++            }
++        }
++    }
++}
++
++impl std::error::Error for IsolationDenial {}
++
++impl IsolationDenial {
++    /// Build a Flight Recorder event for this denial.
++    pub fn to_fr_event(&self, trace_id: Uuid) -> FlightRecorderEvent {
++        match self {
++            IsolationDenial::NoIsolation { session_id } => FlightRecorderEvent::new(
++                FlightRecorderEventType::WorkspaceIsolationDenied,
++                FlightRecorderActor::System,
++                trace_id,
++                json!({
++                    "invariant": "INV-WS-002",
++                    "session_id": session_id,
++                    "reason": self.to_string(),
++                }),
++            ),
++            IsolationDenial::CrossSessionAccess {
++                source_session,
++                target_session,
++                target_path,
++            } => FlightRecorderEvent::new(
++                FlightRecorderEventType::WorkspaceCrossSessionDenied,
++                FlightRecorderActor::System,
++                trace_id,
++                json!({
++                    "invariant": "INV-WS-003",
++                    "source_session": source_session,
++                    "target_session": target_session,
++                    "target_path": target_path.display().to_string(),
++                    "reason": self.to_string(),
++                }),
++            ),
++        }
++    }
++}
++
++/// Build a Flight Recorder event for an operator-approved cross-session access.
++pub fn cross_session_approved_fr_event(
++    trace_id: Uuid,
++    source_session: &str,
++    target_session: &str,
++    target_path: &Path,
++) -> FlightRecorderEvent {
++    FlightRecorderEvent::new(
++        FlightRecorderEventType::WorkspaceCrossSessionApproved,
++        FlightRecorderActor::Human,
++        trace_id,
++        json!({
++            "invariant": "INV-WS-003",
++            "source_session": source_session,
++            "target_session": target_session,
++            "target_path": target_path.display().to_string(),
++            "operator_approved": true,
++        }),
++    )
++}
++
++/// INV-WS-002 enforcement entry point with FR event emission.
++/// On denial, returns the `IsolationDenial` paired with a ready-to-record
++/// `FlightRecorderEvent` so the caller can persist the audit trail.
++pub fn enforce_workspace_isolation(
++    registry: &SessionWorktreeRegistry,
++    session_id: &str,
++    trace_id: Uuid,
++) -> Result<PathBuf, (IsolationDenial, FlightRecorderEvent)> {
++    match validate_session_has_isolation(registry, session_id) {
++        Ok(path) => Ok(path.clone()),
++        Err(denial) => {
++            let fr_event = denial.to_fr_event(trace_id);
++            Err((denial, fr_event))
++        }
++    }
++}
++
++/// INV-WS-003 enforcement entry point with FR event emission.
++/// On denial, returns the denial paired with a `FlightRecorderEvent`.
++/// On approved override, returns the check result paired with the
++/// operator-approved FR event so the override is auditable.
++pub fn enforce_cross_session_access(
++    registry: &SessionWorktreeRegistry,
++    session_id: &str,
++    target_path: &Path,
++    operator_approved: bool,
++    trace_id: Uuid,
++) -> Result<(CrossSessionCheckResult, Option<FlightRecorderEvent>), (IsolationDenial, FlightRecorderEvent)>
++{
++    match validate_no_cross_session_access(registry, session_id, target_path, operator_approved) {
++        Ok(CrossSessionCheckResult::ApprovedOverride { ref target_session }) => {
++            let fr_event = cross_session_approved_fr_event(
++                trace_id,
++                session_id,
++                target_session,
++                target_path,
++            );
++            Ok((
++                CrossSessionCheckResult::ApprovedOverride {
++                    target_session: target_session.clone(),
++                },
++                Some(fr_event),
++            ))
++        }
++        Ok(result) => Ok((result, None)),
++        Err(denial) => {
++            let fr_event = denial.to_fr_event(trace_id);
++            Err((denial, fr_event))
++        }
++    }
++}
++
++pub fn extract_conflicting_files_from_git_status_porcelain_z(
++    status_output: &[u8],
++) -> Vec<String> {
++    let mut files = Vec::new();
++    let mut dedupe = HashSet::new();
++
++    for segment in status_output.split(|byte| *byte == b'\0') {
++        if segment.len() < 4 {
++            continue;
++        }
++
++        let status = match segment.get(0..2).and_then(|value| str::from_utf8(value).ok()) {
++            Some(value) => value,
++            None => continue,
++        };
++
++        if !matches!(status, "DD" | "AU" | "UA" | "AA" | "UD" | "DU" | "UU") {
++            continue;
++        }
++
++        let path = segment
++            .get(3..)
++            .and_then(|value| str::from_utf8(value).ok())
++            .map(|path| path.split('\t').next().unwrap_or_default().to_string())
++            .filter(|path| !path.is_empty());
++
++        if let Some(path) = path {
++            if dedupe.insert(path.clone()) {
++                files.push(path);
++            }
++        }
++    }
++
++    files
++}
++
++pub fn collect_merge_back_artifact(
++    worktree_path: &Path,
++    session_id: impl Into<String>,
++) -> io::Result<MergeBackArtifact> {
++    let worktree_path = worktree_path.to_string_lossy().to_string();
++
++    let status_output = run_git_text_command(
++        &worktree_path,
++        &["status", "--short", "--porcelain", "-z"],
++    )?;
++    let diff_patch = run_git_text_command(&worktree_path, &["diff", "--binary"])?;
++    let conflicting_files = extract_conflicting_files_from_git_status_porcelain_z(status_output.as_bytes());
++
++    Ok(MergeBackArtifact {
++        session_id: session_id.into(),
++        worktree_path,
++        produced_at: Utc::now(),
++        diff_patch,
++        conflict_report: if conflicting_files.is_empty() {
++            None
++        } else {
++            Some(MergeBackConflictReport { conflicting_files })
++        },
++    })
++}
++
++pub fn session_worktree_path(repo_root: &Path, session_id: &str) -> PathBuf {
++    repo_root
++        .parent()
++        .unwrap_or(repo_root)
++        .join("session_worktrees")
++        .join(session_id)
++}
++
++pub fn ensure_session_worktree_allocation(
++    repo_root: &Path,
++    session_id: &str,
++) -> io::Result<SessionWorktreeAllocation> {
++    let worktree_path = session_worktree_path(repo_root, session_id);
++
++    if worktree_path.exists() {
++        let _ = Command::new("git")
++            .arg("-C")
++            .arg(repo_root)
++            .args(["worktree", "remove", "--force"])
++            .arg(&worktree_path)
++            .output();
++        if worktree_path.exists() {
++            fs::remove_dir_all(&worktree_path)?;
++        }
++    }
++
++    if let Some(parent) = worktree_path.parent() {
++        fs::create_dir_all(parent)?;
++    }
++
++    let output = Command::new("git")
++        .arg("-C")
++        .arg(repo_root)
++        .args(["worktree", "add", "--detach"])
++        .arg(&worktree_path)
++        .arg("HEAD")
++        .output()?;
++    if !output.status.success() {
++        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
++        return Err(io::Error::new(
++            io::ErrorKind::Other,
++            format!(
++                "git worktree add failed for session {session_id} at {}: {stderr}",
++                worktree_path.display()
++            ),
++        ));
++    }
++
++    Ok(SessionWorktreeAllocation::new(session_id, worktree_path))
++}
++
++pub fn cleanup_session_worktree(repo_root: &Path, worktree_path: &Path) -> io::Result<()> {
++    let output = Command::new("git")
++        .arg("-C")
++        .arg(repo_root)
++        .args(["worktree", "remove", "--force"])
++        .arg(worktree_path)
++        .output()?;
++    if !output.status.success() {
++        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
++        return Err(io::Error::new(
++            io::ErrorKind::Other,
++            format!(
++                "git worktree remove failed for {}: {stderr}",
++                worktree_path.display()
++            ),
++        ));
++    }
++    Ok(())
++}
++
++fn run_git_text_command(cwd: &str, args: &[&str]) -> io::Result<String> {
++    let output = Command::new("git").arg("-C").arg(cwd).args(args).output()?;
++
++    if !output.status.success() {
++        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
++        return Err(io::Error::new(
++            io::ErrorKind::Other,
++            format!(
++                "git command failed for {cwd} with args {:?}: {stderr}",
++                args
++            ),
++        ));
++    }
++
++    String::from_utf8(output.stdout).map_err(|_| {
++        io::Error::new(
++            io::ErrorKind::InvalidData,
++            "git output was not valid UTF-8",
++        )
++    })
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use std::path::PathBuf;
++    use uuid::Uuid;
++
++    fn two_session_registry() -> SessionWorktreeRegistry {
++        let mut registry = SessionWorktreeRegistry::new();
++        registry.put(SessionWorktreeAllocation::new(
++            "session-a",
++            "/worktrees/session-a",
++        ));
++        registry.put(SessionWorktreeAllocation::new(
++            "session-b",
++            "/worktrees/session-b",
++        ));
++        registry
++    }
++
++    // ---------------------------------------------------------------
++    // MT-001 regression: registry basics
++    // ---------------------------------------------------------------
++
++    #[test]
++    fn registry_put_get_remove_roundtrip() {
++        let mut registry = SessionWorktreeRegistry::new();
++        let session_id = "session-1".to_string();
++
++        registry.put(SessionWorktreeAllocation::new(
++            &session_id,
++            "tmp/session-1-worktree",
++        ));
++
++        assert_eq!(
++            registry.get(&session_id).unwrap().to_string_lossy().as_ref(),
++            "tmp/session-1-worktree"
++        );
++        assert_eq!(registry.len(), 1);
++
++        let removed = registry
++            .remove(&session_id)
++            .expect("session allocation should be present");
++        assert_eq!(removed.session_id, session_id);
++        assert_eq!(
++            removed.worktree_path.to_string_lossy().as_ref(),
++            "tmp/session-1-worktree"
++        );
++        assert!(registry.get(&removed.session_id).is_none());
++        assert_eq!(registry.len(), 0);
++    }
++
++    // ---------------------------------------------------------------
++    // MT-003 regression: conflict extraction
++    // ---------------------------------------------------------------
++
++    #[test]
++    fn extract_conflicting_files_from_git_status_porcelain_z_detects_unmerged() {
++        let status_output = b"UU model.txt\0M  clean.txt\0DD rename old.txt\tnew.txt\0";
++
++        assert_eq!(
++            extract_conflicting_files_from_git_status_porcelain_z(status_output),
++            vec!["model.txt".to_string(), "rename old.txt".to_string()]
++        );
++    }
++
++    #[test]
++    fn extract_conflicting_files_from_git_status_porcelain_z_ignores_non_conflicts() {
++        let status_output = b"  src/main.rs\0A  src/new.rs\0D  removed.txt\0";
++
++        assert!(extract_conflicting_files_from_git_status_porcelain_z(status_output).is_empty());
++    }
++
++    // ---------------------------------------------------------------
++    // MT-005: INV-WS-002 fail-closed isolation enforcement
++    // ---------------------------------------------------------------
++
++    #[test]
++    fn validate_session_has_isolation_returns_path_when_registered() {
++        let registry = two_session_registry();
++        let result = validate_session_has_isolation(&registry, "session-a");
++        assert!(result.is_ok());
++        assert_eq!(
++            result.unwrap(),
++            &PathBuf::from("/worktrees/session-a")
++        );
++    }
++
++    #[test]
++    fn validate_session_has_isolation_fails_closed_when_missing() {
++        let registry = two_session_registry();
++        let result = validate_session_has_isolation(&registry, "session-unknown");
++        assert!(result.is_err());
++        let denial = result.unwrap_err();
++        assert_eq!(
++            denial,
++            IsolationDenial::NoIsolation {
++                session_id: "session-unknown".to_string(),
++            }
++        );
++        assert!(
++            denial.to_string().contains("INV-WS-002"),
++            "denial message must reference INV-WS-002"
++        );
++    }
++
++    #[test]
++    fn validate_session_has_isolation_empty_registry_denies() {
++        let registry = SessionWorktreeRegistry::new();
++        let result = validate_session_has_isolation(&registry, "any-session");
++        assert!(result.is_err());
++    }
++
++    #[test]
++    fn validate_session_has_isolation_removed_session_denies() {
++        let mut registry = two_session_registry();
++        registry.remove("session-a");
++        let result = validate_session_has_isolation(&registry, "session-a");
++        assert!(result.is_err());
++        // session-b still works
++        assert!(validate_session_has_isolation(&registry, "session-b").is_ok());
++    }
++
++    #[test]
++    fn isolation_denial_no_isolation_fr_event_has_correct_type() {
++        let denial = IsolationDenial::NoIsolation {
++            session_id: "sess-42".to_string(),
++        };
++        let event = denial.to_fr_event(Uuid::nil());
++        assert_eq!(
++            event.event_type,
++            FlightRecorderEventType::WorkspaceIsolationDenied
++        );
++        let payload = &event.payload;
++        assert_eq!(payload["invariant"], "INV-WS-002");
++        assert_eq!(payload["session_id"], "sess-42");
++    }
++
++    // ---------------------------------------------------------------
++    // MT-006: INV-WS-003 cross-session access denial
++    // ---------------------------------------------------------------
++
++    #[test]
++    fn cross_session_access_denied_without_approval() {
++        let registry = two_session_registry();
++        let target = Path::new("/worktrees/session-b/src/main.rs");
++        let result =
++            validate_no_cross_session_access(&registry, "session-a", target, false);
++        assert!(result.is_err());
++        let denial = result.unwrap_err();
++        match &denial {
++            IsolationDenial::CrossSessionAccess {
++                source_session,
++                target_session,
++                target_path,
++            } => {
++                assert_eq!(source_session, "session-a");
++                assert_eq!(target_session, "session-b");
++                assert_eq!(target_path, target);
++            }
++            other => panic!("expected CrossSessionAccess, got {other:?}"),
++        }
++        assert!(
++            denial.to_string().contains("INV-WS-003"),
++            "denial message must reference INV-WS-003"
++        );
++    }
++
++    #[test]
++    fn cross_session_access_allowed_with_operator_approval() {
++        let registry = two_session_registry();
++        let target = Path::new("/worktrees/session-b/src/main.rs");
++        let result =
++            validate_no_cross_session_access(&registry, "session-a", target, true);
++        assert!(result.is_ok());
++        assert_eq!(
++            result.unwrap(),
++            CrossSessionCheckResult::ApprovedOverride {
++                target_session: "session-b".to_string(),
++            }
++        );
++    }
++
++    #[test]
++    fn own_session_path_is_always_allowed() {
++        let registry = two_session_registry();
++        let target = Path::new("/worktrees/session-a/src/lib.rs");
++        let result =
++            validate_no_cross_session_access(&registry, "session-a", target, false);
++        assert!(result.is_ok());
++        assert_eq!(result.unwrap(), CrossSessionCheckResult::NoConflict);
++    }
++
++    #[test]
++    fn path_outside_all_worktrees_is_allowed() {
++        let registry = two_session_registry();
++        let target = Path::new("/home/user/documents/notes.txt");
++        let result =
++            validate_no_cross_session_access(&registry, "session-a", target, false);
++        assert!(result.is_ok());
++        assert_eq!(result.unwrap(), CrossSessionCheckResult::NoConflict);
++    }
++
++    #[test]
++    fn cross_session_denial_fr_event_has_correct_type() {
++        let denial = IsolationDenial::CrossSessionAccess {
++            source_session: "sess-a".to_string(),
++            target_session: "sess-b".to_string(),
++            target_path: PathBuf::from("/worktrees/sess-b/file.rs"),
++        };
++        let event = denial.to_fr_event(Uuid::nil());
++        assert_eq!(
++            event.event_type,
++            FlightRecorderEventType::WorkspaceCrossSessionDenied
++        );
++        let payload = &event.payload;
++        assert_eq!(payload["invariant"], "INV-WS-003");
++        assert_eq!(payload["source_session"], "sess-a");
++        assert_eq!(payload["target_session"], "sess-b");
++    }
++
++    #[test]
++    fn cross_session_approved_fr_event_has_correct_type() {
++        let event = cross_session_approved_fr_event(
++            Uuid::nil(),
++            "sess-a",
++            "sess-b",
++            Path::new("/worktrees/sess-b/file.rs"),
++        );
++        assert_eq!(
++            event.event_type,
++            FlightRecorderEventType::WorkspaceCrossSessionApproved
++        );
++        assert_eq!(event.payload["operator_approved"], true);
++        assert_eq!(event.payload["invariant"], "INV-WS-003");
++    }
++
++    #[test]
++    fn empty_registry_allows_any_path_no_cross_session() {
++        let registry = SessionWorktreeRegistry::new();
++        let target = Path::new("/worktrees/session-a/src/main.rs");
++        let result =
++            validate_no_cross_session_access(&registry, "session-x", target, false);
++        assert!(result.is_ok());
++        assert_eq!(result.unwrap(), CrossSessionCheckResult::NoConflict);
++    }
++
++    #[test]
++    fn exact_worktree_root_path_triggers_cross_session_check() {
++        let registry = two_session_registry();
++        // Accessing the exact root of another session's worktree
++        let target = Path::new("/worktrees/session-b");
++        let result =
++            validate_no_cross_session_access(&registry, "session-a", target, false);
++        assert!(result.is_err());
++    }
++
++    // ---------------------------------------------------------------
++    // MT-005/MT-006 wiring: enforce_* entry points with FR emission
++    // ---------------------------------------------------------------
++
++    #[test]
++    fn enforce_workspace_isolation_returns_path_on_success() {
++        let registry = two_session_registry();
++        let result = enforce_workspace_isolation(&registry, "session-a", Uuid::nil());
++        assert!(result.is_ok());
++        assert_eq!(result.unwrap(), PathBuf::from("/worktrees/session-a"));
++    }
++
++    #[test]
++    fn enforce_workspace_isolation_emits_fr_event_on_denial() {
++        let registry = two_session_registry();
++        let result = enforce_workspace_isolation(&registry, "unknown", Uuid::nil());
++        assert!(result.is_err());
++        let (denial, fr_event) = result.unwrap_err();
++        assert!(matches!(denial, IsolationDenial::NoIsolation { .. }));
++        assert_eq!(
++            fr_event.event_type,
++            FlightRecorderEventType::WorkspaceIsolationDenied
++        );
++        assert_eq!(fr_event.payload["invariant"], "INV-WS-002");
++    }
++
++    #[test]
++    fn enforce_cross_session_access_no_conflict_no_fr_event() {
++        let registry = two_session_registry();
++        let target = Path::new("/worktrees/session-a/src/lib.rs");
++        let result = enforce_cross_session_access(
++            &registry, "session-a", target, false, Uuid::nil(),
++        );
++        assert!(result.is_ok());
++        let (check_result, fr_event) = result.unwrap();
++        assert_eq!(check_result, CrossSessionCheckResult::NoConflict);
++        assert!(fr_event.is_none());
++    }
++
++    #[test]
++    fn enforce_cross_session_access_emits_fr_event_on_denial() {
++        let registry = two_session_registry();
++        let target = Path::new("/worktrees/session-b/src/main.rs");
++        let result = enforce_cross_session_access(
++            &registry, "session-a", target, false, Uuid::nil(),
++        );
++        assert!(result.is_err());
++        let (denial, fr_event) = result.unwrap_err();
++        assert!(matches!(denial, IsolationDenial::CrossSessionAccess { .. }));
++        assert_eq!(
++            fr_event.event_type,
++            FlightRecorderEventType::WorkspaceCrossSessionDenied
++        );
++        assert_eq!(fr_event.payload["invariant"], "INV-WS-003");
++    }
++
++    #[test]
++    fn enforce_cross_session_access_emits_approved_fr_event_on_override() {
++        let registry = two_session_registry();
++        let target = Path::new("/worktrees/session-b/src/main.rs");
++        let result = enforce_cross_session_access(
++            &registry, "session-a", target, true, Uuid::nil(),
++        );
++        assert!(result.is_ok());
++        let (check_result, fr_event) = result.unwrap();
++        assert!(matches!(
++            check_result,
++            CrossSessionCheckResult::ApprovedOverride { .. }
++        ));
++        let fr_event = fr_event.expect("approved override must emit FR event");
++        assert_eq!(
++            fr_event.event_type,
++            FlightRecorderEventType::WorkspaceCrossSessionApproved
++        );
++        assert_eq!(fr_event.payload["operator_approved"], true);
++    }
++}

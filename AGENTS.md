@@ -44,6 +44,7 @@
   - `/AGENTS.md`
 - Hard rule: if any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), STOP and require a WP.
 - Build/test/tool outputs MUST live at the external sibling root `../Handshake Artifacts/` (subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`). Repo-local `target/` directories are governance violations.
+- When old governance scripts/tests are retired during repo-governance cleanup, move them to an operator-designated external archive root outside the repo for safekeeping and posterity instead of hard-deleting them. Keep that archive location out of runtime assumptions; record the concrete path in the relevant audit/log for the cleanup wave.
 - Operator-facing scope split rule:
   - Always separate `Handshake (Product)` from `Repo Governance` in chat.
   - `Handshake (Product)` includes product code, product tests, Master Spec requirements, and product WPs, even when the topic is governed actions, workflow law, or other product-governance contracts.
@@ -51,6 +52,7 @@
   - If only one lane applies, still name both lanes and state `NONE` for the other lane.
   - Do not use `governance` alone for product-code contract work.
   - Lead with the actual answer or finding in plain English. Use file paths and line anchors as evidence after the explanation, not instead of it, unless exact locations are the main point.
+- **Product Reference is navigation only:** `.GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md` is a quick-ref summary. All decisions, technical advice, and implementation guidance MUST be derived from the Master Spec (`SPEC_CURRENT.md`), never from the Product Reference [CX-403].
 - Minimum verification for governance-only changes: `just gov-check`.
 - Use `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md` for the no-WP governance record flow.
 - Governance-maintenance records:
