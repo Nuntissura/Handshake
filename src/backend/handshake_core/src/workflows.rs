@@ -58,7 +58,8 @@ use crate::{
         JobContext, TerminalMode, TerminalRequest, TerminalService,
     },
     workspace_safety::{
-        collect_merge_back_artifact, enforce_cross_session_access, enforce_workspace_isolation,
+        cleanup_session_worktree, collect_merge_back_artifact, enforce_cross_session_access,
+        enforce_workspace_isolation, ensure_session_worktree_allocation,
         SessionWorktreeAllocation, SessionWorktreeRegistry,
     },
     AppState,
@@ -5354,9 +5355,25 @@ async fn ensure_model_session_artifact_refs(
             capability_grants: metadata.capability_grants.clone(),
             capability_token_ids: metadata.capability_token_ids.clone(),
             job_id: Some(job.job_id),
-        })
-        .await?;
+    })
+    .await?;
     state.session_registry.upsert_session(session).await;
+
+    if state
+        .session_registry
+        .get_session_worktree_path(&metadata.session_id)
+        .await
+        .is_none()
+    {
+        let repo_root = repo_root_from_manifest_dir()
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        let allocation = ensure_session_worktree_allocation(&repo_root, metadata.session_id.as_str())
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        state
+            .session_registry
+            .register_session_worktree_allocation(allocation)
+            .await;
+    }
 
     for entry in &metadata.session_messages {
         let mut role = entry.role.clone();
@@ -6132,13 +6149,17 @@ async fn finalize_model_run_after_terminal(
         JobState::AwaitingUser | JobState::AwaitingValidation => ModelSessionState::Blocked,
     };
 
+    let repo_root = repo_root_from_manifest_dir()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let worktree_registry = state.session_registry.snapshot_worktree_registry().await;
     let mut merge_back_artifact = None;
+    let mut worktree_path_for_cleanup = None;
     if let Some(worktree_path) = state
         .session_registry
         .get_session_worktree_path(&metadata.session_id)
         .await
     {
+        worktree_path_for_cleanup = Some(worktree_path.clone());
         let workspace_denial = evaluate_session_safety_gates(
             metadata.session_id.as_str(),
             &worktree_path,
@@ -6241,6 +6262,20 @@ async fn finalize_model_run_after_terminal(
             merge_back_artifact,
         )
         .await?;
+    if let Some(worktree_path) = worktree_path_for_cleanup {
+        if let Err(err) = cleanup_session_worktree(&repo_root, &worktree_path) {
+            tracing::warn!(
+                "cleanup_session_worktree failed for session_id={} at {}: {}",
+                metadata.session_id,
+                worktree_path.display(),
+                err,
+            );
+        }
+        let _ = state
+            .session_registry
+            .clear_session_worktree_allocation(&metadata.session_id)
+            .await;
+    }
     state.session_registry.upsert_session(session).await;
 
     if matches!(final_status, JobState::Cancelled) {
