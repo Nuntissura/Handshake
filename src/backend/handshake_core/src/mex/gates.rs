@@ -1,9 +1,16 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::path::{Path, PathBuf};
+use uuid::Uuid;
 
 use crate::capabilities::{CapabilityRegistry, RegistryError};
-use crate::mex::envelope::{DeterminismLevel, PlannedOperation, POE_SCHEMA_VERSION};
+use crate::mex::envelope::{
+    BudgetSpec, DeterminismLevel, OutputSpec, PlannedOperation, POE_SCHEMA_VERSION,
+};
 use crate::mex::registry::MexRegistry;
+use crate::workspace_safety::{
+    enforce_cross_session_access, enforce_workspace_isolation, SessionWorktreeRegistry,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -39,6 +46,69 @@ impl GatePipeline {
     pub fn iter(&self) -> impl Iterator<Item = &Box<dyn Gate>> {
         self.gates.iter()
     }
+
+    /// Run all gates against an operation, collecting every denial.
+    /// Unlike the runtime's short-circuit loop, this reports all failures
+    /// so callers can surface a complete problem list.
+    pub fn evaluate(
+        &self,
+        op: &PlannedOperation,
+        registry: &MexRegistry,
+    ) -> Vec<GateDenial> {
+        self.gates
+            .iter()
+            .filter_map(|gate| gate.check(op, registry).err())
+            .collect()
+    }
+}
+
+fn gate_probe_operation() -> PlannedOperation {
+    PlannedOperation {
+        schema_version: POE_SCHEMA_VERSION.to_string(),
+        op_id: Uuid::nil(),
+        engine_id: "workspace_safety".to_string(),
+        engine_version_req: None,
+        operation: "workspace_safety.enforce".to_string(),
+        inputs: Vec::new(),
+        params: json!({}),
+        capabilities_requested: vec!["fs.read".to_string()],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
+        budget: BudgetSpec {
+            cpu_time_ms: None,
+            wall_time_ms: Some(1),
+            memory_bytes: None,
+            output_bytes: Some(1),
+        },
+        determinism: DeterminismLevel::D3,
+        evidence_policy: None,
+        output_spec: OutputSpec {
+            expected_types: Vec::new(),
+            max_bytes: Some(1),
+        },
+    }
+}
+
+pub fn evaluate_session_safety_gates(
+    session_id: &str,
+    target_path: &Path,
+    operator_approved: bool,
+    worktree_registry: SessionWorktreeRegistry,
+) -> Vec<GateDenial> {
+    let pipeline = GatePipeline::new(vec![
+        Box::new(IsolationGate::new(
+            session_id.to_string(),
+            worktree_registry.clone(),
+        )),
+        Box::new(CrossSessionGate::new(
+            session_id.to_string(),
+            target_path.to_path_buf(),
+            operator_approved,
+            worktree_registry,
+        )),
+    ]);
+    let registry = MexRegistry::from_map(std::collections::HashMap::new());
+    pipeline.evaluate(&gate_probe_operation(), &registry)
 }
 
 pub struct SchemaGate;
@@ -327,6 +397,102 @@ impl Gate for ProvenanceGate {
     }
 }
 
+/// INV-WS-002: Fail-closed isolation gate.
+/// Denies any operation from a session that has no worktree allocation.
+pub struct IsolationGate {
+    session_id: String,
+    worktree_registry: SessionWorktreeRegistry,
+}
+
+impl IsolationGate {
+    pub fn new(session_id: impl Into<String>, worktree_registry: SessionWorktreeRegistry) -> Self {
+        Self {
+            session_id: session_id.into(),
+            worktree_registry,
+        }
+    }
+}
+
+impl Gate for IsolationGate {
+    fn name(&self) -> &'static str {
+        "G-ISOLATION"
+    }
+
+    fn check(&self, op: &PlannedOperation, _registry: &MexRegistry) -> Result<(), GateDenial> {
+        match enforce_workspace_isolation(&self.worktree_registry, &self.session_id, op.op_id) {
+            Ok(_) => Ok(()),
+            Err((denial, fr_event)) => Err(GateDenial {
+                gate: self.name().to_string(),
+                reason: denial.to_string(),
+                code: Some("INV-WS-002".to_string()),
+                details: Some(json!({
+                    "session_id": self.session_id,
+                    "fr_event_type": fr_event.event_type.to_string(),
+                    "fr_payload": fr_event.payload,
+                })),
+                severity: DenialSeverity::Error,
+            }),
+        }
+    }
+}
+
+/// INV-WS-003: Cross-session access gate.
+/// Denies operations that target paths inside another session's worktree
+/// unless explicit operator approval was provided.
+pub struct CrossSessionGate {
+    session_id: String,
+    target_path: PathBuf,
+    operator_approved: bool,
+    worktree_registry: SessionWorktreeRegistry,
+}
+
+impl CrossSessionGate {
+    pub fn new(
+        session_id: impl Into<String>,
+        target_path: impl Into<PathBuf>,
+        operator_approved: bool,
+        worktree_registry: SessionWorktreeRegistry,
+    ) -> Self {
+        Self {
+            session_id: session_id.into(),
+            target_path: target_path.into(),
+            operator_approved,
+            worktree_registry,
+        }
+    }
+}
+
+impl Gate for CrossSessionGate {
+    fn name(&self) -> &'static str {
+        "G-CROSS-SESSION"
+    }
+
+    fn check(&self, op: &PlannedOperation, _registry: &MexRegistry) -> Result<(), GateDenial> {
+        match enforce_cross_session_access(
+            &self.worktree_registry,
+            &self.session_id,
+            &self.target_path,
+            self.operator_approved,
+            op.op_id,
+        ) {
+            Ok((_result, _fr_event)) => Ok(()),
+            Err((denial, fr_event)) => Err(GateDenial {
+                gate: self.name().to_string(),
+                reason: denial.to_string(),
+                code: Some("INV-WS-003".to_string()),
+                details: Some(json!({
+                    "session_id": self.session_id,
+                    "target_path": self.target_path.display().to_string(),
+                    "operator_approved": self.operator_approved,
+                    "fr_event_type": fr_event.event_type.to_string(),
+                    "fr_payload": fr_event.payload,
+                })),
+                severity: DenialSeverity::Error,
+            }),
+        }
+    }
+}
+
 pub struct DetGate;
 
 impl Gate for DetGate {
@@ -359,5 +525,151 @@ impl Gate for DetGate {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ace::ArtifactHandle;
+    use crate::mex::envelope::{
+        BudgetSpec, DeterminismLevel, EvidencePolicy, OutputSpec, POE_SCHEMA_VERSION,
+    };
+    use crate::workspace_safety::{SessionWorktreeAllocation, SessionWorktreeRegistry};
+    use std::collections::HashMap;
+    use uuid::Uuid;
+
+    fn dummy_op() -> PlannedOperation {
+        PlannedOperation {
+            schema_version: POE_SCHEMA_VERSION.to_string(),
+            op_id: Uuid::nil(),
+            engine_id: "test_engine".to_string(),
+            engine_version_req: None,
+            operation: "test.op".to_string(),
+            inputs: vec![ArtifactHandle::new(Uuid::nil(), "/test".to_string())],
+            params: serde_json::json!({}),
+            capabilities_requested: vec!["fs.read".to_string()],
+            capability_profile_id: Some("Coder".to_string()),
+            human_consent_obtained: false,
+            budget: BudgetSpec {
+                cpu_time_ms: Some(1000),
+                wall_time_ms: Some(2000),
+                memory_bytes: Some(64 * 1024 * 1024),
+                output_bytes: Some(8 * 1024 * 1024),
+            },
+            determinism: DeterminismLevel::D2,
+            evidence_policy: Some(EvidencePolicy {
+                required: true,
+                notes: None,
+            }),
+            output_spec: OutputSpec {
+                expected_types: vec!["artifact.document".to_string()],
+                max_bytes: Some(8 * 1024 * 1024),
+            },
+        }
+    }
+
+    fn two_session_registry() -> SessionWorktreeRegistry {
+        let mut registry = SessionWorktreeRegistry::new();
+        registry.put(SessionWorktreeAllocation::new(
+            "session-a",
+            "/worktrees/session-a",
+        ));
+        registry.put(SessionWorktreeAllocation::new(
+            "session-b",
+            "/worktrees/session-b",
+        ));
+        registry
+    }
+
+    #[test]
+    fn isolation_gate_passes_when_session_registered() {
+        let registry = two_session_registry();
+        let mex_registry = MexRegistry::from_map(HashMap::new());
+        let gate = IsolationGate::new("session-a", registry);
+        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
+        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
+        assert!(
+            denials.is_empty(),
+            "registered session must pass isolation gate"
+        );
+    }
+
+    #[test]
+    fn isolation_gate_denies_unregistered_session() {
+        let registry = two_session_registry();
+        let mex_registry = MexRegistry::from_map(HashMap::new());
+        let gate = IsolationGate::new("unknown-session", registry);
+        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
+        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
+        assert_eq!(denials.len(), 1);
+        assert_eq!(denials[0].gate, "G-ISOLATION");
+        assert_eq!(denials[0].code.as_deref(), Some("INV-WS-002"));
+    }
+
+    #[test]
+    fn cross_session_gate_passes_for_own_path() {
+        let registry = two_session_registry();
+        let mex_registry = MexRegistry::from_map(HashMap::new());
+        let gate = CrossSessionGate::new(
+            "session-a",
+            "/worktrees/session-a/src/lib.rs",
+            false,
+            registry,
+        );
+        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
+        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
+        assert!(
+            denials.is_empty(),
+            "own session path must pass cross-session gate"
+        );
+    }
+
+    #[test]
+    fn cross_session_gate_denies_other_session_path() {
+        let registry = two_session_registry();
+        let mex_registry = MexRegistry::from_map(HashMap::new());
+        let gate = CrossSessionGate::new(
+            "session-a",
+            "/worktrees/session-b/src/main.rs",
+            false,
+            registry,
+        );
+        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
+        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
+        assert_eq!(denials.len(), 1);
+        assert_eq!(denials[0].gate, "G-CROSS-SESSION");
+        assert_eq!(denials[0].code.as_deref(), Some("INV-WS-003"));
+    }
+
+    #[test]
+    fn cross_session_gate_passes_with_operator_approval() {
+        let registry = two_session_registry();
+        let mex_registry = MexRegistry::from_map(HashMap::new());
+        let gate = CrossSessionGate::new(
+            "session-a",
+            "/worktrees/session-b/src/main.rs",
+            true,
+            registry,
+        );
+        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
+        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
+        assert!(
+            denials.is_empty(),
+            "operator-approved cross-session access must pass"
+        );
+    }
+
+    #[test]
+    fn pipeline_evaluate_collects_multiple_denials() {
+        let registry = SessionWorktreeRegistry::new();
+        let mex_registry = MexRegistry::from_map(HashMap::new());
+        let isolation = IsolationGate::new("no-session", registry.clone());
+        let cross = CrossSessionGate::new("no-session", "/some/path", false, registry);
+        let pipeline = GatePipeline::new(vec![Box::new(isolation), Box::new(cross)]);
+        let denials = pipeline.evaluate(&dummy_op(), &mex_registry);
+        // IsolationGate denies; CrossSessionGate passes (empty registry = no other sessions)
+        assert_eq!(denials.len(), 1);
+        assert_eq!(denials[0].gate, "G-ISOLATION");
     }
 }

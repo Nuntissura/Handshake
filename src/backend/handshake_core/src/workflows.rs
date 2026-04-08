@@ -36,6 +36,7 @@ use crate::{
         },
         openai_compat_canonical_request_bytes, CompletionRequest, LlmError, ModelTier,
     },
+    mex::gates::evaluate_session_safety_gates,
     mex::runtime::{AdapterError as MexAdapterError, EngineAdapter, ShellEngineAdapter},
     mex::{
         BudgetGate, BudgetSpec, CapabilityGate, DetGate, DeterminismLevel, EngineError,
@@ -57,7 +58,8 @@ use crate::{
         JobContext, TerminalMode, TerminalRequest, TerminalService,
     },
     workspace_safety::{
-        collect_merge_back_artifact, SessionWorktreeAllocation, SessionWorktreeRegistry,
+        collect_merge_back_artifact, enforce_cross_session_access, enforce_workspace_isolation,
+        SessionWorktreeAllocation, SessionWorktreeRegistry,
     },
     AppState,
 };
@@ -492,6 +494,11 @@ impl SessionRegistry {
     ) -> Option<PathBuf> {
         let inner = self.inner.read().await;
         inner.worktree_registry.get(session_id).cloned()
+    }
+
+    pub async fn snapshot_worktree_registry(&self) -> SessionWorktreeRegistry {
+        let inner = self.inner.read().await;
+        inner.worktree_registry.clone()
     }
 
     pub async fn clear_session_worktree_allocation(
@@ -6125,27 +6132,104 @@ async fn finalize_model_run_after_terminal(
         JobState::AwaitingUser | JobState::AwaitingValidation => ModelSessionState::Blocked,
     };
 
+    let worktree_registry = state.session_registry.snapshot_worktree_registry().await;
     let mut merge_back_artifact = None;
     if let Some(worktree_path) = state
         .session_registry
         .get_session_worktree_path(&metadata.session_id)
         .await
     {
-        match collect_merge_back_artifact(&worktree_path, metadata.session_id.as_str()) {
-            Ok(artifact) => {
-                if artifact.has_conflicts() {
-                    session_state = ModelSessionState::Blocked;
+        let workspace_denial = evaluate_session_safety_gates(
+            metadata.session_id.as_str(),
+            &worktree_path,
+            false,
+            worktree_registry.clone(),
+        )
+        .into_iter()
+        .next();
+
+        if let Some(denial) = workspace_denial {
+            session_state = ModelSessionState::Blocked;
+            match denial.code.as_deref() {
+                Some("INV-WS-002") => {
+                    if let Err((err, event)) = enforce_workspace_isolation(
+                        &worktree_registry,
+                        metadata.session_id.as_str(),
+                        trace_id,
+                    ) {
+                        record_event_safely(
+                            state,
+                            event.with_job_id(job.job_id.to_string()),
+                        )
+                        .await;
+                        tracing::warn!(
+                            "workspace isolation denied merge-back capture for session_id={}: {}",
+                            metadata.session_id,
+                            err,
+                        );
+                    }
                 }
-                merge_back_artifact = Some(artifact);
+                Some("INV-WS-003") => {
+                    if let Err((err, event)) = enforce_cross_session_access(
+                        &worktree_registry,
+                        metadata.session_id.as_str(),
+                        &worktree_path,
+                        false,
+                        trace_id,
+                    ) {
+                        record_event_safely(
+                            state,
+                            event.with_job_id(job.job_id.to_string()),
+                        )
+                        .await;
+                        tracing::warn!(
+                            "cross-session access denied merge-back capture for session_id={}: {}",
+                            metadata.session_id,
+                            err,
+                        );
+                    }
+                }
+                _ => {
+                    tracing::warn!(
+                        "workspace safety gate denied merge-back capture for session_id={}: {}",
+                        metadata.session_id,
+                        denial.reason,
+                    );
+                }
             }
-            Err(err) => {
-                tracing::warn!(
-                    "collect_merge_back_artifact failed for session_id={}: {}",
-                    metadata.session_id,
-                    err,
-                );
+        } else {
+            match collect_merge_back_artifact(&worktree_path, metadata.session_id.as_str()) {
+                Ok(artifact) => {
+                    if artifact.has_conflicts() {
+                        session_state = ModelSessionState::Blocked;
+                    }
+                    merge_back_artifact = Some(artifact);
+                }
+                Err(err) => {
+                    tracing::warn!(
+                        "collect_merge_back_artifact failed for session_id={}: {}",
+                        metadata.session_id,
+                        err,
+                    );
+                }
             }
         }
+    } else if let Err((err, event)) = enforce_workspace_isolation(
+        &worktree_registry,
+        metadata.session_id.as_str(),
+        trace_id,
+    ) {
+        session_state = ModelSessionState::Blocked;
+        record_event_safely(
+            state,
+            event.with_job_id(job.job_id.to_string()),
+        )
+        .await;
+        tracing::warn!(
+            "workspace isolation denied merge-back capture for session_id={}: {}",
+            metadata.session_id,
+            err,
+        );
     }
 
     let session = state

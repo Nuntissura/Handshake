@@ -163,6 +163,10 @@ pub enum FlightRecorderEventType {
     SessionSchedulerDispatch,
     SessionSchedulerRateLimited,
     SessionSchedulerCancelled,
+    /// FR-EVT-WS-ISO-001..003: Workspace isolation events [4.3.9.17]
+    WorkspaceIsolationDenied,
+    WorkspaceCrossSessionDenied,
+    WorkspaceCrossSessionApproved,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -331,6 +335,15 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::SessionSchedulerCancelled => {
                 write!(f, "session_scheduler.cancelled")
+            }
+            FlightRecorderEventType::WorkspaceIsolationDenied => {
+                write!(f, "workspace_isolation.denied")
+            }
+            FlightRecorderEventType::WorkspaceCrossSessionDenied => {
+                write!(f, "workspace_cross_session.denied")
+            }
+            FlightRecorderEventType::WorkspaceCrossSessionApproved => {
+                write!(f, "workspace_cross_session.approved")
             }
         }
     }

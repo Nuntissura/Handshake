@@ -904,6 +904,15 @@ impl DuckDbFlightRecorder {
                 "session_scheduler.cancelled" | "session_scheduler_cancelled" => {
                     super::FlightRecorderEventType::SessionSchedulerCancelled
                 }
+                "workspace_isolation.denied" => {
+                    super::FlightRecorderEventType::WorkspaceIsolationDenied
+                }
+                "workspace_cross_session.denied" => {
+                    super::FlightRecorderEventType::WorkspaceCrossSessionDenied
+                }
+                "workspace_cross_session.approved" => {
+                    super::FlightRecorderEventType::WorkspaceCrossSessionApproved
+                }
                 "capability_action" => {
                     if payload_type == Some("terminal_command") {
                         super::FlightRecorderEventType::TerminalCommand
