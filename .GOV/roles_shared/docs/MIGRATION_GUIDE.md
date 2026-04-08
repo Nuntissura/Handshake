@@ -19,7 +19,7 @@ Authority: Master Spec section 2.3.12 (CX-DBP-011, CX-DBP-022) and Handshake Cod
 - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
 - `just validator-dal-audit` (portable SQL audit for migrations/)
 - `just validator-hygiene-full`
-- `just post-work WP-{id}` for the active work packet
+- `just phase-check HANDOFF WP-{id} CODER` for the active work packet
 
 ## Checklist for New Migrations
 - [ ] File name is numbered and ordered (000X_*.sql).

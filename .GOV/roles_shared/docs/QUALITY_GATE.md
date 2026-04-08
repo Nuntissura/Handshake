@@ -10,7 +10,7 @@ Purpose: reduce coding errors by standard checks and clear risk tiers.
 - work packet MUST exist at the authoritative resolved packet path:
   logical `.GOV/work_packets/WP-{ID}/packet.md`; current physical storage `.GOV/task_packets/WP-{ID}/packet.md`; legacy flat compatibility `.GOV/task_packets/WP-{ID}.md`
 - All work packet fields MUST be filled (no `{placeholders}`)
-- Verification: `just pre-work WP-{ID}` MUST pass
+- Verification: `just phase-check STARTUP WP-{ID} CODER` MUST pass
 
 **For Coder Agents:**
 - work packet MUST be verified before writing any code
@@ -61,15 +61,15 @@ There is no sanctioned single `just validate` recipe in the live command surface
 - Git status MUST show changes (work actually done)
 - For MEDIUM/HIGH: Manual validator review must be complete before marking Done
 - work packet MUST capture current status/result
-- Verification: `just post-work WP-{ID}` MUST pass
+- Verification: `just phase-check HANDOFF WP-{ID} CODER` MUST pass
 
 **Enforcement:** Gate 1 is automated via validation scripts. Failure exits 1 and blocks commit.
 
 **Full workflow validation:**
 ```bash
-just pre-work WP-{ID}
+just phase-check STARTUP WP-{ID} CODER
 # run the packet TEST_PLAN product commands here
-just post-work WP-{ID}
+just phase-check HANDOFF WP-{ID} CODER
 ```
 
 ## Self-review checklist (required)

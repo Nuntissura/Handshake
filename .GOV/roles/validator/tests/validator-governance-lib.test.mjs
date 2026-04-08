@@ -293,17 +293,14 @@ test("integration-validator ready commands emphasize final review and verdict he
     wpId: "WP-TEST-VALIDATOR-v1",
     actorRole: "INTEGRATION_VALIDATOR",
     actorSessionId: "intval:test",
-    postWorkCommand: "just post-work WP-TEST-VALIDATOR-v1",
+    postWorkCommand: "just phase-check HANDOFF WP-TEST-VALIDATOR-v1 CODER",
   });
 
   assert.deepEqual(commands, [
     "just integration-validator-context-brief WP-TEST-VALIDATOR-v1",
     "just check-notifications WP-TEST-VALIDATOR-v1 INTEGRATION_VALIDATOR",
     "just ack-notifications WP-TEST-VALIDATOR-v1 INTEGRATION_VALIDATOR intval:test",
-    "just validator-packet-complete WP-TEST-VALIDATOR-v1",
-    "just wp-communication-health-check WP-TEST-VALIDATOR-v1 VERDICT",
-    "just validator-handoff-check WP-TEST-VALIDATOR-v1",
-    "just integration-validator-closeout-check WP-TEST-VALIDATOR-v1",
+    "just phase-check CLOSEOUT WP-TEST-VALIDATOR-v1",
   ]);
 });
 
@@ -317,9 +314,7 @@ test("wp-validator ready commands surface packet completeness before handoff val
   assert.deepEqual(commands, [
     "just check-notifications WP-TEST-VALIDATOR-v1 WP_VALIDATOR",
     "just ack-notifications WP-TEST-VALIDATOR-v1 WP_VALIDATOR wpval:test",
-    "just validator-packet-complete WP-TEST-VALIDATOR-v1",
-    "just wp-communication-health-check WP-TEST-VALIDATOR-v1 HANDOFF",
-    "just validator-handoff-check WP-TEST-VALIDATOR-v1",
+    "just phase-check HANDOFF WP-TEST-VALIDATOR-v1 WP_VALIDATOR",
   ]);
 });
 

@@ -29,6 +29,7 @@ import {
   WORK_PACKET_STORAGE_ROOT_REPO_REL,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { communicationPathsForWp } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { buildPhaseCheckCommand } from "../../../roles_shared/checks/phase-check-lib.mjs";
 
 const wpId = (process.argv[2] || "").trim();
 const workflowLane = (process.argv[3] || "").trim();
@@ -246,6 +247,7 @@ function main() {
 
     const nextCommands = [];
     if (verification.syncState && !verification.syncState.ok) {
+      const startupCommand = buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" });
       printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
       printOperatorAction("NONE");
       printState("Transactional activation completed, but the assigned WP worktree is still stale for coder handoff.");
@@ -255,7 +257,7 @@ function main() {
       ]);
       nextCommands.push(
         `# Validator: fast-forward ${verification.syncState.expectedBranch || "the assigned WP branch"} and ${verification.syncState.worktreeAbs || "the assigned WP worktree"} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`,
-        `# Then re-run in ${verification.syncState.worktreeAbs || "the assigned WP worktree"}: just pre-work ${wpId}`,
+        `# Then re-run in ${verification.syncState.worktreeAbs || "the assigned WP worktree"}: ${startupCommand}`,
         `just orchestrator-next ${wpId}`,
       );
       printNextCommands(nextCommands);
@@ -268,7 +270,7 @@ function main() {
     printFindings(findings);
     nextCommands.push(
       `cat ${packetPathForWp(wpId)}`,
-      `just pre-work ${wpId}`,
+      buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }),
       `just launch-coder-session ${wpId}`,
       `just launch-wp-validator-session ${wpId}`,
       `just session-registry-status ${wpId}`,

@@ -363,7 +363,7 @@ if (!validatorGovernanceState.allowValidationResume) {
   ]);
   printNextCommands([
     `just validator-policy-gate ${wpId}`,
-    `just validator-packet-complete ${wpId}`,
+    `just phase-check CLOSEOUT ${wpId}`,
     "# STOP: Request NEW remediation WP variant; do not merge or reopen this packet in-place.",
   ]);
   process.exit(0);

@@ -19,20 +19,27 @@ test("validator-next reflects the modeled historical smoketest baseline state fo
   assert.match(result.stdout, /Validator gate status: USER_ACKNOWLEDGED/i);
 });
 
-test("validator-handoff-check reports PREPARE worktree context mismatch for retired v3 environments", () => {
+test("phase-check HANDOFF reports PREPARE worktree context mismatch for retired v3 environments", () => {
   const result = spawnSync(
     process.execPath,
-    [path.join(".GOV", "roles", "validator", "checks", "validator-handoff-check.mjs"), "WP-1-Loom-Storage-Portability-v3"],
+    [
+      path.join(".GOV", "roles_shared", "checks", "phase-check.mjs"),
+      "HANDOFF",
+      "WP-1-Loom-Storage-Portability-v3",
+      "WP_VALIDATOR",
+      "--verbose",
+    ],
     {
       cwd: REPO_ROOT,
       encoding: "utf8",
     },
   );
 
-  assert.equal(result.status, 2);
-  assert.match(result.stderr, /CONTEXT_MISMATCH/i);
-  assert.match(result.stderr, /Assigned PREPARE worktree is unavailable/i);
-  assert.match(result.stderr, /recorded_worktree_dir=\.\.\/wtc-storage-portability-v3/i);
+  const output = `${result.stdout || ""}${result.stderr || ""}`;
+  assert.equal(result.status, 1);
+  assert.match(output, /CONTEXT_MISMATCH/i);
+  assert.match(output, /Assigned PREPARE worktree is unavailable/i);
+  assert.match(output, /recorded_worktree_dir=\.\.\/wtc-storage-portability-v3/i);
 });
 
 test("external-validator-brief surfaces independent revalidation contract for historical smoketest baselines", () => {
@@ -51,7 +58,7 @@ test("external-validator-brief surfaces independent revalidation contract for hi
   assert.equal(parsed.validation_context, "CONTEXT_MISMATCH");
   assert.equal(parsed.legacy_remediation_required, false);
   assert.equal(parsed.policy_applicability, "PRE_COMPLETION_LAYER_THRESHOLD");
-  assert.match(parsed.required_commands.join("\n"), /just validator-handoff-check WP-1-Loom-Storage-Portability-v3/);
+  assert.match(parsed.required_commands.join("\n"), /just phase-check HANDOFF WP-1-Loom-Storage-Portability-v3 WP_VALIDATOR/);
   assert.match(parsed.context_notes.join("\n"), /PREPARE worktree is unavailable/i);
 });
 

@@ -424,7 +424,7 @@ if (!fs.existsSync(taskPacketDir)) {
   const mergeBaseShaRaw = parseSingleField(packetContent, 'MERGE_BASE_SHA');
   const mergeBaseSha = (mergeBaseShaRaw.match(/[a-f0-9]{40}/i) || [])[0]?.trim() || '';
   if (!mergeBaseSha) {
-    warnings.push('Packet missing MERGE_BASE_SHA; for multi-commit WPs prefer deterministic evidence: just post-work WP-{ID} --range <MERGE_BASE_SHA>..HEAD');
+    warnings.push('Packet missing MERGE_BASE_SHA; for multi-commit WPs prefer deterministic evidence: just phase-check HANDOFF WP-{ID} CODER --range <MERGE_BASE_SHA>..HEAD');
   }
 
   // Check 2.6: Canonical Status field (governance invariant)
@@ -1393,7 +1393,7 @@ if (errors.length === 0) {
     console.log('\nCODER_START_COMMANDS [CX-HANDOFF-001]');
     console.log('```bash');
     console.log(`# Re-validate WP gates in your environment (also verifies branch/worktree vs PREPARE):`);
-    console.log(`just pre-work ${WP_ID}`);
+    console.log(`just phase-check STARTUP ${WP_ID} CODER`);
     console.log('```');
 
     if (inScope.length > 0) {

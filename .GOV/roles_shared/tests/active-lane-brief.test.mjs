@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../../..");
-const briefScript = path.resolve(__dirname, "../checks/active-lane-brief.mjs");
+const briefScript = path.resolve(__dirname, "../scripts/session/active-lane-brief-lib.mjs");
 
 function normalizePath(value) {
   return String(value || "").replace(/\\/g, "/");
@@ -38,8 +38,8 @@ function createFixture({ terminal = false } = {}) {
       `- WP_RECEIPTS_FILE: ${normalizePath(receiptsPath)}`,
       `- WORKFLOW_LANE: ORCHESTRATOR_MANAGED`,
       `- PACKET_FORMAT_VERSION: 2026-03-22`,
-      `- COMMUNICATION_CONTRACT: DIRECT_REVIEW_REQUIRED`,
-      `- COMMUNICATION_HEALTH_GATE: WP_COMMUNICATION_HEALTH_V1`,
+      `- COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1`,
+      `- COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING`,
       `- **Status:** ${terminal ? "Validated (PASS)" : "In Progress"}`,
     ].join("\n"),
   );

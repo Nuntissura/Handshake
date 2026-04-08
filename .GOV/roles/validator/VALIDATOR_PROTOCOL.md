@@ -244,7 +244,7 @@ Minimum verification for governance-only changes: `just gov-check`.
 
 ## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
 
-When you run any gate command (including: `just gate-check`, `just pre-work`, `just post-work`, `just validator-gate-*`, or any deterministic checker that blocks progress), you MUST in the SAME TURN:
+When you run any gate command (including: `just phase-check`, `just validator-gate-*`, or any deterministic checker that blocks progress), you MUST in the SAME TURN:
 
 1) Paste the literal output as:
 ```text
@@ -314,7 +314,7 @@ Resume rule (hard, anti-babysit):
 Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix patterns** (the fail log) plus **semantic governance facts** (context). This is supplementary, not a source of truth:
 - **What you get:** Fix recipes and error-fix pairs (procedural) plus distilled governance facts and positive controls (semantic). Scoped to your WP. No episodic events — those go to the orchestrator.
 - **Don't trust it blindly.** Memory may be stale. Always verify against the current code, packet, and diff. "No assumptions from memory" still applies — but injected memory gives you pointers worth checking.
-- **Your work feeds memory automatically.** SMOKE-FIND and SMOKE-CONTROL entries in smoketest reviews are extracted. Validation receipts feed event-driven extraction. Check failures from `validator-scan` and `validator-handoff-check` are auto-captured as procedural memories.
+- **Your work feeds memory automatically.** SMOKE-FIND and SMOKE-CONTROL entries in smoketest reviews are extracted. Validation receipts feed event-driven extraction. Check failures from `validator-scan`, `phase-check HANDOFF`, and `phase-check CLOSEOUT` are auto-captured as procedural memories.
 - **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section — high-signal context captures taken before governance decisions (e.g. PRE_CLOSEOUT before this WP entered final validation, PRE_WP_DELEGATION before your session was launched). Use them to understand what was planned; verify against the packet and current state.
 - **Intent snapshots (SHOULD).** Before starting a complex validation (deep multi-file review, cross-surface regression analysis), record your plan: `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role WP_VALIDATOR --reason "<why>"`. Judgment-based — no gate enforces it.
 - **Conversation memory (MUST — `just repomem`):** Cross-session conversational memory. **HARD rules:**
@@ -323,7 +323,7 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
   - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what happened>" --decisions "<key findings and verdict>"`.
 - **Capture insights.** For ad-hoc findings: `just memory-capture semantic "description" --scope "file.rs" --wp WP-{ID}`.
 - To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`. For conversation history: `just repomem log`.
-- **Governance doc consistency:** When validating governance refactor work, run `just canonise-gov` as part of your checks to verify that protocols, command surface, architecture, and quickref are in sync.
+- **Governance doc consistency:** When validating governance refactor work, run `just canonise-gov` and then inspect every surfaced governance file, updating applicable drift across protocols, command surface, architecture, quickref, and codex before you call the refactor done.
 - Canonical reference: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`.
 
 ## WP Communication Folder (when the packet defines it)
@@ -357,8 +357,8 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
 - `CODER_HANDOFF` is illegal until route truth returns to `waiting_on=CODER_HANDOFF` (or `CODER_REPAIR_HANDOFF` on a later repair loop). The governed handoff helper now fails closed if the lane is still waiting on `WP_VALIDATOR_INTENT_CHECKPOINT`, if any blocking open review item exists, or if unresolved overlap microtask reviews still remain.
 - Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Use the governed helpers; do not hand-edit around this routing.
 - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
-- Before taking a coder handoff as review-ready on those packets, `just wp-communication-health-check WP-{ID} HANDOFF` must pass.
-- Before PASS commit clearance on those packets, `just wp-communication-health-check WP-{ID} VERDICT` must pass.
+- Before taking a coder handoff as review-ready on those packets, `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` must pass.
+- Before PASS commit clearance on those packets, `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR` must pass.
 - Validator authority is layered:
   - `Classical Validator` = manual-relay / non-orchestrator-managed closure authority when the repo is using the classical validator lane
   - `WP Validator` = WP-scoped technical steering reviewer for the WP; may inspect current coder work, judge bootstrap/skeleton/micro-task quality early, and request steering through packet communications plus Orchestrator-owned ACP controls
@@ -383,6 +383,10 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
   - Use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` on the kickoff/intent checkpoint when you are explicitly judging early structure.
   - For rolling microtask review, the coder may open `REVIEW_REQUEST` items to `WP_VALIDATOR` with `review_mode=OVERLAP`; keep the queue bounded to at most 2 unresolved overlap items and drain it before full handoff.
   - For the bootstrap/skeleton checkpoint, prefer `wp-validator-response` to clear the plan and `wp-spec-gap` / `VALIDATOR_QUERY` when signed surfaces, proof commands, or implementation quality signals are still weak.
+  - `just phase-check STARTUP WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session>`
+  - `just phase-check HANDOFF WP-{ID} [WP_VALIDATOR]`
+  - `just phase-check VERDICT WP-{ID} [WP_VALIDATOR|INTEGRATION_VALIDATOR]`
+  - `just phase-check CLOSEOUT WP-{ID}`
   - `just wp-communication-health-check WP-{ID} STATUS|KICKOFF|HANDOFF|VERDICT`
   - `just session-registry-status [WP-{ID}]`
   - `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID} [--json]`
@@ -449,19 +453,20 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 ## Deterministic Manifest Gate (current workflow, COR-701 discipline)
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
-- Require evidence that `just validator-handoff-check WP-{ID}` ran and passed before PASS commit clearance. This helper runs `pre-work`, `cargo-clean`, and committed `post-work` against the PREPARE worktree source of truth. If absent or failing, verdict = FAIL until fixed.
-- Require evidence that `just validator-packet-complete WP-{ID}` ran and passed before PASS handoff or PASS commit clearance. Packet/report/receipt hygiene is not a last-minute cleanup item; if absent or failing, verdict = FAIL until fixed.
-- Require evidence that `just integration-validator-closeout-check WP-{ID}` ran and passed before PASS commit clearance. This helper proves the governed Integration Validator lane is actually on `handshake_main` / `main`, can resolve the committed target SHA from `validator-handoff-check`, and that WP-scoped session-control/broker truth is already settled enough to finish final review coherently. If absent or failing, verdict = FAIL until fixed.
-- After the closeout preflight is green, use `just integration-validator-closeout-sync WP-{ID} MERGE_PENDING` to write the PASS-ready packet/runtime/TASK_BOARD truth in one governed step. After local `main` containment is real, use `just integration-validator-closeout-sync WP-{ID} CONTAINED_IN_MAIN <MERGED_MAIN_SHA>` to finish promotion.
+- Require evidence that `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` ran and passed before PASS handoff or PASS commit clearance. This composite gate includes packet completeness, committed PREPARE-source handoff validation, and the governed handoff communication proof. If absent or failing, verdict = FAIL until fixed.
+- Require evidence that `just phase-check CLOSEOUT WP-{ID}` ran and passed before PASS commit clearance. This composite gate includes packet completeness, the final review communication proof, the integration-validator context bundle, and the governed closeout preflight. If absent or failing, verdict = FAIL until fixed.
+- After the closeout preflight is green, prefer the same phase-owned surface for governed truth sync:
+  - PASS before local-main containment: `just phase-check CLOSEOUT WP-{ID} --sync-mode MERGE_PENDING --context "<why this closeout truth is being recorded, >=40 chars>"`
+  - PASS after local-main containment is real: `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`
 - For contained-main promotion, the candidate target must still match the signed artifact exactly, but the contained local-`main` commit may differ when conflict resolution or main-harmonization was required. That closure remains legal only when the resulting contained commit stays entirely within the signed file surface and still passes the governed closeout proof/tripwire checks.
 - Successful closeout sync must also leave machine-readable provenance: a validator gate-state closeout event plus a closeout `STATUS` receipt naming the governed Integration Validator lane, mode, and containment/baseline truth that was recorded.
 - If closeout is attempted from the wrong role/lane, from a kernel/orchestrator surface, or with live governance still resolving from `handshake_main/.GOV`, record `WORKFLOW_INVALIDITY` (`ROLE_BOUNDARY_BREACH`, `FINAL_LANE_AUTHORITY_VIOLATION`, or `FINAL_LANE_GOV_ROOT_VIOLATION`) and halt before packet/runtime/TASK_BOARD truth is promoted.
-- For governed non-PASS terminal closure, use the same sync surface instead of manual packet/runtime/TASK_BOARD edits:
-  - `just integration-validator-closeout-sync WP-{ID} FAIL`
-  - `just integration-validator-closeout-sync WP-{ID} OUTDATED_ONLY`
-  - `just integration-validator-closeout-sync WP-{ID} ABANDONED`
-- Require evidence that `just post-work WP-{ID}` ran and passed for the validated committed target (directly or via `validator-handoff-check`). If absent or failing, verdict = FAIL until fixed.
-- Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates staged/working changes when present, and on a clean tree validates a deterministic range:
+- For governed non-PASS terminal closure, use the same phase-owned surface instead of manual packet/runtime/TASK_BOARD edits:
+  - `just phase-check CLOSEOUT WP-{ID} --sync-mode FAIL --context "<why FAIL truth is being recorded, >=40 chars>"`
+  - `just phase-check CLOSEOUT WP-{ID} --sync-mode OUTDATED_ONLY --context "<why OUTDATED_ONLY truth is being recorded, >=40 chars>"`
+  - `just phase-check CLOSEOUT WP-{ID} --sync-mode ABANDONED --context "<why ABANDONED truth is being recorded, >=40 chars>"`
+- Require evidence that `just phase-check HANDOFF WP-{ID} CODER` ran and passed for the validated committed target (typically surfaced through the same deterministic range/rev captured in committed handoff validation). If absent or failing, verdict = FAIL until fixed.
+- Coder handoff sequencing note (echo from CODER_PROTOCOL): `just phase-check HANDOFF ... CODER` validates staged/working changes when present, and on a clean tree validates a deterministic range:
   - If the work packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
   - Else if `merge-base(main, HEAD)` differs from `HEAD`: `merge-base(main, HEAD)..HEAD`
   - Else: the last commit (`HEAD^..HEAD`)
@@ -558,7 +563,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - For each clause, record one explicit bullet under `CLAUSES_REVIEWED` with the clause identifier/text fragment plus file:line evidence.
 - If any clause is only partially proven, blocked by environment, or inferred indirectly, do not hide that in prose; record it under `NOT_PROVEN` and downgrade `SPEC_ALIGNMENT_VERDICT` accordingly.
 - `SPEC_ALIGNMENT_VERDICT=PASS` is legal only when every diff-scoped clause claimed by DONE_MEANS + SPEC_ANCHOR is listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `- NONE`.
-- Automation gates (`pre-work`, `validator-handoff-check`, `post-work`, `gov-check`) prove workflow legality and hygiene. They do not, by themselves, prove spec completeness.
+- Automation gates (`pre-work`, `phase-check HANDOFF`, `phase-check CLOSEOUT`, `gov-check`) prove workflow legality and hygiene. They do not, by themselves, prove spec completeness.
 
 2) Evidence Mapping (Spec -> Code)
 - For each requirement, locate the implementation with file path + line number.
@@ -635,9 +640,9 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
     - **Strict:** "Dirty" git status (uncommitted changes) is a FAIL for final validation unless a **User Waiver** [CX-573F] is explicitly recorded in the Work Packet.
     - **Artifacts:** FAIL if *ignored* build artifacts (e.g., `target/`, `node_modules/`) are tracked or committed.
     - **Scope:** Ensure changes are restricted to the WP's `IN_SCOPE_PATHS`.
-    - **Committed-handoff rule (preferred for orchestrator-managed WPs):** Run `just validator-handoff-check {WP_ID}`. This validates the PREPARE worktree source of truth with `pre-work`, `cargo-clean`, and committed `post-work`, and records commit-clearance evidence for `validator-gate-commit`.
-    - **Final-lane closeout rule (orchestrator-managed PASS only):** Run `just integration-validator-closeout-check {WP_ID}` before `validator-gate-commit`. This must prove topology safety, WP-scoped settled session-control truth, and current-`main` signed-scope compatibility; otherwise final review is not closeout-ready.
-    - **Local mirror sanity only:** You may still run `just post-work {WP_ID}` in your validator worktree for local diagnosis, but it does not replace committed handoff validation against the PREPARE worktree.
+    - **Committed-handoff rule (preferred for orchestrator-managed WPs):** Run `just phase-check HANDOFF {WP_ID} WP_VALIDATOR`. This wraps packet completeness, PREPARE worktree source-of-truth validation, and the governed handoff communication proof into one boundary gate before `validator-gate-commit`.
+    - **Final-lane closeout rule (orchestrator-managed PASS only):** Run `just phase-check CLOSEOUT {WP_ID}` before `validator-gate-commit`. This must prove verdict-route health, context bundling, topology safety, WP-scoped settled session-control truth, and current-`main` signed-scope compatibility; otherwise final review is not closeout-ready.
+    - **Local mirror sanity only:** You may still run `just phase-check HANDOFF {WP_ID} CODER` in your validator worktree for local diagnosis, but it does not replace committed handoff validation against the PREPARE worktree.
 
 
 7.1) Git & Build Hygiene Audit (execute when any build artifacts/.gitignore risk is suspected)
@@ -664,9 +669,9 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - `just artifact-hygiene-check` (fails if repo-local `target/` exists or blocking non-canonical external artifact residue remains)
 - `just artifact-cleanup [--dry-run]` (mechanically removes reclaimable stale external artifact folders plus repo-local `target/` residue)
 - `just external-validator-brief WP-{ID}` (prints the canonical external/classical validator target contract: code target, governance target, committed handoff command, split report fields, and legal verdict vocabulary)
-- `just validator-handoff-check WP-{ID}` (required before PASS commit clearance for orchestrator-managed WPs; validates the committed PREPARE worktree handoff state)
+- `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` (preferred required boundary gate before PASS commit clearance for orchestrator-managed WPs; validates packet completeness, committed PREPARE handoff state, and governed handoff routing in one pass)
 - `just integration-validator-context-brief WP-{ID}` (canonical final-lane authority/path/context bundle for orchestrator-managed Integration Validator work; use this instead of rereading protocols or rediscovering branch/worktree/session/main-compatibility truth)
-- `just integration-validator-closeout-check WP-{ID}` (required before PASS commit clearance for orchestrator-managed WPs; fails if the final lane cannot resolve the committed target SHA or if WP-scoped session-control truth is still unsettled)
+- `just phase-check CLOSEOUT WP-{ID} [--sync-mode <MODE> --context "<context>" --merged-main-sha <SHA>]` (preferred required final-lane boundary gate before PASS commit clearance for orchestrator-managed WPs; wraps verdict proof, context bundle, closeout preflight, optional governed truth sync, and final memory refresh)
 - `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` (manual repair helper for any still-open registry-owned governed system-terminal windows after closeout; default current-batch targeting is the safe path)
 - `just gov-check` (required before PASS merge/push and for any governance-only validator changes; catches activation traceability drift, Task Board/build-order drift, and shared governance regressions)
 - `just validator-gate-*` write commands now reject unbound/wrong-lane orchestrator-managed usage early; if the current checkout is not a governed validator lane, use `just validator-next WP-{ID}`, `just integration-validator-context-brief WP-{ID}`, or `just external-validator-brief WP-{ID}` instead of forcing gate writes from the wrong surface
@@ -867,7 +872,7 @@ State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.
 
 ### Gate 2: COMMIT CLEARANCE (PASS only)
 1. Only if verdict = PASS, Validator runs: `just validator-gate-commit {WP_ID}`
-   - Mandatory precondition: `just integration-validator-closeout-check {WP_ID}` must already pass.
+   - Mandatory precondition: `just phase-check CLOSEOUT {WP_ID}` must already pass.
 2. Validator performs `git commit` on the WP branch and records the commit SHA.
    - PASS requirement: this commit MUST include the appended report plus the Task Board / packet / build-order closure updates and any required Base-WP activation-state fixes (`WP_TRACEABILITY_REGISTRY`, removal of stale STUB state) so the later merge + fast-forward exposes the validated WP state in every active worktree.
    - PASS requirement: run `just gov-check` after those closure updates and before merge; a PASS commit without a passing governance check is incomplete.
@@ -889,7 +894,7 @@ State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.
 ### Gate Commands
 ```
 just validator-gate-append {WP_ID} {PASS|FAIL|ABANDONED}   # Gate 1: Record WP append + verdict
-just integration-validator-closeout-check {WP_ID} # Final-lane topology + closeout preflight
+just phase-check CLOSEOUT {WP_ID} # Canonical final-lane verdict/context/closeout bundle; add --sync-mode ... --context ... to record closeout truth through the same phase surface
 just validator-gate-commit {WP_ID}                # Gate 2: Unlock commit (PASS only)
 just validator-gate-present {WP_ID} [PASS|FAIL|ABANDONED]   # Gate 3: Record report shown (HALT)
 just validator-gate-acknowledge {WP_ID}           # Gate 4: Record user ack (unlock)
@@ -957,7 +962,7 @@ VALIDATION REPORT â€” {WP_ID}
 Verdict: PASS | FAIL | NOT_PROVEN | OUTDATED_ONLY | ABANDONED | BLOCKED
 
 Validation Claims (do not collapse into a single PASS):
-- GATES_PASS (deterministic manifest gate on the committed handoff state, typically via `just validator-handoff-check {WP_ID}`; not tests): PASS | FAIL
+- GATES_PASS (deterministic manifest gate on the committed handoff state, typically via `just phase-check HANDOFF {WP_ID} WP_VALIDATOR`; not tests): PASS | FAIL
 - TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS | FAIL | NOT_RUN
 - VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH
 - GOVERNANCE_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN

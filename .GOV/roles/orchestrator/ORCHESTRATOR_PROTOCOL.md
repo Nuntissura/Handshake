@@ -202,11 +202,11 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 ## Deterministic Manifest & Gate (Current Workflow)
 
 - Every work packet must preserve the deterministic validation manifest from `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
-- `just pre-work WP-{ID}` is the blocking packet-integrity gate before handoff.
-- `just post-work WP-{ID}` is the deterministic closure gate before done/commit claims.
-- For validator PASS clearance on orchestrator-managed WPs, prefer `just validator-handoff-check WP-{ID}` so validation runs against the PREPARE worktree source of truth.
-- Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just integration-validator-closeout-check WP-{ID}`. If that preflight fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth. For `PACKET_FORMAT_VERSION >= 2026-03-26`, this also means current-`main` signed-scope compatibility was not honestly cleared or packet widening was not governed explicitly.
-- After that preflight is green, prefer `just integration-validator-closeout-sync WP-{ID} ...` instead of manually editing packet/TASK_BOARD/runtime surfaces.
+- `just phase-check STARTUP WP-{ID} CODER` is the blocking packet-integrity gate before handoff.
+- `just phase-check HANDOFF WP-{ID} CODER` is the deterministic closure gate before done/commit claims.
+- For validator PASS clearance on orchestrator-managed WPs, prefer `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` so packet completeness, PREPARE-source handoff validation, and the governed handoff communication proof run as one boundary gate.
+- Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just phase-check CLOSEOUT WP-{ID}`. If that composite closeout gate fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth. For `PACKET_FORMAT_VERSION >= 2026-03-26`, this also means current-`main` signed-scope compatibility was not honestly cleared or packet widening was not governed explicitly.
+- After that preflight is green, prefer `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` so governed closeout truth is written through the same phase-owned surface instead of manually editing packet/TASK_BOARD/runtime fields.
   - PASS before main containment: `MERGE_PENDING`
   - PASS after main containment: `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>`
   - explicit non-PASS terminal closure: `FAIL`, `OUTDATED_ONLY`, or `ABANDONED`
@@ -383,7 +383,8 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - **Pattern synthesis:** Run `just memory-patterns` to detect systemic issues — recurring failures across WPs, repeated REPAIR transitions, high-access memories worth codifying. Review output and promote candidates to RGF items.
 - **Pre-task snapshots [RGF-144-147]:** Before complex governance operations, the system automatically captures a high-signal context snapshot (importance 0.85) into memory. Snapshot types: `PRE_WP_DELEGATION` (before role launch), `PRE_STEERING` (before steer-next routing), `PRE_RELAY_DISPATCH` (before manual relay), `PRE_PACKET_CREATE` (before packet generation), `PRE_CLOSEOUT` (before integration-validator closeout), `PRE_BOARD_STATUS_CHANGE` (before task-board-set). These capture the full decision context so post-hoc analysis can compare intent vs outcome. Snapshots appear in your `GOVERNANCE MEMORY` startup block under a `SNAPSHOTS:` section. Inspect with `just memory-debug-snapshot [WP-{ID}]`.
 - **Intent snapshots (SHOULD):** Before starting complex multi-step reasoning — refinement analysis, research, cross-WP steering decisions, major governance refactors — record your context and intent with `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role ORCHESTRATOR --reason "<why>" --expected "<outcome>"`. This is judgment-based, not mechanical. No gate enforces it. But it creates the only record of *why* you made a decision, not just *what* the system state was. Use it before: refinement deep-dives, multi-WP steering sessions, governance research, RGF implementation batches, and any task where context loss would be costly.
-- **Conversation memory (MUST — `just repomem`):** Cross-session conversational memory captures what was discussed, decided, and discovered — the context that receipts and mechanical records do not carry. **This is mandatory, not optional.** Mutation commands (`task-board-set`, `create-task-packet`, `orchestrator-steer-next`, `manual-relay-dispatch`, `integration-validator-closeout-sync`, `begin-refinement`, `begin-research`, `wp-traceability-set`) require a `context` parameter that is mechanically captured before the command runs. Quality gates enforce minimum content length (>=80 chars for open/close/insight, >=40 chars for pre-task/context). The following rules are **HARD**:
+- **Conversation memory (MUST — `just repomem`):** Cross-session conversational memory captures what was discussed, decided, and discovered — the context that receipts and mechanical records do not carry. **This is mandatory, not optional.** Mutation commands (`task-board-set`, `create-task-packet`, `orchestrator-steer-next`, `manual-relay-dispatch`, closeout sync through `phase-check CLOSEOUT --sync-mode ...`, `begin-refinement`, `begin-research`, `wp-traceability-set`) require a `context` parameter that is mechanically captured before the command runs. Quality gates enforce minimum content length (>=80 chars for open/close/insight, >=40 chars for pre-task/context). The following rules are **HARD**:
+  - Preferred closeout mutation surface: `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."`; the standalone closeout sync recipe is retired from the live `justfile`.
   - **SESSION_OPEN (MUST):** After startup completes, run `just repomem open "<what this session is about, why, continuing from what>" --role ORCHESTRATOR`. All mutation commands are blocked until this is done.
   - **INSIGHT after operator decisions (MUST):** When the Operator provides a decision, correction, preference, or key insight, you MUST run `just repomem insight "<what the operator said/decided and why it matters>"` BEFORE proceeding with any other action. This captures institutional knowledge that would otherwise be lost at session end. Minimum 80 characters.
   - **INSIGHT after discoveries (MUST):** When investigation reveals something non-obvious — a root cause, a design constraint, a pattern — capture it with `just repomem insight` before moving on.
@@ -394,7 +395,7 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - **Memory is supplementary, not authoritative.** Work packets, receipts, and governance ledgers remain the source of truth.
 - **Memory Manager:** `just launch-memory-manager` runs a governed Codex Spark session that analyzes patterns, resolves contradictions, flags stale memories, and drafts RGF candidates. Auto-launched at orchestrator startup (staleness-gated: >24h AND >10 new entries) and before WP merge (via closeout check). Guaranteed self-close via try/finally. Protocol: `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
 - **Canonical reference:** `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md` — keep this guide current when changing memory system behavior.
-- **Governance canonisation:** After major governance refactors (new RGF items, protocol changes, command additions), run `just canonise-gov` to audit that all protocols, command surface, architecture, quickref, and codex are consistent. Fix any WARN or FAIL items before closing the refactor.
+- **Governance canonisation:** After major governance refactors (new RGF items, protocol changes, command additions), run `just canonise-gov`, inspect every file in its review brief, and update all applicable drift across protocols, command surface, architecture, quickref, and codex. Do not treat the green summary as sufficient by itself.
 
 ## WP Communication Folder (Packet-Declared)
 
@@ -597,7 +598,7 @@ Legacy flat compatibility:
   - the consequence that coder handoff must carry anti-vibe + signed-scope-debt self-audit, and validator PASS cannot coexist with unresolved anti-vibe or signed-scope debt
   - for `PACKET_FORMAT_VERSION >= 2026-04-05` and `RISK_TIER=MEDIUM|HIGH`, the additional consequence that validator closeout is dual-track and PASS later requires both `MECHANICAL_TRACK_VERDICT=PASS` and `SPEC_RETENTION_TRACK_VERDICT=PASS`
   - when `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, the additional consequence that validator closeout later requires concrete `DATA_CONTRACT_PROOF` plus explicit `DATA_CONTRACT_GAPS`
-- `just pre-work WP-{ID}` is the blocking packet-integrity gate before delegation.
+- `just phase-check STARTUP WP-{ID} CODER` is the blocking packet-integrity gate before delegation.
 
 ### 3. Delegation and Monitoring
 
@@ -678,8 +679,8 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
 - Review-tracked receipt appends now auto-write notifications for the explicit target role, notify `ORCHESTRATOR` on validator-authored assessment receipts as a governance checkpoint, include the assessment result (`PASS`/`FAIL`/`ASSESSED`) plus the validator's reason in that checkpoint summary, and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Watch that projected route; do not replace it with manual narrative steering unless a real repair is required.
 - Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
-- Before validator handoff review begins, `just wp-communication-health-check WP-{ID} HANDOFF` MUST pass.
-- Before PASS commit clearance, `just wp-communication-health-check WP-{ID} VERDICT` MUST pass.
+- Before validator handoff review begins, `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` MUST pass.
+- Before PASS commit clearance, `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR` MUST pass.
 - The orchestrator should monitor WP communications to verify direct traffic is happening, and steer correction if it is not.
 
 ## Worktree Budget (HARD RULE)
@@ -715,6 +716,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - Every thread message with a `@target` or explicit `target_role` writes a notification to `NOTIFICATIONS.jsonl` in the WP communications directory.
 - Every review exchange (REVIEW_REQUEST, VALIDATOR_QUERY, SPEC_GAP, etc.) writes a notification to the target role.
 - Roles check pending notifications after startup and before each handoff/verdict using `just check-notifications {wpId} {ROLE}`.
+- `just check-notifications` now defaults to the active blocking route for that role/session; use `--history` only when you explicitly need hidden terminal or superseded residue for audit/debug work.
 - Roles acknowledge notifications after reading using `just ack-notifications {wpId} {ROLE} {session}`.
 - The orchestrator should monitor notification counts via the Operator Monitor TUI (PENDING NOTIFICATIONS in the OVERVIEW detail view) and steer correction if notifications pile up without acknowledgment.
 - Startup prompts already embed NOTIFICATIONS (MANDATORY) instructions for all three governed roles. Do not remove or weaken these instructions.
@@ -734,7 +736,7 @@ This prevents the mid-smoke governance repair that consumed excessive context in
 Do not:
 - create a packet without a real Main Body `SPEC_ANCHOR`
 - edit locked packets in place
-- delegate when `just pre-work` fails
+- delegate when `just phase-check STARTUP ... CODER` fails
 - let planning projections drift from packet truth
 - broadcast a collapsed single PASS claim for workflow, tests, and spec correctness
 - relay messages between coder and validator (direct communication is mandatory)

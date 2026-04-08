@@ -19,7 +19,7 @@ import {
 } from "./scope-surface-lib.mjs";
 import { validatorReportProfileUsesHeuristicRigor } from "./validator-report-profile-lib.mjs";
 
-export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
+export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STARTUP", "STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
 export const COMMUNICATION_MONITOR_STATE_VALUES = [
   "COMM_NA",
   "COMM_MISCONFIGURED",
@@ -51,6 +51,21 @@ const INTENT_CHECKPOINT_CLEARANCE_RECEIPT_KIND_VALUES = new Set([
 const CONTRACT_HEAVY_CODER_HANDOFF_RIGOR_PROFILE_VALUES = new Set(["RUBRIC_SELF_AUDIT_V2"]);
 const CONTRACT_HEAVY_CLAUSE_MONITOR_PROFILE_VALUES = new Set(["CLAUSE_MONITOR_V1"]);
 const CONTRACT_HEAVY_SEMANTIC_PROOF_PROFILE_VALUES = new Set(["DIFF_SCOPED_SEMANTIC_V1"]);
+const STARTUP_COMMUNICATION_ROLE_VALUES = ["ORCHESTRATOR", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
+const ACTIVE_NOTIFICATION_SOURCE_KIND_VALUES = new Set([
+  "AUTO_ROUTE",
+  "CODER_HANDOFF",
+  "CODER_INTENT",
+  "GOVERNANCE_CHECKPOINT",
+  "MT_FIX_CYCLE_ESCALATION",
+  "REVIEW_REQUEST",
+  "REVIEW_RESPONSE",
+  "SPEC_CONFIRMATION",
+  "VALIDATOR_KICKOFF",
+  "VALIDATOR_QUERY",
+  "VALIDATOR_RESPONSE",
+  "VALIDATOR_REVIEW",
+]);
 
 function normalizeRole(value) {
   return String(value || "").trim().toUpperCase();
@@ -108,6 +123,163 @@ function partitionOpenReviewItems(openReviewItems = []) {
     overlapQueue,
     blockingQueue,
     exceedsOverlapLimit: overlapQueue.length > MAX_OVERLAP_MICROTASK_REVIEW_ITEMS,
+  };
+}
+
+function isClosedTerminalRuntimeState(runtimeStatus = {}) {
+  const packetStatus = String(runtimeStatus?.current_packet_status || "").trim();
+  const runtimeStatusValue = String(runtimeStatus?.runtime_status || "").trim().toLowerCase();
+  const nextExpectedActor = normalizeRole(runtimeStatus?.next_expected_actor);
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+  return /^Validated \(/i.test(packetStatus)
+    || (
+      runtimeStatusValue === "completed"
+      && nextExpectedActor === "NONE"
+      && waitingOn === "CLOSED"
+    );
+}
+
+function notificationProjectionKey(entry = null) {
+  const targetRole = normalizeRole(entry?.target_role) || "UNKNOWN";
+  const targetSession = normalizeSession(entry?.target_session) || "";
+  const correlationId = nullableComparable(entry?.correlation_id) || "";
+  const sourceKind = normalizeReceiptKind(entry?.source_kind);
+  return correlationId
+    ? `${targetRole}::${targetSession}::${correlationId}`
+    : `${targetRole}::${targetSession}::${sourceKind}`;
+}
+
+function buildNotificationKindCounts(notifications = []) {
+  const byKind = {};
+  for (const entry of Array.isArray(notifications) ? notifications : []) {
+    const kind = normalizeReceiptKind(entry?.source_kind) || "UNKNOWN";
+    byKind[kind] = (byKind[kind] || 0) + 1;
+  }
+  return byKind;
+}
+
+function latestProjectedNotifications(notifications = []) {
+  const latestByKey = new Map();
+  for (const entry of Array.isArray(notifications) ? notifications : []) {
+    const key = notificationProjectionKey(entry);
+    if (!key) continue;
+    const current = latestByKey.get(key);
+    if (!current || String(entry?.timestamp_utc || "").trim() > String(current?.timestamp_utc || "").trim()) {
+      latestByKey.set(key, entry);
+    }
+  }
+  return [...latestByKey.values()].sort((left, right) =>
+    String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || ""))
+  );
+}
+
+function activeCorrelationIdsFromStatus(statusEvaluation = null, runtimeStatus = {}) {
+  const ids = new Set();
+  for (const item of Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : []) {
+    const correlationId = nullableComparable(item?.correlation_id);
+    if (correlationId) ids.add(correlationId);
+  }
+  for (const value of Object.values(statusEvaluation?.correlations || {})) {
+    const correlationId = nullableComparable(value);
+    if (correlationId) ids.add(correlationId);
+  }
+  return ids;
+}
+
+function notificationMatchesProjectedRoute(notification = null, autoRoute = null, activeCorrelationIds = new Set()) {
+  const sourceKind = normalizeReceiptKind(notification?.source_kind);
+  if (!ACTIVE_NOTIFICATION_SOURCE_KIND_VALUES.has(sourceKind)) return false;
+
+  const nextActor = normalizeRole(autoRoute?.nextExpectedActor);
+  if (!nextActor || nextActor === "NONE") return false;
+
+  const targetRole = normalizeRole(notification?.target_role);
+  const targetSession = normalizeSession(notification?.target_session);
+  const nextSession = normalizeSession(autoRoute?.nextExpectedSession);
+  if (targetRole !== nextActor) return false;
+  if (nextSession && targetSession && targetSession !== nextSession) return false;
+
+  const correlationId = nullableComparable(notification?.correlation_id);
+  if (sourceKind === "AUTO_ROUTE") return true;
+  if (sourceKind === "GOVERNANCE_CHECKPOINT" || sourceKind === "MT_FIX_CYCLE_ESCALATION") {
+    return !correlationId || activeCorrelationIds.has(correlationId);
+  }
+  return Boolean(correlationId) && activeCorrelationIds.has(correlationId);
+}
+
+export function deriveActiveWpNotificationProjection({
+  statusEvaluation = null,
+  runtimeStatus = {},
+  pendingNotifications = [],
+  latestReceipt = null,
+  autoRoute = null,
+} = {}) {
+  const unreadNotifications = Array.isArray(pendingNotifications) ? pendingNotifications : [];
+  const fallbackVisible = latestProjectedNotifications(unreadNotifications);
+  if (unreadNotifications.length === 0) {
+    return {
+      notifications: [],
+      pendingCount: 0,
+      byKind: {},
+      hiddenNotifications: [],
+      hiddenPendingCount: 0,
+      hiddenByKind: {},
+      historyHidden: false,
+      autoRoute: autoRoute && autoRoute.applicable ? autoRoute : null,
+    };
+  }
+
+  if (!statusEvaluation?.applicable) {
+    return {
+      notifications: fallbackVisible,
+      pendingCount: fallbackVisible.length,
+      byKind: buildNotificationKindCounts(fallbackVisible),
+      hiddenNotifications: [],
+      hiddenPendingCount: 0,
+      hiddenByKind: {},
+      historyHidden: false,
+      autoRoute: autoRoute && autoRoute.applicable ? autoRoute : null,
+    };
+  }
+
+  const resolvedAutoRoute = autoRoute && autoRoute.applicable
+    ? autoRoute
+    : deriveWpCommunicationAutoRoute({
+      evaluation: statusEvaluation,
+      runtimeStatus,
+      latestReceipt,
+    });
+
+  if (isClosedTerminalRuntimeState(runtimeStatus)) {
+    return {
+      notifications: [],
+      pendingCount: 0,
+      byKind: {},
+      hiddenNotifications: unreadNotifications,
+      hiddenPendingCount: unreadNotifications.length,
+      hiddenByKind: buildNotificationKindCounts(unreadNotifications),
+      historyHidden: unreadNotifications.length > 0,
+      autoRoute: resolvedAutoRoute,
+    };
+  }
+
+  const activeCorrelationIds = activeCorrelationIdsFromStatus(statusEvaluation, runtimeStatus);
+  const visibleNotifications = latestProjectedNotifications(
+    unreadNotifications.filter((entry) =>
+      notificationMatchesProjectedRoute(entry, resolvedAutoRoute, activeCorrelationIds)
+    ),
+  );
+  const hiddenNotifications = unreadNotifications.filter((entry) => !visibleNotifications.includes(entry));
+
+  return {
+    notifications: visibleNotifications,
+    pendingCount: visibleNotifications.length,
+    byKind: buildNotificationKindCounts(visibleNotifications),
+    hiddenNotifications,
+    hiddenPendingCount: hiddenNotifications.length,
+    hiddenByKind: buildNotificationKindCounts(hiddenNotifications),
+    historyHidden: hiddenNotifications.length > 0,
+    autoRoute: resolvedAutoRoute,
   };
 }
 
@@ -489,6 +661,8 @@ function result({
 export function evaluateWpCommunicationHealth({
   wpId = "",
   stage = "STATUS",
+  actorRole = "",
+  actorSession = "",
   packetPath = "",
   packetContent = "",
   workflowLane = "",
@@ -632,6 +806,73 @@ export function evaluateWpCommunicationHealth({
     handoff: handoffReviewPair.openReceipt?.correlation_id || null,
     finalReview: integrationFinalPair.openReceipt?.correlation_id || null,
   };
+  if (normalizedStage === "STARTUP") {
+    const startupRole = normalizeRole(actorRole);
+    const startupSession = normalizeSession(actorSession);
+    const startupDetails = [
+      ...details,
+      `startup_role=${startupRole || "<missing>"}`,
+      `startup_session=${startupSession || "<unspecified>"}`,
+    ];
+    if (!STARTUP_COMMUNICATION_ROLE_VALUES.includes(startupRole)) {
+      return result({
+        applicable: true,
+        ok: false,
+        state: "COMM_MISCONFIGURED",
+        message: "STARTUP stage requires a direct-review role context",
+        details: [
+          ...startupDetails,
+          `expected_startup_roles=${STARTUP_COMMUNICATION_ROLE_VALUES.join(",")}`,
+        ],
+        counts,
+        correlations,
+      });
+    }
+
+    const issues = [];
+    if (startupRole === "ORCHESTRATOR" && normalizeRole(runtimeStatus?.next_expected_actor) !== "ORCHESTRATOR") {
+      issues.push(
+        `runtime.next_expected_actor=${normalizeRole(runtimeStatus?.next_expected_actor) || "<missing>"}`
+        + " (expected ORCHESTRATOR during startup mesh check)",
+      );
+    }
+    if (startupRole !== "ORCHESTRATOR" && !hasActiveRoleSession(runtimeStatus, startupRole, startupSession)) {
+      issues.push(
+        `active_role_sessions missing ${startupRole}`
+        + (startupSession ? `:${startupSession}` : ""),
+      );
+    }
+    for (const peerRole of startupMeshPeersForRole(startupRole, runtimeStatus)) {
+      if (!hasActiveRoleSession(runtimeStatus, peerRole)) {
+        issues.push(`startup_peer_missing=${peerRole}`);
+        continue;
+      }
+      startupDetails.push(`startup_peer_ready=${peerRole}:${mostRecentActiveSessionForRole(runtimeStatus, peerRole) || "<unknown>"}`);
+    }
+    if (issues.length > 0) {
+      return result({
+        applicable: true,
+        ok: false,
+        state: "COMM_MISCONFIGURED",
+        message: "Startup communication mesh is not ready",
+        details: [
+          ...startupDetails,
+          ...issues,
+        ],
+        counts,
+        correlations,
+      });
+    }
+    return result({
+      applicable: true,
+      ok: true,
+      state: "COMM_OK",
+      message: `Startup communication mesh is ready for ${startupRole}`,
+      details: startupDetails,
+      counts,
+      correlations,
+    });
+  }
   const blockingOpenReviewResult = () => {
     const blockingItems = openReviewPartition.blockingQueue.length > 0
       ? openReviewPartition.blockingQueue
@@ -957,6 +1198,39 @@ function mostRecentActiveSessionForRole(runtimeStatus, role) {
     )
     .sort((left, right) => String(right?.last_heartbeat_at || "").localeCompare(String(left?.last_heartbeat_at || "")))[0]
     ?.session_id || null;
+}
+
+function hasActiveRoleSession(runtimeStatus, role, preferredSession = null) {
+  const ROLE = normalizeRole(role);
+  const preferred = normalizeSession(preferredSession);
+  const sessions = Array.isArray(runtimeStatus?.active_role_sessions) ? runtimeStatus.active_role_sessions : [];
+  const activeSessions = sessions.filter((entry) =>
+    normalizeRole(entry?.role) === ROLE
+    && normalizeSession(entry?.session_id)
+    && String(entry?.state || "").trim().toLowerCase() !== "completed"
+  );
+  if (preferred) {
+    return activeSessions.some((entry) => normalizeSession(entry?.session_id) === preferred);
+  }
+  return activeSessions.length > 0;
+}
+
+function startupMeshPeersForRole(role, runtimeStatus = {}) {
+  switch (normalizeRole(role)) {
+    case "ORCHESTRATOR": {
+      const peers = ["CODER", "WP_VALIDATOR"];
+      if (hasActiveRoleSession(runtimeStatus, "INTEGRATION_VALIDATOR")) peers.push("INTEGRATION_VALIDATOR");
+      return peers;
+    }
+    case "CODER":
+      return ["WP_VALIDATOR"];
+    case "WP_VALIDATOR":
+      return ["CODER"];
+    case "INTEGRATION_VALIDATOR":
+      return ["ORCHESTRATOR", "CODER"];
+    default:
+      return [];
+  }
 }
 
 function sessionForRole(runtimeStatus, role, preferredSession = null) {
@@ -1297,6 +1571,16 @@ export function evaluateWpCommunicationBoundary({
     return {
       applicable: false,
       ok: true,
+      autoRoute: null,
+      boundaryNotifications: [],
+      issues: [],
+    };
+  }
+
+  if (normalizedStage === "STARTUP") {
+    return {
+      applicable: true,
+      ok: Boolean(statusEvaluation?.ok),
       autoRoute: null,
       boundaryNotifications: [],
       issues: [],

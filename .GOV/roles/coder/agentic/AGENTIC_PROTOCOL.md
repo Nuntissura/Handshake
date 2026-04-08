@@ -96,7 +96,7 @@ Sub-agents MUST:
 
 Sub-agents MUST NOT:
 - edit any governance surface: `.GOV/**` (including logical `.GOV/work_packets/**`, current physical `.GOV/task_packets/**`, `.GOV/refinements/**`, and any `## VALIDATION_REPORTS` section),
-- run workflow gates (`just pre-work`, `just post-work`, validator gates) as "official evidence",
+- run workflow gates (`just phase-check STARTUP`, `just phase-check HANDOFF`, validator phase gates) as "official evidence",
 - commit, merge, push, pull, fast-forward, rebase, switch branches, or otherwise modify git history/worktree state.
 
 ### 6.5 Primary Coder integration rule (HARD)

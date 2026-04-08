@@ -16,9 +16,7 @@ Authoritative folder-placement law for the Coder bundle lives in `.GOV/codex/Han
 ## Role-Owned Checks / Scripts
 
 - `scripts/coder-next.mjs`
-- `checks/pre-work.mjs`
 - `checks/pre-work-check.mjs`
-- `checks/post-work.mjs`
 - `checks/post-work-check.mjs`
 - `checks/coder-skeleton-checkpoint.mjs`
 
@@ -48,9 +46,9 @@ Authoritative folder-placement law for the Coder bundle lives in `.GOV/codex/Han
 
 - `just coder-startup`
 - `just coder-next [WP-{ID}]`
-- `just pre-work WP-{ID}`
+- `just phase-check STARTUP WP-{ID} CODER`
 - `just coder-skeleton-checkpoint WP-{ID}`
-- `just post-work WP-{ID} --range <MERGE_BASE_SHA>..HEAD`
+- `just phase-check HANDOFF WP-{ID} CODER --range <MERGE_BASE_SHA>..HEAD`
 - `just spec-debt-open WP-{ID} "<clause>" "<notes>" <YES|NO>`
 - `just spec-debt-sync WP-{ID}`
 

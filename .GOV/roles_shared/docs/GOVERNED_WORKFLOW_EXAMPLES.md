@@ -35,6 +35,7 @@ Normal launch note:
 ```bash
 just validator-startup
 just validator-next WP-{ID}
+just phase-check STARTUP WP-{ID} WP_VALIDATOR <wp_validator_session>
 just wp-validator-kickoff WP-{ID} <wp_validator_session> <coder_session> "Review scope and tripwires for WP-{ID}"
 just wp-communication-health-check WP-{ID} KICKOFF
 ```
@@ -44,11 +45,11 @@ just wp-communication-health-check WP-{ID} KICKOFF
 ```bash
 just coder-startup
 just coder-next WP-{ID}
+just phase-check STARTUP WP-{ID} CODER <coder_session>
 just check-notifications WP-{ID} CODER <coder_session>
 just ack-notifications WP-{ID} CODER <coder_session>
 just wp-coder-intent WP-{ID} <coder_session> <wp_validator_session> "Implementation plan and first proof target" <kickoff_correlation_id>
-just pre-work WP-{ID}
-just post-work WP-{ID}
+just phase-check HANDOFF WP-{ID} CODER
 just wp-coder-handoff WP-{ID} <coder_session> <wp_validator_session> "Committed handoff ready for review"
 ```
 
@@ -57,8 +58,7 @@ just wp-coder-handoff WP-{ID} <coder_session> <wp_validator_session> "Committed 
 ```bash
 just check-notifications WP-{ID} WP_VALIDATOR <wp_validator_session>
 just ack-notifications WP-{ID} WP_VALIDATOR <wp_validator_session>
-just wp-communication-health-check WP-{ID} HANDOFF
-just validator-handoff-check WP-{ID}
+just phase-check HANDOFF WP-{ID} WP_VALIDATOR
 just wp-validator-review WP-{ID} <wp_validator_session> <coder_session> "Review findings or acceptance summary" <handoff_correlation_id>
 ```
 
@@ -83,6 +83,7 @@ just launch-integration-validator-session WP-{ID}
 ```bash
 just validator-startup
 just validator-next WP-{ID}
+just phase-check STARTUP WP-{ID} INTEGRATION_VALIDATOR <intval_session>
 just wp-review-exchange REVIEW_REQUEST WP-{ID} INTEGRATION_VALIDATOR <intval_session> CODER <coder_session> "Final merge-readiness review request" "" "<spec_anchor>" "<packet_row_ref>"
 ```
 
@@ -99,7 +100,7 @@ just wp-review-response WP-{ID} CODER <coder_session> INTEGRATION_VALIDATOR <int
 ```bash
 just check-notifications WP-{ID} INTEGRATION_VALIDATOR <intval_session>
 just ack-notifications WP-{ID} INTEGRATION_VALIDATOR <intval_session>
-just wp-communication-health-check WP-{ID} VERDICT
+just phase-check CLOSEOUT WP-{ID}
 just validator-gate-append WP-{ID} PASS
 just validator-gate-commit WP-{ID}
 just validator-gate-present WP-{ID} PASS

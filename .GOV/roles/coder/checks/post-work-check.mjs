@@ -2,7 +2,7 @@
 /**
  * Post-work validation (deterministic manifest + gates)
  * - Enforces manifest schema and gate coverage inherited from COR-701 (anchors/rails/window/sha1/line_delta/concurrency)
- * - Keeps existing surface: `node post-work-check.mjs WP-{ID}` (also used by `just post-work {wp}`)
+ * - Deterministic handoff manifest checker used by the shared HANDOFF phase gate
  */
 
 import fs from 'fs';

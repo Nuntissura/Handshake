@@ -46,7 +46,7 @@ These are safe starting points for orientation and health checks.
   - presence check for required governance docs
 - `just canonise-gov`
   - `read-only`
-  - synchronises intent, rules, and instructions across governance files; audits protocol/doc cross-references, command surface completeness, START_HERE navigation, and codex alignment; outputs a review list for manual propagation; run after any governance rule or workflow change
+  - inspects the canonisation file set for governance drift and prints the mandatory review checklist; after running it, inspect every listed file and update applicable drift before closeout
 - `just artifact-hygiene-check`
   - `read-only`
   - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake Artifacts` residue fail closed
@@ -180,7 +180,7 @@ These are safe starting points for orientation and health checks.
   - **MANDATORY** at session end. Content >=80 chars, `--decisions` required. Shows session checkpoint summary. Clears session marker.
 - `just repomem context "<why this action>" --trigger "<just cmd>"` 
   - `runtime-write`
-  - piggybacked context for mutation commands; content >=40 chars; auto-called by `task-board-set`, `create-task-packet`, `orchestrator-steer-next`, `manual-relay-dispatch`, `integration-validator-closeout-sync`, `begin-refinement`, `begin-research`, `wp-traceability-set`
+  - piggybacked context for mutation commands; content >=40 chars; auto-called by `task-board-set`, `create-task-packet`, `orchestrator-steer-next`, `manual-relay-dispatch`, `phase-check CLOSEOUT --sync-mode ...`, `begin-refinement`, `begin-research`, `wp-traceability-set`
 - `just repomem log [--session last|current] [--week] [--month] [--search "<query>"] [--wp WP-ID] [--limit N]`
   - `read-only`
   - view conversation history; `--session last` shows full prior session; `--week`/`--month` for time range; `--search` for FTS keyword search
@@ -196,7 +196,7 @@ The following commands now require a `context` string (>=40 chars) that is captu
 - `just create-task-packet WP-{ID} "<context>"`
 - `just orchestrator-steer-next WP-{ID} "<context>" [MODEL] [FLAGS]`
 - `just manual-relay-dispatch WP-{ID} "<context>" [MODEL] [FLAGS]`
-- `just integration-validator-closeout-sync WP-{ID} "<context>" <MODE> [MERGED_SHA] [FLAGS]`
+- `just phase-check CLOSEOUT WP-{ID} [ROLE] [session] --sync-mode <MERGE_PENDING|CONTAINED_IN_MAIN|FAIL|OUTDATED_ONLY|ABANDONED> --context "<context>" [--merged-main-sha <SHA>] [--sync-debug]`
 - `just wp-traceability-set BASE_WP ACTIVE_WP "<context>"`
 - `just begin-refinement WP-{ID} "<intent>"` (intent serves as context, >=40 chars)
 - `just begin-research "<intent>"` (intent serves as context, >=40 chars)
@@ -495,12 +495,19 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
   - when the resolved Work Packet folder contains `MT-*.md` files (current physical storage: `.GOV/task_packets/WP-{ID}/MT-*.md`) on an orchestrator-managed lane, governed coder `wp-coder-intent` and overlap `REVIEW_REQUEST` receipts now fail closed unless `microtask_json.scope_ref` resolves to one declared MT (`MT-001` or `CLAUSE_CLOSURE_MATRIX/CX-...`), `file_targets` are concrete, and those targets stay inside that MT's `CODE_SURFACES`
   - use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` when the receipt is part of that mandatory early validator gate
   - rolling microtask overlap: use `wp-review-exchange REVIEW_REQUEST ...` with `review_mode=OVERLAP` for completed narrow slices while the coder advances the next declared microtask; the unresolved overlap queue is bounded to 2 and full `wp-coder-handoff` is blocked until those overlap review items are drained
+- `just phase-check <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} [ROLE] [session]`
+  - `read-only` by default; `CLOSEOUT` becomes `governance-write` when `--sync-mode ... --context ...` is supplied
+  - canonical phase-boundary gate entrypoint
+  - `STARTUP`: is the canonical startup/bootstrapping gate; for `CODER` it owns the packet/startup proof that used to live behind `pre-work`, and for validator roles it proves the startup communication mesh before productive work starts
+  - `HANDOFF`: proves coder closure or validator handoff readiness from one phase artifact, depending on role
+  - `VERDICT`: proves the final review communication boundary from one phase artifact
+  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, and refreshes memory-manager maintenance; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact
 - `just wp-communication-health-check WP-{ID} [STATUS|KICKOFF|HANDOFF|VERDICT]`
   - `read-only`
-  - communication proof and route health
-- `just check-notifications WP-{ID} <ROLE> [session]`
+  - low-level communication proof and route health; phase-level role guidance should usually prefer the canonical `phase-check` entrypoint above
+- `just check-notifications WP-{ID} <ROLE> [session] [--history]`
   - `read-only`
-  - inspect unread notifications; pass the governed actor session to avoid same-role cross-session leakage
+  - inspect unread notifications; the default view projects unread history down to the active blocking route for that role/session, so pass the governed actor session to avoid same-role cross-session leakage and use `--history` only when you need suppressed terminal or superseded residue
 - `just ack-notifications WP-{ID} <ROLE> <session>`
   - `runtime-write`
   - acknowledge notifications for one governed session only
@@ -509,14 +516,13 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 
 These are typically run from the WP-assigned worktree.
 
-- `just pre-work WP-{ID} [--verbose]`
+- `just phase-check STARTUP WP-{ID} CODER [session] [--verbose]`
   - `read-only`
-  - blocking packet-integrity/start gate
+  - blocking startup gate for coder work
   - default output is compact-by-default and writes the full nested gate output to a governed runtime artifact path
-- `just post-work WP-{ID} [options] [--verbose]`
+- `just phase-check HANDOFF WP-{ID} CODER [--range ... | --rev ... | --verbose]`
   - `read-only`
   - deterministic closure gate against the validated diff window
-  - default output is compact-by-default and writes the full nested gate output to a governed runtime artifact path
 - `just coder-skeleton-checkpoint WP-{ID}`
 - `just skeleton-approved WP-{ID}`
   - `governance-write`
@@ -538,20 +544,18 @@ These are typically run from the WP-assigned worktree.
 
 These are usually run from the WP worktree for WP-validator work or from `handshake_main` for integration-validator/final validation work.
 
-- `just gate-check WP-{ID}`
-- `just validator-handoff-check WP-{ID}`
+- `just phase-check <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} [ROLE] [session]`
+  - `read-only` by default; `CLOSEOUT --sync-mode ... --context ...` is the preferred canonical governed closeout writer
+  - canonical validator-facing phase-boundary gate
+  - `HANDOFF`, `VERDICT`, and `CLOSEOUT` are the preferred role-facing entrypoints and the only live phase-gate commands
 - `just integration-validator-context-brief WP-{ID} [--json]`
-- `just integration-validator-closeout-check WP-{ID}`
-- `just integration-validator-closeout-sync WP-{ID} <MERGE_PENDING|CONTAINED_IN_MAIN|FAIL|OUTDATED_ONLY|ABANDONED> [MERGED_MAIN_SHA]`
-- `just validator-packet-complete WP-{ID}`
 - `just wp-declared-topology-check WP-{ID}`
 - `just validator-policy-gate WP-{ID}`
     - `read-only`
-    - primary validator gate surface
+    - support/debug surfaces adjacent to the canonical `phase-check` boundary
     - `integration-validator-context-brief` is the canonical final-lane authority/path/source-of-truth bundle for orchestrator-managed Integration Validator review; use it instead of rereading large protocols or rediscovering final-lane paths/commands
     - default text output is compact-by-default and points at the authoritative packet/gate artifacts; use `--json` for the full machine-readable brief
-    - `integration-validator-closeout-check` is the final-lane topology, atomic-closeout, and current-`main` signed-scope compatibility preflight for orchestrator-managed PASS closure
-    - `integration-validator-closeout-sync` is the governed writer that reconciles packet signed-scope compatibility truth plus TASK_BOARD/runtime projection after the preflight is green
+    - `phase-check CLOSEOUT ... --sync-mode ... --context ...` is the preferred governed writer because it keeps closeout proof, truth sync, and final memory refresh inside one phase-owned artifact
     - for orchestrator-managed final review, live governance authority still comes from `wt-gov-kernel/.GOV`; `handshake_main/.GOV` is only the synced main-branch mirror and must not be treated as the live authority surface
     - candidate-target validation remains exact to the signed artifact; contained local-main closure may include conflict-resolved harmonization only when the contained commit stays inside the signed file surface and the governed closeout proof still passes
     - `wp-declared-topology-check` surfaces packet-declared vs actual linked-worktree truth for one WP and fails on undeclared auxiliary worktrees

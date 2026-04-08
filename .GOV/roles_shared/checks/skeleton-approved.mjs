@@ -206,4 +206,4 @@ console.log(`- APPROVER_BRANCH: ${actorBranch}`);
 console.log(`- WORKFLOW_LANE: ${workflowLane || '<unknown>'}`);
 console.log(`- SKELETON_CHECKPOINT_SHA: ${checkpointSha}`);
 console.log(`- APPROVAL_COMMIT_SHA: ${approvalSha}`);
-console.log(`- NEXT: Coder re-run 'just pre-work ${wpId}' then proceed to IMPLEMENTATION.`);
+console.log(`- NEXT: Coder re-run 'just phase-check STARTUP ${wpId} CODER' then proceed to IMPLEMENTATION.`);

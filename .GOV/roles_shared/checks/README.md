@@ -5,7 +5,7 @@ Repo-shared checks live here.
 ## Core Governance Gates
 
 - `gov-check.mjs`
-- `gate-check.mjs`
+- `phase-check.mjs`
 - `refinement-check.mjs`
 - `task-board-check.mjs`
 - `packet-truth-check.mjs`

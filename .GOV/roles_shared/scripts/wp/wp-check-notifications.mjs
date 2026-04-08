@@ -4,11 +4,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  deriveActiveWpNotificationProjection,
+  evaluateWpCommunicationHealth,
+} from "../lib/wp-communication-health-lib.mjs";
+import {
   communicationTransactionLockPathForWp,
   communicationPathsForWp,
   normalize,
   NOTIFICATIONS_FILE_NAME,
   NOTIFICATION_CURSOR_FILE_NAME,
+  parseJsonFile,
+  parseJsonlFile,
   ROUTABLE_ROLE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
 import { repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
@@ -123,7 +129,32 @@ function loadNotifications(notificationsPath) {
   }).filter(Boolean);
 }
 
-function checkNotificationsCore({ wpId, role, ack = false, session = null } = {}) {
+function loadNotificationProjectionContext(wpId) {
+  const packetPath = workPacketPath(wpId);
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbsPath)) return null;
+
+  const packetText = fs.readFileSync(packetAbsPath, "utf8");
+  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
+
+  return {
+    packetPath: normalize(packetPath),
+    packetText,
+    workflowLane: parseSingleField(packetText, "WORKFLOW_LANE"),
+    packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
+    communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
+    communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
+    runtimeStatus: runtimeStatusFile && fs.existsSync(repoPathAbs(runtimeStatusFile))
+      ? parseJsonFile(runtimeStatusFile)
+      : {},
+    receipts: receiptsFile && fs.existsSync(repoPathAbs(receiptsFile))
+      ? parseJsonlFile(receiptsFile)
+      : [],
+  };
+}
+
+function checkNotificationsCore({ wpId, role, ack = false, session = null, history = false } = {}) {
   const WP_ID = String(wpId || "").trim();
   const ROLE = String(role || "").trim().toUpperCase();
   const SESSION = normalizeSession(session);
@@ -141,7 +172,33 @@ function checkNotificationsCore({ wpId, role, ack = false, session = null } = {}
 
   const allNotifications = loadNotifications(notificationsPath);
   const cursorData = loadCursor(cursorPath);
-  const pending = filterPendingNotifications(allNotifications, cursorData, ROLE, SESSION);
+  const unreadNotifications = filterPendingNotifications(allNotifications, cursorData, ROLE, SESSION);
+  const projectionContext = history ? null : loadNotificationProjectionContext(WP_ID);
+  const statusEvaluation = projectionContext
+    ? evaluateWpCommunicationHealth({
+      wpId: WP_ID,
+      stage: "STATUS",
+      packetPath: projectionContext.packetPath,
+      packetContent: projectionContext.packetText,
+      workflowLane: projectionContext.workflowLane,
+      packetFormatVersion: projectionContext.packetFormatVersion,
+      communicationContract: projectionContext.communicationContract,
+      communicationHealthGate: projectionContext.communicationHealthGate,
+      receipts: projectionContext.receipts,
+      runtimeStatus: projectionContext.runtimeStatus,
+    })
+    : null;
+  const projectedNotifications = !history && projectionContext
+    ? deriveActiveWpNotificationProjection({
+      statusEvaluation,
+      runtimeStatus: projectionContext.runtimeStatus,
+      pendingNotifications: unreadNotifications,
+      latestReceipt: projectionContext.receipts.at(-1) || null,
+    })
+    : null;
+  const pending = history
+    ? unreadNotifications
+    : (projectedNotifications?.notifications || unreadNotifications);
   const roleLastReadAt = cursorEntry(cursorData, ROLE)?.last_read_at || null;
   const sessionLastReadAt = SESSION ? cursorEntry(cursorData, ROLE, SESSION)?.last_read_at || null : null;
 
@@ -163,6 +220,13 @@ function checkNotificationsCore({ wpId, role, ack = false, session = null } = {}
     sessionLastReadAt,
     cursorPath,
     notificationsPath,
+    projectionMode: history
+      ? "history"
+      : (projectedNotifications ? "active" : "raw"),
+    historyHidden: !history && Boolean(projectedNotifications?.historyHidden),
+    hiddenPendingCount: history ? 0 : Number(projectedNotifications?.hiddenPendingCount || 0),
+    hiddenByKind: history ? {} : (projectedNotifications?.hiddenByKind || {}),
+    hiddenNotifications: history ? [] : (projectedNotifications?.hiddenNotifications || []),
   };
 
   if (ack) {
@@ -222,7 +286,7 @@ export function checkNotifications(args = {}, options = {}) {
   return withCommunicationReadLock(WP_ID, run);
 }
 
-export function checkAllNotifications({ wpId } = {}) {
+export function checkAllNotifications({ wpId, history = false } = {}) {
   const WP_ID = String(wpId || "").trim();
   if (!WP_ID || !/^WP-/.test(WP_ID)) {
     throw new Error("WP_ID is required");
@@ -231,7 +295,7 @@ export function checkAllNotifications({ wpId } = {}) {
   return withCommunicationReadLock(WP_ID, () => {
     const results = {};
     for (const role of ROUTABLE_ROLE_VALUES) {
-      const check = checkNotifications({ wpId: WP_ID, role }, { assumeTransactionLock: true });
+      const check = checkNotifications({ wpId: WP_ID, role, history }, { assumeTransactionLock: true });
       if (check.pendingCount > 0) {
         results[role] = check;
       }
@@ -269,19 +333,20 @@ function runCli() {
   const role = args[1] || "";
   const positionalSession = normalizeSession(args[2] || "");
   const ackFlag = args.includes("--ack");
+  const historyFlag = args.includes("--history");
   const session = args.find((arg) => arg.startsWith("--session="))?.slice("--session=".length) || null;
   const allFlag = args.includes("--all");
   const resolvedSession = normalizeSession(session || positionalSession);
 
   if (!wpId) {
     console.error(
-      "Usage: node .GOV/roles_shared/scripts/wp/wp-check-notifications.mjs WP-{ID} [ROLE] [--ack] [--session=ID] [--all]"
+      "Usage: node .GOV/roles_shared/scripts/wp/wp-check-notifications.mjs WP-{ID} [ROLE] [--ack] [--session=ID] [--all] [--history]"
     );
     process.exit(1);
   }
 
   if (allFlag || !role) {
-    const results = checkAllNotifications({ wpId });
+    const results = checkAllNotifications({ wpId, history: historyFlag });
     const roles = Object.keys(results);
     if (roles.length === 0) {
       console.log(`[WP_NOTIFICATIONS] ${wpId}: no pending notifications for any role`);
@@ -296,12 +361,15 @@ function runCli() {
     return;
   }
 
-  const result = checkNotifications({ wpId, role, ack: ackFlag, session: resolvedSession });
+  const result = checkNotifications({ wpId, role, ack: ackFlag, session: resolvedSession, history: historyFlag });
 
   if (result.pendingCount === 0) {
     console.log(`[WP_NOTIFICATIONS] ${wpId} ${role}: no pending notifications`);
     if (resolvedSession) {
       console.log(`  session: ${resolvedSession}`);
+    }
+    if (result.historyHidden && result.hiddenPendingCount > 0 && !historyFlag) {
+      console.log(`  hidden_history: ${result.hiddenPendingCount} notification(s)`);
     }
     if (result.lastReadAt) {
       console.log(`  last_read_at: ${result.lastReadAt}`);
@@ -312,6 +380,9 @@ function runCli() {
   console.log(`[WP_NOTIFICATIONS] ${wpId} ${role}: ${result.pendingCount} pending notification(s)`);
   if (resolvedSession) {
     console.log(`  session: ${resolvedSession}`);
+  }
+  if (result.historyHidden && result.hiddenPendingCount > 0 && !historyFlag) {
+    console.log(`  hidden_history: ${result.hiddenPendingCount}`);
   }
   for (const [kind, count] of Object.entries(result.byKind)) {
     console.log(`  - ${kind}: ${count}`);

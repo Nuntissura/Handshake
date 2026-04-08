@@ -243,7 +243,7 @@ If the assigned WP worktree/branch does not exist locally:
 
 ## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
 
-When you run any gate command (including: `just pre-work`, `just gate-check`, `just post-work`, validator gate helpers, or any deterministic checker that blocks progress), you MUST in the SAME TURN:
+When you run any gate command (including: `just phase-check STARTUP`, `just phase-check HANDOFF`, validator gate helpers, or any deterministic checker that blocks progress), you MUST in the SAME TURN:
 
 1) Paste the literal output as:
 ```text
@@ -282,7 +282,7 @@ STOP is only required when at least one is true:
 Instead of re-running session-start checks manually after a reset, you MAY run:
 - `just coder-preflight`
 
-This is a convenience wrapper around the core deterministic checks (worktree context + governance integrity + spec regression). It does not replace the WP-specific gates (`just pre-work WP-{ID}` / `just post-work WP-{ID}`).
+This is a convenience wrapper around the core deterministic checks (worktree context + governance integrity + spec regression). It does not replace the WP-specific gates (`just phase-check STARTUP WP-{ID} CODER` / `just phase-check HANDOFF WP-{ID} CODER`).
 
 Optional (recommended on session start to reduce babysitting):
 - `just coder-startup` (prints PROTOCOL_ACK lines + runs `just coder-preflight`).
@@ -319,7 +319,7 @@ Resume rule (hard, anti-babysit):
 
 Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns only** from prior sessions. This is the fail log, not a general memory dump. Supplementary context, not a source of truth:
 - **What you get:** Fix recipes, error-fix pairs, and patterns from prior REPAIR receipts, smoketest findings, and check failures. Scoped to your WP. Capped at 3 memories per source session to prevent one WP dominating.
-- **`just pre-work` also surfaces the fail log** — known failure patterns for your WP appear before GATE_STATUS so you see them before starting work.
+- **`just phase-check STARTUP ... CODER` also surfaces the fail log** — known failure patterns for your WP appear before GATE_STATUS so you see them before starting work.
 - **Don't trust it blindly.** If a fix pattern references a file, verify it still exists. The packet and current code state always win.
 - **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section — context captures taken before governance decisions (e.g. PRE_WP_DELEGATION with the role, model, and branch the orchestrator chose for your session). Use them to understand context; verify against the packet.
 - **Intent snapshots (SHOULD).** Before starting a complex implementation (tricky MT, cross-file refactor, data migration): `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role CODER --reason "<why>"`. Judgment-based — no gate enforces it.
@@ -370,7 +370,7 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
 - Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Use the governed helpers; do not hand-edit around this routing.
 - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
 - Before claiming validator-ready handoff on those packets, `just wp-communication-health-check WP-{ID} KICKOFF` must pass.
-- Before final PASS clearance on `PACKET_FORMAT_VERSION >= 2026-03-22`, `just wp-communication-health-check WP-{ID} VERDICT` will fail unless that direct `CODER <-> INTEGRATION_VALIDATOR` review exchange exists.
+- Before final PASS clearance on `PACKET_FORMAT_VERSION >= 2026-03-22`, `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR` will fail unless that direct `CODER <-> INTEGRATION_VALIDATOR` review exchange exists.
 - Authority split for coder coordination:
   - Orchestrator = workflow authority
   - WP Validator = advisory technical reviewer for this WP
@@ -395,6 +395,8 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
   - Use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` in the kickoff/intent loop when you are naming early structure that still needs validator clearance.
   - For rolling microtask review, use `just wp-review-exchange REVIEW_REQUEST ...` to `WP_VALIDATOR` with `review_mode=OVERLAP` for a completed narrow slice while you continue the next declared microtask, but keep the unresolved overlap queue at 2 or less and do not post full `CODER_HANDOFF` until those overlap reviews are resolved.
   - For the bootstrap/skeleton checkpoint, use `wp-coder-intent` with concrete `file_targets` + `proof_commands`, then wait for validator clearance instead of broad “ready end-to-end” language.
+  - `just phase-check STARTUP WP-{ID} CODER <session>`
+  - `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR`
   - `just wp-communication-health-check WP-{ID} STATUS|KICKOFF|HANDOFF|VERDICT`
   - `just session-registry-status [WP-{ID}]`
   - `just active-lane-brief CODER WP-{ID} [--json]`
@@ -460,7 +462,7 @@ Handshake uses **Base WP IDs** for stable planning, and **packet revisions** (`-
 **Rule (blocking if ambiguous):**
 - Before you start implementation, confirm the **Active Packet** for your Base WP in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
 - If more than one work packet exists for the same Base WP and the registry does not clearly identify the Active Packet, STOP and escalate to the Orchestrator (governance-blocked).
-- Run `just pre-work` / `just post-work` using the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
+- Run `just phase-check STARTUP ... CODER` / `just phase-check HANDOFF ... CODER` using the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
 
 ## Variant Packet Lineage Audit [CX-580E] (BLOCKING)
 
@@ -476,9 +478,9 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 
 ## Deterministic Validation (COR-701 carryover, current workflow)
 - Each work packet MUST retain the manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Keep it ASCII-only.
-- Before coding, run `just pre-work WP-{ID}` to confirm the manifest template is present; do not strip fields.
-- After coding, `just post-work WP-{ID}` is the deterministic gate: it enforces manifest completeness, SHA1s, window bounds, and required gates (anchors_present, rails/structure untouched, line_delta match, canonical path, concurrency check). Fill the manifest with real values before running.
-- IMPORTANT: `just post-work` validates (a) staged changes if anything is staged, (b) working-tree changes if nothing staged but files are modified, or (c) on a clean tree it validates a deterministic range:
+- Before coding, run `just phase-check STARTUP WP-{ID} CODER` to confirm the manifest template is present; do not strip fields.
+- After coding, `just phase-check HANDOFF WP-{ID} CODER` is the deterministic gate: it enforces manifest completeness, SHA1s, window bounds, and required gates (anchors_present, rails/structure untouched, line_delta match, canonical path, concurrency check). Fill the manifest with real values before running.
+- IMPORTANT: `just phase-check HANDOFF ... CODER` validates (a) staged changes if anything is staged, (b) working-tree changes if nothing staged but files are modified, or (c) on a clean tree it validates a deterministic range:
   - If the work packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
   - Else if `merge-base(main, HEAD)` differs from `HEAD`: `merge-base(main, HEAD)..HEAD`
   - Else: the last commit (`HEAD^..HEAD`)
@@ -489,7 +491,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
   3. Self-review against CODER_RUBRIC_V2.md
   4. Stage ONLY in-scope files (including the updated work packet manifest)
   5. Commit
-  6. Run `just post-work WP-{ID}` on the clean tree
+  6. Run `just phase-check HANDOFF WP-{ID} CODER` on the clean tree
   7. Notify Validator with the PASS output and commit SHA
 - To fill `Pre-SHA1` / `Post-SHA1` deterministically, stage your changes and run `just cor701-sha path/to/file` (use the recommended values it prints).
 - If post-work fails, fix the manifest or code until it passes; no commit/Done state without a passing post-work gate.
@@ -527,7 +529,7 @@ If any of these situations arise during implementation, follow the matching proc
 3. Re-read the updated packet. Diff the old vs new scope.
 4. If scope narrowed or shifted: discard out-of-scope work, unstash only relevant changes.
 5. If scope expanded: resume from stash, continue with new scope.
-6. Re-run `just pre-work WP-{ID}` before continuing.
+6. Re-run `just phase-check STARTUP WP-{ID} CODER` before continuing.
 
 **Scope conflict discovered during implementation** (you need to touch OUT_OF_SCOPE files):
 1. STOP — do not touch the file.
@@ -572,9 +574,9 @@ You MUST follow this exact sequence for every Work Packet.
 
 Hard gate (ANTI-VIBECODE — no unreviewed, unscoped, or approval-skipping code changes): after the docs-only skeleton checkpoint commit exists, you MUST STOP and wait for skeleton approval. The ONLY unblockers are Operator or Validator running: `just skeleton-approved WP-{ID}`.
 
-Forbidden: any product code changes (`src/`, `app/`, `tests/`) before a docs-only skeleton checkpoint commit exists on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
-Forbidden: any product code changes (`src/`, `app/`, `tests/`) without a skeleton approval commit on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
-For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, this checkpoint/approval subflow is forbidden. Do not run `just coder-skeleton-checkpoint` or `just skeleton-approved`; those commands now record `WORKFLOW_INVALIDITY` and fail. In orchestrator-managed lanes, `just pre-work` does not waive BOOTSTRAP/SKELETON review; use the direct-review lane so the WP Validator can judge your bootstrap, skeleton, and early micro-task plan before implementation hardens.
+Forbidden: any product code changes (`src/`, `app/`, `tests/`) before a docs-only skeleton checkpoint commit exists on the WP branch (enforced mechanically by `just phase-check HANDOFF ... CODER` / `post-work-check.mjs`).
+Forbidden: any product code changes (`src/`, `app/`, `tests/`) without a skeleton approval commit on the WP branch (enforced mechanically by `just phase-check HANDOFF ... CODER` / `post-work-check.mjs`).
+For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, this checkpoint/approval subflow is forbidden. Do not run `just coder-skeleton-checkpoint` or `just skeleton-approved`; those commands now record `WORKFLOW_INVALIDITY` and fail. In orchestrator-managed lanes, `just phase-check STARTUP ... CODER` does not waive BOOTSTRAP/SKELETON review; use the direct-review lane so the WP Validator can judge your bootstrap, skeleton, and early micro-task plan before implementation hardens.
 - **Reminder:** `just coder-skeleton-checkpoint` and `just skeleton-approved` are `MANUAL_RELAY`-only. Attempting them on an `ORCHESTRATOR_MANAGED` lane records `WORKFLOW_INVALIDITY`. Use the direct-review lane (`VALIDATOR_KICKOFF -> CODER_INTENT`) instead.
 For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` after signature/prepare, do not ask the Operator for routine approval, "proceed", or checkpoint actions. If a real blocker exists, route it back to the Orchestrator and name exactly one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`.
 If the Operator has to restate that rule in your lane, stop normal progress and expect the Orchestrator to record `just wp-operator-rule-restatement ...`; that lane becomes reset-required rather than business-as-usual.
@@ -758,7 +760,7 @@ Recommended (Refinement cross-check):
 When two Coders work in this repo concurrently, no two in-progress Work Packets may touch the same files.
 
 - **Strict Isolation (preferred):** Work in a dedicated branch/worktree (`feat/WP-{ID}`) so parallel work does not collide.
-- **Low-friction rule:** Local uncommitted changes outside your WP are allowed during development, but when handing off for Validator merge/commit you MUST stage ONLY your WP's files (per `IN_SCOPE_PATHS`) so `just post-work {WP_ID}` can validate the staged diff deterministically.
+- **Low-friction rule:** Local uncommitted changes outside your WP are allowed during development, but when handing off for Validator merge/commit you MUST stage ONLY your WP's files (per `IN_SCOPE_PATHS`) so `just phase-check HANDOFF {WP_ID} CODER` can validate the staged diff deterministically.
 - **Waiver boundary [CX-573F]:** A user waiver is only required if the Validator cannot isolate the staged diff to the WP scope (or if out-of-scope files must be included intentionally).
 - Treat `IN_SCOPE_PATHS` as the exclusive file lock set for the WP.
 - Before editing any code, consult the Operator-visible Task Board on `main` (recommended: `git show main:.GOV/roles_shared/records/TASK_BOARD.md`) and review `## Active (Cross-Branch Status)`; open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
@@ -919,7 +921,7 @@ RISK_MAP:
 
 ### Step 5.5: Output SKELETON Block + Skeleton Checkpoint Commit âœ‹ STOP (`MANUAL_RELAY` only)
 
-For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, skip this subflow entirely. Do not run the checkpoint/approval helpers; continue within the governed ACP lane after `just pre-work` passes.
+For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, skip this subflow entirely. Do not run the checkpoint/approval helpers; continue within the governed ACP lane after `just phase-check STARTUP ... CODER` passes.
 
 **Purpose:** Make the proposed interfaces/types/contracts explicit and get approval before implementation (per [CX-GATE-001], [CX-625]).
 
@@ -933,7 +935,7 @@ For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, skip this subflow entirely. Do not run
     - Trust boundary: which inputs are untrusted; what the server verifies/derives from a source-of-truth (e.g., stored job output)
     - Audit/event/log payload: what must be recorded (server-derived truth; do not trust client-provided provenance)
     - Error taxonomy: stale input/hash mismatch vs invalid input vs scope violation vs provenance mismatch/spoof attempt
-    - Determinism: how `just post-work` will be run (range/rev) if the WP is multi-commit
+    - Determinism: how `just phase-check HANDOFF ... CODER` will be run (range/rev) if the WP is multi-commit
   - If any mapping is ambiguous, STOP and ask the Orchestrator before implementation.
 
 **In chat, output:**
@@ -951,7 +953,7 @@ PROPOSED_CONTRACTS:
 OPEN_QUESTIONS:
 - {question 1, if any}
 
-NEXT: For `MANUAL_RELAY`, create a docs-only skeleton checkpoint commit. STOP. Await Operator/Validator approval via: just skeleton-approved WP-{ID}. Then re-run just pre-work WP-{ID} and proceed to implementation.
+NEXT: For `MANUAL_RELAY`, create a docs-only skeleton checkpoint commit. STOP. Await Operator/Validator approval via: just skeleton-approved WP-{ID}. Then re-run just phase-check STARTUP WP-{ID} CODER and proceed to implementation.
 ========================================
 ```
 
@@ -970,7 +972,7 @@ just coder-skeleton-checkpoint WP-{ID}
 
 STOP (`MANUAL_RELAY` only): request skeleton approval (Operator/Validator runs: `just skeleton-approved WP-{ID}`).
 After the approval commit exists (`docs: skeleton approved [WP-{ID}]`):
-- re-run `just pre-work WP-{ID}`
+- re-run `just phase-check STARTUP WP-{ID} CODER`
 - then proceed to implementation
 
 ---
@@ -1080,7 +1082,7 @@ Do NOT claim work is done until all DONE_MEANS are verifiable.
 
 **Why:** Centralized control over authentication, rate limiting, cost tracking, and model switching.
 
-**Grep command to check (run before `just post-work`):**
+**Grep command to check (run before `just phase-check HANDOFF WP-{ID} CODER`):**
 ```bash
 # Should find nothing in jobs/features (only in llm/)
 grep -r "reqwest\|http::" src/backend/handshake_core/src/jobs/ src/backend/handshake_core/src/api/
@@ -1215,7 +1217,7 @@ grep -r "TODO\|FIXME\|XXX\|HACK" src/backend/handshake_core/src/ --include="*.rs
 
 ### Summary: What to Check Before Handoff
 
-Run these commands before `just post-work` to catch violations early:
+Run these commands before `just phase-check HANDOFF WP-{ID} CODER` to catch violations early:
 
 ```bash
 # [CX-101] LLM calls only through module
@@ -1245,9 +1247,9 @@ grep -r "TODO\|FIXME\|XXX" src/backend/handshake_core/src/ --include="*.rs" | gr
    â”œâ”€ YES â†’ Continue to step 2
    â””â”€ NO â†’ BLOCK: Fix code, re-test until all pass
 
-2ï¸âƒ£ RUN POST-WORK (Final Gate)
-   â†“ `just post-work WP-{ID}` passes?
-   â”œâ”€ YES â†’ Commit (if not already), then run `just post-work WP-{ID}` and paste PASS output + commit SHA
+2ï¸âƒ£ RUN HANDOFF PHASE CHECK (Final Gate)
+   â†“ `just phase-check HANDOFF WP-{ID} CODER` passes?
+   â”œâ”€ YES â†’ Commit (if not already), then run `just phase-check HANDOFF WP-{ID} CODER` and paste PASS output + commit SHA
    â””â”€ NO â†’ BLOCK: Fix validation errors, re-run until PASS
 ```
 
@@ -1390,22 +1392,22 @@ Approved by: {orchestrator decision or team agreement}
 
 ---
 
-### Step 10: Post-Work Validation âœ‹ STOP
+### Step 10: Handoff Phase Validation âœ‹ STOP
 
 **Run deterministic manifest gate (not tests):**
 ```bash
 # Run the exact command from the packet TEST_PLAN.
-just post-work WP-{ID}
+just phase-check HANDOFF WP-{ID} CODER
 ```
 
 **Multi-commit / parallel-WP note (deterministic range):**
 - If the work packet contains a `MERGE_BASE_SHA`, prefer running:
   ```bash
-  just post-work WP-{ID} --range <MERGE_BASE_SHA>..HEAD
+  just phase-check HANDOFF WP-{ID} CODER --range <MERGE_BASE_SHA>..HEAD
   ```
 - If validating a specific clean handoff commit, prefer:
   ```bash
-  just post-work WP-{ID} --rev <sha>
+  just phase-check HANDOFF WP-{ID} CODER --rev <sha>
   ```
 
 **MUST see:**
@@ -1425,7 +1427,7 @@ Errors:
 Fix these issues before requesting commit.
 ```
 
-Fix errors, re-run `just post-work`.
+Fix errors, re-run `just phase-check HANDOFF WP-{ID} CODER`.
 
 ---
 
@@ -1515,7 +1517,7 @@ Ready for Validator review.
 3. Change files outside IN_SCOPE_PATHS
 4. Skip validation commands from TEST_PLAN [CX-623]
 5. Claim work is "done" without running tests [CX-572]
-6. Request commit without `just post-work` passing [CX-623]
+6. Request commit without `just phase-check HANDOFF ... CODER` passing [CX-623]
 7. Override enforcement checks without user permission [CX-905]
 
 ### âœ… DO:
@@ -1525,7 +1527,7 @@ Ready for Validator review.
 4. Run all validation commands [CX-623]
 5. Document validation results for handoff (outside the work packet)
 6. Update work packet status/notes only before commit (logger only if requested; no validation logs)
-7. Run `just post-work WP-{ID}` before claiming done
+7. Run `just phase-check HANDOFF WP-{ID} CODER` before claiming done
 8. Read `/.GOV/roles/coder/docs/CODER_RUBRIC_V2.md` before the first WP-specific BOOTSTRAP or code change
 9. Answer the required rubric-proof fields in `## STATUS_HANDOFF` before validator handoff when the packet uses `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`
 
@@ -1635,8 +1637,8 @@ $ pnpm -C app test
 
 âœ… PASS
 
-$ just post-work WP-1-Job-Cancel
-âœ… Post-work validation PASSED (deterministic manifest gate; not tests)
+$ just phase-check HANDOFF WP-1-Job-Cancel CODER
+âœ… Handoff phase check PASSED (deterministic manifest gate; not tests)
 
 Now work is done.
 ```
@@ -1663,7 +1665,7 @@ Now work is done.
 - âœ… All TEST_PLAN commands run and pass
 - âœ… Manual review complete (if required)
 - âœ… Validation evidence captured in `## EVIDENCE` (logs/outputs)
-- âœ… `just post-work WP-{ID}` passes
+- âœ… `just phase-check HANDOFF WP-{ID} CODER` passes
 - âœ… Commit message references WP-ID
 
 **You failed if:**
@@ -1697,7 +1699,7 @@ cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 
 
 # Post-work check
-just post-work WP-{ID}
+just phase-check HANDOFF WP-{ID} CODER
 
 # Check git status
 git status
@@ -1801,7 +1803,7 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 **MUST follow order:**
 1. **RUN TESTS** (all TEST_PLAN commands pass)
 2. **RUN MANUAL REVIEW** (if MEDIUM/HIGH risk â†’ PASS or WARN)
-3. **RUN POST-WORK** (`just post-work WP-{ID}` passes)
+3. **RUN HANDOFF PHASE CHECK** (`just phase-check HANDOFF WP-{ID} CODER` passes)
 
 **MUST verify DONE_MEANS:**
 - For each criterion: find file:line evidence
@@ -1853,7 +1855,7 @@ Before requesting commit, verify ALL 13:
 - [ ] **4. Hard Invariants:** No violations in production code
 - [ ] **5. Tests Pass:** Every TEST_PLAN command passes
 - [ ] **6. Manual Review:** PASS or WARN (no BLOCK) if MEDIUM/HIGH
-- [ ] **7. Post-Work:** `just post-work WP-{ID}` passes
+- [ ] **7. Handoff Phase Check:** `just phase-check HANDOFF WP-{ID} CODER` passes
 - [ ] **8. DONE_MEANS:** Every criterion has file:line evidence
 - [ ] **9. Validation Evidence:** Captured in `## EVIDENCE` (no verdicts)
 - [ ] **10. Packet Status:** Updated if needed (no validation logs)
@@ -1989,7 +1991,7 @@ Work is stuck (can't proceed without help)
 - âœ… Implementation within IN_SCOPE_PATHS
 - âœ… All TEST_PLAN commands pass
 - âœ… Manual review completed (PASS)
-- âœ… `just post-work` passes
+- âœ… `just phase-check HANDOFF ... CODER` passes
 - âœ… Validation evidence captured in `## EVIDENCE`
 - âœ… Commit message references WP-ID and includes validation
 

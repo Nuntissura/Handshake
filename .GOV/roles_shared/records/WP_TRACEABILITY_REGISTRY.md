@@ -51,8 +51,8 @@ Packet lifecycle truth lives in the packet or stub metadata itself. This registr
 
 ### How to use with `just` / validation scripts (frictionless rule)
 
-- When running `just pre-work`, `just post-work`, `just gate-check`, validator scripts, etc., use the **Active Packet WP_ID** (the filename stem), not the Base WP ID.
-  - Example: if Active Packet is `.GOV/task_packets/WP-1-Workflow-Engine-v4.md`, run `just pre-work WP-1-Workflow-Engine-v4`.
+- When running `just phase-check <PHASE> <WP_ID> <ROLE>`, validator scripts, etc., use the **Active Packet WP_ID** (the filename stem), not the Base WP ID.
+  - Example: if Active Packet is `.GOV/task_packets/WP-1-Workflow-Engine-v4.md`, run `just phase-check STARTUP WP-1-Workflow-Engine-v4 CODER`.
 - If the Active Packet is a stub under `.GOV/task_packets/stubs/`, it is **not executable**: activate it first (Technical Refinement Block ??? USER_SIGNATURE ??? create official work packet).
 
 ---
