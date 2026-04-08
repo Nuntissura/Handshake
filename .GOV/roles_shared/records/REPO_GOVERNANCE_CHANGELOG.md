@@ -1740,3 +1740,44 @@
   - `.GOV/roles_shared/records/SCRIPT_RATIONALIZATION_LOG.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: the STARTUP boundary now has one canonical public gate (`just phase-check STARTUP WP-{ID} CODER`), active governance surfaces no longer emit `just pre-work` / `just gate-check`, the retired startup script files and recipe definitions were archived under `../../scripts_archive/`, and future drift is mechanically blocked by the updated command-contract/alignment checks
+
+### 2026.04.08.10 / GOV-CHANGE-20260408-10
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-158` by letting `phase-check CLOSEOUT` optionally own the governed closeout truth sync, deferring final memory refresh until after sync, and rebasing active helper/docs surfaces onto the phase-owned closeout command
+- CHANGE_TYPE: CLOSEOUT_PHASE_SYNC_INTEGRATION
+- DRIVER_EVIDENCE:
+  - `RGF-158`
+  - operator follow-on after the 2026-04-08 governance refactor closeout
+- SURFACES:
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/validator/tests/validator-command-surface.test.mjs`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: operators can now use `just phase-check CLOSEOUT ... --sync-mode ... --context ...` as the preferred phase-owned closeout command, the same artifact now carries closeout proof plus governed truth sync plus final memory refresh when sync is requested, and the remaining standalone `integration-validator-closeout-sync` command is demoted to a support/debug writer pending full retirement
+
+### 2026.04.08.11 / GOV-CHANGE-20260408-11
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-159` by retiring the standalone `integration-validator-closeout-sync` recipe, archiving its definition, and making `phase-check CLOSEOUT` the only live closeout command operators need to know
+- CHANGE_TYPE: CLOSEOUT_RECIPE_RETIREMENT
+- DRIVER_EVIDENCE:
+  - `RGF-159`
+  - operator follow-on after the 2026-04-08 governance refactor closeout
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/tests/validator-command-surface.test.mjs`
+  - `.GOV/roles_shared/tests/governance-command-contract.test.mjs`
+  - `.GOV/docs_repo/GOVERNANCE_PHASE_CONSOLIDATION_LOG_2026-04-08.md`
+  - `.GOV/roles_shared/records/SCRIPT_RATIONALIZATION_LOG.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: closeout mutation now runs only through `phase-check CLOSEOUT ... --sync-mode ... --context ...`, the phase runner performs its own repomem gate/context capture before invoking the governed writer directly, the retired recipe body is preserved under `../../scripts_archive/justfile/retired-governance-phase-shims-20260408.just`, and active command surfaces no longer expose a second closeout command

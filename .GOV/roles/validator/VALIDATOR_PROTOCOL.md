@@ -455,14 +455,16 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
 - Require evidence that `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` ran and passed before PASS handoff or PASS commit clearance. This composite gate includes packet completeness, committed PREPARE-source handoff validation, and the governed handoff communication proof. If absent or failing, verdict = FAIL until fixed.
 - Require evidence that `just phase-check CLOSEOUT WP-{ID}` ran and passed before PASS commit clearance. This composite gate includes packet completeness, the final review communication proof, the integration-validator context bundle, and the governed closeout preflight. If absent or failing, verdict = FAIL until fixed.
-- After the closeout preflight is green, use `just integration-validator-closeout-sync WP-{ID} MERGE_PENDING` to write the PASS-ready packet/runtime/TASK_BOARD truth in one governed step. After local `main` containment is real, use `just integration-validator-closeout-sync WP-{ID} CONTAINED_IN_MAIN <MERGED_MAIN_SHA>` to finish promotion.
+- After the closeout preflight is green, prefer the same phase-owned surface for governed truth sync:
+  - PASS before local-main containment: `just phase-check CLOSEOUT WP-{ID} --sync-mode MERGE_PENDING --context "<why this closeout truth is being recorded, >=40 chars>"`
+  - PASS after local-main containment is real: `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`
 - For contained-main promotion, the candidate target must still match the signed artifact exactly, but the contained local-`main` commit may differ when conflict resolution or main-harmonization was required. That closure remains legal only when the resulting contained commit stays entirely within the signed file surface and still passes the governed closeout proof/tripwire checks.
 - Successful closeout sync must also leave machine-readable provenance: a validator gate-state closeout event plus a closeout `STATUS` receipt naming the governed Integration Validator lane, mode, and containment/baseline truth that was recorded.
 - If closeout is attempted from the wrong role/lane, from a kernel/orchestrator surface, or with live governance still resolving from `handshake_main/.GOV`, record `WORKFLOW_INVALIDITY` (`ROLE_BOUNDARY_BREACH`, `FINAL_LANE_AUTHORITY_VIOLATION`, or `FINAL_LANE_GOV_ROOT_VIOLATION`) and halt before packet/runtime/TASK_BOARD truth is promoted.
-- For governed non-PASS terminal closure, use the same sync surface instead of manual packet/runtime/TASK_BOARD edits:
-  - `just integration-validator-closeout-sync WP-{ID} FAIL`
-  - `just integration-validator-closeout-sync WP-{ID} OUTDATED_ONLY`
-  - `just integration-validator-closeout-sync WP-{ID} ABANDONED`
+- For governed non-PASS terminal closure, use the same phase-owned surface instead of manual packet/runtime/TASK_BOARD edits:
+  - `just phase-check CLOSEOUT WP-{ID} --sync-mode FAIL --context "<why FAIL truth is being recorded, >=40 chars>"`
+  - `just phase-check CLOSEOUT WP-{ID} --sync-mode OUTDATED_ONLY --context "<why OUTDATED_ONLY truth is being recorded, >=40 chars>"`
+  - `just phase-check CLOSEOUT WP-{ID} --sync-mode ABANDONED --context "<why ABANDONED truth is being recorded, >=40 chars>"`
 - Require evidence that `just phase-check HANDOFF WP-{ID} CODER` ran and passed for the validated committed target (typically surfaced through the same deterministic range/rev captured in committed handoff validation). If absent or failing, verdict = FAIL until fixed.
 - Coder handoff sequencing note (echo from CODER_PROTOCOL): `just phase-check HANDOFF ... CODER` validates staged/working changes when present, and on a clean tree validates a deterministic range:
   - If the work packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
@@ -669,7 +671,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - `just external-validator-brief WP-{ID}` (prints the canonical external/classical validator target contract: code target, governance target, committed handoff command, split report fields, and legal verdict vocabulary)
 - `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` (preferred required boundary gate before PASS commit clearance for orchestrator-managed WPs; validates packet completeness, committed PREPARE handoff state, and governed handoff routing in one pass)
 - `just integration-validator-context-brief WP-{ID}` (canonical final-lane authority/path/context bundle for orchestrator-managed Integration Validator work; use this instead of rereading protocols or rediscovering branch/worktree/session/main-compatibility truth)
-- `just phase-check CLOSEOUT WP-{ID}` (preferred required final-lane boundary gate before PASS commit clearance for orchestrator-managed WPs; wraps verdict proof, context bundle, closeout preflight, and memory refresh)
+- `just phase-check CLOSEOUT WP-{ID} [--sync-mode <MODE> --context "<context>" --merged-main-sha <SHA>]` (preferred required final-lane boundary gate before PASS commit clearance for orchestrator-managed WPs; wraps verdict proof, context bundle, closeout preflight, optional governed truth sync, and final memory refresh)
 - `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` (manual repair helper for any still-open registry-owned governed system-terminal windows after closeout; default current-batch targeting is the safe path)
 - `just gov-check` (required before PASS merge/push and for any governance-only validator changes; catches activation traceability drift, Task Board/build-order drift, and shared governance regressions)
 - `just validator-gate-*` write commands now reject unbound/wrong-lane orchestrator-managed usage early; if the current checkout is not a governed validator lane, use `just validator-next WP-{ID}`, `just integration-validator-context-brief WP-{ID}`, or `just external-validator-brief WP-{ID}` instead of forcing gate writes from the wrong surface
@@ -892,7 +894,7 @@ State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.
 ### Gate Commands
 ```
 just validator-gate-append {WP_ID} {PASS|FAIL|ABANDONED}   # Gate 1: Record WP append + verdict
-just phase-check CLOSEOUT {WP_ID} # Canonical final-lane verdict/context/closeout bundle
+just phase-check CLOSEOUT {WP_ID} # Canonical final-lane verdict/context/closeout bundle; add --sync-mode ... --context ... to record closeout truth through the same phase surface
 just validator-gate-commit {WP_ID}                # Gate 2: Unlock commit (PASS only)
 just validator-gate-present {WP_ID} [PASS|FAIL|ABANDONED]   # Gate 3: Record report shown (HALT)
 just validator-gate-acknowledge {WP_ID}           # Gate 4: Record user ack (unlock)

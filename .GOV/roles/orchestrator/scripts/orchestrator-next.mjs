@@ -279,7 +279,7 @@ function closeoutSyncCommandForProjection(wpId, projection = {}, runtimeStatus =
     && String(communicationEvaluation.state || "").trim().toUpperCase() === "COMM_OK"
     && String(projection.current_main_compatibility_status || "").trim().toUpperCase() === "NOT_RUN"
   ) {
-    return `just integration-validator-closeout-sync ${wpId} DONE_MERGE_PENDING`;
+    return `just phase-check CLOSEOUT ${wpId} --sync-mode MERGE_PENDING --context "<why this closeout truth is being recorded, >=40 chars>"`;
   }
   return `just integration-validator-context-brief ${wpId}`;
 }

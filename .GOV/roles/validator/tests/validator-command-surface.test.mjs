@@ -64,12 +64,15 @@ test("critical integration-validator helper commands stay aligned across docs, p
 
   assert.match(commandSurface, /`just integration-validator-context-brief WP-\{ID\} \[--json\]`/);
   assert.match(commandSurface, /`just phase-check <STARTUP\|HANDOFF\|VERDICT\|CLOSEOUT> WP-\{ID\} \[ROLE\] \[session\]`/);
+  assert.match(commandSurface, /phase-check CLOSEOUT WP-\{ID\} \[ROLE\] \[session\] --sync-mode <MERGE_PENDING\|CONTAINED_IN_MAIN\|FAIL\|OUTDATED_ONLY\|ABANDONED> --context/);
   assert.match(commandSurface, /`just wp-token-usage WP-\{ID\}`/);
   assert.match(commandSurface, /`just external-validator-brief WP-\{ID\} \[--json\]`/);
   assert.match(validatorProtocol, /just integration-validator-context-brief WP-\{ID\}/);
   assert.match(validatorProtocol, /just phase-check CLOSEOUT WP-\{ID\}/);
+  assert.match(validatorProtocol, /--sync-mode MERGE_PENDING --context/);
   assert.equal(recipeExists(justfile, "phase-check"), true);
   assert.equal(recipeExists(justfile, "integration-validator-context-brief"), true);
+  assert.equal(recipeExists(justfile, "integration-validator-closeout-sync"), false);
   assert.equal(recipeExists(justfile, "integration-validator-closeout-check"), false);
   assert.equal(recipeExists(justfile, "validator-handoff-check"), false);
   assert.equal(recipeExists(justfile, "validator-packet-complete"), false);

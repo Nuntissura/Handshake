@@ -177,6 +177,33 @@ Archived in this wave:
 - retired recipe definition for:
   - `integration-validator-closeout-sync`
 
+## Topology Correction
+
+The following was clarified after the CLOSEOUT wave:
+
+- `.GOV` is a normal tracked repo directory in `wt-gov-kernel`; it is not a symlink/junction in this worktree
+- the repo tracks many files under `.GOV/roles_shared/checks/` and `.GOV/roles_shared/tests/`
+- this specific worktree also has a local `.git/info/exclude` rule:
+  - `.GOV/*`
+  - `!.GOV/docs_repo/`
+  - `!.GOV/docs_repo/**`
+- because of that local exclude, new or unindexed `.GOV/*` files are hidden from normal `git status` unless they are under `.GOV/docs_repo/**`
+
+Practical consequence:
+
+- the CLOSEOUT replacement implementation currently depends on local edits in:
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles_shared/tests/governance-command-contract.test.mjs`
+- those files are part of tracked repo areas in general, but the specific file entries are not currently in the index on this worktree/branch, so the local exclude hides them
+- therefore the CLOSEOUT wave must be treated as a local topology-sensitive cutover until the replacement implementation is brought into tracked topology and committed as real repo truth
+
+This was the main lesson from the session:
+
+- inspect worktree topology, Git tracking, and local excludes first
+- do not retire a public phase surface until the replacement is confirmed as tracked in the active topology
+
 ## Archive Location
 
 Retired scripts and recipe definitions are being archived under:
@@ -194,32 +221,41 @@ The governance board and change history are tracked in:
 
 ## What Is True Now
 
-After the HANDOFF, STARTUP, and CLOSEOUT public-surface retirement waves:
+Committed and topology-safe now:
 
 - startup and handoff now have canonical phase-owned public surfaces
 - retired startup/handoff shims are archived, not left active
 - active docs/helpers have been rebased onto the canonical phase surface
 - command drift is mechanically guarded by command-contract and protocol-alignment checks
-- closeout proof, governed truth sync, and final memory refresh can now run through the same `phase-check CLOSEOUT` artifact
+
+Local WIP, not yet established as topology-safe committed truth:
+
+- the intended CLOSEOUT end state is still `phase-check CLOSEOUT ... --sync-mode ... --context ...`
+- the public recipe retirement and doc updates for CLOSEOUT were done locally
+- but the replacement implementation currently lives partly in locally excluded/unindexed `.GOV/roles_shared/checks/*` and `.GOV/roles_shared/tests/*` files, so that cutover is not yet in a clean committed state
+- `.GOV/docs_repo/` is now tracked in Git and can be used for this running consolidation log without being hidden by the local exclude
 
 ## What Is Not Done Yet
 
 The next meaningful consolidation target is:
 
-- internal CLOSEOUT file reduction
+- topology-safe CLOSEOUT finalization
 
 Reason:
 
-- the public CLOSEOUT surface is now canonicalized, but the underlying governed writer still exists as a separate internal script file
-- if further physical file reduction is desired, the next wave is to rehome that internal implementation into a phase-owned library/module so the closeout writer file itself can become archiveable later
+- the intended CLOSEOUT replacer exists locally, but its implementation is not yet cleanly tracked in the active repo topology
+- before any further physical reduction, the replacement implementation must be brought into tracked topology or the live-surface retirement must be reconciled
+- only after that is clean should the internal governed writer file be rehomed further for physical file reduction
 
 ## Working Principle Going Forward
 
 When consolidating another phase:
 
+- inspect topology first (`git ls-files`, `git check-ignore`, `.git/info/exclude`, worktree layout)
 - do not add shims
 - do not keep old public aliases alive "just in case"
 - build the big replacer first
+- ensure the replacer is tracked in the active topology
 - archive the retired pieces
 - remove the live surface
 - make the drift checks enforce the new state

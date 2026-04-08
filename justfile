@@ -324,11 +324,6 @@ task-board-set wp-id status context reason="":
 	@just repomem context "{{context}}" --trigger task-board-set --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs" {{wp-id}} {{status}} "{{reason}}"
 
-integration-validator-closeout-sync wp-id context mode merged_main_sha="" *FLAGS:
-	@just repomem-gate
-	@just repomem context "{{context}}" --trigger integration-validator-closeout-sync --wp {{wp-id}}
-	@node "{{GOV_ROOT}}/roles/validator/scripts/integration-validator-closeout-sync.mjs" {{wp-id}} {{mode}} {{merged_main_sha}} {{FLAGS}}
-
 integration-validator-context-brief wp-id *args:
 	@node "{{GOV_ROOT}}/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs" {{wp-id}} {{args}}
 
