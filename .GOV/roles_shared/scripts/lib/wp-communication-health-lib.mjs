@@ -19,7 +19,7 @@ import {
 } from "./scope-surface-lib.mjs";
 import { validatorReportProfileUsesHeuristicRigor } from "./validator-report-profile-lib.mjs";
 
-export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
+export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STARTUP", "STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
 export const COMMUNICATION_MONITOR_STATE_VALUES = [
   "COMM_NA",
   "COMM_MISCONFIGURED",
@@ -51,6 +51,7 @@ const INTENT_CHECKPOINT_CLEARANCE_RECEIPT_KIND_VALUES = new Set([
 const CONTRACT_HEAVY_CODER_HANDOFF_RIGOR_PROFILE_VALUES = new Set(["RUBRIC_SELF_AUDIT_V2"]);
 const CONTRACT_HEAVY_CLAUSE_MONITOR_PROFILE_VALUES = new Set(["CLAUSE_MONITOR_V1"]);
 const CONTRACT_HEAVY_SEMANTIC_PROOF_PROFILE_VALUES = new Set(["DIFF_SCOPED_SEMANTIC_V1"]);
+const STARTUP_COMMUNICATION_ROLE_VALUES = ["ORCHESTRATOR", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
 
 function normalizeRole(value) {
   return String(value || "").trim().toUpperCase();
@@ -489,6 +490,8 @@ function result({
 export function evaluateWpCommunicationHealth({
   wpId = "",
   stage = "STATUS",
+  actorRole = "",
+  actorSession = "",
   packetPath = "",
   packetContent = "",
   workflowLane = "",
@@ -632,6 +635,73 @@ export function evaluateWpCommunicationHealth({
     handoff: handoffReviewPair.openReceipt?.correlation_id || null,
     finalReview: integrationFinalPair.openReceipt?.correlation_id || null,
   };
+  if (normalizedStage === "STARTUP") {
+    const startupRole = normalizeRole(actorRole);
+    const startupSession = normalizeSession(actorSession);
+    const startupDetails = [
+      ...details,
+      `startup_role=${startupRole || "<missing>"}`,
+      `startup_session=${startupSession || "<unspecified>"}`,
+    ];
+    if (!STARTUP_COMMUNICATION_ROLE_VALUES.includes(startupRole)) {
+      return result({
+        applicable: true,
+        ok: false,
+        state: "COMM_MISCONFIGURED",
+        message: "STARTUP stage requires a direct-review role context",
+        details: [
+          ...startupDetails,
+          `expected_startup_roles=${STARTUP_COMMUNICATION_ROLE_VALUES.join(",")}`,
+        ],
+        counts,
+        correlations,
+      });
+    }
+
+    const issues = [];
+    if (startupRole === "ORCHESTRATOR" && normalizeRole(runtimeStatus?.next_expected_actor) !== "ORCHESTRATOR") {
+      issues.push(
+        `runtime.next_expected_actor=${normalizeRole(runtimeStatus?.next_expected_actor) || "<missing>"}`
+        + " (expected ORCHESTRATOR during startup mesh check)",
+      );
+    }
+    if (startupRole !== "ORCHESTRATOR" && !hasActiveRoleSession(runtimeStatus, startupRole, startupSession)) {
+      issues.push(
+        `active_role_sessions missing ${startupRole}`
+        + (startupSession ? `:${startupSession}` : ""),
+      );
+    }
+    for (const peerRole of startupMeshPeersForRole(startupRole)) {
+      if (!hasActiveRoleSession(runtimeStatus, peerRole)) {
+        issues.push(`startup_peer_missing=${peerRole}`);
+        continue;
+      }
+      startupDetails.push(`startup_peer_ready=${peerRole}:${mostRecentActiveSessionForRole(runtimeStatus, peerRole) || "<unknown>"}`);
+    }
+    if (issues.length > 0) {
+      return result({
+        applicable: true,
+        ok: false,
+        state: "COMM_MISCONFIGURED",
+        message: "Startup communication mesh is not ready",
+        details: [
+          ...startupDetails,
+          ...issues,
+        ],
+        counts,
+        correlations,
+      });
+    }
+    return result({
+      applicable: true,
+      ok: true,
+      state: "COMM_OK",
+      message: `Startup communication mesh is ready for ${startupRole}`,
+      details: startupDetails,
+      counts,
+      correlations,
+    });
+  }
   const blockingOpenReviewResult = () => {
     const blockingItems = openReviewPartition.blockingQueue.length > 0
       ? openReviewPartition.blockingQueue
@@ -957,6 +1027,36 @@ function mostRecentActiveSessionForRole(runtimeStatus, role) {
     )
     .sort((left, right) => String(right?.last_heartbeat_at || "").localeCompare(String(left?.last_heartbeat_at || "")))[0]
     ?.session_id || null;
+}
+
+function hasActiveRoleSession(runtimeStatus, role, preferredSession = null) {
+  const ROLE = normalizeRole(role);
+  const preferred = normalizeSession(preferredSession);
+  const sessions = Array.isArray(runtimeStatus?.active_role_sessions) ? runtimeStatus.active_role_sessions : [];
+  const activeSessions = sessions.filter((entry) =>
+    normalizeRole(entry?.role) === ROLE
+    && normalizeSession(entry?.session_id)
+    && String(entry?.state || "").trim().toLowerCase() !== "completed"
+  );
+  if (preferred) {
+    return activeSessions.some((entry) => normalizeSession(entry?.session_id) === preferred);
+  }
+  return activeSessions.length > 0;
+}
+
+function startupMeshPeersForRole(role) {
+  switch (normalizeRole(role)) {
+    case "ORCHESTRATOR":
+      return ["CODER", "WP_VALIDATOR"];
+    case "CODER":
+      return ["WP_VALIDATOR"];
+    case "WP_VALIDATOR":
+      return ["CODER"];
+    case "INTEGRATION_VALIDATOR":
+      return ["CODER"];
+    default:
+      return [];
+  }
 }
 
 function sessionForRole(runtimeStatus, role, preferredSession = null) {
@@ -1297,6 +1397,16 @@ export function evaluateWpCommunicationBoundary({
     return {
       applicable: false,
       ok: true,
+      autoRoute: null,
+      boundaryNotifications: [],
+      issues: [],
+    };
+  }
+
+  if (normalizedStage === "STARTUP") {
+    return {
+      applicable: true,
+      ok: Boolean(statusEvaluation?.ok),
       autoRoute: null,
       boundaryNotifications: [],
       issues: [],

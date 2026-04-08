@@ -34,6 +34,7 @@ test("coder startup prompt carries orchestrator-managed relapse guard and lane-a
   assert.match(prompt, /`MANUAL_RELAY` = .*skeleton approval when required/i);
   assert.match(prompt, /`ORCHESTRATOR_MANAGED` = .*no routine Operator approvals after signature/i);
   assert.match(prompt, /just active-lane-brief CODER WP-TEST-CODER-v1/i);
+  assert.match(prompt, /just wp-communication-health-check WP-TEST-CODER-v1 STARTUP CODER <your-session>/i);
   assert.match(prompt, /just check-notifications WP-TEST-CODER-v1 CODER <your-session>/i);
   assert.match(prompt, new RegExp(CODEX_AUTHORITY_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
@@ -52,6 +53,7 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
   assert.match(prompt, /wp-review-exchange REVIEW_REQUEST/i);
   assert.match(prompt, /wp-review-response/i);
   assert.match(prompt, /integration-validator-context-brief/i);
+  assert.match(prompt, /wp-communication-health-check .* STARTUP INTEGRATION_VALIDATOR/i);
   assert.match(prompt, /wp-communication-health-check .* VERDICT/i);
   assert.match(prompt, /Final merge-ready authority/i);
   assert.match(prompt, /HANDSHAKE_GOV_ROOT/i);
@@ -70,12 +72,13 @@ test("wp-validator startup prompt uses the dedicated validator lane and early st
     selectedModel: ROLE_SESSION_PRIMARY_MODEL,
   });
 
-  assert.match(roleConfig.branch, /^validate\/WP-TEST-WPVAL-v1$/);
-  assert.match(roleConfig.worktreeDir, /^\.\.\/wtv-/);
+  assert.match(roleConfig.branch, /^feat\/WP-TEST-WPVAL-v1$/);
+  assert.match(roleConfig.worktreeDir, /^\.\.\/wtc-/);
   assert.match(prompt, /SESSION ISOLATION: do not spawn or use helper agents\/subagents/i);
   assert.match(prompt, /judge bootstrap\/skeleton\/micro-task direction early/i);
   assert.match(prompt, /EARLY STEERING \(MANDATORY\): You own the governed bootstrap\/skeleton checkpoint/i);
-  assert.match(prompt, /WORKTREE SYNC \(MANDATORY\): Keep your dedicated validator branch\/worktree reviewable against the coder branch/i);
+  assert.match(prompt, /WORKTREE SYNC \(MANDATORY\): You share the coder `feat\/WP-TEST-WPVAL-v1` branch and `wtc-\*` worktree surface/i);
+  assert.match(prompt, /just wp-communication-health-check WP-TEST-WPVAL-v1 STARTUP WP_VALIDATOR <your-session>/i);
   assert.match(prompt, /just check-notifications WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
 });
 

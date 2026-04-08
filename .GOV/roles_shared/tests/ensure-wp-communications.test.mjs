@@ -7,6 +7,7 @@ import {
   findUnreplacedTemplateTokens,
   reconcileWpCommunicationTruth,
 } from "../scripts/wp/ensure-wp-communications.mjs";
+import { evaluateWpCommunicationHealth } from "../scripts/lib/wp-communication-health-lib.mjs";
 
 const repoRoot = path.resolve(".");
 
@@ -240,4 +241,72 @@ test("reconcileWpCommunicationTruth replays final review receipts into packet an
   );
   assert.equal(reconciliation.nextRuntimeStatus.last_event, "receipt_review_response");
   assert.equal(reconciliation.nextRuntimeStatus.last_event_at, "2026-04-01T02:46:32.499Z");
+});
+
+test("startup communication health passes when the role-scoped mesh peers are active", () => {
+  const evaluation = evaluateWpCommunicationHealth({
+    wpId: "WP-TEST-COMMS-v1",
+    stage: "STARTUP",
+    actorRole: "CODER",
+    actorSession: "coder:test-session",
+    packetPath: ".GOV/task_packets/WP-TEST-COMMS-v1/packet.md",
+    workflowLane: "ORCHESTRATOR_MANAGED",
+    packetFormatVersion: "2026-03-29",
+    communicationContract: "DIRECT_REVIEW_V1",
+    communicationHealthGate: "HANDOFF_VERDICT_BLOCKING",
+    receipts: [],
+    runtimeStatus: {
+      next_expected_actor: "ORCHESTRATOR",
+      active_role_sessions: [
+        {
+          role: "CODER",
+          session_id: "coder:test-session",
+          state: "working",
+          last_heartbeat_at: "2026-04-01T01:00:00.000Z",
+        },
+        {
+          role: "WP_VALIDATOR",
+          session_id: "wp_validator:test-session",
+          state: "waiting",
+          last_heartbeat_at: "2026-04-01T01:00:01.000Z",
+        },
+      ],
+      open_review_items: [],
+    },
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.state, "COMM_OK");
+  assert.match(evaluation.message, /Startup communication mesh is ready for CODER/);
+});
+
+test("startup communication health fails when a required peer session is missing", () => {
+  const evaluation = evaluateWpCommunicationHealth({
+    wpId: "WP-TEST-COMMS-v1",
+    stage: "STARTUP",
+    actorRole: "WP_VALIDATOR",
+    actorSession: "wp_validator:test-session",
+    packetPath: ".GOV/task_packets/WP-TEST-COMMS-v1/packet.md",
+    workflowLane: "ORCHESTRATOR_MANAGED",
+    packetFormatVersion: "2026-03-29",
+    communicationContract: "DIRECT_REVIEW_V1",
+    communicationHealthGate: "HANDOFF_VERDICT_BLOCKING",
+    receipts: [],
+    runtimeStatus: {
+      next_expected_actor: "ORCHESTRATOR",
+      active_role_sessions: [
+        {
+          role: "WP_VALIDATOR",
+          session_id: "wp_validator:test-session",
+          state: "waiting",
+          last_heartbeat_at: "2026-04-01T01:00:01.000Z",
+        },
+      ],
+      open_review_items: [],
+    },
+  });
+
+  assert.equal(evaluation.ok, false);
+  assert.equal(evaluation.state, "COMM_MISCONFIGURED");
+  assert.match(evaluation.details.join("\n"), /startup_peer_missing=CODER/);
 });

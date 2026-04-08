@@ -14,7 +14,7 @@ import { checkAllNotifications } from "../scripts/wp/wp-check-notifications.mjs"
 function usage() {
   console.error(
     `Usage: node ${GOV_ROOT_REPO_REL}/roles_shared/checks/wp-communication-health-check.mjs`
-    + ` WP-{ID} [${COMMUNICATION_HEALTH_STAGE_VALUES.join("|")}]`
+    + ` WP-{ID} [${COMMUNICATION_HEALTH_STAGE_VALUES.join("|")}] [ROLE] [SESSION]`
   );
   process.exit(1);
 }
@@ -58,6 +58,8 @@ function printResult(evaluation) {
 
 const wpId = String(process.argv[2] || "").trim();
 const stage = String(process.argv[3] || "STATUS").trim().toUpperCase();
+const actorRole = String(process.argv[4] || "").trim();
+const actorSession = String(process.argv[5] || "").trim();
 if (!wpId || !/^WP-/.test(wpId)) usage();
 if (!COMMUNICATION_HEALTH_STAGE_VALUES.includes(stage)) usage();
 
@@ -84,9 +86,11 @@ const evaluation = evaluateWpCommunicationHealth({
   communicationHealthGate: context.communicationHealthGate,
   receipts,
   runtimeStatus,
+  actorRole,
+  actorSession,
 });
 
-const statusEvaluation = stage === "STATUS"
+const statusEvaluation = stage === "STATUS" || stage === "STARTUP"
   ? evaluation
   : evaluateWpCommunicationHealth({
     wpId,
@@ -99,6 +103,8 @@ const statusEvaluation = stage === "STATUS"
     communicationHealthGate: context.communicationHealthGate,
     receipts,
     runtimeStatus,
+    actorRole,
+    actorSession,
   });
 const boundary = evaluateWpCommunicationBoundary({
   stage,

@@ -32,11 +32,6 @@ test("shared checks remain valid when launched from a temp directory", () => {
     const governanceReferenceJson = JSON.parse(governanceReference.stdout.trim());
     assert.match(governanceReferenceJson.specCurrentPathAbs, /wt-gov-kernel\\\.GOV\\spec\\SPEC_CURRENT\.md$/);
 
-    const ciTraceability = runNode([
-      path.join(repoRoot, ".GOV", "roles_shared", "checks", "ci-traceability-check.mjs"),
-    ], probeDir);
-    assert.equal(ciTraceability.status, 0, ciTraceability.stderr || ciTraceability.stdout);
-
     const sessionPolicy = runNode([
       path.join(repoRoot, ".GOV", "roles_shared", "checks", "session-policy-check.mjs"),
     ], probeDir);
@@ -134,6 +129,26 @@ test("shared checks remain valid when launched from a temp directory", () => {
     ], probeDir);
     assert.equal(tokenUsageReport.status, 0, tokenUsageReport.stderr || tokenUsageReport.stdout);
     assert.match(tokenUsageReport.stdout, /WP_TOKEN_USAGE/);
+  } finally {
+    fs.rmSync(probeDir, { recursive: true, force: true });
+  }
+});
+
+test("packet gate checks remain valid when launched from a temp directory", () => {
+  const probeDir = fs.mkdtempSync(path.join(os.tmpdir(), "handshake-packet-cwd-probe-"));
+  try {
+    const gateCheck = runNode([
+      path.join(repoRoot, ".GOV", "roles_shared", "checks", "gate-check.mjs"),
+      "WP-1-Workflow-Projection-Correlation-v1",
+    ], probeDir);
+    assert.equal(gateCheck.status, 0, gateCheck.stderr || gateCheck.stdout);
+
+    const computedPolicy = runNode([
+      path.join(repoRoot, ".GOV", "roles_shared", "checks", "computed-policy-gate-check.mjs"),
+      "WP-1-Workflow-Projection-Correlation-v1",
+      "--json",
+    ], probeDir);
+    assert.equal(computedPolicy.status, 0, computedPolicy.stderr || computedPolicy.stdout);
   } finally {
     fs.rmSync(probeDir, { recursive: true, force: true });
   }

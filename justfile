@@ -601,8 +601,8 @@ wp-coder-handoff wp-id actor_session validator_session summary correlation_id=""
 wp-validator-review wp-id actor_session coder_session summary correlation_id spec_anchor="" packet_row_ref="" microtask_json="":
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_REVIEW {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
 
-wp-communication-health-check wp-id stage="STATUS":
-	@node "{{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs" {{wp-id}} {{stage}}
+wp-communication-health-check wp-id stage="STATUS" role="" session="":
+	@node "{{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs" {{wp-id}} {{stage}} {{role}} "{{session}}"
 
 check-notifications wp-id role="" session="":
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs" {{wp-id}} {{role}} "{{session}}"
