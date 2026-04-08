@@ -6,6 +6,8 @@ use std::str::FromStr;
 use thiserror::Error;
 use uuid::Uuid;
 
+use crate::workspace_safety::MergeBackArtifact;
+
 use crate::ai_ready_data::records::{
     BronzeRecord, EmbeddingModelRecord, EmbeddingRegistry, NewBronzeRecord, NewSilverRecord,
     SilverRecord,
@@ -1333,6 +1335,7 @@ pub struct ModelSession {
     pub checkpoint_artifact_id: Option<String>,
     pub last_checkpoint_at: Option<DateTime<Utc>>,
     pub checkpoint_count: i64,
+    pub merge_back_artifact: Option<MergeBackArtifact>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -1982,6 +1985,22 @@ pub trait Database: Send + Sync {
         session_id: &str,
         state: ModelSessionState,
         job_id: Option<Uuid>,
+    ) -> StorageResult<ModelSession> {
+        self.update_model_session_state_with_merge_back_artifact(
+            session_id,
+            state,
+            job_id,
+            None,
+        )
+        .await
+    }
+
+    async fn update_model_session_state_with_merge_back_artifact(
+        &self,
+        session_id: &str,
+        state: ModelSessionState,
+        job_id: Option<Uuid>,
+        merge_back_artifact: Option<MergeBackArtifact>,
     ) -> StorageResult<ModelSession>;
     async fn create_session_checkpoint(
         &self,

@@ -176,6 +176,10 @@ pub enum FlightRecorderEventType {
     /// FR-EVT-MT-002: Model-session checkpoint lifecycle
     SessionCheckpointCreated,
     SessionRecoveryAttempted,
+    /// FR-EVT-WS-ISO-001..003: Workspace isolation events [4.3.9.17]
+    WorkspaceIsolationDenied,
+    WorkspaceCrossSessionDenied,
+    WorkspaceCrossSessionApproved,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -368,11 +372,20 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::SessionCascadeCancel => {
                 write!(f, "session.cascade_cancel")
+            }
             FlightRecorderEventType::SessionCheckpointCreated => {
                 write!(f, "session_checkpoint_created")
             }
             FlightRecorderEventType::SessionRecoveryAttempted => {
                 write!(f, "session_recovery_attempted")
+            FlightRecorderEventType::WorkspaceIsolationDenied => {
+                write!(f, "workspace_isolation.denied")
+            }
+            FlightRecorderEventType::WorkspaceCrossSessionDenied => {
+                write!(f, "workspace_cross_session.denied")
+            }
+            FlightRecorderEventType::WorkspaceCrossSessionApproved => {
+                write!(f, "workspace_cross_session.approved")
             }
         }
     }

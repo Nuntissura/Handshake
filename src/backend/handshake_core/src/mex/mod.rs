@@ -17,8 +17,8 @@ pub use envelope::{
     OutputSpec, PlannedOperation, ProvenanceRecord, POE_SCHEMA_VERSION,
 };
 pub use gates::{
-    BudgetGate, CapabilityGate, DetGate, Gate, GateDenial, GatePipeline, IntegrityGate,
-    ProvenanceGate, SchemaGate,
+    BudgetGate, CapabilityGate, CrossSessionGate, DetGate, Gate, GateDenial, GatePipeline,
+    IntegrityGate, IsolationGate, ProvenanceGate, SchemaGate,
 };
 pub use registry::{EngineSpec, MexRegistry, OperationSpec};
 pub use runtime::{EngineAdapter, MexRuntime, MexRuntimeError};

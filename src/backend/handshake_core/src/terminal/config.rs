@@ -21,6 +21,37 @@ pub struct TerminalConfig {
 }
 
 impl TerminalConfig {
+    pub const SESSION_SCOPED_DENIED_COMMAND_PATTERNS: [&str; 4] = [
+        r"(?i)\bgit\s+reset\s+--hard\b",
+        r"(?i)\bgit\s+clean\s+-fd\b",
+        r"(?i)\brm\s+(-[^\s]+\s+)*-rf\b",
+        r"(?i)\.handshake[\\/]+gov",
+    ];
+
+    pub fn with_session_scoped_denies(session_id: Option<&str>) -> Self {
+        let mut cfg = Self::with_defaults();
+        if !session_id.map(str::trim).unwrap_or("").is_empty() {
+            cfg.denied_command_patterns = Self::session_denied_command_patterns();
+        }
+        cfg
+    }
+
+    pub fn with_session_scoped_denies_and_allowed_roots(
+        session_id: Option<&str>,
+        allowed_cwd_roots: Vec<PathBuf>,
+    ) -> Self {
+        let mut cfg = Self::with_session_scoped_denies(session_id);
+        cfg.allowed_cwd_roots = allowed_cwd_roots;
+        cfg
+    }
+
+    pub fn session_denied_command_patterns() -> Vec<String> {
+        Self::SESSION_SCOPED_DENIED_COMMAND_PATTERNS
+            .iter()
+            .map(|pattern| pattern.to_string())
+            .collect()
+    }
+
     pub fn new(workspace_root: PathBuf) -> Self {
         Self {
             default_timeout_ms: 180_000,
@@ -56,5 +87,29 @@ impl TerminalConfig {
             Some(value) => value,
             None => self.max_output_bytes,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TerminalConfig;
+    use std::path::PathBuf;
+
+    #[test]
+    fn with_session_scoped_denies_injects_patterns() {
+        let cfg = TerminalConfig::with_session_scoped_denies(Some("session-123"));
+        assert_eq!(cfg.denied_command_patterns, TerminalConfig::session_denied_command_patterns());
+    }
+
+    #[test]
+    fn with_session_scoped_denies_injects_allowed_roots() {
+        let cfg = TerminalConfig::with_session_scoped_denies_and_allowed_roots(
+            Some("session-123"),
+            vec![PathBuf::from("src"), PathBuf::from("tests")],
+        );
+        assert_eq!(
+            cfg.allowed_cwd_roots,
+            vec![PathBuf::from("src"), PathBuf::from("tests")]
+        );
     }
 }

@@ -37,6 +37,7 @@ use crate::{
         },
         openai_compat_canonical_request_bytes, CompletionRequest, LlmError, ModelTier,
     },
+    mex::gates::evaluate_session_safety_gates,
     mex::runtime::{AdapterError as MexAdapterError, EngineAdapter, ShellEngineAdapter},
     mex::{
         BudgetGate, BudgetSpec, CapabilityGate, DetGate, DeterminismLevel, EngineError,
@@ -57,6 +58,11 @@ use crate::{
         guards::{DefaultTerminalGuard, TerminalGuard},
         redaction::PatternRedactor,
         JobContext, TerminalMode, TerminalRequest, TerminalService,
+    },
+    workspace_safety::{
+        cleanup_session_worktree, collect_merge_back_artifact, enforce_cross_session_access,
+        enforce_workspace_isolation, ensure_session_worktree_allocation,
+        SessionWorktreeAllocation, SessionWorktreeRegistry,
     },
     AppState,
 };
@@ -499,6 +505,7 @@ struct SessionRegistryInner {
     multi_model_session: MultiModelSession,
     children_by_parent: HashMap<String, HashSet<String>>,
     session_id_by_job_id: HashMap<Uuid, String>,
+    worktree_registry: SessionWorktreeRegistry,
     rate_limiter: ProviderRateLimiter,
 }
 
@@ -519,6 +526,7 @@ impl SessionRegistry {
                 multi_model_session,
                 children_by_parent: HashMap::new(),
                 session_id_by_job_id: HashMap::new(),
+                worktree_registry: SessionWorktreeRegistry::new(),
                 rate_limiter: ProviderRateLimiter::new(
                     scheduler_config.rate_limit_requests_per_minute,
                     scheduler_config.rate_limit_tokens_per_minute,
@@ -611,12 +619,41 @@ impl SessionRegistry {
                 .multi_model_session
                 .active_sessions
                 .remove(&session_id);
+            inner
+                .worktree_registry
+                .remove(&session_id);
         } else {
             inner
                 .multi_model_session
                 .active_sessions
                 .insert(session_id, session);
         }
+    }
+
+    pub async fn register_session_worktree_allocation(&self, allocation: SessionWorktreeAllocation) {
+        let mut inner = self.inner.write().await;
+        inner.worktree_registry.put(allocation);
+    }
+
+    pub async fn get_session_worktree_path(
+        &self,
+        session_id: &str,
+    ) -> Option<PathBuf> {
+        let inner = self.inner.read().await;
+        inner.worktree_registry.get(session_id).cloned()
+    }
+
+    pub async fn snapshot_worktree_registry(&self) -> SessionWorktreeRegistry {
+        let inner = self.inner.read().await;
+        inner.worktree_registry.clone()
+    }
+
+    pub async fn clear_session_worktree_allocation(
+        &self,
+        session_id: &str,
+    ) -> Option<SessionWorktreeAllocation> {
+        let mut inner = self.inner.write().await;
+        inner.worktree_registry.remove(session_id)
     }
 
     pub async fn get_model_session(
@@ -5853,6 +5890,22 @@ async fn ensure_model_session_artifact_refs(
         .await?;
     state.session_registry.upsert_session(session).await;
 
+    if state
+        .session_registry
+        .get_session_worktree_path(&metadata.session_id)
+        .await
+        .is_none()
+    {
+        let repo_root = repo_root_from_manifest_dir()
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        let allocation = ensure_session_worktree_allocation(&repo_root, metadata.session_id.as_str())
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        state
+            .session_registry
+            .register_session_worktree_allocation(allocation)
+            .await;
+    }
+
     for entry in &metadata.session_messages {
         let mut role = entry.role.clone();
         let mut attachments = entry.attachments.clone();
@@ -6679,7 +6732,7 @@ async fn finalize_model_run_after_terminal(
     trace_id: Uuid,
 ) -> Result<(), WorkflowError> {
     let metadata = parse_model_run_metadata(job)?;
-    let session_state = match final_status {
+    let mut session_state = match final_status {
         JobState::Completed | JobState::CompletedWithIssues => ModelSessionState::Completed,
         JobState::Cancelled => {
             if status_reason.trim().eq_ignore_ascii_case("consent_revoked") {
@@ -6694,14 +6747,133 @@ async fn finalize_model_run_after_terminal(
         JobState::AwaitingUser | JobState::AwaitingValidation => ModelSessionState::Blocked,
     };
 
+    let repo_root = repo_root_from_manifest_dir()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let worktree_registry = state.session_registry.snapshot_worktree_registry().await;
+    let mut merge_back_artifact = None;
+    let mut worktree_path_for_cleanup = None;
+    if let Some(worktree_path) = state
+        .session_registry
+        .get_session_worktree_path(&metadata.session_id)
+        .await
+    {
+        worktree_path_for_cleanup = Some(worktree_path.clone());
+        let workspace_denial = evaluate_session_safety_gates(
+            metadata.session_id.as_str(),
+            &worktree_path,
+            false,
+            worktree_registry.clone(),
+        )
+        .into_iter()
+        .next();
+
+        if let Some(denial) = workspace_denial {
+            session_state = ModelSessionState::Blocked;
+            match denial.code.as_deref() {
+                Some("INV-WS-002") => {
+                    if let Err((err, event)) = enforce_workspace_isolation(
+                        &worktree_registry,
+                        metadata.session_id.as_str(),
+                        trace_id,
+                    ) {
+                        record_event_safely(
+                            state,
+                            event.with_job_id(job.job_id.to_string()),
+                        )
+                        .await;
+                        tracing::warn!(
+                            "workspace isolation denied merge-back capture for session_id={}: {}",
+                            metadata.session_id,
+                            err,
+                        );
+                    }
+                }
+                Some("INV-WS-003") => {
+                    if let Err((err, event)) = enforce_cross_session_access(
+                        &worktree_registry,
+                        metadata.session_id.as_str(),
+                        &worktree_path,
+                        false,
+                        trace_id,
+                    ) {
+                        record_event_safely(
+                            state,
+                            event.with_job_id(job.job_id.to_string()),
+                        )
+                        .await;
+                        tracing::warn!(
+                            "cross-session access denied merge-back capture for session_id={}: {}",
+                            metadata.session_id,
+                            err,
+                        );
+                    }
+                }
+                _ => {
+                    tracing::warn!(
+                        "workspace safety gate denied merge-back capture for session_id={}: {}",
+                        metadata.session_id,
+                        denial.reason,
+                    );
+                }
+            }
+        } else {
+            match collect_merge_back_artifact(&worktree_path, metadata.session_id.as_str()) {
+                Ok(artifact) => {
+                    if artifact.has_conflicts() {
+                        session_state = ModelSessionState::Blocked;
+                    }
+                    merge_back_artifact = Some(artifact);
+                }
+                Err(err) => {
+                    tracing::warn!(
+                        "collect_merge_back_artifact failed for session_id={}: {}",
+                        metadata.session_id,
+                        err,
+                    );
+                }
+            }
+        }
+    } else if let Err((err, event)) = enforce_workspace_isolation(
+        &worktree_registry,
+        metadata.session_id.as_str(),
+        trace_id,
+    ) {
+        session_state = ModelSessionState::Blocked;
+        record_event_safely(
+            state,
+            event.with_job_id(job.job_id.to_string()),
+        )
+        .await;
+        tracing::warn!(
+            "workspace isolation denied merge-back capture for session_id={}: {}",
+            metadata.session_id,
+            err,
+        );
+    }
+
     let session = state
         .storage
-        .update_model_session_state(
+        .update_model_session_state_with_merge_back_artifact(
             metadata.session_id.as_str(),
             session_state,
             Some(job.job_id),
+            merge_back_artifact,
         )
         .await?;
+    if let Some(worktree_path) = worktree_path_for_cleanup {
+        if let Err(err) = cleanup_session_worktree(&repo_root, &worktree_path) {
+            tracing::warn!(
+                "cleanup_session_worktree failed for session_id={} at {}: {}",
+                metadata.session_id,
+                worktree_path.display(),
+                err,
+            );
+        }
+        let _ = state
+            .session_registry
+            .clear_session_worktree_allocation(&metadata.session_id)
+            .await;
+    }
     state.session_registry.upsert_session(session).await;
 
     if matches!(final_status, JobState::Cancelled) {
@@ -11993,10 +12165,31 @@ fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, W
     ))
 }
 
+fn normalize_in_scope_paths_for_validation(in_scope_paths: &[String]) -> Vec<String> {
+    let mut normalized = Vec::new();
+    let mut seen = HashSet::new();
+
+    for path in in_scope_paths {
+        let normalized_path = path.trim().replace('\\', "/");
+        if normalized_path.is_empty() {
+            continue;
+        }
+        if Path::new(&normalized_path).is_absolute() {
+            continue;
+        }
+        if seen.insert(normalized_path.clone()) {
+            normalized.push(normalized_path);
+        }
+    }
+
+    normalized
+}
+
 async fn run_validation_via_mex(
     mex_runtime: &MexRuntime,
     repo_root: &Path,
     verify: &[VerificationSpec],
+    in_scope_paths: &[String],
     capability_profile_id: &str,
     evidence_artifact_rel: &Path,
     evidence_artifact_ref: ArtifactHandle,
@@ -12008,6 +12201,7 @@ async fn run_validation_via_mex(
     let mut all_evidence: Vec<ArtifactHandle> = Vec::new();
     let mut spec_results: Vec<VerifySpecResult> = Vec::new();
     let mut overall_passed = true;
+    let in_scope_paths = normalize_in_scope_paths_for_validation(in_scope_paths);
 
     for (spec_index, spec) in verify.iter().enumerate() {
         let capability = proc_exec_capability_for_command(&spec.command);
@@ -12026,6 +12220,7 @@ async fn run_validation_via_mex(
                 "cwd": ".",
                 "timeout_ms": wall_time_ms,
                 "env": {},
+                "in_scope_paths": &in_scope_paths,
             }),
             capabilities_requested: vec![capability],
             capability_profile_id: Some(capability_profile_id.to_string()),
@@ -15080,6 +15275,7 @@ NEED: {{what you need to unblock}}
                             &mex_runtime,
                             &repo_root,
                             &mt.verify,
+                            &inputs.wp_scope.in_scope_paths,
                             &job.capability_profile_id,
                             &validation_evidence_rel,
                             validation_evidence_ref.clone(),
@@ -17240,6 +17436,8 @@ async fn execute_terminal_job(
             .collect(),
         None => Vec::new(),
     };
+    let session_id = resolve_job_session_id(state, job, inputs.get("session_id").and_then(|v| v.as_str()))
+        .await;
     let timeout_ms = inputs.get("timeout_ms").and_then(|v| v.as_u64());
     let max_output_bytes = inputs.get("max_output_bytes").and_then(|v| v.as_u64());
     let cwd = inputs
@@ -17277,7 +17475,7 @@ async fn execute_terminal_job(
         job_context: JobContext {
             job_id: job_id.clone(),
             model_id: None,
-            session_id: None,
+            session_id: session_id.clone(),
             capability_profile_id: Some(job.capability_profile_id.clone()),
             capability_id: Some("terminal.exec".to_string()),
             wsids: Vec::new(),
@@ -17288,7 +17486,7 @@ async fn execute_terminal_job(
         human_consent_obtained: false,
     };
 
-    let cfg = TerminalConfig::with_defaults();
+    let cfg = TerminalConfig::with_session_scoped_denies(session_id.as_deref());
     let guards: Vec<Box<dyn TerminalGuard>> = vec![Box::new(DefaultTerminalGuard)];
     let redactor = PatternRedactor;
 

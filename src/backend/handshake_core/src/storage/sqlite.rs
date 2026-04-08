@@ -11,7 +11,8 @@ use super::{
     LoomViewType, ModelSession, ModelSessionState, MutationMetadata, NewAiJob, NewAsset, NewBlock,
     NewBronzeRecord, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock,
     NewLoomEdge, NewModelSession, NewNodeExecution, NewSessionMessage, NewSilverRecord,
-    NewWorkspace, PlannedOperation, PreviewStatus, SafetyMode, SessionMessage, SessionMessageRole,
+    NewWorkspace, PlannedOperation, PreviewStatus, SafetyMode, SessionCheckpoint,
+    SessionMessage, SessionMessageRole, MergeBackArtifact,
     SilverRecord, StorageError, StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun,
     Workspace, WriteContext,
 };
@@ -420,6 +421,7 @@ impl SqliteDatabase {
                 checkpoint_artifact_id TEXT,
                 last_checkpoint_at TIMESTAMP,
                 checkpoint_count INTEGER NOT NULL DEFAULT 0,
+                merge_back_artifact TEXT,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
@@ -502,6 +504,20 @@ impl SqliteDatabase {
 
         // Deterministic runtime schema upgrades for existing installs (SQLite has no CREATE TABLE migration runner here).
         // Avoid relying on CREATE TABLE IF NOT EXISTS for new columns.
+        let model_session_column_rows = sqlx::query("PRAGMA table_info(model_sessions)")
+            .fetch_all(&self.pool)
+            .await?;
+        let mut model_session_columns = std::collections::HashSet::new();
+        for row in model_session_column_rows {
+            let name: String = row.get("name");
+            model_session_columns.insert(name);
+        }
+        if !model_session_columns.contains("merge_back_artifact") {
+            sqlx::query("ALTER TABLE model_sessions ADD COLUMN merge_back_artifact TEXT")
+                .execute(&self.pool)
+                .await?;
+        }
+
         let columns = sqlx::query("PRAGMA table_info(session_messages)")
             .fetch_all(&self.pool)
             .await?;
@@ -551,6 +567,12 @@ impl SqliteDatabase {
         let checkpoint_artifact_id: Option<String> = row.get("checkpoint_artifact_id");
         let last_checkpoint_at: Option<DateTime<Utc>> = row.get("last_checkpoint_at");
         let checkpoint_count: i64 = row.get("checkpoint_count");
+        let merge_back_artifact_raw: Option<String> = row.get("merge_back_artifact");
+        let merge_back_artifact = merge_back_artifact_raw
+            .as_deref()
+            .map(serde_json::from_str::<MergeBackArtifact>)
+            .transpose()
+            .map_err(|_| StorageError::Validation("invalid merge_back_artifact"))?;
 
         Ok(ModelSession {
             session_id: row.get("session_id"),
@@ -581,6 +603,7 @@ impl SqliteDatabase {
             checkpoint_artifact_id,
             last_checkpoint_at,
             checkpoint_count,
+            merge_back_artifact,
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         })
@@ -5838,6 +5861,7 @@ impl super::Database for SqliteDatabase {
                 checkpoint_artifact_id,
                 last_checkpoint_at,
                 checkpoint_count,
+                merge_back_artifact,
                 created_at,
                 updated_at
             "#,
@@ -5916,6 +5940,7 @@ impl super::Database for SqliteDatabase {
                 checkpoint_artifact_id,
                 last_checkpoint_at,
                 checkpoint_count,
+                merge_back_artifact,
                 created_at,
                 updated_at
             FROM model_sessions
@@ -5957,6 +5982,7 @@ impl super::Database for SqliteDatabase {
                 checkpoint_artifact_id,
                 last_checkpoint_at,
                 checkpoint_count,
+                merge_back_artifact,
                 created_at,
                 updated_at
             FROM model_sessions
@@ -5979,15 +6005,31 @@ impl super::Database for SqliteDatabase {
         state: ModelSessionState,
         job_id: Option<Uuid>,
     ) -> StorageResult<ModelSession> {
+        self.update_model_session_state_with_merge_back_artifact(session_id, state, job_id, None)
+            .await
+    }
+
+    async fn update_model_session_state_with_merge_back_artifact(
+        &self,
+        session_id: &str,
+        state: ModelSessionState,
+        job_id: Option<Uuid>,
+        merge_back_artifact: Option<MergeBackArtifact>,
+    ) -> StorageResult<ModelSession> {
         self.ensure_model_session_schema().await?;
         let now = Utc::now();
+        let merge_back_artifact = merge_back_artifact
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
         let row = sqlx::query(
             r#"
             UPDATE model_sessions
             SET state = $1,
                 job_id = COALESCE($2, job_id),
-                updated_at = $3
-            WHERE session_id = $4
+                merge_back_artifact = $3,
+                updated_at = $4
+            WHERE session_id = $5
             RETURNING
                 session_id,
                 parent_session_id,
@@ -6009,12 +6051,14 @@ impl super::Database for SqliteDatabase {
                 checkpoint_artifact_id,
                 last_checkpoint_at,
                 checkpoint_count,
+                merge_back_artifact,
                 created_at,
                 updated_at
             "#,
         )
         .bind(state.as_str())
         .bind(job_id.map(|value| value.to_string()))
+        .bind(merge_back_artifact)
         .bind(now)
         .bind(session_id)
         .fetch_optional(&self.pool)

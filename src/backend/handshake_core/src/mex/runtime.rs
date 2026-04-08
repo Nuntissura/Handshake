@@ -783,8 +783,34 @@ impl EngineAdapter for ShellEngineAdapter {
         } else {
             ("bash".to_string(), vec!["-lc".to_string(), command.clone()])
         };
+        let session_id = params
+            .get("session_id")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        let allowed_cwd_roots = params
+            .get("in_scope_paths")
+            .and_then(|v| v.as_array())
+            .map(|paths| {
+                let mut roots = Vec::with_capacity(paths.len());
+                for path_value in paths {
+                    let Some(path) = path_value.as_str() else {
+                        continue;
+                    };
+                    let path = path.trim();
+                    if path.is_empty() || std::path::Path::new(path).is_absolute() {
+                        continue;
+                    }
+                    roots.push(std::path::PathBuf::from(path));
+                }
+                roots
+            })
+            .unwrap_or_default();
 
-        let cfg = TerminalConfig::with_defaults();
+        let cfg =
+            TerminalConfig::with_session_scoped_denies_and_allowed_roots(
+                session_id.as_deref(),
+                allowed_cwd_roots,
+            );
         let guards: Vec<Box<dyn TerminalGuard>> = vec![Box::new(DefaultTerminalGuard)];
         let redactor = PatternRedactor;
 
@@ -816,7 +842,7 @@ impl EngineAdapter for ShellEngineAdapter {
             job_context: JobContext {
                 job_id: job_id.clone(),
                 model_id: None,
-                session_id: None,
+                session_id: session_id.clone(),
                 capability_profile_id,
                 capability_id: requested_capability.clone(),
                 wsids: Vec::new(),
