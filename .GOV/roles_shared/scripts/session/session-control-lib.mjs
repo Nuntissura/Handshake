@@ -28,6 +28,7 @@ import {
   roleNextCommand,
   roleStartupCommand,
 } from "./session-policy.mjs";
+import { buildPhaseCheckCommand } from "../../checks/phase-check-lib.mjs";
 import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, GOVERNANCE_RUNTIME_ROOT_ABS, repoPathAbs, resolveWorkPacketPath, workPacketPath } from "../lib/runtime-paths.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
@@ -698,6 +699,12 @@ export function buildStartupPrompt({
 
   let roleLines;
   if (role === "CODER") {
+    const startupMeshCommand = buildPhaseCheckCommand({
+      phase: "STARTUP",
+      wpId,
+      role: "CODER",
+      session: "<your-session>",
+    });
     roleLines = [
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not create a WP, choose a task, or start implementation without an assigned packet.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
@@ -706,7 +713,7 @@ export function buildStartupPrompt({
       `FLOW: \`MANUAL_RELAY\` = \`just pre-work ${wpId}\` -> skeleton approval when required -> implementation -> \`just post-work ${wpId}\` -> Validator handoff. \`ORCHESTRATOR_MANAGED\` = \`just pre-work ${wpId}\` -> validator-owned bootstrap/skeleton checkpoint -> implementation with bounded overlap review -> \`just post-work ${wpId}\` -> Validator handoff; no routine Operator approvals after signature.`,
       `BRANCH RULE: never merge \`main\`; only use the assigned WP backup branch when the packet allows it.`,
       `DIRECT COMMUNICATION (MANDATORY): Use the structured direct-review helpers, not generic thread traffic, for the required coder <-> WP validator lane. Respond to validator kickoff with \`just wp-coder-intent ${wpId} <your-session> <validator-session> "<summary>" <correlation_id>\`, use that kickoff/intent loop for bootstrap/skeleton/data-shape review, and publish review-ready handoff with \`just wp-coder-handoff ${wpId} <your-session> <validator-session> "<summary>"\`. Use \`just wp-thread-append ${wpId} CODER <your-session> "<message>" @wpval\` only for soft coordination that is not part of the required contract.`,
-      `STARTUP MESH (MANDATORY): Before the first WP-specific bootstrap or code change, run \`just wp-communication-health-check ${wpId} STARTUP CODER <your-session>\` and do not proceed until the startup communication mesh reports ready.`,
+      `STARTUP MESH (MANDATORY): Before the first WP-specific bootstrap or code change, run \`${startupMeshCommand}\` and do not proceed until the startup communication mesh reports ready.`,
       `EARLY GATE (HARD): After every governed \`CODER_INTENT\`, wait for explicit WP-validator clearance before implementation hardens or full \`CODER_HANDOFF\` is legal. If runtime is waiting on \`WP_VALIDATOR_INTENT_CHECKPOINT\`, keep the lane in early review instead of treating it like implementation-ready state.`,
       `MICROTASK OVERLAP (BOUNDED): For a completed narrow slice, you may open \`REVIEW_REQUEST\` to \`WP_VALIDATOR\` with \`microtask_json.review_mode=OVERLAP\` while you advance the next declared microtask, but the unresolved overlap queue is capped at 2 and full \`CODER_HANDOFF\` remains blocked until those overlap review items are drained.`,
       `CONTRACT GATE (HARD): Before claiming validator-ready handoff, \`just wp-communication-health-check ${wpId} KICKOFF\` must pass.`,
@@ -715,6 +722,17 @@ export function buildStartupPrompt({
       `REMINDER: the Orchestrator remains workflow authority; only the Integration Validator can own merge-to-main authority.`,
     ];
   } else if (role === "WP_VALIDATOR") {
+    const startupMeshCommand = buildPhaseCheckCommand({
+      phase: "STARTUP",
+      wpId,
+      role: "WP_VALIDATOR",
+      session: "<your-session>",
+    });
+    const contractGateCommand = buildPhaseCheckCommand({
+      phase: "VERDICT",
+      wpId,
+      role: "WP_VALIDATOR",
+    });
     roleLines = [
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation, cleanup, merge, or status sync without a specific task.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
@@ -722,17 +740,28 @@ export function buildStartupPrompt({
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then report findings.`,
       `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
       `DIRECT COMMUNICATION (MANDATORY): Use the structured direct-review helpers, not generic thread traffic, for the required WP validator <-> coder lane. Publish kickoff with \`just wp-validator-kickoff ${wpId} <your-session> <coder-session> "<summary>"\`, use that kickoff to judge bootstrap/skeleton/micro-task direction early, and publish the review with \`just wp-validator-review ${wpId} <your-session> <coder-session> "<summary>" <correlation_id>\`. Use \`just wp-thread-append ${wpId} WP_VALIDATOR <your-session> "<message>" @coder\` only for soft coordination that is not part of the required contract.`,
-      `STARTUP MESH (MANDATORY): Before bootstrap steering or verdict work, run \`just wp-communication-health-check ${wpId} STARTUP WP_VALIDATOR <your-session>\` and do not proceed until the startup communication mesh reports ready.`,
+      `STARTUP MESH (MANDATORY): Before bootstrap steering or verdict work, run \`${startupMeshCommand}\` and do not proceed until the startup communication mesh reports ready.`,
       `EARLY STEERING (MANDATORY): You own the governed bootstrap/skeleton checkpoint. After \`CODER_INTENT\`, either clear the plan, narrow it, or reject it; do not let the lane drift into hard implementation or full handoff on coder say-so alone.`,
       `MICROTASK OVERLAP (BOUNDED): While coder is the main projected actor, you may still review unresolved overlap microtask items in parallel. Keep that queue bounded to 2, reply explicitly with repair/clearance truth, and require the queue to drain before final coder handoff is accepted.`,
       `WORKTREE SYNC (MANDATORY): You share the coder \`feat/${wpId}\` branch and \`wtc-*\` worktree surface for this lane. Keep that shared review surface current instead of creating extra validator-only branches or worktrees.`,
-      `CONTRACT GATE (HARD): Before PASS clearance, \`just wp-communication-health-check ${wpId} VERDICT\` must pass.`,
+      `CONTRACT GATE (HARD): Before PASS clearance, \`${contractGateCommand}\` must pass.`,
       `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
       `SPEC EVIDENCE (MANDATORY): Every PASS verdict MUST include a spec_clause_map with file:line citations for each packet requirement. You MUST identify at least one spec requirement you verified is NOT fully implemented (negative proof) to demonstrate independent code reading.`,
       `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} WP_VALIDATOR <your-session>\` to see only the notifications targeted to your governed session. After reading, run \`just ack-notifications ${wpId} WP_VALIDATOR <your-session>\` to clear them. Check again before each verdict.`,
       `REMINDER: status sync is not a validation verdict.`,
     ];
   } else if (role === "INTEGRATION_VALIDATOR") {
+    const startupMeshCommand = buildPhaseCheckCommand({
+      phase: "STARTUP",
+      wpId,
+      role: "INTEGRATION_VALIDATOR",
+      session: "<your-session>",
+    });
+    const contractGateCommand = buildPhaseCheckCommand({
+      phase: "VERDICT",
+      wpId,
+      role: "INTEGRATION_VALIDATOR",
+    });
     roleLines = [
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation, cleanup, merge, or status sync without a specific task.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
@@ -742,9 +771,9 @@ export function buildStartupPrompt({
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then close or merge validated work.`,
       `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
       `DIRECT COMMUNICATION (MANDATORY): Use the structured final review lane, not generic thread traffic, for the required coder <-> integration-validator exchange. Open the final review pair with \`just wp-review-exchange REVIEW_REQUEST ${wpId} INTEGRATION_VALIDATOR <your-session> CODER <coder-session> "<summary>"\`, and record your final response with \`just wp-review-response ${wpId} INTEGRATION_VALIDATOR <your-session> CODER <coder-session> "<summary>" <correlation_id>\` when the coder replies. Use \`just wp-thread-append ${wpId} INTEGRATION_VALIDATOR <your-session> "<message>" @coder\` only for soft coordination that is not part of the required contract.`,
-      `STARTUP MESH (MANDATORY): Before entering the final review lane, run \`just wp-communication-health-check ${wpId} STARTUP INTEGRATION_VALIDATOR <your-session>\` and do not proceed until the startup communication mesh reports ready.`,
+      `STARTUP MESH (MANDATORY): Before entering the final review lane, run \`${startupMeshCommand}\` and do not proceed until the startup communication mesh reports ready.`,
       `FINAL-LANE CONTEXT (MANDATORY): Use \`just integration-validator-context-brief ${wpId}\` as the canonical authority/path/context bundle for this lane instead of rebuilding branch/worktree/session/main-compatibility truth manually.`,
-      `CONTRACT GATE (HARD): Before PASS clearance, \`just wp-communication-health-check ${wpId} VERDICT\` must pass.`,
+      `CONTRACT GATE (HARD): Before PASS clearance, \`${contractGateCommand}\` must pass.`,
       `FINAL AUTHORITY (MANDATORY): Do not let WP validator evidence stand in for your own direct review. Final merge-ready authority for orchestrator-managed WPs belongs to this lane unless the packet explicitly says otherwise.`,
       `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Do not trust WP validator summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
       `SPEC EVIDENCE (MANDATORY): Every PASS verdict MUST include a spec_clause_map with file:line citations for each packet requirement. You MUST identify at least one spec requirement you verified is NOT fully implemented (negative proof) to demonstrate independent code reading.`,

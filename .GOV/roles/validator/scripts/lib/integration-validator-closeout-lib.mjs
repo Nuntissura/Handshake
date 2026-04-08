@@ -1,6 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import {
+  currentGitContext,
+  loadPacket,
+  packetPath,
+} from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import {
   loadSessionControlRequests,
   loadSessionControlResults,
@@ -14,8 +20,14 @@ import {
   normalizePath,
 } from "../../../../roles_shared/scripts/session/session-policy.mjs";
 import {
+  ensureValidatorGateDir,
+  resolveValidatorGatePath,
+} from "../../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import {
   evaluateValidatorPassAuthority,
+  evaluateValidatorPacketGovernanceState,
   normalizeValidatorRole,
+  resolveValidatorActorContext,
 } from "./validator-governance-lib.mjs";
 import { validateSignedScopeCompatibilityTruth } from "../../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
 import { validateCandidateTargetAgainstSignedScope } from "../../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
@@ -23,7 +35,8 @@ import {
   committedEvidenceForCloseout,
   livePrepareWorktreeHealthEvidence,
 } from "./committed-validation-evidence-lib.mjs";
-import { GOV_ROOT_ABS, REPO_ROOT } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { settleRecoverableSessionControlResults } from "../../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
 
 function makeIssueSet() {
   return new Set();
@@ -558,4 +571,140 @@ export function evaluateIntegrationValidatorCloseoutState({
     ],
     warnings: [...topology.warnings, ...closeoutBundle.warnings],
   };
+}
+
+function loadIntegrationValidatorGateState(wpId) {
+  ensureValidatorGateDir();
+  const filePath = repoPathAbs(resolveValidatorGatePath(wpId));
+  if (!fs.existsSync(filePath)) return {};
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+function integrationValidatorCloseoutFailure(message, details = [], exitCode = 1) {
+  return {
+    ok: false,
+    exitCode,
+    message,
+    details,
+  };
+}
+
+export function buildIntegrationValidatorCloseoutCheckResult({
+  wpId = "",
+} = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(normalizedWpId)) {
+    return integrationValidatorCloseoutFailure(
+      `Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs integration-validator-closeout-check WP-1-Example`,
+      [],
+      1,
+    );
+  }
+
+  const gitContext = currentGitContext();
+  const repoRoot = gitContext.topLevel || REPO_ROOT;
+  const packetContent = loadPacket(normalizedWpId);
+  const governanceState = evaluateValidatorPacketGovernanceState({
+    wpId: normalizedWpId,
+    packetPath: packetPath(normalizedWpId),
+    packetContent,
+    actorContext: resolveValidatorActorContext({
+      repoRoot,
+      wpId: normalizedWpId,
+      packetContent,
+      gitContext,
+    }),
+    governanceRootAbs: GOV_ROOT_ABS,
+  });
+  if (!governanceState.allowValidationResume) {
+    return integrationValidatorCloseoutFailure("Closeout preflight is blocked for this packet", [
+      governanceState.message,
+      `computed_policy_outcome=${governanceState.computedPolicy.outcome}`,
+      `computed_policy_applicability=${governanceState.computedPolicy.applicability_reason || "APPLICABLE"}`,
+    ], 1);
+  }
+
+  const gateState = loadIntegrationValidatorGateState(normalizedWpId);
+  const committedEvidence = gateState?.committed_validation_evidence?.[normalizedWpId] || null;
+  const actorContext = resolveValidatorActorContext({
+    repoRoot,
+    wpId: normalizedWpId,
+    packetContent,
+    gitContext,
+  });
+  const initialBrokerState = readJsonFile(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE), { active_runs: [] });
+  const settlement = settleRecoverableSessionControlResults(repoRoot, {
+    brokerState: initialBrokerState,
+  });
+  const requests = loadSessionControlRequests(repoRoot).requests;
+  const results = loadSessionControlResults(repoRoot).results;
+  const registrySessions = loadSessionRegistry(repoRoot).registry.sessions;
+  const brokerState = readJsonFile(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE), { active_runs: [] });
+  const evaluation = evaluateIntegrationValidatorCloseoutState({
+    repoRoot,
+    wpId: normalizedWpId,
+    packetContent,
+    actorContext,
+    committedEvidence,
+    requests,
+    results,
+    registrySessions,
+    brokerState,
+  });
+
+  if (!evaluation.ok) {
+    return integrationValidatorCloseoutFailure("Integration-validator topology or closeout bundle is not ready", [
+      ...evaluation.issues,
+    ], 1);
+  }
+
+  return {
+    ok: true,
+    exitCode: 0,
+    message: `${normalizedWpId} final-lane topology and closeout bundle are coherent`,
+    details: [
+      `target_head_sha=${evaluation.topology.targetHeadSha || "<unknown>"}`,
+      `current_main_head_sha=${evaluation.topology.currentMainHeadSha || "<unknown>"}`,
+      `current_main_compatibility_status=${evaluation.scopeCompatibility?.parsed?.currentMainCompatibilityStatus || "<unknown>"}`,
+      `integration_validator_worktree=${evaluation.topology.resolvedWorktreeAbs || "<unknown>"}`,
+      `request_count=${evaluation.closeoutBundle.summary.request_count}`,
+      `result_count=${evaluation.closeoutBundle.summary.result_count}`,
+      `session_count=${evaluation.closeoutBundle.summary.session_count}`,
+      `active_run_count=${evaluation.closeoutBundle.summary.active_run_count}`,
+      `self_settled_count=${settlement.settled.length}`,
+      `next=just validator-gate-commit ${normalizedWpId}`,
+    ],
+  };
+}
+
+export function formatIntegrationValidatorCloseoutCheckResult(result = {}) {
+  const prefix = result.ok ? "PASS" : "FAIL";
+  return [
+    `[INTEGRATION_VALIDATOR_CLOSEOUT_CHECK] ${prefix}: ${result.message || ""}`.trimEnd(),
+    ...((result.details || []).map((detail) => `  - ${detail}`)),
+    "",
+  ].join("\n");
+}
+
+export function runIntegrationValidatorCloseoutCheckCli(argv = process.argv.slice(2)) {
+  const command = String(argv[0] || "").trim();
+  const wpId = String(argv[1] || "").trim();
+  if (command !== "integration-validator-closeout-check") {
+    console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs integration-validator-closeout-check WP-1-Example`);
+    process.exit(1);
+  }
+
+  const result = buildIntegrationValidatorCloseoutCheckResult({ wpId });
+  const output = formatIntegrationValidatorCloseoutCheckResult(result);
+  if (result.ok) {
+    process.stdout.write(output);
+  } else {
+    process.stderr.write(output);
+  }
+  process.exit(result.ok ? 0 : (result.exitCode || 1));
+}
+
+const integrationValidatorCloseoutLibIsMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (integrationValidatorCloseoutLibIsMain) {
+  runIntegrationValidatorCloseoutCheckCli();
 }

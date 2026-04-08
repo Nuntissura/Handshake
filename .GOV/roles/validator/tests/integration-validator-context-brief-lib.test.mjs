@@ -90,7 +90,7 @@ test("integration-validator context brief surfaces canonical final-lane authorit
         status: "PASS",
         committed_validation_mode: "COMMITTED_REV",
         committed_validation_target: "HEAD",
-        target_head_sha: "abc123",
+        target_head_sha: "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
         prepare_worktree_dir: "../wtc-test-validator",
       },
       registrySessions: [actorSession(integrationWorktreeDir)],
@@ -119,8 +119,14 @@ test("integration-validator context brief surfaces canonical final-lane authorit
       worktreeExists: () => true,
       fileExists: () => true,
       gitRunner: (args) => {
+        if (args[0] === "cat-file") {
+          return { code: 0, output: "" };
+        }
         if (args[0] === "rev-parse") {
           return { code: 0, output: "0123456789abcdef0123456789abcdef01234567" };
+        }
+        if (args[0] === "merge-base" && args[1] === "--is-ancestor") {
+          return { code: 1, output: "" };
         }
         if (args[0] === "merge-base") {
           return { code: 0, output: "fedcba9876543210fedcba9876543210fedcba98" };
@@ -142,7 +148,11 @@ test("integration-validator context brief surfaces canonical final-lane authorit
     assert.equal(brief.actor_context.role, "INTEGRATION_VALIDATOR");
     assert.equal(brief.governance_root.mode, "KERNEL");
     assert.equal(brief.current_main_compatibility.status, "COMPATIBLE");
-    assert.equal(brief.required_commands[0], "just integration-validator-context-brief WP-TEST-VALIDATOR-v1");
+    assert.deepEqual(brief.required_commands, [
+      "just check-notifications WP-TEST-VALIDATOR-v1 INTEGRATION_VALIDATOR",
+      "just ack-notifications WP-TEST-VALIDATOR-v1 INTEGRATION_VALIDATOR integration-validator-session",
+      "just phase-check CLOSEOUT WP-TEST-VALIDATOR-v1",
+    ]);
     assert.match(brief.anti_rediscovery_rule, /Do not rebuild final-lane/i);
   } finally {
     fs.rmSync(artifactDir, { recursive: true, force: true });

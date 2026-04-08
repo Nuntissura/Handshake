@@ -123,3 +123,89 @@ test("session-scoped checks can consume placeholder <unassigned> notifications o
     fs.rmSync(commDir, { recursive: true, force: true });
   }
 });
+
+test("active notification view hides terminal residue while history view preserves it", () => {
+  const wpId = "WP-TEST-NOTIF-TERMINAL-HISTORY";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "wp-notif-terminal-history-"));
+  const notificationsPath = path.join(commDir, "NOTIFICATIONS.jsonl");
+  const cursorPath = path.join(commDir, "NOTIFICATION_CURSOR.json");
+  const runtimePath = path.join(commDir, "RUNTIME_STATUS.json");
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(packetDir, "packet.md"),
+    [
+      `- WP_COMMUNICATION_DIR: ${commDir.replace(/\\/g, "/")}`,
+      `- WP_RUNTIME_STATUS_FILE: ${runtimePath.replace(/\\/g, "/")}`,
+      `- WP_RECEIPTS_FILE: ${receiptsPath.replace(/\\/g, "/")}`,
+      "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+      "- PACKET_FORMAT_VERSION: 2026-03-29",
+      "- COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1",
+      "- COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING",
+      "- **Status:** Validated (PASS)",
+    ].join("\n"),
+    "utf8",
+  );
+  fs.writeFileSync(cursorPath, `${JSON.stringify({ schema_version: "wp_notification_cursor@1", cursors: {} }, null, 2)}\n`, "utf8");
+  fs.writeFileSync(
+    runtimePath,
+    `${JSON.stringify({
+      current_packet_status: "Validated (PASS)",
+      runtime_status: "completed",
+      next_expected_actor: "NONE",
+      next_expected_session: null,
+      waiting_on: "CLOSED",
+      waiting_on_session: null,
+      open_review_items: [],
+    }, null, 2)}\n`,
+    "utf8",
+  );
+  fs.writeFileSync(receiptsPath, "", "utf8");
+  fs.writeFileSync(notificationsPath, [
+    JSON.stringify({
+      schema_version: "wp_notification@1",
+      timestamp_utc: "2026-04-08T12:00:00Z",
+      wp_id: wpId,
+      source_kind: "AUTO_ROUTE",
+      source_role: "INTEGRATION_VALIDATOR",
+      source_session: "intval-1",
+      target_role: "ORCHESTRATOR",
+      target_session: null,
+      correlation_id: "final-1",
+      summary: "AUTO_ROUTE: direct review lane complete; orchestrator verdict progression ready",
+    }),
+    JSON.stringify({
+      schema_version: "wp_notification@1",
+      timestamp_utc: "2026-04-08T12:00:01Z",
+      wp_id: wpId,
+      source_kind: "SESSION_COMPLETION",
+      source_role: "CODER",
+      source_session: "coder-1",
+      target_role: "ORCHESTRATOR",
+      target_session: null,
+      correlation_id: "close-1",
+      summary: "Governed session closed cleanly",
+    }),
+  ].join("\n") + "\n", "utf8");
+
+  try {
+    const active = checkNotifications({ wpId, role: "ORCHESTRATOR" });
+    const history = checkNotifications({ wpId, role: "ORCHESTRATOR", history: true });
+
+    assert.equal(active.pendingCount, 0);
+    assert.equal(active.historyHidden, true);
+    assert.equal(active.hiddenPendingCount, 2);
+    assert.deepEqual(active.hiddenByKind, {
+      AUTO_ROUTE: 1,
+      SESSION_COMPLETION: 1,
+    });
+
+    assert.equal(history.pendingCount, 2);
+    assert.equal(history.historyHidden, false);
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});

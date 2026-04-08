@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { TOPOLOGY_REGISTRY_JSON_PATH } from "../../../roles_shared/scripts/topology/git-topology-lib.mjs";
 import { execFileSync } from "node:child_process";
+import { buildPhaseCheckCommand } from "../../../roles_shared/checks/phase-check-lib.mjs";
 import {
   currentGitContext,
   loadJson,
@@ -294,9 +295,14 @@ if (validatorGovernanceState.legacyRemediationRequired) {
   dispositions = [];
   splitFields = [];
 } else {
+  const handoffCommand = buildPhaseCheckCommand({
+    phase: "HANDOFF",
+    wpId: parsed.wpId,
+    role: "WP_VALIDATOR",
+  });
   pushUnique(requiredCommands, "just validator-startup");
   pushUnique(requiredCommands, `just external-validator-brief ${parsed.wpId}`);
-  pushUnique(requiredCommands, `just validator-handoff-check ${parsed.wpId}`);
+  pushUnique(requiredCommands, handoffCommand);
   pushUnique(requiredCommands, "just gov-check");
   pushUnique(requiredCommands, `just post-work ${parsed.wpId}${mergeBaseSha ? ` --range ${mergeBaseSha}..HEAD` : ""}`);
   pushUnique(optionalCommands, "just cargo-clean");
@@ -330,7 +336,11 @@ const brief = {
   handoff_target: {
     prepare_worktree_dir: String(prepareEntry?.worktree_dir || packetWorktreeDir || "<missing>").trim(),
     prepare_worktree_head: prepareWorktreeHead || codeTargetCommit,
-    command: `just validator-handoff-check ${parsed.wpId}`,
+    command: buildPhaseCheckCommand({
+      phase: "HANDOFF",
+      wpId: parsed.wpId,
+      role: "WP_VALIDATOR",
+    }),
   },
   startup_sequence: ["just validator-startup", `just external-validator-brief ${parsed.wpId}`],
   legal_verdicts: legalVerdicts,

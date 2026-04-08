@@ -20,7 +20,7 @@ This ledger promotes repeated governance escapes into named prevention assets.
 - TITLE: `Shallow nested payload validation`
 - TRIGGER_AUDIT: `.GOV/Audits/audits/AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT.md`
 - FAILURE_SHAPE: `Outer packet/report shape passed while nested payload fields, structured evidence blocks, or child contract objects were only partially defended.`
-- CANONICAL_CHECKS: `.GOV/roles/validator/checks/validator-report-structure-check.mjs`, `.GOV/roles/validator/checks/validator-packet-complete.mjs`, `.GOV/roles_shared/checks/computed-policy-gate-check.mjs`
+- CANONICAL_CHECKS: `.GOV/roles/validator/checks/validator-report-structure-check.mjs`, `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs` (`validator-packet-complete`), `.GOV/roles_shared/checks/computed-policy-gate-check.mjs`
 - CANONICAL_ASSETS: `VALIDATION_REPORTS`, `CLAUSE_CLOSURE_MATRIX`, `SPEC_CLAUSE_MAP`, `NEGATIVE_PROOF`
 - PROMOTION_RULE: `If nested payload drift reappears, extract the weak nested block into a named shared schema and add direct fixture coverage for malformed inner objects.`
 - NEXT_ESCALATION: `Promote validator-report nested sections with repeated failures into standalone schemas plus parser-level unit tests.`

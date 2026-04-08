@@ -586,7 +586,8 @@ if (action === 'commit') {
     }
 
     const closeoutPreflight = runNode([
-        `${GOV_ROOT_REPO_REL}/roles/validator/checks/integration-validator-closeout-check.mjs`,
+        `${GOV_ROOT_REPO_REL}/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`,
+        'integration-validator-closeout-check',
         wpId,
     ]);
     if (closeoutPreflight.code !== 0) {

@@ -1,4 +1,6 @@
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { workPacketAbsPath } from '../scripts/lib/runtime-paths.mjs';
 
 /**
@@ -10,20 +12,6 @@ import { workPacketAbsPath } from '../scripts/lib/runtime-paths.mjs';
  * - Detects phases via heading lines only (outside fences)
  */
 
-const wpId = process.argv[2];
-if (!wpId) {
-    console.error("Usage: node gate-check.mjs <WP_ID>");
-    process.exit(1);
-}
-
-const wpPath = workPacketAbsPath(wpId);
-if (!fs.existsSync(wpPath)) {
-  console.error(`? GATE FAIL: Work Packet ${wpId} not found at the resolved packet path.`);
-  process.exit(1);
-}
-
-const content = fs.readFileSync(wpPath, 'utf8');
-
 /**
  * Parse content line-by-line, tracking fenced code block state.
  * Returns positions of valid markers found OUTSIDE code fences only.
@@ -31,7 +19,7 @@ const content = fs.readFileSync(wpPath, 'utf8');
  * @param {string} content - The markdown content to parse
  * @returns {Object} ParseResult with marker positions and flags
  */
-function parseMarkersFromContent(content) {
+export function parseMarkersFromContent(content) {
     const lines = content.split('\n');
     let inCodeFence = false;
 
@@ -84,35 +72,65 @@ function parseMarkersFromContent(content) {
     return result;
 }
 
-// Parse the content
-const parsed = parseMarkersFromContent(content);
+export function runGateCheck(wpId) {
+    const normalizedWpId = String(wpId || '').trim();
+    if (!normalizedWpId) {
+        return {
+            ok: false,
+            output: "Usage: node gate-check.mjs <WP_ID>\n",
+        };
+    }
 
-console.log(`Checking Phase Gate for ${wpId}...`);
+    const wpPath = workPacketAbsPath(normalizedWpId);
+    if (!fs.existsSync(wpPath)) {
+        return {
+            ok: false,
+            output: `? GATE FAIL: Work Packet ${normalizedWpId} not found at the resolved packet path.\n`,
+        };
+    }
 
-// Validation 1: Mandatory checkpoints for "In Progress"
-if (parsed.statusInProgress && parsed.bootstrapHeadingLine === -1) {
-    console.error("? GATE FAIL: 'In Progress' status requires a BOOTSTRAP block.");
-    process.exit(1);
+    const content = fs.readFileSync(wpPath, 'utf8');
+    const parsed = parseMarkersFromContent(content);
+    const lines = [`Checking Phase Gate for ${normalizedWpId}...`];
+
+    if (parsed.statusInProgress && parsed.bootstrapHeadingLine === -1) {
+        lines.push("? GATE FAIL: 'In Progress' status requires a BOOTSTRAP block.");
+        return { ok: false, output: `${lines.join('\n')}\n` };
+    }
+
+    const missingPhases = [];
+    if (parsed.bootstrapHeadingLine === -1) missingPhases.push('BOOTSTRAP');
+    if (parsed.skeletonHeadingLine === -1) missingPhases.push('SKELETON');
+
+    if (missingPhases.length > 0 && parsed.implementationDetected) {
+        lines.push(`? GATE FAIL: Missing mandatory phases: ${missingPhases.join(', ')}`);
+        return { ok: false, output: `${lines.join('\n')}\n` };
+    }
+
+    if (parsed.bootstrapHeadingLine === -1 || parsed.skeletonHeadingLine === -1) {
+        lines.push("? GATE FAIL: Missing BOOTSTRAP or SKELETON markers.");
+        return { ok: false, output: `${lines.join('\n')}\n` };
+    }
+    if (parsed.bootstrapHeadingLine > parsed.skeletonHeadingLine) {
+        lines.push("? GATE FAIL: SKELETON appears before BOOTSTRAP.");
+        return { ok: false, output: `${lines.join('\n')}\n` };
+    }
+
+    lines.push("? GATE PASS: Workflow sequence verified.");
+    return { ok: true, output: `${lines.join('\n')}\n` };
 }
 
-// Validation 2: Anti-Turn-Merging (Heuristic)
-const missingPhases = [];
-if (parsed.bootstrapHeadingLine === -1) missingPhases.push('BOOTSTRAP');
-if (parsed.skeletonHeadingLine === -1) missingPhases.push('SKELETON');
+function runCli(argv = process.argv.slice(2)) {
+    const wpId = argv[0];
+    if (!wpId) {
+        console.error("Usage: node gate-check.mjs <WP_ID>");
+        process.exit(1);
+    }
 
-if (missingPhases.length > 0 && parsed.implementationDetected) {
-    console.error(`? GATE FAIL: Missing mandatory phases: ${missingPhases.join(', ')}`);
-    process.exit(1);
+    const result = runGateCheck(wpId);
+    process.stdout.write(result.output);
+    process.exit(result.ok ? 0 : 1);
 }
 
-// Validation 3: Enforce sequence order (BOOTSTRAP -> SKELETON)
-if (parsed.bootstrapHeadingLine === -1 || parsed.skeletonHeadingLine === -1) {
-    console.error("? GATE FAIL: Missing BOOTSTRAP or SKELETON markers.");
-    process.exit(1);
-}
-if (parsed.bootstrapHeadingLine > parsed.skeletonHeadingLine) {
-    console.error("? GATE FAIL: SKELETON appears before BOOTSTRAP.");
-    process.exit(1);
-}
-
-console.log("? GATE PASS: Workflow sequence verified.");
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) runCli();

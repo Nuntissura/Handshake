@@ -105,7 +105,7 @@ Required review pairs:
 - Before PASS commit clearance in the orchestrator-managed final lane, run `just integration-validator-closeout-check WP-{ID}`. If it fails, final review is not closeout-ready: do not write partial closure truth, do not compensate with narrative repair, and fix the topology/runtime issue first.
 
 Blocking rule:
-- If `just wp-communication-health-check WP-{ID} KICKOFF|HANDOFF|VERDICT` fails, treat the boundary as not proven. Do not compensate with narrative relay or manual interpretation.
+- If `just phase-check <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} ...` or the underlying `just wp-communication-health-check WP-{ID} KICKOFF|HANDOFF|VERDICT` fails, treat the boundary as not proven. Do not compensate with narrative relay or manual interpretation.
 
 ## Session-Control Repair Playbook (Shared)
 
@@ -115,7 +115,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
 - If the assigned worktree no longer exists on disk, do not resume the governed session just because it still has a thread id. Repair the worktree/packet truth first or recreate the session through the Orchestrator.
 - If broker state looks stale, compare `just handshake-acp-broker-status` with `just session-registry-status` and packet/runtime truth before acting. Use `just handshake-acp-broker-stop` only when no governed runs are active.
 - Broker startup and the governed `session-*` helpers now run a recoverable self-settlement pass for missing terminal result rows. If an old request was rejected, already terminal in the session registry, or left without an active broker run, prefer the governed helpers over manual ledger edits and let runtime truth converge first.
-- If packet communication routing looks wrong, run `just wp-communication-health-check`, `just check-notifications`, and `just ack-notifications` with the explicit role/session identity before considering any deeper repair.
+- If packet communication routing looks wrong, run `just wp-communication-health-check`, `just check-notifications` (add `--history` only when you need suppressed terminal or superseded residue), and `just ack-notifications` with the explicit role/session identity before considering any deeper repair.
 - Do not hand-edit session-control ledgers, broker state, packet receipts, or packet notifications to "unstick" a session. Prefer the governed helpers or a controlled session close/recreate flow.
 - If a governed session launched through a system terminal remains open after closeout, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` instead of killing terminals by guesswork.
 - If session/runtime truth disagrees with packet truth, packet truth still wins for scope, verdict, and acceptance. Repair the runtime projection; do not rewrite packet truth to match stale runtime state.

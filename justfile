@@ -65,7 +65,7 @@ spec-eof-appendices-check:
 	node "{{GOV_ROOT}}/roles_shared/checks/spec-eof-appendices-check.mjs"
 
 validator-packet-complete wp-id:
-	node "{{GOV_ROOT}}/roles/validator/checks/validator-packet-complete.mjs" {{wp-id}}
+	node "{{GOV_ROOT}}/roles/validator/scripts/lib/validator-governance-lib.mjs" validator-packet-complete {{wp-id}}
 
 wp-declared-topology-check wp-id:
 	node "{{GOV_ROOT}}/roles_shared/checks/wp-declared-topology-check.mjs" {{wp-id}}
@@ -152,7 +152,7 @@ session-registry-status wp-id="":
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/session-registry-status.mjs" {{wp-id}}
 
 active-lane-brief role wp-id json="":
-	@node "{{GOV_ROOT}}/roles_shared/checks/active-lane-brief.mjs" {{role}} {{wp-id}} {{json}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/session/active-lane-brief-lib.mjs" {{role}} {{wp-id}} {{json}}
 
 wp-token-usage wp-id:
 	node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-token-usage-report.mjs" {{wp-id}}
@@ -337,10 +337,10 @@ task-board-set wp-id status context reason="":
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs" {{wp-id}} {{status}} "{{reason}}"
 
 validator-handoff-check wp-id *args:
-	@node "{{GOV_ROOT}}/roles/validator/checks/validator-handoff-check.mjs" {{wp-id}} {{args}}
+	@node "{{GOV_ROOT}}/roles/validator/scripts/lib/validator-governance-lib.mjs" validator-handoff-check {{wp-id}} {{args}}
 
 integration-validator-closeout-check wp-id:
-	@node "{{GOV_ROOT}}/roles/validator/checks/integration-validator-closeout-check.mjs" {{wp-id}}
+	@node "{{GOV_ROOT}}/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs" integration-validator-closeout-check {{wp-id}}
 	@just launch-memory-manager --force
 
 integration-validator-closeout-sync wp-id context mode merged_main_sha="" *FLAGS:
@@ -349,7 +349,7 @@ integration-validator-closeout-sync wp-id context mode merged_main_sha="" *FLAGS
 	@node "{{GOV_ROOT}}/roles/validator/scripts/integration-validator-closeout-sync.mjs" {{wp-id}} {{mode}} {{merged_main_sha}} {{FLAGS}}
 
 integration-validator-context-brief wp-id *args:
-	@node "{{GOV_ROOT}}/roles/validator/checks/integration-validator-context-brief.mjs" {{wp-id}} {{args}}
+	@node "{{GOV_ROOT}}/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs" {{wp-id}} {{args}}
 
 external-validator-brief wp-id *args:
 	@node "{{GOV_ROOT}}/roles/validator/checks/external-validator-brief.mjs" {{wp-id}} {{args}}
@@ -603,6 +603,9 @@ wp-validator-review wp-id actor_session coder_session summary correlation_id spe
 
 wp-communication-health-check wp-id stage="STATUS" role="" session="":
 	@node "{{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs" {{wp-id}} {{stage}} {{role}} "{{session}}"
+
+phase-check phase wp-id role="" session="":
+	@node "{{GOV_ROOT}}/roles_shared/checks/phase-check.mjs" {{phase}} {{wp-id}} {{role}} "{{session}}"
 
 check-notifications wp-id role="" session="":
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs" {{wp-id}} {{role}} "{{session}}"

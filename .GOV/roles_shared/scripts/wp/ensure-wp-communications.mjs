@@ -244,7 +244,7 @@ export function reconcileWpCommunicationTruth({
   };
 }
 
-function syncProjectedTaskBoardTruth(wpId, projection = {}) {
+export function syncProjectedTaskBoardTruth(wpId, projection = {}) {
   if (!projection?.taskBoardStatus) return;
   execFileSync(
     process.execPath,

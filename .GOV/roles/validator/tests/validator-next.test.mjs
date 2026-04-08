@@ -22,7 +22,11 @@ test("validator-next reflects the modeled historical smoketest baseline state fo
 test("validator-handoff-check reports PREPARE worktree context mismatch for retired v3 environments", () => {
   const result = spawnSync(
     process.execPath,
-    [path.join(".GOV", "roles", "validator", "checks", "validator-handoff-check.mjs"), "WP-1-Loom-Storage-Portability-v3"],
+    [
+      path.join(".GOV", "roles", "validator", "scripts", "lib", "validator-governance-lib.mjs"),
+      "validator-handoff-check",
+      "WP-1-Loom-Storage-Portability-v3",
+    ],
     {
       cwd: REPO_ROOT,
       encoding: "utf8",
@@ -51,7 +55,7 @@ test("external-validator-brief surfaces independent revalidation contract for hi
   assert.equal(parsed.validation_context, "CONTEXT_MISMATCH");
   assert.equal(parsed.legacy_remediation_required, false);
   assert.equal(parsed.policy_applicability, "PRE_COMPLETION_LAYER_THRESHOLD");
-  assert.match(parsed.required_commands.join("\n"), /just validator-handoff-check WP-1-Loom-Storage-Portability-v3/);
+  assert.match(parsed.required_commands.join("\n"), /just phase-check HANDOFF WP-1-Loom-Storage-Portability-v3 WP_VALIDATOR/);
   assert.match(parsed.context_notes.join("\n"), /PREPARE worktree is unavailable/i);
 });
 

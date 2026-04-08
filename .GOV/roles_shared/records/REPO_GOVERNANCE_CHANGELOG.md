@@ -1493,3 +1493,176 @@
 - FOLLOW_ON_ITEMS:
   - `RGF-87`
 - OUTCOME: new packet families now record explicit role-model-profile ids, GPT remains the governed default, Claude Code Opus 4.6 Thinking Max is declared and auditable at packet level, and governed launch/session control fail closed instead of silently pretending unsupported provider runtime exists
+
+### 2026.04.08.1 / GOV-CHANGE-20260408-01
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-148` and `RGF-149` by adding stable phase-level startup/handoff/verdict/closeout entrypoints and switching role-facing guidance to the composite communication gates
+- CHANGE_TYPE: PHASE_GATE_COMMAND_SURFACE_CONSOLIDATION
+- DRIVER_EVIDENCE:
+  - `RGF-148`
+  - `RGF-149`
+  - `AUDIT-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT-REVIEW`
+  - `SMOKETEST-REVIEW-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT`
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/roles_shared/tests/governance-command-contract.test.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/validator/tests/validator-governance-lib.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-150`
+  - `RGF-151`
+- OUTCOME: governed roles now enter startup and final review through stable phase-level commands, startup mesh checks include the integration-validator peer when that lane is active, validator helper guidance points at the composite gates instead of raw low-level checks, and the next governance slice is reduced to single-writer lifecycle truth plus superseded-review projection compaction
+
+### 2026.04.08.2 / GOV-CHANGE-20260408-02
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-150` and `RGF-151` by moving review-stage lifecycle sync onto one reconciliation path and defaulting notification surfaces to active blocking routes
+- CHANGE_TYPE: LIFECYCLE_TRUTH_SINGLE_WRITER_AND_ACTIVE_REVIEW_PROJECTION
+- DRIVER_EVIDENCE:
+  - `RGF-150`
+  - `RGF-151`
+  - `AUDIT-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT-REVIEW`
+  - `SMOKETEST-REVIEW-20260408-PARALLEL-WP-CRASH-RECOVERY-CLOSEOUT`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-check-notifications.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-check-notifications.test.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - Repair stale terminal `INTEGRATION_VALIDATOR:WP-1-Workspace-Safety-Parallel-Sessions-v1` session paperwork outside the governance refactor board
+- OUTCOME: receipt-driven review reconciliation is now the sole writer for review-stage packet/runtime/task-board truth, live notification and lane-brief surfaces collapse unread history down to the current blocking route by default, and explicit `--history` access preserves crash-recovery residue for audits without polluting operator status
+
+### 2026.04.08.3 / GOV-CHANGE-20260408-03
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-152` by centralizing the live `phase-check` command string and widening command-drift coverage across the active role-facing docs
+- CHANGE_TYPE: PHASE_CHECK_COMMAND_SOT_AND_ACTIVE_DOC_DRIFT_GUARD
+- DRIVER_EVIDENCE:
+  - `RGF-152`
+  - operator follow-on after the 2026-04-08 governance refactor closeout
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles_shared/tests/governance-command-contract.test.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs`
+  - `.GOV/roles/validator/checks/external-validator-brief.mjs`
+  - `.GOV/roles/validator/tests/validator-next.test.mjs`
+  - `.GOV/roles/validator/README.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+- OUTCOME: live helper output now builds the canonical `just phase-check ...` command from one shared source instead of repeating string literals across startup prompts and validator helpers, active command docs fail fast if they drift away from the justfile or reintroduce retired named phase wrappers, and the low-level leaf checks remain in-repo for now because they are still runtime dependencies of the composite boundary gate rather than archive-ready dead files
+
+### 2026.04.08.4 / GOV-CHANGE-20260408-04
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-153` by turning `phase-check` into an in-process composite runner, moving coder phase gating off subprocess hops where safe, and retiring the dead thin wrapper entrypoints
+- CHANGE_TYPE: PHASE_RUNNER_IN_PROCESS_CONSOLIDATION_AND_WRAPPER_RETIREMENT
+- DRIVER_EVIDENCE:
+  - `RGF-153`
+  - operator follow-on after the 2026-04-08 governance refactor closeout
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles_shared/checks/gate-check.mjs`
+  - `.GOV/roles_shared/checks/wp-communication-health-check.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs`
+  - `.GOV/roles/coder/checks/pre-work.mjs`
+  - `.GOV/roles/coder/checks/post-work.mjs`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `.GOV/roles_shared/tests/cwd-agnostic-shared-checks.test.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-context-brief-lib.test.mjs`
+  - `.GOV/roles/validator/tests/validator-entrypoint-path-safety.test.mjs`
+  - `.GOV/roles/validator/README.md`
+  - `.GOV/roles_shared/records/SCRIPT_RATIONALIZATION_LOG.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: startup/handoff/verdict/closeout phases now converge through one artifact-producing runner instead of a shell-only fan-out, coder pre/post phase gates resolve the shared packet-order check in-process for faster debugging, and the obsolete `active-lane-brief` plus `integration-validator-context-brief` wrapper files were archived under `../../scripts_archive/` and removed from the live repo surface
+
+### 2026.04.08.5 / GOV-CHANGE-20260408-05
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-154` by rehoming the validator handoff and final-lane closeout leaf checks into the existing validator libraries and deleting the standalone script files
+- CHANGE_TYPE: VALIDATOR_LEAF_ENTRYPOINT_REHOME_AND_RETIREMENT
+- DRIVER_EVIDENCE:
+  - `RGF-154`
+  - operator follow-on after the 2026-04-08 governance refactor closeout
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles/validator/checks/validator_gates.mjs`
+  - `.GOV/roles/validator/tests/validator-next.test.mjs`
+  - `.GOV/roles/validator/tests/validator-entrypoint-path-safety.test.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles_shared/tests/governance-command-contract.test.mjs`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles/validator/README.md`
+  - `.GOV/roles_shared/records/SCRIPT_RATIONALIZATION_LOG.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: the `validator-handoff-check` and `integration-validator-closeout-check` commands still exist for compatibility, but they now run through existing validator library entrypoints, `phase-check` no longer depends on the retired standalone files, and two more repo-local validator check files were archived under `../../scripts_archive/` and removed from the live tree
+
+### 2026.04.08.6 / GOV-CHANGE-20260408-06
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-155` by rehoming validator packet completeness into the shared validator governance library and deleting the final standalone validator phase leaf
+- CHANGE_TYPE: VALIDATOR_PACKET_HYGIENE_REHOME_AND_FINAL_PHASE_LEAF_RETIREMENT
+- DRIVER_EVIDENCE:
+  - `RGF-155`
+  - operator follow-on after the 2026-04-08 governance refactor closeout
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles/validator/README.md`
+  - `.GOV/roles_shared/records/COMPATIBILITY_SHIM_LEDGER.md`
+  - `.GOV/roles_shared/records/GOVERNANCE_PREVENTION_LADDER.md`
+  - `.GOV/roles_shared/records/SCRIPT_RATIONALIZATION_LOG.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles/validator/tests/validator-governance-lib.test.mjs`
+  - `.GOV/roles/validator/tests/validator-next.test.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles_shared/tests/governance-command-contract.test.mjs`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+- OUTCOME: packet-completeness enforcement is now part of the same validator governance library that already owns handoff hygiene, `phase-check` and closeout sync consume that logic in-process, the compatibility `just validator-packet-complete` surface remains available through the library entrypoint, and the final repo-local standalone validator phase-leaf file was archived under `../../scripts_archive/` and removed from the live tree
+
+### 2026.04.08.7 / GOV-CHANGE-20260408-07
+
+- STATUS: APPLIED
+- SUMMARY: added a dedicated archive index so retired script/test files are documented by source path, archive location, former live purpose, and replacement surface
+- CHANGE_TYPE: ARCHIVE_BOOKKEEPING_HARDENING
+- DRIVER_EVIDENCE:
+  - operator follow-on after `RGF-155`
+- SURFACES:
+  - `.GOV/roles_shared/records/SCRIPT_RATIONALIZATION_LOG.md`
+- OUTCOME: the rationalization log now also carries a current-state archive inventory, so operators can answer "what was archived, where did it come from, and what replaced it?" without reconstructing that from terse log rows

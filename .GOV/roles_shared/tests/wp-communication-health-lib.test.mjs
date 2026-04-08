@@ -5,6 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   deriveWpCommunicationAutoRoute,
+  deriveActiveWpNotificationProjection,
   deriveLatestValidatorAssessment,
   deriveValidatorReviewOutcome,
   communicationMonitorState,
@@ -1355,6 +1356,239 @@ test("contained-main terminal closeout collapses verdict progression to NONE/CLO
   assert.equal(route.waitingOn, "CLOSED");
   assert.equal(route.notification, null);
   assert.equal(boundary.ok, true);
+});
+
+test("active notification projection keeps only the live route notification for the current correlation", () => {
+  const input = baseInput({
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap and skeleton cleared; proceed.",
+        timestamp_utc: "2026-03-22T10:02:30Z",
+      },
+      {
+        receipt_kind: "CODER_HANDOFF",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_REVIEW",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        ack_for: "handoff-1",
+        summary: "Repair required. Findings remain on the active handoff.",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+      },
+    ],
+  });
+  const statusEvaluation = evaluateWpCommunicationHealth(input);
+  const projection = deriveActiveWpNotificationProjection({
+    statusEvaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+    pendingNotifications: [
+      {
+        source_kind: "REVIEW_REQUEST",
+        source_role: "CODER",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "older-handoff",
+        timestamp_utc: "2026-03-22T10:03:00Z",
+        summary: "Older review request no longer blocks the live route",
+      },
+      {
+        source_kind: "VALIDATOR_REVIEW",
+        source_role: "WP_VALIDATOR",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+        summary: "Earlier duplicate validator review",
+      },
+      {
+        source_kind: "VALIDATOR_REVIEW",
+        source_role: "WP_VALIDATOR",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        timestamp_utc: "2026-03-22T10:04:30Z",
+        summary: "Latest validator review for the active remediation cycle",
+      },
+      {
+        source_kind: "GOVERNANCE_CHECKPOINT",
+        source_role: "WP_VALIDATOR",
+        target_role: "ORCHESTRATOR",
+        correlation_id: "older-handoff",
+        timestamp_utc: "2026-03-22T10:04:31Z",
+        summary: "Historical checkpoint that should stay in history",
+      },
+    ],
+  });
+
+  assert.equal(statusEvaluation.state, "COMM_REPAIR_REQUIRED");
+  assert.equal(projection.pendingCount, 1);
+  assert.deepEqual(projection.byKind, { VALIDATOR_REVIEW: 1 });
+  assert.equal(projection.notifications[0].summary, "Latest validator review for the active remediation cycle");
+  assert.equal(projection.hiddenPendingCount, 3);
+  assert.equal(projection.historyHidden, true);
+});
+
+test("active notification projection hides unread review residue once the WP is closed", () => {
+  const input = baseInput({
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap and skeleton cleared; proceed.",
+        timestamp_utc: "2026-03-22T10:02:30Z",
+      },
+      {
+        receipt_kind: "CODER_HANDOFF",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_REVIEW",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        ack_for: "handoff-1",
+        summary: "PASS. No blocking findings remain in the committed reviewable state.",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_REQUEST",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "INTEGRATION_VALIDATOR",
+        target_session: "intval-1",
+        correlation_id: "final-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:05:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_REVIEW",
+        actor_role: "INTEGRATION_VALIDATOR",
+        actor_session: "intval-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "final-1",
+        ack_for: "final-1",
+        timestamp_utc: "2026-03-22T10:06:00Z",
+      },
+    ],
+    runtimeStatus: {
+      runtime_status: "completed",
+      current_packet_status: "Validated (PASS)",
+      main_containment_status: "CONTAINED_IN_MAIN",
+      current_main_compatibility_status: "COMPATIBLE",
+      current_task_board_status: "DONE_VALIDATED",
+      next_expected_actor: "NONE",
+      next_expected_session: null,
+      waiting_on: "CLOSED",
+      waiting_on_session: null,
+      validator_trigger: "NONE",
+      validator_trigger_reason: null,
+      ready_for_validation: false,
+      ready_for_validation_reason: null,
+      attention_required: false,
+    },
+  });
+  const statusEvaluation = evaluateWpCommunicationHealth(input);
+  const projection = deriveActiveWpNotificationProjection({
+    statusEvaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+    pendingNotifications: [
+      {
+        source_kind: "AUTO_ROUTE",
+        source_role: "INTEGRATION_VALIDATOR",
+        target_role: "ORCHESTRATOR",
+        correlation_id: "final-1",
+        timestamp_utc: "2026-03-22T10:06:30Z",
+        summary: "AUTO_ROUTE: direct review lane complete; orchestrator verdict progression ready",
+      },
+      {
+        source_kind: "SESSION_COMPLETION",
+        source_role: "CODER",
+        target_role: "ORCHESTRATOR",
+        correlation_id: "close-1",
+        timestamp_utc: "2026-03-22T10:07:00Z",
+        summary: "Governed session closed cleanly",
+      },
+    ],
+  });
+
+  assert.equal(statusEvaluation.state, "COMM_OK");
+  assert.equal(projection.pendingCount, 0);
+  assert.equal(projection.hiddenPendingCount, 2);
+  assert.equal(projection.historyHidden, true);
 });
 
 test("final review closes when the open request targeted an unassigned integration-validator placeholder", () => {

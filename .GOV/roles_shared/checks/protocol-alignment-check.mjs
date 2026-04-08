@@ -95,11 +95,11 @@ function escapeRegex(value) {
 }
 
 function readUtf8(filePath) {
-  return fs.readFileSync(filePath, "utf8");
+  return fs.readFileSync(path.join(repoRoot, filePath), "utf8");
 }
 
 function requireFileExists(filePath) {
-  if (!fs.existsSync(filePath)) {
+  if (!fs.existsSync(path.join(repoRoot, filePath))) {
     fail("Missing required active governance surface", [filePath]);
   }
 }
@@ -225,7 +225,8 @@ requireRecipe(errors, justfileContent, "session-close", [
   quotedJustGovScript("roles/orchestrator/scripts/session-control-command.mjs", "CLOSE_SESSION"),
 ]);
 requireRecipe(errors, justfileContent, "integration-validator-closeout-check", [
-  `${JUSTFILE_GOV_PREFIX}/roles/validator/checks/integration-validator-closeout-check.mjs`,
+  `${JUSTFILE_GOV_PREFIX}/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`,
+  "integration-validator-closeout-check",
 ]);
 
 for (const command of [

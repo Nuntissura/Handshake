@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { parseJsonFile, parseJsonlFile } from "../lib/wp-communications-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../lib/wp-communication-health-lib.mjs";
@@ -141,13 +142,19 @@ export function buildActiveLaneBrief({
     || isTerminalPacketStatus(governanceState.packetStatus)
     || isTerminalPacketStatus(runtimeStatus.current_packet_status),
   );
+  const hiddenNotificationCount = notifications.historyHidden
+    ? Number(notifications.hiddenPendingCount || 0)
+    : Number(notifications.pendingCount || 0);
+  const hiddenNotificationKinds = notifications.historyHidden
+    ? (notifications.hiddenByKind || {})
+    : (notifications.byKind || {});
   const visibleNotifications = terminalNoiseSuppressed
     ? { pendingCount: 0, byKind: {} }
     : notifications;
-  const hiddenHistory = terminalNoiseSuppressed
+  const hiddenHistory = terminalNoiseSuppressed || notifications.historyHidden
     ? {
-        pending_notification_count: notifications.pendingCount || 0,
-        pending_notification_by_kind: notifications.byKind || {},
+        pending_notification_count: hiddenNotificationCount,
+        pending_notification_by_kind: hiddenNotificationKinds,
       }
     : null;
   const relayView = terminalNoiseSuppressed
@@ -228,7 +235,7 @@ export function buildActiveLaneBrief({
     notifications: {
       pending_count: visibleNotifications.pendingCount || 0,
       by_kind: visibleNotifications.byKind || {},
-      history_hidden: terminalNoiseSuppressed,
+      history_hidden: terminalNoiseSuppressed || notifications.historyHidden,
       hidden_history: hiddenHistory,
     },
     microtasks: {
@@ -340,4 +347,32 @@ export function formatActiveLaneBrief(brief) {
     `- FULL_OUTPUT_RULE: use --json for machine-readable detail instead of rereading packet/runtime/session surfaces separately`,
     "",
   ].join("\n");
+}
+
+export function runActiveLaneBriefCli(argv = process.argv.slice(2)) {
+  const role = String(argv[0] || "").trim().toUpperCase();
+  const wpId = String(argv[1] || "").trim();
+  const json = argv.slice(2).includes("--json");
+
+  if (!role || !wpId || !/^WP-/.test(wpId)) {
+    console.error("Usage: node .GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]");
+    process.exit(1);
+  }
+
+  const brief = buildActiveLaneBrief({
+    repoRoot: REPO_ROOT,
+    role,
+    wpId,
+  });
+
+  if (json) {
+    process.stdout.write(`${JSON.stringify(brief, null, 2)}\n`);
+  } else {
+    process.stdout.write(formatActiveLaneBrief(brief));
+  }
+}
+
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  runActiveLaneBriefCli();
 }

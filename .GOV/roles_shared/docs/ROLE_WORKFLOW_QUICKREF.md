@@ -67,7 +67,7 @@ Pre-task snapshots are captured automatically at: WP delegation, steering, relay
 
 Governance-only (does not scan `src/` or `app/`):
 - `just gov-check`
-- `just canonise-gov` — synchronise intent, rules, instructions across governance files; run after any governance change
+- `just canonise-gov` — inspect every listed governance file and update drift across intent, rules, and instructions; run after any governance change and do not stop at the green summary
 - Governance-only maintenance does not require a Work Packet or USER_SIGNATURE (Codex [CX-111]).
 - Shared repo tooling notes live in `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`; use it as short append-only shared tooling memory, not as a second LAW surface.
 
@@ -193,8 +193,10 @@ Role rule:
 ## Role: Validator
 
 Primary commands (per WP validation):
-- `just gate-check WP-...`
-- `just validator-handoff-check WP-...`
+- `just phase-check STARTUP WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session>`
+- `just phase-check HANDOFF WP-... WP_VALIDATOR`
+- `just phase-check VERDICT WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR`
+- `just phase-check CLOSEOUT WP-...`
 - `just post-work WP-...` (local mirror sanity only unless you are explicitly validating the committed PREPARE target)
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
@@ -213,6 +215,10 @@ Primary commands (per WP validation):
 - `just wp-review-exchange REVIEW_REQUEST WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
 - `just wp-review-response WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
 - optional final `microtask_json` may carry `{ "scope_ref": "...", "file_targets": ["..."], "proof_commands": ["..."], "risk_focus": "...", "expected_receipt_kind": "..." }`
+- Debug-only leaf surfaces when a composite phase gate fails and you need the narrower cause:
+  - `just validator-handoff-check WP-...`
+  - `just integration-validator-closeout-check WP-...`
+  - `just validator-packet-complete WP-...`
 
 Governance-only work:
 - `just gov-check`
@@ -224,4 +230,4 @@ Role rule:
 - Validator duties are non-agentic, but repo workflows may run multiple validator CLI sessions when they are explicitly scoped as WP Validator and Integration Validator sessions.
 - Validator authority is layered: WP Validator is advisory; Integration Validator owns final technical and merge authority unless the packet explicitly overrides it.
 - Validator sessions are started by the Orchestrator; validators do not self-start new repo-governed sessions.
-- For orchestrator-managed WPs, PASS commit clearance now depends on committed handoff validation against the PREPARE worktree source of truth, recorded via `just validator-handoff-check WP-...`.
+- For orchestrator-managed WPs, PASS commit clearance now depends on the HANDOFF and CLOSEOUT phase bundles; use the leaf validator checks only when debugging a failed composite gate.

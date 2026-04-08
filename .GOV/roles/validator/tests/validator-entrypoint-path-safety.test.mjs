@@ -12,8 +12,9 @@ function read(relativePath) {
 test("validator entrypoints resolve packet/gate surfaces through repo-safe helpers", () => {
   const expectations = [
     [".GOV/roles/validator/scripts/validator-next.mjs", "repoPathAbs("],
-    [".GOV/roles/validator/checks/integration-validator-context-brief.mjs", "repoPathAbs("],
-    [".GOV/roles/validator/checks/integration-validator-closeout-check.mjs", "repoPathAbs("],
+    [".GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs", "repoPathAbs("],
+    [".GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs", "repoPathAbs("],
+    [".GOV/roles/validator/scripts/lib/validator-governance-lib.mjs", "repoPathAbs("],
   ];
   for (const [relativePath, needle] of expectations) {
     assert.match(read(relativePath), new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));

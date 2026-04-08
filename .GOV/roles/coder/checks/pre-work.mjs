@@ -14,6 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { runGateCheck } from '../../../roles_shared/checks/gate-check.mjs';
 import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 import {
   compactGateOutputSummary,
@@ -79,10 +80,15 @@ const skeletonApprover =
 printBlockHeader('GATE_OUTPUT', 'CX-GATE-UX-001');
 process.stdout.write('\n');
 
-const gateCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'gate-check.mjs');
 const preWorkCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles', 'coder', 'checks', 'pre-work-check.mjs');
 
-const gate = run(process.execPath, [repoPathAbs(gateCheckPath), wpId]);
+const gate = (() => {
+  const result = runGateCheck(wpId);
+  return {
+    code: result.ok ? 0 : 1,
+    out: result.output,
+  };
+})();
 gateOutputs.push(gate.out);
 if (verbose) {
   process.stdout.write(ensureTrailingNewline(gate.out.trimEnd()));

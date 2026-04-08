@@ -34,7 +34,7 @@ test("coder startup prompt carries orchestrator-managed relapse guard and lane-a
   assert.match(prompt, /`MANUAL_RELAY` = .*skeleton approval when required/i);
   assert.match(prompt, /`ORCHESTRATOR_MANAGED` = .*no routine Operator approvals after signature/i);
   assert.match(prompt, /just active-lane-brief CODER WP-TEST-CODER-v1/i);
-  assert.match(prompt, /just wp-communication-health-check WP-TEST-CODER-v1 STARTUP CODER <your-session>/i);
+  assert.match(prompt, /just phase-check STARTUP WP-TEST-CODER-v1 CODER <your-session>/i);
   assert.match(prompt, /just check-notifications WP-TEST-CODER-v1 CODER <your-session>/i);
   assert.match(prompt, new RegExp(CODEX_AUTHORITY_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
@@ -53,8 +53,8 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
   assert.match(prompt, /wp-review-exchange REVIEW_REQUEST/i);
   assert.match(prompt, /wp-review-response/i);
   assert.match(prompt, /integration-validator-context-brief/i);
-  assert.match(prompt, /wp-communication-health-check .* STARTUP INTEGRATION_VALIDATOR/i);
-  assert.match(prompt, /wp-communication-health-check .* VERDICT/i);
+  assert.match(prompt, /phase-check STARTUP .* INTEGRATION_VALIDATOR/i);
+  assert.match(prompt, /phase-check VERDICT .* INTEGRATION_VALIDATOR/i);
   assert.match(prompt, /Final merge-ready authority/i);
   assert.match(prompt, /HANDSHAKE_GOV_ROOT/i);
   assert.match(prompt, /Do not use handshake_main\/.GOV as the live source of truth/i);
@@ -78,7 +78,7 @@ test("wp-validator startup prompt uses the dedicated validator lane and early st
   assert.match(prompt, /judge bootstrap\/skeleton\/micro-task direction early/i);
   assert.match(prompt, /EARLY STEERING \(MANDATORY\): You own the governed bootstrap\/skeleton checkpoint/i);
   assert.match(prompt, /WORKTREE SYNC \(MANDATORY\): You share the coder `feat\/WP-TEST-WPVAL-v1` branch and `wtc-\*` worktree surface/i);
-  assert.match(prompt, /just wp-communication-health-check WP-TEST-WPVAL-v1 STARTUP WP_VALIDATOR <your-session>/i);
+  assert.match(prompt, /just phase-check STARTUP WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
   assert.match(prompt, /just check-notifications WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
 });
 

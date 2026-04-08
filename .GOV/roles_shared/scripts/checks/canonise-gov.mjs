@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Governance Canonisation Audit
+ * Governance Canonisation Review
  *
- * Synchronises intent, rules, and instructions across governance files.
- * When governance rules or workflows change, run this to verify consistency
- * across protocols, shared docs, codex, and operator references, then
- * manually review the output file list to propagate the change.
+ * Surfaces the mandatory governance review pass for active canonisation files.
+ * When governance rules or workflows change, run this to inspect the
+ * file set, catch drift across protocols/shared docs/codex/operator refs,
+ * and then update every applicable surface before closeout.
  *
  * Checks:
  *   1. All required governance files exist
@@ -214,7 +214,7 @@ for (const ref of ARCH_EXPECTED) {
 }
 
 // ─── Output ──────────────────────────────────────────────────────
-console.log("CANONISE_GOV AUDIT");
+console.log("CANONISE_GOV REVIEW");
 console.log("─".repeat(60));
 
 const grouped = { FAIL: [], WARN: [], PASS: [] };
@@ -236,6 +236,7 @@ if (grouped.WARN.length > 0) {
 }
 
 console.log(`\nSUMMARY: ${results.length} checks — ${grouped.PASS.length} pass, ${warnCount} warn, ${failCount} fail`);
+console.log("REQUIRED_ACTION: inspect every file in the review brief below and update applicable drift; a green summary alone is not sufficient.");
 
 // ─── Structured review brief ─────────────────────────────────────
 // Each file has a declared purpose and a scoped review directive.

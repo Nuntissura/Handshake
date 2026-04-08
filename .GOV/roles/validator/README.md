@@ -21,8 +21,7 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 ## Role-Owned Checks / Scripts
 
 - `scripts/validator-next.mjs`
-- `checks/validator-handoff-check.mjs`
-- `checks/validator-packet-complete.mjs`
+- `scripts/lib/validator-governance-lib.mjs` (`validator-packet-complete`, `validator-handoff-check` entrypoints)
 - `checks/validator-report-structure-check.mjs`
 - `checks/validator_gates.mjs`
 - `checks/validator-governance-snapshot.mjs`
@@ -36,7 +35,8 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 - `checks/validator-git-hygiene.mjs`
 - `checks/validator-hygiene-full.mjs`
 - `checks/external-validator-brief.mjs`
-- `checks/integration-validator-context-brief.mjs`
+- `scripts/lib/integration-validator-context-brief-lib.mjs`
+- `scripts/lib/integration-validator-closeout-lib.mjs` (`integration-validator-closeout-check` entrypoint)
 
 ## Shared Dependencies To Know
 
@@ -67,10 +67,11 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 
 - `just validator-startup`
 - `just validator-next [WP-{ID}] [--debug]`
-- `just validator-handoff-check WP-{ID}`
+- `just phase-check <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} [ROLE] [session]`
 - `just integration-validator-context-brief WP-{ID}`
-- `just validator-packet-complete WP-{ID}`
 - `just validator-gate-present WP-{ID}`
 - `just validator-gate-acknowledge WP-{ID}`
 - `just validator-gate-append WP-{ID}`
 - `just validator-gate-commit WP-{ID}`
+
+Low-level validator hygiene is consolidated behind `scripts/lib/validator-governance-lib.mjs`, but the governed role-facing boundary command remains `phase-check`.

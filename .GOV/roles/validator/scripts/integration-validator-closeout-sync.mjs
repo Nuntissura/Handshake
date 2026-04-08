@@ -23,6 +23,7 @@ import {
   validateRuntimeStatus,
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import {
+  buildValidatorPacketCompleteResult,
   evaluateValidatorPacketGovernanceState,
   resolveValidatorActorContext,
 } from "../scripts/lib/validator-governance-lib.mjs";
@@ -462,14 +463,10 @@ if (nextRuntimeStatusData && runtimeStatusPath) {
 }
 
 try {
-  execFileSync(
-    process.execPath,
-    [
-      path.resolve(GOV_ROOT_ABS, "roles", "validator", "checks", "validator-packet-complete.mjs"),
-      wpId,
-    ],
-    { stdio: "pipe", encoding: "utf8" },
-  );
+  const packetComplete = buildValidatorPacketCompleteResult({ wpId });
+  if (!packetComplete.ok) {
+    fail("Closeout sync produced packet completeness regression", [String(packetComplete.message || "validator-packet-complete failed")]);
+  }
   execFileSync(
     process.execPath,
     [

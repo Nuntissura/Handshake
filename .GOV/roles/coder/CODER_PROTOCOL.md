@@ -370,7 +370,7 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
 - Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Use the governed helpers; do not hand-edit around this routing.
 - `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
 - Before claiming validator-ready handoff on those packets, `just wp-communication-health-check WP-{ID} KICKOFF` must pass.
-- Before final PASS clearance on `PACKET_FORMAT_VERSION >= 2026-03-22`, `just wp-communication-health-check WP-{ID} VERDICT` will fail unless that direct `CODER <-> INTEGRATION_VALIDATOR` review exchange exists.
+- Before final PASS clearance on `PACKET_FORMAT_VERSION >= 2026-03-22`, `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR` will fail unless that direct `CODER <-> INTEGRATION_VALIDATOR` review exchange exists.
 - Authority split for coder coordination:
   - Orchestrator = workflow authority
   - WP Validator = advisory technical reviewer for this WP
@@ -395,6 +395,8 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
   - Use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` in the kickoff/intent loop when you are naming early structure that still needs validator clearance.
   - For rolling microtask review, use `just wp-review-exchange REVIEW_REQUEST ...` to `WP_VALIDATOR` with `review_mode=OVERLAP` for a completed narrow slice while you continue the next declared microtask, but keep the unresolved overlap queue at 2 or less and do not post full `CODER_HANDOFF` until those overlap reviews are resolved.
   - For the bootstrap/skeleton checkpoint, use `wp-coder-intent` with concrete `file_targets` + `proof_commands`, then wait for validator clearance instead of broad “ready end-to-end” language.
+  - `just phase-check STARTUP WP-{ID} CODER <session>`
+  - `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR`
   - `just wp-communication-health-check WP-{ID} STATUS|KICKOFF|HANDOFF|VERDICT`
   - `just session-registry-status [WP-{ID}]`
   - `just active-lane-brief CODER WP-{ID} [--json]`

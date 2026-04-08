@@ -14,6 +14,7 @@
 
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { runGateCheck } from '../../../roles_shared/checks/gate-check.mjs';
 import { GOV_ROOT_REPO_REL, repoPathAbs } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 import {
   compactGateOutputSummary,
@@ -52,13 +53,18 @@ let why = 'Post-work checks passed.';
 printBlockHeader('GATE_OUTPUT', 'CX-GATE-UX-001');
 process.stdout.write('\n');
 
-const gateCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'gate-check.mjs');
 const postWorkCheckPath = path.join(GOV_ROOT_REPO_REL, 'roles', 'coder', 'checks', 'post-work-check.mjs');
 const roleMailboxPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'role_mailbox_export_check.mjs');
 const communicationHealthPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'checks', 'wp-communication-health-check.mjs');
 let communicationHealthOk = true;
 
-const gate = run(process.execPath, [repoPathAbs(gateCheckPath), wpId]);
+const gate = (() => {
+  const result = runGateCheck(wpId);
+  return {
+    code: result.ok ? 0 : 1,
+    out: result.output,
+  };
+})();
 if (verbose) {
   process.stdout.write(ensureTrailingNewline(gate.out.trimEnd()));
 } else {

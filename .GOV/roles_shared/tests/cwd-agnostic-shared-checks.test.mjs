@@ -114,7 +114,7 @@ test("shared checks remain valid when launched from a temp directory", () => {
     assert.equal(atelierRoleRegistry.status, 0, atelierRoleRegistry.stderr || atelierRoleRegistry.stdout);
 
     const activeLaneBrief = runNode([
-      path.join(repoRoot, ".GOV", "roles_shared", "checks", "active-lane-brief.mjs"),
+      path.join(repoRoot, ".GOV", "roles_shared", "scripts", "session", "active-lane-brief-lib.mjs"),
       "CODER",
       "WP-1-Workflow-Projection-Correlation-v1",
       "--json",

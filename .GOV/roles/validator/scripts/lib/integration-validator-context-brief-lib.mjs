@@ -1,7 +1,19 @@
 import fs from "node:fs";
-import { packetPath, parseCurrentWpStatus, parseStatus, taskBoardStatus } from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { buildPhaseCheckCommand } from "../../../../roles_shared/checks/phase-check-lib.mjs";
+import {
+  currentGitContext,
+  loadPacket,
+  packetExists,
+  packetPath,
+  parseCurrentWpStatus,
+  parseStatus,
+  taskBoardStatus,
+} from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { evaluateWpDeclaredTopology } from "../../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
-import { REPO_ROOT } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { REPO_ROOT, repoPathAbs } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { resolveValidatorGatePath } from "../../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import {
   evaluateIntegrationValidatorCloseoutState,
   latestCloseoutSyncEvent,
@@ -49,12 +61,9 @@ function requiredCommandsForState({ wpId, actorContext, governanceBlocked }) {
   }
 
   return [
-    `just integration-validator-context-brief ${wpId}`,
     `just check-notifications ${wpId} INTEGRATION_VALIDATOR`,
     `just ack-notifications ${wpId} INTEGRATION_VALIDATOR ${actorContext.actorSessionId || "<integration-validator-session>"}`,
-    `just wp-communication-health-check ${wpId} VERDICT`,
-    `just validator-handoff-check ${wpId}`,
-    `just integration-validator-closeout-check ${wpId}`,
+    buildPhaseCheckCommand({ phase: "CLOSEOUT", wpId }),
   ];
 }
 
@@ -298,4 +307,66 @@ export function formatIntegrationValidatorContextBrief(brief) {
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+export function buildIntegrationValidatorContextBriefFromEnvironment({
+  wpId = "",
+  repoRoot = "",
+  gitContext = null,
+  gateState = null,
+  gateStatePath = "",
+} = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId) {
+    throw new Error("WP_ID is required");
+  }
+  if (!packetExists(normalizedWpId)) {
+    throw new Error(`Task packet not found: ${packetPath(normalizedWpId)}`);
+  }
+
+  const resolvedGitContext = gitContext || currentGitContext();
+  const resolvedGateStatePath = gateStatePath || resolveValidatorGatePath(normalizedWpId);
+  let resolvedGateState = gateState;
+  if (!resolvedGateState) {
+    resolvedGateState = {};
+    if (fs.existsSync(repoPathAbs(resolvedGateStatePath))) {
+      resolvedGateState = JSON.parse(fs.readFileSync(repoPathAbs(resolvedGateStatePath), "utf8"));
+    }
+  }
+
+  return buildIntegrationValidatorContextBrief({
+    repoRoot: repoRoot || resolvedGitContext.topLevel || REPO_ROOT,
+    wpId: normalizedWpId,
+    packetContent: loadPacket(normalizedWpId),
+    gitContext: resolvedGitContext,
+    gateState: resolvedGateState,
+    committedEvidence: resolvedGateState?.committed_validation_evidence?.[normalizedWpId] || null,
+    gateStatePath: resolvedGateStatePath,
+  });
+}
+
+export function runIntegrationValidatorContextBriefCli(argv = process.argv.slice(2)) {
+  const wpId = String(argv[0] || "").trim();
+  if (!wpId || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(wpId)) {
+    console.error("Usage: node .GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs WP-{ID} [--json]");
+    process.exit(1);
+  }
+
+  const json = argv.slice(1).includes("--json");
+  try {
+    const brief = buildIntegrationValidatorContextBriefFromEnvironment({ wpId });
+    if (json) {
+      process.stdout.write(`${JSON.stringify(brief, null, 2)}\n`);
+    } else {
+      process.stdout.write(formatIntegrationValidatorContextBrief(brief));
+    }
+  } catch (error) {
+    console.error(`[INTEGRATION_VALIDATOR_CONTEXT_BRIEF] ${error?.message || String(error || "")}`);
+    process.exit(1);
+  }
+}
+
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  runIntegrationValidatorContextBriefCli();
 }

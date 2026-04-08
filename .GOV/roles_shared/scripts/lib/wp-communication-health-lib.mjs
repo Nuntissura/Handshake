@@ -52,6 +52,20 @@ const CONTRACT_HEAVY_CODER_HANDOFF_RIGOR_PROFILE_VALUES = new Set(["RUBRIC_SELF_
 const CONTRACT_HEAVY_CLAUSE_MONITOR_PROFILE_VALUES = new Set(["CLAUSE_MONITOR_V1"]);
 const CONTRACT_HEAVY_SEMANTIC_PROOF_PROFILE_VALUES = new Set(["DIFF_SCOPED_SEMANTIC_V1"]);
 const STARTUP_COMMUNICATION_ROLE_VALUES = ["ORCHESTRATOR", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
+const ACTIVE_NOTIFICATION_SOURCE_KIND_VALUES = new Set([
+  "AUTO_ROUTE",
+  "CODER_HANDOFF",
+  "CODER_INTENT",
+  "GOVERNANCE_CHECKPOINT",
+  "MT_FIX_CYCLE_ESCALATION",
+  "REVIEW_REQUEST",
+  "REVIEW_RESPONSE",
+  "SPEC_CONFIRMATION",
+  "VALIDATOR_KICKOFF",
+  "VALIDATOR_QUERY",
+  "VALIDATOR_RESPONSE",
+  "VALIDATOR_REVIEW",
+]);
 
 function normalizeRole(value) {
   return String(value || "").trim().toUpperCase();
@@ -109,6 +123,163 @@ function partitionOpenReviewItems(openReviewItems = []) {
     overlapQueue,
     blockingQueue,
     exceedsOverlapLimit: overlapQueue.length > MAX_OVERLAP_MICROTASK_REVIEW_ITEMS,
+  };
+}
+
+function isClosedTerminalRuntimeState(runtimeStatus = {}) {
+  const packetStatus = String(runtimeStatus?.current_packet_status || "").trim();
+  const runtimeStatusValue = String(runtimeStatus?.runtime_status || "").trim().toLowerCase();
+  const nextExpectedActor = normalizeRole(runtimeStatus?.next_expected_actor);
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+  return /^Validated \(/i.test(packetStatus)
+    || (
+      runtimeStatusValue === "completed"
+      && nextExpectedActor === "NONE"
+      && waitingOn === "CLOSED"
+    );
+}
+
+function notificationProjectionKey(entry = null) {
+  const targetRole = normalizeRole(entry?.target_role) || "UNKNOWN";
+  const targetSession = normalizeSession(entry?.target_session) || "";
+  const correlationId = nullableComparable(entry?.correlation_id) || "";
+  const sourceKind = normalizeReceiptKind(entry?.source_kind);
+  return correlationId
+    ? `${targetRole}::${targetSession}::${correlationId}`
+    : `${targetRole}::${targetSession}::${sourceKind}`;
+}
+
+function buildNotificationKindCounts(notifications = []) {
+  const byKind = {};
+  for (const entry of Array.isArray(notifications) ? notifications : []) {
+    const kind = normalizeReceiptKind(entry?.source_kind) || "UNKNOWN";
+    byKind[kind] = (byKind[kind] || 0) + 1;
+  }
+  return byKind;
+}
+
+function latestProjectedNotifications(notifications = []) {
+  const latestByKey = new Map();
+  for (const entry of Array.isArray(notifications) ? notifications : []) {
+    const key = notificationProjectionKey(entry);
+    if (!key) continue;
+    const current = latestByKey.get(key);
+    if (!current || String(entry?.timestamp_utc || "").trim() > String(current?.timestamp_utc || "").trim()) {
+      latestByKey.set(key, entry);
+    }
+  }
+  return [...latestByKey.values()].sort((left, right) =>
+    String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || ""))
+  );
+}
+
+function activeCorrelationIdsFromStatus(statusEvaluation = null, runtimeStatus = {}) {
+  const ids = new Set();
+  for (const item of Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : []) {
+    const correlationId = nullableComparable(item?.correlation_id);
+    if (correlationId) ids.add(correlationId);
+  }
+  for (const value of Object.values(statusEvaluation?.correlations || {})) {
+    const correlationId = nullableComparable(value);
+    if (correlationId) ids.add(correlationId);
+  }
+  return ids;
+}
+
+function notificationMatchesProjectedRoute(notification = null, autoRoute = null, activeCorrelationIds = new Set()) {
+  const sourceKind = normalizeReceiptKind(notification?.source_kind);
+  if (!ACTIVE_NOTIFICATION_SOURCE_KIND_VALUES.has(sourceKind)) return false;
+
+  const nextActor = normalizeRole(autoRoute?.nextExpectedActor);
+  if (!nextActor || nextActor === "NONE") return false;
+
+  const targetRole = normalizeRole(notification?.target_role);
+  const targetSession = normalizeSession(notification?.target_session);
+  const nextSession = normalizeSession(autoRoute?.nextExpectedSession);
+  if (targetRole !== nextActor) return false;
+  if (nextSession && targetSession && targetSession !== nextSession) return false;
+
+  const correlationId = nullableComparable(notification?.correlation_id);
+  if (sourceKind === "AUTO_ROUTE") return true;
+  if (sourceKind === "GOVERNANCE_CHECKPOINT" || sourceKind === "MT_FIX_CYCLE_ESCALATION") {
+    return !correlationId || activeCorrelationIds.has(correlationId);
+  }
+  return Boolean(correlationId) && activeCorrelationIds.has(correlationId);
+}
+
+export function deriveActiveWpNotificationProjection({
+  statusEvaluation = null,
+  runtimeStatus = {},
+  pendingNotifications = [],
+  latestReceipt = null,
+  autoRoute = null,
+} = {}) {
+  const unreadNotifications = Array.isArray(pendingNotifications) ? pendingNotifications : [];
+  const fallbackVisible = latestProjectedNotifications(unreadNotifications);
+  if (unreadNotifications.length === 0) {
+    return {
+      notifications: [],
+      pendingCount: 0,
+      byKind: {},
+      hiddenNotifications: [],
+      hiddenPendingCount: 0,
+      hiddenByKind: {},
+      historyHidden: false,
+      autoRoute: autoRoute && autoRoute.applicable ? autoRoute : null,
+    };
+  }
+
+  if (!statusEvaluation?.applicable) {
+    return {
+      notifications: fallbackVisible,
+      pendingCount: fallbackVisible.length,
+      byKind: buildNotificationKindCounts(fallbackVisible),
+      hiddenNotifications: [],
+      hiddenPendingCount: 0,
+      hiddenByKind: {},
+      historyHidden: false,
+      autoRoute: autoRoute && autoRoute.applicable ? autoRoute : null,
+    };
+  }
+
+  const resolvedAutoRoute = autoRoute && autoRoute.applicable
+    ? autoRoute
+    : deriveWpCommunicationAutoRoute({
+      evaluation: statusEvaluation,
+      runtimeStatus,
+      latestReceipt,
+    });
+
+  if (isClosedTerminalRuntimeState(runtimeStatus)) {
+    return {
+      notifications: [],
+      pendingCount: 0,
+      byKind: {},
+      hiddenNotifications: unreadNotifications,
+      hiddenPendingCount: unreadNotifications.length,
+      hiddenByKind: buildNotificationKindCounts(unreadNotifications),
+      historyHidden: unreadNotifications.length > 0,
+      autoRoute: resolvedAutoRoute,
+    };
+  }
+
+  const activeCorrelationIds = activeCorrelationIdsFromStatus(statusEvaluation, runtimeStatus);
+  const visibleNotifications = latestProjectedNotifications(
+    unreadNotifications.filter((entry) =>
+      notificationMatchesProjectedRoute(entry, resolvedAutoRoute, activeCorrelationIds)
+    ),
+  );
+  const hiddenNotifications = unreadNotifications.filter((entry) => !visibleNotifications.includes(entry));
+
+  return {
+    notifications: visibleNotifications,
+    pendingCount: visibleNotifications.length,
+    byKind: buildNotificationKindCounts(visibleNotifications),
+    hiddenNotifications,
+    hiddenPendingCount: hiddenNotifications.length,
+    hiddenByKind: buildNotificationKindCounts(hiddenNotifications),
+    historyHidden: hiddenNotifications.length > 0,
+    autoRoute: resolvedAutoRoute,
   };
 }
 
@@ -671,7 +842,7 @@ export function evaluateWpCommunicationHealth({
         + (startupSession ? `:${startupSession}` : ""),
       );
     }
-    for (const peerRole of startupMeshPeersForRole(startupRole)) {
+    for (const peerRole of startupMeshPeersForRole(startupRole, runtimeStatus)) {
       if (!hasActiveRoleSession(runtimeStatus, peerRole)) {
         issues.push(`startup_peer_missing=${peerRole}`);
         continue;
@@ -1044,16 +1215,19 @@ function hasActiveRoleSession(runtimeStatus, role, preferredSession = null) {
   return activeSessions.length > 0;
 }
 
-function startupMeshPeersForRole(role) {
+function startupMeshPeersForRole(role, runtimeStatus = {}) {
   switch (normalizeRole(role)) {
-    case "ORCHESTRATOR":
-      return ["CODER", "WP_VALIDATOR"];
+    case "ORCHESTRATOR": {
+      const peers = ["CODER", "WP_VALIDATOR"];
+      if (hasActiveRoleSession(runtimeStatus, "INTEGRATION_VALIDATOR")) peers.push("INTEGRATION_VALIDATOR");
+      return peers;
+    }
     case "CODER":
       return ["WP_VALIDATOR"];
     case "WP_VALIDATOR":
       return ["CODER"];
     case "INTEGRATION_VALIDATOR":
-      return ["CODER"];
+      return ["ORCHESTRATOR", "CODER"];
     default:
       return [];
   }

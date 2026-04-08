@@ -50,6 +50,6 @@ Every active compatibility shim must be recorded here until its sunset trigger i
 - WHY_THIS_EXISTS: `Older packets predate the explicit data-contract activation/waiver decision and anti-vibe zero-debt closure bundle, so governance checks still need an explicit grandfather branch while those packets remain live or historically referenced.`
 - SUPERSEDED_BY: `PACKET_FORMAT_VERSION >= 2026-04-01 packet family with explicit DATA_CONTRACT_DECISION + anti-vibe zero-debt law`
 - TRACKED_IN: `.GOV/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md`
-- ACTIVE_GUARDRAILS: `.GOV/roles_shared/checks/task-packet-claim-check.mjs`, `.GOV/roles/validator/checks/validator-report-structure-check.mjs`, `.GOV/roles/validator/checks/validator-packet-complete.mjs`
+- ACTIVE_GUARDRAILS: `.GOV/roles_shared/checks/task-packet-claim-check.mjs`, `.GOV/roles/validator/checks/validator-report-structure-check.mjs`, `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs` (`validator-packet-complete`)
 - SUNSET_TRIGGER: `All live packets are created or migrated onto the 2026-04-01+ family and claim/validator checks no longer need grandfather branches.`
 - DELETION_CONDITION: `Compatibility branches for the older packet family can be removed without breaking live packets or audit replay.`

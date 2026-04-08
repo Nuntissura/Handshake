@@ -44,11 +44,6 @@ import {
   MAX_OVERLAP_MICROTASK_REVIEW_ITEMS,
 } from "../lib/wp-communication-health-lib.mjs";
 import {
-  applyWpReviewPacketProjection,
-  applyWpReviewRuntimeProjection,
-  deriveWpReviewPacketProjection,
-} from "../lib/wp-review-projection-lib.mjs";
-import {
   deriveWpMicrotaskPlan,
   listDeclaredWpMicrotasks,
   resolveDeclaredWpMicrotaskByScopeRef,
@@ -57,6 +52,7 @@ import {
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification, appendWpNotificationCore } from "./wp-notification-append.mjs";
+import { reconcileWpCommunicationTruth, syncProjectedTaskBoardTruth } from "./ensure-wp-communications.mjs";
 import { openGovernanceMemoryDb, closeDb as closeMemDb, extractMemoryFromReceipt, HIGH_SIGNAL_RECEIPT_KINDS } from "../memory/governance-memory-lib.mjs";
 
 const ACTIVE_AUTO_RELAY_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
@@ -74,21 +70,6 @@ const ORCHESTRATOR_STEER_SCRIPT_PATH = path.resolve(
   "scripts",
   "orchestrator-steer-next.mjs",
 );
-const TASK_BOARD_SET_SCRIPT_PATH = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../..",
-  "roles",
-  "orchestrator",
-  "scripts",
-  "task-board-set.mjs",
-);
-const BUILD_ORDER_SYNC_SCRIPT_PATH = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../..",
-  "roles_shared",
-  "scripts",
-  "build-order-sync.mjs",
-);
 const POST_WORK_CHECK_SCRIPT_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
@@ -101,19 +82,6 @@ const TASK_BOARD_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/recor
 const BUILD_ORDER_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md`);
 const MICROTASK_SCOPE_BUDGET_RECEIPT_KIND_VALUES = new Set(["CODER_INTENT", "REVIEW_REQUEST"]);
 const MT_FIX_CYCLE_ESCALATION_THRESHOLD = 3;
-const RUNTIME_ROUTE_FIELD_NAMES = [
-  "open_review_items",
-  "next_expected_actor",
-  "next_expected_session",
-  "waiting_on",
-  "waiting_on_session",
-  "validator_trigger",
-  "validator_trigger_reason",
-  "ready_for_validation",
-  "ready_for_validation_reason",
-  "attention_required",
-];
-
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = text.match(re);
@@ -836,11 +804,10 @@ function syncReviewGovernanceTruth({
   context,
   entry,
   evaluation,
-  autoRoute,
   runtimeStatus,
 }) {
   if (!evaluation?.applicable) {
-    return applyWpReviewRuntimeProjection(runtimeStatus, { evaluation });
+    return { ...(runtimeStatus || {}) };
   }
 
   const originalPacketText = fs.readFileSync(context.packetAbsPath, "utf8");
@@ -849,47 +816,21 @@ function syncReviewGovernanceTruth({
   const originalRuntimeText = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
     ? fs.readFileSync(context.runtimeStatusAbsPath, "utf8")
     : null;
-  const packetProjection = deriveWpReviewPacketProjection({
-    evaluation,
-    autoRoute,
+  const receipts = [...parseJsonlFile(context.receiptsFile), entry];
+  const reconciliation = reconcileWpCommunicationTruth({
+    wpId,
+    packetPath: context.packetPath,
     packetText: originalPacketText,
+    runtimeStatus,
+    receipts,
   });
-  const nextPacketText = packetProjection
-    ? applyWpReviewPacketProjection(originalPacketText, packetProjection)
-    : originalPacketText;
 
   try {
-    if (nextPacketText !== originalPacketText) {
-      fs.writeFileSync(context.packetAbsPath, nextPacketText, "utf8");
+    if (reconciliation.nextPacketText !== originalPacketText) {
+      fs.writeFileSync(context.packetAbsPath, reconciliation.nextPacketText, "utf8");
     }
-
-    if (packetProjection?.taskBoardStatus) {
-      execFileSync(
-        process.execPath,
-        [
-          TASK_BOARD_SET_SCRIPT_PATH,
-          wpId,
-          packetProjection.taskBoardStatus,
-          packetProjection.taskBoardReason || "",
-        ],
-        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-      );
-      execFileSync(
-        process.execPath,
-        [BUILD_ORDER_SYNC_SCRIPT_PATH],
-        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-      );
-    }
-
-    const syncedRuntimeStatus = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
-      ? parseJsonFile(context.runtimeStatusFile)
-      : { ...(runtimeStatus || {}) };
-    for (const fieldName of RUNTIME_ROUTE_FIELD_NAMES) {
-      syncedRuntimeStatus[fieldName] = runtimeStatus[fieldName];
-    }
-    syncedRuntimeStatus.last_event = `receipt_${entry.receipt_kind.toLowerCase()}`;
-    syncedRuntimeStatus.last_event_at = entry.timestamp_utc;
-    return applyWpReviewRuntimeProjection(syncedRuntimeStatus, { evaluation });
+    syncProjectedTaskBoardTruth(wpId, reconciliation.packetProjection);
+    return reconciliation.nextRuntimeStatus;
   } catch (error) {
     restoreOptionalText(context.packetAbsPath, originalPacketText);
     restoreOptionalText(TASK_BOARD_ABS_PATH, originalTaskBoardText);
@@ -1087,23 +1028,11 @@ function appendWpReceiptCore({
         runtimeStatus,
         latestReceipt: entry,
       });
-      if (autoRoute.applicable) {
-        runtimeStatus.next_expected_actor = autoRoute.nextExpectedActor;
-        runtimeStatus.next_expected_session = autoRoute.nextExpectedSession;
-        runtimeStatus.waiting_on = autoRoute.waitingOn;
-        runtimeStatus.waiting_on_session = autoRoute.waitingOnSession;
-        runtimeStatus.validator_trigger = autoRoute.validatorTrigger;
-        runtimeStatus.validator_trigger_reason = autoRoute.validatorTriggerReason;
-        runtimeStatus.ready_for_validation = autoRoute.readyForValidation;
-        runtimeStatus.ready_for_validation_reason = autoRoute.readyForValidationReason;
-        runtimeStatus.attention_required = autoRoute.attentionRequired;
-      }
       runtimeStatus = syncReviewGovernanceTruth({
         wpId: WP_ID,
         context,
         entry,
         evaluation,
-        autoRoute,
         runtimeStatus,
       });
     }

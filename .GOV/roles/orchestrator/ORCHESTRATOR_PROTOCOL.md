@@ -204,8 +204,8 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - Every work packet must preserve the deterministic validation manifest from `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
 - `just pre-work WP-{ID}` is the blocking packet-integrity gate before handoff.
 - `just post-work WP-{ID}` is the deterministic closure gate before done/commit claims.
-- For validator PASS clearance on orchestrator-managed WPs, prefer `just validator-handoff-check WP-{ID}` so validation runs against the PREPARE worktree source of truth.
-- Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just integration-validator-closeout-check WP-{ID}`. If that preflight fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth. For `PACKET_FORMAT_VERSION >= 2026-03-26`, this also means current-`main` signed-scope compatibility was not honestly cleared or packet widening was not governed explicitly.
+- For validator PASS clearance on orchestrator-managed WPs, prefer `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` so packet completeness, PREPARE-source handoff validation, and the governed handoff communication proof run as one boundary gate.
+- Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just phase-check CLOSEOUT WP-{ID}`. If that composite closeout gate fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth. For `PACKET_FORMAT_VERSION >= 2026-03-26`, this also means current-`main` signed-scope compatibility was not honestly cleared or packet widening was not governed explicitly. The low-level `just integration-validator-closeout-check WP-{ID}` remains a debug surface, not the preferred operator-facing entrypoint.
 - After that preflight is green, prefer `just integration-validator-closeout-sync WP-{ID} ...` instead of manually editing packet/TASK_BOARD/runtime surfaces.
   - PASS before main containment: `MERGE_PENDING`
   - PASS after main containment: `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>`
@@ -394,7 +394,7 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - **Memory is supplementary, not authoritative.** Work packets, receipts, and governance ledgers remain the source of truth.
 - **Memory Manager:** `just launch-memory-manager` runs a governed Codex Spark session that analyzes patterns, resolves contradictions, flags stale memories, and drafts RGF candidates. Auto-launched at orchestrator startup (staleness-gated: >24h AND >10 new entries) and before WP merge (via closeout check). Guaranteed self-close via try/finally. Protocol: `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
 - **Canonical reference:** `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md` — keep this guide current when changing memory system behavior.
-- **Governance canonisation:** After major governance refactors (new RGF items, protocol changes, command additions), run `just canonise-gov` to audit that all protocols, command surface, architecture, quickref, and codex are consistent. Fix any WARN or FAIL items before closing the refactor.
+- **Governance canonisation:** After major governance refactors (new RGF items, protocol changes, command additions), run `just canonise-gov`, inspect every file in its review brief, and update all applicable drift across protocols, command surface, architecture, quickref, and codex. Do not treat the green summary as sufficient by itself.
 
 ## WP Communication Folder (Packet-Declared)
 
@@ -678,8 +678,8 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
 - Review-tracked receipt appends now auto-write notifications for the explicit target role, notify `ORCHESTRATOR` on validator-authored assessment receipts as a governance checkpoint, include the assessment result (`PASS`/`FAIL`/`ASSESSED`) plus the validator's reason in that checkpoint summary, and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Watch that projected route; do not replace it with manual narrative steering unless a real repair is required.
 - Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
-- Before validator handoff review begins, `just wp-communication-health-check WP-{ID} HANDOFF` MUST pass.
-- Before PASS commit clearance, `just wp-communication-health-check WP-{ID} VERDICT` MUST pass.
+- Before validator handoff review begins, `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` MUST pass.
+- Before PASS commit clearance, `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR` MUST pass.
 - The orchestrator should monitor WP communications to verify direct traffic is happening, and steer correction if it is not.
 
 ## Worktree Budget (HARD RULE)
@@ -715,6 +715,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - Every thread message with a `@target` or explicit `target_role` writes a notification to `NOTIFICATIONS.jsonl` in the WP communications directory.
 - Every review exchange (REVIEW_REQUEST, VALIDATOR_QUERY, SPEC_GAP, etc.) writes a notification to the target role.
 - Roles check pending notifications after startup and before each handoff/verdict using `just check-notifications {wpId} {ROLE}`.
+- `just check-notifications` now defaults to the active blocking route for that role/session; use `--history` only when you explicitly need hidden terminal or superseded residue for audit/debug work.
 - Roles acknowledge notifications after reading using `just ack-notifications {wpId} {ROLE} {session}`.
 - The orchestrator should monitor notification counts via the Operator Monitor TUI (PENDING NOTIFICATIONS in the OVERVIEW detail view) and steer correction if notifications pile up without acknowledgment.
 - Startup prompts already embed NOTIFICATIONS (MANDATORY) instructions for all three governed roles. Do not remove or weaken these instructions.
