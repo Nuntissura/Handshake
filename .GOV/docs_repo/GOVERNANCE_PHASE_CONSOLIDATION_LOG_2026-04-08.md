@@ -152,6 +152,31 @@ Archived in this wave:
   - `pre-work`
   - `gate-check`
 
+### RGF-158
+
+CLOSEOUT phase-owned sync integration.
+
+Completed:
+
+- `phase-check CLOSEOUT` can now optionally perform the governed closeout truth sync through `--sync-mode ... --context ...`
+- when sync is requested, the final memory-manager refresh now runs after that sync inside the same phase artifact
+- active helper/docs surfaces now prefer the phase-owned closeout command instead of treating closeout proof and closeout sync as two different public steps
+
+### RGF-159
+
+CLOSEOUT standalone recipe retirement.
+
+Completed:
+
+- the standalone `just integration-validator-closeout-sync ...` recipe was archived and removed from the live `justfile`
+- `phase-check CLOSEOUT` now captures its own required repomem context and calls the governed closeout writer directly
+- active docs no longer present the standalone closeout sync command as part of the operator-facing surface
+
+Archived in this wave:
+
+- retired recipe definition for:
+  - `integration-validator-closeout-sync`
+
 ## Archive Location
 
 Retired scripts and recipe definitions are being archived under:
@@ -169,23 +194,24 @@ The governance board and change history are tracked in:
 
 ## What Is True Now
 
-After the HANDOFF and STARTUP waves:
+After the HANDOFF, STARTUP, and CLOSEOUT public-surface retirement waves:
 
 - startup and handoff now have canonical phase-owned public surfaces
 - retired startup/handoff shims are archived, not left active
 - active docs/helpers have been rebased onto the canonical phase surface
 - command drift is mechanically guarded by command-contract and protocol-alignment checks
+- closeout proof, governed truth sync, and final memory refresh can now run through the same `phase-check CLOSEOUT` artifact
 
 ## What Is Not Done Yet
 
 The next meaningful consolidation target is:
 
-- `CLOSEOUT`
+- internal CLOSEOUT file reduction
 
 Reason:
 
-- CLOSEOUT still has split ownership between phase proof, lifecycle/projection truth-sync, and memory-manager launch
-- the next wave should make `phase-check CLOSEOUT` the single authoritative closeout surface
+- the public CLOSEOUT surface is now canonicalized, but the underlying governed writer still exists as a separate internal script file
+- if further physical file reduction is desired, the next wave is to rehome that internal implementation into a phase-owned library/module so the closeout writer file itself can become archiveable later
 
 ## Working Principle Going Forward
 
