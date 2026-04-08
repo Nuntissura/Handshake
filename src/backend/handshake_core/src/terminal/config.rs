@@ -36,6 +36,15 @@ impl TerminalConfig {
         cfg
     }
 
+    pub fn with_session_scoped_denies_and_allowed_roots(
+        session_id: Option<&str>,
+        allowed_cwd_roots: Vec<PathBuf>,
+    ) -> Self {
+        let mut cfg = Self::with_session_scoped_denies(session_id);
+        cfg.allowed_cwd_roots = allowed_cwd_roots;
+        cfg
+    }
+
     pub fn session_denied_command_patterns() -> Vec<String> {
         Self::SESSION_SCOPED_DENIED_COMMAND_PATTERNS
             .iter()
@@ -89,5 +98,17 @@ mod tests {
     fn with_session_scoped_denies_injects_patterns() {
         let cfg = TerminalConfig::with_session_scoped_denies(Some("session-123"));
         assert_eq!(cfg.denied_command_patterns, TerminalConfig::session_denied_command_patterns());
+    }
+
+    #[test]
+    fn with_session_scoped_denies_injects_allowed_roots() {
+        let cfg = TerminalConfig::with_session_scoped_denies_and_allowed_roots(
+            Some("session-123"),
+            vec![PathBuf::from("src"), PathBuf::from("tests")],
+        );
+        assert_eq!(
+            cfg.allowed_cwd_roots,
+            vec![PathBuf::from("src"), PathBuf::from("tests")]
+        );
     }
 }

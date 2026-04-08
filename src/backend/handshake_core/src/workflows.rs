@@ -11294,10 +11294,31 @@ fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, W
     ))
 }
 
+fn normalize_in_scope_paths_for_validation(in_scope_paths: &[String]) -> Vec<String> {
+    let mut normalized = Vec::new();
+    let mut seen = HashSet::new();
+
+    for path in in_scope_paths {
+        let normalized_path = path.trim().replace('\\', "/");
+        if normalized_path.is_empty() {
+            continue;
+        }
+        if Path::new(&normalized_path).is_absolute() {
+            continue;
+        }
+        if seen.insert(normalized_path.clone()) {
+            normalized.push(normalized_path);
+        }
+    }
+
+    normalized
+}
+
 async fn run_validation_via_mex(
     mex_runtime: &MexRuntime,
     repo_root: &Path,
     verify: &[VerificationSpec],
+    in_scope_paths: &[String],
     capability_profile_id: &str,
     evidence_artifact_rel: &Path,
     evidence_artifact_ref: ArtifactHandle,
@@ -11309,6 +11330,7 @@ async fn run_validation_via_mex(
     let mut all_evidence: Vec<ArtifactHandle> = Vec::new();
     let mut spec_results: Vec<VerifySpecResult> = Vec::new();
     let mut overall_passed = true;
+    let in_scope_paths = normalize_in_scope_paths_for_validation(in_scope_paths);
 
     for (spec_index, spec) in verify.iter().enumerate() {
         let capability = proc_exec_capability_for_command(&spec.command);
@@ -11327,6 +11349,7 @@ async fn run_validation_via_mex(
                 "cwd": ".",
                 "timeout_ms": wall_time_ms,
                 "env": {},
+                "in_scope_paths": &in_scope_paths,
             }),
             capabilities_requested: vec![capability],
             capability_profile_id: Some(capability_profile_id.to_string()),
@@ -14383,6 +14406,7 @@ NEED: {{what you need to unblock}}
                             &mex_runtime,
                             &repo_root,
                             &mt.verify,
+                            &inputs.wp_scope.in_scope_paths,
                             &job.capability_profile_id,
                             &validation_evidence_rel,
                             validation_evidence_ref.clone(),

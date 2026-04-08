@@ -787,8 +787,30 @@ impl EngineAdapter for ShellEngineAdapter {
             .get("session_id")
             .and_then(|v| v.as_str())
             .map(str::to_string);
+        let allowed_cwd_roots = params
+            .get("in_scope_paths")
+            .and_then(|v| v.as_array())
+            .map(|paths| {
+                let mut roots = Vec::with_capacity(paths.len());
+                for path_value in paths {
+                    let Some(path) = path_value.as_str() else {
+                        continue;
+                    };
+                    let path = path.trim();
+                    if path.is_empty() || std::path::Path::new(path).is_absolute() {
+                        continue;
+                    }
+                    roots.push(std::path::PathBuf::from(path));
+                }
+                roots
+            })
+            .unwrap_or_default();
 
-        let cfg = TerminalConfig::with_session_scoped_denies(session_id.as_deref());
+        let cfg =
+            TerminalConfig::with_session_scoped_denies_and_allowed_roots(
+                session_id.as_deref(),
+                allowed_cwd_roots,
+            );
         let guards: Vec<Box<dyn TerminalGuard>> = vec![Box::new(DefaultTerminalGuard)];
         let redactor = PatternRedactor;
 
