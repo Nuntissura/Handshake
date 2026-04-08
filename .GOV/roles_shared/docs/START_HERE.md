@@ -13,6 +13,8 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + work packets. Handshake logger is for milestones/hard bugs when requested.
 - **Shared tooling guardrails:** `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (shared tooling memory: short append-only `Do` / `Don't` / `Why` / `Context` notes for all roles).
 - **Architecture & debug:** `.GOV/roles_shared/docs/ARCHITECTURE.md` and `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`.
+- **Root governance docs/logs:** `.GOV/docs_repo/` — repo-level governance docs, bridge notes, restart notes, and the running consolidation log.
+- **Current consolidation log:** `.GOV/docs_repo/GOVERNANCE_PHASE_CONSOLIDATION_LOG_2026-04-08.md`
 - **Session/runtime law:** `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md` plus the packet-declared external `WP_COMMUNICATION_DIR`.
 - **Governance memory system:** `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md` — fail log, cross-session knowledge, memory types, lifecycle, pre-task snapshots (`just memory-debug-snapshot`), and `just memory-*` commands [CX-503K, RGF-144-147].
 - **Parallel ownership/worktree law:** `.GOV/roles_shared/docs/ROLE_WORKTREES.md`

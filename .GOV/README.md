@@ -30,17 +30,15 @@ Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md`
   - governance audit artifacts
   - `Audits/audits/` for general audits
   - `Audits/smoke_tests/` for smoke-test reviews
-- `docs/`
-  - governance architecture notes and bridge/session-control documentation
-  - `docs/tmp/` for temporary or non-authoritative scratch material only
+- `docs_repo/`
+  - repo-level governance docs, bridge/session-control documentation, and running governance logs
+  - `docs_repo/tmp/` for temporary or non-authoritative scratch material only
 - `adr/`
   - architecture decision records
 - `tools/`
   - governed tool hosts and plugins
 - `operator/`
   - operator-private workspace; non-authoritative unless explicitly designated
-- `reference/`
-  - non-authoritative historical/reference material
 
 ## Primary Authority
 
