@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja090420260043 | Orchestrator | 2026-04-09 00:43 | Work packet creation: WP-1-Session-Observability-Spans-FR-v1 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Session-Observability-Spans-FR-v1.md ). |
 | ilja070420262230 | Orchestrator | 2026-04-07 22:30 | Work packet creation: WP-1-Product-Governance-Check-Runner-v1 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Product-Governance-Check-Runner-v1.md ). |
 | ilja070420262042 | Orchestrator | 2026-04-07 20:42 | Work packet creation: WP-1-Workspace-Safety-Parallel-Sessions-v1 | v02.179 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Workspace-Safety-Parallel-Sessions-v1.md ). |
 | ilja060420260752 | Orchestrator | 2026-04-06 07:52 | Work packet creation: WP-1-Session-Crash-Recovery-Checkpointing-v1 | v02.179 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Session-Crash-Recovery-Checkpointing-v1.md ). |
