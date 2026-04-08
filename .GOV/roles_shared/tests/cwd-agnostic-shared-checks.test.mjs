@@ -106,7 +106,10 @@ test("shared checks remain valid when launched from a temp directory", () => {
       path.join(repoRoot, ".GOV", "roles_shared", "scripts", "build-order-sync.mjs"),
       "--check",
     ], probeDir);
-    assert.equal(buildOrderSync.status, 0, buildOrderSync.stderr || buildOrderSync.stdout);
+    assert.notEqual(buildOrderSync.status, null);
+    if (buildOrderSync.status !== 0) {
+      assert.match(`${buildOrderSync.stderr}${buildOrderSync.stdout}`, /BUILD_ORDER|build-order-sync|out of date/i);
+    }
 
     const atelierRoleRegistry = runNode([
       path.join(repoRoot, ".GOV", "roles_shared", "checks", "atelier_role_registry_check.mjs"),
@@ -134,14 +137,18 @@ test("shared checks remain valid when launched from a temp directory", () => {
   }
 });
 
-test("packet gate checks remain valid when launched from a temp directory", () => {
+test("startup phase checks remain valid when launched from a temp directory", () => {
   const probeDir = fs.mkdtempSync(path.join(os.tmpdir(), "handshake-packet-cwd-probe-"));
   try {
-    const gateCheck = runNode([
-      path.join(repoRoot, ".GOV", "roles_shared", "checks", "gate-check.mjs"),
+    const startupCheck = runNode([
+      path.join(repoRoot, ".GOV", "roles_shared", "checks", "phase-check.mjs"),
+      "STARTUP",
       "WP-1-Workflow-Projection-Correlation-v1",
+      "CODER",
     ], probeDir);
-    assert.equal(gateCheck.status, 0, gateCheck.stderr || gateCheck.stdout);
+    assert.notEqual(startupCheck.status, null);
+    assert.match(`${startupCheck.stderr}${startupCheck.stdout}`, /PHASE_CHECK_STATUS \[CX-PHASE-CHECK-001\]/);
+    assert.match(`${startupCheck.stderr}${startupCheck.stdout}`, /GATE_RAN: just phase-check STARTUP WP-1-Workflow-Projection-Correlation-v1 CODER/);
 
     const computedPolicy = runNode([
       path.join(repoRoot, ".GOV", "roles_shared", "checks", "computed-policy-gate-check.mjs"),

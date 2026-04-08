@@ -11,8 +11,6 @@ function read(relativePath) {
 
 test("coder entrypoints resolve governed packet and check paths through repo-safe helpers", () => {
   const expectations = [
-    [".GOV/roles/coder/checks/pre-work.mjs", "repoPathAbs("],
-    [".GOV/roles/coder/checks/post-work.mjs", "repoPathAbs("],
     [".GOV/roles/coder/checks/coder-bootstrap-claim.mjs", "repoPathAbs("],
     [".GOV/roles/coder/checks/coder-skeleton-checkpoint.mjs", "repoPathAbs("],
   ];

@@ -224,11 +224,6 @@ requireRecipe(errors, justfileContent, "session-cancel", [
 requireRecipe(errors, justfileContent, "session-close", [
   quotedJustGovScript("roles/orchestrator/scripts/session-control-command.mjs", "CLOSE_SESSION"),
 ]);
-requireRecipe(errors, justfileContent, "integration-validator-closeout-check", [
-  `${JUSTFILE_GOV_PREFIX}/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`,
-  "integration-validator-closeout-check",
-]);
-
 for (const command of [
   roleStartupCommand("ORCHESTRATOR"),
   roleStartupCommand("CODER"),
@@ -270,7 +265,7 @@ requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, EXECU
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-coder-session");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-wp-validator-session");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-integration-validator-session");
-requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just integration-validator-closeout-check");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just phase-check CLOSEOUT");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just record-role-model-profiles");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH);
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
@@ -284,7 +279,9 @@ requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just valid
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-next");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-wp-validator-session");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-integration-validator-session");
-requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just integration-validator-closeout-check");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just phase-check STARTUP");
+requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just phase-check STARTUP");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just phase-check CLOSEOUT");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "shared remote WP backup branch");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "## Read-Amplification and Ambiguity Discipline");
@@ -298,6 +295,19 @@ requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "MINIMAL L
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "MODEL PROFILE:");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, ".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "ANTI-REDISCOVERY RULE:");
+for (const [filePath, content] of [
+  [ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol],
+  [CODER_PROTOCOL_PATH, coderProtocol],
+  [VALIDATOR_PROTOCOL_PATH, validatorProtocol],
+  [SESSION_CONTROL_LIB_PATH, sessionControlLib],
+]) {
+  forbidRegex(errors, filePath, content, /just post-work\b/, "just post-work");
+  forbidRegex(errors, filePath, content, /just pre-work\b/, "just pre-work");
+  forbidRegex(errors, filePath, content, /just gate-check\b/, "just gate-check");
+  forbidRegex(errors, filePath, content, /just validator-packet-complete\b/, "just validator-packet-complete");
+  forbidRegex(errors, filePath, content, /just validator-handoff-check\b/, "just validator-handoff-check");
+  forbidRegex(errors, filePath, content, /just integration-validator-closeout-check\b/, "just integration-validator-closeout-check");
+}
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "just --list");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "POST-SIGNATURE RELAPSE GUARD (MANDATORY):");
 requireSubstring(errors, SESSION_CONTROL_LIB_PATH, sessionControlLib, "ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES");

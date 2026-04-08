@@ -1666,3 +1666,77 @@
 - SURFACES:
   - `.GOV/roles_shared/records/SCRIPT_RATIONALIZATION_LOG.md`
 - OUTCOME: the rationalization log now also carries a current-state archive inventory, so operators can answer "what was archived, where did it come from, and what replaced it?" without reconstructing that from terse log rows
+
+### 2026.04.08.8 / GOV-CHANGE-20260408-08
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-156` by cutting HANDOFF over to canonical `phase-check` commands, archiving the retired `post-work` / validator phase shim surfaces, and removing those shim recipes from the live justfile
+- CHANGE_TYPE: HANDOFF_PHASE_SURFACE_CONSOLIDATION
+- DRIVER_EVIDENCE:
+  - `RGF-156`
+  - operator follow-on after the 2026-04-08 governance refactor closeout
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/role-resume-utils.mjs`
+  - `.GOV/roles/coder/checks/post-work.mjs`
+  - `.GOV/roles/coder/README.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/START_HERE.md`
+  - `.GOV/roles_shared/docs/QUALITY_GATE.md`
+  - `.GOV/roles_shared/docs/VALIDATOR_FILE_TOUCH_MAP.md`
+  - `.GOV/roles_shared/scripts/hooks/pre-commit`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles/coder/tests/coder-command-surface.test.mjs`
+  - `.GOV/roles/coder/tests/coder-entrypoint-path-safety.test.mjs`
+  - `.GOV/roles/validator/tests/validator-command-surface.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/tests/governance-command-contract.test.mjs`
+  - `.GOV/roles_shared/records/SCRIPT_RATIONALIZATION_LOG.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: the HANDOFF phase now has one authoritative shared runner for both coder-side closure and validator-side boundary proof, deterministic `--range` / `--rev` selectors flow through `phase-check HANDOFF ... CODER`, the old `post-work` file plus retired phase shim recipe definitions were archived under `../../scripts_archive/`, and the live justfile/docs/helper outputs no longer expose those shim surfaces
+
+### 2026.04.08.9 / GOV-CHANGE-20260408-09
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-157` by cutting STARTUP over to canonical `phase-check` commands, archiving the retired `pre-work` / `gate-check` surfaces, and removing those startup shim recipes/files from the live repo
+- CHANGE_TYPE: STARTUP_PHASE_SURFACE_CONSOLIDATION
+- DRIVER_EVIDENCE:
+  - `RGF-157`
+  - operator follow-on after the 2026-04-08 governance refactor closeout
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles/coder/checks/pre-work-check.mjs`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/coder/scripts/coder-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/checks/orchestrator_gates.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/roles_shared/checks/README.md`
+  - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/tests/governance-command-contract.test.mjs`
+  - `.GOV/roles/coder/checks/pre-work.mjs`
+  - `.GOV/roles_shared/checks/gate-check.mjs`
+  - `.GOV/roles_shared/records/SCRIPT_RATIONALIZATION_LOG.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: the STARTUP boundary now has one canonical public gate (`just phase-check STARTUP WP-{ID} CODER`), active governance surfaces no longer emit `just pre-work` / `just gate-check`, the retired startup script files and recipe definitions were archived under `../../scripts_archive/`, and future drift is mechanically blocked by the updated command-contract/alignment checks

@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { buildPhaseCheckCommand } from "../../../../roles_shared/checks/phase-check-lib.mjs";
 import { captureCheckFinding } from "../../../../roles_shared/scripts/memory/memory-capture-from-check.mjs";
 import {
@@ -545,9 +544,9 @@ export function buildValidatorReadyCommands({
     ];
   }
   return [
-    `just validator-packet-complete ${wpId}`,
-    `just validator-handoff-check ${wpId}`,
-    postWorkCommand,
+    postWorkCommand || buildPhaseCheckCommand({ phase: "HANDOFF", wpId, role: "CODER" }),
+    buildPhaseCheckCommand({ phase: "HANDOFF", wpId, role: "WP_VALIDATOR" }),
+    buildPhaseCheckCommand({ phase: "CLOSEOUT", wpId }),
   ].filter(Boolean);
 }
 
@@ -627,7 +626,7 @@ export function buildValidatorPacketCompleteResult({
     return {
       ok: false,
       exitCode: 1,
-      message: "validator-packet-complete: FAIL - Usage: just validator-packet-complete WP-1-Example",
+      message: "validator-packet-complete: FAIL - WP_ID is required",
     };
   }
 
@@ -1355,25 +1354,6 @@ export function formatValidatorPacketCompleteResult(result = {}) {
   return `${String(result.message || "").trim()}\n`;
 }
 
-export function runValidatorPacketCompleteCli(argv = process.argv.slice(2)) {
-  const command = String(argv[0] || "").trim();
-  if (command !== "validator-packet-complete") {
-    console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/lib/validator-governance-lib.mjs validator-packet-complete WP-1-Example`);
-    process.exit(1);
-  }
-
-  const result = buildValidatorPacketCompleteResult({
-    wpId: argv[1],
-  });
-  const output = formatValidatorPacketCompleteResult(result);
-  if (result.ok) {
-    process.stdout.write(output);
-  } else {
-    process.stderr.write(output);
-  }
-  process.exit(result.ok ? 0 : (result.exitCode || 1));
-}
-
 function normalizeAuthorityRole(value) {
   return String(value || "").trim().toUpperCase().replace(/[\s-]+/g, "_");
 }
@@ -1454,12 +1434,12 @@ function extractPreWorkErrors(output) {
   const errors = [];
   let inErrors = false;
   for (const line of lines) {
-    if (/^Errors:\s*$/i.test(line)) {
+    if (/^\s*Errors:\s*$/i.test(line)) {
       inErrors = true;
       continue;
     }
     if (!inErrors) continue;
-    if (/^(Warnings:|Fix these issues before)/i.test(line.trim())) break;
+    if (/^\s*(Warnings:|Fix these issues before)/i.test(line.trim())) break;
     const itemMatch = line.match(/^\s*\d+\.\s+(.*)$/);
     if (itemMatch) {
       errors.push(itemMatch[1].trim());
@@ -1543,8 +1523,7 @@ function persistCommittedValidationEvidence(wpId, evidence) {
   return state.committed_validation_evidence[wpId];
 }
 
-const PRE_WORK_SCRIPT = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles", "coder", "checks", "pre-work.mjs"));
-const POST_WORK_SCRIPT = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles", "coder", "checks", "post-work.mjs"));
+const PHASE_CHECK_SCRIPT = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles_shared", "checks", "phase-check.mjs"));
 const CARGO_CLEAN_ARGS = [
   "clean",
   "-p",
@@ -1566,7 +1545,7 @@ export function buildValidatorHandoffCheckResult({
   if (!normalizedWpId || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(normalizedWpId)) {
     return validatorHandoffFailure(
       "FAIL",
-      `Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/lib/validator-governance-lib.mjs validator-handoff-check WP-{ID} [--rev <git-rev> | --range <base>..<head>]`,
+      `Usage: ${buildPhaseCheckCommand({ phase: "HANDOFF", wpId: "WP-{ID}", role: "WP_VALIDATOR" })} [--rev <git-rev> | --range <base>..<head>]`,
       [],
       1,
     );
@@ -1607,7 +1586,7 @@ export function buildValidatorHandoffCheckResult({
         return validatorHandoffFailure("CONTEXT_MISMATCH", "PREPARE gate entry is unavailable in this checkout", [
           `current_branch=${gitContext.branch || "<detached>"}`,
           `expected_governance_branch=${expectedGovernanceBranch}`,
-          `rerun=just validator-handoff-check ${normalizedWpId}`,
+          `rerun=${buildPhaseCheckCommand({ phase: "HANDOFF", wpId: normalizedWpId, role: "WP_VALIDATOR" })}`,
         ], 2);
       }
       return validatorHandoffFailure("FAIL", "PREPARE gate entry is missing", [`Run: just orchestrator-next ${normalizedWpId}`], 1);
@@ -1680,9 +1659,21 @@ export function buildValidatorHandoffCheckResult({
       // Keep the user-specified ref literal if rev-parse fails.
     }
 
-    const preWork = runCommandInWorktree(worktreeAbs, process.execPath, [PRE_WORK_SCRIPT, normalizedWpId, "--verbose"]);
+    const preWork = runCommandInWorktree(worktreeAbs, process.execPath, [
+      PHASE_CHECK_SCRIPT,
+      "STARTUP",
+      normalizedWpId,
+      "CODER",
+      "--verbose",
+    ]);
     const cargoClean = runCommandInWorktree(worktreeAbs, "cargo", CARGO_CLEAN_ARGS);
-    const postWork = runCommandInWorktree(worktreeAbs, process.execPath, [POST_WORK_SCRIPT, normalizedWpId, ...committedTarget.args]);
+    const postWork = runCommandInWorktree(worktreeAbs, process.execPath, [
+      PHASE_CHECK_SCRIPT,
+      "HANDOFF",
+      normalizedWpId,
+      "CODER",
+      ...committedTarget.args,
+    ]);
     const cargoCleanStatus = cargoClean.code === 0 ? "PASS" : "FAIL";
     const preWorkNonBlockingForCommittedTarget =
       preWork.code !== 0 && preWorkFailureIsNonBlockingForCommittedTarget(preWork.output);
@@ -1711,9 +1702,19 @@ export function buildValidatorHandoffCheckResult({
       cargo_clean_required: true,
       cargo_clean_status: cargoCleanStatus,
       post_work_status: postWork.code === 0 ? "PASS" : "FAIL",
-      pre_work_command: `node ${repoRelativeDisplayPath(repoRoot, PRE_WORK_SCRIPT)} ${normalizedWpId} --verbose`,
+      pre_work_command: buildPhaseCheckCommand({
+        phase: "STARTUP",
+        wpId: normalizedWpId,
+        role: "CODER",
+        args: ["--verbose"],
+      }),
       cargo_clean_command: `cargo ${CARGO_CLEAN_ARGS.join(" ")}`,
-      post_work_command: `node ${repoRelativeDisplayPath(repoRoot, POST_WORK_SCRIPT)} ${normalizedWpId} ${committedTarget.args.join(" ")}`.trim(),
+      post_work_command: buildPhaseCheckCommand({
+        phase: "HANDOFF",
+        wpId: normalizedWpId,
+        role: "CODER",
+        args: committedTarget.args,
+      }),
       pre_work_output: preWork.output,
       cargo_clean_output: cargoClean.output,
       post_work_output: postWork.output,
@@ -1780,61 +1781,4 @@ export function formatValidatorHandoffCheckResult(result = {}) {
     ...((result.details || []).map((detail) => `  - ${detail}`)),
     "",
   ].join("\n");
-}
-
-export function runValidatorHandoffCheckCli(argv = process.argv.slice(2)) {
-  const command = String(argv[0] || "").trim();
-  if (command !== "validator-handoff-check") {
-    console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/lib/validator-governance-lib.mjs validator-handoff-check WP-{ID} [--rev <git-rev> | --range <base>..<head>]`);
-    process.exit(1);
-  }
-
-  const wpId = String(argv[1] || "").trim();
-  const parsed = { wpId, rev: "", range: "" };
-  for (let index = 2; index < argv.length; index += 1) {
-    const token = String(argv[index] || "").trim();
-    if (token === "--rev") {
-      parsed.rev = String(argv[index + 1] || "").trim();
-      index += 1;
-      continue;
-    }
-    if (token === "--range") {
-      parsed.range = String(argv[index + 1] || "").trim();
-      index += 1;
-      continue;
-    }
-    console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/lib/validator-governance-lib.mjs validator-handoff-check WP-{ID} [--rev <git-rev> | --range <base>..<head>]`);
-    process.exit(1);
-  }
-
-  const result = buildValidatorHandoffCheckResult(parsed);
-  const output = formatValidatorHandoffCheckResult(result);
-  if (result.ok) {
-    process.stdout.write(output);
-  } else {
-    process.stderr.write(output);
-  }
-  process.exit(result.ok ? 0 : (result.exitCode || 1));
-}
-
-export function runValidatorGovernanceCli(argv = process.argv.slice(2)) {
-  const command = String(argv[0] || "").trim();
-  if (command === "validator-packet-complete") {
-    runValidatorPacketCompleteCli(argv);
-    return;
-  }
-  if (command === "validator-handoff-check") {
-    runValidatorHandoffCheckCli(argv);
-    return;
-  }
-
-  console.error(
-    `Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/lib/validator-governance-lib.mjs <validator-packet-complete|validator-handoff-check> ...`,
-  );
-  process.exit(1);
-}
-
-const validatorGovernanceLibIsMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (validatorGovernanceLibIsMain) {
-  runValidatorGovernanceCli();
 }

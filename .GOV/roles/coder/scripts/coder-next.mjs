@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import {
+  buildPhaseCheckCommand,
   buildPostWorkCommand,
   currentGitContext,
   escapeRegex,
@@ -112,6 +113,7 @@ function summarizeDirtyTree(statusPorcelain, scopeContract) {
 }
 
 const { wpId, gitContext, confidence, confidenceDetail } = resolveWpId();
+const startupCommand = buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" });
 
 if (!packetExists(wpId)) {
   failWithContext({
@@ -314,7 +316,7 @@ if (usesSkeletonCheckpointGate && !skeletonCheckpoint) {
   printNextCommands([
     `cat ${packetPath(wpId).replace(/\\/g, "/")}`,
     `just coder-skeleton-checkpoint ${wpId}`,
-    `just pre-work ${wpId}`,
+    startupCommand,
   ]);
   process.exit(0);
 }
@@ -327,7 +329,7 @@ if (usesSkeletonCheckpointGate && !skeletonApproved) {
   printFindings(allFindings);
   printNextCommands([
     `# STOP: Await skeleton approval (${skeletonApprover} runs: just skeleton-approved ${wpId})`,
-    `just pre-work ${wpId}`,
+    startupCommand,
   ]);
   process.exit(0);
 }
@@ -392,7 +394,7 @@ if (implementationFilled) {
     ...dirtyNoiseFindings,
   ]);
   printNextCommands([
-    `just pre-work ${wpId}`,
+    startupCommand,
     microtaskPlan.declared_count > 0
       ? `just active-lane-brief CODER ${wpId}`
       : null,
@@ -418,7 +420,7 @@ printFindings([
   ...dirtyNoiseFindings,
 ]);
 printNextCommands([
-  `just pre-work ${wpId}`,
+  startupCommand,
   microtaskPlan.declared_count > 0
     ? `just active-lane-brief CODER ${wpId}`
     : null,

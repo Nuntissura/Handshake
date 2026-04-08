@@ -13,8 +13,7 @@ function recipeExists(text, recipeName) {
 test("justfile exposes the live coder command surface referenced by coder docs and helpers", () => {
   const justfile = fs.readFileSync(JUSTFILE_PATH, "utf8");
   const requiredRecipes = [
-    "pre-work",
-    "post-work",
+    "phase-check",
     "coder-skeleton-checkpoint",
     "skeleton-approved",
     "backup-push",

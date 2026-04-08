@@ -184,6 +184,6 @@ test("integration-validator context brief falls back to remediation commands for
   assert.equal(brief.context_status, "GOVERNANCE_BLOCKED");
   assert.deepEqual(brief.required_commands, [
     "just validator-policy-gate WP-TEST-VALIDATOR-v1",
-    "just validator-packet-complete WP-TEST-VALIDATOR-v1",
+    "just phase-check CLOSEOUT WP-TEST-VALIDATOR-v1",
   ]);
 });

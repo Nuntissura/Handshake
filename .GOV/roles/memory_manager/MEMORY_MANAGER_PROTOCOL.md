@@ -17,7 +17,7 @@ The Memory Manager is a governed ACP session focused exclusively on memory syste
 | Trigger | Who launches | Condition |
 |---|---|---|
 | Orchestrator startup | `just orchestrator-startup` | Staleness gate: >24h since last run AND >10 new entries |
-| Integration Validator closeout | `just integration-validator-closeout-check` | Always before WP merge to main |
+| Integration Validator closeout | `just phase-check CLOSEOUT WP-{ID}` | Always before WP merge to main |
 | Operator manual | `just launch-memory-manager` | On demand |
 
 ## Memory System Architecture (What You Manage)

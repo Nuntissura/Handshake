@@ -170,7 +170,7 @@ test("validator-report-structure-check rejects PASS packets whose NEGATIVE_PROOF
       "SPEC_CLAUSE_MAP:",
       "- `[X]` -> `src/demo.rs:10`",
       "NEGATIVE_PROOF:",
-      "- Repo governance still blocks `integration-validator-closeout-check` inside `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` and is outside the signed product scope.",
+      "- Repo governance still blocks `phase-check CLOSEOUT` inside `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` and is outside the signed product scope.",
       "",
     ].join("\n"),
   );

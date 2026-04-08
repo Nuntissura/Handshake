@@ -293,7 +293,7 @@ test("integration-validator ready commands emphasize final review and verdict he
     wpId: "WP-TEST-VALIDATOR-v1",
     actorRole: "INTEGRATION_VALIDATOR",
     actorSessionId: "intval:test",
-    postWorkCommand: "just post-work WP-TEST-VALIDATOR-v1",
+    postWorkCommand: "just phase-check HANDOFF WP-TEST-VALIDATOR-v1 CODER",
   });
 
   assert.deepEqual(commands, [

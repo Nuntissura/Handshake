@@ -478,10 +478,10 @@ if (action === 'append') {
             success(`Gate 1 PASSED: Report appended to ${wpId}`, [
                 '',
                 '[NEXT] Record committed handoff validation against the PREPARE worktree source of truth:',
-                `[NEXT] Run: just validator-handoff-check ${wpId}`,
+                `[NEXT] Run: just phase-check HANDOFF ${wpId} WP_VALIDATOR`,
                 '',
                 '[NEXT] Preflight the integration-validator final lane before PASS commit clearance:',
-                `[NEXT] Run: just integration-validator-closeout-check ${wpId}`,
+                `[NEXT] Run: just phase-check CLOSEOUT ${wpId}`,
                 '',
                 '[NEXT] After the committed handoff check passes, record PASS commit clearance:',
                 `[NEXT] Run: just validator-gate-commit ${wpId}`
@@ -567,7 +567,7 @@ if (action === 'commit') {
     if (!durableCommittedProof || durableCommittedProof.status !== 'PASS') {
         fail(`Cannot commit: ${wpId} is missing committed handoff validation evidence`, [
             'PASS commit clearance now requires committed validation against the PREPARE worktree source of truth.',
-            `Run: just validator-handoff-check ${wpId}`,
+            `Run: just phase-check HANDOFF ${wpId} WP_VALIDATOR`,
             durableCommittedProof
                 ? `Latest durable committed proof status: ${durableCommittedProof.status}`
                 : 'No committed validation evidence is recorded for this WP.'
@@ -586,8 +586,8 @@ if (action === 'commit') {
     }
 
     const closeoutPreflight = runNode([
-        `${GOV_ROOT_REPO_REL}/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`,
-        'integration-validator-closeout-check',
+        `${GOV_ROOT_REPO_REL}/roles_shared/checks/phase-check.mjs`,
+        'CLOSEOUT',
         wpId,
     ]);
     if (closeoutPreflight.code !== 0) {
@@ -715,7 +715,7 @@ if (action === 'status') {
             ? (
                 committedEvidenceForCloseout(committedEvidence)?.status === 'PASS'
                     ? `just validator-gate-commit ${wpId}`
-                    : `just validator-handoff-check ${wpId}`
+                    : `just phase-check HANDOFF ${wpId} WP_VALIDATOR`
             )
             : `just validator-gate-present ${wpId}`,
         'COMMITTED': `just validator-gate-present ${wpId}`,

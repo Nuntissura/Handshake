@@ -58,14 +58,8 @@ validator-spec-regression:
 cor701-sha file:
 	node "{{GOV_ROOT}}/roles_shared/checks/cor701-sha.mjs" {{file}}
 
-gate-check wp-id:
-	node "{{GOV_ROOT}}/roles_shared/checks/gate-check.mjs" {{wp-id}}
-
 spec-eof-appendices-check:
 	node "{{GOV_ROOT}}/roles_shared/checks/spec-eof-appendices-check.mjs"
-
-validator-packet-complete wp-id:
-	node "{{GOV_ROOT}}/roles/validator/scripts/lib/validator-governance-lib.mjs" validator-packet-complete {{wp-id}}
 
 wp-declared-topology-check wp-id:
 	node "{{GOV_ROOT}}/roles_shared/checks/wp-declared-topology-check.mjs" {{wp-id}}
@@ -292,12 +286,6 @@ manual-relay-dispatch wp-id context model="PRIMARY" *FLAGS:
 coder-next wp-id="":
 	@node "{{GOV_ROOT}}/roles/coder/scripts/coder-next.mjs" {{wp-id}}
 
-pre-work wp-id *args:
-	@node "{{GOV_ROOT}}/roles/coder/checks/pre-work.mjs" {{wp-id}} {{args}}
-
-post-work wp-id *args:
-	@node "{{GOV_ROOT}}/roles/coder/checks/post-work.mjs" {{wp-id}} {{args}}
-
 coder-skeleton-checkpoint wp-id:
 	@node "{{GOV_ROOT}}/roles/coder/checks/coder-skeleton-checkpoint.mjs" {{wp-id}}
 
@@ -335,13 +323,6 @@ task-board-set wp-id status context reason="":
 	@just repomem-gate
 	@just repomem context "{{context}}" --trigger task-board-set --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs" {{wp-id}} {{status}} "{{reason}}"
-
-validator-handoff-check wp-id *args:
-	@node "{{GOV_ROOT}}/roles/validator/scripts/lib/validator-governance-lib.mjs" validator-handoff-check {{wp-id}} {{args}}
-
-integration-validator-closeout-check wp-id:
-	@node "{{GOV_ROOT}}/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs" integration-validator-closeout-check {{wp-id}}
-	@just launch-memory-manager --force
 
 integration-validator-closeout-sync wp-id context mode merged_main_sha="" *FLAGS:
 	@just repomem-gate
@@ -604,8 +585,8 @@ wp-validator-review wp-id actor_session coder_session summary correlation_id spe
 wp-communication-health-check wp-id stage="STATUS" role="" session="":
 	@node "{{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs" {{wp-id}} {{stage}} {{role}} "{{session}}"
 
-phase-check phase wp-id role="" session="":
-	@node "{{GOV_ROOT}}/roles_shared/checks/phase-check.mjs" {{phase}} {{wp-id}} {{role}} "{{session}}"
+phase-check phase wp-id role="" session="" *args:
+	@node "{{GOV_ROOT}}/roles_shared/checks/phase-check.mjs" {{phase}} {{wp-id}} {{role}} "{{session}}" {{args}}
 
 check-notifications wp-id role="" session="":
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs" {{wp-id}} {{role}} "{{session}}"

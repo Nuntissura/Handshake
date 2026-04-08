@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import {
   currentGitContext,
   loadPacket,
@@ -595,7 +594,7 @@ export function buildIntegrationValidatorCloseoutCheckResult({
   const normalizedWpId = String(wpId || "").trim();
   if (!normalizedWpId || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(normalizedWpId)) {
     return integrationValidatorCloseoutFailure(
-      `Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs integration-validator-closeout-check WP-1-Example`,
+      "WP_ID is required for closeout readiness evaluation.",
       [],
       1,
     );
@@ -684,27 +683,4 @@ export function formatIntegrationValidatorCloseoutCheckResult(result = {}) {
     ...((result.details || []).map((detail) => `  - ${detail}`)),
     "",
   ].join("\n");
-}
-
-export function runIntegrationValidatorCloseoutCheckCli(argv = process.argv.slice(2)) {
-  const command = String(argv[0] || "").trim();
-  const wpId = String(argv[1] || "").trim();
-  if (command !== "integration-validator-closeout-check") {
-    console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs integration-validator-closeout-check WP-1-Example`);
-    process.exit(1);
-  }
-
-  const result = buildIntegrationValidatorCloseoutCheckResult({ wpId });
-  const output = formatIntegrationValidatorCloseoutCheckResult(result);
-  if (result.ok) {
-    process.stdout.write(output);
-  } else {
-    process.stderr.write(output);
-  }
-  process.exit(result.ok ? 0 : (result.exitCode || 1));
-}
-
-const integrationValidatorCloseoutLibIsMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (integrationValidatorCloseoutLibIsMain) {
-  runIntegrationValidatorCloseoutCheckCli();
 }

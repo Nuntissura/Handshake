@@ -10,7 +10,7 @@ Requirements:
 - If multiple packets exist for the same Base WP, update `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet).
 - Packet metadata is the authoritative lifecycle truth. `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, and `BUILD_ORDER.md` are projections and must reconcile to this header.
 - Active packet rule: the packet mapped by `BASE_WP_ID` in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` is the current contract. Any other official packet with the same `BASE_WP_ID` is older history and must be tracked as `SUPERSEDED` on the Task Board.
-- For `REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1`, this packet is auto-hydrated from the signed refinement; manual drift is forbidden and `just pre-work` enforces alignment.
+- For `REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1`, this packet is auto-hydrated from the signed refinement; manual drift is forbidden and `just phase-check STARTUP ... CODER` enforces alignment.
 
 ---
 
@@ -21,7 +21,7 @@ Requirements:
 - WP_ID: {{WP_ID}}
 - BASE_WP_ID: {{WP_ID}} (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: {{DATE_ISO}}
-- MERGE_BASE_SHA: {{MERGE_BASE_SHA}} (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: {{MERGE_BASE_SHA}} (git merge-base main HEAD at creation time; use for deterministic `just phase-check HANDOFF ... CODER --range` evidence)
 - REQUESTOR: {{REQUESTOR}}
 - AGENT_ID: {{AGENT_ID}}
 - ROLE: Orchestrator
@@ -462,10 +462,10 @@ Next: N/A
 ### TEST_PLAN
 ```bash
 # Run before handoff:
-just pre-work {{WP_ID}}
+just phase-check STARTUP {{WP_ID}} CODER
 # ...task-specific commands...
 just cargo-clean
-just post-work {{WP_ID}} --range {{MERGE_BASE_SHA}}..HEAD
+just phase-check HANDOFF {{WP_ID}} CODER --range {{MERGE_BASE_SHA}}..HEAD
 ```
 
 ### DONE_MEANS
@@ -551,7 +551,7 @@ git revert <commit-sha>
 - (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
+- (Mechanical manifest for audit. Fill real values to enable `just phase-check HANDOFF ... CODER`. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
 - **Target File**: `path/to/file`

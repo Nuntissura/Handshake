@@ -498,10 +498,10 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 - `just phase-check <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} [ROLE] [session]`
   - `read-only`
   - canonical phase-boundary gate entrypoint
-  - `STARTUP`: ensures the WP communications folder exists, surfaces the active lane brief for the role, and proves the startup communication mesh before productive work starts
-  - `HANDOFF`: surfaces the active lane brief, runs `validator-packet-complete`, runs `validator-handoff-check`, and proves the governed handoff communication boundary
-  - `VERDICT`: surfaces the active lane brief, runs `validator-packet-complete`, and proves the final review communication boundary
-  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, runs the integration closeout preflight, and refreshes memory-manager maintenance
+  - `STARTUP`: is the canonical startup/bootstrapping gate; for `CODER` it owns the packet/startup proof that used to live behind `pre-work`, and for validator roles it proves the startup communication mesh before productive work starts
+  - `HANDOFF`: proves coder closure or validator handoff readiness from one phase artifact, depending on role
+  - `VERDICT`: proves the final review communication boundary from one phase artifact
+  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, and refreshes memory-manager maintenance
 - `just wp-communication-health-check WP-{ID} [STATUS|KICKOFF|HANDOFF|VERDICT]`
   - `read-only`
   - low-level communication proof and route health; phase-level role guidance should usually prefer the canonical `phase-check` entrypoint above
@@ -516,14 +516,13 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 
 These are typically run from the WP-assigned worktree.
 
-- `just pre-work WP-{ID} [--verbose]`
+- `just phase-check STARTUP WP-{ID} CODER [session] [--verbose]`
   - `read-only`
-  - blocking packet-integrity/start gate
+  - blocking startup gate for coder work
   - default output is compact-by-default and writes the full nested gate output to a governed runtime artifact path
-- `just post-work WP-{ID} [options] [--verbose]`
+- `just phase-check HANDOFF WP-{ID} CODER [--range ... | --rev ... | --verbose]`
   - `read-only`
   - deterministic closure gate against the validated diff window
-  - default output is compact-by-default and writes the full nested gate output to a governed runtime artifact path
 - `just coder-skeleton-checkpoint WP-{ID}`
 - `just skeleton-approved WP-{ID}`
   - `governance-write`
@@ -548,22 +547,16 @@ These are usually run from the WP worktree for WP-validator work or from `handsh
 - `just phase-check <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} [ROLE] [session]`
   - `read-only`
   - canonical validator-facing phase-boundary gate
-  - `HANDOFF`, `VERDICT`, and `CLOSEOUT` are the preferred role-facing entrypoints; leaf checks below remain available for debugging, independent validation, or direct troubleshooting
-- `just gate-check WP-{ID}`
-- `just validator-handoff-check WP-{ID}`
+  - `HANDOFF`, `VERDICT`, and `CLOSEOUT` are the preferred role-facing entrypoints and the only live phase-gate commands
 - `just integration-validator-context-brief WP-{ID} [--json]`
-- `just integration-validator-closeout-check WP-{ID}`
 - `just integration-validator-closeout-sync WP-{ID} <MERGE_PENDING|CONTAINED_IN_MAIN|FAIL|OUTDATED_ONLY|ABANDONED> [MERGED_MAIN_SHA]`
-- `just validator-packet-complete WP-{ID}`
 - `just wp-declared-topology-check WP-{ID}`
 - `just validator-policy-gate WP-{ID}`
     - `read-only`
-    - low-level validator/debug surface beneath the canonical `phase-check` boundary
+    - support/debug surfaces adjacent to the canonical `phase-check` boundary
     - `integration-validator-context-brief` is the canonical final-lane authority/path/source-of-truth bundle for orchestrator-managed Integration Validator review; use it instead of rereading large protocols or rediscovering final-lane paths/commands
     - default text output is compact-by-default and points at the authoritative packet/gate artifacts; use `--json` for the full machine-readable brief
-    - `integration-validator-closeout-check` is the low-level final-lane topology/current-`main` closeout preflight used inside `phase-check CLOSEOUT`; run it directly only when diagnosing a failed composite closeout gate
     - `integration-validator-closeout-sync` is the governed writer that reconciles packet signed-scope compatibility truth plus TASK_BOARD/runtime projection after the preflight is green
-    - `validator-handoff-check` and `validator-packet-complete` are low-level compatibility/debug surfaces used inside `phase-check HANDOFF` / `VERDICT` / `CLOSEOUT`
     - for orchestrator-managed final review, live governance authority still comes from `wt-gov-kernel/.GOV`; `handshake_main/.GOV` is only the synced main-branch mirror and must not be treated as the live authority surface
     - candidate-target validation remains exact to the signed artifact; contained local-main closure may include conflict-resolved harmonization only when the contained commit stays inside the signed file surface and the governed closeout proof still passes
     - `wp-declared-topology-check` surfaces packet-declared vs actual linked-worktree truth for one WP and fails on undeclared auxiliary worktrees

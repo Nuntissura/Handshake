@@ -54,7 +54,7 @@
 - `/justfile`
 - `/.GOV/codex/Handshake_Codex_v1.4.md`
 - `/AGENTS.md`
-Minimum verification for governance-only changes: `just gov-check`. After major governance refactors, also run `just canonise-gov` and inspect every file it surfaces in the review brief, updating drift across codex, role protocols, command surface, architecture, and operator quickref before closeout. A green summary alone is not sufficient. If any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), a WP is required and Gate 0/1 applies (`just pre-work WP-{ID}` / `just post-work WP-{ID}`).
+Minimum verification for governance-only changes: `just gov-check`. After major governance refactors, also run `just canonise-gov` and inspect every file it surfaces in the review brief, updating drift across codex, role protocols, command surface, architecture, and operator quickref before closeout. A green summary alone is not sufficient. If any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), a WP is required and Gate 0/1 applies (`just phase-check STARTUP WP-{ID} CODER` / `just phase-check HANDOFF WP-{ID} CODER`).
 
 [CX-112] HARD_PERMANENT_BRANCHES_AND_WORKTREES (HARD): The permanent branches `main`, `user_ilja`, and `gov_kernel`, and their corresponding permanent worktrees (`handshake_main`, `wt-ilja`, `wt-gov-kernel`), are protected governance assets. The assistant MUST NOT delete them locally or remotely.
 
@@ -266,7 +266,7 @@ Minimum verification for governance-only changes: `just gov-check`. After major 
 [CX-503J] ADVERSARIAL_VALIDATION (RECOMMENDED): Validators SHOULD actively challenge code, not just confirm it works. After verifying compilation and test passage, the validator looks for race conditions, input validation gaps, error handling omissions, capability escalation paths, and spec requirements the coder missed. "Never trust subagent self-reports" (pattern: Metaswarm). [RGF-99]
 [CX-503K] GOVERNANCE_MEMORY_SYSTEM: Governance memory is a cross-session, cross-WP knowledge system stored in `gov_runtime/roles_shared/GOVERNANCE_MEMORY.db` (SQLite, WAL mode, busy_timeout=5s for concurrent writer safety). It stores three memory types: episodic (session events), semantic (distilled facts and patterns), and procedural (fix recipes and workflows — the fail log). Memory is populated mechanically from WP receipts, smoketest findings, check failures, and session-end flushes. Refreshed automatically at every role startup and during `just gov-check`. Memory is NOT a source of truth — work packets, receipts, and governance ledgers remain authoritative. Memory is supplementary context that helps roles avoid repeating known mistakes. The `gov_runtime/` directory is included in backup snapshots; `just memory-export` provides git-trackable JSONL archival. [RGF-103, RGF-115–143]
 [CX-503K1] MEMORY_SESSION_INJECTION: Role-scoped injection at session startup: Coder receives procedural memories only (the fail log, up to 1500 tokens). Validator receives procedural + semantic (fail log + governance context, up to 1500 tokens). Orchestrator receives full cross-WP memory (all types, governance-weighted, up to 2000 tokens with type priority: semantic > procedural > episodic). Scoring: importance * recency_decay * access_boost * staleness_factor * file_scope_match * trust_source. Session diversification caps at 3 memories per source session to prevent one WP dominating context (RGF-133). Roles SHOULD treat injected memory as hints — when memory conflicts with the current packet or code state, the packet and code win. [RGF-120, RGF-124, RGF-125, RGF-128, RGF-130, RGF-133, RGF-138, RGF-139]
-[CX-503K2] MEMORY_EXTRACTION_LIFECYCLE: Memory extraction is mechanical and idempotent. Receipt extraction is event-driven: every `wp-receipt-append` call immediately extracts a memory entry for high-signal receipt kinds (RGF-126). Batch extraction from receipts and smoketests runs at every role startup via `just memory-refresh` and during `just gov-check`. Session-end semantic memory capture runs before CLOSE_SESSION completion, summarizing the session's WP, MTs, and outcomes (RGF-136). Check failures from validator-scan, validator-handoff-check, pre-work, and post-work are automatically captured as procedural memories. Write-time novelty scoring reduces importance for near-duplicate topics (RGF-135). New procedural memories supersede matching old ones with the same file_scope (RGF-137). Contradiction detection flags semantic memories with conflicting content for the same file_scope (RGF-141). Date references are normalized to absolute dates at write time (RGF-143). Compaction uses dual-gate triggering (time + activity thresholds, RGF-134), connectivity-weighted decay (RGF-142), source trust scoring (RGF-139), and a hard cap of 500 active entries with forced pruning (RGF-140). No LLM is required for any operation. [RGF-121–126, RGF-131, RGF-133–143]
+[CX-503K2] MEMORY_EXTRACTION_LIFECYCLE: Memory extraction is mechanical and idempotent. Receipt extraction is event-driven: every `wp-receipt-append` call immediately extracts a memory entry for high-signal receipt kinds (RGF-126). Batch extraction from receipts and smoketests runs at every role startup via `just memory-refresh` and during `just gov-check`. Session-end semantic memory capture runs before CLOSE_SESSION completion, summarizing the session's WP, MTs, and outcomes (RGF-136). Check failures from validator-scan, `just phase-check STARTUP ... CODER`, `just phase-check HANDOFF ...`, and `just phase-check CLOSEOUT ...` are automatically captured as procedural memories. Write-time novelty scoring reduces importance for near-duplicate topics (RGF-135). New procedural memories supersede matching old ones with the same file_scope (RGF-137). Contradiction detection flags semantic memories with conflicting content for the same file_scope (RGF-141). Date references are normalized to absolute dates at write time (RGF-143). Compaction uses dual-gate triggering (time + activity thresholds, RGF-134), connectivity-weighted decay (RGF-142), source trust scoring (RGF-139), and a hard cap of 500 active entries with forced pruning (RGF-140). No LLM is required for any operation. [RGF-121–126, RGF-131, RGF-133–143]
 [CX-503K3] MEMORY_HYGIENE_RESPONSIBILITY: Memory hygiene is performed by a dedicated **Memory Manager** role — a governed ACP session on Codex Spark (reasoning extra-high) that auto-launches at orchestrator startup (staleness-gated: >24h AND >10 new entries) and before every WP merge via the CLOSEOUT phase bundle (`just phase-check CLOSEOUT WP-{ID}`). The Memory Manager analyzes cross-WP patterns, resolves contradictions, flags stale memories, drafts RGF candidates, and writes a structured `MEMORY_HYGIENE_REPORT.md` to `gov_runtime/roles_shared/`. It self-terminates via guaranteed CLOSE_SESSION (try/finally) — no orphan terminals. The orchestrator reviews the report and promotes candidates. Protocol: `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`. Rubric: `.GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md`. Launch: `just launch-memory-manager [--force]`. Coder and Validator contribute passively via receipts, smoketest findings, check failures, and `just memory-capture` entries. [RGF-132]
 [CX-503L] SELF_CLAIM_TASK_BOARD (RECOMMENDED): When available, coder sessions SHOULD claim MTs from a shared task board instead of receiving orchestrator-assigned prompts. The orchestrator creates the board; the coder claims, implements, and marks complete. The validator auto-reviews completed MTs. This removes the orchestrator from the MT assignment loop (pattern: Claude Agent Teams). [RGF-102]
 [CX-503M] LOCAL_MODEL_ROUTING (PRODUCT-SCOPED): Local model integration (Ollama, custom Handshake runtime) is a Handshake product feature, not a repo governance execution concern. Repo governance uses cloud models (OpenAI, Anthropic) for WP execution. The repo governance provider abstraction (profile catalog, dispatch, fallback chain) validates the pattern that the product will implement at scale. When the product governance engine is ready, simple MTs route to local models, complex MTs route to cloud. Auto-escalate to cloud on local model failure. [RGF-109, RGF-113]
@@ -454,7 +454,7 @@ Clarification: governance/workflow/tooling surface lives in `justfile`, `/.GOV/r
 
 [CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/spec/SPEC_CURRENT.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`, `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`, `.GOV/roles_shared/docs/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
 
-[CX-587] ORCH_PRE_WORK_CHECK: Before delegating, the orchestrator SHOULD run (or instruct the coder to run): `just pre-work {WP_ID}` to verify the packet is complete and system is ready for work.
+[CX-587] ORCH_PRE_WORK_CHECK: Before delegating, the orchestrator SHOULD run (or instruct the coder to run): `just phase-check STARTUP {WP_ID} CODER` to verify the packet is complete and system is ready for work.
 
 ### 6.10 Coder Pre-Work Verification (AI Autonomy - Mandatory)
 
@@ -483,7 +483,7 @@ Clarification: governance/workflow/tooling surface lives in `justfile`, `/.GOV/r
 1. Run all commands from TEST_PLAN
 2. Document results in a VALIDATION block
 3. Include command + outcome for each check
-4. For Work Packet work: run `just post-work {WP_ID}` to verify completeness.
+4. For Work Packet work: run `just phase-check HANDOFF {WP_ID} CODER` to verify completeness.
    For governance/workflow work without a Work Packet: run and record the agreed verification commands (at minimum: `just gov-check`).
 
 [CX-627] EVIDENCE_MAPPING_REQUIREMENT: The coder's final report MUST include an `EVIDENCE_MAPPING` block mapping every "MUST" requirement from the Spec to specific lines of code.
@@ -524,7 +524,7 @@ Clarification: governance/workflow/tooling surface lives in `justfile`, `/.GOV/r
 [CX-653] TASK_PACKET_UNIQUENESS: Each Work Packet MUST have its own task packet file (do not reuse an old file for a new WP). Status/notes/validation may be updated within that WP's file as the work progresses.
 
 [CX-655] VALIDATION_TAXONOMY_NO_COLLAPSE (HARD): Validation communications MUST NOT collapse distinct claims into a single "PASS" label. At minimum, keep these claims separate and explicit:
-- Deterministic manifest gate: `just post-work {WP_ID}` (this is **not** a test pass signal)
+- Deterministic manifest gate: `just phase-check HANDOFF {WP_ID} CODER` (this is **not** a test pass signal)
 - TEST_PLAN execution (exact commands + exit codes)
 - Spec conformance confirmation (DONE_MEANS + SPEC_ANCHOR -> evidence mapping)
 - Validator verdict: PASS | FAIL | OUTDATED_ONLY (only after the Validator reviews evidence and appends a report to the task packet)
@@ -599,8 +599,8 @@ Clarification: governance/workflow/tooling surface lives in `justfile`, `/.GOV/r
 
 [CX-903] ENFORCEMENT_JUST: The `justfile` MUST include:
 - `just create-task-packet {wp-id}` - Creates task packet from template
-- `just pre-work {wp-id}` - Validates readiness before implementation
-- `just post-work {wp-id}` - Validates completeness before commit
+- `just phase-check STARTUP {wp-id} CODER` - Validates readiness before implementation
+- `just phase-check HANDOFF {wp-id} CODER` - Validates completeness before commit
 - `just validate-workflow {wp-id}` - Full workflow compliance check
 - `just gov-check` - Governance-only health checks (no product scans)
 
@@ -660,7 +660,7 @@ Drive-agnostic governance is mandatory: use repo-relative `worktree_dir` values 
 2. **Refine the Spec FIRST** [CX-585A]
 3. Create task packet (`just create-task-packet WP-{ID}`) - new file per WP
 4. Update `.GOV/roles_shared/records/TASK_BOARD.md` to "Ready for Dev"
-5. Verify (`just pre-work WP-{ID}`)
+5. Verify (`just phase-check STARTUP WP-{ID} CODER`)
 6. Only then delegate to coder
 7. After delegation, remain workflow authority: launch/monitor/steer sessions, maintain packet/runtime truth, and coordinate validators without switching into coder or validator technical duties [CX-580B]
 
@@ -674,7 +674,7 @@ Drive-agnostic governance is mandatory: use repo-relative `worktree_dir` values 
 7. Implement within scope
 8. **Run Anti-Vibe Verification [CX-628]** (contract drift, dropped fields, stale tests/examples, overclaim review)
 9. **Enforce Block-Over-Placeholder [CX-629]**
-10. Run validation (`just post-work {WP_ID}`)
+10. Run validation (`just phase-check HANDOFF {WP_ID} CODER`)
 11. **Map Evidence to Spec** [CX-627]
 12. Request Validator validation/merge (Validator updates `main` Task Board to Done on PASS/FAIL)
 

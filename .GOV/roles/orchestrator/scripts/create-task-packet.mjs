@@ -13,6 +13,7 @@ import {
   validateRefinementFile,
 } from '../../../roles_shared/checks/refinement-check.mjs';
 import { ensureWpCommunications } from '../../../roles_shared/scripts/wp/ensure-wp-communications.mjs';
+import { buildPhaseCheckCommand } from '../../../roles_shared/checks/phase-check-lib.mjs';
 import {
   formatClauseProofPlanSection,
   formatCoderHandoffBriefSection,
@@ -217,7 +218,7 @@ if (!fs.existsSync(refinementPath)) {
       `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
       '# After signature bundle:',
       `just orchestrator-prepare-and-packet ${WP_ID}`,
-      `just pre-work ${WP_ID}`,
+      buildPhaseCheckCommand({ phase: 'STARTUP', wpId: WP_ID, role: 'CODER' }),
       '# If you only scaffolded refinement (no packet yet), re-run when unblocked:',
       `just create-task-packet ${WP_ID}`,
     ],
@@ -1255,7 +1256,7 @@ ${formatList(hydration.riskMap)}
 
   template = replaceSection(template, 'VALIDATION', `
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
+- (Mechanical manifest for audit. Fill real values to enable `just phase-check HANDOFF <WP_ID> CODER`. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-\`${GOV_ROOT_REPO_REL}/\` files, repeat the manifest block once per changed file (multiple \`**Target File**\` entries are supported).
 - SHA1 hint: stage your changes and run \`just cor701-sha <changed file>\` to get deterministic \`Pre-SHA1\` / \`Post-SHA1\` values.
 - **Target File**: \`N/A (fill after implementation)\`
@@ -1457,8 +1458,9 @@ try {
     nextCommands.push(`just wp-traceability-set ${baseWpId} ${WP_ID}`);
   }
   if (!syncState.ok) {
+    const startupCommand = buildPhaseCheckCommand({ phase: 'STARTUP', wpId: WP_ID, role: 'CODER' });
     nextCommands.push(`# Validator: fast-forward ${syncState.expectedBranch || 'the assigned WP branch'} and ${syncState.worktreeAbs || 'the assigned WP worktree'} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`);
-    nextCommands.push(`# Then in the assigned WP worktree: just pre-work ${WP_ID}`);
+    nextCommands.push(`# Then in the assigned WP worktree: ${startupCommand}`);
     nextCommands.push(`just orchestrator-next ${WP_ID}`);
 
     printGateBlocks({
@@ -1478,7 +1480,7 @@ try {
       nextCommands,
     });
   } else {
-    nextCommands.push(`just pre-work ${WP_ID}`);
+    nextCommands.push(buildPhaseCheckCommand({ phase: 'STARTUP', wpId: WP_ID, role: 'CODER' }));
     if (/^CODER_[A-Z]$/i.test(normalizedExecutionOwner)) {
       nextCommands.push(`just launch-coder-session ${WP_ID}`);
       nextCommands.push(`just launch-wp-validator-session ${WP_ID}`);

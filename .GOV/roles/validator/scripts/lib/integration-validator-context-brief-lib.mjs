@@ -56,7 +56,7 @@ function requiredCommandsForState({ wpId, actorContext, governanceBlocked }) {
   if (governanceBlocked) {
     return [
       `just validator-policy-gate ${wpId}`,
-      `just validator-packet-complete ${wpId}`,
+      buildPhaseCheckCommand({ phase: "CLOSEOUT", wpId }),
     ];
   }
 

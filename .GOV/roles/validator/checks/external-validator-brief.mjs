@@ -290,7 +290,7 @@ if (validatorGovernanceState.legacyRemediationRequired) {
   pushUnique(contextNotes, blockedReason);
   pushUnique(contextNotes, "This packet is a failed historical closure and must not be externally revalidated in place.");
   pushUnique(requiredCommands, `just validator-policy-gate ${parsed.wpId}`);
-  pushUnique(requiredCommands, `just validator-packet-complete ${parsed.wpId}`);
+  pushUnique(requiredCommands, buildPhaseCheckCommand({ phase: "CLOSEOUT", wpId: parsed.wpId }));
   legalVerdicts = [];
   dispositions = [];
   splitFields = [];
@@ -304,7 +304,12 @@ if (validatorGovernanceState.legacyRemediationRequired) {
   pushUnique(requiredCommands, `just external-validator-brief ${parsed.wpId}`);
   pushUnique(requiredCommands, handoffCommand);
   pushUnique(requiredCommands, "just gov-check");
-  pushUnique(requiredCommands, `just post-work ${parsed.wpId}${mergeBaseSha ? ` --range ${mergeBaseSha}..HEAD` : ""}`);
+  pushUnique(requiredCommands, buildPhaseCheckCommand({
+    phase: "HANDOFF",
+    wpId: parsed.wpId,
+    role: "CODER",
+    args: mergeBaseSha ? ["--range", `${mergeBaseSha}..HEAD`] : [],
+  }));
   pushUnique(optionalCommands, "just cargo-clean");
   pushUnique(
     contextNotes,

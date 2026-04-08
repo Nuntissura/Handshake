@@ -202,10 +202,10 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 ## Deterministic Manifest & Gate (Current Workflow)
 
 - Every work packet must preserve the deterministic validation manifest from `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
-- `just pre-work WP-{ID}` is the blocking packet-integrity gate before handoff.
-- `just post-work WP-{ID}` is the deterministic closure gate before done/commit claims.
+- `just phase-check STARTUP WP-{ID} CODER` is the blocking packet-integrity gate before handoff.
+- `just phase-check HANDOFF WP-{ID} CODER` is the deterministic closure gate before done/commit claims.
 - For validator PASS clearance on orchestrator-managed WPs, prefer `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` so packet completeness, PREPARE-source handoff validation, and the governed handoff communication proof run as one boundary gate.
-- Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just phase-check CLOSEOUT WP-{ID}`. If that composite closeout gate fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth. For `PACKET_FORMAT_VERSION >= 2026-03-26`, this also means current-`main` signed-scope compatibility was not honestly cleared or packet widening was not governed explicitly. The low-level `just integration-validator-closeout-check WP-{ID}` remains a debug surface, not the preferred operator-facing entrypoint.
+- Before final PASS commit clearance on orchestrator-managed WPs, expect the Integration Validator to run `just phase-check CLOSEOUT WP-{ID}`. If that composite closeout gate fails, treat final review as not topology-safe / not closeout-ready and do not advance closure truth. For `PACKET_FORMAT_VERSION >= 2026-03-26`, this also means current-`main` signed-scope compatibility was not honestly cleared or packet widening was not governed explicitly.
 - After that preflight is green, prefer `just integration-validator-closeout-sync WP-{ID} ...` instead of manually editing packet/TASK_BOARD/runtime surfaces.
   - PASS before main containment: `MERGE_PENDING`
   - PASS after main containment: `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>`
@@ -597,7 +597,7 @@ Legacy flat compatibility:
   - the consequence that coder handoff must carry anti-vibe + signed-scope-debt self-audit, and validator PASS cannot coexist with unresolved anti-vibe or signed-scope debt
   - for `PACKET_FORMAT_VERSION >= 2026-04-05` and `RISK_TIER=MEDIUM|HIGH`, the additional consequence that validator closeout is dual-track and PASS later requires both `MECHANICAL_TRACK_VERDICT=PASS` and `SPEC_RETENTION_TRACK_VERDICT=PASS`
   - when `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, the additional consequence that validator closeout later requires concrete `DATA_CONTRACT_PROOF` plus explicit `DATA_CONTRACT_GAPS`
-- `just pre-work WP-{ID}` is the blocking packet-integrity gate before delegation.
+- `just phase-check STARTUP WP-{ID} CODER` is the blocking packet-integrity gate before delegation.
 
 ### 3. Delegation and Monitoring
 
@@ -735,7 +735,7 @@ This prevents the mid-smoke governance repair that consumed excessive context in
 Do not:
 - create a packet without a real Main Body `SPEC_ANCHOR`
 - edit locked packets in place
-- delegate when `just pre-work` fails
+- delegate when `just phase-check STARTUP ... CODER` fails
 - let planning projections drift from packet truth
 - broadcast a collapsed single PASS claim for workflow, tests, and spec correctness
 - relay messages between coder and validator (direct communication is mandatory)

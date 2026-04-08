@@ -13,6 +13,7 @@ import {
   workPacketAbsPathAtRepo,
   WORK_PACKET_STORAGE_ROOT_REPO_REL,
 } from "./runtime-paths.mjs";
+import { buildPhaseCheckCommand } from "../../checks/phase-check-lib.mjs";
 import { executionOwnerToPacketValue } from "../session/session-policy.mjs";
 import {
   ACTIVE_ORCHESTRATOR_TASK_BOARD_STATUS_VALUES,
@@ -190,8 +191,19 @@ export function sectionHasMaterialContent(packetContent, heading) {
 
 export function buildPostWorkCommand(wpId, packetContent) {
   const mergeBaseSha = parseMergeBaseSha(packetContent);
-  if (mergeBaseSha) return `just post-work ${wpId} --range ${mergeBaseSha}..HEAD`;
-  return `just post-work ${wpId}`;
+  if (mergeBaseSha) {
+    return buildPhaseCheckCommand({
+      phase: "HANDOFF",
+      wpId,
+      role: "CODER",
+      args: ["--range", `${mergeBaseSha}..HEAD`],
+    });
+  }
+  return buildPhaseCheckCommand({
+    phase: "HANDOFF",
+    wpId,
+    role: "CODER",
+  });
 }
 
 export function hasCommitSubject(pattern) {

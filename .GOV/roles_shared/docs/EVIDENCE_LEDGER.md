@@ -41,7 +41,7 @@ The Role Mailbox stores metadata/hashes and pointers. Raw outputs stay in the wo
 
 ## Agentic minimum (required for agentic runs)
 
-For every command that can block/proceed (examples: `just pre-work`, `just post-work`, `just validator-dal-audit`, `cargo test`):
+For every command that can block/proceed (examples: `just phase-check STARTUP WP-{ID} CODER`, `just phase-check HANDOFF WP-{ID} CODER`, `just validator-dal-audit`, `cargo test`):
 
 A) In the work packet under `## EVIDENCE`, append:
 - COMMAND: (exact)

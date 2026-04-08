@@ -52,19 +52,16 @@ just create-task-packet WP-{phase}-{name}
 # If DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1, keep DATA_CONTRACT_MONITORING honest now and
 # expect validator closeout to require concrete DATA_CONTRACT_PROOF plus DATA_CONTRACT_GAPS.
 
-# Orchestrator: Verify packet complete before delegation
-just pre-work WP-{ID}
-
-# Coder: Verify packet exists before coding
-just pre-work WP-{ID}
+# Orchestrator/Coder: Verify startup gate before implementation
+just phase-check STARTUP WP-{ID} CODER
 
 # Coder: Verify work complete before commit
-just post-work WP-{ID}
+just phase-check HANDOFF WP-{ID} CODER
 
 # Full governed workflow closure
-just pre-work WP-{ID}
+just phase-check STARTUP WP-{ID} CODER
 # run the packet TEST_PLAN product commands here
-just post-work WP-{ID}
+just phase-check HANDOFF WP-{ID} CODER
 
 # Governance-only health check (no product scan)
 just gov-check
@@ -73,7 +70,7 @@ just gov-check
 **Governance-only maintenance (no WP required) [CX-111]:**
 - Allowed scope (planned diff must be strictly limited to these governance surfaces): `/.GOV/**`, `/.github/**`, `/justfile`, `/.GOV/codex/Handshake_Codex_v1.4.md`, `/AGENTS.md`
 - Verification: `just gov-check`
-- If any product path is touched (`/src/`, `/app/`, `/tests/`): STOP and require a WP + Gate 0/1 (`just pre-work WP-{ID}` / `just post-work WP-{ID}`)
+- If any product path is touched (`/src/`, `/app/`, `/tests/`): STOP and require a WP + Gate 0/1 (`just phase-check STARTUP WP-{ID} CODER` / `just phase-check HANDOFF WP-{ID} CODER`)
 - Use `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md` for the no-WP recordkeeping flow.
 - Governance-maintenance records:
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
@@ -84,9 +81,9 @@ just gov-check
   - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
   - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
 
-**Gate 0 (Pre-Work):** work packet MUST exist and pass `just pre-work WP-{ID}` before implementation starts. If blocked, STOP and request help.
+**Gate 0 (Startup):** work packet MUST exist and pass `just phase-check STARTUP WP-{ID} CODER` before implementation starts. If blocked, STOP and request help.
 
-**Gate 1 (Post-Work):** All validation MUST pass `just post-work WP-{ID}` before commit. If blocked, fix issues and re-run.
+**Gate 1 (Handoff):** All validation MUST pass `just phase-check HANDOFF WP-{ID} CODER` before commit. If blocked, fix issues and re-run.
 
 **Gate visibility (chat UX):** when a gate runs (or blocks), paste the verbatim output and immediately follow with a short phase/status + copy/paste next commands (see role protocols).
 

@@ -431,7 +431,7 @@ if (action === 'sign') {
             `just record-role-model-profiles ${wpId}`,
             `just orchestrator-prepare-and-packet ${wpId}`,
             '# Before coder handoff after packet creation, run pre-work and prepare the relayable implementation brief in chat:',
-            `just pre-work ${wpId}`,
+            `just phase-check STARTUP ${wpId} CODER`,
         ];
 
         v2PrintGateBlocks({

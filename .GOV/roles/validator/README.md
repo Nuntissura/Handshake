@@ -21,7 +21,7 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 ## Role-Owned Checks / Scripts
 
 - `scripts/validator-next.mjs`
-- `scripts/lib/validator-governance-lib.mjs` (`validator-packet-complete`, `validator-handoff-check` entrypoints)
+- `scripts/lib/validator-governance-lib.mjs` (shared packet-completeness and committed-handoff validation builders used by `phase-check`)
 - `checks/validator-report-structure-check.mjs`
 - `checks/validator_gates.mjs`
 - `checks/validator-governance-snapshot.mjs`
@@ -36,7 +36,7 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 - `checks/validator-hygiene-full.mjs`
 - `checks/external-validator-brief.mjs`
 - `scripts/lib/integration-validator-context-brief-lib.mjs`
-- `scripts/lib/integration-validator-closeout-lib.mjs` (`integration-validator-closeout-check` entrypoint)
+- `scripts/lib/integration-validator-closeout-lib.mjs` (shared closeout-readiness builder used by `phase-check CLOSEOUT`)
 
 ## Shared Dependencies To Know
 

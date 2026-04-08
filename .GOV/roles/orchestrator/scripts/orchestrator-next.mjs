@@ -29,6 +29,7 @@ import {
   taskBoardStatus,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { EXECUTION_OWNER_RANGE_HELP } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { buildPhaseCheckCommand } from "../../../roles_shared/checks/phase-check-lib.mjs";
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
@@ -622,6 +623,7 @@ function main() {
   }
 
   if (!packetExists) {
+    const startupCommand = buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" });
     printLifecycle({ wpId, stage: "PACKET_CREATE", next: "PRE_WORK" });
     printOperatorEnvelope("NONE", "NONE");
     printConfidence(confidence.level, confidenceDetail);
@@ -630,7 +632,7 @@ function main() {
     if (!/^HYDRATED_RESEARCH_V1$/i.test(refinementParsed?.refinementEnforcementProfile || "")) {
       nextCommands.push(`# Fill legacy packet placeholders (UI/stub metadata, SCOPE, TEST_PLAN, DONE_MEANS, BOOTSTRAP, SPEC_ANCHOR).`);
     }
-    nextCommands.push(`just pre-work ${wpId}`);
+    nextCommands.push(startupCommand);
     nextCommands.push(`just task-board-set ${wpId} READY_FOR_DEV`);
     printNextCommands(nextCommands);
     return;
@@ -755,6 +757,7 @@ function main() {
     return;
   }
   if (!syncState.ok) {
+    const startupCommand = buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" });
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorEnvelope("NONE", "NONE");
     printConfidence(confidence.level, confidenceDetail);
@@ -768,7 +771,7 @@ function main() {
     ]);
     printNextCommands([
       `# Validator: fast-forward ${syncState.expectedBranch || "the assigned WP branch"} and ${syncState.worktreeAbs || "the assigned WP worktree"} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`,
-      `# Then re-run in ${syncState.worktreeAbs || "the assigned WP worktree"}: just pre-work ${wpId}`,
+      `# Then re-run in ${syncState.worktreeAbs || "the assigned WP worktree"}: ${startupCommand}`,
       `just orchestrator-next ${wpId}`,
     ]);
     return;
@@ -836,9 +839,10 @@ function main() {
     ...loadMemoryInsights(wpId),
   ]);
   const runtimeRelayCommand = relayCommandForRuntime(wpId, workflowLane, packetRuntimeState?.runtimeStatus || {});
+  const startupCommand = buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" });
   const cmds = [
     `cat ${packetPath}`,
-    `just pre-work ${wpId}`,
+    startupCommand,
   ];
   if (runtimeRelayCommand) cmds.push(runtimeRelayCommand);
   if (String(workflowLane || "").trim().toUpperCase() === "MANUAL_RELAY") {

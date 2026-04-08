@@ -37,13 +37,13 @@ Git metadata (read-only, via `git ...`):
 
 ### WP phase/gate helpers
 
-`just gate-check WP-...`:
+`just phase-check STARTUP WP-... CODER`:
 - Reads:
   - resolved Work Packet path (`.GOV/work_packets/WP-..../packet.md` logical; current physical `.GOV/task_packets/WP-..../packet.md`; legacy flat `.GOV/task_packets/WP-....md`)
 - Writes: none
 
-`just post-work WP-...`:
-- Runs `just gate-check WP-...` first, then performs deterministic manifest checks.
+`just phase-check HANDOFF WP-... CODER`:
+- Runs the embedded startup packet gate first, then performs deterministic manifest checks.
 - Reads:
   - resolved Work Packet path (`.GOV/work_packets/WP-..../packet.md` logical; current physical `.GOV/task_packets/WP-..../packet.md`; legacy flat `.GOV/task_packets/WP-....md`)
   - resolved refinement path (`.GOV/work_packets/WP-..../refinement.md` logical; current physical `.GOV/task_packets/WP-..../refinement.md`; legacy `.GOV/refinements/WP-....md`)

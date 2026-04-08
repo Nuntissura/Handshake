@@ -49,8 +49,7 @@ just phase-check STARTUP WP-{ID} CODER <coder_session>
 just check-notifications WP-{ID} CODER <coder_session>
 just ack-notifications WP-{ID} CODER <coder_session>
 just wp-coder-intent WP-{ID} <coder_session> <wp_validator_session> "Implementation plan and first proof target" <kickoff_correlation_id>
-just pre-work WP-{ID}
-just post-work WP-{ID}
+just phase-check HANDOFF WP-{ID} CODER
 just wp-coder-handoff WP-{ID} <coder_session> <wp_validator_session> "Committed handoff ready for review"
 ```
 

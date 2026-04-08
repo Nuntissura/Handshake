@@ -151,7 +151,7 @@ Primary commands:
 - `just orchestrator-steer-next WP-... [PRIMARY|FALLBACK]`
 - `just manual-relay-next WP-... [--debug]`
 - `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK] [--debug]`
-- `just pre-work WP-...`
+- `just phase-check STARTUP WP-... CODER`
 - `just wp-heartbeat WP-... ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`
 - `just wp-thread-append WP-... ORCHESTRATOR <session> "<message>" [target]`
@@ -171,10 +171,10 @@ Role rule:
 ## Role: Coder
 
 Primary commands:
-- `just pre-work WP-...`
+- `just phase-check STARTUP WP-... CODER`
 - Implement only within `IN_SCOPE_PATHS`
 - Hygiene: `just product-scan`, `just validator-dal-audit`, `just validator-git-hygiene`
-- Workflow closure evidence: `just post-work WP-...`
+- Workflow closure evidence: `just phase-check HANDOFF WP-... CODER`
 - Session start/steering: `just start-coder-session WP-...`, `just steer-coder-session WP-... "<prompt>"`
 - `just active-lane-brief CODER WP-... [--json]`
 - `just wp-heartbeat WP-... CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
@@ -194,10 +194,10 @@ Role rule:
 
 Primary commands (per WP validation):
 - `just phase-check STARTUP WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session>`
+- `just phase-check HANDOFF WP-... CODER` (canonical coder-side handoff closure)
 - `just phase-check HANDOFF WP-... WP_VALIDATOR`
 - `just phase-check VERDICT WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR`
 - `just phase-check CLOSEOUT WP-...`
-- `just post-work WP-...` (local mirror sanity only unless you are explicitly validating the committed PREPARE target)
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
 - `just product-scan` (product boundary enforcement)
@@ -215,10 +215,7 @@ Primary commands (per WP validation):
 - `just wp-review-exchange REVIEW_REQUEST WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
 - `just wp-review-response WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
 - optional final `microtask_json` may carry `{ "scope_ref": "...", "file_targets": ["..."], "proof_commands": ["..."], "risk_focus": "...", "expected_receipt_kind": "..." }`
-- Debug-only leaf surfaces when a composite phase gate fails and you need the narrower cause:
-  - `just validator-handoff-check WP-...`
-  - `just integration-validator-closeout-check WP-...`
-  - `just validator-packet-complete WP-...`
+- When a composite phase gate fails, inspect the `PHASE_CHECK_STATUS` artifact/output first before dropping into adjacent support helpers.
 
 Governance-only work:
 - `just gov-check`

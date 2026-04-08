@@ -19,13 +19,15 @@ test("validator-next reflects the modeled historical smoketest baseline state fo
   assert.match(result.stdout, /Validator gate status: USER_ACKNOWLEDGED/i);
 });
 
-test("validator-handoff-check reports PREPARE worktree context mismatch for retired v3 environments", () => {
+test("phase-check HANDOFF reports PREPARE worktree context mismatch for retired v3 environments", () => {
   const result = spawnSync(
     process.execPath,
     [
-      path.join(".GOV", "roles", "validator", "scripts", "lib", "validator-governance-lib.mjs"),
-      "validator-handoff-check",
+      path.join(".GOV", "roles_shared", "checks", "phase-check.mjs"),
+      "HANDOFF",
       "WP-1-Loom-Storage-Portability-v3",
+      "WP_VALIDATOR",
+      "--verbose",
     ],
     {
       cwd: REPO_ROOT,
@@ -33,10 +35,11 @@ test("validator-handoff-check reports PREPARE worktree context mismatch for reti
     },
   );
 
-  assert.equal(result.status, 2);
-  assert.match(result.stderr, /CONTEXT_MISMATCH/i);
-  assert.match(result.stderr, /Assigned PREPARE worktree is unavailable/i);
-  assert.match(result.stderr, /recorded_worktree_dir=\.\.\/wtc-storage-portability-v3/i);
+  const output = `${result.stdout || ""}${result.stderr || ""}`;
+  assert.equal(result.status, 1);
+  assert.match(output, /CONTEXT_MISMATCH/i);
+  assert.match(output, /Assigned PREPARE worktree is unavailable/i);
+  assert.match(output, /recorded_worktree_dir=\.\.\/wtc-storage-portability-v3/i);
 });
 
 test("external-validator-brief surfaces independent revalidation contract for historical smoketest baselines", () => {

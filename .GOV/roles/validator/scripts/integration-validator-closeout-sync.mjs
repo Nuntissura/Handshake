@@ -555,4 +555,4 @@ console.log(`  artifact_retention_manifest=${normalizePath(artifactRetentionMani
 if (requestedMode.requireMergedMainCommit) {
   console.log(`  merged_main_commit=${mergedMainCommit}`);
 }
-console.log(`  next=just integration-validator-closeout-check ${wpId}`);
+console.log(`  next=just phase-check CLOSEOUT ${wpId}`);

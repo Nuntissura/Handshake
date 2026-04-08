@@ -27,6 +27,7 @@ import {
   normalizeRepoPath,
 } from "../lib/scope-surface-lib.mjs";
 import {
+  buildPhaseCheckCommand,
   buildPostWorkCommand,
   lastGateLog,
   loadOrchestratorGateLogs,
@@ -434,10 +435,10 @@ function assertCommittedCoderHandoffPreflight({ wpId, context }) {
   }
 
   try {
-    runInWorktree(worktreeAbs, "just", ["pre-work", wpId]);
+    runInWorktree(worktreeAbs, "just", ["phase-check", "STARTUP", wpId, "CODER"]);
   } catch (error) {
     const output = String(error?.stdout || error?.stderr || error?.message || "").trim();
-    throw new Error(`Governed CODER_HANDOFF rejected: just pre-work ${wpId} failed${output ? ` (${output})` : ""}.`);
+    throw new Error(`Governed CODER_HANDOFF rejected: ${buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" })} failed${output ? ` (${output})` : ""}.`);
   }
 
   try {
