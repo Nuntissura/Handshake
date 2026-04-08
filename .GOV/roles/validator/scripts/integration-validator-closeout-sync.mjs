@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { currentGitContext } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
-import { resolveWorkPacketPath, GOV_ROOT_ABS, GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { resolveWorkPacketPath, GOV_ROOT_ABS, GOV_ROOT_REPO_REL, REPO_ROOT, normalizePath, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   parseMergeProgressionTruth,
   updateMergeProgressionTruth,

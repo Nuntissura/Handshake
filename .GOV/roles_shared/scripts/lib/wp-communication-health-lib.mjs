@@ -1001,6 +1001,17 @@ function route({
   };
 }
 
+function runtimeIsContainedTerminalCloseout(runtimeStatus = {}) {
+  const runtimeStatusValue = String(runtimeStatus?.runtime_status || "").trim().toLowerCase();
+  const nextExpectedActor = normalizeRole(runtimeStatus?.next_expected_actor);
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+  const mainContainmentStatus = String(runtimeStatus?.main_containment_status || "").trim().toUpperCase();
+  return runtimeStatusValue === "completed"
+    && nextExpectedActor === "NONE"
+    && waitingOn === "CLOSED"
+    && mainContainmentStatus === "CONTAINED_IN_MAIN";
+}
+
 function latestInvalidityCode(latestReceipt = null) {
   return String(latestReceipt?.workflow_invalidity_code || "").trim().toUpperCase();
 }
@@ -1028,6 +1039,17 @@ export function deriveWpCommunicationAutoRoute({
       readyForValidation: false,
       readyForValidationReason: null,
       attentionRequired: false,
+      notification: null,
+    };
+  }
+
+  if (evaluation.ok && runtimeIsContainedTerminalCloseout(runtimeStatus)) {
+    return {
+      ...route({
+        state: evaluation.state,
+        nextExpectedActor: "NONE",
+        waitingOn: "CLOSED",
+      }),
       notification: null,
     };
   }

@@ -58,7 +58,7 @@ function defaultStopProcess(processId) {
         `    taskkill /F /T /PID $terminalPid`,
         "  }",
         "}",
-      ].join(" "),
+      ].join("; "),
     ],
     { stdio: ["ignore", "pipe", "pipe"] },
   );

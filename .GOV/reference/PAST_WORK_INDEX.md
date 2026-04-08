@@ -1,7 +1,7 @@
 # PAST_WORK_INDEX
 
 ## Current authoritative references
-- [Handshake_Master_Spec_v02.179.md](../spec/Handshake_Master_Spec_v02.179.md) - current authoritative Master Spec (`SPEC_CURRENT` target).
+- [Handshake_Master_Spec_v02.180.md](../spec/Handshake_Master_Spec_v02.180.md) - current authoritative Master Spec (`SPEC_CURRENT` target).
 - [Handshake_Codex_v1.4.md](../codex/Handshake_Codex_v1.4.md) - current governance and operating rules.
 
 ## Recent spec history

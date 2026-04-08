@@ -1242,6 +1242,121 @@ test("auto route notifies orchestrator when the direct review lane is complete",
   });
 });
 
+test("contained-main terminal closeout collapses verdict progression to NONE/CLOSED", () => {
+  const input = baseInput({
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap and skeleton cleared; proceed.",
+        timestamp_utc: "2026-03-22T10:02:30Z",
+      },
+      {
+        receipt_kind: "CODER_HANDOFF",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_REVIEW",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        ack_for: "handoff-1",
+        summary: "PASS. No blocking findings remain in the committed reviewable state.",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_REQUEST",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "INTEGRATION_VALIDATOR",
+        target_session: "intval-1",
+        correlation_id: "final-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:05:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_REVIEW",
+        actor_role: "INTEGRATION_VALIDATOR",
+        actor_session: "intval-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "final-1",
+        ack_for: "final-1",
+        timestamp_utc: "2026-03-22T10:06:00Z",
+      },
+    ],
+    runtimeStatus: {
+      runtime_status: "completed",
+      current_packet_status: "Validated (PASS)",
+      main_containment_status: "CONTAINED_IN_MAIN",
+      current_main_compatibility_status: "COMPATIBLE",
+      current_task_board_status: "DONE_VALIDATED",
+      next_expected_actor: "NONE",
+      next_expected_session: null,
+      waiting_on: "CLOSED",
+      waiting_on_session: null,
+      validator_trigger: "NONE",
+      validator_trigger_reason: null,
+      ready_for_validation: false,
+      ready_for_validation_reason: null,
+      attention_required: false,
+    },
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+  const boundary = evaluateWpCommunicationBoundary({
+    stage: "VERDICT",
+    statusEvaluation: evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+    pendingNotifications: [],
+  });
+
+  assert.equal(evaluation.state, "COMM_OK");
+  assert.equal(route.nextExpectedActor, "NONE");
+  assert.equal(route.waitingOn, "CLOSED");
+  assert.equal(route.notification, null);
+  assert.equal(boundary.ok, true);
+});
+
 test("final review closes when the open request targeted an unassigned integration-validator placeholder", () => {
   const input = baseInput({
     receipts: [

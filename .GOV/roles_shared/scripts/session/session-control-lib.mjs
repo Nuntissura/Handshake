@@ -755,13 +755,10 @@ export function buildStartupPrompt({
     ];
   }
 
-  // RGF-125: orchestrator gets cross-WP governance memory; coder/validator get role-scoped memory
-  const memoryLines = role === "ORCHESTRATOR"
-    ? loadOrchestratorMemoryLines()
-    : loadSessionMemoryLines(wpId, { role });
-
-  // Conversation memory — cross-session conversational context
-  const conversationLines = loadConversationContext();
+  // Memory is written to the governance DB during orchestrator work (repomem).
+  // Coder/validator sessions do not need memory injection — they have the packet,
+  // refinement, and governed startup commands. Injecting memory bloats the prompt
+  // past the Windows cmd.exe 8191-char command-line limit.
 
   const bootLines = [
     `Execute only this startup bootstrap now, in order, before any other work:`,
@@ -772,7 +769,7 @@ export function buildStartupPrompt({
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
   ];
 
-  return [...conversationLines, ...commonLines, ...roleLines, ...memoryLines, ...bootLines].join("\n");
+  return [...commonLines, ...roleLines, ...bootLines].join("\n");
 }
 
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
