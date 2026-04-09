@@ -18,7 +18,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   WORKTREE_SPECS,
@@ -112,6 +112,18 @@ function summarizeStatusEntries(entries = [], limit = 5) {
     .join(", ");
 }
 
+function readGitStatusPorcelainRaw(repoDir, args = []) {
+  return execFileSync(
+    "git",
+    ["status", "--porcelain=v1", "--untracked-files=all", ...args],
+    {
+      cwd: repoDir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    },
+  );
+}
+
 function runSyncGovToMain() {
 
 // --- Resolve paths ---
@@ -156,7 +168,7 @@ if (mainBranch !== "main") {
   fail(`Main worktree is on branch '${mainBranch}', expected 'main'`);
 }
 
-const mainStatus = runGitInRepo(mainWorktreeAbs, ["status", "--porcelain=v1", "--untracked-files=all"]);
+const mainStatus = readGitStatusPorcelainRaw(mainWorktreeAbs);
 const mainDirtiness = classifyMainWorktreeGovSyncStatus(mainStatus);
 
 if (mainDirtiness.govEntries.length > 0) {
