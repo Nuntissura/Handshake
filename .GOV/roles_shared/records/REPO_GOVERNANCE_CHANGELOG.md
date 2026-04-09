@@ -1851,3 +1851,22 @@
 - FOLLOW_ON_ITEMS:
   - `NONE`
 - OUTCOME: governed `memory-recall` now prints a compact `MEMORY_INJECTION_APPLIED` summary for operator visibility, and governed startup prompts once again carry a small bounded fail/context block instead of leaving the startup loader code disconnected from the active prompt builder
+
+### 2026.04.09.4 / GOV-CHANGE-20260409-04
+
+- STATUS: APPLIED
+- SUMMARY: made the Memory Manager mechanical pre-pass conservative and report-first instead of letting automatic runs make destructive judgment calls
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260409-MEMORY-MANAGER-MECHANICAL-CONSERVATISM`
+- SURFACES:
+  - `.GOV/roles/memory_manager/scripts/launch-memory-manager.mjs`
+  - `.GOV/roles/memory_manager/scripts/memory-manager-policy.mjs`
+  - `.GOV/roles/memory_manager/tests/memory-manager-policy.test.mjs`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/Audits/audits/AUDIT_20260409_MEMORY_MANAGER_MECHANICAL_CONSERVATISM.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `NONE`
+- OUTCOME: automatic startup/closeout hygiene now performs soft decay and deterministic repair only, while stale, contradictory, and old low-value memories are surfaced as report-only candidates for the intelligent Memory Manager review instead of being auto-pruned or auto-consolidated
