@@ -123,6 +123,9 @@ These are safe starting points for orientation and health checks.
 - `just memory-prime <WP-{ID}> [--files "file1,file2"] [--desc "<description>"] [--budget N]`
   - `read-only`
   - returns MT-scoped relevant memories within a token budget; designed for injection into session startup
+- `just memory-recall <RESUME|CODER_RESUME|VALIDATOR_RESUME|STEERING|RELAY|REFINEMENT|PACKET_CREATE|COMMAND> [--wp WP-{ID}] [--budget N] [--role ROLE] [--trigger "<command>"] [--script "<script>"]`
+  - `read-only`
+  - render trigger-aware memory injection for the next governed action; prints `MEMORY_INJECTION_APPLIED` plus grouped `TRIGGER PITFALLS`, `ROLE HABITS`, `GENERAL FINDINGS`, and `TRIGGER CONTEXT`
 - `just memory-stats`
   - `read-only`
   - database size, entry counts by type, schema version, last compaction, oldest active entry
@@ -344,9 +347,13 @@ If a role keeps needing those rereads:
 - `just orchestrator-startup`
 - `just coder-startup`
 - `just validator-startup`
+- `just memory-manager-startup`
   - `read-only`
   - protocol ack + backup context + role preflight
   - governed startup prompts are derived from `session-control-lib.mjs` and now explicitly include `AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + role protocol + startup output + packet`
+- `just role-startup-topology-check [--audit-permanent]`
+  - `read-only`
+  - verify worktree topology expectations before role startup; `--audit-permanent` also audits the permanent worktrees so `handshake_main` and `wt-gov-kernel` track `.GOV` while shared-junction worktrees suppress it locally
 - `just orchestrator-preflight`
 - `just coder-preflight`
 - `just validator-preflight`

@@ -24,6 +24,7 @@
 | Build/test fails | `justfile`, package configs (`app/package.json`, Rust `Cargo.toml`) | Re-run `pnpm -C app test`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` |
 | Worktree removal "Filename too long" | Windows MAX_PATH (260 char) limit on deeply nested paths | See **Windows long-path recovery** section below |
 | Governance file edit does not appear in `git status` | worktree-local topology and ignore rules | `git ls-files <path>`, `git check-ignore -v <path>`, inspect `.git/info/exclude`, confirm the current worktree/branch before changing public command surfaces |
+| `just` wrapper fails before Node sees the arguments | PowerShell metacharacter parsing in variadic flags | Prefer the governed wrappers that use `node-argv-proxy.mjs`; reproduce with the exact `just ... --decisions "..."` or `--metadata '{...}'` text, then inspect the wrapper recipe instead of the downstream Node script first |
 
 ### Windows long-path recovery
 

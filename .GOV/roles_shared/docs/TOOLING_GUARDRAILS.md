@@ -89,3 +89,13 @@ Rules:
   - Script failures are written to the governance memory DB and surfaced via `memory-recall` before future actions. Without the wiring, the same failure repeats across sessions with no memory of the fix.
 - Context:
   - `fail-capture-lib.mjs` is at `.GOV/roles_shared/scripts/lib/fail-capture-lib.mjs`. All 67 existing scripts are already wired. New scripts must follow the same pattern.
+
+### TG-008
+- Do:
+  - Route variadic governance `just` wrappers through `node-argv-proxy.mjs` when free-text flags may contain PowerShell metacharacters such as parentheses, braces, quotes, commas, or JSON.
+- Don't:
+  - Do not forward raw `*FLAGS` straight into Node for wrappers like `repomem`, `memory-capture`, or similar commands that accept arbitrary operator text.
+- Why:
+  - PowerShell can misparse the arguments before Node receives them, which makes the failure look like a downstream script bug even when the wrapper is the real problem.
+- Context:
+  - Recurring on `just repomem close ... --decisions "..."` and structured memory-capture flows. The safe pattern is `.GOV/roles_shared/scripts/lib/node-argv-proxy.mjs`.

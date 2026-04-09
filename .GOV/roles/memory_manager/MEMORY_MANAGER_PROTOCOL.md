@@ -36,7 +36,7 @@ The model appends an `## Intelligent Review` section to the report, writes propo
 Because this lane is packetless, the synthetic communication files under `gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-MEMORY-HYGIENE_<timestamp>/` become the authoritative receipt and notification surface for Memory Manager findings.
 Clarification: governed completion is evidenced by the `SESSION_COMPLETION` notification after the Memory Manager stops its turn. Explicit ACP `CLOSE_SESSION` remains orchestrator-owned when the steerable thread itself should be retired.
 
-**Lifecycle:** `just launch-memory-manager-session` → mechanical pre-pass → ACP session start → `memory-manager-startup` → repomem open → review work → write proposals (receipts + backup files) → repomem close → self-terminate. MUST NOT leave orphan terminals.
+**Lifecycle:** `just launch-memory-manager-session` → mechanical pre-pass → ACP session start → `memory-manager-startup` → repomem open → review work → write proposals (receipts + backup files) → repomem close → stop after the governed turn settles and `SESSION_COMPLETION` is emitted. Explicit ACP `CLOSE_SESSION` remains orchestrator-owned. MUST NOT leave orphan terminals.
 
 ## Governance Surface Reduction Discipline
 
