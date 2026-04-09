@@ -419,6 +419,8 @@ These mutate packet, board, traceability, or related governed surfaces.
   - `read-only` except `readiness --write`, which is `runtime-write`
   - role-local Activation Manager startup, prompt, state, and readiness surface
   - use this as the compact activation context digest; manual workflow still keeps pre-launch authority on the Orchestrator
+  - Activation Manager refinement/enrichment quality must match or exceed the old Orchestrator pre-launch lane: research, primitive-index upkeep, matrix upkeep, appendix follow-through, and high-ROI stub discovery all remain mandatory
+  - when handing long refinement or spec-enrichment text back to the Orchestrator, chunk it; safe default is 4 blocks instead of one oversized paste
 - `just activation-record-refinement WP-{ID}`
 - `just activation-record-signature WP-{ID} <signature> <workflow_lane> <execution_lane>`
 - `just activation-record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
@@ -445,6 +447,8 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
   - launch/bootstrap lane
   - Activation Manager is the mandatory governed pre-launch lane for orchestrator-managed workflow; manual workflow keeps pre-launch on the Orchestrator
   - if `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, launch Activation Manager first and do not begin governed coder/validator launch until it has produced truthful `ACTIVATION_READINESS`
+  - on orchestrator-managed lanes, Activation Manager executes refinement/spec-enrichment, packet creation, microtask setup, worktree preparation, backup-branch preparation, and pre-launch health checks, but Orchestrator retains operator approval handling, coder selection, governance patching, readiness acceptance, and relaunch decisions
+  - if Activation Manager handback is wrong or governance control-plane behavior is broken, patch governance in `wt-gov-kernel` and relaunch a fresh Activation Manager with bounded remediation instead of forcing stale-session continuation
   - launch selection resolves through the packet-declared role-model profile bundle when present; Activation Manager falls back to the governed repo default because pre-launch work may begin before packet hydration
   - on the ordinary orchestrator-managed path, supported launch hosts now auto-issue the first governed `START_SESSION` so launch does not stop at a launch-only false green
   - governed launch/control must preserve kernel governance authority with `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`; `handshake_main/.GOV` is not valid live governance for orchestrator-managed integration validation

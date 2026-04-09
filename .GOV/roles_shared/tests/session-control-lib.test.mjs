@@ -107,6 +107,10 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.match(prompt, /WORKFLOW SPLIT \(MANDATORY\): For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`/i);
   assert.match(prompt, /mandatory governed pre-launch authoring lane and temporary worker/i);
   assert.match(prompt, /must own the heavy pre-launch reasoning/i);
+  assert.match(prompt, /REFINEMENT STANDARD \(HARD\):/i);
+  assert.match(prompt, /STUB DISCOVERY RULE \(HARD\):/i);
+  assert.match(prompt, /HANDOFF CHUNKING RULE \(HARD\):/i);
+  assert.match(prompt, /SIGNATURE ROUND-TRIP \(MANDATORY\):/i);
   assert.match(prompt, /For `MANUAL_RELAY`, pre-launch remains Orchestrator-owned/i);
   assert.match(prompt, /just activation-manager readiness WP-TEST-ACTMAN-v1 --write/i);
   assert.match(prompt, /just activation-manager startup/i);
@@ -114,6 +118,8 @@ test("activation-manager startup and steering prompts enforce the workflow split
 
   assert.match(steerPrompt, /RESUME GOVERNED ACTIVATION_MANAGER lane/i);
   assert.match(steerPrompt, /mandatory temporary pre-launch worker/i);
+  assert.match(steerPrompt, /HANDOFF CHUNKING RULE \(HARD\):/i);
+  assert.match(steerPrompt, /REPAIR LOOP \(MANDATORY\):/i);
   assert.match(steerPrompt, /just activation-manager next WP-TEST-ACTMAN-v1/i);
   assert.match(steerPrompt, /just activation-manager readiness WP-TEST-ACTMAN-v1 --write/i);
   assert.doesNotMatch(steerPrompt, /check-notifications/i);
