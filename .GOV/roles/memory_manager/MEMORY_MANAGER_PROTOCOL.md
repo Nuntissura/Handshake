@@ -23,9 +23,9 @@ A model session (default: `claude-sonnet-4-6`) launched after the mechanical pre
 - **Conversation insight review** — find insights the FTS similarity missed, promote manually
 - **Operator-reported entry audit** — verify high-value entries are still accurate and well-worded
 
-The model appends an `## Intelligent Review` section to the report, writes proposals to `.GOV/roles/memory_manager/proposals/`, and self-terminates.
+The model appends an `## Intelligent Review` section to the report, writes proposals to `.GOV/roles/memory_manager/proposals/`, records `just repomem close ...`, and then stops after the governed turn completes.
 
-**Preferred model:** Codex Spark extra-high reasoning when available; falls back to Claude Code Opus 4.6 thinking max.
+**Preferred model:** Claude Code Opus 4.6 thinking max. A lower-cost profile may replace it later when the quality/rate-limit tradeoff is acceptable.
 
 **ACP integration:** The intelligent session is launched through ACP as a governed role (`MEMORY_MANAGER`) with a synthetic WP-ID (`WP-MEMORY-HYGIENE_<timestamp>`). This gives it:
 - Structured communication via receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`)
@@ -34,6 +34,7 @@ The model appends an `## Intelligent Review` section to the report, writes propo
 - Proposals backed up to `.GOV/roles/memory_manager/proposals/<topic>_<timestamp>.md`
 
 Because this lane is packetless, the synthetic communication files under `gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-MEMORY-HYGIENE_<timestamp>/` become the authoritative receipt and notification surface for Memory Manager findings.
+Clarification: governed completion is evidenced by the `SESSION_COMPLETION` notification after the Memory Manager stops its turn. Explicit ACP `CLOSE_SESSION` remains orchestrator-owned when the steerable thread itself should be retired.
 
 **Lifecycle:** `just launch-memory-manager-session` → mechanical pre-pass → ACP session start → `memory-manager-startup` → repomem open → review work → write proposals (receipts + backup files) → repomem close → self-terminate. MUST NOT leave orphan terminals.
 

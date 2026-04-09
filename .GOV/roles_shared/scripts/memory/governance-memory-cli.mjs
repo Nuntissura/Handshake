@@ -43,6 +43,16 @@ function parseFlags(args) {
   return { flags, positional };
 }
 
+function parseMetadataFlag(value) {
+  if (!value) return {};
+  try {
+    return JSON.parse(String(value));
+  } catch (error) {
+    console.error(`[governance-memory] Invalid --metadata JSON: ${error.message}`);
+    process.exit(1);
+  }
+}
+
 const [command, ...rawArgs] = process.argv.slice(2);
 const { flags, positional } = parseFlags(rawArgs);
 
@@ -179,24 +189,32 @@ try {
   } else if (command === "capture") {
     const [memoryType, insight] = positional;
     if (!memoryType || !insight) {
-      console.error('Usage: capture <procedural|semantic|episodic> "<insight>" [--wp WP-{ID}] [--scope "files"] [--role "<role>"]');
+      console.error('Usage: capture <procedural|semantic|episodic> "<insight>" [--wp WP-{ID}] [--scope "files"] [--role "<role>"] [--topic "<topic>"] [--source "<artifact>"] [--importance N] [--metadata \'{...}\']');
       process.exit(1);
     }
     if (!VALID_MEMORY_TYPES.includes(memoryType)) {
       console.error(`Invalid type: ${memoryType}. Must be one of: ${VALID_MEMORY_TYPES.join(", ")}`);
       process.exit(1);
     }
+    const importance = flags.importance ? Number(flags.importance) : 0.7;
+    if (!Number.isFinite(importance) || importance <= 0) {
+      console.error(`[governance-memory] Invalid --importance value: ${flags.importance}`);
+      process.exit(1);
+    }
     const indexId = addMemory(db, {
       memoryType,
-      topic: insight.slice(0, 80),
+      topic: flags.topic || insight.slice(0, 80),
       summary: insight,
       wpId: flags.wp || "",
       fileScope: flags.scope || "",
-      importance: 0.7,
+      importance,
       content: insight,
-      sourceArtifact: "memory-capture",
+      sourceArtifact: flags.source || "memory-capture",
       sourceRole: flags.role || "",
-      metadata: { captured_mid_session: true },
+      metadata: {
+        captured_mid_session: true,
+        ...parseMetadataFlag(flags.metadata || ""),
+      },
     });
     console.log(`[memory-capture] Stored ${memoryType} #${indexId}: ${insight.slice(0, 80)}`);
 

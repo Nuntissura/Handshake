@@ -147,9 +147,9 @@ These are safe starting points for orientation and health checks.
 - `just memory-hybrid-search "<query>" [--type <type>] [--wp WP-{ID}] [--limit N]`
   - `read-only`
   - combine FTS5 keyword + vector cosine similarity via Reciprocal Rank Fusion; requires embeddings (run `just memory-embed` first)
-- `just memory-capture <procedural|semantic|episodic> "<insight>" [--wp WP-{ID}] [--scope "files"] [--role "<role>"]`
+- `just memory-capture <procedural|semantic|episodic> "<insight>" [--wp WP-{ID}] [--scope "files"] [--role "<role>"] [--topic "<topic>"] [--source "<artifact>"] [--importance N] [--metadata '{"...":"..."}']`
   - `runtime-write`
-  - mid-session memory capture for roles; importance 0.7; callable by coders/validators during active work to record fix patterns, systemic issues, or session insights [RGF-127]
+  - mid-session memory capture for roles; default importance 0.7; callable by coders/validators during active work to record fix patterns, systemic issues, or session insights [RGF-127]
 - `just memory-flag <memory-id> "<reason>"`
   - `runtime-write`
   - suppress a bad/misleading memory: sets importance to 0.1, records flag reason in metadata; flagged memories are deprioritized in injection until reviewed
@@ -165,6 +165,9 @@ These are safe starting points for orientation and health checks.
 - `just memory-refresh [--force-compact]`
   - `runtime-write`
   - extract new memories from receipts + smoketests, then run compaction if stale (>24h with dual-gate); called automatically at every role startup + gov-check; `--force-compact` bypasses staleness check
+- `just shell-with-memory <ROLE> <command-family> "<command>" [--wp WP-{ID}] [--shell powershell|bash|cmd] [--action COMMAND] [--scope "files"] [--on-fail "<insight>"] [--on-success "<insight>"]`
+  - `runtime-write`
+  - command-family wrapper for ad hoc shell work: injects trigger-aware memory before execution, records optional repomem context, executes the command in the selected shell, and can capture structured `shell-command` procedural memory for later command-specific recall
 
 ### Conversation memory (`just repomem`)
 
@@ -182,7 +185,7 @@ These are safe starting points for orientation and health checks.
   - research conclusion checkpoint; content >=80 chars
 - `just repomem close "<session summary>" --decisions "<key decisions made>"`
   - `runtime-write`
-  - **MANDATORY** at session end. Content >=80 chars, `--decisions` required. Shows session checkpoint summary. Clears session marker.
+  - **MANDATORY** at session end. Content >=80 chars, `--decisions` required. Shows session checkpoint summary. Clears session marker. The just wrapper now forwards variadic flag text literally so PowerShell metacharacters in `--decisions` content no longer break before Node sees the arguments.
 - `just repomem context "<why this action>" --trigger "<just cmd>"` 
   - `runtime-write`
   - piggybacked context for mutation commands; content >=40 chars; auto-called by `task-board-set`, `create-task-packet`, `orchestrator-steer-next`, `manual-relay-dispatch`, `phase-check CLOSEOUT --sync-mode ...`, `begin-refinement`, `begin-research`, `wp-traceability-set`

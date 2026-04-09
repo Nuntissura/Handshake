@@ -164,10 +164,14 @@ test("memory-manager prompts advertise synthetic receipt emission instead of pac
   assert.match(startupPrompt, /just memory-manager-proposal WP-MEMORY-HYGIENE_2026-04-09T2115Z/i);
   assert.match(startupPrompt, /just memory-manager-flag-receipt WP-MEMORY-HYGIENE_2026-04-09T2115Z/i);
   assert.match(startupPrompt, /just memory-manager-rgf-candidate WP-MEMORY-HYGIENE_2026-04-09T2115Z/i);
+  assert.match(startupPrompt, /just repomem close "<session summary>" --decisions/i);
+  assert.match(startupPrompt, /SESSION_COMPLETION/i);
   assert.match(startupPrompt, /do not expect an official packet/i);
 
   assert.match(steerPrompt, /There is no official packet for this lane/i);
   assert.match(steerPrompt, /MEMORY_PROPOSAL \/ MEMORY_FLAG \/ MEMORY_RGF_CANDIDATE/i);
+  assert.match(steerPrompt, /SESSION_COMPLETION/i);
+  assert.match(steerPrompt, /just repomem close "<session summary>" --decisions/i);
   assert.doesNotMatch(steerPrompt, /active-lane-brief/i);
 });
 

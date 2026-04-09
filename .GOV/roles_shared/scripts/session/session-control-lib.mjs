@@ -795,6 +795,7 @@ export function buildStartupPrompt({
       `SYNTHETIC-WP RULE: ${wpId} is a synthetic packetless governed lane. Do not expect an official packet or packet-derived runtime projection. Use the hygiene report, proposal backup files, and the synthetic WP communication ledger as the live truth surface.`,
       `RECEIPT EMISSION (MANDATORY): when you create an orchestrator-facing proposal, flag, or RGF candidate, emit the matching governed receipt and keep the markdown backup file in \`.GOV/roles/memory_manager/proposals/\`. Commands: \`just memory-manager-proposal ${wpId} <your-session> "<summary>" "<backup_ref>"\`, \`just memory-manager-flag-receipt ${wpId} <your-session> "<summary>" "<backup_ref>"\`, \`just memory-manager-rgf-candidate ${wpId} <your-session> "<summary>" "<backup_ref>"\`.`,
       `RECEIPT DISCIPLINE: the receipt summary must match the actual backup artifact you wrote. Use the backup file path as \`backup_ref\`; do not emit MEMORY_* receipts without the corresponding report/proposal evidence unless no file is honestly needed.`,
+      `CLOSEOUT DISCIPLINE: when the review work is actually complete, run \`just repomem close "<session summary>" --decisions "<key decisions without shell metacharacter tricks>"\` before stopping. Completion for this lane is signaled by the governed \`SESSION_COMPLETION\` notification after your turn settles; explicit ACP \`CLOSE_SESSION\` remains orchestrator-owned.`,
       `ORCHESTRATOR VISIBILITY: MEMORY_* receipts route to ORCHESTRATOR through the synthetic WP communication lane. Use \`just check-notifications ${wpId} MEMORY_MANAGER <your-session>\` only if the Orchestrator later targets this role with follow-up guidance.`,
       `BOUNDARIES: do not edit protocols, codex, AGENTS.md, product code, or the governance task board directly.`,
     ];
@@ -926,6 +927,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       `1. ${resolvedRoleConfig.nextCommand}`,
       `2. Inspect any existing backup proposal files before drafting new MEMORY_* receipts so you do not duplicate findings.`,
       `3. Emit only the single next truthful MEMORY_PROPOSAL / MEMORY_FLAG / MEMORY_RGF_CANDIDATE receipt(s) backed by real written evidence.`,
+      `4. If this steer completes the review, run \`just repomem close "<session summary>" --decisions "<key decisions>"\` and then stop. The governed control lane will emit \`SESSION_COMPLETION\` when the turn settles; do not invent your own session-retirement mechanism.`,
       `Report only maintenance findings, emitted receipt kinds, blockers, and next required command(s).`,
       `Do not request routine Operator approval or treat this like a packet-based implementation lane.`,
     ].join("\n");

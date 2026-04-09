@@ -1,4 +1,4 @@
-# Repo Governance Changelog
+﻿# Repo Governance Changelog
 
 ## Metadata
 
@@ -1377,7 +1377,7 @@
   - `RGF-84`
   - `RGF-82`
   - `RGF-85`
-- OUTCOME: the authoritative human-facing surfaces now teach “resolve Work Packets through the logical `work_packets` model, with `.GOV/task_packets/` as compatibility storage” instead of presenting `task_packets` as the conceptual source of truth
+- OUTCOME: the authoritative human-facing surfaces now teach â€œresolve Work Packets through the logical `work_packets` model, with `.GOV/task_packets/` as compatibility storageâ€ instead of presenting `task_packets` as the conceptual source of truth
 
 ### 2026.04.05.14 / GOV-CHANGE-20260405-14
 
@@ -1948,6 +1948,16 @@
 - SURFACES:
   - `.GOV/roles_shared/checks/worktree-concurrency-check.mjs`
   - `.GOV/roles_shared/tests/worktree-concurrency-check.test.mjs`
+  - `.GOV/roles_shared/scripts/memory/memory-recall.mjs`
+  - `.GOV/roles_shared/scripts/memory/shell-with-memory.mjs`
+  - `.GOV/roles_shared/tests/memory-recall.test.mjs`
+  - `.GOV/roles_shared/tests/shell-with-memory.test.mjs`
+  - `justfile`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-160`
+  - `RGF-168`
+- OUTCOME: `gov-check` no longer treats synthetic `WP-MEMORY-HYGIENE_<ts>` Memory Manager lanes as product WPs that require coder/WP-validator worktrees, and governance now has an initial command-family shell wrapper that performs trigger-aware recall before ad hoc shell commands and can capture structured `shell-command` procedural memory keyed by command family
 
 ### 2026.04.10.3 / GOV-CHANGE-20260410-03
 
@@ -1966,13 +1976,30 @@
 - FOLLOW_ON_ITEMS:
   - `RGF-167`
 - OUTCOME: the relay watchdog now supports an explicit `--allow-restart` repair rung that stays default-off and only cancels plus re-steers a governed lane when the projected target is one of `CODER` / `WP_VALIDATOR` / `INTEGRATION_VALIDATOR`, the lane is already classified as `REPORT_STALLED_ACTIVE_RUN`, the target session still claims `COMMAND_RUNNING`, the output file and session activity are both older than the configured freshness threshold, and every matching active run is already past `timeout_at`; otherwise the watchdog remains in report/escalate mode without destructive intervention
-  - `.GOV/roles_shared/scripts/memory/memory-recall.mjs`
+
+### 2026.04.10.4 / GOV-CHANGE-20260410-04
+
+- STATUS: APPLIED
+- SUMMARY: completed the Memory Manager ACP proof lane and hardened shell-command memory forwarding on the live `just` surface
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260410-MEMORY-MANAGER-COMPLETION-AND-COMMAND-MEMORY-FORWARDING`
+  - `procedural memory #791`
+  - 2026-04-10 follow-on after the first ACP Memory Manager proof and the operator-directed shell-memory injection work
+- SURFACES:
+  - `.GOV/Audits/audits/AUDIT_20260410_MEMORY_MANAGER_COMPLETION_AND_COMMAND_MEMORY_FORWARDING.md`
+  - `.GOV/roles_shared/scripts/lib/node-argv-proxy.mjs`
+  - `.GOV/roles_shared/tests/node-argv-proxy.test.mjs`
+  - `.GOV/roles_shared/scripts/memory/governance-memory-cli.mjs`
   - `.GOV/roles_shared/scripts/memory/shell-with-memory.mjs`
-  - `.GOV/roles_shared/tests/memory-recall.test.mjs`
-  - `.GOV/roles_shared/tests/shell-with-memory.test.mjs`
-  - `justfile`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/checks/wp-communications-check.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-check.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `justfile`
 - FOLLOW_ON_ITEMS:
   - `RGF-160`
   - `RGF-168`
-- OUTCOME: `gov-check` no longer treats synthetic `WP-MEMORY-HYGIENE_<ts>` Memory Manager lanes as product WPs that require coder/WP-validator worktrees, and governance now has an initial command-family shell wrapper that performs trigger-aware recall before ad hoc shell commands and can capture structured `shell-command` procedural memory keyed by command family
+- OUTCOME: packetless Memory Manager ACP lanes now survive `gov-check`, completion is documented through governed `SESSION_COMPLETION` plus `repomem close`, and the `shell-with-memory` / `repomem` command family now forwards variadic flag text safely through PowerShell while routing structured shell-command memory through the canonical memory CLI

@@ -19,6 +19,19 @@ test("resolveRecallContext derives default steering trigger and script hints", (
   assert.equal(context.primaryTrigger, "orchestrator-steer-next");
 });
 
+test("resolveRecallContext preserves explicit command-family trigger hints", () => {
+  const context = resolveRecallContext("COMMAND", {
+    role: "CODER",
+    trigger: "cargo-test",
+    script: "cargo-test",
+  });
+
+  assert.deepEqual(context.roleCandidates, ["CODER"]);
+  assert.deepEqual(context.triggerRefs, ["cargo-test"]);
+  assert.ok(context.scriptCandidates.includes("cargo-test.mjs"));
+  assert.equal(context.primaryTrigger, "cargo-test");
+});
+
 test("resolveRecallContext keeps RESUME neutral without a WP and targets orchestrator-next when scoped", () => {
   const neutralContext = resolveRecallContext("RESUME", {});
   assert.deepEqual(neutralContext.roleCandidates, []);
@@ -38,6 +51,23 @@ test("entryMatchesTriggerContext matches fail-capture script metadata", () => {
     content: "Script orchestrator-steer-next.mjs failed: packet drift",
     source_artifact: "fail-capture",
     metadata: JSON.stringify({ script: "orchestrator-steer-next.mjs" }),
+  };
+
+  assert.equal(entryMatchesTriggerContext(entry, context), true);
+});
+
+test("entryMatchesTriggerContext matches shell-command command-family metadata", () => {
+  const context = resolveRecallContext("COMMAND", {
+    role: "CODER",
+    trigger: "cargo-test",
+    script: "cargo-test",
+  });
+  const entry = {
+    topic: "cargo-test: rerun with -- --nocapture when assertion output is truncated",
+    summary: "Use cargo test -- --nocapture to see failing assertion output",
+    content: "Use cargo test -- --nocapture to see failing assertion output",
+    source_artifact: "shell-command",
+    metadata: JSON.stringify({ command_family: "cargo-test", raw_command: "cargo test -p handshake_core" }),
   };
 
   assert.equal(entryMatchesTriggerContext(entry, context), true);

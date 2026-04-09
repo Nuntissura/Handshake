@@ -16,6 +16,7 @@
  *   RELAY            - relay communication issues, prior relay outcomes
  *   DELEGATION       - packet creation issues, dependency pitfalls
  *   PACKET_CREATE    - prior packet failures, template issues
+ *   COMMAND          - shell command family habits, trigger-specific failures
  *
  * Output: structured block printed to stdout for model consumption.
  * Exit 0 always (best-effort; never blocks the calling command).
@@ -120,6 +121,16 @@ export const ACTION_SCOPES = {
     ],
     topN: { memoryType: "procedural", limit: 8 },
   },
+  COMMAND: {
+    label: "Command",
+    description: "Shell command family habits - trigger-specific failures, execution workarounds, safe usage patterns",
+    queries: [
+      { type: "procedural", keywords: "shell command terminal powershell bash workaround exit code" },
+      { type: "procedural", keywords: "script failure retry invocation quoting path" },
+      { type: "episodic", keywords: "command failed workaround" },
+    ],
+    topN: { memoryType: "procedural", limit: 8 },
+  },
 };
 
 export const VALID_ACTIONS = Object.keys(ACTION_SCOPES);
@@ -160,16 +171,22 @@ const ACTION_HINTS = {
     triggerRefs: ["create-task-packet", "activation-create-task-packet"],
     scriptCandidates: ["create-task-packet.mjs"],
   },
+  COMMAND: {
+    roleCandidates: [],
+    triggerRefs: [],
+    scriptCandidates: [],
+  },
 };
 
 const ROLE_HABIT_SOURCES = new Set([
   "memory-capture",
   "memory-intent-snapshot",
   "fail-capture",
+  "shell-command",
   "RECEIPTS.jsonl",
 ]);
 const OPERATOR_SOURCES = new Set(["operator-reported", "memory-capture"]);
-const TRIGGER_SENSITIVE_SOURCES = new Set(["fail-capture", "memory-capture", "memory-intent-snapshot"]);
+const TRIGGER_SENSITIVE_SOURCES = new Set(["fail-capture", "memory-capture", "memory-intent-snapshot", "shell-command"]);
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing
@@ -322,6 +339,9 @@ export function entryMatchesTriggerContext(entry, context) {
     entry.file_scope,
     metadata.script,
     metadata.trigger_script,
+    metadata.trigger,
+    metadata.command_family,
+    metadata.raw_command,
   ]
     .filter(Boolean)
     .join("\n")
@@ -330,6 +350,8 @@ export function entryMatchesTriggerContext(entry, context) {
   const sourceArtifact = String(entry.source_artifact || "").toLowerCase();
   const metadataScript = String(metadata.script || "").toLowerCase();
   const metadataTrigger = String(metadata.trigger_script || "").toLowerCase();
+  const metadataCommandFamily = String(metadata.command_family || "").toLowerCase();
+  const metadataTriggerRef = String(metadata.trigger || "").toLowerCase();
 
   for (const scriptName of context.scriptCandidates.map((entry) => entry.toLowerCase())) {
     if (!scriptName) continue;
@@ -337,6 +359,13 @@ export function entryMatchesTriggerContext(entry, context) {
       return true;
     }
     if (searchable.includes(scriptName)) return true;
+  }
+
+  for (const triggerRef of context.triggerRefs.map((entry) => entry.toLowerCase())) {
+    if (!triggerRef) continue;
+    if (metadataCommandFamily === triggerRef || metadataTriggerRef === triggerRef) {
+      return true;
+    }
   }
 
   for (const triggerRef of context.triggerRefs.map((entry) => entry.toLowerCase())) {

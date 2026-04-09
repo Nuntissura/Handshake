@@ -455,19 +455,19 @@ failure-memory-query query:
 # --- Governance Memory System (RGF-115 through RGF-143) ---
 
 memory-add type topic summary *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" add {{type}} "{{topic}}" "{{summary}}" {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" add {{type}} "{{topic}}" "{{summary}}" --raw-flags "{{FLAGS}}"
 
 memory-search query *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" search "{{query}}" {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" search "{{query}}" --raw-flags "{{FLAGS}}"
 
 memory-prime wp-id *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" prime {{wp-id}} {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" prime {{wp-id}} --raw-flags "{{FLAGS}}"
 
 memory-stats:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" stats
 
 memory-decay *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" decay {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" decay --raw-flags "{{FLAGS}}"
 
 memory-migrate-failure-memory:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" migrate-failure-memory
@@ -482,22 +482,25 @@ memory-compact *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-compact.mjs" {{FLAGS}}
 
 memory-embed *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" embed {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" embed --raw-flags "{{FLAGS}}"
 
 memory-hybrid-search query *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" hybrid-search "{{query}}" {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" hybrid-search "{{query}}" --raw-flags "{{FLAGS}}"
 
 memory-capture type insight *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" capture {{type}} "{{insight}}" {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" capture {{type}} "{{insight}}" --raw-flags "{{FLAGS}}"
 
 memory-flag id reason:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" flag {{id}} "{{reason}}"
 
 memory-intent-snapshot intent *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" intent-snapshot "{{intent}}" {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" intent-snapshot "{{intent}}" --raw-flags "{{FLAGS}}"
 
 memory-recall action *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-recall.mjs" {{action}} {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-recall.mjs" {{action}} --raw-flags "{{FLAGS}}"
+
+shell-with-memory role command_family command *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/shell-with-memory.mjs" {{role}} {{command_family}} "{{command}}" --raw-flags "{{FLAGS}}"
 
 begin-refinement wp-id intent:
 	@just repomem-gate
@@ -513,22 +516,22 @@ begin-research intent *FLAGS:
 	@echo "[INTENT_GATE] Intent captured. Proceed with research."
 
 memory-debug-snapshot *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" debug-snapshot {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" debug-snapshot --raw-flags "{{FLAGS}}"
 
 memory-patterns *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-patterns.mjs" {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-patterns.mjs" --raw-flags "{{FLAGS}}"
 
 repomem subcommand content="" *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" {{subcommand}} "{{content}}" {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" {{subcommand}} "{{content}}" --raw-flags "{{FLAGS}}"
 
 repomem-gate:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" gate
 
 memory-refresh *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-refresh.mjs" {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-refresh.mjs" --raw-flags "{{FLAGS}}"
 
 launch-memory-manager *FLAGS:
-	@node "{{GOV_ROOT}}/roles/memory_manager/scripts/launch-memory-manager.mjs" {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles/memory_manager/scripts/launch-memory-manager.mjs" --raw-flags "{{FLAGS}}"
 
 memory-manager-proposal wp-id actor-session summary backup_ref="" correlation_id="":
 	@node "{{GOV_ROOT}}/roles/memory_manager/scripts/memory-manager-receipt.mjs" {{wp-id}} "{{actor-session}}" MEMORY_PROPOSAL "{{summary}}" "{{backup_ref}}" "{{correlation_id}}" ORCHESTRATOR
@@ -551,7 +554,7 @@ memory-manager-startup:
 	@echo ''
 
 role-startup-topology-check *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/checks/role-startup-topology-check.mjs" {{FLAGS}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/checks/role-startup-topology-check.mjs" --raw-flags "{{FLAGS}}"
 
 launch-memory-manager-session host="SYSTEM_TERMINAL" model="PRIMARY":
 	@just launch-memory-manager --force
