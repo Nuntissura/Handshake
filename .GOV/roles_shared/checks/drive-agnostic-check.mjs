@@ -116,6 +116,7 @@ const roots = [
   path.join(repoRoot, GOV_ROOT_REPO_REL, "templates"),
   path.join(repoRoot, GOV_ROOT_REPO_REL, "tools"),
   path.join(repoRoot, GOV_ROOT_REPO_REL, "docs", "vscode-session-bridge", "GOVERNED_SESSION_CONTROL_ARCHITECTURE.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "docs_repo", "GOVERNED_SESSION_CONTROL_ARCHITECTURE.md"),
 ];
 
 const files = roots.flatMap((root) => {

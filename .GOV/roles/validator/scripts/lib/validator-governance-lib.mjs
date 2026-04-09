@@ -104,6 +104,12 @@ function normalizeSession(value) {
   return raw || null;
 }
 
+function matchesSessionOfRecord(sessionOfRecord, candidates = []) {
+  const expected = normalizeSession(sessionOfRecord);
+  if (!expected) return true;
+  return candidates.some((candidate) => normalizeSession(candidate) === expected);
+}
+
 export function normalizeValidatorRole(value) {
   const normalized = String(value || "").trim().toUpperCase().replace(/[\s-]+/g, "_");
   if (!normalized) return "";
@@ -485,11 +491,10 @@ export function evaluateValidatorPassAuthority({
       authority.technicalAuthority === "INTEGRATION_VALIDATOR"
       && authority.integrationValidatorOfRecord
       && authority.integrationValidatorOfRecord !== "<unassigned>"
-      && actorSessionId
-      && authority.integrationValidatorOfRecord !== actorSessionId
+      && !matchesSessionOfRecord(authority.integrationValidatorOfRecord, [actorSessionKey, actorSessionId])
     ) {
       issues.push(
-        `Integration validator of record mismatch (packet=${authority.integrationValidatorOfRecord}, current=${actorSessionId}).`,
+        `Integration validator of record mismatch (packet=${authority.integrationValidatorOfRecord}, current=${actorSessionKey || actorSessionId || "<missing>"}).`,
       );
     }
   }

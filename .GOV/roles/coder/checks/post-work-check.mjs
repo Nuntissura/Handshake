@@ -22,6 +22,7 @@ import {
   parsePacketScopeDiscipline,
   scopeDisciplineRequiresEnforcement,
 } from '../../../roles_shared/scripts/lib/scope-surface-lib.mjs';
+import { resolveCommittedCoderHandoffRange } from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
 import { resolveGitBaselineMergeBase } from '../scripts/lib/coder-governance-lib.mjs';
 
 const usage = () => [
@@ -283,13 +284,7 @@ const scopeContract = deriveWpScopeContract({ wpId: WP_ID, packetContent });
 const scopeDiscipline = parsePacketScopeDiscipline(packetContent);
 const enforceScopeDiscipline = scopeDisciplineRequiresEnforcement(parsePacketSingleField(packetContent, 'PACKET_FORMAT_VERSION'));
 
-const parseMergeBaseSha = (content) => {
-  if (!content) return null;
-  const m = content.match(/^\s*-\s*MERGE_BASE_SHA\s*:\s*([a-f0-9]{40})\s*$/mi);
-  return m ? m[1].toLowerCase() : null;
-};
-
-const PACKET_MERGE_BASE_SHA = parseMergeBaseSha(packetContent);
+const PACKET_COMMITTED_HANDOFF_RANGE = resolveCommittedCoderHandoffRange(packetContent, WP_ID);
 
 const requiresManifest = (filePath) => {
   const p = filePath.replace(/\\/g, '/');
@@ -593,10 +588,14 @@ const resolveEvaluation = () => {
   if (stagedFiles.length > 0) return { mode: 'staged', baseRev: null, headRev: null, reason: 'staged changes present' };
   if (workingFiles.length > 0) return { mode: 'worktree', baseRev: null, headRev: null, reason: 'working tree changes present' };
 
-  const head = 'HEAD';
-  if (PACKET_MERGE_BASE_SHA) {
-    return { mode: 'range', baseRev: PACKET_MERGE_BASE_SHA, headRev: head, reason: 'clean tree; validate packet MERGE_BASE_SHA..HEAD' };
+  if (PACKET_COMMITTED_HANDOFF_RANGE) {
+    const { baseRev, headRev, source } = PACKET_COMMITTED_HANDOFF_RANGE;
+    const reason = source === 'PACKET_EXPLICIT_HANDOFF_RANGE'
+      ? 'clean tree; validate packet explicit committed coder handoff range'
+      : 'clean tree; validate packet MERGE_BASE_SHA..HEAD';
+    return { mode: 'range', baseRev, headRev, reason };
   }
+  const head = 'HEAD';
   if (MERGE_BASE) {
     try {
       const headSha = gitTrim('git rev-parse HEAD');

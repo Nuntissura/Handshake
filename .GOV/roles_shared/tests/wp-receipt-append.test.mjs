@@ -12,7 +12,10 @@ import {
   summarizeCommittedCoderHandoffDirtyState,
   validateWpReceiptAppendPreconditions,
 } from "../scripts/wp/wp-receipt-append.mjs";
-import { recordReviewExchange } from "../scripts/wp/wp-review-exchange.mjs";
+import {
+  recordReviewExchange,
+  requiresSplitCommittedCoderHandoffValidation,
+} from "../scripts/wp/wp-review-exchange.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
@@ -206,6 +209,7 @@ test("committed coder handoff preflight uses the shared phase-check script inste
     phase: "STARTUP",
     wpId: "WP-TEST-HANDOFF-v1",
     role: "CODER",
+    args: ["--committed-handoff-preflight"],
   });
 
   assert.equal(invocation.command, process.execPath);
@@ -213,7 +217,7 @@ test("committed coder handoff preflight uses the shared phase-check script inste
     invocation.args[0].replace(/\\/g, "/"),
     /\/\.GOV\/roles_shared\/checks\/phase-check\.mjs$/,
   );
-  assert.deepEqual(invocation.args.slice(1), ["STARTUP", "WP-TEST-HANDOFF-v1", "CODER"]);
+  assert.deepEqual(invocation.args.slice(1), ["STARTUP", "WP-TEST-HANDOFF-v1", "CODER", "--committed-handoff-preflight"]);
 });
 
 test("workflow invalidity runtime projection keeps runtime route generic while receipts carry the code", () => {
@@ -275,6 +279,35 @@ test("committed coder handoff dirty-state summary ignores governance-only drift 
   ]);
   assert.deepEqual(summary.transientArtifactPaths, ["tmp-test-proof.log"]);
   assert.deepEqual(summary.blockingPaths, ["src/demo.rs (IN_SCOPE)"]);
+});
+
+test("committed coder handoff dirty-state summary tolerates pre-existing out-of-scope dirt in committed-range mode", () => {
+  const scopeContract = deriveWpScopeContract({
+    wpId: "WP-TEST-HANDOFF-v1",
+    packetContent: `# Task Packet: WP-TEST-HANDOFF-v1
+
+**Status:** In Progress
+
+## METADATA
+- WP_ID: WP-TEST-HANDOFF-v1
+- PACKET_FORMAT_VERSION: 2026-03-29
+- IN_SCOPE_PATHS:
+  - src/demo.rs
+`.trim(),
+  });
+  const summary = summarizeCommittedCoderHandoffDirtyState([
+    " M .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md",
+    " M src/ambient.rs",
+    "?? tmp-test-proof.log",
+  ].join("\n"), scopeContract, { allowAmbientOutOfScope: true });
+
+  assert.equal(summary.ok, true);
+  assert.deepEqual(summary.governanceNoisePaths, [
+    ".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md",
+  ]);
+  assert.deepEqual(summary.transientArtifactPaths, ["tmp-test-proof.log"]);
+  assert.deepEqual(summary.ambientOutOfScopePaths, ["src/ambient.rs (PRODUCT_OUT_OF_SCOPE)"]);
+  assert.deepEqual(summary.blockingPaths, []);
 });
 
 test("review exchange preflight blocks invalid direct-review receipts before thread append", () => {
@@ -341,6 +374,30 @@ test("review exchange preflight rejects placeholder unassigned target sessions",
     fs.rmSync(packetDir, { recursive: true, force: true });
     fs.rmSync(commDir, { recursive: true, force: true });
   }
+});
+
+test("review exchange splits the committed coder handoff preflight out of the transaction lock only for coder handoffs", () => {
+  assert.equal(
+    requiresSplitCommittedCoderHandoffValidation({
+      receiptKind: "CODER_HANDOFF",
+      actorRole: "CODER",
+    }),
+    true,
+  );
+  assert.equal(
+    requiresSplitCommittedCoderHandoffValidation({
+      receiptKind: "CODER_HANDOFF",
+      actorRole: "WP_VALIDATOR",
+    }),
+    false,
+  );
+  assert.equal(
+    requiresSplitCommittedCoderHandoffValidation({
+      receiptKind: "REVIEW_REQUEST",
+      actorRole: "CODER",
+    }),
+    false,
+  );
 });
 
 test("review exchange preflight rejects resolution receipts that do not answer an existing open correlation", () => {

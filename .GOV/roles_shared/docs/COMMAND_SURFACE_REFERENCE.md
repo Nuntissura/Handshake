@@ -22,6 +22,11 @@ just --list
 - `governance-write`: mutates governed files under `/.GOV/`
 - `product-scan`: reads product code and is expected to run from the appropriate product worktree context
 
+Coder packet truth exception:
+- In governed coder sessions, the assigned packet and declared MT files under `/.GOV/task_packets/**` remain legal status/evidence write surfaces through the live `.GOV` junction.
+- Those packet/MT writes land in the governance kernel and must not be committed on the feature branch.
+- Other `.GOV/` surfaces remain read-only context for the coder lane unless the role protocol or a packet explicitly says otherwise.
+
 ## Operator-facing scope split
 
 Use this split in chat every time scope, remediation, or next steps are discussed:

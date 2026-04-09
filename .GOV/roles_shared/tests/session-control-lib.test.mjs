@@ -36,6 +36,8 @@ test("coder startup prompt carries orchestrator-managed relapse guard and lane-a
   assert.match(prompt, /just active-lane-brief CODER WP-TEST-CODER-v1/i);
   assert.match(prompt, /just phase-check STARTUP WP-TEST-CODER-v1 CODER <your-session>/i);
   assert.match(prompt, /just check-notifications WP-TEST-CODER-v1 CODER <your-session>/i);
+  assert.match(prompt, /read-only context except for the assigned packet and declared MT files/i);
+  assert.match(prompt, /without committing \.GOV on the feature branch/i);
   assert.match(prompt, new RegExp(CODEX_AUTHORITY_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
@@ -59,7 +61,10 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
   assert.match(prompt, /HANDSHAKE_GOV_ROOT/i);
   assert.match(prompt, /Do not use handshake_main\/.GOV as the live source of truth/i);
   assert.match(prompt, /Do not manually grep, browse, or rebuild authority from handshake_main\/.GOV/i);
+  assert.match(prompt, /FINAL-LANE STARTUP ORDER \(HARD\): Before any repo search, packet rediscovery, or broad \.GOV inspection/i);
+  assert.match(prompt, /packet_read_path/i);
   assert.match(prompt, /ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature\/prepare/i);
+  assert.match(prompt, /3\. just integration-validator-context-brief WP-TEST-VALIDATOR-v1/i);
 });
 
 test("wp-validator startup prompt uses the dedicated validator lane and early steering instructions", () => {
@@ -129,6 +134,8 @@ test("steering prompt stays compact and codex-explicit", () => {
   assert.match(prompt, /just validator-next WP-TEST-STEER-v1/i);
   assert.match(prompt, /just check-notifications WP-TEST-STEER-v1 INTEGRATION_VALIDATOR <your-session>/i);
   assert.match(prompt, /Do not manually inspect handshake_main\/.GOV as authoritative context/i);
+  assert.match(prompt, /FIRST READ RULE: before any repo-wide search or packet rediscovery/i);
+  assert.match(prompt, /packet_read_path/i);
   assert.match(prompt, /Do not request routine Operator approval/i);
 });
 

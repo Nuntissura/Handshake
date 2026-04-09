@@ -31,8 +31,8 @@ import {
   buildPostWorkCommand,
   lastGateLog,
   loadOrchestratorGateLogs,
-  parseMergeBaseSha,
   preparedWorktreeSyncState,
+  resolveCommittedCoderHandoffRange,
   resolvePrepareWorktreeAbs,
 } from "../lib/role-resume-utils.mjs";
 import {
@@ -153,10 +153,13 @@ function runInWorktree(worktreeAbs, command, args) {
   return String(result || "").trim();
 }
 
-export function summarizeCommittedCoderHandoffDirtyState(statusPorcelain, scopeContract) {
+export function summarizeCommittedCoderHandoffDirtyState(statusPorcelain, scopeContract, {
+  allowAmbientOutOfScope = false,
+} = {}) {
   const changedPaths = parseChangedPaths(statusPorcelain);
   const governanceNoisePaths = [];
   const transientArtifactPaths = [];
+  const ambientOutOfScopePaths = [];
   const blockingPaths = [];
 
   for (const changedPath of changedPaths) {
@@ -170,16 +173,36 @@ export function summarizeCommittedCoderHandoffDirtyState(statusPorcelain, scopeC
       continue;
     }
     const classification = classifyWpChangedPath(changedPath, scopeContract);
-    blockingPaths.push(`${classification.path} (${classification.kind})`);
+    const classifiedPath = `${classification.path} (${classification.kind})`;
+    if (classification.allowed) {
+      blockingPaths.push(classifiedPath);
+      continue;
+    }
+    if (allowAmbientOutOfScope) {
+      ambientOutOfScopePaths.push(classifiedPath);
+      continue;
+    }
+    blockingPaths.push(classifiedPath);
   }
 
   return {
     changedPaths,
     governanceNoisePaths,
     transientArtifactPaths,
+    ambientOutOfScopePaths,
     blockingPaths,
     ok: blockingPaths.length === 0,
   };
+}
+
+function addedDirtyEntries(beforeEntries = [], afterEntries = []) {
+  const beforeSet = new Set((beforeEntries || []).map((entry) => String(entry || "").trim()).filter(Boolean));
+  return Array.from(new Set(
+    (afterEntries || [])
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean)
+      .filter((entry) => !beforeSet.has(entry)),
+  ));
 }
 
 function formatCommittedCoderHandoffFailure(summary = {}) {
@@ -197,6 +220,11 @@ function formatCommittedCoderHandoffFailure(summary = {}) {
   if ((summary.transientArtifactPaths || []).length > 0) {
     detailLines.push(
       `transient_artifacts=${formatBoundedItemList(summary.transientArtifactPaths, { noun: "path" })}`,
+    );
+  }
+  if ((summary.ambientOutOfScopePaths || []).length > 0) {
+    detailLines.push(
+      `ambient_out_of_scope=${formatBoundedItemList(summary.ambientOutOfScopePaths, { noun: "path" })}`,
     );
   }
   return detailLines;
@@ -451,12 +479,17 @@ function assertCommittedCoderHandoffPreflight({ wpId, context }) {
   }
 
   const scopeContract = deriveWpScopeContract({ wpId, packetContent: context.packetText });
+  const preferredRange = resolveCommittedCoderHandoffRange(context.packetText, wpId);
+  const allowAmbientOutOfScope = Boolean(preferredRange);
+
   const initialStatus = execFileSync("git", ["status", "--porcelain=v1"], {
     cwd: worktreeAbs,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
-  const initialDirty = summarizeCommittedCoderHandoffDirtyState(initialStatus, scopeContract);
+  const initialDirty = summarizeCommittedCoderHandoffDirtyState(initialStatus, scopeContract, {
+    allowAmbientOutOfScope,
+  });
   if (!initialDirty.ok) {
     throw new Error(
       `Governed CODER_HANDOFF rejected: PREPARE worktree is not committed/reviewable yet (${formatCommittedCoderHandoffFailure(initialDirty).join("; ")}).`
@@ -468,11 +501,16 @@ function assertCommittedCoderHandoffPreflight({ wpId, context }) {
       phase: "STARTUP",
       wpId,
       role: "CODER",
+      args: ["--committed-handoff-preflight"],
     });
     runInWorktree(worktreeAbs, invocation.command, invocation.args);
   } catch (error) {
     const output = String(error?.stdout || error?.stderr || error?.message || "").trim();
-    throw new Error(`Governed CODER_HANDOFF rejected: ${buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" })} failed${output ? ` (${output})` : ""}.`);
+    throw new Error(
+      "Governed CODER_HANDOFF rejected: "
+      + `${buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER", args: ["--committed-handoff-preflight"] })}`
+      + ` failed${output ? ` (${output})` : ""}.`
+    );
   }
 
   try {
@@ -482,9 +520,8 @@ function assertCommittedCoderHandoffPreflight({ wpId, context }) {
     throw new Error(`Governed CODER_HANDOFF rejected: just cargo-clean failed${output ? ` (${output})` : ""}.`);
   }
 
-  const mergeBaseSha = parseMergeBaseSha(context.packetText);
-  const postWorkArgs = mergeBaseSha
-    ? [POST_WORK_CHECK_SCRIPT_PATH, wpId, "--range", `${mergeBaseSha}..HEAD`]
+  const postWorkArgs = preferredRange
+    ? [POST_WORK_CHECK_SCRIPT_PATH, wpId, "--range", `${preferredRange.baseRev}..${preferredRange.headRev}`]
     : [POST_WORK_CHECK_SCRIPT_PATH, wpId];
   try {
     runInWorktree(worktreeAbs, process.execPath, postWorkArgs);
@@ -498,11 +535,22 @@ function assertCommittedCoderHandoffPreflight({ wpId, context }) {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
-  const finalDirty = summarizeCommittedCoderHandoffDirtyState(finalStatus, scopeContract);
+  const finalDirty = summarizeCommittedCoderHandoffDirtyState(finalStatus, scopeContract, {
+    allowAmbientOutOfScope,
+  });
   if (!finalDirty.ok) {
     throw new Error(
       `Governed CODER_HANDOFF rejected: PREPARE worktree gained non-junction dirty state during preflight (${formatCommittedCoderHandoffFailure(finalDirty).join("; ")}).`
     );
+  }
+  if (allowAmbientOutOfScope) {
+    const newAmbientOutOfScope = addedDirtyEntries(initialDirty.ambientOutOfScopePaths, finalDirty.ambientOutOfScopePaths);
+    if (newAmbientOutOfScope.length > 0) {
+      throw new Error(
+        "Governed CODER_HANDOFF rejected: PREPARE worktree gained new out-of-scope dirty state during preflight "
+        + `(${formatBoundedItemList(newAmbientOutOfScope, { noun: "path" })}).`
+      );
+    }
   }
 }
 

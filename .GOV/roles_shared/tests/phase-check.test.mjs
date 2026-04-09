@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { buildPhaseCheckCommand, buildPhaseCheckPlan, parseCloseoutSyncOptions, runGateCheck } from "../checks/phase-check.mjs";
+import { REPO_ROOT } from "../scripts/lib/runtime-paths.mjs";
+import {
+  buildPhaseCheckCommand,
+  buildPhaseCheckPlan,
+  parseCloseoutSyncOptions,
+  parseCommittedTargetArgs,
+  resolvePhaseCheckCwd,
+  runGateCheck,
+} from "../checks/phase-check.mjs";
 
 test("phase-check command builder keeps the role/session suffix compact", () => {
   assert.equal(
@@ -81,6 +89,33 @@ test("closeout sync options require explicit context and contained-main sha only
   );
 });
 
+test("phase-check closeout uses injected active repo root when present", () => {
+  const original = process.env.HANDSHAKE_ACTIVE_REPO_ROOT;
+  try {
+    process.env.HANDSHAKE_ACTIVE_REPO_ROOT = "D:/tmp/handshake_main";
+    assert.equal(resolvePhaseCheckCwd(), path.resolve("D:/tmp/handshake_main"));
+    delete process.env.HANDSHAKE_ACTIVE_REPO_ROOT;
+    assert.equal(resolvePhaseCheckCwd(), path.resolve(REPO_ROOT));
+  } finally {
+    if (original === undefined) {
+      delete process.env.HANDSHAKE_ACTIVE_REPO_ROOT;
+    } else {
+      process.env.HANDSHAKE_ACTIVE_REPO_ROOT = original;
+    }
+  }
+});
+
+test("committed target args preserve validator handoff range selection", () => {
+  assert.deepEqual(
+    parseCommittedTargetArgs(["--range", "abc123..def456"]),
+    { rev: "", range: "abc123..def456" },
+  );
+  assert.deepEqual(
+    parseCommittedTargetArgs(["--rev", "deadbee"]),
+    { rev: "deadbee", range: "" },
+  );
+});
+
 test("startup phase plan requires explicit role and preserves session routing", () => {
   const plan = buildPhaseCheckPlan({
     phase: "STARTUP",
@@ -104,6 +139,22 @@ test("startup phase plan requires explicit role and preserves session routing", 
   ]);
 });
 
+test("startup phase plan skips pre-work-check for committed handoff preflight mode", () => {
+  const plan = buildPhaseCheckPlan({
+    phase: "STARTUP",
+    wpId: "WP-TEST-PHASE-v1",
+    role: "CODER",
+    args: ["--committed-handoff-preflight"],
+  });
+
+  assert.deepEqual(plan.map((step) => step.label), [
+    "ensure-wp-communications",
+    "active-lane-brief",
+    "wp-communication-health-check",
+    "gate-check",
+  ]);
+});
+
 test("handoff phase plan folds packet completeness into the composite boundary", () => {
   const plan = buildPhaseCheckPlan({
     phase: "HANDOFF",
@@ -116,6 +167,21 @@ test("handoff phase plan folds packet completeness into the composite boundary",
     "validator-packet-complete",
     "validator-handoff-check",
     "wp-communication-health-check",
+  ]);
+});
+
+test("handoff phase plan forwards committed target args to the validator boundary", () => {
+  const plan = buildPhaseCheckPlan({
+    phase: "HANDOFF",
+    wpId: "WP-TEST-PHASE-v1",
+    role: "WP_VALIDATOR",
+    args: ["--range", "abc123..def456"],
+  });
+
+  assert.deepEqual(plan[2]?.args, [
+    "WP-TEST-PHASE-v1",
+    "--range",
+    "abc123..def456",
   ]);
 });
 
@@ -157,6 +223,27 @@ test("closeout phase plan includes verdict proof, context bundle, closeout prefl
     "integration-validator-context-brief",
     "integration-validator-closeout-check",
     "launch-memory-manager",
+  ]);
+});
+
+test("closeout phase plan forwards governed sync args into the closeout preflight", () => {
+  const plan = buildPhaseCheckPlan({
+    phase: "CLOSEOUT",
+    wpId: "WP-TEST-PHASE-v1",
+    args: [
+      "--sync-mode",
+      "MERGE_PENDING",
+      "--context",
+      "recording merge-pending truth after governed final-lane review completed cleanly",
+    ],
+  });
+
+  assert.deepEqual(plan[4]?.args, [
+    "WP-TEST-PHASE-v1",
+    "--sync-mode",
+    "MERGE_PENDING",
+    "--context",
+    "recording merge-pending truth after governed final-lane review completed cleanly",
   ]);
 });
 

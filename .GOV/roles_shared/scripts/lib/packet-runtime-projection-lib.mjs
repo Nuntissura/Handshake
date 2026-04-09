@@ -54,7 +54,13 @@ function deriveRuntimeCloseoutState(projection = {}, currentRuntime = {}) {
     nextRuntime.current_phase = "STATUS_SYNC";
     nextRuntime.runtime_status = "completed";
     nextRuntime.next_expected_actor = containment === "MERGE_PENDING" ? "INTEGRATION_VALIDATOR" : "ORCHESTRATOR";
-    nextRuntime.next_expected_session = null;
+    nextRuntime.next_expected_session = containment === "MERGE_PENDING"
+      ? (
+        projection.integration_validator_of_record
+        || normalizeDeclaredSessionValue(currentRuntime?.integration_validator_of_record)
+        || normalizeDeclaredSessionValue(currentRuntime?.next_expected_session)
+      )
+      : null;
     nextRuntime.waiting_on = containment === "MERGE_PENDING" ? "MAIN_CONTAINMENT" : "STATUS_SYNC";
     nextRuntime.waiting_on_session = null;
     nextRuntime.validator_trigger = "NONE";

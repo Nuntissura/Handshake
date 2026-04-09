@@ -90,6 +90,7 @@ export function buildIntegrationValidatorContextBrief({
   }
 
   const packetPathValue = normalizePath(packetPathValueOverride || packetPath(wpId));
+  const packetReadPath = normalizePath(repoPathAbs(packetPathValue));
   const packetStatus = normalizeStatus(parseStatus(packetContent), "<missing>");
   const currentWpStatus = normalizeStatus(parseCurrentWpStatus(packetContent), "<empty>");
   const boardStatus = normalizeStatus(taskBoardStatus(wpId), "<none>");
@@ -169,13 +170,14 @@ export function buildIntegrationValidatorContextBrief({
     closeout_readiness: closeoutReadiness,
     workflow_lane: authority.workflowLane || "<missing>",
     packet_path: packetPathValue,
+    packet_read_path: packetReadPath || "<missing>",
     packet_status: packetStatus,
     current_wp_status: currentWpStatus,
     task_board_status: boardStatus,
     command_surface_path: COMMAND_SURFACE_PATH,
     minimal_live_read_set: [
       "startup output",
-      "active packet",
+      "packet_read_path from integration-validator-context-brief",
       "active WP thread/notifications",
       COMMAND_SURFACE_PATH,
     ],
@@ -279,7 +281,7 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- MAIN_COMPATIBILITY: status=${brief.current_main_compatibility.status} | baseline=${brief.current_main_compatibility.baseline_sha} | verified_at=${brief.current_main_compatibility.verified_at_utc} | main_head=${brief.current_main_compatibility.current_main_head_sha}`,
     `- CLOSEOUT_BUNDLE: requests=${brief.closeout_bundle.request_count} | results=${brief.closeout_bundle.result_count} | sessions=${brief.closeout_bundle.session_count} | active_runs=${brief.closeout_bundle.active_run_count}`,
     `- CLOSEOUT_PROVENANCE: status=${brief.closeout_provenance.status} | mode=${brief.closeout_provenance.mode} | actor=${brief.closeout_provenance.actor_role}/${brief.closeout_provenance.actor_session_id} | recorded_at=${brief.closeout_provenance.recorded_at_utc}`,
-    `- ARTIFACT_POINTERS: packet=${brief.packet_path} | command_surface=${brief.command_surface_path} | gate_state=${brief.committed_handoff.gate_state_path} | prepare_worktree=${brief.committed_handoff.prepare_worktree_dir}`,
+    `- ARTIFACT_POINTERS: packet_logical=${brief.packet_path} | packet_read=${brief.packet_read_path} | command_surface=${brief.command_surface_path} | gate_state=${brief.committed_handoff.gate_state_path} | prepare_worktree=${brief.committed_handoff.prepare_worktree_dir}`,
     `- MINIMAL_LIVE_READ_SET: ${formatBoundedList(brief.minimal_live_read_set, 6).join(" | ")}`,
     `- STARTUP_SEQUENCE: ${brief.startup_sequence.join(" -> ")}`,
     `- ANTI_REDISCOVERY_RULE: ${brief.anti_rediscovery_rule}`,

@@ -35,6 +35,11 @@ export { buildPhaseCheckCommand, buildPhaseCheckPlan, PHASE_VALUES } from "./pha
 const CLOSEOUT_SYNC_SHA_RE = /^[0-9a-f]{7,40}$/i;
 const CLOSEOUT_SYNC_FLAG_SET = new Set(["--sync-mode", "--context", "--merged-main-sha", "--sync-debug"]);
 
+export function resolvePhaseCheckCwd() {
+  const injectedRepoRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
+  return path.resolve(injectedRepoRoot || REPO_ROOT);
+}
+
 function printUsage(message = "") {
   if (message) console.error(`[PHASE_CHECK] ${message}`);
   console.error(`Usage: node ${GOV_ROOT_REPO_REL}/roles_shared/checks/phase-check.mjs <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} [ROLE] [SESSION] [args...]`);
@@ -240,6 +245,30 @@ export function parseCloseoutSyncOptions(args = []) {
   };
 }
 
+export function parseCommittedTargetArgs(args = []) {
+  const tokens = Array.isArray(args) ? args.map((value) => String(value || "")).filter((value) => value !== "") : [];
+  let rev = "";
+  let range = "";
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = String(tokens[index] || "").trim();
+    if (token === "--rev" || token === "--range") {
+      const nextValue = String(tokens[index + 1] || "");
+      if (!nextValue || String(nextValue).trim().startsWith("--")) {
+        continue;
+      }
+      if (token === "--rev") rev = nextValue;
+      if (token === "--range") range = nextValue;
+      index += 1;
+    }
+  }
+
+  return {
+    rev: String(rev || "").trim(),
+    range: String(range || "").trim(),
+  };
+}
+
 function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
   const mode = String(syncOptions?.modeSpec?.mode || "").trim();
   if (!wpId || !mode) {
@@ -251,9 +280,10 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
   const repomemScript = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/scripts/memory/repomem.mjs`);
   const closeoutSyncScript = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles/validator/scripts/integration-validator-closeout-sync.mjs`);
   const triggerRef = `phase-check CLOSEOUT ${wpId} --sync-mode ${mode}`;
+  const phaseCheckCwd = resolvePhaseCheckCwd();
   const outputChunks = [];
   const repomemGateResult = spawnSync(process.execPath, [repomemScript, "gate"], {
-    cwd: REPO_ROOT,
+    cwd: phaseCheckCwd,
     encoding: "utf8",
   });
   outputChunks.push(ensureTrailingNewline(`${repomemGateResult.stdout || ""}${repomemGateResult.stderr || ""}`.trimEnd()));
@@ -273,7 +303,7 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
     wpId,
   ];
   const repomemContextResult = spawnSync(process.execPath, repomemContextArgs, {
-    cwd: REPO_ROOT,
+    cwd: phaseCheckCwd,
     encoding: "utf8",
   });
   outputChunks.push(ensureTrailingNewline(`${repomemContextResult.stdout || ""}${repomemContextResult.stderr || ""}`.trimEnd()));
@@ -295,7 +325,7 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
     commandArgs.push("--debug");
   }
   const result = spawnSync(process.execPath, commandArgs, {
-    cwd: REPO_ROOT,
+    cwd: phaseCheckCwd,
     encoding: "utf8",
   });
   outputChunks.push(ensureTrailingNewline(`${result.stdout || ""}${result.stderr || ""}`.trimEnd()));
@@ -373,8 +403,11 @@ function runStep(step) {
     };
   }
   if (label === "validator-handoff-check") {
+    const committedTargetArgs = parseCommittedTargetArgs(args.slice(1));
     const result = buildValidatorHandoffCheckResult({
       wpId: args[0],
+      rev: committedTargetArgs.rev,
+      range: committedTargetArgs.range,
     });
     return {
       ok: result.ok,
@@ -393,6 +426,7 @@ function runStep(step) {
   if (label === "integration-validator-closeout-check") {
     const result = buildIntegrationValidatorCloseoutCheckResult({
       wpId: args[0],
+      allowSyncRepair: args.slice(1).includes("--sync-mode"),
     });
     return {
       ok: result.ok,
