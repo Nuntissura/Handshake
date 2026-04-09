@@ -59,6 +59,7 @@ pub struct EventFilter {
     pub event_id: Option<Uuid>,
     pub job_id: Option<String>,
     pub trace_id: Option<Uuid>,
+    pub model_session_id: Option<String>,
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
     pub actor: Option<String>,

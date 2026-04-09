@@ -943,6 +943,21 @@ impl DuckDbFlightRecorder {
                 "workspace_cross_session.approved" => {
                     super::FlightRecorderEventType::WorkspaceCrossSessionApproved
                 }
+                "session.created" | "session_created" => {
+                    super::FlightRecorderEventType::SessionCreated
+                }
+                "session.state_change" | "session_state_change" => {
+                    super::FlightRecorderEventType::SessionStateChange
+                }
+                "session.completed" | "session_completed" => {
+                    super::FlightRecorderEventType::SessionCompleted
+                }
+                "session.message" | "session_message" => {
+                    super::FlightRecorderEventType::SessionMessage
+                }
+                "session.budget_warning" | "session_budget_warning" => {
+                    super::FlightRecorderEventType::SessionBudgetWarning
+                }
                 "capability_action" => {
                     if payload_type == Some("terminal_command") {
                         super::FlightRecorderEventType::TerminalCommand
