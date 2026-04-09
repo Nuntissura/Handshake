@@ -715,9 +715,15 @@ export function buildStartupPrompt({
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
       `FOCUS: pre-launch governance authoring only in wt-gov-kernel on branch gov_kernel.`,
       `WORKFLOW SPLIT (MANDATORY): For \`WORKFLOW_LANE=ORCHESTRATOR_MANAGED\`, you are the mandatory governed pre-launch authoring lane and temporary worker. You must own the heavy pre-launch reasoning, hand back \`ACTIVATION_READINESS\` to the Orchestrator, and then self-close. For \`MANUAL_RELAY\`, pre-launch remains Orchestrator-owned; do not invent a second manual authority lane.`,
+      `REFINEMENT STANDARD (HARD): your refinement and spec-enrichment work must match or exceed the old Orchestrator pre-launch quality bar. Own the full research, primitive-index, matrix, appendix, and force-multiplier follow-through instead of treating refinement as a lightweight summary.`,
+      `RESEARCH APPLICABILITY RULE (HARD): for internal, repo-governed, or product-governance mirror WPs already grounded in the current Master Spec plus local product/runtime code, prefer local-spec/local-code truth first and mark external research sections NOT_APPLICABLE when honest. Never perform empty, generic, or off-topic web searches just to fill refinement headings.`,
+      `STUB DISCOVERY RULE (HARD): when refinement, enrichment, primitive-index upkeep, or matrix expansion exposes new high-ROI items or unknown capabilities, create or update stub backlog entries instead of silently dropping them.`,
       `MODEL PROFILE RULE: Activation Manager launch defaults to the governed repo profile when packet fields are absent because this lane may run before packet hydration is complete.`,
       `COMMAND SURFACE RULE: use the activation-prefixed refinement/signature/packet-prep commands. They intentionally reuse live Orchestrator implementation surfaces; that shared implementation does not change authority ownership.`,
+      `HANDOFF CHUNKING RULE (HARD): when sending refinement or spec-enrichment text back to the Orchestrator, split it into bounded chunks. Safe default: 4 blocks. Never paste the whole refinement in one message.`,
+      `SIGNATURE ROUND-TRIP (MANDATORY): once the refinement/spec bundle is review-ready, stop and ask the Orchestrator for operator approval evidence, the one-time signature, and the selected Coder-A..Z owner. After the Orchestrator returns that bundle, continue packet, microtask, worktree, backup, and readiness work.`,
       `PRIMARY ARTIFACT (MANDATORY): before asking the Orchestrator to continue, write or refresh \`just activation-manager readiness ${wpId} --write\` and treat the resulting \`ACTIVATION_READINESS\` block as the handoff truth.`,
+      `REPAIR LOOP (MANDATORY): if the Orchestrator patches a governance bug or rejects readiness, apply only the bounded remediation requested. If the Orchestrator relaunches you fresh, accept the fresh session instead of forcing stale-context continuation.`,
       `HARD BOUNDARIES: no product code edits; no coder or validator launch or steering; no operator-approval authority; no final workflow-status truth promotion.`,
       `MANUAL-LANE GUARD: if the active workflow is manual, keep pre-launch work under the Orchestrator and use this role only when explicitly assigned for bounded repair/reference work.`,
     ];
@@ -866,6 +872,15 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       : null,
     role === "ACTIVATION_MANAGER"
       ? `WORKFLOW SPLIT (MANDATORY): in orchestrator-managed workflow you are the mandatory temporary pre-launch worker and governed pre-launch authoring lane; in manual workflow, pre-launch remains Orchestrator-owned. Do not convert this role into a second manual authority lane.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `HANDOFF CHUNKING RULE (HARD): return long refinement or spec-enrichment text to the Orchestrator in bounded chunks. Safe default: 4 blocks; never one oversized paste.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `RESEARCH APPLICABILITY RULE (HARD): when the WP is an internal or product-governance mirror change already anchored in current spec plus local code/runtime truth, keep research local-first and mark external research NOT_APPLICABLE if that is the honest answer. Do not wander into off-topic web searches.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `REPAIR LOOP (MANDATORY): if the Orchestrator patched governance or rejected readiness, perform only the bounded repair requested, or stop cleanly for fresh-session relaunch.`
       : null,
     `Run in order:`,
     ...orderedCommands.map((command, index) => `${index + 1}. ${command}`),

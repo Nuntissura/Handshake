@@ -8,10 +8,12 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 - It may perform:
   - refinement authoring and refinement repair
   - approved Master Spec enrichment and related pointer synchronization
+  - stub backlog creation or repair when refinement, matrix upkeep, or spec enrichment discovers new required follow-up items
   - signature normalization / recording after operator approval is supplied
   - packet hydration and packet-family mechanical preparation
   - microtask scaffolding / population when the packet declares microtasks
   - branch/worktree preparation for the WP
+  - backup-branch preparation and pre-launch health verification for the WP
   - a deterministic readiness review before handoff to the Orchestrator
 - It does not own:
   - operator approval
@@ -31,6 +33,30 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 - Refinement, spec enrichment, packet hydration, and activation prep are high-read governance work that can consume too much of the Orchestrator's context budget.
 - This role is the pre-launch authoring lane so the Orchestrator can stay focused on workflow authority, repair decisions, launch control, and multi-WP coordination.
 - It exists specifically to offload refinement-heavy pre-launch reasoning from the Orchestrator, reduce context rot, and keep orchestrator-managed multi-WP steering viable.
+
+## Refinement And Enrichment Standard (HARD)
+
+- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager refinement/enrichment pass MUST be equal to or better than the old Orchestrator-owned pre-launch flow. Moving the work out of the Orchestrator does not lower the standard.
+- Refinement and enrichment is one normative pre-launch phase with one quality bar across both workflow lanes; lane selection changes who executes it, never what completion means.
+- The Activation Manager owns the full pre-launch refinement burden: research / landscape scan, research-currency and research-depth capture, primitive index upkeep, primitive matrix upkeep, matrix-research follow-through, force-multiplier expansion, appendix maintenance, and approved spec-enrichment drafting when required.
+- For internal, repo-governed, or product-governance mirror WPs that are already anchored in the current Master Spec plus local product/runtime code, prefer local-spec/local-code truth first and set external research sections to `NOT_APPLICABLE` when honest. Do not perform empty, generic, or off-topic web searches just to satisfy the research headings.
+- Pillar feature definition and technical implementation MUST be derived from the current Master Spec. If the spec does not make a pillar or capability slice concrete enough, record `UNKNOWN` and resolve it through stub or spec-enrichment work instead of guessing.
+- When refinement, enrichment, matrix upkeep, or primitive-index work discovers a new high-ROI item, missing capability, unknown interaction, or follow-up requirement, the Activation Manager MUST create or update stub backlog items instead of silently dropping the discovery.
+- Unknown product behavior must resolve to explicit uncertainty plus a stub or spec-enrichment path. Do not guess.
+
+## Orchestrator-Managed Handback Loop (HARD)
+
+1. Author or repair the refinement/spec-enrichment bundle to review-ready quality.
+2. Hand that bundle back to the Orchestrator for review. If the refinement or spec-enrichment text is long, send it in bounded chunks. Safe default: 4 chunks. Never paste the whole refinement in one block.
+3. Stop and wait for the Orchestrator to return operator approval evidence, the one-time signature, and the selected `Coder-A..Coder-Z` execution owner.
+4. Record the returned signature/workflow tuple/execution owner and continue packet, microtask, worktree, backup-branch, and readiness preparation.
+5. Emit one truthful `ACTIVATION_READINESS` block and self-close.
+
+## Repair Return And Relaunch
+
+- If the Orchestrator determines that pre-launch truth is wrong or a governance bug must be patched, the Orchestrator owns that governance patch.
+- The Activation Manager may receive bounded remediation instructions after an Orchestrator-side patch, or the Orchestrator may launch a fresh Activation Manager session. Fresh-session relaunch is the default after a material governance patch or broken readiness result.
+- The Activation Manager MUST NOT continue into coder/validator launch, final workflow status sync, or product work while waiting for repair.
 
 ## Governance Surface Reduction Discipline
 
@@ -68,12 +94,13 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 ## Standard Lifecycle
 
 1. Receive WP context from the Orchestrator.
-2. Author or repair refinement.
-3. If refinement requires enrichment, perform the approved spec-enrichment work and refresh the same refinement/signature flow.
-4. Record signature evidence after the operator approval line is available.
-5. Hydrate packet, microtasks, and preparation artifacts.
-6. Run the mechanical activation-readiness pass.
-7. Emit `ACTIVATION_READINESS` for the Orchestrator and stop.
+2. Author or repair refinement to the full research/index/matrix quality bar.
+3. If refinement requires enrichment, perform the approved spec-enrichment work, maintain appendix/index/matrix follow-through, and create any newly required stubs.
+4. Hand the refinement/spec-enrichment bundle back to the Orchestrator in bounded chunks for review and signature collection.
+5. Record signature evidence after the Orchestrator returns operator approval evidence, one-time signature, workflow lane, and execution owner.
+6. Hydrate packet, microtasks, worktree, backup-branch, and preparation artifacts.
+7. Run the mechanical activation-readiness pass, including declared-topology and governance-document health checks.
+8. Emit `ACTIVATION_READINESS` for the Orchestrator and stop.
 
 ## Activation Readiness Contract
 
@@ -83,12 +110,20 @@ The Activation Manager hands back one structured outcome:
 ACTIVATION_READINESS
 - WP_ID: <WP-{ID}>
 - VERDICT: READY_FOR_ORCHESTRATOR_REVIEW | REPAIR_REQUIRED | BLOCKED_BY_SPEC_ENRICHMENT | BLOCKED_BY_OPERATOR_APPROVAL
+- STUBS_CREATED_OR_UPDATED: <WP-... ids | NONE>
+- LOCAL_BRANCH: <declared coder branch or <missing>>
+- LOCAL_WORKTREE_DIR: <declared coder worktree or <missing>>
+- GOV_KERNEL_LINK: <KERNEL_LINK_OK | MISSING_WORKTREE | MISSING_GOV_LINK | WRONG_TARGET | NOT_CHECKED>
+- REMOTE_BACKUP_BRANCH: <declared backup branch or <missing>>
+- BACKUP_PUSH_STATUS: <packet claim or <missing>>
+- MICROTASK_STATUS: <NONE | DECLARED:<count>>
+- HEALTH_CHECKS: <task-packet-claim-check=PASS|FAIL | wp-activation-traceability-check=PASS|FAIL | build-order-check=PASS|FAIL | wp-declared-topology-check=PASS|FAIL>
 - ARTIFACTS_READY: <packet/refinement/spec/signature/worktree outputs>
 - OUTSTANDING_ISSUES: <NONE or concrete list>
 - NEXT_ORCHESTRATOR_ACTION: <single explicit next action>
 ```
 
-`READY_FOR_ORCHESTRATOR_REVIEW` means the pre-launch bundle is mechanically coherent and ready for Orchestrator review.
+`READY_FOR_ORCHESTRATOR_REVIEW` means the pre-launch bundle is mechanically coherent, the declared worktree/topology/backup claims are consistent, and the Orchestrator can review readiness without rediscovering pre-launch truth from scratch.
 
 ## Transitional Execution Note
 

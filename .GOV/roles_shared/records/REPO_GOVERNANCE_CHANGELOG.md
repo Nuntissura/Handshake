@@ -1781,3 +1781,20 @@
   - `.GOV/roles_shared/records/SCRIPT_RATIONALIZATION_LOG.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: closeout mutation now runs only through `phase-check CLOSEOUT ... --sync-mode ... --context ...`, the phase runner performs its own repomem gate/context capture before invoking the governed writer directly, the retired recipe body is preserved under `../../scripts_archive/justfile/retired-governance-phase-shims-20260408.just`, and active command surfaces no longer expose a second closeout command
+
+### 2026.04.09.1 / GOV-CHANGE-20260409-01
+
+- STATUS: APPLIED
+- SUMMARY: added trigger-aware and role-weighted governance memory recall so existing action entry points inject command-specific pitfalls and role habits before general findings
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260409-TRIGGER-AWARE-MEMORY-RECALL-INJECTION`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/memory/memory-recall.mjs`
+  - `.GOV/roles_shared/tests/memory-recall.test.mjs`
+  - `.GOV/Audits/audits/AUDIT_20260409_TRIGGER_AWARE_MEMORY_RECALL_INJECTION.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `NONE`
+- OUTCOME: `memory-recall` now uses stored trigger, script, and role metadata to surface repeated command failures and role-authored habits earlier, while keeping the existing public command surface stable inside the gov-kernel worktree

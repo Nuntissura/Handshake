@@ -236,6 +236,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - Treat each active WP's `IN_SCOPE_PATHS` as an exclusive file-lock set.
 - Coders may commit freely on their WP branch.
 - Validators own final validation-backed merge authority to `main` for product changes. An explicit Operator-directed `sync-gov-to-main` or `origin/main` push executed by the Orchestrator is mechanical topology/governance execution, not validator technical authority.
+- In this repo topology, final product containment is not an ordinary raw `git merge` happy path. The governed `INTEGRATION_VALIDATOR` lane owns the copy-based / contained-main reconciliation into `handshake_main/main` plus the final packet/task-board/runtime truth sync. The Orchestrator must not substitute a raw merge for that governed final-lane activity.
 
 ## Worktree + Branch Gate [CX-WT-001] (BLOCKING)
 
@@ -317,6 +318,16 @@ Workflow semantics:
 - If the projected target session is not running yet, `just manual-relay-dispatch` must start that governed session and then immediately deliver the typed relay prompt in the same command invocation.
 - Use `just wp-timeline WP-{ID} [--json]` after a run to inspect measured relay burden. If the timeline reports visible or high relay overhead and the next WP is not autonomy-sensitive, route the next comparable packet through `MANUAL_RELAY`.
 
+### Activation Manager Authority Split (HARD)
+
+- The Orchestrator remains the workflow authority on both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED`. Activation Manager is a temporary pre-launch executor, not a second workflow owner.
+- Refinement and enrichment is one normative pre-launch phase with one quality bar across both workflow lanes; lane selection changes who executes it, never what completion means.
+- For `MANUAL_RELAY`, keep the legacy pre-launch flow on the Orchestrator: refinement, approved spec enrichment, signature handling, packet creation, microtask setup, worktree preparation, backup-branch preparation, and next-step control remain Orchestrator-owned.
+- For `ORCHESTRATOR_MANAGED`, Activation Manager executes that same pre-launch flow, but the Orchestrator still owns operator review, signature solicitation, `Coder-A..Z` selection, governance bug patching, acceptance or rejection of readiness, and relaunch / repair decisions.
+- Activation Manager refinement or spec-enrichment handback must be chunked when long. Safe default: 4 chunks. Do not ask the operator to review a one-shot oversized refinement paste.
+- If pre-launch truth is wrong or the governed activation lane misbehaves, the Orchestrator patches governance in `wt-gov-kernel` and may relaunch a fresh Activation Manager with bounded remediation. Do not force stale-session continuation after a material governance patch.
+- The truthful orchestrator-managed pre-launch order is: Activation Manager refinement / enrichment -> Orchestrator review + operator approval -> Activation Manager packet / microtask / worktree / backup / health preparation -> Activation Manager self-close -> Orchestrator readiness review -> Coder + WP Validator launch.
+
 ## Microtask Loop Enforcement [RGF-89] (HARD)
 
 - Every orchestrator-managed WP with declared microtasks (MT-001, MT-002, ...) MUST use the per-microtask loop.
@@ -326,6 +337,7 @@ Workflow semantics:
   `just wp-review-request WP-{ID} CODER CODER:WP-{ID} WP_VALIDATOR WP_VALIDATOR:WP-{ID} 'MT-NNN complete: <summary>'`
   Then STOP and wait for the validator's response before starting the next MT."
 - **Validator session MUST be started BEFORE the coder starts work** (in READY state). This enables the governed auto-relay: when the coder calls `wp-review-request`, the notification triggers `orchestrator-steer-next` which dispatches the review to the validator automatically.
+- If the projected coder or WP-validator lane stalls, lags out, or stays inactive beyond the runtime projection and notification evidence, the Orchestrator may wake the currently projected lane with `just orchestrator-steer-next WP-{ID} "<context>"` or the role-specific governed steer helper. This is a wake/resume action, not a return to Orchestrator-owned technical review or relay brokering.
 - **Validator session prompt MUST include session keys**: "Your session key is `WP_VALIDATOR:WP-{ID}`. The coder session key is `CODER:WP-{ID}`.
   When you receive a review request for an MT, inspect it. Then run:
   `just wp-review-response WP-{ID} WP_VALIDATOR WP_VALIDATOR:WP-{ID} CODER CODER:WP-{ID} '<MT-NNN PASS or STEER: findings>'`
@@ -566,6 +578,7 @@ Legacy flat compatibility:
   - wide-scope external research for the tool, technology, or intent
   - semantic / intent search across GitHub and Hugging Face for better executions, better practices, and adjacent implementations
   - feed what matters back into the spec first, then the WP
+- For internal repo-governed changes or product-governance mirror patches already anchored in the current Master Spec plus local code/runtime truth, it is valid and often preferable to keep the research pass local-first and mark external research `NOT_APPLICABLE`. Do not perform empty, generic, or off-topic web searches just to satisfy the refinement headings.
 - Maintain the end-of-file primitive coverage surfaces during refinement / enrichment:
   - the primitive index
   - the primitive / tool / technology matrix
@@ -575,6 +588,7 @@ Legacy flat compatibility:
   - the Master Spec pillars for ROI, reuse, security, and risk reduction
   - the mechanical tools / engines, because they are easy to forget and they are what make Handshake deterministic
   - GUI / UI needs upfront, so primitive and feature-combination growth do not outrun interface planning
+- Pillar feature definition and technical implementation must be derived from the current Master Spec. If the spec does not make a pillar or capability slice concrete enough, record `UNKNOWN` and resolve it through a stub or spec-enrichment path instead of guessing from memory.
 - Ordering is mandatory:
   - Main Body first
   - then end-of-file appendix / index / matrix updates
@@ -607,6 +621,7 @@ Legacy flat compatibility:
 - Record the signature bundle with `just record-signature ...`.
 - After signature PASS with `OPERATOR_ACTION: NONE`, continue directly to `just orchestrator-prepare-and-packet WP-{ID}`.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, do not launch `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR` until the Activation Manager has handed back a truthful `ACTIVATION_READINESS` result and self-closed or returned for repair.
+- On orchestrator-managed lanes, expect one explicit pre-launch round-trip: Activation Manager returns refinement/spec text for review, the Orchestrator collects operator approval evidence + one-time signature + coder choice, then the Orchestrator steers that bundle back into Activation Manager so packet/worktree/backup/readiness work can continue.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, routine Operator interruption ends after signature/prepare. Do not request routine "proceed", checkpoint, or approval actions after that point.
 - If post-signature Operator action is still required on an orchestrator-managed lane, `just orchestrator-next` must print one machine-visible `BLOCKER_CLASS` rather than a freeform approval ask. The allowed post-signature classes are `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, and `ENVIRONMENT_FAILURE`; the legacy repair-only pre-launch recovery class is `LEGACY_SIGNATURE_TUPLE_REPAIR`.
 - If the Operator explicitly authorizes bounded continuation after a post-signature `POLICY_CONFLICT` such as `TOKEN_BUDGET_EXCEEDED`, record that decision under `## WAIVERS GRANTED` with `COVERS: GOVERNANCE`, explicit `TOKEN_BUDGET_EXCEEDED` or `POLICY_CONFLICT` text in `SCOPE` or `JUSTIFICATION`, and a named `APPROVER`. `just orchestrator-next` may honor that recorded waiver, but the underlying budget overrun remains diagnostic truth and must still be surfaced in audits and reviews.
