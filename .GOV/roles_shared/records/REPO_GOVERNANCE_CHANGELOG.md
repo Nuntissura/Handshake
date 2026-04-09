@@ -1798,3 +1798,18 @@
 - FOLLOW_ON_ITEMS:
   - `NONE`
 - OUTCOME: `memory-recall` now uses stored trigger, script, and role metadata to surface repeated command failures and role-authored habits earlier, while keeping the existing public command surface stable inside the gov-kernel worktree
+
+### 2026.04.09.2 / GOV-CHANGE-20260409-02
+
+- STATUS: APPLIED
+- SUMMARY: opened `RGF-162` to track ACP governed-role launch and steer reliability as a first-class state-machine hardening item instead of treating repeated attempts as model-quality drift
+- CHANGE_TYPE: RECORDKEEPING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-162`
+  - `WP-1-Governance-Workflow-Mirror-v1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-162`
+- OUTCOME: ACP launch/steer retries, broker drift recovery, self-settlement, and explicit busy/pending command states are now tracked as concrete governance implementation work that can proceed while Activation Manager continues refinement-heavy pre-launch work elsewhere
