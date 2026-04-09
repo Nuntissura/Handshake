@@ -3,8 +3,11 @@ import test from "node:test";
 
 import {
   activeRunsForTarget,
+  buildRelayRepairSignal,
   buildRelayWatchdogSummary,
   deriveRelayWatchdogDecision,
+  deriveRelayWatchdogRestartDecision,
+  relayRepairSignalAlreadyPending,
   relayEscalationCycleBudget,
 } from "../scripts/lib/wp-relay-watchdog-lib.mjs";
 
@@ -162,4 +165,106 @@ test("watchdog summary is compact and includes the relay decision", () => {
   assert.match(summary, /target=CODER:WP-TEST-v1/);
   assert.match(summary, /cycle=0\/2/);
   assert.match(summary, /next_cycle=1\/2/);
+});
+
+test("watchdog builds a stalled-run repair signal for orchestrator visibility", () => {
+  const decision = deriveRelayWatchdogDecision({
+    relayStatus: relayStatus({ status: "ESCALATED", reason_code: "SESSION_ACTIVE_NO_RECEIPT_PROGRESS" }),
+    activeRuns: [{ role: "CODER", session_key: "CODER:WP-TEST-v1" }],
+    stallScanStatus: "STALL",
+  });
+  const repair = buildRelayRepairSignal({
+    wpId: "WP-TEST-v1",
+    relayStatus: relayStatus({ status: "ESCALATED", reason_code: "SESSION_ACTIVE_NO_RECEIPT_PROGRESS" }),
+    decision,
+    stallScanStatus: "STALL",
+  });
+
+  assert.equal(repair.targetRole, "ORCHESTRATOR");
+  assert.match(repair.summary, /active run/i);
+  assert.match(repair.summary, /stall_scan=STALL/);
+  assert.match(repair.correlationId, /REPORT_STALLED_ACTIVE_RUN/);
+});
+
+test("watchdog builds a relay-limit repair signal and suppresses duplicates", () => {
+  const decision = deriveRelayWatchdogDecision({
+    relayStatus: relayStatus({
+      status: "ESCALATED",
+      reason_code: "PENDING_NOTIFICATION_STALE",
+      metrics: {
+        current_relay_escalation_cycle: 2,
+        max_relay_escalation_cycles: 2,
+      },
+    }),
+    activeRuns: [],
+    stallScanStatus: "UNKNOWN",
+  });
+  const repair = buildRelayRepairSignal({
+    wpId: "WP-TEST-v1",
+    relayStatus: relayStatus({
+      status: "ESCALATED",
+      reason_code: "PENDING_NOTIFICATION_STALE",
+      metrics: {
+        current_relay_escalation_cycle: 2,
+        max_relay_escalation_cycles: 2,
+      },
+    }),
+    decision,
+  });
+
+  assert.match(repair.summary, /budget exhausted/i);
+  assert.equal(
+    relayRepairSignalAlreadyPending([
+      { target_role: "ORCHESTRATOR", correlation_id: repair.correlationId },
+    ], repair),
+    true,
+  );
+});
+
+test("restart decision stays disabled unless explicitly allowed", () => {
+  const restart = deriveRelayWatchdogRestartDecision({
+    decision: {
+      action: "REPORT_STALLED_ACTIVE_RUN",
+      currentCycle: 0,
+      maxCycle: 2,
+    },
+    allowRestart: false,
+    freshness: { eligible: true, reason: "STALE_ACTIVE_RUN_CONFIRMED" },
+  });
+
+  assert.equal(restart.shouldRestart, false);
+  assert.equal(restart.action, "RESTART_DISABLED");
+});
+
+test("restart decision blocks when freshness guard is not satisfied", () => {
+  const restart = deriveRelayWatchdogRestartDecision({
+    decision: {
+      action: "REPORT_STALLED_ACTIVE_RUN",
+      currentCycle: 0,
+      maxCycle: 2,
+    },
+    allowRestart: true,
+    freshness: { eligible: false, reason: "OUTPUT_RECENTLY_UPDATED" },
+  });
+
+  assert.equal(restart.shouldRestart, false);
+  assert.equal(restart.action, "RESTART_BLOCKED");
+  assert.equal(restart.reason, "OUTPUT_RECENTLY_UPDATED");
+});
+
+test("restart decision consumes bounded relay budget when a stalled run is confirmed", () => {
+  const restart = deriveRelayWatchdogRestartDecision({
+    decision: {
+      action: "REPORT_STALLED_ACTIVE_RUN",
+      currentCycle: 1,
+      maxCycle: 3,
+    },
+    allowRestart: true,
+    freshness: { eligible: true, reason: "STALE_ACTIVE_RUN_CONFIRMED" },
+  });
+
+  assert.equal(restart.shouldRestart, true);
+  assert.equal(restart.action, "CANCEL_AND_RESTEER");
+  assert.equal(restart.currentCycle, 1);
+  assert.equal(restart.nextCycle, 2);
 });

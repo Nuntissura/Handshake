@@ -59,11 +59,12 @@ These are safe starting points for orientation and health checks.
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
   - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role, derived stalled-relay status, the active terminal batch id, and owned-terminal metadata/reclaim status
-- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer]`
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]`
   - `runtime-write`
   - run a local non-LLM relay watcher over one or more orchestrator-managed WPs; stale `WATCH` / `ESCALATED` routes are re-steered only when the projected target session is not already running
   - active target runs are checked conservatively with `session-stall-scan` and reported as `WAIT_ACTIVE_RUN` / `REPORT_STALLED_ACTIVE_RUN` instead of being killed by default
   - successful automatic re-steers increment the runtime relay-cycle counter; healthy lanes reset it; once the WP exhausts `max_relay_escalation_cycles`, the watchdog stops auto-re-waking and leaves the lane attention-visible
+  - `--allow-restart` is default-off; when enabled, restart remains conservative and only cancels/re-steers a proven stale active run after freshness guards pass (`COMMAND_RUNNING`, expired `timeout_at`, and old output/session activity)
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
   - `read-only`
   - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, declared microtask plan (`active` / `next`), and next commands
@@ -244,9 +245,10 @@ These legacy commands still work (they redirect to the governance memory DB) but
 - `just wp-lane-health WP-{ID}`
   - `read-only`
   - inspect lane health for a WP: session liveness, relay state, stall detection
-- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer]`
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]`
   - `runtime-write`
   - non-LLM relay watcher for orchestrator-managed lanes; consumes receipt/notification/escalation truth, records a `STEERING` receipt when it performs a safe automatic re-wake, and persists bounded relay-cycle accounting into WP runtime status
+  - with `--allow-restart`, the watcher may perform one bounded cancel-plus-resteer only for a proven stale active run that has already exceeded timeout and freshness thresholds
 - `just session-stall-scan <ROLE> WP-{ID}`
   - `read-only`
   - scan a governed session lane for stall conditions

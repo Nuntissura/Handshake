@@ -18,19 +18,26 @@ import {
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
+import { appendWpNotification } from "../../../roles_shared/scripts/wp/wp-notification-append.mjs";
 import { appendWpReceipt } from "../../../roles_shared/scripts/wp/wp-receipt-append.mjs";
 import { loadSessionRegistry, withFileLockSync } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
-import { SESSION_CONTROL_BROKER_STATE_FILE } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { SESSION_CONTROL_BROKER_STATE_FILE, sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import {
   activeRunsForTarget,
+  buildRelayRepairSignal,
   buildRelayWatchdogSummary,
   deriveRelayWatchdogDecision,
+  deriveRelayWatchdogRestartDecision,
+  relayRepairSignalAlreadyPending,
 } from "./lib/wp-relay-watchdog-lib.mjs";
 
 const ORCHESTRATOR_STEER_SCRIPT_PATH = path.resolve(REPO_ROOT, ".GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs");
+const SESSION_CONTROL_CANCEL_SCRIPT_PATH = path.resolve(REPO_ROOT, ".GOV/roles/orchestrator/scripts/session-control-cancel.mjs");
 const SESSION_STALL_SCAN_SCRIPT_PATH = path.resolve(REPO_ROOT, ".GOV/roles_shared/scripts/session/session-stall-scan.mjs");
 const WATCHDOG_SESSION = "ORCHESTRATOR_WATCHDOG";
 const ACTIVE_TARGET_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const RESTART_ELIGIBLE_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const DEFAULT_RESTART_OUTPUT_IDLE_SECONDS = 900;
 
 function sleep(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.max(1, Math.trunc(ms)));
@@ -52,12 +59,25 @@ function parseNonNegativeInteger(value, fallback = 0) {
   return parsed;
 }
 
+function parseTimestamp(value) {
+  const ms = Date.parse(String(value || "").trim());
+  return Number.isNaN(ms) ? null : ms;
+}
+
+function parseSessionControlField(text, label) {
+  const re = new RegExp(`^\\[SESSION_CONTROL\\]\\s+${label}=([^\\r\\n]+)$`, "mi");
+  const match = String(text || "").match(re);
+  return match ? match[1].trim() : "";
+}
+
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
     wpId: "",
     loop: false,
     intervalSeconds: 30,
     allowWatchSteer: true,
+    allowRestart: false,
+    restartOutputIdleSeconds: DEFAULT_RESTART_OUTPUT_IDLE_SECONDS,
   };
   const rest = [...argv];
   if (rest[0] && !String(rest[0]).startsWith("--")) {
@@ -73,12 +93,25 @@ function parseArgs(argv = process.argv.slice(2)) {
       args.allowWatchSteer = false;
       continue;
     }
+    if (token === "--allow-restart") {
+      args.allowRestart = true;
+      continue;
+    }
     if (token === "--interval-seconds") {
       const next = Number.parseInt(String(rest[index + 1] || "").trim(), 10);
       if (!Number.isInteger(next) || next < 1) {
         throw new Error("--interval-seconds requires an integer >= 1");
       }
       args.intervalSeconds = next;
+      index += 1;
+      continue;
+    }
+    if (token === "--restart-output-idle-seconds") {
+      const next = Number.parseInt(String(rest[index + 1] || "").trim(), 10);
+      if (!Number.isInteger(next) || next < 60) {
+        throw new Error("--restart-output-idle-seconds requires an integer >= 60");
+      }
+      args.restartOutputIdleSeconds = next;
       index += 1;
       continue;
     }
@@ -130,6 +163,307 @@ function runStallScan(role, wpId) {
   return { status: "STALL", summary: stdout || stderr || "stall scan detected a stuck pattern" };
 }
 
+function findTargetRegistrySession(registrySessions = [], {
+  wpId = "",
+  role = "",
+  session = null,
+} = {}) {
+  const normalizedRole = normalizeRole(role);
+  const normalizedSession = String(session || "").trim();
+  const fallbackSessionKey = sessionKey(normalizedRole, wpId);
+  return (Array.isArray(registrySessions) ? registrySessions : []).find((entry) => {
+    if (String(entry?.wp_id || "").trim() !== String(wpId || "").trim()) return false;
+    if (normalizeRole(entry?.role) !== normalizedRole) return false;
+    const entrySessionKey = String(entry?.session_key || "").trim();
+    if (!normalizedSession) return entrySessionKey === fallbackSessionKey;
+    return entrySessionKey === normalizedSession || entrySessionKey === fallbackSessionKey;
+  }) || null;
+}
+
+function resolveTargetOutputFile(targetSessionRecord = null) {
+  const relativePath = String(targetSessionRecord?.last_command_output_file || "").trim();
+  if (!relativePath) {
+    return {
+      relativePath: "",
+      absPath: "",
+      exists: false,
+      modifiedAt: "",
+      modifiedAtMs: null,
+    };
+  }
+  const absPath = path.resolve(REPO_ROOT, relativePath);
+  if (!fs.existsSync(absPath)) {
+    return {
+      relativePath,
+      absPath,
+      exists: false,
+      modifiedAt: "",
+      modifiedAtMs: null,
+    };
+  }
+  const stats = fs.statSync(absPath);
+  return {
+    relativePath,
+    absPath,
+    exists: true,
+    modifiedAt: stats.mtime.toISOString(),
+    modifiedAtMs: stats.mtimeMs,
+  };
+}
+
+function inspectRestartFreshness({
+  wpId,
+  targetRole,
+  targetSession,
+  targetSessionRecord,
+  activeRuns = [],
+  restartOutputIdleSeconds = DEFAULT_RESTART_OUTPUT_IDLE_SECONDS,
+  now = new Date(),
+} = {}) {
+  const nowMs = now.getTime();
+  const normalizedRole = normalizeRole(targetRole);
+  const normalizedSession = String(targetSession || "").trim();
+  if (!targetSessionRecord) {
+    return {
+      eligible: false,
+      reason: "TARGET_SESSION_NOT_FOUND",
+      targetRole: normalizedRole,
+      targetSession: normalizedSession,
+    };
+  }
+  if (!RESTART_ELIGIBLE_ROLE_VALUES.has(normalizeRole(targetSessionRecord.role || normalizedRole))) {
+    return {
+      eligible: false,
+      reason: "ROLE_NOT_RESTART_ELIGIBLE",
+      targetRole: normalizedRole,
+      targetSession: normalizedSession || String(targetSessionRecord.session_key || "").trim(),
+    };
+  }
+  if (String(targetSessionRecord.runtime_state || "").trim().toUpperCase() !== "COMMAND_RUNNING") {
+    return {
+      eligible: false,
+      reason: `SESSION_RUNTIME_${String(targetSessionRecord.runtime_state || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
+      targetRole: normalizedRole,
+      targetSession: normalizedSession || String(targetSessionRecord.session_key || "").trim(),
+    };
+  }
+
+  const outputFile = resolveTargetOutputFile(targetSessionRecord);
+  if (!outputFile.exists || outputFile.modifiedAtMs === null) {
+    return {
+      eligible: false,
+      reason: "OUTPUT_FILE_MISSING",
+      targetRole: normalizedRole,
+      targetSession: normalizedSession || String(targetSessionRecord.session_key || "").trim(),
+      outputFile,
+    };
+  }
+
+  const outputIdleSeconds = Math.max(0, Math.trunc((nowMs - outputFile.modifiedAtMs) / 1000));
+  if (outputIdleSeconds < restartOutputIdleSeconds) {
+    return {
+      eligible: false,
+      reason: "OUTPUT_RECENTLY_UPDATED",
+      targetRole: normalizedRole,
+      targetSession: normalizedSession || String(targetSessionRecord.session_key || "").trim(),
+      outputFile,
+      outputIdleSeconds,
+      restartOutputIdleSeconds,
+    };
+  }
+
+  const sessionReferenceAtMs = parseTimestamp(
+    targetSessionRecord.last_event_at
+      || targetSessionRecord.last_heartbeat_at
+      || targetSessionRecord.last_command_prompt_at
+      || targetSessionRecord.last_command_completed_at,
+  );
+  if (sessionReferenceAtMs === null) {
+    return {
+      eligible: false,
+      reason: "SESSION_IDLE_TIMESTAMP_MISSING",
+      targetRole: normalizedRole,
+      targetSession: normalizedSession || String(targetSessionRecord.session_key || "").trim(),
+      outputFile,
+      outputIdleSeconds,
+      restartOutputIdleSeconds,
+    };
+  }
+
+  const sessionIdleSeconds = Math.max(0, Math.trunc((nowMs - sessionReferenceAtMs) / 1000));
+  if (sessionIdleSeconds < restartOutputIdleSeconds) {
+    return {
+      eligible: false,
+      reason: "SESSION_RECENTLY_ACTIVE",
+      targetRole: normalizedRole,
+      targetSession: normalizedSession || String(targetSessionRecord.session_key || "").trim(),
+      outputFile,
+      outputIdleSeconds,
+      sessionIdleSeconds,
+      restartOutputIdleSeconds,
+    };
+  }
+
+  const matchingRuns = Array.isArray(activeRuns) ? activeRuns : [];
+  if (matchingRuns.length === 0) {
+    return {
+      eligible: false,
+      reason: "NO_ACTIVE_RUN",
+      targetRole: normalizedRole,
+      targetSession: normalizedSession || String(targetSessionRecord.session_key || "").trim(),
+      outputFile,
+      outputIdleSeconds,
+      sessionIdleSeconds,
+      restartOutputIdleSeconds,
+    };
+  }
+
+  const nonExpiredRuns = matchingRuns.filter((run) => {
+    const timeoutAtMs = parseTimestamp(run?.timeout_at);
+    return timeoutAtMs === null || timeoutAtMs > nowMs;
+  });
+  if (nonExpiredRuns.length > 0) {
+    return {
+      eligible: false,
+      reason: "ACTIVE_RUN_NOT_EXPIRED",
+      targetRole: normalizedRole,
+      targetSession: normalizedSession || String(targetSessionRecord.session_key || "").trim(),
+      outputFile,
+      outputIdleSeconds,
+      sessionIdleSeconds,
+      restartOutputIdleSeconds,
+      nextTimeoutAt: String(nonExpiredRuns[0]?.timeout_at || "").trim() || "",
+    };
+  }
+
+  return {
+    eligible: true,
+    reason: "STALE_ACTIVE_RUN_CONFIRMED",
+    wpId: String(wpId || "").trim(),
+    targetRole: normalizedRole,
+    targetSession: normalizedSession || String(targetSessionRecord.session_key || "").trim(),
+    outputFile,
+    outputIdleSeconds,
+    sessionIdleSeconds,
+    restartOutputIdleSeconds,
+    lastOutputAt: outputFile.modifiedAt,
+    lastSessionEventAt: targetSessionRecord.last_event_at || targetSessionRecord.last_heartbeat_at || "",
+  };
+}
+
+function cancelTargetSession(role, wpId) {
+  const result = spawnSync(process.execPath, [SESSION_CONTROL_CANCEL_SCRIPT_PATH, role, wpId], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  const stdout = String(result.stdout || "").trim();
+  const stderr = String(result.stderr || "").trim();
+  const combined = [stdout, stderr].filter(Boolean).join("\n");
+  const cancelStatus = parseSessionControlField(combined, "cancel_status");
+  const settledStatus = parseSessionControlField(combined, "settled_status");
+  const targetSettledStatus = parseSessionControlField(combined, "target_settled_status");
+  const commandId = parseSessionControlField(combined, "command_id");
+  const acceptedStatuses = new Set(["cancellation_requested", "target_already_settled", "not_running"]);
+  return {
+    ok: result.status === 0 && acceptedStatuses.has(String(cancelStatus || "").trim().toLowerCase()),
+    statusCode: result.status,
+    stdout,
+    stderr,
+    cancelStatus,
+    settledStatus,
+    targetSettledStatus,
+    commandId,
+  };
+}
+
+function maybeRestartStalledLane({
+  wpId,
+  registrySessions = [],
+  targetRole = "",
+  targetSession = null,
+  decision = null,
+  activeRuns = [],
+  allowRestart = false,
+  restartOutputIdleSeconds = DEFAULT_RESTART_OUTPUT_IDLE_SECONDS,
+} = {}) {
+  const targetSessionRecord = findTargetRegistrySession(registrySessions, {
+    wpId,
+    role: targetRole,
+    session: targetSession,
+  });
+  const freshness = inspectRestartFreshness({
+    wpId,
+    targetRole,
+    targetSession,
+    targetSessionRecord,
+    activeRuns,
+    restartOutputIdleSeconds,
+  });
+  const restartDecision = deriveRelayWatchdogRestartDecision({
+    decision,
+    allowRestart,
+    freshness,
+  });
+  if (!restartDecision.shouldRestart) {
+    return {
+      status: "SKIPPED",
+      reason: restartDecision.reason,
+      freshness,
+      restartDecision,
+      targetSessionRecord,
+    };
+  }
+
+  const cancel = cancelTargetSession(targetRole, wpId);
+  if (!cancel.ok) {
+    return {
+      status: "FAILED",
+      reason: cancel.cancelStatus || cancel.settledStatus || "CANCEL_SESSION_FAILED",
+      freshness,
+      restartDecision,
+      targetSessionRecord,
+      cancel,
+    };
+  }
+
+  const outputLines = steerWp(wpId);
+  const correlationId = [
+    "relay-watchdog-restart",
+    String(wpId || "").trim() || "WP-UNKNOWN",
+    normalizeRole(targetRole) || "UNKNOWN",
+    String(targetSession || targetSessionRecord?.session_key || "NONE").trim() || "NONE",
+    cancel.commandId || "NO_COMMAND_ID",
+  ].join(":");
+  appendWpReceipt({
+    wpId,
+    actorRole: "ORCHESTRATOR",
+    actorSession: WATCHDOG_SESSION,
+    receiptKind: "STEERING",
+    summary: `RELAY_WATCHDOG restart repair: canceled stale active run for ${normalizeRole(targetRole)}${targetSession ? `:${targetSession}` : ""} and re-steered the governed lane.`,
+    stateBefore: "REPORT_STALLED_ACTIVE_RUN",
+    stateAfter: "RELAY_WATCHDOG_RESTARTED",
+    targetRole: normalizeRole(targetRole),
+    targetSession: String(targetSession || targetSessionRecord?.session_key || "").trim() || null,
+    correlationId,
+    refs: [
+      freshness.outputFile?.relativePath || "",
+      targetSessionRecord?.last_command_output_file || "",
+    ].filter(Boolean),
+  }, { autoRelay: false });
+
+  return {
+    status: "RESTARTED",
+    reason: restartDecision.reason,
+    freshness,
+    restartDecision,
+    targetSessionRecord,
+    cancel,
+    outputLines,
+    correlationId,
+  };
+}
+
 function loadWpRelayInputs(wpId, registrySessions) {
   const resolved = resolveWorkPacketPath(wpId);
   if (!resolved?.packetPath || !fs.existsSync(resolved.packetAbsPath)) {
@@ -178,6 +512,7 @@ function loadWpRelayInputs(wpId, registrySessions) {
     runtimeStatusFile,
     runtimeStatusAbsPath: repoPathAbs(runtimeStatusFile),
     runtimeStatus,
+    pendingNotifications,
     relayStatus,
   };
 }
@@ -192,7 +527,10 @@ function steerWp(wpId) {
   return output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 }
 
-function shouldPersistRelayWatchdogState(decision = null) {
+function shouldPersistRelayWatchdogState(decision = null, restartRepair = null) {
+  if (restartRepair?.status === "RESTARTED" && restartRepair?.restartDecision?.shouldRestart) {
+    return true;
+  }
   return ["INCREMENT", "RESET"].includes(String(decision?.cycleAction || "").trim().toUpperCase())
     || ["ESCALATE_RELAY_LIMIT", "REPORT_STALLED_ACTIVE_RUN"].includes(String(decision?.action || "").trim().toUpperCase());
 }
@@ -202,8 +540,9 @@ function updateRelayWatchdogRuntimeState({
   runtimeStatusFile = "",
   runtimeStatusAbsPath = "",
   decision = null,
+  restartRepair = null,
 } = {}) {
-  if (!runtimeStatusFile || !runtimeStatusAbsPath || !fs.existsSync(runtimeStatusAbsPath) || !shouldPersistRelayWatchdogState(decision)) {
+  if (!runtimeStatusFile || !runtimeStatusAbsPath || !fs.existsSync(runtimeStatusAbsPath) || !shouldPersistRelayWatchdogState(decision, restartRepair)) {
     return null;
   }
 
@@ -213,18 +552,28 @@ function updateRelayWatchdogRuntimeState({
     const previousCycle = parseNonNegativeInteger(runtime.current_relay_escalation_cycle, 0);
     const maxCycle = Math.max(1, parseNonNegativeInteger(runtime.max_relay_escalation_cycles, 1));
     let nextCycle = previousCycle;
-    const cycleAction = String(decision?.cycleAction || "").trim().toUpperCase();
+    const restartApplied = restartRepair?.status === "RESTARTED" && restartRepair?.restartDecision?.shouldRestart;
+    const cycleAction = restartApplied
+      ? "INCREMENT"
+      : String(decision?.cycleAction || "").trim().toUpperCase();
     if (cycleAction === "RESET") {
       nextCycle = 0;
     } else if (cycleAction === "INCREMENT") {
-      const requestedCycle = parseNonNegativeInteger(decision?.nextCycle, previousCycle + 1);
+      const requestedCycle = restartApplied
+        ? parseNonNegativeInteger(restartRepair?.restartDecision?.nextCycle, previousCycle + 1)
+        : parseNonNegativeInteger(decision?.nextCycle, previousCycle + 1);
       nextCycle = Math.min(maxCycle, Math.max(previousCycle + 1, requestedCycle));
     }
 
     runtime.current_relay_escalation_cycle = nextCycle;
-    runtime.last_event = `relay_watchdog_${String(decision?.action || "skip").trim().toLowerCase()}`;
+    const lastEventAction = restartApplied
+      ? "cancel_and_resteer"
+      : String(decision?.action || "skip").trim().toLowerCase();
+    runtime.last_event = `relay_watchdog_${lastEventAction}`;
     runtime.last_event_at = new Date().toISOString();
-    if (["ESCALATE_RELAY_LIMIT", "REPORT_STALLED_ACTIVE_RUN"].includes(String(decision?.action || "").trim().toUpperCase())) {
+    if (restartApplied) {
+      runtime.attention_required = false;
+    } else if (["ESCALATE_RELAY_LIMIT", "REPORT_STALLED_ACTIVE_RUN"].includes(String(decision?.action || "").trim().toUpperCase())) {
       runtime.attention_required = true;
     }
 
@@ -244,10 +593,53 @@ function updateRelayWatchdogRuntimeState({
   });
 }
 
+function maybeEmitRelayRepairSignal({
+  wpId,
+  base = null,
+  decision = null,
+  stallScan = null,
+} = {}) {
+  const repairSignal = buildRelayRepairSignal({
+    wpId,
+    relayStatus: base?.relayStatus,
+    decision,
+    stallScanStatus: stallScan?.status,
+  });
+  if (!repairSignal) {
+    return { status: "NOT_APPLICABLE", reason: "NO_REPAIR_SIGNAL" };
+  }
+  if (relayRepairSignalAlreadyPending(base?.pendingNotifications, repairSignal)) {
+    return {
+      status: "ALREADY_PENDING",
+      reason: "DUPLICATE_CORRELATION",
+      correlationId: repairSignal.correlationId,
+      summary: repairSignal.summary,
+    };
+  }
+  const notification = appendWpNotification({
+    wpId,
+    sourceKind: repairSignal.sourceKind,
+    sourceRole: "ORCHESTRATOR",
+    sourceSession: WATCHDOG_SESSION,
+    targetRole: repairSignal.targetRole,
+    targetSession: repairSignal.targetSession,
+    correlationId: repairSignal.correlationId,
+    summary: repairSignal.summary,
+  }, { autoRelay: false });
+  return {
+    status: notification ? "EMITTED" : "SKIPPED",
+    reason: notification ? "REPAIR_SIGNAL_APPENDED" : "NOTIFICATION_APPEND_SKIPPED",
+    correlationId: repairSignal.correlationId,
+    summary: repairSignal.summary,
+  };
+}
+
 function evaluateWp(wpId, {
   registrySessions,
   brokerState,
   allowWatchSteer,
+  allowRestart,
+  restartOutputIdleSeconds,
 } = {}) {
   const base = loadWpRelayInputs(wpId, registrySessions);
   if (!base.applicable) {
@@ -276,6 +668,16 @@ function evaluateWp(wpId, {
     stallScanStatus: stallScan.status,
     allowWatchSteer,
   });
+  const restartRepair = maybeRestartStalledLane({
+    wpId,
+    registrySessions,
+    targetRole,
+    targetSession,
+    decision,
+    activeRuns,
+    allowRestart,
+    restartOutputIdleSeconds,
+  });
   const summary = buildRelayWatchdogSummary({
     wpId,
     relayStatus: base.relayStatus,
@@ -284,12 +686,44 @@ function evaluateWp(wpId, {
     stallScanStatus: stallScan.status,
   });
 
+  if (restartRepair?.status === "RESTARTED") {
+    const runtimeUpdate = updateRelayWatchdogRuntimeState({
+      wpId,
+      runtimeStatusFile: base.runtimeStatusFile,
+      runtimeStatusAbsPath: base.runtimeStatusAbsPath,
+      decision,
+      restartRepair,
+    });
+    return {
+      wpId,
+      action: restartRepair.restartDecision.action,
+      reason: restartRepair.reason,
+      summary,
+      relayStatus: base.relayStatus,
+      stallScan,
+      activeRuns,
+      decision,
+      restartRepair,
+      runtimeUpdate,
+      outputLines: restartRepair.outputLines,
+      repairSignal: { status: "NOT_APPLICABLE", reason: "RESTARTED" },
+      skipped: false,
+    };
+  }
+
   if (!decision.shouldSteer) {
     const runtimeUpdate = updateRelayWatchdogRuntimeState({
       wpId,
       runtimeStatusFile: base.runtimeStatusFile,
       runtimeStatusAbsPath: base.runtimeStatusAbsPath,
       decision,
+      restartRepair,
+    });
+    const repairSignal = maybeEmitRelayRepairSignal({
+      wpId,
+      base,
+      decision,
+      stallScan,
     });
     return {
       wpId,
@@ -301,6 +735,7 @@ function evaluateWp(wpId, {
       activeRuns,
       decision,
       runtimeUpdate,
+      repairSignal,
       skipped: true,
     };
   }
@@ -332,7 +767,9 @@ function evaluateWp(wpId, {
     activeRuns,
     outputLines,
     decision,
+    restartRepair,
     runtimeUpdate,
+    repairSignal: { status: "NOT_APPLICABLE", reason: "STEER_ACTION" },
     skipped: false,
   };
 }
@@ -363,6 +800,28 @@ function printResult(result) {
     console.log(`- runtime_cycle_after: ${result.runtimeUpdate.nextCycle}/${result.runtimeUpdate.maxCycle}`);
     console.log(`- runtime_attention_required: ${result.runtimeUpdate.attentionRequired ? "YES" : "NO"}`);
   }
+  if (result.restartRepair) {
+    console.log(`- restart_status: ${result.restartRepair.status}`);
+    console.log(`- restart_reason: ${result.restartRepair.reason}`);
+    if (result.restartRepair.freshness?.reason) console.log(`- restart_freshness_reason: ${result.restartRepair.freshness.reason}`);
+    if (Number.isInteger(result.restartRepair.freshness?.outputIdleSeconds)) {
+      console.log(`- restart_output_idle_seconds: ${result.restartRepair.freshness.outputIdleSeconds}`);
+    }
+    if (Number.isInteger(result.restartRepair.freshness?.sessionIdleSeconds)) {
+      console.log(`- restart_session_idle_seconds: ${result.restartRepair.freshness.sessionIdleSeconds}`);
+    }
+    if (result.restartRepair.freshness?.nextTimeoutAt) {
+      console.log(`- restart_next_timeout_at: ${result.restartRepair.freshness.nextTimeoutAt}`);
+    }
+    if (result.restartRepair.cancel?.cancelStatus) {
+      console.log(`- restart_cancel_status: ${result.restartRepair.cancel.cancelStatus}`);
+    }
+  }
+  if (result.repairSignal && result.repairSignal.status !== "NOT_APPLICABLE") {
+    console.log(`- repair_signal_status: ${result.repairSignal.status}`);
+    console.log(`- repair_signal_reason: ${result.repairSignal.reason}`);
+    if (result.repairSignal.correlationId) console.log(`- repair_signal_correlation: ${result.repairSignal.correlationId}`);
+  }
   if (Array.isArray(result.activeRuns) && result.activeRuns.length > 0) {
     console.log(`- active_runs: ${result.activeRuns.length}`);
     for (const run of result.activeRuns) {
@@ -382,6 +841,8 @@ function runCycle(args) {
     registrySessions: registry.sessions || [],
     brokerState,
     allowWatchSteer: args.allowWatchSteer,
+    allowRestart: args.allowRestart,
+    restartOutputIdleSeconds: args.restartOutputIdleSeconds,
   }));
   for (const result of results) {
     printResult(result);

@@ -173,3 +173,113 @@ export function buildRelayWatchdogSummary({
   ];
   return parts.join(" | ");
 }
+
+export function deriveRelayWatchdogRestartDecision({
+  decision = null,
+  allowRestart = false,
+  freshness = null,
+} = {}) {
+  const action = String(decision?.action || "").trim().toUpperCase();
+  const currentCycle = parseNonNegativeInteger(decision?.currentCycle, 0);
+  const maxCycle = Math.max(1, parseNonNegativeInteger(decision?.maxCycle, 1));
+
+  if (!allowRestart) {
+    return {
+      action: "RESTART_DISABLED",
+      shouldRestart: false,
+      reason: "RESTART_DISABLED",
+      currentCycle,
+      nextCycle: currentCycle,
+      maxCycle,
+    };
+  }
+
+  if (action !== "REPORT_STALLED_ACTIVE_RUN") {
+    return {
+      action: "RESTART_NOT_APPLICABLE",
+      shouldRestart: false,
+      reason: action || "NOT_APPLICABLE",
+      currentCycle,
+      nextCycle: currentCycle,
+      maxCycle,
+    };
+  }
+
+  if (currentCycle >= maxCycle) {
+    return {
+      action: "RESTART_BUDGET_EXHAUSTED",
+      shouldRestart: false,
+      reason: "MAX_RELAY_ESCALATION_CYCLES_REACHED",
+      currentCycle,
+      nextCycle: currentCycle,
+      maxCycle,
+    };
+  }
+
+  if (!freshness?.eligible) {
+    return {
+      action: "RESTART_BLOCKED",
+      shouldRestart: false,
+      reason: String(freshness?.reason || "FRESHNESS_GUARD_BLOCKED").trim() || "FRESHNESS_GUARD_BLOCKED",
+      currentCycle,
+      nextCycle: currentCycle,
+      maxCycle,
+    };
+  }
+
+  return {
+    action: "CANCEL_AND_RESTEER",
+    shouldRestart: true,
+    reason: String(freshness.reason || "STALE_ACTIVE_RUN_CONFIRMED").trim() || "STALE_ACTIVE_RUN_CONFIRMED",
+    currentCycle,
+    nextCycle: currentCycle + 1,
+    maxCycle,
+  };
+}
+
+export function buildRelayRepairSignal({
+  wpId = "",
+  relayStatus = null,
+  decision = null,
+  stallScanStatus = "UNKNOWN",
+} = {}) {
+  const action = String(decision?.action || "").trim().toUpperCase();
+  if (!["REPORT_STALLED_ACTIVE_RUN", "ESCALATE_RELAY_LIMIT"].includes(action)) {
+    return null;
+  }
+
+  const targetRole = normalizeRole(relayStatus?.target_role) || "UNKNOWN";
+  const targetSession = normalizeSession(relayStatus?.target_session);
+  const targetLabel = targetSession
+    ? (targetSession.startsWith(`${targetRole}:`) ? targetSession : `${targetRole}:${targetSession}`)
+    : targetRole;
+  const reason = String(decision?.reason || relayStatus?.reason_code || "UNKNOWN").trim() || "UNKNOWN";
+  const cycle = `${Number.isInteger(decision?.currentCycle) ? decision.currentCycle : 0}/${Number.isInteger(decision?.maxCycle) ? decision.maxCycle : 1}`;
+  const summary = action === "REPORT_STALLED_ACTIVE_RUN"
+    ? `RELAY_WATCHDOG_REPAIR: active run for ${targetLabel} appears stalled (${reason}); stall_scan=${String(stallScanStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}; bounded repair escalation is required.`
+    : `RELAY_WATCHDOG_REPAIR: relay budget exhausted for ${targetLabel} after cycle=${cycle} (${reason}); automatic re-wake is halted until orchestrator repair intervenes.`;
+
+  return {
+    sourceKind: "RELAY_WATCHDOG_REPAIR",
+    targetRole: "ORCHESTRATOR",
+    targetSession: null,
+    correlationId: [
+      "relay-watchdog-repair",
+      String(wpId || "").trim() || "WP-UNKNOWN",
+      targetRole || "UNKNOWN",
+      targetSession || "NONE",
+      action,
+      reason || "UNKNOWN",
+    ].join(":"),
+    summary,
+  };
+}
+
+export function relayRepairSignalAlreadyPending(pendingNotifications = [], repairSignal = null) {
+  const correlationId = normalizeSession(repairSignal?.correlationId);
+  if (!correlationId) return false;
+  return (Array.isArray(pendingNotifications) ? pendingNotifications : []).some((entry) =>
+    normalizeRole(entry?.target_role) === "ORCHESTRATOR"
+    && normalizeSession(entry?.correlation_id) === correlationId
+  );
+}

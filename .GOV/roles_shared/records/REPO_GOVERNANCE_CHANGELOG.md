@@ -1917,3 +1917,62 @@
   - `RGF-166`
   - `RGF-167`
 - OUTCOME: governance now has a public `just wp-relay-watchdog` command that consumes the existing receipt/notification/relay-escalation truth and safely re-steers only when the projected target is not already running; active runs are inspected with the existing stall scanner and reported conservatively as stalled rather than being killed by default, which establishes the mechanical watcher boundary for a later bounded repair ladder
+
+### 2026.04.10.1 / GOV-CHANGE-20260410-01
+
+- STATUS: APPLIED
+- SUMMARY: started the `RGF-167` repair-ladder slice with bounded relay-cycle persistence and explicit repair signaling
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-167`
+  - 2026-04-10 operator directive to commit the bounded auto-repair slice first and continue into repair handling
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-167`
+- OUTCOME: the watchdog now persists bounded relay-cycle state into WP runtime truth, surfaces relay-cycle budget in session-registry inspection, and emits deduped ORCHESTRATOR-targeted repair signals when a lane hits a true stalled-active-run or exhausted-relay-budget condition, without introducing destructive auto-cancel behavior by default
+
+### 2026.04.10.2 / GOV-CHANGE-20260410-02
+
+- STATUS: APPLIED
+- SUMMARY: excluded packetless Memory Manager hygiene lanes from worktree concurrency gating and began command-family shell memory injection
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `procedural memory #776`
+  - 2026-04-10 operator directive to remediate the `gov-check` blocker, then continue the two memory follow-up items
+- SURFACES:
+  - `.GOV/roles_shared/checks/worktree-concurrency-check.mjs`
+  - `.GOV/roles_shared/tests/worktree-concurrency-check.test.mjs`
+
+### 2026.04.10.3 / GOV-CHANGE-20260410-03
+
+- STATUS: APPLIED
+- SUMMARY: added a conservative default-off restart rung to the relay watchdog and documented the guardrail contract
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-167`
+  - 2026-04-10 operator directive to proceed after evaluating restart safeguards for stalled governed lanes
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-167`
+- OUTCOME: the relay watchdog now supports an explicit `--allow-restart` repair rung that stays default-off and only cancels plus re-steers a governed lane when the projected target is one of `CODER` / `WP_VALIDATOR` / `INTEGRATION_VALIDATOR`, the lane is already classified as `REPORT_STALLED_ACTIVE_RUN`, the target session still claims `COMMAND_RUNNING`, the output file and session activity are both older than the configured freshness threshold, and every matching active run is already past `timeout_at`; otherwise the watchdog remains in report/escalate mode without destructive intervention
+  - `.GOV/roles_shared/scripts/memory/memory-recall.mjs`
+  - `.GOV/roles_shared/scripts/memory/shell-with-memory.mjs`
+  - `.GOV/roles_shared/tests/memory-recall.test.mjs`
+  - `.GOV/roles_shared/tests/shell-with-memory.test.mjs`
+  - `justfile`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-160`
+  - `RGF-168`
+- OUTCOME: `gov-check` no longer treats synthetic `WP-MEMORY-HYGIENE_<ts>` Memory Manager lanes as product WPs that require coder/WP-validator worktrees, and governance now has an initial command-family shell wrapper that performs trigger-aware recall before ad hoc shell commands and can capture structured `shell-command` procedural memory keyed by command family
