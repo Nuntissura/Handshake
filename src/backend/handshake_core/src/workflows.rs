@@ -25,7 +25,8 @@ use crate::{
         CapabilityRegistryWorkflowParams,
     },
     flight_recorder::{
-        EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+        model_run_activity_span_id, model_session_span_id, tool_call_activity_span_id, EventFilter,
+        FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
         FrEvt008SecurityViolation, FrEvtWorkflowRecovery,
     },
     governance_pack::{export_governance_pack, GovernancePackExportRequest},
@@ -48,7 +49,7 @@ use crate::{
     storage::{
         sqlite::SqliteDatabase, validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate,
         ModelSession, ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
-        SessionMessageRole, StorageError,
+        SessionMessage, SessionMessageRole, StorageError,
     },
     terminal::{
         config::TerminalConfig,
@@ -2109,6 +2110,214 @@ async fn record_event_required(
         .record_event(event)
         .await
         .map_err(|e| WorkflowError::Terminal(format!("flight recorder rejected event: {e}")))
+}
+
+fn model_run_activity_span(job_id: Uuid) -> String {
+    let job_id = job_id.to_string();
+    model_run_activity_span_id(job_id.as_str())
+}
+
+fn bind_model_session_event(
+    mut event: FlightRecorderEvent,
+    session_id: &str,
+    activity_span_id: Option<&str>,
+) -> FlightRecorderEvent {
+    event = event
+        .with_model_session_id(session_id.to_string())
+        .with_session_span(model_session_span_id(session_id));
+    if let Some(activity_span_id) = activity_span_id {
+        event = event.with_activity_span(activity_span_id.to_string());
+    }
+    event
+}
+
+async fn emit_session_created_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job_id: Uuid,
+    metadata: &ModelRunMetadata,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session.created",
+        "event_id": "FR-EVT-SESS-001",
+        "session_id": metadata.session_id,
+        "model_id": metadata.model_id,
+        "backend": metadata.backend,
+        "role": metadata.role,
+        "wp_id": metadata
+            .wp_id
+            .clone()
+            .unwrap_or_else(|| "WP-UNSPECIFIED".to_string()),
+        "mt_id": metadata
+            .mt_id
+            .clone()
+            .unwrap_or_else(|| "MT-UNSPECIFIED".to_string()),
+        "memory_policy": metadata.memory_policy,
+        "spawn_depth": metadata.spawn_depth,
+    });
+    record_event_required(
+        state,
+        bind_model_session_event(
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::SessionCreated,
+                FlightRecorderActor::System,
+                trace_id,
+                payload,
+            ),
+            metadata.session_id.as_str(),
+            None,
+        )
+        .with_job_id(job_id.to_string()),
+    )
+    .await
+}
+
+async fn emit_session_state_change_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job_id: Uuid,
+    session_id: &str,
+    from_state: &ModelSessionState,
+    to_state: &ModelSessionState,
+    reason: &str,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session.state_change",
+        "event_id": "FR-EVT-SESS-002",
+        "session_id": session_id,
+        "from_state": from_state.as_str(),
+        "to_state": to_state.as_str(),
+        "reason": reason,
+    });
+    let activity_span = model_run_activity_span(job_id);
+    record_event_required(
+        state,
+        bind_model_session_event(
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::SessionStateChange,
+                FlightRecorderActor::System,
+                trace_id,
+                payload,
+            )
+            .with_job_id(job_id.to_string()),
+            session_id,
+            Some(activity_span.as_str()),
+        ),
+    )
+    .await
+}
+
+async fn emit_session_message_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job_id: Uuid,
+    session_id: &str,
+    message: &SessionMessage,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session.message",
+        "event_id": "FR-EVT-SESS-004",
+        "session_id": session_id,
+        "message_id": message.message_id,
+        "role": message.role.as_str(),
+        "content_hash": message.content_hash,
+        "token_count": message.token_count.unwrap_or(0).max(0),
+    });
+    let activity_span = message
+        .tool_call_id
+        .as_deref()
+        .map(tool_call_activity_span_id)
+        .unwrap_or_else(|| model_run_activity_span(job_id));
+    record_event_required(
+        state,
+        bind_model_session_event(
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::SessionMessage,
+                FlightRecorderActor::Agent,
+                trace_id,
+                payload,
+            )
+            .with_job_id(job_id.to_string()),
+            session_id,
+            Some(activity_span.as_str()),
+        ),
+    )
+    .await
+}
+
+async fn emit_session_completed_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job_id: Uuid,
+    session: &ModelSession,
+    total_tokens: u64,
+    total_cost_usd: f64,
+    messages_count: u64,
+) -> Result<(), WorkflowError> {
+    let duration_ms = session
+        .updated_at
+        .signed_duration_since(session.created_at)
+        .num_milliseconds()
+        .max(0) as u64;
+    let payload = json!({
+        "type": "session.completed",
+        "event_id": "FR-EVT-SESS-003",
+        "session_id": session.session_id,
+        "total_tokens": total_tokens,
+        "total_cost_usd": total_cost_usd,
+        "duration_ms": duration_ms,
+        "messages_count": messages_count,
+    });
+    let activity_span = model_run_activity_span(job_id);
+    record_event_required(
+        state,
+        bind_model_session_event(
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::SessionCompleted,
+                FlightRecorderActor::System,
+                trace_id,
+                payload,
+            )
+            .with_job_id(job_id.to_string()),
+            session.session_id.as_str(),
+            Some(activity_span.as_str()),
+        ),
+    )
+    .await
+}
+
+async fn emit_session_budget_warning_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job_id: Uuid,
+    session_id: &str,
+    current_value: f64,
+    threshold_value: f64,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session.budget_warning",
+        "event_id": "FR-EVT-SESS-005",
+        "session_id": session_id,
+        "budget_type": "tokens.total",
+        "current_value": current_value,
+        "threshold_value": threshold_value,
+    });
+    let activity_span = model_run_activity_span(job_id);
+    record_event_required(
+        state,
+        bind_model_session_event(
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::SessionBudgetWarning,
+                FlightRecorderActor::System,
+                trace_id,
+                payload,
+            )
+            .with_job_id(job_id.to_string()),
+            session_id,
+            Some(activity_span.as_str()),
+        ),
+    )
+    .await
 }
 
 fn locus_event_payload(
@@ -5161,6 +5370,7 @@ async fn emit_session_scheduler_enqueue_event(
     metadata: &ModelRunMetadata,
     queue_depth: usize,
 ) -> Result<(), WorkflowError> {
+    let activity_span = model_run_activity_span(job.job_id);
     let payload = json!({
         "type": "session_scheduler.enqueue",
         "event_id": "FR-EVT-SESS-SCHED-001",
@@ -5178,13 +5388,17 @@ async fn emit_session_scheduler_enqueue_event(
     });
     record_event_required(
         state,
-        FlightRecorderEvent::new(
-            FlightRecorderEventType::SessionSchedulerEnqueue,
-            FlightRecorderActor::System,
-            trace_id,
-            payload,
-        )
-        .with_job_id(job.job_id.to_string()),
+        bind_model_session_event(
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::SessionSchedulerEnqueue,
+                FlightRecorderActor::System,
+                trace_id,
+                payload,
+            )
+            .with_job_id(job.job_id.to_string()),
+            metadata.session_id.as_str(),
+            Some(activity_span.as_str()),
+        ),
     )
     .await
 }
@@ -5196,6 +5410,7 @@ async fn emit_session_scheduler_dispatch_event(
     metadata: &ModelRunMetadata,
     queue_wait_ms: u64,
 ) -> Result<(), WorkflowError> {
+    let activity_span = model_run_activity_span(job.job_id);
     let payload = json!({
         "type": "session_scheduler.dispatch",
         "event_id": "FR-EVT-SESS-SCHED-002",
@@ -5210,13 +5425,17 @@ async fn emit_session_scheduler_dispatch_event(
     });
     record_event_required(
         state,
-        FlightRecorderEvent::new(
-            FlightRecorderEventType::SessionSchedulerDispatch,
-            FlightRecorderActor::System,
-            trace_id,
-            payload,
-        )
-        .with_job_id(job.job_id.to_string()),
+        bind_model_session_event(
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::SessionSchedulerDispatch,
+                FlightRecorderActor::System,
+                trace_id,
+                payload,
+            )
+            .with_job_id(job.job_id.to_string()),
+            metadata.session_id.as_str(),
+            Some(activity_span.as_str()),
+        ),
     )
     .await
 }
@@ -5231,6 +5450,7 @@ async fn emit_session_scheduler_rate_limited_event(
     backoff_ms: u64,
     reason: &str,
 ) -> Result<(), WorkflowError> {
+    let activity_span = model_run_activity_span(job.job_id);
     let payload = json!({
         "type": "session_scheduler.rate_limited",
         "event_id": "FR-EVT-SESS-SCHED-003",
@@ -5248,13 +5468,17 @@ async fn emit_session_scheduler_rate_limited_event(
     });
     record_event_required(
         state,
-        FlightRecorderEvent::new(
-            FlightRecorderEventType::SessionSchedulerRateLimited,
-            FlightRecorderActor::System,
-            trace_id,
-            payload,
-        )
-        .with_job_id(job.job_id.to_string()),
+        bind_model_session_event(
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::SessionSchedulerRateLimited,
+                FlightRecorderActor::System,
+                trace_id,
+                payload,
+            )
+            .with_job_id(job.job_id.to_string()),
+            metadata.session_id.as_str(),
+            Some(activity_span.as_str()),
+        ),
     )
     .await
 }
@@ -5267,6 +5491,7 @@ async fn emit_session_scheduler_cancelled_event(
     cancelled_by: &str,
     reason: &str,
 ) -> Result<(), WorkflowError> {
+    let activity_span = model_run_activity_span(job.job_id);
     let payload = json!({
         "type": "session_scheduler.cancelled",
         "event_id": "FR-EVT-SESS-SCHED-004",
@@ -5282,13 +5507,17 @@ async fn emit_session_scheduler_cancelled_event(
     });
     record_event_required(
         state,
-        FlightRecorderEvent::new(
-            FlightRecorderEventType::SessionSchedulerCancelled,
-            FlightRecorderActor::System,
-            trace_id,
-            payload,
-        )
-        .with_job_id(job.job_id.to_string()),
+        bind_model_session_event(
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::SessionSchedulerCancelled,
+                FlightRecorderActor::System,
+                trace_id,
+                payload,
+            )
+            .with_job_id(job.job_id.to_string()),
+            metadata.session_id.as_str(),
+            Some(activity_span.as_str()),
+        ),
     )
     .await
 }
@@ -5298,6 +5527,11 @@ async fn ensure_model_session_artifact_refs(
     job: &AiJob,
     metadata: &ModelRunMetadata,
 ) -> Result<(), WorkflowError> {
+    let session_was_missing = state
+        .storage
+        .get_model_session(metadata.session_id.as_str())
+        .await
+        .is_err();
     let session = state
         .storage
         .upsert_model_session(NewModelSession {
@@ -5321,6 +5555,9 @@ async fn ensure_model_session_artifact_refs(
         })
         .await?;
     state.session_registry.upsert_session(session).await;
+    if session_was_missing {
+        emit_session_created_event(state, derive_trace_id(job, None), job.job_id, metadata).await?;
+    }
 
     for entry in &metadata.session_messages {
         let mut role = entry.role.clone();
@@ -5369,7 +5606,7 @@ async fn ensure_model_session_artifact_refs(
             .await;
         }
 
-        state
+        let message = state
             .storage
             .append_session_message(NewSessionMessage {
                 message_id: entry.message_id.clone(),
@@ -5383,6 +5620,14 @@ async fn ensure_model_session_artifact_refs(
                 attachments,
             })
             .await?;
+        emit_session_message_event(
+            state,
+            derive_trace_id(job, None),
+            job.job_id,
+            metadata.session_id.as_str(),
+            &message,
+        )
+        .await?;
     }
 
     Ok(())
@@ -5611,6 +5856,10 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
         })
         .await?;
 
+    let previous_session = state
+        .storage
+        .get_model_session(metadata.session_id.as_str())
+        .await?;
     let session = state
         .storage
         .update_model_session_state(
@@ -5620,6 +5869,18 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
         )
         .await?;
     state.session_registry.upsert_session(session).await;
+    if previous_session.state != ModelSessionState::Active {
+        emit_session_state_change_event(
+            state,
+            trace_id,
+            job.job_id,
+            metadata.session_id.as_str(),
+            &previous_session.state,
+            &ModelSessionState::Active,
+            "dispatch_started",
+        )
+        .await?;
+    }
 
     emit_session_scheduler_dispatch_event(state, trace_id, &job, &metadata, queue_wait_ms).await?;
 
@@ -6034,7 +6295,7 @@ async fn run_model_run_job(
     let content_artifact_id = string_opt(model_run_inputs(job), "assistant_content_artifact_id")
         .unwrap_or_else(|| format!("artifact:model_run:{}/{}", metadata.session_id, job.job_id));
 
-    state
+    let assistant_message = state
         .storage
         .append_session_message(NewSessionMessage {
             message_id: None,
@@ -6048,6 +6309,29 @@ async fn run_model_run_job(
             attachments: Vec::new(),
         })
         .await?;
+    emit_session_message_event(
+        state,
+        trace_id,
+        job.job_id,
+        metadata.session_id.as_str(),
+        &assistant_message,
+    )
+    .await?;
+    if let Some(max_tokens_budget) = metadata.max_tokens_budget {
+        let current_tokens = assistant_message.token_count.unwrap_or(0).max(0) as f64;
+        let threshold = max_tokens_budget.max(0) as f64;
+        if threshold > 0.0 && current_tokens >= threshold {
+            emit_session_budget_warning_event(
+                state,
+                trace_id,
+                job.job_id,
+                metadata.session_id.as_str(),
+                current_tokens,
+                threshold,
+            )
+            .await?;
+        }
+    }
 
     let output = json!({
         "session_id": metadata.session_id,
@@ -6096,21 +6380,60 @@ async fn finalize_model_run_after_terminal(
         JobState::AwaitingUser | JobState::AwaitingValidation => ModelSessionState::Blocked,
     };
 
+    let previous_session = state
+        .storage
+        .get_model_session(metadata.session_id.as_str())
+        .await?;
     let session = state
         .storage
         .update_model_session_state(
             metadata.session_id.as_str(),
-            session_state,
+            session_state.clone(),
             Some(job.job_id),
         )
         .await?;
-    state.session_registry.upsert_session(session).await;
+    state.session_registry.upsert_session(session.clone()).await;
+    if previous_session.state != session_state {
+        emit_session_state_change_event(
+            state,
+            trace_id,
+            job.job_id,
+            metadata.session_id.as_str(),
+            &previous_session.state,
+            &session_state,
+            status_reason,
+        )
+        .await?;
+    }
+    if matches!(
+        final_status,
+        JobState::Completed | JobState::CompletedWithIssues
+    ) {
+        let messages = state
+            .storage
+            .list_session_messages(metadata.session_id.as_str())
+            .await?;
+        let total_tokens = messages.iter().fold(0_u64, |acc, message| {
+            acc.saturating_add(message.token_count.unwrap_or(0).max(0) as u64)
+        });
+        emit_session_completed_event(
+            state,
+            trace_id,
+            job.job_id,
+            &session,
+            total_tokens,
+            metadata.estimated_cost_usd.unwrap_or(0.0),
+            messages.len() as u64,
+        )
+        .await?;
+    }
 
     if matches!(final_status, JobState::Cancelled) {
         let cancel_event_already_recorded = state
             .flight_recorder
             .list_events(EventFilter {
                 job_id: Some(job.job_id.to_string()),
+                model_session_id: None,
                 ..Default::default()
             })
             .await
@@ -6185,12 +6508,35 @@ pub async fn cancel_model_run_job(
     } else {
         ModelSessionState::Cancelled
     };
+    let previous_session = state
+        .storage
+        .get_model_session(metadata.session_id.as_str())
+        .await
+        .ok();
     let session = state
         .storage
-        .update_model_session_state(metadata.session_id.as_str(), session_state, Some(job_id))
+        .update_model_session_state(
+            metadata.session_id.as_str(),
+            session_state.clone(),
+            Some(job_id),
+        )
         .await;
     if let Ok(session) = session {
         state.session_registry.upsert_session(session).await;
+        if let Some(previous_session) = previous_session.as_ref() {
+            if previous_session.state != session_state {
+                emit_session_state_change_event(
+                    state,
+                    derive_trace_id(&job, None),
+                    job_id,
+                    metadata.session_id.as_str(),
+                    &previous_session.state,
+                    &session_state,
+                    reason.as_str(),
+                )
+                .await?;
+            }
+        }
     }
 
     emit_session_scheduler_cancelled_event(

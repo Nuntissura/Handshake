@@ -158,6 +158,12 @@ pub enum FlightRecorderEventType {
     LoomAiTagRejected,
     LoomViewQueried,
     LoomSearchExecuted,
+    /// FR-EVT-SESS-001..005: Session lifecycle events [4.3.9.18]
+    SessionCreated,
+    SessionStateChange,
+    SessionCompleted,
+    SessionMessage,
+    SessionBudgetWarning,
     /// FR-EVT-SESS-SCHED-001..004: Session Scheduler events [4.3.9.13]
     SessionSchedulerEnqueue,
     SessionSchedulerDispatch,
@@ -320,6 +326,13 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::LoomAiTagRejected => write!(f, "loom_ai_tag_rejected"),
             FlightRecorderEventType::LoomViewQueried => write!(f, "loom_view_queried"),
             FlightRecorderEventType::LoomSearchExecuted => write!(f, "loom_search_executed"),
+            FlightRecorderEventType::SessionCreated => write!(f, "session.created"),
+            FlightRecorderEventType::SessionStateChange => write!(f, "session.state_change"),
+            FlightRecorderEventType::SessionCompleted => write!(f, "session.completed"),
+            FlightRecorderEventType::SessionMessage => write!(f, "session.message"),
+            FlightRecorderEventType::SessionBudgetWarning => {
+                write!(f, "session.budget_warning")
+            }
             FlightRecorderEventType::SessionSchedulerEnqueue => {
                 write!(f, "session_scheduler.enqueue")
             }
@@ -348,6 +361,7 @@ pub struct FlightRecorderEvent {
     pub job_id: Option<String>,
     pub workflow_id: Option<String>,
     pub model_id: Option<String>,
+    pub model_session_id: Option<String>,
     pub wsids: Vec<String>,
     pub activity_span_id: Option<String>,
     pub session_span_id: Option<String>,
@@ -374,6 +388,7 @@ impl FlightRecorderEvent {
             job_id: None,
             workflow_id: None,
             model_id: None,
+            model_session_id: None,
             wsids: Vec::new(),
             activity_span_id: None,
             session_span_id: None,
@@ -400,6 +415,11 @@ impl FlightRecorderEvent {
 
     pub fn with_model_id(mut self, model_id: impl Into<String>) -> Self {
         self.model_id = Some(model_id.into());
+        self
+    }
+
+    pub fn with_model_session_id(mut self, model_session_id: impl Into<String>) -> Self {
+        self.model_session_id = Some(model_session_id.into());
         self
     }
 
@@ -814,6 +834,21 @@ impl FlightRecorderEvent {
             FlightRecorderEventType::LoomSearchExecuted => {
                 validate_loom_search_executed_payload(&self.payload)
             }
+            FlightRecorderEventType::SessionCreated => {
+                validate_session_created_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionStateChange => {
+                validate_session_state_change_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionCompleted => {
+                validate_session_completed_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionMessage => {
+                validate_session_message_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionBudgetWarning => {
+                validate_session_budget_warning_payload(&self.payload)
+            }
             FlightRecorderEventType::SessionSchedulerEnqueue => {
                 validate_session_scheduler_enqueue_payload(&self.payload)
             }
@@ -847,8 +882,52 @@ impl FlightRecorderEvent {
         if let Some(ref model_id) = self.model_id {
             self.model_id = Some(model_id.nfc().collect());
         }
+        if let Some(ref model_session_id) = self.model_session_id {
+            self.model_session_id = Some(model_session_id.nfc().collect());
+        }
+        if let Some(ref activity_span_id) = self.activity_span_id {
+            self.activity_span_id = Some(activity_span_id.nfc().collect());
+        }
+        if let Some(ref session_span_id) = self.session_span_id {
+            self.session_span_id = Some(session_span_id.nfc().collect());
+        }
+        if let Some(ref capability_id) = self.capability_id {
+            self.capability_id = Some(capability_id.nfc().collect());
+        }
+        if let Some(ref policy_decision_id) = self.policy_decision_id {
+            self.policy_decision_id = Some(policy_decision_id.nfc().collect());
+        }
         self.wsids = self.wsids.iter().map(|s| s.nfc().collect()).collect();
     }
+}
+
+fn stable_span_token(prefix: &str, raw: &str) -> String {
+    let trimmed = raw.trim();
+    if !trimmed.is_empty() && is_safe_token(trimmed, 224) {
+        return format!("{prefix}:{trimmed}");
+    }
+
+    let mut hasher = Sha256::new();
+    hasher.update(trimmed.as_bytes());
+    let digest = hasher.finalize();
+    let hex = digest
+        .iter()
+        .take(16)
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    format!("{prefix}:{hex}")
+}
+
+pub fn model_session_span_id(session_id: &str) -> String {
+    stable_span_token("span.session", session_id)
+}
+
+pub fn model_run_activity_span_id(job_id: &str) -> String {
+    stable_span_token("span.activity.model_run", job_id)
+}
+
+pub fn tool_call_activity_span_id(tool_call_id: &str) -> String {
+    stable_span_token("span.activity.tool_call", tool_call_id)
 }
 
 /// Recursively normalize all string values in a JSON Value to NFC form.
@@ -3987,7 +4066,10 @@ fn require_scheduler_lane(map: &Map<String, Value>, key: &str) -> Result<(), Rec
     Ok(())
 }
 
-fn require_scheduler_retry_backoff(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+fn require_scheduler_retry_backoff(
+    map: &Map<String, Value>,
+    key: &str,
+) -> Result<(), RecorderError> {
     let raw = match require_key(map, key)? {
         Value::String(value) if !value.trim().is_empty() => value.trim().to_ascii_lowercase(),
         _ => {
@@ -4001,6 +4083,147 @@ fn require_scheduler_retry_backoff(map: &Map<String, Value>, key: &str) -> Resul
             "payload field {key} must be fixed|exponential"
         )));
     }
+    Ok(())
+}
+
+fn validate_session_lifecycle_common_payload(
+    map: &Map<String, Value>,
+    expected_type: &str,
+    expected_event_id: &str,
+    required: &[&str],
+) -> Result<(), RecorderError> {
+    require_allowed_keys(map, required, &[])?;
+    require_fixed_string(map, "type", expected_type)?;
+    require_fixed_string(map, "event_id", expected_event_id)?;
+    require_string(map, "session_id")?;
+    ensure_no_inline_content_fields(map)?;
+    Ok(())
+}
+
+fn validate_session_created_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_lifecycle_common_payload(
+        map,
+        "session.created",
+        "FR-EVT-SESS-001",
+        &[
+            "type",
+            "event_id",
+            "session_id",
+            "model_id",
+            "backend",
+            "role",
+            "wp_id",
+            "mt_id",
+            "memory_policy",
+            "spawn_depth",
+        ],
+    )?;
+    require_string(map, "model_id")?;
+    require_string(map, "backend")?;
+    require_string(map, "role")?;
+    require_string(map, "wp_id")?;
+    require_string(map, "mt_id")?;
+    match require_key(map, "memory_policy")? {
+        Value::String(value)
+            if matches!(
+                value.as_str(),
+                "EPHEMERAL" | "SESSION_SCOPED" | "WORKSPACE_SCOPED"
+            ) => {}
+        _ => return Err(RecorderError::InvalidEvent(
+            "payload field memory_policy must be EPHEMERAL, SESSION_SCOPED, or WORKSPACE_SCOPED"
+                .to_string(),
+        )),
+    }
+    require_non_negative_integer(map, "spawn_depth")?;
+    Ok(())
+}
+
+fn validate_session_state_change_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_lifecycle_common_payload(
+        map,
+        "session.state_change",
+        "FR-EVT-SESS-002",
+        &[
+            "type",
+            "event_id",
+            "session_id",
+            "from_state",
+            "to_state",
+            "reason",
+        ],
+    )?;
+    require_string(map, "from_state")?;
+    require_string(map, "to_state")?;
+    require_string(map, "reason")?;
+    Ok(())
+}
+
+fn validate_session_completed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_lifecycle_common_payload(
+        map,
+        "session.completed",
+        "FR-EVT-SESS-003",
+        &[
+            "type",
+            "event_id",
+            "session_id",
+            "total_tokens",
+            "total_cost_usd",
+            "duration_ms",
+            "messages_count",
+        ],
+    )?;
+    require_non_negative_integer(map, "total_tokens")?;
+    require_number(map, "total_cost_usd")?;
+    require_non_negative_integer(map, "duration_ms")?;
+    require_non_negative_integer(map, "messages_count")?;
+    Ok(())
+}
+
+fn validate_session_message_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_lifecycle_common_payload(
+        map,
+        "session.message",
+        "FR-EVT-SESS-004",
+        &[
+            "type",
+            "event_id",
+            "session_id",
+            "message_id",
+            "role",
+            "content_hash",
+            "token_count",
+        ],
+    )?;
+    require_string(map, "message_id")?;
+    require_string(map, "role")?;
+    require_sha256_hex(map, "content_hash")?;
+    require_non_negative_integer(map, "token_count")?;
+    Ok(())
+}
+
+fn validate_session_budget_warning_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_lifecycle_common_payload(
+        map,
+        "session.budget_warning",
+        "FR-EVT-SESS-005",
+        &[
+            "type",
+            "event_id",
+            "session_id",
+            "budget_type",
+            "current_value",
+            "threshold_value",
+        ],
+    )?;
+    require_string(map, "budget_type")?;
+    require_number(map, "current_value")?;
+    require_number(map, "threshold_value")?;
     Ok(())
 }
 
@@ -5177,6 +5400,7 @@ pub struct EventFilter {
     pub event_id: Option<Uuid>,
     pub job_id: Option<String>,
     pub trace_id: Option<Uuid>,
+    pub model_session_id: Option<String>,
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
 }
@@ -5555,6 +5779,186 @@ mod tests {
         }
         assert!(matches!(
             validate_gov_automation_event_payload(&extra, "gov_decision_created", false),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    #[test]
+    fn session_lifecycle_event_payloads_are_validated() {
+        let trace_id = Uuid::new_v4();
+
+        let valid_payloads = vec![
+            (
+                FlightRecorderEventType::SessionCreated,
+                json!({
+                    "type": "session.created",
+                    "event_id": "FR-EVT-SESS-001",
+                    "session_id": "sess-1",
+                    "model_id": "model-session-test",
+                    "backend": "local-test",
+                    "role": "assistant",
+                    "wp_id": "WP-1",
+                    "mt_id": "MT-001",
+                    "memory_policy": "EPHEMERAL",
+                    "spawn_depth": 0
+                }),
+            ),
+            (
+                FlightRecorderEventType::SessionStateChange,
+                json!({
+                    "type": "session.state_change",
+                    "event_id": "FR-EVT-SESS-002",
+                    "session_id": "sess-2",
+                    "from_state": "queued",
+                    "to_state": "running",
+                    "reason": "scheduler_dispatch"
+                }),
+            ),
+            (
+                FlightRecorderEventType::SessionCompleted,
+                json!({
+                    "type": "session.completed",
+                    "event_id": "FR-EVT-SESS-003",
+                    "session_id": "sess-3",
+                    "total_tokens": 15,
+                    "total_cost_usd": 0.25,
+                    "duration_ms": 1200,
+                    "messages_count": 2
+                }),
+            ),
+            (
+                FlightRecorderEventType::SessionMessage,
+                json!({
+                    "type": "session.message",
+                    "event_id": "FR-EVT-SESS-004",
+                    "session_id": "sess-4",
+                    "message_id": "msg-1",
+                    "role": "assistant",
+                    "content_hash": DUMMY_SHA256,
+                    "token_count": 5
+                }),
+            ),
+            (
+                FlightRecorderEventType::SessionBudgetWarning,
+                json!({
+                    "type": "session.budget_warning",
+                    "event_id": "FR-EVT-SESS-005",
+                    "session_id": "sess-5",
+                    "budget_type": "token_limit",
+                    "current_value": 95.0,
+                    "threshold_value": 100.0
+                }),
+            ),
+        ];
+
+        for (event_type, payload) in valid_payloads {
+            let event = FlightRecorderEvent::new(
+                event_type.clone(),
+                FlightRecorderActor::Agent,
+                trace_id,
+                payload,
+            );
+            assert!(
+                event.validate().is_ok(),
+                "expected {} payload to validate",
+                event_type
+            );
+        }
+
+        let invalid_created = FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionCreated,
+            FlightRecorderActor::Agent,
+            trace_id,
+            json!({
+                "type": "session.created",
+                "event_id": "FR-EVT-SESS-001",
+                "session_id": "sess-bad-created",
+                "model_id": "model-session-test",
+                "backend": "local-test",
+                "role": "assistant",
+                "wp_id": "WP-1",
+                "mt_id": "MT-001",
+                "memory_policy": "INVALID",
+                "spawn_depth": 0
+            }),
+        );
+        assert!(matches!(
+            invalid_created.validate(),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let invalid_state_change = FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionStateChange,
+            FlightRecorderActor::Agent,
+            trace_id,
+            json!({
+                "type": "session.state_change",
+                "event_id": "FR-EVT-SESS-002",
+                "session_id": "sess-bad-state",
+                "from_state": "queued",
+                "to_state": "running",
+                "reason": "scheduler_dispatch",
+                "extra": true
+            }),
+        );
+        assert!(matches!(
+            invalid_state_change.validate(),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let invalid_completed = FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionCompleted,
+            FlightRecorderActor::Agent,
+            trace_id,
+            json!({
+                "type": "session.completed",
+                "event_id": "FR-EVT-SESS-003",
+                "session_id": "sess-bad-completed",
+                "total_tokens": -1,
+                "total_cost_usd": 0.25,
+                "duration_ms": 1200,
+                "messages_count": 2
+            }),
+        );
+        assert!(matches!(
+            invalid_completed.validate(),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let invalid_message = FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionMessage,
+            FlightRecorderActor::Agent,
+            trace_id,
+            json!({
+                "type": "session.message",
+                "event_id": "FR-EVT-SESS-004",
+                "session_id": "sess-bad-message",
+                "message_id": "msg-2",
+                "role": "assistant",
+                "content_hash": "not-a-sha",
+                "token_count": 5
+            }),
+        );
+        assert!(matches!(
+            invalid_message.validate(),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let invalid_budget_warning = FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionBudgetWarning,
+            FlightRecorderActor::Agent,
+            trace_id,
+            json!({
+                "type": "session.budget_warning",
+                "event_id": "FR-EVT-SESS-005",
+                "session_id": "sess-bad-budget",
+                "budget_type": "token_limit",
+                "current_value": "95",
+                "threshold_value": 100.0
+            }),
+        );
+        assert!(matches!(
+            invalid_budget_warning.validate(),
             Err(RecorderError::InvalidEvent(_))
         ));
     }

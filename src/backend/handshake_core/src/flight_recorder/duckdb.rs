@@ -247,6 +247,7 @@ impl DuckDbFlightRecorder {
                 job_id TEXT,
                 workflow_id TEXT,
                 model_id TEXT,
+                model_session_id TEXT,
                 activity_span_id TEXT,
                 session_span_id TEXT,
                 capability_id TEXT,
@@ -266,6 +267,7 @@ impl DuckDbFlightRecorder {
             ALTER TABLE events ADD COLUMN IF NOT EXISTS event_id UUID;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS workflow_id TEXT;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS model_id TEXT;
+            ALTER TABLE events ADD COLUMN IF NOT EXISTS model_session_id TEXT;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS activity_span_id TEXT;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS session_span_id TEXT;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS capability_id TEXT;
@@ -283,6 +285,7 @@ impl DuckDbFlightRecorder {
             r#"
             CREATE INDEX IF NOT EXISTS idx_events_trace_id ON events(trace_id);
             CREATE INDEX IF NOT EXISTS idx_events_job_id ON events(job_id);
+            CREATE INDEX IF NOT EXISTS idx_events_model_session_id ON events(model_session_id);
             CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
         "#,
         )
@@ -557,13 +560,14 @@ impl DuckDbFlightRecorder {
                 job_id,
                 workflow_id,
                 model_id,
+                model_session_id,
                 activity_span_id,
                 session_span_id,
                 capability_id,
                 policy_decision_id,
                 wsids,
                 payload
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
             duckdb::params![
                 event_id_str,
@@ -575,6 +579,7 @@ impl DuckDbFlightRecorder {
                 event.job_id.as_deref(),
                 event.workflow_id.as_deref(),
                 event.model_id.as_deref(),
+                event.model_session_id.as_deref(),
                 event.activity_span_id.as_deref(),
                 event.session_span_id.as_deref(),
                 event.capability_id.as_deref(),
@@ -655,6 +660,11 @@ impl DuckDbFlightRecorder {
             params.push(Box::new(trace_id.to_string()));
         }
 
+        if let Some(model_session_id) = filter.model_session_id {
+            conditions.push("model_session_id = ?".to_string());
+            params.push(Box::new(model_session_id));
+        }
+
         if let Some(from) = filter.from {
             conditions.push("timestamp >= ?".to_string());
             params.push(Box::new(from.to_rfc3339()));
@@ -666,7 +676,7 @@ impl DuckDbFlightRecorder {
         }
 
         // NOTE: Avoid provider-specific datetime formatting; use epoch seconds for portability.
-        let mut query = String::from("SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events");
+        let mut query = String::from("SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events");
         if !conditions.is_empty() {
             query.push_str(" WHERE ");
             query.push_str(&conditions.join(" AND "));
@@ -690,6 +700,7 @@ impl DuckDbFlightRecorder {
             job_id: Option<String>,
             workflow_id: Option<String>,
             model_id: Option<String>,
+            model_session_id: Option<String>,
             wsids: Option<String>,
             activity_span_id: Option<String>,
             session_span_id: Option<String>,
@@ -710,12 +721,13 @@ impl DuckDbFlightRecorder {
                     job_id: row.get(6)?,
                     workflow_id: row.get(7)?,
                     model_id: row.get(8)?,
-                    wsids: row.get(9)?,
-                    activity_span_id: row.get(10)?,
-                    session_span_id: row.get(11)?,
-                    capability_id: row.get(12)?,
-                    policy_decision_id: row.get(13)?,
-                    payload: row.get(14)?,
+                    model_session_id: row.get(9)?,
+                    wsids: row.get(10)?,
+                    activity_span_id: row.get(11)?,
+                    session_span_id: row.get(12)?,
+                    capability_id: row.get(13)?,
+                    policy_decision_id: row.get(14)?,
+                    payload: row.get(15)?,
                 })
             })
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
@@ -904,6 +916,21 @@ impl DuckDbFlightRecorder {
                 "session_scheduler.cancelled" | "session_scheduler_cancelled" => {
                     super::FlightRecorderEventType::SessionSchedulerCancelled
                 }
+                "session.created" | "session_created" => {
+                    super::FlightRecorderEventType::SessionCreated
+                }
+                "session.state_change" | "session_state_change" => {
+                    super::FlightRecorderEventType::SessionStateChange
+                }
+                "session.completed" | "session_completed" => {
+                    super::FlightRecorderEventType::SessionCompleted
+                }
+                "session.message" | "session_message" => {
+                    super::FlightRecorderEventType::SessionMessage
+                }
+                "session.budget_warning" | "session_budget_warning" => {
+                    super::FlightRecorderEventType::SessionBudgetWarning
+                }
                 "capability_action" => {
                     if payload_type == Some("terminal_command") {
                         super::FlightRecorderEventType::TerminalCommand
@@ -925,6 +952,7 @@ impl DuckDbFlightRecorder {
                 job_id: raw.job_id,
                 workflow_id: raw.workflow_id,
                 model_id: raw.model_id,
+                model_session_id: raw.model_session_id,
                 wsids,
                 activity_span_id: raw.activity_span_id,
                 session_span_id: raw.session_span_id,
