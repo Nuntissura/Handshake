@@ -3,6 +3,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("drive-agnostic-check.mjs", { role: "SHARED" });
 
 function resolveRepoRoot() {
   const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -25,9 +28,7 @@ const repoRoot = path.resolve(resolveRepoRoot());
 process.chdir(repoRoot);
 
 function fail(message, details = "") {
-  console.error(message);
-  if (details) console.error(details);
-  process.exit(1);
+  failWithMemory("drive-agnostic-check.mjs", message, { role: "SHARED", details: details ? [details] : [] });
 }
 
 function listFilesRecursive(rootDir) {

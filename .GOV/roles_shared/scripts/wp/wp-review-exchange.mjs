@@ -11,6 +11,9 @@ import {
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
 import { appendWpReceipt, validateWpReceiptAppendPreconditions } from "./wp-receipt-append.mjs";
 import { appendWpThreadEntry } from "./wp-thread-append.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("wp-review-exchange.mjs", { role: "SHARED" });
 
 const SUPPORTED_RECEIPT_KINDS = [
   ...REVIEW_OPEN_RECEIPT_KIND_VALUES,
@@ -19,7 +22,7 @@ const SUPPORTED_RECEIPT_KINDS = [
 const EXPLICIT_REVIEW_ROLE_VALUES = ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
 
 function fail(message) {
-  throw new Error(message);
+  failWithMemory("wp-review-exchange.mjs", message, { role: "SHARED" });
 }
 
 function normalizeRole(value) {

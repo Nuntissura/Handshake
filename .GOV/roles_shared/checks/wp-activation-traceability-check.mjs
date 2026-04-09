@@ -1,5 +1,8 @@
 import fs from "node:fs";
 import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("wp-activation-traceability-check.mjs", { role: "SHARED" });
 
 const TRACE_REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
@@ -7,9 +10,7 @@ const TASK_PACKETS_DIR = `${GOV_ROOT_REPO_REL}/task_packets`;
 const TASK_PACKET_STUBS_DIR = `${GOV_ROOT_REPO_REL}/task_packets/stubs`;
 
 function fail(message, details = []) {
-  console.error(`[WP_TRACEABILITY_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("wp-activation-traceability-check.mjs", message, { role: "SHARED", details });
 }
 
 function parseRegistryTable(content) {

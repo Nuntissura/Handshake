@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { registerFailCaptureHook } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("coder-next.mjs", { role: "CODER" });
+
 import {
   buildPhaseCheckCommand,
   buildPostWorkCommand,

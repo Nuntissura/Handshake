@@ -9,11 +9,12 @@ import {
   buildWpTimelineSummary,
   loadWpTimelineArtifacts,
 } from "./wp-timeline-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("wp-timeline-report.mjs", { role: "SHARED" });
 
 function fail(message, details = []) {
-  console.error(`[WP_TIMELINE] ${message}`);
-  for (const line of details) console.error(`- ${line}`);
-  process.exit(1);
+  failWithMemory("wp-timeline-report.mjs", message, { role: "SHARED", details });
 }
 
 function compactLine(value, maxLength = 240) {

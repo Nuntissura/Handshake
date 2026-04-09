@@ -5,6 +5,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { GOV_ROOT_REPO_REL, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("validator-spec-regression.mjs", { role: "WP_VALIDATOR" });
 
 const specPointerPath = `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md`;
 const requiredAnchors = [
@@ -16,8 +18,7 @@ const requiredAnchors = [
 ];
 
 function fail(message) {
-  console.error(`validator-spec-regression: FAIL - ${message}`);
-  process.exit(1);
+  failWithMemory("validator-spec-regression.mjs", message, { role: "WP_VALIDATOR" });
 }
 
 function main() {

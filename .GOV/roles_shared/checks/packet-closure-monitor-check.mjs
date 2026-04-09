@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import { validateClauseReportConsistency, validatePacketClosureMonitoring } from "../scripts/lib/packet-closure-monitor-lib.mjs";
 import { listOfficialWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("packet-closure-monitor-check.mjs", { role: "SHARED" });
 
 function fail(message, details = []) {
-  console.error(`[PACKET_CLOSURE_MONITOR_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("packet-closure-monitor-check.mjs", message, { role: "SHARED", details });
 }
 
 function parseSingleField(text, label) {

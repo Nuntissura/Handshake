@@ -30,12 +30,14 @@ import {
   runGitInherit,
 } from "./git-topology-lib.mjs";
 import { GOV_ROOT_ABS } from "../lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("sync-gov-to-main.mjs", { role: "SHARED" });
 
 const PREFIX = "[SYNC_GOV_TO_MAIN]";
 
 function fail(message) {
-  console.error(`${PREFIX} FAIL: ${message}`);
-  process.exit(1);
+  failWithMemory("sync-gov-to-main.mjs", message, { role: "SHARED" });
 }
 
 function parseMainWorktreeOverride(argv) {

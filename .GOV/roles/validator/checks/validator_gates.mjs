@@ -38,6 +38,8 @@ import {
     committedEvidenceForCloseout,
     livePrepareWorktreeHealthEvidence,
 } from '../scripts/lib/committed-validation-evidence-lib.mjs';
+import { registerFailCaptureHook, failWithMemory } from '../../../roles_shared/scripts/lib/fail-capture-lib.mjs';
+registerFailCaptureHook("validator_gates.mjs", { role: "WP_VALIDATOR" });
 
 const MIN_GATE_INTERVAL_SECONDS = 5; // Minimum time between gates to prevent automation momentum
 
@@ -107,9 +109,7 @@ function saveWpState(wpId, state) {
 }
 
 function fail(msg, details = []) {
-    console.error(`[VALIDATOR GATE ERROR] ${msg}`);
-    details.forEach((d) => console.error(`  - ${d}`));
-    process.exit(1);
+    failWithMemory("validator_gates.mjs", msg, { role: "WP_VALIDATOR", details });
 }
 
 function success(msg, details = []) {

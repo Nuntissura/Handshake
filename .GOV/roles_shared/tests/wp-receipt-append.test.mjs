@@ -6,6 +6,8 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { deriveWpScopeContract } from "../scripts/lib/scope-surface-lib.mjs";
 import {
+  applyWorkflowInvalidityRuntimeProjection,
+  buildGovernedPhaseCheckInvocation,
   deriveReviewNotificationTargets,
   summarizeCommittedCoderHandoffDirtyState,
   validateWpReceiptAppendPreconditions,
@@ -199,6 +201,52 @@ test("non-assessment receipts do not add orchestrator checkpoint notifications",
   ]);
 });
 
+test("committed coder handoff preflight uses the shared phase-check script instead of a justfile alias", () => {
+  const invocation = buildGovernedPhaseCheckInvocation({
+    phase: "STARTUP",
+    wpId: "WP-TEST-HANDOFF-v1",
+    role: "CODER",
+  });
+
+  assert.equal(invocation.command, process.execPath);
+  assert.match(
+    invocation.args[0].replace(/\\/g, "/"),
+    /\/\.GOV\/roles_shared\/checks\/phase-check\.mjs$/,
+  );
+  assert.deepEqual(invocation.args.slice(1), ["STARTUP", "WP-TEST-HANDOFF-v1", "CODER"]);
+});
+
+test("workflow invalidity runtime projection keeps runtime route generic while receipts carry the code", () => {
+  const runtimeStatus = {
+    runtime_status: "working",
+    next_expected_actor: "CODER",
+    next_expected_session: "coder-1",
+    waiting_on: "CODER_HANDOFF",
+    waiting_on_session: "coder-1",
+    validator_trigger: "HANDOFF_READY",
+    validator_trigger_reason: "Waiting on coder handoff",
+    attention_required: false,
+    ready_for_validation: true,
+    ready_for_validation_reason: "handoff complete",
+  };
+
+  const projected = applyWorkflowInvalidityRuntimeProjection(runtimeStatus, {
+    receipt_kind: "WORKFLOW_INVALIDITY",
+    workflow_invalidity_code: "PHASE_CHECK_RECIPE_MISSING",
+  });
+
+  assert.equal(projected.next_expected_actor, "ORCHESTRATOR");
+  assert.equal(projected.next_expected_session, null);
+  assert.equal(projected.waiting_on, "WORKFLOW_INVALIDITY");
+  assert.equal(projected.waiting_on_session, null);
+  assert.equal(projected.validator_trigger, "NONE");
+  assert.equal(projected.validator_trigger_reason, "Workflow invalidity flagged");
+  assert.equal(projected.attention_required, true);
+  assert.equal(projected.ready_for_validation, false);
+  assert.equal(projected.ready_for_validation_reason, null);
+  assert.equal(projected.runtime_status, "input_required");
+});
+
 test("committed coder handoff dirty-state summary ignores governance-only drift and transient proof logs but blocks product dirt", () => {
   const scopeContract = deriveWpScopeContract({
     wpId: "WP-TEST-HANDOFF-v1",
@@ -289,6 +337,87 @@ test("review exchange preflight rejects placeholder unassigned target sessions",
 
     assert.equal(fs.existsSync(threadPath), false);
     assert.equal(fs.readFileSync(receiptsPath, "utf8"), "");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("review exchange preflight rejects resolution receipts that do not answer an existing open correlation", () => {
+  const wpId = "WP-TEST-REVIEW-EXCHANGE-CORRELATION-MISMATCH";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-review-exchange-correlation-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const runtimePath = path.join(commDir, "RUNTIME_STATUS.json");
+
+  writeReviewExchangePacket(packetDir, wpId, commDir);
+  fs.writeFileSync(
+    receiptsPath,
+    `${JSON.stringify({
+      schema_version: "wp_receipt@1",
+      timestamp_utc: "2026-04-08T23:02:03.797Z",
+      wp_id: wpId,
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wpv-1",
+      actor_authority_kind: "WP_VALIDATOR",
+      validator_role_kind: "WP_VALIDATOR",
+      receipt_kind: "VALIDATOR_KICKOFF",
+      summary: "Kickoff recorded.",
+      branch: "feat/test-review-exchange",
+      worktree_dir: "../wtc-test",
+      state_before: null,
+      state_after: null,
+      target_role: "CODER",
+      target_session: "coder-1",
+      correlation_id: "kickoff-1",
+      requires_ack: true,
+      ack_for: null,
+      spec_anchor: null,
+      packet_row_ref: null,
+      workflow_invalidity_code: null,
+      refs: [],
+    })}\n`,
+    "utf8",
+  );
+  fs.writeFileSync(
+    runtimePath,
+    JSON.stringify({
+      workflow_lane: "ORCHESTRATOR_MANAGED",
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-1",
+      waiting_on: "CODER_INTENT",
+      waiting_on_session: null,
+      runtime_status: "submitted",
+      current_phase: "BOOTSTRAP",
+      open_review_items: [],
+    }, null, 2),
+    "utf8",
+  );
+
+  try {
+    assert.throws(
+      () => validateWpReceiptAppendPreconditions({
+        wpId,
+        actorRole: "CODER",
+        actorSession: "coder-1",
+        receiptKind: "CODER_INTENT",
+        targetRole: "WP_VALIDATOR",
+        targetSession: "wpv-1",
+        summary: "Intent recorded with the wrong reply correlation.",
+        correlationId: "intent-1",
+        ackFor: "intent-1",
+        microtaskContract: {
+          scope_ref: "MT-001",
+          file_targets: ["src/demo.rs"],
+          proof_commands: ["cargo test demo::tests::micro_1 -- --exact"],
+          phase_gate: "BOOTSTRAP",
+          expected_receipt_kind: "VALIDATOR_RESPONSE",
+        },
+      }),
+      /must reference an existing open review receipt/i,
+    );
+
+    assert.equal(fs.readFileSync(receiptsPath, "utf8").trim().split(/\r?\n/).length, 1);
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
     fs.rmSync(commDir, { recursive: true, force: true });
@@ -489,6 +618,284 @@ test("coder handoff preflight rejects missing validator intent checkpoint on con
       }),
       /checkpoint review of CODER_INTENT is still required/i,
     );
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("validator response preflight accepts intent checkpoint clearance after coder intent", () => {
+  const wpId = "WP-TEST-INTENT-CHECKPOINT-CLEAR";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-intent-checkpoint-clear-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const runtimePath = path.join(commDir, "RUNTIME_STATUS.json");
+
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  fs.writeFileSync(
+    receiptsPath,
+    [
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:00:00Z",
+        wp_id: wpId,
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        actor_authority_kind: "WP_VALIDATOR",
+        validator_role_kind: "WP_VALIDATOR",
+        receipt_kind: "VALIDATOR_KICKOFF",
+        summary: "Kickoff",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        requires_ack: true,
+        ack_for: null,
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:01:00Z",
+        wp_id: wpId,
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        actor_authority_kind: "PRIMARY_CODER",
+        validator_role_kind: null,
+        receipt_kind: "CODER_INTENT",
+        summary: "Implementation order drafted.",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        requires_ack: false,
+        ack_for: "kickoff-1",
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+    ].join("\n"),
+    "utf8",
+  );
+  fs.writeFileSync(
+    runtimePath,
+    JSON.stringify({
+      workflow_lane: "ORCHESTRATOR_MANAGED",
+      wp_validator_of_record: "wpv-1",
+      integration_validator_of_record: "intval-1",
+      active_role_sessions: [
+        {
+          role: "CODER",
+          session_id: "coder-1",
+          worktree_dir: "../wtc-test",
+          state: "working",
+          last_heartbeat_at: "2026-04-01T10:01:00Z",
+        },
+        {
+          role: "WP_VALIDATOR",
+          session_id: "wpv-1",
+          worktree_dir: "../wtv-test",
+          state: "waiting",
+          last_heartbeat_at: "2026-04-01T10:01:00Z",
+        },
+      ],
+      open_review_items: [],
+      next_expected_actor: "WP_VALIDATOR",
+      next_expected_session: "wpv-1",
+      waiting_on: "WP_VALIDATOR_INTENT_CHECKPOINT",
+      waiting_on_session: "wpv-1",
+      validator_trigger: "BLOCKED_NEEDS_VALIDATOR",
+      validator_trigger_reason: "Coder intent recorded; WP validator checkpoint review is required before full handoff",
+      ready_for_validation: true,
+      ready_for_validation_reason: "Coder intent recorded; WP validator checkpoint review is required before full handoff",
+      attention_required: false,
+    }, null, 2),
+    "utf8",
+  );
+
+  try {
+    assert.doesNotThrow(() => validateWpReceiptAppendPreconditions({
+      wpId,
+      actorRole: "WP_VALIDATOR",
+      actorSession: "wpv-1",
+      receiptKind: "VALIDATOR_RESPONSE",
+      summary: "Bootstrap checkpoint cleared.",
+      targetRole: "CODER",
+      targetSession: "coder-1",
+      correlationId: "kickoff-1",
+      ackFor: "kickoff-1",
+      specAnchor: "MT-001",
+      packetRowRef: "MT-001",
+    }));
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("validator response preflight accepts intent checkpoint clearance after spec confirmation", () => {
+  const wpId = "WP-TEST-INTENT-CHECKPOINT-REPAIR";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-intent-checkpoint-repair-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const runtimePath = path.join(commDir, "RUNTIME_STATUS.json");
+
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  fs.writeFileSync(
+    receiptsPath,
+    [
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:00:00Z",
+        wp_id: wpId,
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        actor_authority_kind: "WP_VALIDATOR",
+        validator_role_kind: "WP_VALIDATOR",
+        receipt_kind: "VALIDATOR_KICKOFF",
+        summary: "Kickoff",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        requires_ack: true,
+        ack_for: null,
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:01:00Z",
+        wp_id: wpId,
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        actor_authority_kind: "PRIMARY_CODER",
+        validator_role_kind: null,
+        receipt_kind: "CODER_INTENT",
+        summary: "Implementation order drafted.",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        requires_ack: false,
+        ack_for: "kickoff-1",
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:02:00Z",
+        wp_id: wpId,
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        actor_authority_kind: "WP_VALIDATOR",
+        validator_role_kind: "WP_VALIDATOR",
+        receipt_kind: "SPEC_GAP",
+        summary: "Need lifecycle family first.",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "spec-gap-1",
+        requires_ack: true,
+        ack_for: null,
+        spec_anchor: "MT-001",
+        packet_row_ref: "MT-001",
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:03:00Z",
+        wp_id: wpId,
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        actor_authority_kind: "PRIMARY_CODER",
+        validator_role_kind: null,
+        receipt_kind: "SPEC_CONFIRMATION",
+        summary: "Revised to lifecycle family first.",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "spec-gap-1",
+        requires_ack: false,
+        ack_for: "spec-gap-1",
+        spec_anchor: "MT-001",
+        packet_row_ref: "MT-001",
+        refs: [],
+      }),
+    ].join("\n"),
+    "utf8",
+  );
+  fs.writeFileSync(
+    runtimePath,
+    JSON.stringify({
+      workflow_lane: "ORCHESTRATOR_MANAGED",
+      wp_validator_of_record: "wpv-1",
+      integration_validator_of_record: "intval-1",
+      active_role_sessions: [
+        {
+          role: "CODER",
+          session_id: "coder-1",
+          worktree_dir: "../wtc-test",
+          state: "working",
+          last_heartbeat_at: "2026-04-01T10:03:00Z",
+        },
+        {
+          role: "WP_VALIDATOR",
+          session_id: "wpv-1",
+          worktree_dir: "../wtv-test",
+          state: "waiting",
+          last_heartbeat_at: "2026-04-01T10:03:00Z",
+        },
+      ],
+      open_review_items: [],
+      next_expected_actor: "WP_VALIDATOR",
+      next_expected_session: "wpv-1",
+      waiting_on: "WP_VALIDATOR_INTENT_CHECKPOINT",
+      waiting_on_session: "wpv-1",
+      validator_trigger: "BLOCKED_NEEDS_VALIDATOR",
+      validator_trigger_reason: "Coder intent recorded; WP validator checkpoint review is required before full handoff",
+      ready_for_validation: true,
+      ready_for_validation_reason: "Coder intent recorded; WP validator checkpoint review is required before full handoff",
+      attention_required: false,
+    }, null, 2),
+    "utf8",
+  );
+
+  try {
+    assert.doesNotThrow(() => validateWpReceiptAppendPreconditions({
+      wpId,
+      actorRole: "WP_VALIDATOR",
+      actorSession: "wpv-1",
+      receiptKind: "VALIDATOR_RESPONSE",
+      summary: "Bootstrap checkpoint cleared after repair loop.",
+      targetRole: "CODER",
+      targetSession: "coder-1",
+      correlationId: "spec-gap-1",
+      ackFor: "spec-gap-1",
+      specAnchor: "MT-001",
+      packetRowRef: "MT-001",
+    }));
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
     fs.rmSync(commDir, { recursive: true, force: true });

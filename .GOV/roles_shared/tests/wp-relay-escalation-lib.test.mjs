@@ -68,7 +68,10 @@ test("relay escalation fails when stale notifications cross stale_after without 
 
   assert.equal(result.status, "ESCALATED");
   assert.match(result.reason_code, /PENDING_NOTIFICATION_STALE|SESSION_ACTIVE_NO_RECEIPT_PROGRESS/);
-  assert.match(result.summary, /Use just orchestrator-steer-next WP-TEST-RELAY-v1/i);
+  assert.match(
+    result.summary,
+    /Use just orchestrator-steer-next WP-TEST-RELAY-v1 "<why this stalled relay should be re-woken, >=40 chars>"/i,
+  );
 });
 
 test("relay escalation fails when receipt progress is stale even without pending notifications", () => {

@@ -7,7 +7,7 @@ ARTIFACT_ROOT := env_var_or_default('HANDSHAKE_ARTIFACT_ROOT', '../Handshake Art
 CARGO_TARGET_DIR := "{{ARTIFACT_ROOT}}/handshake-cargo-target"
 
 docs-check:
-	node -e "['{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md', '{{MAIN_ROOT}}/AGENTS.md', '{{GOV_ROOT}}/README.md', '{{GOV_ROOT}}/roles/README.md', '{{GOV_ROOT}}/roles_shared/README.md', '{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md', '{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles_shared/docs/START_HERE.md', '{{GOV_ROOT}}/spec/SPEC_CURRENT.md', '{{GOV_ROOT}}/roles_shared/docs/ARCHITECTURE.md', '{{GOV_ROOT}}/roles_shared/docs/RUNBOOK_DEBUG.md', '{{GOV_ROOT}}/roles_shared/docs/REPO_RESILIENCE.md', '{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md', '{{GOV_ROOT}}/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node -e "['{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md', '{{MAIN_ROOT}}/AGENTS.md', '{{GOV_ROOT}}/README.md', '{{GOV_ROOT}}/roles/README.md', '{{GOV_ROOT}}/roles_shared/README.md', '{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md', '{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles_shared/docs/START_HERE.md', '{{GOV_ROOT}}/spec/SPEC_CURRENT.md', '{{GOV_ROOT}}/roles_shared/docs/ARCHITECTURE.md', '{{GOV_ROOT}}/roles_shared/docs/RUNBOOK_DEBUG.md', '{{GOV_ROOT}}/roles_shared/docs/REPO_RESILIENCE.md', '{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md', '{{GOV_ROOT}}/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
 
 gov-check:
 	just docs-check
@@ -73,6 +73,9 @@ post-run-audit-skeleton wp-id output="":
 launch-coder-session wp-id host="AUTO" model="PRIMARY" *FLAGS:
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" CODER {{wp-id}} {{host}} {{model}} {{FLAGS}}
 
+launch-activation-manager-session wp-id host="AUTO" model="PRIMARY" *FLAGS:
+	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" ACTIVATION_MANAGER {{wp-id}} {{host}} {{model}} {{FLAGS}}
+
 launch-wp-validator-session wp-id host="AUTO" model="PRIMARY" *FLAGS:
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" WP_VALIDATOR {{wp-id}} {{host}} {{model}} {{FLAGS}}
 
@@ -81,6 +84,9 @@ launch-integration-validator-session wp-id host="AUTO" model="PRIMARY" *FLAGS:
 
 start-coder-session wp-id model="PRIMARY" *FLAGS:
 	@just session-start CODER {{wp-id}} {{model}} {{FLAGS}}
+
+start-activation-manager-session wp-id model="PRIMARY" *FLAGS:
+	@just session-start ACTIVATION_MANAGER {{wp-id}} {{model}} {{FLAGS}}
 
 start-wp-validator-session wp-id model="PRIMARY" *FLAGS:
 	@just session-start WP_VALIDATOR {{wp-id}} {{model}} {{FLAGS}}
@@ -91,6 +97,9 @@ start-integration-validator-session wp-id model="PRIMARY" *FLAGS:
 steer-coder-session wp-id prompt model="PRIMARY" *FLAGS:
 	@just session-send CODER {{wp-id}} "{{prompt}}" {{model}} {{FLAGS}}
 
+steer-activation-manager-session wp-id prompt model="PRIMARY" *FLAGS:
+	@just session-send ACTIVATION_MANAGER {{wp-id}} "{{prompt}}" {{model}} {{FLAGS}}
+
 steer-wp-validator-session wp-id prompt model="PRIMARY" *FLAGS:
 	@just session-send WP_VALIDATOR {{wp-id}} "{{prompt}}" {{model}} {{FLAGS}}
 
@@ -100,6 +109,9 @@ steer-integration-validator-session wp-id prompt model="PRIMARY" *FLAGS:
 cancel-coder-session wp-id *FLAGS:
 	@just session-cancel CODER {{wp-id}} {{FLAGS}}
 
+cancel-activation-manager-session wp-id *FLAGS:
+	@just session-cancel ACTIVATION_MANAGER {{wp-id}} {{FLAGS}}
+
 cancel-wp-validator-session wp-id *FLAGS:
 	@just session-cancel WP_VALIDATOR {{wp-id}} {{FLAGS}}
 
@@ -108,6 +120,9 @@ cancel-integration-validator-session wp-id *FLAGS:
 
 close-coder-session wp-id *FLAGS:
 	@just session-close CODER {{wp-id}} {{FLAGS}}
+
+close-activation-manager-session wp-id *FLAGS:
+	@just session-close ACTIVATION_MANAGER {{wp-id}} {{FLAGS}}
 
 close-wp-validator-session wp-id *FLAGS:
 	@just session-close WP_VALIDATOR {{wp-id}} {{FLAGS}}
@@ -231,6 +246,7 @@ orchestrator-startup:
 	@just backup-status
 	@just orchestrator-preflight
 	@just memory-refresh
+	@just memory-recall RESUME
 	@just launch-memory-manager
 	@echo ''
 	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
@@ -244,6 +260,7 @@ validator-startup:
 	@just backup-status
 	@just validator-preflight
 	@just memory-refresh
+	@just memory-recall VALIDATOR_RESUME
 	@echo ''
 	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
 	@echo 'Run: just repomem open "<what this session is about>" --role VALIDATOR [--wp WP-ID]'
@@ -255,6 +272,7 @@ coder-startup:
 	@just backup-status
 	@just coder-preflight
 	@just memory-refresh
+	@just memory-recall CODER_RESUME
 	@echo 'RUBRIC_REQUIRED: Read `{{GOV_ROOT}}/roles/coder/docs/CODER_RUBRIC_V2.md` before the first WP-specific BOOTSTRAP or code change, and answer it in `## STATUS_HANDOFF` before validator handoff.'
 	@echo ''
 	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
@@ -267,23 +285,28 @@ orchestrator-startup-truth-check:
 
 orchestrator-next wp-id="" *FLAGS:
 	@just repomem-gate
+	@just memory-recall RESUME --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-next.mjs" {{wp-id}} {{FLAGS}}
 
 orchestrator-steer-next wp-id context model="PRIMARY" *FLAGS:
 	@just repomem-gate
+	@just memory-recall STEERING --wp {{wp-id}}
 	@just repomem context "{{context}}" --trigger orchestrator-steer-next --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-steer-next.mjs" {{wp-id}} {{model}} {{FLAGS}}
 
 manual-relay-next wp-id *FLAGS:
 	@just repomem-gate
+	@just memory-recall RELAY --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-next.mjs" {{wp-id}} {{FLAGS}}
 
 manual-relay-dispatch wp-id context model="PRIMARY" *FLAGS:
 	@just repomem-gate
+	@just memory-recall RELAY --wp {{wp-id}}
 	@just repomem context "{{context}}" --trigger manual-relay-dispatch --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-dispatch.mjs" {{wp-id}} {{model}} {{FLAGS}}
 
 coder-next wp-id="":
+	@just memory-recall CODER_RESUME --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/coder/scripts/coder-next.mjs" {{wp-id}}
 
 coder-skeleton-checkpoint wp-id:
@@ -317,6 +340,7 @@ spec-debt-sync wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/debt/spec-debt-sync.mjs" {{wp-id}}
 
 validator-next wp-id="" *FLAGS:
+	@just memory-recall VALIDATOR_RESUME --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs" {{wp-id}} {{FLAGS}}
 
 task-board-set wp-id status context reason="":
@@ -466,8 +490,12 @@ memory-flag id reason:
 memory-intent-snapshot intent *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" intent-snapshot "{{intent}}" {{FLAGS}}
 
+memory-recall action *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-recall.mjs" {{action}} {{FLAGS}}
+
 begin-refinement wp-id intent:
 	@just repomem-gate
+	@just memory-recall REFINEMENT --wp {{wp-id}}
 	@just repomem context "{{intent}}" --trigger begin-refinement --wp {{wp-id}}
 	@just memory-intent-snapshot "{{intent}}" --wp {{wp-id}} --role ORCHESTRATOR --reason "entering refinement" --expected "refined scope with discovery primitives"
 	@echo "[INTENT_GATE] Intent captured for {{wp-id}}. Proceed with refinement analysis, research, and design."
@@ -480,12 +508,6 @@ begin-research intent *FLAGS:
 
 memory-debug-snapshot *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/governance-memory-cli.mjs" debug-snapshot {{FLAGS}}
-
-memory-export *FLAGS:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-export.mjs" {{FLAGS}}
-
-memory-import file:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-export.mjs" --import "{{file}}"
 
 memory-patterns *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-patterns.mjs" {{FLAGS}}
@@ -501,6 +523,51 @@ memory-refresh *FLAGS:
 
 launch-memory-manager *FLAGS:
 	@node "{{GOV_ROOT}}/roles/memory_manager/scripts/launch-memory-manager.mjs" {{FLAGS}}
+
+memory-manager-startup:
+	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md"
+	@just launch-memory-manager --force
+	@just memory-recall RESUME
+	@echo ''
+	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
+	@echo 'Run: just repomem open "<what this session is about>" --role MEMORY_MANAGER'
+	@echo ''
+
+launch-memory-manager-session host="SYSTEM_TERMINAL" model="PRIMARY":
+	@just launch-memory-manager --force
+	@node -e "const ts = new Date().toISOString().replace(/[:.]/g,'').slice(0,15)+'Z'; const {spawnSync}=require('child_process'); spawnSync('node', ['{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs','MEMORY_MANAGER','WP-MEMORY-HYGIENE_'+ts,'{{host}}','{{model}}'], {stdio:'inherit'});"
+
+activation-manager action wp-id="" *FLAGS:
+	@if ("{{action}}" -eq "startup") { just --quiet protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md"; just --quiet backup-status; just --quiet gov-check }
+	@node "{{GOV_ROOT}}/roles/activation_manager/scripts/activation-manager.mjs" {{action}} {{wp-id}} {{FLAGS}}; if ("{{action}}" -eq "readiness" -and $LASTEXITCODE -eq 2) { exit 0 } else { exit $LASTEXITCODE }
+
+activation-record-refinement wp-id detail="":
+	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" refine {{wp-id}} "{{detail}}"
+
+activation-record-signature wp-id signature workflow_lane="" execution_lane="":
+	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" sign {{wp-id}} {{signature}} {{workflow_lane}} {{execution_lane}}
+
+activation-record-prepare wp-id workflow_lane="" execution_lane="" branch="" worktree_dir="":
+	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" prepare {{wp-id}} {{workflow_lane}} {{execution_lane}} {{branch}} {{worktree_dir}}
+
+activation-record-role-model-profiles wp-id orchestrator_profile="" coder_profile="" wp_validator_profile="" integration_validator_profile="":
+	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" profiles {{wp-id}} {{orchestrator_profile}} {{coder_profile}} {{wp_validator_profile}} {{integration_validator_profile}}
+
+activation-create-task-packet wp-id context:
+	@just repomem-gate
+	@just memory-recall PACKET_CREATE --wp {{wp-id}}
+	@just repomem context "{{context}}" --trigger activation-create-task-packet --wp {{wp-id}}
+	@echo "Creating activation-manager task packet: {{wp-id}}..."
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/create-task-packet.mjs" {{wp-id}}
+	@just build-order-sync
+
+activation-task-board-set wp-id status reason="":
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs" {{wp-id}} {{status}} "{{reason}}"
+
+activation-wp-traceability-set base_wp_id active_packet_wp_id context:
+	@just repomem-gate
+	@just repomem context "{{context}}" --trigger activation-wp-traceability-set --wp {{base_wp_id}}
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/wp-traceability-set.mjs" {{base_wp_id}} {{active_packet_wp_id}}
 
 session-stall-scan role wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/session-stall-scan.mjs" {{role}} {{wp-id}}
@@ -534,6 +601,7 @@ record-role-model-profiles wp-id orchestrator_profile="" coder_profile="" wp_val
 
 create-task-packet wp-id context:
 	@just repomem-gate
+	@just memory-recall PACKET_CREATE --wp {{wp-id}}
 	@just repomem context "{{context}}" --trigger create-task-packet --wp {{wp-id}}
 	@echo "Creating task packet: {{wp-id}}..."
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/create-task-packet.mjs" {{wp-id}}
@@ -592,9 +660,21 @@ ack-notifications wp-id role session:
 orchestrator-prepare-and-packet wp-id workflow_lane="" execution_lane="" label="pre-wp-launch":
 	@just worktree-add {{wp-id}}
 	@just install-mt-hook {{wp-id}}
+	@just memory-recall DELEGATION --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs" {{wp-id}} {{workflow_lane}} {{execution_lane}}
 	@echo "[ORCHESTRATOR] Committing governance checkpoint on gov_kernel..."
 	@git add -A
 	@git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "gov: checkpoint packet+refinement+micro-tasks [{{wp-id}}]" }
 	@echo "[ORCHESTRATOR] Creating backup snapshot before coder launch..."
+	@just backup-snapshot "{{label}}"
+
+activation-prepare-and-packet wp-id workflow_lane="" execution_lane="" label="activation-pre-wp-launch":
+	@just worktree-add {{wp-id}}
+	@just install-mt-hook {{wp-id}}
+	@just memory-recall DELEGATION --wp {{wp-id}}
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs" {{wp-id}} {{workflow_lane}} {{execution_lane}}
+	@echo "[ACTIVATION_MANAGER] Committing governance checkpoint on gov_kernel..."
+	@git add -A
+	@git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "gov: checkpoint activation bundle [{{wp-id}}]" }
+	@echo "[ACTIVATION_MANAGER] Creating backup snapshot before orchestrator review..."
 	@just backup-snapshot "{{label}}"

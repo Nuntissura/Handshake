@@ -212,3 +212,70 @@ test("self-settlement prunes broker active runs that already have settled result
   const brokerState = JSON.parse(fs.readFileSync(path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE), "utf8"));
   assert.deepEqual(brokerState.active_runs, []);
 });
+
+test("self-settlement converts dead-broker active runs into failed results when explicitly targeted", () => {
+  const repoRoot = tempRepoRoot();
+  const commandId = "cmd-dead-broker-run";
+  const request = requestFixture(repoRoot, { commandId });
+  appendJsonl(path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE), request);
+  seedRegistry(repoRoot, {
+    session_key: request.session_key,
+    session_id: "coder:wp-test-runtime-v1",
+    wp_id: request.wp_id,
+    role: request.role,
+    local_branch: request.local_branch,
+    local_worktree_dir: request.local_worktree_dir,
+    session_thread_id: "thread-1",
+    startup_proof_state: "READY",
+    last_command_id: commandId,
+    last_command_status: "RUNNING",
+    last_command_output_file: request.output_jsonl_file,
+    runtime_state: "READY",
+  });
+  writeJson(path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE), {
+    schema_id: "hsk.session_control_broker_state@1",
+    schema_version: "session_control_broker_state_v1",
+    protocol: "HANDSHAKE_ACP_STDIO_V1",
+    control_transport: "CODEX_EXEC_RESUME_JSON",
+    host: "127.0.0.1",
+    port: 65195,
+    broker_pid: 999999,
+    started_at: "2026-04-01T00:00:00.000Z",
+    updated_at: "2026-04-01T00:00:00.000Z",
+    active_runs: [{
+      command_id: commandId,
+      session_key: request.session_key,
+      wp_id: request.wp_id,
+      role: request.role,
+      command_kind: "SEND_PROMPT",
+      child_pid: 1234,
+      started_at: "2026-04-01T00:00:00.000Z",
+      timeout_at: "2026-04-01T01:00:00.000Z",
+      output_jsonl_file: request.output_jsonl_file,
+      termination_reason: "",
+    }],
+    broker_build_id: "sha256:test",
+    broker_auth_mode: "LOCAL_TOKEN_FILE_V1",
+  });
+
+  const reconciliation = settleRecoverableSessionControlResults(repoRoot, {
+    commandIds: [commandId],
+  });
+
+  assert.ok(
+    reconciliation.settled.some((entry) =>
+      entry.command_id === commandId && entry.repair_reason === "running_without_active_broker_run"),
+  );
+
+  const results = readJsonl(path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE));
+  assert.equal(results.length, 1);
+  assert.equal(results[0].command_id, commandId);
+  assert.equal(results[0].status, "FAILED");
+  assert.match(results[0].summary, /Recovered orphaned governed request/i);
+
+  const outputEvents = readJsonl(path.resolve(repoRoot, request.output_jsonl_file));
+  assert.ok(outputEvents.some((event) => event.type === "broker.self_settle"));
+
+  const brokerState = JSON.parse(fs.readFileSync(path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE), "utf8"));
+  assert.deepEqual(brokerState.active_runs, []);
+});

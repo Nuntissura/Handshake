@@ -17,13 +17,14 @@ import {
 import { writeJsonFile } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { reconcileWpCommunicationTruth } from "../../../roles_shared/scripts/wp/ensure-wp-communications.mjs";
 import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("task-board-set.mjs", { role: "ORCHESTRATOR" });
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
 function fail(message, details = []) {
-  console.error(`[TASK_BOARD_SET] ${message}`);
-  for (const line of details) console.error(`- ${line}`);
-  process.exit(1);
+  failWithMemory("task-board-set.mjs", message, { role: "ORCHESTRATOR", details });
 }
 
 function readText(p) {

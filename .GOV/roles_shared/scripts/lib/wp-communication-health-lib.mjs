@@ -173,6 +173,23 @@ function latestProjectedNotifications(notifications = []) {
   );
 }
 
+function startupMeshAlreadySatisfied({ counts = {}, runtimeStatus = {} } = {}) {
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+  return Number(counts?.validatorKickoffs || 0) > 0
+    || Number(counts?.coderIntents || 0) > 0
+    || Number(counts?.coderHandoffs || 0) > 0
+    || Number(counts?.validatorReviews || 0) > 0
+    || Number(counts?.integrationFinalOpenReceipts || 0) > 0
+    || Number(counts?.integrationFinalResolutionReceipts || 0) > 0
+    || Number(counts?.openReviewItems || 0) > 0
+    || waitingOn === "WP_VALIDATOR_INTENT_CHECKPOINT"
+    || waitingOn === "CODER_HANDOFF"
+    || waitingOn === "CODER_REPAIR_HANDOFF"
+    || waitingOn === "FINAL_REVIEW_EXCHANGE"
+    || waitingOn === "VERDICT_PROGRESSION"
+    || waitingOn.startsWith("OPEN_REVIEW_ITEM");
+}
+
 function activeCorrelationIdsFromStatus(statusEvaluation = null, runtimeStatus = {}) {
   const ids = new Set();
   for (const item of Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : []) {
@@ -823,6 +840,22 @@ export function evaluateWpCommunicationHealth({
         details: [
           ...startupDetails,
           `expected_startup_roles=${STARTUP_COMMUNICATION_ROLE_VALUES.join(",")}`,
+        ],
+        counts,
+        correlations,
+      });
+    }
+
+    if (startupMeshAlreadySatisfied({ counts, runtimeStatus })) {
+      return result({
+        applicable: true,
+        ok: true,
+        state: "COMM_OK",
+        message: `Startup communication mesh was already satisfied earlier in this lane for ${startupRole}`,
+        details: [
+          ...startupDetails,
+          `startup_mesh_status=already_satisfied`,
+          `runtime_waiting_on=${String(runtimeStatus?.waiting_on || "").trim() || "<missing>"}`,
         ],
         counts,
         correlations,

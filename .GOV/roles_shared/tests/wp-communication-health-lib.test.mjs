@@ -209,6 +209,60 @@ test("communication health ignores historical invalidity once a later repair rec
   assert.equal(evaluation.activeWorkflowInvalidityCode, null);
 });
 
+test("startup communication health stays green once the lane has already advanced past bootstrap", () => {
+  const input = baseInput({
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap and skeleton cleared; proceed.",
+        timestamp_utc: "2026-03-22T10:02:30Z",
+      },
+    ],
+    runtimeStatus: {
+      active_role_sessions: [],
+      next_expected_actor: "CODER",
+      waiting_on: "CODER_HANDOFF",
+    },
+  });
+
+  const evaluation = evaluateWpCommunicationHealth({
+    ...input,
+    stage: "STARTUP",
+    actorRole: "CODER",
+    actorSession: "coder-1",
+  });
+
+  assert.equal(evaluation.ok, true, JSON.stringify(evaluation, null, 2));
+  assert.equal(evaluation.state, "COMM_OK");
+  assert.match(evaluation.message, /already satisfied earlier in this lane/i);
+});
+
 test("auto route sends coder back to initiate missing final review exchange", () => {
   const input = baseInput({
     receipts: [

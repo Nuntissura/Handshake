@@ -38,6 +38,7 @@ function packetPathAtRepo(repoRoot, wpId) {
 
 export function evaluateSessionGovernanceState(repoRoot, sessionLike = {}) {
   const root = path.resolve(repoRoot || REPO_ROOT);
+  const role = String(sessionLike.role || sessionLike.roleName || "").trim().toUpperCase();
   const wpId = String(sessionLike.wp_id || sessionLike.wpId || "").trim();
   const localWorktreeDir = String(sessionLike.local_worktree_dir || sessionLike.localWorktreeDir || "").trim();
   const packetResolved = wpId ? packetPathAtRepo(root, wpId) : null;
@@ -53,7 +54,7 @@ export function evaluateSessionGovernanceState(repoRoot, sessionLike = {}) {
   const launchBlockers = [];
   const steeringBlockers = [];
 
-  if (!packetExists) {
+  if (!packetExists && role !== "ACTIVATION_MANAGER" && role !== "MEMORY_MANAGER") {
     launchBlockers.push(`official packet is missing: ${packetPathRel}`);
     steeringBlockers.push(`official packet is missing: ${packetPathRel}`);
   }

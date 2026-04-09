@@ -7,11 +7,12 @@ import {
 import {
   evaluateArtifactHygiene,
 } from "../lib/artifact-hygiene-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("artifact-hygiene-check.mjs", { role: "SHARED" });
 
 function fail(message, details = []) {
-  console.error(`[ARTIFACT_HYGIENE_CHECK] FAIL: ${message}`);
-  for (const detail of details) console.error(`  - ${detail}`);
-  process.exit(1);
+  failWithMemory("artifact-hygiene-check.mjs", message, { role: "SHARED", details });
 }
 
 function pass(message, details = []) {

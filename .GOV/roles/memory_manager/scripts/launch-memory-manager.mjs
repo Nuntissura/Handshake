@@ -202,7 +202,6 @@ try {
         try { return fs.existsSync(path.resolve(process.cwd(), f)); } catch { return false; }
       });
       if (existingFiles.length === 0) {
-        // All referenced files are gone — check if this has general applicability
         const hasAccess = db.prepare("SELECT access_count FROM memory_index WHERE id = ?").get(entry.id);
         if (hasAccess && hasAccess.access_count < 2) {
           db.prepare("UPDATE memory_index SET importance = 0.1 WHERE id = ?").run(entry.id);
@@ -213,36 +212,107 @@ try {
     }
   } catch {}
 
-  // 2d. Conversation insight promotion
-  // Find insights that appear across 3+ sessions → promote to semantic memory
+  // 2d. Contradiction resolution — find entries flagged with contradiction metadata
+  let contradictionsResolved = 0;
+  try {
+    const contradicted = db.prepare(
+      "SELECT mi.id, mi.topic, mi.importance, mi.created_at, mi.file_scope, mi.memory_type, me.metadata FROM memory_index mi JOIN memory_entries me ON me.index_id = mi.id WHERE mi.consolidated = 0 AND me.metadata LIKE '%contradiction%'"
+    ).all();
+    // Group by file_scope to find pairs
+    const byScope = new Map();
+    for (const entry of contradicted) {
+      const scope = entry.file_scope || "__global__";
+      if (!byScope.has(scope)) byScope.set(scope, []);
+      byScope.get(scope).push(entry);
+    }
+    for (const [, entries] of byScope) {
+      if (entries.length < 2) continue;
+      // Sort by created_at desc — newer wins unless older has more access
+      entries.sort((a, b) => b.created_at.localeCompare(a.created_at));
+      const newer = entries[0];
+      for (let i = 1; i < entries.length; i++) {
+        const older = entries[i];
+        // Newer wins: consolidate older, restore newer importance
+        db.prepare("UPDATE memory_index SET consolidated = 1 WHERE id = ?").run(older.id);
+        if (newer.importance < 0.5) {
+          db.prepare("UPDATE memory_index SET importance = 0.6 WHERE id = ?").run(newer.id);
+        }
+        contradictionsResolved++;
+        contradictions.push(`- #${older.id} vs #${newer.id}: newer wins — consolidated #${older.id} ("${older.topic.slice(0, 60)}")`);
+      }
+    }
+  } catch {}
+
+  // 2e. Supersession chain audit — check superseded_by chains for broken links
+  let supersessionRepairs = 0;
+  try {
+    const superseded = db.prepare(
+      "SELECT mi.id, mi.topic, me.metadata FROM memory_index mi JOIN memory_entries me ON me.index_id = mi.id WHERE mi.consolidated = 1 AND me.metadata LIKE '%superseded_by%'"
+    ).all();
+    for (const entry of superseded) {
+      try {
+        const meta = JSON.parse(entry.metadata || "{}");
+        if (meta.superseded_by) {
+          const successor = db.prepare("SELECT id, consolidated FROM memory_index WHERE id = ?").get(meta.superseded_by);
+          if (!successor || successor.consolidated === 1) {
+            // Successor is gone or also consolidated — un-consolidate the original
+            db.prepare("UPDATE memory_index SET consolidated = 0, importance = 0.4 WHERE id = ?").run(entry.id);
+            supersessionRepairs++;
+            actions.push(`Restored #${entry.id}: "${entry.topic.slice(0, 60)}" (successor #${meta.superseded_by} was pruned/consolidated)`);
+          }
+        }
+      } catch { /* malformed metadata — skip */ }
+    }
+  } catch {}
+
+  // 2f. Conversation insight promotion (FTS5 similarity instead of exact match)
   let promotedInsights = 0;
   try {
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_log'").get();
     if (tables) {
-      // Group insights by topic similarity (exact match for now, FTS for future)
-      const insights = db.prepare(
-        "SELECT topic, content, COUNT(DISTINCT session_id) as session_count, GROUP_CONCAT(DISTINCT wp_id) as wp_ids FROM conversation_log WHERE checkpoint_type = 'INSIGHT' GROUP BY topic HAVING session_count >= 3 ORDER BY session_count DESC"
+      // Get all unique insight topics, then use FTS to find similar ones across sessions
+      const insightSessions = db.prepare(
+        "SELECT id, session_id, topic, content, wp_id FROM conversation_log WHERE checkpoint_type = 'INSIGHT' ORDER BY timestamp_utc DESC"
       ).all();
 
-      for (const insight of insights) {
-        // Check if we already promoted this
+      // Group by FTS similarity: for each insight, find others with overlapping keywords
+      const promoted = new Set();
+      for (const insight of insightSessions) {
+        if (promoted.has(insight.id)) continue;
+        // Find similar insights across different sessions using keyword overlap
+        const keywords = insight.topic.replace(/[^\w\s]/g, " ").split(/\s+/).filter(w => w.length > 3).slice(0, 5).join(" ");
+        if (!keywords) continue;
+        let similar;
+        try {
+          similar = db.prepare(
+            "SELECT cl.id, cl.session_id, cl.topic, cl.content, cl.wp_id FROM conversation_log cl JOIN conversation_log_fts fts ON fts.rowid = cl.id WHERE fts.topic MATCH ? AND cl.checkpoint_type = 'INSIGHT' AND cl.id != ?"
+          ).all(keywords.replace(/[^\w\s]/g, " ").trim(), insight.id);
+        } catch { continue; }
+        // Count distinct sessions
+        const sessions = new Set([insight.session_id, ...similar.map(s => s.session_id)]);
+        if (sessions.size < 3) continue;
+        // Mark all as processed
+        promoted.add(insight.id);
+        for (const s of similar) promoted.add(s.id);
+        // Check if already promoted
         const existing = db.prepare(
-          "SELECT id FROM memory_index WHERE topic = ? AND memory_type = 'semantic'"
-        ).get(`[promoted-insight] ${insight.topic.slice(0, 100)}`);
+          "SELECT id FROM memory_entries WHERE source_artifact = 'conversation-promotion' AND content LIKE ?"
+        ).get(`%${insight.topic.slice(0, 50)}%`);
         if (existing) continue;
 
+        const wpIds = [...new Set([insight.wp_id, ...similar.map(s => s.wp_id)].filter(Boolean))];
         addMemory(db, {
           memoryType: "semantic",
           topic: `[promoted-insight] ${insight.topic.slice(0, 100)}`,
-          summary: `Cross-session insight (${insight.session_count} sessions): ${insight.content.slice(0, 200)}`,
-          wpId: insight.wp_ids?.split(",")[0] || "",
+          summary: `Cross-session insight (${sessions.size} sessions): ${insight.content.slice(0, 200)}`,
+          wpId: wpIds[0] || "",
           importance: 0.8,
           content: insight.content,
           sourceArtifact: "conversation-promotion",
-          metadata: { promoted_from: "conversation_log", session_count: insight.session_count },
+          metadata: { promoted_from: "conversation_log", session_count: sessions.size },
         });
         promotedInsights++;
-        actions.push(`Promoted insight to semantic memory: "${insight.topic.slice(0, 80)}" (${insight.session_count} sessions)`);
+        actions.push(`Promoted insight to semantic memory: "${insight.topic.slice(0, 80)}" (${sessions.size} sessions)`);
       }
 
       // Also promote decisions that repeat across sessions
@@ -271,13 +341,12 @@ try {
     }
   } catch {}
 
-  // 2e. Conversation log pruning — old SESSION_OPEN/CLOSE without insights
+  // 2g. Conversation log pruning — old SESSION_OPEN/CLOSE without insights
   let conversationPruned = 0;
   try {
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_log'").get();
     if (tables) {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
-      // Find sessions older than 30 days that have no INSIGHTs or RESEARCH_CLOSEs
       const oldSessions = db.prepare(
         `SELECT session_id, COUNT(*) as total,
                 SUM(CASE WHEN checkpoint_type IN ('INSIGHT', 'RESEARCH_CLOSE') THEN 1 ELSE 0 END) as valuable
@@ -288,11 +357,9 @@ try {
       ).all(thirtyDaysAgo);
 
       for (const session of oldSessions) {
-        // Keep auto-closed entries as they may carry context
         const autoCloseCheck = db.prepare(
           "SELECT COUNT(*) as c FROM conversation_log WHERE session_id = ? AND topic LIKE '%(auto-closed%'"
         ).get(session.session_id);
-        // Only prune sessions with just OPEN + CLOSE and no insights
         if (session.total <= 2 && (!autoCloseCheck || autoCloseCheck.c === 0)) {
           db.prepare("DELETE FROM conversation_log WHERE session_id = ?").run(session.session_id);
           conversationPruned += session.total;
@@ -301,11 +368,63 @@ try {
     }
   } catch {}
 
+  // 2h. Age-based consolidation — entries >30d old with low access get consolidated
+  let ageConsolidated = 0;
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+    const oldLowAccess = db.prepare(
+      "SELECT id, topic FROM memory_index WHERE consolidated = 0 AND created_at < ? AND access_count < 2 AND importance < 0.4"
+    ).all(thirtyDaysAgo);
+    for (const entry of oldLowAccess) {
+      db.prepare("UPDATE memory_index SET consolidated = 1 WHERE id = ?").run(entry.id);
+      ageConsolidated++;
+    }
+    if (ageConsolidated > 0) {
+      actions.push(`Age-consolidated: ${ageConsolidated} entries (>30d old, <2 accesses, importance <0.4)`);
+    }
+  } catch {}
+
+  // 2i. Embedding refresh — if coverage <50% and Ollama is reachable, embed a batch
+  let embeddingsAdded = 0;
+  if (embeddingPct < 50) {
+    try {
+      const embedResult = spawnSync(process.execPath, [
+        path.join(scriptsDir, "governance-memory-cli.mjs"), "embed", "--batch", "20"
+      ], { stdio: ["pipe", "pipe", "pipe"], timeout: 60000 });
+      if (embedResult.status === 0) {
+        const match = embedResult.stdout?.toString().match(/Embedded\s+(\d+)/i);
+        embeddingsAdded = match ? Number(match[1]) : 0;
+      }
+    } catch {}
+    if (embeddingsAdded > 0) actions.push(`Embeddings added: ${embeddingsAdded}`);
+  }
+
+  // 2j. Recall effectiveness audit — check operator-reported entries haven't decayed
+  let recallAuditNotes = [];
+  try {
+    const operatorEntries = db.prepare(
+      "SELECT mi.id, mi.topic, mi.importance, me.source_artifact FROM memory_index mi JOIN memory_entries me ON me.index_id = mi.id WHERE me.source_artifact IN ('operator-reported', 'memory-capture') AND mi.consolidated = 0"
+    ).all();
+    const decayedOperator = operatorEntries.filter(e => e.importance < 0.5);
+    if (decayedOperator.length > 0) {
+      // Restore operator-reported entries that decayed below 0.5 — these are high-value
+      for (const entry of decayedOperator) {
+        db.prepare("UPDATE memory_index SET importance = 0.8 WHERE id = ?").run(entry.id);
+      }
+      recallAuditNotes.push(`Restored ${decayedOperator.length} operator-reported entries from decay (importance < 0.5 → 0.8)`);
+      actions.push(`Recall audit: restored ${decayedOperator.length} operator-reported entries from decay`);
+    }
+    recallAuditNotes.push(`Operator-reported entries: ${operatorEntries.length} active (${decayedOperator.length} restored from decay)`);
+  } catch {}
+
   actions.push(`Extracted: receipts=${extractedReceipts}, smoketests=${extractedSmoketests}`);
   actions.push(`Compacted: processed=${compactResult.processed}, decayed=${compactResult.decayed}, pruned=${compactResult.pruned}`);
   actions.push(`Stale flagged: ${staleFlagged}`);
+  actions.push(`Contradictions resolved: ${contradictionsResolved}`);
+  actions.push(`Supersession chains repaired: ${supersessionRepairs}`);
   actions.push(`Conversation insights promoted: ${promotedInsights}`);
   actions.push(`Conversation entries pruned: ${conversationPruned}`);
+  actions.push(`Age-consolidated: ${ageConsolidated}`);
 
   // =========================================================================
   // Phase 3: Pattern Analysis
@@ -409,6 +528,10 @@ try {
 
   if (contradictions.length > 0) {
     reportLines.push("## Contradiction Resolutions", ...contradictions, "");
+  }
+
+  if (recallAuditNotes.length > 0) {
+    reportLines.push("## Recall Effectiveness", ...recallAuditNotes.map(n => `- ${n}`), "");
   }
 
   reportLines.push("## Calibration Notes", ...calibration, "");

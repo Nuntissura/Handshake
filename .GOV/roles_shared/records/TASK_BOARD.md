@@ -88,7 +88,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
-- **[WP-1-Session-Observability-Spans-FR-v1]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 
@@ -527,6 +526,13 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 
+
+
+
+
+
+
+- **[WP-1-Session-Observability-Spans-FR-v1]** - [IN_PROGRESS]
 
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]

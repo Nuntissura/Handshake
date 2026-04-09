@@ -88,7 +88,7 @@ These are safe starting points for orientation and health checks.
   - `read-only`
   - role-specific resume helpers after startup/reset/compaction
   - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, post-signature routine Operator interruptions are invalid; `just orchestrator-next` should print `OPERATOR_ACTION: NONE` unless a machine-visible `BLOCKER_CLASS` is present
-- `just orchestrator-steer-next WP-{ID} [PRIMARY|FALLBACK]`
+- `just orchestrator-steer-next WP-{ID} "<context>" [PRIMARY|FALLBACK]`
   - `runtime-write`
   - launch or steer the next expected governed actor directly from runtime/receipt projection without a manually written relay prompt
   - if the target session is not running yet, this helper now starts it and immediately sends the typed route payload in the same invocation
@@ -121,12 +121,6 @@ These are safe starting points for orientation and health checks.
 - `just memory-migrate-failure-memory`
   - `runtime-write`
   - one-time migration of legacy FAILURE_MEMORY.json entries into the governance memory SQLite store (migration complete; JSON archived as `.migrated`)
-- `just memory-export [--all]`
-  - `read-only`
-  - dump active memories to JSONL on stdout for git-trackable archival; `--all` includes consolidated entries
-- `just memory-import <file.jsonl>`
-  - `runtime-write`
-  - restore memories from a JSONL export; deduplicates by topic+wp+type
 - `just memory-extract [WP-{ID}|--all]`
   - `runtime-write`
   - extract episodic and procedural memories from WP RECEIPTS.jsonl; `--all` processes every WP with communications
@@ -414,36 +408,60 @@ These mutate packet, board, traceability, or related governed surfaces.
   - `read-only`
   - generate audit skeleton from current authoritative artifacts
 
+## Activation Manager pre-launch helpers
+
+- `just activation-manager <startup|prompt|next|readiness> [WP-{ID}] [--write|--json]`
+  - `read-only` except `readiness --write`, which is `runtime-write`
+  - role-local Activation Manager startup, prompt, state, and readiness surface
+  - use this as the compact activation context digest; manual workflow still keeps pre-launch authority on the Orchestrator
+- `just activation-record-refinement WP-{ID}`
+- `just activation-record-signature WP-{ID} <signature> <workflow_lane> <execution_lane>`
+- `just activation-record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
+- `just activation-record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
+- `just activation-create-task-packet WP-{ID} "<context>"`
+- `just activation-task-board-set WP-{ID} <STATUS> ["reason"]`
+- `just activation-wp-traceability-set <BASE_WP_ID> <ACTIVE_PACKET_WP_ID> "<context>"`
+- `just activation-prepare-and-packet WP-{ID}`
+  - `governance-write`
+  - Activation Manager-prefixed wrappers over the live Orchestrator implementation surfaces; they preserve one implementation path while keeping pre-launch authority explicit
+
 ## Session launch and steering (Orchestrator-only)
 
 These mutate governed runtime state and should not be run from inside Coder or Validator sessions.
 For Orchestrator-managed WPs, this ACP/CLI session surface is the required normal delegation path.
-For an active orchestrator-managed WP, helper agents/subagents are not allowed to perform coder, validator, or in-lane review/steering duties. Governed ACP sessions are the only legal execution lanes for `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR`.
+For an active orchestrator-managed WP, helper agents/subagents are not allowed to perform coder, validator, or in-lane review/steering duties. Governed ACP sessions are the only legal execution lanes for `ACTIVATION_MANAGER`, `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR`.
 If the Operator explicitly authorizes separate governance-only helper work outside the active lane, keep it isolated and do not let it write product code unless the packet records `SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`.
 
+- `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} ...`
 - `just launch-integration-validator-session WP-{ID} ...`
   - `runtime-write`
   - launch/bootstrap lane
-  - launch selection now resolves through the packet-declared role-model profile bundle, not only implicit GPT defaults
+  - Activation Manager is the mandatory governed pre-launch lane for orchestrator-managed workflow; manual workflow keeps pre-launch on the Orchestrator
+  - if `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, launch Activation Manager first and do not begin governed coder/validator launch until it has produced truthful `ACTIVATION_READINESS`
+  - launch selection resolves through the packet-declared role-model profile bundle when present; Activation Manager falls back to the governed repo default because pre-launch work may begin before packet hydration
   - on the ordinary orchestrator-managed path, supported launch hosts now auto-issue the first governed `START_SESSION` so launch does not stop at a launch-only false green
   - governed launch/control must preserve kernel governance authority with `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`; `handshake_main/.GOV` is not valid live governance for orchestrator-managed integration validation
+- `just start-activation-manager-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-{ID} ...`
 - `just start-integration-validator-session WP-{ID} ...`
   - `runtime-write`
   - explicit governed ACP start / recovery helper when a launch host could not complete the first start automatically
+- `just steer-activation-manager-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
 - `just steer-coder-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
 - `just steer-wp-validator-session WP-{ID} ...`
 - `just steer-integration-validator-session WP-{ID} ...`
   - `runtime-write`
   - governed ACP resume/send
+- `just cancel-activation-manager-session WP-{ID}`
 - `just cancel-coder-session WP-{ID}`
 - `just cancel-wp-validator-session WP-{ID}`
 - `just cancel-integration-validator-session WP-{ID}`
   - `runtime-write`
   - cancel the current governed command for that lane
+- `just close-activation-manager-session WP-{ID}`
 - `just close-coder-session WP-{ID}`
 - `just close-wp-validator-session WP-{ID}`
 - `just close-integration-validator-session WP-{ID}`
@@ -454,8 +472,9 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
 - `just session-cancel <ROLE> WP-{ID}`
 - `just session-close <ROLE> WP-{ID}`
+    - `<ROLE>` may now be `ACTIVATION_MANAGER`, `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`
     - these governed helpers now attempt deterministic self-settlement for their own request ids when a broker dispatch or wait path returns without a terminal result row
-- `just session-reclaim-terminals WP-{ID} [CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`
+- `just session-reclaim-terminals WP-{ID} [ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`
   - `runtime-write`
   - manual repair helper that reclaims only registry-owned governed system-terminal windows for the selected WP/session scope; it defaults to `CURRENT_BATCH` so older batch windows are left alone unless `ALL_BATCHES` or an exact `BATCH_ID` is requested
 

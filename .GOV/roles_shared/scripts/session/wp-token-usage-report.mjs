@@ -3,13 +3,15 @@
 import { evaluateWpTokenBudget } from "./wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "./wp-token-usage-lib.mjs";
 import { REPO_ROOT } from "../lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("wp-token-usage-report.mjs", { role: "SHARED" });
 
 const repoRoot = REPO_ROOT;
 const wpId = String(process.argv[2] || "").trim();
 
 function fail(message) {
-  console.error(`[WP_TOKEN_USAGE] ${message}`);
-  process.exit(1);
+  failWithMemory("wp-token-usage-report.mjs", message, { role: "SHARED" });
 }
 
 if (!wpId || !/^WP-/.test(wpId)) {

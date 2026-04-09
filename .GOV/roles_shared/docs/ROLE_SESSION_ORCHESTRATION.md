@@ -5,9 +5,10 @@ This file is the shared law for repo-governed multi-session launch behavior.
 Default external repo-governance runtime root from a repo worktree: `../gov_runtime/roles_shared/`. This root may be overridden via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`.
 
 ## Core Rule
-- Only the Orchestrator may start repo-governed Coder, WP Validator, and Integration Validator sessions.
-- Coder and Validator sessions may resume work, but they do not self-start a fresh repo-governed session.
+- Only the Orchestrator may start repo-governed Activation Manager, Coder, WP Validator, and Integration Validator sessions.
+- Activation Manager, Coder, and Validator sessions may resume work, but they do not self-start a fresh repo-governed session.
 - Only the Orchestrator may run fresh-start, close, cancel, or broker-stop control commands for governed role sessions. Coder and Validator sessions request repair, pause, or cancel actions through packet thread/receipt surfaces; they do not mutate the governed control ledgers directly.
+- The Activation Manager is the mandatory governed pre-launch authoring lane for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`. For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch remains Orchestrator-owned.
 
 ## Primary launch path
 - Preferred host: `VSCODE_EXTENSION_TERMINAL`
@@ -27,7 +28,8 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - Broker state: `../gov_runtime/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
 - Session steering is ACP-backed and thread-based: the Orchestrator starts a governed Codex thread once through the Handshake ACP bridge, then resumes that same thread with governed prompts.
 - A persistent Handshake ACP broker owns the active-run table, timeout settlement, and cancellation delivery for governed prompts. The wrapper client talks to that broker; it does not own command completion.
-- Orchestrator-managed workflow uses these governed ACP/CLI sessions as the only normal delegation surface for Coder and Validator lanes.
+- Orchestrator-managed workflow uses these governed ACP/CLI sessions as the only normal delegation surface for the Activation Manager pre-launch lane plus the Coder and Validator lanes.
+- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the ordinary order is Activation Manager first, then downstream Coder/Validator lanes after truthful `ACTIVATION_READINESS`. Do not bypass that pre-launch worker by keeping heavy activation reasoning in long-lived Orchestrator context.
 - Helper agents/subagents may assist the Orchestrator on governance/spec/runtime/orchestrator tasks, but they are not Coder or Validator lanes.
 - Do not use helper agents/subagents to perform Coder or Validator duties, and do not let them write product code, unless the Operator explicitly approved that path and the work packet records `SUB_AGENT_DELEGATION: ALLOWED` plus the exact `OPERATOR_APPROVAL_EVIDENCE`.
 - `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows carry a target-command reference. Close rows clear the steerable thread registration for that governed role/WP session, settle through the same append-only request/result ledgers, and attempt deterministic reclaim of any governed system-terminal window owned by that exact session.
@@ -132,11 +134,16 @@ Use these rules when governed runtime/session truth drifts or looks stale.
 
 ## Operational Commands
 - Orchestrator-only launch/bootstrap commands:
+  - `just launch-activation-manager-session WP-{ID}`
   - `just launch-coder-session WP-{ID}`
   - `just launch-wp-validator-session WP-{ID}`
   - `just launch-integration-validator-session WP-{ID}`
   - normal supported launch paths now auto-issue the first governed `START_SESSION`; keep `start-*` for explicit recovery or exceptional manual repair
 - Orchestrator-only steering commands:
+  - `just start-activation-manager-session WP-{ID}`
+  - `just steer-activation-manager-session WP-{ID} "<prompt>"`
+  - `just cancel-activation-manager-session WP-{ID}`
+  - `just close-activation-manager-session WP-{ID}`
   - `just start-coder-session WP-{ID}`
   - `just start-wp-validator-session WP-{ID}`
   - `just start-integration-validator-session WP-{ID}`
@@ -158,9 +165,10 @@ Use these rules when governed runtime/session truth drifts or looks stale.
   - `just handshake-acp-broker-stop`
 - `just session-registry-status [WP-{ID}]`
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
-- `just orchestrator-steer-next WP-{ID} [PRIMARY|FALLBACK]`
+- Activation Manager uses `just activation-manager next WP-{ID}` as its compact context digest instead of `active-lane-brief`.
+- `just orchestrator-steer-next WP-{ID} "<context>" [PRIMARY|FALLBACK]`
 - `just operator-viewport`
 - `just operator-admin`
 - When a WP filter is supplied, `just session-registry-status` now prints derived relay escalation state.
 - `just active-lane-brief` is the compact authority digest for one governed lane; prefer it over rereading packet/runtime/session surfaces separately.
-- If derived relay escalation is `ESCALATED`, use `just orchestrator-steer-next WP-{ID}` instead of waiting silently.
+- If derived relay escalation is `ESCALATED`, use `just orchestrator-steer-next WP-{ID} "<context>"` instead of waiting silently.

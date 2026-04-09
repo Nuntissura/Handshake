@@ -12,9 +12,9 @@ const sessionControlEnv = {
   ...(debugMode ? { HANDSHAKE_SESSION_CONTROL_DEBUG: "1" } : {}),
 };
 
-if (!["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(role) || !/^WP-/.test(wpId)) {
+if (!["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(role) || !/^WP-/.test(wpId)) {
   console.error(
-    `[SESSION_CONTROL] Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-cancel.mjs <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [--debug]`
+    `[SESSION_CONTROL] Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-cancel.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [--debug]`
   );
   process.exit(1);
 }

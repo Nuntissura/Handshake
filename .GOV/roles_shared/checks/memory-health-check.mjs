@@ -19,12 +19,14 @@ import {
   GOVERNANCE_MEMORY_DB_NAME,
   GOVERNANCE_MEMORY_SCHEMA_VERSION,
 } from "../scripts/memory/governance-memory-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("memory-health-check.mjs", { role: "SHARED" });
 
 const dbPath = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", GOVERNANCE_MEMORY_DB_NAME);
 
 function fail(message) {
-  console.error(`memory-health-check FAIL: ${message}`);
-  process.exit(1);
+  failWithMemory("memory-health-check.mjs", message, { role: "SHARED" });
 }
 
 if (!fs.existsSync(dbPath)) {

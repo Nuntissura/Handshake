@@ -93,7 +93,9 @@ export function runGateCheck(wpId) {
   }
 
   const resolved = resolveWorkPacketPath(normalizedWpId);
-  const wpPath = resolved?.absolutePath || repoPathAbs(`${GOV_ROOT_REPO_REL}/task_packets/${normalizedWpId}.md`);
+  const wpPath = resolved?.packetPath
+    ? repoPathAbs(resolved.packetPath)
+    : repoPathAbs(`${GOV_ROOT_REPO_REL}/task_packets/${normalizedWpId}.md`);
   if (!fs.existsSync(wpPath)) {
     return {
       ok: false,
@@ -307,7 +309,9 @@ function readPacketText(wpId) {
   const normalizedWpId = String(wpId || "").trim();
   if (!normalizedWpId) return "";
   const resolved = resolveWorkPacketPath(normalizedWpId);
-  const wpPath = resolved?.absolutePath || repoPathAbs(`${GOV_ROOT_REPO_REL}/task_packets/${normalizedWpId}.md`);
+  const wpPath = resolved?.packetPath
+    ? repoPathAbs(resolved.packetPath)
+    : repoPathAbs(`${GOV_ROOT_REPO_REL}/task_packets/${normalizedWpId}.md`);
   try {
     return fs.readFileSync(wpPath, "utf8");
   } catch {

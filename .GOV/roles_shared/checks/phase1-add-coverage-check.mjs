@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("phase1-add-coverage-check.mjs", { role: "SHARED" });
 
 const SPEC_CURRENT_PATH = ".GOV/spec/SPEC_CURRENT.md";
 const STUB_DIR = ".GOV/task_packets/stubs";
@@ -9,9 +12,7 @@ const NEXT_PHASE_HEADING = "### 7.6.4 Phase 2";
 const COVERAGE_PREFIX = "- ROADMAP_ADD_COVERAGE:";
 
 function fail(message, details = []) {
-  console.error(`[PHASE1_ADD_COVERAGE_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("phase1-add-coverage-check.mjs", message, { role: "SHARED", details });
 }
 
 function readText(filePath) {

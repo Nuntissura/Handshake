@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import crypto from "node:crypto";
+import { captureFailure } from "./fail-capture-lib.mjs";
 import {
   GOV_ROOT_REPO_REL,
   GOVERNANCE_RUNTIME_ROOT_REPO_REL,
@@ -22,6 +23,8 @@ import {
   parseTaskBoardStatus,
   TERMINAL_TASK_BOARD_STATUS_VALUES,
 } from "./wp-authority-projection-lib.mjs";
+
+export { buildPhaseCheckCommand };
 
 export const ORCHESTRATOR_GATES_PATH = resolveOrchestratorGatesPath();
 export const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
@@ -713,6 +716,11 @@ export function failWithContext({
   findings = [],
   nextCommands = [],
 }) {
+  // Capture structured failure to memory before exiting
+  captureFailure("failWithContext", `${stage} blocker: ${state || blockerClass}`, {
+    wpId: wpId !== "N/A" ? wpId : "",
+    details: findings.map(f => typeof f === "string" ? f : f?.message || JSON.stringify(f)),
+  });
   printLifecycle({ wpId, stage, next });
   printOperatorAction(operatorAction);
   printBlockerClass(blockerClass);

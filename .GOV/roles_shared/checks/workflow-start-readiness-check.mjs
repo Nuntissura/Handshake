@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import { workflowStartReadinessState } from "../scripts/lib/role-resume-utils.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("workflow-start-readiness-check.mjs", { role: "SHARED" });
 
 function fail(message, details = []) {
-  console.error(`[WORKFLOW_START_READINESS_CHECK] ${message}`);
-  for (const detail of details) console.error(`- ${detail}`);
-  process.exit(1);
+  failWithMemory("workflow-start-readiness-check.mjs", message, { role: "SHARED", details });
 }
 
 const readiness = workflowStartReadinessState();

@@ -3,6 +3,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { buildPhaseCheckCommand } from "../../../../roles_shared/checks/phase-check-lib.mjs";
 import { captureCheckFinding } from "../../../../roles_shared/scripts/memory/memory-capture-from-check.mjs";
+import { registerFailCaptureHook } from "../../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("validator-governance-lib.mjs", { role: "WP_VALIDATOR" });
 import {
   computedPolicyOutcomeAllowsClosure,
   evaluateComputedPolicyGateFromPacketText,

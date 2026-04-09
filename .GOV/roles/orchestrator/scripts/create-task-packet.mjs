@@ -39,6 +39,11 @@ import {
   formatDataContractMonitoringSection,
 } from '../../../roles_shared/scripts/lib/data-contract-lib.mjs';
 import {
+  buildActivationManagerLaunchCommands,
+  buildDownstreamGovernedLaunchCommands,
+  buildManualRelayCommands,
+} from './lib/workflow-lane-guidance-lib.mjs';
+import {
   communicationPathsForWp,
   EXECUTION_OWNER_VALUES,
   WORKFLOW_LANE_VALUES,
@@ -1458,9 +1463,12 @@ try {
     nextCommands.push(`just wp-traceability-set ${baseWpId} ${WP_ID}`);
   }
   if (!syncState.ok) {
-    const startupCommand = buildPhaseCheckCommand({ phase: 'STARTUP', wpId: WP_ID, role: 'CODER' });
-    nextCommands.push(`# Validator: fast-forward ${syncState.expectedBranch || 'the assigned WP branch'} and ${syncState.worktreeAbs || 'the assigned WP worktree'} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`);
-    nextCommands.push(`# Then in the assigned WP worktree: ${startupCommand}`);
+    nextCommands.push(`# Repair ${syncState.expectedBranch || 'the assigned WP branch'} and ${syncState.worktreeAbs || 'the assigned WP worktree'} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`);
+    if (normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED') {
+      nextCommands.push(...buildActivationManagerLaunchCommands(WP_ID));
+    } else if (normalizedWorkflowLane === 'MANUAL_RELAY') {
+      nextCommands.push(...buildManualRelayCommands(WP_ID));
+    }
     nextCommands.push(`just orchestrator-next ${WP_ID}`);
 
     printGateBlocks({
@@ -1470,7 +1478,9 @@ try {
       operatorAction: 'NONE',
       gateRan: `just create-task-packet ${WP_ID}`,
       result: 'PASS',
-      why: 'Work packet was created, but coder handoff is blocked until the assigned WP worktree contains the current packet/spec/governance state.',
+      why: normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED'
+        ? 'Work packet was created, but Activation Manager-owned pre-launch cannot continue until the assigned WP worktree contains the current packet/spec/governance state.'
+        : 'Work packet was created, but manual relay into implementation cannot continue until the assigned WP worktree contains the current packet/spec/governance state.',
       gateOutputLines: [
         `OK: Work packet created: ${filePath.replace(/\\/g, '/')}`,
         `OK: WP communication folder ready: ${wpCommunicationPaths.dir}`,
@@ -1480,12 +1490,15 @@ try {
       nextCommands,
     });
   } else {
-    nextCommands.push(buildPhaseCheckCommand({ phase: 'STARTUP', wpId: WP_ID, role: 'CODER' }));
     if (/^CODER_[A-Z]$/i.test(normalizedExecutionOwner)) {
-      nextCommands.push(`just launch-coder-session ${WP_ID}`);
-      nextCommands.push(`just launch-wp-validator-session ${WP_ID}`);
-      nextCommands.push(`just session-registry-status ${WP_ID}`);
-      nextCommands.push(`# Integration Validator stays downstream of WP validation PASS; launch later with: just launch-integration-validator-session ${WP_ID}`);
+      if (normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED') {
+        nextCommands.push(...buildActivationManagerLaunchCommands(WP_ID));
+      } else if (normalizedWorkflowLane === 'MANUAL_RELAY') {
+        nextCommands.push(...buildManualRelayCommands(WP_ID));
+      } else {
+        nextCommands.push(buildPhaseCheckCommand({ phase: 'STARTUP', wpId: WP_ID, role: 'CODER' }));
+        nextCommands.push(...buildDownstreamGovernedLaunchCommands(WP_ID));
+      }
       nextCommands.push(`# Then provide a relayable implementation brief in chat for ${executionLane}; orchestrator implementation agents stay blocked in this lane.`);
     }
     nextCommands.push('# Use the assigned worktree/branch from ORCHESTRATOR_GATES.json PREPARE for the chosen workflow lane + execution owner.');

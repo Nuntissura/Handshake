@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
-import { buildPhaseCheckCommand, buildPhaseCheckPlan, parseCloseoutSyncOptions } from "../checks/phase-check.mjs";
+import { buildPhaseCheckCommand, buildPhaseCheckPlan, parseCloseoutSyncOptions, runGateCheck } from "../checks/phase-check.mjs";
 
 test("phase-check command builder keeps the role/session suffix compact", () => {
   assert.equal(
@@ -156,4 +158,31 @@ test("closeout phase plan includes verdict proof, context bundle, closeout prefl
     "integration-validator-closeout-check",
     "launch-memory-manager",
   ]);
+});
+
+test("gate-check resolves folder packets through packet.md", () => {
+  const wpId = "WP-TEST-GATE-FOLDER-v1";
+  const packetDir = path.join(".GOV", "task_packets", wpId);
+  const packetPath = path.join(packetDir, "packet.md");
+
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(packetPath, [
+    `# Task Packet: ${wpId}`,
+    "",
+    "Status: In Progress",
+    "",
+    "## BOOTSTRAP",
+    "Ready.",
+    "",
+    "## SKELETON",
+    "Ready.",
+  ].join("\n"), "utf8");
+
+  try {
+    const result = runGateCheck(wpId);
+    assert.equal(result.ok, true, result.output);
+    assert.match(result.output, /GATE PASS/i);
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
 });

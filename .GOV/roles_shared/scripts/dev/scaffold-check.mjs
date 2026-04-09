@@ -3,9 +3,12 @@ import path from "node:path";
 import os from "node:os";
 import { execSync } from "node:child_process";
 import { REPO_ROOT } from "../lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("scaffold-check.mjs", { role: "SHARED" });
 
 function fail(message) {
-  throw new Error(message);
+  failWithMemory("scaffold-check.mjs", message, { role: "SHARED" });
 }
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "handshake-scaffold-"));

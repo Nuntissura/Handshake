@@ -81,6 +81,7 @@ const POST_WORK_CHECK_SCRIPT_PATH = path.resolve(
 );
 const TASK_BOARD_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`);
 const BUILD_ORDER_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md`);
+const PHASE_CHECK_SCRIPT_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/checks/phase-check.mjs`);
 const MICROTASK_SCOPE_BUDGET_RECEIPT_KIND_VALUES = new Set(["CODER_INTENT", "REVIEW_REQUEST"]);
 const MT_FIX_CYCLE_ESCALATION_THRESHOLD = 3;
 function parseSingleField(text, label) {
@@ -403,6 +404,34 @@ function loadPacketContext(wpId) {
   };
 }
 
+export function buildGovernedPhaseCheckInvocation({
+  phase = "",
+  wpId = "",
+  role = "",
+  session = "",
+  args = [],
+} = {}) {
+  const invocationArgs = [
+    PHASE_CHECK_SCRIPT_ABS_PATH,
+    String(phase || "").trim().toUpperCase(),
+    String(wpId || "").trim(),
+  ];
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const normalizedSession = String(session || "").trim();
+  if (normalizedRole) invocationArgs.push(normalizedRole);
+  if (normalizedSession) invocationArgs.push(normalizedSession);
+  if (Array.isArray(args)) {
+    for (const value of args) {
+      const normalized = String(value || "").trim();
+      if (normalized) invocationArgs.push(normalized);
+    }
+  }
+  return {
+    command: process.execPath,
+    args: invocationArgs,
+  };
+}
+
 function assertCommittedCoderHandoffPreflight({ wpId, context }) {
   const prepareEntry = lastGateLog(loadOrchestratorGateLogs(), wpId, "PREPARE");
   if (!prepareEntry) {
@@ -435,7 +464,12 @@ function assertCommittedCoderHandoffPreflight({ wpId, context }) {
   }
 
   try {
-    runInWorktree(worktreeAbs, "just", ["phase-check", "STARTUP", wpId, "CODER"]);
+    const invocation = buildGovernedPhaseCheckInvocation({
+      phase: "STARTUP",
+      wpId,
+      role: "CODER",
+    });
+    runInWorktree(worktreeAbs, invocation.command, invocation.args);
   } catch (error) {
     const output = String(error?.stdout || error?.stderr || error?.message || "").trim();
     throw new Error(`Governed CODER_HANDOFF rejected: ${buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" })} failed${output ? ` (${output})` : ""}.`);
@@ -527,6 +561,92 @@ function assertOverlapReviewBackpressurePreflight({ runtimeStatus }) {
       `Governed REVIEW_REQUEST rejected: overlap microtask review backlog already reached ${MAX_OVERLAP_MICROTASK_REVIEW_ITEMS}; wait for WP validator to drain the queue before opening another parallel review item.`,
     );
   }
+}
+
+function assertReviewResolutionCorrelationPreflight({
+  context,
+  runtimeStatus,
+  actorRole,
+  actorSession,
+  receiptKind,
+  targetRole,
+  targetSession,
+  correlationId,
+  ackFor,
+  microtaskContract,
+}) {
+  const normalizedReceiptKind = normalizeReceiptKind(receiptKind);
+  if (!REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(normalizedReceiptKind)) return;
+
+  const normalizedWaitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+  const normalizedPhaseGate = String(microtaskContract?.phase_gate || "").trim().toUpperCase();
+  const bootstrapIntentReply = normalizedReceiptKind === "CODER_INTENT"
+    && (normalizedWaitingOn === "CODER_INTENT" || normalizedPhaseGate === "BOOTSTRAP");
+  if (normalizedReceiptKind === "CODER_INTENT" && !bootstrapIntentReply) return;
+
+  const normalizedCorrelationId = String(correlationId || "").trim();
+  const normalizedAckFor = String(ackFor || "").trim();
+  if (!normalizedCorrelationId || !normalizedAckFor) return;
+
+  const normalizedActorRole = normalizeRole(actorRole);
+  const normalizedTargetRole = normalizeRole(targetRole);
+  const normalizedActorSession = normalizeSession(actorSession);
+  const normalizedTargetSession = normalizeSession(targetSession);
+  const receipts = parseJsonlFile(context.receiptsFile);
+  const matchingOpenReceipt = [...receipts].reverse().find((entry) => {
+    if (!REVIEW_OPEN_RECEIPT_KIND_VALUES.includes(normalizeReceiptKind(entry?.receipt_kind))) return false;
+    if (String(entry?.correlation_id || "").trim() !== normalizedCorrelationId) return false;
+    if (normalizeRole(entry?.actor_role) !== normalizedTargetRole) return false;
+    if (normalizeRole(entry?.target_role) !== normalizedActorRole) return false;
+
+    const openActorRole = normalizeRole(entry?.actor_role);
+    const openTargetRole = normalizeRole(entry?.target_role);
+    const requiresSessionMatch = ACTIVE_AUTO_RELAY_ROLE_VALUES.has(openActorRole)
+      && ACTIVE_AUTO_RELAY_ROLE_VALUES.has(openTargetRole);
+    if (!requiresSessionMatch) return true;
+
+    const openActorSession = normalizeSession(entry?.actor_session);
+    const openTargetSession = normalizeSession(entry?.target_session);
+    if (!openActorSession || !normalizedActorSession || !normalizedTargetSession) return false;
+    if (openActorSession !== normalizedTargetSession) return false;
+    if (openTargetSession && openTargetSession !== normalizedActorSession) return false;
+    return true;
+  });
+
+  if (matchingOpenReceipt) return;
+
+  const validatorIntentCheckpointClearance = normalizedReceiptKind === "VALIDATOR_RESPONSE"
+    && VALIDATOR_ASSESSMENT_ROLE_VALUES.has(normalizedActorRole)
+    && normalizedTargetRole === "CODER"
+    && normalizedWaitingOn === "WP_VALIDATOR_INTENT_CHECKPOINT";
+  if (validatorIntentCheckpointClearance) {
+    const matchingCheckpointDriver = [...receipts].reverse().find((entry) => {
+      const priorReceiptKind = normalizeReceiptKind(entry?.receipt_kind);
+      if (!REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(priorReceiptKind)) return false;
+      if (priorReceiptKind === "VALIDATOR_RESPONSE") return false;
+      if (String(entry?.correlation_id || "").trim() !== normalizedCorrelationId) return false;
+      if (normalizeRole(entry?.actor_role) !== normalizedTargetRole) return false;
+      if (normalizeRole(entry?.target_role) !== normalizedActorRole) return false;
+
+      const priorActorRole = normalizeRole(entry?.actor_role);
+      const priorTargetRole = normalizeRole(entry?.target_role);
+      const requiresSessionMatch = ACTIVE_AUTO_RELAY_ROLE_VALUES.has(priorActorRole)
+        && ACTIVE_AUTO_RELAY_ROLE_VALUES.has(priorTargetRole);
+      if (!requiresSessionMatch) return true;
+
+      const priorActorSession = normalizeSession(entry?.actor_session);
+      const priorTargetSession = normalizeSession(entry?.target_session);
+      if (!priorActorSession || !normalizedActorSession || !normalizedTargetSession) return false;
+      if (priorActorSession !== normalizedTargetSession) return false;
+      if (priorTargetSession && priorTargetSession !== normalizedActorSession) return false;
+      return true;
+    });
+    if (matchingCheckpointDriver) return;
+  }
+
+  throw new Error(
+    `Governed ${normalizedReceiptKind} rejected: correlation_id/ack_for must reference an existing open review receipt from ${normalizedTargetRole || "<target>"} to ${normalizedActorRole || "<actor>"}.`,
+  );
 }
 
 function overlapReviewResolutionPreflightApplies({ context, actorRole, receiptKind, microtaskContract }) {
@@ -749,6 +869,18 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
       microtaskContract: args?.microtaskContract,
     });
   }
+  assertReviewResolutionCorrelationPreflight({
+    context,
+    runtimeStatus,
+    actorRole: args?.actorRole,
+    actorSession: args?.actorSession,
+    receiptKind: args?.receiptKind,
+    targetRole: args?.targetRole,
+    targetSession: args?.targetSession,
+    correlationId: args?.correlationId,
+    ackFor: args?.ackFor,
+    microtaskContract: args?.microtaskContract,
+  });
   if (overlapReviewResolutionPreflightApplies({
     context,
     actorRole: args?.actorRole,
@@ -894,6 +1026,22 @@ export function orchestratorSteerScriptPath() {
   return ORCHESTRATOR_STEER_SCRIPT_PATH;
 }
 
+export function applyWorkflowInvalidityRuntimeProjection(runtimeStatus = {}, entry = {}) {
+  runtimeStatus.next_expected_actor = "ORCHESTRATOR";
+  runtimeStatus.next_expected_session = null;
+  runtimeStatus.waiting_on = "WORKFLOW_INVALIDITY";
+  runtimeStatus.waiting_on_session = null;
+  runtimeStatus.validator_trigger = "NONE";
+  runtimeStatus.validator_trigger_reason = "Workflow invalidity flagged";
+  runtimeStatus.attention_required = true;
+  runtimeStatus.ready_for_validation = false;
+  runtimeStatus.ready_for_validation_reason = null;
+  if (!["completed", "failed", "canceled"].includes(String(runtimeStatus.runtime_status || "").trim().toLowerCase())) {
+    runtimeStatus.runtime_status = "input_required";
+  }
+  return runtimeStatus;
+}
+
 function appendWpReceiptCore({
   wpId,
   actorRole,
@@ -994,22 +1142,7 @@ function appendWpReceiptCore({
     runtimeStatus.last_event = `receipt_${entry.receipt_kind.toLowerCase()}`;
     runtimeStatus.last_event_at = entry.timestamp_utc;
     if (entry.receipt_kind === WORKFLOW_INVALIDITY_RECEIPT_KIND) {
-      runtimeStatus.next_expected_actor = "ORCHESTRATOR";
-      runtimeStatus.next_expected_session = null;
-      runtimeStatus.waiting_on = entry.workflow_invalidity_code
-        ? `WORKFLOW_INVALIDITY_${entry.workflow_invalidity_code}`
-        : "WORKFLOW_INVALIDITY";
-      runtimeStatus.waiting_on_session = null;
-      runtimeStatus.validator_trigger = "NONE";
-      runtimeStatus.validator_trigger_reason = entry.workflow_invalidity_code
-        ? `Workflow invalidity flagged: ${entry.workflow_invalidity_code}`
-        : "Workflow invalidity flagged";
-      runtimeStatus.attention_required = true;
-      runtimeStatus.ready_for_validation = false;
-      runtimeStatus.ready_for_validation_reason = null;
-      if (!["completed", "failed", "canceled"].includes(String(runtimeStatus.runtime_status || "").trim().toLowerCase())) {
-        runtimeStatus.runtime_status = "input_required";
-      }
+      applyWorkflowInvalidityRuntimeProjection(runtimeStatus, entry);
     } else if (reviewTrackedReceipt || rerouteOnRepair) {
       const receipts = parseJsonlFile(context.receiptsFile);
       evaluation = evaluateWpCommunicationHealth({

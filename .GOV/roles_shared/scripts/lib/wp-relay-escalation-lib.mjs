@@ -150,7 +150,7 @@ export function evaluateWpRelayEscalation({
   );
   const latestSessionActivityTs = maxParsedTimestamp([runtimeSessionActivityTs, registrySessionActivityTs]);
   const pendingNotificationCount = targetNotifications.length;
-  const recommendedCommand = `just orchestrator-steer-next ${wpId}`;
+  const recommendedCommand = `just orchestrator-steer-next ${wpId} "<why this stalled relay should be re-woken, >=40 chars>"`;
 
   const metrics = {
     now_at: isoFromTimestamp(nowTs),

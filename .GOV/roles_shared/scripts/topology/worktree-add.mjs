@@ -3,6 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { defaultCoderWorktreeDir } from "../session/session-policy.mjs";
 import { suppressSharedGovJunctionDirt } from "./reseed-permanent-worktree-from-main.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("worktree-add.mjs", { role: "SHARED" });
 
 function runGit(args) {
   return execFileSync("git", args, { stdio: "pipe" }).toString().trim();
@@ -74,8 +77,7 @@ function findRegisteredWorktree(targetPath) {
 }
 
 function fail(message) {
-  console.error(`[WORKTREE_ADD] ${message}`);
-  process.exit(1);
+  failWithMemory("worktree-add.mjs", message, { role: "SHARED" });
 }
 
 function isBranchPresent(branch) {

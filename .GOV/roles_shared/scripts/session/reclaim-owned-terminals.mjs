@@ -3,10 +3,12 @@
 import { REPO_ROOT } from "../lib/runtime-paths.mjs";
 import { loadSessionRegistry } from "./session-registry-lib.mjs";
 import { reclaimOwnedSessionTerminals } from "./terminal-ownership-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("reclaim-owned-terminals.mjs", { role: "SHARED" });
 
 function fail(message) {
-  console.error(`[SESSION_RECLAIM_TERMINALS] ${message}`);
-  process.exit(1);
+  failWithMemory("reclaim-owned-terminals.mjs", message, { role: "SHARED" });
 }
 
 const wpId = String(process.argv[2] || "").trim();
@@ -18,9 +20,9 @@ const roleLooksLikeBatchSelector = (value) => {
 };
 
 if (!wpId || !/^WP-/.test(wpId)) {
-  fail("Usage: node .GOV/roles_shared/scripts/session/reclaim-owned-terminals.mjs <WP_ID> [CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]");
+  fail("Usage: node .GOV/roles_shared/scripts/session/reclaim-owned-terminals.mjs <WP_ID> [ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]");
 }
-if (role && !["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(role)) {
+if (role && !["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(role)) {
   if (roleLooksLikeBatchSelector(role)) {
     batchSelectorArg = String(process.argv[4] || role).trim();
     role = "";

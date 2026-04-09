@@ -7,7 +7,7 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 ## Canonical sources
 - **Spec:** `.GOV/spec/SPEC_CURRENT.md` (points to the current Handshake master spec).
 - **Product Reference (navigation only):** `.GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md` — quick-ref summary of tech stack, pillars, engines, primitives, and force multipliers. **Reference only** — all decisions and implementation guidance MUST come from the Master Spec, not from this summary [CX-403].
-- **Folder-placement law:** `.GOV/codex/Handshake_Codex_v1.4.md` + `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/coder/CODER_PROTOCOL.md` + `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`.
+- **Folder-placement law:** `.GOV/codex/Handshake_Codex_v1.4.md` + `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md` + `.GOV/roles/coder/CODER_PROTOCOL.md` + `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` + `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
 - **Spec EOF appendices:** Master Spec Â§12 (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance, Interaction Matrix). These blocks are spec-internal and kept at end-of-file; `just gov-check` enforces presence + parseability.
 - **WP Traceability:** `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP â†’ Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + work packets. Handshake logger is for milestones/hard bugs when requested.
@@ -25,14 +25,19 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 
 **[CX-503, CX-580-623]** This repository is designed for AI-autonomous software engineering. Human users may not have coding expertise and rely on deterministic workflow enforcement.
 
-**Two agent roles:**
-1. **Orchestrator** â€” Creates work packets, delegates work, manages workflow
-2. **Coder/Debugger** â€” Implements work per work packet scope
+**Governed role set:**
+1. **Orchestrator** â€” workflow authority; owns launch, steering, and final status progression
+2. **Activation Manager** â€” mandatory governed pre-launch governance authoring for orchestrator-managed workflow; owns refinement, approved spec enrichment, packet hydration, worktree/backup-branch preparation, and activation readiness while manual-lane pre-launch remains under the Orchestrator
+3. **Coder/Debugger** â€” Implements work per work packet scope
+4. **Validators** â€” `WP_VALIDATOR` for WP-scoped technical steering and `INTEGRATION_VALIDATOR` for final technical verdict / merge authority
+5. **Memory Manager** â€” bounded memory-hygiene role for governance-memory maintenance
 
 **Mandatory protocols:**
 - **Orchestrators:** Read `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` before delegating
+- **Activation Managers:** Read `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md` before refinement, spec enrichment, signature recording, or packet activation prep
 - **Coders:** Read `.GOV/roles/coder/CODER_PROTOCOL.md` before writing any code
 - **Validators:** Read `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` before reviewing, validating, or merging
+- **Memory Managers:** Read `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` before memory hygiene runs
 
 **Operator-facing scope split (required in chat):**
 - Always separate `Handshake (Product)` from `Repo Governance`.
@@ -113,7 +118,7 @@ Quick reference:
 - `log_archive/` â€” historical logger drops.
 - `.GOV/roles_shared/docs/OWNERSHIP.md` â€” path/area owners for routing reviews.
 - Root files: `Handshake_Master_Spec_v*.md`, `.GOV/codex/Handshake_Codex_v1.4.md`, `Handshake_logger_*`, phase/plan docs.
-- `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, and `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` â€” AI role workflow protocols.
+- `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, and `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` â€” AI role workflow protocols.
 
 ## How to run
 > **WARNING for AI Agents:** Commands like `pnpm -C app tauri dev` or `just dev` start a long-running development server. They MUST NOT be executed with a blocking tool (like `run_shell_command`). These commands should be run in a separate, dedicated terminal by the user or as a true background process.

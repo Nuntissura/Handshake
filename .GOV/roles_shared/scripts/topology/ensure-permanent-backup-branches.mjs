@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("ensure-permanent-backup-branches.mjs", { role: "SHARED" });
 
 const PERMANENT_BRANCHES = ["main", "user_ilja", "gov_kernel"];
 
@@ -13,9 +16,7 @@ function runGitInherit(args) {
 }
 
 function fail(message, details = []) {
-  console.error(`[ENSURE_PERMANENT_BACKUP_BRANCHES] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("ensure-permanent-backup-branches.mjs", message, { role: "SHARED", details });
 }
 
 function localBranchExists(branch) {

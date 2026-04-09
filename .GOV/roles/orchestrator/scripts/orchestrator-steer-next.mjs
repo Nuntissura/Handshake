@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import { buildSteeringPrompt, resolveRoleConfig } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
@@ -36,10 +37,10 @@ const sessionControlEnv = {
   ...(debugMode ? { HANDSHAKE_SESSION_CONTROL_DEBUG: "1" } : {}),
 };
 
+registerFailCaptureHook("orchestrator-steer-next.mjs", { role: "ORCHESTRATOR" });
+
 function fail(message, details = []) {
-  console.error(`[ORCHESTRATOR_STEER_NEXT] ${message}`);
-  for (const line of details) console.error(`- ${line}`);
-  process.exit(1);
+  failWithMemory("orchestrator-steer-next.mjs", message, { role: "ORCHESTRATOR", details });
 }
 
 function runGit(args) {

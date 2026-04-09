@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
@@ -173,4 +174,25 @@ test("governance command contract keeps protocol-alignment-check green for quote
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /protocol-alignment-check ok/);
+});
+
+test("protocol-alignment-check follows HANDSHAKE_GOV_ROOT instead of HANDSHAKE_ACTIVE_REPO_ROOT", () => {
+  const activeRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "protocol-alignment-active-"));
+
+  try {
+    const result = spawnSync(process.execPath, [PROTOCOL_ALIGNMENT_CHECK], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HANDSHAKE_ACTIVE_REPO_ROOT: activeRepoRoot,
+        HANDSHAKE_GOV_ROOT: path.join(REPO_ROOT, ".GOV"),
+      },
+    });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /protocol-alignment-check ok/);
+  } finally {
+    fs.rmSync(activeRepoRoot, { recursive: true, force: true });
+  }
 });

@@ -183,10 +183,12 @@ export const ROLE_MODEL_PROFILE_CATALOG = Object.freeze({
 export const ROLE_MODEL_PROFILE_IDS = Object.freeze(Object.keys(ROLE_MODEL_PROFILE_CATALOG));
 export const ROLE_MODEL_PROFILE_HELP = ROLE_MODEL_PROFILE_IDS.join(" | ");
 export const DEFAULT_ROLE_MODEL_PROFILE_IDS = Object.freeze({
+  ACTIVATION_MANAGER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   ORCHESTRATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   CODER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   WP_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   INTEGRATION_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+  MEMORY_MANAGER: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
 });
 export const ROLE_MODEL_PROFILE_FALLBACKS = Object.freeze({
   [ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
@@ -248,7 +250,7 @@ export const EXECUTION_OWNER_TOKENS = Array.from({ length: 26 }, (_, index) =>
 );
 export const EXECUTION_OWNER_VALUES = EXECUTION_OWNER_TOKENS.map((token) => `CODER_${token}`);
 export const EXECUTION_OWNER_RANGE_HELP = "Coder-A..Coder-Z";
-export const SESSION_ROLES = ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
+export const SESSION_ROLES = ["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "MEMORY_MANAGER"];
 export const SESSION_RUNTIME_STATES = [
   "UNSTARTED",
   "PLUGIN_REQUESTED",
@@ -417,6 +419,7 @@ export function sessionKey(role, wpId) {
 }
 
 export function terminalTitle(role, wpId) {
+  if (role === "ACTIVATION_MANAGER") return `ACTMAN ${wpId}`;
   if (role === "CODER") return `CODER ${wpId}`;
   if (role === "WP_VALIDATOR") return `WPVAL ${wpId}`;
   if (role === "INTEGRATION_VALIDATOR") return `INTVAL ${wpId}`;
@@ -665,18 +668,23 @@ export function sessionRegistryFileForStubVersion(stubFormatVersion) {
 }
 
 export function roleStartupCommand(role) {
+  if (role === "ACTIVATION_MANAGER") return "just activation-manager startup";
   if (role === "CODER") return "just coder-startup";
   if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") return "just validator-startup";
+  if (role === "MEMORY_MANAGER") return "just memory-manager-startup";
   return "just orchestrator-startup";
 }
 
 export function roleNextCommand(role, wpId) {
+  if (role === "ACTIVATION_MANAGER") return `just activation-manager next ${wpId}`;
   if (role === "CODER") return `just coder-next ${wpId}`;
   if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") return `just validator-next ${wpId}`;
+  if (role === "MEMORY_MANAGER") return "just launch-memory-manager --force";
   return `just orchestrator-next ${wpId}`;
 }
 
 export function roleStageLabel(role) {
+  if (role === "ACTIVATION_MANAGER") return "ACTIVATION_MANAGER";
   if (role === "CODER") return "CODER";
   if (role === "WP_VALIDATOR") return "WP_VALIDATOR";
   if (role === "INTEGRATION_VALIDATOR") return "INTEGRATION_VALIDATOR";

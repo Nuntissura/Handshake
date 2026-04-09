@@ -28,6 +28,10 @@ function collectFiles(rootDir) {
   return files;
 }
 
+function collectNonMemoryFiles(rootDir) {
+  return collectFiles(rootDir).filter((filePath) => !/GOVERNANCE_MEMORY\.db$/i.test(filePath));
+}
+
 function withTempRuntime(fn) {
   const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-launch-guard-"));
   try {
@@ -52,7 +56,7 @@ test("launch-cli-session blocks blocked legacy packets before runtime/session ar
 
     assert.notEqual(result.status, 0);
     assert.match(output, /cannot be launched/i);
-    assert.equal(collectFiles(runtimeRoot).length, 0);
+    assert.equal(collectNonMemoryFiles(runtimeRoot).length, 0);
   });
 });
 
@@ -71,6 +75,26 @@ test("session-control START_SESSION blocks blocked legacy packets before runtime
 
     assert.notEqual(result.status, 0);
     assert.match(output, /cannot be started/i);
-    assert.equal(collectFiles(runtimeRoot).length, 0);
+    assert.equal(collectNonMemoryFiles(runtimeRoot).length, 0);
+  });
+});
+
+test("launch-cli-session allows Activation Manager pre-launch work without an existing packet", () => {
+  withTempRuntime((runtimeRoot) => {
+    const wpId = "WP-TEST-ACTIVATION-MISSING-PACKET-v1";
+    const result = spawnSync(
+      process.execPath,
+      [launchScript, "ACTIVATION_MANAGER", wpId, "PRINT", "PRIMARY"],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        env: { ...process.env, HANDSHAKE_GOV_RUNTIME_ROOT: runtimeRoot },
+      },
+    );
+    const output = `${result.stdout || ""}${result.stderr || ""}`;
+
+    assert.equal(result.status, 0, output);
+    assert.match(output, /startup=just activation-manager startup/i);
+    assert.match(output, /next=just activation-manager next WP-TEST-ACTIVATION-MISSING-PACKET-v1/i);
   });
 });

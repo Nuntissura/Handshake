@@ -34,18 +34,65 @@ function isProcessAlive(pid) {
   }
 }
 
-function killProcessTree(pid) {
+const PROCESS_EXIT_POLL_MS = 150;
+const PROCESS_EXIT_TIMEOUT_MS = 5000;
+const WIN_TASKKILL_TIMEOUT_MS = 5000;
+
+export function killProcessTree(
+  pid,
+  {
+    platform = process.platform,
+    taskkill = spawnSync,
+    killer = process.kill.bind(process),
+    taskkillTimeoutMs = WIN_TASKKILL_TIMEOUT_MS,
+  } = {},
+) {
   const numeric = Number(pid || 0);
-  if (!Number.isInteger(numeric) || numeric <= 0) return;
+  if (!Number.isInteger(numeric) || numeric <= 0) {
+    return { attempted: false, usedFallback: false };
+  }
   try {
-    if (process.platform === "win32") {
-      spawnSync("taskkill", ["/PID", String(numeric), "/T", "/F"], { stdio: "ignore" });
-      return;
+    if (platform === "win32") {
+      const result = taskkill(
+        "taskkill",
+        ["/PID", String(numeric), "/T", "/F"],
+        {
+          stdio: "ignore",
+          windowsHide: true,
+          timeout: taskkillTimeoutMs,
+        },
+      );
+      if (!result?.error && result?.status === 0) {
+        return { attempted: true, usedFallback: false };
+      }
+      try {
+        killer(numeric, "SIGTERM");
+        return { attempted: true, usedFallback: true };
+      } catch {
+        return { attempted: true, usedFallback: true };
+      }
     }
-    process.kill(numeric, "SIGTERM");
+    killer(numeric, "SIGTERM");
+    return { attempted: true, usedFallback: false };
   } catch {
     // Ignore stale or already-dead broker processes.
+    return { attempted: true, usedFallback: false };
   }
+}
+
+export async function waitForProcessExit(
+  pid,
+  timeoutMs = PROCESS_EXIT_TIMEOUT_MS,
+  { isAlive = isProcessAlive } = {},
+) {
+  const numeric = Number(pid || 0);
+  if (!Number.isInteger(numeric) || numeric <= 0) return true;
+  const startedAt = Date.now();
+  while ((Date.now() - startedAt) < timeoutMs) {
+    if (!isAlive(numeric)) return true;
+    await new Promise((resolve) => setTimeout(resolve, PROCESS_EXIT_POLL_MS));
+  }
+  return !isAlive(numeric);
 }
 
 async function canConnect(state, timeoutMs = 750) {
@@ -253,8 +300,9 @@ export async function shutdownHandshakeAcpBroker(repoRoot, { force = false } = {
       };
     }
     killProcessTree(state?.broker_pid || 0);
+    const exited = await waitForProcessExit(state?.broker_pid || 0);
     return {
-      status: "killed_mismatched_broker",
+      status: exited ? "killed_mismatched_broker" : "kill_requested_but_broker_still_alive",
       broker: state,
     };
   }
@@ -267,8 +315,9 @@ export async function shutdownHandshakeAcpBroker(repoRoot, { force = false } = {
       };
     }
     killProcessTree(state?.broker_pid || 0);
+    const exited = await waitForProcessExit(state?.broker_pid || 0);
     return {
-      status: "killed_unreachable_broker",
+      status: exited ? "killed_unreachable_broker" : "kill_requested_but_broker_still_alive",
       broker: state,
     };
   }
@@ -300,8 +349,15 @@ async function ensureBroker(repoRoot) {
       throw new Error(`Handshake ACP broker build mismatch while active runs exist; drain or cancel governed runs before restart (current=${state.broker_build_id || "<missing>"}, expected=${SESSION_CONTROL_BROKER_BUILD_ID})`);
     }
     const graceful = await shutdownBrokerGracefully(state, authToken);
-    if (!graceful && isProcessAlive(state.broker_pid)) {
+    let brokerStopped = graceful
+      ? await waitForProcessExit(state?.broker_pid || 0)
+      : false;
+    if (!brokerStopped && isProcessAlive(state.broker_pid)) {
       killProcessTree(state.broker_pid);
+      brokerStopped = await waitForProcessExit(state?.broker_pid || 0);
+    }
+    if (!brokerStopped) {
+      throw new Error(`Handshake ACP stale broker could not be stopped before restart (pid=${state?.broker_pid || "<missing>"})`);
     }
     return { ...(await spawnBroker(repoRoot)), auth_token: authToken };
   }
@@ -312,6 +368,10 @@ async function ensureBroker(repoRoot) {
 
   if (brokerIsAlive) {
     killProcessTree(state.broker_pid);
+    const brokerStopped = await waitForProcessExit(state?.broker_pid || 0);
+    if (!brokerStopped) {
+      throw new Error(`Handshake ACP broker could not be stopped before restart (pid=${state?.broker_pid || "<missing>"})`);
+    }
   }
   return { ...(await spawnBroker(repoRoot)), auth_token: authToken };
 }

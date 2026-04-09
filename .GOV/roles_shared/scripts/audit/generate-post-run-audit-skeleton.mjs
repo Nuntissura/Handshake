@@ -37,10 +37,12 @@ import {
   resolveWorkPacketPath,
 } from "../lib/runtime-paths.mjs";
 import { checkAllNotifications } from "../wp/wp-check-notifications.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("generate-post-run-audit-skeleton.mjs", { role: "SHARED" });
 
 function fail(message) {
-  console.error(`[POST_RUN_AUDIT_SKELETON] ${message}`);
-  process.exit(1);
+  failWithMemory("generate-post-run-audit-skeleton.mjs", message, { role: "SHARED" });
 }
 
 function normalizePath(value) {
