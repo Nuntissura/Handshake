@@ -11,6 +11,9 @@ import {
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
 import { appendWpReceipt, validateWpReceiptAppendPreconditions } from "./wp-receipt-append.mjs";
 import { appendWpThreadEntry } from "./wp-thread-append.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("wp-review-exchange.mjs", { role: "SHARED" });
 
 const SUPPORTED_RECEIPT_KINDS = [
   ...REVIEW_OPEN_RECEIPT_KIND_VALUES,
@@ -19,7 +22,7 @@ const SUPPORTED_RECEIPT_KINDS = [
 const EXPLICIT_REVIEW_ROLE_VALUES = ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
 
 function fail(message) {
-  throw new Error(message);
+  failWithMemory("wp-review-exchange.mjs", message, { role: "SHARED" });
 }
 
 function normalizeRole(value) {
@@ -88,6 +91,14 @@ function buildThreadMessage({ receiptKind, summary, specAnchor, packetRowRef, co
   return lines.join("\n");
 }
 
+export function requiresSplitCommittedCoderHandoffValidation({
+  receiptKind = "",
+  actorRole = "",
+} = {}) {
+  return String(receiptKind || "").trim().toUpperCase() === "CODER_HANDOFF"
+    && normalizeRole(actorRole) === "CODER";
+}
+
 export function recordReviewExchange({
   receiptKind,
   wpId,
@@ -136,22 +147,37 @@ export function recordReviewExchange({
     ACK_FOR = CORRELATION_ID;
   }
 
+  const validationArgs = {
+    wpId: WP_ID,
+    actorRole: ACTOR_ROLE,
+    actorSession: ACTOR_SESSION,
+    receiptKind: RECEIPT_KIND,
+    summary: SUMMARY,
+    targetRole: TARGET_ROLE,
+    targetSession: TARGET_SESSION,
+    correlationId: CORRELATION_ID,
+    requiresAck: requiresAck(RECEIPT_KIND),
+    ackFor: ACK_FOR,
+    specAnchor: SPEC_ANCHOR,
+    packetRowRef: PACKET_ROW_REF,
+    microtaskContract: MICROTASK_CONTRACT,
+  };
+  const splitCommittedCoderHandoffValidation = requiresSplitCommittedCoderHandoffValidation({
+    receiptKind: RECEIPT_KIND,
+    actorRole: ACTOR_ROLE,
+  });
+
+  if (splitCommittedCoderHandoffValidation) {
+    // The committed coder handoff preflight runs STARTUP/HANDOFF checks that
+    // re-enter WP communication helpers. Run that preflight before the outer
+    // transaction lock so the final in-lock route validation does not self-deadlock.
+    validateWpReceiptAppendPreconditions(validationArgs);
+  }
+
   return withFileLockSync(communicationTransactionLockPathForWp(WP_ID), () => {
-    validateWpReceiptAppendPreconditions({
-      wpId: WP_ID,
-      actorRole: ACTOR_ROLE,
-      actorSession: ACTOR_SESSION,
-      receiptKind: RECEIPT_KIND,
-      summary: SUMMARY,
-      targetRole: TARGET_ROLE,
-      targetSession: TARGET_SESSION,
-      correlationId: CORRELATION_ID,
-      requiresAck: requiresAck(RECEIPT_KIND),
-      ackFor: ACK_FOR,
-      specAnchor: SPEC_ANCHOR,
-      packetRowRef: PACKET_ROW_REF,
-      microtaskContract: MICROTASK_CONTRACT,
-    });
+    validateWpReceiptAppendPreconditions(validationArgs, splitCommittedCoderHandoffValidation
+      ? { skipCommittedCoderHandoffGate: true }
+      : {});
 
     const threadResult = appendWpThreadEntry({
       wpId: WP_ID,

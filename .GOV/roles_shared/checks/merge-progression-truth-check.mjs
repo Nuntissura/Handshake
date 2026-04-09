@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import { validateMergeProgressionTruth } from "../scripts/lib/merge-progression-truth-lib.mjs";
 import { listOfficialWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("merge-progression-truth-check.mjs", { role: "SHARED" });
 
 function fail(message, details = []) {
-  console.error(`[MERGE_PROGRESSION_TRUTH_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("merge-progression-truth-check.mjs", message, { role: "SHARED", details });
 }
 
 const violations = [];

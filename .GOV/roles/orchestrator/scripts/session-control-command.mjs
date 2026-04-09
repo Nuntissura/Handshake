@@ -31,6 +31,8 @@ import {
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
 import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("session-control-command.mjs", { role: "ORCHESTRATOR" });
 
 const commandKind = String(process.argv[2] || "").trim().toUpperCase();
 const role = String(process.argv[3] || "").trim().toUpperCase();
@@ -67,8 +69,7 @@ async function waitForSettledResult(repoRoot, commandId, timeoutMs = 30000) {
 }
 
 function fail(message) {
-  console.error(`[SESSION_CONTROL] ${message}`);
-  process.exit(1);
+  failWithMemory("session-control-command.mjs", message, { role: "ORCHESTRATOR" });
 }
 
 function reclaimOwnedTerminalsForSession(context = "") {
@@ -100,7 +101,7 @@ function runGit(args) {
 }
 
 if (!["START_SESSION", "SEND_PROMPT", "CANCEL_SESSION", "CLOSE_SESSION"].includes(commandKind)) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-command.mjs <START_SESSION|SEND_PROMPT|CANCEL_SESSION|CLOSE_SESSION> <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [PROMPT] [PRIMARY|FALLBACK] [--debug]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-command.mjs <START_SESSION|SEND_PROMPT|CANCEL_SESSION|CLOSE_SESSION> <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [PROMPT] [PRIMARY|FALLBACK] [--debug]`);
 }
 if (!wpId || !wpId.startsWith("WP-")) {
   fail("WP_ID must start with WP-");

@@ -44,6 +44,7 @@ export const ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES = [
 export const CODEX_AUTHORITY_PATH = ".GOV/codex/Handshake_Codex_v1.4.md";
 
 export function roleProtocolPath(role) {
+  if (role === "ACTIVATION_MANAGER") return ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md";
   if (role === "CODER") return ".GOV/roles/coder/CODER_PROTOCOL.md";
   if (role === "MEMORY_MANAGER") return ".GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md";
   if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") return ".GOV/roles/validator/VALIDATOR_PROTOCOL.md";
@@ -143,6 +144,16 @@ export function ensureBrokerAuthToken(repoRoot) {
 }
 
 export function resolveRoleConfig(roleName, workPacketId) {
+  if (roleName === "ACTIVATION_MANAGER") {
+    return {
+      branch: "gov_kernel",
+      worktreeDir: ".",
+      title: `ACTMAN ${workPacketId}`,
+      startupCommand: roleStartupCommand("ACTIVATION_MANAGER"),
+      nextCommand: roleNextCommand("ACTIVATION_MANAGER", workPacketId),
+      focus: "pre-launch governance authoring only: refinement, approved spec enrichment, signature normalization/recording, packet hydration, microtask preparation, worktree preparation, and activation readiness",
+    };
+  }
   if (roleName === "CODER") {
     return {
       branch: defaultCoderBranch(workPacketId),
@@ -158,9 +169,9 @@ export function resolveRoleConfig(roleName, workPacketId) {
       branch: "gov_kernel",
       worktreeDir: ".",
       title: `MEMORY_MANAGER ${workPacketId}`,
-      startupCommand: roleStartupCommand("ORCHESTRATOR"),
-      nextCommand: roleNextCommand("ORCHESTRATOR"),
-      focus: "governance memory hygiene, contradiction analysis, and candidate RGF draft generation",
+      startupCommand: roleStartupCommand("MEMORY_MANAGER"),
+      nextCommand: roleNextCommand("MEMORY_MANAGER", workPacketId),
+      focus: "governance memory hygiene: quality assessment, contradiction resolution, stale entry analysis, RGF candidate drafting, proposal writing to .GOV/roles/memory_manager/proposals/",
     };
   }
   if (roleName === "WP_VALIDATOR") {
@@ -692,13 +703,25 @@ export function buildStartupPrompt({
       : [`SESSION ISOLATION: do not spawn or use helper agents/subagents inside this governed role lane.`]
     ),
     `MINIMAL LIVE READ SET (MANDATORY): After startup and assignment, work from startup output + active packet + active WP thread/notifications + .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md when command choice is unclear.`,
-    `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use just active-lane-brief ${role} ${wpId} instead of rereading packet/runtime/task-board/session surfaces separately.`,
+    `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use ${role === "ACTIVATION_MANAGER" ? `just activation-manager next ${wpId}` : `just active-lane-brief ${role} ${wpId}`} instead of rereading ${role === "ACTIVATION_MANAGER" ? "refinement/packet/task-board/runtime" : "packet/runtime/task-board/session"} surfaces separately.`,
     `ANTI-REDISCOVERY RULE: Do not keep rereading large governance protocols, rerunning just --list, or repeating path/source-of-truth checks after context is already stable. If you need that repeated rereading, report ambiguity instead of silently paying for it.`,
     `POST-SIGNATURE RELAPSE GUARD (MANDATORY): For WORKFLOW_LANE=ORCHESTRATOR_MANAGED after signature/prepare, do not ask the Operator for routine approval, proceed, or checkpoint actions. If a real blocker exists, route it back to the Orchestrator and name exactly one BLOCKER_CLASS: ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
   ];
 
   let roleLines;
-  if (role === "CODER") {
+  if (role === "ACTIVATION_MANAGER") {
+    roleLines = [
+      `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start downstream launch, workflow status sync, or product work without a specific task.`,
+      `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      `FOCUS: pre-launch governance authoring only in wt-gov-kernel on branch gov_kernel.`,
+      `WORKFLOW SPLIT (MANDATORY): For \`WORKFLOW_LANE=ORCHESTRATOR_MANAGED\`, you are the mandatory governed pre-launch authoring lane and temporary worker. You must own the heavy pre-launch reasoning, hand back \`ACTIVATION_READINESS\` to the Orchestrator, and then self-close. For \`MANUAL_RELAY\`, pre-launch remains Orchestrator-owned; do not invent a second manual authority lane.`,
+      `MODEL PROFILE RULE: Activation Manager launch defaults to the governed repo profile when packet fields are absent because this lane may run before packet hydration is complete.`,
+      `COMMAND SURFACE RULE: use the activation-prefixed refinement/signature/packet-prep commands. They intentionally reuse live Orchestrator implementation surfaces; that shared implementation does not change authority ownership.`,
+      `PRIMARY ARTIFACT (MANDATORY): before asking the Orchestrator to continue, write or refresh \`just activation-manager readiness ${wpId} --write\` and treat the resulting \`ACTIVATION_READINESS\` block as the handoff truth.`,
+      `HARD BOUNDARIES: no product code edits; no coder or validator launch or steering; no operator-approval authority; no final workflow-status truth promotion.`,
+      `MANUAL-LANE GUARD: if the active workflow is manual, keep pre-launch work under the Orchestrator and use this role only when explicitly assigned for bounded repair/reference work.`,
+    ];
+  } else if (role === "CODER") {
     const startupMeshCommand = buildPhaseCheckCommand({
       phase: "STARTUP",
       wpId,
@@ -709,7 +732,7 @@ export function buildStartupPrompt({
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not create a WP, choose a task, or start implementation without an assigned packet.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
       `FOCUS: only the assigned WP in the assigned WP worktree.`,
-      `GOVERNANCE NOISE RULE: the worktree .GOV tree is a live shared governance junction. Treat it as read-only context, use \`just coder-next ${wpId}\` as the filtered resume surface, and do not treat raw .GOV git noise as WP scope evidence.`,
+      `GOVERNANCE NOISE RULE: the worktree .GOV tree is a live shared governance junction. Treat it as read-only context except for the assigned packet and declared MT files, which you may update for coder-owned status/evidence through the junction without committing .GOV on the feature branch. Use \`just coder-next ${wpId}\` as the filtered resume surface, and do not treat raw .GOV git noise as WP scope evidence.`,
       `FLOW: \`MANUAL_RELAY\` = \`just phase-check STARTUP ${wpId} CODER\` -> skeleton approval when required -> implementation -> \`just phase-check HANDOFF ${wpId} CODER\` -> Validator handoff. \`ORCHESTRATOR_MANAGED\` = \`just phase-check STARTUP ${wpId} CODER\` -> validator-owned bootstrap/skeleton checkpoint -> implementation with bounded overlap review -> \`just phase-check HANDOFF ${wpId} CODER\` -> Validator handoff; no routine Operator approvals after signature.`,
       `BRANCH RULE: never merge \`main\`; only use the assigned WP backup branch when the packet allows it.`,
       `DIRECT COMMUNICATION (MANDATORY): Use the structured direct-review helpers, not generic thread traffic, for the required coder <-> WP validator lane. Respond to validator kickoff with \`just wp-coder-intent ${wpId} <your-session> <validator-session> "<summary>" <correlation_id>\`, use that kickoff/intent loop for bootstrap/skeleton/data-shape review, and publish review-ready handoff with \`just wp-coder-handoff ${wpId} <your-session> <validator-session> "<summary>"\`. Use \`just wp-thread-append ${wpId} CODER <your-session> "<message>" @wpval\` only for soft coordination that is not part of the required contract.`,
@@ -768,6 +791,7 @@ export function buildStartupPrompt({
       `FOCUS: validate evidence in the assigned WP worktree, not intent. You own final technical verdict and merge-to-main authority.`,
       `GOVERNANCE ROOT (HARD): even though you operate from handshake_main on branch main, live governance authority must resolve through ${GOV_ROOT_ENV_VAR} to wt-gov-kernel/.GOV. Do not use handshake_main/.GOV as the live source of truth for orchestrator-managed work.`,
       `KERNEL GOVERNANCE USAGE (MANDATORY): Do not manually grep, browse, or rebuild authority from handshake_main/.GOV. Use \`just integration-validator-context-brief ${wpId}\`, \`just active-lane-brief INTEGRATION_VALIDATOR ${wpId}\`, and commands that resolve governance through ${GOV_ROOT_ENV_VAR}.`,
+      `FINAL-LANE STARTUP ORDER (HARD): Before any repo search, packet rediscovery, or broad .GOV inspection, complete \`just validator-startup\` -> \`just validator-next ${wpId}\` -> \`just integration-validator-context-brief ${wpId}\`, then treat the emitted \`packet_read_path\` and \`prepare_worktree_dir\` as the authoritative readable pointers.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then close or merge validated work.`,
       `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
       `DIRECT COMMUNICATION (MANDATORY): Use the structured final review lane, not generic thread traffic, for the required coder <-> integration-validator exchange. Open the final review pair with \`just wp-review-exchange REVIEW_REQUEST ${wpId} INTEGRATION_VALIDATOR <your-session> CODER <coder-session> "<summary>"\`, and record your final response with \`just wp-review-response ${wpId} INTEGRATION_VALIDATOR <your-session> CODER <coder-session> "<summary>" <correlation_id>\` when the coder replies. Use \`just wp-thread-append ${wpId} INTEGRATION_VALIDATOR <your-session> "<message>" @coder\` only for soft coordination that is not part of the required contract.`,
@@ -792,10 +816,15 @@ export function buildStartupPrompt({
   // refinement, and governed startup commands. Injecting memory bloats the prompt
   // past the Windows cmd.exe 8191-char command-line limit.
 
+  const startupCommands = [
+    roleConfig.startupCommand,
+    roleConfig.nextCommand,
+    ...(role === "INTEGRATION_VALIDATOR" ? [`just integration-validator-context-brief ${wpId}`] : []),
+  ];
+
   const bootLines = [
     `Execute only this startup bootstrap now, in order, before any other work:`,
-    `1. ${roleConfig.startupCommand}`,
-    `2. ${roleConfig.nextCommand}`,
+    ...startupCommands.map((command, index) => `${index + 1}. ${command}`),
     `After those commands, report only the resulting lifecycle/gate state, blockers, and next required command(s).`,
     `Do not run follow-on tests, validation, implementation, edits, or merge actions in this START_SESSION turn.`,
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
@@ -809,28 +838,41 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   if (!resolvedRoleConfig) {
     throw new Error(`Unknown role for steering prompt: ${role}`);
   }
-  const orderedCommands = role === "INTEGRATION_VALIDATOR"
+  const orderedCommands = role === "ACTIVATION_MANAGER"
     ? [
-      `just integration-validator-context-brief ${wpId}`,
       resolvedRoleConfig.nextCommand,
-      `just check-notifications ${wpId} ${role} <your-session>`,
+      `just activation-manager readiness ${wpId} --write`,
     ]
-    : [
-      resolvedRoleConfig.nextCommand,
-      `just check-notifications ${wpId} ${role} <your-session>`,
-    ];
+    : role === "INTEGRATION_VALIDATOR"
+      ? [
+        `just integration-validator-context-brief ${wpId}`,
+        resolvedRoleConfig.nextCommand,
+        `just check-notifications ${wpId} ${role} <your-session>`,
+      ]
+      : [
+        resolvedRoleConfig.nextCommand,
+        `just check-notifications ${wpId} ${role} <your-session>`,
+      ];
   return [
     `RESUME GOVERNED ${role} lane for ${wpId}.`,
     `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
-    `Use packet + active WP thread/notifications + current runtime projection as the live truth surface. Do not reread large governance documents if context is already stable.`,
-    `If route/context feels fragmented, use just active-lane-brief ${role} ${wpId} instead of rediscovering packet/runtime/session truth manually.`,
+    `Use ${role === "ACTIVATION_MANAGER" ? "refinement + packet (if present) + activation readiness artifact + current runtime/session projection" : "packet + active WP thread/notifications + current runtime projection"} as the live truth surface. Do not reread large governance documents if context is already stable.`,
+    `If route/context feels fragmented, use ${role === "ACTIVATION_MANAGER" ? `just activation-manager next ${wpId}` : `just active-lane-brief ${role} ${wpId}`} instead of rediscovering ${role === "ACTIVATION_MANAGER" ? "refinement/packet/runtime truth" : "packet/runtime/session truth"} manually.`,
     role === "INTEGRATION_VALIDATOR"
       ? `KERNEL GOVERNANCE RULE: operate from handshake_main for product truth, but use ${GOV_ROOT_ENV_VAR} and just integration-validator-context-brief ${wpId} for live governance truth. Do not manually inspect handshake_main/.GOV as authoritative context.`
       : null,
+    role === "INTEGRATION_VALIDATOR"
+      ? `FIRST READ RULE: before any repo-wide search or packet rediscovery, open \`just integration-validator-context-brief ${wpId}\` and use its \`packet_read_path\` / \`prepare_worktree_dir\` output as the authoritative readable path bundle.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `WORKFLOW SPLIT (MANDATORY): in orchestrator-managed workflow you are the mandatory temporary pre-launch worker and governed pre-launch authoring lane; in manual workflow, pre-launch remains Orchestrator-owned. Do not convert this role into a second manual authority lane.`
+      : null,
     `Run in order:`,
     ...orderedCommands.map((command, index) => `${index + 1}. ${command}`),
-    `${orderedCommands.length + 1}. If you consume any pending notification, acknowledge it with your actor session id using just ack-notifications ${wpId} ${role} <your-session>.`,
-    `Then perform only the single next governed action implied by the active receipts/notifications and runtime projection.`,
+    role === "ACTIVATION_MANAGER"
+      ? `${orderedCommands.length + 1}. Refresh only the single next activation artifact or repair needed to reach a truthful ACTIVATION_READINESS outcome.`
+      : `${orderedCommands.length + 1}. If you consume any pending notification, acknowledge it with your actor session id using just ack-notifications ${wpId} ${role} <your-session>.`,
+    `Then perform only the single next governed action implied by the active ${role === "ACTIVATION_MANAGER" ? "activation state" : "receipts/notifications and runtime projection"}.`,
     `Report only lifecycle/gate state, blockers, and next required command(s).`,
     `Do not request routine Operator approval on an orchestrator-managed lane.`,
     // Adversarial validator review prompt [RGF-99 / CX-503J]

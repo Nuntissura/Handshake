@@ -8,6 +8,7 @@ import {
   LEGACY_TASK_PACKETS_DIRNAME,
   LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT,
   repoPathAbs,
+  resolveWorkPacketPath,
   SHARED_GOV_WP_COMMUNICATIONS_ROOT,
   WORK_PACKETS_LOGICAL_DIRNAME,
 } from "./runtime-paths.mjs";
@@ -111,6 +112,9 @@ export const RECEIPT_KIND_VALUES = [
   "STEERING",
   "REPAIR",
   WORKFLOW_INVALIDITY_RECEIPT_KIND,
+  "MEMORY_PROPOSAL",
+  "MEMORY_FLAG",
+  "MEMORY_RGF_CANDIDATE",
 ];
 export const REVIEW_OPEN_RECEIPT_KIND_VALUES = [
   "VALIDATOR_KICKOFF",
@@ -392,13 +396,19 @@ export function validateRuntimeStatus(data) {
   const taskPacketPrefix = GOV_ROOT_REPO_REL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const taskPacketFallback = "\\.GOV";
   const normalizedTaskPacket = normalize(data.task_packet);
+  const authoritativeTaskPacketAbs = normalize(resolveWorkPacketPath(data.wp_id)?.packetAbsPath || "");
+  const resolvedTaskPacketAbs = isNonEmptyString(data.task_packet) ? normalize(repoPathAbs(data.task_packet)) : "";
   const matchesPacketPath = (prefix) =>
     [LEGACY_TASK_PACKETS_DIRNAME, WORK_PACKETS_LOGICAL_DIRNAME].some((dirName) =>
       new RegExp(`^${prefix}/${dirName}/WP-.*\\.md$`).test(normalizedTaskPacket)
       || new RegExp(`^${prefix}/${dirName}/WP-[^/]+/packet\\.md$`).test(normalizedTaskPacket)
     );
+  const taskPacketMatchesAuthoritativePath = authoritativeTaskPacketAbs
+    ? resolvedTaskPacketAbs === authoritativeTaskPacketAbs
+    : false;
   if (!isNonEmptyString(data.task_packet) || !(
-    matchesPacketPath(taskPacketPrefix)
+    taskPacketMatchesAuthoritativePath
+    || matchesPacketPath(taskPacketPrefix)
     || matchesPacketPath(taskPacketFallback)
   )) {
     errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md, ${GOV_ROOT_REPO_REL}/task_packets/WP-*/packet.md, or the logical ${GOV_ROOT_REPO_REL}/work_packets equivalents`);

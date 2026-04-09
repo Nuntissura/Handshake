@@ -160,6 +160,34 @@ test("syncRuntimeProjectionFromPacket treats Validated (ABANDONED) as a closed t
   assert.deepEqual(runtime.open_review_items, []);
 });
 
+test("syncRuntimeProjectionFromPacket keeps the integration-validator session bound during merge-pending closeout", () => {
+  const runtime = syncRuntimeProjectionFromPacket(
+    {
+      current_phase: "VERDICT",
+      runtime_status: "working",
+      next_expected_actor: "ORCHESTRATOR",
+      next_expected_session: null,
+      waiting_on: "VERDICT_PROGRESSION",
+      validator_trigger: "HANDOFF_READY",
+      ready_for_validation: true,
+      attention_required: true,
+    },
+    packetFixture({
+      status: "Done",
+      containment: "MERGE_PENDING",
+      merged: "NONE",
+      verifiedAt: "N/A",
+    }),
+  );
+
+  assert.equal(runtime.current_phase, "STATUS_SYNC");
+  assert.equal(runtime.runtime_status, "completed");
+  assert.equal(runtime.next_expected_actor, "INTEGRATION_VALIDATOR");
+  assert.equal(runtime.next_expected_session, "integration_validator:wp-test-validator-v1");
+  assert.equal(runtime.waiting_on, "MAIN_CONTAINMENT");
+  assert.equal(runtime.attention_required, false);
+});
+
 test("evaluatePacketRuntimeProjectionDrift flags stale bootstrap runtime after direct review is complete", () => {
   const drift = evaluatePacketRuntimeProjectionDrift(
     [

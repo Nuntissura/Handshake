@@ -1,13 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("task-board-check.mjs", { role: "SHARED" });
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
 function fail(message, details = []) {
-  console.error(`[TASK_BOARD_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("task-board-check.mjs", message, { role: "SHARED", details });
 }
 
 function readTaskBoard() {

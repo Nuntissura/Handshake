@@ -173,6 +173,23 @@ function latestProjectedNotifications(notifications = []) {
   );
 }
 
+function startupMeshAlreadySatisfied({ counts = {}, runtimeStatus = {} } = {}) {
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+  return Number(counts?.validatorKickoffs || 0) > 0
+    || Number(counts?.coderIntents || 0) > 0
+    || Number(counts?.coderHandoffs || 0) > 0
+    || Number(counts?.validatorReviews || 0) > 0
+    || Number(counts?.integrationFinalOpenReceipts || 0) > 0
+    || Number(counts?.integrationFinalResolutionReceipts || 0) > 0
+    || Number(counts?.openReviewItems || 0) > 0
+    || waitingOn === "WP_VALIDATOR_INTENT_CHECKPOINT"
+    || waitingOn === "CODER_HANDOFF"
+    || waitingOn === "CODER_REPAIR_HANDOFF"
+    || waitingOn === "FINAL_REVIEW_EXCHANGE"
+    || waitingOn === "VERDICT_PROGRESSION"
+    || waitingOn.startsWith("OPEN_REVIEW_ITEM");
+}
+
 function activeCorrelationIdsFromStatus(statusEvaluation = null, runtimeStatus = {}) {
   const ids = new Set();
   for (const item of Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : []) {
@@ -304,28 +321,34 @@ export function communicationContractApplies({
 
 function matchingReply(openReceipt, resolutionReceipts) {
   const correlationId = String(openReceipt?.correlation_id || "").trim();
+  const openTimestamp = String(openReceipt?.timestamp_utc || "").trim();
   if (!correlationId) return null;
-  return resolutionReceipts.find((entry) => {
-    const replyCorrelation = String(entry?.correlation_id || "").trim();
-    const ackFor = String(entry?.ack_for || "").trim();
-    const openActorRole = normalizeRole(openReceipt?.actor_role);
-    const openTargetRole = normalizeRole(openReceipt?.target_role);
-    const replyActorRole = normalizeRole(entry?.actor_role);
-    const replyTargetRole = normalizeRole(entry?.target_role);
-    if (replyCorrelation !== correlationId || ackFor !== correlationId) return false;
-    if (openActorRole !== replyTargetRole || openTargetRole !== replyActorRole) return false;
-    const directReviewSessions = DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(openActorRole)
-      && DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(openTargetRole);
-    if (!directReviewSessions) return true;
-    const openActorSession = normalizeSession(openReceipt?.actor_session);
-    const openTargetSession = normalizeSession(openReceipt?.target_session);
-    const replyActorSession = normalizeSession(entry?.actor_session);
-    const replyTargetSession = normalizeSession(entry?.target_session);
-    if (!openActorSession || !replyActorSession || !replyTargetSession) return false;
-    if (openActorSession !== replyTargetSession) return false;
-    if (openTargetSession && openTargetSession !== replyActorSession) return false;
-    return true;
-  }) || null;
+  return [...(resolutionReceipts || [])]
+    .filter((entry) => {
+      const replyCorrelation = String(entry?.correlation_id || "").trim();
+      const ackFor = String(entry?.ack_for || "").trim();
+      const openActorRole = normalizeRole(openReceipt?.actor_role);
+      const openTargetRole = normalizeRole(openReceipt?.target_role);
+      const replyActorRole = normalizeRole(entry?.actor_role);
+      const replyTargetRole = normalizeRole(entry?.target_role);
+      if (replyCorrelation !== correlationId || ackFor !== correlationId) return false;
+      if (openActorRole !== replyTargetRole || openTargetRole !== replyActorRole) return false;
+      const replyTimestamp = String(entry?.timestamp_utc || "").trim();
+      if (openTimestamp && replyTimestamp && replyTimestamp <= openTimestamp) return false;
+      const directReviewSessions = DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(openActorRole)
+        && DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(openTargetRole);
+      if (!directReviewSessions) return true;
+      const openActorSession = normalizeSession(openReceipt?.actor_session);
+      const openTargetSession = normalizeSession(openReceipt?.target_session);
+      const replyActorSession = normalizeSession(entry?.actor_session);
+      const replyTargetSession = normalizeSession(entry?.target_session);
+      if (!openActorSession || !replyActorSession || !replyTargetSession) return false;
+      if (openActorSession !== replyTargetSession) return false;
+      if (openTargetSession && openTargetSession !== replyActorSession) return false;
+      return true;
+    })
+    .sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0]
+    || null;
 }
 
 function latestMatchingPair(openReceipts, resolutionReceipts) {
@@ -372,7 +395,7 @@ function summarySuggestsRepairRequired(summary) {
     || /\bplease repair\b/i.test(normalized)
     || /\brework required\b/i.test(normalized)
     || /\bfix required\b/i.test(normalized)
-    || /\bre-handoff\b/i.test(normalized);
+    || /\bre[-\s]?handoff\b/i.test(normalized);
 }
 
 function summarySuggestsFinalReviewApproval(summary) {
@@ -823,6 +846,22 @@ export function evaluateWpCommunicationHealth({
         details: [
           ...startupDetails,
           `expected_startup_roles=${STARTUP_COMMUNICATION_ROLE_VALUES.join(",")}`,
+        ],
+        counts,
+        correlations,
+      });
+    }
+
+    if (startupMeshAlreadySatisfied({ counts, runtimeStatus })) {
+      return result({
+        applicable: true,
+        ok: true,
+        state: "COMM_OK",
+        message: `Startup communication mesh was already satisfied earlier in this lane for ${startupRole}`,
+        details: [
+          ...startupDetails,
+          `startup_mesh_status=already_satisfied`,
+          `runtime_waiting_on=${String(runtimeStatus?.waiting_on || "").trim() || "<missing>"}`,
         ],
         counts,
         correlations,
@@ -1286,6 +1325,23 @@ function runtimeIsContainedTerminalCloseout(runtimeStatus = {}) {
     && mainContainmentStatus === "CONTAINED_IN_MAIN";
 }
 
+function runtimeIsMergePendingCloseout(runtimeStatus = {}) {
+  const runtimeStatusValue = String(runtimeStatus?.runtime_status || "").trim().toLowerCase();
+  const currentPhase = String(runtimeStatus?.current_phase || "").trim().toUpperCase();
+  const nextExpectedActor = normalizeRole(runtimeStatus?.next_expected_actor);
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+  const mainContainmentStatus = String(runtimeStatus?.main_containment_status || "").trim().toUpperCase();
+  const packetStatus = String(runtimeStatus?.current_packet_status || "").trim().toUpperCase();
+  const taskBoardStatus = String(runtimeStatus?.current_task_board_status || "").trim().toUpperCase();
+  return runtimeStatusValue === "completed"
+    && currentPhase === "STATUS_SYNC"
+    && nextExpectedActor === "INTEGRATION_VALIDATOR"
+    && waitingOn === "MAIN_CONTAINMENT"
+    && mainContainmentStatus === "MERGE_PENDING"
+    && packetStatus === "DONE"
+    && taskBoardStatus === "DONE_MERGE_PENDING";
+}
+
 function latestInvalidityCode(latestReceipt = null) {
   return String(latestReceipt?.workflow_invalidity_code || "").trim().toUpperCase();
 }
@@ -1323,6 +1379,18 @@ export function deriveWpCommunicationAutoRoute({
         state: evaluation.state,
         nextExpectedActor: "NONE",
         waitingOn: "CLOSED",
+      }),
+      notification: null,
+    };
+  }
+
+  if (evaluation.ok && runtimeIsMergePendingCloseout(runtimeStatus)) {
+    return {
+      ...route({
+        state: evaluation.state,
+        nextExpectedActor: "INTEGRATION_VALIDATOR",
+        nextExpectedSession: sessionForRole(runtimeStatus, "INTEGRATION_VALIDATOR"),
+        waitingOn: "MAIN_CONTAINMENT",
       }),
       notification: null,
     };

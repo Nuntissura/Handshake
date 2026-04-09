@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { registerFailCaptureHook } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("validator-next.mjs", { role: "WP_VALIDATOR" });
+
 import fs from "node:fs";
 import path from "node:path";
 import {

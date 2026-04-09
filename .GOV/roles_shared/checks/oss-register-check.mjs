@@ -2,6 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("oss-register-check.mjs", { role: "SHARED" });
 
 function resolveRepoRoot() {
   const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -55,9 +58,7 @@ const HEADER_PATTERN =
 const VALID_MODES = new Set(["embedded_lib", "external_process", "external_service"]);
 
 function fail(code, message, details = []) {
-  console.error(`[OSS_REGISTER_CHECK] ${code}: ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("oss-register-check.mjs", `[${code}] ${message}`, { role: "SHARED", details });
 }
 
 function readTextFile(code, filePath) {

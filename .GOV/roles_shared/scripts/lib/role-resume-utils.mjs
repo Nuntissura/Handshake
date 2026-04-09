@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import crypto from "node:crypto";
+import { captureFailure } from "./fail-capture-lib.mjs";
 import {
   GOV_ROOT_REPO_REL,
   GOVERNANCE_RUNTIME_ROOT_REPO_REL,
@@ -22,6 +23,8 @@ import {
   parseTaskBoardStatus,
   TERMINAL_TASK_BOARD_STATUS_VALUES,
 } from "./wp-authority-projection-lib.mjs";
+
+export { buildPhaseCheckCommand };
 
 export const ORCHESTRATOR_GATES_PATH = resolveOrchestratorGatesPath();
 export const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "TASK_BOARD.md");
@@ -149,6 +152,48 @@ export function parseMergeBaseSha(packetContent) {
   return match ? match[1].trim() : "";
 }
 
+const FIXED_GIT_SHA_RE = /^[a-f0-9]{7,40}$/i;
+
+export function parseExplicitCoderHandoffRange(packetContent, wpId) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!packetContent || !normalizedWpId) return null;
+
+  const handoffRangeRe = new RegExp(
+    `phase-check\\s+HANDOFF\\s+${escapeRegex(normalizedWpId)}\\s+CODER\\s+--range\\s+([^\\s\`]+)\\.\\.([^\\s\`]+)`,
+    "gi",
+  );
+  let match = null;
+  let lastFixedRange = null;
+  while ((match = handoffRangeRe.exec(packetContent)) !== null) {
+    const baseRev = String(match[1] || "").trim();
+    const headRev = String(match[2] || "").trim();
+    if (!FIXED_GIT_SHA_RE.test(baseRev) || !FIXED_GIT_SHA_RE.test(headRev)) continue;
+    lastFixedRange = { baseRev, headRev };
+  }
+  return lastFixedRange;
+}
+
+export function resolveCommittedCoderHandoffRange(packetContent, wpId) {
+  const explicitRange = parseExplicitCoderHandoffRange(packetContent, wpId);
+  if (explicitRange) {
+    return {
+      ...explicitRange,
+      source: "PACKET_EXPLICIT_HANDOFF_RANGE",
+    };
+  }
+
+  const mergeBaseSha = parseMergeBaseSha(packetContent);
+  if (mergeBaseSha) {
+    return {
+      baseRev: mergeBaseSha,
+      headRev: "HEAD",
+      source: "PACKET_MERGE_BASE",
+    };
+  }
+
+  return null;
+}
+
 export function parseClaimField(packetContent, label) {
   const re = new RegExp(`^\\s*-\\s*${label}\\s*:[ \\t]*([^\\r\\n]+)[ \\t]*$`, "mi");
   const match = packetContent.match(re);
@@ -190,13 +235,13 @@ export function sectionHasMaterialContent(packetContent, heading) {
 }
 
 export function buildPostWorkCommand(wpId, packetContent) {
-  const mergeBaseSha = parseMergeBaseSha(packetContent);
-  if (mergeBaseSha) {
+  const preferredRange = resolveCommittedCoderHandoffRange(packetContent, wpId);
+  if (preferredRange) {
     return buildPhaseCheckCommand({
       phase: "HANDOFF",
       wpId,
       role: "CODER",
-      args: ["--range", `${mergeBaseSha}..HEAD`],
+      args: ["--range", `${preferredRange.baseRev}..${preferredRange.headRev}`],
     });
   }
   return buildPhaseCheckCommand({
@@ -713,6 +758,11 @@ export function failWithContext({
   findings = [],
   nextCommands = [],
 }) {
+  // Capture structured failure to memory before exiting
+  captureFailure("failWithContext", `${stage} blocker: ${state || blockerClass}`, {
+    wpId: wpId !== "N/A" ? wpId : "",
+    details: findings.map(f => typeof f === "string" ? f : f?.message || JSON.stringify(f)),
+  });
   printLifecycle({ wpId, stage, next });
   printOperatorAction(operatorAction);
   printBlockerClass(blockerClass);

@@ -19,6 +19,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("atelier_role_registry_check.mjs", { role: "SHARED" });
 
 function resolveRepoRoot() {
   const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -65,9 +68,7 @@ function resolveCurrentRolepackPath() {
 const ROLEPACK_PATH = resolveCurrentRolepackPath();
 
 function fail(message, details = []) {
-  console.error(`[ATELIER_ROLE_REGISTRY_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("atelier_role_registry_check.mjs", message, { role: "SHARED", details });
 }
 
 function isPlainObject(value) {

@@ -97,7 +97,7 @@ function extractMemories(wpId, receipts) {
     if (receipt.receipt_kind === "REPAIR" && receipt.state_before && receipt.state_after) {
       memories.push({
         memoryType: "procedural",
-        topic: `Fix pattern: ${mtRef || receipt.actor_role}`,
+        topic: `Fix pattern: ${mtRef || (receipt.summary || "").slice(0, 60) || receipt.actor_role}`,
         summary: `${receipt.state_before} → ${receipt.state_after}: ${(receipt.summary || "").slice(0, 120)}`,
         wpId,
         fileScope,

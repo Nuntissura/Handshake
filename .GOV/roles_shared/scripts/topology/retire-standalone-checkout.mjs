@@ -11,6 +11,9 @@ import {
   gitCheckoutExists,
   runGitInRepo,
 } from "./git-topology-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("retire-standalone-checkout.mjs", { role: "SHARED" });
 
 const PROTECTED_STANDALONE_BRANCHES = new Set(["main", "user_ilja", "gov_kernel"]);
 const DEFAULT_ARCHIVE_ROOT = path.resolve(
@@ -21,9 +24,7 @@ const DEFAULT_ARCHIVE_ROOT = path.resolve(
 );
 
 function fail(message, details = []) {
-  console.error(`[RETIRE_STANDALONE_CHECKOUT] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("retire-standalone-checkout.mjs", message, { role: "SHARED", details });
 }
 
 function usage() {

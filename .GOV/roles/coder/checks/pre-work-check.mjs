@@ -31,6 +31,7 @@ import {
   DIRECT_REVIEW_CONTRACT_VERSION,
   DIRECT_REVIEW_HEALTH_GATE,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
+  parseJsonlFile,
 } from '../../../roles_shared/scripts/lib/wp-communications-lib.mjs';
 import {
   CLI_ESCALATION_HOST_DEFAULT,
@@ -110,6 +111,32 @@ function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
   const m = text.match(re);
   return m ? m[1].trim() : '';
+}
+
+function parseRepairFieldTokens(value) {
+  return String(value || '')
+    .split(/[;,]/)
+    .map((token) => token.trim().toUpperCase())
+    .filter(Boolean);
+}
+
+function loadHydrationRepairFieldSet(packetContent) {
+  const repairedFields = new Set();
+  const receiptsFile = parseSingleField(packetContent, 'WP_RECEIPTS_FILE');
+  if (!receiptsFile) return repairedFields;
+  try {
+    const receiptsAbsPath = repoPathAbs(receiptsFile);
+    if (!fs.existsSync(receiptsAbsPath)) return repairedFields;
+    const receipts = parseJsonlFile(receiptsFile);
+    for (const entry of receipts) {
+      if (String(entry?.receipt_kind || '').trim().toUpperCase() !== 'REPAIR') continue;
+      for (const token of parseRepairFieldTokens(entry?.state_before)) repairedFields.add(token);
+      for (const token of parseRepairFieldTokens(entry?.state_after)) repairedFields.add(token);
+    }
+  } catch {
+    return repairedFields;
+  }
+  return repairedFields;
 }
 
 function parseStatus(text) {
@@ -1006,6 +1033,7 @@ if (!fs.existsSync(taskPacketDir)) {
       const packetUiStates = extractIndentedListAfterLabel(packetContent, 'UI_STATES (empty/loading/error)');
       const packetUiMicrocopy = extractIndentedListAfterLabel(packetContent, 'UI_MICROCOPY_NOTES (labels, helper text, hover explainers)');
       const packetUiAccessibility = extractIndentedListAfterLabel(packetContent, 'UI_ACCESSIBILITY_NOTES');
+      const hydrationRepairFields = loadHydrationRepairFieldSet(packetContent);
 
       const expectedSourceLog = (refinementData.researchSources || []).map((source) => {
         const kind = (source.kind || '').trim() || 'UNKNOWN';
@@ -1167,7 +1195,13 @@ if (!fs.existsSync(taskPacketDir)) {
       if ((packetBuildOrderBlocks || '').trim() !== (hydration.buildOrderBlocksRaw || '').trim()) errors.push('BUILD_ORDER_BLOCKS in the packet drifted from the signed refinement');
       if ((packetScopeWhat || '').trim() !== (hydration.what || '').trim()) errors.push('SCOPE What in the packet drifted from the signed refinement');
       if ((packetScopeWhy || '').trim() !== (hydration.why || '').trim()) errors.push('SCOPE Why in the packet drifted from the signed refinement');
-      if (!sameList(packetInScope, hydration.inScopePaths || [])) errors.push('IN_SCOPE_PATHS in the packet drifted from the signed refinement');
+      if (!sameList(packetInScope, hydration.inScopePaths || [])) {
+        if (hydrationRepairFields.has('IN_SCOPE_PATHS')) {
+          console.log('PASS: IN_SCOPE_PATHS drift is covered by a later REPAIR receipt');
+        } else {
+          errors.push('IN_SCOPE_PATHS in the packet drifted from the signed refinement');
+        }
+      }
       if (!sameList(packetOutOfScope, hydration.outOfScope || [])) errors.push('OUT_OF_SCOPE in the packet drifted from the signed refinement');
       if (normalizeBlock(packetTestPlan) !== normalizeBlock(hydration.testPlan || '')) errors.push('TEST_PLAN in the packet drifted from the signed refinement');
       if (!sameList(packetDoneMeans, hydration.doneMeans || [])) errors.push('DONE_MEANS in the packet drifted from the signed refinement');

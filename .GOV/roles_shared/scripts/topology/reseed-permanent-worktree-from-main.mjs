@@ -18,6 +18,9 @@ import {
   runGitInherit,
 } from "./git-topology-lib.mjs";
 import { detachExternalGovLink } from "./delete-local-worktree.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("reseed-permanent-worktree-from-main.mjs", { role: "SHARED" });
 
 const RESEEDABLE_WORKTREE_ROLES = new Set(["OPERATOR"]);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -41,9 +44,7 @@ function removeDirectoryLinkOnly(linkPath) {
 }
 
 function fail(message, details = []) {
-  console.error(`[RESEED_PERMANENT_WORKTREE_FROM_MAIN] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("reseed-permanent-worktree-from-main.mjs", message, { role: "SHARED", details });
 }
 
 function usage() {

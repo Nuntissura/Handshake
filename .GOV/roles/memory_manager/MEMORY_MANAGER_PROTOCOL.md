@@ -2,23 +2,56 @@
 
 ## Role Definition
 
-The Memory Manager is a governed ACP session focused exclusively on memory system hygiene. It runs on a cost-effective model (Codex Spark, reasoning extra-high), performs analysis and maintenance, outputs a structured report, and self-terminates.
+The Memory Manager has two modes: a mechanical pre-pass (script) and an intelligent review (model session). The script handles deterministic maintenance cheaply. The model session handles judgment-based work that requires understanding content.
 
 **Authority:** Memory DB read/write only. No product code, no protocol edits, no codex changes, no WP management.
 
-**Model:** `OPENAI_CODEX_SPARK_5_3_XHIGH` (cost-split, reasoning extra-high).
-
 **Worktree:** `wt-gov-kernel` on branch `gov_kernel`.
 
-**Session lifecycle:** START_SESSION → analysis → CLOSE_SESSION. Guaranteed close via try/finally in launch script. This role MUST NOT leave orphan terminals.
+### Mechanical Pre-Pass (`just launch-memory-manager`)
+
+A Node.js script that runs deterministically, no tokens consumed. Handles: extraction, decay, age-consolidation, embedding refresh, threshold-based pruning, recall effectiveness audit, stats collection. Outputs `MEMORY_HYGIENE_REPORT.md`. Runs automatically at orchestrator startup (staleness-gated: >24h AND >10 new entries).
+
+### Intelligent Review Session (`just launch-memory-manager-session`)
+
+A model session (default: `claude-sonnet-4-6`) launched after the mechanical pre-pass. The model reads the hygiene report, queries the DB, and performs work the script cannot:
+
+- **Quality assessment** — read procedural fix patterns and judge if they are still correct against current code
+- **Contradiction resolution** — read both conflicting entries, understand context, decide which is right
+- **Stale entry analysis** — determine if a memory with gone file references still has general applicability
+- **RGF candidate drafting** — write real evidence-based governance improvement proposals
+- **Conversation insight review** — find insights the FTS similarity missed, promote manually
+- **Operator-reported entry audit** — verify high-value entries are still accurate and well-worded
+
+The model appends an `## Intelligent Review` section to the report, writes proposals to `.GOV/roles/memory_manager/proposals/`, and self-terminates.
+
+**Preferred model:** Codex Spark extra-high reasoning when available; falls back to Claude Code Opus 4.6 thinking max.
+
+**ACP integration:** The intelligent session is launched through ACP as a governed role (`MEMORY_MANAGER`) with a synthetic WP-ID (`WP-MEMORY-HYGIENE_<timestamp>`). This gives it:
+- Structured communication via receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`)
+- Orchestrator visibility via `check-notifications`
+- Session registry tracking (launch, steer, close)
+- Proposals backed up to `.GOV/roles/memory_manager/proposals/<topic>_<timestamp>.md`
+
+**Lifecycle:** `just launch-memory-manager-session` → mechanical pre-pass → ACP session start → `memory-manager-startup` → repomem open → review work → write proposals (receipts + backup files) → repomem close → self-terminate. MUST NOT leave orphan terminals.
+
+## Governance Surface Reduction Discipline
+
+- Memory hygiene should remain centered on the existing `just memory-*` command family plus one primary output artifact: `MEMORY_HYGIENE_REPORT.md`.
+- Do not normalize extra public memory-maintenance wrappers, duplicate reports, or side-channel command surfaces when the existing memory command family and report can absorb the work.
+- For scripts and recipes specifically, prefer expanding the canonical `memory-*` surfaces rather than adding sibling public scripts that would normally run in the same hygiene pass.
+- Keep a separate public memory script only when owner boundary, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
+- If a new live memory-governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, and what the primary debug artifact is.
 
 ## When It Runs
 
-| Trigger | Who launches | Condition |
-|---|---|---|
-| Orchestrator startup | `just orchestrator-startup` | Staleness gate: >24h since last run AND >10 new entries |
-| Integration Validator closeout | `just phase-check CLOSEOUT WP-{ID}` | Always before WP merge to main |
-| Operator manual | `just launch-memory-manager` | On demand |
+| Trigger | Mode | Who launches | Condition |
+|---|---|---|---|
+| Orchestrator startup | Mechanical | `just orchestrator-startup` | Staleness gate: >24h since last run AND >10 new entries |
+| Integration Validator closeout | Mechanical | `just phase-check CLOSEOUT WP-{ID}` | Always before WP merge to main |
+| Operator manual (mechanical) | Mechanical | `just launch-memory-manager [--force]` | On demand |
+| Operator manual (intelligent) | ACP session | `just launch-memory-manager-session [host] [model]` | On demand; runs mechanical pre-pass first, then launches governed ACP session |
+| Gov-flush | Mechanical | `just gov-flush` | Step 6: memory hygiene before NAS backup |
 
 ## Memory System Architecture (What You Manage)
 
@@ -70,32 +103,36 @@ Your job is to ensure the data that flows through this formula is clean, relevan
 
 ### Phase 1: Health Assessment (read-only)
 
-1. **Stats check** — run `just memory-stats`, report active/consolidated counts, type distribution, last compaction, DB size vs 500-entry cap
-2. **Trust distribution** — query `SELECT source_artifact, COUNT(*) FROM memory_entries GROUP BY source_artifact` to check if low-trust sources (session_flush, manual_capture) are accumulating disproportionately
-3. **Snapshot compliance** — run `just memory-debug-snapshot` to check if INTENT snapshots are being written (signals protocol compliance by roles); report count by type over last 7 days
+1. **Stats check** — report active/consolidated counts, type distribution, last compaction, DB size vs 500-entry cap
+2. **Trust distribution** — query `source_artifact` counts to check if low-trust sources are accumulating disproportionately
+3. **Snapshot compliance** — check INTENT + mechanical snapshot counts over last 7 days (signals protocol compliance by roles)
 4. **Embedding coverage** — count entries in `memory_embeddings` vs `memory_index` active entries; report gap percentage
+5. **Conversation log stats** — total entries, distinct sessions, insight count
 
 ### Phase 2: Active Maintenance
 
-5. **Compact (if needed)** — run `just memory-compact --dry-run` first; if findings, apply. This runs: dedup → consolidate → Ebbinghaus decay → orphan cleanup → budget pruning
-6. **Contradiction resolution** — search for `metadata.contradiction=true` entries; apply rubric (newer wins unless older is more detailed/specific); resolve via `just memory-flag`
-7. **Staleness audit** — search for procedural/semantic memories with file_scope; check if referenced files still exist; flag fully-stale entries where the fix has no general applicability
-8. **Supersession chain audit** — check `metadata.superseded_by` chains for correctness; if the superseding memory was itself pruned/flagged, un-consolidate the original
-9. **Novelty calibration check** — count entries with importance < 0.2 that were written with novelty penalty; if >30% of recent entries are novelty-penalized, report as potential over-aggressive dedup signal
-10. **Embedding refresh** — if >20% of active entries lack embeddings and Ollama is available, run `just memory-embed --batch 20`
-11. **Conversation insight promotion** — query `conversation_log` for INSIGHT entries that appear across 3+ sessions (same topic); promote to semantic memory with importance 0.8 and `source_artifact=conversation-promotion`. Also promote decisions from the `decisions` column that repeat across 2+ sessions. This is the bridge from ephemeral conversation memory to persistent governance memory.
-12. **Conversation log pruning** — delete `conversation_log` entries from sessions >30 days old that have no INSIGHT or RESEARCH_CLOSE checkpoints (sessions with only OPEN + CLOSE carry minimal value). Sessions with insights are preserved regardless of age.
+6. **Extract** — run receipt + smoketest extraction (idempotent)
+7. **Compact** — run Ebbinghaus decay + budget pruning (`decayRate=0.1`, `pruneThreshold=0.05`)
+8. **Stale file_scope audit** — flag procedural/semantic entries >7d old where all referenced files are gone AND access_count < 2
+9. **Contradiction resolution** — find entries with `metadata.contradiction=true`, group by `file_scope`, resolve: newer wins (consolidate older, restore newer importance)
+10. **Supersession chain audit** — check `metadata.superseded_by` chains; if the successor was itself pruned/consolidated, un-consolidate the original (restore importance 0.4)
+11. **Conversation insight promotion** — FTS5 keyword similarity across `conversation_log` INSIGHT entries; promote to semantic memory (importance 0.8) when the same insight appears across 3+ sessions. Also promote decisions from `decisions` column that repeat across 2+ sessions
+12. **Conversation log pruning** — delete sessions >30 days old with no INSIGHT or RESEARCH_CLOSE checkpoints
+13. **Age-based consolidation** — consolidate entries >30 days old with access_count < 2 AND importance < 0.4 (entries that never proved useful)
+14. **Embedding refresh** — if embedding coverage <50% and Ollama is available, run `just memory-embed --batch 20`
+15. **Recall effectiveness audit** — find `operator-reported` and `memory-capture` source entries that have decayed below importance 0.5; restore to 0.8 (these are high-value fail captures that must not decay). Report total active operator-reported count
 
 ### Phase 3: Pattern Analysis
 
-13. **Pattern scan** — run `just memory-patterns --min-wps 2 --min-access 3`, analyze output for systemic issues
-14. **Session diversity check** — query sessions that contribute >5 memories to the active pool; flag sessions that would dominate injection results
-15. **Conversation checkpoint compliance** — query `conversation_log` for the last 7 days: count SESSION_OPEN vs SESSION_CLOSE (unclosed sessions signal models aren't calling `just repomem close`), count INSIGHTs (zero means models aren't capturing operator decisions), count PRE_TASK from mutation commands (context piggybacking is working)
-16. **RGF candidate drafting** — from pattern scan + smoketest trends + conversation insight patterns, draft governance improvement candidates with evidence summary
+16. **Novelty calibration** — report % of recent entries hitting low importance (threshold: 30%)
+17. **Session diversity** — flag sessions contributing >5 memories to the active pool
+18. **Intent snapshot compliance** — report intent count over 7 days (concern if 0 or >20)
+19. **Conversation checkpoint compliance** — report OPEN/CLOSE/INSIGHT/PRE_TASK/RESEARCH_CLOSE counts for 7 days; flag unclosed sessions or zero insights
+20. **RGF candidate drafting** — cross-WP procedural patterns (3+ WPs) + high-access memories (10+ accesses) → draft governance improvement candidates
 
 ### Phase 4: Report
 
-14. **Write report** — `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md` (see Output Format below)
+21. **Write report** — `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md` (see Output Format below)
 
 ## What It Does NOT Do
 
@@ -113,10 +150,11 @@ Your job is to ensure the data that flows through this formula is clean, relevan
 just memory-stats
 just memory-search "<query>" [--type T] [--wp WP-{ID}]
 just memory-prime <WP-{ID}> [--budget N]
+just memory-recall <ACTION> [--wp WP-{ID}] [--budget N]
 just memory-patterns [--min-wps N] [--min-access N]
 just memory-compact --dry-run
 just memory-debug-snapshot [WP-{ID}|INTENT]
-just memory-export [--all]
+just memory-recall <ACTION> [--wp WP-{ID}]
 
 # Write
 just memory-compact [--older-than 30d]
@@ -133,8 +171,9 @@ Write `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md`:
 ```markdown
 # Memory Hygiene Report
 - Run: <timestamp>
-- Model: OPENAI_CODEX_SPARK_5_3_XHIGH
+- Mode: mechanical (no model session)
 - Duration: <seconds>
+- Trigger: <forced | staleness gate passed>
 
 ## Health
 - Active: <N> | Consolidated: <N> | By type: procedural=<N> semantic=<N> episodic=<N>
@@ -142,22 +181,29 @@ Write `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md`:
 - Last compaction: <timestamp>
 - DB size status: <OK | APPROACHING_CAP | OVER_CAP> (<N>/500)
 - Embedding coverage: <N>/<N> (<percent>%)
-- Trust distribution: receipt=<N> smoketest=<N> check=<N> manual=<N> flush=<N>
+- Trust distribution: <source>=<N> ...
 - Conversation log: <N> entries, <N> sessions, <N> insights
 
 ## Actions Taken
-- Compacted: <N> entries (dedup=<N>, consolidated=<N>, decayed=<N>, pruned=<N>)
-- Flagged: <list of IDs + reasons>
+- Extracted: receipts=<N>, smoketests=<N>
+- Compacted: processed=<N>, decayed=<N>, pruned=<N>
+- Stale flagged: <N>
+- Contradictions resolved: <N>
 - Supersession chains repaired: <N>
-- Embeddings added: <N>
 - Conversation insights promoted: <N>
 - Conversation entries pruned: <N>
+- Age-consolidated: <N>
+- Recall audit: restored <N> operator-reported entries from decay
+- Embeddings added: <N>
 
 ## Contradiction Resolutions
 - #<id> vs #<id>: <resolution + rationale>
 
+## Recall Effectiveness
+- Operator-reported entries: <N> active (<N> restored from decay)
+
 ## Calibration Notes
-- Novelty penalty rate: <percent> of recent entries hit 0.3x (threshold: 30%)
+- Novelty penalty rate: <percent> of recent entries hit low importance (threshold: 30%)
 - Session diversity: <sessions with >5 memories in active pool>
 - Intent snapshot compliance: <count in last 7d> (<assessment>)
 - Conversation checkpoints (7d): OPEN=<N> CLOSE=<N> INSIGHT=<N> PRE_TASK=<N> RESEARCH_CLOSE=<N>
@@ -167,6 +213,10 @@ Write `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md`:
 
 ## Recommendations
 - <free-form observations for orchestrator>
+
+## Post-Run Stats
+- Active: <N> | Consolidated: <N>
+- By type: procedural=<N> semantic=<N> episodic=<N>
 ```
 
 ## Rubric

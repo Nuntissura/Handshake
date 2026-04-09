@@ -590,6 +590,7 @@ function integrationValidatorCloseoutFailure(message, details = [], exitCode = 1
 
 export function buildIntegrationValidatorCloseoutCheckResult({
   wpId = "",
+  allowSyncRepair = false,
 } = {}) {
   const normalizedWpId = String(wpId || "").trim();
   if (!normalizedWpId || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(normalizedWpId)) {
@@ -649,6 +650,8 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     results,
     registrySessions,
     brokerState,
+    requireReadyForPass: !allowSyncRepair,
+    requireRecordedScopeCompatibility: !allowSyncRepair,
   });
 
   if (!evaluation.ok) {
@@ -665,6 +668,7 @@ export function buildIntegrationValidatorCloseoutCheckResult({
       `target_head_sha=${evaluation.topology.targetHeadSha || "<unknown>"}`,
       `current_main_head_sha=${evaluation.topology.currentMainHeadSha || "<unknown>"}`,
       `current_main_compatibility_status=${evaluation.scopeCompatibility?.parsed?.currentMainCompatibilityStatus || "<unknown>"}`,
+      `sync_repair_mode=${allowSyncRepair ? "ENABLED" : "DISABLED"}`,
       `integration_validator_worktree=${evaluation.topology.resolvedWorktreeAbs || "<unknown>"}`,
       `request_count=${evaluation.closeoutBundle.summary.request_count}`,
       `result_count=${evaluation.closeoutBundle.summary.result_count}`,

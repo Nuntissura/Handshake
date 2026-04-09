@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
@@ -59,21 +60,26 @@ test("governance command contract keeps the orchestrator ACP/session-control rec
   const justfile = fs.readFileSync(JUSTFILE_PATH, "utf8");
   const requiredRecipes = [
     "ensure-wp-communications",
+    "launch-activation-manager-session",
     "launch-coder-session",
     "launch-wp-validator-session",
     "launch-integration-validator-session",
     "orchestrator-steer-next",
     "manual-relay-next",
     "manual-relay-dispatch",
+    "start-activation-manager-session",
     "start-coder-session",
     "start-wp-validator-session",
     "start-integration-validator-session",
+    "steer-activation-manager-session",
     "steer-coder-session",
     "steer-wp-validator-session",
     "steer-integration-validator-session",
+    "cancel-activation-manager-session",
     "cancel-coder-session",
     "cancel-wp-validator-session",
     "cancel-integration-validator-session",
+    "close-activation-manager-session",
     "close-coder-session",
     "close-wp-validator-session",
     "close-integration-validator-session",
@@ -173,4 +179,25 @@ test("governance command contract keeps protocol-alignment-check green for quote
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /protocol-alignment-check ok/);
+});
+
+test("protocol-alignment-check follows HANDSHAKE_GOV_ROOT instead of HANDSHAKE_ACTIVE_REPO_ROOT", () => {
+  const activeRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "protocol-alignment-active-"));
+
+  try {
+    const result = spawnSync(process.execPath, [PROTOCOL_ALIGNMENT_CHECK], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HANDSHAKE_ACTIVE_REPO_ROOT: activeRepoRoot,
+        HANDSHAKE_GOV_ROOT: path.join(REPO_ROOT, ".GOV"),
+      },
+    });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /protocol-alignment-check ok/);
+  } finally {
+    fs.rmSync(activeRepoRoot, { recursive: true, force: true });
+  }
 });

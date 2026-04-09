@@ -79,3 +79,13 @@ Rules:
   - <short reason>
 - Context:
   - <short tool failure or state pattern>
+
+### TG-007
+- Do:
+  - Wire every new script or check into `fail-capture-lib.mjs`. Add `import { registerFailCaptureHook, failWithMemory } from "<relative-path>/fail-capture-lib.mjs";` and call `registerFailCaptureHook("filename.mjs", { role: "ROLE" });` after imports. Replace or delegate `fail()` to `failWithMemory()`.
+- Don't:
+  - Do not create scripts with standalone `function fail() { console.error(...); process.exit(1); }` that silently discard the error context.
+- Why:
+  - Script failures are written to the governance memory DB and surfaced via `memory-recall` before future actions. Without the wiring, the same failure repeats across sessions with no memory of the fix.
+- Context:
+  - `fail-capture-lib.mjs` is at `.GOV/roles_shared/scripts/lib/fail-capture-lib.mjs`. All 67 existing scripts are already wired. New scripts must follow the same pattern.

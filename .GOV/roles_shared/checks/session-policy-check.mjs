@@ -52,15 +52,16 @@ import {
   SPEC_CLAUSE_MAP_MIN_VERSION,
 } from "../scripts/session/session-policy.mjs";
 import { inferWpIdFromPacketPath, listOfficialWorkPacketPaths, listStubWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 import {
   GOVERNED_VALIDATOR_REPORT_PROFILE_VALUES,
   validatorReportProfileRequiresRiskAudit,
 } from "../scripts/lib/validator-report-profile-lib.mjs";
 
+registerFailCaptureHook("session-policy-check.mjs", { role: "SHARED" });
+
 function fail(message, details = []) {
-  console.error(`[SESSION_POLICY_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("session-policy-check.mjs", message, { role: "SHARED", details });
 }
 
 function parseSingleField(text, label) {

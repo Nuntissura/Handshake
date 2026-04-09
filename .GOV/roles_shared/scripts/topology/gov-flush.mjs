@@ -9,12 +9,14 @@
  *   3. Push main to origin/main
  *   4. Reseed wt-ilja from main (auto-approved)
  *   5. Push user_ilja to origin/user_ilja
- *   6. Artifact cleanup (dry-run then actual; no force delete)
- *   7. Backup snapshot to NAS (only if cleanup succeeded)
+ *   6. Memory hygiene (mechanical pre-pass — extraction, decay, consolidation, recall audit)
+ *   7. Artifact cleanup (dry-run then actual; no force delete)
+ *   8. Backup snapshot to NAS (only if cleanup succeeded; 10 min timeout for slow NAS)
  *
  * Steps 1-5 are atomic in sequence: failure stops the pipeline.
- * Step 6 failure is reported but does NOT undo steps 1-5.
- * Step 7 runs only if step 6 succeeded.
+ * Step 6 failure is non-blocking (warns, continues to backup current DB state).
+ * Step 7 failure is reported but does NOT undo steps 1-5.
+ * Step 8 runs only if step 7 succeeded. Memory DB is cleaned by step 6 before backup.
  *
  * Usage: just gov-flush
  */
@@ -35,6 +37,9 @@ import {
   runGitInherit,
 } from "./git-topology-lib.mjs";
 import { GOV_ROOT_ABS } from "../lib/runtime-paths.mjs";
+import { registerFailCaptureHook, captureFailure } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("gov-flush.mjs", { role: "SHARED" });
 
 const PREFIX = "[GOV_FLUSH]";
 const report = { steps: [], warnings: [], errors: [] };
@@ -42,6 +47,7 @@ const report = { steps: [], warnings: [], errors: [] };
 function log(msg) { console.log(`${PREFIX} ${msg}`); }
 function warn(msg) { report.warnings.push(msg); console.warn(`${PREFIX} WARN: ${msg}`); }
 function fail(msg) {
+  captureFailure("gov-flush.mjs", msg, { role: "SHARED" });
   report.errors.push(msg);
   console.error(`${PREFIX} FAIL: ${msg}`);
   printReport();
@@ -189,7 +195,29 @@ const iljaAbs = absFromRepo(ILJA_SPEC.rel_path);
   }
 }
 
-// ─── Step 6: Artifact cleanup ───────────────────────────────────
+// ─── Step 6: Memory hygiene (mechanical pre-pass) ──────────────
+{
+  const s = step("memory-hygiene", "mechanical memory maintenance — extraction, decay, consolidation, recall audit");
+  const result = spawnSync("just", ["launch-memory-manager", "--force"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: true,
+    timeout: 120000, // 2 min — embedding refresh can be slow
+  });
+  if (result.status !== 0) {
+    s.status = "FAIL";
+    s.detail = "memory hygiene failed — continuing with backup of current DB state";
+    warn(`launch-memory-manager failed (exit ${result.status}): ${(result.stderr || "").trim() || (result.stdout || "").trim()}`);
+  } else {
+    log("  memory hygiene completed");
+    if ((result.stdout || "").trim()) {
+      for (const line of result.stdout.trim().split("\n")) log(`  ${line}`);
+    }
+  }
+}
+
+// ─── Step 7: Artifact cleanup ───────────────────────────────────
 let artifactCleanupOk = false;
 {
   const s = step("artifact-cleanup", "dry-run then actual cleanup of Handshake Artifacts");
@@ -231,22 +259,29 @@ let artifactCleanupOk = false;
   }
 }
 
-// ─── Step 7: Backup to NAS ──────────────────────────────────────
+// ─── Step 8: Backup to NAS ──────────────────────────────────────
 {
-  const s = step("backup-snapshot-nas", "immutable snapshot to local + NAS");
+  const s = step("backup-snapshot-nas", "immutable snapshot to local + NAS (memory DB cleaned by step 6)");
   if (!artifactCleanupOk) {
     s.status = "SKIP";
     s.detail = "skipped — artifact cleanup did not succeed";
     warn("NAS backup skipped because artifact cleanup failed. Governance is safe on GitHub but local artifacts need operator inspection before NAS backup.");
   } else {
     const label = `gov-flush-${new Date().toISOString().replace(/[:.]/g, "").slice(0, 15)}Z`;
-    const result = runJust("backup-snapshot", [label]);
-    if (result.exitCode !== 0) {
+    log("  creating backup snapshot (NAS may be slow — 10 min timeout)...");
+    const result = spawnSync("just", ["backup-snapshot", label], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: true,
+      timeout: 600000, // 10 minutes — NAS can be slow
+    });
+    if (result.status !== 0) {
       s.status = "FAIL";
-      warn(`backup-snapshot failed (exit ${result.exitCode}): ${result.stderr.trim() || result.stdout.trim()}`);
+      warn(`backup-snapshot failed (exit ${result.status}): ${(result.stderr || "").trim() || (result.stdout || "").trim()}`);
     } else {
       log("  backup snapshot completed");
-      if (result.stdout.trim()) {
+      if ((result.stdout || "").trim()) {
         for (const line of result.stdout.trim().split("\n")) log(`  ${line}`);
       }
     }

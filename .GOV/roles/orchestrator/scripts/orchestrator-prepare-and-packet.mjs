@@ -30,6 +30,12 @@ import {
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { communicationPathsForWp } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { buildPhaseCheckCommand } from "../../../roles_shared/checks/phase-check-lib.mjs";
+import {
+  buildActivationManagerLaunchCommands,
+  buildDownstreamGovernedLaunchCommands,
+  buildManualRelayCommands,
+  normalizeWorkflowLane,
+} from "./lib/workflow-lane-guidance-lib.mjs";
 
 const wpId = (process.argv[2] || "").trim();
 const workflowLane = (process.argv[3] || "").trim();
@@ -246,35 +252,56 @@ function main() {
     ];
 
     const nextCommands = [];
+    const normalizedWorkflowLane = normalizeWorkflowLane(verification.prepareEntry.workflow_lane);
     if (verification.syncState && !verification.syncState.ok) {
-      const startupCommand = buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" });
       printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
       printOperatorAction("NONE");
-      printState("Transactional activation completed, but the assigned WP worktree is still stale for coder handoff.");
+      printState(
+        normalizedWorkflowLane === "ORCHESTRATOR_MANAGED"
+          ? "Transactional activation completed, but the assigned WP worktree is still stale for Activation Manager-owned pre-launch."
+          : "Transactional activation completed, but the assigned WP worktree is still stale for manual relay into implementation.",
+      );
       printFindings([
         ...findings,
         ...verification.syncState.issues,
       ]);
       nextCommands.push(
-        `# Validator: fast-forward ${verification.syncState.expectedBranch || "the assigned WP branch"} and ${verification.syncState.worktreeAbs || "the assigned WP worktree"} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`,
-        `# Then re-run in ${verification.syncState.worktreeAbs || "the assigned WP worktree"}: ${startupCommand}`,
-        `just orchestrator-next ${wpId}`,
+        `# Repair ${verification.syncState.expectedBranch || "the assigned WP branch"} and ${verification.syncState.worktreeAbs || "the assigned WP worktree"} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`,
       );
+      if (normalizedWorkflowLane === "ORCHESTRATOR_MANAGED") {
+        nextCommands.push(...buildActivationManagerLaunchCommands(wpId));
+      } else if (normalizedWorkflowLane === "MANUAL_RELAY") {
+        nextCommands.push(...buildManualRelayCommands(wpId));
+      } else {
+        nextCommands.push(
+          buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }),
+          ...buildDownstreamGovernedLaunchCommands(wpId),
+        );
+      }
+      nextCommands.push(`just orchestrator-next ${wpId}`);
       printNextCommands(nextCommands);
       return;
     }
 
     printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
     printOperatorAction("NONE");
-    printState("Transactional activation completed and governance state is coherent for coder handoff.");
-    printFindings(findings);
-    nextCommands.push(
-      `cat ${packetPathForWp(wpId)}`,
-      buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }),
-      `just launch-coder-session ${wpId}`,
-      `just launch-wp-validator-session ${wpId}`,
-      `just session-registry-status ${wpId}`,
+    printState(
+      normalizedWorkflowLane === "ORCHESTRATOR_MANAGED"
+        ? "Transactional activation completed and governance state is coherent for Activation Manager pre-launch."
+        : "Transactional activation completed and governance state is coherent for manual relay.",
     );
+    printFindings(findings);
+    nextCommands.push(`cat ${packetPathForWp(wpId)}`);
+    if (normalizedWorkflowLane === "ORCHESTRATOR_MANAGED") {
+      nextCommands.push(...buildActivationManagerLaunchCommands(wpId));
+    } else if (normalizedWorkflowLane === "MANUAL_RELAY") {
+      nextCommands.push(...buildManualRelayCommands(wpId));
+    } else {
+      nextCommands.push(
+        buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }),
+        ...buildDownstreamGovernedLaunchCommands(wpId),
+      );
+    }
     printNextCommands(nextCommands);
   } catch (error) {
     rollbackAndExit(error.stepName || "transaction", error, snapshot);

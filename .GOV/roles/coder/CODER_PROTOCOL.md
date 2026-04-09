@@ -135,6 +135,17 @@ Sub-agent delegation note (HARD):
 - Repeated full rereads of large governance protocols, repeated command-surface rediscovery, and repeated worktree/path/source-of-truth checks after context is already stable should be treated as ambiguity signals, not as normal coding diligence.
 - If that churn keeps happening, call it out in handoff evidence or review notes instead of silently normalizing it.
 
+## Governance Surface Reduction Discipline
+
+- Treat the packet plus canonical phase-owned surfaces as the workflow authority. Do not request, invent, or normalize new coder-facing public helper commands when existing `phase-check`, packet, or WP communication surfaces already cover the need.
+- If coder-owned governance tooling must change, prefer extending an existing coder or shared surface before adding a new standalone check, script, or public recipe.
+- Extra public wrappers and compatibility shims are harness debt, not harmless convenience.
+- For scripts and recipes specifically, prefer one canonical public script per phase or authority boundary. If the same owner, inputs, primary artifact/debug surface, and usual invocation path already exist, extend that script rather than asking for or normalizing a sibling.
+- Bias toward fewer larger canonical governance scripts over several small coder-facing wrappers that always travel together.
+- Keep separate public scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
+- If a new live governance surface is genuinely required, state why the existing surface is insufficient, who owns the new surface, and what the primary debug artifact is.
+- **Fail capture wiring (HARD — CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
+
 ## Governance Folder Structure (Authoritative Placement Rules)
 
 This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative placement rules for Coder-owned governance surfaces. README and onboarding files are navigational only.
@@ -329,6 +340,7 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
   - **INSIGHT after discoveries (MUST):** When investigation reveals a non-obvious root cause, constraint, or pattern, capture with `just repomem insight` before moving on.
   - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what happened>" --decisions "<key decisions>"`.
 - **Capture insights.** If you discover a non-obvious fix: `just memory-capture procedural "description" --scope "file.rs" --wp WP-{ID}`. Importance 0.7. Future sessions benefit.
+- **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --scope "<affected file(s)>" --wp WP-{ID} --role CODER`. Include the tool name, failure mode, and what worked instead. These are surfaced automatically to future sessions — preventing the same mistake from being repeated. Examples: compile errors from wrong import paths, test runner limitations, file system constraints, edit tool payload limits.
 - To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`. For conversation history: `just repomem log`.
 - Canonical reference: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`.
 

@@ -90,11 +90,17 @@ function blockedCoderMessage(nextExpectedActor, waitingOn, communicationState = 
   return "Coder work is not the current route target yet.";
 }
 
+function runtimeRoutesCoderFinalReview(communicationState = null) {
+  return normalizeRole(communicationState?.runtimeStatus?.next_expected_actor) === "CODER"
+    && String(communicationState?.runtimeStatus?.waiting_on || "").trim().toUpperCase() === "FINAL_REVIEW_EXCHANGE";
+}
+
 export function evaluateCoderPacketGovernanceState({
   wpId = "",
   packetPath = "",
   packetContent = "",
   currentWpStatus = "",
+  communicationState = null,
 } = {}) {
   const packetStatus = parseStatus(packetContent);
   const computedPolicy = evaluateComputedPolicyGateFromPacketText(packetContent, {
@@ -129,7 +135,7 @@ export function evaluateCoderPacketGovernanceState({
     };
   }
 
-  if (hasValidatorBoundaryStatus(currentWpStatus)) {
+  if (hasValidatorBoundaryStatus(currentWpStatus) && !runtimeRoutesCoderFinalReview(communicationState)) {
     return {
       allowResume: false,
       legacyRemediationRequired: false,
@@ -144,11 +150,13 @@ export function evaluateCoderPacketGovernanceState({
   return {
     allowResume: true,
     legacyRemediationRequired: false,
-    terminalReason: "ACTIVE",
+    terminalReason: runtimeRoutesCoderFinalReview(communicationState) ? "ACTIVE_FINAL_REVIEW" : "ACTIVE",
     packetStatus,
     currentWpStatus,
     computedPolicy,
-    message: "Packet remains coder-resumable under current governance state.",
+    message: runtimeRoutesCoderFinalReview(communicationState)
+      ? "Packet remains coder-resumable for the routed final review exchange."
+      : "Packet remains coder-resumable under current governance state.",
   };
 }
 

@@ -1,14 +1,15 @@
 import fs from "node:fs";
 import { validateHistoricalSmoketestLineage } from "../scripts/lib/historical-smoketest-lineage-lib.mjs";
 import { GOV_ROOT_REPO_REL, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("historical-smoketest-lineage-check.mjs", { role: "SHARED" });
 
 const TRACE_REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
 function fail(message, details = []) {
-  console.error(`[HISTORICAL_SMOKETEST_LINEAGE_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("historical-smoketest-lineage-check.mjs", message, { role: "SHARED", details });
 }
 
 const registryText = fs.existsSync(repoPathAbs(TRACE_REGISTRY_PATH))

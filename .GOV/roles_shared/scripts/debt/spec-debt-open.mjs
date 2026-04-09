@@ -14,11 +14,14 @@ import {
   writePacket,
 } from "../lib/spec-debt-packet-lib.mjs";
 
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("spec-debt-open.mjs", { role: "SHARED" });
+
 const [wpId, clauseSelectorRaw, notesRaw, blockingRaw = "NO"] = process.argv.slice(2);
 
 function fail(message) {
-  console.error(`[SPEC_DEBT_OPEN] ${message}`);
-  process.exit(1);
+  failWithMemory("spec-debt-open.mjs", message, { role: "SHARED" });
 }
 
 function sanitizeInline(value) {

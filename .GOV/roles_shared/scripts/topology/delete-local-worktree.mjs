@@ -15,14 +15,15 @@ import {
   runGitInRepo,
 } from "./git-topology-lib.mjs";
 import { SESSION_REGISTRY_FILE } from "../session/session-policy.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("delete-local-worktree.mjs", { role: "SHARED" });
 
 const PROTECTED_WORKTREES = new Set(["handshake_main", "wt-ilja", "wt-gov-kernel"]);
 const WORKTREE_CLEANUP_TOKEN_SCHEMA = "hsk.worktree_cleanup_token@1";
 
 function fail(message, details = []) {
-  console.error(`[DELETE_LOCAL_WORKTREE] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("delete-local-worktree.mjs", message, { role: "SHARED", details });
 }
 
 function usage() {

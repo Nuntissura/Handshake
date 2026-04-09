@@ -104,6 +104,19 @@ test("validateRuntimeStatus accepts folder packet paths used by live v3 packets"
   assert.deepEqual(errors, []);
 });
 
+test("validateRuntimeStatus accepts cross-repo kernel packet paths when they resolve to the authoritative packet", () => {
+  const errors = validateRuntimeStatus({
+    ...runtimeStatusFixture("../wt-gov-kernel/.GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/packet.md"),
+    wp_id: "WP-1-Session-Observability-Spans-FR-v1",
+    base_wp_id: "WP-1-Session-Observability-Spans-FR",
+    communication_dir: "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Session-Observability-Spans-FR-v1",
+    thread_file: "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Session-Observability-Spans-FR-v1/THREAD.md",
+    runtime_status_file: "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Session-Observability-Spans-FR-v1/RUNTIME_STATUS.json",
+    receipts_file: "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Session-Observability-Spans-FR-v1/RECEIPTS.jsonl",
+  });
+  assert.deepEqual(errors, []);
+});
+
 test("communicationTransactionLockPathForWp stays in the shared communication root", () => {
   assert.equal(
     communicationTransactionLockPathForWp("WP-TEST-RUNTIME-v1"),

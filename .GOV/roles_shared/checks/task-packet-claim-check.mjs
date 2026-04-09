@@ -28,15 +28,16 @@ import {
   validateDataContractDecisionSection,
   validateDataContractSection,
 } from "../scripts/lib/data-contract-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("task-packet-claim-check.mjs", { role: "SHARED" });
 
 // Canonical governance packet truth resolves through the logical `/.GOV/work_packets/`
 // surface, with current physical storage still under `/.GOV/task_packets/`.
 const TASK_PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
 function fail(message, details = []) {
-  console.error(`[TASK_PACKET_CLAIM_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("task-packet-claim-check.mjs", message, { role: "SHARED", details });
 }
 
 function isPlaceholder(value) {

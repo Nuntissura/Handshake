@@ -6,6 +6,9 @@ import { evaluateSessionGovernanceState } from "../scripts/session/session-gover
 import { loadPacket } from "../scripts/lib/role-resume-utils.mjs";
 import { evaluateWpDeclaredTopology } from "../scripts/lib/wp-declared-topology-lib.mjs";
 import { REPO_ROOT, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("worktree-concurrency-check.mjs", { role: "SHARED" });
 
 const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 const ACTIVE_SESSION_RUNTIME_STATES = new Set([
@@ -26,9 +29,7 @@ function runGit(args) {
 }
 
 function fail(message, details = []) {
-  console.error(`[WORKTREE_CONCURRENCY_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("worktree-concurrency-check.mjs", message, { role: "SHARED", details });
 }
 
 function listInProgressWps(taskBoard) {

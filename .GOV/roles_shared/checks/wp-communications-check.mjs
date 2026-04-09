@@ -15,13 +15,14 @@ import {
   validateRuntimeStatus,
 } from "../scripts/lib/wp-communications-lib.mjs";
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("wp-communications-check.mjs", { role: "SHARED" });
 
 const PACKETS_DIR = path.join(GOV_ROOT_REPO_REL, "task_packets");
 
 function fail(message, details = []) {
-  console.error(`[WP_COMMUNICATIONS_CHECK] ${message}`);
-  for (const detail of details) console.error(`  - ${detail}`);
-  process.exit(1);
+  failWithMemory("wp-communications-check.mjs", message, { role: "SHARED", details });
 }
 
 function parseSingleField(text, label) {

@@ -24,6 +24,7 @@ Decision framework for the Memory Manager. Apply these rules when judging what t
 | Memories with access_count=0 AND age >60 days AND importance <0.3 | Prune | Never accessed, old, low importance = dead weight |
 | Mechanical snapshots (PRE_*) older than 14 days with access_count=0 | Prune | Decision context loses value fast if never accessed |
 | Session-end flush memories (trust 0.5) older than 30 days with access_count < 2 | Prune | Low-trust summaries that didn't prove useful |
+| Any entry >30 days old with access_count < 2 AND importance < 0.4 | Consolidate (age-based) | Old entries that never proved useful — free budget for active knowledge |
 
 ### Conversation log pruning
 
@@ -72,6 +73,8 @@ Decision framework for the Memory Manager. Apply these rules when judging what t
 | Memory captured manually (`metadata.captured_mid_session=true`) | Skip unless factually wrong | Human chose to save this; respect the signal |
 | INTENT snapshots <7 days old | Skip | Recent intent context is valuable for active work |
 | Mechanical snapshots (PRE_*) <3 days old | Skip | Active decision context, may still be needed |
+| **Operator-reported entries** (`source_artifact=operator-reported`) | **NEVER flag, prune, or let decay below 0.5** | Operator knowledge is the highest-trust source; the recall audit restores these automatically if decay drops them below 0.5 |
+| **Fail capture entries** (`source_artifact=memory-capture`) | **NEVER flag or prune unless factually wrong** | Role-captured tool failures are high-value procedural knowledge surfaced via memory-recall; decayed entries are auto-restored by the recall audit |
 
 ## Scoring Guide (for competing memories)
 
@@ -97,6 +100,8 @@ These are observations for the orchestrator, not direct actions:
 | Active entry count vs 500 cap | <400 | >450 — approaching forced pruning territory |
 | Average importance of active entries | 0.3-0.7 | <0.2 — too much decay; >0.8 — not enough decay |
 | Contradiction count | <5 unresolved | >10 — resolve backlog before it poisons injection |
+| Operator-reported entries active | stable or growing | Decaying below 0.5 — recall audit should restore; count shrinking signals data loss |
+| Recall audit restorations per run | 0 (healthy) | >3 — decay rate may be too aggressive for high-value entries |
 | Conversation OPEN:CLOSE ratio (7d) | ~1:1 | OPEN >> CLOSE — models not closing sessions |
 | Conversation INSIGHT count (7d) | 1-5 per session | 0 — models not capturing decisions; >10/session — possible noise |
 | Promoted conversation insights | growing slowly | 0 after 2+ weeks — promotion rules not triggering; >20 — review for quality |

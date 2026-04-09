@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("backup-push.mjs", { role: "SHARED" });
 
 function runGit(args, options = {}) {
   return execFileSync("git", args, { stdio: "pipe", encoding: "utf8", ...options }).trim();
@@ -11,9 +14,7 @@ function runGitInherit(args) {
 }
 
 function fail(message, details = []) {
-  console.error(`[BACKUP_PUSH] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("backup-push.mjs", message, { role: "SHARED", details });
 }
 
 function usage() {

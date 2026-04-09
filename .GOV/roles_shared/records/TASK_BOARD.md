@@ -88,6 +88,7 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -161,7 +162,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-FEMS-Outcome-Feedback-Loop-v1]** - [STUB]
 - **[WP-1-FEMS-MT-Handoff-Memory-Context-v1]** - [STUB]
 - **[WP-1-Provider-Feature-Coverage-Agentic-Ready-v1]** - [STUB]
-- **[WP-1-Session-Observability-Spans-FR-v1]** - [STUB]
 - **[WP-1-Consent-Audit-Projection-v1]** - [STUB]
 - **[WP-1-Cloud-Consent-Evidence-Portability-v1]** - [STUB]
 - **[WP-1-Diagnostics-Debug-Bundle-Bridge-v1]** - [STUB]
@@ -203,6 +203,91 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -648,6 +733,9 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 - **[WP-1-Workspace-Safety-Parallel-Sessions-v1]** - [VALIDATED]
+
+
+- **[WP-1-Session-Observability-Spans-FR-v1]** - [VALIDATED]
 
 ## Blocked
 ---

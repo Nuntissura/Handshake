@@ -18,7 +18,9 @@ Do not place new historical/reference studies at the role root. Put them under t
 Open one of:
 
 - `.GOV/roles/orchestrator/README.md`
+- `.GOV/roles/activation_manager/README.md`
 - `.GOV/roles/coder/README.md`
 - `.GOV/roles/validator/README.md`
+- `.GOV/roles/memory_manager/README.md`
 
 Shared cross-role state lives in `.GOV/roles_shared/README.md`.

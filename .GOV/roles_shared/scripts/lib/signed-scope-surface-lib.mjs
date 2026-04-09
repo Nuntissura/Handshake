@@ -3,6 +3,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { defaultIntegrationValidatorWorktreeDir } from "../session/session-policy.mjs";
 import { REPO_ROOT } from "./runtime-paths.mjs";
+import { parseExplicitCoderHandoffRange } from "./role-resume-utils.mjs";
 
 function parseSingleField(packetText, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -301,7 +302,59 @@ function readCandidateTargetDiff({
   const runGit = typeof gitRunner === "function"
     ? gitRunner
     : (args) => defaultGitRunner(mainWorktreeAbs, args);
+  const packetWpId = stripTicks(parseSingleField(packetText, "WP_ID"));
+  const explicitCommittedRange = parseExplicitCoderHandoffRange(packetText, packetWpId);
   const declaredMergeBaseSha = stripTicks(parseSingleField(packetText, "MERGE_BASE_SHA"));
+
+  if (
+    explicitCommittedRange
+    && /^[0-9a-f]{7,40}$/i.test(explicitCommittedRange.baseRev)
+    && /^[0-9a-f]{7,40}$/i.test(explicitCommittedRange.headRev)
+    && explicitCommittedRange.headRev.toLowerCase() === String(targetHeadSha || "").trim().toLowerCase()
+  ) {
+    const explicitBaseAncestorResult = runGit([
+      "merge-base",
+      "--is-ancestor",
+      explicitCommittedRange.baseRev,
+      targetHeadSha,
+    ]);
+    if (explicitBaseAncestorResult.code === 1) {
+      return {
+        ok: false,
+        error: `explicit committed handoff base ${explicitCommittedRange.baseRev} is not an ancestor of target ${targetHeadSha}`,
+        mainWorktreeAbs,
+      };
+    }
+    if (explicitBaseAncestorResult.code !== 0) {
+      return {
+        ok: false,
+        error: `cannot determine whether explicit committed handoff base ${explicitCommittedRange.baseRev} reaches target ${targetHeadSha}`,
+        mainWorktreeAbs,
+      };
+    }
+
+    const explicitRangeDiffResult = runGit([
+      "diff",
+      "--unified=0",
+      "--no-ext-diff",
+      explicitCommittedRange.baseRev,
+      targetHeadSha,
+    ]);
+    if (explicitRangeDiffResult.code !== 0) {
+      return {
+        ok: false,
+        error: `cannot read candidate target diff for ${targetHeadSha} from explicit committed handoff range ${explicitCommittedRange.baseRev}..${targetHeadSha}`,
+        mainWorktreeAbs,
+      };
+    }
+
+    return {
+      ok: true,
+      diffText: String(explicitRangeDiffResult.output || ""),
+      mergeBaseSha: explicitCommittedRange.baseRev,
+      mainWorktreeAbs,
+    };
+  }
 
   if (/^[0-9a-f]{40}$/i.test(declaredMergeBaseSha)) {
     const declaredBaseAncestorResult = runGit(["merge-base", "--is-ancestor", declaredMergeBaseSha, targetHeadSha]);

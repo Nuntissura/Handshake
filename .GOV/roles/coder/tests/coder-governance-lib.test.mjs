@@ -57,6 +57,28 @@ test("coder packet policy stops resume on closed packet status even without lega
   assert.equal(evaluation.terminalReason, "CLOSED_PACKET_STATUS");
 });
 
+test("coder packet policy allows final review exchange when runtime explicitly routes coder there", () => {
+  const evaluation = evaluateCoderPacketGovernanceState({
+    wpId: "WP-TEST-CODER-v1",
+    packetPath: ".GOV/task_packets/WP-TEST-CODER-v1/packet.md",
+    packetContent: packetFixture({
+      packetFormatVersion: "2026-03-29",
+      status: "In Progress",
+    }),
+    currentWpStatus: "In Progress (validator-review repairs committed at 65cf306c; packet proof refreshed for rehandoff).",
+    communicationState: {
+      runtimeStatus: {
+        next_expected_actor: "CODER",
+        waiting_on: "FINAL_REVIEW_EXCHANGE",
+      },
+    },
+  });
+
+  assert.equal(evaluation.allowResume, true);
+  assert.equal(evaluation.terminalReason, "ACTIVE_FINAL_REVIEW");
+  assert.match(evaluation.message, /final review exchange/i);
+});
+
 test("merge-base resolution falls back across baseline refs without assuming local main exists", () => {
   const calls = [];
   const evaluation = resolveGitBaselineMergeBase((command) => {

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
+import { registerFailCaptureHook } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import {
   SESSION_BATCH_MODE_CLI_ESCALATION,
   CLI_ESCALATION_HOST_DEFAULT,
@@ -59,13 +60,15 @@ const sessionControlEnv = {
   ...(debugMode ? { HANDSHAKE_SESSION_CONTROL_DEBUG: "1" } : {}),
 };
 
+registerFailCaptureHook("launch-cli-session.mjs", { role: "ORCHESTRATOR" });
+
 function fail(message) {
   console.error(`[LAUNCH_CLI_SESSION] ${message}`);
   process.exit(1);
 }
 
 if (!wpId || !wpId.startsWith("WP-")) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/launch-cli-session.mjs <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [AUTO|PRINT|CURRENT|${CLI_ESCALATION_HOST_DEFAULT}|${CLI_ESCALATION_HOST_LEGACY_ALIAS}|VSCODE_PLUGIN|VSCODE] [PRIMARY|FALLBACK]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/launch-cli-session.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [AUTO|PRINT|CURRENT|${CLI_ESCALATION_HOST_DEFAULT}|${CLI_ESCALATION_HOST_LEGACY_ALIAS}|VSCODE_PLUGIN|VSCODE] [PRIMARY|FALLBACK]`);
 }
 if (!["PRIMARY", "FALLBACK"].includes(requestedModel)) {
   fail(`Invalid model selector: ${requestedModel} (expected PRIMARY or FALLBACK)`);

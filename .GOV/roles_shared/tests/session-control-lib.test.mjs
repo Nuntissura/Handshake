@@ -36,6 +36,8 @@ test("coder startup prompt carries orchestrator-managed relapse guard and lane-a
   assert.match(prompt, /just active-lane-brief CODER WP-TEST-CODER-v1/i);
   assert.match(prompt, /just phase-check STARTUP WP-TEST-CODER-v1 CODER <your-session>/i);
   assert.match(prompt, /just check-notifications WP-TEST-CODER-v1 CODER <your-session>/i);
+  assert.match(prompt, /read-only context except for the assigned packet and declared MT files/i);
+  assert.match(prompt, /without committing \.GOV on the feature branch/i);
   assert.match(prompt, new RegExp(CODEX_AUTHORITY_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
@@ -59,7 +61,10 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
   assert.match(prompt, /HANDSHAKE_GOV_ROOT/i);
   assert.match(prompt, /Do not use handshake_main\/.GOV as the live source of truth/i);
   assert.match(prompt, /Do not manually grep, browse, or rebuild authority from handshake_main\/.GOV/i);
+  assert.match(prompt, /FINAL-LANE STARTUP ORDER \(HARD\): Before any repo search, packet rediscovery, or broad \.GOV inspection/i);
+  assert.match(prompt, /packet_read_path/i);
   assert.match(prompt, /ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature\/prepare/i);
+  assert.match(prompt, /3\. just integration-validator-context-brief WP-TEST-VALIDATOR-v1/i);
 });
 
 test("wp-validator startup prompt uses the dedicated validator lane and early steering instructions", () => {
@@ -82,6 +87,38 @@ test("wp-validator startup prompt uses the dedicated validator lane and early st
   assert.match(prompt, /just check-notifications WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
 });
 
+test("activation-manager startup and steering prompts enforce the workflow split", () => {
+  const wpId = "WP-TEST-ACTMAN-v1";
+  const roleConfig = resolveRoleConfig("ACTIVATION_MANAGER", wpId);
+  const prompt = buildStartupPrompt({
+    role: "ACTIVATION_MANAGER",
+    wpId,
+    roleConfig,
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+  });
+  const steerPrompt = buildSteeringPrompt({
+    role: "ACTIVATION_MANAGER",
+    wpId,
+    roleConfig,
+  });
+
+  assert.equal(roleConfig.branch, "gov_kernel");
+  assert.equal(roleConfig.worktreeDir, ".");
+  assert.match(prompt, /WORKFLOW SPLIT \(MANDATORY\): For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`/i);
+  assert.match(prompt, /mandatory governed pre-launch authoring lane and temporary worker/i);
+  assert.match(prompt, /must own the heavy pre-launch reasoning/i);
+  assert.match(prompt, /For `MANUAL_RELAY`, pre-launch remains Orchestrator-owned/i);
+  assert.match(prompt, /just activation-manager readiness WP-TEST-ACTMAN-v1 --write/i);
+  assert.match(prompt, /just activation-manager startup/i);
+  assert.match(prompt, /just activation-manager next WP-TEST-ACTMAN-v1/i);
+
+  assert.match(steerPrompt, /RESUME GOVERNED ACTIVATION_MANAGER lane/i);
+  assert.match(steerPrompt, /mandatory temporary pre-launch worker/i);
+  assert.match(steerPrompt, /just activation-manager next WP-TEST-ACTMAN-v1/i);
+  assert.match(steerPrompt, /just activation-manager readiness WP-TEST-ACTMAN-v1 --write/i);
+  assert.doesNotMatch(steerPrompt, /check-notifications/i);
+});
+
 test("steering prompt stays compact and codex-explicit", () => {
   const wpId = "WP-TEST-STEER-v1";
   const prompt = buildSteeringPrompt({
@@ -97,6 +134,8 @@ test("steering prompt stays compact and codex-explicit", () => {
   assert.match(prompt, /just validator-next WP-TEST-STEER-v1/i);
   assert.match(prompt, /just check-notifications WP-TEST-STEER-v1 INTEGRATION_VALIDATOR <your-session>/i);
   assert.match(prompt, /Do not manually inspect handshake_main\/.GOV as authoritative context/i);
+  assert.match(prompt, /FIRST READ RULE: before any repo-wide search or packet rediscovery/i);
+  assert.match(prompt, /packet_read_path/i);
   assert.match(prompt, /Do not request routine Operator approval/i);
 });
 

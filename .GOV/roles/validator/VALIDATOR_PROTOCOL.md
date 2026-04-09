@@ -136,6 +136,17 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 - Repeated full rereads of large governance protocols, repeated command-surface rediscovery, and repeated worktree/path/source-of-truth checks after context is already stable should be treated as ambiguity signals, not as normal validator diligence.
 - If that churn keeps happening, record it as ambiguity and token-cost evidence in the review rather than silently paying for it.
 
+## Governance Surface Reduction Discipline
+
+- Prefer canonical validator and phase-owned surfaces such as `phase-check`, packet truth, and governed validator artifacts over adding new operator-facing validator helpers or duplicate public checks.
+- If validator logic needs to grow, extend existing validator or shared libraries/surfaces first; do not normalize thin wrappers, compatibility aliases, or duplicate public entrypoints as the default pattern.
+- Surface proliferation is governance debt because it creates command drift, split proof paths, and parallel-run debugging overhead.
+- For scripts and recipes specifically, prefer one canonical public validator/phase script per boundary. If the same owner, inputs, primary artifact/debug surface, and usual invocation path already exist, extend that script instead of adding a sibling that normally runs with it.
+- Bias toward fewer larger canonical validator governance scripts over multiple small public wrappers.
+- Keep separate public scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
+- If a new live governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is retired or intentionally kept distinct.
+- **Fail capture wiring (HARD — CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
+
 ## Governance Folder Structure (Authoritative Placement Rules)
 
 This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative placement rules for Validator-owned governance surfaces. README and onboarding files are navigational only.
@@ -322,6 +333,7 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
   - **INSIGHT after discoveries (MUST):** When validation reveals a non-obvious regression, spec gap, or systemic pattern, capture with `just repomem insight "<what was found and why it matters>"` before moving on. Minimum 80 characters.
   - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what happened>" --decisions "<key findings and verdict>"`.
 - **Capture insights.** For ad-hoc findings: `just memory-capture semantic "description" --scope "file.rs" --wp WP-{ID}`.
+- **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --scope "<affected file(s)>" --wp WP-{ID} --role WP_VALIDATOR`. Include the tool name, failure mode, and what worked instead. These are surfaced automatically to future sessions. Examples: validation check false positives, spec anchor drift, smoketest parser limitations.
 - To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`. For conversation history: `just repomem log`.
 - **Governance doc consistency:** When validating governance refactor work, run `just canonise-gov` and then inspect every surfaced governance file, updating applicable drift across protocols, command surface, architecture, quickref, and codex before you call the refactor done.
 - Canonical reference: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`.

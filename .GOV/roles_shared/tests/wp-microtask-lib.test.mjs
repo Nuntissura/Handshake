@@ -5,7 +5,11 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { deriveWpMicrotaskPlan, listDeclaredWpMicrotasks } from "../scripts/lib/wp-microtask-lib.mjs";
+import {
+  deriveWpMicrotaskPlan,
+  listDeclaredWpMicrotasks,
+  summarizeMicrotaskFileTargetBudget,
+} from "../scripts/lib/wp-microtask-lib.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
@@ -72,6 +76,50 @@ test("deriveWpMicrotaskPlan keeps kickoff-reviewed microtasks as the active exec
     assert.equal(plan.previous_microtask, null);
     assert.equal(plan.suggested_next_microtask?.mt_id, "MT-002");
     assert.equal(plan.items[1].state, "DECLARED");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
+test("listDeclaredWpMicrotasks parses hydrated backtick lists for code surfaces", () => {
+  const wpId = "WP-TEST-MICROTASK-HYDRATED-LISTS-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(path.join(packetDir, "packet.md"), `- WP_ID: ${wpId}\n`, "utf8");
+  fs.writeFileSync(
+    path.join(packetDir, "MT-001.md"),
+    [
+      "# MT-001: Hydrated list parsing",
+      "",
+      "## METADATA",
+      `- WP_ID: ${wpId}`,
+      "- MT_ID: MT-001",
+      "- CLAUSE: Hydrated parser scope [CX-MT-HYDRATED]",
+      "- CODE_SURFACES: `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/flight_recorder/mod.rs`",
+      "- EXPECTED_TESTS: `cargo test alpha --manifest-path src/backend/handshake_core/Cargo.toml`, `cargo test beta --manifest-path src/backend/handshake_core/Cargo.toml`",
+      "- DEPENDS_ON: NONE",
+    ].join("\n"),
+    "utf8",
+  );
+
+  try {
+    const microtasks = listDeclaredWpMicrotasks(wpId);
+    assert.equal(microtasks.length, 1);
+    assert.deepEqual(microtasks[0].codeSurfaces, [
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/flight_recorder/mod.rs",
+    ]);
+    assert.deepEqual(microtasks[0].expectedTests, [
+      "cargo test alpha --manifest-path src/backend/handshake_core/Cargo.toml",
+      "cargo test beta --manifest-path src/backend/handshake_core/Cargo.toml",
+    ]);
+
+    const budget = summarizeMicrotaskFileTargetBudget(
+      ["src/backend/handshake_core/src/flight_recorder/mod.rs"],
+      microtasks[0],
+    );
+    assert.equal(budget.ok, true);
+    assert.deepEqual(budget.outOfBudgetTargets, []);
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
   }

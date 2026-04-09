@@ -3,6 +3,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { buildPhaseCheckCommand } from "../../../../roles_shared/checks/phase-check-lib.mjs";
 import { captureCheckFinding } from "../../../../roles_shared/scripts/memory/memory-capture-from-check.mjs";
+import { registerFailCaptureHook } from "../../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("validator-governance-lib.mjs", { role: "WP_VALIDATOR" });
 import {
   computedPolicyOutcomeAllowsClosure,
   evaluateComputedPolicyGateFromPacketText,
@@ -100,6 +102,12 @@ function normalizeSession(value) {
   const raw = String(value || "").trim();
   if (!raw || /^<unassigned>$/i.test(raw)) return null;
   return raw || null;
+}
+
+function matchesSessionOfRecord(sessionOfRecord, candidates = []) {
+  const expected = normalizeSession(sessionOfRecord);
+  if (!expected) return true;
+  return candidates.some((candidate) => normalizeSession(candidate) === expected);
 }
 
 export function normalizeValidatorRole(value) {
@@ -483,11 +491,10 @@ export function evaluateValidatorPassAuthority({
       authority.technicalAuthority === "INTEGRATION_VALIDATOR"
       && authority.integrationValidatorOfRecord
       && authority.integrationValidatorOfRecord !== "<unassigned>"
-      && actorSessionId
-      && authority.integrationValidatorOfRecord !== actorSessionId
+      && !matchesSessionOfRecord(authority.integrationValidatorOfRecord, [actorSessionKey, actorSessionId])
     ) {
       issues.push(
-        `Integration validator of record mismatch (packet=${authority.integrationValidatorOfRecord}, current=${actorSessionId}).`,
+        `Integration validator of record mismatch (packet=${authority.integrationValidatorOfRecord}, current=${actorSessionKey || actorSessionId || "<missing>"}).`,
       );
     }
   }

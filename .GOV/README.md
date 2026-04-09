@@ -10,8 +10,10 @@ Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md`
 - `roles/`
   - role-owned protocols, role-local state, and role-scoped implementation surfaces
   - `roles/orchestrator/`
+  - `roles/activation_manager/`
   - `roles/coder/`
   - `roles/validator/`
+  - `roles/memory_manager/`
 - `roles_shared/`
   - shared truth, shared runtime state, shared ledgers, shared checks, and shared scripts
   - `roles_shared/checks/`
@@ -44,8 +46,10 @@ Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md`
 
 - `.GOV/codex/Handshake_Codex_v1.4.md`
 - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+- `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
 - `.GOV/roles/coder/CODER_PROTOCOL.md`
 - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+- `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
 
 ## Navigation Entry Points
 
@@ -55,8 +59,10 @@ Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md`
   - `.GOV/roles/README.md`
 - role bundles:
   - `.GOV/roles/orchestrator/README.md`
+  - `.GOV/roles/activation_manager/README.md`
   - `.GOV/roles/coder/README.md`
   - `.GOV/roles/validator/README.md`
+  - `.GOV/roles/memory_manager/README.md`
 - shared implementation bundles:
   - `.GOV/roles_shared/checks/README.md`
   - `.GOV/roles_shared/scripts/README.md`

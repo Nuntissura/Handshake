@@ -53,11 +53,11 @@ import {
   writeArtifactRetentionManifest,
 } from "../../../roles_shared/scripts/lib/artifact-hygiene-lib.mjs";
 import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("integration-validator-closeout-sync.mjs", { role: "INTEGRATION_VALIDATOR" });
 
 function fail(message, details = []) {
-  console.error(`[INTEGRATION_VALIDATOR_CLOSEOUT_SYNC] ${message}`);
-  for (const detail of details) console.error(`  - ${detail}`);
-  process.exit(1);
+  failWithMemory("integration-validator-closeout-sync.mjs", message, { role: "INTEGRATION_VALIDATOR", details });
 }
 
 function readText(filePath) {

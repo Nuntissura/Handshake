@@ -41,9 +41,12 @@ function normalizeScopeRefKey(value) {
     .toUpperCase();
 }
 
-function parseSemicolonList(rawValue, { normalizeAsRepoPath = false } = {}) {
-  const entries = String(rawValue || "")
-    .split(";")
+function parseDelimitedList(rawValue, { normalizeAsRepoPath = false } = {}) {
+  const raw = String(rawValue || "");
+  const backtickEntries = Array.from(raw.matchAll(/`([^`]+)`/g))
+    .map((match) => String(match[1] || "").trim())
+    .filter(Boolean);
+  const entries = (backtickEntries.length > 0 ? backtickEntries : raw.split(/[;,]/))
     .map((value) => value.trim())
     .filter(Boolean);
   if (!normalizeAsRepoPath) return Array.from(new Set(entries));
@@ -54,8 +57,8 @@ function parseMicrotaskDefinition(mtAbsPath, mtRelPath) {
   const text = fs.readFileSync(mtAbsPath, "utf8");
   const mtId = String(parsePacketSingleField(text, "MT_ID") || "").trim();
   const clause = String(parsePacketSingleField(text, "CLAUSE") || "").trim();
-  const codeSurfaces = parseSemicolonList(parsePacketSingleField(text, "CODE_SURFACES"), { normalizeAsRepoPath: true });
-  const expectedTests = parseSemicolonList(parsePacketSingleField(text, "EXPECTED_TESTS"));
+  const codeSurfaces = parseDelimitedList(parsePacketSingleField(text, "CODE_SURFACES"), { normalizeAsRepoPath: true });
+  const expectedTests = parseDelimitedList(parsePacketSingleField(text, "EXPECTED_TESTS"));
   const dependsOn = String(parsePacketSingleField(text, "DEPENDS_ON") || "").trim() || "NONE";
 
   if (!mtId) {

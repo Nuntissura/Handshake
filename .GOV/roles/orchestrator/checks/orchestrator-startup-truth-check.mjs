@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 import { workflowStartReadinessState } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("orchestrator-startup-truth-check.mjs", { role: "ORCHESTRATOR" });
 
 function fail(message, details = []) {
-  console.error(`[ORCHESTRATOR_STARTUP_TRUTH_CHECK] ${message}`);
-  for (const detail of details) console.error(`- ${detail}`);
-  process.exit(1);
+  failWithMemory("orchestrator-startup-truth-check.mjs", message, { role: "ORCHESTRATOR", details });
 }
 
 function main() {
