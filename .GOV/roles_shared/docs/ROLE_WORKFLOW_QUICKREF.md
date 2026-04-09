@@ -129,14 +129,21 @@ Primary commands:
 - `just coder-worktree-add WP-...`
 - `just wp-validator-worktree-add WP-...`
 - `just integration-validator-worktree-add WP-...`
+- `just launch-activation-manager-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- for `ORCHESTRATOR_MANAGED`, launch Activation Manager first and wait for truthful `ACTIVATION_READINESS` before governed coder/validator launch
 - `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just activation-manager next WP-...`
+- `just activation-manager readiness WP-... --write`
 - `just manual-relay-next WP-... [--debug]`
 - `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK] [--debug]`
+- `just start-activation-manager-session WP-... [PRIMARY|FALLBACK]`
 - `just start-coder-session WP-... [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-... [PRIMARY|FALLBACK]`
 - `just start-integration-validator-session WP-... [PRIMARY|FALLBACK]`
+- `just steer-activation-manager-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
+- `just cancel-activation-manager-session WP-...`
 - `just steer-coder-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
 - `just cancel-coder-session WP-...`
 - `just steer-wp-validator-session WP-... "<prompt>" [PRIMARY|FALLBACK]`

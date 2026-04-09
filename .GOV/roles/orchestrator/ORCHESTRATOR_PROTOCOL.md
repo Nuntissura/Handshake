@@ -446,15 +446,19 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just coder-worktree-add WP-{ID}`
 - `just wp-validator-worktree-add WP-{ID}` (now reuses the coder worktree per [CX-503G]; no separate wtv-* worktree created)
 - `just integration-validator-worktree-add WP-{ID}`
+- `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just manual-relay-next WP-{ID} [--debug]`
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
 - supported launch hosts must auto-issue the first governed `START_SESSION` on the ordinary path; `start-*` remains the explicit repair surface when launch could not complete autonomously
+- `just start-activation-manager-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
+- `just steer-activation-manager-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
+- `just cancel-activation-manager-session WP-{ID}`
 - `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
 - `just session-cancel <ROLE> WP-{ID}`
 - `just session-registry-status [WP-{ID}]`

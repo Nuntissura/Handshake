@@ -23,6 +23,9 @@ Use this when a normal orchestrator-managed WP is active and the coder needs to 
 ```bash
 just orchestrator-startup
 just orchestrator-prepare-and-packet WP-{ID}
+# Activation Manager is mandatory for orchestrator-managed pre-launch:
+just launch-activation-manager-session WP-{ID}
+# After truthful ACTIVATION_READINESS says READY_FOR_ORCHESTRATOR_REVIEW:
 just launch-coder-session WP-{ID}
 just launch-wp-validator-session WP-{ID}
 ```
@@ -177,6 +180,7 @@ Use this as the minimal mental model for parallel governed work.
   - `WP_VALIDATOR` in `wtv-WP-B`
 - shared repo lanes
   - `ORCHESTRATOR` in `wt-gov-kernel`
+  - `ACTIVATION_MANAGER` in `wt-gov-kernel` as the temporary pre-launch worker before a WP enters coder/validator execution
   - `INTEGRATION_VALIDATOR` in `handshake_main`
 
 ### Not allowed

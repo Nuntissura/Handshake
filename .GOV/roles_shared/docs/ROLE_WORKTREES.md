@@ -160,9 +160,11 @@ WP worktrees (Orchestrator action, not Coder):
   - `just worktree-add WP-{ID}`
 - Validator worktrees [CX-212D]: WP Validator uses the packet-declared validator worktree (`wtv-*` on `validate/WP-*`); Integration Validator uses `handshake_main` on `main`. The ordinary governed lane therefore has one packet-scoped coder worktree and one packet-scoped validator worktree.
 - Launch the repo-governed CLI sessions:
+  - `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, launch Activation Manager first and wait for truthful `ACTIVATION_READINESS` before coder/WP-validator launch; for `MANUAL_RELAY`, use `just manual-relay-next` / `just manual-relay-dispatch` as the ordinary path instead of direct coder launch
 - View current launch state:
   - `just session-registry-status [WP-{ID}]`
 - Create/preserve the matching GitHub backup branch for the WP when sync is authorized for the activation turn:
