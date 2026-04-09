@@ -6964,8 +6964,16 @@ async fn run_model_run_job(
         &assistant_message,
     )
     .await?;
+    let session_total_tokens = state
+        .storage
+        .list_session_messages(metadata.session_id.as_str())
+        .await?
+        .iter()
+        .fold(0_u64, |acc, message| {
+            acc.saturating_add(message.token_count.unwrap_or(0).max(0) as u64)
+        });
     if let Some(max_tokens_budget) = metadata.max_tokens_budget {
-        let current_tokens = assistant_message.token_count.unwrap_or(0).max(0) as f64;
+        let current_tokens = session_total_tokens as f64;
         let threshold = max_tokens_budget.max(0) as f64;
         if threshold > 0.0 && current_tokens >= threshold {
             emit_session_budget_warning_event(
@@ -7749,6 +7757,11 @@ async fn run_and_finalize_workflow_job(
         .heartbeat_workflow(workflow_run.id, Utc::now())
         .await?;
 
+    if matches!(job.job_kind, JobKind::ModelRun) {
+        finalize_model_run_after_terminal(&state, &job, &final_status, &status_reason, trace_id)
+            .await?;
+    }
+
     state
         .storage
         .update_ai_job_status(JobStatusUpdate {
@@ -7767,11 +7780,6 @@ async fn run_and_finalize_workflow_job(
         .storage
         .update_workflow_run_status(workflow_run.id, final_status.clone(), error_message.clone())
         .await?;
-
-    if matches!(job.job_kind, JobKind::ModelRun) {
-        finalize_model_run_after_terminal(&state, &job, &final_status, &status_reason, trace_id)
-            .await?;
-    }
 
     record_event_safely(
         &state,
