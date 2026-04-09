@@ -33,6 +33,8 @@ The model appends an `## Intelligent Review` section to the report, writes propo
 - Session registry tracking (launch, steer, close)
 - Proposals backed up to `.GOV/roles/memory_manager/proposals/<topic>_<timestamp>.md`
 
+Because this lane is packetless, the synthetic communication files under `gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-MEMORY-HYGIENE_<timestamp>/` become the authoritative receipt and notification surface for Memory Manager findings.
+
 **Lifecycle:** `just launch-memory-manager-session` → mechanical pre-pass → ACP session start → `memory-manager-startup` → repomem open → review work → write proposals (receipts + backup files) → repomem close → self-terminate. MUST NOT leave orphan terminals.
 
 ## Governance Surface Reduction Discipline
@@ -162,6 +164,9 @@ just memory-refresh --force-compact
 just memory-flag <id> "<reason>"
 just memory-capture <type> "<insight>" [--wp WP-{ID}] [--scope "files"]
 just memory-embed [--batch N]
+just memory-manager-proposal <WP-{ID}> <actor-session> "<summary>" "<backup_ref>" [correlation_id]
+just memory-manager-flag-receipt <WP-{ID}> <actor-session> "<summary>" "<backup_ref>" [correlation_id]
+just memory-manager-rgf-candidate <WP-{ID}> <actor-session> "<summary>" "<backup_ref>" [correlation_id]
 ```
 
 ## Output Format

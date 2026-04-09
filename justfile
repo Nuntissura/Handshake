@@ -244,6 +244,7 @@ coder-preflight:
 orchestrator-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
 	@just backup-status
+	@just role-startup-topology-check --audit-permanent
 	@just orchestrator-preflight
 	@just memory-refresh
 	@just memory-recall RESUME
@@ -258,6 +259,7 @@ orchestrator-startup:
 validator-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md"
 	@just backup-status
+	@just role-startup-topology-check
 	@just validator-preflight
 	@just memory-refresh
 	@just memory-recall VALIDATOR_RESUME
@@ -270,6 +272,7 @@ validator-startup:
 coder-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md"
 	@just backup-status
+	@just role-startup-topology-check
 	@just coder-preflight
 	@just memory-refresh
 	@just memory-recall CODER_RESUME
@@ -437,6 +440,7 @@ wp-lane-health wp-id:
 
 wp-relay-watchdog wp-id="" *FLAGS:
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/wp-relay-watchdog.mjs" {{wp-id}} {{FLAGS}}
+
 # DEPRECATED: legacy failure-memory commands — redirect to governance memory DB.
 # Prefer: just memory-capture procedural "<fix>" --scope "<file>" --wp WP-{ID}
 # Prefer: just memory-search "<query>"
@@ -526,8 +530,19 @@ memory-refresh *FLAGS:
 launch-memory-manager *FLAGS:
 	@node "{{GOV_ROOT}}/roles/memory_manager/scripts/launch-memory-manager.mjs" {{FLAGS}}
 
+memory-manager-proposal wp-id actor-session summary backup_ref="" correlation_id="":
+	@node "{{GOV_ROOT}}/roles/memory_manager/scripts/memory-manager-receipt.mjs" {{wp-id}} "{{actor-session}}" MEMORY_PROPOSAL "{{summary}}" "{{backup_ref}}" "{{correlation_id}}" ORCHESTRATOR
+
+memory-manager-flag-receipt wp-id actor-session summary backup_ref="" correlation_id="":
+	@node "{{GOV_ROOT}}/roles/memory_manager/scripts/memory-manager-receipt.mjs" {{wp-id}} "{{actor-session}}" MEMORY_FLAG "{{summary}}" "{{backup_ref}}" "{{correlation_id}}" ORCHESTRATOR
+
+memory-manager-rgf-candidate wp-id actor-session summary backup_ref="" correlation_id="":
+	@node "{{GOV_ROOT}}/roles/memory_manager/scripts/memory-manager-receipt.mjs" {{wp-id}} "{{actor-session}}" MEMORY_RGF_CANDIDATE "{{summary}}" "{{backup_ref}}" "{{correlation_id}}" ORCHESTRATOR
+
 memory-manager-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md"
+	@just backup-status
+	@just role-startup-topology-check
 	@just launch-memory-manager --force
 	@just memory-recall RESUME
 	@echo ''
@@ -535,12 +550,15 @@ memory-manager-startup:
 	@echo 'Run: just repomem open "<what this session is about>" --role MEMORY_MANAGER'
 	@echo ''
 
+role-startup-topology-check *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/checks/role-startup-topology-check.mjs" {{FLAGS}}
+
 launch-memory-manager-session host="SYSTEM_TERMINAL" model="PRIMARY":
 	@just launch-memory-manager --force
 	@node -e "const ts = new Date().toISOString().replace(/[:.]/g,'').slice(0,15)+'Z'; const {spawnSync}=require('child_process'); spawnSync('node', ['{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs','MEMORY_MANAGER','WP-MEMORY-HYGIENE_'+ts,'{{host}}','{{model}}'], {stdio:'inherit'});"
 
 activation-manager action wp-id="" *FLAGS:
-	@if ("{{action}}" -eq "startup") { just --quiet protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md"; just --quiet backup-status; just --quiet gov-check }
+	@if ("{{action}}" -eq "startup") { just --quiet protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md"; just --quiet backup-status; just --quiet role-startup-topology-check; just --quiet gov-check }
 	@node "{{GOV_ROOT}}/roles/activation_manager/scripts/activation-manager.mjs" {{action}} {{wp-id}} {{FLAGS}}; if ("{{action}}" -eq "readiness" -and $LASTEXITCODE -eq 2) { exit 0 } else { exit $LASTEXITCODE }
 
 activation-record-refinement wp-id detail="":

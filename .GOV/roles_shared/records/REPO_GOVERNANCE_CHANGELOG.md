@@ -1870,6 +1870,31 @@
 - FOLLOW_ON_ITEMS:
   - `NONE`
 - OUTCOME: automatic startup/closeout hygiene now performs soft decay and deterministic repair only, while stale, contradictory, and old low-value memories are surfaced as report-only candidates for the intelligent Memory Manager review instead of being auto-pruned or auto-consolidated
+
+### 2026.04.09.5 / GOV-CHANGE-20260409-05
+
+- STATUS: APPLIED
+- SUMMARY: restored real governed receipt emission for packetless Memory Manager ACP lanes
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260409-MEMORY-MANAGER-PACKETLESS-RECEIPT-EMISSION`
+- SURFACES:
+  - `.GOV/roles/memory_manager/scripts/memory-manager-receipt.mjs`
+  - `.GOV/roles/memory_manager/tests/memory-manager-receipt.test.mjs`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `justfile`
+  - `.GOV/Audits/audits/AUDIT_20260409_MEMORY_MANAGER_PACKETLESS_RECEIPT_EMISSION.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-160`
+- OUTCOME: synthetic `WP-MEMORY-HYGIENE_<timestamp>` sessions now create packetless communication scaffolds, Memory Manager can emit `MEMORY_PROPOSAL` / `MEMORY_FLAG` / `MEMORY_RGF_CANDIDATE` receipts plus ORCHESTRATOR notifications through explicit just commands, and the governed startup/steering prompts now tell the role to use that surface instead of assuming an official packet-backed lane
+
 ### 2026.04.09.6 / GOV-CHANGE-20260409-06
 
 - STATUS: APPLIED

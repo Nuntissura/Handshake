@@ -143,6 +143,34 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.doesNotMatch(steerPrompt, /check-notifications/i);
 });
 
+test("memory-manager prompts advertise synthetic receipt emission instead of packet assumptions", () => {
+  const wpId = "WP-MEMORY-HYGIENE_2026-04-09T2115Z";
+  const roleConfig = resolveRoleConfig("MEMORY_MANAGER", wpId);
+  const startupPrompt = buildStartupPrompt({
+    role: "MEMORY_MANAGER",
+    wpId,
+    roleConfig,
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    startupMemoryLines: [],
+    conversationContextLines: [],
+  });
+  const steerPrompt = buildSteeringPrompt({
+    role: "MEMORY_MANAGER",
+    wpId,
+    roleConfig,
+  });
+
+  assert.match(startupPrompt, /SYNTHETIC-WP RULE:/i);
+  assert.match(startupPrompt, /just memory-manager-proposal WP-MEMORY-HYGIENE_2026-04-09T2115Z/i);
+  assert.match(startupPrompt, /just memory-manager-flag-receipt WP-MEMORY-HYGIENE_2026-04-09T2115Z/i);
+  assert.match(startupPrompt, /just memory-manager-rgf-candidate WP-MEMORY-HYGIENE_2026-04-09T2115Z/i);
+  assert.match(startupPrompt, /do not expect an official packet/i);
+
+  assert.match(steerPrompt, /There is no official packet for this lane/i);
+  assert.match(steerPrompt, /MEMORY_PROPOSAL \/ MEMORY_FLAG \/ MEMORY_RGF_CANDIDATE/i);
+  assert.doesNotMatch(steerPrompt, /active-lane-brief/i);
+});
+
 test("startup prompt includes bounded memory injection when lines are supplied", () => {
   const wpId = "WP-TEST-INJECT-v1";
   const roleConfig = resolveRoleConfig("CODER", wpId);

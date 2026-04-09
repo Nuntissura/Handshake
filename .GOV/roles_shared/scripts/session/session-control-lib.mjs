@@ -787,6 +787,17 @@ export function buildStartupPrompt({
       `HARD BOUNDARIES: no product code edits; no coder or validator launch or steering; no operator-approval authority; no final workflow-status truth promotion.`,
       `MANUAL-LANE GUARD: if the active workflow is manual, keep pre-launch work under the Orchestrator and use this role only when explicitly assigned for bounded repair/reference work.`,
     ];
+  } else if (role === "MEMORY_MANAGER") {
+    roleLines = [
+      `AFTER STARTUP: Wait for Orchestrator instruction. Do not invent governance work outside the current memory-hygiene session scope.`,
+      `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      `FOCUS: governance memory hygiene only — report review, DB inspection, stale/contradictory memory judgment, and orchestrator-facing proposal/flag drafting.`,
+      `SYNTHETIC-WP RULE: ${wpId} is a synthetic packetless governed lane. Do not expect an official packet or packet-derived runtime projection. Use the hygiene report, proposal backup files, and the synthetic WP communication ledger as the live truth surface.`,
+      `RECEIPT EMISSION (MANDATORY): when you create an orchestrator-facing proposal, flag, or RGF candidate, emit the matching governed receipt and keep the markdown backup file in \`.GOV/roles/memory_manager/proposals/\`. Commands: \`just memory-manager-proposal ${wpId} <your-session> "<summary>" "<backup_ref>"\`, \`just memory-manager-flag-receipt ${wpId} <your-session> "<summary>" "<backup_ref>"\`, \`just memory-manager-rgf-candidate ${wpId} <your-session> "<summary>" "<backup_ref>"\`.`,
+      `RECEIPT DISCIPLINE: the receipt summary must match the actual backup artifact you wrote. Use the backup file path as \`backup_ref\`; do not emit MEMORY_* receipts without the corresponding report/proposal evidence unless no file is honestly needed.`,
+      `ORCHESTRATOR VISIBILITY: MEMORY_* receipts route to ORCHESTRATOR through the synthetic WP communication lane. Use \`just check-notifications ${wpId} MEMORY_MANAGER <your-session>\` only if the Orchestrator later targets this role with follow-up guidance.`,
+      `BOUNDARIES: do not edit protocols, codex, AGENTS.md, product code, or the governance task board directly.`,
+    ];
   } else if (role === "CODER") {
     const startupMeshCommand = buildPhaseCheckCommand({
       phase: "STARTUP",
@@ -905,6 +916,19 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   const resolvedRoleConfig = roleConfig || resolveRoleConfig(role, wpId);
   if (!resolvedRoleConfig) {
     throw new Error(`Unknown role for steering prompt: ${role}`);
+  }
+  if (role === "MEMORY_MANAGER") {
+    return [
+      `RESUME GOVERNED ${role} lane for ${wpId}.`,
+      `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      `Use gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md + .GOV/roles/memory_manager/proposals/ + synthetic WP communication files under WP_COMMUNICATIONS/${wpId} as the live truth surface. There is no official packet for this lane.`,
+      `Run in order:`,
+      `1. ${resolvedRoleConfig.nextCommand}`,
+      `2. Inspect any existing backup proposal files before drafting new MEMORY_* receipts so you do not duplicate findings.`,
+      `3. Emit only the single next truthful MEMORY_PROPOSAL / MEMORY_FLAG / MEMORY_RGF_CANDIDATE receipt(s) backed by real written evidence.`,
+      `Report only maintenance findings, emitted receipt kinds, blockers, and next required command(s).`,
+      `Do not request routine Operator approval or treat this like a packet-based implementation lane.`,
+    ].join("\n");
   }
   const orderedCommands = role === "ACTIVATION_MANAGER"
     ? [

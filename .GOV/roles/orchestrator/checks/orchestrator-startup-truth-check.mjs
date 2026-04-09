@@ -2,6 +2,7 @@
 
 import { workflowStartReadinessState } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+import { ensureGovKernelTracksGov } from "../../../roles_shared/scripts/topology/reseed-permanent-worktree-from-main.mjs";
 registerFailCaptureHook("orchestrator-startup-truth-check.mjs", { role: "ORCHESTRATOR" });
 
 function fail(message, details = []) {
@@ -9,6 +10,7 @@ function fail(message, details = []) {
 }
 
 function main() {
+  const govKernelState = ensureGovKernelTracksGov(process.cwd());
   const readiness = workflowStartReadinessState();
 
   if (!readiness.ok) {
@@ -22,6 +24,9 @@ function main() {
   }
 
   console.log("orchestrator-startup-truth-check ok");
+  if (govKernelState.normalized) {
+    console.log("- gov_kernel_tracks_gov: true");
+  }
   console.log(`- checked_wps: ${readiness.checkedWps}`);
   console.log(`- active_task_board_wps: ${readiness.activeBoardWpIds.length}`);
   console.log(`- gate_candidate_wps: ${readiness.activeCandidateWpIds.length}`);
