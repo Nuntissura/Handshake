@@ -45,6 +45,7 @@ pub struct FlightEvent {
     pub job_id: Option<String>,
     pub workflow_id: Option<String>,
     pub model_id: Option<String>,
+    pub model_session_id: Option<String>,
     pub wsids: Vec<String>,
     pub activity_span_id: Option<String>,
     pub session_span_id: Option<String>,
@@ -58,6 +59,7 @@ pub struct EventFilter {
     pub event_id: Option<Uuid>,
     pub job_id: Option<String>,
     pub trace_id: Option<Uuid>,
+    pub model_session_id: Option<String>,
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
     pub actor: Option<String>,
@@ -183,7 +185,7 @@ async fn list_events(
         event_id: filter.event_id,
         job_id: filter.job_id,
         trace_id: filter.trace_id,
-        model_session_id: None,
+        model_session_id: filter.model_session_id,
         from: filter.from,
         to: filter.to,
     };
@@ -258,6 +260,7 @@ async fn list_events(
             job_id: e.job_id,
             workflow_id: e.workflow_id,
             model_id: e.model_id,
+            model_session_id: e.model_session_id,
             wsids: e.wsids,
             activity_span_id: e.activity_span_id,
             session_span_id: e.session_span_id,
@@ -268,4 +271,127 @@ async fn list_events(
         .collect();
 
     Ok(Json(api_events))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::capabilities::CapabilityRegistry;
+    use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
+    use crate::flight_recorder::{
+        FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+    };
+    use crate::llm::{
+        CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
+    };
+    use crate::storage::{sqlite::SqliteDatabase, Database};
+    use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
+    use crate::AppState;
+    use std::sync::Arc;
+    use uuid::Uuid;
+
+    struct TestLlmClient {
+        profile: ModelProfile,
+    }
+
+    impl TestLlmClient {
+        fn new() -> Self {
+            Self {
+                profile: ModelProfile::new("flight-recorder-api-test".to_string(), 4096),
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl LlmClient for TestLlmClient {
+        async fn completion(
+            &self,
+            _req: CompletionRequest,
+        ) -> Result<CompletionResponse, LlmError> {
+            Ok(CompletionResponse {
+                text: "ok".to_string(),
+                usage: TokenUsage {
+                    prompt_tokens: 1,
+                    completion_tokens: 1,
+                    total_tokens: 2,
+                },
+                latency_ms: 0,
+            })
+        }
+
+        fn profile(&self) -> &ModelProfile {
+            &self.profile
+        }
+    }
+
+    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
+        let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
+        sqlite.run_migrations().await?;
+
+        let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
+
+        Ok(AppState {
+            storage: sqlite.into_arc(),
+            flight_recorder: recorder.clone(),
+            diagnostics: recorder,
+            llm_client: Arc::new(TestLlmClient::new()),
+            capability_registry: Arc::new(CapabilityRegistry::new()),
+            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        })
+    }
+
+    #[tokio::test]
+    async fn list_events_preserves_model_session_id_filter_and_payload(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let trace_id = Uuid::new_v4();
+
+        state
+            .flight_recorder
+            .record_event(
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::System,
+                    FlightRecorderActor::System,
+                    trace_id,
+                    json!({
+                        "type": "system",
+                        "event_id": "FR-EVT-SYS-001",
+                    }),
+                )
+                .with_model_session_id("sess-keep"),
+            )
+            .await?;
+
+        state
+            .flight_recorder
+            .record_event(FlightRecorderEvent::new(
+                FlightRecorderEventType::System,
+                FlightRecorderActor::System,
+                trace_id,
+                json!({
+                    "type": "system",
+                    "event_id": "FR-EVT-SYS-000",
+                }),
+            ))
+            .await?;
+
+        let response = list_events(
+            State(state),
+            Query(EventFilter {
+                model_session_id: Some("sess-keep".to_string()),
+                ..Default::default()
+            }),
+        )
+        .await;
+        let Json(events) = match response {
+            Ok(payload) => payload,
+            Err(_) => panic!("filtered flight recorder api response failed"),
+        };
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].model_session_id.as_deref(), Some("sess-keep"));
+        assert_eq!(events[0].event_type, "system");
+
+        Ok(())
+    }
 }

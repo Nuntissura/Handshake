@@ -115,7 +115,12 @@ fn is_terminal_state(state: &JobState) -> bool {
     )
 }
 
-async fn wait_for_state(state: &AppState, job_id: Uuid, target: JobState, timeout_ms: u64) -> AiJob {
+async fn wait_for_state(
+    state: &AppState,
+    job_id: Uuid,
+    target: JobState,
+    timeout_ms: u64,
+) -> AiJob {
     let deadline = Instant::now() + Duration::from_millis(timeout_ms);
     loop {
         let job = state
@@ -407,10 +412,16 @@ async fn model_run_persists_session_and_artifact_first_messages(
     assert_eq!(session.job_id, Some(job.job_id));
     assert_eq!(session.state, ModelSessionState::Completed);
 
-    let session_by_job = state.storage.get_model_session_by_job_id(job.job_id).await?;
+    let session_by_job = state
+        .storage
+        .get_model_session_by_job_id(job.job_id)
+        .await?;
     assert_eq!(session_by_job.session_id, session_id);
 
-    let messages = state.storage.list_session_messages(&session_by_job.session_id).await?;
+    let messages = state
+        .storage
+        .list_session_messages(&session_by_job.session_id)
+        .await?;
     assert_eq!(messages.len(), 2);
     assert!(messages
         .iter()
@@ -440,12 +451,14 @@ async fn model_run_persists_session_and_artifact_first_messages(
             ..Default::default()
         })
         .await?;
-    assert!(events
-        .iter()
-        .any(|e| matches!(e.event_type, FlightRecorderEventType::SessionSchedulerEnqueue)));
-    assert!(events
-        .iter()
-        .any(|e| matches!(e.event_type, FlightRecorderEventType::SessionSchedulerDispatch)));
+    assert!(events.iter().any(|e| matches!(
+        e.event_type,
+        FlightRecorderEventType::SessionSchedulerEnqueue
+    )));
+    assert!(events.iter().any(|e| matches!(
+        e.event_type,
+        FlightRecorderEventType::SessionSchedulerDispatch
+    )));
     for event in events.iter().filter(|event| {
         matches!(
             event.event_type,
@@ -614,7 +627,8 @@ async fn trust002_partial_provenance_is_rejected() -> Result<(), Box<dyn std::er
         .await
         .expect_err("expected provenance validation failure");
     assert!(
-        err.to_string().contains("cross-session routed session_messages"),
+        err.to_string()
+            .contains("cross-session routed session_messages"),
         "unexpected error: {err}"
     );
 
@@ -622,8 +636,7 @@ async fn trust002_partial_provenance_is_rejected() -> Result<(), Box<dyn std::er
 }
 
 #[tokio::test]
-async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn std::error::Error>>
-{
+async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::new_v4());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
@@ -673,7 +686,10 @@ async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn s
         })
         .await?;
     let denied = events.iter().find(|event| {
-        matches!(event.event_type, FlightRecorderEventType::CloudEscalationDenied)
+        matches!(
+            event.event_type,
+            FlightRecorderEventType::CloudEscalationDenied
+        )
     });
     assert!(denied.is_some());
     let denied = denied.expect("cloud escalation denied event present");
@@ -690,8 +706,8 @@ async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn s
 }
 
 #[tokio::test]
-async fn model_run_cloud_consent_allows_with_valid_bundle(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn model_run_cloud_consent_allows_with_valid_bundle() -> Result<(), Box<dyn std::error::Error>>
+{
     let state = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::new_v4());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
@@ -751,7 +767,10 @@ async fn model_run_cloud_consent_allows_with_valid_bundle(
         })
         .await?;
     let executed = events.iter().find(|event| {
-        matches!(event.event_type, FlightRecorderEventType::CloudEscalationExecuted)
+        matches!(
+            event.event_type,
+            FlightRecorderEventType::CloudEscalationExecuted
+        )
     });
     assert!(executed.is_some());
     let executed = executed.expect("cloud escalation executed event present");
@@ -971,7 +990,10 @@ async fn model_run_cancellation_is_cooperative_and_cancelled_not_failed(
         Some("operator")
     );
     assert_eq!(
-        cancelled_event.payload.get("reason").and_then(Value::as_str),
+        cancelled_event
+            .payload
+            .get("reason")
+            .and_then(Value::as_str),
         Some("user_requested")
     );
 
@@ -1050,8 +1072,10 @@ async fn consent_revocation_cancels_pending_model_runs_and_blocks_sessions(
         })
         .await?;
     let revoked_event = events.iter().find(|event| {
-        matches!(event.event_type, FlightRecorderEventType::CloudEscalationDenied)
-            && event.payload.get("reason").and_then(Value::as_str) == Some("consent_revoked")
+        matches!(
+            event.event_type,
+            FlightRecorderEventType::CloudEscalationDenied
+        ) && event.payload.get("reason").and_then(Value::as_str) == Some("consent_revoked")
     });
     assert!(revoked_event.is_some());
 
@@ -1087,7 +1111,8 @@ async fn session_observability_spans_bind_model_runs_and_tool_calls(
                     "message_id": format!("msg-{}", Uuid::new_v4()),
                     "role": "USER",
                     "content_hash": hex64('a'),
-                    "content_artifact_id": format!("artifact:{session_id}:user-1")
+                    "content_artifact_id": format!("artifact:{session_id}:user-1"),
+                    "token_count": 7
                 }
             ]
         }),
@@ -1301,7 +1326,7 @@ async fn session_observability_spans_bind_model_runs_and_tool_calls(
             .payload
             .get("total_tokens")
             .and_then(Value::as_u64),
-        Some(15)
+        Some(22)
     );
     assert_eq!(
         session_completed
@@ -1344,7 +1369,7 @@ async fn session_observability_spans_bind_model_runs_and_tool_calls(
             .payload
             .get("current_value")
             .and_then(Value::as_f64),
-        Some(15.0)
+        Some(22.0)
     );
     assert_eq!(
         budget_warning
@@ -1460,12 +1485,8 @@ fn session_scheduler_event_payloads_are_validated() {
     ];
 
     for (event_type, payload) in valid_payloads {
-        let event = FlightRecorderEvent::new(
-            event_type,
-            FlightRecorderActor::System,
-            trace_id,
-            payload,
-        );
+        let event =
+            FlightRecorderEvent::new(event_type, FlightRecorderActor::System, trace_id, payload);
         assert!(event.validate().is_ok());
     }
 
