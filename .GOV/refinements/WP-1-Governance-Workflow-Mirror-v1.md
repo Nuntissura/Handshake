@@ -41,7 +41,7 @@ Requirements (HARD):
   - Reuse the additive overlay model already defined for imported governance artifacts and governed checks.
   - Reuse existing task-board/work-packet projection posture: structured projections first, Markdown mirrors second.
   - Reuse Spec Session Log semantics as a parallel human-facing ledger, but extract workflow-facing access from mailbox-only ownership.
-- DECISIONS (ADOPT/ADAPT/REJECT):
+- DECISIONS ADOPT/ADAPT/REJECT: ADOPT the narrow runtime workflow-mirror overlay; ADAPT current projection and session-log seams; REJECT Locus widening, broad repo-mirror scope, and direct `/.GOV/` IO.
   - ADOPT: a narrowly scoped durable workflow-mirror layer on top of current runtime-governance, artifact-registry, check-runner, workflow-projection, and role-mailbox foundations.
   - ADOPT: per-WP validator gate artifacts under `.handshake/gov/validator_gates/`, because the spec already names that runtime path.
   - ADAPT: existing task-board/work-packet projection patterns so the workflow mirror extends the current runtime governance surface instead of creating a second task-board system.
@@ -167,13 +167,13 @@ Requirements (HARD):
   - PILLAR: Excel clone | STATUS: NOT_TOUCHED | NOTES: No spreadsheet surface is touched. | STUB_WP_IDS: NONE
   - PILLAR: Locus | STATUS: TOUCHED | NOTES: Locus remains the canonical work-tracking/workflow identity source that the mirror must extend rather than replace. | STUB_WP_IDS: NONE
   - PILLAR: Loom | STATUS: NOT_TOUCHED | NOTES: No media/timeline surface is in scope. | STUB_WP_IDS: NONE
-  - PILLAR: Work packets (product, not repo) | STATUS: TOUCHED | NOTES: Existing runtime work-packet projections are part of the mirror substrate. | STUB_WP_IDS: NONE
-  - PILLAR: Task board (product, not repo) | STATUS: TOUCHED | NOTES: Existing runtime task-board projections remain the human-readable mirror surface. | STUB_WP_IDS: NONE
+  - PILLAR: Work packets (product, not repo) | STATUS: NOT_TOUCHED | NOTES: Existing runtime work-packet projections are reused as consumers of the mirror, but this WP does not redefine the product work-packet pillar itself. | STUB_WP_IDS: NONE
+  - PILLAR: Task board (product, not repo) | STATUS: NOT_TOUCHED | NOTES: Existing runtime task-board projections consume the mirror output, but the product task-board pillar is not widened in this packet. | STUB_WP_IDS: NONE
   - PILLAR: MicroTask | STATUS: NOT_TOUCHED | NOTES: No micro-task-specific mirror extension is required. | STUB_WP_IDS: NONE
-  - PILLAR: Command Center | STATUS: TOUCHED | NOTES: The mirror is expected to become operator-visible through governance/task-board views and filters. | STUB_WP_IDS: NONE
+  - PILLAR: Command Center | STATUS: NOT_TOUCHED | NOTES: Command Center is a downstream consumer of the backend mirror. Dedicated operator-control work belongs to the later Command Center backend packet. | STUB_WP_IDS: NONE
   - PILLAR: Front End Memory System | STATUS: NOT_TOUCHED | NOTES: FEMS is not the authority for governance workflow mirror state. | STUB_WP_IDS: NONE
   - PILLAR: Execution / Job Runtime | STATUS: TOUCHED | NOTES: Workflow mirror updates and governed checks run inside runtime execution surfaces. | STUB_WP_IDS: NONE
-  - PILLAR: Prompt-to-Spec | STATUS: NOT_TOUCHED | NOTES: Prompt-to-Spec generation is upstream, not implemented here. | STUB_WP_IDS: NONE
+  - PILLAR: Spec to prompt | STATUS: NOT_TOUCHED | NOTES: Prompt/spec generation is upstream of this runtime-governance implementation packet. | STUB_WP_IDS: NONE
   - PILLAR: SQL to PostgreSQL shift readiness | STATUS: TOUCHED | NOTES: Mirror persistence must stay behind storage traits and remain SQLite-now/Postgres-ready. | STUB_WP_IDS: NONE
   - PILLAR: LLM-friendly data | STATUS: TOUCHED | NOTES: Structured-first workflow-mirror records are needed so small/local models do not parse long Markdown by default. | STUB_WP_IDS: NONE
   - PILLAR: Stage | STATUS: NOT_TOUCHED | NOTES: No Stage surface is involved. | STUB_WP_IDS: NONE
@@ -232,24 +232,32 @@ Requirements (HARD):
 ### FORCE_MULTIPLIER_EXPANSION (high-ROI combinations must resolve explicitly)
 - COMBO_PRESSURE_MODE: AUTO
 - HIGH_ROI_EXPANSION_CANDIDATES:
-  - Combo: Locus + Task Board + Workflow Mirror | Pillars: Locus, Task board (product, not repo), Work packets (product, not repo) | Mechanical: engine.sovereign, engine.context, engine.version | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: Keep Locus canonical while exposing overlay gate/activation/session facts through current runtime task-board/work-packet projections.
-  - Combo: GovernanceArtifactRegistry + CheckRunner + Validator Gates | Pillars: Execution / Job Runtime, Flight Recorder | Mechanical: engine.sovereign, engine.dba, engine.archivist | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: Registry/check-runner are already validated foundations; this WP should stitch them into durable per-WP runtime governance state.
-  - Combo: Spec Session Log + Command Center + LLM-friendly data | Pillars: Command Center, LLM-friendly data, RAG | Mechanical: engine.context, engine.archivist | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: Structured-first session-log entries let operators and models reconstruct governance state without loading long chat history.
+  - Combo: Flight Recorder + Gate Mirror | Pillars: Flight Recorder | Mechanical: engine.sovereign, engine.archivist | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: Every validator-gate transition must remain flight-recorder-visible while persisting as workflow-mirror state.
+  - Combo: Locus + Activation Traceability | Pillars: Locus | Mechanical: engine.version, engine.sovereign | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: Keep Locus canonical while adding runtime-only activation lineage keyed by stable workflow and WP ids.
+  - Combo: Runtime Governance + Durable Gate Storage | Pillars: Execution / Job Runtime | Mechanical: engine.dba | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: Per-WP gate artifacts must persist through product-owned runtime/storage seams rather than direct repo reads.
+  - Combo: SQLite-now Contract + Postgres-ready Shapes | Pillars: SQL to PostgreSQL shift readiness | Mechanical: engine.dba, engine.version | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: Gate, activation, and session-log records must stay deterministic and migration-safe behind storage traits.
+  - Combo: Structured Gate Summaries + Small-Model Routing | Pillars: LLM-friendly data | Mechanical: engine.context | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: The mirror should expose bounded structured fields first so local models do not need long Markdown to route governance work.
+  - Combo: Session Log Retrieval + Workflow Replay | Pillars: RAG | Mechanical: engine.archivist, engine.context | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: Workflow-facing Spec Session Log access should preserve retrieval-friendly records and linked artifacts.
+  - Combo: Flight Recorder + Idempotent Gate Transitions | Pillars: Flight Recorder, Execution / Job Runtime | Mechanical: engine.sovereign, engine.version | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: Replay-safe gate writes prevent double-counted runtime evidence during parallel workflow activity.
+  - Combo: Runtime Projection + Structured Session Log | Pillars: Execution / Job Runtime, LLM-friendly data | Mechanical: engine.context, engine.archivist | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: The mirror should project stable gate and activation summaries into workflow-facing records without flattening everything into prose.
+  - Combo: Locus Keys + Storage Boundary | Pillars: Locus, SQL to PostgreSQL shift readiness | Mechanical: engine.dba, engine.sovereign | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: Stable ids must flow through storage-backed artifacts so runtime consumers never infer identity from filenames alone.
+  - Combo: Structured Retrieval + Gate Evidence | Pillars: RAG, LLM-friendly data | Mechanical: engine.archivist | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: Gate evidence and activation refs should stay cheap to retrieve and filter without requiring chat-history reconstruction.
+  - Combo: Command Center Consumer Readiness | Pillars: Command Center, Execution / Job Runtime | Mechanical: engine.context | Primitives/Features: NONE | Resolution: IN_THIS_WP | Stub: NONE | Notes: This packet only establishes backend-ready mirror/query surfaces so the later Command Center backend WP can consume them cleanly.
 - FORCE_MULTIPLIER_VERDICT: OK
 - FORCE_MULTIPLIER_REASON: All high-ROI combinations resolve in-scope with existing validated foundations; no new stub is genuinely required.
 
 ### EXISTING_CAPABILITY_ALIGNMENT (dedupe against stubs, packets, UI intent, and product code)
 - SCAN_SCOPE: Target stub, current task board and traceability registry, validated sibling governance packets, structured-collaboration/workflow/role-mailbox packets, and `../handshake_main` runtime-governance/workflow/check-runner code.
 - MATCHED_STUBS:
-  - Artifact: WP-1-Governance-Workflow-Mirror-v1 | BoardStatus: STUB | Intent: SAME | PrimitiveIndex: MISSING | Matrix: MISSING | UI: PARTIAL | CodeReality: N/A | Resolution: EXPAND_IN_THIS_WP | Stub: NONE | Notes: This refinement hydrates the target stub directly; no duplicate stub should be created.
+  - Artifact: WP-1-Governance-Workflow-Mirror-v1 | BoardStatus: STUB | Intent: SAME | PrimitiveIndex: N/A | Matrix: N/A | UI: N/A | CodeReality: N/A | Resolution: EXPAND_IN_THIS_WP | Stub: NONE | Notes: This refinement hydrates the target stub directly; no duplicate stub should be created.
 - MATCHED_ACTIVE_PACKETS:
   - NONE
 - MATCHED_COMPLETED_PACKETS:
-  - Artifact: WP-1-Product-Governance-Artifact-Registry-v1 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: N/A | Matrix: N/A | UI: NONE | CodeReality: IMPLEMENTED | Resolution: REUSE_EXISTING | Stub: NONE | Notes: Registry types/store already exist and should be consumed, not reimplemented.
-  - Artifact: WP-1-Product-Governance-Check-Runner-v1 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: N/A | Matrix: N/A | UI: NONE | CodeReality: IMPLEMENTED | Resolution: REUSE_EXISTING | Stub: NONE | Notes: CheckRunner and FR event plumbing already exist; this WP should link to them.
+  - Artifact: WP-1-Product-Governance-Artifact-Registry-v1 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: N/A | Matrix: N/A | UI: N/A | CodeReality: IMPLEMENTED | Resolution: REUSE_EXISTING | Stub: NONE | Notes: Registry types and store contracts already exist and should be consumed rather than reimplemented.
+  - Artifact: WP-1-Product-Governance-Check-Runner-v1 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: N/A | Matrix: N/A | UI: N/A | CodeReality: IMPLEMENTED | Resolution: REUSE_EXISTING | Stub: NONE | Notes: CheckRunner and FR event plumbing already exist; this WP should link to them instead of duplicating governed execution logic.
   - Artifact: WP-1-Structured-Collaboration-Schema-Registry-v4 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: N/A | Matrix: N/A | UI: N/A | CodeReality: IMPLEMENTED | Resolution: REUSE_EXISTING | Stub: NONE | Notes: Existing structured-collaboration families already cover task-board/work-packet/governance-registry foundations.
-  - Artifact: WP-1-Workflow-Projection-Correlation-v1 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: N/A | Matrix: N/A | UI: PARTIAL | CodeReality: IMPLEMENTED | Resolution: REUSE_EXISTING | Stub: NONE | Notes: Stable workflow/task-board/model-session correlation is already part of workflow projection logic.
-  - Artifact: WP-1-Role-Mailbox-v1 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: N/A | Matrix: N/A | UI: NONE | CodeReality: IMPLEMENTED | Resolution: REUSE_EXISTING | Stub: NONE | Notes: Role mailbox already owns Spec Session Log persistence substrate; this WP should reuse/extract it, not invent a third logging store.
+  - Artifact: WP-1-Workflow-Projection-Correlation-v1 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: N/A | Matrix: N/A | UI: PARTIAL | CodeReality: IMPLEMENTED | Resolution: EXPAND_IN_THIS_WP | Stub: NONE | Notes: Stable workflow/task-board/model-session correlation exists, but this WP still needs to widen the projection with gate, activation, and session-log summaries.
+  - Artifact: WP-1-Role-Mailbox-v1 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: N/A | Matrix: N/A | UI: N/A | CodeReality: PARTIAL | Resolution: EXPAND_IN_THIS_WP | Stub: NONE | Notes: Role mailbox already owns Spec Session Log persistence substrate, but this WP still needs a workflow-facing seam rather than mailbox-owned-only call sites.
 - CODE_REALITY_EVIDENCE:
   - Path: ../handshake_main/src/backend/handshake_core/src/runtime_governance.rs | Artifact: NONE | Covers: execution | Verdict: PARTIAL | Notes: Runtime governance root/path helpers already exist for work packets, task board, governance decisions, and auto signatures, but no `validator_gates` or activation-traceability path helpers exist yet.
   - Path: ../handshake_main/src/backend/handshake_core/src/governance_artifact_registry.rs | Artifact: WP-1-Product-Governance-Artifact-Registry-v1 | Covers: primitive | Verdict: IMPLEMENTED | Notes: `GovernanceArtifactKind`, `GovernanceArtifactRegistryManifest`, and store traits are present and reusable.
@@ -259,36 +267,27 @@ Requirements (HARD):
   - Path: ../handshake_main/src/backend/handshake_core/src/storage/mod.rs | Artifact: WP-1-Product-Governance-Check-Runner-v1 | Covers: execution | Verdict: PARTIAL | Notes: Governance check run structs exist, but default trait methods still return `NotImplemented`.
   - Path: ../handshake_main/src/backend/handshake_core/src/workflows.rs | Artifact: WP-1-Workflow-Projection-Correlation-v1 | Covers: execution | Verdict: IMPLEMENTED | Notes: Runtime task-board projection and stable workflow/task-board/work-packet/model-session id propagation already exist.
   - Path: ../handshake_main/src/backend/handshake_core/src/flight_recorder/mod.rs | Artifact: WP-1-Product-Governance-Check-Runner-v1 | Covers: execution | Verdict: IMPLEMENTED | Notes: governance-check started/completed/blocked event kinds already exist and should remain the check-execution evidence source.
-- EXISTING_CAPABILITY_ALIGNMENT_VERDICT: REUSE_EXISTING
-- EXISTING_CAPABILITY_ALIGNMENT_REASON: Add the missing workflow-mirror overlay on top of existing validated artifact-registry, check-runner, schema, projection, and mailbox foundations rather than creating duplicate capability tracks or widening base Locus primitives.
+- EXISTING_CAPABILITY_ALIGNMENT_VERDICT: NEEDS_SCOPE_EXPANSION
+- EXISTING_CAPABILITY_ALIGNMENT_REASON: Core runtime-governance, registry, check-runner, schema, projection, and mailbox foundations already exist, but this WP still needs to add the narrow workflow-mirror overlay and workflow-facing seams on top of them.
 
 ### UI_UX_RUBRIC (early UI/UX thinking; prefer too many controls early)
-- UI_UX_APPLICABLE: YES
-- UI_UX_REASON_NO: N/A
+- UI_UX_APPLICABLE: NO
+- UI_UX_REASON_NO: This packet is backend-first runtime-governance composition only. Dedicated operator-facing UI/control work is intentionally deferred to `WP-1-Dev-Command-Center-Control-Plane-Backend-v1`.
 - UI_SURFACES:
-  - Dev Command Center governance workflow mirror panel
-  - Work-packet detail drawer with gate status, activation mapping, last governed check result, and session-log timeline
-  - Task-board row badges/chips for validator-gate verdict and activation state
+  - NONE
 - UI_CONTROLS (buttons/dropdowns/inputs):
-  - Control: WP filter | Type: search/filter input | Tooltip: Filter runtime governance mirror entries by WP id or status | Notes: Must operate on structured fields, not Markdown parsing.
-  - Control: Gate verdict filter | Type: segmented control/dropdown | Tooltip: Show PASS/FAIL/BLOCKED/UNKNOWN gate states | Notes: Must map directly to per-WP gate artifacts.
-  - Control: Open mirror artifact | Type: action button/link | Tooltip: Open the runtime-owned gate or traceability artifact for this WP | Notes: Should deep-link to structured view first, Markdown mirror second.
-  - Control: View governed checks | Type: action button | Tooltip: Show governed check runs and evidence refs linked to this WP | Notes: Reuses CheckRunner outputs; no raw shell log dump.
+  - NONE
 - UI_STATES (empty/loading/error):
-  - Empty: no runtime workflow-mirror record exists yet for the selected WP.
-  - Loading: task-board/workflow projections are refreshing from runtime-owned governance state.
-  - Error: mirror artifact missing, invalid, or out of sync with canonical WP/task-board ids.
+  - NONE
 - UI_MICROCOPY_NOTES (labels, helper text, hover explainers):
-  - Label the surface as `Runtime workflow mirror`, not `governance source of truth`.
-  - Explain that Locus/task board remain canonical for work tracking while this surface mirrors software-delivery governance state.
-  - Explain that repo `.GOV/` files are not read directly by runtime.
+  - NONE
 - UI_ACCESSIBILITY_NOTES:
-  - Tooltips must work on hover and keyboard focus; be dismissible; do not obscure content (WCAG 1.4.13).
+  - NONE
 - UI_UX_VERDICT: OK
 
 ### GUI_IMPLEMENTATION_ADVICE_RUBRIC (research-backed GUI implementation advice)
 - GUI_ADVICE_REQUIRED: NO
-- GUI_ADVICE_REASON_NO: This WP is backend-first internal runtime-governance work. UI guidance above is sufficient and external GUI research would be performative rather than useful.
+- GUI_ADVICE_REASON_NO: This WP intentionally stops at backend/runtime mirror readiness. Dedicated operator-facing GUI implementation advice belongs to the later Command Center backend packet.
 - GUI_REFERENCE_SCAN:
   - NONE
 - HANDSHAKE_GUI_ADVICE:
@@ -311,7 +310,7 @@ Requirements (HARD):
 - BUILD_ORDER_DOMAIN: BACKEND
 - BUILD_ORDER_TECH_BLOCKER: NO
 - BUILD_ORDER_VALUE_TIER: HIGH
-- BUILD_ORDER_DEPENDS_ON: WP-1-Product-Governance-Artifact-Registry-v1, WP-1-Product-Governance-Check-Runner-v1, WP-1-Structured-Collaboration-Schema-Registry-v4, WP-1-Workflow-Projection-Correlation-v1, WP-1-Role-Mailbox-v1
+- BUILD_ORDER_DEPENDS_ON: WP-1-Product-Governance-Artifact-Registry, WP-1-Product-Governance-Check-Runner, WP-1-Structured-Collaboration-Schema-Registry, WP-1-Workflow-Projection-Correlation, WP-1-Role-Mailbox
 - BUILD_ORDER_BLOCKS: WP-1-Project-Agnostic-Workflow-State-Registry, WP-1-Workflow-Transition-Automation-Registry, WP-1-Dev-Command-Center-Control-Plane-Backend, WP-1-Governance-Pack
 - SPEC_ANCHOR_PRIMARY: 2.3.15 tracked work-packet gates/task-packet linkage + 2.6.8.8 Spec Session Log + 7.5.4.8 repo/runtime boundary + 7.5.4.9 CheckRunner + 11.5.4 FR governance events
 - WHAT: Add a narrowly scoped durable runtime workflow-mirror layer for imported software-delivery governance state: per-WP validator gates, activation traceability, and workflow-facing Spec Session Log continuity, all keyed by existing Locus/workflow/task-board identifiers.
@@ -477,6 +476,14 @@ Requirements (HARD):
   - The exact final runtime artifact format for activation traceability (single structured artifact vs structured artifact plus Markdown mirror) is not proven in code yet, only bounded semantically by this refinement.
   - The storage-backed implementation depth for `create_governance_check_run` and `list_governance_check_runs` is not proven; only the trait seam and structs exist today.
   - The final Command Center operator surface is not proven; this refinement only establishes the backend/runtime visibility requirements.
+
+### DISCOVERY_CHECKPOINT
+- DISCOVERY_PRIMITIVES: NONE_DISCOVERED (This pass composes existing runtime-governance, registry, workflow, and mailbox surfaces instead of introducing new Appendix 12 primitives.)
+- DISCOVERY_STUBS: NONE_CREATED (No new stub was warranted because the next Command Center backend WP already exists and the current packet stays within the target stub scope.)
+- DISCOVERY_MATRIX_EDGES: NONE_FOUND (The required interactions are already expressed through existing Locus, workflow-projection, CheckRunner, and session-log relationships.)
+- DISCOVERY_UI_CONTROLS: NONE_APPLICABLE (Operator-facing controls are intentionally deferred to `WP-1-Dev-Command-Center-Control-Plane-Backend-v1`.)
+- DISCOVERY_SPEC_ENRICHMENT: NO_ENRICHMENT_NEEDED (The current Master Spec already names the boundary, events, path posture, and session-log requirements this packet implements.)
+- DISCOVERY_JUSTIFICATION: This refinement still delivered value by collapsing scope to the correct narrow runtime workflow-mirror layer, reusing validated foundations, and proving that no spec repair or new stub creation is needed before packet hydration.
 
 ### CLEARLY_COVERS (5-point checklist)
 - Appears in Main Body: [x] PASS
