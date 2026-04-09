@@ -1813,3 +1813,41 @@
 - FOLLOW_ON_ITEMS:
   - `RGF-162`
 - OUTCOME: ACP launch/steer retries, broker drift recovery, self-settlement, and explicit busy/pending command states are now tracked as concrete governance implementation work that can proceed while Activation Manager continues refinement-heavy pre-launch work elsewhere
+
+### 2026.04.09.3 / GOV-CHANGE-20260409-03
+
+- STATUS: APPLIED
+- SUMMARY: tightened the direct coder<->WP-validator contract so per-MT overlap review is the normal orchestrator-managed lane, while opening `RGF-163` for the remaining mechanical enforcement work
+- CHANGE_TYPE: POLICY_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-163`
+  - 2026-04-09 operator directive on coder/wp-validator communication and non-relay workflow
+- SURFACES:
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-163`
+- OUTCOME: governance law now makes per-MT direct review and validator-owned steering explicit on orchestrator-managed lanes, clarifies deferred loop-back repair after validator disapproval, and reaffirms that the Orchestrator should only step in for governance workflow defects rather than relay ordinary coder/validator traffic
+
+### 2026.04.09.3 / GOV-CHANGE-20260409-03
+
+- STATUS: APPLIED
+- SUMMARY: made governed memory injection visibly auditable and restored bounded startup prompt memory injection
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260409-VISIBLE-MEMORY-INJECTION-AND-STARTUP-BOUNDS`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/memory/memory-recall.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/tests/memory-recall.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/Audits/audits/AUDIT_20260409_VISIBLE_MEMORY_INJECTION_AND_STARTUP_BOUNDS.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `NONE`
+- OUTCOME: governed `memory-recall` now prints a compact `MEMORY_INJECTION_APPLIED` summary for operator visibility, and governed startup prompts once again carry a small bounded fail/context block instead of leaving the startup loader code disconnected from the active prompt builder
