@@ -10,14 +10,16 @@ import {
   WORK_PACKET_STORAGE_ROOT_ABS,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
+  communicationTransactionLockPathForWp,
   parseJsonFile,
   parseJsonlFile,
+  validateRuntimeStatus,
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { appendWpReceipt } from "../../../roles_shared/scripts/wp/wp-receipt-append.mjs";
-import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { loadSessionRegistry, withFileLockSync } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { SESSION_CONTROL_BROKER_STATE_FILE } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import {
   activeRunsForTarget,
@@ -42,6 +44,12 @@ function parseSingleField(text, label) {
 
 function normalizeRole(value = "") {
   return String(value || "").trim().toUpperCase();
+}
+
+function parseNonNegativeInteger(value, fallback = 0) {
+  const parsed = Number.parseInt(String(value ?? "").trim(), 10);
+  if (!Number.isInteger(parsed) || parsed < 0) return fallback;
+  return parsed;
 }
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -167,6 +175,8 @@ function loadWpRelayInputs(wpId, registrySessions) {
     wpId,
     applicable: true,
     packetPath: resolved.packetPath,
+    runtimeStatusFile,
+    runtimeStatusAbsPath: repoPathAbs(runtimeStatusFile),
     runtimeStatus,
     relayStatus,
   };
@@ -180,6 +190,58 @@ function steerWp(wpId) {
     windowsHide: true,
   });
   return output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+}
+
+function shouldPersistRelayWatchdogState(decision = null) {
+  return ["INCREMENT", "RESET"].includes(String(decision?.cycleAction || "").trim().toUpperCase())
+    || ["ESCALATE_RELAY_LIMIT", "REPORT_STALLED_ACTIVE_RUN"].includes(String(decision?.action || "").trim().toUpperCase());
+}
+
+function updateRelayWatchdogRuntimeState({
+  wpId,
+  runtimeStatusFile = "",
+  runtimeStatusAbsPath = "",
+  decision = null,
+} = {}) {
+  if (!runtimeStatusFile || !runtimeStatusAbsPath || !fs.existsSync(runtimeStatusAbsPath) || !shouldPersistRelayWatchdogState(decision)) {
+    return null;
+  }
+
+  const lockPath = repoPathAbs(communicationTransactionLockPathForWp(wpId));
+  return withFileLockSync(lockPath, () => {
+    const runtime = parseJsonFile(runtimeStatusFile);
+    const previousCycle = parseNonNegativeInteger(runtime.current_relay_escalation_cycle, 0);
+    const maxCycle = Math.max(1, parseNonNegativeInteger(runtime.max_relay_escalation_cycles, 1));
+    let nextCycle = previousCycle;
+    const cycleAction = String(decision?.cycleAction || "").trim().toUpperCase();
+    if (cycleAction === "RESET") {
+      nextCycle = 0;
+    } else if (cycleAction === "INCREMENT") {
+      const requestedCycle = parseNonNegativeInteger(decision?.nextCycle, previousCycle + 1);
+      nextCycle = Math.min(maxCycle, Math.max(previousCycle + 1, requestedCycle));
+    }
+
+    runtime.current_relay_escalation_cycle = nextCycle;
+    runtime.last_event = `relay_watchdog_${String(decision?.action || "skip").trim().toLowerCase()}`;
+    runtime.last_event_at = new Date().toISOString();
+    if (["ESCALATE_RELAY_LIMIT", "REPORT_STALLED_ACTIVE_RUN"].includes(String(decision?.action || "").trim().toUpperCase())) {
+      runtime.attention_required = true;
+    }
+
+    const runtimeErrors = validateRuntimeStatus(runtime);
+    if (runtimeErrors.length > 0) {
+      throw new Error(`Runtime status validation failed after relay watchdog update: ${runtimeErrors.join("; ")}`);
+    }
+    fs.writeFileSync(runtimeStatusAbsPath, `${JSON.stringify(runtime, null, 2)}\n`, "utf8");
+    return {
+      previousCycle,
+      nextCycle,
+      maxCycle,
+      attentionRequired: runtime.attention_required === true,
+      lastEvent: runtime.last_event,
+      lastEventAt: runtime.last_event_at,
+    };
+  });
 }
 
 function evaluateWp(wpId, {
@@ -223,6 +285,12 @@ function evaluateWp(wpId, {
   });
 
   if (!decision.shouldSteer) {
+    const runtimeUpdate = updateRelayWatchdogRuntimeState({
+      wpId,
+      runtimeStatusFile: base.runtimeStatusFile,
+      runtimeStatusAbsPath: base.runtimeStatusAbsPath,
+      decision,
+    });
     return {
       wpId,
       action: decision.action,
@@ -231,11 +299,19 @@ function evaluateWp(wpId, {
       relayStatus: base.relayStatus,
       stallScan,
       activeRuns,
+      decision,
+      runtimeUpdate,
       skipped: true,
     };
   }
 
   const outputLines = steerWp(wpId);
+  const runtimeUpdate = updateRelayWatchdogRuntimeState({
+    wpId,
+    runtimeStatusFile: base.runtimeStatusFile,
+    runtimeStatusAbsPath: base.runtimeStatusAbsPath,
+    decision,
+  });
   appendWpReceipt({
     wpId,
     actorRole: "ORCHESTRATOR",
@@ -255,6 +331,8 @@ function evaluateWp(wpId, {
     stallScan,
     activeRuns,
     outputLines,
+    decision,
+    runtimeUpdate,
     skipped: false,
   };
 }
@@ -269,9 +347,21 @@ function printResult(result) {
     console.log(`- relay_reason_code: ${result.relayStatus.reason_code}`);
     console.log(`- target: ${result.relayStatus.target_role || "<none>"}${result.relayStatus.target_session ? `:${result.relayStatus.target_session}` : ""}`);
   }
+  if (result.decision) {
+    console.log(`- relay_cycle: ${result.decision.currentCycle}/${result.decision.maxCycle}`);
+    if (result.decision.nextCycle !== result.decision.currentCycle) {
+      console.log(`- relay_cycle_after: ${result.decision.nextCycle}/${result.decision.maxCycle}`);
+    }
+    console.log(`- relay_limit_reached: ${result.decision.limitReached ? "YES" : "NO"}`);
+  }
   if (result.stallScan) {
     console.log(`- stall_scan_status: ${result.stallScan.status}`);
     console.log(`- stall_scan_summary: ${result.stallScan.summary}`);
+  }
+  if (result.runtimeUpdate) {
+    console.log(`- runtime_cycle_before: ${result.runtimeUpdate.previousCycle}/${result.runtimeUpdate.maxCycle}`);
+    console.log(`- runtime_cycle_after: ${result.runtimeUpdate.nextCycle}/${result.runtimeUpdate.maxCycle}`);
+    console.log(`- runtime_attention_required: ${result.runtimeUpdate.attentionRequired ? "YES" : "NO"}`);
   }
   if (Array.isArray(result.activeRuns) && result.activeRuns.length > 0) {
     console.log(`- active_runs: ${result.activeRuns.length}`);

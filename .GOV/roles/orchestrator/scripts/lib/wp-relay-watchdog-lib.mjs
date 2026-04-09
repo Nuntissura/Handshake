@@ -7,6 +7,24 @@ function normalizeSession(value = "") {
   return text || null;
 }
 
+function parseNonNegativeInteger(value, fallback = 0) {
+  const parsed = Number.parseInt(String(value ?? "").trim(), 10);
+  if (!Number.isInteger(parsed) || parsed < 0) return fallback;
+  return parsed;
+}
+
+export function relayEscalationCycleBudget(relayStatus = null) {
+  const currentCycle = parseNonNegativeInteger(relayStatus?.metrics?.current_relay_escalation_cycle, 0);
+  const maxCycleRaw = parseNonNegativeInteger(relayStatus?.metrics?.max_relay_escalation_cycles, 1);
+  const maxCycle = Math.max(1, maxCycleRaw);
+  return {
+    currentCycle,
+    maxCycle,
+    exhausted: currentCycle >= maxCycle,
+    remainingCycles: Math.max(0, maxCycle - currentCycle),
+  };
+}
+
 export function activeRunsForTarget(activeRuns = [], {
   wpId = "",
   role = "",
@@ -31,11 +49,17 @@ export function deriveRelayWatchdogDecision({
   stallScanStatus = "UNKNOWN",
   allowWatchSteer = true,
 } = {}) {
+  const cycleBudget = relayEscalationCycleBudget(relayStatus);
   if (!relayStatus?.applicable) {
     return {
       action: "SKIP",
       reason: "NOT_APPLICABLE",
       shouldSteer: false,
+      cycleAction: cycleBudget.currentCycle > 0 ? "RESET" : "KEEP",
+      currentCycle: cycleBudget.currentCycle,
+      nextCycle: cycleBudget.currentCycle > 0 ? 0 : cycleBudget.currentCycle,
+      maxCycle: cycleBudget.maxCycle,
+      limitReached: false,
     };
   }
 
@@ -45,6 +69,11 @@ export function deriveRelayWatchdogDecision({
       action: "SKIP",
       reason: relayState || "NORMAL",
       shouldSteer: false,
+      cycleAction: cycleBudget.currentCycle > 0 ? "RESET" : "KEEP",
+      currentCycle: cycleBudget.currentCycle,
+      nextCycle: cycleBudget.currentCycle > 0 ? 0 : cycleBudget.currentCycle,
+      maxCycle: cycleBudget.maxCycle,
+      limitReached: false,
     };
   }
 
@@ -55,12 +84,22 @@ export function deriveRelayWatchdogDecision({
         action: "REPORT_STALLED_ACTIVE_RUN",
         reason: relayStatus.reason_code || "ACTIVE_RUN_STALLED",
         shouldSteer: false,
+        cycleAction: "KEEP",
+        currentCycle: cycleBudget.currentCycle,
+        nextCycle: cycleBudget.currentCycle,
+        maxCycle: cycleBudget.maxCycle,
+        limitReached: false,
       };
     }
     return {
       action: "WAIT_ACTIVE_RUN",
       reason: relayStatus.reason_code || "ACTIVE_RUN_PRESENT",
       shouldSteer: false,
+      cycleAction: "KEEP",
+      currentCycle: cycleBudget.currentCycle,
+      nextCycle: cycleBudget.currentCycle,
+      maxCycle: cycleBudget.maxCycle,
+      limitReached: false,
     };
   }
 
@@ -69,6 +108,24 @@ export function deriveRelayWatchdogDecision({
       action: "WATCH_ONLY",
       reason: relayStatus.reason_code || "WATCH_THRESHOLD_ONLY",
       shouldSteer: false,
+      cycleAction: "KEEP",
+      currentCycle: cycleBudget.currentCycle,
+      nextCycle: cycleBudget.currentCycle,
+      maxCycle: cycleBudget.maxCycle,
+      limitReached: false,
+    };
+  }
+
+  if (cycleBudget.exhausted) {
+    return {
+      action: "ESCALATE_RELAY_LIMIT",
+      reason: "MAX_RELAY_ESCALATION_CYCLES_REACHED",
+      shouldSteer: false,
+      cycleAction: "KEEP",
+      currentCycle: cycleBudget.currentCycle,
+      nextCycle: cycleBudget.currentCycle,
+      maxCycle: cycleBudget.maxCycle,
+      limitReached: true,
     };
   }
 
@@ -76,6 +133,11 @@ export function deriveRelayWatchdogDecision({
     action: "STEER",
     reason: relayStatus.reason_code || (relayState === "ESCALATED" ? "STALE_ROUTE" : "WATCH_ROUTE"),
     shouldSteer: true,
+    cycleAction: "INCREMENT",
+    currentCycle: cycleBudget.currentCycle,
+    nextCycle: cycleBudget.currentCycle + 1,
+    maxCycle: cycleBudget.maxCycle,
+    limitReached: false,
   };
 }
 
@@ -101,6 +163,11 @@ export function buildRelayWatchdogSummary({
     `target=${target}`,
     `decision=${decisionAction}`,
     `reason=${reason || "UNKNOWN"}`,
+    `cycle=${Number.isInteger(decision?.currentCycle) ? decision.currentCycle : 0}/${Number.isInteger(decision?.maxCycle) ? decision.maxCycle : 1}`,
+    ...(Number.isInteger(decision?.nextCycle) && decision?.nextCycle !== decision?.currentCycle
+      ? [`next_cycle=${decision.nextCycle}/${Number.isInteger(decision?.maxCycle) ? decision.maxCycle : 1}`]
+      : []),
+    `limit_reached=${decision?.limitReached ? "YES" : "NO"}`,
     `active_runs=${Array.isArray(activeRuns) ? activeRuns.length : 0}`,
     `stall_scan=${String(stallScanStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
   ];
