@@ -321,6 +321,7 @@ Workflow semantics:
 ### Activation Manager Authority Split (HARD)
 
 - The Orchestrator remains the workflow authority on both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED`. Activation Manager is a temporary pre-launch executor, not a second workflow owner.
+- Refinement and enrichment is one normative pre-launch phase with one quality bar across both workflow lanes; lane selection changes who executes it, never what completion means.
 - For `MANUAL_RELAY`, keep the legacy pre-launch flow on the Orchestrator: refinement, approved spec enrichment, signature handling, packet creation, microtask setup, worktree preparation, backup-branch preparation, and next-step control remain Orchestrator-owned.
 - For `ORCHESTRATOR_MANAGED`, Activation Manager executes that same pre-launch flow, but the Orchestrator still owns operator review, signature solicitation, `Coder-A..Z` selection, governance bug patching, acceptance or rejection of readiness, and relaunch / repair decisions.
 - Activation Manager refinement or spec-enrichment handback must be chunked when long. Safe default: 4 chunks. Do not ask the operator to review a one-shot oversized refinement paste.
@@ -586,6 +587,7 @@ Legacy flat compatibility:
   - the Master Spec pillars for ROI, reuse, security, and risk reduction
   - the mechanical tools / engines, because they are easy to forget and they are what make Handshake deterministic
   - GUI / UI needs upfront, so primitive and feature-combination growth do not outrun interface planning
+- Pillar feature definition and technical implementation must be derived from the current Master Spec. If the spec does not make a pillar or capability slice concrete enough, record `UNKNOWN` and resolve it through a stub or spec-enrichment path instead of guessing from memory.
 - Ordering is mandatory:
   - Main Body first
   - then end-of-file appendix / index / matrix updates

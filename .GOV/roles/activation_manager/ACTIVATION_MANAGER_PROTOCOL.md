@@ -37,7 +37,9 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 ## Refinement And Enrichment Standard (HARD)
 
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager refinement/enrichment pass MUST be equal to or better than the old Orchestrator-owned pre-launch flow. Moving the work out of the Orchestrator does not lower the standard.
+- Refinement and enrichment is one normative pre-launch phase with one quality bar across both workflow lanes; lane selection changes who executes it, never what completion means.
 - The Activation Manager owns the full pre-launch refinement burden: research / landscape scan, research-currency and research-depth capture, primitive index upkeep, primitive matrix upkeep, matrix-research follow-through, force-multiplier expansion, appendix maintenance, and approved spec-enrichment drafting when required.
+- Pillar feature definition and technical implementation MUST be derived from the current Master Spec. If the spec does not make a pillar or capability slice concrete enough, record `UNKNOWN` and resolve it through stub or spec-enrichment work instead of guessing.
 - When refinement, enrichment, matrix upkeep, or primitive-index work discovers a new high-ROI item, missing capability, unknown interaction, or follow-up requirement, the Activation Manager MUST create or update stub backlog items instead of silently dropping the discovery.
 - Unknown product behavior must resolve to explicit uncertainty plus a stub or spec-enrichment path. Do not guess.
 
