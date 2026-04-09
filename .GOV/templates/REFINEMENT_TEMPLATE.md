@@ -37,6 +37,7 @@ Requirements (HARD):
 - SPEC_IMPACT_REASON: <fill; if YES, point to Main Body and/or EOF Appendix blocks that must change>
 
 ### RESEARCH_CURRENCY (current external signal scan; mandatory unless the WP is strictly internal/mechanical)
+- Rule: if the WP is an internal repo-governed change or product-governance mirror patch already grounded in the current Master Spec plus local code/runtime truth, it is valid and often preferable to set `RESEARCH_CURRENCY_REQUIRED=NO`. Do not force unrelated or generic web research just to populate this section.
 - RESEARCH_CURRENCY_REQUIRED: PENDING (YES | NO)
 - RESEARCH_CURRENCY_REASON_NO: <fill if RESEARCH_CURRENCY_REQUIRED=NO>
 - SOURCE_MAX_AGE_DAYS: <fill integer 30-730; if RESEARCH_CURRENCY_REQUIRED=NO write N/A>
@@ -59,7 +60,7 @@ Requirements (HARD):
 - RESEARCH_DEPTH_VERDICT: PENDING (PASS | NOT_APPLICABLE)
 
 ### GITHUB_PROJECT_SCOUTING (same-topic repo exploration; feed useful findings back into governance)
-- Rule: if RESEARCH_CURRENCY_REQUIRED=YES, inspect topic-adjacent GitHub projects/repos that touch the same intent, implementation topic, or UI surface. This is for discovering better execution patterns, richer feature combinations, and UI/UX force multipliers. Useful findings MUST flow back into spec/governance through scope expansion, new stubs, spec updates, or UI enrichment.
+- Rule: if RESEARCH_CURRENCY_REQUIRED=YES, inspect topic-adjacent GitHub projects/repos that touch the same intent, implementation topic, or UI surface. This is for discovering better execution patterns, richer feature combinations, and UI/UX force multipliers. Useful findings MUST flow back into spec/governance through scope expansion, new stubs, spec updates, or UI enrichment. If no directly topical project search exists, mark this section `NOT_APPLICABLE`; do not substitute off-topic searches.
 - SEARCH_QUERIES:
   - <fill; repo/topic search query or angle>
 - MATCHED_PROJECTS:
@@ -190,7 +191,7 @@ Requirements (HARD):
 - PRIMITIVE_MATRIX_REASON: <fill>
 
 ### MATRIX_RESEARCH_RUBRIC (external combo research; separate from local matrix scan)
-- Rule: inspect vendor docs/papers, university/lab work, official design systems, and high-signal GitHub repos when relevant. This section records what those systems combine, what Handshake should steal or reject, and which engineering tricks should carry over into primitives/tools/features/runtime surfaces. Link dumping is forbidden; every useful row must resolve explicitly.
+- Rule: inspect vendor docs/papers, university/lab work, official design systems, and high-signal GitHub repos when relevant. For internal/product-governance mirror work, it is valid to mark this section `NOT_APPLICABLE` when no directly topical external combo research is needed. Link dumping is forbidden; every useful row must resolve explicitly.
 - MATRIX_RESEARCH_REQUIRED: PENDING (YES | NO)
 - MATRIX_RESEARCH_REASON_NO: <fill if MATRIX_RESEARCH_REQUIRED=NO>
 - SOURCE_SCAN:

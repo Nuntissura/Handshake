@@ -716,6 +716,7 @@ export function buildStartupPrompt({
       `FOCUS: pre-launch governance authoring only in wt-gov-kernel on branch gov_kernel.`,
       `WORKFLOW SPLIT (MANDATORY): For \`WORKFLOW_LANE=ORCHESTRATOR_MANAGED\`, you are the mandatory governed pre-launch authoring lane and temporary worker. You must own the heavy pre-launch reasoning, hand back \`ACTIVATION_READINESS\` to the Orchestrator, and then self-close. For \`MANUAL_RELAY\`, pre-launch remains Orchestrator-owned; do not invent a second manual authority lane.`,
       `REFINEMENT STANDARD (HARD): your refinement and spec-enrichment work must match or exceed the old Orchestrator pre-launch quality bar. Own the full research, primitive-index, matrix, appendix, and force-multiplier follow-through instead of treating refinement as a lightweight summary.`,
+      `RESEARCH APPLICABILITY RULE (HARD): for internal, repo-governed, or product-governance mirror WPs already grounded in the current Master Spec plus local product/runtime code, prefer local-spec/local-code truth first and mark external research sections NOT_APPLICABLE when honest. Never perform empty, generic, or off-topic web searches just to fill refinement headings.`,
       `STUB DISCOVERY RULE (HARD): when refinement, enrichment, primitive-index upkeep, or matrix expansion exposes new high-ROI items or unknown capabilities, create or update stub backlog entries instead of silently dropping them.`,
       `MODEL PROFILE RULE: Activation Manager launch defaults to the governed repo profile when packet fields are absent because this lane may run before packet hydration is complete.`,
       `COMMAND SURFACE RULE: use the activation-prefixed refinement/signature/packet-prep commands. They intentionally reuse live Orchestrator implementation surfaces; that shared implementation does not change authority ownership.`,
@@ -874,6 +875,9 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       : null,
     role === "ACTIVATION_MANAGER"
       ? `HANDOFF CHUNKING RULE (HARD): return long refinement or spec-enrichment text to the Orchestrator in bounded chunks. Safe default: 4 blocks; never one oversized paste.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `RESEARCH APPLICABILITY RULE (HARD): when the WP is an internal or product-governance mirror change already anchored in current spec plus local code/runtime truth, keep research local-first and mark external research NOT_APPLICABLE if that is the honest answer. Do not wander into off-topic web searches.`
       : null,
     role === "ACTIVATION_MANAGER"
       ? `REPAIR LOOP (MANDATORY): if the Orchestrator patched governance or rejected readiness, perform only the bounded repair requested, or stop cleanly for fresh-session relaunch.`

@@ -578,6 +578,7 @@ Legacy flat compatibility:
   - wide-scope external research for the tool, technology, or intent
   - semantic / intent search across GitHub and Hugging Face for better executions, better practices, and adjacent implementations
   - feed what matters back into the spec first, then the WP
+- For internal repo-governed changes or product-governance mirror patches already anchored in the current Master Spec plus local code/runtime truth, it is valid and often preferable to keep the research pass local-first and mark external research `NOT_APPLICABLE`. Do not perform empty, generic, or off-topic web searches just to satisfy the refinement headings.
 - Maintain the end-of-file primitive coverage surfaces during refinement / enrichment:
   - the primitive index
   - the primitive / tool / technology matrix
