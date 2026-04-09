@@ -13,6 +13,7 @@ import { checkAllNotifications, checkNotifications } from "../../../roles_shared
 import { evaluateWpCommunicationBoundary, evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import { steerActionForSession } from "./lib/orchestrator-steer-lib.mjs";
+import { activationReadinessRequiresActivationManager } from "./lib/workflow-lane-guidance-lib.mjs";
 import {
   buildRelayDispatchPrompt,
   deriveRelayEnvelope,
@@ -31,7 +32,7 @@ const requestedModel = (() => {
   }
   return "PRIMARY";
 })();
-const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const ACTIVE_ROLE_SET = new Set(["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const sessionControlEnv = {
   ...process.env,
   ...(debugMode ? { HANDSHAKE_SESSION_CONTROL_DEBUG: "1" } : {}),
@@ -134,7 +135,10 @@ if (communicationEvaluation.applicable && !boundaryEvaluation.ok) {
   fail("Runtime route drift prevents mechanical relay", boundaryEvaluation.issues);
 }
 
-const nextActor = normalizeRole(runtimeStatus.next_expected_actor);
+const activationGate = activationReadinessRequiresActivationManager(wpId);
+const nextActor = activationGate.requiresActivationManager
+  ? "ACTIVATION_MANAGER"
+  : normalizeRole(runtimeStatus.next_expected_actor);
 if (!ACTIVE_ROLE_SET.has(nextActor)) {
   fail("No governed next actor is currently projected for automatic relay", [
     `next_expected_actor=${runtimeStatus.next_expected_actor || "<missing>"}`,
@@ -161,27 +165,42 @@ if (!roleConfig) {
 
 const commandScript = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
 const action = steerActionForSession(governedSession);
-const nextSession = preferredTargetSession(runtimeStatus, governedSession);
-const targetNotifications = checkNotifications({ wpId, role: nextActor, session: nextSession });
-const envelope = deriveRelayEnvelope({
-  wpId,
-  runtimeStatus,
-  nextActor,
-  targetSession: nextSession,
-  notifications: targetNotifications,
-  dispatchAction: action,
-});
-const prompt = buildRelayDispatchPrompt({
-  basePrompt: buildSteeringPrompt({ role: nextActor, wpId, roleConfig }),
-  envelope,
-  contextLabel: "GOVERNED_ROUTE_CONTEXT [CX-ROUTE-001]",
-  messageLabel: "DIRECT_ROLE_MESSAGE [CX-ROUTE-002]",
-  terminalInstructions: [
-    "Treat DIRECT_ROLE_MESSAGE as the current receipt/notification-derived payload for WORKFLOW_LANE=ORCHESTRATOR_MANAGED.",
-    "Do not rediscover the relay type from scratch before acting; use RELAY_KIND and SOURCE_KIND as the current route context.",
-    `If you emit a paired acknowledgement, question, or response, preserve correlation_id=${envelope.correlationId} when applicable.`,
-  ],
-});
+const nextSession = nextActor === "ACTIVATION_MANAGER"
+  ? sessionKey("ACTIVATION_MANAGER", wpId)
+  : preferredTargetSession(runtimeStatus, governedSession);
+let envelope = null;
+let prompt = "";
+if (nextActor === "ACTIVATION_MANAGER") {
+  prompt = [
+    buildSteeringPrompt({ role: nextActor, wpId, roleConfig }),
+    "ACTIVATION_GATE_OVERRIDE [CX-ACT-OVERRIDE-001]",
+    `- ACTIVATION_READINESS_PATH: ${activationGate.readiness.path}`,
+    `- ACTIVATION_READINESS_VERDICT: ${activationGate.readiness.verdict}`,
+    "- REASON: Downstream governed lanes remain blocked until Activation Manager writes truthful readiness for the signed packet/worktree state.",
+    "- REQUIRED_NOW: refresh packet/worktree/backup/readiness artifacts for the current signed packet and write/update ACTIVATION_READINESS before any coder or validator launch.",
+  ].join("\n");
+} else {
+  const targetNotifications = checkNotifications({ wpId, role: nextActor, session: nextSession });
+  envelope = deriveRelayEnvelope({
+    wpId,
+    runtimeStatus,
+    nextActor,
+    targetSession: nextSession,
+    notifications: targetNotifications,
+    dispatchAction: action,
+  });
+  prompt = buildRelayDispatchPrompt({
+    basePrompt: buildSteeringPrompt({ role: nextActor, wpId, roleConfig }),
+    envelope,
+    contextLabel: "GOVERNED_ROUTE_CONTEXT [CX-ROUTE-001]",
+    messageLabel: "DIRECT_ROLE_MESSAGE [CX-ROUTE-002]",
+    terminalInstructions: [
+      "Treat DIRECT_ROLE_MESSAGE as the current receipt/notification-derived payload for WORKFLOW_LANE=ORCHESTRATOR_MANAGED.",
+      "Do not rediscover the relay type from scratch before acting; use RELAY_KIND and SOURCE_KIND as the current route context.",
+      `If you emit a paired acknowledgement, question, or response, preserve correlation_id=${envelope.correlationId} when applicable.`,
+    ],
+  });
+}
 
 console.log(`[ORCHESTRATOR_STEER_NEXT] wp_id=${wpId}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] next_actor=${nextActor}`);
@@ -191,11 +210,17 @@ console.log(`[ORCHESTRATOR_STEER_NEXT] relay_status=${relayEscalation.status}`);
 if (relayEscalation.status !== "NOT_APPLICABLE") {
   console.log(`[ORCHESTRATOR_STEER_NEXT] relay_summary=${relayEscalation.summary}`);
 }
+if (nextActor === "ACTIVATION_MANAGER") {
+  console.log(`[ORCHESTRATOR_STEER_NEXT] activation_readiness_verdict=${activationGate.readiness.verdict}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] activation_readiness_path=${activationGate.readiness.path}`);
+}
 console.log(`[ORCHESTRATOR_STEER_NEXT] action=${action}`);
-console.log(`[ORCHESTRATOR_STEER_NEXT] relay_kind=${envelope.relayKind}`);
-console.log(`[ORCHESTRATOR_STEER_NEXT] source_kind=${envelope.sourceKind}`);
-console.log("DIRECT_ROLE_MESSAGE [CX-ROUTE-002]");
-console.log(`- ${envelope.message}`);
+if (envelope) {
+  console.log(`[ORCHESTRATOR_STEER_NEXT] relay_kind=${envelope.relayKind}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] source_kind=${envelope.sourceKind}`);
+  console.log("DIRECT_ROLE_MESSAGE [CX-ROUTE-002]");
+  console.log(`- ${envelope.message}`);
+}
 
 if (action === "START_SESSION") {
   execFileSync(process.execPath, [commandScript, "START_SESSION", nextActor, wpId, "", requestedModel], {

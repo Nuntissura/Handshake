@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  activationReadinessRequiresActivationManager,
   activationReadinessArtifactPath,
   buildActivationManagerLaunchCommands,
   buildDownstreamGovernedLaunchCommands,
@@ -61,4 +62,12 @@ test("workflow lane guidance keeps orchestrator-managed launch on Activation Man
     `just launch-wp-validator-session ${wpId}`,
     `just session-registry-status ${wpId}`,
   ]);
+});
+
+test("missing activation readiness keeps downstream launch blocked on Activation Manager", () => {
+  const wpId = "WP-TEST-MISSING-ACTIVATION-READINESS-v1";
+  const gate = activationReadinessRequiresActivationManager(wpId);
+  assert.equal(gate.readiness.exists, false);
+  assert.equal(gate.readiness.verdict, "<missing>");
+  assert.equal(gate.requiresActivationManager, true);
 });
