@@ -446,37 +446,44 @@ ensure-wp-communications wp-id:
 wp-communications-check:
 	@node "{{GOV_ROOT}}/roles_shared/checks/wp-communications-check.mjs"
 
-wp-communication-health-check wp-id stage='STATUS':
-	@node "{{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs" {{wp-id}} {{stage}}
+wp-communication-health-check wp-id stage="STATUS" role="" session="":
+	@node "{{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs" {{wp-id}} {{stage}} {{role}} "{{session}}"
 
 wp-thread-append wp-id actor-role actor-session message target='' target-role='' target-session='' correlation-id='' requires-ack='false' ack-for='' spec-anchor='' packet-row-ref='':
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-thread-append.mjs" {{wp-id}} {{actor-role}} {{actor-session}} "{{message}}" "{{target}}" "{{target-role}}" "{{target-session}}" "{{correlation-id}}" {{requires-ack}} "{{ack-for}}" "{{spec-anchor}}" "{{packet-row-ref}}"
 
-# Check pending notifications for a role on a WP (or all roles with --all)
-check-notifications wp-id role='' *args='':
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs" {{wp-id}} {{role}} {{args}}
-
-# Acknowledge pending notifications for a role on a WP (advances cursor)
-ack-notifications wp-id role session='':
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs" {{wp-id}} {{role}} --ack --session={{session}}
-
 wp-receipt-append wp-id actor-role actor-session receipt-kind summary state-before='' state-after='' target-role='' target-session='' correlation-id='' requires-ack='false' ack-for='' spec-anchor='' packet-row-ref='':
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-receipt-append.mjs" {{wp-id}} {{actor-role}} {{actor-session}} {{receipt-kind}} "{{summary}}" "{{state-before}}" "{{state-after}}" "{{target-role}}" "{{target-session}}" "{{correlation-id}}" {{requires-ack}} "{{ack-for}}" "{{spec-anchor}}" "{{packet-row-ref}}"
+
+wp-invalidity-flag wp-id actor_role actor_session invalidity_code summary spec_anchor="" packet_row_ref="":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-invalidity-flag.mjs" {{wp-id}} {{actor_role}} {{actor_session}} {{invalidity_code}} "{{summary}}" "{{spec_anchor}}" "{{packet_row_ref}}"
+
+wp-operator-rule-restatement wp-id actor_role actor_session summary spec_anchor="" packet_row_ref="":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-operator-rule-restatement.mjs" {{wp-id}} {{actor_role}} {{actor_session}} "{{summary}}" "{{spec_anchor}}" "{{packet_row_ref}}"
+
+wp-review-exchange receipt_kind wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" {{receipt_kind}} {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
 
 wp-heartbeat wp-id actor-role actor-session current-phase runtime-status next-expected-actor waiting-on validator-trigger='NONE' last-event='' worktree-dir='' next-expected-session='' waiting-on-session='':
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-heartbeat.mjs" {{wp-id}} {{actor-role}} {{actor-session}} {{current-phase}} {{runtime-status}} {{next-expected-actor}} "{{waiting-on}}" {{validator-trigger}} "{{last-event}}" "{{worktree-dir}}" "{{next-expected-session}}" "{{waiting-on-session}}"
 
-wp-validator-kickoff wp-id actor-session target-session summary correlation-id='' spec-anchor='' packet-row-ref='':
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_KICKOFF {{wp-id}} WP_VALIDATOR {{actor-session}} CODER "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}"
+wp-spec-gap wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" microtask_json="":
+	@just wp-review-exchange SPEC_GAP {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
 
-wp-coder-intent wp-id actor-session target-session summary correlation-id spec-anchor='' packet-row-ref='' ack-for='':
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" CODER_INTENT {{wp-id}} CODER {{actor-session}} WP_VALIDATOR "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}" "{{ack-for}}"
+wp-spec-confirmation wp-id actor_role actor_session target_role target_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
+	@just wp-review-exchange SPEC_CONFIRMATION {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
 
-wp-coder-handoff wp-id actor-session target-session summary correlation-id='' spec-anchor='' packet-row-ref='':
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" CODER_HANDOFF {{wp-id}} CODER {{actor-session}} WP_VALIDATOR "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}"
+wp-validator-kickoff wp-id actor_session coder_session summary spec_anchor="" packet_row_ref="" microtask_json="":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_KICKOFF {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
 
-wp-validator-review wp-id actor-session target-session summary correlation-id spec-anchor='' packet-row-ref='' ack-for='':
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_REVIEW {{wp-id}} WP_VALIDATOR {{actor-session}} CODER "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}" "{{ack-for}}"
+wp-coder-intent wp-id actor_session validator_session summary correlation_id spec_anchor="" packet_row_ref="" microtask_json="":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" CODER_INTENT {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
+
+wp-coder-handoff wp-id actor_session validator_session summary correlation_id="" spec_anchor="" packet_row_ref="" microtask_json="":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" CODER_HANDOFF {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
+
+wp-validator-review wp-id actor_session coder_session summary correlation_id spec_anchor="" packet_row_ref="" microtask_json="":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_REVIEW {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
 
 wp-validator-query wp-id actor-role actor-session target-session summary correlation-id='' spec-anchor='' packet-row-ref='':
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_QUERY {{wp-id}} {{actor-role}} {{actor-session}} WP_VALIDATOR "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}"
@@ -490,11 +497,16 @@ wp-review-request wp-id actor-role actor-session target-role target-session summ
 wp-review-response wp-id actor-role actor-session target-role target-session summary correlation-id spec-anchor='' packet-row-ref='' ack-for='':
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" REVIEW_RESPONSE {{wp-id}} {{actor-role}} {{actor-session}} {{target-role}} "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}" "{{ack-for}}"
 
-wp-spec-gap wp-id actor-role actor-session target-role target-session summary correlation-id='' spec-anchor='' packet-row-ref='':
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" SPEC_GAP {{wp-id}} {{actor-role}} {{actor-session}} {{target-role}} "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}"
+phase-check phase wp-id role="" session="" *args:
+	@node "{{GOV_ROOT}}/roles_shared/checks/phase-check.mjs" {{phase}} {{wp-id}} {{role}} "{{session}}" {{args}}
 
-wp-spec-confirmation wp-id actor-role actor-session target-role target-session summary correlation-id spec-anchor='' packet-row-ref='' ack-for='':
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" SPEC_CONFIRMATION {{wp-id}} {{actor-role}} {{actor-session}} {{target-role}} "{{target-session}}" "{{summary}}" "{{correlation-id}}" "{{spec-anchor}}" "{{packet-row-ref}}" "{{ack-for}}"
+# Check pending notifications for a role on a WP (or all roles with --all)
+check-notifications wp-id role="" session="":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs" {{wp-id}} {{role}} "{{session}}"
+
+# Acknowledge pending notifications for a role on a WP (advances cursor)
+ack-notifications wp-id role session:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs" {{wp-id}} {{role}} --ack --session={{session}}
 
 operator-monitor *args:
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/operator-monitor-tui.mjs" {{args}}
