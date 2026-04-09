@@ -435,6 +435,8 @@ install-validator-guard wp-id:
 wp-lane-health wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-lane-health.mjs" {{wp-id}}
 
+wp-relay-watchdog wp-id="" *FLAGS:
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/wp-relay-watchdog.mjs" {{wp-id}} {{FLAGS}}
 # DEPRECATED: legacy failure-memory commands — redirect to governance memory DB.
 # Prefer: just memory-capture procedural "<fix>" --scope "<file>" --wp WP-{ID}
 # Prefer: just memory-search "<query>"

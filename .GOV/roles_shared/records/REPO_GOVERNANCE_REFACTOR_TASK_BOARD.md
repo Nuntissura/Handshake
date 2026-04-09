@@ -224,8 +224,10 @@
 | RGF-163 | DONE | Visible Memory Injection And Bounded Startup Restore | RGF-125, RGF-128, RGF-147, RGF-161 | `AUDIT-20260409-VISIBLE-MEMORY-INJECTION-AND-STARTUP-BOUNDS` | `roles_shared/scripts/memory/memory-recall.mjs`, `roles_shared/scripts/session/session-control-lib.mjs`, `roles_shared/tests/memory-recall.test.mjs`, `roles_shared/tests/session-control-lib.test.mjs`, governance records | governed recall now emits `MEMORY_INJECTION_APPLIED` audit output with counts and top memory ids/topics, and governed startup prompts once again receive a bounded fail/context injection block instead of silently dropping startup memory entirely |
 | RGF-164 | DONE | Memory Manager Mechanical Conservatism | RGF-132 | `AUDIT-20260409-MEMORY-MANAGER-MECHANICAL-CONSERVATISM` | `roles/memory_manager/scripts/launch-memory-manager.mjs`, `roles/memory_manager/scripts/memory-manager-policy.mjs`, `roles/memory_manager/tests/memory-manager-policy.test.mjs`, `roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`, governance records | the automatic Memory Manager pre-pass now uses soft decay only and reports stale, contradictory, and age-consolidation candidates instead of making destructive judgment calls during startup/closeout hygiene runs |
 
-## Refactor Sequence (Historical)
+| RGF-166 | IN_PROGRESS | Non-LLM Relay Watchdog and Safe Re-Steer Loop | RGF-27, RGF-64, RGF-162, RGF-163 | 2026-04-09 operator directive on autonomous orchestrator-managed flow speed and babysitting removal during `WP-1-Governance-Workflow-Mirror-v1` | `roles/orchestrator/scripts/wp-relay-watchdog.mjs`, `roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`, `roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`, `roles_shared/scripts/lib/wp-relay-escalation-lib.mjs`, `roles_shared/scripts/session/session-stall-scan.mjs`, `justfile`, command/docs surfaces | a local non-LLM watchdog can scan one or more orchestrator-managed WPs, consume receipt/notification/relay-escalation truth, and mechanically re-steer the projected target only when the lane is stale and the target session is not already running; active runs are inspected conservatively and reported as stalled rather than being killed by default |
+| RGF-167 | READY | Autonomous Relay Repair Ladder and Watcher Service Hardening | RGF-162, RGF-166 | 2026-04-09 operator directive on over-engineering autonomous lane safety so stalls and blockers are caught early without screen babysitting | `roles/orchestrator/scripts/wp-relay-watchdog.mjs`, `roles_shared/scripts/session/handshake-acp-client.mjs`, `roles_shared/scripts/session/session-control-self-settle-lib.mjs`, `roles_shared/scripts/lib/wp-communications-lib.mjs`, `roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`, `roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` | governed relay watching grows into a deterministic repair ladder with bounded re-steer/cancel/restart policy, relay-cycle accounting, safe active-run freshness checks, and an optional long-running watcher mode so coder and validator stalls become machine-repaired or escalated before the operator notices them |
 
+## Refactor Sequence (Historical)
 1. `RGR-01`
 2. `RGR-02`
 3. `RGR-03`
@@ -295,7 +297,9 @@
 
 1. `RGF-162`
 2. `RGF-163`
-3. If further physical reduction is desired, rehome the internal `roles/validator/scripts/integration-validator-closeout-sync.mjs` implementation into a phase-owned library/module so the CLOSEOUT writer file itself can become archiveable later.
+3. `RGF-166`
+4. `RGF-167`
+5. If further physical reduction is desired, rehome the internal `roles/validator/scripts/integration-validator-closeout-sync.mjs` implementation into a phase-owned library/module so the CLOSEOUT writer file itself can become archiveable later.
 
 ## Explicit Holds
 

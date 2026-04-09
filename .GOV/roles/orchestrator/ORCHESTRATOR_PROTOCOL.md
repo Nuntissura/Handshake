@@ -449,6 +449,7 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just wp-heartbeat ...` is liveness-only. The route fields are assertions against current runtime truth; use receipts, notifications, or closeout projection to change next-actor routing.
 - `just session-registry-status WP-{ID}` now also surfaces derived stalled-relay state; when that state is `ESCALATED`, use `just orchestrator-steer-next WP-{ID} "<context>"` instead of waiting silently.
 - `just orchestrator-steer-next WP-{ID} "<context>"` must behave as a one-hop wakeup: if the projected target session is not running yet, start it and then immediately inject the typed route payload (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) in the same invocation.
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer]` is the mechanical non-LLM watcher for orchestrator-managed lanes. It may re-steer a stale projected lane when the target session is not already running, but it must not kill active runs by default; active runs are inspected conservatively and only reported as stalled until the explicit repair ladder is implemented.
 - `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - `just wp-validator-query WP-{ID} CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
 - `just wp-validator-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
@@ -457,6 +458,7 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just operator-viewport` (`just operator-monitor` remains a compatibility alias)
 - `just send-mt WP-{ID} MT-001 "description" [PRIMARY|FALLBACK]` — auto-includes session keys, wp-review-request command, and STOP instruction
 - `just wp-lane-health WP-{ID}` — single-command diagnostic: session states, hook status, MT progress, notification queue, stall detection
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer]` — non-LLM relay watcher and safe re-wake helper for orchestrator-managed lanes
 - `just install-mt-hook WP-{ID}` — installs post-commit hook for auto-relay (auto-installed by orchestrator-prepare-and-packet)
 - `just wp-closeout-format WP-{ID} <MERGED_MAIN_COMMIT>` — automates packet status, containment fields, verdict, and clause closure matrix updates
 - `just coder-worktree-add WP-{ID}`

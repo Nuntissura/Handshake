@@ -1870,3 +1870,25 @@
 - FOLLOW_ON_ITEMS:
   - `NONE`
 - OUTCOME: automatic startup/closeout hygiene now performs soft decay and deterministic repair only, while stale, contradictory, and old low-value memories are surfaced as report-only candidates for the intelligent Memory Manager review instead of being auto-pruned or auto-consolidated
+### 2026.04.09.6 / GOV-CHANGE-20260409-06
+
+- STATUS: APPLIED
+- SUMMARY: opened `RGF-166` / `RGF-167` and implemented the first non-LLM relay watchdog slice for orchestrator-managed lanes
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-166`
+  - `RGF-167`
+  - 2026-04-09 operator directive on token-efficient autonomous relay watching, early stall capture, and removing screen babysitting from orchestrator-managed flow
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `justfile`
+- FOLLOW_ON_ITEMS:
+  - `RGF-166`
+  - `RGF-167`
+- OUTCOME: governance now has a public `just wp-relay-watchdog` command that consumes the existing receipt/notification/relay-escalation truth and safely re-steers only when the projected target is not already running; active runs are inspected with the existing stall scanner and reported conservatively as stalled rather than being killed by default, which establishes the mechanical watcher boundary for a later bounded repair ladder
