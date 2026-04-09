@@ -263,9 +263,28 @@ export function assertRoleLaunchProfileSupported({
 }
 
 const SESSION_MEMORY_TOKEN_BUDGET = 1500;
+const STARTUP_MEMORY_PROMPT_TOKEN_BUDGET = 220;
+const STARTUP_MEMORY_PROMPT_MAX_LINES = 8;
+const STARTUP_CONVERSATION_PROMPT_TOKEN_BUDGET = 120;
+const STARTUP_CONVERSATION_PROMPT_MAX_LINES = 4;
 
 function estimateTokens(text) {
   return Math.ceil(String(text || "").length / 4);
+}
+
+export function boundPromptLines(lines, { tokenBudget = 200, maxLines = 6 } = {}) {
+  const selected = [];
+  let usedTokens = 0;
+  for (const rawLine of Array.isArray(lines) ? lines : []) {
+    const line = String(rawLine || "").trimEnd();
+    if (!line) continue;
+    if (selected.length >= maxLines) break;
+    const lineTokens = estimateTokens(line);
+    if (usedTokens + lineTokens > tokenBudget) break;
+    usedTokens += lineTokens;
+    selected.push(line);
+  }
+  return selected;
 }
 
 // Role-scoped type filters: coder gets fail log only, validator adds context, orchestrator gets everything
@@ -666,6 +685,40 @@ function loadConversationContext() {
   } catch { return []; }
 }
 
+export function buildStartupInjectionLines({
+  role = "",
+  wpId = "",
+  startupMemoryLines = null,
+  conversationContextLines = null,
+} = {}) {
+  const resolvedStartupMemoryLines = startupMemoryLines ?? boundPromptLines(
+    role === "ORCHESTRATOR"
+      ? loadOrchestratorMemoryLines()
+      : loadSessionMemoryLines(wpId, { role, tokenBudget: STARTUP_MEMORY_PROMPT_TOKEN_BUDGET }),
+    {
+      tokenBudget: STARTUP_MEMORY_PROMPT_TOKEN_BUDGET,
+      maxLines: STARTUP_MEMORY_PROMPT_MAX_LINES,
+    },
+  );
+  const resolvedConversationLines = conversationContextLines ?? boundPromptLines(
+    loadConversationContext(),
+    {
+      tokenBudget: STARTUP_CONVERSATION_PROMPT_TOKEN_BUDGET,
+      maxLines: STARTUP_CONVERSATION_PROMPT_MAX_LINES,
+    },
+  );
+
+  if (resolvedStartupMemoryLines.length === 0 && resolvedConversationLines.length === 0) {
+    return [];
+  }
+
+  return [
+    "MEMORY INJECTION (BOUNDED): recent fail/context lines are included below to reduce repeated mistakes. Treat them as hints; packet, code, and live runtime truth win.",
+    ...resolvedStartupMemoryLines,
+    ...resolvedConversationLines,
+  ];
+}
+
 export function buildStartupPrompt({
   role,
   wpId,
@@ -673,6 +726,8 @@ export function buildStartupPrompt({
   selectedModel,
   selectedProfileId = "",
   selectedProfile = null,
+  startupMemoryLines = null,
+  conversationContextLines = null,
 }) {
   const authorityPacketPath = workPacketPath(wpId);
   const isClaudeCodeProfile = selectedProfile && selectedProfile.provider === "ANTHROPIC";
@@ -721,7 +776,11 @@ export function buildStartupPrompt({
       `STUB DISCOVERY RULE (HARD): when refinement, enrichment, primitive-index upkeep, or matrix expansion exposes new high-ROI items or unknown capabilities, create or update stub backlog entries instead of silently dropping them.`,
       `MODEL PROFILE RULE: Activation Manager launch defaults to the governed repo profile when packet fields are absent because this lane may run before packet hydration is complete.`,
       `COMMAND SURFACE RULE: use the activation-prefixed refinement/signature/packet-prep commands. They intentionally reuse live Orchestrator implementation surfaces; that shared implementation does not change authority ownership.`,
-      `HANDOFF CHUNKING RULE (HARD): when sending refinement or spec-enrichment text back to the Orchestrator, split it into bounded chunks. Safe default: 4 blocks. Never paste the whole refinement in one message.`,
+      `FILE-FIRST HANDOFF RULE (HARD): write the refinement/spec artifact, run the checks on that file, and return only the file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text by default.`,
+      `REFINEMENT_HANDOFF_SUMMARY (HARD): include REFINEMENT_PATH, REFINEMENT_CHECK, ENRICHMENT_NEEDED, NEW_STUBS_CREATED_OR_UPDATED, NEW_FEATURES_OR_CAPABILITIES_DISCOVERED, MAJOR_TECH_UPGRADE_ADVICE, REVIEW_FOCUS, and NEXT_ORCHESTRATOR_ACTION.`,
+      `REFINEMENT_CHECK RULE (HARD): REFINEMENT_CHECK must come from the real refinement checker on the written file. Placeholder scans, ASCII-only scans, and diff sanity checks do not count as pass truth by themselves.`,
+      `UPGRADE DISCIPLINE (HARD): only surface MAJOR_TECH_UPGRADE_ADVICE when the refinement found a material implementation upgrade with clear ROI. Do not recommend replacing entrenched integrated technologies or techniques for marginal gains.`,
+      `EXCERPT FALLBACK RULE (HARD): only if the Orchestrator explicitly requests sections or anchors should you paste excerpts back, and then only in bounded chunks. Safe default: 4 blocks.`,
       `SIGNATURE ROUND-TRIP (MANDATORY): once the refinement/spec bundle is review-ready, stop and ask the Orchestrator for operator approval evidence, the one-time signature, and the selected Coder-A..Z owner. After the Orchestrator returns that bundle, continue packet, microtask, worktree, backup, and readiness work.`,
       `PRIMARY ARTIFACT (MANDATORY): before asking the Orchestrator to continue, write or refresh \`just activation-manager readiness ${wpId} --write\` and treat the resulting \`ACTIVATION_READINESS\` block as the handoff truth.`,
       `REPAIR LOOP (MANDATORY): if the Orchestrator patches a governance bug or rejects readiness, apply only the bounded remediation requested. If the Orchestrator relaunches you fresh, accept the fresh session instead of forcing stale-context continuation.`,
@@ -818,10 +877,12 @@ export function buildStartupPrompt({
     ];
   }
 
-  // Memory is written to the governance DB during orchestrator work (repomem).
-  // Coder/validator sessions do not need memory injection — they have the packet,
-  // refinement, and governed startup commands. Injecting memory bloats the prompt
-  // past the Windows cmd.exe 8191-char command-line limit.
+  const startupInjectionLines = buildStartupInjectionLines({
+    role,
+    wpId,
+    startupMemoryLines,
+    conversationContextLines,
+  });
 
   const startupCommands = [
     roleConfig.startupCommand,
@@ -837,7 +898,7 @@ export function buildStartupPrompt({
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
   ];
 
-  return [...commonLines, ...roleLines, ...bootLines].join("\n");
+  return [...commonLines, ...roleLines, ...startupInjectionLines, ...bootLines].join("\n");
 }
 
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
@@ -875,7 +936,19 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       ? `WORKFLOW SPLIT (MANDATORY): in orchestrator-managed workflow you are the mandatory temporary pre-launch worker and governed pre-launch authoring lane; in manual workflow, pre-launch remains Orchestrator-owned. Do not convert this role into a second manual authority lane.`
       : null,
     role === "ACTIVATION_MANAGER"
-      ? `HANDOFF CHUNKING RULE (HARD): return long refinement or spec-enrichment text to the Orchestrator in bounded chunks. Safe default: 4 blocks; never one oversized paste.`
+      ? `FILE-FIRST HANDOFF RULE (HARD): return the written refinement/spec file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text unless the Orchestrator explicitly requests excerpts.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `REFINEMENT_HANDOFF_SUMMARY (HARD): include REFINEMENT_PATH, REFINEMENT_CHECK, ENRICHMENT_NEEDED, NEW_STUBS_CREATED_OR_UPDATED, NEW_FEATURES_OR_CAPABILITIES_DISCOVERED, MAJOR_TECH_UPGRADE_ADVICE, REVIEW_FOCUS, and NEXT_ORCHESTRATOR_ACTION.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `REFINEMENT_CHECK RULE (HARD): REFINEMENT_CHECK must come from the real refinement checker on the written file. Placeholder scans, ASCII-only scans, and diff sanity checks do not count as pass truth by themselves.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `UPGRADE DISCIPLINE (HARD): report MAJOR_TECH_UPGRADE_ADVICE only when the refinement found a material implementation upgrade with clear ROI. Do not recommend replacing entrenched integrated technologies or techniques for marginal gains.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `EXCERPT FALLBACK RULE (HARD): if excerpts are explicitly requested, return only the requested sections or anchors in bounded chunks. Safe default: 4 blocks.`
       : null,
     role === "ACTIVATION_MANAGER"
       ? `RESEARCH APPLICABILITY RULE (HARD): when the WP is an internal or product-governance mirror change already anchored in current spec plus local code/runtime truth, keep research local-first and mark external research NOT_APPLICABLE if that is the honest answer. Do not wander into off-topic web searches.`

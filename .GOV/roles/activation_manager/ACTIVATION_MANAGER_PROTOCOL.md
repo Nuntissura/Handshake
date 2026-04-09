@@ -48,10 +48,21 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 ## Orchestrator-Managed Handback Loop (HARD)
 
 1. Author or repair the refinement/spec-enrichment bundle to review-ready quality.
-2. Hand that bundle back to the Orchestrator for review. If the refinement or spec-enrichment text is long, send it in bounded chunks. Safe default: 4 chunks. Never paste the whole refinement in one block.
-3. Stop and wait for the Orchestrator to return operator approval evidence, the one-time signature, and the selected `Coder-A..Coder-Z` execution owner.
-4. Record the returned signature/workflow tuple/execution owner and continue packet, microtask, worktree, backup-branch, and readiness preparation.
-5. Emit one truthful `ACTIVATION_READINESS` block and self-close.
+2. Write the refinement/spec-enrichment file, run the real refinement/spec checks on that file, and hand back only the file path plus one bounded summary block. File-first handoff is the default. Do not paste the full refinement or spec-enrichment text into chat by default.
+3. The summary block MUST be compact and review-oriented. Include at least:
+   - `REFINEMENT_PATH`
+- `REFINEMENT_CHECK` (`PASS` or `FAIL`) from the real refinement checker, not from placeholder-scan or ASCII-only sanity checks
+   - `ENRICHMENT_NEEDED` (`YES` or `NO`)
+   - `NEW_STUBS_CREATED_OR_UPDATED`
+   - `NEW_FEATURES_OR_CAPABILITIES_DISCOVERED`
+   - `MAJOR_TECH_UPGRADE_ADVICE`
+   - `REVIEW_FOCUS`
+   - `NEXT_ORCHESTRATOR_ACTION`
+4. `MAJOR_TECH_UPGRADE_ADVICE` is high-bar only. Report `NONE` unless the refinement found a material implementation upgrade with clear ROI. Do not recommend replacing entrenched integrated technologies or techniques for marginal gains when dependency churn would outweigh the benefit.
+5. Only if the Orchestrator explicitly requests excerpts should the Activation Manager paste refinement/spec text back into chat. In that fallback path, send only the requested sections or anchors in bounded chunks. Safe default: 4 chunks.
+6. Stop and wait for the Orchestrator to return operator approval evidence, the one-time signature, and the selected `Coder-A..Coder-Z` execution owner.
+7. Record the returned signature/workflow tuple/execution owner and continue packet, microtask, worktree, backup-branch, and readiness preparation.
+8. Emit one truthful `ACTIVATION_READINESS` block and self-close.
 
 ## Repair Return And Relaunch
 
@@ -97,11 +108,34 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 1. Receive WP context from the Orchestrator.
 2. Author or repair refinement to the full research/index/matrix quality bar.
 3. If refinement requires enrichment, perform the approved spec-enrichment work, maintain appendix/index/matrix follow-through, and create any newly required stubs.
-4. Hand the refinement/spec-enrichment bundle back to the Orchestrator in bounded chunks for review and signature collection.
+4. Hand the written refinement/spec-enrichment file back to the Orchestrator with one bounded `REFINEMENT_HANDOFF_SUMMARY` block for review and signature collection. Do not paste the full text unless excerpts are explicitly requested.
 5. Record signature evidence after the Orchestrator returns operator approval evidence, one-time signature, workflow lane, and execution owner.
 6. Hydrate packet, microtasks, worktree, backup-branch, and preparation artifacts.
 7. Run the mechanical activation-readiness pass, including declared-topology and governance-document health checks.
 8. Emit `ACTIVATION_READINESS` for the Orchestrator and stop.
+
+## Refinement Handoff Summary Contract
+
+The default pre-signature handoff from Activation Manager to Orchestrator is:
+
+```text
+REFINEMENT_HANDOFF_SUMMARY
+- WP_ID: <WP-{ID}>
+- REFINEMENT_PATH: <repo-relative path>
+- REFINEMENT_CHECK: PASS | FAIL
+- ENRICHMENT_NEEDED: YES | NO
+- NEW_STUBS_CREATED_OR_UPDATED: <WP ids | NONE>
+- NEW_FEATURES_OR_CAPABILITIES_DISCOVERED: <high-signal list | NONE>
+- MAJOR_TECH_UPGRADE_ADVICE: <high-ROI implementation upgrade only | NONE>
+- REVIEW_FOCUS: <specific sections/risks for Orchestrator inspection>
+- NEXT_ORCHESTRATOR_ACTION: <single explicit next action>
+```
+
+- The summary exists to keep refinement review token-light while preserving decision quality.
+- The summary should point the Orchestrator at the file and the exact review focus instead of reproducing the file contents.
+- Placeholder scans, ASCII checks, and diff sanity checks are useful secondary checks, but they do not replace the real refinement checker.
+- If `ENRICHMENT_NEEDED=YES`, say so plainly in the summary and keep packet/signature flow blocked until the spec update is handled.
+- If excerpts are requested, return only the requested sections or anchors, not the whole file.
 
 ## Activation Readiness Contract
 

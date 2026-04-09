@@ -835,13 +835,21 @@ test("overlap microtask review requests do not block coder progression while bac
   });
 
   const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
   assert.equal(evaluation.state, "COMM_WAITING_FOR_HANDOFF");
   assert.equal(evaluation.counts.overlapOpenReviewItems, 1);
   assert.equal(evaluation.counts.blockingOpenReviewItems, 0);
+  assert.equal(route.nextExpectedActor, "WP_VALIDATOR");
+  assert.equal(route.waitingOn, "WP_VALIDATOR_MICROTASK_REVIEW");
+  assert.equal(route.validatorTrigger, "MICROTASK_REVIEW_READY");
 });
 
 test("overlap microtask review backlog becomes blocking once the bounded queue is exceeded", () => {
-  const overlapItems = ["micro-1", "micro-2", "micro-3"].map((id, index) => ({
+  const overlapItems = ["micro-1", "micro-2"].map((id, index) => ({
     correlation_id: id,
     receipt_kind: "REVIEW_REQUEST",
     summary: `Review ${id}`,
@@ -926,7 +934,7 @@ test("overlap microtask review backlog becomes blocking once the bounded queue i
 
   assert.equal(evaluation.state, "COMM_BLOCKED_OPEN_ITEMS");
   assert.match(evaluation.message, /bounded validator queue/i);
-  assert.match(evaluation.details.join("\n"), /overlap_backpressure_limit=2/);
+  assert.match(evaluation.details.join("\n"), /overlap_backpressure_limit=1/);
   assert.equal(route.nextExpectedActor, "WP_VALIDATOR");
 });
 

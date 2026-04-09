@@ -122,6 +122,30 @@ test("workflow invalidity projects packet truth into blocked state", () => {
   assert.match(nextPacketText, /workflow invalidity is active/i);
 });
 
+test("overlap microtask review projects validator-owned next action while implementation stays in progress", () => {
+  const projection = deriveWpReviewPacketProjection({
+    evaluation: {
+      applicable: true,
+      state: "COMM_WAITING_FOR_HANDOFF",
+      counts: {
+        overlapOpenReviewItems: 1,
+      },
+    },
+    autoRoute: {
+      nextExpectedActor: "WP_VALIDATOR",
+      waitingOn: "WP_VALIDATOR_MICROTASK_REVIEW",
+    },
+    packetText: packetFixture("In Progress"),
+  });
+
+  const nextPacketText = applyWpReviewPacketProjection(packetFixture("In Progress"), projection);
+
+  assert.equal(projection.packetStatus, "In Progress");
+  assert.equal(projection.taskBoardStatus, "IN_PROGRESS");
+  assert.match(nextPacketText, /previous microtask is awaiting WP validator overlap review/i);
+  assert.match(nextPacketText, /WP_VALIDATOR reviews the open overlap microtask item/i);
+});
+
 test("active review projection moves runtime out of stale bootstrap when remediation is required", () => {
   const runtime = applyWpReviewRuntimeProjection(
     {

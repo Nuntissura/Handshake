@@ -47,7 +47,11 @@ test("activation-manager startup prints the role startup brief", () => {
   assert.match(result.stdout, /just activation-manager prompt WP-\{ID\}/);
   assert.match(result.stdout, /ACTIVATION_MANAGER as the mandatory temporary pre-launch worker/i);
   assert.match(result.stdout, /REFINEMENT_STANDARD:/);
-  assert.match(result.stdout, /HANDOFF_CHUNKING_RULE:/);
+  assert.match(result.stdout, /HANDOFF_MODE:/);
+  assert.match(result.stdout, /EXCERPT_FALLBACK_RULE:/);
+  assert.match(result.stdout, /HANDOFF_SUMMARY_REQUIRED:/);
+  assert.match(result.stdout, /REFINEMENT_CHECK_RULE:/);
+  assert.match(result.stdout, /UPGRADE_DISCIPLINE:/);
 });
 
 test("activation-manager prompt and next produce WP-scoped guidance", () => {
@@ -59,7 +63,11 @@ test("activation-manager prompt and next produce WP-scoped guidance", () => {
   assert.match(promptResult.stdout, new RegExp(`WP_ID: ${wpId}`));
   assert.match(promptResult.stdout, /ROLE LOCK: You are the ACTIVATION_MANAGER\./);
   assert.match(promptResult.stdout, /REFINEMENT STANDARD:/);
-  assert.match(promptResult.stdout, /HANDOFF CHUNKING RULE:/);
+  assert.match(promptResult.stdout, /FILE-FIRST HANDOFF RULE:/);
+  assert.match(promptResult.stdout, /REFINEMENT_HANDOFF_SUMMARY REQUIRED FIELDS:/);
+  assert.match(promptResult.stdout, /REFINEMENT_CHECK RULE:/);
+  assert.match(promptResult.stdout, /UPGRADE DISCIPLINE:/);
+  assert.match(promptResult.stdout, /EXCERPT FALLBACK RULE:/);
   assert.match(promptResult.stdout, /SIGNATURE ROUND-TRIP:/);
 
   const nextResult = runCli(["next", wpId, "--json"]);

@@ -420,7 +420,11 @@ These mutate packet, board, traceability, or related governed surfaces.
   - role-local Activation Manager startup, prompt, state, and readiness surface
   - use this as the compact activation context digest; manual workflow still keeps pre-launch authority on the Orchestrator
   - Activation Manager refinement/enrichment quality must match or exceed the old Orchestrator pre-launch lane: research, primitive-index upkeep, matrix upkeep, appendix follow-through, and high-ROI stub discovery all remain mandatory
-  - when handing long refinement or spec-enrichment text back to the Orchestrator, chunk it; safe default is 4 blocks instead of one oversized paste
+  - default pre-signature handoff is file-first: return the written refinement/spec file path plus a compact `REFINEMENT_HANDOFF_SUMMARY`, not pasted full-text refinement blocks
+  - `REFINEMENT_HANDOFF_SUMMARY` must at least include `REFINEMENT_PATH`, `REFINEMENT_CHECK`, `ENRICHMENT_NEEDED`, `NEW_STUBS_CREATED_OR_UPDATED`, `NEW_FEATURES_OR_CAPABILITIES_DISCOVERED`, `MAJOR_TECH_UPGRADE_ADVICE`, `REVIEW_FOCUS`, and `NEXT_ORCHESTRATOR_ACTION`
+  - `REFINEMENT_CHECK` means the real refinement checker result on the written file; placeholder scan, ASCII-only scan, and diff sanity checks do not count as pass truth by themselves
+  - only if excerpts are explicitly requested should refinement/spec text be pasted back, and then only the requested sections/anchors in bounded chunks; safe default is 4 blocks
+  - only surface technology or implementation-technique replacement advice when it is a material upgrade; do not recommend swapping entrenched integrated technologies for small gains
 - `just activation-record-refinement WP-{ID}`
 - `just activation-record-signature WP-{ID} <signature> <workflow_lane> <execution_lane>`
 - `just activation-record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`

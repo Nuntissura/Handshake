@@ -414,6 +414,27 @@ function budgetEntries(entries, tokenState, maxCount, selectedIds) {
   return accepted;
 }
 
+function formatAuditTopic(entry, maxLength = 60) {
+  const topic = String(entry?.topic || "").replace(/\s+/g, " ").trim();
+  if (!topic) return "(untitled)";
+  return topic.length > maxLength ? `${topic.slice(0, maxLength - 3)}...` : topic;
+}
+
+export function buildRecallAuditLine({
+  triggerEntries = [],
+  roleEntries = [],
+  generalEntries = [],
+  triggerConversationEntries = [],
+  conversationEntries = [],
+} = {}) {
+  const memoryEntries = [...triggerEntries, ...roleEntries, ...generalEntries];
+  const topEntries = memoryEntries
+    .slice(0, 3)
+    .map((entry) => `#${entry.id} ${formatAuditTopic(entry)}`);
+
+  return `MEMORY_INJECTION_APPLIED: memory_entries=${memoryEntries.length} trigger_context=${triggerConversationEntries.length} prior_session=${conversationEntries.length} top=${topEntries.length > 0 ? topEntries.join(" | ") : "none"}`;
+}
+
 function printMemoryEntry(entry) {
   const content = entry.content || entry.summary || "";
   const typeTag = String(entry.memory_type || "").toUpperCase().slice(0, 4) || "MEM";
@@ -555,6 +576,13 @@ export function runRecall(action, flags = {}) {
       const budgetedTriggerEntries = budgetEntries(triggerEntries, memoryTokenState, 4, selectedIds);
       const budgetedRoleEntries = budgetEntries(roleEntries, memoryTokenState, 4, selectedIds);
       const budgetedGeneralEntries = budgetEntries(generalEntries, memoryTokenState, 12, selectedIds);
+      const auditLine = buildRecallAuditLine({
+        triggerEntries: budgetedTriggerEntries,
+        roleEntries: budgetedRoleEntries,
+        generalEntries: budgetedGeneralEntries,
+        triggerConversationEntries,
+        conversationEntries,
+      });
 
       if (
         budgetedTriggerEntries.length === 0
@@ -563,7 +591,14 @@ export function runRecall(action, flags = {}) {
         && triggerConversationEntries.length === 0
         && conversationEntries.length === 0
       ) {
-        console.log(`MEMORY_RECALL [${scope.label}]: no relevant memories found.`);
+        console.log(`MEMORY_RECALL [${scope.label}]`);
+        console.log(`  scope: ${scope.description}`);
+        if (wpId) console.log(`  wp: ${wpId}`);
+        if (context.primaryRole) console.log(`  role_hint: ${context.primaryRole}`);
+        if (context.primaryTrigger) console.log(`  trigger_hint: ${context.primaryTrigger}`);
+        console.log(`  ${auditLine}`);
+        console.log("");
+        console.log("  no relevant memories found.");
         return 0;
       }
 
@@ -573,6 +608,7 @@ export function runRecall(action, flags = {}) {
       if (wpId) console.log(`  wp: ${wpId}`);
       if (context.primaryRole) console.log(`  role_hint: ${context.primaryRole}`);
       if (context.primaryTrigger) console.log(`  trigger_hint: ${context.primaryTrigger}`);
+      console.log(`  ${auditLine}`);
       console.log("");
 
       if (budgetedTriggerEntries.length > 0) {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildRecallAuditLine,
   entryMatchesRoleContext,
   entryMatchesTriggerContext,
   resolveRecallContext,
@@ -80,4 +81,28 @@ test("scoreMemoryForRecall gives trigger-matched failures priority over generic 
   };
 
   assert.ok(scoreMemoryForRecall(triggerEntry, context) > scoreMemoryForRecall(genericEntry, context));
+});
+
+test("buildRecallAuditLine reports counts and top ids/topics", () => {
+  const line = buildRecallAuditLine({
+    triggerEntries: [
+      { id: 517, topic: "Script failure: orchestrator-steer-next.mjs - packet drift" },
+    ],
+    roleEntries: [
+      { id: 698, topic: "Resolved wrong handshake_main path before querying main worktree state" },
+    ],
+    generalEntries: [
+      { id: 532, topic: "Do not call just check-notifications with unsupported history flag" },
+    ],
+    triggerConversationEntries: [{ checkpoint_type: "PRE_TASK" }],
+    conversationEntries: [{ checkpoint_type: "SESSION_CLOSE" }, { checkpoint_type: "INSIGHT" }],
+  });
+
+  assert.match(line, /MEMORY_INJECTION_APPLIED:/);
+  assert.match(line, /memory_entries=3/);
+  assert.match(line, /trigger_context=1/);
+  assert.match(line, /prior_session=2/);
+  assert.match(line, /#517 Script failure: orchestrator-steer-next\.mjs/);
+  assert.match(line, /#698 Resolved wrong handshake_main path/);
+  assert.match(line, /#532 Do not call just check-notifications/);
 });

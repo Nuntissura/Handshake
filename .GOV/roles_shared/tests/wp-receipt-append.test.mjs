@@ -1081,7 +1081,7 @@ test("overlap review request preflight rejects queue growth beyond the bounded b
           last_heartbeat_at: "2026-04-01T10:01:00Z",
         },
       ],
-      open_review_items: ["micro-1", "micro-2"].map((id, index) => ({
+      open_review_items: ["micro-1"].map((id, index) => ({
         correlation_id: id,
         receipt_kind: "REVIEW_REQUEST",
         summary: `Review ${id}`,
@@ -1137,7 +1137,7 @@ test("overlap review request preflight rejects queue growth beyond the bounded b
           expected_receipt_kind: "VALIDATOR_RESPONSE",
         },
       }),
-      /overlap microtask review backlog already reached 2/i,
+      /overlap microtask review backlog already reached 1/i,
     );
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
