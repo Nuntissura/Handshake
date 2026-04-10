@@ -31,6 +31,14 @@ function runGitInherit(repoDir, args) {
   });
 }
 
+function maybeRunGit(repoDir, args) {
+  try {
+    return runGit(repoDir, args);
+  } catch {
+    return "";
+  }
+}
+
 function writeFile(filePath, content) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content, "utf8");
@@ -42,6 +50,10 @@ function makeGovLink(linkPath, targetPath) {
     return;
   }
   fs.symlinkSync(targetPath, linkPath, "junction");
+}
+
+function gitPath(repoDir, name) {
+  return path.resolve(repoDir, runGit(repoDir, ["rev-parse", "--git-path", name]));
 }
 
 test("shared .GOV suppression hides tracked and untracked kernel-junction dirt in non-main worktrees", () => {
@@ -85,6 +97,61 @@ test("shared .GOV suppression hides tracked and untracked kernel-junction dirt i
       runGit(repoDir, ["status", "--short"]),
       "",
       "expected shared .GOV dirt to return once local suppression is cleared",
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("linked worktrees use worktree-local excludes instead of the shared common exclude", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-reseed-linked-worktree-"));
+  const kernelRepoDir = path.join(root, "wt-gov-kernel");
+  const linkedRepoDir = path.join(root, "wtc-example");
+  const kernelGovDir = path.join(kernelRepoDir, ".GOV");
+  const linkedTrackedGovPath = path.join(linkedRepoDir, ".GOV", "tracked.txt");
+  const kernelTrackedPath = path.join(kernelGovDir, "tracked.txt");
+  const kernelUntrackedPath = path.join(kernelGovDir, "untracked.txt");
+
+  try {
+    fs.mkdirSync(kernelRepoDir, { recursive: true });
+    runGitInherit(kernelRepoDir, ["init", "--initial-branch=gov_kernel"]);
+    runGitInherit(kernelRepoDir, ["config", "user.name", "Handshake Test"]);
+    runGitInherit(kernelRepoDir, ["config", "user.email", "handshake-test@example.com"]);
+
+    writeFile(path.join(kernelRepoDir, "README.md"), "base\n");
+    writeFile(path.join(kernelGovDir, "tracked.txt"), "tracked from main\n");
+    runGitInherit(kernelRepoDir, ["add", "README.md", ".GOV/tracked.txt"]);
+    runGitInherit(kernelRepoDir, ["commit", "-m", "seed"]);
+
+    runGitInherit(kernelRepoDir, ["worktree", "add", "-b", "feat/test", linkedRepoDir, "HEAD"]);
+
+    fs.rmSync(path.join(linkedRepoDir, ".GOV"), { recursive: true, force: true });
+    writeFile(kernelTrackedPath, "tracked from kernel\n");
+    writeFile(kernelUntrackedPath, "new kernel file\n");
+    makeGovLink(path.join(linkedRepoDir, ".GOV"), kernelGovDir);
+
+    assert.notEqual(runGit(linkedRepoDir, ["status", "--short"]), "", "expected raw shared .GOV dirt before suppression");
+
+    const suppressed = suppressSharedGovJunctionDirt(linkedRepoDir);
+    assert.equal(suppressed, true);
+    assert.equal(runGit(linkedRepoDir, ["status", "--short"]), "");
+
+    const commonExcludePath = gitPath(linkedRepoDir, "info/exclude");
+    const worktreeConfigPath = gitPath(linkedRepoDir, "config.worktree");
+    const localExcludePath = path.join(path.dirname(worktreeConfigPath), "info", "exclude");
+
+    assert.equal(runGit(kernelRepoDir, ["config", "--get", "extensions.worktreeConfig"]), "true");
+    assert.equal(runGit(linkedRepoDir, ["config", "--worktree", "--get", "core.excludesFile"]), localExcludePath);
+    assert.match(fs.readFileSync(localExcludePath, "utf8"), /\.GOV\//);
+    assert.doesNotMatch(fs.readFileSync(commonExcludePath, "utf8"), /HANDSHAKE_SHARED_GOV_JUNCTION/);
+
+    clearSharedGovJunctionSuppression(linkedRepoDir);
+
+    assert.equal(maybeRunGit(linkedRepoDir, ["config", "--worktree", "--get", "core.excludesFile"]), "");
+    assert.notEqual(
+      runGit(linkedRepoDir, ["status", "--short"]),
+      "",
+      "expected shared .GOV dirt to return once linked-worktree suppression is cleared",
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
