@@ -1276,6 +1276,10 @@ function sessionForRole(runtimeStatus, role, preferredSession = null) {
   const ROLE = normalizeRole(role);
   const explicitSession = normalizeSession(preferredSession);
   if (explicitSession) return explicitSession;
+  const projectedSession = normalizeRole(runtimeStatus?.next_expected_actor) === ROLE
+    ? normalizeSession(runtimeStatus?.next_expected_session) || normalizeSession(runtimeStatus?.waiting_on_session)
+    : null;
+  if (projectedSession) return projectedSession;
   if (ROLE === "WP_VALIDATOR") {
     return normalizeSession(runtimeStatus?.wp_validator_of_record) || mostRecentActiveSessionForRole(runtimeStatus, ROLE);
   }

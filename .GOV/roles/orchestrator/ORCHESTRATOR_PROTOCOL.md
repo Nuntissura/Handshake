@@ -739,7 +739,9 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 ## WP Worktree Creation Rules [CX-212D] (HARD RULE)
 
-- WP worktrees (`wtc-*`) are created from `main` but MUST NOT retain a git-tracked `/.GOV/` directory. Legacy `wtv-*` worktrees from the old 2-per-WP model are cleanup candidates.
+- WP worktrees (`wtc-*`) MUST NOT retain a git-tracked `/.GOV/` directory. Legacy `wtv-*` worktrees from the old 2-per-WP model are cleanup candidates.
+- Generic pre-packet worktree creation may seed from `main`, but governed coder worktree creation or reseed after packet creation MUST honor the packet baseline (`MERGE_BASE_SHA`) instead of moving local `main`.
+- Dirty existing WP worktrees must fail closed for governed reuse or reseed; do not silently reuse a dirty worktree as the coder or validator execution surface.
 - After `git worktree add`, the creation script MUST:
   1. Remove the inherited `/.GOV/` directory from the new worktree.
   2. Create a junction (`mklink /J` on Windows, symlink on Unix) from `/.GOV/` to `../wt-gov-kernel/.GOV`.

@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { defaultCoderWorktreeDir } from "../session/session-policy.mjs";
+import { dirtyOutsideGovInRepo } from "./git-topology-lib.mjs";
 import { suppressSharedGovJunctionDirt } from "./reseed-permanent-worktree-from-main.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
 
@@ -152,6 +153,12 @@ function main() {
   }
 
   if (reuseExistingWorktree) {
+    if (dirtyOutsideGovInRepo(absDir)) {
+      fail(
+        `Refusing to reuse a dirty existing worktree: ${absDir} `
+        + "(non-.GOV changes detected outside shared governance junction noise)"
+      );
+    }
     console.log(`[WORKTREE_ADD] Reusing existing worktree: ${absDir}`);
     console.log(`[WORKTREE_ADD] Registered branch: ${branch}`);
   } else {

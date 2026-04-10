@@ -99,3 +99,33 @@ Rules:
   - PowerShell can misparse the arguments before Node receives them, which makes the failure look like a downstream script bug even when the wrapper is the real problem.
 - Context:
   - Recurring on `just repomem close ... --decisions "..."` and structured memory-capture flows. The safe pattern is `.GOV/roles_shared/scripts/lib/node-argv-proxy.mjs`.
+
+### TG-009
+- Do:
+  - Use safe quoting for `rg` in PowerShell, and use `rg -- '<pattern>'` when the pattern can begin with `--`.
+- Don't:
+  - Do not assume a failed `rg` pattern with spaces, alternation, or leading dashes means the files are missing or the repo state changed.
+- Why:
+  - PowerShell and ripgrep option parsing can eat or reinterpret the pattern before the actual search runs.
+- Context:
+  - Recurring on governance triage where the intended search term contains spaces, alternation, or a literal token that starts with `--`.
+
+### TG-010
+- Do:
+  - Parse packet identity fields by extracting the canonical token you need, such as the leading 40-hex SHA in `MERGE_BASE_SHA`.
+- Don't:
+  - Do not validate or compare explanatory packet fields as if the full rendered field value were the raw machine token.
+- Why:
+  - Signed packet fields can include human-readable explanatory suffix text while still carrying one authoritative machine token.
+- Context:
+  - Recurring on packet-baseline worktree creation and repair where `MERGE_BASE_SHA` is displayed with extra context after the SHA.
+
+### TG-011
+- Do:
+  - When `wp-receipt-append` for `REPAIR` or other repair-class receipts times out, inspect receipts, runtime projection, and session-registry truth before retrying.
+- Don't:
+  - Do not treat the shell timeout as proof that the receipt failed to land or that the governed auto-relay did not already fire.
+- Why:
+  - Receipt append can finish the write and trigger inline runtime re-projection or session wake-up before the shell tool times out.
+- Context:
+  - Recurring on governed repair flows where one command both writes evidence and performs the immediate next mechanical wake.

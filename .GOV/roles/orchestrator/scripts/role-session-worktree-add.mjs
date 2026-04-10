@@ -80,6 +80,21 @@ function loadPacketBaseBranch(wpIdValue) {
   }
 }
 
+function loadPacketMergeBaseSha(wpIdValue) {
+  const resolved = resolveWorkPacketPath(wpIdValue);
+  const packetPath = resolved?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpIdValue}.md`);
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbsPath)) return "";
+  try {
+    const packetText = fs.readFileSync(packetAbsPath, "utf8");
+    const mergeBaseField = parseSingleField(packetText, "MERGE_BASE_SHA");
+    const mergeBaseSha = String(mergeBaseField || "").match(/\b([a-f0-9]{40})\b/i)?.[1] || "";
+    return mergeBaseSha;
+  } catch {
+    return "";
+  }
+}
+
 // Integration validator operates from handshake_main — no worktree creation [CX-212D].
 if (role === "ACTIVATION_MANAGER" || role === "MEMORY_MANAGER") {
   console.log(`[ROLE_SESSION_WORKTREE_ADD] ${role} operates from the current governance worktree on branch gov_kernel.`);
@@ -102,8 +117,9 @@ if (!defaults) {
 
 const branch = branchArg || defaults.branch;
 const dir = dirArg || defaults.dir;
+const coderBaseRef = loadPacketMergeBaseSha(wpId) || "main";
 const baseBranch = role === "CODER"
-  ? "main"
+  ? coderBaseRef
   : (loadPacketBaseBranch(wpId) || loadPrepareBaseBranch(wpId));
 if (role !== "CODER" && !baseBranch) {
   fail(`Cannot create ${role} worktree for ${wpId}: missing PREPARE/packet coder branch to base validator checkout on.`);

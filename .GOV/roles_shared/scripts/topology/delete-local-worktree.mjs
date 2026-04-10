@@ -307,23 +307,23 @@ export function detachExternalGovLink(absDir) {
   };
 }
 
-function reducePathsForSelectiveStash(paths) {
-  const reduced = new Set();
-  for (const rawPath of paths) {
-    const normalized = String(rawPath || "").replace(/\\/g, "/").trim();
-    if (!normalized) continue;
-    const top = normalized.split("/")[0];
-    reduced.add(top || normalized);
-  }
-  return [...reduced].sort();
-}
-
 function stashSelectedPaths(absDir, worktreeId, dirtyPaths) {
-  const selectedRoots = reducePathsForSelectiveStash(dirtyPaths);
-  if (selectedRoots.length === 0) return;
+  const selectedPaths = [...new Set(
+    (dirtyPaths || [])
+      .map((rawPath) => String(rawPath || "").replace(/\\/g, "/").trim())
+      .filter(Boolean),
+  )].sort();
+  if (selectedPaths.length === 0) return;
   const message = `SAFETY: before delete local worktree ${worktreeId}`;
   try {
-    execFileSync("git", ["-c", "core.longpaths=true", "stash", "push", "-u", "-m", message, "--", ...selectedRoots], {
+    execFileSync("git", [
+      "-c", "core.longpaths=true",
+      "stash", "push", "-u", "-m", message,
+      "--",
+      ".",
+      ":(exclude).GOV",
+      ":(exclude).GOV/**",
+    ], {
       cwd: absDir,
       stdio: "inherit",
     });
@@ -331,7 +331,7 @@ function stashSelectedPaths(absDir, worktreeId, dirtyPaths) {
     fail("Failed to create selective safety stash for dirty worktree", [
       `path=${absDir}`,
       `stash_message=${message}`,
-      `selected_roots=${selectedRoots.join(", ")}`,
+      `selected_paths=${selectedPaths.join(", ")}`,
     ]);
   }
 }

@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import {
   deriveActiveWpNotificationProjection,
   evaluateWpCommunicationHealth,
@@ -400,6 +401,6 @@ function runCli() {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isInvokedAsMain(import.meta.url, process.argv[1])) {
   runCli();
 }

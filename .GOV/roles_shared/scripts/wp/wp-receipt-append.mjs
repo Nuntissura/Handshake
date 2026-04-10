@@ -51,6 +51,7 @@ import {
   summarizeMicrotaskFileTargetBudget,
 } from "../lib/wp-microtask-lib.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
+import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification, appendWpNotificationCore } from "./wp-notification-append.mjs";
 import { reconcileWpCommunicationTruth, syncProjectedTaskBoardTruth } from "./ensure-wp-communications.mjs";
@@ -1358,6 +1359,6 @@ function runCli() {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isInvokedAsMain(import.meta.url, process.argv[1])) {
   runCli();
 }

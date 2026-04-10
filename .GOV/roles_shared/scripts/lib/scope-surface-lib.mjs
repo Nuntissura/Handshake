@@ -3,6 +3,8 @@ import { GOV_ROOT_REPO_REL, resolveRefinementPath, resolveWorkPacketPath, WORK_P
 
 const GOV_ROOT_NORMALIZED = normalizeRepoPath(GOV_ROOT_REPO_REL);
 const GOV_DISPLAY_ROOT = ".GOV";
+const PRODUCT_ROOT_ALIAS_PREFIX = "../handshake_main/";
+const PRODUCT_SURFACE_PREFIXES = ["src/", "app/", "tests/"];
 const ROOT_GOVERNANCE_FILES = new Set(["AGENTS.md", "justfile"]);
 const ROOT_GOVERNANCE_PREFIXES = [".github/"];
 const LEGACY_SCOPE_PLACEHOLDERS = new Set([
@@ -237,11 +239,19 @@ export function hasConcreteScopeEntries(entries) {
 }
 
 export function matchesScopeEntry(filePath, scopeEntry) {
-  const candidate = normalizeRepoPath(filePath);
-  let scope = normalizeRepoPath(scopeEntry);
-  if (!candidate || !scope) return false;
-  if (scope.endsWith("/")) scope = scope.slice(0, -1);
-  return candidate === scope || candidate.startsWith(`${scope}/`);
+  const candidateVariants = expandComparableScopeVariants(filePath);
+  const scopeVariants = expandComparableScopeVariants(scopeEntry);
+  if (candidateVariants.length === 0 || scopeVariants.length === 0) return false;
+
+  for (const candidate of candidateVariants) {
+    for (let scope of scopeVariants) {
+      if (scope.endsWith("/")) scope = scope.slice(0, -1);
+      if (candidate === scope || candidate.startsWith(`${scope}/`)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 export function matchesAnyScopeEntry(filePath, scopeEntries) {
@@ -295,6 +305,25 @@ export function isRootGovernancePath(filePath) {
 export function isProductPath(filePath) {
   const normalized = normalizeRepoPath(filePath);
   return ["src/", "app/", "tests/"].some((prefix) => normalized.startsWith(prefix));
+}
+
+function expandComparableScopeVariants(value) {
+  const normalized = normalizeRepoPath(value);
+  if (!normalized) return [];
+  const variants = new Set([normalized]);
+
+  if (normalized.startsWith(PRODUCT_ROOT_ALIAS_PREFIX)) {
+    const aliasCandidate = normalized.slice(PRODUCT_ROOT_ALIAS_PREFIX.length);
+    if (PRODUCT_SURFACE_PREFIXES.some((prefix) => aliasCandidate.startsWith(prefix))) {
+      variants.add(aliasCandidate);
+    }
+  }
+
+  if (PRODUCT_SURFACE_PREFIXES.some((prefix) => normalized.startsWith(prefix))) {
+    variants.add(`${PRODUCT_ROOT_ALIAS_PREFIX}${normalized}`);
+  }
+
+  return [...variants];
 }
 
 export function deriveWpScopeContract({ wpId, packetContent }) {
