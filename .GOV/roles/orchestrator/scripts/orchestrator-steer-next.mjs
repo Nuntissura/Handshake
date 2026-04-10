@@ -124,6 +124,16 @@ const communicationEvaluation = evaluateWpCommunicationHealth({
   runtimeStatus,
 });
 const pendingNotifications = Object.values(checkAllNotifications({ wpId })).flatMap((entry) => entry.notifications || []);
+const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
+const { registry } = loadSessionRegistry(repoRoot);
+const relayEscalation = evaluateWpRelayEscalation({
+  wpId,
+  runtimeStatus,
+  communicationEvaluation,
+  receipts,
+  pendingNotifications,
+  registrySessions: registry.sessions || [],
+});
 const boundaryEvaluation = evaluateWpCommunicationBoundary({
   stage: "STATUS",
   statusEvaluation: communicationEvaluation,
@@ -131,8 +141,12 @@ const boundaryEvaluation = evaluateWpCommunicationBoundary({
   latestReceipt: receipts.at(-1) || null,
   pendingNotifications,
 });
-if (communicationEvaluation.applicable && !boundaryEvaluation.ok) {
-  fail("Runtime route drift prevents mechanical relay", boundaryEvaluation.issues);
+const boundaryIssues = (boundaryEvaluation.issues || []).filter((issue) => {
+  if (!issue.startsWith("runtime.attention_required")) return true;
+  return relayEscalation.status === "NOT_APPLICABLE";
+});
+if (communicationEvaluation.applicable && boundaryIssues.length > 0) {
+  fail("Runtime route drift prevents mechanical relay", boundaryIssues);
 }
 
 const activationGate = activationReadinessRequiresActivationManager(wpId);
@@ -147,16 +161,6 @@ if (!ACTIVE_ROLE_SET.has(nextActor)) {
   ]);
 }
 
-const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
-const { registry } = loadSessionRegistry(repoRoot);
-const relayEscalation = evaluateWpRelayEscalation({
-  wpId,
-  runtimeStatus,
-  communicationEvaluation,
-  receipts,
-  pendingNotifications,
-  registrySessions: registry.sessions || [],
-});
 const governedSession = (registry.sessions || []).find((entry) => entry.session_key === sessionKey(nextActor, wpId)) || null;
 const roleConfig = resolveRoleConfig(nextActor, wpId);
 if (!roleConfig) {
