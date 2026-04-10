@@ -5,6 +5,8 @@ import {
   currentGitContext,
   loadPacket,
   packetPath,
+  parseCurrentWpStatus,
+  parseStatus,
 } from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import {
   loadSessionControlRequests,
@@ -588,6 +590,35 @@ function integrationValidatorCloseoutFailure(message, details = [], exitCode = 1
   };
 }
 
+function isTerminalNonPassPacketState({ packetStatus = "", currentWpStatus = "" } = {}) {
+  const normalizedPacketStatus = String(packetStatus || "").trim();
+  const normalizedCurrentWpStatus = normalizeStatus(currentWpStatus);
+  if (/^Validated\s*\(\s*(FAIL|OUTDATED_ONLY|ABANDONED)\s*\)$/i.test(normalizedPacketStatus)) {
+    return true;
+  }
+  return ["DONE_FAIL", "DONE_OUTDATED_ONLY", "DONE_ABANDONED"].includes(normalizedCurrentWpStatus);
+}
+
+export function resolveIntegrationValidatorCloseoutRequirements({
+  packetContent = "",
+  allowSyncRepair = false,
+} = {}) {
+  const packetStatus = parseStatus(packetContent);
+  const currentWpStatus = parseCurrentWpStatus(packetContent);
+  const terminalNonPass = isTerminalNonPassPacketState({
+    packetStatus,
+    currentWpStatus,
+  });
+
+  return {
+    packetStatus,
+    currentWpStatus,
+    terminalNonPass,
+    requireReadyForPass: allowSyncRepair ? false : !terminalNonPass,
+    requireRecordedScopeCompatibility: allowSyncRepair ? false : true,
+  };
+}
+
 export function buildIntegrationValidatorCloseoutCheckResult({
   wpId = "",
   allowSyncRepair = false,
@@ -632,6 +663,10 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     packetContent,
     gitContext,
   });
+  const closeoutRequirements = resolveIntegrationValidatorCloseoutRequirements({
+    packetContent,
+    allowSyncRepair,
+  });
   const initialBrokerState = readJsonFile(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE), { active_runs: [] });
   const settlement = settleRecoverableSessionControlResults(repoRoot, {
     brokerState: initialBrokerState,
@@ -650,8 +685,8 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     results,
     registrySessions,
     brokerState,
-    requireReadyForPass: !allowSyncRepair,
-    requireRecordedScopeCompatibility: !allowSyncRepair,
+    requireReadyForPass: closeoutRequirements.requireReadyForPass,
+    requireRecordedScopeCompatibility: closeoutRequirements.requireRecordedScopeCompatibility,
   });
 
   if (!evaluation.ok) {
@@ -669,6 +704,8 @@ export function buildIntegrationValidatorCloseoutCheckResult({
       `current_main_head_sha=${evaluation.topology.currentMainHeadSha || "<unknown>"}`,
       `current_main_compatibility_status=${evaluation.scopeCompatibility?.parsed?.currentMainCompatibilityStatus || "<unknown>"}`,
       `sync_repair_mode=${allowSyncRepair ? "ENABLED" : "DISABLED"}`,
+      `require_ready_for_pass=${closeoutRequirements.requireReadyForPass ? "YES" : "NO"}`,
+      `terminal_non_pass_packet=${closeoutRequirements.terminalNonPass ? "YES" : "NO"}`,
       `integration_validator_worktree=${evaluation.topology.resolvedWorktreeAbs || "<unknown>"}`,
       `request_count=${evaluation.closeoutBundle.summary.request_count}`,
       `result_count=${evaluation.closeoutBundle.summary.result_count}`,

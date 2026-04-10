@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   appendJsonlLine,
   ensureSessionStateFiles,
@@ -46,6 +46,7 @@ import {
 const repoRoot = process.cwd();
 const brokerStatePath = path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE);
 const resultsPath = path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE);
+const orchestratorSteerNextScriptPath = path.resolve(repoRoot, ".GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs");
 const serverHost = "127.0.0.1";
 const activeRuns = new Map();
 const socketContexts = new WeakMap();
@@ -210,6 +211,42 @@ function findActiveRunBySession(sessionId) {
   return [...activeRuns.values()].find((run) => run.request.session_key === sessionId) || null;
 }
 
+function maybeAutoContinueGovernedRoute(request) {
+  const role = String(request?.role || "").trim().toUpperCase();
+  if (!["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(role)) return;
+  if (String(request?.command_kind || "").trim().toUpperCase() !== "SEND_PROMPT") return;
+  const wpId = String(request?.wp_id || "").trim();
+  if (!wpId) return;
+
+  try {
+    const packetPath = path.resolve(repoRoot, ".GOV", "task_packets", wpId, "packet.md");
+    if (!fs.existsSync(packetPath)) return;
+    const packetText = fs.readFileSync(packetPath, "utf8");
+    if (!/^\s*-\s*(?:\*\*)?WORKFLOW_LANE(?:\*\*)?\s*:\s*ORCHESTRATOR_MANAGED\s*$/mi.test(packetText)) return;
+
+    const runtimeStatusPathMatch = packetText.match(/^\s*-\s*(?:\*\*)?WP_RUNTIME_STATUS_FILE(?:\*\*)?\s*:\s*(.+)\s*$/mi);
+    if (!runtimeStatusPathMatch) return;
+    const runtimeStatusPath = path.resolve(repoRoot, String(runtimeStatusPathMatch[1] || "").trim());
+    if (!fs.existsSync(runtimeStatusPath)) return;
+
+    const runtimeStatus = JSON.parse(fs.readFileSync(runtimeStatusPath, "utf8"));
+    const nextActor = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
+    const validatorTrigger = String(runtimeStatus?.validator_trigger || "").trim().toUpperCase();
+    if (!["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "ACTIVATION_MANAGER"].includes(nextActor)) return;
+
+    const overlapForwardRoute = validatorTrigger === "MICROTASK_REVIEW_READY";
+    if (!overlapForwardRoute) return;
+
+    execFileSync(process.execPath, [orchestratorSteerNextScriptPath, wpId, "PRIMARY"], {
+      cwd: repoRoot,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+  } catch {
+    // Best-effort: completion auto-continue is opportunistic and must not break request settlement.
+  }
+}
+
 function ensureResultPersisted(request, session, result) {
   appendResultOnce(result);
   session.active_host = SESSION_CONTROL_HOST_PRIMARY;
@@ -248,6 +285,10 @@ function ensureResultPersisted(request, session, result) {
       }
     } catch {
       // Non-fatal: terminal cleanup is best-effort.
+    }
+
+    if (status === "COMPLETED") {
+      maybeAutoContinueGovernedRoute(request);
     }
   }
 }

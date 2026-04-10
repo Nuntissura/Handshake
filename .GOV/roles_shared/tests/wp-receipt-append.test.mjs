@@ -138,6 +138,7 @@ test("validator assessment receipts add an orchestrator governance checkpoint in
     targetSession: "coder-1",
     sourceKind: "VALIDATOR_REVIEW",
     summary: "VALIDATOR_REVIEW: Repair required. Findings: fix mailbox projection and re-handoff.",
+    autoRelay: false,
   });
   assert.equal(targets[1].targetRole, "ORCHESTRATOR");
   assert.equal(targets[1].targetSession, null);
@@ -200,6 +201,46 @@ test("non-assessment receipts do not add orchestrator checkpoint notifications",
       targetSession: "wpv-1",
       sourceKind: "CODER_HANDOFF",
       summary: "CODER_HANDOFF: Implemented the requested scope and attached proof.",
+      autoRelay: false,
+    },
+  ]);
+});
+
+test("overlap auto-route adds a secondary validator wake while coder remains the routed actor", () => {
+  const targets = deriveReviewNotificationTargets({
+    workflowLane: "ORCHESTRATOR_MANAGED",
+    entry: {
+      receipt_kind: "REVIEW_REQUEST",
+      actor_role: "CODER",
+      actor_session: "coder-1",
+      target_role: "WP_VALIDATOR",
+      target_session: "wpv-1",
+      correlation_id: "review-1",
+      summary: "Review MT-001 while I continue MT-002.",
+    },
+    autoRoute: {
+      nextExpectedActor: "CODER",
+      nextExpectedSession: "coder-1",
+      notification: null,
+      secondaryNotifications: [
+        {
+          targetRole: "WP_VALIDATOR",
+          targetSession: "wpv-1",
+          sourceKind: "AUTO_ROUTE",
+          summary: "AUTO_ROUTE: WP validator overlap review required while coder continues current microtask",
+          autoRelay: true,
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(targets, [
+    {
+      targetRole: "WP_VALIDATOR",
+      targetSession: "wpv-1",
+      sourceKind: "REVIEW_REQUEST",
+      summary: "REVIEW_REQUEST: Review MT-001 while I continue MT-002.",
+      autoRelay: true,
     },
   ]);
 });

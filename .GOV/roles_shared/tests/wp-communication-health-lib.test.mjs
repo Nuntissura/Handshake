@@ -176,6 +176,204 @@ test("auto route projects coder handoff into validator review wake state", () =>
   assert.equal(route.notification, null, "explicit handoff target should not get a duplicate auto-route notification");
 });
 
+test("wp validator final REVIEW_RESPONSE closes coder handoff review and returns control to orchestrator", () => {
+  const input = baseInput({
+    packetFormatVersion: "2026-04-06",
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap and skeleton cleared; proceed.",
+        timestamp_utc: "2026-03-22T10:02:30Z",
+      },
+      {
+        receipt_kind: "CODER_HANDOFF",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        ack_for: "handoff-1",
+        summary: "FINAL WP PASS.",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+      },
+    ],
+    runtimeStatus: {
+      next_expected_actor: "WP_VALIDATOR",
+      next_expected_session: "wpv-1",
+      waiting_on: "WP_VALIDATOR_REVIEW",
+      waiting_on_session: "wpv-1",
+      validator_trigger: "HANDOFF_READY",
+      validator_trigger_reason: "Coder handoff recorded; WP validator review required",
+      ready_for_validation: true,
+      ready_for_validation_reason: "Coder handoff recorded; WP validator review required",
+      attention_required: false,
+    },
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+
+  assert.equal(evaluation.state, "COMM_OK");
+  assert.equal(route.nextExpectedActor, "ORCHESTRATOR");
+  assert.equal(route.waitingOn, "VERDICT_PROGRESSION");
+});
+
+test("terminal closed runtime keeps auto route at NONE/CLOSED instead of projecting verdict progression", () => {
+  const input = baseInput({
+    packetFormatVersion: "2026-04-06",
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap and skeleton cleared; proceed.",
+        timestamp_utc: "2026-03-22T10:02:30Z",
+      },
+      {
+        receipt_kind: "CODER_HANDOFF",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        ack_for: "handoff-1",
+        summary: "FINAL WP PASS.",
+        timestamp_utc: "2026-03-22T10:03:30Z",
+      },
+      {
+        receipt_kind: "REVIEW_REQUEST",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "INTEGRATION_VALIDATOR",
+        target_session: "intval-1",
+        correlation_id: "final-review-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:03:45Z",
+      },
+      {
+        receipt_kind: "REVIEW_RESPONSE",
+        actor_role: "INTEGRATION_VALIDATOR",
+        actor_session: "intval-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "final-review-1",
+        ack_for: "final-review-1",
+        summary: "OUTDATED_ONLY. Follow-on WP required for adjacent current-main scope.",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+      },
+    ],
+    runtimeStatus: {
+      current_packet_status: "Validated (OUTDATED_ONLY)",
+      runtime_status: "completed",
+      current_phase: "STATUS_SYNC",
+      next_expected_actor: "NONE",
+      next_expected_session: null,
+      waiting_on: "CLOSED",
+      waiting_on_session: null,
+      validator_trigger: "NONE",
+      validator_trigger_reason: null,
+      ready_for_validation: false,
+      ready_for_validation_reason: null,
+      attention_required: false,
+      active_role_sessions: [],
+      open_review_items: [],
+    },
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+  const boundary = evaluateWpCommunicationBoundary({
+    stage: "VERDICT",
+    statusEvaluation: evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+    pendingNotifications: [],
+  });
+
+  assert.equal(evaluation.state, "COMM_OK");
+  assert.equal(route.nextExpectedActor, "NONE");
+  assert.equal(route.waitingOn, "CLOSED");
+  assert.equal(boundary.ok, true, JSON.stringify(boundary, null, 2));
+});
+
 test("communication health ignores historical invalidity once a later repair receipt exists", () => {
   const input = baseInput({
     receipts: [
@@ -843,9 +1041,103 @@ test("overlap microtask review requests do not block coder progression while bac
   assert.equal(evaluation.state, "COMM_WAITING_FOR_HANDOFF");
   assert.equal(evaluation.counts.overlapOpenReviewItems, 1);
   assert.equal(evaluation.counts.blockingOpenReviewItems, 0);
-  assert.equal(route.nextExpectedActor, "WP_VALIDATOR");
-  assert.equal(route.waitingOn, "WP_VALIDATOR_MICROTASK_REVIEW");
+  assert.equal(route.nextExpectedActor, "CODER");
+  assert.equal(route.waitingOn, "CODER_HANDOFF");
   assert.equal(route.validatorTrigger, "MICROTASK_REVIEW_READY");
+  assert.equal(route.secondaryNotifications.length, 1);
+  assert.equal(route.secondaryNotifications[0].targetRole, "WP_VALIDATOR");
+  assert.equal(route.secondaryNotifications[0].targetSession, "wpv-1");
+  assert.equal(route.secondaryNotifications[0].autoRelay, true);
+});
+
+test("overlap routing recovers from MT review requests that omitted microtask_contract but kept MT packet_row_ref", () => {
+  const input = baseInput({
+    packetContent: contractHeavyPacketFixture(),
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Intent drafted.",
+        microtask_contract: {
+          scope_ref: "BOOTSTRAP/CX-LANE-001",
+          file_targets: ["src/demo.rs", "src/demo_support.rs"],
+          proof_commands: ["cargo test demo::tests::smoke -- --exact"],
+          phase_gate: "SKELETON",
+          expected_receipt_kind: "VALIDATOR_RESPONSE",
+        },
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap cleared.",
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_REQUEST",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "micro-1",
+        summary: "MT-001 review_mode=OVERLAP: review the completed slice while I continue.",
+        packet_row_ref: "MT-001",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+      },
+    ],
+    runtimeStatus: {
+      open_review_items: [
+        {
+          correlation_id: "micro-1",
+          receipt_kind: "REVIEW_REQUEST",
+          summary: "MT-001 review_mode=OVERLAP: review the completed slice while I continue.",
+          opened_by_role: "CODER",
+          opened_by_session: "coder-1",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-1",
+          packet_row_ref: "MT-001",
+          microtask_contract: null,
+          requires_ack: true,
+          opened_at: "2026-03-22T10:04:00Z",
+          updated_at: "2026-03-22T10:04:00Z",
+        },
+      ],
+    },
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+
+  assert.equal(evaluation.state, "COMM_WAITING_FOR_HANDOFF");
+  assert.equal(evaluation.counts.overlapOpenReviewItems, 1);
+  assert.equal(route.nextExpectedActor, "CODER");
+  assert.equal(route.validatorTrigger, "MICROTASK_REVIEW_READY");
+  assert.equal(route.secondaryNotifications.length, 1);
+  assert.equal(route.secondaryNotifications[0].targetRole, "WP_VALIDATOR");
 });
 
 test("overlap microtask review backlog becomes blocking once the bounded queue is exceeded", () => {
@@ -1756,6 +2048,121 @@ test("active notification projection hides unread review residue once the WP is 
   assert.equal(projection.pendingCount, 0);
   assert.equal(projection.hiddenPendingCount, 2);
   assert.equal(projection.historyHidden, true);
+});
+
+test("active notification projection keeps overlap sidecar validator review visible while coder remains primary next actor", () => {
+  const input = baseInput({
+    packetContent: contractHeavyPacketFixture(),
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Intent drafted.",
+        microtask_contract: {
+          scope_ref: "BOOTSTRAP/CX-LANE-001",
+          file_targets: ["src/demo.rs", "src/demo_support.rs"],
+          proof_commands: ["cargo test demo::tests::smoke -- --exact"],
+          phase_gate: "SKELETON",
+          expected_receipt_kind: "VALIDATOR_RESPONSE",
+        },
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap cleared.",
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_REQUEST",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "micro-1",
+        summary: "MT-001 review_mode=OVERLAP: review the completed slice while I continue.",
+        packet_row_ref: "MT-001",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+      },
+    ],
+    runtimeStatus: {
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-1",
+      waiting_on: "CODER_HANDOFF",
+      waiting_on_session: "coder-1",
+      validator_trigger: "MICROTASK_REVIEW_READY",
+      validator_trigger_reason: "Previous completed microtask is awaiting overlap review while coder continues the current microtask",
+      ready_for_validation: true,
+      ready_for_validation_reason: "Overlap microtask review is open for the WP validator while coder remains in bounded forward execution",
+      open_review_items: [
+        {
+          correlation_id: "micro-1",
+          receipt_kind: "REVIEW_REQUEST",
+          summary: "MT-001 review_mode=OVERLAP: review the completed slice while I continue.",
+          opened_by_role: "CODER",
+          opened_by_session: "coder-1",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-1",
+          packet_row_ref: "MT-001",
+          microtask_contract: null,
+          requires_ack: true,
+          opened_at: "2026-03-22T10:04:00Z",
+          updated_at: "2026-03-22T10:04:00Z",
+        },
+      ],
+    },
+  });
+
+  const statusEvaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation: statusEvaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+  const projection = deriveActiveWpNotificationProjection({
+    statusEvaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+    pendingNotifications: [
+      {
+        source_kind: "REVIEW_REQUEST",
+        source_role: "CODER",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "micro-1",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+        summary: "REVIEW_REQUEST: MT-001 review_mode=OVERLAP: review the completed slice while I continue.",
+      },
+    ],
+    autoRoute: route,
+  });
+
+  assert.equal(statusEvaluation.state, "COMM_WAITING_FOR_HANDOFF");
+  assert.equal(route.nextExpectedActor, "CODER");
+  assert.equal(route.secondaryNotifications.length, 1);
+  assert.equal(projection.pendingCount, 1);
+  assert.equal(projection.notifications[0].target_role, "WP_VALIDATOR");
+  assert.equal(projection.hiddenPendingCount, 0);
 });
 
 test("final review closes when the open request targeted an unassigned integration-validator placeholder", () => {

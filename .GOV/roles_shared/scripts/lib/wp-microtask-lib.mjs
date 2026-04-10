@@ -185,6 +185,35 @@ function normalizeReviewMode(value = "") {
   return String(value || "").trim().toUpperCase();
 }
 
+function scopeRefFromEntry(entry = {}, correlationScopeRefs = new Map()) {
+  const explicitScopeRef = String(entry?.microtask_contract?.scope_ref || "").trim();
+  if (explicitScopeRef) return explicitScopeRef;
+  const packetRowRef = String(entry?.packet_row_ref || "").trim();
+  if (/^MT-\d{3}$/i.test(packetRowRef)) return packetRowRef.toUpperCase();
+  const summaryMatch = String(entry?.summary || "").match(/\b(MT-\d{3})\b/i);
+  if (summaryMatch) return summaryMatch[1].toUpperCase();
+  const correlationId = String(entry?.correlation_id || "").trim();
+  if (correlationId && correlationScopeRefs.has(correlationId)) {
+    return correlationScopeRefs.get(correlationId);
+  }
+  return "";
+}
+
+function reviewModeFromEntry(entry = {}) {
+  const explicitReviewModeRaw = String(entry?.microtask_contract?.review_mode || "").trim();
+  if (explicitReviewModeRaw) return normalizeReviewMode(explicitReviewModeRaw);
+  if (/review_mode\s*=\s*OVERLAP/i.test(String(entry?.summary || ""))) return "OVERLAP";
+  if (
+    normalizeReceiptKind(entry?.receipt_kind) === "REVIEW_REQUEST"
+    && normalizeRole(entry?.opened_by_role || entry?.actor_role) === "CODER"
+    && normalizeRole(entry?.target_role) === "WP_VALIDATOR"
+    && /^MT-\d{3}$/i.test(String(entry?.packet_row_ref || "").trim())
+  ) {
+    return "OVERLAP";
+  }
+  return null;
+}
+
 function stateFromReceipt(receipt = {}) {
   const actorRole = normalizeRole(receipt?.actor_role);
   const receiptKind = normalizeReceiptKind(receipt?.receipt_kind);
@@ -278,10 +307,13 @@ export function deriveWpMicrotaskPlan({
   const orderedReceipts = [...(Array.isArray(receipts) ? receipts : [])].sort((left, right) =>
     String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || ""))
   );
+  const correlationScopeRefs = new Map();
 
   for (const receipt of orderedReceipts) {
-    const scopeRef = String(receipt?.microtask_contract?.scope_ref || "").trim();
+    const scopeRef = scopeRefFromEntry(receipt, correlationScopeRefs);
     if (!scopeRef) continue;
+    const correlationId = String(receipt?.correlation_id || "").trim();
+    if (correlationId) correlationScopeRefs.set(correlationId, scopeRef);
     const definition = resolvedMicrotaskForScopeRef(wpId, scopeRef, declaredMicrotasks);
     if (!definition) continue;
     const entry = byId.get(definition.mtId);
@@ -295,12 +327,12 @@ export function deriveWpMicrotaskPlan({
     entry.last_activity_at = String(receipt?.timestamp_utc || "").trim() || null;
     entry.last_receipt_kind = normalizeReceiptKind(receipt?.receipt_kind) || null;
     entry.last_actor_role = normalizeRole(receipt?.actor_role) || null;
-    entry.correlation_id = String(receipt?.correlation_id || "").trim() || null;
-    entry.review_mode = normalizeReviewMode(receipt?.microtask_contract?.review_mode) || null;
+    entry.correlation_id = correlationId || null;
+    entry.review_mode = reviewModeFromEntry(receipt) || entry.review_mode;
   }
 
   for (const item of Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : []) {
-    const scopeRef = String(item?.microtask_contract?.scope_ref || "").trim();
+    const scopeRef = scopeRefFromEntry(item, correlationScopeRefs);
     if (!scopeRef) continue;
     const definition = resolvedMicrotaskForScopeRef(wpId, scopeRef, declaredMicrotasks);
     if (!definition) continue;
@@ -312,7 +344,7 @@ export function deriveWpMicrotaskPlan({
     entry.last_receipt_kind = normalizeReceiptKind(item?.receipt_kind) || entry.last_receipt_kind;
     entry.last_actor_role = normalizeRole(item?.opened_by_role) || entry.last_actor_role;
     entry.correlation_id = String(item?.correlation_id || "").trim() || entry.correlation_id;
-    entry.review_mode = normalizeReviewMode(item?.microtask_contract?.review_mode) || entry.review_mode;
+    entry.review_mode = reviewModeFromEntry(item) || entry.review_mode;
   }
 
   const items = declaredMicrotasks.map((definition) => byId.get(definition.mtId));

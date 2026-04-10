@@ -160,6 +160,94 @@ function gitPathInRepo(repoDir, gitPath) {
   return path.resolve(repoDir, resolved);
 }
 
+function gitDirPathInRepo(repoDir) {
+  const resolved = runGitInRepo(repoDir, ["rev-parse", "--git-dir"]);
+  return path.resolve(repoDir, resolved);
+}
+
+function gitCommonDirPathInRepo(repoDir) {
+  const resolved = runGitInRepo(repoDir, ["rev-parse", "--git-common-dir"]);
+  return path.resolve(repoDir, resolved);
+}
+
+function usesLinkedGitWorktree(repoDir) {
+  return normalizeComparablePath(gitDirPathInRepo(repoDir)) !== normalizeComparablePath(gitCommonDirPathInRepo(repoDir));
+}
+
+function commonGitConfigPath(repoDir) {
+  return path.join(gitCommonDirPathInRepo(repoDir), "config");
+}
+
+function worktreeConfigPath(repoDir) {
+  return path.join(gitDirPathInRepo(repoDir), "config.worktree");
+}
+
+function managedGovExcludePath(repoDir) {
+  if (usesLinkedGitWorktree(repoDir)) {
+    return path.join(gitDirPathInRepo(repoDir), "info", "exclude");
+  }
+  return path.join(gitCommonDirPathInRepo(repoDir), "info", "exclude");
+}
+
+function commonInfoExcludePath(repoDir) {
+  return path.join(gitCommonDirPathInRepo(repoDir), "info", "exclude");
+}
+
+function gitConfigValueOrEmpty(repoDir, args) {
+  try {
+    return runGitInRepo(repoDir, args);
+  } catch {
+    return "";
+  }
+}
+
+function ensureWorktreeConfigEnabled(repoDir) {
+  if (!usesLinkedGitWorktree(repoDir)) return;
+  const configPath = commonGitConfigPath(repoDir);
+  const current = gitConfigValueOrEmpty(repoDir, ["config", "--file", configPath, "--get", "extensions.worktreeConfig"]);
+  if (String(current || "").trim().toLowerCase() === "true") return;
+  execFileSync("git", ["config", "--file", configPath, "extensions.worktreeConfig", "true"], {
+    cwd: repoDir,
+    stdio: ["ignore", "ignore", "ignore"],
+  });
+}
+
+function ensureManagedWorktreeExcludeConfig(repoDir, excludePath) {
+  if (!usesLinkedGitWorktree(repoDir)) return;
+  ensureWorktreeConfigEnabled(repoDir);
+  const configPath = worktreeConfigPath(repoDir);
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  execFileSync("git", ["config", "--file", configPath, "core.excludesFile", excludePath], {
+    cwd: repoDir,
+    stdio: ["ignore", "ignore", "ignore"],
+  });
+}
+
+function clearManagedWorktreeExcludeConfig(repoDir, excludePath) {
+  if (!usesLinkedGitWorktree(repoDir)) return;
+  const configPath = worktreeConfigPath(repoDir);
+  if (!fs.existsSync(configPath)) return;
+  const current = gitConfigValueOrEmpty(repoDir, ["config", "--file", configPath, "--get", "core.excludesFile"]);
+  if (normalizeComparablePath(current) !== normalizeComparablePath(excludePath)) return;
+  execFileSync("git", ["config", "--file", configPath, "--unset-all", "core.excludesFile"], {
+    cwd: repoDir,
+    stdio: ["ignore", "ignore", "ignore"],
+  });
+}
+
+function readTextOrEmpty(filePath) {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+}
+
+function removeManagedGovExcludeRule(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const filtered = fs.readFileSync(filePath, "utf8")
+    .split(/\r?\n/)
+    .filter((line) => line !== SHARED_GOV_EXCLUDE_MARKER && line !== SHARED_GOV_EXCLUDE_RULE);
+  const next = filtered.join("\n").replace(/\n+$/, "");
+  fs.writeFileSync(filePath, next.length > 0 ? `${next}\n` : "", "utf8");
+}
+
 function repoDirUsesSharedGovKernelJunction(repoDir) {
   const repoAbs = path.resolve(repoDir);
   const govDir = path.join(repoAbs, ".GOV");
@@ -220,8 +308,8 @@ export function setGovTrackedPathsSkipWorktree(repoDir, enabled) {
 }
 
 export function ensureGovWorktreeExclude(repoDir) {
-  const excludePath = gitPathInRepo(repoDir, "info/exclude");
-  const original = fs.existsSync(excludePath) ? fs.readFileSync(excludePath, "utf8") : "";
+  const excludePath = managedGovExcludePath(repoDir);
+  const original = readTextOrEmpty(excludePath);
   if (original.includes(SHARED_GOV_EXCLUDE_MARKER)) return;
 
   const next = original.endsWith("\n") || original.length === 0
@@ -229,17 +317,19 @@ export function ensureGovWorktreeExclude(repoDir) {
     : `${original}\n${SHARED_GOV_EXCLUDE_MARKER}\n${SHARED_GOV_EXCLUDE_RULE}\n`;
   fs.mkdirSync(path.dirname(excludePath), { recursive: true });
   fs.writeFileSync(excludePath, next, "utf8");
+  ensureManagedWorktreeExcludeConfig(repoDir, excludePath);
+  if (normalizeComparablePath(excludePath) !== normalizeComparablePath(commonInfoExcludePath(repoDir))) {
+    removeManagedGovExcludeRule(commonInfoExcludePath(repoDir));
+  }
 }
 
 export function clearGovWorktreeExclude(repoDir) {
-  const excludePath = gitPathInRepo(repoDir, "info/exclude");
-  if (!fs.existsSync(excludePath)) return;
-
-  const filtered = fs.readFileSync(excludePath, "utf8")
-    .split(/\r?\n/)
-    .filter((line) => line !== SHARED_GOV_EXCLUDE_MARKER && line !== SHARED_GOV_EXCLUDE_RULE);
-  const next = filtered.join("\n").replace(/\n+$/, "");
-  fs.writeFileSync(excludePath, next.length > 0 ? `${next}\n` : "", "utf8");
+  const excludePath = managedGovExcludePath(repoDir);
+  removeManagedGovExcludeRule(excludePath);
+  if (normalizeComparablePath(excludePath) !== normalizeComparablePath(commonInfoExcludePath(repoDir))) {
+    removeManagedGovExcludeRule(commonInfoExcludePath(repoDir));
+  }
+  clearManagedWorktreeExcludeConfig(repoDir, excludePath);
 }
 
 export function suppressSharedGovJunctionDirt(repoDir) {

@@ -17,6 +17,7 @@ import { resolveValidatorGatePath } from "../../../../roles_shared/scripts/lib/v
 import {
   evaluateIntegrationValidatorCloseoutState,
   latestCloseoutSyncEvent,
+  resolveIntegrationValidatorCloseoutRequirements,
 } from "./integration-validator-closeout-lib.mjs";
 import {
   evaluateValidatorPacketGovernanceState,
@@ -102,6 +103,9 @@ export function buildIntegrationValidatorContextBrief({
     gitContext,
     registrySessions,
   });
+  const closeoutRequirements = resolveIntegrationValidatorCloseoutRequirements({
+    packetContent,
+  });
   const governanceState = evaluateValidatorPacketGovernanceState({
     wpId,
     packetPath: packetPathValue,
@@ -128,6 +132,8 @@ export function buildIntegrationValidatorContextBrief({
     gitRunner,
     worktreeExists,
     fileExists,
+    requireReadyForPass: closeoutRequirements.requireReadyForPass,
+    requireRecordedScopeCompatibility: closeoutRequirements.requireRecordedScopeCompatibility,
   });
   const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
   const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
@@ -168,6 +174,11 @@ export function buildIntegrationValidatorContextBrief({
     wp_id: wpId,
     context_status: contextStatus,
     closeout_readiness: closeoutReadiness,
+    closeout_requirements: {
+      require_ready_for_pass: closeoutRequirements.requireReadyForPass,
+      require_recorded_scope_compatibility: closeoutRequirements.requireRecordedScopeCompatibility,
+      terminal_non_pass_packet: closeoutRequirements.terminalNonPass,
+    },
     workflow_lane: authority.workflowLane || "<missing>",
     packet_path: packetPathValue,
     packet_read_path: packetReadPath || "<missing>",
@@ -274,6 +285,7 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- CONTEXT_STATUS: ${brief.context_status}`,
     `- CLOSEOUT_READINESS: ${brief.closeout_readiness}`,
     `- WORKFLOW_LANE: ${brief.workflow_lane} | PACKET_STATUS: ${brief.packet_status} | CURRENT_WP_STATUS: ${brief.current_wp_status} | TASK_BOARD_STATUS: ${brief.task_board_status}`,
+    `- CLOSEOUT_REQUIREMENTS: require_ready_for_pass=${brief.closeout_requirements.require_ready_for_pass ? "YES" : "NO"} | require_recorded_scope_compatibility=${brief.closeout_requirements.require_recorded_scope_compatibility ? "YES" : "NO"} | terminal_non_pass_packet=${brief.closeout_requirements.terminal_non_pass_packet ? "YES" : "NO"}`,
     `- AUTHORITIES: technical=${brief.authority.technical_authority} | merge=${brief.authority.merge_authority} | integration_validator=${brief.authority.integration_validator_of_record} | wp_validator=${brief.authority.wp_validator_of_record}`,
     `- ACTOR_CONTEXT: role=${brief.actor_context.role} | source=${brief.actor_context.source} | session=${brief.actor_context.session_id} | thread=${brief.actor_context.thread_id} | branch=${brief.actor_context.branch}`,
     `- GOVERNANCE_ROOT: live=${brief.governance_root.live_root} | main_backup=${brief.governance_root.local_main_backup_root} | mode=${brief.governance_root.mode}`,

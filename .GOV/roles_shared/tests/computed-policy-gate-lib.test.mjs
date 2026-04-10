@@ -15,9 +15,19 @@ function packetFixture({
   currentMainCompatibilityStatus = "NOT_RUN",
   waiverBlock = "- NONE",
   verdict = "PASS",
+  governanceVerdict = "PASS",
+  testVerdict = "PASS",
+  codeReviewVerdict = "PASS",
+  heuristicReviewVerdict = "PASS",
   specAlignmentVerdict = "PASS",
+  environmentVerdict = "PASS",
+  disposition = "NONE",
   legalVerdict = "PASS",
+  workflowValidity = "VALID",
+  scopeValidity = "IN_SCOPE",
   proofCompleteness = "PROVEN",
+  integrationReadiness = "READY",
+  domainGoalCompletion = "COMPLETE",
   mechanicalTrackVerdict = "",
   specRetentionTrackVerdict = "",
   notProvenBlock = "- NONE",
@@ -78,20 +88,20 @@ ${waiverBlock}
 ## VALIDATION_REPORTS
 Verdict: ${verdict}
 VALIDATION_CONTEXT: OK
-GOVERNANCE_VERDICT: PASS
-TEST_VERDICT: PASS
-CODE_REVIEW_VERDICT: PASS
-HEURISTIC_REVIEW_VERDICT: PASS
+GOVERNANCE_VERDICT: ${governanceVerdict}
+TEST_VERDICT: ${testVerdict}
+CODE_REVIEW_VERDICT: ${codeReviewVerdict}
+HEURISTIC_REVIEW_VERDICT: ${heuristicReviewVerdict}
 SPEC_ALIGNMENT_VERDICT: ${specAlignmentVerdict}
-ENVIRONMENT_VERDICT: PASS
-DISPOSITION: NONE
+ENVIRONMENT_VERDICT: ${environmentVerdict}
+DISPOSITION: ${disposition}
 LEGAL_VERDICT: ${legalVerdict}
 SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
-WORKFLOW_VALIDITY: VALID
-SCOPE_VALIDITY: IN_SCOPE
+WORKFLOW_VALIDITY: ${workflowValidity}
+SCOPE_VALIDITY: ${scopeValidity}
 PROOF_COMPLETENESS: ${proofCompleteness}
-INTEGRATION_READINESS: READY
-DOMAIN_GOAL_COMPLETION: COMPLETE
+INTEGRATION_READINESS: ${integrationReadiness}
+DOMAIN_GOAL_COMPLETION: ${domainGoalCompletion}
 ${mechanicalTrackVerdict ? `MECHANICAL_TRACK_VERDICT: ${mechanicalTrackVerdict}\n` : ""}${specRetentionTrackVerdict ? `SPEC_RETENTION_TRACK_VERDICT: ${specRetentionTrackVerdict}\n` : ""}VALIDATOR_RISK_TIER: ${validatorRiskTier}
 CLAUSES_REVIEWED:
 - Clause A -> src/backend/feature.rs:10
@@ -282,5 +292,36 @@ test("computed policy gate accepts dual-track V4 closures when both tracks are e
   });
 
   assert.equal(evaluation.outcome, "PASS");
+  assert.equal(computedPolicyOutcomeAllowsClosure(evaluation), true);
+});
+
+test("computed policy gate allows honest OUTDATED_ONLY terminal closure without treating non-pass fields as a regression", () => {
+  const evaluation = evaluateComputedPolicyGateFromPacketText(packetFixture({
+    packetFormatVersion: "2026-04-05",
+    status: "Validated (OUTDATED_ONLY)",
+    riskTier: "MEDIUM",
+    validatorReportProfile: "SPLIT_DIFF_SCOPED_RIGOR_V4",
+    validatorRiskTier: "MEDIUM",
+    sharedSurfaceRisk: "YES",
+    verdict: "OUTDATED_ONLY",
+    testVerdict: "PARTIAL",
+    specAlignmentVerdict: "PARTIAL",
+    disposition: "OUTDATED_ONLY",
+    legalVerdict: "FAIL",
+    integrationReadiness: "NOT_READY",
+    domainGoalCompletion: "PARTIAL",
+    mechanicalTrackVerdict: "PARTIAL",
+    specRetentionTrackVerdict: "PARTIAL",
+    boundaryProbeBlock: "- checked producer `src/backend/feature.rs:10` against boundary consumer `src/backend/shared_surface.rs:20`",
+    negativePathBlock: "- removed required field at `src/backend/shared_surface.rs:24` and confirmed guarded failure path stayed intact",
+    negativeProofBlock: "- current local main blocks contained-main proof outside the signed diff at `src/backend/adjacent.rs:42`",
+  }), {
+    wpId: "WP-TEST-POLICY-v1",
+    requireClosedStatus: true,
+  });
+
+  assert.equal(evaluation.outcome, "FAIL");
+  assert.ok(evaluation.issues.fail.some((item) => item.code === "LEGAL_VERDICT_FAIL"));
+  assert.ok(evaluation.issues.reviewRequired.some((item) => item.code === "DISPOSITION_OUTDATED_ONLY"));
   assert.equal(computedPolicyOutcomeAllowsClosure(evaluation), true);
 });

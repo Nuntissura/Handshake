@@ -34,6 +34,7 @@ import {
   applyWpReviewRuntimeProjection,
   deriveWpReviewPacketProjection,
 } from "../lib/wp-review-projection-lib.mjs";
+import { normalizeActiveClauseClosureMatrix } from "../lib/packet-closure-monitor-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
 import {
   derivePacketMilestone,
@@ -142,6 +143,10 @@ function normalizeSessionValue(value) {
   return raw || null;
 }
 
+function normalizeActor(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
 function parseSecondaryValidatorSessions(rawValue) {
   const raw = String(rawValue || "").trim();
   if (!raw || /^NONE$/i.test(raw)) return [];
@@ -178,6 +183,29 @@ function syncRuntimeDeclaredFieldsFromPacket(runtimeStatus = {}, packetText = ""
   return syncedRuntime;
 }
 
+function shouldResetRelayEscalationCycle(previousRuntimeStatus = {}, nextRuntimeStatus = {}, latestReceipt = null) {
+  const previousCycle = Number.parseInt(String(previousRuntimeStatus?.current_relay_escalation_cycle || 0), 10);
+  if (!Number.isInteger(previousCycle) || previousCycle <= 0) return false;
+
+  const previousActor = normalizeActor(previousRuntimeStatus?.next_expected_actor);
+  const previousSession = normalizeSessionValue(previousRuntimeStatus?.next_expected_session);
+  const previousWaitingOn = String(previousRuntimeStatus?.waiting_on || "").trim().toUpperCase();
+  const nextActor = normalizeActor(nextRuntimeStatus?.next_expected_actor);
+  const nextSession = normalizeSessionValue(nextRuntimeStatus?.next_expected_session);
+  const nextWaitingOn = String(nextRuntimeStatus?.waiting_on || "").trim().toUpperCase();
+
+  const routeChanged = previousActor !== nextActor
+    || previousSession !== nextSession
+    || previousWaitingOn !== nextWaitingOn;
+  if (routeChanged) return true;
+
+  const latestActor = normalizeActor(latestReceipt?.actor_role);
+  const latestSession = normalizeSessionValue(latestReceipt?.actor_session);
+  return Boolean(previousActor)
+    && latestActor === previousActor
+    && (!previousSession || previousSession === latestSession);
+}
+
 function isTerminalPacketStatus(status) {
   return status === "Done" || /^Validated \(/i.test(String(status || "").trim());
 }
@@ -189,11 +217,13 @@ export function reconcileWpCommunicationTruth({
   runtimeStatus = {},
   receipts = [],
 } = {}) {
+  const clauseClosureNormalization = normalizeActiveClauseClosureMatrix(packetText);
+  const normalizedPacketText = clauseClosureNormalization.packetText;
   const evaluation = evaluateWpCommunicationHealth({
     wpId,
     stage: "STATUS",
     packetPath,
-    packetContent: packetText,
+    packetContent: normalizedPacketText,
     workflowLane: parseSingleField(packetText, "WORKFLOW_LANE"),
     packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
     communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
@@ -210,11 +240,11 @@ export function reconcileWpCommunicationTruth({
   const packetProjection = deriveWpReviewPacketProjection({
     evaluation,
     autoRoute,
-    packetText,
+    packetText: normalizedPacketText,
   });
   const nextPacketText = packetProjection?.packetStatus
-    ? applyWpReviewPacketProjection(packetText, packetProjection)
-    : packetText;
+    ? applyWpReviewPacketProjection(normalizedPacketText, packetProjection)
+    : normalizedPacketText;
   const terminalPacketStatus = isTerminalPacketStatus(parsePacketStatus(nextPacketText));
   let nextRuntimeStatus = syncRuntimeDeclaredFieldsFromPacket(runtimeStatus, nextPacketText, {
     packetPath,
@@ -233,6 +263,12 @@ export function reconcileWpCommunicationTruth({
       nextRuntimeStatus.last_event_at = latestReceipt.timestamp_utc || nextRuntimeStatus.last_event_at;
     }
     nextRuntimeStatus = applyWpReviewRuntimeProjection(nextRuntimeStatus, { evaluation });
+    if (shouldResetRelayEscalationCycle(runtimeStatus, nextRuntimeStatus, latestReceipt)) {
+      nextRuntimeStatus.current_relay_escalation_cycle = 0;
+      if (nextRuntimeStatus.attention_required !== true) {
+        nextRuntimeStatus.attention_required = false;
+      }
+    }
   }
 
   return {
@@ -242,6 +278,7 @@ export function reconcileWpCommunicationTruth({
     latestReceipt,
     nextPacketText,
     nextRuntimeStatus,
+    clauseClosureNormalization,
   };
 }
 

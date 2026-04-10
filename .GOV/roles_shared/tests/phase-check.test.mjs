@@ -8,6 +8,7 @@ import {
   buildPhaseCheckPlan,
   parseCloseoutSyncOptions,
   parseCommittedTargetArgs,
+  resolveTerminalReadySessionsForWp,
   resolvePhaseCheckCwd,
   runGateCheck,
 } from "../checks/phase-check.mjs";
@@ -245,6 +246,23 @@ test("closeout phase plan forwards governed sync args into the closeout prefligh
     "--context",
     "recording merge-pending truth after governed final-lane review completed cleanly",
   ]);
+});
+
+test("terminal READY session cleanup targets only governed READY sessions for the active WP", () => {
+  const sessions = resolveTerminalReadySessionsForWp({
+    wpId: "WP-TEST-PHASE-v1",
+    registrySessions: [
+      { wp_id: "WP-TEST-PHASE-v1", role: "CODER", runtime_state: "READY" },
+      { wp_id: "WP-TEST-PHASE-v1", role: "WP_VALIDATOR", runtime_state: "CLOSED" },
+      { wp_id: "WP-TEST-PHASE-v1", role: "ACTIVATION_MANAGER", runtime_state: "READY" },
+      { wp_id: "WP-OTHER-v1", role: "INTEGRATION_VALIDATOR", runtime_state: "READY" },
+    ],
+  });
+
+  assert.deepEqual(
+    sessions.map((session) => `${session.role}:${session.runtime_state}`),
+    ["CODER:READY", "ACTIVATION_MANAGER:READY"],
+  );
 });
 
 test("gate-check resolves folder packets through packet.md", () => {

@@ -22,6 +22,7 @@ import {
   parsePacketScopeDiscipline,
   scopeDisciplineRequiresEnforcement,
 } from '../../../roles_shared/scripts/lib/scope-surface-lib.mjs';
+import { validatePacketClosureMonitoring } from '../../../roles_shared/scripts/lib/packet-closure-monitor-lib.mjs';
 import { resolveCommittedCoderHandoffRange } from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
 import { resolveGitBaselineMergeBase } from '../scripts/lib/coder-governance-lib.mjs';
 
@@ -479,6 +480,16 @@ const hasConcreteStatusField = (section, label) => {
 // Check 0: Canonical evidence must live in the packet for modern packets.
 // This is intentionally mechanical to keep validation reproducible.
 if (isModernPacket) {
+  const clauseClosureMonitorProfile = parsePacketSingleField(packetContent, 'CLAUSE_CLOSURE_MONITOR_PROFILE');
+  if (/^CLAUSE_MONITOR_V1$/i.test(clauseClosureMonitorProfile)) {
+    const closureMonitorValidation = validatePacketClosureMonitoring(packetContent, {
+      requireRows: true,
+    });
+    if (closureMonitorValidation.errors.length > 0) {
+      errors.push(`CLAUSE_CLOSURE_MATRIX invalid for handoff: ${closureMonitorValidation.errors.join('; ')}`);
+    }
+  }
+
   const evidenceMapping = extractSection(packetContent, 'EVIDENCE_MAPPING');
   if (!evidenceMapping) {
     errors.push('Missing ## EVIDENCE_MAPPING section (required for modern packets)');
@@ -495,7 +506,7 @@ if (isModernPacket) {
   } else {
     const evidenceLines = evidence.split('\n');
     const hasCommand = evidenceLines.some((l) => /COMMAND\s*:/i.test(l) && !/<paste>/i.test(l));
-    const hasExitCode = evidenceLines.some((l) => /EXIT_CODE\s*:\s*\d+/i.test(l));
+    const hasExitCode = evidenceLines.some((l) => /EXIT_CODE\s*:\s*`?\d+`?/i.test(l));
     if (!(hasCommand && hasExitCode)) {
       errors.push('EVIDENCE must include at least one COMMAND + EXIT_CODE entry for modern packets');
     }

@@ -9,6 +9,7 @@ import { compactGateOutputSummary, writeGateOutputArtifact } from "../scripts/li
 import { ensureWpCommunications } from "../scripts/wp/ensure-wp-communications.mjs";
 import { captureCheckFindings } from "../scripts/memory/memory-capture-from-check.mjs";
 import { buildActiveLaneBrief, formatActiveLaneBrief } from "../scripts/session/active-lane-brief-lib.mjs";
+import { loadSessionRegistry } from "../scripts/session/session-registry-lib.mjs";
 import {
   buildWpCommunicationHealthCheckResult,
   formatWpCommunicationHealthCheckResult,
@@ -34,6 +35,13 @@ export { buildPhaseCheckCommand, buildPhaseCheckPlan, PHASE_VALUES } from "./pha
 
 const CLOSEOUT_SYNC_SHA_RE = /^[0-9a-f]{7,40}$/i;
 const CLOSEOUT_SYNC_FLAG_SET = new Set(["--sync-mode", "--context", "--merged-main-sha", "--sync-debug"]);
+const TERMINAL_READY_SESSION_CLOSE_ROLE_VALUES = new Set([
+  "ACTIVATION_MANAGER",
+  "CODER",
+  "WP_VALIDATOR",
+  "INTEGRATION_VALIDATOR",
+  "MEMORY_MANAGER",
+]);
 
 export function resolvePhaseCheckCwd() {
   const injectedRepoRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
@@ -332,6 +340,69 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
   return {
     ok: result.status === 0,
     output: outputChunks.join(""),
+  };
+}
+
+export function resolveTerminalReadySessionsForWp({
+  wpId = "",
+  registrySessions = [],
+} = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  return (Array.isArray(registrySessions) ? registrySessions : [])
+    .filter((session) => String(session?.wp_id || "").trim() === normalizedWpId)
+    .filter((session) => TERMINAL_READY_SESSION_CLOSE_ROLE_VALUES.has(String(session?.role || "").trim().toUpperCase()))
+    .filter((session) => String(session?.runtime_state || "").trim().toUpperCase() === "READY");
+}
+
+function runTerminalReadySessionCloseStep({ wpId = "" } = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId) {
+    return {
+      ok: false,
+      output: "Terminal session cleanup requires WP_ID.\n",
+    };
+  }
+
+  const registrySessions = loadSessionRegistry(resolvePhaseCheckCwd()).registry.sessions || [];
+  const sessionsToClose = resolveTerminalReadySessionsForWp({
+    wpId: normalizedWpId,
+    registrySessions,
+  });
+  if (sessionsToClose.length === 0) {
+    return {
+      ok: true,
+      output: "[TERMINAL_SESSION_CLEANUP] PASS: no stale READY governed sessions remain.\n",
+    };
+  }
+
+  const closeScript = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-command.mjs`);
+  const lines = [
+    `[TERMINAL_SESSION_CLEANUP] ${sessionsToClose.length} terminal READY session(s) will be closed.`,
+  ];
+
+  for (const session of sessionsToClose) {
+    const role = String(session?.role || "").trim().toUpperCase();
+    const result = spawnSync(process.execPath, [closeScript, "CLOSE_SESSION", role, normalizedWpId], {
+      cwd: resolvePhaseCheckCwd(),
+      encoding: "utf8",
+      env: process.env,
+    });
+    const rendered = ensureTrailingNewline(`${result.stdout || ""}${result.stderr || ""}`.trimEnd());
+    lines.push(`- ${role}: ${result.status === 0 ? "PASS" : "FAIL"}`);
+    for (const line of rendered.trimEnd().split("\n")) {
+      if (line.trim()) lines.push(`  ${line}`);
+    }
+    if (result.status !== 0) {
+      return {
+        ok: false,
+        output: `${lines.join("\n")}\n`,
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    output: `${lines.join("\n")}\n`,
   };
 }
 
@@ -769,6 +840,19 @@ async function runCli() {
       if (!maintenanceResult.ok) {
         ok = false;
         why = `${deferredCloseoutMaintenanceStep.label} failed.`;
+      }
+    }
+
+    if (normalizedPhase === "CLOSEOUT" && ok) {
+      const terminalCleanupResult = runTerminalReadySessionCloseStep({
+        wpId: wpIdArg,
+      });
+      stepResults.set("close-terminal-sessions", terminalCleanupResult);
+      sections.push({ title: "close-terminal-sessions", body: terminalCleanupResult.output });
+      printStepSummary({ label: "close-terminal-sessions", result: terminalCleanupResult, verbose });
+      if (!terminalCleanupResult.ok) {
+        ok = false;
+        why = "close-terminal-sessions failed.";
       }
     }
 

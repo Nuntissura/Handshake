@@ -333,6 +333,7 @@
         "VALIDATOR_QUERY",
         "POST_WORK_PASS",
         "BLOCKED_NEEDS_VALIDATOR",
+        "MICROTASK_REVIEW_READY",
         "STALE_HEARTBEAT",
         "HANDOFF_READY"
       ]

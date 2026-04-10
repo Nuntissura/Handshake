@@ -286,13 +286,20 @@ function appendNotificationTarget(targets, seenTargets, target) {
   const actorRole = normalizeRole(target?.actorRole);
   if (!targetRole || targetRole === actorRole) return;
   const dedupeKey = `${targetRole}::${targetSession || ""}`;
-  if (seenTargets.has(dedupeKey)) return;
+  if (seenTargets.has(dedupeKey)) {
+    const existing = targets.find((entry) => `${entry.targetRole}::${entry.targetSession || ""}` === dedupeKey);
+    if (existing && target?.autoRelay === true) {
+      existing.autoRelay = true;
+    }
+    return;
+  }
   seenTargets.add(dedupeKey);
   targets.push({
     targetRole,
     targetSession,
     sourceKind: String(target?.sourceKind || "").trim().toUpperCase(),
     summary: String(target?.summary || "").trim(),
+    autoRelay: target?.autoRelay === true,
   });
 }
 
@@ -340,6 +347,19 @@ export function deriveReviewNotificationTargets({ workflowLane = "", entry, auto
       sourceKind: "AUTO_ROUTE",
       summary: autoRoute.notification.summary,
     });
+  }
+
+  if (Array.isArray(autoRoute?.secondaryNotifications)) {
+    for (const notification of autoRoute.secondaryNotifications) {
+      appendNotificationTarget(targets, seenTargets, {
+        actorRole,
+        targetRole: notification?.targetRole,
+        targetSession: notification?.targetSession,
+        sourceKind: String(notification?.sourceKind || "AUTO_ROUTE").trim().toUpperCase(),
+        summary: notification?.summary,
+        autoRelay: notification?.autoRelay === true,
+      });
+    }
   }
 
   if (shouldAppendOrchestratorGovernanceCheckpoint({ workflowLane, entry })) {
@@ -965,8 +985,6 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
 function appendReviewNotifications({ wpId, workflowLane, entry, autoRoute }) {
   const targets = deriveReviewNotificationTargets({ workflowLane, entry, autoRoute });
   for (const target of targets) {
-    // Review receipts already execute one route-aware auto-relay. Derived notifications must not
-    // trigger additional relay attempts, or the same review event fans out into duplicate prompts.
     appendWpNotification({
       wpId,
       sourceKind: target.sourceKind,
@@ -977,7 +995,9 @@ function appendReviewNotifications({ wpId, workflowLane, entry, autoRoute }) {
       correlationId: entry.correlation_id ?? null,
       summary: target.summary,
       timestamp: entry.timestamp_utc,
-    }, REVIEW_NOTIFICATION_APPEND_OPTIONS);
+    }, target.autoRelay === true
+      ? { assumeTransactionLock: true, autoRelay: true }
+      : REVIEW_NOTIFICATION_APPEND_OPTIONS);
   }
 }
 

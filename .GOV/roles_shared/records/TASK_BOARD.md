@@ -616,7 +616,97 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 
-- **[WP-1-Governance-Workflow-Mirror-v1]** - [IN_PROGRESS]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
@@ -742,6 +832,8 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 - **[WP-1-Session-Observability-Spans-FR-v1]** - [VALIDATED]
+
+- **[WP-1-Governance-Workflow-Mirror-v1]** - [OUTDATED_ONLY]
 
 ## Blocked
 ---

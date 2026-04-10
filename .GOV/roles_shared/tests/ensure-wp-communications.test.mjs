@@ -243,6 +243,126 @@ test("reconcileWpCommunicationTruth replays final review receipts into packet an
   assert.equal(reconciliation.nextRuntimeStatus.last_event_at, "2026-04-01T02:46:32.499Z");
 });
 
+test("reconcileWpCommunicationTruth resets relay cycle after route progress clears a stale validator wake", () => {
+  const packetText = [
+    "# Task Packet: WP-TEST-COMMS-v1",
+    "",
+    "## METADATA",
+    "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+    "- COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1",
+    "- COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING",
+    "- PACKET_FORMAT_VERSION: 2026-03-29",
+    "- EXECUTION_OWNER: CODER_A",
+    "- WORKFLOW_AUTHORITY: ORCHESTRATOR",
+    "- TECHNICAL_ADVISOR: WP_VALIDATOR",
+    "- TECHNICAL_AUTHORITY: INTEGRATION_VALIDATOR",
+    "- MERGE_AUTHORITY: INTEGRATION_VALIDATOR",
+    "- WP_COMMUNICATION_DIR: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-TEST-COMMS-v1",
+    "- WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-TEST-COMMS-v1/THREAD.md",
+    "- WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-TEST-COMMS-v1/RUNTIME_STATUS.json",
+    "- WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-TEST-COMMS-v1/RECEIPTS.jsonl",
+    "- LOCAL_BRANCH: feat/WP-TEST-COMMS-v1",
+    "- LOCAL_WORKTREE_DIR: ../wtc-test-comms-v1",
+    "- AGENTIC_MODE: NO",
+    "- **Status:** In Progress",
+    "",
+    "## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)",
+    "Verdict: PENDING",
+    "Blockers: Awaiting validator review progress.",
+    "Next: WP_VALIDATOR answers the current review request.",
+    "",
+  ].join("\n");
+
+  const runtimeStatus = {
+    schema_version: "wp_runtime_status@1",
+    wp_id: "WP-TEST-COMMS-v1",
+    current_packet_status: "In Progress",
+    runtime_status: "working",
+    current_phase: "VALIDATION",
+    next_expected_actor: "WP_VALIDATOR",
+    next_expected_session: "wp_validator:test-session",
+    waiting_on: "OPEN_REVIEW_ITEM_REVIEW_REQUEST",
+    waiting_on_session: "wp_validator:test-session",
+    validator_trigger: "BLOCKED_NEEDS_VALIDATOR",
+    validator_trigger_reason: "REVIEW_REQUEST requires WP_VALIDATOR response",
+    attention_required: true,
+    ready_for_validation: false,
+    ready_for_validation_reason: null,
+    open_review_items: [
+      {
+        correlation_id: "review-1",
+        receipt_kind: "REVIEW_REQUEST",
+        summary: "review current MT",
+        opened_by_role: "CODER",
+        opened_by_session: "coder:test-session",
+        target_role: "WP_VALIDATOR",
+        target_session: "wp_validator:test-session",
+        requires_ack: true,
+        opened_at: "2026-04-01T02:00:00.000Z",
+        updated_at: "2026-04-01T02:00:00.000Z",
+      },
+    ],
+    current_relay_escalation_cycle: 2,
+    max_relay_escalation_cycles: 2,
+  };
+
+  const receipts = [
+    {
+      receipt_kind: "VALIDATOR_KICKOFF",
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wp_validator:test-session",
+      target_role: "CODER",
+      target_session: "coder:test-session",
+      correlation_id: "kickoff-1",
+      timestamp_utc: "2026-04-01T01:00:00.000Z",
+      summary: "kickoff",
+    },
+    {
+      receipt_kind: "CODER_INTENT",
+      actor_role: "CODER",
+      actor_session: "coder:test-session",
+      target_role: "WP_VALIDATOR",
+      target_session: "wp_validator:test-session",
+      correlation_id: "kickoff-1",
+      ack_for: "kickoff-1",
+      timestamp_utc: "2026-04-01T01:05:00.000Z",
+      summary: "intent",
+    },
+    {
+      receipt_kind: "REVIEW_REQUEST",
+      actor_role: "CODER",
+      actor_session: "coder:test-session",
+      target_role: "WP_VALIDATOR",
+      target_session: "wp_validator:test-session",
+      correlation_id: "review-1",
+      timestamp_utc: "2026-04-01T02:00:00.000Z",
+      summary: "review current MT",
+    },
+    {
+      receipt_kind: "REVIEW_RESPONSE",
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wp_validator:test-session",
+      target_role: "CODER",
+      target_session: "coder:test-session",
+      correlation_id: "review-1",
+      ack_for: "review-1",
+      timestamp_utc: "2026-04-01T02:10:00.000Z",
+      summary: "PASS. proceed to the next microtask.",
+    },
+  ];
+
+  const reconciliation = reconcileWpCommunicationTruth({
+    wpId: "WP-TEST-COMMS-v1",
+    packetPath: ".GOV/task_packets/WP-TEST-COMMS-v1/packet.md",
+    packetText,
+    runtimeStatus,
+    receipts,
+  });
+
+  assert.equal(reconciliation.nextRuntimeStatus.current_relay_escalation_cycle, 0);
+  assert.equal(reconciliation.nextRuntimeStatus.last_event, "receipt_review_response");
+});
+
 test("startup communication health passes when the role-scoped mesh peers are active", () => {
   const evaluation = evaluateWpCommunicationHealth({
     wpId: "WP-TEST-COMMS-v1",

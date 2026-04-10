@@ -148,7 +148,7 @@ export function parseCurrentWpStatus(packetContent) {
 }
 
 export function parseMergeBaseSha(packetContent) {
-  const match = packetContent.match(/^\s*-\s*MERGE_BASE_SHA\s*:\s*([a-f0-9]{40})\s*$/mi);
+  const match = packetContent.match(/^\s*-\s*MERGE_BASE_SHA\s*:\s*([a-f0-9]{40})(?:\b|[ \t].*)$/mi);
   return match ? match[1].trim() : "";
 }
 
