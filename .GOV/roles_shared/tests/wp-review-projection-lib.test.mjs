@@ -132,8 +132,8 @@ test("overlap microtask review projects validator-owned next action while implem
       },
     },
     autoRoute: {
-      nextExpectedActor: "WP_VALIDATOR",
-      waitingOn: "WP_VALIDATOR_MICROTASK_REVIEW",
+      nextExpectedActor: "CODER",
+      waitingOn: "CODER_HANDOFF",
     },
     packetText: packetFixture("In Progress"),
   });

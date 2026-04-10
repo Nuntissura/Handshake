@@ -102,6 +102,23 @@ function quotePsLiteral(value) {
   return `'${String(value ?? "").replace(/'/g, "''")}'`;
 }
 
+function writeWindowsPromptRunner({ toolPath, args = [], prompt = "", prefix = "governed-cli" } = {}) {
+  const promptPath = path.join(os.tmpdir(), `${prefix}-${Date.now()}-${crypto.randomUUID()}.prompt.txt`);
+  const scriptPath = path.join(os.tmpdir(), `${prefix}-${Date.now()}-${crypto.randomUUID()}.ps1`);
+  fs.writeFileSync(promptPath, String(prompt || ""), "utf8");
+  const psArgsLines = args.map((arg) => `  ${quotePsLiteral(arg)}`).join(",\r\n");
+  const script = [
+    `$ErrorActionPreference = 'Stop'`,
+    `$cliArgs = @(`,
+    psArgsLines,
+    `)`,
+    `$promptText = Get-Content -Raw -LiteralPath ${quotePsLiteral(promptPath)}`,
+    `$promptText | & ${quotePsLiteral(toolPath)} @cliArgs`,
+  ].join("\r\n");
+  fs.writeFileSync(scriptPath, script, "utf8");
+  return { promptPath, scriptPath };
+}
+
 export function normalizePath(value) {
   return String(value || "").replace(/\\/g, "/");
 }
@@ -1143,7 +1160,7 @@ export async function runCodexThreadCommand({
       selectedModel,
       "-c",
       `${ROLE_SESSION_REASONING_CONFIG_KEY}=\"${ROLE_SESSION_REASONING_CONFIG_VALUE}\"`,
-      prompt,
+      "-",
     ]
     : [
       "exec",
@@ -1156,20 +1173,24 @@ export async function runCodexThreadCommand({
       `${ROLE_SESSION_REASONING_CONFIG_KEY}=\"${ROLE_SESSION_REASONING_CONFIG_VALUE}\"`,
       "-C",
       absWorktreeDir,
-      prompt,
+      "-",
     ];
 
   return await new Promise((resolve) => {
+    const windowsRunner = process.platform === "win32"
+      ? writeWindowsPromptRunner({
+        toolPath: cliToolPath,
+        args,
+        prompt,
+        prefix: "handshake-codex-governed",
+      })
+      : null;
     const child = process.platform === "win32"
       ? spawn("powershell.exe", [
         "-NoLogo",
         "-NonInteractive",
-        "-Command",
-        [
-          "$ErrorActionPreference = 'Stop'",
-          `$codexArgs = @(${args.map((arg) => quotePsLiteral(arg)).join(", ")})`,
-          `& ${quotePsLiteral(cliToolPath)} @codexArgs`,
-        ].join("; "),
+        "-File",
+        windowsRunner.scriptPath,
       ], {
         cwd: absWorktreeDir,
         env: childEnvironment,
@@ -1180,10 +1201,13 @@ export async function runCodexThreadCommand({
         cwd: absWorktreeDir,
         env: childEnvironment,
         shell: false,
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["pipe", "pipe", "pipe"],
       });
 
     if (typeof onSpawn === "function") onSpawn(child);
+    if (process.platform !== "win32") {
+      child.stdin.end(String(prompt || ""));
+    }
 
     let stderr = "";
     let stdoutBuffer = "";
@@ -1195,6 +1219,10 @@ export async function runCodexThreadCommand({
       if (settled) return;
       settled = true;
       outputStream.end();
+      if (windowsRunner) {
+        try { fs.unlinkSync(windowsRunner.scriptPath); } catch {}
+        try { fs.unlinkSync(windowsRunner.promptPath); } catch {}
+      }
       resolve(result);
     };
 
@@ -1432,16 +1460,20 @@ export async function runOllamaCommand({
   const args = ["run", selectedModel];
 
   return await new Promise((resolve) => {
+    const windowsRunner = process.platform === "win32"
+      ? writeWindowsPromptRunner({
+        toolPath: cliToolPath,
+        args,
+        prompt,
+        prefix: "handshake-ollama-governed",
+      })
+      : null;
     const child = process.platform === "win32"
       ? spawn("powershell.exe", [
         "-NoLogo",
         "-NonInteractive",
-        "-Command",
-        [
-          "$ErrorActionPreference = 'Stop'",
-          `$ollamaArgs = @(${args.map((arg) => quotePsLiteral(arg)).join(", ")})`,
-          `echo ${quotePsLiteral(prompt)} | & ${quotePsLiteral(cliToolPath)} @ollamaArgs`,
-        ].join("; "),
+        "-File",
+        windowsRunner.scriptPath,
       ], {
         cwd: absWorktreeDir,
         env: childEnvironment,
@@ -1453,10 +1485,12 @@ export async function runOllamaCommand({
         env: childEnvironment,
         shell: false,
         stdio: ["pipe", "pipe", "pipe"],
-        input: prompt,
       });
 
     if (typeof onSpawn === "function") onSpawn(child);
+    if (process.platform !== "win32") {
+      child.stdin.end(String(prompt || ""));
+    }
 
     let stderr = "";
     let stdoutBuffer = "";
@@ -1467,6 +1501,10 @@ export async function runOllamaCommand({
       if (settled) return;
       settled = true;
       outputStream.end();
+      if (windowsRunner) {
+        try { fs.unlinkSync(windowsRunner.scriptPath); } catch {}
+        try { fs.unlinkSync(windowsRunner.promptPath); } catch {}
+      }
       resolve(result);
     };
 

@@ -102,11 +102,26 @@ function normalizeMicrotaskReviewMode(value) {
   return MICROTASK_REVIEW_MODE_VALUES.includes(normalized) ? normalized : "BLOCKING";
 }
 
+function inferMicrotaskReviewMode(entry = null) {
+  const rawReviewMode = String(entry?.microtask_contract?.review_mode || "").trim();
+  if (rawReviewMode) return normalizeMicrotaskReviewMode(rawReviewMode);
+  if (/review_mode\s*=\s*OVERLAP/i.test(String(entry?.summary || ""))) return "OVERLAP";
+  if (
+    normalizeReceiptKind(entry?.receipt_kind) === "REVIEW_REQUEST"
+    && normalizeRole(entry?.opened_by_role || entry?.actor_role) === "CODER"
+    && normalizeRole(entry?.target_role) === "WP_VALIDATOR"
+    && /^MT-\d{3}$/i.test(String(entry?.packet_row_ref || "").trim())
+  ) {
+    return "OVERLAP";
+  }
+  return "BLOCKING";
+}
+
 export function isOverlapMicrotaskReviewItem(item = null) {
   return normalizeReceiptKind(item?.receipt_kind) === "REVIEW_REQUEST"
     && normalizeRole(item?.opened_by_role) === "CODER"
     && normalizeRole(item?.target_role) === "WP_VALIDATOR"
-    && normalizeMicrotaskReviewMode(item?.microtask_contract?.review_mode) === "OVERLAP";
+    && inferMicrotaskReviewMode(item) === "OVERLAP";
 }
 
 function partitionOpenReviewItems(openReviewItems = []) {
@@ -207,14 +222,35 @@ function notificationMatchesProjectedRoute(notification = null, autoRoute = null
   const sourceKind = normalizeReceiptKind(notification?.source_kind);
   if (!ACTIVE_NOTIFICATION_SOURCE_KIND_VALUES.has(sourceKind)) return false;
 
-  const nextActor = normalizeRole(autoRoute?.nextExpectedActor);
-  if (!nextActor || nextActor === "NONE") return false;
-
   const targetRole = normalizeRole(notification?.target_role);
   const targetSession = normalizeSession(notification?.target_session);
+  const projectedTargets = [];
+
+  const nextActor = normalizeRole(autoRoute?.nextExpectedActor);
   const nextSession = normalizeSession(autoRoute?.nextExpectedSession);
-  if (targetRole !== nextActor) return false;
-  if (nextSession && targetSession && targetSession !== nextSession) return false;
+  if (nextActor && nextActor !== "NONE") {
+    projectedTargets.push({ role: nextActor, session: nextSession });
+  }
+
+  if (Array.isArray(autoRoute?.secondaryNotifications)) {
+    for (const secondary of autoRoute.secondaryNotifications) {
+      const role = normalizeRole(secondary?.targetRole);
+      if (!role || role === "NONE") continue;
+      projectedTargets.push({
+        role,
+        session: normalizeSession(secondary?.targetSession),
+      });
+    }
+  }
+
+  if (projectedTargets.length === 0) return false;
+
+  const matchesProjectedTarget = projectedTargets.some((candidate) => {
+    if (candidate.role !== targetRole) return false;
+    if (candidate.session && targetSession && candidate.session !== targetSession) return false;
+    return true;
+  });
+  if (!matchesProjectedTarget) return false;
 
   const correlationId = nullableComparable(notification?.correlation_id);
   if (sourceKind === "AUTO_ROUTE") return true;
@@ -613,7 +649,11 @@ function receiptKindsFilter(receipts, { receiptKinds, actorRole, targetRole }) {
 }
 
 function requiresFinalAuthorityDirectReview(packetFormatVersion = "") {
-  return isVersionAtLeast(packetFormatVersion, FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION);
+  // PACKET_FORMAT_VERSION >= 2026-04-06 retires the direct coder<->integration-validator
+  // final review pair. From that law version onward, WP_VALIDATOR closes the direct-review
+  // lane and ORCHESTRATOR launches INTEGRATION_VALIDATOR as the downstream containment authority.
+  return isVersionAtLeast(packetFormatVersion, FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION)
+    && !isVersionAtLeast(packetFormatVersion, "2026-04-06");
 }
 
 function buildBaseDetails({
@@ -754,8 +794,8 @@ export function evaluateWpCommunicationHealth({
     actorRole: "CODER",
     targetRole: "WP_VALIDATOR",
   });
-  const validatorReviews = receiptFilter(receipts, {
-    receiptKind: "VALIDATOR_REVIEW",
+  const validatorReviews = receiptKindsFilter(receipts, {
+    receiptKinds: ["VALIDATOR_REVIEW", "REVIEW_RESPONSE"],
     actorRole: "WP_VALIDATOR",
     targetRole: "CODER",
   });
@@ -1374,10 +1414,11 @@ export function deriveWpCommunicationAutoRoute({
       readyForValidationReason: null,
       attentionRequired: false,
       notification: null,
+      secondaryNotifications: [],
     };
   }
 
-  if (evaluation.ok && runtimeIsContainedTerminalCloseout(runtimeStatus)) {
+  if (evaluation.ok && isClosedTerminalRuntimeState(runtimeStatus)) {
     return {
       ...route({
         state: evaluation.state,
@@ -1410,6 +1451,7 @@ export function deriveWpCommunicationAutoRoute({
     latestTargetRole === "INTEGRATION_VALIDATOR" ? latestTargetSession : null,
   );
   const openReviewItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
+  let secondaryNotifications = [];
 
   let projection;
   switch (evaluation.state) {
@@ -1461,16 +1503,23 @@ export function deriveWpCommunicationAutoRoute({
       if (Array.isArray(openReviewItems) && openReviewItems.some((item) => isOverlapMicrotaskReviewItem(item))) {
         projection = route({
           state: evaluation.state,
-          nextExpectedActor: "WP_VALIDATOR",
-          nextExpectedSession: wpValidatorSession,
-          waitingOn: "WP_VALIDATOR_MICROTASK_REVIEW",
-          waitingOnSession: wpValidatorSession,
+          nextExpectedActor: "CODER",
+          nextExpectedSession: coderSession,
+          waitingOn: "CODER_HANDOFF",
+          waitingOnSession: coderSession,
           validatorTrigger: "MICROTASK_REVIEW_READY",
           validatorTriggerReason: "Previous completed microtask is awaiting overlap review while coder continues the current microtask",
           readyForValidation: true,
           readyForValidationReason: "Overlap microtask review is open for the WP validator while coder remains in bounded forward execution",
-          notificationSummary: "AUTO_ROUTE: WP validator overlap review required while coder continues current microtask",
+          notificationSummary: "AUTO_ROUTE: coder continues forward execution while overlap review remains open",
         });
+        secondaryNotifications = [{
+          targetRole: "WP_VALIDATOR",
+          targetSession: wpValidatorSession,
+          sourceKind: "AUTO_ROUTE",
+          summary: "AUTO_ROUTE: WP validator overlap review required while coder continues current microtask",
+          autoRelay: true,
+        }];
         break;
       }
       projection = route({
@@ -1590,6 +1639,7 @@ export function deriveWpCommunicationAutoRoute({
   return {
     ...projection,
     notification,
+    secondaryNotifications,
   };
 }
 

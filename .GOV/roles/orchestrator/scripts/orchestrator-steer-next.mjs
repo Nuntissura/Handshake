@@ -23,6 +23,22 @@ import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/mem
 
 const wpId = String(process.argv[2] || "").trim();
 const debugMode = process.argv.slice(3).some((arg) => String(arg || "").trim() === "--debug");
+const explicitTargetRole = (() => {
+  for (const candidate of process.argv.slice(3)) {
+    const value = String(candidate || "").trim();
+    if (!value.startsWith("--target-role=")) continue;
+    return normalizeRole(value.slice("--target-role=".length));
+  }
+  return "";
+})();
+const explicitTargetSession = (() => {
+  for (const candidate of process.argv.slice(3)) {
+    const value = String(candidate || "").trim();
+    if (!value.startsWith("--target-session=")) continue;
+    return String(value.slice("--target-session=".length) || "").trim();
+  }
+  return "";
+})();
 const requestedModel = (() => {
   for (const candidate of process.argv.slice(3)) {
     const value = String(candidate || "").trim().toUpperCase();
@@ -75,7 +91,7 @@ function loadRuntimeStatus(packetText) {
 }
 
 if (!wpId || !/^WP-/.test(wpId)) {
-  fail("Usage: node .GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs WP-{ID} [PRIMARY|FALLBACK]");
+  fail("Usage: node .GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs WP-{ID} [PRIMARY|FALLBACK] [--target-role=ROLE] [--target-session=SESSION]");
 }
 
 if (debugMode) {
@@ -145,14 +161,15 @@ const boundaryIssues = (boundaryEvaluation.issues || []).filter((issue) => {
   if (!issue.startsWith("runtime.attention_required")) return true;
   return relayEscalation.status === "NOT_APPLICABLE";
 });
-if (communicationEvaluation.applicable && boundaryIssues.length > 0) {
+if (!explicitTargetRole && communicationEvaluation.applicable && boundaryIssues.length > 0) {
   fail("Runtime route drift prevents mechanical relay", boundaryIssues);
 }
 
 const activationGate = activationReadinessRequiresActivationManager(wpId);
-const nextActor = activationGate.requiresActivationManager
+const defaultNextActor = activationGate.requiresActivationManager
   ? "ACTIVATION_MANAGER"
   : normalizeRole(runtimeStatus.next_expected_actor);
+const nextActor = explicitTargetRole || defaultNextActor;
 if (!ACTIVE_ROLE_SET.has(nextActor)) {
   fail("No governed next actor is currently projected for automatic relay", [
     `next_expected_actor=${runtimeStatus.next_expected_actor || "<missing>"}`,
@@ -169,7 +186,9 @@ if (!roleConfig) {
 
 const commandScript = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
 const action = steerActionForSession(governedSession);
-const nextSession = nextActor === "ACTIVATION_MANAGER"
+const nextSession = explicitTargetRole
+  ? (explicitTargetSession || preferredTargetSession(runtimeStatus, governedSession))
+  : nextActor === "ACTIVATION_MANAGER"
   ? sessionKey("ACTIVATION_MANAGER", wpId)
   : preferredTargetSession(runtimeStatus, governedSession);
 let envelope = null;
@@ -185,6 +204,14 @@ if (nextActor === "ACTIVATION_MANAGER") {
   ].join("\n");
 } else {
   const targetNotifications = checkNotifications({ wpId, role: nextActor, session: nextSession });
+  if (explicitTargetRole && (targetNotifications.notifications || []).length === 0) {
+    fail("Explicit target role has no pending routed notification to dispatch", [
+      `target_role=${nextActor}`,
+      `target_session=${nextSession || "<none>"}`,
+      `runtime_next_expected_actor=${runtimeStatus.next_expected_actor || "<missing>"}`,
+      `runtime_waiting_on=${runtimeStatus.waiting_on || "<missing>"}`,
+    ]);
+  }
   envelope = deriveRelayEnvelope({
     wpId,
     runtimeStatus,
@@ -209,6 +236,10 @@ if (nextActor === "ACTIVATION_MANAGER") {
 console.log(`[ORCHESTRATOR_STEER_NEXT] wp_id=${wpId}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] next_actor=${nextActor}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] next_session=${nextSession || "<none>"}`);
+if (explicitTargetRole) {
+  console.log(`[ORCHESTRATOR_STEER_NEXT] explicit_target_role=${explicitTargetRole}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] explicit_target_session=${explicitTargetSession || "<none>"}`);
+}
 console.log(`[ORCHESTRATOR_STEER_NEXT] waiting_on=${runtimeStatus.waiting_on || "<missing>"}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] relay_status=${relayEscalation.status}`);
 if (relayEscalation.status !== "NOT_APPLICABLE") {

@@ -8,6 +8,7 @@ import {
   REVIEW_OPEN_RECEIPT_KIND_VALUES,
   REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
 } from "../lib/wp-communications-lib.mjs";
+import { resolveDeclaredWpMicrotaskByScopeRef } from "../lib/wp-microtask-lib.mjs";
 import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
 import { appendWpReceipt, validateWpReceiptAppendPreconditions } from "./wp-receipt-append.mjs";
@@ -55,6 +56,74 @@ function buildCorrelationId(wpId, receiptKind) {
 function buildTargetLabel(targetRole, targetSession) {
   if (!targetRole) return "";
   return targetSession ? `${targetRole}:${targetSession}` : targetRole;
+}
+
+function inferMicrotaskScopeRef(packetRowRef, summary) {
+  const rowRef = String(packetRowRef || "").trim();
+  if (/^MT-\d{3}$/i.test(rowRef)) return rowRef.toUpperCase();
+  const summaryMatch = String(summary || "").match(/\b(MT-\d{3})\b/i);
+  return summaryMatch ? summaryMatch[1].toUpperCase() : null;
+}
+
+function inferReviewMode({ receiptKind, actorRole, targetRole, packetRowRef, summary }) {
+  const normalizedSummary = String(summary || "");
+  if (/review_mode\s*=\s*OVERLAP/i.test(normalizedSummary)) return "OVERLAP";
+  if (
+    /^REVIEW_REQUEST$/i.test(receiptKind || "")
+    && normalizeRole(actorRole) === "CODER"
+    && normalizeRole(targetRole) === "WP_VALIDATOR"
+    && /^MT-\d{3}$/i.test(String(packetRowRef || "").trim())
+  ) {
+    return "OVERLAP";
+  }
+  return null;
+}
+
+export function deriveFallbackReviewMicrotaskContract({
+  wpId,
+  receiptKind,
+  actorRole,
+  targetRole,
+  packetRowRef,
+  summary,
+  microtaskContract = null,
+} = {}) {
+  if (microtaskContract && typeof microtaskContract === "object" && !Array.isArray(microtaskContract)) {
+    return microtaskContract;
+  }
+  const normalizedReceiptKind = String(receiptKind || "").trim().toUpperCase();
+  if (![
+    ...REVIEW_OPEN_RECEIPT_KIND_VALUES,
+    ...REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
+  ].includes(normalizedReceiptKind)) {
+    return null;
+  }
+
+  const scopeRef = inferMicrotaskScopeRef(packetRowRef, summary);
+  if (!scopeRef) return null;
+
+  const resolution = resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef);
+  if (!resolution.match) return null;
+
+  const contract = {
+    scope_ref: resolution.match.mtId,
+    file_targets: resolution.match.codeSurfaces,
+    proof_commands: resolution.match.expectedTests,
+    phase_gate: "MICROTASK",
+  };
+
+  const reviewMode = inferReviewMode({
+    receiptKind: normalizedReceiptKind,
+    actorRole,
+    targetRole,
+    packetRowRef,
+    summary,
+  });
+  if (reviewMode) contract.review_mode = reviewMode;
+  if (normalizedReceiptKind === "REVIEW_REQUEST") {
+    contract.expected_receipt_kind = "REVIEW_RESPONSE";
+  }
+  return contract;
 }
 
 function parseMicrotaskContract(value) {
@@ -123,7 +192,15 @@ export function recordReviewExchange({
   const TARGET_SESSION = nullableValue(targetSession);
   const SPEC_ANCHOR = nullableValue(specAnchor);
   const PACKET_ROW_REF = nullableValue(packetRowRef);
-  const MICROTASK_CONTRACT = parseMicrotaskContract(microtaskJson);
+  const MICROTASK_CONTRACT = deriveFallbackReviewMicrotaskContract({
+    wpId: WP_ID,
+    receiptKind: RECEIPT_KIND,
+    actorRole: ACTOR_ROLE,
+    targetRole: TARGET_ROLE,
+    packetRowRef: PACKET_ROW_REF,
+    summary: SUMMARY,
+    microtaskContract: parseMicrotaskContract(microtaskJson),
+  });
   let ACK_FOR = nullableValue(ackFor);
 
   if (!SUPPORTED_RECEIPT_KINDS.includes(RECEIPT_KIND)) {

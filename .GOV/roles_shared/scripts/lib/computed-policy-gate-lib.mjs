@@ -895,5 +895,28 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
 }
 
 export function computedPolicyOutcomeAllowsClosure(evaluation) {
-  return evaluation?.applicable === true && (evaluation.outcome === "PASS" || evaluation.outcome === "WAIVED");
+  if (evaluation?.applicable !== true) return false;
+  if (evaluation.outcome === "PASS" || evaluation.outcome === "WAIVED") return true;
+
+  const status = String(evaluation?.status || "").trim();
+  const blockedIssues = Array.isArray(evaluation?.issues?.blocked) ? evaluation.issues.blocked : [];
+  if (blockedIssues.length > 0) return false;
+
+  if (!/^Validated\s*\(\s*(FAIL|OUTDATED_ONLY|ABANDONED)\s*\)$/i.test(status)) {
+    return false;
+  }
+
+  const terminalIssues = [
+    ...(Array.isArray(evaluation?.issues?.fail) ? evaluation.issues.fail : []),
+    ...(Array.isArray(evaluation?.issues?.reviewRequired) ? evaluation.issues.reviewRequired : []),
+  ];
+  const allowedTerminalIssueRe =
+    /^(VALIDATION_CONTEXT|GOVERNANCE_VERDICT|TEST_VERDICT|CODE_REVIEW_VERDICT|HEURISTIC_REVIEW_VERDICT|SPEC_ALIGNMENT_VERDICT|ENVIRONMENT_VERDICT|LEGAL_VERDICT|WORKFLOW_VALIDITY|SCOPE_VALIDITY|PROOF_COMPLETENESS|INTEGRATION_READINESS|DOMAIN_GOAL_COMPLETION|MECHANICAL_TRACK_VERDICT|SPEC_RETENTION_TRACK_VERDICT)_[A-Z_]+$/;
+
+  return terminalIssues.every((item) => {
+    const code = String(item?.code || "").trim().toUpperCase();
+    if (!code) return false;
+    if (allowedTerminalIssueRe.test(code)) return true;
+    return /^Validated\s*\(\s*OUTDATED_ONLY\s*\)$/i.test(status) && code === "DISPOSITION_OUTDATED_ONLY";
+  });
 }

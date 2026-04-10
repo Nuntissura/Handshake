@@ -58,12 +58,15 @@ function attemptOrchestratorAutoRelay({ wpId, notification }) {
     return { status: "NOT_APPLICABLE", reason: "NON_ORCHESTRATOR_MANAGED" };
   }
   const targetRole = String(notification?.target_role || "").trim().toUpperCase();
+  const targetSession = String(notification?.target_session || "").trim();
   if (!ACTIVE_AUTO_RELAY_ROLE_VALUES.has(targetRole)) {
     return { status: "NOT_APPLICABLE", reason: "NO_GOVERNED_TARGET_ROLE" };
   }
 
   try {
-    const output = execFileSync(process.execPath, [ORCHESTRATOR_STEER_SCRIPT_PATH, wpId, "PRIMARY"], {
+    const steerArgs = [ORCHESTRATOR_STEER_SCRIPT_PATH, wpId, "PRIMARY", `--target-role=${targetRole}`];
+    if (targetSession) steerArgs.push(`--target-session=${targetSession}`);
+    const output = execFileSync(process.execPath, steerArgs, {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });

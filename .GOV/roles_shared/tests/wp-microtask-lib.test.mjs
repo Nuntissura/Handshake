@@ -174,6 +174,62 @@ test("deriveWpMicrotaskPlan advances execution to the next declared microtask af
   }
 });
 
+test("deriveWpMicrotaskPlan recovers overlap routing from MT packet_row_ref and correlation when microtask_contract is missing", () => {
+  const wpId = "WP-TEST-MICROTASK-FALLBACK-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(path.join(packetDir, "packet.md"), `- WP_ID: ${wpId}\n`, "utf8");
+  writeMicrotask(packetDir, wpId, "MT-001", "Boundary scope [CX-MT-301]", ["src/boundary.rs"]);
+  writeMicrotask(packetDir, wpId, "MT-002", "Next scope [CX-MT-302]", ["src/next.rs"]);
+
+  try {
+    const plan = deriveWpMicrotaskPlan({
+      wpId,
+      receipts: [
+        {
+          timestamp_utc: "2026-04-05T10:00:00Z",
+          actor_role: "CODER",
+          target_role: "WP_VALIDATOR",
+          receipt_kind: "REVIEW_REQUEST",
+          correlation_id: "review-1",
+          packet_row_ref: "MT-001",
+          summary: "MT-001 review_mode=OVERLAP: review the completed slice while I continue.",
+        },
+        {
+          timestamp_utc: "2026-04-05T10:01:00Z",
+          actor_role: "WP_VALIDATOR",
+          target_role: "CODER",
+          receipt_kind: "REVIEW_RESPONSE",
+          correlation_id: "review-1",
+          ack_for: "review-1",
+          summary: "PASS. proceed.",
+        },
+      ],
+      runtimeStatus: {
+        open_review_items: [
+          {
+            correlation_id: "review-1",
+            receipt_kind: "REVIEW_REQUEST",
+            opened_by_role: "CODER",
+            target_role: "WP_VALIDATOR",
+            packet_row_ref: "MT-001",
+            summary: "MT-001 review_mode=OVERLAP: review the completed slice while I continue.",
+            opened_at: "2026-04-05T10:00:00Z",
+            updated_at: "2026-04-05T10:00:00Z",
+          },
+        ],
+      },
+    });
+
+    assert.equal(plan.previous_microtask?.mt_id, "MT-001");
+    assert.equal(plan.previous_microtask?.review_mode, "OVERLAP");
+    assert.equal(plan.active_microtask?.mt_id, "MT-002");
+    assert.equal(plan.active_microtask?.state, "DECLARED");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
 test("deriveWpMicrotaskPlan promotes validator repair outcomes above later declared work", () => {
   const wpId = "WP-TEST-MICROTASK-REPAIR-v1";
   const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);

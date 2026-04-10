@@ -112,6 +112,19 @@ test("resolveCommittedCoderHandoffRange falls back to MERGE_BASE_SHA when no fix
   });
 });
 
+test("resolveCommittedCoderHandoffRange accepts MERGE_BASE_SHA lines with explanatory comments", () => {
+  const packet = [
+    "- MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7 (git merge-base main HEAD at creation time; use for deterministic handoff evidence)",
+    "- Ran: `just phase-check HANDOFF WP-1-Example-v1 CODER --range facce56f..HEAD`",
+  ].join("\n");
+
+  assert.deepEqual(resolveCommittedCoderHandoffRange(packet, "WP-1-Example-v1"), {
+    baseRev: "facce56f879d4ee990f62566b12a8b26d8bc61d7",
+    headRev: "HEAD",
+    source: "PACKET_MERGE_BASE",
+  });
+});
+
 test("buildPostWorkCommand prefers the packet explicit committed handoff range over MERGE_BASE_SHA", () => {
   const packet = [
     "- MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7",

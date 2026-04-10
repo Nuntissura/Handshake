@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_TEMPLATE
+# TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
 
@@ -119,23 +119,23 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** In Progress
+- **Status:** Validated (OUTDATED_ONLY)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
-- MAIN_CONTAINMENT_STATUS: NOT_STARTED
+- MAIN_CONTAINMENT_STATUS: NOT_REQUIRED
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
 - MERGED_MAIN_COMMIT: NONE
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
 - MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
-- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
+- CURRENT_MAIN_COMPATIBILITY_STATUS: ADJACENT_SCOPE_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 333b1a59bb6f891b3b0948514e3ef8b34f0ab58f
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-10T08:51:43.052Z
 <!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
-- PACKET_WIDENING_DECISION: NONE
+- PACKET_WIDENING_DECISION: FOLLOW_ON_WP_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
-- PACKET_WIDENING_EVIDENCE: N/A
+- PACKET_WIDENING_EVIDENCE: Current local `main` commits a duplicate `model_session_id` field in `src/backend/handshake_core/src/api/flight_recorder.rs` at lines 62 and 68 with no local diff; this adjacent-scope blocker sits outside the signed five-file WP scope and requires a follow-on WP.
 <!-- Use follow-on/superseding WP id, audit id, or short rationale when widening is required. -->
 - ZERO_DELTA_PROOF_ALLOWED: NO
 <!-- Allowed: YES | NO. YES => deterministic post-work may accept an empty diff only for an explicitly proof-only/status-sync packet. -->
@@ -176,8 +176,8 @@ Requirements:
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Governance-Workflow-Mirror-v1/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Governance-Workflow-Mirror-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Governance-Workflow-Mirror-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
-- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: wp_validator:wp-1-governance-workflow-mirror-v1
+- INTEGRATION_VALIDATOR_OF_RECORD: integration_validator:wp-1-governance-workflow-mirror-v1
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
@@ -189,17 +189,17 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
-Blockers: Implementation is in progress; awaiting coder handoff to WP validator.
-Next: CODER completes in-scope work and records CODER_HANDOFF with proof.
+Verdict: OUTDATED_ONLY
+Blockers: Current local main requires adjacent-scope follow-on work outside this signed packet; see PACKET_WIDENING_EVIDENCE and VALIDATION_REPORTS.
+Next: NONE
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: 2.3.15 tracked work-packet `gates.pre_work`, `task_packet_path`, and `task_board_status` remain canonical workflow fields | CODE_SURFACES: `runtime_governance.rs`, `workflows.rs`, `locus/types.rs` | TESTS: runtime-governance/workflow projection tests proving per-WP gate files and stable id carry-through | EXAMPLES: Example per-WP gate artifact at `.handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v1.json` with stable `wp_id`, verdict, gate-state ref, and evidence/check refs., Example activation-traceability record linking `base_wp_id`, `work_packet_id`, `task_board_id`, `active_packet_ref`, and runtime-owned traceability ref., Example task-board projection row whose structured fields include `task_board_id`, `work_packet_id`, gate summary, and activation summary., Example workflow-facing `SpecSessionLogEntry` record covering a gate transition and a stub activation event with linked runtime artifacts only. | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: 2.6.8.8 Spec Session Log + 2.6.8.9 integration hooks | CODE_SURFACES: `role_mailbox.rs`, workflow-mirror adapter in `workflows.rs` or adjacent runtime-governance service | TESTS: session-log tests proving append/query behavior and stable `spec_id`/`task_board_id`/`work_packet_id` linkage | EXAMPLES: Example per-WP gate artifact at `.handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v1.json` with stable `wp_id`, verdict, gate-state ref, and evidence/check refs., Example activation-traceability record linking `base_wp_id`, `work_packet_id`, `task_board_id`, `active_packet_ref`, and runtime-owned traceability ref., Example task-board projection row whose structured fields include `task_board_id`, `work_packet_id`, gate summary, and activation summary., Example workflow-facing `SpecSessionLogEntry` record covering a gate transition and a stub activation event with linked runtime artifacts only. | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: 7.5.4.8 hard repo/runtime boundary | CODE_SURFACES: `runtime_governance.rs`, any new workflow-mirror service, boundary tests | TESTS: negative-path tests proving `.GOV/` access is rejected and runtime roots stay under `.handshake/gov/` | EXAMPLES: Example per-WP gate artifact at `.handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v1.json` with stable `wp_id`, verdict, gate-state ref, and evidence/check refs., Example activation-traceability record linking `base_wp_id`, `work_packet_id`, `task_board_id`, `active_packet_ref`, and runtime-owned traceability ref., Example task-board projection row whose structured fields include `task_board_id`, `work_packet_id`, gate summary, and activation summary., Example workflow-facing `SpecSessionLogEntry` record covering a gate transition and a stub activation event with linked runtime artifacts only. | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: 7.5.4.9 Governance Check Runner additive overlay rule and storage boundary | CODE_SURFACES: `governance_check_runner.rs`, `governance_artifact_registry.rs`, `storage/mod.rs`, workflow-mirror linkage surfaces | TESTS: check-linkage tests proving result/evidence refs are persisted and projected without direct SQLite bypass | EXAMPLES: Example per-WP gate artifact at `.handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v1.json` with stable `wp_id`, verdict, gate-state ref, and evidence/check refs., Example activation-traceability record linking `base_wp_id`, `work_packet_id`, `task_board_id`, `active_packet_ref`, and runtime-owned traceability ref., Example task-board projection row whose structured fields include `task_board_id`, `work_packet_id`, gate summary, and activation summary., Example workflow-facing `SpecSessionLogEntry` record covering a gate transition and a stub activation event with linked runtime artifacts only. | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: 11.5.4 `FR-EVT-GOV-GATES-001` and `FR-EVT-GOV-WP-001` | CODE_SURFACES: `flight_recorder/mod.rs`, workflow-mirror update paths in `workflows.rs` or adjacent service | TESTS: FR payload tests validating event kind, refs, and idempotency behavior | EXAMPLES: Example per-WP gate artifact at `.handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v1.json` with stable `wp_id`, verdict, gate-state ref, and evidence/check refs., Example activation-traceability record linking `base_wp_id`, `work_packet_id`, `task_board_id`, `active_packet_ref`, and runtime-owned traceability ref., Example task-board projection row whose structured fields include `task_board_id`, `work_packet_id`, gate summary, and activation summary., Example workflow-facing `SpecSessionLogEntry` record covering a gate transition and a stub activation event with linked runtime artifacts only. | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: 2.3.15 tracked work-packet `gates.pre_work`, `task_packet_path`, and `task_board_status` remain canonical workflow fields | CODE_SURFACES: `runtime_governance.rs`, `workflows.rs`, `locus/types.rs` | TESTS: runtime-governance/workflow projection tests proving per-WP gate files and stable id carry-through | EXAMPLES: Example per-WP gate artifact at `.handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v1.json` with stable `wp_id`, verdict, gate-state ref, and evidence/check refs., Example activation-traceability record linking `base_wp_id`, `work_packet_id`, `task_board_id`, `active_packet_ref`, and runtime-owned traceability ref., Example task-board projection row whose structured fields include `task_board_id`, `work_packet_id`, gate summary, and activation summary., Example workflow-facing `SpecSessionLogEntry` record covering a gate transition and a stub activation event with linked runtime artifacts only. | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: 2.6.8.8 Spec Session Log + 2.6.8.9 integration hooks | CODE_SURFACES: `role_mailbox.rs`, workflow-mirror adapter in `workflows.rs` or adjacent runtime-governance service | TESTS: session-log tests proving append/query behavior and stable `spec_id`/`task_board_id`/`work_packet_id` linkage | EXAMPLES: Example per-WP gate artifact at `.handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v1.json` with stable `wp_id`, verdict, gate-state ref, and evidence/check refs., Example activation-traceability record linking `base_wp_id`, `work_packet_id`, `task_board_id`, `active_packet_ref`, and runtime-owned traceability ref., Example task-board projection row whose structured fields include `task_board_id`, `work_packet_id`, gate summary, and activation summary., Example workflow-facing `SpecSessionLogEntry` record covering a gate transition and a stub activation event with linked runtime artifacts only. | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: 7.5.4.8 hard repo/runtime boundary | CODE_SURFACES: `runtime_governance.rs`, any new workflow-mirror service, boundary tests | TESTS: negative-path tests proving `.GOV/` access is rejected and runtime roots stay under `.handshake/gov/` | EXAMPLES: Example per-WP gate artifact at `.handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v1.json` with stable `wp_id`, verdict, gate-state ref, and evidence/check refs., Example activation-traceability record linking `base_wp_id`, `work_packet_id`, `task_board_id`, `active_packet_ref`, and runtime-owned traceability ref., Example task-board projection row whose structured fields include `task_board_id`, `work_packet_id`, gate summary, and activation summary., Example workflow-facing `SpecSessionLogEntry` record covering a gate transition and a stub activation event with linked runtime artifacts only. | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: 7.5.4.9 Governance Check Runner additive overlay rule and storage boundary | CODE_SURFACES: `governance_check_runner.rs`, `governance_artifact_registry.rs`, `storage/mod.rs`, workflow-mirror linkage surfaces | TESTS: check-linkage tests proving result/evidence refs are persisted and projected without direct SQLite bypass | EXAMPLES: Example per-WP gate artifact at `.handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v1.json` with stable `wp_id`, verdict, gate-state ref, and evidence/check refs., Example activation-traceability record linking `base_wp_id`, `work_packet_id`, `task_board_id`, `active_packet_ref`, and runtime-owned traceability ref., Example task-board projection row whose structured fields include `task_board_id`, `work_packet_id`, gate summary, and activation summary., Example workflow-facing `SpecSessionLogEntry` record covering a gate transition and a stub activation event with linked runtime artifacts only. | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: 11.5.4 `FR-EVT-GOV-GATES-001` and `FR-EVT-GOV-WP-001` | CODE_SURFACES: `flight_recorder/mod.rs`, workflow-mirror update paths in `workflows.rs` or adjacent service | TESTS: FR payload tests validating event kind, refs, and idempotency behavior | EXAMPLES: Example per-WP gate artifact at `.handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v1.json` with stable `wp_id`, verdict, gate-state ref, and evidence/check refs., Example activation-traceability record linking `base_wp_id`, `work_packet_id`, `task_board_id`, `active_packet_ref`, and runtime-owned traceability ref., Example task-board projection row whose structured fields include `task_board_id`, `work_packet_id`, gate summary, and activation summary., Example workflow-facing `SpecSessionLogEntry` record covering a gate transition and a stub activation event with linked runtime artifacts only. | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -220,6 +220,7 @@ Next: CODER completes in-scope work and records CODER_HANDOFF with proof.
   - `governance_workflow_mirror_gate_transition_emits_fr_event`
   - `governance_workflow_mirror_activation_records_traceability`
   - `governance_workflow_mirror_rejects_gov_repo_io`
+  - `governance_workflow_mirror_spec_session_log_enforces_runtime_artifact_boundary`
   - `governance_workflow_mirror_spec_session_log_keeps_stable_ids`
   - `governance_workflow_mirror_check_result_links_to_evidence`
 - POST_MERGE_SPOTCHECK_REQUIRED: YES
@@ -872,6 +873,9 @@ rg -n "validator_gates|WP_TRACEABILITY_REGISTRY|spec_session_log|task_board_id|w
 - Added typed workflow-mirror gate and activation summaries to `WorkPacketGovernance` while keeping `gates`, `task_packet_path`, and `task_board_status` canonical.
 - Added workflow-mirror emission in `workflows.rs` so per-WP gate and activation artifacts are written, work-packet artifacts carry the summaries, and task-board entries project the runtime refs through `evidence_refs`.
 - Added MT-001 tripwire tests for runtime boundary rejection, activation traceability carry-through, and per-WP gate isolation.
+- Added workflow-facing Spec Session Log append/query in `role_mailbox.rs` plus workflow-mirror activation/gate append hooks in `workflows.rs` so the mirror carries stable `spec_id` / `task_board_id` / `work_packet_id` linkage without leaking mailbox-only events.
+- Added an explicit MT-003 boundary unit test proving the workflow append seam rejects `/.GOV/` linked artifacts and only accepts runtime-owned `.handshake/gov/...` refs.
+- Fixed the structured runtime work-packet emitter in `workflows.rs` so gate `validation_report_ref` values are folded into projected `evidence_refs`, and added the MT-004 tripwire proving that check-result linkage survives the public `LocusOperation::GateWp` path into runtime artifacts.
 
 ## HYGIENE
 - Reconfirmed the repaired worktree baseline after orchestrator reseed and kept product changes inside the MT-001 file surface only.
@@ -883,25 +887,88 @@ rg -n "validator_gates|WP_TRACEABILITY_REGISTRY|spec_session_log|task_board_id|w
 - (Mechanical manifest for audit. Fill real values to enable `just phase-check HANDOFF <WP_ID> CODER`. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Target File**: `src/backend/handshake_core/src/runtime_governance.rs`
+- **Start**: 17
+- **End**: 553
+- **Line Delta**: 87
+- **Pre-SHA1**: `b0d6defd4569ee504af2930fe7264427d258af4e`
+- **Post-SHA1**: `d45834c6dd37ec9c5c96b6f233bf1e407c567ce6`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 2540
+- **End**: 24930
+- **Line Delta**: 1108
+- **Pre-SHA1**: `f159a794f9430aedbb88d8affe7ab84c21aa66d9`
+- **Post-SHA1**: `01f8b3615e82d4cc9ba67de02796406d9e609305`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+- **Target File**: `src/backend/handshake_core/src/locus/types.rs`
+- **Start**: 341
+- **End**: 433
+- **Line Delta**: 54
+- **Pre-SHA1**: `38bd5ed962e0649be58f9de920ac83a0d072b737`
+- **Post-SHA1**: `b3c021a477295e5e51f9951e2bed9f92ebd702a5`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+- **Target File**: `src/backend/handshake_core/src/role_mailbox.rs`
+- **Start**: 256
+- **End**: 2113
+- **Line Delta**: 332
+- **Pre-SHA1**: `0546b534dfc11d5ab263a2124805f65dc675d817`
+- **Post-SHA1**: `92c37a5c1b58a922e1ffe1d2ba6af5d5b3c632de`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 107
+- **End**: 5705
+- **Line Delta**: 279
+- **Pre-SHA1**: `11fc877b0073c0ef6147c00377e72debf445009b`
+- **Post-SHA1**: `6ed1ed0a3fc37961b92807a7c731f37add8dbc42`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
 - **Lint Results**:
-- **Artifacts**:
+- **Artifacts**: `../wt-gov-kernel/.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v1/signed-scope.patch`
 - **Timestamp**:
 - **Operator**:
 - **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
@@ -909,25 +976,25 @@ rg -n "validator_gates|WP_TRACEABILITY_REGISTRY|spec_session_log|task_board_id|w
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS: IN_PROGRESS
-- What changed in this update: Implemented MT-001 only. Added runtime-owned validator gate and activation-traceability artifacts, typed governance overlay summaries, and task-board projection evidence refs while keeping canonical work-packet gate/task-packet/task-board fields authoritative.
-- Requirements / clauses self-audited: 2.3.15 tracked work-packet gate/task-packet/task-board linkage; 7.5.4.8 runtime boundary for the new helper paths and artifact emission.
-- Checks actually run: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_workflow_mirror_ -- --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_workflow_mirror_ --no-run`; `node .GOV/roles_shared/checks/phase-check.mjs HANDOFF WP-1-Governance-Workflow-Mirror-v1 CODER`.
-- Known gaps / weak spots: MT-002 through MT-005 remain untouched; task-board rows still surface gate/activation linkage through `evidence_refs` rather than dedicated typed row fields because MT-001 stayed inside the signed file scope.
-- Heuristic risks / maintainability concerns: activation traceability currently derives `base_wp_id` from work-packet metadata when present and otherwise falls back to `wp_id`; later MTs should confirm the final activation producer writes the same semantics.
-- Validator focus request: verify the verdict semantics for mixed gate states, the `.handshake/gov` path enforcement on the new helpers, and the per-WP isolation/stable-id guarantees in the task-board projection evidence refs.
-- Rubric contract understanding proof: MT-001 signed scope was limited to `runtime_governance.rs`, `workflows.rs`, and `locus/types.rs`, so I treated task-board schema widening, FR emission, role-mailbox/session-log, and storage-check linkage as follow-on work rather than folding them into this slice.
-- Rubric scope discipline proof: final product diff is limited to the three signed files; the earlier formatter spillover on unrelated Rust files was removed before handoff.
-- Rubric baseline comparison: this reseeded baseline had no workflow-mirror path helpers, no typed gate/activation overlay on `WorkPacketGovernance`, and no per-WP gate/activation refs in task-board entries.
-- Rubric end-to-end proof: the runtime-governance test proves `.GOV` rejection; the activation test proves artifact file + work-packet summary + task-board stable id carry-through; the isolation test proves separate gate artifacts for parallel WPs.
-- Rubric architecture fit self-review: the implementation reuses existing runtime task-board/work-packet projection surfaces instead of introducing a second task-board authority or new product-facing governance channel.
-- Rubric heuristic quality self-review: the overlay is intentionally narrow and deterministic, but the activation artifact currently depends on `task_packet_path` being present and non-empty.
-- Rubric anti-gaming / counterfactual check: if the gate and activation artifacts were not actually written, both workflow tests would fail because they read the emitted JSON files and then assert those refs are projected back into the task-board index.
+- Current WP_STATUS: DONE_OUTDATED_ONLY
+- What changed in this update: the final committed handoff target was narrowed to a reviewable five-file product diff on `7ed83940a06856359b6789060c792b8b1652ca42` by reverting the earlier `flight_recorder/duckdb.rs` candidate while preserving the runtime workflow mirror, workflow-facing Spec Session Log continuity, evidence-linkage propagation, and dedicated Flight Recorder governance events in `runtime_governance.rs`, `workflows.rs`, `locus/types.rs`, `role_mailbox.rs`, and `flight_recorder/mod.rs`.
+- Requirements / clauses self-audited: 2.3.15 tracked work-packet gate/task-packet linkage, 2.6.8.8 + 2.6.8.9 workflow-facing Spec Session Log continuity, 7.5.4.8 repo/runtime boundary enforcement, 7.5.4.9 check-result linkage through product-owned runtime artifacts, and 11.5.4 governance Flight Recorder visibility + replay-stable idempotency.
+- Checks actually run: `cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml -- src/backend/handshake_core/src/flight_recorder/mod.rs src/backend/handshake_core/src/workflows.rs`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib flight_recorder::tests::test_gov_gate_transition_payload_validation -- --exact --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib flight_recorder::tests::test_gov_work_packet_activated_payload_validation -- --exact --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib workflows::tests::governance_workflow_mirror_gate_transition_emits_fr_event -- --exact --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib governance_workflow_mirror_ -- --nocapture`; superseding validator rerun `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib governance_workflow_mirror_ -- --nocapture`; committed-range rerun `just phase-check HANDOFF WP-1-Governance-Workflow-Mirror-v1 CODER --range facce56f879d4ee990f62566b12a8b26d8bc61d7..HEAD`.
+- Known gaps / weak spots: no signed product-scope MT gaps remain and the formatter-only spill has been reverted, leaving a five-file in-scope product diff. The remaining technical weakness is narrower: `traceability_registry_ref` still points at the per-WP activation slice on this baseline because there is no separate global runtime registry projection yet, and DuckDB read-side decode support for the new event kinds is intentionally deferred rather than included in this packet.
+- Heuristic risks / maintainability concerns: the activation FR payload currently fills `traceability_registry_ref` from the existing runtime-owned per-WP activation traceability slice because this baseline does not materialize a separate global runtime registry projection. If that registry file is later added, the payload field should be rebased to that projection to match the spec comment more literally. DuckDB read-back decode for the new event kinds remains a follow-on rather than part of the final signed scope.
+- Validator focus request: verify that system-actor FR emission from `sync_work_packet_runtime_surfaces` is the correct bounded mutation point, that repeated syncs preserve one deterministic `idempotency_key` per logical activation/gate state, and that the five-file final net diff on `7ed83940a06856359b6789060c792b8b1652ca42` is the authoritative committed target for closeout.
+- Rubric contract understanding proof: 11.5.4 required authoritative system-log visibility for the workflow mirror, not just task-board/session-log projection. This slice therefore adds recorder kind registration, strict payload validation, and explicit workflow emitters instead of relying on existing mailbox or locus events.
+- Rubric scope discipline proof: final product diff for the WP is limited to `src/backend/handshake_core/src/runtime_governance.rs`, `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/locus/types.rs`, `src/backend/handshake_core/src/role_mailbox.rs`, and `src/backend/handshake_core/src/flight_recorder/mod.rs`.
+- Rubric baseline comparison: before this WP, Handshake lacked a durable runtime workflow mirror for per-WP gate and activation artifacts, had no workflow-facing Spec Session Log append/query seam with stable `spec_id` / `task_board_id` / `work_packet_id` linkage, did not project governance check-result refs through runtime-owned artifacts, and did not emit dedicated `gov_gate_transition` / `gov_work_packet_activated` Flight Recorder events.
+- Rubric end-to-end proof: the final lib test cluster now exercises the whole workflow-mirror packet surface, while the exact FR event test creates a WP, injects a distinct `base_wp_id`, replays activation and gate syncs through `sync_work_packet_runtime_surfaces`, and proves both event kinds carry the expected refs plus a stable single `idempotency_key` across duplicate sync calls.
+- Rubric architecture fit self-review: the WP extends existing runtime-governance, workflow, mailbox, and recorder seams instead of introducing a parallel governance subsystem; artifact writes, session-log appends, evidence projection, and FR emission all stay attached to the authoritative workflow-mirror mutation path.
+- Rubric heuristic quality self-review: this closes the FR visibility clause within the signed packet scope, but the emitted activation event still references the per-WP traceability slice under the `traceability_registry_ref` field name because the broader runtime registry projection does not yet exist on this baseline.
+- Rubric anti-gaming / counterfactual check: if the new event kinds were only added to the enum without payload validation, or if the idempotency key were generated from `Uuid::new_v4()` instead of stable state, the exact workflow tripwires would fail on payload or duplicate-key assertions.
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01 and CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2, also include: -->
-- Rubric anti-vibe / substance self-check: this is not a "green by struct only" claim; the tests deserialize the emitted runtime files, assert the stable ids, and fail if the projection layer only mutates in-memory structs.
-- Signed-scope debt ledger: MT-001 intentionally did not touch `role_mailbox.rs`, `flight_recorder/mod.rs`, `governance_check_runner.rs`, `governance_artifact_registry.rs`, or storage traits; those remain on MT-002 through MT-005.
-- Data contract self-check: new runtime artifacts use explicit typed JSON with stable field names (`wp_id`, `task_board_id`, `gate_state_ref`, `base_wp_id`, `work_packet_id`, `active_packet_ref`, `traceability_ref`) and preserve canonical `gates`, `task_packet_path`, and `task_board_status` as the source fields.
-- Next step / handoff hint: validator can review MT-001 now; if accepted, the next coder slice is MT-002 for workflow-facing spec-session-log continuity and the remaining workflow-mirror clauses.
+- Rubric anti-vibe / substance self-check: this is not a naming-only event registration change; the exact test goes through the real workflow-mirror sync path, records to DuckDB, and verifies payload fields plus replay-stable idempotency semantics.
+- Signed-scope debt ledger: no signed-scope product debt remains open. The earlier formatter-only spill outside packet scope has been reverted, the final committed target is the five-file diff on `7ed83940a06856359b6789060c792b8b1652ca42`, and DuckDB read-side decode remains explicitly out of this signed packet.
+- Data contract self-check: gate FR payloads now carry `spec_id`, `work_packet_id`, validator gate ref, verdict, and deterministic idempotency key; activation FR payloads now carry base/active packet refs, task-board ref, runtime traceability ref, and deterministic idempotency key.
+- Next step / handoff hint: treat the superseding validator PASS on `7ed83940a06856359b6789060c792b8b1652ca42` as the authoritative closeout target and hand the packet to `INTEGRATION_VALIDATOR` for contained-main reconciliation.
 
 ## MERGE_PROGRESSION_TRUTH
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, PASS closure is two-step and must stay explicit:
@@ -971,14 +1038,20 @@ rg -n "validator_gates|WP_TRACEABILITY_REGISTRY|spec_session_log|task_board_id|w
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
 - REQUIREMENT: "runtime-governance/workflow projection tests proving per-WP gate files and stable id carry-through"
 - EVIDENCE: `src/backend/handshake_core/src/runtime_governance.rs:546`; `src/backend/handshake_core/src/workflows.rs:24008`; `src/backend/handshake_core/src/workflows.rs:24135`
 - REQUIREMENT: "tracked work-packet gates.pre_work, task_packet_path, and task_board_status remain canonical workflow fields while the runtime mirror extends them"
 - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:349`; `src/backend/handshake_core/src/locus/types.rs:372`; `src/backend/handshake_core/src/locus/types.rs:431`; `src/backend/handshake_core/src/workflows.rs:3362`; `src/backend/handshake_core/src/workflows.rs:4417`
 - REQUIREMENT: "runtime-generated gate refs stay under .handshake/gov/validator_gates/"
 - EVIDENCE: `src/backend/handshake_core/src/runtime_governance.rs:17`; `src/backend/handshake_core/src/runtime_governance.rs:254`; `src/backend/handshake_core/src/runtime_governance.rs:275`
+- REQUIREMENT: "workflow-facing Spec Session Log append/query keeps stable spec_id/task_board_id/work_packet_id linkage and remains separately queryable from mailbox-only traffic"
+- EVIDENCE: `src/backend/handshake_core/src/role_mailbox.rs:876`; `src/backend/handshake_core/src/role_mailbox.rs:927`; `src/backend/handshake_core/src/workflows.rs:4080`; `src/backend/handshake_core/src/workflows.rs:4149`; `src/backend/handshake_core/src/workflows.rs:24378`
+- REQUIREMENT: "workflow-facing runtime mirrors reject `/.GOV/` refs and accept only `.handshake/gov/` linked artifacts on the workflow append path"
+- EVIDENCE: `src/backend/handshake_core/src/runtime_governance.rs:330`; `src/backend/handshake_core/src/runtime_governance.rs:546`; `src/backend/handshake_core/src/role_mailbox.rs:876`; `src/backend/handshake_core/src/role_mailbox.rs:906`; `src/backend/handshake_core/src/role_mailbox.rs:2066`
+- REQUIREMENT: "workflow-mirror check result refs are persisted and projected through product-owned runtime artifacts without direct SQLite bypass"
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3243`; `src/backend/handshake_core/src/workflows.rs:3280`; `src/backend/handshake_core/src/workflows.rs:4552`; `src/backend/handshake_core/src/workflows.rs:24379`
+- REQUIREMENT: "workflow mirror emits `FR-EVT-GOV-GATES-001` and `FR-EVT-GOV-WP-001` with runtime-owned refs and replay-stable idempotency keys"
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:108`; `src/backend/handshake_core/src/flight_recorder/mod.rs:705`; `src/backend/handshake_core/src/flight_recorder/mod.rs:4816`; `src/backend/handshake_core/src/flight_recorder/duckdb.rs:849`; `src/backend/handshake_core/src/workflows.rs:4126`; `src/backend/handshake_core/src/workflows.rs:4224`; `src/backend/handshake_core/src/workflows.rs:4359`; `src/backend/handshake_core/src/workflows.rs:24780`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
@@ -991,7 +1064,7 @@ rg -n "validator_gates|WP_TRACEABILITY_REGISTRY|spec_session_log|task_board_id|w
 - EXIT_CODE: `0`
 - LOG_PATH: `N/A`
 - LOG_SHA256: `N/A`
-- PROOF_LINES: `running 3 tests`; `runtime_governance::tests::governance_workflow_mirror_rejects_gov_repo_io ... ok`; `workflows::tests::governance_workflow_mirror_activation_records_traceability ... ok`; `workflows::tests::governance_workflow_mirror_gate_files_are_isolated_per_wp ... ok`; `test result: ok. 3 passed; 0 failed`
+- PROOF_LINES: `running 7 tests`; `runtime_governance::tests::governance_workflow_mirror_rejects_gov_repo_io ... ok`; `role_mailbox::tests::governance_workflow_mirror_spec_session_log_enforces_runtime_artifact_boundary ... ok`; `workflows::tests::governance_workflow_mirror_activation_records_traceability ... ok`; `workflows::tests::governance_workflow_mirror_check_result_links_to_evidence ... ok`; `workflows::tests::governance_workflow_mirror_gate_files_are_isolated_per_wp ... ok`; `workflows::tests::governance_workflow_mirror_spec_session_log_keeps_stable_ids ... ok`; `workflows::tests::governance_workflow_mirror_gate_transition_emits_fr_event ... ok`; `test result: ok. 7 passed; 0 failed`
 - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_workflow_mirror_ --no-run`
 - EXIT_CODE: `0`
 - LOG_PATH: `N/A`
@@ -1002,6 +1075,46 @@ rg -n "validator_gates|WP_TRACEABILITY_REGISTRY|spec_session_log|task_board_id|w
 - LOG_PATH: `N/A`
 - LOG_SHA256: `N/A`
 - PROOF_LINES: `(no gate errors emitted; process exited 0)`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_workflow_mirror_spec_session_log_keeps_stable_ids --no-run`
+- EXIT_CODE: `0`
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES: `Finished test profile [unoptimized + debuginfo]`; `Executable unittests src\\lib.rs`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib workflows::tests::governance_workflow_mirror_spec_session_log_keeps_stable_ids -- --exact --nocapture`
+- EXIT_CODE: `0`
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES: `running 1 test`; `test workflows::tests::governance_workflow_mirror_spec_session_log_keeps_stable_ids ... ok`; `test result: ok. 1 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib governance_workflow_mirror_ -- --nocapture`
+- EXIT_CODE: `0`
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES: `running 7 tests`; `role_mailbox::tests::governance_workflow_mirror_spec_session_log_enforces_runtime_artifact_boundary ... ok`; `workflows::tests::governance_workflow_mirror_check_result_links_to_evidence ... ok`; `workflows::tests::governance_workflow_mirror_gate_transition_emits_fr_event ... ok`; `workflows::tests::governance_workflow_mirror_spec_session_log_keeps_stable_ids ... ok`; `test result: ok. 7 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib role_mailbox::tests::governance_workflow_mirror_spec_session_log_enforces_runtime_artifact_boundary -- --exact --nocapture`
+- EXIT_CODE: `0`
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES: `running 1 test`; `test role_mailbox::tests::governance_workflow_mirror_spec_session_log_enforces_runtime_artifact_boundary ... ok`; `test result: ok. 1 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib workflows::tests::governance_workflow_mirror_check_result_links_to_evidence -- --exact --nocapture`
+- EXIT_CODE: `0`
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES: `running 1 test`; `test workflows::tests::governance_workflow_mirror_check_result_links_to_evidence ... ok`; `test result: ok. 1 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib flight_recorder::tests::test_gov_gate_transition_payload_validation -- --exact --nocapture`
+- EXIT_CODE: `0`
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES: `running 1 test`; `test flight_recorder::tests::test_gov_gate_transition_payload_validation ... ok`; `test result: ok. 1 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib flight_recorder::tests::test_gov_work_packet_activated_payload_validation -- --exact --nocapture`
+- EXIT_CODE: `0`
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES: `running 1 test`; `test flight_recorder::tests::test_gov_work_packet_activated_payload_validation ... ok`; `test result: ok. 1 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib workflows::tests::governance_workflow_mirror_gate_transition_emits_fr_event -- --exact --nocapture`
+- EXIT_CODE: `0`
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES: `running 1 test`; `test workflows::tests::governance_workflow_mirror_gate_transition_emits_fr_event ... ok`; `test result: ok. 1 passed; 0 failed`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -1124,3 +1237,108 @@ rg -n "validator_gates|WP_TRACEABILITY_REGISTRY|spec_session_log|task_board_id|w
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+### 2026-04-10T08:32:02.4100626Z INTEGRATION_VALIDATOR FINAL REVIEW
+ROLE: INTEGRATION_VALIDATOR
+SESSION: 019d7610-8007-7091-a475-21a0ba0e4c01
+SIGNED_TARGET_HEAD: 7ed83940a06856359b6789060c792b8b1652ca42
+CURRENT_MAIN_BASELINE_SHA: 333b1a59bb6f891b3b0948514e3ef8b34f0ab58f
+Verdict: OUTDATED_ONLY
+Reason: The signed five-file workflow-mirror slice remains independently proven against the validator-pass target commit, but current local `main` is no longer merge-compatible without adjacent-scope follow-on work because committed `src/backend/handshake_core/src/api/flight_recorder.rs` duplicates `model_session_id` at lines 62 and 68 with no local diff, blocking broader current-main proof outside this packet's signed scope.
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PARTIAL
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PARTIAL
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: OUTDATED_ONLY
+LEGAL_VERDICT: FAIL
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: NOT_READY
+DOMAIN_GOAL_COMPLETION: PARTIAL
+MECHANICAL_TRACK_VERDICT: PARTIAL
+SPEC_RETENTION_TRACK_VERDICT: PARTIAL
+CLAUSES_REVIEWED:
+- 2.3.15 tracked work-packet `gates.pre_work`, `task_packet_path`, and `task_board_status` remain canonical workflow fields => `src/backend/handshake_core/src/runtime_governance.rs:23`, `src/backend/handshake_core/src/locus/types.rs:353`, `src/backend/handshake_core/src/workflows.rs:3753`, `src/backend/handshake_core/src/workflows.rs:3813`, `src/backend/handshake_core/src/workflows.rs:4772`
+- 2.6.8.8 Spec Session Log + 2.6.8.9 integration hooks => `src/backend/handshake_core/src/role_mailbox.rs:286`, `src/backend/handshake_core/src/role_mailbox.rs:298`, `src/backend/handshake_core/src/role_mailbox.rs:306`, `src/backend/handshake_core/src/role_mailbox.rs:905`, `src/backend/handshake_core/src/role_mailbox.rs:956`, `src/backend/handshake_core/src/workflows.rs:4669`, `src/backend/handshake_core/src/workflows.rs:4738`
+- 7.5.4.8 hard repo/runtime boundary => `src/backend/handshake_core/src/runtime_governance.rs:259`, `src/backend/handshake_core/src/runtime_governance.rs:280`, `src/backend/handshake_core/src/runtime_governance.rs:320`, `src/backend/handshake_core/src/runtime_governance.rs:330`, `src/backend/handshake_core/src/runtime_governance.rs:546`, `src/backend/handshake_core/src/role_mailbox.rs:2100`
+- 7.5.4.9 Governance Check Runner additive overlay rule and storage boundary => `src/backend/handshake_core/src/workflows.rs:3859`, `src/backend/handshake_core/src/workflows.rs:3960`, `src/backend/handshake_core/src/workflows.rs:4178`, `src/backend/handshake_core/src/workflows.rs:26494`
+- 11.5.4 `FR-EVT-GOV-GATES-001` and `FR-EVT-GOV-WP-001` => `src/backend/handshake_core/src/flight_recorder/mod.rs:112`, `src/backend/handshake_core/src/flight_recorder/mod.rs:113`, `src/backend/handshake_core/src/flight_recorder/mod.rs:5397`, `src/backend/handshake_core/src/flight_recorder/mod.rs:5468`, `src/backend/handshake_core/src/workflows.rs:4646`, `src/backend/handshake_core/src/workflows.rs:26725`
+NOT_PROVEN:
+- NONE
+MAIN_BODY_GAPS:
+- Current local `main` is not ready for contained-main PASS because committed adjacent-scope file `src/backend/handshake_core/src/api/flight_recorder.rs:62` and `src/backend/handshake_core/src/api/flight_recorder.rs:68` duplicate `model_session_id`, blocking broader current-main proof outside this signed five-file scope.
+QUALITY_RISKS:
+- NONE
+VALIDATOR_RISK_TIER: HIGH
+DIFF_ATTACK_SURFACES:
+- Runtime-governance path guarding and authority-ref filtering across runtime-owned artifact displays and repo-path rejection.
+- Workflow mirror emission into task-board evidence refs, activation artifacts, and structured runtime surfaces.
+- Role-mailbox append/query semantics for workflow-facing spec-session-log records with stable ids and runtime-artifact refs.
+- Flight-recorder payload shape and validation for new governance gate-transition and work-packet-activation events.
+- Current-main compatibility between signed `flight_recorder/mod.rs` builders and existing duckdb-side test helper call sites.
+INDEPENDENT_CHECKS_RUN:
+- `git diff --check -- <five signed files>` => no whitespace or merge-marker errors; only CRLF normalization warnings from Git.
+- `cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check -- <five signed files>` => PASS on the signed five-file slice.
+- `cargo check --manifest-path ..\\wtc-workflow-mirror-v1\\src\\backend\\handshake_core\\Cargo.toml --lib` => PASS for signed target `7ed83940a06856359b6789060c792b8b1652ca42`.
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml gov_gate_transition -- --nocapture` => BLOCKED on committed adjacent-scope duplicate `model_session_id` in `src/backend/handshake_core/src/api/flight_recorder.rs:62,68`; no remaining signed-scope compile error persisted after the `flight_recorder/mod.rs` compatibility harmonization.
+- `git show HEAD:src/backend/handshake_core/src/api/flight_recorder.rs | Select-String -Pattern 'model_session_id'` => confirmed the duplicate field is already committed on current local `main`, not introduced by this WP diff.
+COUNTERFACTUAL_CHECKS:
+- If `RuntimeGovernancePaths::invalid_runtime_authority_refs` in `src/backend/handshake_core/src/runtime_governance.rs:330` were removed or weakened, workflow mirror and session-log surfaces could emit repo-owned refs instead of runtime-owned artifacts.
+- If `append_workflow_spec_session_log_entries` in `src/backend/handshake_core/src/workflows.rs:4738` stopped reusing canonical `task_board_id` / `work_packet_id` linkage, `SpecSessionLogEntry` queries would desynchronize from the task-board mirror.
+- If `emit_workflow_mirror_flight_recorder_events` in `src/backend/handshake_core/src/workflows.rs:4646` stopped emitting the governance events, the `FR-EVT-GOV-GATES-001` / `FR-EVT-GOV-WP-001` runtime audit path would silently disappear.
+- If the compatibility aliases retained in `src/backend/handshake_core/src/flight_recorder/mod.rs:494`, `:503`, `:512`, and `:521` were removed, current-main duckdb-side helper call sites would immediately fail before the adjacent-scope API blocker is even reached.
+BOUNDARY_PROBES:
+- Reviewed runtime-owned path generation and repo-path rejection at `src/backend/handshake_core/src/runtime_governance.rs:259-330` and boundary test `src/backend/handshake_core/src/runtime_governance.rs:546`.
+- Reviewed workflow-facing session-log artifact boundary enforcement at `src/backend/handshake_core/src/role_mailbox.rs:2100`.
+- Reviewed current-main consumer compatibility at `src/backend/handshake_core/src/flight_recorder/mod.rs:494`, `:503`, `:512`, `:521` against committed helper calls in `HEAD:src/backend/handshake_core/src/flight_recorder/duckdb.rs`.
+NEGATIVE_PATH_CHECKS:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml gov_gate_transition -- --nocapture` failed on the adjacent-scope current-main API defect, proving current-main compatibility is not honestly PASS for this packet.
+- `src/backend/handshake_core/src/runtime_governance.rs:546` rejects `.GOV/` / repo-owned paths by exact test.
+- `src/backend/handshake_core/src/role_mailbox.rs:2100` rejects non-runtime artifact refs for workflow-facing spec-session-log entries.
+INDEPENDENT_FINDINGS:
+- Signed target commit `7ed83940a06856359b6789060c792b8b1652ca42` still builds at the library boundary, so the packet's signed scope remains technically sound.
+- Current local `main` drifted outside that signed scope through committed adjacent-scope defects in `src/backend/handshake_core/src/api/flight_recorder.rs`, so contained-main PASS is no longer honest in this lane without a follow-on WP.
+- Current-main duckdb helper code still expects legacy builder names; the signed-scope harmonization retained those aliases inside `src/backend/handshake_core/src/flight_recorder/mod.rs` so the packet does not introduce an avoidable second compatibility break.
+RESIDUAL_UNCERTAINTY:
+- A follow-on WP is required to remove the committed duplicate `model_session_id` field in `src/backend/handshake_core/src/api/flight_recorder.rs` and re-run broader current-main proof.
+- No claim is made here that local `main` is contained-pass or merge-ready beyond the signed five-file slice.
+SPEC_CLAUSE_MAP:
+- `2.3.15 tracked work-packet gates.pre_work, task_packet_path, and task_board_status remain canonical workflow fields` => `src/backend/handshake_core/src/runtime_governance.rs:23`, `src/backend/handshake_core/src/locus/types.rs:353`, `src/backend/handshake_core/src/locus/types.rs:435`, `src/backend/handshake_core/src/workflows.rs:3753`, `src/backend/handshake_core/src/workflows.rs:3813`, `src/backend/handshake_core/src/workflows.rs:4772`
+- `2.6.8.8 Spec Session Log + 2.6.8.9 integration hooks` => `src/backend/handshake_core/src/role_mailbox.rs:286`, `src/backend/handshake_core/src/role_mailbox.rs:298`, `src/backend/handshake_core/src/role_mailbox.rs:306`, `src/backend/handshake_core/src/role_mailbox.rs:905`, `src/backend/handshake_core/src/role_mailbox.rs:956`, `src/backend/handshake_core/src/workflows.rs:4669`, `src/backend/handshake_core/src/workflows.rs:4738`
+- `7.5.4.8 hard repo/runtime boundary` => `src/backend/handshake_core/src/runtime_governance.rs:259`, `src/backend/handshake_core/src/runtime_governance.rs:280`, `src/backend/handshake_core/src/runtime_governance.rs:320`, `src/backend/handshake_core/src/runtime_governance.rs:330`, `src/backend/handshake_core/src/runtime_governance.rs:546`, `src/backend/handshake_core/src/role_mailbox.rs:2100`
+- `7.5.4.9 Governance Check Runner additive overlay rule and storage boundary` => `src/backend/handshake_core/src/workflows.rs:3859`, `src/backend/handshake_core/src/workflows.rs:3960`, `src/backend/handshake_core/src/workflows.rs:4178`, `src/backend/handshake_core/src/workflows.rs:26494`
+- `11.5.4 FR-EVT-GOV-GATES-001 and FR-EVT-GOV-WP-001` => `src/backend/handshake_core/src/flight_recorder/mod.rs:112`, `src/backend/handshake_core/src/flight_recorder/mod.rs:113`, `src/backend/handshake_core/src/flight_recorder/mod.rs:5397`, `src/backend/handshake_core/src/flight_recorder/mod.rs:5468`, `src/backend/handshake_core/src/workflows.rs:4646`, `src/backend/handshake_core/src/workflows.rs:26725`
+NEGATIVE_PROOF:
+- Current-main compatibility is not fully implemented for this packet on baseline `333b1a59bb6f891b3b0948514e3ef8b34f0ab58f`: committed adjacent-scope file `src/backend/handshake_core/src/api/flight_recorder.rs:62` and `:68` duplicate `model_session_id`, so broader current-main proof cannot be honestly elevated to PASS without a follow-on WP.
+ANTI_VIBE_FINDINGS:
+- NONE
+SIGNED_SCOPE_DEBT:
+- NONE
+PRIMITIVE_RETENTION_PROOF:
+- Runtime artifact display helpers and authority-ref filtering remain present at `src/backend/handshake_core/src/runtime_governance.rs:259`, `:280`, `:320`, `:330`.
+- Workflow mirror summaries remain represented in locus types at `src/backend/handshake_core/src/locus/types.rs:347`, `:353`, `:376`, `:435`, `:437`.
+- Workflow-facing spec-session-log request / record primitives remain present at `src/backend/handshake_core/src/role_mailbox.rs:286`, `:298`, `:306`, `:905`, `:956`.
+- Flight-recorder governance event variants and payload validators remain present at `src/backend/handshake_core/src/flight_recorder/mod.rs:112`, `:113`, `:5397`, `:5468`.
+- Current-main compatibility aliases for legacy builder call sites remain present at `src/backend/handshake_core/src/flight_recorder/mod.rs:494`, `:503`, `:512`, `:521`.
+PRIMITIVE_RETENTION_GAPS:
+- NONE
+SHARED_SURFACE_INTERACTION_CHECKS:
+- `src/backend/handshake_core/src/workflows.rs:3813` and `:3859` still feed task-board evidence refs into the shared work-packet projection surfaces.
+- `src/backend/handshake_core/src/workflows.rs:4669` / `:4738` still bridge workflow operations into `src/backend/handshake_core/src/role_mailbox.rs:905` / `:956` without bypassing mailbox contracts.
+- `src/backend/handshake_core/src/workflows.rs:4646` still emits governance events validated by `src/backend/handshake_core/src/flight_recorder/mod.rs:5397` and `:5468`.
+- `src/backend/handshake_core/src/runtime_governance.rs:259-330` still constrains the artifact refs persisted by `src/backend/handshake_core/src/workflows.rs:3813` / `:4772`.
+CURRENT_MAIN_INTERACTION_CHECKS:
+- `git show HEAD:src/backend/handshake_core/src/api/flight_recorder.rs` confirmed committed duplicate `model_session_id` fields at lines 62 and 68 on current local `main`.
+- `git show HEAD:src/backend/handshake_core/src/flight_recorder/duckdb.rs` confirmed current-main helper calls still use `with_activity_span_id`, `with_session_span_id`, `with_capability_id`, and `with_policy_decision_id`.
+- `src/backend/handshake_core/src/flight_recorder/mod.rs:494`, `:503`, `:512`, `:521` retain those current-main compatibility aliases inside the signed scope.
+DATA_CONTRACT_PROOF:
+- `src/backend/handshake_core/src/locus/types.rs:353` and `:376` preserve structured gate / activation summaries for workflow-facing and LLM-friendly projection use.
+- `src/backend/handshake_core/src/workflows.rs:3813`, `:4669`, `:4738`, `:4772` keep the workflow mirror and spec-session-log artifacts in structured runtime-owned forms instead of repo-owned ad hoc text.
+- `src/backend/handshake_core/src/role_mailbox.rs:306`, `:905`, `:956` preserve append/query semantics for structured `SpecSessionLogEntry` records.
+DATA_CONTRACT_GAPS:
+- NONE
