@@ -846,6 +846,10 @@ impl DuckDbFlightRecorder {
                 "gov_human_intervention_received" => {
                     super::FlightRecorderEventType::GovHumanInterventionReceived
                 }
+                "gov_gate_transition" => super::FlightRecorderEventType::GovGateTransition,
+                "gov_work_packet_activated" => {
+                    super::FlightRecorderEventType::GovWorkPacketActivated
+                }
                 "cloud_escalation_requested" => {
                     super::FlightRecorderEventType::CloudEscalationRequested
                 }

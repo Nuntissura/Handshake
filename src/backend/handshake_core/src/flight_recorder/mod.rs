@@ -104,6 +104,9 @@ pub enum FlightRecorderEventType {
     GovAutoSignatureCreated,
     GovHumanInterventionRequested,
     GovHumanInterventionReceived,
+    /// FR-EVT-GOV-GATES-001 / FR-EVT-GOV-WP-001: Governance workflow mirror events [11.5.4]
+    GovGateTransition,
+    GovWorkPacketActivated,
     /// FR-EVT-CLOUD-001..004: Cloud escalation events [11.5.8]
     CloudEscalationRequested,
     CloudEscalationApproved,
@@ -251,6 +254,10 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::GovHumanInterventionReceived => {
                 write!(f, "gov_human_intervention_received")
+            }
+            FlightRecorderEventType::GovGateTransition => write!(f, "gov_gate_transition"),
+            FlightRecorderEventType::GovWorkPacketActivated => {
+                write!(f, "gov_work_packet_activated")
             }
             FlightRecorderEventType::CloudEscalationRequested => {
                 write!(f, "cloud_escalation_requested")
@@ -694,6 +701,22 @@ impl FlightRecorderEvent {
                     "gov_human_intervention_received",
                     true,
                 )
+            }
+            FlightRecorderEventType::GovGateTransition => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "gov_gate_transition actor must be system".to_string(),
+                    ));
+                }
+                validate_gov_gate_transition_payload(&self.payload)
+            }
+            FlightRecorderEventType::GovWorkPacketActivated => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "gov_work_packet_activated actor must be system".to_string(),
+                    ));
+                }
+                validate_gov_work_packet_activated_payload(&self.payload)
             }
             FlightRecorderEventType::CloudEscalationRequested => {
                 if self.actor != FlightRecorderActor::System {
@@ -3987,7 +4010,10 @@ fn require_scheduler_lane(map: &Map<String, Value>, key: &str) -> Result<(), Rec
     Ok(())
 }
 
-fn require_scheduler_retry_backoff(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+fn require_scheduler_retry_backoff(
+    map: &Map<String, Value>,
+    key: &str,
+) -> Result<(), RecorderError> {
     let raw = match require_key(map, key)? {
         Value::String(value) if !value.trim().is_empty() => value.trim().to_ascii_lowercase(),
         _ => {
@@ -4274,6 +4300,48 @@ fn path_contains_repo_governance_segment(value: &str) -> bool {
         let segment = segment.trim();
         segment.eq_ignore_ascii_case(".GOV") || segment.eq_ignore_ascii_case("docs")
     })
+}
+
+fn require_relative_path_ref(
+    map: &Map<String, Value>,
+    key: &str,
+    max_len: usize,
+) -> Result<String, RecorderError> {
+    let value = match require_key(map, key)? {
+        Value::String(value) if !value.trim().is_empty() && value.len() <= max_len => {
+            value.trim().replace('\\', "/")
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {key} must be a bounded relative path"
+            )))
+        }
+    };
+
+    if value.starts_with('/')
+        || value.contains(':')
+        || value.split('/').any(|segment| segment == "..")
+    {
+        return Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a root-relative normalized path"
+        )));
+    }
+
+    Ok(value)
+}
+
+fn require_runtime_projection_ref(
+    map: &Map<String, Value>,
+    key: &str,
+    max_len: usize,
+) -> Result<String, RecorderError> {
+    let value = require_relative_path_ref(map, key, max_len)?;
+    if path_contains_repo_governance_segment(&value) {
+        return Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must not reference docs or .GOV directories"
+        )));
+    }
+    Ok(value)
 }
 
 fn validate_role_id_string(value: &str) -> Result<(), RecorderError> {
@@ -4739,6 +4807,127 @@ fn validate_gov_automation_event_payload(
                     "payload field user_id must be a bounded string token".to_string(),
                 ))
             }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_gov_gate_transition_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &[
+            "type",
+            "spec_id",
+            "work_packet_id",
+            "role",
+            "gate_kind",
+            "gate",
+            "gate_state_ref",
+            "idempotency_key",
+        ],
+        &["verdict"],
+    )?;
+    require_fixed_string(map, "type", "gov_gate_transition")?;
+    require_string_or_null_nonempty(map, "spec_id")?;
+    require_string_or_null_nonempty(map, "work_packet_id")?;
+
+    match require_key(map, "role")? {
+        Value::String(value)
+            if matches!(
+                value.as_str(),
+                "operator" | "orchestrator" | "coder" | "validator" | "system"
+            ) => {}
+        _ => return Err(RecorderError::InvalidEvent(
+            "payload field role must be one of: operator, orchestrator, coder, validator, system"
+                .to_string(),
+        )),
+    }
+    match require_key(map, "gate_kind")? {
+        Value::String(value) if matches!(value.as_str(), "orchestrator" | "validator") => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field gate_kind must be one of: orchestrator, validator".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "gate")? {
+        Value::String(value) if is_safe_token(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field gate must be a bounded string token".to_string(),
+            ))
+        }
+    }
+    require_runtime_projection_ref(map, "gate_state_ref", 512)?;
+    match require_key(map, "idempotency_key")? {
+        Value::String(value) if is_safe_token(value, 256) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field idempotency_key must be a bounded string token".to_string(),
+            ))
+        }
+    }
+    if map.contains_key("verdict") {
+        match require_key(map, "verdict")? {
+            Value::Null => {}
+            Value::String(value) if matches!(value.as_str(), "PASS" | "FAIL") => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field verdict must be PASS, FAIL, or null".to_string(),
+                ))
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_gov_work_packet_activated_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "spec_id",
+            "base_wp_id",
+            "work_packet_id",
+            "stub_packet_ref",
+            "active_packet_ref",
+            "traceability_registry_ref",
+            "task_board_ref",
+            "idempotency_key",
+        ],
+    )?;
+    require_fixed_string(map, "type", "gov_work_packet_activated")?;
+    require_string_or_null_nonempty(map, "spec_id")?;
+    match require_key(map, "base_wp_id")? {
+        Value::String(value) if is_safe_token(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field base_wp_id must be a bounded string token".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "work_packet_id")? {
+        Value::String(value) if is_safe_token(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field work_packet_id must be a bounded string token".to_string(),
+            ))
+        }
+    }
+    require_relative_path_ref(map, "stub_packet_ref", 512)?;
+    require_relative_path_ref(map, "active_packet_ref", 512)?;
+    require_runtime_projection_ref(map, "traceability_registry_ref", 512)?;
+    require_runtime_projection_ref(map, "task_board_ref", 512)?;
+    match require_key(map, "idempotency_key")? {
+        Value::String(value) if is_safe_token(value, 256) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field idempotency_key must be a bounded string token".to_string(),
+            ))
         }
     }
 
@@ -5420,6 +5609,96 @@ mod tests {
         }
         assert!(matches!(
             validate_gov_mailbox_message_created_payload(&forbidden),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    fn valid_gov_gate_transition_payload() -> Value {
+        json!({
+            "type": "gov_gate_transition",
+            "spec_id": "SPEC-WP-1",
+            "work_packet_id": "WP-1-Governance-Workflow-Mirror-v1",
+            "role": "validator",
+            "gate_kind": "validator",
+            "gate": "PRE_WORK",
+            "verdict": "PASS",
+            "gate_state_ref": ".handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v1.json",
+            "idempotency_key": "gov_gate_transition:WP-1-Governance-Workflow-Mirror-v1:abcd1234",
+        })
+    }
+
+    #[test]
+    fn test_gov_gate_transition_payload_validation() {
+        let payload = valid_gov_gate_transition_payload();
+        assert!(validate_gov_gate_transition_payload(&payload).is_ok());
+
+        let mut bad_role = payload.clone();
+        if let Some(obj) = bad_role.as_object_mut() {
+            obj.insert("role".to_string(), json!("reviewer"));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_gate_transition_payload(&bad_role),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let mut bad_ref = payload.clone();
+        if let Some(obj) = bad_ref.as_object_mut() {
+            obj.insert(
+                "gate_state_ref".to_string(),
+                json!(".GOV/validator_gates/WP-1.json"),
+            );
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_gate_transition_payload(&bad_ref),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    fn valid_gov_work_packet_activated_payload() -> Value {
+        json!({
+            "type": "gov_work_packet_activated",
+            "spec_id": "SPEC-WP-1",
+            "base_wp_id": "WP-1-Governance-Workflow-Mirror",
+            "work_packet_id": "WP-1-Governance-Workflow-Mirror-v1",
+            "stub_packet_ref": ".handshake/gov/task_packets/stubs/WP-1-Governance-Workflow-Mirror.json",
+            "active_packet_ref": ".handshake/gov/task_packets/WP-1-Governance-Workflow-Mirror-v1.json",
+            "traceability_registry_ref": ".handshake/gov/activation_traceability/WP-1-Governance-Workflow-Mirror-v1.json",
+            "task_board_ref": ".handshake/gov/TASK_BOARD.md",
+            "idempotency_key": "gov_work_packet_activated:WP-1-Governance-Workflow-Mirror-v1:abcd1234",
+        })
+    }
+
+    #[test]
+    fn test_gov_work_packet_activated_payload_validation() {
+        let payload = valid_gov_work_packet_activated_payload();
+        assert!(validate_gov_work_packet_activated_payload(&payload).is_ok());
+
+        let mut bad_traceability = payload.clone();
+        if let Some(obj) = bad_traceability.as_object_mut() {
+            obj.insert(
+                "traceability_registry_ref".to_string(),
+                json!(".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md"),
+            );
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_work_packet_activated_payload(&bad_traceability),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let mut bad_idempotency = payload.clone();
+        if let Some(obj) = bad_idempotency.as_object_mut() {
+            obj.insert("idempotency_key".to_string(), json!(""));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_work_packet_activated_payload(&bad_idempotency),
             Err(RecorderError::InvalidEvent(_))
         ));
     }

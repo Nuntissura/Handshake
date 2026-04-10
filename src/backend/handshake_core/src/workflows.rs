@@ -2537,6 +2537,8 @@ const STRUCTURED_SUMMARY_SCHEMA_ID: &str = "hsk.structured_collaboration_summary
 const TASK_BOARD_INDEX_SCHEMA_ID: &str = "hsk.task_board_index@1";
 const TASK_BOARD_VIEW_SCHEMA_ID: &str = "hsk.task_board_view@1";
 const TASK_BOARD_ENTRY_SCHEMA_ID: &str = "hsk.task_board_entry@1";
+const WORKFLOW_MIRROR_GATE_ARTIFACT_SCHEMA_ID: &str = "hsk.workflow_mirror_gate@1";
+const WORKFLOW_MIRROR_ACTIVATION_ARTIFACT_SCHEMA_ID: &str = "hsk.workflow_mirror_activation@1";
 
 fn sqlite_pool_for_structured_artifacts(state: &AppState) -> Result<&SqlitePool, WorkflowError> {
     state
@@ -2917,6 +2919,8 @@ async fn load_tracked_work_packet_for_artifacts(
             gates: parse_gate_statuses_from_metadata(&metadata),
             task_packet_path,
             task_board_status: parse_task_board_status_db_global(&task_board_status),
+            gate_summary: None,
+            activation_summary: None,
         },
         kind: locus::WorkPacketType::Feature,
         labels,
@@ -3237,7 +3241,7 @@ fn work_packet_authority_refs(work_packet: &locus::TrackedWorkPacket) -> Vec<Str
 }
 
 fn work_packet_evidence_refs(work_packet: &locus::TrackedWorkPacket) -> Vec<String> {
-    let mut refs = Vec::new();
+    let mut refs = work_packet.evidence_refs.clone();
     if let Some(value) = work_packet
         .governance
         .gates
@@ -3255,6 +3259,164 @@ fn work_packet_evidence_refs(work_packet: &locus::TrackedWorkPacket) -> Vec<Stri
         .as_ref()
     {
         append_ref_strings_from_value(&mut refs, value);
+    }
+    dedupe_sort_strings(refs)
+}
+
+fn gate_status_summary_verdict(
+    gates: &locus::GateStatuses,
+) -> Option<locus::WorkflowMirrorVerdict> {
+    use locus::GateStatusKind::{Fail, Pass};
+
+    if matches!(gates.pre_work.status, Fail) || matches!(gates.post_work.status, Fail) {
+        return Some(locus::WorkflowMirrorVerdict::Fail);
+    }
+    if matches!(gates.pre_work.status, Pass) || matches!(gates.post_work.status, Pass) {
+        return Some(locus::WorkflowMirrorVerdict::Pass);
+    }
+    None
+}
+
+fn gate_check_refs(gates: &locus::GateStatuses) -> Vec<String> {
+    let mut refs = Vec::new();
+    if let Some(value) = gates.pre_work.validation_report_ref.as_ref() {
+        append_ref_strings_from_value(&mut refs, value);
+    }
+    if let Some(value) = gates.post_work.validation_report_ref.as_ref() {
+        append_ref_strings_from_value(&mut refs, value);
+    }
+    dedupe_sort_strings(refs)
+}
+
+fn work_packet_base_wp_id(work_packet: &locus::TrackedWorkPacket) -> String {
+    work_packet
+        .metadata
+        .get("base_wp_id")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| work_packet.wp_id.clone())
+}
+
+fn build_workflow_mirror_gate_summary(
+    runtime_paths: &RuntimeGovernancePaths,
+    work_packet: &locus::TrackedWorkPacket,
+    task_board_id: &str,
+) -> locus::WorkflowMirrorGateSummary {
+    let gate_state_ref = runtime_paths.validator_gate_display(&work_packet.wp_id);
+    let mut evidence_refs = vec![task_board_id.to_string()];
+    evidence_refs.extend(gate_check_refs(&work_packet.governance.gates));
+
+    locus::WorkflowMirrorGateSummary {
+        gate_state_ref,
+        pre_work: work_packet.governance.gates.pre_work.clone(),
+        post_work: work_packet.governance.gates.post_work.clone(),
+        verdict: gate_status_summary_verdict(&work_packet.governance.gates),
+        evidence_refs: dedupe_sort_strings(evidence_refs),
+        check_refs: gate_check_refs(&work_packet.governance.gates),
+    }
+}
+
+fn build_workflow_mirror_gate_artifact(
+    runtime_paths: &RuntimeGovernancePaths,
+    work_packet: &locus::TrackedWorkPacket,
+    task_board_id: &str,
+) -> locus::WorkflowMirrorGateArtifactV1 {
+    let gate_summary =
+        build_workflow_mirror_gate_summary(runtime_paths, work_packet, task_board_id);
+    locus::WorkflowMirrorGateArtifactV1 {
+        schema_id: WORKFLOW_MIRROR_GATE_ARTIFACT_SCHEMA_ID.to_string(),
+        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
+        wp_id: work_packet.wp_id.clone(),
+        task_board_id: task_board_id.to_string(),
+        gate_state_ref: gate_summary.gate_state_ref.clone(),
+        gate_summary,
+    }
+}
+
+fn build_workflow_mirror_activation_artifact(
+    runtime_paths: &RuntimeGovernancePaths,
+    work_packet: &locus::TrackedWorkPacket,
+    task_board_id: &str,
+) -> Option<locus::WorkflowMirrorActivationArtifactV1> {
+    let active_packet_ref = work_packet
+        .governance
+        .task_packet_path
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())?
+        .to_string();
+
+    Some(locus::WorkflowMirrorActivationArtifactV1 {
+        schema_id: WORKFLOW_MIRROR_ACTIVATION_ARTIFACT_SCHEMA_ID.to_string(),
+        schema_version: STRUCTURED_COLLAB_SCHEMA_VERSION.to_string(),
+        base_wp_id: work_packet_base_wp_id(work_packet),
+        work_packet_id: work_packet.wp_id.clone(),
+        task_board_id: task_board_id.to_string(),
+        active_packet_ref,
+        traceability_ref: runtime_paths.activation_traceability_display(&work_packet.wp_id),
+    })
+}
+
+fn emit_workflow_mirror_artifacts(
+    runtime_paths: &RuntimeGovernancePaths,
+    work_packet: &mut locus::TrackedWorkPacket,
+) -> Result<Vec<String>, WorkflowError> {
+    let task_board_id = runtime_paths.task_board_display();
+    ensure_dir(
+        &runtime_paths.validator_gates_dir(),
+        "validator gate artifact dir",
+    )?;
+    let gate_artifact =
+        build_workflow_mirror_gate_artifact(runtime_paths, work_packet, &task_board_id);
+    write_json_atomic(
+        runtime_paths.workspace_root(),
+        &runtime_paths.validator_gate_path(&work_packet.wp_id),
+        &gate_artifact,
+    )?;
+    work_packet.governance.gate_summary = Some(gate_artifact.gate_summary.clone());
+
+    let mut overlay_refs = vec![gate_artifact.gate_state_ref.clone()];
+    if let Some(activation_artifact) =
+        build_workflow_mirror_activation_artifact(runtime_paths, work_packet, &task_board_id)
+    {
+        ensure_dir(
+            &runtime_paths.activation_traceability_dir(),
+            "activation traceability artifact dir",
+        )?;
+        write_json_atomic(
+            runtime_paths.workspace_root(),
+            &runtime_paths.activation_traceability_path(&work_packet.wp_id),
+            &activation_artifact,
+        )?;
+        overlay_refs.push(activation_artifact.traceability_ref.clone());
+        work_packet.governance.activation_summary = Some(locus::WorkflowMirrorActivationSummary {
+            base_wp_id: activation_artifact.base_wp_id,
+            work_packet_id: activation_artifact.work_packet_id,
+            task_board_id: activation_artifact.task_board_id,
+            active_packet_ref: activation_artifact.active_packet_ref,
+            traceability_ref: activation_artifact.traceability_ref,
+        });
+    } else {
+        work_packet.governance.activation_summary = None;
+    }
+
+    Ok(dedupe_sort_strings(overlay_refs))
+}
+
+fn task_board_entry_evidence_refs(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+) -> Vec<String> {
+    let mut refs = Vec::new();
+    let gate_path = runtime_paths.validator_gate_path(wp_id);
+    if gate_path.exists() {
+        refs.push(runtime_paths.validator_gate_display(wp_id));
+    }
+    let activation_path = runtime_paths.activation_traceability_path(wp_id);
+    if activation_path.exists() {
+        refs.push(runtime_paths.activation_traceability_display(wp_id));
     }
     dedupe_sort_strings(refs)
 }
@@ -3343,12 +3505,23 @@ fn emit_work_packet_artifacts(
     runtime_paths: &RuntimeGovernancePaths,
     work_packet: &locus::TrackedWorkPacket,
 ) -> Result<(), WorkflowError> {
+    let mut work_packet = work_packet.clone();
+    let overlay_refs = emit_workflow_mirror_artifacts(runtime_paths, &mut work_packet)?;
+    work_packet.evidence_refs = dedupe_sort_strings(
+        work_packet
+            .evidence_refs
+            .iter()
+            .cloned()
+            .chain(overlay_refs.into_iter())
+            .collect(),
+    );
+
     let work_packet_dir = runtime_paths.work_packet_dir(&work_packet.wp_id);
     ensure_dir(&work_packet_dir, "work packet artifact dir")?;
 
-    let note_refs = emit_work_packet_notes(runtime_paths, work_packet)?;
-    let authority_refs = work_packet_authority_refs(work_packet);
-    let evidence_refs = work_packet_evidence_refs(work_packet);
+    let note_refs = emit_work_packet_notes(runtime_paths, &work_packet)?;
+    let authority_refs = work_packet_authority_refs(&work_packet);
+    let evidence_refs = work_packet_evidence_refs(&work_packet);
     let (workflow_state_family, queue_reason_code) = work_packet_workflow_state(work_packet.status);
     let summary_ref = runtime_paths.work_packet_summary_display(&work_packet.wp_id);
     let summary = locus::StructuredCollaborationSummaryV1 {
@@ -3367,7 +3540,7 @@ fn emit_work_packet_artifacts(
         allowed_action_ids: allowed_action_ids(workflow_state_family),
         status: work_packet_status_string(work_packet.status).to_string(),
         title_or_objective: work_packet.title.clone(),
-        blockers: work_packet_blockers(work_packet),
+        blockers: work_packet_blockers(&work_packet),
         next_action: next_action_for_work_packet(workflow_state_family),
         summary_ref: None,
     };
@@ -3659,7 +3832,7 @@ async fn emit_task_board_projection_artifacts(
                 format!("locus:work_packet:{wp_id}"),
                 runtime_paths.work_packet_packet_display(&wp_id),
             ],
-            evidence_refs: Vec::new(),
+            evidence_refs: task_board_entry_evidence_refs(runtime_paths, &wp_id),
             mirror_contract: mirror_contract.clone(),
             workflow_state_family,
             queue_reason_code,
@@ -3766,44 +3939,24 @@ async fn materialize_structured_collaboration_artifacts(
 
     match op {
         locus::LocusOperation::CreateWp(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
-            }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            sync_work_packet_runtime_surfaces(state, pool, &runtime_paths, op, &params.wp_id)
+                .await?;
         }
         locus::LocusOperation::UpdateWp(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
-            }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            sync_work_packet_runtime_surfaces(state, pool, &runtime_paths, op, &params.wp_id)
+                .await?;
         }
         locus::LocusOperation::GateWp(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
-            }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            sync_work_packet_runtime_surfaces(state, pool, &runtime_paths, op, &params.wp_id)
+                .await?;
         }
         locus::LocusOperation::CloseWp(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
-            }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            sync_work_packet_runtime_surfaces(state, pool, &runtime_paths, op, &params.wp_id)
+                .await?;
         }
         locus::LocusOperation::DeleteWp(params) => {
-            if let Some(work_packet) =
-                load_tracked_work_packet_for_artifacts(pool, &params.wp_id).await?
-            {
-                emit_work_packet_artifacts(&runtime_paths, &work_packet)?;
-            }
-            emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+            sync_work_packet_runtime_surfaces(state, pool, &runtime_paths, op, &params.wp_id)
+                .await?;
         }
         locus::LocusOperation::RegisterMts(params) => {
             if let Some(work_packet) =
@@ -3899,6 +4052,320 @@ fn governance_mode_to_routing_policy(
         crate::role_mailbox::GovernanceMode::GovStandard => locus::RoutingPolicy::GovStandard,
         crate::role_mailbox::GovernanceMode::GovLight => locus::RoutingPolicy::GovLight,
     }
+}
+
+fn routing_policy_to_governance_mode(
+    routing: locus::RoutingPolicy,
+) -> Option<crate::role_mailbox::GovernanceMode> {
+    match routing {
+        locus::RoutingPolicy::GovStrict => Some(crate::role_mailbox::GovernanceMode::GovStrict),
+        locus::RoutingPolicy::GovStandard => Some(crate::role_mailbox::GovernanceMode::GovStandard),
+        locus::RoutingPolicy::GovLight => Some(crate::role_mailbox::GovernanceMode::GovLight),
+        locus::RoutingPolicy::GovNone => None,
+    }
+}
+
+fn workflow_runtime_artifact_handle(path: &str) -> ArtifactHandle {
+    ArtifactHandle::new(Uuid::new_v4(), path.to_string())
+}
+
+fn workflow_mirror_verdict_label(verdict: Option<locus::WorkflowMirrorVerdict>) -> &'static str {
+    match verdict {
+        Some(locus::WorkflowMirrorVerdict::Pass) => "PASS",
+        Some(locus::WorkflowMirrorVerdict::Fail) => "FAIL",
+        None => "NONE",
+    }
+}
+
+fn workflow_mirror_gate_name(gate: locus::LocusGateKind) -> &'static str {
+    match gate {
+        locus::LocusGateKind::PreWork => "PRE_WORK",
+        locus::LocusGateKind::PostWork => "POST_WORK",
+    }
+}
+
+fn workflow_mirror_gate_role(validated_by: Option<&str>) -> &'static str {
+    match validated_by.map(str::trim) {
+        Some("operator") => "operator",
+        Some("orchestrator") => "orchestrator",
+        Some("coder") => "coder",
+        Some("validator") | Some("wp_validator") | Some("integration_validator") => "validator",
+        _ => "system",
+    }
+}
+
+fn workflow_mirror_stub_packet_ref(
+    runtime_paths: &RuntimeGovernancePaths,
+    base_wp_id: &str,
+    active_packet_ref: &str,
+) -> String {
+    let extension = if active_packet_ref.trim().ends_with(".md") {
+        ".md"
+    } else if active_packet_ref.trim().ends_with(".json") {
+        ".json"
+    } else {
+        ""
+    };
+    format!(
+        "{}/task_packets/stubs/{}{}",
+        runtime_paths.governance_root_display(),
+        base_wp_id,
+        extension
+    )
+}
+
+fn workflow_mirror_event_idempotency_key(
+    prefix: &str,
+    subject: &str,
+    seed: &Value,
+) -> Result<String, WorkflowError> {
+    let hash = json_sha256(seed)?;
+    Ok(format!("{prefix}:{subject}:{}", &hash[..16]))
+}
+
+fn workflow_mirror_gate_transition_event(
+    runtime_paths: &RuntimeGovernancePaths,
+    work_packet: &locus::TrackedWorkPacket,
+    gate: locus::LocusGateKind,
+) -> Result<FlightRecorderEvent, WorkflowError> {
+    let task_board_ref = runtime_paths.task_board_display();
+    let gate_summary =
+        build_workflow_mirror_gate_summary(runtime_paths, work_packet, &task_board_ref);
+    let gate_status = match gate {
+        locus::LocusGateKind::PreWork => &work_packet.governance.gates.pre_work,
+        locus::LocusGateKind::PostWork => &work_packet.governance.gates.post_work,
+    };
+    let gate_name = workflow_mirror_gate_name(gate);
+    let mut seed = json!({
+        "type": "gov_gate_transition",
+        "spec_id": work_packet.governance.spec_session_id.clone(),
+        "work_packet_id": work_packet.wp_id.clone(),
+        "role": workflow_mirror_gate_role(gate_status.validated_by.as_deref()),
+        "gate_kind": "validator",
+        "gate": gate_name,
+        "gate_state_ref": gate_summary.gate_state_ref.clone(),
+    });
+    if let Some(verdict) = gate_summary.verdict {
+        seed.as_object_mut()
+            .expect("seed payload must be object")
+            .insert(
+                "verdict".to_string(),
+                Value::String(workflow_mirror_verdict_label(Some(verdict)).to_string()),
+            );
+    }
+    let idempotency_key =
+        workflow_mirror_event_idempotency_key("gov_gate_transition", &work_packet.wp_id, &seed)?;
+    seed.as_object_mut()
+        .expect("seed payload must be object")
+        .insert(
+            "idempotency_key".to_string(),
+            Value::String(idempotency_key),
+        );
+
+    Ok(FlightRecorderEvent::new(
+        FlightRecorderEventType::GovGateTransition,
+        FlightRecorderActor::System,
+        Uuid::new_v4(),
+        seed,
+    )
+    .with_actor_id("workflow:governance_workflow_mirror_sync"))
+}
+
+fn workflow_mirror_activation_event(
+    runtime_paths: &RuntimeGovernancePaths,
+    work_packet: &locus::TrackedWorkPacket,
+) -> Result<Option<FlightRecorderEvent>, WorkflowError> {
+    let task_board_ref = runtime_paths.task_board_display();
+    let Some(activation) =
+        build_workflow_mirror_activation_artifact(runtime_paths, work_packet, &task_board_ref)
+    else {
+        return Ok(None);
+    };
+
+    let stub_packet_ref = workflow_mirror_stub_packet_ref(
+        runtime_paths,
+        &activation.base_wp_id,
+        &activation.active_packet_ref,
+    );
+    let mut seed = json!({
+        "type": "gov_work_packet_activated",
+        "spec_id": work_packet.governance.spec_session_id.clone(),
+        "base_wp_id": activation.base_wp_id.clone(),
+        "work_packet_id": activation.work_packet_id.clone(),
+        "stub_packet_ref": stub_packet_ref,
+        "active_packet_ref": activation.active_packet_ref.clone(),
+        // The runtime mirror stores per-WP traceability slices; the FR field points at that runtime-owned slice.
+        "traceability_registry_ref": activation.traceability_ref.clone(),
+        "task_board_ref": task_board_ref,
+    });
+    let idempotency_key = workflow_mirror_event_idempotency_key(
+        "gov_work_packet_activated",
+        &activation.work_packet_id,
+        &seed,
+    )?;
+    seed.as_object_mut()
+        .expect("seed payload must be object")
+        .insert(
+            "idempotency_key".to_string(),
+            Value::String(idempotency_key),
+        );
+
+    Ok(Some(
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::GovWorkPacketActivated,
+            FlightRecorderActor::System,
+            Uuid::new_v4(),
+            seed,
+        )
+        .with_actor_id("workflow:governance_workflow_mirror_activation"),
+    ))
+}
+
+async fn emit_workflow_mirror_flight_recorder_events(
+    state: &AppState,
+    runtime_paths: &RuntimeGovernancePaths,
+    op: &locus::LocusOperation,
+    work_packet: &locus::TrackedWorkPacket,
+) -> Result<(), WorkflowError> {
+    match op {
+        locus::LocusOperation::CreateWp(_) | locus::LocusOperation::UpdateWp(_) => {
+            if let Some(event) = workflow_mirror_activation_event(runtime_paths, work_packet)? {
+                record_event_required(state, event).await?;
+            }
+        }
+        locus::LocusOperation::GateWp(params) => {
+            let event =
+                workflow_mirror_gate_transition_event(runtime_paths, work_packet, params.gate)?;
+            record_event_required(state, event).await?;
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+fn workflow_spec_session_log_requests(
+    runtime_paths: &RuntimeGovernancePaths,
+    work_packet: &locus::TrackedWorkPacket,
+    op: &locus::LocusOperation,
+) -> Vec<crate::role_mailbox::AppendWorkflowSpecSessionLogRequest> {
+    let Some(spec_id) = work_packet.governance.spec_session_id.clone() else {
+        return Vec::new();
+    };
+    let Some(governance_mode) = routing_policy_to_governance_mode(work_packet.governance.routing)
+    else {
+        return Vec::new();
+    };
+
+    let task_board_id = runtime_paths.task_board_display();
+    let mut requests = Vec::new();
+
+    match op {
+        locus::LocusOperation::CreateWp(_) | locus::LocusOperation::UpdateWp(_) => {
+            if let Some(activation) = build_workflow_mirror_activation_artifact(
+                runtime_paths,
+                work_packet,
+                &task_board_id,
+            ) {
+                requests.push(crate::role_mailbox::AppendWorkflowSpecSessionLogRequest {
+                    spec_id: spec_id.clone(),
+                    task_board_id: task_board_id.clone(),
+                    work_packet_id: Some(work_packet.wp_id.clone()),
+                    governance_mode,
+                    actor: "workflow:governance_workflow_mirror_activation".to_string(),
+                    event_type: "workflow_stub_activation".to_string(),
+                    summary: format!(
+                        "workflow_stub_activation wp={} base_wp={} traceability_ref={}",
+                        activation.work_packet_id,
+                        activation.base_wp_id,
+                        activation.traceability_ref
+                    ),
+                    linked_artifacts: vec![workflow_runtime_artifact_handle(
+                        &activation.traceability_ref,
+                    )],
+                });
+            }
+        }
+        locus::LocusOperation::GateWp(_) => {
+            let gate_summary =
+                build_workflow_mirror_gate_summary(runtime_paths, work_packet, &task_board_id);
+            requests.push(crate::role_mailbox::AppendWorkflowSpecSessionLogRequest {
+                spec_id,
+                task_board_id,
+                work_packet_id: Some(work_packet.wp_id.clone()),
+                governance_mode,
+                actor: "workflow:governance_workflow_mirror_sync".to_string(),
+                event_type: "workflow_gate_transition".to_string(),
+                summary: format!(
+                    "workflow_gate_transition wp={} verdict={} gate_state_ref={}",
+                    work_packet.wp_id,
+                    workflow_mirror_verdict_label(gate_summary.verdict),
+                    gate_summary.gate_state_ref
+                ),
+                linked_artifacts: vec![workflow_runtime_artifact_handle(
+                    &gate_summary.gate_state_ref,
+                )],
+            });
+        }
+        _ => {}
+    }
+
+    requests
+}
+
+fn append_workflow_spec_session_log_entries(
+    flight_recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
+    runtime_paths: &RuntimeGovernancePaths,
+    op: &locus::LocusOperation,
+    work_packet: &locus::TrackedWorkPacket,
+) -> Result<(), WorkflowError> {
+    let requests = workflow_spec_session_log_requests(runtime_paths, work_packet, op);
+    if requests.is_empty() {
+        return Ok(());
+    }
+
+    let mailbox = crate::role_mailbox::RoleMailbox::new_for_root(
+        runtime_paths.workspace_root().to_path_buf(),
+        flight_recorder,
+    )
+    .map_err(|err| {
+        WorkflowError::Terminal(format!(
+            "failed to open workflow spec session log mailbox: {err}"
+        ))
+    })?;
+
+    for request in requests {
+        mailbox
+            .append_workflow_spec_session_log(request)
+            .map_err(|err| {
+                WorkflowError::Terminal(format!(
+                    "failed to append workflow spec session log entry: {err}"
+                ))
+            })?;
+    }
+
+    Ok(())
+}
+
+async fn sync_work_packet_runtime_surfaces(
+    state: &AppState,
+    pool: &SqlitePool,
+    runtime_paths: &RuntimeGovernancePaths,
+    op: &locus::LocusOperation,
+    wp_id: &str,
+) -> Result<(), WorkflowError> {
+    if let Some(work_packet) = load_tracked_work_packet_for_artifacts(pool, wp_id).await? {
+        emit_work_packet_artifacts(runtime_paths, &work_packet)?;
+        emit_workflow_mirror_flight_recorder_events(state, runtime_paths, op, &work_packet).await?;
+        append_workflow_spec_session_log_entries(
+            state.flight_recorder.clone(),
+            runtime_paths,
+            op,
+            &work_packet,
+        )?;
+    }
+    emit_task_board_projection_artifacts(pool, runtime_paths).await?;
+    Ok(())
 }
 
 fn json_pointer_value<'a>(value: &'a Value, pointers: &[&str]) -> Option<&'a Value> {
@@ -4239,8 +4706,18 @@ async fn emit_runtime_structured_work_packet_artifacts(
     let workspace_root = runtime_paths.workspace_root().to_path_buf();
     let packet_path = runtime_paths.work_packet_packet_path(wp_id);
     let summary_path = runtime_paths.work_packet_summary_path(wp_id);
-    let tracked_wp =
+    let mut tracked_wp =
         load_tracked_work_packet_from_sqlite(runtime_paths, db, wp_id, kind_hint).await?;
+    let overlay_refs = emit_workflow_mirror_artifacts(runtime_paths, &mut tracked_wp)?;
+    tracked_wp.evidence_refs = dedupe_sort_strings(
+        tracked_wp
+            .evidence_refs
+            .iter()
+            .cloned()
+            .chain(overlay_refs.into_iter())
+            .collect(),
+    );
+    tracked_wp.evidence_refs = work_packet_evidence_refs(&tracked_wp);
     let detail_value =
         serde_json::to_value(&tracked_wp).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let summary = build_structured_work_packet_summary(&tracked_wp);
@@ -4583,6 +5060,8 @@ async fn load_tracked_work_packet_from_sqlite(
             gates,
             task_packet_path,
             task_board_status: parse_task_board_status_value(&task_board_status_raw)?,
+            gate_summary: None,
+            activation_summary: None,
         },
         kind,
         labels,
@@ -23787,6 +24266,10 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
     use crate::llm::ollama::InMemoryLlmClient;
+    use crate::role_mailbox::{
+        CreateRoleMailboxMessageRequest, GovernanceMode, QueryWorkflowSpecSessionLogRequest,
+        RoleId, RoleMailbox, RoleMailboxContext, RoleMailboxMessageType,
+    };
     use crate::storage::{
         sqlite::SqliteDatabase, AccessMode, Database, JobKind, JobMetrics, JobState, SafetyMode,
     };
@@ -23818,6 +24301,631 @@ mod tests {
         } else {
             ("echo".to_string(), vec!["hello".into()])
         }
+    }
+
+    #[tokio::test]
+    async fn governance_workflow_mirror_activation_records_traceability(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let runtime_root = tempfile::tempdir()?;
+        let runtime_paths =
+            RuntimeGovernancePaths::from_workspace_root(runtime_root.path().to_path_buf())?;
+        let wp_id = "WP-TRACE-1";
+        let task_packet_path = ".handshake/gov/task_packets/WP-TRACE-1.json".to_string();
+
+        crate::storage::locus_sqlite::execute_locus_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::CreateWp(locus::LocusCreateWpParams {
+                wp_id: wp_id.to_string(),
+                title: "Traceability".to_string(),
+                description: "activation traceability test".to_string(),
+                priority: 2,
+                kind: locus::WorkPacketType::Feature,
+                phase: locus::WorkPacketPhase::Phase1,
+                routing: locus::RoutingPolicy::GovStrict,
+                task_packet_path: Some(task_packet_path.clone()),
+                assignee: None,
+                labels: None,
+                spec_session_id: Some("SPEC-TRACE-1".to_string()),
+                reporter: "spec_router".to_string(),
+            }),
+        )
+        .await?;
+
+        let pool = sqlite_pool_for_structured_artifacts(&state)?;
+        let metadata_raw =
+            sqlx::query_scalar::<_, String>("SELECT metadata FROM work_packets WHERE wp_id = $1")
+                .bind(wp_id)
+                .fetch_one(pool)
+                .await?;
+        let mut metadata: Value = serde_json::from_str(&metadata_raw)?;
+        metadata["base_wp_id"] = Value::String("WP-BASE-1".to_string());
+        sqlx::query("UPDATE work_packets SET metadata = $1 WHERE wp_id = $2")
+            .bind(serde_json::to_string(&metadata)?)
+            .bind(wp_id)
+            .execute(pool)
+            .await?;
+
+        crate::storage::locus_sqlite::execute_locus_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::GateWp(locus::LocusGateWpParams {
+                wp_id: wp_id.to_string(),
+                gate: locus::LocusGateKind::PreWork,
+                result: locus::GateStatus {
+                    status: locus::GateStatusKind::Pass,
+                    validated_at: Some(Utc::now()),
+                    validated_by: Some("validator".to_string()),
+                    notes: Some("approved".to_string()),
+                    validation_report_ref: Some(json!(["artifact:check-1"])),
+                },
+            }),
+        )
+        .await?;
+
+        emit_runtime_structured_work_packet_artifacts(
+            &runtime_paths,
+            state.storage.as_ref(),
+            wp_id,
+            Some(locus::WorkPacketType::Feature),
+        )
+        .await?;
+        emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+
+        let activation: locus::WorkflowMirrorActivationArtifactV1 = serde_json::from_slice(
+            &fs::read(runtime_paths.activation_traceability_path(wp_id))?,
+        )?;
+        assert_eq!(activation.base_wp_id, "WP-BASE-1");
+        assert_eq!(activation.work_packet_id, wp_id);
+        assert_eq!(activation.task_board_id, runtime_paths.task_board_display());
+        assert_eq!(activation.active_packet_ref, task_packet_path);
+        assert_eq!(
+            activation.traceability_ref,
+            runtime_paths.activation_traceability_display(wp_id)
+        );
+
+        let packet: locus::TrackedWorkPacket =
+            serde_json::from_slice(&fs::read(runtime_paths.work_packet_packet_path(wp_id))?)?;
+        let activation_summary = packet
+            .governance
+            .activation_summary
+            .ok_or("missing activation summary")?;
+        assert_eq!(activation_summary.base_wp_id, "WP-BASE-1");
+        assert_eq!(activation_summary.work_packet_id, wp_id);
+        assert_eq!(
+            activation_summary.task_board_id,
+            runtime_paths.task_board_display()
+        );
+        assert_eq!(
+            activation_summary.traceability_ref,
+            runtime_paths.activation_traceability_display(wp_id)
+        );
+
+        let gate_summary = packet
+            .governance
+            .gate_summary
+            .ok_or("missing gate summary")?;
+        assert_eq!(
+            gate_summary.gate_state_ref,
+            runtime_paths.validator_gate_display(wp_id)
+        );
+        assert!(gate_summary
+            .check_refs
+            .contains(&"artifact:check-1".to_string()));
+
+        let index: locus::task_board::TaskBoardIndexV1 =
+            serde_json::from_slice(&fs::read(runtime_paths.task_board_index_path())?)?;
+        let entry = index
+            .entries
+            .iter()
+            .find(|entry| entry.work_packet_id == wp_id)
+            .ok_or("missing task-board entry")?;
+        assert_eq!(entry.task_board_id, runtime_paths.task_board_display());
+        assert!(entry
+            .evidence_refs
+            .contains(&runtime_paths.validator_gate_display(wp_id)));
+        assert!(entry
+            .evidence_refs
+            .contains(&runtime_paths.activation_traceability_display(wp_id)));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn governance_workflow_mirror_gate_files_are_isolated_per_wp(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let runtime_root = tempfile::tempdir()?;
+        let runtime_paths =
+            RuntimeGovernancePaths::from_workspace_root(runtime_root.path().to_path_buf())?;
+        let pool = sqlite_pool_for_structured_artifacts(&state)?;
+
+        for (wp_id, verdict, report_ref) in [
+            (
+                "WP-GATE-1",
+                locus::GateStatusKind::Pass,
+                "artifact:check-pass",
+            ),
+            (
+                "WP-GATE-2",
+                locus::GateStatusKind::Fail,
+                "artifact:check-fail",
+            ),
+        ] {
+            crate::storage::locus_sqlite::execute_locus_operation(
+                state.storage.as_ref(),
+                locus::LocusOperation::CreateWp(locus::LocusCreateWpParams {
+                    wp_id: wp_id.to_string(),
+                    title: format!("Title {wp_id}"),
+                    description: format!("Description {wp_id}"),
+                    priority: 2,
+                    kind: locus::WorkPacketType::Feature,
+                    phase: locus::WorkPacketPhase::Phase1,
+                    routing: locus::RoutingPolicy::GovStrict,
+                    task_packet_path: Some(format!(".handshake/gov/task_packets/{wp_id}.json")),
+                    assignee: None,
+                    labels: None,
+                    spec_session_id: Some(format!("SPEC-{wp_id}")),
+                    reporter: "spec_router".to_string(),
+                }),
+            )
+            .await?;
+
+            crate::storage::locus_sqlite::execute_locus_operation(
+                state.storage.as_ref(),
+                locus::LocusOperation::GateWp(locus::LocusGateWpParams {
+                    wp_id: wp_id.to_string(),
+                    gate: locus::LocusGateKind::PreWork,
+                    result: locus::GateStatus {
+                        status: verdict,
+                        validated_at: Some(Utc::now()),
+                        validated_by: Some("validator".to_string()),
+                        notes: Some("checked".to_string()),
+                        validation_report_ref: Some(json!([report_ref])),
+                    },
+                }),
+            )
+            .await?;
+
+            emit_runtime_structured_work_packet_artifacts(
+                &runtime_paths,
+                state.storage.as_ref(),
+                wp_id,
+                Some(locus::WorkPacketType::Feature),
+            )
+            .await?;
+        }
+
+        emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+
+        let gate_one: locus::WorkflowMirrorGateArtifactV1 =
+            serde_json::from_slice(&fs::read(runtime_paths.validator_gate_path("WP-GATE-1"))?)?;
+        let gate_two: locus::WorkflowMirrorGateArtifactV1 =
+            serde_json::from_slice(&fs::read(runtime_paths.validator_gate_path("WP-GATE-2"))?)?;
+        assert_eq!(gate_one.wp_id, "WP-GATE-1");
+        assert_eq!(gate_two.wp_id, "WP-GATE-2");
+        assert_eq!(
+            gate_one.gate_summary.verdict,
+            Some(locus::WorkflowMirrorVerdict::Pass)
+        );
+        assert_eq!(
+            gate_two.gate_summary.verdict,
+            Some(locus::WorkflowMirrorVerdict::Fail)
+        );
+        assert_ne!(gate_one.gate_state_ref, gate_two.gate_state_ref);
+
+        let index: locus::task_board::TaskBoardIndexV1 =
+            serde_json::from_slice(&fs::read(runtime_paths.task_board_index_path())?)?;
+        let entry_one = index
+            .entries
+            .iter()
+            .find(|entry| entry.work_packet_id == "WP-GATE-1")
+            .ok_or("missing WP-GATE-1 entry")?;
+        let entry_two = index
+            .entries
+            .iter()
+            .find(|entry| entry.work_packet_id == "WP-GATE-2")
+            .ok_or("missing WP-GATE-2 entry")?;
+        assert_eq!(entry_one.task_board_id, runtime_paths.task_board_display());
+        assert_eq!(entry_two.task_board_id, runtime_paths.task_board_display());
+        assert!(entry_one
+            .evidence_refs
+            .contains(&runtime_paths.validator_gate_display("WP-GATE-1")));
+        assert!(!entry_one
+            .evidence_refs
+            .contains(&runtime_paths.validator_gate_display("WP-GATE-2")));
+        assert!(entry_two
+            .evidence_refs
+            .contains(&runtime_paths.validator_gate_display("WP-GATE-2")));
+        assert!(!entry_two
+            .evidence_refs
+            .contains(&runtime_paths.validator_gate_display("WP-GATE-1")));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn governance_workflow_mirror_check_result_links_to_evidence(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let runtime_root = tempfile::tempdir()?;
+        let runtime_paths =
+            RuntimeGovernancePaths::from_workspace_root(runtime_root.path().to_path_buf())?;
+        let pool = sqlite_pool_for_structured_artifacts(&state)?;
+        let wp_id = "WP-CHECK-1";
+        let check_refs = vec![
+            "artifact:check-pass".to_string(),
+            "artifact:evidence-pass".to_string(),
+        ];
+
+        crate::storage::locus_sqlite::execute_locus_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::CreateWp(locus::LocusCreateWpParams {
+                wp_id: wp_id.to_string(),
+                title: "Check linkage".to_string(),
+                description: "workflow mirror check linkage".to_string(),
+                priority: 2,
+                kind: locus::WorkPacketType::Feature,
+                phase: locus::WorkPacketPhase::Phase1,
+                routing: locus::RoutingPolicy::GovStrict,
+                task_packet_path: Some(format!(".handshake/gov/task_packets/{wp_id}.json")),
+                assignee: None,
+                labels: None,
+                spec_session_id: Some("SPEC-CHECK-1".to_string()),
+                reporter: "spec_router".to_string(),
+            }),
+        )
+        .await?;
+
+        crate::storage::locus_sqlite::execute_locus_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::GateWp(locus::LocusGateWpParams {
+                wp_id: wp_id.to_string(),
+                gate: locus::LocusGateKind::PreWork,
+                result: locus::GateStatus {
+                    status: locus::GateStatusKind::Pass,
+                    validated_at: Some(Utc::now()),
+                    validated_by: Some("validator".to_string()),
+                    notes: Some("checked".to_string()),
+                    validation_report_ref: Some(json!(check_refs)),
+                },
+            }),
+        )
+        .await?;
+
+        emit_runtime_structured_work_packet_artifacts(
+            &runtime_paths,
+            state.storage.as_ref(),
+            wp_id,
+            Some(locus::WorkPacketType::Feature),
+        )
+        .await?;
+        emit_task_board_projection_artifacts(pool, &runtime_paths).await?;
+
+        let gate: locus::WorkflowMirrorGateArtifactV1 =
+            serde_json::from_slice(&fs::read(runtime_paths.validator_gate_path(wp_id))?)?;
+        assert_eq!(gate.gate_summary.check_refs.len(), check_refs.len());
+        for check_ref in &check_refs {
+            assert!(gate.gate_summary.check_refs.contains(check_ref));
+            assert!(gate.gate_summary.evidence_refs.contains(check_ref));
+        }
+        assert!(gate
+            .gate_summary
+            .evidence_refs
+            .contains(&runtime_paths.task_board_display()));
+
+        let packet: locus::TrackedWorkPacket =
+            serde_json::from_slice(&fs::read(runtime_paths.work_packet_packet_path(wp_id))?)?;
+        assert!(packet
+            .evidence_refs
+            .contains(&runtime_paths.validator_gate_display(wp_id)));
+        for check_ref in &check_refs {
+            assert!(packet.evidence_refs.contains(check_ref));
+        }
+
+        let index: locus::task_board::TaskBoardIndexV1 =
+            serde_json::from_slice(&fs::read(runtime_paths.task_board_index_path())?)?;
+        let entry = index
+            .entries
+            .iter()
+            .find(|entry| entry.work_packet_id == wp_id)
+            .ok_or("missing WP-CHECK-1 entry")?;
+        assert!(entry
+            .evidence_refs
+            .contains(&runtime_paths.validator_gate_display(wp_id)));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn governance_workflow_mirror_spec_session_log_keeps_stable_ids(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let runtime_root = tempfile::tempdir()?;
+        let runtime_paths =
+            RuntimeGovernancePaths::from_workspace_root(runtime_root.path().to_path_buf())?;
+        let task_board_id = runtime_paths.task_board_display();
+        let wp_id = "WP-LOG-1";
+        let spec_id = "SPEC-LOG-1";
+
+        let mailbox = RoleMailbox::new_for_root(
+            runtime_root.path().to_path_buf(),
+            state.flight_recorder.clone(),
+        )?;
+        mailbox
+            .create_message(CreateRoleMailboxMessageRequest {
+                thread_id: None,
+                thread_subject: Some("Workflow mirror continuity".to_string()),
+                thread_participants: Some(vec![RoleId::Coder, RoleId::Validator]),
+                context: RoleMailboxContext {
+                    spec_id: Some(spec_id.to_string()),
+                    work_packet_id: Some(wp_id.to_string()),
+                    task_board_id: Some(task_board_id.clone()),
+                    governance_mode: GovernanceMode::GovStrict,
+                    project_id: Some("handshake".to_string()),
+                },
+                from_role: RoleId::Coder,
+                to_roles: vec![RoleId::Validator],
+                message_type: RoleMailboxMessageType::FYI,
+                body: "mailbox seed event".to_string(),
+                attachments: Vec::new(),
+                relates_to_message_id: None,
+                transcription_links: Vec::new(),
+                idempotency_key: "workflow-session-log-mailbox-seed".to_string(),
+            })
+            .await?;
+
+        let create_params = locus::LocusCreateWpParams {
+            wp_id: wp_id.to_string(),
+            title: "Workflow log continuity".to_string(),
+            description: "session log test".to_string(),
+            priority: 2,
+            kind: locus::WorkPacketType::Feature,
+            phase: locus::WorkPacketPhase::Phase1,
+            routing: locus::RoutingPolicy::GovStrict,
+            task_packet_path: Some(format!(".handshake/gov/task_packets/{wp_id}.json")),
+            assignee: None,
+            labels: None,
+            spec_session_id: Some(spec_id.to_string()),
+            reporter: "spec_router".to_string(),
+        };
+        crate::storage::locus_sqlite::execute_locus_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::CreateWp(create_params.clone()),
+        )
+        .await?;
+
+        let pool = sqlite_pool_for_structured_artifacts(&state)?;
+        let created = load_tracked_work_packet_for_artifacts(pool, wp_id)
+            .await?
+            .ok_or("missing created work packet")?;
+        emit_work_packet_artifacts(&runtime_paths, &created)?;
+        append_workflow_spec_session_log_entries(
+            state.flight_recorder.clone(),
+            &runtime_paths,
+            &locus::LocusOperation::CreateWp(create_params),
+            &created,
+        )?;
+
+        let gate_params = locus::LocusGateWpParams {
+            wp_id: wp_id.to_string(),
+            gate: locus::LocusGateKind::PreWork,
+            result: locus::GateStatus {
+                status: locus::GateStatusKind::Pass,
+                validated_at: Some(Utc::now()),
+                validated_by: Some("validator".to_string()),
+                notes: Some("approved".to_string()),
+                validation_report_ref: Some(json!(["artifact:workflow-check-1"])),
+            },
+        };
+        crate::storage::locus_sqlite::execute_locus_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::GateWp(gate_params.clone()),
+        )
+        .await?;
+
+        let gated = load_tracked_work_packet_for_artifacts(pool, wp_id)
+            .await?
+            .ok_or("missing gated work packet")?;
+        emit_work_packet_artifacts(&runtime_paths, &gated)?;
+        append_workflow_spec_session_log_entries(
+            state.flight_recorder.clone(),
+            &runtime_paths,
+            &locus::LocusOperation::GateWp(gate_params),
+            &gated,
+        )?;
+
+        let entries =
+            mailbox.query_workflow_spec_session_log(QueryWorkflowSpecSessionLogRequest {
+                spec_id: spec_id.to_string(),
+                task_board_id: task_board_id.clone(),
+                work_packet_id: Some(wp_id.to_string()),
+                limit: 8,
+            })?;
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter().all(|entry| entry.spec_id == spec_id
+            && entry.task_board_id == task_board_id
+            && entry.work_packet_id.as_deref() == Some(wp_id)));
+        assert!(entries
+            .iter()
+            .all(|entry| !entry.event_type.starts_with("mailbox_")));
+
+        let activation = entries
+            .iter()
+            .find(|entry| entry.event_type == "workflow_stub_activation")
+            .ok_or("missing activation entry")?;
+        assert_eq!(
+            activation.actor,
+            "workflow:governance_workflow_mirror_activation"
+        );
+        assert!(activation
+            .linked_artifacts
+            .iter()
+            .any(|artifact| artifact.path == runtime_paths.activation_traceability_display(wp_id)));
+
+        let gate = entries
+            .iter()
+            .find(|entry| entry.event_type == "workflow_gate_transition")
+            .ok_or("missing gate entry")?;
+        assert_eq!(gate.actor, "workflow:governance_workflow_mirror_sync");
+        assert!(gate.summary.contains("verdict=PASS"));
+        assert!(gate
+            .linked_artifacts
+            .iter()
+            .any(|artifact| artifact.path == runtime_paths.validator_gate_display(wp_id)));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn governance_workflow_mirror_gate_transition_emits_fr_event(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let runtime_root = tempfile::tempdir()?;
+        let runtime_paths =
+            RuntimeGovernancePaths::from_workspace_root(runtime_root.path().to_path_buf())?;
+        let pool = sqlite_pool_for_structured_artifacts(&state)?;
+        let wp_id = "WP-FR-1";
+        let spec_id = "SPEC-FR-1";
+        let task_packet_ref = format!(".handshake/gov/task_packets/{wp_id}.json");
+
+        let create_params = locus::LocusCreateWpParams {
+            wp_id: wp_id.to_string(),
+            title: "Workflow FR event".to_string(),
+            description: "flight recorder event test".to_string(),
+            priority: 2,
+            kind: locus::WorkPacketType::Feature,
+            phase: locus::WorkPacketPhase::Phase1,
+            routing: locus::RoutingPolicy::GovStrict,
+            task_packet_path: Some(task_packet_ref.clone()),
+            assignee: None,
+            labels: None,
+            spec_session_id: Some(spec_id.to_string()),
+            reporter: "spec_router".to_string(),
+        };
+        execute_locus_work_packet_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::CreateWp(create_params.clone()),
+        )
+        .await?;
+
+        let metadata_raw =
+            sqlx::query_scalar::<_, String>("SELECT metadata FROM work_packets WHERE wp_id = $1")
+                .bind(wp_id)
+                .fetch_one(pool)
+                .await?;
+        let mut metadata: Value = serde_json::from_str(&metadata_raw)?;
+        metadata["base_wp_id"] = Value::String("WP-BASE-FR-1".to_string());
+        sqlx::query("UPDATE work_packets SET metadata = $1 WHERE wp_id = $2")
+            .bind(serde_json::to_string(&metadata)?)
+            .bind(wp_id)
+            .execute(pool)
+            .await?;
+
+        emit_runtime_structured_work_packet_artifacts(
+            &runtime_paths,
+            state.storage.as_ref(),
+            wp_id,
+            Some(locus::WorkPacketType::Feature),
+        )
+        .await?;
+
+        let create_op = locus::LocusOperation::CreateWp(create_params);
+        sync_work_packet_runtime_surfaces(&state, pool, &runtime_paths, &create_op, wp_id).await?;
+        sync_work_packet_runtime_surfaces(&state, pool, &runtime_paths, &create_op, wp_id).await?;
+
+        let gate_params = locus::LocusGateWpParams {
+            wp_id: wp_id.to_string(),
+            gate: locus::LocusGateKind::PreWork,
+            result: locus::GateStatus {
+                status: locus::GateStatusKind::Pass,
+                validated_at: Some(Utc::now()),
+                validated_by: Some("validator".to_string()),
+                notes: Some("approved".to_string()),
+                validation_report_ref: Some(json!(["artifact:workflow-check-1"])),
+            },
+        };
+        execute_locus_work_packet_operation(
+            state.storage.as_ref(),
+            locus::LocusOperation::GateWp(gate_params.clone()),
+        )
+        .await?;
+        let gate_op = locus::LocusOperation::GateWp(gate_params);
+        sync_work_packet_runtime_surfaces(&state, pool, &runtime_paths, &gate_op, wp_id).await?;
+        sync_work_packet_runtime_surfaces(&state, pool, &runtime_paths, &gate_op, wp_id).await?;
+
+        let events = state
+            .flight_recorder
+            .list_events(crate::flight_recorder::EventFilter::default())
+            .await?;
+
+        let activation_events = events
+            .iter()
+            .filter(|event| event.event_type == FlightRecorderEventType::GovWorkPacketActivated)
+            .collect::<Vec<_>>();
+        assert_eq!(activation_events.len(), 2);
+        let activation_keys = activation_events
+            .iter()
+            .map(|event| {
+                event.payload["idempotency_key"]
+                    .as_str()
+                    .ok_or("missing activation idempotency_key")
+                    .map(str::to_string)
+            })
+            .collect::<Result<HashSet<_>, _>>()?;
+        assert_eq!(activation_keys.len(), 1);
+        for event in &activation_events {
+            assert_eq!(event.actor, FlightRecorderActor::System);
+            assert_eq!(
+                event.actor_id,
+                "workflow:governance_workflow_mirror_activation"
+            );
+            assert_eq!(event.payload["type"], json!("gov_work_packet_activated"));
+            assert_eq!(event.payload["spec_id"], json!(spec_id));
+            assert_eq!(event.payload["base_wp_id"], json!("WP-BASE-FR-1"));
+            assert_eq!(event.payload["work_packet_id"], json!(wp_id));
+            assert_eq!(event.payload["active_packet_ref"], json!(task_packet_ref));
+            assert_eq!(
+                event.payload["traceability_registry_ref"],
+                json!(runtime_paths.activation_traceability_display(wp_id))
+            );
+            assert_eq!(
+                event.payload["task_board_ref"],
+                json!(runtime_paths.task_board_display())
+            );
+        }
+
+        let gate_events = events
+            .iter()
+            .filter(|event| event.event_type == FlightRecorderEventType::GovGateTransition)
+            .collect::<Vec<_>>();
+        assert_eq!(gate_events.len(), 2);
+        let gate_keys = gate_events
+            .iter()
+            .map(|event| {
+                event.payload["idempotency_key"]
+                    .as_str()
+                    .ok_or("missing gate idempotency_key")
+                    .map(str::to_string)
+            })
+            .collect::<Result<HashSet<_>, _>>()?;
+        assert_eq!(gate_keys.len(), 1);
+        for event in &gate_events {
+            assert_eq!(event.actor, FlightRecorderActor::System);
+            assert_eq!(event.actor_id, "workflow:governance_workflow_mirror_sync");
+            assert_eq!(event.payload["type"], json!("gov_gate_transition"));
+            assert_eq!(event.payload["spec_id"], json!(spec_id));
+            assert_eq!(event.payload["work_packet_id"], json!(wp_id));
+            assert_eq!(event.payload["role"], json!("validator"));
+            assert_eq!(event.payload["gate_kind"], json!("validator"));
+            assert_eq!(event.payload["gate"], json!("PRE_WORK"));
+            assert_eq!(event.payload["verdict"], json!("PASS"));
+            assert_eq!(
+                event.payload["gate_state_ref"],
+                json!(runtime_paths.validator_gate_display(wp_id))
+            );
+        }
+
+        Ok(())
     }
 
     #[test]

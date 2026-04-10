@@ -339,6 +339,56 @@ pub struct GateStatuses {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum WorkflowMirrorVerdict {
+    Pass,
+    Fail,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkflowMirrorGateSummary {
+    pub gate_state_ref: String,
+    pub pre_work: GateStatus,
+    pub post_work: GateStatus,
+    #[serde(default)]
+    pub verdict: Option<WorkflowMirrorVerdict>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub check_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkflowMirrorGateArtifactV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub wp_id: String,
+    pub task_board_id: String,
+    pub gate_state_ref: String,
+    pub gate_summary: WorkflowMirrorGateSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkflowMirrorActivationSummary {
+    pub base_wp_id: String,
+    pub work_packet_id: String,
+    pub task_board_id: String,
+    pub active_packet_ref: String,
+    pub traceability_ref: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkflowMirrorActivationArtifactV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub base_wp_id: String,
+    pub work_packet_id: String,
+    pub task_board_id: String,
+    pub active_packet_ref: String,
+    pub traceability_ref: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkPacketPhase {
     #[serde(rename = "0")]
@@ -377,6 +427,10 @@ pub struct WorkPacketGovernance {
     #[serde(default)]
     pub task_packet_path: Option<String>,
     pub task_board_status: TaskBoardStatus,
+    #[serde(default)]
+    pub gate_summary: Option<WorkflowMirrorGateSummary>,
+    #[serde(default)]
+    pub activation_summary: Option<WorkflowMirrorActivationSummary>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

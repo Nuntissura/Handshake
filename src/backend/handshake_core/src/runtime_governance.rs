@@ -14,6 +14,8 @@ pub const RUNTIME_WORK_PACKETS_DIR: &str = "work_packets";
 pub const RUNTIME_MICRO_TASKS_DIR: &str = "micro_tasks";
 pub const RUNTIME_TASK_BOARD_DIR: &str = "task_board";
 pub const RUNTIME_TASK_BOARD_VIEWS_DIR: &str = "views";
+pub const RUNTIME_VALIDATOR_GATES_DIR: &str = "validator_gates";
+pub const RUNTIME_ACTIVATION_TRACEABILITY_DIR: &str = "activation_traceability";
 pub const RUNTIME_GOVERNANCE_DECISIONS_DIR: &str = "governance_decisions";
 pub const RUNTIME_GOVERNANCE_AUTO_SIGNATURES_DIR: &str = "auto_signatures";
 
@@ -238,6 +240,50 @@ impl RuntimeGovernancePaths {
         display_path(&self.workspace_root, &self.task_board_view_path(view_id))
     }
 
+    pub fn validator_gates_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_VALIDATOR_GATES_DIR)
+    }
+
+    pub fn validator_gates_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.validator_gates_dir(),
+        ))
+    }
+
+    pub fn validator_gate_path(&self, wp_id: &str) -> PathBuf {
+        self.validator_gates_dir()
+            .join(format!("{}.json", safe_runtime_filename(wp_id)))
+    }
+
+    pub fn validator_gate_display(&self, wp_id: &str) -> String {
+        display_path(&self.workspace_root, &self.validator_gate_path(wp_id))
+    }
+
+    pub fn activation_traceability_dir(&self) -> PathBuf {
+        self.governance_root
+            .join(RUNTIME_ACTIVATION_TRACEABILITY_DIR)
+    }
+
+    pub fn activation_traceability_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.activation_traceability_dir(),
+        ))
+    }
+
+    pub fn activation_traceability_path(&self, wp_id: &str) -> PathBuf {
+        self.activation_traceability_dir()
+            .join(format!("{}.json", safe_runtime_filename(wp_id)))
+    }
+
+    pub fn activation_traceability_display(&self, wp_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.activation_traceability_path(wp_id),
+        )
+    }
+
     pub fn governance_decisions_dir(&self) -> PathBuf {
         self.governance_root.join(RUNTIME_GOVERNANCE_DECISIONS_DIR)
     }
@@ -375,6 +421,21 @@ fn safe_runtime_segment(value: &str) -> Result<String, io::Error> {
     Ok(trimmed.to_string())
 }
 
+fn safe_runtime_filename(value: &str) -> String {
+    safe_runtime_segment(value).unwrap_or_else(|_| {
+        let sanitized = value
+            .trim()
+            .replace('/', "_")
+            .replace('\\', "_")
+            .replace("..", "_");
+        if sanitized.is_empty() {
+            "_invalid_runtime_segment_".to_string()
+        } else {
+            sanitized
+        }
+    })
+}
+
 fn normalize_display_like(value: &str) -> String {
     value.trim().replace('\\', "/")
 }
@@ -436,6 +497,22 @@ mod tests {
                 .join("index.json")
         );
         assert_eq!(
+            paths.validator_gate_path("WP-1"),
+            workspace_root
+                .join(".handshake")
+                .join("gov")
+                .join("validator_gates")
+                .join("WP-1.json")
+        );
+        assert_eq!(
+            paths.activation_traceability_path("WP-1"),
+            workspace_root
+                .join(".handshake")
+                .join("gov")
+                .join("activation_traceability")
+                .join("WP-1.json")
+        );
+        assert_eq!(
             paths.auto_signatures_dir(),
             workspace_root
                 .join(".handshake")
@@ -462,6 +539,16 @@ mod tests {
             Some(PathBuf::from(".GOV")),
         )
         .expect_err(".GOV root must be rejected");
+        assert!(err.to_string().contains(".GOV directory"));
+    }
+
+    #[test]
+    fn governance_workflow_mirror_rejects_gov_repo_io() {
+        let err = RuntimeGovernancePaths::from_workspace_root_with_override(
+            PathBuf::from("/tmp/hsk"),
+            Some(PathBuf::from(".GOV/validator_gates")),
+        )
+        .expect_err(".GOV runtime mirror root must be rejected");
         assert!(err.to_string().contains(".GOV directory"));
     }
 }

@@ -253,6 +253,40 @@ pub struct RoleMailboxMessage {
     pub idempotency_key: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct AppendWorkflowSpecSessionLogRequest {
+    pub spec_id: String,
+    pub task_board_id: String,
+    pub work_packet_id: Option<String>,
+    pub governance_mode: GovernanceMode,
+    pub actor: String,
+    pub event_type: String,
+    pub summary: String,
+    pub linked_artifacts: Vec<ArtifactHandle>,
+}
+
+#[derive(Debug, Clone)]
+pub struct QueryWorkflowSpecSessionLogRequest {
+    pub spec_id: String,
+    pub task_board_id: String,
+    pub work_packet_id: Option<String>,
+    pub limit: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SpecSessionLogEntry {
+    pub entry_id: String,
+    pub spec_id: String,
+    pub task_board_id: String,
+    pub work_packet_id: Option<String>,
+    pub event_type: String,
+    pub governance_mode: GovernanceMode,
+    pub actor: String,
+    pub timestamp: DateTime<Utc>,
+    pub summary: String,
+    pub linked_artifacts: Vec<ArtifactHandle>,
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
@@ -785,16 +819,7 @@ impl RoleMailbox {
                 ))
             })?;
 
-            let mode = match row.3.as_str() {
-                "gov_strict" => GovernanceMode::GovStrict,
-                "gov_standard" => GovernanceMode::GovStandard,
-                "gov_light" => GovernanceMode::GovLight,
-                other => {
-                    return Err(RoleMailboxError::InvalidInput(format!(
-                        "stored governance_mode invalid: {other}"
-                    )))
-                }
-            };
+            let mode = parse_governance_mode(&row.3)?;
 
             let mut links_value: Value = serde_json::from_str(&row.6)?;
             let links_arr = links_value.as_array_mut().ok_or_else(|| {
@@ -846,6 +871,150 @@ impl RoleMailbox {
         }
 
         Ok(())
+    }
+
+    pub fn append_workflow_spec_session_log(
+        &self,
+        req: AppendWorkflowSpecSessionLogRequest,
+    ) -> Result<SpecSessionLogEntry, RoleMailboxError> {
+        if !req.event_type.starts_with("workflow_") {
+            return Err(RoleMailboxError::InvalidInput(
+                "workflow spec session log entries must use workflow_* event_type values"
+                    .to_string(),
+            ));
+        }
+
+        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(self.root_dir.clone())
+            .map_err(|e| {
+                RoleMailboxError::InvalidInput(format!(
+                    "failed to resolve runtime governance paths: {e}"
+                ))
+            })?;
+        let expected_task_board_id = runtime_paths.task_board_display();
+        if req.task_board_id != expected_task_board_id {
+            return Err(RoleMailboxError::InvalidInput(format!(
+                "task_board_id must match canonical runtime task board id {}",
+                expected_task_board_id
+            )));
+        }
+
+        let linked_paths = req
+            .linked_artifacts
+            .iter()
+            .map(|artifact| artifact.path.clone())
+            .collect::<Vec<_>>();
+        let invalid_refs = runtime_paths.invalid_runtime_authority_refs(&linked_paths);
+        if !invalid_refs.is_empty() {
+            return Err(RoleMailboxError::InvalidInput(format!(
+                "workflow linked_artifacts must stay within {}: {}",
+                runtime_paths.governance_root_display(),
+                invalid_refs.join(",")
+            )));
+        }
+
+        self.insert_spec_session_log_entry(
+            req.spec_id,
+            req.task_board_id,
+            req.work_packet_id,
+            req.governance_mode,
+            req.actor,
+            req.event_type,
+            req.summary,
+            req.linked_artifacts,
+        )
+    }
+
+    pub fn query_workflow_spec_session_log(
+        &self,
+        req: QueryWorkflowSpecSessionLogRequest,
+    ) -> Result<Vec<SpecSessionLogEntry>, RoleMailboxError> {
+        if !is_safe_token(&req.spec_id, 256) {
+            return Err(RoleMailboxError::InvalidInput(
+                "spec_id must be a bounded safe token".to_string(),
+            ));
+        }
+        if !is_safe_token(&req.task_board_id, 512) {
+            return Err(RoleMailboxError::InvalidInput(
+                "task_board_id must be a bounded safe token".to_string(),
+            ));
+        }
+        if let Some(work_packet_id) = req.work_packet_id.as_deref() {
+            if !is_safe_token(work_packet_id, 128) {
+                return Err(RoleMailboxError::InvalidInput(
+                    "work_packet_id must be a bounded safe token".to_string(),
+                ));
+            }
+        }
+
+        let limit = req.limit.clamp(1, 512) as i64;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| RoleMailboxError::DuckDb("lock error".to_string()))?;
+
+        let mut out = Vec::new();
+        if let Some(work_packet_id) = req.work_packet_id {
+            let mut stmt = conn.prepare(
+                r#"
+                SELECT
+                    entry_id,
+                    spec_id,
+                    task_board_id,
+                    work_packet_id,
+                    event_type,
+                    governance_mode,
+                    actor,
+                    timestamp,
+                    summary,
+                    linked_artifacts
+                FROM spec_session_log_entries
+                WHERE spec_id = ?
+                  AND task_board_id = ?
+                  AND work_packet_id = ?
+                  AND event_type LIKE 'workflow_%'
+                ORDER BY timestamp ASC, entry_id ASC
+                LIMIT ?
+                "#,
+            )?;
+            let rows = stmt.query_map(
+                duckdb::params![req.spec_id, req.task_board_id, work_packet_id, limit],
+                parse_spec_session_log_row,
+            )?;
+            for row in rows {
+                out.push(row?);
+            }
+        } else {
+            let mut stmt = conn.prepare(
+                r#"
+                SELECT
+                    entry_id,
+                    spec_id,
+                    task_board_id,
+                    work_packet_id,
+                    event_type,
+                    governance_mode,
+                    actor,
+                    timestamp,
+                    summary,
+                    linked_artifacts
+                FROM spec_session_log_entries
+                WHERE spec_id = ?
+                  AND task_board_id = ?
+                  AND event_type LIKE 'workflow_%'
+                ORDER BY timestamp ASC, entry_id ASC
+                LIMIT ?
+                "#,
+            )?;
+            let rows = stmt.query_map(
+                duckdb::params![req.spec_id, req.task_board_id, limit],
+                parse_spec_session_log_row,
+            )?;
+            for row in rows {
+                out.push(row?);
+            }
+        }
+
+        Ok(out)
     }
 
     async fn load_message_by_id(
@@ -1124,22 +1293,89 @@ impl RoleMailbox {
         summary: String,
         linked_artifacts: Vec<ArtifactHandle>,
     ) -> Result<(), RoleMailboxError> {
+        self.insert_spec_session_log_entry(
+            context
+                .spec_id
+                .clone()
+                .unwrap_or_else(|| "UNKNOWN".to_string()),
+            context
+                .task_board_id
+                .clone()
+                .unwrap_or_else(|| self.default_task_board_id.clone()),
+            context.work_packet_id.clone(),
+            context.governance_mode,
+            actor,
+            event_type.to_string(),
+            summary,
+            linked_artifacts,
+        )?;
+        Ok(())
+    }
+
+    fn insert_spec_session_log_entry(
+        &self,
+        spec_id: String,
+        task_board_id: String,
+        work_packet_id: Option<String>,
+        governance_mode: GovernanceMode,
+        actor: String,
+        event_type: String,
+        summary: String,
+        linked_artifacts: Vec<ArtifactHandle>,
+    ) -> Result<SpecSessionLogEntry, RoleMailboxError> {
+        if !is_safe_token(&spec_id, 256) {
+            return Err(RoleMailboxError::InvalidInput(
+                "spec_id must be a bounded safe token".to_string(),
+            ));
+        }
+        if !is_safe_token(&task_board_id, 512) {
+            return Err(RoleMailboxError::InvalidInput(
+                "task_board_id must be a bounded safe token".to_string(),
+            ));
+        }
+        if let Some(work_packet_id) = work_packet_id.as_deref() {
+            if !is_safe_token(work_packet_id, 128) {
+                return Err(RoleMailboxError::InvalidInput(
+                    "work_packet_id must be a bounded safe token".to_string(),
+                ));
+            }
+        }
+        if !is_safe_token(&actor, 128) {
+            return Err(RoleMailboxError::InvalidInput(
+                "actor must be a bounded safe token".to_string(),
+            ));
+        }
+        if !is_safe_token(&event_type, 128) {
+            return Err(RoleMailboxError::InvalidInput(
+                "event_type must be a bounded safe token".to_string(),
+            ));
+        }
+
+        let summary = bounded_single_line(&summary, 256);
+        if summary.is_empty() {
+            return Err(RoleMailboxError::InvalidInput(
+                "summary must be non-empty".to_string(),
+            ));
+        }
+
         let conn = self
             .conn
             .lock()
             .map_err(|_| RoleMailboxError::DuckDb("lock error".to_string()))?;
 
-        let entry_id = Uuid::new_v4().to_string();
-        let spec_id = context
-            .spec_id
-            .clone()
-            .unwrap_or_else(|| "UNKNOWN".to_string());
-        let task_board_id = context
-            .task_board_id
-            .clone()
-            .unwrap_or_else(|| self.default_task_board_id.clone());
-        let timestamp = format_rfc3339_seconds(now_utc_seconds());
-        let linked_json = serde_json::to_string(&linked_artifacts)?;
+        let entry = SpecSessionLogEntry {
+            entry_id: Uuid::new_v4().to_string(),
+            spec_id,
+            task_board_id,
+            work_packet_id,
+            event_type,
+            governance_mode,
+            actor,
+            timestamp: now_utc_seconds(),
+            summary,
+            linked_artifacts,
+        };
+        let linked_json = serde_json::to_string(&entry.linked_artifacts)?;
 
         conn.execute(
             r#"
@@ -1157,20 +1393,20 @@ impl RoleMailbox {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
             duckdb::params![
-                entry_id,
-                spec_id,
-                task_board_id,
-                context.work_packet_id.clone(),
-                event_type,
-                context.governance_mode.as_str(),
-                actor,
-                timestamp,
-                summary,
+                entry.entry_id,
+                entry.spec_id,
+                entry.task_board_id,
+                entry.work_packet_id,
+                entry.event_type,
+                entry.governance_mode.as_str(),
+                entry.actor,
+                format_rfc3339_seconds(entry.timestamp),
+                entry.summary,
                 linked_json
             ],
         )?;
 
-        Ok(())
+        Ok(entry)
     }
 
     async fn emit_fr_message_created(
@@ -1254,8 +1490,8 @@ impl RoleMailbox {
         actor: String,
     ) -> Result<RoleMailboxExportSummary, RoleMailboxError> {
         fs::create_dir_all(&self.export_dir)?;
-        let runtime_paths =
-            RuntimeGovernancePaths::from_workspace_root(self.root_dir.clone()).map_err(|e| {
+        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(self.root_dir.clone())
+            .map_err(|e| {
                 RoleMailboxError::InvalidInput(format!(
                     "failed to resolve runtime governance paths: {e}"
                 ))
@@ -1687,6 +1923,47 @@ fn parse_transcription_target_kind(
     }
 }
 
+fn parse_governance_mode(value: &str) -> Result<GovernanceMode, RoleMailboxError> {
+    match value.trim() {
+        "gov_strict" => Ok(GovernanceMode::GovStrict),
+        "gov_standard" => Ok(GovernanceMode::GovStandard),
+        "gov_light" => Ok(GovernanceMode::GovLight),
+        other => Err(RoleMailboxError::InvalidInput(format!(
+            "stored governance_mode invalid: {other}"
+        ))),
+    }
+}
+
+fn parse_spec_session_log_row(row: &duckdb::Row<'_>) -> Result<SpecSessionLogEntry, duckdb::Error> {
+    let governance_mode = row.get::<_, String>(5)?;
+    let timestamp = row.get::<_, String>(7)?;
+    let linked_artifacts = row.get::<_, String>(9)?;
+
+    let entry = SpecSessionLogEntry {
+        entry_id: row.get::<_, String>(0)?,
+        spec_id: row.get::<_, String>(1)?,
+        task_board_id: row.get::<_, String>(2)?,
+        work_packet_id: row.get::<_, Option<String>>(3)?,
+        event_type: row.get::<_, String>(4)?,
+        governance_mode: parse_governance_mode(&governance_mode)
+            .map_err(|err| duckdb::Error::InvalidParameterName(err.to_string()))?,
+        actor: row.get::<_, String>(6)?,
+        timestamp: parse_rfc3339_seconds(&timestamp)
+            .map_err(|err| duckdb::Error::InvalidParameterName(err.to_string()))?,
+        summary: row.get::<_, String>(8)?,
+        linked_artifacts: serde_json::from_str(&linked_artifacts)
+            .map_err(|err| duckdb::Error::InvalidParameterName(err.to_string()))?,
+    };
+
+    Ok(entry)
+}
+
+fn parse_rfc3339_seconds(value: &str) -> Result<DateTime<Utc>, RoleMailboxError> {
+    DateTime::parse_from_rfc3339(value)
+        .map(|timestamp| timestamp.with_timezone(&Utc))
+        .map_err(|e| RoleMailboxError::InvalidInput(format!("invalid timestamp: {e}")))
+}
+
 fn parse_artifact_handle_string(value: &str) -> Result<ArtifactHandle, RoleMailboxError> {
     let trimmed = value.trim();
     let mut parts = trimmed.splitn(3, ':');
@@ -1778,4 +2055,59 @@ fn write_canonical_json_string(out: &mut String, value: &str) {
         }
     }
     out.push('"');
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder};
+
+    #[test]
+    fn governance_workflow_mirror_spec_session_log_enforces_runtime_artifact_boundary(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(dir.path().to_path_buf())?;
+        let recorder = std::sync::Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+        let flight_recorder: std::sync::Arc<dyn FlightRecorder> = recorder;
+        let mailbox = RoleMailbox::new_for_root(dir.path().to_path_buf(), flight_recorder)?;
+
+        let err = mailbox
+            .append_workflow_spec_session_log(AppendWorkflowSpecSessionLogRequest {
+                spec_id: "SPEC-BOUNDARY-1".to_string(),
+                task_board_id: runtime_paths.task_board_display(),
+                work_packet_id: Some("WP-BOUNDARY-1".to_string()),
+                governance_mode: GovernanceMode::GovStrict,
+                actor: "workflow:governance_workflow_mirror_sync".to_string(),
+                event_type: "workflow_gate_transition".to_string(),
+                summary: "workflow boundary rejection".to_string(),
+                linked_artifacts: vec![ArtifactHandle::new(
+                    Uuid::new_v4(),
+                    ".GOV/validator_gates/WP-BOUNDARY-1.json".to_string(),
+                )],
+            })
+            .expect_err("repo-governance paths must be rejected");
+        assert!(err
+            .to_string()
+            .contains("workflow linked_artifacts must stay within"));
+        assert!(err.to_string().contains(".handshake/gov/"));
+
+        let gate_ref = runtime_paths.validator_gate_display("WP-BOUNDARY-1");
+        let entry =
+            mailbox.append_workflow_spec_session_log(AppendWorkflowSpecSessionLogRequest {
+                spec_id: "SPEC-BOUNDARY-1".to_string(),
+                task_board_id: runtime_paths.task_board_display(),
+                work_packet_id: Some("WP-BOUNDARY-1".to_string()),
+                governance_mode: GovernanceMode::GovStrict,
+                actor: "workflow:governance_workflow_mirror_sync".to_string(),
+                event_type: "workflow_gate_transition".to_string(),
+                summary: "workflow boundary accept".to_string(),
+                linked_artifacts: vec![ArtifactHandle::new(Uuid::new_v4(), gate_ref.clone())],
+            })?;
+
+        assert_eq!(entry.linked_artifacts.len(), 1);
+        assert_eq!(entry.linked_artifacts[0].path, gate_ref);
+        assert!(runtime_paths.is_runtime_artifact_display_path(&entry.linked_artifacts[0].path));
+
+        Ok(())
+    }
 }
