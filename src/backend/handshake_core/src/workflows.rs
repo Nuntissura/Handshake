@@ -24860,7 +24860,7 @@ mod tests {
 
         let activation_events = events
             .iter()
-            .filter(|event| event.event_type == FlightRecorderEventType::GovWorkPacketActivated)
+            .filter(|event| event.payload["type"] == json!("gov_work_packet_activated"))
             .collect::<Vec<_>>();
         assert_eq!(activation_events.len(), 2);
         let activation_keys = activation_events
@@ -24896,7 +24896,7 @@ mod tests {
 
         let gate_events = events
             .iter()
-            .filter(|event| event.event_type == FlightRecorderEventType::GovGateTransition)
+            .filter(|event| event.payload["type"] == json!("gov_gate_transition"))
             .collect::<Vec<_>>();
         assert_eq!(gate_events.len(), 2);
         let gate_keys = gate_events
