@@ -106,6 +106,19 @@ test("watchdog reports stalled active runs without auto-killing them", () => {
   assert.equal(decision.shouldSteer, false);
 });
 
+test("watchdog does not report a stalled active run when output progress is recent", () => {
+  const decision = deriveRelayWatchdogDecision({
+    relayStatus: relayStatus({ status: "ESCALATED", reason_code: "SESSION_ACTIVE_NO_RECEIPT_PROGRESS" }),
+    activeRuns: [{ role: "CODER", session_key: "CODER:WP-TEST-v1" }],
+    stallScanStatus: "STALL",
+    outputFreshnessStatus: "RECENT",
+  });
+
+  assert.equal(decision.action, "WAIT_ACTIVE_RUN");
+  assert.equal(decision.reason, "OUTPUT_PROGRESS_RECENT");
+  assert.equal(decision.shouldSteer, false);
+});
+
 test("watchdog resets relay cycle state once the route is healthy again", () => {
   const decision = deriveRelayWatchdogDecision({
     relayStatus: relayStatus({
@@ -158,6 +171,7 @@ test("watchdog summary is compact and includes the relay decision", () => {
     decision,
     activeRuns: [],
     stallScanStatus: "UNKNOWN",
+    outputFreshnessStatus: "UNKNOWN",
   });
 
   assert.match(summary, /RELAY_WATCHDOG/);
@@ -165,6 +179,7 @@ test("watchdog summary is compact and includes the relay decision", () => {
   assert.match(summary, /target=CODER:WP-TEST-v1/);
   assert.match(summary, /cycle=0\/2/);
   assert.match(summary, /next_cycle=1\/2/);
+  assert.match(summary, /output_freshness=UNKNOWN/);
 });
 
 test("watchdog builds a stalled-run repair signal for orchestrator visibility", () => {

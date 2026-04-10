@@ -38,6 +38,7 @@ const WATCHDOG_SESSION = "ORCHESTRATOR_WATCHDOG";
 const ACTIVE_TARGET_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const RESTART_ELIGIBLE_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const DEFAULT_RESTART_OUTPUT_IDLE_SECONDS = 900;
+const DEFAULT_ACTIVE_RUN_OUTPUT_FRESH_SECONDS = 180;
 
 function sleep(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.max(1, Math.trunc(ms)));
@@ -208,6 +209,32 @@ function resolveTargetOutputFile(targetSessionRecord = null) {
     exists: true,
     modifiedAt: stats.mtime.toISOString(),
     modifiedAtMs: stats.mtimeMs,
+  };
+}
+
+function inspectActiveRunOutputFreshness(targetSessionRecord = null, {
+  now = new Date(),
+  freshSeconds = DEFAULT_ACTIVE_RUN_OUTPUT_FRESH_SECONDS,
+} = {}) {
+  const outputFile = resolveTargetOutputFile(targetSessionRecord);
+  if (!outputFile.exists || outputFile.modifiedAtMs === null) {
+    return {
+      status: "MISSING",
+      reason: "OUTPUT_FILE_MISSING",
+      outputFile,
+      outputIdleSeconds: null,
+      freshSeconds,
+    };
+  }
+
+  const nowMs = now.getTime();
+  const outputIdleSeconds = Math.max(0, Math.trunc((nowMs - outputFile.modifiedAtMs) / 1000));
+  return {
+    status: outputIdleSeconds <= freshSeconds ? "RECENT" : "STALE",
+    reason: outputIdleSeconds <= freshSeconds ? "OUTPUT_PROGRESS_RECENT" : "OUTPUT_PROGRESS_STALE",
+    outputFile,
+    outputIdleSeconds,
+    freshSeconds,
   };
 }
 
@@ -659,13 +686,20 @@ function evaluateWp(wpId, {
     role: targetRole,
     session: targetSession,
   });
+  const targetSessionRecord = activeRuns.length > 0
+    ? findTargetRegistrySession(registrySessions, { wpId, role: targetRole, session: targetSession })
+    : null;
   const stallScan = activeRuns.length > 0 && ACTIVE_TARGET_ROLE_VALUES.has(targetRole)
     ? runStallScan(targetRole, wpId)
     : { status: "UNKNOWN", summary: "stall scan not applicable" };
+  const outputFreshness = activeRuns.length > 0
+    ? inspectActiveRunOutputFreshness(targetSessionRecord)
+    : { status: "UNKNOWN", reason: "NO_ACTIVE_RUN", outputFile: null, outputIdleSeconds: null };
   const decision = deriveRelayWatchdogDecision({
     relayStatus: base.relayStatus,
     activeRuns,
     stallScanStatus: stallScan.status,
+    outputFreshnessStatus: outputFreshness.status,
     allowWatchSteer,
   });
   const restartRepair = maybeRestartStalledLane({
@@ -684,6 +718,7 @@ function evaluateWp(wpId, {
     decision,
     activeRuns,
     stallScanStatus: stallScan.status,
+    outputFreshnessStatus: outputFreshness.status,
   });
 
   if (restartRepair?.status === "RESTARTED") {
@@ -701,6 +736,7 @@ function evaluateWp(wpId, {
       summary,
       relayStatus: base.relayStatus,
       stallScan,
+      outputFreshness,
       activeRuns,
       decision,
       restartRepair,
@@ -732,6 +768,7 @@ function evaluateWp(wpId, {
       summary,
       relayStatus: base.relayStatus,
       stallScan,
+      outputFreshness,
       activeRuns,
       decision,
       runtimeUpdate,
@@ -764,6 +801,7 @@ function evaluateWp(wpId, {
     summary,
     relayStatus: base.relayStatus,
     stallScan,
+    outputFreshness,
     activeRuns,
     outputLines,
     decision,
@@ -794,6 +832,13 @@ function printResult(result) {
   if (result.stallScan) {
     console.log(`- stall_scan_status: ${result.stallScan.status}`);
     console.log(`- stall_scan_summary: ${result.stallScan.summary}`);
+  }
+  if (result.outputFreshness) {
+    console.log(`- output_freshness_status: ${result.outputFreshness.status}`);
+    console.log(`- output_freshness_reason: ${result.outputFreshness.reason}`);
+    if (Number.isInteger(result.outputFreshness.outputIdleSeconds)) {
+      console.log(`- output_idle_seconds: ${result.outputFreshness.outputIdleSeconds}`);
+    }
   }
   if (result.runtimeUpdate) {
     console.log(`- runtime_cycle_before: ${result.runtimeUpdate.previousCycle}/${result.runtimeUpdate.maxCycle}`);

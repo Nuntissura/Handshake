@@ -28,10 +28,18 @@ const SHARED_GOV_EXCLUDE_MARKER = "# HANDSHAKE_SHARED_GOV_JUNCTION";
 const SHARED_GOV_EXCLUDE_RULE = ".GOV/";
 const GOV_KERNEL_SPEC = WORKTREE_SPECS.find((entry) => entry.id === "wt-gov-kernel");
 const GOV_KERNEL_WORKTREE_ABS = GOV_KERNEL_SPEC ? absFromRepo(GOV_KERNEL_SPEC.rel_path) : "";
+const CLEAN_SETTLE_ATTEMPTS = 30;
+const CLEAN_SETTLE_DELAY_MS = 2000;
 
 function normalizeComparablePath(value) {
   const normalized = path.resolve(String(value || "")).replace(/\\/g, "/").replace(/\/+$/, "");
   return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
+function sleepSync(ms) {
+  const delayMs = Math.max(0, Number(ms) || 0);
+  if (!delayMs) return;
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
 }
 
 function removeDirectoryLinkOnly(linkPath) {
@@ -189,6 +197,13 @@ function trackedGovEntriesBuffer(repoDir) {
   });
 }
 
+function repoStatusLines(repoDir) {
+  return runGitInRepo(repoDir, ["status", "--porcelain=v1", "--untracked-files=all"])
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 export function setGovTrackedPathsSkipWorktree(repoDir, enabled) {
   const trackedGovEntries = trackedGovEntriesBuffer(repoDir);
   if (!trackedGovEntries.length) return;
@@ -296,6 +311,29 @@ export function ensureGovKernelTracksGov(repoDir) {
   return { normalized: false, sharedGovJunction: true };
 }
 
+function settleCleanRepoState(repoDir) {
+  let lastStatusLines = repoStatusLines(repoDir);
+  if (lastStatusLines.length === 0) return { clean: true, statusLines: [] };
+
+  for (let attempt = 1; attempt <= CLEAN_SETTLE_ATTEMPTS; attempt += 1) {
+    suppressSharedGovJunctionDirt(repoDir);
+    try {
+      runGitInRepo(repoDir, ["update-index", "-q", "--refresh"]);
+    } catch {
+      // Continue: git status remains the source of truth for the final verdict.
+    }
+    lastStatusLines = repoStatusLines(repoDir);
+    if (lastStatusLines.length === 0) {
+      return { clean: true, statusLines: [] };
+    }
+    if (attempt < CLEAN_SETTLE_ATTEMPTS) {
+      sleepSync(CLEAN_SETTLE_DELAY_MS);
+    }
+  }
+
+  return { clean: false, statusLines: lastStatusLines };
+}
+
 function main() {
   const { worktreeId, approval, label } = parseArgs();
   requireApproval(worktreeId, approval);
@@ -377,9 +415,13 @@ function main() {
   ensureGovJunction(absDir);
   suppressSharedGovJunctionDirt(absDir);
 
-  if (dirtyInRepo(absDir)) {
+  const cleanSettle = settleCleanRepoState(absDir);
+  if (!cleanSettle.clean || dirtyInRepo(absDir)) {
     fail("Worktree is dirty after reseed", [
       `path=${absDir}`,
+      `settle_attempts=${CLEAN_SETTLE_ATTEMPTS}`,
+      `settle_delay_ms=${CLEAN_SETTLE_DELAY_MS}`,
+      `status_sample=${cleanSettle.statusLines.slice(0, 12).join(" | ") || "<none>"}`,
       "Expected a fully clean worktree after branch reset, .GOV junction repair, and local .GOV suppression.",
     ]);
   }

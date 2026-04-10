@@ -868,10 +868,16 @@ rg -n "validator_gates|WP_TRACEABILITY_REGISTRY|spec_session_log|task_board_id|w
 - VALIDATOR_ASSERTIONS:
   - Validate the packet-scoped spec anchors, in-scope files, and deterministic evidence recorded during implementation.
 ## IMPLEMENTATION
-- (Coder fills after the docs-only skeleton checkpoint commit exists.)
+- Added runtime-governance path helpers for `validator_gates/` and `activation_traceability/` under `.handshake/gov/`.
+- Added typed workflow-mirror gate and activation summaries to `WorkPacketGovernance` while keeping `gates`, `task_packet_path`, and `task_board_status` canonical.
+- Added workflow-mirror emission in `workflows.rs` so per-WP gate and activation artifacts are written, work-packet artifacts carry the summaries, and task-board entries project the runtime refs through `evidence_refs`.
+- Added MT-001 tripwire tests for runtime boundary rejection, activation traceability carry-through, and per-WP gate isolation.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Reconfirmed the repaired worktree baseline after orchestrator reseed and kept product changes inside the MT-001 file surface only.
+- Avoided the earlier scope drift by limiting code edits to `runtime_governance.rs`, `workflows.rs`, and `locus/types.rs`.
+- Corrected an accidental broad `cargo fmt` spillover by restoring unrelated files back to `HEAD` before final verification.
+- Commands run: targeted `cargo test --no-run`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_workflow_mirror_ -- --nocapture`, `node .GOV/roles_shared/checks/phase-check.mjs HANDOFF WP-1-Governance-Workflow-Mirror-v1 CODER`, and targeted rustfmt on the three MT-001 files.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable `just phase-check HANDOFF <WP_ID> CODER`. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
@@ -903,25 +909,25 @@ rg -n "validator_gates|WP_TRACEABILITY_REGISTRY|spec_session_log|task_board_id|w
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
+- Current WP_STATUS: IN_PROGRESS
+- What changed in this update: Implemented MT-001 only. Added runtime-owned validator gate and activation-traceability artifacts, typed governance overlay summaries, and task-board projection evidence refs while keeping canonical work-packet gate/task-packet/task-board fields authoritative.
+- Requirements / clauses self-audited: 2.3.15 tracked work-packet gate/task-packet/task-board linkage; 7.5.4.8 runtime boundary for the new helper paths and artifact emission.
+- Checks actually run: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_workflow_mirror_ -- --nocapture`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_workflow_mirror_ --no-run`; `node .GOV/roles_shared/checks/phase-check.mjs HANDOFF WP-1-Governance-Workflow-Mirror-v1 CODER`.
+- Known gaps / weak spots: MT-002 through MT-005 remain untouched; task-board rows still surface gate/activation linkage through `evidence_refs` rather than dedicated typed row fields because MT-001 stayed inside the signed file scope.
+- Heuristic risks / maintainability concerns: activation traceability currently derives `base_wp_id` from work-packet metadata when present and otherwise falls back to `wp_id`; later MTs should confirm the final activation producer writes the same semantics.
+- Validator focus request: verify the verdict semantics for mixed gate states, the `.handshake/gov` path enforcement on the new helpers, and the per-WP isolation/stable-id guarantees in the task-board projection evidence refs.
+- Rubric contract understanding proof: MT-001 signed scope was limited to `runtime_governance.rs`, `workflows.rs`, and `locus/types.rs`, so I treated task-board schema widening, FR emission, role-mailbox/session-log, and storage-check linkage as follow-on work rather than folding them into this slice.
+- Rubric scope discipline proof: final product diff is limited to the three signed files; the earlier formatter spillover on unrelated Rust files was removed before handoff.
+- Rubric baseline comparison: this reseeded baseline had no workflow-mirror path helpers, no typed gate/activation overlay on `WorkPacketGovernance`, and no per-WP gate/activation refs in task-board entries.
+- Rubric end-to-end proof: the runtime-governance test proves `.GOV` rejection; the activation test proves artifact file + work-packet summary + task-board stable id carry-through; the isolation test proves separate gate artifacts for parallel WPs.
+- Rubric architecture fit self-review: the implementation reuses existing runtime task-board/work-packet projection surfaces instead of introducing a second task-board authority or new product-facing governance channel.
+- Rubric heuristic quality self-review: the overlay is intentionally narrow and deterministic, but the activation artifact currently depends on `task_packet_path` being present and non-empty.
+- Rubric anti-gaming / counterfactual check: if the gate and activation artifacts were not actually written, both workflow tests would fail because they read the emitted JSON files and then assert those refs are projected back into the task-board index.
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01 and CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2, also include: -->
-- Rubric anti-vibe / substance self-check:
-- Signed-scope debt ledger:
-- Data contract self-check:
-- Next step / handoff hint:
+- Rubric anti-vibe / substance self-check: this is not a "green by struct only" claim; the tests deserialize the emitted runtime files, assert the stable ids, and fail if the projection layer only mutates in-memory structs.
+- Signed-scope debt ledger: MT-001 intentionally did not touch `role_mailbox.rs`, `flight_recorder/mod.rs`, `governance_check_runner.rs`, `governance_artifact_registry.rs`, or storage traits; those remain on MT-002 through MT-005.
+- Data contract self-check: new runtime artifacts use explicit typed JSON with stable field names (`wp_id`, `task_board_id`, `gate_state_ref`, `base_wp_id`, `work_packet_id`, `active_packet_ref`, `traceability_ref`) and preserve canonical `gates`, `task_packet_path`, and `task_board_status` as the source fields.
+- Next step / handoff hint: validator can review MT-001 now; if accepted, the next coder slice is MT-002 for workflow-facing spec-session-log continuity and the remaining workflow-mirror clauses.
 
 ## MERGE_PROGRESSION_TRUTH
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, PASS closure is two-step and must stay explicit:
@@ -967,6 +973,12 @@ rg -n "validator_gates|WP_TRACEABILITY_REGISTRY|spec_session_log|task_board_id|w
 - Format (repeat as needed):
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `N/A (fill during implementation)`
+- REQUIREMENT: "runtime-governance/workflow projection tests proving per-WP gate files and stable id carry-through"
+- EVIDENCE: `src/backend/handshake_core/src/runtime_governance.rs:546`; `src/backend/handshake_core/src/workflows.rs:24008`; `src/backend/handshake_core/src/workflows.rs:24135`
+- REQUIREMENT: "tracked work-packet gates.pre_work, task_packet_path, and task_board_status remain canonical workflow fields while the runtime mirror extends them"
+- EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:349`; `src/backend/handshake_core/src/locus/types.rs:372`; `src/backend/handshake_core/src/locus/types.rs:431`; `src/backend/handshake_core/src/workflows.rs:3362`; `src/backend/handshake_core/src/workflows.rs:4417`
+- REQUIREMENT: "runtime-generated gate refs stay under .handshake/gov/validator_gates/"
+- EVIDENCE: `src/backend/handshake_core/src/runtime_governance.rs:17`; `src/backend/handshake_core/src/runtime_governance.rs:254`; `src/backend/handshake_core/src/runtime_governance.rs:275`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
@@ -975,6 +987,21 @@ rg -n "validator_gates|WP_TRACEABILITY_REGISTRY|spec_session_log|task_board_id|w
   - LOG_PATH: `.handshake/logs/WP-1-Governance-Workflow-Mirror-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_workflow_mirror_ -- --nocapture`
+- EXIT_CODE: `0`
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES: `running 3 tests`; `runtime_governance::tests::governance_workflow_mirror_rejects_gov_repo_io ... ok`; `workflows::tests::governance_workflow_mirror_activation_records_traceability ... ok`; `workflows::tests::governance_workflow_mirror_gate_files_are_isolated_per_wp ... ok`; `test result: ok. 3 passed; 0 failed`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml governance_workflow_mirror_ --no-run`
+- EXIT_CODE: `0`
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES: `Finished test profile [unoptimized + debuginfo]`; `Executable unittests src\\lib.rs`
+- COMMAND: `node .GOV/roles_shared/checks/phase-check.mjs HANDOFF WP-1-Governance-Workflow-Mirror-v1 CODER`
+- EXIT_CODE: `0`
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES: `(no gate errors emitted; process exited 0)`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

@@ -44,6 +44,8 @@ registerFailCaptureHook("gov-flush.mjs", { role: "SHARED" });
 
 const PREFIX = "[GOV_FLUSH]";
 const report = { steps: [], warnings: [], errors: [] };
+const MEMORY_HYGIENE_TIMEOUT_MS = 10 * 60 * 1000;
+const BACKUP_SNAPSHOT_TIMEOUT_MS = 20 * 60 * 1000;
 
 function log(msg) { console.log(`${PREFIX} ${msg}`); }
 function warn(msg) { report.warnings.push(msg); console.warn(`${PREFIX} WARN: ${msg}`); }
@@ -87,6 +89,13 @@ function runJust(recipe, args = []) {
     shell: true,
   });
   return { exitCode: result.status, stdout: result.stdout || "", stderr: result.stderr || "" };
+}
+
+function runTimedSpawnSync(command, args, options = {}) {
+  const nextOptions = { ...options };
+  if (nextOptions.timeout === 120000) nextOptions.timeout = MEMORY_HYGIENE_TIMEOUT_MS;
+  if (nextOptions.timeout === 600000) nextOptions.timeout = BACKUP_SNAPSHOT_TIMEOUT_MS;
+  return spawnSync(command, args, nextOptions);
 }
 
 // ─── Resolve worktree paths ─────────────────────────────────────
@@ -202,7 +211,7 @@ const iljaAbs = absFromRepo(ILJA_SPEC.rel_path);
 // ─── Step 6: Memory hygiene (mechanical pre-pass) ──────────────
 {
   const s = step("memory-hygiene", "mechanical memory maintenance — extraction, decay, consolidation, recall audit");
-  const result = spawnSync("just", ["launch-memory-manager", "--force"], {
+  const result = runTimedSpawnSync("just", ["launch-memory-manager", "--force"], {
     cwd: REPO_ROOT,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -273,7 +282,7 @@ let artifactCleanupOk = false;
   } else {
     const label = `gov-flush-${new Date().toISOString().replace(/[:.]/g, "").slice(0, 15)}Z`;
     log("  creating backup snapshot (NAS may be slow — 10 min timeout)...");
-    const result = spawnSync("just", ["backup-snapshot", label], {
+    const result = runTimedSpawnSync("just", ["backup-snapshot", label], {
       cwd: REPO_ROOT,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
