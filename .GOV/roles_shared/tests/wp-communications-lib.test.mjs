@@ -8,9 +8,11 @@ import {
   COMM_ROOT,
   communicationPathsForWp,
   communicationTransactionLockPathForWp,
+  ensurePacketlessWpCommunicationScaffold,
   validateReceipt,
   validateRuntimeStatus,
 } from "../scripts/lib/wp-communications-lib.mjs";
+import { repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const runtimeStatusSchema = JSON.parse(
@@ -206,6 +208,36 @@ function repairReceiptFixture(overrides = {}) {
   };
 }
 
+function memoryManagerReceiptFixture(overrides = {}) {
+  return {
+    schema_version: "wp_receipt@1",
+    timestamp_utc: "2026-04-09T21:15:00Z",
+    wp_id: "WP-MEMORY-HYGIENE_2026-04-09T2115Z",
+    actor_role: "MEMORY_MANAGER",
+    actor_session: "MEMORY_MANAGER:WP-MEMORY-HYGIENE_2026-04-09T2115Z",
+    actor_authority_kind: "MEMORY_MANAGER",
+    validator_role_kind: null,
+    receipt_kind: "MEMORY_PROPOSAL",
+    summary: "Cross-WP failure pattern should become an explicit governance hard gate.",
+    branch: "gov_kernel",
+    worktree_dir: ".",
+    state_before: null,
+    state_after: "PROPOSAL_WRITTEN",
+    target_role: "ORCHESTRATOR",
+    target_session: null,
+    correlation_id: "mm-proposal-1",
+    requires_ack: false,
+    ack_for: null,
+    spec_anchor: null,
+    packet_row_ref: null,
+    refs: [
+      "../gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md",
+      ".GOV/roles/memory_manager/proposals/test-proposal.md",
+    ],
+    ...overrides,
+  };
+}
+
 test("validateReceipt requires target_session for direct-review receipts", () => {
   const errors = validateReceipt(reviewResolutionReceiptFixture({
     target_session: null,
@@ -234,6 +266,30 @@ test("validateReceipt accepts structured microtask contracts on review receipts"
     },
   }));
   assert.deepEqual(errors, []);
+});
+
+test("validateReceipt accepts Memory Manager proposal receipts", () => {
+  const errors = validateReceipt(memoryManagerReceiptFixture());
+  assert.deepEqual(errors, []);
+});
+
+test("ensurePacketlessWpCommunicationScaffold creates synthetic communication files without a packet", () => {
+  const wpId = "WP-MEMORY-HYGIENE_TEST-SCAFFOLD";
+  const paths = communicationPathsForWp(wpId);
+  fs.rmSync(repoPathAbs(paths.dir), { recursive: true, force: true });
+
+  try {
+    const scaffold = ensurePacketlessWpCommunicationScaffold(wpId, {
+      noteLines: ["Synthetic Memory Manager lane."],
+    });
+
+    assert.equal(fs.existsSync(repoPathAbs(scaffold.threadFile)), true);
+    assert.equal(fs.existsSync(repoPathAbs(scaffold.receiptsFile)), true);
+    assert.equal(fs.existsSync(repoPathAbs(scaffold.notificationsFile)), true);
+    assert.equal(fs.existsSync(repoPathAbs(scaffold.cursorFile)), true);
+  } finally {
+    fs.rmSync(repoPathAbs(paths.dir), { recursive: true, force: true });
+  }
 });
 
 test("validateReceipt rejects empty microtask contracts", () => {

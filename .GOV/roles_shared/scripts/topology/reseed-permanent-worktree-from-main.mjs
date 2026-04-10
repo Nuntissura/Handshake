@@ -26,6 +26,8 @@ const RESEEDABLE_WORKTREE_ROLES = new Set(["OPERATOR"]);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SHARED_GOV_EXCLUDE_MARKER = "# HANDSHAKE_SHARED_GOV_JUNCTION";
 const SHARED_GOV_EXCLUDE_RULE = ".GOV/";
+const GOV_KERNEL_SPEC = WORKTREE_SPECS.find((entry) => entry.id === "wt-gov-kernel");
+const GOV_KERNEL_WORKTREE_ABS = GOV_KERNEL_SPEC ? absFromRepo(GOV_KERNEL_SPEC.rel_path) : "";
 
 function normalizeComparablePath(value) {
   const normalized = path.resolve(String(value || "")).replace(/\\/g, "/").replace(/\/+$/, "");
@@ -150,6 +152,35 @@ function gitPathInRepo(repoDir, gitPath) {
   return path.resolve(repoDir, resolved);
 }
 
+function repoDirUsesSharedGovKernelJunction(repoDir) {
+  const repoAbs = path.resolve(repoDir);
+  const govDir = path.join(repoAbs, ".GOV");
+  const expectedGovKernelAbs = path.resolve(repoAbs, "..", "wt-gov-kernel", ".GOV");
+  if (!fs.existsSync(govDir) || !fs.existsSync(expectedGovKernelAbs)) return false;
+
+  const stat = fs.lstatSync(govDir);
+  if (!stat.isSymbolicLink()) return false;
+
+  try {
+    const actualTarget = path.resolve(fs.realpathSync(govDir));
+    const expectedTarget = path.resolve(fs.realpathSync(expectedGovKernelAbs));
+    return normalizeComparablePath(actualTarget) === normalizeComparablePath(expectedTarget);
+  } catch {
+    return false;
+  }
+}
+
+function isGovKernelWorktree(repoDir) {
+  if (!GOV_KERNEL_WORKTREE_ABS) return false;
+  return normalizeComparablePath(path.resolve(repoDir)) === normalizeComparablePath(GOV_KERNEL_WORKTREE_ABS);
+}
+
+function resolveWorktreeSpecForRepoDir(repoDir) {
+  const repoAbs = path.resolve(repoDir);
+  return WORKTREE_SPECS.find((entry) =>
+    normalizeComparablePath(absFromRepo(entry.rel_path)) === normalizeComparablePath(repoAbs));
+}
+
 function trackedGovEntriesBuffer(repoDir) {
   return execFileSync("git", ["ls-files", "-z", "--", ".GOV"], {
     cwd: repoDir,
@@ -197,13 +228,72 @@ export function clearGovWorktreeExclude(repoDir) {
 }
 
 export function suppressSharedGovJunctionDirt(repoDir) {
+  if (!repoDirUsesSharedGovKernelJunction(repoDir)) {
+    clearSharedGovJunctionSuppression(repoDir);
+    return false;
+  }
   ensureGovWorktreeExclude(repoDir);
   setGovTrackedPathsSkipWorktree(repoDir, true);
+  return true;
 }
 
 export function clearSharedGovJunctionSuppression(repoDir) {
   clearGovWorktreeExclude(repoDir);
   setGovTrackedPathsSkipWorktree(repoDir, false);
+}
+
+export function inspectGovTrackingMode(repoDir) {
+  const repoAbs = path.resolve(repoDir);
+  const worktreeSpec = resolveWorktreeSpecForRepoDir(repoAbs);
+  const sharedGovJunction = repoDirUsesSharedGovKernelJunction(repoAbs);
+  return {
+    repoDir: repoAbs,
+    worktreeId: worktreeSpec?.id || "",
+    worktreeRole: worktreeSpec?.role || "",
+    sharedGovJunction,
+    tracksGov: !sharedGovJunction,
+    mode: sharedGovJunction ? "SUPPRESS_SHARED_GOV" : "TRACK_GOV",
+    govKernelWorktree: isGovKernelWorktree(repoAbs),
+  };
+}
+
+export function normalizeGovTrackingMode(repoDir) {
+  const repoAbs = path.resolve(repoDir);
+  if (repoDirUsesSharedGovKernelJunction(repoAbs)) {
+    suppressSharedGovJunctionDirt(repoAbs);
+    return inspectGovTrackingMode(repoAbs);
+  }
+  clearSharedGovJunctionSuppression(repoAbs);
+  return inspectGovTrackingMode(repoAbs);
+}
+
+export function normalizePermanentGovTracking() {
+  return WORKTREE_SPECS.map((spec) => {
+    const repoAbs = absFromRepo(spec.rel_path);
+    if (!fs.existsSync(repoAbs) || !gitCheckoutExists(repoAbs)) {
+      return {
+        repoDir: repoAbs,
+        worktreeId: spec.id,
+        worktreeRole: spec.role,
+        exists: false,
+        sharedGovJunction: false,
+        tracksGov: false,
+        mode: "MISSING",
+      };
+    }
+    return {
+      ...normalizeGovTrackingMode(repoAbs),
+      exists: true,
+    };
+  });
+}
+
+export function ensureGovKernelTracksGov(repoDir) {
+  if (isGovKernelWorktree(repoDir) || !repoDirUsesSharedGovKernelJunction(repoDir)) {
+    clearSharedGovJunctionSuppression(repoDir);
+    return { normalized: true, sharedGovJunction: false };
+  }
+  return { normalized: false, sharedGovJunction: true };
 }
 
 function main() {

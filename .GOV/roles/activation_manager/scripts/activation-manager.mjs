@@ -21,7 +21,7 @@ import {
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { validateRefinementFile } from "../../../roles_shared/checks/refinement-check.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
-registerFailCaptureHook("activation-manager.mjs", { role: "ORCHESTRATOR" });
+registerFailCaptureHook("activation-manager.mjs", { role: "ACTIVATION_MANAGER" });
 
 const SCRIPT_REPO_REL = `${GOV_ROOT_REPO_REL}/roles/activation_manager/scripts/activation-manager.mjs`;
 const ACTOR_ROLE = "ACTIVATION_MANAGER";
@@ -41,7 +41,7 @@ function usage() {
 }
 
 function fail(message, details = []) {
-  failWithMemory("activation-manager.mjs", message, { role: "ORCHESTRATOR", details });
+  failWithMemory("activation-manager.mjs", message, { role: "ACTIVATION_MANAGER", details });
 }
 
 function parseArgs(argv) {
@@ -114,7 +114,69 @@ function readPacketContext(wpId) {
     executionOwner: packetContent ? parseClaimField(packetContent, "EXECUTION_OWNER") : "",
     userSignature: packetContent ? parseClaimField(packetContent, "USER_SIGNATURE") : "",
     refinementProfile: packetContent ? parseClaimField(packetContent, "REFINEMENT_ENFORCEMENT_PROFILE") : "",
+    localBranch: packetContent ? parseClaimField(packetContent, "LOCAL_BRANCH") : "",
+    localWorktreeDir: packetContent ? parseClaimField(packetContent, "LOCAL_WORKTREE_DIR") : "",
+    remoteBackupBranch: packetContent ? parseClaimField(packetContent, "REMOTE_BACKUP_BRANCH") : "",
+    remoteBackupUrl: packetContent ? parseClaimField(packetContent, "REMOTE_BACKUP_URL") : "",
+    backupPushStatus: packetContent ? parseClaimField(packetContent, "BACKUP_PUSH_STATUS") : "",
   };
+}
+
+function isMissingClaim(value) {
+  const normalized = String(value || "").trim();
+  return normalized.length === 0 || /^<pending>$/i.test(normalized) || /^<missing>$/i.test(normalized);
+}
+
+function countDeclaredMicrotasks(packetPath) {
+  if (!packetPath) return 0;
+  const packetDir = path.dirname(packetPath);
+  if (!fs.existsSync(packetDir)) return 0;
+  try {
+    return fs.readdirSync(packetDir).filter((entry) => /^MT-\d+\.md$/i.test(entry)).length;
+  } catch {
+    return 0;
+  }
+}
+
+function inspectGovKernelLink(localWorktreeDir) {
+  if (isMissingClaim(localWorktreeDir)) {
+    return {
+      status: "NOT_CHECKED",
+      worktreeExists: false,
+      absoluteWorktreeDir: "",
+    };
+  }
+  const absoluteWorktreeDir = path.resolve(REPO_ROOT, localWorktreeDir);
+  if (!fs.existsSync(absoluteWorktreeDir)) {
+    return {
+      status: "MISSING_WORKTREE",
+      worktreeExists: false,
+      absoluteWorktreeDir,
+    };
+  }
+  const govDir = path.join(absoluteWorktreeDir, ".GOV");
+  if (!fs.existsSync(govDir)) {
+    return {
+      status: "MISSING_GOV_LINK",
+      worktreeExists: true,
+      absoluteWorktreeDir,
+    };
+  }
+  try {
+    const expected = fs.realpathSync(path.join(REPO_ROOT, ".GOV"));
+    const actual = fs.realpathSync(govDir);
+    return {
+      status: actual === expected ? "KERNEL_LINK_OK" : "WRONG_TARGET",
+      worktreeExists: true,
+      absoluteWorktreeDir,
+    };
+  } catch {
+    return {
+      status: "WRONG_TARGET",
+      worktreeExists: true,
+      absoluteWorktreeDir,
+    };
+  }
 }
 
 function collectActivationState(wpId) {
@@ -138,6 +200,11 @@ function collectActivationState(wpId) {
   const claimCheck = runNode(`${GOV_ROOT_REPO_REL}/roles_shared/checks/task-packet-claim-check.mjs`);
   const traceabilityCheck = runNode(`${GOV_ROOT_REPO_REL}/roles_shared/checks/wp-activation-traceability-check.mjs`);
   const buildOrderCheck = runNode(`${GOV_ROOT_REPO_REL}/roles_shared/checks/build-order-check.mjs`);
+  const topologyCheck = packet.packetExists
+    ? runNode(`${GOV_ROOT_REPO_REL}/roles_shared/checks/wp-declared-topology-check.mjs`, [wpId])
+    : { ok: false, stdout: "", stderr: "", status: 1 };
+  const microtaskCount = countDeclaredMicrotasks(packet.packetPath);
+  const govKernelLink = inspectGovKernelLink(packet.localWorktreeDir);
 
   const findings = [];
   const artifactsReady = [];
@@ -163,6 +230,29 @@ function collectActivationState(wpId) {
   if (userApprovalEvidence && !/^<pending>$/i.test(userApprovalEvidence)) {
     artifactsReady.push("USER_APPROVAL_EVIDENCE");
   }
+  if (!isMissingClaim(packet.localBranch)) {
+    artifactsReady.push(`LOCAL_BRANCH=${packet.localBranch}`);
+  } else if (packet.packetExists) {
+    findings.push("LOCAL_BRANCH missing");
+  }
+  if (!isMissingClaim(packet.localWorktreeDir) && govKernelLink.worktreeExists) {
+    artifactsReady.push(`LOCAL_WORKTREE_DIR=${packet.localWorktreeDir}`);
+  } else if (packet.packetExists) {
+    findings.push("LOCAL_WORKTREE_DIR missing or unresolved");
+  }
+  if (!isMissingClaim(packet.remoteBackupBranch)) {
+    artifactsReady.push(`REMOTE_BACKUP_BRANCH=${packet.remoteBackupBranch}`);
+  } else if (packet.packetExists) {
+    findings.push("REMOTE_BACKUP_BRANCH missing");
+  }
+  if (!isMissingClaim(packet.backupPushStatus)) {
+    artifactsReady.push(`BACKUP_PUSH_STATUS=${packet.backupPushStatus}`);
+  } else if (packet.packetExists) {
+    findings.push("BACKUP_PUSH_STATUS missing");
+  }
+  if (microtaskCount > 0) {
+    artifactsReady.push(`MICROTASKS=${microtaskCount}`);
+  }
 
   if (!refinementValidation.ok) {
     findings.push(...refinementValidation.errors);
@@ -175,6 +265,12 @@ function collectActivationState(wpId) {
   }
   if (!buildOrderCheck.ok) {
     findings.push(`build-order-check failed: ${buildOrderCheck.stderr || buildOrderCheck.stdout || `exit ${buildOrderCheck.status}`}`);
+  }
+  if (packet.packetExists && !topologyCheck.ok) {
+    findings.push(`wp-declared-topology-check failed: ${topologyCheck.stderr || topologyCheck.stdout || `exit ${topologyCheck.status}`}`);
+  }
+  if (packet.packetExists && govKernelLink.status !== "KERNEL_LINK_OK") {
+    findings.push(`gov-kernel-link check failed: ${govKernelLink.status}`);
   }
 
   let verdict = "READY_FOR_ORCHESTRATOR_REVIEW";
@@ -194,9 +290,17 @@ function collectActivationState(wpId) {
     || !claimCheck.ok
     || !traceabilityCheck.ok
     || !buildOrderCheck.ok
+    || (packet.packetExists && !topologyCheck.ok)
+    || (packet.packetExists && govKernelLink.status !== "KERNEL_LINK_OK")
+    || (packet.packetExists && (
+      isMissingClaim(packet.localBranch)
+      || isMissingClaim(packet.localWorktreeDir)
+      || isMissingClaim(packet.remoteBackupBranch)
+      || isMissingClaim(packet.backupPushStatus)
+    ))
   ) {
     verdict = "REPAIR_REQUIRED";
-    nextAction = "Repair refinement, packet, build-order, or traceability drift before asking the Orchestrator to review readiness.";
+    nextAction = "Repair refinement, packet, worktree/topology, backup-branch, build-order, or traceability drift before asking the Orchestrator to review readiness.";
   }
 
   return {
@@ -212,10 +316,13 @@ function collectActivationState(wpId) {
     userApprovalEvidence,
     refinementSignature,
     stubWpIds,
+    microtaskCount,
+    govKernelLink,
     taskBoardStatus: readTaskBoardStatus(wpId),
     claimCheck,
     traceabilityCheck,
     buildOrderCheck,
+    topologyCheck,
     verdict,
     findings,
     artifactsReady,
@@ -237,6 +344,13 @@ function renderReadinessReport(state) {
     `- CURRENT_WP_STATUS: ${state.packet.currentWpStatus || "<missing>"}`,
     `- WORKFLOW_LANE: ${state.packet.workflowLane || "<missing>"}`,
     `- EXECUTION_OWNER: ${state.packet.executionOwner || "<missing>"}`,
+    `- STUBS_CREATED_OR_UPDATED: ${state.stubWpIds || "NONE"}`,
+    `- LOCAL_BRANCH: ${state.packet.localBranch || "<missing>"}`,
+    `- LOCAL_WORKTREE_DIR: ${state.packet.localWorktreeDir || "<missing>"}`,
+    `- GOV_KERNEL_LINK: ${state.govKernelLink.status}`,
+    `- REMOTE_BACKUP_BRANCH: ${state.packet.remoteBackupBranch || "<missing>"}`,
+    `- BACKUP_PUSH_STATUS: ${state.packet.backupPushStatus || "<missing>"}`,
+    `- MICROTASK_STATUS: ${state.microtaskCount > 0 ? `DECLARED:${state.microtaskCount}` : "NONE"}`,
     `- REFINEMENT_PATH: ${state.refinementPath}`,
     `- REFINEMENT_REVIEW_STATUS: ${state.refinementReviewStatus || "<missing>"}`,
     `- CLEARLY_COVERS_VERDICT: ${state.clearlyCoversVerdict || "<missing>"}`,
@@ -253,11 +367,8 @@ function renderReadinessReport(state) {
     `- task-packet-claim-check: ${state.claimCheck.ok ? "PASS" : "FAIL"}`,
     `- wp-activation-traceability-check: ${state.traceabilityCheck.ok ? "PASS" : "FAIL"}`,
     `- build-order-check: ${state.buildOrderCheck.ok ? "PASS" : "FAIL"}`,
+    `- wp-declared-topology-check: ${state.packet.packetExists ? (state.topologyCheck.ok ? "PASS" : "FAIL") : "NOT_CHECKED"}`,
   ];
-
-  if (state.stubWpIds) {
-    lines.push(`- STUB_WP_IDS: ${state.stubWpIds}`);
-  }
 
   lines.push("");
   lines.push("OUTSTANDING_ISSUES");
@@ -292,8 +403,16 @@ function printStartup() {
     `- WORKTREE: ${gitContext.topLevel || "<unknown>"}`,
     `- BRANCH: ${gitContext.branch || "<unknown>"}`,
     "- SCOPE: refinement, approved spec enrichment, signature normalization/recording, packet hydration, microtask preparation, worktree preparation, activation readiness",
+    "- REFINEMENT_STANDARD: match or exceed the old Orchestrator pre-launch quality bar, including research, primitive-index upkeep, matrix upkeep, appendix follow-through, and force-multiplier expansion.",
+    "- STUB_DISCOVERY_RULE: create or update stubs when refinement, enrichment, or matrix upkeep discovers new required follow-up items.",
     "- HARD_STOP: no product code edits; no coder/validator launch; no final workflow authority",
     "- WORKFLOW_SPLIT: orchestrator-managed workflow requires ACTIVATION_MANAGER as the mandatory temporary pre-launch worker and governed pre-launch lane; manual workflow keeps pre-launch on ORCHESTRATOR.",
+    "- HANDOFF_MODE: file-first refinement/spec handoff. Return the written file path plus a compact REFINEMENT_HANDOFF_SUMMARY; do not paste the full refinement/spec text by default.",
+    "- EXCERPT_FALLBACK_RULE: only if the Orchestrator explicitly requests excerpts should sections/anchors be pasted back; safe default is 4 bounded chunks.",
+    "- HANDOFF_SUMMARY_REQUIRED: REFINEMENT_PATH, REFINEMENT_CHECK, ENRICHMENT_NEEDED, NEW_STUBS_CREATED_OR_UPDATED, NEW_FEATURES_OR_CAPABILITIES_DISCOVERED, MAJOR_TECH_UPGRADE_ADVICE, REVIEW_FOCUS, NEXT_ORCHESTRATOR_ACTION.",
+    "- REFINEMENT_CHECK_RULE: REFINEMENT_CHECK must come from the real refinement checker on the written file; placeholder scan, ASCII-only scan, and diff sanity checks are not sufficient by themselves.",
+    "- UPGRADE_DISCIPLINE: only surface technology or implementation-technique replacement advice when the gain is material and dependency churn is justified; otherwise report NONE.",
+    "- SIGNATURE_ROUND_TRIP: Activation Manager prepares the review-ready refinement/spec bundle, the Orchestrator collects approval evidence + one-time signature + coder choice, then Activation Manager resumes packet/worktree/backup/readiness work.",
     "- STARTUP_SEQUENCE:",
     "  1. just backup-status",
     "  2. just gov-check",
@@ -319,6 +438,13 @@ function printPrompt(state) {
     `AUTHORITY: ${GOV_ROOT_REPO_REL}/codex/Handshake_Codex_v1.4.md + ../handshake_main/AGENTS.md + ${GOV_ROOT_REPO_REL}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`,
     "FOCUS: refinement, approved spec enrichment drafting, signature normalization/recording, packet hydration, microtask preparation, worktree preparation, and activation readiness.",
     "WORKFLOW SPLIT: ORCHESTRATOR_MANAGED requires ACTIVATION_MANAGER as the mandatory temporary pre-launch worker and governed pre-launch authoring lane; MANUAL_RELAY keeps pre-launch on ORCHESTRATOR.",
+    "REFINEMENT STANDARD: match or exceed the old Orchestrator pre-launch quality bar, including research, primitive-index upkeep, matrix upkeep, appendix follow-through, force-multiplier expansion, and stub creation for new high-ROI discoveries.",
+    "FILE-FIRST HANDOFF RULE: write the refinement/spec file, run checks, and return only the file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text by default.",
+    "REFINEMENT_HANDOFF_SUMMARY REQUIRED FIELDS: REFINEMENT_PATH, REFINEMENT_CHECK, ENRICHMENT_NEEDED, NEW_STUBS_CREATED_OR_UPDATED, NEW_FEATURES_OR_CAPABILITIES_DISCOVERED, MAJOR_TECH_UPGRADE_ADVICE, REVIEW_FOCUS, NEXT_ORCHESTRATOR_ACTION.",
+    "REFINEMENT_CHECK RULE: REFINEMENT_CHECK must come from the real refinement checker on the written file; placeholder scan, ASCII-only scan, and diff sanity checks are not sufficient by themselves.",
+    "UPGRADE DISCIPLINE: report MAJOR_TECH_UPGRADE_ADVICE only for material implementation upgrades with clear ROI. Do not recommend replacing entrenched integrated technologies for marginal gains.",
+    "EXCERPT FALLBACK RULE: only if the Orchestrator explicitly requests sections or anchors should you paste excerpts back, and then only in bounded chunks. Safe default: 4 blocks.",
+    "SIGNATURE ROUND-TRIP: stop after the review-ready refinement/spec bundle and wait for the Orchestrator to return operator approval evidence, the one-time signature, and the selected Coder-A..Z owner before continuing packet/worktree/backup/readiness work.",
     "HARD BOUNDARIES: no product code edits; no coder or validator session launch; no final workflow status claims.",
     "REQUIRED OUTPUT: emit exactly one ACTIVATION_READINESS block when the bundle is ready, blocked, or needs repair.",
     `FIRST COMMANDS: just activation-manager next ${state.wpId} ; just activation-record-refinement ${state.wpId} ; just activation-manager readiness ${state.wpId} --write`,

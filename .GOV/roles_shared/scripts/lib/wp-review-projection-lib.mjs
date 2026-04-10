@@ -49,6 +49,13 @@ function currentStateForEvaluation(evaluationState, autoRoute = {}, evaluation =
         next: "WP_VALIDATOR reviews CODER_INTENT and records SPEC_GAP / VALIDATOR_QUERY for missing signed surfaces or proof, or VALIDATOR_RESPONSE to clear bootstrap/skeleton intent review.",
       };
     case "COMM_WAITING_FOR_HANDOFF":
+      if (Number(evaluation?.counts?.overlapOpenReviewItems || 0) > 0) {
+        return {
+          verdict: "PENDING",
+          blockers: "Implementation is in progress; a completed previous microtask is awaiting WP validator overlap review while the coder continues the current bounded microtask.",
+          next: "WP_VALIDATOR reviews the open overlap microtask item while CODER completes the current microtask before any loop-back or further forward advance.",
+        };
+      }
       return {
         verdict: "PENDING",
         blockers: "Implementation is in progress; awaiting coder handoff to WP validator.",

@@ -324,7 +324,11 @@ Workflow semantics:
 - Refinement and enrichment is one normative pre-launch phase with one quality bar across both workflow lanes; lane selection changes who executes it, never what completion means.
 - For `MANUAL_RELAY`, keep the legacy pre-launch flow on the Orchestrator: refinement, approved spec enrichment, signature handling, packet creation, microtask setup, worktree preparation, backup-branch preparation, and next-step control remain Orchestrator-owned.
 - For `ORCHESTRATOR_MANAGED`, Activation Manager executes that same pre-launch flow, but the Orchestrator still owns operator review, signature solicitation, `Coder-A..Z` selection, governance bug patching, acceptance or rejection of readiness, and relaunch / repair decisions.
-- Activation Manager refinement or spec-enrichment handback must be chunked when long. Safe default: 4 chunks. Do not ask the operator to review a one-shot oversized refinement paste.
+- Activation Manager refinement/spec handback is file-first by default. Require the written file path plus a compact `REFINEMENT_HANDOFF_SUMMARY`; do not ask the operator to review pasted full-text refinement blocks by default.
+- The required summary fields are: `REFINEMENT_PATH`, `REFINEMENT_CHECK`, `ENRICHMENT_NEEDED`, `NEW_STUBS_CREATED_OR_UPDATED`, `NEW_FEATURES_OR_CAPABILITIES_DISCOVERED`, `MAJOR_TECH_UPGRADE_ADVICE`, `REVIEW_FOCUS`, and `NEXT_ORCHESTRATOR_ACTION`.
+- `REFINEMENT_CHECK` means the real refinement checker on the written file. Placeholder scans, ASCII checks, and diff sanity checks do not qualify as pass truth on their own.
+- `MAJOR_TECH_UPGRADE_ADVICE` is high-bar only. Report `NONE` unless the refinement found a material implementation upgrade with clear ROI. Do not churn entrenched integrated technologies or techniques for marginal gains.
+- Only if the Orchestrator explicitly requests excerpts should Activation Manager return refinement/spec text in chat. In that fallback path, request only the needed sections or anchors and keep them bounded; safe default: 4 chunks.
 - If pre-launch truth is wrong or the governed activation lane misbehaves, the Orchestrator patches governance in `wt-gov-kernel` and may relaunch a fresh Activation Manager with bounded remediation. Do not force stale-session continuation after a material governance patch.
 - The truthful orchestrator-managed pre-launch order is: Activation Manager refinement / enrichment -> Orchestrator review + operator approval -> Activation Manager packet / microtask / worktree / backup / health preparation -> Activation Manager self-close -> Orchestrator readiness review -> Coder + WP Validator launch.
 
@@ -445,6 +449,8 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just wp-heartbeat ...` is liveness-only. The route fields are assertions against current runtime truth; use receipts, notifications, or closeout projection to change next-actor routing.
 - `just session-registry-status WP-{ID}` now also surfaces derived stalled-relay state; when that state is `ESCALATED`, use `just orchestrator-steer-next WP-{ID} "<context>"` instead of waiting silently.
 - `just orchestrator-steer-next WP-{ID} "<context>"` must behave as a one-hop wakeup: if the projected target session is not running yet, start it and then immediately inject the typed route payload (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) in the same invocation.
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]` is the mechanical non-LLM watcher for orchestrator-managed lanes. It may re-steer a stale projected lane when the target session is not already running, but it must not kill active runs by default; active runs are inspected conservatively and only reported as stalled. Successful automatic re-steers consume `current_relay_escalation_cycle`, healthy lanes reset it, and once `max_relay_escalation_cycles` is exhausted the lane must stay machine-visible and attention-worthy instead of silently re-waking forever.
+- `--allow-restart` remains default-off. When explicitly enabled, the watchdog may perform one bounded `CANCEL_SESSION` plus re-steer only for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR` after all of the following are true: the lane is already `REPORT_STALLED_ACTIVE_RUN`, the target session still claims `COMMAND_RUNNING`, the last output file and session event are both older than `--restart-output-idle-seconds`, and every matching active run is already past `timeout_at`. If any guard fails, the watchdog must not restart and must stay in report/escalate mode.
 - `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - `just wp-validator-query WP-{ID} CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
 - `just wp-validator-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
@@ -453,6 +459,7 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just operator-viewport` (`just operator-monitor` remains a compatibility alias)
 - `just send-mt WP-{ID} MT-001 "description" [PRIMARY|FALLBACK]` — auto-includes session keys, wp-review-request command, and STOP instruction
 - `just wp-lane-health WP-{ID}` — single-command diagnostic: session states, hook status, MT progress, notification queue, stall detection
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]` — non-LLM relay watcher and safe re-wake helper for orchestrator-managed lanes; bounded by runtime relay-cycle budget and conservative default-off restart policy
 - `just install-mt-hook WP-{ID}` — installs post-commit hook for auto-relay (auto-installed by orchestrator-prepare-and-packet)
 - `just wp-closeout-format WP-{ID} <MERGED_MAIN_COMMIT>` — automates packet status, containment fields, verdict, and clause closure matrix updates
 - `just coder-worktree-add WP-{ID}`
@@ -711,7 +718,8 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
   - `VALIDATOR_REVIEW` (`WP_VALIDATOR -> CODER`, correlated to handoff)
 - In orchestrator-managed lanes, the WP Validator is the first technical judge for coder BOOTSTRAP, SKELETON, and completed micro tasks. The Orchestrator should not babysit those phases unless the validator raises a real blocker.
 - The initial `VALIDATOR_KICKOFF -> CODER_INTENT -> VALIDATOR_RESPONSE|SPEC_GAP|VALIDATOR_QUERY` exchange is the normal bootstrap/skeleton steering surface. Use it to correct weak scope, wrong data shapes, or shallow micro-task plans before implementation hardens, and treat validator clearance there as mandatory on governed lanes.
-- The WP Validator may also review completed narrow slices in parallel while the coder advances the next declared microtask, but only through structured `REVIEW_REQUEST` / resolution receipts with bounded overlap backlog. Full `CODER_HANDOFF` still waits for the overlap queue to drain.
+- On orchestrator-managed lanes with declared MT files, every completed MT must be sent directly to `WP_VALIDATOR` through structured `REVIEW_REQUEST` / resolution receipts with `review_mode=OVERLAP`; this is the normal per-MT review loop, not an optional courtesy pass. The coder may advance one next declared MT after recording that review request, but the overlap backlog remains bounded and full `CODER_HANDOFF` still waits for the overlap queue to drain.
+- If the WP Validator disapproves a previously completed MT while the coder is already working on the next MT, the coder should finish the current active MT, then loop back to the failed MT before opening further forward progress beyond the bounded overlap queue. The Orchestrator must not relay ordinary MT review traffic; missing direct coder<->validator review is workflow defect, not a reason for manual brokering.
 - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
 - Review-tracked receipt appends now auto-write notifications for the explicit target role, notify `ORCHESTRATOR` on validator-authored assessment receipts as a governance checkpoint, include the assessment result (`PASS`/`FAIL`/`ASSESSED`) plus the validator's reason in that checkpoint summary, and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Watch that projected route; do not replace it with manual narrative steering unless a real repair is required.
 - Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
@@ -731,7 +739,9 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 ## WP Worktree Creation Rules [CX-212D] (HARD RULE)
 
-- WP worktrees (`wtc-*`) are created from `main` but MUST NOT retain a git-tracked `/.GOV/` directory. Legacy `wtv-*` worktrees from the old 2-per-WP model are cleanup candidates.
+- WP worktrees (`wtc-*`) MUST NOT retain a git-tracked `/.GOV/` directory. Legacy `wtv-*` worktrees from the old 2-per-WP model are cleanup candidates.
+- Generic pre-packet worktree creation may seed from `main`, but governed coder worktree creation or reseed after packet creation MUST honor the packet baseline (`MERGE_BASE_SHA`) instead of moving local `main`.
+- Dirty existing WP worktrees must fail closed for governed reuse or reseed; do not silently reuse a dirty worktree as the coder or validator execution surface.
 - After `git worktree add`, the creation script MUST:
   1. Remove the inherited `/.GOV/` directory from the new worktree.
   2. Create a junction (`mklink /J` on Windows, symlink on Unix) from `/.GOV/` to `../wt-gov-kernel/.GOV`.

@@ -393,7 +393,8 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
   - `just wp-spec-confirmation WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - For structured microtask steering, the direct-review helpers also accept an optional final `microtask_json` argument carrying `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, `expected_receipt_kind`, `review_mode`, `phase_gate`, and `review_outcome`.
   - Use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` on the kickoff/intent checkpoint when you are explicitly judging early structure.
-  - For rolling microtask review, the coder may open `REVIEW_REQUEST` items to `WP_VALIDATOR` with `review_mode=OVERLAP`; keep the queue bounded to at most 2 unresolved overlap items and drain it before full handoff.
+  - For rolling microtask review on orchestrator-managed lanes with declared MT files, the coder must open one `REVIEW_REQUEST` to `WP_VALIDATOR` with `review_mode=OVERLAP` after each completed MT. Treat those requests as the normal direct per-MT review lane, keep the queue bounded to at most 2 unresolved overlap items, and drain it before full handoff.
+  - If you disapprove a previously completed MT while the coder is already inside the next MT, that failed MT becomes queued loop-back repair work to be serviced immediately after the coder closes the current active MT. Do not rely on Orchestrator relay for ordinary MT review traffic.
   - For the bootstrap/skeleton checkpoint, prefer `wp-validator-response` to clear the plan and `wp-spec-gap` / `VALIDATOR_QUERY` when signed surfaces, proof commands, or implementation quality signals are still weak.
   - `just phase-check STARTUP WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session>`
   - `just phase-check HANDOFF WP-{ID} [WP_VALIDATOR]`

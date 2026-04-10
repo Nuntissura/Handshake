@@ -1,4 +1,4 @@
-# Repo Governance Changelog
+﻿# Repo Governance Changelog
 
 ## Metadata
 
@@ -1377,7 +1377,7 @@
   - `RGF-84`
   - `RGF-82`
   - `RGF-85`
-- OUTCOME: the authoritative human-facing surfaces now teach “resolve Work Packets through the logical `work_packets` model, with `.GOV/task_packets/` as compatibility storage” instead of presenting `task_packets` as the conceptual source of truth
+- OUTCOME: the authoritative human-facing surfaces now teach â€œresolve Work Packets through the logical `work_packets` model, with `.GOV/task_packets/` as compatibility storageâ€ instead of presenting `task_packets` as the conceptual source of truth
 
 ### 2026.04.05.14 / GOV-CHANGE-20260405-14
 
@@ -1798,3 +1798,208 @@
 - FOLLOW_ON_ITEMS:
   - `NONE`
 - OUTCOME: `memory-recall` now uses stored trigger, script, and role metadata to surface repeated command failures and role-authored habits earlier, while keeping the existing public command surface stable inside the gov-kernel worktree
+
+### 2026.04.09.2 / GOV-CHANGE-20260409-02
+
+- STATUS: APPLIED
+- SUMMARY: opened `RGF-162` to track ACP governed-role launch and steer reliability as a first-class state-machine hardening item instead of treating repeated attempts as model-quality drift
+- CHANGE_TYPE: RECORDKEEPING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-162`
+  - `WP-1-Governance-Workflow-Mirror-v1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-162`
+- OUTCOME: ACP launch/steer retries, broker drift recovery, self-settlement, and explicit busy/pending command states are now tracked as concrete governance implementation work that can proceed while Activation Manager continues refinement-heavy pre-launch work elsewhere
+
+### 2026.04.09.3 / GOV-CHANGE-20260409-03
+
+- STATUS: APPLIED
+- SUMMARY: tightened the direct coder<->WP-validator contract so per-MT overlap review is the normal orchestrator-managed lane, while opening `RGF-163` for the remaining mechanical enforcement work
+- CHANGE_TYPE: POLICY_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-163`
+  - 2026-04-09 operator directive on coder/wp-validator communication and non-relay workflow
+- SURFACES:
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-163`
+- OUTCOME: governance law now makes per-MT direct review and validator-owned steering explicit on orchestrator-managed lanes, clarifies deferred loop-back repair after validator disapproval, and reaffirms that the Orchestrator should only step in for governance workflow defects rather than relay ordinary coder/validator traffic
+
+### 2026.04.09.3 / GOV-CHANGE-20260409-03
+
+- STATUS: APPLIED
+- SUMMARY: made governed memory injection visibly auditable and restored bounded startup prompt memory injection
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260409-VISIBLE-MEMORY-INJECTION-AND-STARTUP-BOUNDS`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/memory/memory-recall.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/tests/memory-recall.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/Audits/audits/AUDIT_20260409_VISIBLE_MEMORY_INJECTION_AND_STARTUP_BOUNDS.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `NONE`
+- OUTCOME: governed `memory-recall` now prints a compact `MEMORY_INJECTION_APPLIED` summary for operator visibility, and governed startup prompts once again carry a small bounded fail/context block instead of leaving the startup loader code disconnected from the active prompt builder
+
+### 2026.04.09.4 / GOV-CHANGE-20260409-04
+
+- STATUS: APPLIED
+- SUMMARY: made the Memory Manager mechanical pre-pass conservative and report-first instead of letting automatic runs make destructive judgment calls
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260409-MEMORY-MANAGER-MECHANICAL-CONSERVATISM`
+- SURFACES:
+  - `.GOV/roles/memory_manager/scripts/launch-memory-manager.mjs`
+  - `.GOV/roles/memory_manager/scripts/memory-manager-policy.mjs`
+  - `.GOV/roles/memory_manager/tests/memory-manager-policy.test.mjs`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/Audits/audits/AUDIT_20260409_MEMORY_MANAGER_MECHANICAL_CONSERVATISM.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `NONE`
+- OUTCOME: automatic startup/closeout hygiene now performs soft decay and deterministic repair only, while stale, contradictory, and old low-value memories are surfaced as report-only candidates for the intelligent Memory Manager review instead of being auto-pruned or auto-consolidated
+
+### 2026.04.09.5 / GOV-CHANGE-20260409-05
+
+- STATUS: APPLIED
+- SUMMARY: restored real governed receipt emission for packetless Memory Manager ACP lanes
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260409-MEMORY-MANAGER-PACKETLESS-RECEIPT-EMISSION`
+- SURFACES:
+  - `.GOV/roles/memory_manager/scripts/memory-manager-receipt.mjs`
+  - `.GOV/roles/memory_manager/tests/memory-manager-receipt.test.mjs`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `justfile`
+  - `.GOV/Audits/audits/AUDIT_20260409_MEMORY_MANAGER_PACKETLESS_RECEIPT_EMISSION.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-160`
+- OUTCOME: synthetic `WP-MEMORY-HYGIENE_<timestamp>` sessions now create packetless communication scaffolds, Memory Manager can emit `MEMORY_PROPOSAL` / `MEMORY_FLAG` / `MEMORY_RGF_CANDIDATE` receipts plus ORCHESTRATOR notifications through explicit just commands, and the governed startup/steering prompts now tell the role to use that surface instead of assuming an official packet-backed lane
+
+### 2026.04.09.6 / GOV-CHANGE-20260409-06
+
+- STATUS: APPLIED
+- SUMMARY: opened `RGF-166` / `RGF-167` and implemented the first non-LLM relay watchdog slice for orchestrator-managed lanes
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-166`
+  - `RGF-167`
+  - 2026-04-09 operator directive on token-efficient autonomous relay watching, early stall capture, and removing screen babysitting from orchestrator-managed flow
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `justfile`
+- FOLLOW_ON_ITEMS:
+  - `RGF-166`
+  - `RGF-167`
+- OUTCOME: governance now has a public `just wp-relay-watchdog` command that consumes the existing receipt/notification/relay-escalation truth and safely re-steers only when the projected target is not already running; active runs are inspected with the existing stall scanner and reported conservatively as stalled rather than being killed by default, which establishes the mechanical watcher boundary for a later bounded repair ladder
+
+### 2026.04.10.1 / GOV-CHANGE-20260410-01
+
+- STATUS: APPLIED
+- SUMMARY: started the `RGF-167` repair-ladder slice with bounded relay-cycle persistence and explicit repair signaling
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-167`
+  - 2026-04-10 operator directive to commit the bounded auto-repair slice first and continue into repair handling
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-167`
+- OUTCOME: the watchdog now persists bounded relay-cycle state into WP runtime truth, surfaces relay-cycle budget in session-registry inspection, and emits deduped ORCHESTRATOR-targeted repair signals when a lane hits a true stalled-active-run or exhausted-relay-budget condition, without introducing destructive auto-cancel behavior by default
+
+### 2026.04.10.2 / GOV-CHANGE-20260410-02
+
+- STATUS: APPLIED
+- SUMMARY: excluded packetless Memory Manager hygiene lanes from worktree concurrency gating and began command-family shell memory injection
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `procedural memory #776`
+  - 2026-04-10 operator directive to remediate the `gov-check` blocker, then continue the two memory follow-up items
+- SURFACES:
+  - `.GOV/roles_shared/checks/worktree-concurrency-check.mjs`
+  - `.GOV/roles_shared/tests/worktree-concurrency-check.test.mjs`
+  - `.GOV/roles_shared/scripts/memory/memory-recall.mjs`
+  - `.GOV/roles_shared/scripts/memory/shell-with-memory.mjs`
+  - `.GOV/roles_shared/tests/memory-recall.test.mjs`
+  - `.GOV/roles_shared/tests/shell-with-memory.test.mjs`
+  - `justfile`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-160`
+  - `RGF-168`
+- OUTCOME: `gov-check` no longer treats synthetic `WP-MEMORY-HYGIENE_<ts>` Memory Manager lanes as product WPs that require coder/WP-validator worktrees, and governance now has an initial command-family shell wrapper that performs trigger-aware recall before ad hoc shell commands and can capture structured `shell-command` procedural memory keyed by command family
+
+### 2026.04.10.3 / GOV-CHANGE-20260410-03
+
+- STATUS: APPLIED
+- SUMMARY: added a conservative default-off restart rung to the relay watchdog and documented the guardrail contract
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-167`
+  - 2026-04-10 operator directive to proceed after evaluating restart safeguards for stalled governed lanes
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-167`
+- OUTCOME: the relay watchdog now supports an explicit `--allow-restart` repair rung that stays default-off and only cancels plus re-steers a governed lane when the projected target is one of `CODER` / `WP_VALIDATOR` / `INTEGRATION_VALIDATOR`, the lane is already classified as `REPORT_STALLED_ACTIVE_RUN`, the target session still claims `COMMAND_RUNNING`, the output file and session activity are both older than the configured freshness threshold, and every matching active run is already past `timeout_at`; otherwise the watchdog remains in report/escalate mode without destructive intervention
+
+### 2026.04.10.4 / GOV-CHANGE-20260410-04
+
+- STATUS: APPLIED
+- SUMMARY: completed the Memory Manager ACP proof lane and hardened shell-command memory forwarding on the live `just` surface
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260410-MEMORY-MANAGER-COMPLETION-AND-COMMAND-MEMORY-FORWARDING`
+  - `procedural memory #791`
+  - 2026-04-10 follow-on after the first ACP Memory Manager proof and the operator-directed shell-memory injection work
+- SURFACES:
+  - `.GOV/Audits/audits/AUDIT_20260410_MEMORY_MANAGER_COMPLETION_AND_COMMAND_MEMORY_FORWARDING.md`
+  - `.GOV/roles_shared/scripts/lib/node-argv-proxy.mjs`
+  - `.GOV/roles_shared/tests/node-argv-proxy.test.mjs`
+  - `.GOV/roles_shared/scripts/memory/governance-memory-cli.mjs`
+  - `.GOV/roles_shared/scripts/memory/shell-with-memory.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/checks/wp-communications-check.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-check.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `justfile`
+- FOLLOW_ON_ITEMS:
+  - `RGF-160`
+  - `RGF-168`
+- OUTCOME: packetless Memory Manager ACP lanes now survive `gov-check`, completion is documented through governed `SESSION_COMPLETION` plus `repomem close`, and the `shell-with-memory` / `repomem` command family now forwards variadic flag text safely through PowerShell while routing structured shell-command memory through the canonical memory CLI

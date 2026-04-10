@@ -46,6 +46,12 @@ test("activation-manager startup prints the role startup brief", () => {
   assert.match(result.stdout, /ACTIVATION_MANAGER_STARTUP/);
   assert.match(result.stdout, /just activation-manager prompt WP-\{ID\}/);
   assert.match(result.stdout, /ACTIVATION_MANAGER as the mandatory temporary pre-launch worker/i);
+  assert.match(result.stdout, /REFINEMENT_STANDARD:/);
+  assert.match(result.stdout, /HANDOFF_MODE:/);
+  assert.match(result.stdout, /EXCERPT_FALLBACK_RULE:/);
+  assert.match(result.stdout, /HANDOFF_SUMMARY_REQUIRED:/);
+  assert.match(result.stdout, /REFINEMENT_CHECK_RULE:/);
+  assert.match(result.stdout, /UPGRADE_DISCIPLINE:/);
 });
 
 test("activation-manager prompt and next produce WP-scoped guidance", () => {
@@ -56,6 +62,13 @@ test("activation-manager prompt and next produce WP-scoped guidance", () => {
   assert.equal(promptResult.status, 0, promptResult.stderr);
   assert.match(promptResult.stdout, new RegExp(`WP_ID: ${wpId}`));
   assert.match(promptResult.stdout, /ROLE LOCK: You are the ACTIVATION_MANAGER\./);
+  assert.match(promptResult.stdout, /REFINEMENT STANDARD:/);
+  assert.match(promptResult.stdout, /FILE-FIRST HANDOFF RULE:/);
+  assert.match(promptResult.stdout, /REFINEMENT_HANDOFF_SUMMARY REQUIRED FIELDS:/);
+  assert.match(promptResult.stdout, /REFINEMENT_CHECK RULE:/);
+  assert.match(promptResult.stdout, /UPGRADE DISCIPLINE:/);
+  assert.match(promptResult.stdout, /EXCERPT FALLBACK RULE:/);
+  assert.match(promptResult.stdout, /SIGNATURE ROUND-TRIP:/);
 
   const nextResult = runCli(["next", wpId, "--json"]);
   assert.equal(nextResult.status, 0, nextResult.stderr);
@@ -74,5 +87,15 @@ test("activation-manager readiness renders the structured readiness contract", (
   assert.match(result.stdout, /ACTIVATION_READINESS/);
   assert.match(result.stdout, new RegExp(`- WP_ID: ${wpId}`));
   assert.match(result.stdout, /- VERDICT: /);
+  assert.match(result.stdout, /- LOCAL_WORKTREE_DIR: /);
+  assert.match(result.stdout, /- GOV_KERNEL_LINK: /);
+  assert.match(result.stdout, /- MICROTASK_STATUS: /);
+  assert.match(result.stdout, /- wp-declared-topology-check: /);
   assert.match(result.stdout, /- NEXT_ORCHESTRATOR_ACTION: /);
+});
+
+test("activation-manager fail capture stays attributed to ACTIVATION_MANAGER", () => {
+  const source = fs.readFileSync(SCRIPT_PATH, "utf8");
+  assert.match(source, /registerFailCaptureHook\("activation-manager\.mjs", \{ role: "ACTIVATION_MANAGER" \}\);/);
+  assert.match(source, /failWithMemory\("activation-manager\.mjs", message, \{ role: "ACTIVATION_MANAGER", details \}\);/);
 });

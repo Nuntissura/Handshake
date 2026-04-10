@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  boundPromptLines,
+  buildStartupInjectionLines,
   buildRoleEnvironmentOverrides,
   buildSessionControlRequest,
   buildStartupPrompt,
@@ -26,6 +28,8 @@ test("coder startup prompt carries orchestrator-managed relapse guard and lane-a
     selectedModel: ROLE_SESSION_PRIMARY_MODEL,
     selectedProfileId: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
     selectedProfile,
+    startupMemoryLines: [],
+    conversationContextLines: [],
   });
 
   assert.match(prompt, /MODEL PROFILE: OPENAI_GPT_5_4_XHIGH/i);
@@ -49,6 +53,8 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
     wpId,
     roleConfig,
     selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    startupMemoryLines: [],
+    conversationContextLines: [],
   });
 
   assert.match(prompt, /DIRECT COMMUNICATION \(MANDATORY\): Use the structured final review lane/i);
@@ -75,6 +81,8 @@ test("wp-validator startup prompt uses the dedicated validator lane and early st
     wpId,
     roleConfig,
     selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    startupMemoryLines: [],
+    conversationContextLines: [],
   });
 
   assert.match(roleConfig.branch, /^feat\/WP-TEST-WPVAL-v1$/);
@@ -95,6 +103,8 @@ test("activation-manager startup and steering prompts enforce the workflow split
     wpId,
     roleConfig,
     selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    startupMemoryLines: [],
+    conversationContextLines: [],
   });
   const steerPrompt = buildSteeringPrompt({
     role: "ACTIVATION_MANAGER",
@@ -107,6 +117,14 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.match(prompt, /WORKFLOW SPLIT \(MANDATORY\): For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`/i);
   assert.match(prompt, /mandatory governed pre-launch authoring lane and temporary worker/i);
   assert.match(prompt, /must own the heavy pre-launch reasoning/i);
+  assert.match(prompt, /REFINEMENT STANDARD \(HARD\):/i);
+  assert.match(prompt, /STUB DISCOVERY RULE \(HARD\):/i);
+  assert.match(prompt, /FILE-FIRST HANDOFF RULE \(HARD\):/i);
+  assert.match(prompt, /REFINEMENT_HANDOFF_SUMMARY \(HARD\):/i);
+  assert.match(prompt, /REFINEMENT_CHECK RULE \(HARD\):/i);
+  assert.match(prompt, /UPGRADE DISCIPLINE \(HARD\):/i);
+  assert.match(prompt, /EXCERPT FALLBACK RULE \(HARD\):/i);
+  assert.match(prompt, /SIGNATURE ROUND-TRIP \(MANDATORY\):/i);
   assert.match(prompt, /For `MANUAL_RELAY`, pre-launch remains Orchestrator-owned/i);
   assert.match(prompt, /just activation-manager readiness WP-TEST-ACTMAN-v1 --write/i);
   assert.match(prompt, /just activation-manager startup/i);
@@ -114,9 +132,99 @@ test("activation-manager startup and steering prompts enforce the workflow split
 
   assert.match(steerPrompt, /RESUME GOVERNED ACTIVATION_MANAGER lane/i);
   assert.match(steerPrompt, /mandatory temporary pre-launch worker/i);
+  assert.match(steerPrompt, /FILE-FIRST HANDOFF RULE \(HARD\):/i);
+  assert.match(steerPrompt, /REFINEMENT_HANDOFF_SUMMARY \(HARD\):/i);
+  assert.match(steerPrompt, /REFINEMENT_CHECK RULE \(HARD\):/i);
+  assert.match(steerPrompt, /UPGRADE DISCIPLINE \(HARD\):/i);
+  assert.match(steerPrompt, /EXCERPT FALLBACK RULE \(HARD\):/i);
+  assert.match(steerPrompt, /REPAIR LOOP \(MANDATORY\):/i);
   assert.match(steerPrompt, /just activation-manager next WP-TEST-ACTMAN-v1/i);
   assert.match(steerPrompt, /just activation-manager readiness WP-TEST-ACTMAN-v1 --write/i);
   assert.doesNotMatch(steerPrompt, /check-notifications/i);
+});
+
+test("memory-manager prompts advertise synthetic receipt emission instead of packet assumptions", () => {
+  const wpId = "WP-MEMORY-HYGIENE_2026-04-09T2115Z";
+  const roleConfig = resolveRoleConfig("MEMORY_MANAGER", wpId);
+  const startupPrompt = buildStartupPrompt({
+    role: "MEMORY_MANAGER",
+    wpId,
+    roleConfig,
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    startupMemoryLines: [],
+    conversationContextLines: [],
+  });
+  const steerPrompt = buildSteeringPrompt({
+    role: "MEMORY_MANAGER",
+    wpId,
+    roleConfig,
+  });
+
+  assert.match(startupPrompt, /SYNTHETIC-WP RULE:/i);
+  assert.match(startupPrompt, /just memory-manager-proposal WP-MEMORY-HYGIENE_2026-04-09T2115Z/i);
+  assert.match(startupPrompt, /just memory-manager-flag-receipt WP-MEMORY-HYGIENE_2026-04-09T2115Z/i);
+  assert.match(startupPrompt, /just memory-manager-rgf-candidate WP-MEMORY-HYGIENE_2026-04-09T2115Z/i);
+  assert.match(startupPrompt, /just repomem close "<session summary>" --decisions/i);
+  assert.match(startupPrompt, /SESSION_COMPLETION/i);
+  assert.match(startupPrompt, /do not expect an official packet/i);
+
+  assert.match(steerPrompt, /There is no official packet for this lane/i);
+  assert.match(steerPrompt, /MEMORY_PROPOSAL \/ MEMORY_FLAG \/ MEMORY_RGF_CANDIDATE/i);
+  assert.match(steerPrompt, /SESSION_COMPLETION/i);
+  assert.match(steerPrompt, /just repomem close "<session summary>" --decisions/i);
+  assert.doesNotMatch(steerPrompt, /active-lane-brief/i);
+});
+
+test("startup prompt includes bounded memory injection when lines are supplied", () => {
+  const wpId = "WP-TEST-INJECT-v1";
+  const roleConfig = resolveRoleConfig("CODER", wpId);
+  const prompt = buildStartupPrompt({
+    role: "CODER",
+    wpId,
+    roleConfig,
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    startupMemoryLines: [
+      "SESSION MEMORY (1 pattern, 24 est. tokens):",
+      "FAIL LOG:",
+      "- Script failure: coder-next.mjs - wrong packet path",
+    ],
+    conversationContextLines: [
+      "CONVERSATION CONTEXT (prior session 2026-04-09, CODER):",
+      "- [INSIGHT] packet path should come from validator-next output",
+    ],
+  });
+
+  assert.match(prompt, /MEMORY INJECTION \(BOUNDED\):/);
+  assert.match(prompt, /SESSION MEMORY \(1 pattern, 24 est\. tokens\):/);
+  assert.match(prompt, /FAIL LOG:/);
+  assert.match(prompt, /CONVERSATION CONTEXT \(prior session 2026-04-09, CODER\):/);
+});
+
+test("boundPromptLines enforces line and token caps", () => {
+  const lines = boundPromptLines(
+    [
+      "12345678901234567890",
+      "abcdefghijabcdefghij",
+      "XYZXYZXYZXYZXYZXYZXYZXYZ",
+    ],
+    { tokenBudget: 12, maxLines: 2 },
+  );
+
+  assert.deepEqual(lines, [
+    "12345678901234567890",
+    "abcdefghijabcdefghij",
+  ]);
+});
+
+test("buildStartupInjectionLines returns no section when both sources are empty", () => {
+  const lines = buildStartupInjectionLines({
+    role: "CODER",
+    wpId: "WP-TEST-v1",
+    startupMemoryLines: [],
+    conversationContextLines: [],
+  });
+
+  assert.deepEqual(lines, []);
 });
 
 test("steering prompt stays compact and codex-explicit", () => {

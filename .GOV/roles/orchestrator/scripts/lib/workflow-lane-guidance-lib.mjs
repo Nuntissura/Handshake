@@ -44,6 +44,14 @@ export function readActivationReadinessState(wpId) {
   };
 }
 
+export function activationReadinessRequiresActivationManager(wpId) {
+  const readiness = readActivationReadinessState(wpId);
+  return {
+    readiness,
+    requiresActivationManager: !readiness.readyForDownstreamLaunch,
+  };
+}
+
 export function buildActivationManagerLaunchCommands(wpId, readiness = null) {
   const commands = [
     `just launch-activation-manager-session ${wpId}`,

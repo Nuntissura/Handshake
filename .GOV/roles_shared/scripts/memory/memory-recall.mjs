@@ -16,6 +16,7 @@
  *   RELAY            - relay communication issues, prior relay outcomes
  *   DELEGATION       - packet creation issues, dependency pitfalls
  *   PACKET_CREATE    - prior packet failures, template issues
+ *   COMMAND          - shell command family habits, trigger-specific failures
  *
  * Output: structured block printed to stdout for model consumption.
  * Exit 0 always (best-effort; never blocks the calling command).
@@ -120,6 +121,16 @@ export const ACTION_SCOPES = {
     ],
     topN: { memoryType: "procedural", limit: 8 },
   },
+  COMMAND: {
+    label: "Command",
+    description: "Shell command family habits - trigger-specific failures, execution workarounds, safe usage patterns",
+    queries: [
+      { type: "procedural", keywords: "shell command terminal powershell bash workaround exit code" },
+      { type: "procedural", keywords: "script failure retry invocation quoting path" },
+      { type: "episodic", keywords: "command failed workaround" },
+    ],
+    topN: { memoryType: "procedural", limit: 8 },
+  },
 };
 
 export const VALID_ACTIONS = Object.keys(ACTION_SCOPES);
@@ -160,16 +171,22 @@ const ACTION_HINTS = {
     triggerRefs: ["create-task-packet", "activation-create-task-packet"],
     scriptCandidates: ["create-task-packet.mjs"],
   },
+  COMMAND: {
+    roleCandidates: [],
+    triggerRefs: [],
+    scriptCandidates: [],
+  },
 };
 
 const ROLE_HABIT_SOURCES = new Set([
   "memory-capture",
   "memory-intent-snapshot",
   "fail-capture",
+  "shell-command",
   "RECEIPTS.jsonl",
 ]);
 const OPERATOR_SOURCES = new Set(["operator-reported", "memory-capture"]);
-const TRIGGER_SENSITIVE_SOURCES = new Set(["fail-capture", "memory-capture", "memory-intent-snapshot"]);
+const TRIGGER_SENSITIVE_SOURCES = new Set(["fail-capture", "memory-capture", "memory-intent-snapshot", "shell-command"]);
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing
@@ -322,6 +339,9 @@ export function entryMatchesTriggerContext(entry, context) {
     entry.file_scope,
     metadata.script,
     metadata.trigger_script,
+    metadata.trigger,
+    metadata.command_family,
+    metadata.raw_command,
   ]
     .filter(Boolean)
     .join("\n")
@@ -330,6 +350,8 @@ export function entryMatchesTriggerContext(entry, context) {
   const sourceArtifact = String(entry.source_artifact || "").toLowerCase();
   const metadataScript = String(metadata.script || "").toLowerCase();
   const metadataTrigger = String(metadata.trigger_script || "").toLowerCase();
+  const metadataCommandFamily = String(metadata.command_family || "").toLowerCase();
+  const metadataTriggerRef = String(metadata.trigger || "").toLowerCase();
 
   for (const scriptName of context.scriptCandidates.map((entry) => entry.toLowerCase())) {
     if (!scriptName) continue;
@@ -337,6 +359,13 @@ export function entryMatchesTriggerContext(entry, context) {
       return true;
     }
     if (searchable.includes(scriptName)) return true;
+  }
+
+  for (const triggerRef of context.triggerRefs.map((entry) => entry.toLowerCase())) {
+    if (!triggerRef) continue;
+    if (metadataCommandFamily === triggerRef || metadataTriggerRef === triggerRef) {
+      return true;
+    }
   }
 
   for (const triggerRef of context.triggerRefs.map((entry) => entry.toLowerCase())) {
@@ -412,6 +441,27 @@ function budgetEntries(entries, tokenState, maxCount, selectedIds) {
     accepted.push(entry);
   }
   return accepted;
+}
+
+function formatAuditTopic(entry, maxLength = 60) {
+  const topic = String(entry?.topic || "").replace(/\s+/g, " ").trim();
+  if (!topic) return "(untitled)";
+  return topic.length > maxLength ? `${topic.slice(0, maxLength - 3)}...` : topic;
+}
+
+export function buildRecallAuditLine({
+  triggerEntries = [],
+  roleEntries = [],
+  generalEntries = [],
+  triggerConversationEntries = [],
+  conversationEntries = [],
+} = {}) {
+  const memoryEntries = [...triggerEntries, ...roleEntries, ...generalEntries];
+  const topEntries = memoryEntries
+    .slice(0, 3)
+    .map((entry) => `#${entry.id} ${formatAuditTopic(entry)}`);
+
+  return `MEMORY_INJECTION_APPLIED: memory_entries=${memoryEntries.length} trigger_context=${triggerConversationEntries.length} prior_session=${conversationEntries.length} top=${topEntries.length > 0 ? topEntries.join(" | ") : "none"}`;
 }
 
 function printMemoryEntry(entry) {
@@ -555,6 +605,13 @@ export function runRecall(action, flags = {}) {
       const budgetedTriggerEntries = budgetEntries(triggerEntries, memoryTokenState, 4, selectedIds);
       const budgetedRoleEntries = budgetEntries(roleEntries, memoryTokenState, 4, selectedIds);
       const budgetedGeneralEntries = budgetEntries(generalEntries, memoryTokenState, 12, selectedIds);
+      const auditLine = buildRecallAuditLine({
+        triggerEntries: budgetedTriggerEntries,
+        roleEntries: budgetedRoleEntries,
+        generalEntries: budgetedGeneralEntries,
+        triggerConversationEntries,
+        conversationEntries,
+      });
 
       if (
         budgetedTriggerEntries.length === 0
@@ -563,7 +620,14 @@ export function runRecall(action, flags = {}) {
         && triggerConversationEntries.length === 0
         && conversationEntries.length === 0
       ) {
-        console.log(`MEMORY_RECALL [${scope.label}]: no relevant memories found.`);
+        console.log(`MEMORY_RECALL [${scope.label}]`);
+        console.log(`  scope: ${scope.description}`);
+        if (wpId) console.log(`  wp: ${wpId}`);
+        if (context.primaryRole) console.log(`  role_hint: ${context.primaryRole}`);
+        if (context.primaryTrigger) console.log(`  trigger_hint: ${context.primaryTrigger}`);
+        console.log(`  ${auditLine}`);
+        console.log("");
+        console.log("  no relevant memories found.");
         return 0;
       }
 
@@ -573,6 +637,7 @@ export function runRecall(action, flags = {}) {
       if (wpId) console.log(`  wp: ${wpId}`);
       if (context.primaryRole) console.log(`  role_hint: ${context.primaryRole}`);
       if (context.primaryTrigger) console.log(`  trigger_hint: ${context.primaryTrigger}`);
+      console.log(`  ${auditLine}`);
       console.log("");
 
       if (budgetedTriggerEntries.length > 0) {

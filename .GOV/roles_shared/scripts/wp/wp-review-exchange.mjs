@@ -8,6 +8,7 @@ import {
   REVIEW_OPEN_RECEIPT_KIND_VALUES,
   REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
 } from "../lib/wp-communications-lib.mjs";
+import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
 import { appendWpReceipt, validateWpReceiptAppendPreconditions } from "./wp-receipt-append.mjs";
 import { appendWpThreadEntry } from "./wp-thread-append.mjs";
@@ -269,6 +270,6 @@ function runCli() {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isInvokedAsMain(import.meta.url, process.argv[1])) {
   runCli();
 }

@@ -42,7 +42,7 @@ export const VALIDATOR_REVIEW_OUTCOME_VALUES = [
   "APPROVED_FOR_FINAL_REVIEW",
 ];
 export const VALIDATOR_ASSESSMENT_VERDICT_VALUES = ["ASSESSED", "FAIL", "PASS"];
-export const MAX_OVERLAP_MICROTASK_REVIEW_ITEMS = 2;
+export const MAX_OVERLAP_MICROTASK_REVIEW_ITEMS = 1;
 const INTENT_CHECKPOINT_CLEARANCE_RECEIPT_KIND_VALUES = new Set([
   "VALIDATOR_RESPONSE",
   "SPEC_CONFIRMATION",
@@ -1276,6 +1276,10 @@ function sessionForRole(runtimeStatus, role, preferredSession = null) {
   const ROLE = normalizeRole(role);
   const explicitSession = normalizeSession(preferredSession);
   if (explicitSession) return explicitSession;
+  const projectedSession = normalizeRole(runtimeStatus?.next_expected_actor) === ROLE
+    ? normalizeSession(runtimeStatus?.next_expected_session) || normalizeSession(runtimeStatus?.waiting_on_session)
+    : null;
+  if (projectedSession) return projectedSession;
   if (ROLE === "WP_VALIDATOR") {
     return normalizeSession(runtimeStatus?.wp_validator_of_record) || mostRecentActiveSessionForRole(runtimeStatus, ROLE);
   }
@@ -1454,6 +1458,21 @@ export function deriveWpCommunicationAutoRoute({
       });
       break;
     case "COMM_WAITING_FOR_HANDOFF":
+      if (Array.isArray(openReviewItems) && openReviewItems.some((item) => isOverlapMicrotaskReviewItem(item))) {
+        projection = route({
+          state: evaluation.state,
+          nextExpectedActor: "WP_VALIDATOR",
+          nextExpectedSession: wpValidatorSession,
+          waitingOn: "WP_VALIDATOR_MICROTASK_REVIEW",
+          waitingOnSession: wpValidatorSession,
+          validatorTrigger: "MICROTASK_REVIEW_READY",
+          validatorTriggerReason: "Previous completed microtask is awaiting overlap review while coder continues the current microtask",
+          readyForValidation: true,
+          readyForValidationReason: "Overlap microtask review is open for the WP validator while coder remains in bounded forward execution",
+          notificationSummary: "AUTO_ROUTE: WP validator overlap review required while coder continues current microtask",
+        });
+        break;
+      }
       projection = route({
         state: evaluation.state,
         nextExpectedActor: "CODER",

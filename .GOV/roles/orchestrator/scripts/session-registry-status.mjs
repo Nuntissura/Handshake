@@ -198,17 +198,18 @@ if (relayStatus) {
       console.log(`- recommended_command: ${relayStatus.recommended_command}`);
     }
     const metrics = relayStatus.metrics || {};
-    if (Object.keys(metrics).length > 0) {
-      console.log(`- pending_notification_count: ${metrics.pending_notification_count ?? 0}`);
-      console.log(`- route_anchor_at: ${metrics.route_anchor_at || "<none>"}`);
-      console.log(`- latest_notification_at: ${metrics.latest_notification_at || "<none>"}`);
-      console.log(`- latest_target_receipt_at: ${metrics.latest_target_receipt_at || "<none>"}`);
-      console.log(`- latest_session_activity_at: ${metrics.latest_session_activity_at || "<none>"}`);
-      console.log(`- heartbeat_due_at: ${metrics.heartbeat_due_at || "<none>"}`);
-      console.log(`- stale_after: ${metrics.stale_after || "<none>"}`);
+      if (Object.keys(metrics).length > 0) {
+        console.log(`- pending_notification_count: ${metrics.pending_notification_count ?? 0}`);
+        console.log(`- route_anchor_at: ${metrics.route_anchor_at || "<none>"}`);
+        console.log(`- latest_notification_at: ${metrics.latest_notification_at || "<none>"}`);
+        console.log(`- latest_target_receipt_at: ${metrics.latest_target_receipt_at || "<none>"}`);
+        console.log(`- latest_session_activity_at: ${metrics.latest_session_activity_at || "<none>"}`);
+        console.log(`- relay_cycle: ${metrics.current_relay_escalation_cycle ?? 0}/${metrics.max_relay_escalation_cycles ?? 0}`);
+        console.log(`- heartbeat_due_at: ${metrics.heartbeat_due_at || "<none>"}`);
+        console.log(`- stale_after: ${metrics.stale_after || "<none>"}`);
+      }
     }
   }
-}
 
 if (wpTokenUsage) {
   console.log("");

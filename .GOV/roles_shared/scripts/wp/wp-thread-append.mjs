@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import { communicationTransactionLockPathForWp, normalize } from "../lib/wp-communications-lib.mjs";
 import { repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
@@ -190,6 +191,6 @@ function runCli() {
   console.log(`- receipt_appended: ${result.receiptAppended ? 'YES' : 'NO'}`);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isInvokedAsMain(import.meta.url, process.argv[1])) {
   runCli();
 }

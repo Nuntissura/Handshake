@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   collectBudgetCountedFiles,
+  classifyWpChangedPath,
   deriveWpScopeContract,
   parsePacketScopeDiscipline,
   scopeDisciplineRequiresEnforcement,
@@ -62,6 +63,25 @@ test("collectBudgetCountedFiles counts only in-scope implementation files", () =
     "src/backend/feature/b.rs",
     "src/backend/shared.rs",
   ]);
+});
+
+test("classifyWpChangedPath accepts handshake_main-prefixed packet scope against product-root file paths", () => {
+  const scopeContract = deriveWpScopeContract({
+    wpId: "WP-TEST-SCOPE-v1",
+    packetContent: packetFixture().replace(
+      "  - src/backend/feature\n  - src/backend/shared.rs",
+      "  - ../handshake_main/src/backend/feature\n  - ../handshake_main/src/backend/shared.rs",
+    ),
+  });
+
+  assert.deepEqual(
+    classifyWpChangedPath("src/backend/feature/a.rs", scopeContract),
+    { path: "src/backend/feature/a.rs", kind: "IN_SCOPE", allowed: true },
+  );
+  assert.deepEqual(
+    classifyWpChangedPath("src/backend/shared.rs", scopeContract),
+    { path: "src/backend/shared.rs", kind: "IN_SCOPE", allowed: true },
+  );
 });
 
 test("scopeDisciplineRequiresEnforcement gates only new packet versions", () => {

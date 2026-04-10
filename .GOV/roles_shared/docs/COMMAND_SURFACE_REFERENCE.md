@@ -59,6 +59,12 @@ These are safe starting points for orientation and health checks.
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
   - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role, derived stalled-relay status, the active terminal batch id, and owned-terminal metadata/reclaim status
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]`
+  - `runtime-write`
+  - run a local non-LLM relay watcher over one or more orchestrator-managed WPs; stale `WATCH` / `ESCALATED` routes are re-steered only when the projected target session is not already running
+  - active target runs are checked conservatively with `session-stall-scan` and reported as `WAIT_ACTIVE_RUN` / `REPORT_STALLED_ACTIVE_RUN` instead of being killed by default
+  - successful automatic re-steers increment the runtime relay-cycle counter; healthy lanes reset it; once the WP exhausts `max_relay_escalation_cycles`, the watchdog stops auto-re-waking and leaves the lane attention-visible
+  - `--allow-restart` is default-off; when enabled, restart remains conservative and only cancels/re-steers a proven stale active run after freshness guards pass (`COMMAND_RUNNING`, expired `timeout_at`, and old output/session activity)
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
   - `read-only`
   - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, declared microtask plan (`active` / `next`), and next commands
@@ -117,6 +123,9 @@ These are safe starting points for orientation and health checks.
 - `just memory-prime <WP-{ID}> [--files "file1,file2"] [--desc "<description>"] [--budget N]`
   - `read-only`
   - returns MT-scoped relevant memories within a token budget; designed for injection into session startup
+- `just memory-recall <RESUME|CODER_RESUME|VALIDATOR_RESUME|STEERING|RELAY|REFINEMENT|PACKET_CREATE|COMMAND> [--wp WP-{ID}] [--budget N] [--role ROLE] [--trigger "<command>"] [--script "<script>"]`
+  - `read-only`
+  - render trigger-aware memory injection for the next governed action; prints `MEMORY_INJECTION_APPLIED` plus grouped `TRIGGER PITFALLS`, `ROLE HABITS`, `GENERAL FINDINGS`, and `TRIGGER CONTEXT`
 - `just memory-stats`
   - `read-only`
   - database size, entry counts by type, schema version, last compaction, oldest active entry
@@ -141,9 +150,9 @@ These are safe starting points for orientation and health checks.
 - `just memory-hybrid-search "<query>" [--type <type>] [--wp WP-{ID}] [--limit N]`
   - `read-only`
   - combine FTS5 keyword + vector cosine similarity via Reciprocal Rank Fusion; requires embeddings (run `just memory-embed` first)
-- `just memory-capture <procedural|semantic|episodic> "<insight>" [--wp WP-{ID}] [--scope "files"] [--role "<role>"]`
+- `just memory-capture <procedural|semantic|episodic> "<insight>" [--wp WP-{ID}] [--scope "files"] [--role "<role>"] [--topic "<topic>"] [--source "<artifact>"] [--importance N] [--metadata '{"...":"..."}']`
   - `runtime-write`
-  - mid-session memory capture for roles; importance 0.7; callable by coders/validators during active work to record fix patterns, systemic issues, or session insights [RGF-127]
+  - mid-session memory capture for roles; default importance 0.7; callable by coders/validators during active work to record fix patterns, systemic issues, or session insights [RGF-127]
 - `just memory-flag <memory-id> "<reason>"`
   - `runtime-write`
   - suppress a bad/misleading memory: sets importance to 0.1, records flag reason in metadata; flagged memories are deprioritized in injection until reviewed
@@ -159,6 +168,9 @@ These are safe starting points for orientation and health checks.
 - `just memory-refresh [--force-compact]`
   - `runtime-write`
   - extract new memories from receipts + smoketests, then run compaction if stale (>24h with dual-gate); called automatically at every role startup + gov-check; `--force-compact` bypasses staleness check
+- `just shell-with-memory <ROLE> <command-family> "<command>" [--wp WP-{ID}] [--shell powershell|bash|cmd] [--action COMMAND] [--scope "files"] [--on-fail "<insight>"] [--on-success "<insight>"]`
+  - `runtime-write`
+  - command-family wrapper for ad hoc shell work: injects trigger-aware memory before execution, records optional repomem context, executes the command in the selected shell, and can capture structured `shell-command` procedural memory for later command-specific recall
 
 ### Conversation memory (`just repomem`)
 
@@ -176,7 +188,7 @@ These are safe starting points for orientation and health checks.
   - research conclusion checkpoint; content >=80 chars
 - `just repomem close "<session summary>" --decisions "<key decisions made>"`
   - `runtime-write`
-  - **MANDATORY** at session end. Content >=80 chars, `--decisions` required. Shows session checkpoint summary. Clears session marker.
+  - **MANDATORY** at session end. Content >=80 chars, `--decisions` required. Shows session checkpoint summary. Clears session marker. The just wrapper now forwards variadic flag text literally so PowerShell metacharacters in `--decisions` content no longer break before Node sees the arguments.
 - `just repomem context "<why this action>" --trigger "<just cmd>"` 
   - `runtime-write`
   - piggybacked context for mutation commands; content >=40 chars; auto-called by `task-board-set`, `create-task-packet`, `orchestrator-steer-next`, `manual-relay-dispatch`, `phase-check CLOSEOUT --sync-mode ...`, `begin-refinement`, `begin-research`, `wp-traceability-set`
@@ -239,6 +251,10 @@ These legacy commands still work (they redirect to the governance memory DB) but
 - `just wp-lane-health WP-{ID}`
   - `read-only`
   - inspect lane health for a WP: session liveness, relay state, stall detection
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]`
+  - `runtime-write`
+  - non-LLM relay watcher for orchestrator-managed lanes; consumes receipt/notification/escalation truth, records a `STEERING` receipt when it performs a safe automatic re-wake, and persists bounded relay-cycle accounting into WP runtime status
+  - with `--allow-restart`, the watcher may perform one bounded cancel-plus-resteer only for a proven stale active run that has already exceeded timeout and freshness thresholds
 - `just session-stall-scan <ROLE> WP-{ID}`
   - `read-only`
   - scan a governed session lane for stall conditions
@@ -331,9 +347,13 @@ If a role keeps needing those rereads:
 - `just orchestrator-startup`
 - `just coder-startup`
 - `just validator-startup`
+- `just memory-manager-startup`
   - `read-only`
   - protocol ack + backup context + role preflight
   - governed startup prompts are derived from `session-control-lib.mjs` and now explicitly include `AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + role protocol + startup output + packet`
+- `just role-startup-topology-check [--audit-permanent]`
+  - `read-only`
+  - verify worktree topology expectations before role startup; `--audit-permanent` also audits the permanent worktrees so `handshake_main` and `wt-gov-kernel` track `.GOV` while shared-junction worktrees suppress it locally
 - `just orchestrator-preflight`
 - `just coder-preflight`
 - `just validator-preflight`
@@ -419,6 +439,12 @@ These mutate packet, board, traceability, or related governed surfaces.
   - `read-only` except `readiness --write`, which is `runtime-write`
   - role-local Activation Manager startup, prompt, state, and readiness surface
   - use this as the compact activation context digest; manual workflow still keeps pre-launch authority on the Orchestrator
+  - Activation Manager refinement/enrichment quality must match or exceed the old Orchestrator pre-launch lane: research, primitive-index upkeep, matrix upkeep, appendix follow-through, and high-ROI stub discovery all remain mandatory
+  - default pre-signature handoff is file-first: return the written refinement/spec file path plus a compact `REFINEMENT_HANDOFF_SUMMARY`, not pasted full-text refinement blocks
+  - `REFINEMENT_HANDOFF_SUMMARY` must at least include `REFINEMENT_PATH`, `REFINEMENT_CHECK`, `ENRICHMENT_NEEDED`, `NEW_STUBS_CREATED_OR_UPDATED`, `NEW_FEATURES_OR_CAPABILITIES_DISCOVERED`, `MAJOR_TECH_UPGRADE_ADVICE`, `REVIEW_FOCUS`, and `NEXT_ORCHESTRATOR_ACTION`
+  - `REFINEMENT_CHECK` means the real refinement checker result on the written file; placeholder scan, ASCII-only scan, and diff sanity checks do not count as pass truth by themselves
+  - only if excerpts are explicitly requested should refinement/spec text be pasted back, and then only the requested sections/anchors in bounded chunks; safe default is 4 blocks
+  - only surface technology or implementation-technique replacement advice when it is a material upgrade; do not recommend swapping entrenched integrated technologies for small gains
 - `just activation-record-refinement WP-{ID}`
 - `just activation-record-signature WP-{ID} <signature> <workflow_lane> <execution_lane>`
 - `just activation-record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
@@ -445,6 +471,8 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
   - launch/bootstrap lane
   - Activation Manager is the mandatory governed pre-launch lane for orchestrator-managed workflow; manual workflow keeps pre-launch on the Orchestrator
   - if `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, launch Activation Manager first and do not begin governed coder/validator launch until it has produced truthful `ACTIVATION_READINESS`
+  - on orchestrator-managed lanes, Activation Manager executes refinement/spec-enrichment, packet creation, microtask setup, worktree preparation, backup-branch preparation, and pre-launch health checks, but Orchestrator retains operator approval handling, coder selection, governance patching, readiness acceptance, and relaunch decisions
+  - if Activation Manager handback is wrong or governance control-plane behavior is broken, patch governance in `wt-gov-kernel` and relaunch a fresh Activation Manager with bounded remediation instead of forcing stale-session continuation
   - launch selection resolves through the packet-declared role-model profile bundle when present; Activation Manager falls back to the governed repo default because pre-launch work may begin before packet hydration
   - on the ordinary orchestrator-managed path, supported launch hosts now auto-issue the first governed `START_SESSION` so launch does not stop at a launch-only false green
   - governed launch/control must preserve kernel governance authority with `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`; `handshake_main/.GOV` is not valid live governance for orchestrator-managed integration validation
@@ -518,7 +546,7 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
   - optional final `microtask_json` argument may carry a compact steering contract with `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, `expected_receipt_kind`, `review_mode`, `phase_gate`, and `review_outcome`
   - when the resolved Work Packet folder contains `MT-*.md` files (current physical storage: `.GOV/task_packets/WP-{ID}/MT-*.md`) on an orchestrator-managed lane, governed coder `wp-coder-intent` and overlap `REVIEW_REQUEST` receipts now fail closed unless `microtask_json.scope_ref` resolves to one declared MT (`MT-001` or `CLAUSE_CLOSURE_MATRIX/CX-...`), `file_targets` are concrete, and those targets stay inside that MT's `CODE_SURFACES`
   - use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` when the receipt is part of that mandatory early validator gate
-  - rolling microtask overlap: use `wp-review-exchange REVIEW_REQUEST ...` with `review_mode=OVERLAP` for completed narrow slices while the coder advances the next declared microtask; the unresolved overlap queue is bounded to 2 and full `wp-coder-handoff` is blocked until those overlap review items are drained
+  - rolling microtask overlap: on orchestrator-managed lanes with declared MT files, after each completed MT the coder must use `wp-review-exchange REVIEW_REQUEST ...` with `review_mode=OVERLAP` bound to that MT before treating it as done; the coder may then advance the next declared MT while the WP validator reviews the previous one, the unresolved overlap queue is bounded to 2, disapproved MTs become queued loop-back repair after the current active MT closes, and full `wp-coder-handoff` is blocked until those overlap review items are drained
 - `just phase-check <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} [ROLE] [session]`
   - `read-only` by default; `CLOSEOUT` becomes `governance-write` when `--sync-mode ... --context ...` is supplied
   - canonical phase-boundary gate entrypoint

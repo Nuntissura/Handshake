@@ -219,3 +219,62 @@ test("deriveWpMicrotaskPlan promotes validator repair outcomes above later decla
     fs.rmSync(packetDir, { recursive: true, force: true });
   }
 });
+
+test("deriveWpMicrotaskPlan keeps the current microtask active when overlap review on the previous microtask fails", () => {
+  const wpId = "WP-TEST-MICROTASK-DEFERRED-REPAIR-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(path.join(packetDir, "packet.md"), `- WP_ID: ${wpId}\n`, "utf8");
+  writeMicrotask(packetDir, wpId, "MT-001", "Review-first scope [CX-MT-201]", ["src/review_first.rs"]);
+  writeMicrotask(packetDir, wpId, "MT-002", "Current active scope [CX-MT-202]", ["src/current_active.rs"]);
+
+  try {
+    const plan = deriveWpMicrotaskPlan({
+      wpId,
+      receipts: [
+        {
+          timestamp_utc: "2026-04-05T10:00:00Z",
+          actor_role: "CODER",
+          receipt_kind: "REVIEW_REQUEST",
+          correlation_id: "review-1",
+          microtask_contract: {
+            scope_ref: "MT-001",
+            review_mode: "OVERLAP",
+          },
+        },
+        {
+          timestamp_utc: "2026-04-05T10:01:00Z",
+          actor_role: "CODER",
+          receipt_kind: "CODER_INTENT",
+          correlation_id: "intent-2",
+          microtask_contract: {
+            scope_ref: "MT-002",
+          },
+        },
+        {
+          timestamp_utc: "2026-04-05T10:02:00Z",
+          actor_role: "WP_VALIDATOR",
+          target_role: "CODER",
+          receipt_kind: "VALIDATOR_REVIEW",
+          correlation_id: "review-1",
+          summary: "Repair required on MT-001 before wider closure.",
+          microtask_contract: {
+            scope_ref: "MT-001",
+            review_mode: "OVERLAP",
+            review_outcome: "REPAIR_REQUIRED",
+          },
+        },
+      ],
+      runtimeStatus: {},
+    });
+
+    assert.equal(plan.active_microtask?.mt_id, "MT-002");
+    assert.equal(plan.active_microtask?.state, "ACTIVE");
+    assert.equal(plan.previous_microtask?.mt_id, "MT-001");
+    assert.equal(plan.previous_microtask?.state, "REPAIR_REQUIRED");
+    assert.equal(plan.attention_microtask?.mt_id, "MT-001");
+    assert.equal(plan.suggested_next_microtask?.mt_id, "MT-001");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});

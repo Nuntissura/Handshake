@@ -4,7 +4,7 @@
  *
  * Runs the 4-phase memory hygiene cycle:
  *   Phase 1: Health Assessment (read-only stats)
- *   Phase 2: Active Maintenance (extraction, compaction, conversation promotion)
+ *   Phase 2: Active Maintenance (extraction, soft decay, conservative candidate reporting)
  *   Phase 3: Pattern Analysis (cross-WP, conversation insight patterns)
  *   Phase 4: Report (MEMORY_HYGIENE_REPORT.md)
  *
@@ -28,7 +28,16 @@ import {
 import {
   GOVERNANCE_RUNTIME_ROOT_ABS,
   GOV_ROOT_ABS,
+  repoPathAbs,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import {
+  MECHANICAL_ACTIVITY_THRESHOLD,
+  MECHANICAL_DECAY_OPTIONS,
+  MECHANICAL_STALENESS_HOURS,
+  isAgeConsolidationCandidate,
+  isStaleFileScopeCandidate,
+  shouldRunMechanicalPass,
+} from "./memory-manager-policy.mjs";
 
 const args = process.argv.slice(2);
 const force = args.includes("--force");
@@ -36,9 +45,6 @@ const startTime = Date.now();
 
 const LAST_RUN_FILE = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "MEMORY_MANAGER_LAST_RUN.json");
 const REPORT_FILE = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "MEMORY_HYGIENE_REPORT.md");
-const STALENESS_HOURS = 24;
-const ACTIVITY_THRESHOLD = 10;
-
 // ---------------------------------------------------------------------------
 // Staleness gate
 // ---------------------------------------------------------------------------
@@ -67,21 +73,24 @@ try {
     ? Math.max(0, stats.active - lastRun.active_count)
     : stats.active;
 
-  if (!force && hoursSinceLastRun < STALENESS_HOURS) {
-    console.log(`[memory-manager] Skipped: last run ${hoursSinceLastRun.toFixed(1)}h ago (gate: ${STALENESS_HOURS}h)`);
-    process.exit(0);
-  }
-  if (!force && newEntriesSinceLastRun < ACTIVITY_THRESHOLD) {
-    console.log(`[memory-manager] Skipped: only ${newEntriesSinceLastRun} new entries since last run (gate: ${ACTIVITY_THRESHOLD})`);
+  const gateDecision = shouldRunMechanicalPass({
+    force,
+    hoursSinceLastRun,
+    newEntriesSinceLastRun,
+    stalenessHours: MECHANICAL_STALENESS_HOURS,
+    activityThreshold: MECHANICAL_ACTIVITY_THRESHOLD,
+  });
+
+  if (!gateDecision.run) {
+    console.log(`[memory-manager] Skipped: ${gateDecision.reason}`);
     process.exit(0);
   }
 
-  console.log(`[memory-manager] Starting (${force ? "forced" : "staleness gate passed"})...`);
+  console.log(`[memory-manager] Starting (${gateDecision.reason})...`);
 
   const report = [];
   const actions = [];
   const calibration = [];
-  const contradictions = [];
   const candidates = [];
   const recommendations = [];
 
@@ -184,36 +193,37 @@ try {
   // 2b. Compaction (decay + prune)
   let compactResult = { processed: 0, decayed: 0, pruned: 0 };
   try {
-    compactResult = runDecay(db, { decayRate: 0.1, pruneThreshold: 0.05 });
+    compactResult = runDecay(db, MECHANICAL_DECAY_OPTIONS);
   } catch (e) {
     actions.push(`Compaction error: ${e.message}`);
   }
 
-  // 2c. Stale file_scope audit
-  let staleFlagged = 0;
+  // 2c. Stale file_scope audit — report-only candidates
+  const staleCandidates = [];
   try {
     const proceduralWithScope = db.prepare(
-      "SELECT id, topic, file_scope FROM memory_index WHERE memory_type IN ('procedural', 'semantic') AND file_scope != '' AND consolidated = 0 AND created_at < ?"
+      "SELECT id, topic, file_scope, created_at FROM memory_index WHERE memory_type IN ('procedural', 'semantic') AND file_scope != '' AND consolidated = 0 AND created_at < ?"
     ).all(sevenDaysAgo);
     for (const entry of proceduralWithScope) {
       const files = entry.file_scope.split(",").map(f => f.trim()).filter(Boolean);
       if (files.length === 0) continue;
       const existingFiles = files.filter(f => {
-        try { return fs.existsSync(path.resolve(process.cwd(), f)); } catch { return false; }
+        try { return fs.existsSync(repoPathAbs(f)); } catch { return false; }
       });
-      if (existingFiles.length === 0) {
-        const hasAccess = db.prepare("SELECT access_count FROM memory_index WHERE id = ?").get(entry.id);
-        if (hasAccess && hasAccess.access_count < 2) {
-          db.prepare("UPDATE memory_index SET importance = 0.1 WHERE id = ?").run(entry.id);
-          staleFlagged++;
-          actions.push(`Flagged stale #${entry.id}: ${entry.topic} (all file refs gone, low access)`);
-        }
+      const accessRow = db.prepare("SELECT access_count FROM memory_index WHERE id = ?").get(entry.id);
+      if (isStaleFileScopeCandidate({
+        createdAt: entry.created_at,
+        cutoffIso: sevenDaysAgo,
+        accessCount: accessRow?.access_count || 0,
+        existingFilesCount: existingFiles.length,
+      })) {
+        staleCandidates.push(`- #${entry.id}: ${entry.topic} (all file refs gone, access_count=${accessRow?.access_count || 0})`);
       }
     }
   } catch {}
 
-  // 2d. Contradiction resolution — find entries flagged with contradiction metadata
-  let contradictionsResolved = 0;
+  // 2d. Contradiction review candidates — report-only, leave judgment to intelligent review
+  const contradictionCandidates = [];
   try {
     const contradicted = db.prepare(
       "SELECT mi.id, mi.topic, mi.importance, mi.created_at, mi.file_scope, mi.memory_type, me.metadata FROM memory_index mi JOIN memory_entries me ON me.index_id = mi.id WHERE mi.consolidated = 0 AND me.metadata LIKE '%contradiction%'"
@@ -227,18 +237,12 @@ try {
     }
     for (const [, entries] of byScope) {
       if (entries.length < 2) continue;
-      // Sort by created_at desc — newer wins unless older has more access
+      // Sort by created_at desc only to make candidate review easier.
       entries.sort((a, b) => b.created_at.localeCompare(a.created_at));
       const newer = entries[0];
       for (let i = 1; i < entries.length; i++) {
         const older = entries[i];
-        // Newer wins: consolidate older, restore newer importance
-        db.prepare("UPDATE memory_index SET consolidated = 1 WHERE id = ?").run(older.id);
-        if (newer.importance < 0.5) {
-          db.prepare("UPDATE memory_index SET importance = 0.6 WHERE id = ?").run(newer.id);
-        }
-        contradictionsResolved++;
-        contradictions.push(`- #${older.id} vs #${newer.id}: newer wins — consolidated #${older.id} ("${older.topic.slice(0, 60)}")`);
+        contradictionCandidates.push(`- #${older.id} vs #${newer.id}: same file_scope "${older.file_scope || "__global__"}"; review manually before any consolidation`);
       }
     }
   } catch {}
@@ -368,19 +372,22 @@ try {
     }
   } catch {}
 
-  // 2h. Age-based consolidation — entries >30d old with low access get consolidated
-  let ageConsolidated = 0;
+  // 2h. Age-based consolidation candidates — report-only
+  const ageConsolidationCandidates = [];
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
     const oldLowAccess = db.prepare(
-      "SELECT id, topic FROM memory_index WHERE consolidated = 0 AND created_at < ? AND access_count < 2 AND importance < 0.4"
+      "SELECT id, topic, created_at, access_count, importance FROM memory_index WHERE consolidated = 0 AND created_at < ? AND access_count < 2 AND importance < 0.4"
     ).all(thirtyDaysAgo);
     for (const entry of oldLowAccess) {
-      db.prepare("UPDATE memory_index SET consolidated = 1 WHERE id = ?").run(entry.id);
-      ageConsolidated++;
-    }
-    if (ageConsolidated > 0) {
-      actions.push(`Age-consolidated: ${ageConsolidated} entries (>30d old, <2 accesses, importance <0.4)`);
+      if (isAgeConsolidationCandidate({
+        createdAt: entry.created_at,
+        cutoffIso: thirtyDaysAgo,
+        accessCount: entry.access_count,
+        importance: entry.importance,
+      })) {
+        ageConsolidationCandidates.push(`- #${entry.id}: ${entry.topic} (importance=${entry.importance}, access_count=${entry.access_count})`);
+      }
     }
   } catch {}
 
@@ -418,13 +425,13 @@ try {
   } catch {}
 
   actions.push(`Extracted: receipts=${extractedReceipts}, smoketests=${extractedSmoketests}`);
-  actions.push(`Compacted: processed=${compactResult.processed}, decayed=${compactResult.decayed}, pruned=${compactResult.pruned}`);
-  actions.push(`Stale flagged: ${staleFlagged}`);
-  actions.push(`Contradictions resolved: ${contradictionsResolved}`);
+  actions.push(`Compacted: processed=${compactResult.processed}, decayed=${compactResult.decayed}, pruned=${compactResult.pruned} (mechanical prune disabled)`);
+  actions.push(`Stale candidates: ${staleCandidates.length} (report-only)`);
+  actions.push(`Contradiction candidates: ${contradictionCandidates.length} (report-only)`);
   actions.push(`Supersession chains repaired: ${supersessionRepairs}`);
   actions.push(`Conversation insights promoted: ${promotedInsights}`);
   actions.push(`Conversation entries pruned: ${conversationPruned}`);
-  actions.push(`Age-consolidated: ${ageConsolidated}`);
+  actions.push(`Age-consolidation candidates: ${ageConsolidationCandidates.length} (report-only)`);
 
   // =========================================================================
   // Phase 3: Pattern Analysis
@@ -526,8 +533,21 @@ try {
     "",
   ];
 
-  if (contradictions.length > 0) {
-    reportLines.push("## Contradiction Resolutions", ...contradictions, "");
+  if (contradictionCandidates.length > 0) {
+    reportLines.push("## Contradiction Candidates (for intelligent review)", ...contradictionCandidates, "");
+  }
+
+  if (staleCandidates.length > 0 || ageConsolidationCandidates.length > 0) {
+    reportLines.push("## Maintenance Candidates (for intelligent review)");
+    if (staleCandidates.length > 0) {
+      reportLines.push(`- Stale file-scope candidates: ${staleCandidates.length}`);
+      reportLines.push(...staleCandidates);
+    }
+    if (ageConsolidationCandidates.length > 0) {
+      reportLines.push(`- Age-consolidation candidates: ${ageConsolidationCandidates.length}`);
+      reportLines.push(...ageConsolidationCandidates);
+    }
+    reportLines.push("");
   }
 
   if (recallAuditNotes.length > 0) {

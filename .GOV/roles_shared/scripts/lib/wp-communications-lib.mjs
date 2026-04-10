@@ -76,6 +76,7 @@ export const AUTHORITY_KIND_VALUES = [
   "OPERATOR",
   "WORKFLOW_AUTHORITY",
   "PRIMARY_CODER",
+  "MEMORY_MANAGER",
   "WP_VALIDATOR",
   "INTEGRATION_VALIDATOR",
   "SECONDARY_VALIDATOR",
@@ -86,11 +87,12 @@ export const RECEIPT_ROLE_VALUES = [
   "OPERATOR",
   "ORCHESTRATOR",
   "CODER",
+  "MEMORY_MANAGER",
   "WP_VALIDATOR",
   "INTEGRATION_VALIDATOR",
   "VALIDATOR",
 ];
-export const ROUTABLE_ROLE_VALUES = ["OPERATOR", "ORCHESTRATOR", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"];
+export const ROUTABLE_ROLE_VALUES = ["OPERATOR", "ORCHESTRATOR", "CODER", "MEMORY_MANAGER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"];
 export const RECEIPT_KIND_VALUES = [
   "ASSIGNMENT",
   "STATUS",
@@ -764,6 +766,58 @@ export function communicationPathsForWp(wpId) {
   return communicationPathsForRoot(COMM_ROOT, wpId);
 }
 
+export function ensurePacketlessWpCommunicationScaffold(wpId, {
+  threadHeading = "",
+  noteLines = [],
+} = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId || !/^WP-/.test(normalizedWpId)) {
+    throw new Error("WP_ID is required");
+  }
+
+  const paths = communicationPathsForWp(normalizedWpId);
+  const dirAbsPath = repoPathAbs(paths.dir);
+  fs.mkdirSync(dirAbsPath, { recursive: true });
+
+  const threadAbsPath = repoPathAbs(paths.threadFile);
+  if (!fs.existsSync(threadAbsPath)) {
+    const heading = String(threadHeading || `# WP Thread: ${normalizedWpId}`).trim();
+    const bodyLines = [
+      heading,
+      "",
+      `Synthetic packetless communication lane for ${normalizedWpId}.`,
+      ...[].concat(noteLines || []).map((line) => String(line || "").trim()).filter(Boolean),
+      "",
+    ];
+    fs.writeFileSync(threadAbsPath, bodyLines.join("\n"), "utf8");
+  }
+
+  const receiptsAbsPath = repoPathAbs(paths.receiptsFile);
+  if (!fs.existsSync(receiptsAbsPath)) {
+    fs.writeFileSync(receiptsAbsPath, "", "utf8");
+  }
+
+  const notificationsFile = normalize(path.join(paths.dir, NOTIFICATIONS_FILE_NAME));
+  const notificationsAbsPath = repoPathAbs(notificationsFile);
+  if (!fs.existsSync(notificationsAbsPath)) {
+    fs.writeFileSync(notificationsAbsPath, "", "utf8");
+  }
+
+  const cursorFile = normalize(path.join(paths.dir, NOTIFICATION_CURSOR_FILE_NAME));
+  const cursorAbsPath = repoPathAbs(cursorFile);
+  if (!fs.existsSync(cursorAbsPath)) {
+    fs.writeFileSync(cursorAbsPath, `${JSON.stringify({ schema_version: "wp_notification_cursor@1", cursors: {} }, null, 2)}\n`, "utf8");
+  }
+
+  return {
+    dir: paths.dir,
+    threadFile: paths.threadFile,
+    receiptsFile: paths.receiptsFile,
+    notificationsFile,
+    cursorFile,
+  };
+}
+
 export function communicationTransactionLockPathForWp(wpId) {
   const normalizedWpId = String(wpId || "").trim();
   if (!normalizedWpId || !/^WP-/.test(normalizedWpId)) {
@@ -787,6 +841,7 @@ export function deriveAuthorityKinds({ actorRole, actorSession, runtimeStatus })
   if (role === "OPERATOR") return { authorityKind: "OPERATOR", validatorRoleKind: null };
   if (role === "ORCHESTRATOR") return { authorityKind: "WORKFLOW_AUTHORITY", validatorRoleKind: null };
   if (role === "CODER") return { authorityKind: "PRIMARY_CODER", validatorRoleKind: null };
+  if (role === "MEMORY_MANAGER") return { authorityKind: "MEMORY_MANAGER", validatorRoleKind: null };
   if (role === "WP_VALIDATOR") return { authorityKind: "WP_VALIDATOR", validatorRoleKind: "WP_VALIDATOR" };
   if (role === "INTEGRATION_VALIDATOR") return { authorityKind: "INTEGRATION_VALIDATOR", validatorRoleKind: "INTEGRATION_VALIDATOR" };
   if (role === "VALIDATOR") {

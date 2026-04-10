@@ -10,7 +10,7 @@ The Memory Manager has two modes: a mechanical pre-pass (script) and an intellig
 
 ### Mechanical Pre-Pass (`just launch-memory-manager`)
 
-A Node.js script that runs deterministically, no tokens consumed. Handles: extraction, decay, age-consolidation, embedding refresh, threshold-based pruning, recall effectiveness audit, stats collection. Outputs `MEMORY_HYGIENE_REPORT.md`. Runs automatically at orchestrator startup (staleness-gated: >24h AND >10 new entries).
+A Node.js script that runs deterministically, no tokens consumed. It is intentionally conservative: extraction, soft decay, embedding refresh, recall effectiveness audit, stats collection, and report-first candidate detection for stale / contradictory / old low-value entries. It must avoid destructive judgment calls during automatic startup/closeout runs. Outputs `MEMORY_HYGIENE_REPORT.md`. Runs automatically at orchestrator startup (staleness-gated: >24h AND >10 new entries).
 
 ### Intelligent Review Session (`just launch-memory-manager-session`)
 
@@ -23,9 +23,9 @@ A model session (default: `claude-sonnet-4-6`) launched after the mechanical pre
 - **Conversation insight review** — find insights the FTS similarity missed, promote manually
 - **Operator-reported entry audit** — verify high-value entries are still accurate and well-worded
 
-The model appends an `## Intelligent Review` section to the report, writes proposals to `.GOV/roles/memory_manager/proposals/`, and self-terminates.
+The model appends an `## Intelligent Review` section to the report, writes proposals to `.GOV/roles/memory_manager/proposals/`, records `just repomem close ...`, and then stops after the governed turn completes.
 
-**Preferred model:** Codex Spark extra-high reasoning when available; falls back to Claude Code Opus 4.6 thinking max.
+**Preferred model:** Claude Code Opus 4.6 thinking max. A lower-cost profile may replace it later when the quality/rate-limit tradeoff is acceptable.
 
 **ACP integration:** The intelligent session is launched through ACP as a governed role (`MEMORY_MANAGER`) with a synthetic WP-ID (`WP-MEMORY-HYGIENE_<timestamp>`). This gives it:
 - Structured communication via receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`)
@@ -33,7 +33,10 @@ The model appends an `## Intelligent Review` section to the report, writes propo
 - Session registry tracking (launch, steer, close)
 - Proposals backed up to `.GOV/roles/memory_manager/proposals/<topic>_<timestamp>.md`
 
-**Lifecycle:** `just launch-memory-manager-session` → mechanical pre-pass → ACP session start → `memory-manager-startup` → repomem open → review work → write proposals (receipts + backup files) → repomem close → self-terminate. MUST NOT leave orphan terminals.
+Because this lane is packetless, the synthetic communication files under `gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-MEMORY-HYGIENE_<timestamp>/` become the authoritative receipt and notification surface for Memory Manager findings.
+Clarification: governed completion is evidenced by the `SESSION_COMPLETION` notification after the Memory Manager stops its turn. Explicit ACP `CLOSE_SESSION` remains orchestrator-owned when the steerable thread itself should be retired.
+
+**Lifecycle:** `just launch-memory-manager-session` → mechanical pre-pass → ACP session start → `memory-manager-startup` → repomem open → review work → write proposals (receipts + backup files) → repomem close → stop after the governed turn settles and `SESSION_COMPLETION` is emitted. Explicit ACP `CLOSE_SESSION` remains orchestrator-owned. MUST NOT leave orphan terminals.
 
 ## Governance Surface Reduction Discipline
 
@@ -114,11 +117,11 @@ Your job is to ensure the data that flows through this formula is clean, relevan
 6. **Extract** — run receipt + smoketest extraction (idempotent)
 7. **Compact** — run Ebbinghaus decay + budget pruning (`decayRate=0.1`, `pruneThreshold=0.05`)
 8. **Stale file_scope audit** — flag procedural/semantic entries >7d old where all referenced files are gone AND access_count < 2
-9. **Contradiction resolution** — find entries with `metadata.contradiction=true`, group by `file_scope`, resolve: newer wins (consolidate older, restore newer importance)
+9. **Contradiction candidate audit** — find entries with `metadata.contradiction=true`, group by `file_scope`, and report candidate pairs for intelligent review. Do not mechanically pick a winner.
 10. **Supersession chain audit** — check `metadata.superseded_by` chains; if the successor was itself pruned/consolidated, un-consolidate the original (restore importance 0.4)
 11. **Conversation insight promotion** — FTS5 keyword similarity across `conversation_log` INSIGHT entries; promote to semantic memory (importance 0.8) when the same insight appears across 3+ sessions. Also promote decisions from `decisions` column that repeat across 2+ sessions
 12. **Conversation log pruning** — delete sessions >30 days old with no INSIGHT or RESEARCH_CLOSE checkpoints
-13. **Age-based consolidation** — consolidate entries >30 days old with access_count < 2 AND importance < 0.4 (entries that never proved useful)
+13. **Age-based consolidation candidates** — report entries >30 days old with access_count < 2 AND importance < 0.4 for intelligent review. Do not mechanically consolidate them during automatic runs.
 14. **Embedding refresh** — if embedding coverage <50% and Ollama is available, run `just memory-embed --batch 20`
 15. **Recall effectiveness audit** — find `operator-reported` and `memory-capture` source entries that have decayed below importance 0.5; restore to 0.8 (these are high-value fail captures that must not decay). Report total active operator-reported count
 
@@ -162,6 +165,9 @@ just memory-refresh --force-compact
 just memory-flag <id> "<reason>"
 just memory-capture <type> "<insight>" [--wp WP-{ID}] [--scope "files"]
 just memory-embed [--batch N]
+just memory-manager-proposal <WP-{ID}> <actor-session> "<summary>" "<backup_ref>" [correlation_id]
+just memory-manager-flag-receipt <WP-{ID}> <actor-session> "<summary>" "<backup_ref>" [correlation_id]
+just memory-manager-rgf-candidate <WP-{ID}> <actor-session> "<summary>" "<backup_ref>" [correlation_id]
 ```
 
 ## Output Format
@@ -187,17 +193,21 @@ Write `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md`:
 ## Actions Taken
 - Extracted: receipts=<N>, smoketests=<N>
 - Compacted: processed=<N>, decayed=<N>, pruned=<N>
-- Stale flagged: <N>
-- Contradictions resolved: <N>
+- Stale candidates: <N> (report-only)
+- Contradiction candidates: <N> (report-only)
 - Supersession chains repaired: <N>
 - Conversation insights promoted: <N>
 - Conversation entries pruned: <N>
-- Age-consolidated: <N>
+- Age-consolidation candidates: <N> (report-only)
 - Recall audit: restored <N> operator-reported entries from decay
 - Embeddings added: <N>
 
-## Contradiction Resolutions
-- #<id> vs #<id>: <resolution + rationale>
+## Contradiction Candidates (for intelligent review)
+- #<id> vs #<id>: <why human/model review is still required>
+
+## Maintenance Candidates (for intelligent review)
+- Stale file-scope candidates: <N>
+- Age-consolidation candidates: <N>
 
 ## Recall Effectiveness
 - Operator-reported entries: <N> active (<N> restored from decay)

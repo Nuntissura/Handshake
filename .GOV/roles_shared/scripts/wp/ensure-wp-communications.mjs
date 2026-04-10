@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import {
   addMinutes,
   COMM_ROOT,
@@ -615,5 +616,5 @@ function runCli() {
   console.log(`- ${RECEIPTS_FILE_NAME}: ${result.receiptsFile}`);
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = isInvokedAsMain(import.meta.url, process.argv[1]);
 if (isMain) runCli();

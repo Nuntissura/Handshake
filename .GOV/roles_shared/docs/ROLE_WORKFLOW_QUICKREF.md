@@ -29,6 +29,13 @@ All roles SHOULD follow a strict ordering to avoid interleaving narrative with e
 
 ## Resume After Reset / Compaction
 
+Startup commands:
+- `just orchestrator-startup`
+- `just coder-startup`
+- `just validator-startup`
+- `just memory-manager-startup`
+- `just role-startup-topology-check [--audit-permanent]`
+
 Use the role-specific read-only resume helper immediately after `just <role>-startup` when a session resets or context compacts:
 - Orchestrator: `just orchestrator-next [WP-{ID}] [--debug]`
 - Coder: `just coder-next [WP-{ID}]`
@@ -53,6 +60,7 @@ Rule:
 
 - `just memory-stats` â€” health overview (active/consolidated counts, schema version)
 - `just memory-search "<query>"` â€” FTS5 keyword search
+- `just memory-recall <ACTION> [--wp WP-{ID}]` â€” visible memory injection for the next governed action; prints `MEMORY_INJECTION_APPLIED`
 - `just memory-intent-snapshot "<intent>" --wp WP-{ID} --role ROLE` â€” context+intent capture before complex reasoning (judgment-based, SHOULD)
 - `just memory-debug-snapshot [WP-{ID}]` â€” inspect pre-task + intent snapshots
 - `just memory-capture <type> "<insight>" --wp WP-{ID}` â€” mid-session memory capture

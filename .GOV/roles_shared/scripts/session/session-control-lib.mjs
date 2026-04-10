@@ -263,9 +263,28 @@ export function assertRoleLaunchProfileSupported({
 }
 
 const SESSION_MEMORY_TOKEN_BUDGET = 1500;
+const STARTUP_MEMORY_PROMPT_TOKEN_BUDGET = 220;
+const STARTUP_MEMORY_PROMPT_MAX_LINES = 8;
+const STARTUP_CONVERSATION_PROMPT_TOKEN_BUDGET = 120;
+const STARTUP_CONVERSATION_PROMPT_MAX_LINES = 4;
 
 function estimateTokens(text) {
   return Math.ceil(String(text || "").length / 4);
+}
+
+export function boundPromptLines(lines, { tokenBudget = 200, maxLines = 6 } = {}) {
+  const selected = [];
+  let usedTokens = 0;
+  for (const rawLine of Array.isArray(lines) ? lines : []) {
+    const line = String(rawLine || "").trimEnd();
+    if (!line) continue;
+    if (selected.length >= maxLines) break;
+    const lineTokens = estimateTokens(line);
+    if (usedTokens + lineTokens > tokenBudget) break;
+    usedTokens += lineTokens;
+    selected.push(line);
+  }
+  return selected;
 }
 
 // Role-scoped type filters: coder gets fail log only, validator adds context, orchestrator gets everything
@@ -666,6 +685,40 @@ function loadConversationContext() {
   } catch { return []; }
 }
 
+export function buildStartupInjectionLines({
+  role = "",
+  wpId = "",
+  startupMemoryLines = null,
+  conversationContextLines = null,
+} = {}) {
+  const resolvedStartupMemoryLines = startupMemoryLines ?? boundPromptLines(
+    role === "ORCHESTRATOR"
+      ? loadOrchestratorMemoryLines()
+      : loadSessionMemoryLines(wpId, { role, tokenBudget: STARTUP_MEMORY_PROMPT_TOKEN_BUDGET }),
+    {
+      tokenBudget: STARTUP_MEMORY_PROMPT_TOKEN_BUDGET,
+      maxLines: STARTUP_MEMORY_PROMPT_MAX_LINES,
+    },
+  );
+  const resolvedConversationLines = conversationContextLines ?? boundPromptLines(
+    loadConversationContext(),
+    {
+      tokenBudget: STARTUP_CONVERSATION_PROMPT_TOKEN_BUDGET,
+      maxLines: STARTUP_CONVERSATION_PROMPT_MAX_LINES,
+    },
+  );
+
+  if (resolvedStartupMemoryLines.length === 0 && resolvedConversationLines.length === 0) {
+    return [];
+  }
+
+  return [
+    "MEMORY INJECTION (BOUNDED): recent fail/context lines are included below to reduce repeated mistakes. Treat them as hints; packet, code, and live runtime truth win.",
+    ...resolvedStartupMemoryLines,
+    ...resolvedConversationLines,
+  ];
+}
+
 export function buildStartupPrompt({
   role,
   wpId,
@@ -673,6 +726,8 @@ export function buildStartupPrompt({
   selectedModel,
   selectedProfileId = "",
   selectedProfile = null,
+  startupMemoryLines = null,
+  conversationContextLines = null,
 }) {
   const authorityPacketPath = workPacketPath(wpId);
   const isClaudeCodeProfile = selectedProfile && selectedProfile.provider === "ANTHROPIC";
@@ -717,15 +772,32 @@ export function buildStartupPrompt({
       `WORKFLOW SPLIT (MANDATORY): For \`WORKFLOW_LANE=ORCHESTRATOR_MANAGED\`, you are the mandatory governed pre-launch authoring lane and temporary worker. You must own the heavy pre-launch reasoning, hand back \`ACTIVATION_READINESS\` to the Orchestrator, and then self-close. For \`MANUAL_RELAY\`, pre-launch remains Orchestrator-owned; do not invent a second manual authority lane.`,
       `REFINEMENT STANDARD (HARD): your refinement and spec-enrichment work must match or exceed the old Orchestrator pre-launch quality bar. Own the full research, primitive-index, matrix, appendix, and force-multiplier follow-through instead of treating refinement as a lightweight summary.`,
       `RESEARCH APPLICABILITY RULE (HARD): for internal, repo-governed, or product-governance mirror WPs already grounded in the current Master Spec plus local product/runtime code, prefer local-spec/local-code truth first and mark external research sections NOT_APPLICABLE when honest. Never perform empty, generic, or off-topic web searches just to fill refinement headings.`,
+      `CONVERGENCE RULE (HARD): once you have the core spec/runtime evidence for the assigned WP, switch into updating the named target refinement/spec artifact immediately. Do not broad-scan unrelated .GOV/refinements or .GOV/task_packets for examples. If structure help is genuinely needed, read at most 2 directly analogous artifacts, then write the target artifact.`,
       `STUB DISCOVERY RULE (HARD): when refinement, enrichment, primitive-index upkeep, or matrix expansion exposes new high-ROI items or unknown capabilities, create or update stub backlog entries instead of silently dropping them.`,
       `MODEL PROFILE RULE: Activation Manager launch defaults to the governed repo profile when packet fields are absent because this lane may run before packet hydration is complete.`,
       `COMMAND SURFACE RULE: use the activation-prefixed refinement/signature/packet-prep commands. They intentionally reuse live Orchestrator implementation surfaces; that shared implementation does not change authority ownership.`,
-      `HANDOFF CHUNKING RULE (HARD): when sending refinement or spec-enrichment text back to the Orchestrator, split it into bounded chunks. Safe default: 4 blocks. Never paste the whole refinement in one message.`,
+      `FILE-FIRST HANDOFF RULE (HARD): write the refinement/spec artifact, run the checks on that file, and return only the file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text by default.`,
+      `REFINEMENT_HANDOFF_SUMMARY (HARD): include REFINEMENT_PATH, REFINEMENT_CHECK, ENRICHMENT_NEEDED, NEW_STUBS_CREATED_OR_UPDATED, NEW_FEATURES_OR_CAPABILITIES_DISCOVERED, MAJOR_TECH_UPGRADE_ADVICE, REVIEW_FOCUS, and NEXT_ORCHESTRATOR_ACTION.`,
+      `REFINEMENT_CHECK RULE (HARD): REFINEMENT_CHECK must come from the real refinement checker on the written file. Placeholder scans, ASCII-only scans, and diff sanity checks do not count as pass truth by themselves.`,
+      `UPGRADE DISCIPLINE (HARD): only surface MAJOR_TECH_UPGRADE_ADVICE when the refinement found a material implementation upgrade with clear ROI. Do not recommend replacing entrenched integrated technologies or techniques for marginal gains.`,
+      `EXCERPT FALLBACK RULE (HARD): only if the Orchestrator explicitly requests sections or anchors should you paste excerpts back, and then only in bounded chunks. Safe default: 4 blocks.`,
       `SIGNATURE ROUND-TRIP (MANDATORY): once the refinement/spec bundle is review-ready, stop and ask the Orchestrator for operator approval evidence, the one-time signature, and the selected Coder-A..Z owner. After the Orchestrator returns that bundle, continue packet, microtask, worktree, backup, and readiness work.`,
       `PRIMARY ARTIFACT (MANDATORY): before asking the Orchestrator to continue, write or refresh \`just activation-manager readiness ${wpId} --write\` and treat the resulting \`ACTIVATION_READINESS\` block as the handoff truth.`,
       `REPAIR LOOP (MANDATORY): if the Orchestrator patches a governance bug or rejects readiness, apply only the bounded remediation requested. If the Orchestrator relaunches you fresh, accept the fresh session instead of forcing stale-context continuation.`,
       `HARD BOUNDARIES: no product code edits; no coder or validator launch or steering; no operator-approval authority; no final workflow-status truth promotion.`,
       `MANUAL-LANE GUARD: if the active workflow is manual, keep pre-launch work under the Orchestrator and use this role only when explicitly assigned for bounded repair/reference work.`,
+    ];
+  } else if (role === "MEMORY_MANAGER") {
+    roleLines = [
+      `AFTER STARTUP: Wait for Orchestrator instruction. Do not invent governance work outside the current memory-hygiene session scope.`,
+      `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      `FOCUS: governance memory hygiene only — report review, DB inspection, stale/contradictory memory judgment, and orchestrator-facing proposal/flag drafting.`,
+      `SYNTHETIC-WP RULE: ${wpId} is a synthetic packetless governed lane. Do not expect an official packet or packet-derived runtime projection. Use the hygiene report, proposal backup files, and the synthetic WP communication ledger as the live truth surface.`,
+      `RECEIPT EMISSION (MANDATORY): when you create an orchestrator-facing proposal, flag, or RGF candidate, emit the matching governed receipt and keep the markdown backup file in \`.GOV/roles/memory_manager/proposals/\`. Commands: \`just memory-manager-proposal ${wpId} <your-session> "<summary>" "<backup_ref>"\`, \`just memory-manager-flag-receipt ${wpId} <your-session> "<summary>" "<backup_ref>"\`, \`just memory-manager-rgf-candidate ${wpId} <your-session> "<summary>" "<backup_ref>"\`.`,
+      `RECEIPT DISCIPLINE: the receipt summary must match the actual backup artifact you wrote. Use the backup file path as \`backup_ref\`; do not emit MEMORY_* receipts without the corresponding report/proposal evidence unless no file is honestly needed.`,
+      `CLOSEOUT DISCIPLINE: when the review work is actually complete, run \`just repomem close "<session summary>" --decisions "<key decisions without shell metacharacter tricks>"\` before stopping. Completion for this lane is signaled by the governed \`SESSION_COMPLETION\` notification after your turn settles; explicit ACP \`CLOSE_SESSION\` remains orchestrator-owned.`,
+      `ORCHESTRATOR VISIBILITY: MEMORY_* receipts route to ORCHESTRATOR through the synthetic WP communication lane. Use \`just check-notifications ${wpId} MEMORY_MANAGER <your-session>\` only if the Orchestrator later targets this role with follow-up guidance.`,
+      `BOUNDARIES: do not edit protocols, codex, AGENTS.md, product code, or the governance task board directly.`,
     ];
   } else if (role === "CODER") {
     const startupMeshCommand = buildPhaseCheckCommand({
@@ -817,10 +889,12 @@ export function buildStartupPrompt({
     ];
   }
 
-  // Memory is written to the governance DB during orchestrator work (repomem).
-  // Coder/validator sessions do not need memory injection — they have the packet,
-  // refinement, and governed startup commands. Injecting memory bloats the prompt
-  // past the Windows cmd.exe 8191-char command-line limit.
+  const startupInjectionLines = buildStartupInjectionLines({
+    role,
+    wpId,
+    startupMemoryLines,
+    conversationContextLines,
+  });
 
   const startupCommands = [
     roleConfig.startupCommand,
@@ -836,13 +910,27 @@ export function buildStartupPrompt({
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
   ];
 
-  return [...commonLines, ...roleLines, ...bootLines].join("\n");
+  return [...commonLines, ...roleLines, ...startupInjectionLines, ...bootLines].join("\n");
 }
 
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   const resolvedRoleConfig = roleConfig || resolveRoleConfig(role, wpId);
   if (!resolvedRoleConfig) {
     throw new Error(`Unknown role for steering prompt: ${role}`);
+  }
+  if (role === "MEMORY_MANAGER") {
+    return [
+      `RESUME GOVERNED ${role} lane for ${wpId}.`,
+      `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      `Use gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md + .GOV/roles/memory_manager/proposals/ + synthetic WP communication files under WP_COMMUNICATIONS/${wpId} as the live truth surface. There is no official packet for this lane.`,
+      `Run in order:`,
+      `1. ${resolvedRoleConfig.nextCommand}`,
+      `2. Inspect any existing backup proposal files before drafting new MEMORY_* receipts so you do not duplicate findings.`,
+      `3. Emit only the single next truthful MEMORY_PROPOSAL / MEMORY_FLAG / MEMORY_RGF_CANDIDATE receipt(s) backed by real written evidence.`,
+      `4. If this steer completes the review, run \`just repomem close "<session summary>" --decisions "<key decisions>"\` and then stop. The governed control lane will emit \`SESSION_COMPLETION\` when the turn settles; do not invent your own session-retirement mechanism.`,
+      `Report only maintenance findings, emitted receipt kinds, blockers, and next required command(s).`,
+      `Do not request routine Operator approval or treat this like a packet-based implementation lane.`,
+    ].join("\n");
   }
   const orderedCommands = role === "ACTIVATION_MANAGER"
     ? [
@@ -874,10 +962,25 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       ? `WORKFLOW SPLIT (MANDATORY): in orchestrator-managed workflow you are the mandatory temporary pre-launch worker and governed pre-launch authoring lane; in manual workflow, pre-launch remains Orchestrator-owned. Do not convert this role into a second manual authority lane.`
       : null,
     role === "ACTIVATION_MANAGER"
-      ? `HANDOFF CHUNKING RULE (HARD): return long refinement or spec-enrichment text to the Orchestrator in bounded chunks. Safe default: 4 blocks; never one oversized paste.`
+      ? `FILE-FIRST HANDOFF RULE (HARD): return the written refinement/spec file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text unless the Orchestrator explicitly requests excerpts.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `REFINEMENT_HANDOFF_SUMMARY (HARD): include REFINEMENT_PATH, REFINEMENT_CHECK, ENRICHMENT_NEEDED, NEW_STUBS_CREATED_OR_UPDATED, NEW_FEATURES_OR_CAPABILITIES_DISCOVERED, MAJOR_TECH_UPGRADE_ADVICE, REVIEW_FOCUS, and NEXT_ORCHESTRATOR_ACTION.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `REFINEMENT_CHECK RULE (HARD): REFINEMENT_CHECK must come from the real refinement checker on the written file. Placeholder scans, ASCII-only scans, and diff sanity checks do not count as pass truth by themselves.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `UPGRADE DISCIPLINE (HARD): report MAJOR_TECH_UPGRADE_ADVICE only when the refinement found a material implementation upgrade with clear ROI. Do not recommend replacing entrenched integrated technologies or techniques for marginal gains.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `EXCERPT FALLBACK RULE (HARD): if excerpts are explicitly requested, return only the requested sections or anchors in bounded chunks. Safe default: 4 blocks.`
       : null,
     role === "ACTIVATION_MANAGER"
       ? `RESEARCH APPLICABILITY RULE (HARD): when the WP is an internal or product-governance mirror change already anchored in current spec plus local code/runtime truth, keep research local-first and mark external research NOT_APPLICABLE if that is the honest answer. Do not wander into off-topic web searches.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `CONVERGENCE RULE (HARD): after you have enough local evidence for the assigned WP, update the named target refinement/spec artifact immediately. Do not broad-scan unrelated .GOV/refinements or .GOV/task_packets for examples; if structure help is truly needed, inspect at most 2 directly analogous artifacts, then write the target artifact.`
       : null,
     role === "ACTIVATION_MANAGER"
       ? `REPAIR LOOP (MANDATORY): if the Orchestrator patched governance or rejected readiness, perform only the bounded repair requested, or stop cleanly for fresh-session relaunch.`

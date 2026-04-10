@@ -36,6 +36,7 @@ import {
   runGitInRepo,
   runGitInherit,
 } from "./git-topology-lib.mjs";
+import { ensureGovKernelTracksGov } from "./reseed-permanent-worktree-from-main.mjs";
 import { GOV_ROOT_ABS } from "../lib/runtime-paths.mjs";
 import { registerFailCaptureHook, captureFailure } from "../lib/fail-capture-lib.mjs";
 
@@ -102,11 +103,14 @@ const iljaAbs = absFromRepo(ILJA_SPEC.rel_path);
   const branch = currentBranchInRepo(govKernelAbs);
   if (branch !== "gov_kernel") fail(`wt-gov-kernel is on branch '${branch}', expected 'gov_kernel'`);
 
+  ensureGovKernelTracksGov(govKernelAbs);
+
   // Stage all governance changes in wt-gov-kernel:
-  //   1. git add -f .GOV/ — catches new files hidden by .git/info/exclude
+  //   1. normalize local .GOV suppression so wt-gov-kernel tracks new governance files
+  //   2. git add .GOV/ — stages new and modified governance files normally
   //   2. git add -u — catches tracked modifications (justfile, etc.)
   // wt-gov-kernel is governance-only, so all dirty files are governance files.
-  try { runGitInRepo(govKernelAbs, ["add", "-f", ".GOV/"]); } catch { /* no new .GOV/ files */ }
+  try { runGitInRepo(govKernelAbs, ["add", ".GOV/"]); } catch { /* no new .GOV/ files */ }
   try { runGitInRepo(govKernelAbs, ["add", "-u"]); } catch { /* no tracked modifications */ }
 
   // Check what's actually staged

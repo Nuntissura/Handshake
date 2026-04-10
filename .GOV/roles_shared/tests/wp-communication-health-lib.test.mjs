@@ -835,13 +835,21 @@ test("overlap microtask review requests do not block coder progression while bac
   });
 
   const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
   assert.equal(evaluation.state, "COMM_WAITING_FOR_HANDOFF");
   assert.equal(evaluation.counts.overlapOpenReviewItems, 1);
   assert.equal(evaluation.counts.blockingOpenReviewItems, 0);
+  assert.equal(route.nextExpectedActor, "WP_VALIDATOR");
+  assert.equal(route.waitingOn, "WP_VALIDATOR_MICROTASK_REVIEW");
+  assert.equal(route.validatorTrigger, "MICROTASK_REVIEW_READY");
 });
 
 test("overlap microtask review backlog becomes blocking once the bounded queue is exceeded", () => {
-  const overlapItems = ["micro-1", "micro-2", "micro-3"].map((id, index) => ({
+  const overlapItems = ["micro-1", "micro-2"].map((id, index) => ({
     correlation_id: id,
     receipt_kind: "REVIEW_REQUEST",
     summary: `Review ${id}`,
@@ -926,7 +934,7 @@ test("overlap microtask review backlog becomes blocking once the bounded queue i
 
   assert.equal(evaluation.state, "COMM_BLOCKED_OPEN_ITEMS");
   assert.match(evaluation.message, /bounded validator queue/i);
-  assert.match(evaluation.details.join("\n"), /overlap_backpressure_limit=2/);
+  assert.match(evaluation.details.join("\n"), /overlap_backpressure_limit=1/);
   assert.equal(route.nextExpectedActor, "WP_VALIDATOR");
 });
 
@@ -2115,6 +2123,72 @@ test("boundary check fails when the next actor still has unread direct-review no
   assert.equal(statusEvaluation.state, "COMM_WAITING_FOR_REVIEW");
   assert.equal(boundary.ok, false);
   assert.match(boundary.issues.join("\n"), /Pending notifications for WP_VALIDATOR:wpv-1 must be acknowledged before HANDOFF can pass/);
+});
+
+test("boundary check accepts runtime-projected validator session after watchdog steering receipts", () => {
+  const input = baseInput({
+    packetContent: contractHeavyPacketFixture(),
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Implementation order drafted.",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "STEERING",
+        actor_role: "ORCHESTRATOR",
+        actor_session: "ORCHESTRATOR_WATCHDOG",
+        target_role: null,
+        target_session: null,
+        correlation_id: null,
+        ack_for: null,
+        summary: "RELAY_WATCHDOG | target=WP_VALIDATOR:wpv-1 | decision=STEER",
+        timestamp_utc: "2026-03-22T10:02:30Z",
+      },
+    ],
+    runtimeStatus: {
+      wp_validator_of_record: "<unassigned>",
+      active_role_sessions: [],
+      next_expected_actor: "WP_VALIDATOR",
+      next_expected_session: "wpv-1",
+      waiting_on: "WP_VALIDATOR_INTENT_CHECKPOINT",
+      waiting_on_session: "wpv-1",
+      validator_trigger: "BLOCKED_NEEDS_VALIDATOR",
+      validator_trigger_reason: "Coder intent recorded; WP validator must clear bootstrap/skeleton intent review before implementation or full handoff",
+      ready_for_validation: true,
+      ready_for_validation_reason: "Coder intent recorded; WP validator must clear bootstrap/skeleton intent review before implementation or full handoff",
+      attention_required: false,
+    },
+  });
+
+  const statusEvaluation = evaluateWpCommunicationHealth(input);
+  const boundary = evaluateWpCommunicationBoundary({
+    stage: "STATUS",
+    statusEvaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+    pendingNotifications: [],
+  });
+
+  assert.equal(statusEvaluation.state, "COMM_WAITING_FOR_INTENT_CHECKPOINT");
+  assert.equal(boundary.ok, true, JSON.stringify(boundary, null, 2));
+  assert.equal(boundary.autoRoute?.nextExpectedSession, "wpv-1");
 });
 
 test("health check rejects mixed-session review pairs even when correlations match", () => {

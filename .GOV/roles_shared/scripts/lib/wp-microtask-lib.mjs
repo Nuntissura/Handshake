@@ -176,9 +176,9 @@ function statePriority(state = "") {
   }
 }
 
-function executionCompleteState(state = "") {
+function reviewBoundaryState(state = "") {
   const normalized = String(state || "").trim().toUpperCase();
-  return normalized === "CLEARED" || normalized === "IN_REVIEW";
+  return normalized === "CLEARED" || normalized === "IN_REVIEW" || normalized === "REPAIR_REQUIRED";
 }
 
 function normalizeReviewMode(value = "") {
@@ -210,13 +210,25 @@ function findFirstItemByState(items = [], expectedState = "") {
   return items.find((entry) => String(entry?.state || "").trim().toUpperCase() === normalized) || null;
 }
 
+function findMostRecentItemByState(items = [], expectedState = "") {
+  const normalized = String(expectedState || "").trim().toUpperCase();
+  const matches = items
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => String(entry?.state || "").trim().toUpperCase() === normalized)
+    .sort((left, right) =>
+      String(right.entry?.last_activity_at || "").localeCompare(String(left.entry?.last_activity_at || ""))
+      || right.index - left.index
+    );
+  return matches[0]?.entry || null;
+}
+
 function deriveActiveExecutionMicrotask(items = []) {
-  return findFirstItemByState(items, "REPAIR_REQUIRED")
-    || findFirstItemByState(items, "ACTIVE")
+  return findMostRecentItemByState(items, "ACTIVE")
     || items.find((entry) =>
       String(entry?.state || "").trim().toUpperCase() === "IN_REVIEW"
       && normalizeReviewMode(entry?.review_mode) !== "OVERLAP"
     )
+    || findFirstItemByState(items, "REPAIR_REQUIRED")
     || findFirstItemByState(items, "DECLARED")
     || null;
 }
@@ -228,13 +240,13 @@ function derivePreviousExecutionMicrotask(items = [], activeMicrotask = null) {
     const activeIndex = items.findIndex((entry) => entry.mt_id === activeMicrotask.mt_id);
     if (activeIndex > 0) {
       const previous = items[activeIndex - 1];
-      return executionCompleteState(previous?.state) ? previous : null;
+      return reviewBoundaryState(previous?.state) ? previous : null;
     }
     return null;
   }
 
   const reversed = [...items].reverse();
-  return reversed.find((entry) => executionCompleteState(entry?.state)) || null;
+  return reversed.find((entry) => reviewBoundaryState(entry?.state)) || null;
 }
 
 export function deriveWpMicrotaskPlan({
@@ -316,7 +328,14 @@ export function deriveWpMicrotaskPlan({
   const previousMicrotask = derivePreviousExecutionMicrotask(items, activeMicrotask);
 
   let suggestedNextMicrotask = null;
-  if (activeMicrotask && ["ACTIVE", "DECLARED"].includes(activeMicrotask.state)) {
+  const deferredRepairMicrotask = activeMicrotask?.mt_id
+    ? items
+      .slice(0, items.findIndex((entry) => entry.mt_id === activeMicrotask.mt_id))
+      .find((entry) => entry.state === "REPAIR_REQUIRED") || null
+    : null;
+  if (deferredRepairMicrotask) {
+    suggestedNextMicrotask = deferredRepairMicrotask;
+  } else if (activeMicrotask && ["ACTIVE", "DECLARED"].includes(activeMicrotask.state)) {
     const activeIndex = items.findIndex((entry) => entry.mt_id === activeMicrotask.mt_id);
     suggestedNextMicrotask = items.slice(activeIndex + 1).find((entry) => entry.state === "DECLARED") || null;
   }
