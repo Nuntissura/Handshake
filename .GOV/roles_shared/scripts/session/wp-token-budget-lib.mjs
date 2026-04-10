@@ -31,9 +31,12 @@ function worseStatus(left, right) {
 function evaluateBudgetSlice(label, totals = {}, budget = {}) {
   const turnCount = normalizeCount(totals.turn_count);
   const inputTokens = normalizeCount(totals?.usage_totals?.input_tokens);
+  const cachedInputTokens = normalizeCount(totals?.usage_totals?.cached_input_tokens);
+  const freshInputTokens = Math.max(0, inputTokens - cachedInputTokens);
   const turnStatus = metricStatus(turnCount, budget.warn_turn_count, budget.fail_turn_count);
-  const inputStatus = metricStatus(inputTokens, budget.warn_input_tokens, budget.fail_input_tokens);
-  const status = worseStatus(turnStatus, inputStatus);
+  const freshInputStatus = metricStatus(freshInputTokens, budget.warn_input_tokens, budget.fail_input_tokens);
+  const grossInputStatus = metricStatus(inputTokens, budget.warn_input_tokens, budget.fail_input_tokens);
+  const status = worseStatus(turnStatus, freshInputStatus);
   const warnings = [];
   const failures = [];
 
@@ -43,10 +46,20 @@ function evaluateBudgetSlice(label, totals = {}, budget = {}) {
     failures.push(`${label} turn_count ${turnCount} exceeded fail budget ${normalizeCount(budget.fail_turn_count)}`);
   }
 
-  if (inputStatus === "WARN") {
-    warnings.push(`${label} input_tokens ${inputTokens} exceeded warn budget ${normalizeCount(budget.warn_input_tokens)}`);
-  } else if (inputStatus === "FAIL") {
-    failures.push(`${label} input_tokens ${inputTokens} exceeded fail budget ${normalizeCount(budget.fail_input_tokens)}`);
+  if (freshInputStatus === "WARN") {
+    warnings.push(
+      `${label} fresh_input_tokens ${freshInputTokens} exceeded warn budget ${normalizeCount(budget.warn_input_tokens)}`,
+    );
+  } else if (freshInputStatus === "FAIL") {
+    failures.push(
+      `${label} fresh_input_tokens ${freshInputTokens} exceeded fail budget ${normalizeCount(budget.fail_input_tokens)}`,
+    );
+  }
+
+  if (grossInputStatus === "WARN" || grossInputStatus === "FAIL") {
+    warnings.push(
+      `${label} gross_input_tokens ${inputTokens} exceeded telemetry threshold ${grossInputStatus === "FAIL" ? normalizeCount(budget.fail_input_tokens) : normalizeCount(budget.warn_input_tokens)} with cached_input_tokens ${cachedInputTokens}`,
+    );
   }
 
   return {
@@ -54,6 +67,8 @@ function evaluateBudgetSlice(label, totals = {}, budget = {}) {
     status,
     turn_count: turnCount,
     input_tokens: inputTokens,
+    cached_input_tokens: cachedInputTokens,
+    fresh_input_tokens: freshInputTokens,
     budgets: {
       warn_turn_count: normalizeCount(budget.warn_turn_count),
       fail_turn_count: normalizeCount(budget.fail_turn_count),
@@ -109,9 +124,11 @@ export function evaluateWpTokenBudget(ledger = {}) {
     failures,
     summary:
       status === "FAIL"
-        ? "WP turn/token spend exceeded the governed fail budget and requires lane repair before more orchestrator-managed work continues."
+        ? "WP turn/fresh-input spend exceeded the governed fail budget and requires lane repair before more orchestrator-managed work continues."
         : status === "WARN"
-          ? "WP turn/token spend exceeded the governed warning budget and should be compacted before further ambiguity-driven retries."
-          : "WP turn/token spend is within the governed budget envelope.",
+          ? "WP turn/fresh-input spend exceeded the governed warning budget and should be compacted before further ambiguity-driven retries."
+          : warnings.length > 0
+            ? "WP fresh-input spend is within the governed budget envelope, but gross cached replay has crossed telemetry thresholds and should be watched for compaction."
+            : "WP fresh-input spend is within the governed budget envelope.",
   };
 }

@@ -47,6 +47,7 @@ export function deriveRelayWatchdogDecision({
   relayStatus = null,
   activeRuns = [],
   stallScanStatus = "UNKNOWN",
+  outputFreshnessStatus = "UNKNOWN",
   allowWatchSteer = true,
 } = {}) {
   const cycleBudget = relayEscalationCycleBudget(relayStatus);
@@ -79,7 +80,20 @@ export function deriveRelayWatchdogDecision({
 
   const activeRunCount = Array.isArray(activeRuns) ? activeRuns.length : 0;
   if (activeRunCount > 0) {
+    const freshnessStatus = String(outputFreshnessStatus || "").trim().toUpperCase();
     if (String(stallScanStatus || "").trim().toUpperCase() === "STALL") {
+      if (["FRESH", "RECENT"].includes(freshnessStatus)) {
+        return {
+          action: "WAIT_ACTIVE_RUN",
+          reason: "OUTPUT_PROGRESS_RECENT",
+          shouldSteer: false,
+          cycleAction: "KEEP",
+          currentCycle: cycleBudget.currentCycle,
+          nextCycle: cycleBudget.currentCycle,
+          maxCycle: cycleBudget.maxCycle,
+          limitReached: false,
+        };
+      }
       return {
         action: "REPORT_STALLED_ACTIVE_RUN",
         reason: relayStatus.reason_code || "ACTIVE_RUN_STALLED",
@@ -147,6 +161,7 @@ export function buildRelayWatchdogSummary({
   decision = null,
   activeRuns = [],
   stallScanStatus = "UNKNOWN",
+  outputFreshnessStatus = "UNKNOWN",
 } = {}) {
   const targetRole = normalizeRole(relayStatus?.target_role) || "NONE";
   const targetSession = normalizeSession(relayStatus?.target_session);
@@ -170,6 +185,7 @@ export function buildRelayWatchdogSummary({
     `limit_reached=${decision?.limitReached ? "YES" : "NO"}`,
     `active_runs=${Array.isArray(activeRuns) ? activeRuns.length : 0}`,
     `stall_scan=${String(stallScanStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
+    `output_freshness=${String(outputFreshnessStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
   ];
   return parts.join(" | ");
 }

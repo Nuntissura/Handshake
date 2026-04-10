@@ -21,6 +21,7 @@ import { sanitizeSessionKey } from "./session-control-lib.mjs";
 
 const PREFIX = "[STALL_SCAN]";
 const TAIL_LINES = 50;
+const OUTPUT_PROGRESS_GRACE_SECONDS = 180;
 
 // --- CLI args ---
 const role = String(process.argv[2] || "").trim().toUpperCase();
@@ -64,6 +65,7 @@ if (jsonlFiles.length === 0) {
 }
 
 const latestFile = jsonlFiles[0].abs;
+const latestFileMtimeMs = jsonlFiles[0].mtime;
 
 // --- Read tail of file ---
 function readTailLines(filePath, count) {
@@ -163,6 +165,14 @@ if (!stallType) {
 }
 
 // --- Output ---
+const latestFileIdleSeconds = Math.max(0, Math.trunc((Date.now() - latestFileMtimeMs) / 1000));
+if (stallType === "STALL_NO_PROGRESS" && latestFileIdleSeconds <= OUTPUT_PROGRESS_GRACE_SECONDS) {
+  console.log(
+    `${PREFIX} OK: recent output progress (${latestFileIdleSeconds}s <= ${OUTPUT_PROGRESS_GRACE_SECONDS}s) suppresses STALL_NO_PROGRESS for ${role}:${wpId}`,
+  );
+  process.exit(0);
+}
+
 if (stallType) {
   console.log(`${PREFIX} STALL DETECTED: ${stallType} for ${role}:${wpId}`);
   process.exit(1);

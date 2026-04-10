@@ -237,3 +237,60 @@ test("settleWpTokenUsageLedger backfills tracked commands from raw output and re
   assert.equal(settled.ledger.summary.command_count, 2);
   assert.equal(settled.ledger.tracked_summary.command_count, 2);
 }));
+
+test("readWpTokenUsageLedger reconciles missing tracked commands from session control results", async () => withTempRepo(async (repoRoot) => {
+  const runtimeRoot = path.join(repoRoot, "gov_runtime");
+  const { syncWpTokenUsageLedger, readWpTokenUsageLedger, repairWpTokenUsageLedger } = await loadTokenLib(runtimeRoot);
+  const coderOutput = path.join(runtimeRoot, "roles_shared", "SESSION_CONTROL_OUTPUTS", "CODER_WP-TEST-v1", "cmd-coder.jsonl");
+  const validatorOutput = path.join(runtimeRoot, "roles_shared", "SESSION_CONTROL_OUTPUTS", "WP_VALIDATOR_WP-TEST-v1", "cmd-wpval.jsonl");
+  const resultsFile = path.join(runtimeRoot, "roles_shared", "SESSION_CONTROL_RESULTS.jsonl");
+  fs.mkdirSync(path.dirname(coderOutput), { recursive: true });
+  fs.mkdirSync(path.dirname(validatorOutput), { recursive: true });
+  fs.mkdirSync(path.dirname(resultsFile), { recursive: true });
+  fs.writeFileSync(coderOutput, `${JSON.stringify({ timestamp: "2026-03-29T10:00:01Z", type: "turn.completed", usage: { input_tokens: 100, cached_input_tokens: 40, output_tokens: 12 } })}\n`, "utf8");
+  fs.writeFileSync(validatorOutput, `${JSON.stringify({ timestamp: "2026-03-29T10:05:01Z", type: "turn.completed", usage: { input_tokens: 80, cached_input_tokens: 10, output_tokens: 9 } })}\n`, "utf8");
+
+  await withRuntimeRoot(runtimeRoot, () => syncWpTokenUsageLedger(repoRoot, {
+    command_id: "cmd-coder",
+    command_kind: "SEND_PROMPT",
+    session_key: "CODER:WP-TEST-v1",
+    wp_id: "WP-TEST-v1",
+    role: "CODER",
+    status: "COMPLETED",
+    processed_at: "2026-03-29T10:00:05Z",
+    output_jsonl_file: path.relative(repoRoot, coderOutput),
+  }));
+
+  fs.writeFileSync(resultsFile, [
+    JSON.stringify({
+      command_id: "cmd-coder",
+      command_kind: "SEND_PROMPT",
+      wp_id: "WP-TEST-v1",
+      role: "CODER",
+      status: "COMPLETED",
+      processed_at: "2026-03-29T10:00:05Z",
+      session_key: "CODER:WP-TEST-v1",
+      thread_id: "thread-coder",
+      output_jsonl_file: path.relative(repoRoot, coderOutput).replace(/\\/g, "/"),
+    }),
+    JSON.stringify({
+      command_id: "cmd-wpval",
+      command_kind: "SEND_PROMPT",
+      wp_id: "WP-TEST-v1",
+      role: "WP_VALIDATOR",
+      status: "COMPLETED",
+      processed_at: "2026-03-29T10:05:05Z",
+      session_key: "WP_VALIDATOR:WP-TEST-v1",
+      thread_id: "thread-wpval",
+      output_jsonl_file: path.relative(repoRoot, validatorOutput).replace(/\\/g, "/"),
+    }),
+  ].join("\n") + "\n", "utf8");
+
+  const beforeRepair = await withRuntimeRoot(runtimeRoot, () => readWpTokenUsageLedger(repoRoot, "WP-TEST-v1"));
+  assert.equal(beforeRepair.ledger.tracked_summary.command_count, 2);
+  assert.equal(beforeRepair.ledger.ledger_health.status, "MATCH");
+
+  const repaired = await withRuntimeRoot(runtimeRoot, () => repairWpTokenUsageLedger(repoRoot, "WP-TEST-v1"));
+  assert.equal(repaired.ledger.tracked_summary.command_count, 2);
+  assert.equal(repaired.ledger.ledger_health.status, "MATCH");
+}));
