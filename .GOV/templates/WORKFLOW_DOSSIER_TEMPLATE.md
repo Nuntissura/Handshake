@@ -47,7 +47,7 @@ Formatting rule for `LIVE_IDLE_LEDGER`:
 
 - keep it mechanical and compact; prefer one append-only line per sync
 - report latency and drift as short ledgers, not prose
-- include request-to-response timing, validator-pass-to-coder timing, current/max idle gaps, and drift markers such as duplicate receipts or unresolved control rows
+- include request-to-response timing, validator-pass-to-coder timing, current/max idle gaps, wall-clock attribution buckets (active build, validator wait, route wait, dependency wait, human wait, repair overhead), queue-pressure counts, and drift markers such as duplicate receipts or unresolved control rows
 
 ## Required Mechanical Evidence Sections
 

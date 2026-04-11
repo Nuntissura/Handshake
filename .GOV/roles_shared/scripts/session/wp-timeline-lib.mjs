@@ -642,6 +642,8 @@ export function buildWpTimelineSummary({
   notifications = [],
   controlRequests = [],
   controlResults = [],
+  laneVerdict = null,
+  pendingNotificationCount = null,
   tokenLedger = {},
   entries = [],
   spans = [],
@@ -672,6 +674,17 @@ export function buildWpTimelineSummary({
     workflowLane,
     spans,
     tokenLedger,
+  });
+  const idleMetrics = buildWorkflowDossierIdleMetrics({
+    entries,
+    spans,
+    receipts,
+    notifications,
+    controlRequests,
+    controlResults,
+    runtimeStatus,
+    laneVerdict,
+    pendingNotificationCount,
   });
 
   return {
@@ -716,6 +729,8 @@ export function buildWpTimelineSummary({
     budget_status: tokenBudget.status,
     budget_summary: tokenBudget.summary,
     relay_policy: relayPolicy,
+    downtime_attribution: idleMetrics.downtime_attribution,
+    queue_pressure: idleMetrics.queue_pressure,
     cost_estimate: null,
     cost_estimate_note: "unavailable_without_pricing_manifest",
   };
@@ -727,6 +742,76 @@ function summarizeDurations(values = []) {
     count: finiteValues.length,
     latest_ms: finiteValues.length > 0 ? finiteValues.at(-1) : null,
     max_ms: finiteValues.length > 0 ? Math.max(...finiteValues) : null,
+  };
+}
+
+function sumSpanDurations(spans = [], predicate = () => true) {
+  return (Array.isArray(spans) ? spans : []).reduce((total, span) => {
+    if (!predicate(span) || !Number.isFinite(span?.duration_ms)) return total;
+    return total + Number(span.duration_ms);
+  }, 0);
+}
+
+function classifyCurrentWait({
+  runtimeStatus = null,
+  laneVerdict = null,
+  currentIdleMs = null,
+} = {}) {
+  const waitingOn = compactLabel(runtimeStatus?.waiting_on, "");
+  const nextActor = compactLabel(runtimeStatus?.next_expected_actor, "");
+  const verdict = compactLabel(laneVerdict?.verdict, "");
+  const reasonCode = compactLabel(laneVerdict?.reasonCode, "");
+  const combined = [waitingOn, nextActor, verdict, reasonCode].join(" ").toUpperCase();
+
+  let bucket = "UNCLASSIFIED";
+  if (/HUMAN|OPERATOR|APPROVAL|SIGNATURE|MERGE_PUSH/.test(combined)) {
+    bucket = "HUMAN_WAIT";
+  } else if (/DEPENDENCY|BLOCKED|OPEN_REVIEW_ITEM/.test(combined)) {
+    bucket = "DEPENDENCY_WAIT";
+  } else if (/VALIDATOR|FINAL_REVIEW|REVIEW/.test(combined)) {
+    bucket = "VALIDATOR_WAIT";
+  } else if (/REPAIR/.test(combined)) {
+    bucket = "REPAIR_WAIT";
+  } else if (/CODER|HANDOFF|INTENT/.test(combined)) {
+    bucket = "CODER_WAIT";
+  } else if (/ORCHESTRATOR|ROUTE|RELAY|CHECKPOINT|VERDICT|SESSION_CONTROL|STEER/.test(combined)) {
+    bucket = "ROUTE_WAIT";
+  }
+
+  return {
+    bucket,
+    reason: waitingOn || reasonCode || verdict || nextActor || "NONE",
+    duration_ms: Number.isFinite(currentIdleMs) ? currentIdleMs : null,
+  };
+}
+
+function deriveQueuePressure({
+  notifications = [],
+  pendingNotificationCount = null,
+  openReviewCount = 0,
+  unresolvedControlCount = 0,
+  runtimeStatus = null,
+} = {}) {
+  const pendingNotifications = Number.isFinite(Number(pendingNotificationCount))
+    ? Number(pendingNotificationCount)
+    : (Array.isArray(notifications) ? notifications.length : 0);
+  const activeRoleSessionCount = Array.isArray(runtimeStatus?.active_role_sessions)
+    ? runtimeStatus.active_role_sessions.length
+    : 0;
+  const score = pendingNotifications + Number(openReviewCount || 0) + Number(unresolvedControlCount || 0);
+  let level = "LOW";
+  if (pendingNotifications >= 2 || openReviewCount >= 2 || unresolvedControlCount >= 2 || score >= 4) {
+    level = "HIGH";
+  } else if (score >= 2 || activeRoleSessionCount >= 2) {
+    level = "MEDIUM";
+  }
+  return {
+    level,
+    score,
+    pending_notification_count: pendingNotifications,
+    open_review_count: Number(openReviewCount || 0),
+    unresolved_control_count: Number(unresolvedControlCount || 0),
+    active_role_session_count: activeRoleSessionCount,
   };
 }
 
@@ -780,8 +865,12 @@ export function buildWorkflowDossierIdleMetrics({
   entries = [],
   spans = [],
   receipts = [],
+  notifications = [],
   controlRequests = [],
   controlResults = [],
+  runtimeStatus = null,
+  laneVerdict = null,
+  pendingNotificationCount = null,
   now = Date.now(),
   idleThresholdMs = WORKFLOW_DOSSIER_IDLE_THRESHOLD_MS,
 } = {}) {
@@ -829,6 +918,31 @@ export function buildWorkflowDossierIdleMetrics({
     0,
     Number((controlRequests || []).length || 0) - Number((controlResults || []).length || 0),
   );
+  const currentWait = classifyCurrentWait({
+    runtimeStatus,
+    laneVerdict,
+    currentIdleMs,
+  });
+  const measuredActiveBuildMs = sumSpanDurations(spans, (span) =>
+    span?.span_kind === "MICROTASK_EXECUTION" && span?.span_stage !== "REPAIR_LOOP"
+  );
+  const measuredRepairOverheadMs = sumSpanDurations(spans, (span) =>
+    (span?.span_kind === "MICROTASK_EXECUTION" && span?.span_stage === "REPAIR_LOOP")
+    || (span?.span_kind === "CONTROL_COMMAND" && normalizeCommandKind(span?.command_kind) === "CANCEL_SESSION")
+  );
+  const measuredValidatorWaitMs = sumSpanDurations(spans, (span) =>
+    span?.span_kind === "REVIEW_EXCHANGE" && isValidatorRole(span?.target_role)
+  );
+  const measuredRouteWaitMs = sumSpanDurations(spans, (span) =>
+    span?.span_kind === "CONTROL_COMMAND" && span?.span_stage === "RELAY"
+  );
+  const queuePressure = deriveQueuePressure({
+    notifications,
+    pendingNotificationCount,
+    openReviewCount,
+    unresolvedControlCount,
+    runtimeStatus,
+  });
 
   return {
     idle_threshold_ms: idleThresholdMs,
@@ -845,6 +959,18 @@ export function buildWorkflowDossierIdleMetrics({
       ...summarizeDurations(passToCoderDurations),
       waiting_count: validatorPassWaitingCount,
     },
+    downtime_attribution: {
+      active_build_ms: measuredActiveBuildMs,
+      validator_wait_ms: measuredValidatorWaitMs + (currentWait.bucket === "VALIDATOR_WAIT" ? Number(currentIdleMs || 0) : 0),
+      route_wait_ms: measuredRouteWaitMs + (currentWait.bucket === "ROUTE_WAIT" ? Number(currentIdleMs || 0) : 0),
+      dependency_wait_ms: currentWait.bucket === "DEPENDENCY_WAIT" ? Number(currentIdleMs || 0) : 0,
+      human_wait_ms: currentWait.bucket === "HUMAN_WAIT" ? Number(currentIdleMs || 0) : 0,
+      repair_overhead_ms: measuredRepairOverheadMs + (currentWait.bucket === "REPAIR_WAIT" ? Number(currentIdleMs || 0) : 0),
+      coder_wait_ms: currentWait.bucket === "CODER_WAIT" ? Number(currentIdleMs || 0) : 0,
+      unattributed_current_idle_ms: currentWait.bucket === "UNCLASSIFIED" ? Number(currentIdleMs || 0) : 0,
+      current_wait: currentWait,
+    },
+    queue_pressure: queuePressure,
     drift_markers: {
       duplicate_receipt_count: duplicateReceiptCount(receipts),
       open_review_count: openReviewCount,

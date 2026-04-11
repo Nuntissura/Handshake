@@ -83,6 +83,7 @@ These are safe starting points for orientation and health checks.
   - `read-only`
   - print one merged WP timeline plus structured span rows for control commands, token-command windows, review exchanges, and microtask execution windows, together with stage counts, token totals, and budget health
   - the summary now includes `relay_policy`: measured relay prompt burden for the current WP plus the default lane recommendation (`MANUAL_RELAY` unless autonomous steering is explicitly worth the extra prompt tax)
+  - the summary also includes `downtime_attribution` and `queue_pressure`, so wall-clock loss can be split into active build, validator wait, route wait, dependency wait, human wait, repair overhead, and current queue pressure without reading the dossier directly
 - `just wp-token-usage-settle WP-{ID} [REASON] [SETTLED_BY]`
   - `writes-runtime`
   - settle a historical WP token ledger to raw ACP session outputs after the lane is terminal so compact views stop surfacing old drift as live noise

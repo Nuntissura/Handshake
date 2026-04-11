@@ -368,8 +368,12 @@ function runSync(rootDir, options) {
     entries: timelineEntries,
     spans: timelineSpans,
     receipts,
+    notifications,
     controlRequests,
     controlResults,
+    runtimeStatus: runtime,
+    laneVerdict: relayLaneVerdict,
+    pendingNotificationCount: notificationSummary.totalPending,
     now: nowMs,
   });
   const latestMechanicalEvent = latestDate([
@@ -404,10 +408,14 @@ function runSync(rootDir, options) {
     `idle=${formatIdleMinutes(latestMechanicalEvent)}m`,
   ].join(" | ");
   const idleThresholdLabel = formatDurationCompact(idleMetrics.idle_threshold_ms);
+  const currentWait = idleMetrics.downtime_attribution?.current_wait || { bucket: "NONE", duration_ms: null, reason: "NONE" };
   const idleSummary = [
     `review_rtt(last=${formatDurationCompact(idleMetrics.review_response.latest_ms)}|max=${formatDurationCompact(idleMetrics.review_response.max_ms)}|open=${idleMetrics.review_response.open_count})`,
     `pass_to_coder(last=${formatDurationCompact(idleMetrics.validator_pass_to_next_coder_action.latest_ms)}|max=${formatDurationCompact(idleMetrics.validator_pass_to_next_coder_action.max_ms)}|waiting=${idleMetrics.validator_pass_to_next_coder_action.waiting_count})`,
     `idle(current=${formatDurationCompact(idleMetrics.current_idle_ms)}|max_gap=${formatDurationCompact(idleMetrics.max_idle_gap_ms)}|gaps>=${idleThresholdLabel}:${idleMetrics.idle_gap_count})`,
+    `wall_clock(active=${formatDurationCompact(idleMetrics.downtime_attribution.active_build_ms)}|validator=${formatDurationCompact(idleMetrics.downtime_attribution.validator_wait_ms)}|route=${formatDurationCompact(idleMetrics.downtime_attribution.route_wait_ms)}|dependency=${formatDurationCompact(idleMetrics.downtime_attribution.dependency_wait_ms)}|human=${formatDurationCompact(idleMetrics.downtime_attribution.human_wait_ms)}|repair=${formatDurationCompact(idleMetrics.downtime_attribution.repair_overhead_ms)})`,
+    `current_wait(${currentWait.bucket}@${formatDurationCompact(currentWait.duration_ms)}|reason=${currentWait.reason || "NONE"})`,
+    `queue(level=${idleMetrics.queue_pressure.level}|score=${idleMetrics.queue_pressure.score}|pending=${idleMetrics.queue_pressure.pending_notification_count}|open_reviews=${idleMetrics.queue_pressure.open_review_count}|open_control=${idleMetrics.queue_pressure.unresolved_control_count})`,
     `drift(dup_receipts=${idleMetrics.drift_markers.duplicate_receipt_count}|open_reviews=${idleMetrics.drift_markers.open_review_count}|open_control=${idleMetrics.drift_markers.unresolved_control_count})`,
   ].join(" | ");
   const timestamp = formatWorkflowDossierTimestamp(new Date());

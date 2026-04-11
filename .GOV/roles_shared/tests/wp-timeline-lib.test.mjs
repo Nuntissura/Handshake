@@ -158,6 +158,8 @@ test("buildWpTimelineSummary computes counts and event window", () => {
   assert.equal(summary.relay_policy.current_lane, "ORCHESTRATOR_MANAGED");
   assert.equal(summary.relay_policy.default_lane, "MANUAL_RELAY");
   assert.equal(summary.relay_policy.recommended_lane, "MANUAL_RELAY");
+  assert.equal(summary.downtime_attribution.current_wait.bucket, "CODER_WAIT");
+  assert.equal(summary.queue_pressure.level, "LOW");
   assert.equal(summary.cost_estimate, null);
 });
 
@@ -472,4 +474,150 @@ test("buildWorkflowDossierIdleMetrics reports review latency, pass-to-coder dela
   assert.equal(metrics.drift_markers.duplicate_receipt_count, 1);
   assert.equal(metrics.drift_markers.open_review_count, 0);
   assert.equal(metrics.drift_markers.unresolved_control_count, 1);
+});
+
+test("buildWorkflowDossierIdleMetrics attributes wall-clock buckets and queue pressure", () => {
+  const receipts = [
+    {
+      timestamp_utc: "2026-04-05T10:00:00Z",
+      actor_role: "CODER",
+      actor_session: "coder-1",
+      receipt_kind: "CODER_INTENT",
+      correlation_id: "intent-1",
+      summary: "Starting MT-001.",
+      microtask_contract: {
+        scope_ref: "MT-001",
+        phase_gate: "MICROTASK",
+      },
+    },
+    {
+      timestamp_utc: "2026-04-05T10:04:00Z",
+      actor_role: "CODER",
+      actor_session: "coder-1",
+      target_role: "WP_VALIDATOR",
+      target_session: "wpv-1",
+      receipt_kind: "REVIEW_REQUEST",
+      correlation_id: "review-1",
+      summary: "Review MT-001 while I prepare the repair.",
+      microtask_contract: {
+        scope_ref: "MT-001",
+        review_mode: "OVERLAP",
+        phase_gate: "MICROTASK",
+      },
+    },
+    {
+      timestamp_utc: "2026-04-05T10:05:00Z",
+      actor_role: "CODER",
+      actor_session: "coder-1",
+      receipt_kind: "REPAIR",
+      correlation_id: "repair-1",
+      summary: "Repairing MT-001.",
+      microtask_contract: {
+        scope_ref: "MT-001",
+        phase_gate: "MICROTASK",
+      },
+    },
+    {
+      timestamp_utc: "2026-04-05T10:08:00Z",
+      actor_role: "CODER",
+      actor_session: "coder-1",
+      target_role: "WP_VALIDATOR",
+      target_session: "wpv-1",
+      receipt_kind: "CODER_HANDOFF",
+      correlation_id: "handoff-1",
+      summary: "Repair complete. Ready for validator review.",
+      microtask_contract: {
+        scope_ref: "MT-001",
+        phase_gate: "MICROTASK",
+      },
+    },
+    {
+      timestamp_utc: "2026-04-05T10:11:00Z",
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wpv-1",
+      target_role: "CODER",
+      target_session: "coder-1",
+      receipt_kind: "VALIDATOR_REVIEW",
+      correlation_id: "handoff-1",
+      summary: "PASS. Ready for operator approval.",
+      microtask_contract: {
+        review_outcome: "APPROVED_FOR_FINAL_REVIEW",
+      },
+    },
+  ];
+  const controlRequests = [
+    {
+      created_at: "2026-04-05T10:12:00Z",
+      role: "ORCHESTRATOR",
+      command_kind: "SEND_PROMPT",
+      command_id: "cmd-1",
+      summary: "advance route",
+    },
+    {
+      created_at: "2026-04-05T10:14:00Z",
+      role: "WP_VALIDATOR",
+      command_kind: "SEND_PROMPT",
+      command_id: "cmd-open",
+      summary: "pending follow-up",
+    },
+  ];
+  const controlResults = [
+    {
+      processed_at: "2026-04-05T10:13:00Z",
+      role: "ORCHESTRATOR",
+      command_kind: "SEND_PROMPT",
+      command_id: "cmd-1",
+      status: "COMPLETED",
+      summary: "route advanced",
+      duration_ms: 60000,
+    },
+  ];
+  const notifications = [
+    { timestamp_utc: "2026-04-05T10:12:10Z", source_role: "ORCHESTRATOR", target_role: "OPERATOR", summary: "approval needed" },
+    { timestamp_utc: "2026-04-05T10:12:20Z", source_role: "ORCHESTRATOR", target_role: "OPERATOR", summary: "still waiting" },
+  ];
+  const entries = buildWpTimelineEntries({
+    receipts,
+    notifications,
+    controlRequests,
+    controlResults,
+  });
+  const spans = buildWpTimelineSpans({
+    receipts,
+    controlRequests,
+    controlResults,
+  });
+  const metrics = buildWorkflowDossierIdleMetrics({
+    entries,
+    spans,
+    receipts,
+    notifications,
+    controlRequests,
+    controlResults,
+    runtimeStatus: {
+      waiting_on: "OPERATOR_APPROVAL",
+      next_expected_actor: "ORCHESTRATOR",
+      active_role_sessions: [
+        { role: "CODER" },
+        { role: "WP_VALIDATOR" },
+      ],
+    },
+    laneVerdict: {
+      verdict: "WAITING_ON_HUMAN_APPROVAL",
+      reasonCode: "WAITING_ON_HUMAN_APPROVAL",
+    },
+    pendingNotificationCount: 2,
+    now: Date.parse("2026-04-05T10:20:00Z"),
+    idleThresholdMs: 5 * 60 * 1000,
+  });
+
+  assert.equal(metrics.downtime_attribution.active_build_ms, 240000);
+  assert.equal(metrics.downtime_attribution.repair_overhead_ms, 180000);
+  assert.equal(metrics.downtime_attribution.validator_wait_ms, 180000);
+  assert.equal(metrics.downtime_attribution.route_wait_ms, 60000);
+  assert.equal(metrics.downtime_attribution.human_wait_ms, 360000);
+  assert.equal(metrics.downtime_attribution.current_wait.bucket, "HUMAN_WAIT");
+  assert.equal(metrics.queue_pressure.pending_notification_count, 2);
+  assert.equal(metrics.queue_pressure.unresolved_control_count, 1);
+  assert.equal(metrics.queue_pressure.level, "HIGH");
 });
