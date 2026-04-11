@@ -183,6 +183,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
 - `just operator-admin`
 - When a WP filter is supplied, `just session-registry-status` now prints derived relay escalation state.
 - The relay-escalation block also prints the runtime relay-cycle budget, and watchdog observe-only output now prints the worker-interrupt budget, so bounded auto-repair can be inspected without opening the runtime JSON directly.
+- `just wp-relay-watchdog --loop` is service-hardened for long runs: per-WP evaluation failures are surfaced inline, but the watcher continues scanning other WPs and later cycles instead of exiting on the first bad lane.
 - `just active-lane-brief` is the compact authority digest for one governed lane; prefer it over rereading packet/runtime/session surfaces separately.
 - If derived relay escalation is `ESCALATED`, use `just orchestrator-steer-next WP-{ID} "<context>"` instead of waiting silently.
 - Prefer `just wp-relay-watchdog WP-{ID} --observe-only` before waking a lane when you need a mechanical "is this actually stalled?" verdict without disturbing a still-working active run.

@@ -61,6 +61,12 @@ function currentStateForEvaluation(evaluationState, autoRoute = {}, evaluation =
         blockers: "Implementation is in progress; awaiting coder handoff to WP validator.",
         next: "CODER completes in-scope work and records CODER_HANDOFF with proof.",
       };
+    case "COMM_DEFERRED_REPAIR_QUEUE":
+      return {
+        verdict: "PENDING",
+        blockers: "A previous overlap-reviewed microtask failed validator review, but the coder is still finishing the current active microtask before loop-back repair begins.",
+        next: "CODER closes the current active microtask, then repairs the queued failed prior microtask before opening further forward progress or full handoff.",
+      };
     case "COMM_REPAIR_REQUIRED":
       return {
         verdict: "PENDING",
@@ -171,6 +177,7 @@ export function applyWpReviewRuntimeProjection(runtimeStatus, {
       nextRuntime.current_phase = "BOOTSTRAP";
       break;
     case "COMM_WAITING_FOR_HANDOFF":
+    case "COMM_DEFERRED_REPAIR_QUEUE":
     case "COMM_REPAIR_REQUIRED":
       nextRuntime.runtime_status = "working";
       nextRuntime.current_phase = "IMPLEMENTATION";

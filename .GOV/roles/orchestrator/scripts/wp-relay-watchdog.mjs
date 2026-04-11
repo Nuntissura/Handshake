@@ -911,6 +911,29 @@ function evaluateWp(wpId, {
   };
 }
 
+function buildWatchdogErrorResult(wpId, error, { observeOnly = false } = {}) {
+  const reason = error instanceof Error ? error.message : String(error);
+  return {
+    wpId,
+    action: "ERROR",
+    reason,
+    observeOnly,
+    summary: `RELAY_WATCHDOG | wp=${wpId} | decision=ERROR | reason=${reason}`,
+    skipped: true,
+    error: reason,
+    relayStatus: null,
+    decision: null,
+    stallScan: null,
+    outputFreshness: null,
+    activeRuns: [],
+    laneVerdict: null,
+    workerInterruptBudget: null,
+    restartRepair: null,
+    runtimeUpdate: null,
+    repairSignal: { status: "NOT_APPLICABLE", reason: "WATCHDOG_EVALUATION_ERROR" },
+  };
+}
+
 function serializeResult(result) {
   return {
     kind: "RELAY_WATCHDOG_RESULT",
@@ -940,6 +963,9 @@ function printResult(result, { json = false } = {}) {
   console.log(`RELAY_WATCHDOG_RESULT ${result.wpId}`);
   console.log(`- action: ${result.action}`);
   console.log(`- reason: ${result.reason || "<none>"}`);
+  if (result.error) {
+    console.log(`- error: ${result.error}`);
+  }
   if (result.observeOnly) {
     console.log(`- observe_only: YES`);
   }
@@ -1021,16 +1047,27 @@ function runCycle(args) {
   const { registry } = loadSessionRegistry(REPO_ROOT);
   const brokerState = loadBrokerState();
   const wpIds = args.wpId ? [args.wpId] : listManagedPacketIds();
-  const results = wpIds.map((wpId) => evaluateWp(wpId, {
-    registrySessions: registry.sessions || [],
-    brokerState,
-    allowWatchSteer: args.allowWatchSteer,
-    allowRestart: args.allowRestart,
-    observeOnly: args.observeOnly,
-    restartOutputIdleSeconds: args.restartOutputIdleSeconds,
-  }));
+  const results = wpIds.map((wpId) => {
+    try {
+      return evaluateWp(wpId, {
+        registrySessions: registry.sessions || [],
+        brokerState,
+        allowWatchSteer: args.allowWatchSteer,
+        allowRestart: args.allowRestart,
+        observeOnly: args.observeOnly,
+        restartOutputIdleSeconds: args.restartOutputIdleSeconds,
+      });
+    } catch (error) {
+      return buildWatchdogErrorResult(wpId, error, {
+        observeOnly: args.observeOnly,
+      });
+    }
+  });
   for (const result of results) {
     printResult(result, { json: args.json });
+  }
+  if (!args.loop && results.some((result) => result.action === "ERROR")) {
+    throw new Error("one or more work packets failed watchdog evaluation");
   }
   return results;
 }

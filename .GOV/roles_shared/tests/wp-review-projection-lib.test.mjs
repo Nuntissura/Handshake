@@ -146,6 +146,43 @@ test("overlap microtask review projects validator-owned next action while implem
   assert.match(nextPacketText, /WP_VALIDATOR reviews the open overlap microtask item/i);
 });
 
+test("deferred overlap repair keeps the packet in implementation until the current microtask closes", () => {
+  const projection = deriveWpReviewPacketProjection({
+    evaluation: {
+      applicable: true,
+      state: "COMM_DEFERRED_REPAIR_QUEUE",
+    },
+    autoRoute: {
+      nextExpectedActor: "CODER",
+      waitingOn: "CURRENT_MICROTASK_COMPLETION_BEFORE_REPAIR",
+    },
+    packetText: packetFixture("In Progress"),
+  });
+
+  const nextPacketText = applyWpReviewPacketProjection(packetFixture("In Progress"), projection);
+  const runtime = applyWpReviewRuntimeProjection(
+    {
+      current_packet_status: "In Progress",
+      runtime_status: "working",
+      current_phase: "IMPLEMENTATION",
+    },
+    {
+      evaluation: {
+        applicable: true,
+        state: "COMM_DEFERRED_REPAIR_QUEUE",
+      },
+    },
+  );
+
+  assert.equal(projection.packetStatus, "In Progress");
+  assert.equal(projection.taskBoardStatus, "IN_PROGRESS");
+  assert.match(nextPacketText, /previous overlap-reviewed microtask failed validator review/i);
+  assert.match(nextPacketText, /CODER closes the current active microtask, then repairs the queued failed prior microtask/i);
+  assert.equal(runtime.runtime_status, "working");
+  assert.equal(runtime.current_phase, "IMPLEMENTATION");
+  assert.equal(runtime.current_milestone, "MICROTASK");
+});
+
 test("active review projection moves runtime out of stale bootstrap when remediation is required", () => {
   const runtime = applyWpReviewRuntimeProjection(
     {

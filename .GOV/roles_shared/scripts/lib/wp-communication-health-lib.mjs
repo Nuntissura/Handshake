@@ -17,6 +17,7 @@ import {
   parsePacketScopeList,
   parsePacketSingleField,
 } from "./scope-surface-lib.mjs";
+import { deriveWpMicrotaskPlan } from "./wp-microtask-lib.mjs";
 import { validatorReportProfileUsesHeuristicRigor } from "./validator-report-profile-lib.mjs";
 
 export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STARTUP", "STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
@@ -27,6 +28,7 @@ export const COMMUNICATION_MONITOR_STATE_VALUES = [
   "COMM_WAITING_FOR_INTENT",
   "COMM_WAITING_FOR_INTENT_CHECKPOINT",
   "COMM_WAITING_FOR_HANDOFF",
+  "COMM_DEFERRED_REPAIR_QUEUE",
   "COMM_REPAIR_REQUIRED",
   "COMM_WAITING_FOR_REVIEW",
   "COMM_WAITING_FOR_FINAL_REVIEW",
@@ -695,6 +697,12 @@ function buildBaseDetails({
   return lines;
 }
 
+function summarizeMicrotaskState(entry = null) {
+  if (!entry?.mt_id) return null;
+  const state = String(entry?.state || "").trim().toUpperCase() || "UNKNOWN";
+  return `${entry.mt_id}:${state}`;
+}
+
 function result({
   applicable,
   ok,
@@ -799,6 +807,19 @@ export function evaluateWpCommunicationHealth({
     actorRole: "WP_VALIDATOR",
     targetRole: "CODER",
   });
+  const microtaskPlan = deriveWpMicrotaskPlan({
+    wpId,
+    receipts,
+    runtimeStatus,
+  });
+  const activeMicrotask = microtaskPlan?.active_microtask || null;
+  const previousMicrotask = microtaskPlan?.previous_microtask || null;
+  const deferredRepairQueued =
+    String(activeMicrotask?.state || "").trim().toUpperCase() === "ACTIVE"
+    && activeMicrotask?.mt_id
+    && activeMicrotask.mt_id !== previousMicrotask?.mt_id
+    && String(previousMicrotask?.state || "").trim().toUpperCase() === "REPAIR_REQUIRED"
+    && normalizeMicrotaskReviewMode(previousMicrotask?.review_mode) === "OVERLAP";
 
   const kickoffIntentPair = latestOpenReceiptStatus(validatorKickoffs, coderIntents);
   const intentCheckpoint = summarizeIntentCheckpointRequirement({
@@ -851,6 +872,14 @@ export function evaluateWpCommunicationHealth({
     workflowInvalidities,
     validatorAssessmentDuplicatesCollapsed: Number(latestValidatorAssessment?.suppressedDuplicateCount || 0),
   });
+  if (microtaskPlan?.declared_count > 0) {
+    details.push(`declared_microtasks=${microtaskPlan.declared_count}`);
+    if (summarizeMicrotaskState(activeMicrotask)) details.push(`active_microtask=${summarizeMicrotaskState(activeMicrotask)}`);
+    if (summarizeMicrotaskState(previousMicrotask)) details.push(`previous_microtask=${summarizeMicrotaskState(previousMicrotask)}`);
+    if (deferredRepairQueued) {
+      details.push(`deferred_repair_queue=${previousMicrotask.mt_id}->after:${activeMicrotask.mt_id}`);
+    }
+  }
   const counts = {
     workflowInvalidities: workflowInvalidities.length,
     validatorKickoffs: validatorKickoffs.length,
@@ -862,12 +891,14 @@ export function evaluateWpCommunicationHealth({
     openReviewItems: openReviewItems.length,
     blockingOpenReviewItems: openReviewPartition.blockingQueue.length,
     overlapOpenReviewItems: openReviewPartition.overlapQueue.length,
+    deferredRepairQueued: deferredRepairQueued ? 1 : 0,
     validatorAssessmentDuplicatesCollapsed: Number(latestValidatorAssessment?.suppressedDuplicateCount || 0),
   };
   const correlations = {
     kickoff: kickoffIntentPair.openReceipt?.correlation_id || null,
     handoff: handoffReviewPair.openReceipt?.correlation_id || null,
     finalReview: integrationFinalPair.openReceipt?.correlation_id || null,
+    microtaskRepair: deferredRepairQueued ? (previousMicrotask?.correlation_id || null) : null,
   };
   if (normalizedStage === "STARTUP") {
     const startupRole = normalizeRole(actorRole);
@@ -1042,6 +1073,23 @@ export function evaluateWpCommunicationHealth({
         latestWpValidatorReviewOutcome,
       });
     }
+    if (deferredRepairQueued) {
+      return result({
+        applicable: true,
+        ok: false,
+        state: "COMM_DEFERRED_REPAIR_QUEUE",
+        message: "WP validator repair debt is queued on a previous overlap microtask while coder finishes the current active microtask",
+        details: [
+          ...details,
+          `deferred_repair_microtask=${previousMicrotask?.mt_id || "<missing>"}`,
+          `active_execution_microtask=${activeMicrotask?.mt_id || "<missing>"}`,
+        ],
+        counts,
+        correlations,
+        latestValidatorAssessment,
+        latestWpValidatorReviewOutcome,
+      });
+    }
     if (coderHandoffs.length === 0) {
       return result({
         applicable: true,
@@ -1171,8 +1219,26 @@ export function evaluateWpCommunicationHealth({
         counts,
         correlations,
         latestValidatorAssessment,
-        latestWpValidatorReviewOutcome,
-      });
+      latestWpValidatorReviewOutcome,
+    });
+  }
+
+  if (deferredRepairQueued) {
+    return result({
+      applicable: true,
+      ok: false,
+      state: "COMM_DEFERRED_REPAIR_QUEUE",
+      message: "WP validator repair debt is queued on a previous overlap microtask while coder finishes the current active microtask",
+      details: [
+        ...details,
+        `deferred_repair_microtask=${previousMicrotask?.mt_id || "<missing>"}`,
+        `active_execution_microtask=${activeMicrotask?.mt_id || "<missing>"}`,
+      ],
+      counts,
+      correlations,
+      latestValidatorAssessment,
+      latestWpValidatorReviewOutcome,
+    });
   }
 
   if (coderHandoffs.length === 0) {
@@ -1530,6 +1596,16 @@ export function deriveWpCommunicationAutoRoute({
         notificationSummary: "AUTO_ROUTE: coder handoff required",
       });
       break;
+    case "COMM_DEFERRED_REPAIR_QUEUE":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "CODER",
+        nextExpectedSession: coderSession,
+        waitingOn: "CURRENT_MICROTASK_COMPLETION_BEFORE_REPAIR",
+        waitingOnSession: coderSession,
+        notificationSummary: "AUTO_ROUTE: coder completes the current microtask, then loops back to validator-requested repair debt",
+      });
+      break;
     case "COMM_REPAIR_REQUIRED":
       projection = route({
         state: evaluation.state,
@@ -1654,6 +1730,9 @@ function boundaryCorrelationId(statusEvaluation, runtimeStatus = {}) {
     case "COMM_WAITING_FOR_INTENT_CHECKPOINT":
     case "COMM_WAITING_FOR_HANDOFF":
       return nullableComparable(statusEvaluation?.correlations?.kickoff);
+    case "COMM_DEFERRED_REPAIR_QUEUE":
+      return nullableComparable(statusEvaluation?.correlations?.microtaskRepair)
+        || nullableComparable(statusEvaluation?.correlations?.handoff);
     case "COMM_REPAIR_REQUIRED":
     case "COMM_WAITING_FOR_REVIEW":
       return nullableComparable(statusEvaluation?.correlations?.handoff);

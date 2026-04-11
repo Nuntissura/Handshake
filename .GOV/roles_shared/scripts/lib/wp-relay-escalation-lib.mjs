@@ -118,6 +118,8 @@ function routeReasonFromCommunicationState(communicationState = "", {
       return "WAITING_ON_FINAL_REVIEW";
     case "COMM_REPAIR_REQUIRED":
       return "WAITING_ON_CODER_REPAIR";
+    case "COMM_DEFERRED_REPAIR_QUEUE":
+      return "WAITING_ON_CODER_DEFERRED_REPAIR";
     case "COMM_WAITING_FOR_HANDOFF":
       return "WAITING_ON_CODER_HANDOFF";
     case "COMM_WAITING_FOR_INTENT":

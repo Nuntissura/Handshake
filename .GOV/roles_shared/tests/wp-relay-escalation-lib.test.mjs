@@ -153,3 +153,20 @@ test("relay escalation surfaces dependency waits from blocked open review items"
 
   assert.equal(result.reason_code, "WAITING_ON_DEPENDENCY");
 });
+
+test("relay escalation surfaces deferred overlap repair as a coder-owned wait state", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime({
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-1",
+      waiting_on: "CURRENT_MICROTASK_COMPLETION_BEFORE_REPAIR",
+    }),
+    communicationEvaluation: { applicable: true, state: "COMM_DEFERRED_REPAIR_QUEUE" },
+    receipts: [],
+    pendingNotifications: [],
+    nowIso: "2026-03-30T10:12:00Z",
+  });
+
+  assert.equal(result.reason_code, "WAITING_ON_CODER_DEFERRED_REPAIR");
+});
