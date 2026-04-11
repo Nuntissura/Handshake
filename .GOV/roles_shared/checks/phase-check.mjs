@@ -11,6 +11,9 @@ import { captureCheckFindings } from "../scripts/memory/memory-capture-from-chec
 import { buildActiveLaneBrief, formatActiveLaneBrief } from "../scripts/session/active-lane-brief-lib.mjs";
 import { loadSessionRegistry } from "../scripts/session/session-registry-lib.mjs";
 import {
+  defaultIntegrationValidatorWorktreeDir,
+} from "../scripts/session/session-policy.mjs";
+import {
   buildWpCommunicationHealthCheckResult,
   formatWpCommunicationHealthCheckResult,
 } from "./wp-communication-health-check.mjs";
@@ -47,6 +50,56 @@ const TERMINAL_READY_SESSION_CLOSE_ROLE_VALUES = new Set([
 export function resolvePhaseCheckCwd() {
   const injectedRepoRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
   return path.resolve(injectedRepoRoot || REPO_ROOT);
+}
+
+export function resolveCloseoutSyncCwd({
+  wpId = "",
+  phaseCheckCwd = resolvePhaseCheckCwd(),
+  registrySessions = null,
+} = {}) {
+  const defaultCwd = path.resolve(phaseCheckCwd || resolvePhaseCheckCwd());
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId) return defaultCwd;
+
+  const sessions = Array.isArray(registrySessions)
+    ? registrySessions
+    : loadSessionRegistry(defaultCwd).registry.sessions || [];
+  const preferredSessionKey = `INTEGRATION_VALIDATOR:${normalizedWpId}`;
+  const integrationValidatorSession = sessions.find((session) =>
+    String(session?.wp_id || "").trim() === normalizedWpId
+    && String(session?.role || "").trim().toUpperCase() === "INTEGRATION_VALIDATOR"
+    && String(session?.session_key || "").trim() === preferredSessionKey
+    && String(session?.local_worktree_dir || "").trim()
+  ) || sessions.find((session) =>
+    String(session?.wp_id || "").trim() === normalizedWpId
+    && String(session?.role || "").trim().toUpperCase() === "INTEGRATION_VALIDATOR"
+    && String(session?.local_worktree_dir || "").trim()
+  );
+
+  const targetWorktreeDir = String(
+    integrationValidatorSession?.local_worktree_dir
+    || defaultIntegrationValidatorWorktreeDir(normalizedWpId)
+    || "",
+  ).trim();
+  return targetWorktreeDir ? path.resolve(REPO_ROOT, targetWorktreeDir) : defaultCwd;
+}
+
+function currentGitContextAt(cwd = resolvePhaseCheckCwd()) {
+  const resolvedCwd = path.resolve(cwd || resolvePhaseCheckCwd());
+  const runGit = (args = []) => {
+    const result = spawnSync("git", args, {
+      cwd: resolvedCwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return result.status === 0 ? String(result.stdout || "").trim() : "";
+  };
+  return {
+    branch: runGit(["rev-parse", "--abbrev-ref", "HEAD"]),
+    topLevel: runGit(["rev-parse", "--show-toplevel"]),
+    statusShort: runGit(["status", "-sb"]),
+    statusPorcelain: runGit(["status", "--porcelain=v1"]),
+  };
 }
 
 function printUsage(message = "") {
@@ -290,6 +343,10 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
   const closeoutSyncScript = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles/validator/scripts/integration-validator-closeout-sync.mjs`);
   const triggerRef = `phase-check CLOSEOUT ${wpId} --sync-mode ${mode}`;
   const phaseCheckCwd = resolvePhaseCheckCwd();
+  const closeoutSyncCwd = resolveCloseoutSyncCwd({
+    wpId,
+    phaseCheckCwd,
+  });
   const outputChunks = [];
   const repomemGateResult = spawnSync(process.execPath, [repomemScript, "gate"], {
     cwd: phaseCheckCwd,
@@ -334,8 +391,13 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
     commandArgs.push("--debug");
   }
   const result = spawnSync(process.execPath, commandArgs, {
-    cwd: phaseCheckCwd,
+    cwd: closeoutSyncCwd,
     encoding: "utf8",
+    env: {
+      ...process.env,
+      HANDSHAKE_GOV_ROOT: GOV_ROOT_ABS,
+      HANDSHAKE_ACTIVE_REPO_ROOT: closeoutSyncCwd,
+    },
   });
   outputChunks.push(ensureTrailingNewline(`${result.stdout || ""}${result.stderr || ""}`.trimEnd()));
   return {
@@ -560,8 +622,14 @@ function runStep(step) {
     };
   }
   if (label === "integration-validator-context-brief") {
+    const validatorCwd = resolveCloseoutSyncCwd({
+      wpId: args[0],
+      phaseCheckCwd: resolvePhaseCheckCwd(),
+    });
     const brief = buildIntegrationValidatorContextBriefFromEnvironment({
       wpId: args[0],
+      repoRoot: validatorCwd,
+      gitContext: currentGitContextAt(validatorCwd),
     });
     return {
       ok: true,
@@ -590,9 +658,15 @@ function runStep(step) {
     };
   }
   if (label === "integration-validator-closeout-check") {
+    const validatorCwd = resolveCloseoutSyncCwd({
+      wpId: args[0],
+      phaseCheckCwd: resolvePhaseCheckCwd(),
+    });
     const result = buildIntegrationValidatorCloseoutCheckResult({
       wpId: args[0],
       allowSyncRepair: args.slice(1).includes("--sync-mode"),
+      repoRootOverride: validatorCwd,
+      gitContextOverride: currentGitContextAt(validatorCwd),
     });
     return {
       ok: result.ok,
