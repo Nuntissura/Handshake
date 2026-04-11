@@ -195,17 +195,27 @@ export function buildRelayWatchdogSummary({
 function classifyWaitVerdict({
   waitingOn = "",
   reasonCode = "",
-  targetRole = "",
 } = {}) {
   const combined = [
     String(waitingOn || "").trim(),
     String(reasonCode || "").trim(),
-    String(targetRole || "").trim(),
   ].join(" ").toUpperCase();
   if (!combined) return null;
   if (/HUMAN|OPERATOR|APPROVAL|SIGNATURE/.test(combined)) return "WAITING_ON_HUMAN_APPROVAL";
   if (/DEPENDENCY|BLOCKED/.test(combined)) return "WAITING_ON_DEPENDENCY";
-  if (/VALIDATOR|REVIEW/.test(combined)) return "WAITING_ON_REVIEW";
+  if (/ORCHESTRATOR|CHECKPOINT/.test(combined)) return "WAITING_ON_ORCHESTRATOR_CHECKPOINT";
+  if (/VALIDATOR|REVIEW|FINAL_REVIEW|INTEGRATION_VALIDATOR/.test(combined)) return "WAITING_ON_VALIDATOR";
+  if (/CODER|HANDOFF|REPAIR|INTENT/.test(combined)) return "WAITING_ON_CODER";
+  return null;
+}
+
+function extractStallVerdict(stallScanStatus = "", stallScanSummary = "") {
+  if (String(stallScanStatus || "").trim().toUpperCase() !== "STALL") return null;
+  const summary = String(stallScanSummary || "").trim().toUpperCase();
+  if (summary.includes("STALL_RETRY_LOOP")) return "STALL_RETRY_LOOP";
+  if (summary.includes("STALL_COMMAND_LOOP")) return "STALL_COMMAND_LOOP";
+  if (summary.includes("STALL_REPEATED_ERROR")) return "STALL_REPEATED_ERROR";
+  if (summary.includes("STALL_NO_PROGRESS")) return "STALL_NO_PROGRESS";
   return null;
 }
 
@@ -214,6 +224,7 @@ export function deriveRelayLaneVerdict({
   decision = null,
   activeRuns = [],
   stallScanStatus = "UNKNOWN",
+  stallScanSummary = "",
   outputFreshnessStatus = "UNKNOWN",
   waitingOn = "",
 } = {}) {
@@ -229,7 +240,6 @@ export function deriveRelayLaneVerdict({
   const waitVerdict = classifyWaitVerdict({
     waitingOn,
     reasonCode,
-    targetRole: relayStatus?.target_role,
   });
 
   let verdict = "ACTIVE_HEALTHY";
@@ -240,7 +250,8 @@ export function deriveRelayLaneVerdict({
     verdict = "NOT_APPLICABLE";
   } else if (activeRunCount > 0) {
     if (decisionAction === "REPORT_STALLED_ACTIVE_RUN") {
-      verdict = decision?.limitReached ? "ACTIVE_RUN_STALLED_ESCALATE" : "ACTIVE_RUN_STALLED_RECOVERABLE";
+      verdict = extractStallVerdict(stallScanStatus, stallScanSummary)
+        || (decision?.limitReached ? "ACTIVE_RUN_STALLED_ESCALATE" : "ACTIVE_RUN_STALLED_RECOVERABLE");
       pokeTarget = "ROUTE_MANAGER";
       workerInterruptPolicy = decision?.limitReached ? "ROUTE_MANAGER_FIRST" : "BOUNDED_AFTER_ROUTE_REPAIR";
     } else if (["RECENT", "FRESH"].includes(String(outputFreshnessStatus || "").trim().toUpperCase())) {
@@ -253,12 +264,16 @@ export function deriveRelayLaneVerdict({
       verdict = "RELAY_BUDGET_EXHAUSTED";
       pokeTarget = "ROUTE_MANAGER";
       workerInterruptPolicy = "ROUTE_MANAGER_FIRST";
+    } else if (waitVerdict && !reasonCode.startsWith("ROUTE_STALE")) {
+      verdict = waitVerdict;
+      if (["STEER", "WATCH_ONLY"].includes(decisionAction) || ["WATCH", "ESCALATED"].includes(relayState)) {
+        pokeTarget = "ROUTE_MANAGER";
+        workerInterruptPolicy = "ROUTE_MANAGER_FIRST";
+      }
     } else if (["WATCH", "ESCALATED"].includes(relayState) || ["STEER", "WATCH_ONLY"].includes(decisionAction)) {
       verdict = "ROUTE_STALE_NO_ACTIVE_RUN";
       pokeTarget = "ROUTE_MANAGER";
       workerInterruptPolicy = "ROUTE_MANAGER_FIRST";
-    } else if (waitVerdict) {
-      verdict = waitVerdict;
     }
   }
 

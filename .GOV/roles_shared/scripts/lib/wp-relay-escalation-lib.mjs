@@ -97,6 +97,46 @@ function latestForeignReceiptTimestamp(receipts, role, session) {
   );
 }
 
+function routeReasonFromCommunicationState(communicationState = "", {
+  nextActor = "",
+  waitingOn = "",
+} = {}) {
+  const state = String(communicationState || "").trim().toUpperCase();
+  const actor = normalizeRole(nextActor);
+  const waiting = String(waitingOn || "").trim().toUpperCase();
+
+  if (/HUMAN|OPERATOR|APPROVAL|SIGNATURE|MAIN_MERGE_PUSH/.test(waiting)) return "WAITING_ON_HUMAN_APPROVAL";
+  if (/DEPENDENCY|BLOCKED/.test(waiting)) return "WAITING_ON_DEPENDENCY";
+  if (/CHECKPOINT/.test(waiting)) return "WAITING_ON_ORCHESTRATOR_CHECKPOINT";
+
+  switch (state) {
+    case "COMM_WAITING_FOR_REVIEW":
+      return actor === "WP_VALIDATOR" || actor === "INTEGRATION_VALIDATOR"
+        ? "WAITING_ON_VALIDATOR_REVIEW"
+        : "WAITING_ON_REVIEW";
+    case "COMM_WAITING_FOR_FINAL_REVIEW":
+      return "WAITING_ON_FINAL_REVIEW";
+    case "COMM_REPAIR_REQUIRED":
+      return "WAITING_ON_CODER_REPAIR";
+    case "COMM_WAITING_FOR_HANDOFF":
+      return "WAITING_ON_CODER_HANDOFF";
+    case "COMM_WAITING_FOR_INTENT":
+      return "WAITING_ON_CODER_INTENT";
+    case "COMM_WAITING_FOR_INTENT_CHECKPOINT":
+      return "WAITING_ON_VALIDATOR_CHECKPOINT";
+    case "COMM_BLOCKED_OPEN_ITEMS":
+      return "WAITING_ON_DEPENDENCY_OPEN_REVIEW_ITEMS";
+    default:
+      return "";
+  }
+}
+
+function staleRouteReasonCode(baseReasonCode = "", fallback = "") {
+  const reason = String(baseReasonCode || "").trim().toUpperCase();
+  if (reason.startsWith("WAITING_ON_")) return `ROUTE_STALE_${reason}`;
+  return String(fallback || "ROUTE_STALE").trim().toUpperCase() || "ROUTE_STALE";
+}
+
 export function evaluateWpRelayEscalation({
   wpId = "",
   runtimeStatus = {},
@@ -151,6 +191,10 @@ export function evaluateWpRelayEscalation({
   const latestSessionActivityTs = maxParsedTimestamp([runtimeSessionActivityTs, registrySessionActivityTs]);
   const pendingNotificationCount = targetNotifications.length;
   const recommendedCommand = `just orchestrator-steer-next ${wpId} "<why this stalled relay should be re-woken, >=40 chars>"`;
+  const blockingReasonCode = routeReasonFromCommunicationState(communicationEvaluation?.state, {
+    nextActor,
+    waitingOn: runtimeStatus?.waiting_on,
+  });
 
   const metrics = {
     now_at: isoFromTimestamp(nowTs),
@@ -187,29 +231,34 @@ export function evaluateWpRelayEscalation({
   if (thresholdPassed && pendingNotificationCount > 0 && !receiptMovedAfterRoute) {
     status = "ESCALATED";
     severity = "FAIL";
-    reasonCode = sessionMovedAfterRoute ? "SESSION_ACTIVE_NO_RECEIPT_PROGRESS" : "PENDING_NOTIFICATION_STALE";
+    reasonCode = sessionMovedAfterRoute
+      ? "SESSION_ACTIVE_NO_RECEIPT_PROGRESS"
+      : staleRouteReasonCode(blockingReasonCode, "PENDING_NOTIFICATION_STALE");
     summary = sessionMovedAfterRoute
       ? `Relay is stalled for ${targetLabel}: the target session moved after the wake surface opened, but no receipt progress followed. Use ${recommendedCommand}.`
-      : `Relay is stalled for ${targetLabel}: pending notifications crossed stale_after without receipt progress. Use ${recommendedCommand}.`;
+      : `Relay is stalled for ${targetLabel}: pending notifications crossed stale_after without receipt progress${blockingReasonCode ? ` while ${blockingReasonCode}.` : "."} Use ${recommendedCommand}.`;
     failures.push(summary);
   } else if (thresholdPassed && !receiptMovedAfterRoute) {
     status = "ESCALATED";
     severity = "FAIL";
-    reasonCode = "RECEIPT_PROGRESS_STALE";
-    summary = `Relay is stalled for ${targetLabel}: waiting crossed stale_after without new ${nextActor} receipt progress. Use ${recommendedCommand}.`;
+    reasonCode = staleRouteReasonCode(blockingReasonCode, "RECEIPT_PROGRESS_STALE");
+    summary = `Relay is stalled for ${targetLabel}: waiting crossed stale_after without new ${nextActor} receipt progress${blockingReasonCode ? ` while ${blockingReasonCode}.` : "."} Use ${recommendedCommand}.`;
     failures.push(summary);
   } else if (watchThresholdPassed && pendingNotificationCount > 0 && !receiptMovedAfterRoute) {
     status = "WATCH";
     severity = "WARN";
-    reasonCode = "PENDING_NOTIFICATION_WAITING";
-    summary = `Relay is waiting on ${targetLabel}: pending notifications exist and the lane has crossed heartbeat_due_at without receipt progress yet.`;
+    reasonCode = blockingReasonCode || "PENDING_NOTIFICATION_WAITING";
+    summary = `Relay is waiting on ${targetLabel}: pending notifications exist and the lane has crossed heartbeat_due_at without receipt progress yet${blockingReasonCode ? ` (${blockingReasonCode})` : ""}.`;
     warnings.push(summary);
   } else if (watchThresholdPassed && !receiptMovedAfterRoute) {
     status = "WATCH";
     severity = "WARN";
-    reasonCode = "RECEIPT_PROGRESS_WAITING";
-    summary = `Relay is waiting on ${targetLabel}: no new ${nextActor} receipt progress since the current route opened, but stale_after has not been crossed yet.`;
+    reasonCode = blockingReasonCode || "RECEIPT_PROGRESS_WAITING";
+    summary = `Relay is waiting on ${targetLabel}: no new ${nextActor} receipt progress since the current route opened, but stale_after has not been crossed yet${blockingReasonCode ? ` (${blockingReasonCode})` : ""}.`;
     warnings.push(summary);
+  } else if (blockingReasonCode) {
+    reasonCode = blockingReasonCode;
+    summary = `Relay is waiting on ${targetLabel}: ${blockingReasonCode}.`;
   }
 
   return {

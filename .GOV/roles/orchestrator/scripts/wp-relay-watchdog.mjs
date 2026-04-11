@@ -730,6 +730,7 @@ function evaluateWp(wpId, {
     decision,
     activeRuns,
     stallScanStatus: stallScan.status,
+    stallScanSummary: stallScan.summary,
     outputFreshnessStatus: outputFreshness.status,
     waitingOn: base.runtimeStatus?.waiting_on || "",
   });
