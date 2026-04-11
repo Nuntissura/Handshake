@@ -3,6 +3,6 @@
   "source_commit": "3963605e3babd971ae65c1edfc78d37fff0eaeae",
   "source_branch": "gov_kernel",
   "source_worktree": "../wt-gov-kernel",
-  "sync_timestamp": "2026-04-11T03:20:44.037Z",
+  "sync_timestamp": "2026-04-11T03:24:49.019Z",
   "synced_by": "sync-gov-to-main.mjs"
 }
