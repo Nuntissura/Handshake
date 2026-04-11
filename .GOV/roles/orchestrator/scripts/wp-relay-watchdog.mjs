@@ -78,6 +78,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     intervalSeconds: 30,
     allowWatchSteer: true,
     allowRestart: false,
+    observeOnly: false,
     restartOutputIdleSeconds: DEFAULT_RESTART_OUTPUT_IDLE_SECONDS,
   };
   const rest = [...argv];
@@ -96,6 +97,10 @@ function parseArgs(argv = process.argv.slice(2)) {
     }
     if (token === "--allow-restart") {
       args.allowRestart = true;
+      continue;
+    }
+    if (token === "--observe-only") {
+      args.observeOnly = true;
       continue;
     }
     if (token === "--interval-seconds") {
@@ -412,6 +417,7 @@ function maybeRestartStalledLane({
   decision = null,
   activeRuns = [],
   allowRestart = false,
+  executeRestart = true,
   restartOutputIdleSeconds = DEFAULT_RESTART_OUTPUT_IDLE_SECONDS,
 } = {}) {
   const targetSessionRecord = findTargetRegistrySession(registrySessions, {
@@ -435,6 +441,16 @@ function maybeRestartStalledLane({
   if (!restartDecision.shouldRestart) {
     return {
       status: "SKIPPED",
+      reason: restartDecision.reason,
+      freshness,
+      restartDecision,
+      targetSessionRecord,
+    };
+  }
+
+  if (!executeRestart) {
+    return {
+      status: "WOULD_RESTART",
       reason: restartDecision.reason,
       freshness,
       restartDecision,
@@ -666,6 +682,7 @@ function evaluateWp(wpId, {
   brokerState,
   allowWatchSteer,
   allowRestart,
+  observeOnly,
   restartOutputIdleSeconds,
 } = {}) {
   const base = loadWpRelayInputs(wpId, registrySessions);
@@ -710,6 +727,7 @@ function evaluateWp(wpId, {
     decision,
     activeRuns,
     allowRestart,
+    executeRestart: !observeOnly,
     restartOutputIdleSeconds,
   });
   const summary = buildRelayWatchdogSummary({
@@ -720,6 +738,31 @@ function evaluateWp(wpId, {
     stallScanStatus: stallScan.status,
     outputFreshnessStatus: outputFreshness.status,
   });
+
+  if (observeOnly) {
+    const previewAction = restartRepair?.status === "WOULD_RESTART"
+      ? restartRepair.restartDecision.action
+      : decision.action;
+    const previewReason = restartRepair?.status === "WOULD_RESTART"
+      ? restartRepair.reason
+      : decision.reason;
+    return {
+      wpId,
+      action: previewAction,
+      reason: previewReason,
+      summary,
+      relayStatus: base.relayStatus,
+      stallScan,
+      outputFreshness,
+      activeRuns,
+      decision,
+      restartRepair,
+      runtimeUpdate: null,
+      repairSignal: { status: "NOT_APPLICABLE", reason: "OBSERVE_ONLY" },
+      observeOnly: true,
+      skipped: false,
+    };
+  }
 
   if (restartRepair?.status === "RESTARTED") {
     const runtimeUpdate = updateRelayWatchdogRuntimeState({
@@ -816,6 +859,9 @@ function printResult(result) {
   console.log(`RELAY_WATCHDOG_RESULT ${result.wpId}`);
   console.log(`- action: ${result.action}`);
   console.log(`- reason: ${result.reason || "<none>"}`);
+  if (result.observeOnly) {
+    console.log(`- observe_only: YES`);
+  }
   console.log(`- summary: ${result.summary}`);
   if (result.relayStatus?.applicable) {
     console.log(`- relay_status: ${result.relayStatus.status}`);
@@ -887,6 +933,7 @@ function runCycle(args) {
     brokerState,
     allowWatchSteer: args.allowWatchSteer,
     allowRestart: args.allowRestart,
+    observeOnly: args.observeOnly,
     restartOutputIdleSeconds: args.restartOutputIdleSeconds,
   }));
   for (const result of results) {

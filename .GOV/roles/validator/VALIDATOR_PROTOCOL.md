@@ -98,13 +98,14 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
 - For newly created repo-governed validator sessions, the packet-declared validator profile is authoritative for claim truth under `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback, which currently map to `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is a supported runtime profile; `OLLAMA_QWEN_CODER_7B` and `OLLAMA_QWEN_CODER_14B` are local model profiles (coder-only). All profiles dispatch through the ACP broker. Do not rely on ambient editor defaults.
 - Fresh repo-governed validator session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is `VSCODE_EXTENSION_TERMINAL` via the external repo-governance launch queue + session registry (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
+- Primary launch path is headless/direct ACP launch via the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` + `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
+- The VS Code bridge launch queue remains a compatibility surface only (`../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`).
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - Validator sessions do not own the steering lane. Only the Orchestrator starts, resumes, or cancels governed validator sessions; validators request repair, pause, or cancel through packet communications or an explicit orchestrator instruction.
 - The external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger is the settled steering ledger; the matching external `SESSION_CONTROL_OUTPUTS/` directory holds the per-command ACP event logs that the Operator monitor can surface.
 - Governed system-terminal launches are registry-owned surfaces. Closeout now attempts deterministic reclaim automatically; if a terminal survives, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` instead of killing windows manually.
 - Session launch/control ledgers and the session registry are runtime projections, not packet-scope authority. Treat them as operator/runtime evidence only; use the PREPARE worktree plus packet/WP-communications truth for validation decisions.
-- CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
+- CLI escalation windows are repair-only surfaces. Use them only when the Orchestrator explicitly selects them.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
 ## Final Validator Authority (Current Law)
@@ -182,9 +183,10 @@ Use this governance-maintenance record flow:
 - templates:
   - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
   - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
-  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
 - audits: use stable `AUDIT_ID` values and add `SMOKETEST_REVIEW_ID` for smoketest or workflow-proof reviews
-- **Smoketest Live Findings:** During WP validation, append notable findings (dead code, cross-surface gaps, spec misalignments) to the active smoketest review's `LIVE_FINDINGS_LOG` section if one exists. Format: `- [TIMESTAMP] [WP_VALIDATOR] [CATEGORY] <finding>`
+- **Workflow Dossier Live Findings:** During WP validation, append notable findings (dead code, cross-surface gaps, spec misalignments) to the active Workflow Dossier `LIVE_FINDINGS_LOG` section if one exists. On orchestrator-managed lanes, this live dossier is seeded at activation time by `just orchestrator-prepare-and-packet`. Format: `- [TIMESTAMP] [WP_VALIDATOR] [CATEGORY] <finding>`
 - Operator-facing scope split rule:
   - In chat, always separate `Handshake (Product)` from `Repo Governance`.
   - If the review target touches product code or the Master Spec, classify it as `Handshake (Product)` even when the requirement is governance-shaped, workflow-shaped, or contract-shaped.
@@ -342,7 +344,7 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
 
 - If the packet under review defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a validator-local worktree as a competing inbox.
-- When available, prefer VS Code integrated terminals for validator sessions so the Operator can keep each WP validator and the Integration Validator grouped beside `just operator-viewport` (`just operator-monitor` remains a compatibility alias).
+- Prefer the governed headless ACP lane for ordinary validator sessions. Use visible terminals only when the Orchestrator intentionally selects a repair/compatibility host.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. Launch and claim validator sessions so they match the packet-declared validator role profile and its required reasoning strength.
 - Validator sessions are started by the Orchestrator. Do not self-start a fresh repo-governed validator session.
 - Use the external repo-governance `ROLE_SESSION_REGISTRY.json` projection to inspect launch/runtime state when session startup looks stale or ambiguous.
@@ -409,6 +411,7 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Validator session):
   - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from the dedicated validator worktree; the governed launcher creates it if missing)
   - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from handshake_main; no worktree-add needed)
+  - `AUTO` is the ordinary headless/direct ACP launch path; `CURRENT` / `SYSTEM_TERMINAL` are explicit repair surfaces and `VSCODE_PLUGIN` is compatibility-only
   - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just steer-wp-validator-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
@@ -468,6 +471,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
 - Require evidence that `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` ran and passed before PASS handoff or PASS commit clearance. This composite gate includes packet completeness, committed PREPARE-source handoff validation, and the governed handoff communication proof. If absent or failing, verdict = FAIL until fixed.
 - Require evidence that `just phase-check CLOSEOUT WP-{ID}` ran and passed before PASS commit clearance. This composite gate includes packet completeness, the final review communication proof, the integration-validator context bundle, and the governed closeout preflight. If absent or failing, verdict = FAIL until fixed.
+- When `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` is used to write terminal truth, it now also appends the mechanical closeout trace into the active Workflow Dossier. After that succeeds, append the human post-mortem/review and closeout rubric in the dossier before final closure claims.
 - After the closeout preflight is green, prefer the same phase-owned surface for governed truth sync:
   - PASS before local-main containment: `just phase-check CLOSEOUT WP-{ID} --sync-mode MERGE_PENDING --context "<why this closeout truth is being recorded, >=40 chars>"`
   - PASS after local-main containment is real: `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`

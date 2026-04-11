@@ -45,6 +45,7 @@ const TASK_BOARD_PATH = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles_shared",
 const TRACEABILITY_PATH = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "WP_TRACEABILITY_REGISTRY.md"));
 const BUILD_ORDER_PATH = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "BUILD_ORDER.md"));
 const ORCHESTRATOR_GATES_PATH = repoPathAbs(resolveOrchestratorGatesPath());
+const LIVE_REVIEW_SCRIPT_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "scripts", "audit", "generate-post-run-audit-skeleton.mjs");
 
 function usageAndExit() {
   console.error("Usage: node .GOV/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs WP-{ID} [WORKFLOW_LANE] [EXECUTION_OWNER]");
@@ -107,6 +108,20 @@ function runNodeStep(stepName, scriptRelativePath, args = []) {
   } catch (error) {
     error.stepName = stepName;
     throw error;
+  }
+}
+
+function ensureLiveWorkflowDossier(targetWpId) {
+  try {
+    const output = execFileSync(process.execPath, [LIVE_REVIEW_SCRIPT_PATH, targetWpId, "--mode", "live", "--auto-output"], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return normalize(String(output || "").trim());
+  } catch (error) {
+    logProcessOutput(error);
+    return "";
   }
 }
 
@@ -243,6 +258,7 @@ function main() {
     }
 
     cleanupPathSnapshot(snapshot);
+    const liveReviewPath = ensureLiveWorkflowDossier(wpId);
 
     const findings = [
       `PREPARE authority: ${verification.prepareEntry.workflow_lane} / ${verification.prepareEntry.execution_lane || verification.prepareEntry.coder_id}`,
@@ -250,6 +266,11 @@ function main() {
       `Task Board: READY_FOR_DEV`,
       `Communications: ${communicationPathsForWp(wpId).dir}`,
     ];
+    if (liveReviewPath) {
+      findings.push(`Live workflow dossier: ${liveReviewPath}`);
+    } else {
+      findings.push("Live workflow dossier: NOT_CREATED (non-fatal; run `just live-smoketest-review-init`)");
+    }
 
     const nextCommands = [];
     const normalizedWorkflowLane = normalizeWorkflowLane(verification.prepareEntry.workflow_lane);

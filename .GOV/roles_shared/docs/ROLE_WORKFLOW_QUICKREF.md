@@ -84,12 +84,13 @@ Product-scanning / product-boundary enforcement:
 
 ## Session Host + Operator Monitor
 
-- When available, prefer VS Code integrated terminals for multi-session work instead of many floating desktop terminals.
+- Prefer the governed headless ACP lane for ordinary multi-session work. Use visible terminals only when the Orchestrator intentionally selects a repair/compatibility host.
 - Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs record per-role model profiles explicitly. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` may be declared, but governed launch stays fail-closed until runtime support exists.
 - Repo-governed role-session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
+- Primary launch path is headless/direct ACP launch over the external repo-governance runtime root (default repo-relative: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` + `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
+- The VS Code bridge launch queue remains a compatibility surface only (`../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`); treat it as explicit `VSCODE_PLUGIN` repair state, not ordinary launch truth.
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
-- CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session.
+- `SYSTEM_TERMINAL` and `CURRENT` are repair-only surfaces, not the ordinary launch path.
 - Recommended VS Code tabs:
   - `ORCH`
   - `CODER <WP_ID>`
@@ -134,6 +135,10 @@ Primary commands:
 - for `PACKET_FORMAT_VERSION >= 2026-04-05` and `RISK_TIER=MEDIUM|HIGH`, validator closeout is dual-track: PASS requires both `MECHANICAL_TRACK_VERDICT=PASS` and `SPEC_RETENTION_TRACK_VERDICT=PASS`
 - if `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, keep `DATA_CONTRACT_MONITORING` credible from the start; validator closeout later requires concrete `DATA_CONTRACT_PROOF` plus `DATA_CONTRACT_GAPS`
 - `just orchestrator-prepare-and-packet WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>]`
+- `just workflow-dossier-init WP-... [output]`
+- `just workflow-dossier-note WP-... <EXECUTION|GOV_CHANGE|CONCERN|FINDING> "<summary>" [--role ROLE] [--tag TAG] [--surface SURFACE]`
+- `just workflow-dossier-sync WP-... [--role ROLE] [--tag ACP_SYNC] [--surface MECHANICAL]`
+- `just orchestrator-prepare-and-packet` now seeds the live workflow dossier automatically; use `workflow-dossier-init` only for repair or manual re-seeding
 - `just coder-worktree-add WP-...`
 - `just wp-validator-worktree-add WP-...`
 - `just integration-validator-worktree-add WP-...`
@@ -142,6 +147,9 @@ Primary commands:
 - `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `AUTO` is the ordinary headless/direct ACP launch path
+- `CURRENT` and `SYSTEM_TERMINAL` are explicit repair surfaces
+- `VSCODE_PLUGIN` is compatibility-only
 - `just activation-manager next WP-...`
 - `just activation-manager readiness WP-... --write`
 - `just manual-relay-next WP-... [--debug]`
@@ -214,6 +222,7 @@ Primary commands (per WP validation):
 - `just phase-check VERDICT WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR`
 - `just phase-check CLOSEOUT WP-...`
 - governed closeout write through the same phase surface: `just phase-check CLOSEOUT WP-... --sync-mode <MODE> --context "<why this truth is being written>"`
+- `phase-check CLOSEOUT --sync-mode ...` now also appends the mechanical closeout trace into the active Workflow Dossier; add the human post-mortem/review and rubric after it succeeds
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
 - `just product-scan` (product boundary enforcement)

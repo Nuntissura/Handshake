@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildWorkflowDossierIdleMetrics,
   buildWpTimelineEntries,
   buildWpTimelineSpans,
   buildWpTimelineSummary,
@@ -316,4 +317,159 @@ test("evaluateWpRelayCostPolicy recommends MANUAL_RELAY when relay prompt tax is
   assert.equal(policy.relay_command_count, 1);
   assert.equal(policy.relay_turn_count, 5);
   assert.match(policy.recommendation_reason, /Observed orchestrator-managed relay burden is high/i);
+});
+
+test("buildWorkflowDossierIdleMetrics reports review latency, pass-to-coder delay, and drift markers", () => {
+  const entries = buildWpTimelineEntries({
+    receipts: [
+      {
+        timestamp_utc: "2026-04-05T10:00:00Z",
+        actor_role: "CODER",
+        target_role: "WP_VALIDATOR",
+        receipt_kind: "REVIEW_REQUEST",
+        correlation_id: "review-1",
+        summary: "Review MT-001.",
+      },
+      {
+        timestamp_utc: "2026-04-05T10:03:00Z",
+        actor_role: "WP_VALIDATOR",
+        target_role: "CODER",
+        receipt_kind: "REVIEW_RESPONSE",
+        correlation_id: "review-1",
+        summary: "Approved to continue.",
+        microtask_contract: {
+          review_outcome: "APPROVED_FOR_FINAL_REVIEW",
+        },
+      },
+      {
+        timestamp_utc: "2026-04-05T10:07:00Z",
+        actor_role: "CODER",
+        target_role: "WP_VALIDATOR",
+        receipt_kind: "CODER_INTENT",
+        correlation_id: "intent-2",
+        summary: "Starting MT-002.",
+      },
+      {
+        timestamp_utc: "2026-04-05T10:03:00Z",
+        actor_role: "WP_VALIDATOR",
+        target_role: "CODER",
+        receipt_kind: "REVIEW_RESPONSE",
+        correlation_id: "review-1",
+        summary: "Approved to continue.",
+        microtask_contract: {
+          review_outcome: "APPROVED_FOR_FINAL_REVIEW",
+        },
+      },
+    ],
+    controlRequests: [
+      {
+        created_at: "2026-04-05T10:08:00Z",
+        role: "CODER",
+        command_kind: "SEND_PROMPT",
+        command_id: "cmd-2",
+        summary: "resume coder",
+      },
+      {
+        created_at: "2026-04-05T10:09:00Z",
+        role: "WP_VALIDATOR",
+        command_kind: "SEND_PROMPT",
+        command_id: "cmd-open",
+        summary: "resume validator",
+      },
+    ],
+    controlResults: [
+      {
+        processed_at: "2026-04-05T10:08:30Z",
+        role: "CODER",
+        command_kind: "SEND_PROMPT",
+        command_id: "cmd-2",
+        status: "COMPLETED",
+        summary: "coder resumed",
+      },
+    ],
+  });
+  const spans = buildWpTimelineSpans({
+    receipts: [
+      {
+        timestamp_utc: "2026-04-05T10:00:00Z",
+        actor_role: "CODER",
+        target_role: "WP_VALIDATOR",
+        receipt_kind: "REVIEW_REQUEST",
+        correlation_id: "review-1",
+        summary: "Review MT-001.",
+      },
+      {
+        timestamp_utc: "2026-04-05T10:03:00Z",
+        actor_role: "WP_VALIDATOR",
+        target_role: "CODER",
+        receipt_kind: "REVIEW_RESPONSE",
+        correlation_id: "review-1",
+        summary: "Approved to continue.",
+      },
+    ],
+    controlRequests: [],
+    controlResults: [],
+  });
+  const metrics = buildWorkflowDossierIdleMetrics({
+    entries,
+    spans,
+    receipts: [
+      {
+        timestamp_utc: "2026-04-05T10:00:00Z",
+        actor_role: "CODER",
+        target_role: "WP_VALIDATOR",
+        receipt_kind: "REVIEW_REQUEST",
+        correlation_id: "review-1",
+        summary: "Review MT-001.",
+      },
+      {
+        timestamp_utc: "2026-04-05T10:03:00Z",
+        actor_role: "WP_VALIDATOR",
+        target_role: "CODER",
+        receipt_kind: "REVIEW_RESPONSE",
+        correlation_id: "review-1",
+        summary: "Approved to continue.",
+        microtask_contract: {
+          review_outcome: "APPROVED_FOR_FINAL_REVIEW",
+        },
+      },
+      {
+        timestamp_utc: "2026-04-05T10:03:00Z",
+        actor_role: "WP_VALIDATOR",
+        target_role: "CODER",
+        receipt_kind: "REVIEW_RESPONSE",
+        correlation_id: "review-1",
+        summary: "Approved to continue.",
+        microtask_contract: {
+          review_outcome: "APPROVED_FOR_FINAL_REVIEW",
+        },
+      },
+      {
+        timestamp_utc: "2026-04-05T10:07:00Z",
+        actor_role: "CODER",
+        target_role: "WP_VALIDATOR",
+        receipt_kind: "CODER_INTENT",
+        correlation_id: "intent-2",
+        summary: "Starting MT-002.",
+      },
+    ],
+    controlRequests: [
+      { created_at: "2026-04-05T10:08:00Z" },
+      { created_at: "2026-04-05T10:09:00Z" },
+    ],
+    controlResults: [
+      { processed_at: "2026-04-05T10:08:30Z" },
+    ],
+    now: Date.parse("2026-04-05T10:40:00Z"),
+    idleThresholdMs: 5 * 60 * 1000,
+  });
+
+  assert.equal(metrics.review_response.latest_ms, 180000);
+  assert.equal(metrics.validator_pass_to_next_coder_action.latest_ms, 240000);
+  assert.equal(metrics.idle_gap_count, 1);
+  assert.equal(metrics.max_idle_gap_ms, 1860000);
+  assert.equal(metrics.current_idle_ms, 1860000);
+  assert.equal(metrics.drift_markers.duplicate_receipt_count, 1);
+  assert.equal(metrics.drift_markers.open_review_count, 0);
+  assert.equal(metrics.drift_markers.unresolved_control_count, 1);
 });

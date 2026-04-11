@@ -34,3 +34,13 @@ test("buildForwardedArgv appends tokenized raw flags after base args", () => {
     "(repro)",
   ]);
 });
+
+test("buildForwardedArgv treats a trailing raw-flags marker as empty flags", () => {
+  const result = buildForwardedArgv([
+    ".GOV/roles_shared/scripts/memory/memory-refresh.mjs",
+    "--raw-flags",
+  ]);
+
+  assert.equal(result.targetScript, ".GOV/roles_shared/scripts/memory/memory-refresh.mjs");
+  assert.deepEqual(result.forwardedArgs, []);
+});

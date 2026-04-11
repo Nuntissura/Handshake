@@ -28,7 +28,7 @@ if (!fs.existsSync(registryPath)) {
 }
 
 if (!fs.existsSync(requestsPath)) {
-  fail("Missing session launch requests file", [SESSION_PLUGIN_REQUESTS_FILE]);
+  fail("Missing compatibility launch queue file", [SESSION_PLUGIN_REQUESTS_FILE]);
 }
 
 const { registry } = loadSessionRegistry(repoRoot);
@@ -45,7 +45,7 @@ for (let index = 0; index < requests.length; index += 1) {
 }
 
 if (requestErrors.length > 0) {
-  fail("Session launch request schema violations found", requestErrors);
+  fail("Compatibility launch request schema violations found", requestErrors);
 }
 
 console.log("session-launch-runtime-check ok");

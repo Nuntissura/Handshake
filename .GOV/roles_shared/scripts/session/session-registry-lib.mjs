@@ -27,7 +27,9 @@ import {
   SESSION_CONTROL_TRANSPORT_PRIMARY,
   CLI_ESCALATION_HOST_DEFAULT,
   SESSION_HOST_FALLBACK,
+  SESSION_HOST_FALLBACK_LEGACY,
   SESSION_HOST_PREFERENCE,
+  SESSION_PLUGIN_HOST,
   SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
   SESSION_PLUGIN_BRIDGE_COMMAND,
   SESSION_PLUGIN_BRIDGE_ID,
@@ -644,7 +646,7 @@ export function buildLaunchRequest({
     request_kind: "LAUNCH_SESSION",
     created_by_role: "ORCHESTRATOR",
     launch_authority: SESSION_START_AUTHORITY,
-    preferred_host: SESSION_HOST_PREFERENCE,
+    preferred_host: SESSION_PLUGIN_HOST,
     fallback_host: SESSION_HOST_FALLBACK,
     plugin_bridge_id: SESSION_PLUGIN_BRIDGE_ID,
     plugin_bridge_command: SESSION_PLUGIN_BRIDGE_COMMAND,
@@ -723,9 +725,9 @@ export function markPluginResult(registry, session, requestId, status, details =
 
   if (status === "PLUGIN_DISPATCHED" || status === "PLUGIN_CONFIRMED") {
     session.runtime_state = status === "PLUGIN_CONFIRMED" ? "PLUGIN_CONFIRMED" : "TERMINAL_COMMAND_DISPATCHED";
-    session.active_host = SESSION_HOST_PREFERENCE;
+    session.active_host = SESSION_PLUGIN_HOST;
     session.active_terminal_title = details.terminal_title || session.terminal_title;
-    session.active_terminal_kind = SESSION_HOST_PREFERENCE;
+    session.active_terminal_kind = SESSION_PLUGIN_HOST;
     session.plugin_last_error = "";
   } else if (status === "CLI_ESCALATION_USED") {
     markCliEscalationUsed(session, {
@@ -769,7 +771,7 @@ export function markCliEscalationUsed(session, {
 export function settleTimedOutPluginRequests(registry, requests, now = new Date()) {
   const thresholdMs = SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS * 1000;
   for (const request of requests) {
-    if (!request || request.preferred_host !== SESSION_HOST_PREFERENCE) continue;
+    if (!request || request.preferred_host !== SESSION_PLUGIN_HOST) continue;
     if (pendingRequestStatus(registry, request.request_id)) continue;
     const createdAtMs = Date.parse(request.created_at || "");
     if (Number.isNaN(createdAtMs)) continue;
@@ -1061,8 +1063,12 @@ export function validateLaunchRequestShape(request) {
   if (request.schema_id !== SESSION_LAUNCH_REQUEST_SCHEMA_ID) errors.push(`schema_id must be ${SESSION_LAUNCH_REQUEST_SCHEMA_ID}`);
   if (request.schema_version !== SESSION_LAUNCH_REQUEST_SCHEMA_VERSION) errors.push(`schema_version must be ${SESSION_LAUNCH_REQUEST_SCHEMA_VERSION}`);
   if (request.launch_authority !== SESSION_START_AUTHORITY) errors.push(`launch_authority must be ${SESSION_START_AUTHORITY}`);
-  if (request.preferred_host !== SESSION_HOST_PREFERENCE) errors.push(`preferred_host must be ${SESSION_HOST_PREFERENCE}`);
-  if (request.fallback_host !== SESSION_HOST_FALLBACK) errors.push(`fallback_host must be ${SESSION_HOST_FALLBACK}`);
+  if (request.preferred_host !== SESSION_PLUGIN_HOST) {
+    errors.push(`preferred_host must be ${SESSION_PLUGIN_HOST} for compatibility queue launches`);
+  }
+  if (![SESSION_HOST_FALLBACK, SESSION_HOST_FALLBACK_LEGACY].includes(request.fallback_host)) {
+    errors.push(`fallback_host must be ${SESSION_HOST_FALLBACK} for compatibility queue launches`);
+  }
   if (!request.request_id) errors.push("request_id is required");
   if (!request.role) errors.push("role is required");
   if (!request.wp_id) errors.push("wp_id is required");

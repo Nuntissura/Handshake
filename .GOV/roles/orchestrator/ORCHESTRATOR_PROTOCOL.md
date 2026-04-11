@@ -89,9 +89,13 @@ See also:
   - local model profiles: `OLLAMA_QWEN_CODER_7B`, `OLLAMA_QWEN_CODER_14B` (coder-only, zero API cost, auto-escalate to cloud on failure)
 - Repo-governed Activation Manager, Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, pre-launch governance authoring MUST run through the governed Activation Manager lane. For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch remains Orchestrator-owned.
-- Primary launch path is the VS Code bridge using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
-  - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
+- Primary launch path is headless/direct ACP launch using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
+  - `AUTO` launch resolves through the ACP broker and should not open a visible system terminal on the ordinary path
   - `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
+  - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+  - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- The VS Code bridge launch queue remains a compatibility surface only:
+  - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
 - For the governed `INTEGRATION_VALIDATOR` lane, the Orchestrator MUST preserve kernel governance authority even though execution occurs from `handshake_main`: launch/control requests must carry `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`, and any lane that resolves live authority from `handshake_main/.GOV` is misconfigured and must be repaired before closeout.
 - `handshake_main/.GOV` is only the synced main-branch mirror. It is not the live authority surface for orchestrator-managed integration validation, even immediately after `just sync-gov-to-main`.
 - Primary steering path is the governed session-control ledgers under that same external repo-governance runtime root:
@@ -469,9 +473,15 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `AUTO` is the ordinary headless/direct ACP launch path
+- `CURRENT` and `SYSTEM_TERMINAL` are explicit repair surfaces
+- `VSCODE_PLUGIN` is compatibility-only
 - `just manual-relay-next WP-{ID} [--debug]`
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
 - supported launch hosts must auto-issue the first governed `START_SESSION` on the ordinary path; `start-*` remains the explicit repair surface when launch could not complete autonomously
+- when `session-start` / `session-send` complete or fail, read the printed `outcome_state=` line before assuming launch/steer succeeded or needs another attempt. Treat `ALREADY_READY` and `BUSY_ACTIVE_RUN` as machine states, not prose to reinterpret manually.
+- After the single-attempt recovery slice, a surviving `BUSY_ACTIVE_RUN` should be interpreted as a real competing live run. Dead-child and expired-timeout residue should no longer require a second operator retry to clear.
+- `session-start` now waits briefly for READY when the first outcome is `BUSY_ACTIVE_RUN` or `REQUIRES_RECOVERY`; if the lane was already becoming steerable in the same attempt, expect `ALREADY_READY` instead of reflexively retrying launch.
 - `just start-activation-manager-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
@@ -550,7 +560,8 @@ Legacy flat compatibility:
 - Templates:
   - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
   - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
-  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
 - Shared workflow reference:
   - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
 - Minimum flow:
@@ -646,6 +657,13 @@ Legacy flat compatibility:
 ### 3. Delegation and Monitoring
 
 - Before launching coder sessions, `just orchestrator-prepare-and-packet WP-{ID}` commits the work packet, refinement, and micro tasks on `gov_kernel` and creates a backup snapshot.
+- `just orchestrator-prepare-and-packet WP-{ID}` also seeds the live Workflow Dossier under `.GOV/Audits/smoketest/` with the current ACP/session-control snapshot.
+- During the run, keep the dossier current in the live sections: `LIVE_EXECUTION_LOG`, `LIVE_IDLE_LEDGER`, `LIVE_GOVERNANCE_CHANGE_LOG`, `LIVE_CONCERNS_LOG`, and `LIVE_FINDINGS_LOG`.
+- Preferred live-maintenance surface: use `just workflow-dossier-note WP-{ID} ...` for typed run notes and `just workflow-dossier-sync WP-{ID}` when you want a fresh mechanical ACP/runtime/receipt snapshot plus the latency/drift idle ledger appended into the dossier.
+- Keep ACP live evidence readable: prefer compact lane-style entries in `LIVE_EXECUTION_LOG`, for example ``ORCHESTRATOR -> ACP -> CODER`` or ``CODER -> ACP -> ORCHESTRATOR``, not wide tables. The point is fast stall and drift diagnosis, not dense tabulation.
+- Keep `LIVE_IDLE_LEDGER` mechanical: append compact latency ledgers, not prose. The point is to surface request-to-response delay, validator-pass-to-coder delay, and real idle gaps before closeout memory drifts.
+- During terminal closeout, `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` now also appends the mechanical closeout trace into the active Workflow Dossier. The remaining human-authored post-mortem/review and rubric should be appended after that phase command succeeds.
+- Use the Workflow Dossier rubric only at closeout when appending the Orchestrator post-mortem/review layer. Do not try to score the rubric continuously during execution.
 - Micro tasks (one per CLAUSE_CLOSURE_MATRIX row) are generated in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, etc.) during packet creation.
 - During the work-packet compatibility migration, scripts must resolve those packet/MT paths through `runtime-paths.mjs` rather than assuming the literal `task_packets` folder name.
 - Use only the packet-declared communication artifacts for shared session/runtime coordination.

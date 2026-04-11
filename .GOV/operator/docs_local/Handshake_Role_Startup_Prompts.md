@@ -57,6 +57,7 @@ SESSION_OPEN: before any governed mutation, run `just repomem open "<what this s
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md + startup output
 FOCUS: workflow authority, refinement/signature review, prepare/packet flow, delegation, and status sync.
 REMINDER: use `just orchestrator-next` to inspect or resume, `just orchestrator-steer-next` to re-wake governed lanes, and `just orchestrator-prepare-and-packet` only after signature and role-model profiles are recorded.
+WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, keep the live Workflow Dossier under `.GOV/Audits/smoketest/` current during the run. Update `LIVE_EXECUTION_LOG`, `LIVE_IDLE_LEDGER`, `LIVE_GOVERNANCE_CHANGE_LOG`, `LIVE_CONCERNS_LOG`, and `LIVE_FINDINGS_LOG` as work progresses. Use the closeout rubric only at session closeout when appending the post-mortem/review.
 MANUAL_LANE: for operator-brokered runs, use `just manual-relay-next WP-{ID}` and `just manual-relay-dispatch WP-{ID} "<context>"`; relay output is structured into `ROLE_TO_ROLE_MESSAGE` and `OPERATOR_EXPLAINER`.
 WORKTREE: operate from `wt-gov-kernel` on branch `gov_kernel`.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --role ORCHESTRATOR`. These are auto-surfaced before future actions via memory-recall.
@@ -276,7 +277,9 @@ From `D:\Projects\LLM projects\NotebookLM_gpt_bridge\product`:
 .GOV/refinements/WP-{ID}.md         - current refinement artifact for active WP
 .GOV/task_packets/WP-{ID}.md        - legacy flat work packet (older WPs)
 .GOV/templates/TASK_PACKET_TEMPLATE.md - current packet law; new packets default to SPLIT_DIFF_SCOPED_RIGOR_V4
-.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md - structured smoke/failure ledger template with SMOKE-FIND-* / SMOKE-CONTROL-*
+.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md - canonical live run dossier template created at WP activation and maintained through closeout
+.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md - canonical closeout rubric appended at session closeout inside the live Workflow Dossier
+.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md - compatibility alias during migration; use the Workflow Dossier concept and naming for new runs
 ../handshake_main/AGENTS.md         - canonical AGENTS authority file used by startup
 ../gov_runtime/roles_shared/        - external runtime (sessions, WP communications, ACP, memory DB)
 ../Handshake Artifacts/             - external build/test/tool artifacts [CX-212E]
@@ -387,7 +390,13 @@ just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODE
   - mandatory before packet creation for packet families that require explicit per-role model bundles
 just record-prepare WP-{ID} [workflow_lane] [execution_owner] [branch] [worktree_dir]
 just orchestrator-prepare-and-packet WP-{ID}
-  - Full wrapper: create WP worktree + record prepare + create packet + commit on gov_kernel + backup snapshot
+  - Full wrapper: create WP worktree + record prepare + create packet + commit on gov_kernel + backup snapshot + seed the live Workflow Dossier
+just workflow-dossier-init WP-{ID} [output]
+  - repair or manually re-seed the live Workflow Dossier with the current ACP/session-control snapshot
+just workflow-dossier-note WP-{ID} <EXECUTION|GOV_CHANGE|CONCERN|FINDING> "<summary>" [--role ROLE] [--tag TAG] [--surface SURFACE]
+  - append a live Orchestrator or role note into the canonical dossier section without manual markdown editing
+just workflow-dossier-sync WP-{ID} [--role ROLE] [--tag ACP_SYNC] [--surface MECHANICAL]
+  - append a fresh mechanical ACP/runtime/receipt snapshot into `LIVE_EXECUTION_LOG`
 just manual-relay-next WP-{ID}
   - Read-only operator helper for MANUAL_RELAY; prints RELAY_ENVELOPE, ROLE_TO_ROLE_MESSAGE, and OPERATOR_EXPLAINER.
 just manual-relay-dispatch WP-{ID} "<context>"
@@ -414,6 +423,9 @@ just launch-activation-manager-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMIN
 just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]
 just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]
 just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]
+AUTO = ordinary headless/direct ACP launch
+CURRENT or SYSTEM_TERMINAL = explicit repair-only launch surface
+VSCODE_PLUGIN = compatibility-only launch surface
 just send-mt WP-{ID} <MT-NNN> "<description>" [PRIMARY|FALLBACK]  - dispatch MT to coder with session keys
 ```
 
@@ -482,13 +494,14 @@ For `ORCHESTRATOR_MANAGED`:
 5. `just record-signature ... <MANUAL_RELAY|ORCHESTRATOR_MANAGED> <Coder-A..Coder-Z>`
 6. `just record-role-model-profiles WP-{ID} ...`
 7. `just orchestrator-prepare-and-packet WP-{ID}`
-8. `just activation-manager next WP-{ID}` and/or `just activation-manager readiness WP-{ID} --write`
-9. `just launch-coder-session WP-{ID}`
-10. `just launch-wp-validator-session WP-{ID}`
-11. `just wp-relay-watchdog WP-{ID} --loop`
-12. `just operator-viewport`
-13. `just wp-timeline WP-{ID}`
-14. `just gov-check`
+8. keep the Workflow Dossier current during the run; use `just workflow-dossier-init WP-{ID}` only if repair/re-seeding is needed
+9. `just activation-manager next WP-{ID}` and/or `just activation-manager readiness WP-{ID} --write`
+10. `just launch-coder-session WP-{ID}`
+11. `just launch-wp-validator-session WP-{ID}`
+12. `just wp-relay-watchdog WP-{ID} --loop`
+13. `just operator-viewport`
+14. `just wp-timeline WP-{ID}`
+15. `just gov-check`
 
 Manual relay shortcut:
 

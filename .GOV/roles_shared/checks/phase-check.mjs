@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 import { compactGateOutputSummary, writeGateOutputArtifact } from "../scripts/lib/gate-output-artifact-lib.mjs";
 import { ensureWpCommunications } from "../scripts/wp/ensure-wp-communications.mjs";
 import { captureCheckFindings } from "../scripts/memory/memory-capture-from-check.mjs";
@@ -30,6 +30,7 @@ import {
   formatValidatorHandoffCheckResult,
 } from "../../roles/validator/scripts/lib/validator-governance-lib.mjs";
 import { parseMergeProgressionTruth } from "../scripts/lib/merge-progression-truth-lib.mjs";
+import { findOpenWorkflowDossierPath } from "../scripts/audit/workflow-dossier-lib.mjs";
 
 export { buildPhaseCheckCommand, buildPhaseCheckPlan, PHASE_VALUES } from "./phase-check-lib.mjs";
 
@@ -406,6 +407,100 @@ function runTerminalReadySessionCloseStep({ wpId = "" } = {}) {
   };
 }
 
+function runWorkflowDossierCloseoutStep({
+  wpId = "",
+  ok = true,
+  syncOptions = {},
+  why = "",
+} = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId) {
+    return {
+      ok: false,
+      output: "Workflow dossier closeout append requires WP_ID.\n",
+    };
+  }
+
+  const governanceRepoRoot = path.resolve(GOV_ROOT_ABS, "..");
+  const existingDossierPath = findOpenWorkflowDossierPath(governanceRepoRoot, normalizedWpId);
+  if (!existingDossierPath) {
+    return {
+      ok: true,
+      output: "[WORKFLOW_DOSSIER_CLOSEOUT] SKIP: no open Workflow Dossier found for this WP.\n",
+    };
+  }
+
+  const workflowDossierScript = path.resolve(GOV_ROOT_ABS, "roles_shared", "scripts", "audit", "workflow-dossier.mjs");
+  const phaseCheckCwd = governanceRepoRoot;
+  const syncMode = String(syncOptions?.modeSpec?.mode || "").trim().toUpperCase() || "NONE";
+  const outputLines = [];
+
+  const noteSummary = [
+    `phase-check CLOSEOUT result=${ok ? "PASS" : "FAIL"}`,
+    `sync_mode=${syncMode}`,
+    `why=${String(why || "").trim() || "NONE"}`,
+  ].join(" | ");
+
+  const noteResult = spawnSync(process.execPath, [
+    workflowDossierScript,
+    "note",
+    normalizedWpId,
+    "EXECUTION",
+    noteSummary,
+    "--role",
+    "INTEGRATION_VALIDATOR",
+    "--tag",
+    "CLOSEOUT_GATE",
+    "--surface",
+    "phase-check CLOSEOUT",
+    "--file",
+    existingDossierPath,
+  ], {
+    cwd: phaseCheckCwd,
+    encoding: "utf8",
+    env: process.env,
+  });
+  outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] note=${noteResult.status === 0 ? "PASS" : "FAIL"}`);
+  const renderedNoteOutput = ensureTrailingNewline(`${noteResult.stdout || ""}${noteResult.stderr || ""}`.trimEnd());
+  for (const line of renderedNoteOutput.trimEnd().split("\n")) {
+    if (line.trim()) outputLines.push(`  ${line}`);
+  }
+
+  let syncResultOk = true;
+  if (syncOptions?.modeSpec) {
+    const syncResult = spawnSync(process.execPath, [
+      workflowDossierScript,
+      "sync",
+      normalizedWpId,
+      "--role",
+      "INTEGRATION_VALIDATOR",
+      "--tag",
+      "CLOSEOUT_SYNC",
+      "--surface",
+      "PHASE_CHECK_CLOSEOUT",
+      "--file",
+      existingDossierPath,
+    ], {
+      cwd: phaseCheckCwd,
+      encoding: "utf8",
+      env: process.env,
+    });
+    syncResultOk = syncResult.status === 0;
+    outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] sync=${syncResultOk ? "PASS" : "FAIL"}`);
+    const renderedSyncOutput = ensureTrailingNewline(`${syncResult.stdout || ""}${syncResult.stderr || ""}`.trimEnd());
+    for (const line of renderedSyncOutput.trimEnd().split("\n")) {
+      if (line.trim()) outputLines.push(`  ${line}`);
+    }
+  } else {
+    outputLines.push("[WORKFLOW_DOSSIER_CLOSEOUT] sync=SKIP (no terminal closeout sync mode requested)");
+  }
+
+  return {
+    ok: noteResult.status === 0 && syncResultOk,
+    output: `${outputLines.join("\n")}\n`,
+  };
+}
+
 function readPacketText(wpId) {
   const normalizedWpId = String(wpId || "").trim();
   if (!normalizedWpId) return "";
@@ -673,6 +768,7 @@ function buildCloseoutNextCommands({
   verbose = false,
   ok = true,
   syncOptions = {},
+  workflowDossierCloseoutOk = true,
 } = {}) {
   const rerunArgs = verbose ? args : [...args.filter((value) => value !== "--verbose"), "--verbose"];
   const rerunVerbose = buildPhaseCheckCommand({
@@ -693,18 +789,26 @@ function buildCloseoutNextCommands({
     return nextCommands;
   }
 
+  if (!workflowDossierCloseoutOk) {
+    nextCommands.push(`Repair the Workflow Dossier append path: just workflow-dossier-sync ${wpId} --role INTEGRATION_VALIDATOR --tag CLOSEOUT_SYNC --surface PHASE_CHECK_CLOSEOUT`);
+    nextCommands.push(`Then append any missing human note with: just workflow-dossier-note ${wpId} EXECUTION "<summary>" --role INTEGRATION_VALIDATOR --tag CLOSEOUT_GATE --surface "phase-check CLOSEOUT"`);
+  }
+
   const syncMode = String(syncOptions?.modeSpec?.mode || "").trim().toUpperCase();
   if (syncMode === "MERGE_PENDING") {
+    nextCommands.push("Mechanical Workflow Dossier closeout sync is recorded. Keep the dossier live; add the final review/rubric only after terminal closeout.");
     nextCommands.push(
       `After local main containment is real: just phase-check CLOSEOUT ${wpId} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`,
     );
     return nextCommands;
   }
   if (syncMode === "CONTAINED_IN_MAIN") {
+    nextCommands.push("Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended.");
     nextCommands.push(`Proceed to final PASS gate flow (for example: just validator-gate-commit ${wpId}).`);
     return nextCommands;
   }
   if (syncMode) {
+    nextCommands.push("Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended.");
     nextCommands.push("Proceed with the remaining validator gate flow for the recorded terminal verdict.");
     return nextCommands;
   }
@@ -796,6 +900,7 @@ async function runCli() {
     let ok = true;
     let why = `${normalizedPhase} phase checks passed.`;
     let deferredCloseoutMaintenanceStep = null;
+    let workflowDossierCloseoutResult = null;
 
     console.log(`PHASE_CHECK_OUTPUT [CX-PHASE-CHECK-001]`);
     console.log("");
@@ -856,6 +961,18 @@ async function runCli() {
       }
     }
 
+    if (normalizedPhase === "CLOSEOUT") {
+      workflowDossierCloseoutResult = runWorkflowDossierCloseoutStep({
+        wpId: wpIdArg,
+        ok,
+        syncOptions: closeoutSyncOptions,
+        why,
+      });
+      stepResults.set("workflow-dossier-closeout", workflowDossierCloseoutResult);
+      sections.push({ title: "workflow-dossier-closeout", body: workflowDossierCloseoutResult.output });
+      printStepSummary({ label: "workflow-dossier-closeout", result: workflowDossierCloseoutResult, verbose });
+    }
+
     if (normalizedPhase === "STARTUP" && normalizedRole === "CODER") {
       const startupOutcome = buildStartupCoderOutcome({
         wpId: wpIdArg,
@@ -884,6 +1001,7 @@ async function runCli() {
         verbose,
         ok,
         syncOptions: closeoutSyncOptions,
+        workflowDossierCloseoutOk: workflowDossierCloseoutResult?.ok !== false,
       });
       console.log("");
       console.log("NEXT_COMMANDS [CX-PHASE-CHECK-001]");

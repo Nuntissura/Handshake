@@ -15,6 +15,7 @@ import {
   roleModelProfileField,
   roleModelProfileSupportsGovernedLaunch,
   SESSION_COMMAND_KINDS,
+  SESSION_COMMAND_OUTCOME_STATES,
   SESSION_COMMAND_STATUSES,
   SESSION_CONTROL_BROKER_AUTH_MODE,
   SESSION_CONTROL_BROKER_BUILD_ID,
@@ -1095,22 +1096,35 @@ export function buildSessionControlResult({
   durationMs = 0,
   targetCommandId = "",
   cancelStatus = "",
+  outcomeState = "",
   brokerBuildId = SESSION_CONTROL_BROKER_BUILD_ID,
 }) {
   const STATUS = String(status || "").trim().toUpperCase();
   if (!SESSION_COMMAND_STATUSES.includes(STATUS)) {
     throw new Error(`Unknown SESSION_COMMAND status: ${STATUS}`);
   }
+  const COMMAND_KIND = String(commandKind || "").trim().toUpperCase();
+  const OUTCOME_STATE = String(outcomeState || classifySessionControlOutcomeState({
+    status: STATUS,
+    commandKind: COMMAND_KIND,
+    error,
+    summary,
+    cancelStatus,
+  })).trim().toUpperCase();
+  if (!SESSION_COMMAND_OUTCOME_STATES.includes(OUTCOME_STATE)) {
+    throw new Error(`Unknown SESSION_COMMAND outcome_state: ${OUTCOME_STATE}`);
+  }
   return {
     schema_id: SESSION_CONTROL_RESULT_SCHEMA_ID,
     schema_version: SESSION_CONTROL_RESULT_SCHEMA_VERSION,
     command_id: commandId,
     processed_at: nowIso(),
-    command_kind: commandKind,
+    command_kind: COMMAND_KIND,
     session_key: sessionKey,
     wp_id: wpId,
     role,
     status: STATUS,
+    outcome_state: OUTCOME_STATE,
     thread_id: threadId,
     summary,
     output_jsonl_file: normalizePath(outputJsonlFile),
@@ -1121,6 +1135,53 @@ export function buildSessionControlResult({
     cancel_status: cancelStatus,
     broker_build_id: brokerBuildId,
   };
+}
+
+export function classifySessionControlOutcomeState({
+  status = "",
+  commandKind = "",
+  error = "",
+  summary = "",
+  cancelStatus = "",
+} = {}) {
+  const STATUS = String(status || "").trim().toUpperCase();
+  const COMMAND_KIND = String(commandKind || "").trim().toUpperCase();
+  const CANCEL_STATUS = String(cancelStatus || "").trim().toUpperCase();
+  const detail = `${String(error || "").trim()} ${String(summary || "").trim()}`.trim();
+
+  if (STATUS === "QUEUED" || STATUS === "RUNNING") {
+    return "ACCEPTED_PENDING";
+  }
+  if (STATUS === "COMPLETED") {
+    if (COMMAND_KIND === "START_SESSION" && /already has steerable thread|already ready/i.test(detail)) {
+      return "ALREADY_READY";
+    }
+    return "SETTLED";
+  }
+  if (COMMAND_KIND === "CANCEL_SESSION" && (CANCEL_STATUS === "CANCELLATION_REQUESTED" || CANCEL_STATUS === "NOT_RUNNING")) {
+    return "SETTLED";
+  }
+  if (COMMAND_KIND === "START_SESSION" && /already has thread|already has steerable thread|already ready/i.test(detail)) {
+    return "ALREADY_READY";
+  }
+  if (COMMAND_KIND === "SEND_PROMPT" && /no steerable thread id is registered/i.test(detail)) {
+    return "REQUIRES_START";
+  }
+  if (/concurrent governed run already active/i.test(detail)) {
+    return "BUSY_ACTIVE_RUN";
+  }
+  if (
+    /recovered orphaned governed request/i.test(detail)
+    || /no active broker run or settled result remained/i.test(detail)
+    || /broker restarted while the governed run was active/i.test(detail)
+    || /broker dispatch failed/i.test(detail)
+    || /build mismatch while active runs exist/i.test(detail)
+    || /stale broker could not be stopped/i.test(detail)
+    || /could not be stopped before restart/i.test(detail)
+  ) {
+    return "REQUIRES_RECOVERY";
+  }
+  return "FAILED";
 }
 
 export function defaultSessionOutputFile(repoRoot, sessionKey, commandId) {
@@ -1644,11 +1705,13 @@ export function validateSessionControlRequestShape(request) {
 export function validateSessionControlResultShape(result) {
   const errors = [];
   const commandKind = String(result?.command_kind || "").trim().toUpperCase();
+  const outcomeState = String(result?.outcome_state || "").trim().toUpperCase();
   if (!result || typeof result !== "object") return ["result must be an object"];
   if (result.schema_id !== SESSION_CONTROL_RESULT_SCHEMA_ID) errors.push(`schema_id must be ${SESSION_CONTROL_RESULT_SCHEMA_ID}`);
   if (result.schema_version !== SESSION_CONTROL_RESULT_SCHEMA_VERSION) errors.push(`schema_version must be ${SESSION_CONTROL_RESULT_SCHEMA_VERSION}`);
   if (!SESSION_COMMAND_KINDS.includes(commandKind)) errors.push("command_kind is invalid");
   if (!SESSION_COMMAND_STATUSES.includes(String(result.status || "").trim().toUpperCase())) errors.push("status is invalid");
+  if ("outcome_state" in result && !SESSION_COMMAND_OUTCOME_STATES.includes(outcomeState)) errors.push("outcome_state is invalid");
   if (!result.command_id) errors.push("command_id is required");
   if (!result.session_key) errors.push("session_key is required");
   if (!result.wp_id) errors.push("wp_id is required");

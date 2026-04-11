@@ -13,14 +13,18 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  REPO_ROOT,
-  repoPathAbs,
   GOVERNANCE_RUNTIME_ROOT_ABS,
 } from "../lib/runtime-paths.mjs";
 import { sanitizeSessionKey } from "./session-control-lib.mjs";
+import {
+  findLatestProgressEvent,
+  inspectSessionOutputActivity,
+  isProgressEvent,
+  summarizeActivityEvent,
+} from "./session-output-activity-lib.mjs";
 
 const PREFIX = "[STALL_SCAN]";
-const TAIL_LINES = 50;
+const TAIL_LINES = 80;
 const OUTPUT_PROGRESS_GRACE_SECONDS = 180;
 
 // --- CLI args ---
@@ -67,24 +71,8 @@ if (jsonlFiles.length === 0) {
 const latestFile = jsonlFiles[0].abs;
 const latestFileMtimeMs = jsonlFiles[0].mtime;
 
-// --- Read tail of file ---
-function readTailLines(filePath, count) {
-  const content = fs.readFileSync(filePath, "utf8");
-  const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  return lines.slice(-count);
-}
-
-const tailLines = readTailLines(latestFile, TAIL_LINES);
-
-// --- Parse lines ---
-const entries = [];
-for (const line of tailLines) {
-  try {
-    entries.push(JSON.parse(line));
-  } catch {
-    // skip unparseable lines
-  }
-}
+const activity = inspectSessionOutputActivity(latestFile, { tailLines: TAIL_LINES });
+const entries = activity.entries;
 
 if (entries.length === 0) {
   console.log(`${PREFIX} OK: no parseable entries in ${path.basename(latestFile)} for ${role}:${wpId}`);
@@ -128,15 +116,11 @@ if (!stallType) {
   }
 }
 
-// (c) No item.completed events with item type command_execution in the last 20 entries
+// (c) No ACP progress events in the last 20 entries
 if (!stallType) {
   const last20 = entries.slice(-20);
-  const hasCommandCompletion = last20.some(
-    (e) =>
-      e.type === "item.completed" &&
-      e.item?.type === "command_execution",
-  );
-  if (!hasCommandCompletion && last20.length >= 20) {
+  const hasProgressEvent = last20.some((entry) => isProgressEvent(entry));
+  if (!hasProgressEvent && last20.length >= 20) {
     stallType = "STALL_NO_PROGRESS";
   }
 }
@@ -166,17 +150,19 @@ if (!stallType) {
 
 // --- Output ---
 const latestFileIdleSeconds = Math.max(0, Math.trunc((Date.now() - latestFileMtimeMs) / 1000));
+const latestProgressEvent = activity.latestProgressEvent || findLatestProgressEvent(entries);
+const latestProgressSummary = summarizeActivityEvent(latestProgressEvent);
 if (stallType === "STALL_NO_PROGRESS" && latestFileIdleSeconds <= OUTPUT_PROGRESS_GRACE_SECONDS) {
   console.log(
-    `${PREFIX} OK: recent output progress (${latestFileIdleSeconds}s <= ${OUTPUT_PROGRESS_GRACE_SECONDS}s) suppresses STALL_NO_PROGRESS for ${role}:${wpId}`,
+    `${PREFIX} OK: recent output progress (${latestFileIdleSeconds}s <= ${OUTPUT_PROGRESS_GRACE_SECONDS}s) suppresses STALL_NO_PROGRESS for ${role}:${wpId} | latest_progress=${latestProgressSummary}`,
   );
   process.exit(0);
 }
 
 if (stallType) {
-  console.log(`${PREFIX} STALL DETECTED: ${stallType} for ${role}:${wpId}`);
+  console.log(`${PREFIX} STALL DETECTED: ${stallType} for ${role}:${wpId} | latest_progress=${latestProgressSummary}`);
   process.exit(1);
 } else {
-  console.log(`${PREFIX} OK: no stall patterns detected for ${role}:${wpId}`);
+  console.log(`${PREFIX} OK: no stall patterns detected for ${role}:${wpId} | latest_progress=${latestProgressSummary}`);
   process.exit(0);
 }

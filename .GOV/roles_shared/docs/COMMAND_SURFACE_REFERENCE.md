@@ -59,12 +59,13 @@ These are safe starting points for orientation and health checks.
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
   - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role, derived stalled-relay status, the active terminal batch id, and owned-terminal metadata/reclaim status
-- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]`
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--observe-only] [--restart-output-idle-seconds N]`
   - `runtime-write`
   - run a local non-LLM relay watcher over one or more orchestrator-managed WPs; stale `WATCH` / `ESCALATED` routes are re-steered only when the projected target session is not already running
-  - active target runs are checked conservatively with `session-stall-scan` and reported as `WAIT_ACTIVE_RUN` / `REPORT_STALLED_ACTIVE_RUN` instead of being killed by default
+  - active target runs are checked conservatively with `session-stall-scan`, which now treats ACP `command_execution`, `file_change`, `web_search`, and `todo_list` events as progress before reporting `WAIT_ACTIVE_RUN` / `REPORT_STALLED_ACTIVE_RUN`
   - successful automatic re-steers increment the runtime relay-cycle counter; healthy lanes reset it; once the WP exhausts `max_relay_escalation_cycles`, the watchdog stops auto-re-waking and leaves the lane attention-visible
   - `--allow-restart` is default-off; when enabled, restart remains conservative and only cancels/re-steers a proven stale active run after freshness guards pass (`COMMAND_RUNNING`, expired `timeout_at`, and old output/session activity)
+  - `--observe-only` keeps the command read-only: it prints the same conservative poke verdict the watchdog would use, but does not steer, restart, or mutate runtime state
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
   - `read-only`
   - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, declared microtask plan (`active` / `next`), and next commands
@@ -140,7 +141,7 @@ These are safe starting points for orientation and health checks.
   - extract episodic and procedural memories from WP RECEIPTS.jsonl; `--all` processes every WP with communications
 - `just memory-extract-smoketests [<file.md>]`
   - `runtime-write`
-  - extract findings (SMOKE-FIND-*) and positive controls (SMOKE-CONTROL-*) from smoketest reviews into semantic/procedural memory
+  - extract findings (SMOKE-FIND-*) and positive controls (SMOKE-CONTROL-*) from workflow dossiers / smoketest reviews into semantic/procedural memory
 - `just memory-compact [--older-than 30d] [--dry-run]`
   - `runtime-write`
   - full maintenance cycle: dedup, episodic→semantic consolidation, importance decay, orphan cleanup; `--dry-run` for preview
@@ -251,13 +252,13 @@ These legacy commands still work (they redirect to the governance memory DB) but
 - `just wp-lane-health WP-{ID}`
   - `read-only`
   - inspect lane health for a WP: session liveness, relay state, stall detection
-- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]`
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--observe-only] [--restart-output-idle-seconds N]`
   - `runtime-write`
   - non-LLM relay watcher for orchestrator-managed lanes; consumes receipt/notification/escalation truth, records a `STEERING` receipt when it performs a safe automatic re-wake, and persists bounded relay-cycle accounting into WP runtime status
   - with `--allow-restart`, the watcher may perform one bounded cancel-plus-resteer only for a proven stale active run that has already exceeded timeout and freshness thresholds
 - `just session-stall-scan <ROLE> WP-{ID}`
   - `read-only`
-  - scan a governed session lane for stall conditions
+  - scan a governed session lane for stall conditions using ACP progress events (`command_execution`, `file_change`, `web_search`, `todo_list`) instead of only shell-command completions
 
 ## Microtask management
 
@@ -374,7 +375,8 @@ Use this flow only for repo-governance maintenance that stays out of product cod
 - Working templates:
   - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
   - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
-  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
 - Shared workflow note:
   - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
 - Commands:
@@ -432,6 +434,19 @@ These mutate packet, board, traceability, or related governed surfaces.
 - `just post-run-audit-skeleton WP-{ID} [output]`
   - `read-only`
   - generate audit skeleton from current authoritative artifacts
+- `just workflow-dossier-init WP-{ID} [output]`
+  - `governance-write`
+  - create or reuse the live workflow dossier under `.GOV/Audits/smoketest/` with the current ACP/session-control snapshot
+- `just workflow-dossier-note WP-{ID} <EXECUTION|GOV_CHANGE|CONCERN|FINDING> "<summary>" [--role ROLE] [--tag TAG] [--surface SURFACE]`
+  - `governance-write`
+  - append a typed line into the live workflow dossier without manual markdown editing
+- `just workflow-dossier-sync WP-{ID} [--role ROLE] [--tag ACP_SYNC] [--surface MECHANICAL]`
+  - `governance-write`
+  - append a fresh mechanical ACP/runtime/receipt snapshot into `LIVE_EXECUTION_LOG` and a latency/drift ledger line into `LIVE_IDLE_LEDGER`
+  - the execution snapshot now includes per-lane ACP activity summaries so the Orchestrator can compare idle gaps against actual session output before waking a role
+- `just live-smoketest-review-init WP-{ID} [output]`
+  - `governance-write`
+  - compatibility alias for `just workflow-dossier-init`
 
 ## Activation Manager pre-launch helpers
 
@@ -469,6 +484,9 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just launch-integration-validator-session WP-{ID} ...`
   - `runtime-write`
   - launch/bootstrap lane
+  - `AUTO` is the ordinary headless/direct ACP launch path
+  - `CURRENT` and `SYSTEM_TERMINAL` are explicit repair surfaces
+  - `VSCODE_PLUGIN` is a compatibility-only host; `AUTO` no longer queues the bridge before starting ACP
   - Activation Manager is the mandatory governed pre-launch lane for orchestrator-managed workflow; manual workflow keeps pre-launch on the Orchestrator
   - if `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, launch Activation Manager first and do not begin governed coder/validator launch until it has produced truthful `ACTIVATION_READINESS`
   - on orchestrator-managed lanes, Activation Manager executes refinement/spec-enrichment, packet creation, microtask setup, worktree preparation, backup-branch preparation, and pre-launch health checks, but Orchestrator retains operator approval handling, coder selection, governance patching, readiness acceptance, and relaunch decisions
@@ -507,6 +525,10 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just session-close <ROLE> WP-{ID}`
     - `<ROLE>` may now be `ACTIVATION_MANAGER`, `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`
     - these governed helpers now attempt deterministic self-settlement for their own request ids when a broker dispatch or wait path returns without a terminal result row
+    - `session-start` / `session-send` print a machine-readable `outcome_state=` line so operator/orchestrator surfaces can distinguish `ALREADY_READY`, `BUSY_ACTIVE_RUN`, `REQUIRES_START`, and `REQUIRES_RECOVERY` from generic `FAILED`
+    - if a stale same-session broker run only lingers because its child process died or its timeout already expired, the broker now repairs that stale run inside the same request path before returning `BUSY_ACTIVE_RUN`
+    - before refusing a broker restart because `active_runs` still exist, the ACP client now prunes/self-settles recoverable broker-state residue so only truly live active runs block restart
+    - `session-start` now waits briefly for READY after a `BUSY_ACTIVE_RUN` or `REQUIRES_RECOVERY` outcome and settles as `ALREADY_READY` when the role was already becoming steerable in the same attempt
 - `just session-reclaim-terminals WP-{ID} [ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`
   - `runtime-write`
   - manual repair helper that reclaims only registry-owned governed system-terminal windows for the selected WP/session scope; it defaults to `CURRENT_BATCH` so older batch windows are left alone unless `ALL_BATCHES` or an exact `BATCH_ID` is requested
@@ -553,7 +575,7 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
   - `STARTUP`: is the canonical startup/bootstrapping gate; for `CODER` it owns the packet/startup proof that used to live behind `pre-work`, and for validator roles it proves the startup communication mesh before productive work starts
   - `HANDOFF`: proves coder closure or validator handoff readiness from one phase artifact, depending on role
   - `VERDICT`: proves the final review communication boundary from one phase artifact
-  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, and refreshes memory-manager maintenance; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact
+  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, and refreshes memory-manager maintenance; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact and appends the mechanical closeout trace into the active Workflow Dossier
 - `just wp-communication-health-check WP-{ID} [STATUS|KICKOFF|HANDOFF|VERDICT]`
   - `read-only`
   - low-level communication proof and route health; phase-level role guidance should usually prefer the canonical `phase-check` entrypoint above

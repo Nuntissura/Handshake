@@ -2003,3 +2003,185 @@
   - `RGF-160`
   - `RGF-168`
 - OUTCOME: packetless Memory Manager ACP lanes now survive `gov-check`, completion is documented through governed `SESSION_COMPLETION` plus `repomem close`, and the `shell-with-memory` / `repomem` command family now forwards variadic flag text safely through PowerShell while routing structured shell-command memory through the canonical memory CLI
+
+### 2026.04.11.1 / GOV-CHANGE-20260411-01
+
+- STATUS: APPLIED
+- SUMMARY: retroactively recorded the Workflow Dossier migration and ACP mechanical dossier trace as concrete governance workstreams
+- CHANGE_TYPE: RECORDKEEPING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT_20260410_GOVERNANCE_WORKFLOW_MIRROR_ACTIVATION_MANAGER_SMOKETEST_REVIEW.md`
+  - 2026-04-10/11 operator directive on live run dossiers, ACP printouts, closeout drift control, and rubric-at-closeout only
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-171`
+- OUTCOME: the board now has stable IDs for the already-applied Workflow Dossier and ACP dossier-trace work (`RGF-169` / `RGF-170`), so later audits, memory extraction, and follow-on items can cite concrete workstreams instead of only operator chat or broad audit filenames
+
+### 2026.04.11.2 / GOV-CHANGE-20260411-02
+
+- STATUS: APPLIED
+- SUMMARY: marked `RGF-162` in progress after the headless ACP launch slice and opened grouped follow-ons for downtime metrics, explicit result states, single-attempt recovery, and bridge-era compatibility cleanup
+- CHANGE_TYPE: RECORDKEEPING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-162`
+  - `AUDIT_20260410_GOVERNANCE_WORKFLOW_MIRROR_ACTIVATION_MANAGER_SMOKETEST_REVIEW.md`
+  - 2026-04-11 operator directive on ACP launch reliability, launch polish, and downtime reduction
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-171`
+  - `RGF-172`
+  - `RGF-173`
+  - `RGF-174`
+- OUTCOME: governance now explicitly records that `RGF-162` has started landing through the headless/direct `AUTO` ACP slice and failure-visible dossier logging, while the remaining ACP reliability and downtime work is grouped into concrete next-wave items instead of lingering as loose notes
+
+### 2026.04.11.3 / GOV-CHANGE-20260411-03
+
+- STATUS: APPLIED
+- SUMMARY: removed the historical duplicate `RGF-163` board collision by re-keying the visible-memory/startup-restore workstream to `RGF-175`
+- CHANGE_TYPE: RECORDKEEPING_HARDENING
+- DRIVER_EVIDENCE:
+  - duplicate `RGF-163` collision found in `REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `AUDIT-20260409-VISIBLE-MEMORY-INJECTION-AND-STARTUP-BOUNDS`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `NONE`
+- OUTCOME: `RGF-163` now refers only to the per-MT validator steering workstream, while the already-completed visible memory injection and bounded startup restore work has a unique stable board ID (`RGF-175`) for future audit and memory references
+
+### 2026.04.11.4 / GOV-CHANGE-20260411-04
+
+- STATUS: APPLIED
+- SUMMARY: started `RGF-172` by introducing explicit ACP `outcome_state` reporting and idempotent `START_SESSION` handling for already-ready governed sessions
+- CHANGE_TYPE: SESSION_CONTROL_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-172`
+  - 2026-04-11 operator directive on repeated ACP launch attempts, launch polish, and reducing workflow downtime
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-172`
+  - `RGF-173`
+- OUTCOME: governed session-control results now carry a machine-readable `outcome_state`, `session-start` returns `ALREADY_READY` instead of failing when a steerable thread is already registered, broker concurrency is surfaced as `BUSY_ACTIVE_RUN`, and the Workflow Dossier/operator surface no longer collapses those steady states into generic opaque failures
+
+### 2026.04.11.5 / GOV-CHANGE-20260411-05
+
+- STATUS: APPLIED
+- SUMMARY: started `RGF-173` by making the ACP broker recover stale same-session active runs in the same request path before returning `BUSY_ACTIVE_RUN`
+- CHANGE_TYPE: SESSION_CONTROL_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-173`
+  - 2026-04-11 operator directive on repeated ACP launch attempts, stale busy states, and removing visible launch slop
+- SURFACES:
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-self-settle-lib.mjs`
+  - `.GOV/roles_shared/tests/session-control-self-settle-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-173`
+  - `RGF-174`
+- OUTCOME: if a governed lane appears busy only because the broker still holds a same-session run whose child process already died, whose timeout already expired, or whose terminal result row already exists, the broker now repairs or prunes that stale run inside the same launch/steer attempt and only returns `BUSY_ACTIVE_RUN` when a genuinely live competing run remains
+
+### 2026.04.11.6 / GOV-CHANGE-20260411-06
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-174` by retiring bridge-era packet law from the ordinary path and bounding the remaining launch queue/runtime surfaces to explicit compatibility usage
+- CHANGE_TYPE: SESSION_POLICY_MIGRATION
+- DRIVER_EVIDENCE:
+  - `RGF-174`
+  - 2026-04-11 operator directive after removing the local VS Code bridge and asking for lingering plugin-first residue to be cleaned up
+- SURFACES:
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles_shared/checks/session-launch-runtime-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs`
+  - `.GOV/roles/coder/checks/pre-work-check.mjs`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
+  - `.GOV/roles/orchestrator/README.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-172`
+  - `RGF-173`
+- OUTCOME: new packets/stubs now describe ACP control ledgers as the ordinary launch/steer path, legacy bridge queue fields are no longer stamped into fresh packet law, pre-work accepts both the new ACP-first shape and older bridge-era packets, and the remaining `VSCODE_PLUGIN` queue/runtime artifacts are explicitly framed as compatibility-only instead of the normal governed launch path
+
+### 2026.04.11.7 / GOV-CHANGE-20260411-07
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-171` by adding a live Workflow Dossier idle ledger that appends mechanical latency and drift metrics during dossier sync
+- CHANGE_TYPE: DOSSIER_OBSERVABILITY
+- DRIVER_EVIDENCE:
+  - `RGF-171`
+  - 2026-04-11 operator directive on reducing workflow downtime, closeout drift, and token cost aggressively where possible
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-timeline-lib.test.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier-lib.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-172`
+  - `RGF-173`
+- OUTCOME: `just workflow-dossier-sync WP-{ID}` now appends both the ACP/runtime execution summary and a separate `LIVE_IDLE_LEDGER` line with request-to-response latency, validator-pass-to-coder latency, current/max idle gaps, and compact drift markers so stall diagnosis is mechanical during the run instead of reconstructed from closeout memory
+
+### 2026.04.11.8 / GOV-CHANGE-20260411-08
+
+- STATUS: APPLIED
+- SUMMARY: advanced the next `RGF-172` / `RGF-173` slice by reconciling recoverable broker state before restart refusal and by letting `START_SESSION` absorb the common busy-while-becoming-ready race
+- CHANGE_TYPE: SESSION_CONTROL_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-172`
+  - `RGF-173`
+  - 2026-04-11 operator directive to continue the remaining ACP reliability work after the bridge cleanup and dossier idle-metrics slices
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/handshake-acp-client.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles_shared/tests/handshake-acp-client.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-self-settle-lib.test.mjs`
+  - `.GOV/roles_shared/checks/session-control-runtime-check.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-172`
+  - `RGF-173`
+- OUTCOME: the ACP client now prunes/self-settles recoverable broker-state residue before deciding that a mismatched or unreachable broker still has blocking active runs, and the `START_SESSION` wrapper now waits briefly for the session to become READY before failing `BUSY_ACTIVE_RUN` / `REQUIRES_RECOVERY`, which removes one common double-launch race without pretending that genuinely live competing runs are safe
+
+### 2026.04.11.9 / GOV-CHANGE-20260411-09
+
+- STATUS: APPLIED
+- SUMMARY: opened `RGF-176` to require a real post-refactor ACP launch proof on a non-terminal WP and to preserve the concrete watchpoints for that validation
+- CHANGE_TYPE: GOVERNANCE_PLANNING
+- DRIVER_EVIDENCE:
+  - `RGF-176`
+  - 2026-04-11 live `just launch-activation-manager-session WP-1-Governance-Workflow-Mirror-v1 AUTO PRIMARY` attempt was blocked before ACP by terminal task-board status `OUTDATED_ONLY`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-176`
+- OUTCOME: the board now explicitly tracks the remaining practical validation gap: a real `AUTO` ACP launch on a non-terminal WP must still be exercised and checked for one-attempt convergence, no focus-stealing terminal launch, no duplicate request/result rows, truthful `outcome_state`, bounded token/ledger churn, clean Workflow Dossier ACP traces, and no stale broker/session residue after settlement

@@ -70,6 +70,18 @@ validator-policy-gate wp-id:
 post-run-audit-skeleton wp-id output="":
 	node "{{GOV_ROOT}}/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs" {{wp-id}} {{if output != "" { "--output " + output } else { "" }}}
 
+live-smoketest-review-init wp-id output="":
+	@just workflow-dossier-init {{wp-id}} {{output}}
+
+workflow-dossier-init wp-id output="" *FLAGS:
+	node "{{GOV_ROOT}}/roles_shared/scripts/audit/workflow-dossier.mjs" init {{wp-id}} {{if output != "" { "--output " + output } else { "--auto-output" }}} {{FLAGS}}
+
+workflow-dossier-note wp-id section summary *FLAGS:
+	node "{{GOV_ROOT}}/roles_shared/scripts/audit/workflow-dossier.mjs" note {{wp-id}} {{section}} "{{summary}}" {{FLAGS}}
+
+workflow-dossier-sync wp-id *FLAGS:
+	node "{{GOV_ROOT}}/roles_shared/scripts/audit/workflow-dossier.mjs" sync {{wp-id}} {{FLAGS}}
+
 launch-coder-session wp-id host="AUTO" model="PRIMARY" *FLAGS:
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" CODER {{wp-id}} {{host}} {{model}} {{FLAGS}}
 
@@ -255,6 +267,8 @@ orchestrator-startup:
 	@echo 'This is MANDATORY before any orchestrator-next, steer, relay, or packet commands.'
 	@echo ''
 	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
+	@echo 'WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, keep the live dossier current with `just workflow-dossier-note ...` and `just workflow-dossier-sync WP-{ID}`. Use the rubric only at closeout.'
+	@echo 'REPO_TIMEZONE: Europe/Brussels for human-facing governance timestamps; ACP/session ledgers remain UTC.'
 
 validator-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md"

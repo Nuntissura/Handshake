@@ -14,7 +14,10 @@ import {
 import {
   buildSessionControlRequest,
 } from "../scripts/session/session-control-lib.mjs";
-import { settleRecoverableSessionControlResults } from "../scripts/session/session-control-self-settle-lib.mjs";
+import {
+  classifyRecoverableBrokerActiveRun,
+  settleRecoverableSessionControlResults,
+} from "../scripts/session/session-control-self-settle-lib.mjs";
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -278,4 +281,34 @@ test("self-settlement converts dead-broker active runs into failed results when 
 
   const brokerState = JSON.parse(fs.readFileSync(path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE), "utf8"));
   assert.deepEqual(brokerState.active_runs, []);
+});
+
+test("recoverable broker-run classifier distinguishes settled, dead-child, expired, and healthy runs", () => {
+  const settled = classifyRecoverableBrokerActiveRun({
+    run: { command_id: "cmd-1", timeout_at: "2099-01-01T00:00:00.000Z", child_pid: 1234 },
+    resultById: new Map([["cmd-1", { command_id: "cmd-1" }]]),
+    isChildProcessAlive: true,
+  });
+  assert.deepEqual(settled, { recoverable: true, reason: "stale_active_run_with_settled_result" });
+
+  const deadChild = classifyRecoverableBrokerActiveRun({
+    run: { command_id: "cmd-2", timeout_at: "2099-01-01T00:00:00.000Z", child_pid: 5678 },
+    resultById: new Map(),
+    isChildProcessAlive: false,
+  });
+  assert.deepEqual(deadChild, { recoverable: true, reason: "child_process_not_alive" });
+
+  const expired = classifyRecoverableBrokerActiveRun({
+    run: { command_id: "cmd-3", timeout_at: "2026-01-01T00:00:00.000Z", child_pid: 0 },
+    resultById: new Map(),
+    nowMs: Date.parse("2026-01-01T00:00:01.000Z"),
+  });
+  assert.deepEqual(expired, { recoverable: true, reason: "broker_timeout_expired" });
+
+  const healthy = classifyRecoverableBrokerActiveRun({
+    run: { command_id: "cmd-4", timeout_at: "2099-01-01T00:00:00.000Z", child_pid: 0 },
+    resultById: new Map(),
+    nowMs: Date.parse("2026-01-01T00:00:01.000Z"),
+  });
+  assert.deepEqual(healthy, { recoverable: false, reason: "" });
 });

@@ -55,6 +55,8 @@ function durationMs(startTs, endTs) {
   return endTs - startTs;
 }
 
+export const WORKFLOW_DOSSIER_IDLE_THRESHOLD_MS = 15 * 60 * 1000;
+
 function compactLabel(value, fallback = "<none>") {
   const text = normalizeText(value);
   return text || fallback;
@@ -716,6 +718,138 @@ export function buildWpTimelineSummary({
     relay_policy: relayPolicy,
     cost_estimate: null,
     cost_estimate_note: "unavailable_without_pricing_manifest",
+  };
+}
+
+function summarizeDurations(values = []) {
+  const finiteValues = values.filter((value) => Number.isFinite(value));
+  return {
+    count: finiteValues.length,
+    latest_ms: finiteValues.length > 0 ? finiteValues.at(-1) : null,
+    max_ms: finiteValues.length > 0 ? Math.max(...finiteValues) : null,
+  };
+}
+
+function isValidatorRole(role) {
+  return ["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"].includes(normalizeRole(role));
+}
+
+function isValidatorPassReceipt(receipt = {}) {
+  if (!isValidatorRole(receipt?.actor_role)) return false;
+  const outcome = normalizeText(receipt?.microtask_contract?.review_outcome).toUpperCase();
+  if (outcome === "APPROVED_FOR_FINAL_REVIEW") return true;
+  const receiptKind = normalizeReceiptKind(receipt?.receipt_kind);
+  if (!REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(receiptKind) && receiptKind !== "VALIDATOR_REVIEW") {
+    return false;
+  }
+  return /\b(PASS|APPROVED|CLEARED)\b/i.test(compactLabel(receipt?.summary, ""));
+}
+
+function nextCoderActionTimestamp(afterTimestampMs, entries = []) {
+  for (const entry of entries) {
+    if (!Number.isFinite(entry?.timestamp_ms) || entry.timestamp_ms <= afterTimestampMs) continue;
+    if (normalizeRole(entry?.role) !== "CODER") continue;
+    if (String(entry?.kind || "").trim().toUpperCase() === "NOTIFICATION") continue;
+    return entry.timestamp_ms;
+  }
+  return null;
+}
+
+function duplicateReceiptCount(receipts = []) {
+  const counts = new Map();
+  let duplicates = 0;
+  for (const receipt of Array.isArray(receipts) ? receipts : []) {
+    const key = [
+      normalizeReceiptKind(receipt?.receipt_kind),
+      normalizeRole(receipt?.actor_role),
+      normalizeRole(receipt?.target_role),
+      compactLabel(receipt?.target_session, ""),
+      compactLabel(receipt?.correlation_id, ""),
+      compactLabel(receipt?.packet_row_ref, ""),
+      microtaskScopeRef(receipt),
+      compactLabel(receipt?.summary, ""),
+    ].join("|");
+    const nextCount = Number(counts.get(key) || 0) + 1;
+    counts.set(key, nextCount);
+    if (nextCount > 1) duplicates += 1;
+  }
+  return duplicates;
+}
+
+export function buildWorkflowDossierIdleMetrics({
+  entries = [],
+  spans = [],
+  receipts = [],
+  controlRequests = [],
+  controlResults = [],
+  now = Date.now(),
+  idleThresholdMs = WORKFLOW_DOSSIER_IDLE_THRESHOLD_MS,
+} = {}) {
+  const sortedEntries = [...(Array.isArray(entries) ? entries : [])]
+    .filter((entry) => Number.isFinite(entry?.timestamp_ms))
+    .sort((left, right) => left.timestamp_ms - right.timestamp_ms || left.sequence - right.sequence);
+  const gapDurations = [];
+  for (let index = 1; index < sortedEntries.length; index += 1) {
+    const gapMs = durationMs(sortedEntries[index - 1].timestamp_ms, sortedEntries[index].timestamp_ms);
+    if (Number.isFinite(gapMs) && gapMs >= idleThresholdMs) gapDurations.push(gapMs);
+  }
+
+  const lastEventTimestampMs = sortedEntries.length > 0 ? sortedEntries.at(-1).timestamp_ms : null;
+  const currentIdleMs = Number.isFinite(lastEventTimestampMs)
+    ? Math.max(0, now - lastEventTimestampMs)
+    : null;
+  const countedIdleGaps = [...gapDurations];
+  if (Number.isFinite(currentIdleMs) && currentIdleMs >= idleThresholdMs) {
+    countedIdleGaps.push(currentIdleMs);
+  }
+  const reviewDurations = (Array.isArray(spans) ? spans : [])
+    .filter((span) => span?.span_kind === "REVIEW_EXCHANGE" && Number.isFinite(span?.duration_ms))
+    .map((span) => Number(span.duration_ms));
+  const openReviewCount = (Array.isArray(spans) ? spans : [])
+    .filter((span) => span?.span_kind === "REVIEW_EXCHANGE" && !Number.isFinite(span?.duration_ms))
+    .length;
+
+  const sortedReceipts = [...(Array.isArray(receipts) ? receipts : [])]
+    .filter((entry) => Number.isFinite(parseTimestamp(entry?.timestamp_utc)))
+    .sort((left, right) => parseTimestamp(left?.timestamp_utc) - parseTimestamp(right?.timestamp_utc));
+  const passToCoderDurations = [];
+  let validatorPassWaitingCount = 0;
+  for (const receipt of sortedReceipts) {
+    if (!isValidatorPassReceipt(receipt)) continue;
+    const passTimestampMs = parseTimestamp(receipt?.timestamp_utc);
+    const nextCoderActionMs = nextCoderActionTimestamp(passTimestampMs, sortedEntries);
+    if (Number.isFinite(nextCoderActionMs)) {
+      passToCoderDurations.push(nextCoderActionMs - passTimestampMs);
+      continue;
+    }
+    validatorPassWaitingCount += 1;
+  }
+
+  const unresolvedControlCount = Math.max(
+    0,
+    Number((controlRequests || []).length || 0) - Number((controlResults || []).length || 0),
+  );
+
+  return {
+    idle_threshold_ms: idleThresholdMs,
+    current_idle_ms: currentIdleMs,
+    current_idle_exceeds_threshold: Number.isFinite(currentIdleMs) ? currentIdleMs >= idleThresholdMs : false,
+    idle_gap_count: countedIdleGaps.length,
+    latest_idle_gap_ms: countedIdleGaps.length > 0 ? countedIdleGaps.at(-1) : null,
+    max_idle_gap_ms: countedIdleGaps.length > 0 ? Math.max(...countedIdleGaps) : null,
+    review_response: {
+      ...summarizeDurations(reviewDurations),
+      open_count: openReviewCount,
+    },
+    validator_pass_to_next_coder_action: {
+      ...summarizeDurations(passToCoderDurations),
+      waiting_count: validatorPassWaitingCount,
+    },
+    drift_markers: {
+      duplicate_receipt_count: duplicateReceiptCount(receipts),
+      open_review_count: openReviewCount,
+      unresolved_control_count: unresolvedControlCount,
+    },
   };
 }
 
