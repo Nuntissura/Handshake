@@ -55,6 +55,8 @@ function durationMs(startTs, endTs) {
   return endTs - startTs;
 }
 
+export const WORKFLOW_DOSSIER_IDLE_THRESHOLD_MS = 15 * 60 * 1000;
+
 function compactLabel(value, fallback = "<none>") {
   const text = normalizeText(value);
   return text || fallback;
@@ -640,6 +642,8 @@ export function buildWpTimelineSummary({
   notifications = [],
   controlRequests = [],
   controlResults = [],
+  laneVerdict = null,
+  pendingNotificationCount = null,
   tokenLedger = {},
   entries = [],
   spans = [],
@@ -670,6 +674,17 @@ export function buildWpTimelineSummary({
     workflowLane,
     spans,
     tokenLedger,
+  });
+  const idleMetrics = buildWorkflowDossierIdleMetrics({
+    entries,
+    spans,
+    receipts,
+    notifications,
+    controlRequests,
+    controlResults,
+    runtimeStatus,
+    laneVerdict,
+    pendingNotificationCount,
   });
 
   return {
@@ -714,8 +729,253 @@ export function buildWpTimelineSummary({
     budget_status: tokenBudget.status,
     budget_summary: tokenBudget.summary,
     relay_policy: relayPolicy,
+    downtime_attribution: idleMetrics.downtime_attribution,
+    queue_pressure: idleMetrics.queue_pressure,
     cost_estimate: null,
     cost_estimate_note: "unavailable_without_pricing_manifest",
+  };
+}
+
+function summarizeDurations(values = []) {
+  const finiteValues = values.filter((value) => Number.isFinite(value));
+  return {
+    count: finiteValues.length,
+    latest_ms: finiteValues.length > 0 ? finiteValues.at(-1) : null,
+    max_ms: finiteValues.length > 0 ? Math.max(...finiteValues) : null,
+  };
+}
+
+function sumSpanDurations(spans = [], predicate = () => true) {
+  return (Array.isArray(spans) ? spans : []).reduce((total, span) => {
+    if (!predicate(span) || !Number.isFinite(span?.duration_ms)) return total;
+    return total + Number(span.duration_ms);
+  }, 0);
+}
+
+function classifyCurrentWait({
+  runtimeStatus = null,
+  laneVerdict = null,
+  currentIdleMs = null,
+} = {}) {
+  const waitingOn = compactLabel(runtimeStatus?.waiting_on, "");
+  const nextActor = compactLabel(runtimeStatus?.next_expected_actor, "");
+  const verdict = compactLabel(laneVerdict?.verdict, "");
+  const reasonCode = compactLabel(laneVerdict?.reasonCode, "");
+  const combined = [waitingOn, nextActor, verdict, reasonCode].join(" ").toUpperCase();
+
+  let bucket = "UNCLASSIFIED";
+  if (/HUMAN|OPERATOR|APPROVAL|SIGNATURE|MERGE_PUSH/.test(combined)) {
+    bucket = "HUMAN_WAIT";
+  } else if (/DEPENDENCY|BLOCKED|OPEN_REVIEW_ITEM/.test(combined)) {
+    bucket = "DEPENDENCY_WAIT";
+  } else if (/VALIDATOR|FINAL_REVIEW|REVIEW/.test(combined)) {
+    bucket = "VALIDATOR_WAIT";
+  } else if (/REPAIR/.test(combined)) {
+    bucket = "REPAIR_WAIT";
+  } else if (/CODER|HANDOFF|INTENT/.test(combined)) {
+    bucket = "CODER_WAIT";
+  } else if (/ORCHESTRATOR|ROUTE|RELAY|CHECKPOINT|VERDICT|SESSION_CONTROL|STEER/.test(combined)) {
+    bucket = "ROUTE_WAIT";
+  }
+
+  return {
+    bucket,
+    reason: waitingOn || reasonCode || verdict || nextActor || "NONE",
+    duration_ms: Number.isFinite(currentIdleMs) ? currentIdleMs : null,
+  };
+}
+
+function deriveQueuePressure({
+  notifications = [],
+  pendingNotificationCount = null,
+  openReviewCount = 0,
+  unresolvedControlCount = 0,
+  runtimeStatus = null,
+} = {}) {
+  const pendingNotifications = Number.isFinite(Number(pendingNotificationCount))
+    ? Number(pendingNotificationCount)
+    : (Array.isArray(notifications) ? notifications.length : 0);
+  const activeRoleSessionCount = Array.isArray(runtimeStatus?.active_role_sessions)
+    ? runtimeStatus.active_role_sessions.length
+    : 0;
+  const score = pendingNotifications + Number(openReviewCount || 0) + Number(unresolvedControlCount || 0);
+  let level = "LOW";
+  if (pendingNotifications >= 2 || openReviewCount >= 2 || unresolvedControlCount >= 2 || score >= 4) {
+    level = "HIGH";
+  } else if (score >= 2 || activeRoleSessionCount >= 2) {
+    level = "MEDIUM";
+  }
+  return {
+    level,
+    score,
+    pending_notification_count: pendingNotifications,
+    open_review_count: Number(openReviewCount || 0),
+    unresolved_control_count: Number(unresolvedControlCount || 0),
+    active_role_session_count: activeRoleSessionCount,
+  };
+}
+
+function isValidatorRole(role) {
+  return ["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"].includes(normalizeRole(role));
+}
+
+function isValidatorPassReceipt(receipt = {}) {
+  if (!isValidatorRole(receipt?.actor_role)) return false;
+  const outcome = normalizeText(receipt?.microtask_contract?.review_outcome).toUpperCase();
+  if (outcome === "APPROVED_FOR_FINAL_REVIEW") return true;
+  const receiptKind = normalizeReceiptKind(receipt?.receipt_kind);
+  if (!REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(receiptKind) && receiptKind !== "VALIDATOR_REVIEW") {
+    return false;
+  }
+  return /\b(PASS|APPROVED|CLEARED)\b/i.test(compactLabel(receipt?.summary, ""));
+}
+
+function nextCoderActionTimestamp(afterTimestampMs, entries = []) {
+  for (const entry of entries) {
+    if (!Number.isFinite(entry?.timestamp_ms) || entry.timestamp_ms <= afterTimestampMs) continue;
+    if (normalizeRole(entry?.role) !== "CODER") continue;
+    if (String(entry?.kind || "").trim().toUpperCase() === "NOTIFICATION") continue;
+    return entry.timestamp_ms;
+  }
+  return null;
+}
+
+function duplicateReceiptCount(receipts = []) {
+  const counts = new Map();
+  let duplicates = 0;
+  for (const receipt of Array.isArray(receipts) ? receipts : []) {
+    const key = [
+      normalizeReceiptKind(receipt?.receipt_kind),
+      normalizeRole(receipt?.actor_role),
+      normalizeRole(receipt?.target_role),
+      compactLabel(receipt?.target_session, ""),
+      compactLabel(receipt?.correlation_id, ""),
+      compactLabel(receipt?.packet_row_ref, ""),
+      microtaskScopeRef(receipt),
+      compactLabel(receipt?.summary, ""),
+    ].join("|");
+    const nextCount = Number(counts.get(key) || 0) + 1;
+    counts.set(key, nextCount);
+    if (nextCount > 1) duplicates += 1;
+  }
+  return duplicates;
+}
+
+export function buildWorkflowDossierIdleMetrics({
+  entries = [],
+  spans = [],
+  receipts = [],
+  notifications = [],
+  controlRequests = [],
+  controlResults = [],
+  runtimeStatus = null,
+  laneVerdict = null,
+  pendingNotificationCount = null,
+  now = Date.now(),
+  idleThresholdMs = WORKFLOW_DOSSIER_IDLE_THRESHOLD_MS,
+} = {}) {
+  const sortedEntries = [...(Array.isArray(entries) ? entries : [])]
+    .filter((entry) => Number.isFinite(entry?.timestamp_ms))
+    .sort((left, right) => left.timestamp_ms - right.timestamp_ms || left.sequence - right.sequence);
+  const gapDurations = [];
+  for (let index = 1; index < sortedEntries.length; index += 1) {
+    const gapMs = durationMs(sortedEntries[index - 1].timestamp_ms, sortedEntries[index].timestamp_ms);
+    if (Number.isFinite(gapMs) && gapMs >= idleThresholdMs) gapDurations.push(gapMs);
+  }
+
+  const lastEventTimestampMs = sortedEntries.length > 0 ? sortedEntries.at(-1).timestamp_ms : null;
+  const currentIdleMs = Number.isFinite(lastEventTimestampMs)
+    ? Math.max(0, now - lastEventTimestampMs)
+    : null;
+  const countedIdleGaps = [...gapDurations];
+  if (Number.isFinite(currentIdleMs) && currentIdleMs >= idleThresholdMs) {
+    countedIdleGaps.push(currentIdleMs);
+  }
+  const reviewDurations = (Array.isArray(spans) ? spans : [])
+    .filter((span) => span?.span_kind === "REVIEW_EXCHANGE" && Number.isFinite(span?.duration_ms))
+    .map((span) => Number(span.duration_ms));
+  const openReviewCount = (Array.isArray(spans) ? spans : [])
+    .filter((span) => span?.span_kind === "REVIEW_EXCHANGE" && !Number.isFinite(span?.duration_ms))
+    .length;
+
+  const sortedReceipts = [...(Array.isArray(receipts) ? receipts : [])]
+    .filter((entry) => Number.isFinite(parseTimestamp(entry?.timestamp_utc)))
+    .sort((left, right) => parseTimestamp(left?.timestamp_utc) - parseTimestamp(right?.timestamp_utc));
+  const passToCoderDurations = [];
+  let validatorPassWaitingCount = 0;
+  for (const receipt of sortedReceipts) {
+    if (!isValidatorPassReceipt(receipt)) continue;
+    const passTimestampMs = parseTimestamp(receipt?.timestamp_utc);
+    const nextCoderActionMs = nextCoderActionTimestamp(passTimestampMs, sortedEntries);
+    if (Number.isFinite(nextCoderActionMs)) {
+      passToCoderDurations.push(nextCoderActionMs - passTimestampMs);
+      continue;
+    }
+    validatorPassWaitingCount += 1;
+  }
+
+  const unresolvedControlCount = Math.max(
+    0,
+    Number((controlRequests || []).length || 0) - Number((controlResults || []).length || 0),
+  );
+  const currentWait = classifyCurrentWait({
+    runtimeStatus,
+    laneVerdict,
+    currentIdleMs,
+  });
+  const measuredActiveBuildMs = sumSpanDurations(spans, (span) =>
+    span?.span_kind === "MICROTASK_EXECUTION" && span?.span_stage !== "REPAIR_LOOP"
+  );
+  const measuredRepairOverheadMs = sumSpanDurations(spans, (span) =>
+    (span?.span_kind === "MICROTASK_EXECUTION" && span?.span_stage === "REPAIR_LOOP")
+    || (span?.span_kind === "CONTROL_COMMAND" && normalizeCommandKind(span?.command_kind) === "CANCEL_SESSION")
+  );
+  const measuredValidatorWaitMs = sumSpanDurations(spans, (span) =>
+    span?.span_kind === "REVIEW_EXCHANGE" && isValidatorRole(span?.target_role)
+  );
+  const measuredRouteWaitMs = sumSpanDurations(spans, (span) =>
+    span?.span_kind === "CONTROL_COMMAND" && span?.span_stage === "RELAY"
+  );
+  const queuePressure = deriveQueuePressure({
+    notifications,
+    pendingNotificationCount,
+    openReviewCount,
+    unresolvedControlCount,
+    runtimeStatus,
+  });
+
+  return {
+    idle_threshold_ms: idleThresholdMs,
+    current_idle_ms: currentIdleMs,
+    current_idle_exceeds_threshold: Number.isFinite(currentIdleMs) ? currentIdleMs >= idleThresholdMs : false,
+    idle_gap_count: countedIdleGaps.length,
+    latest_idle_gap_ms: countedIdleGaps.length > 0 ? countedIdleGaps.at(-1) : null,
+    max_idle_gap_ms: countedIdleGaps.length > 0 ? Math.max(...countedIdleGaps) : null,
+    review_response: {
+      ...summarizeDurations(reviewDurations),
+      open_count: openReviewCount,
+    },
+    validator_pass_to_next_coder_action: {
+      ...summarizeDurations(passToCoderDurations),
+      waiting_count: validatorPassWaitingCount,
+    },
+    downtime_attribution: {
+      active_build_ms: measuredActiveBuildMs,
+      validator_wait_ms: measuredValidatorWaitMs + (currentWait.bucket === "VALIDATOR_WAIT" ? Number(currentIdleMs || 0) : 0),
+      route_wait_ms: measuredRouteWaitMs + (currentWait.bucket === "ROUTE_WAIT" ? Number(currentIdleMs || 0) : 0),
+      dependency_wait_ms: currentWait.bucket === "DEPENDENCY_WAIT" ? Number(currentIdleMs || 0) : 0,
+      human_wait_ms: currentWait.bucket === "HUMAN_WAIT" ? Number(currentIdleMs || 0) : 0,
+      repair_overhead_ms: measuredRepairOverheadMs + (currentWait.bucket === "REPAIR_WAIT" ? Number(currentIdleMs || 0) : 0),
+      coder_wait_ms: currentWait.bucket === "CODER_WAIT" ? Number(currentIdleMs || 0) : 0,
+      unattributed_current_idle_ms: currentWait.bucket === "UNCLASSIFIED" ? Number(currentIdleMs || 0) : 0,
+      current_wait: currentWait,
+    },
+    queue_pressure: queuePressure,
+    drift_markers: {
+      duplicate_receipt_count: duplicateReceiptCount(receipts),
+      open_review_count: openReviewCount,
+      unresolved_control_count: unresolvedControlCount,
+    },
   };
 }
 

@@ -26,9 +26,11 @@ import {
   activeRunsForTarget,
   buildRelayRepairSignal,
   buildRelayWatchdogSummary,
+  deriveRelayLaneVerdict,
   deriveRelayWatchdogDecision,
   deriveRelayWatchdogRestartDecision,
   relayRepairSignalAlreadyPending,
+  workerInterruptCycleBudget,
 } from "./lib/wp-relay-watchdog-lib.mjs";
 
 const ORCHESTRATOR_STEER_SCRIPT_PATH = path.resolve(REPO_ROOT, ".GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs");
@@ -78,6 +80,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     intervalSeconds: 30,
     allowWatchSteer: true,
     allowRestart: false,
+    observeOnly: false,
+    json: false,
     restartOutputIdleSeconds: DEFAULT_RESTART_OUTPUT_IDLE_SECONDS,
   };
   const rest = [...argv];
@@ -96,6 +100,14 @@ function parseArgs(argv = process.argv.slice(2)) {
     }
     if (token === "--allow-restart") {
       args.allowRestart = true;
+      continue;
+    }
+    if (token === "--observe-only") {
+      args.observeOnly = true;
+      continue;
+    }
+    if (token === "--json") {
+      args.json = true;
       continue;
     }
     if (token === "--interval-seconds") {
@@ -410,8 +422,11 @@ function maybeRestartStalledLane({
   targetRole = "",
   targetSession = null,
   decision = null,
+  laneVerdict = null,
+  runtimeStatus = null,
   activeRuns = [],
   allowRestart = false,
+  executeRestart = true,
   restartOutputIdleSeconds = DEFAULT_RESTART_OUTPUT_IDLE_SECONDS,
 } = {}) {
   const targetSessionRecord = findTargetRegistrySession(registrySessions, {
@@ -427,8 +442,11 @@ function maybeRestartStalledLane({
     activeRuns,
     restartOutputIdleSeconds,
   });
+  const workerInterruptBudget = workerInterruptCycleBudget(runtimeStatus);
   const restartDecision = deriveRelayWatchdogRestartDecision({
     decision,
+    laneVerdict,
+    workerInterruptBudget,
     allowRestart,
     freshness,
   });
@@ -437,6 +455,18 @@ function maybeRestartStalledLane({
       status: "SKIPPED",
       reason: restartDecision.reason,
       freshness,
+      workerInterruptBudget,
+      restartDecision,
+      targetSessionRecord,
+    };
+  }
+
+  if (!executeRestart) {
+    return {
+      status: "WOULD_RESTART",
+      reason: restartDecision.reason,
+      freshness,
+      workerInterruptBudget,
       restartDecision,
       targetSessionRecord,
     };
@@ -448,6 +478,7 @@ function maybeRestartStalledLane({
       status: "FAILED",
       reason: cancel.cancelStatus || cancel.settledStatus || "CANCEL_SESSION_FAILED",
       freshness,
+      workerInterruptBudget,
       restartDecision,
       targetSessionRecord,
       cancel,
@@ -483,6 +514,7 @@ function maybeRestartStalledLane({
     status: "RESTARTED",
     reason: restartDecision.reason,
     freshness,
+    workerInterruptBudget,
     restartDecision,
     targetSessionRecord,
     cancel,
@@ -578,21 +610,36 @@ function updateRelayWatchdogRuntimeState({
     const runtime = parseJsonFile(runtimeStatusFile);
     const previousCycle = parseNonNegativeInteger(runtime.current_relay_escalation_cycle, 0);
     const maxCycle = Math.max(1, parseNonNegativeInteger(runtime.max_relay_escalation_cycles, 1));
+    const previousWorkerInterruptCycle = parseNonNegativeInteger(runtime.current_worker_interrupt_cycle, 0);
+    const maxWorkerInterruptCycle = parseNonNegativeInteger(runtime.max_worker_interrupt_cycles, 1);
     let nextCycle = previousCycle;
+    let nextWorkerInterruptCycle = previousWorkerInterruptCycle;
     const restartApplied = restartRepair?.status === "RESTARTED" && restartRepair?.restartDecision?.shouldRestart;
     const cycleAction = restartApplied
       ? "INCREMENT"
       : String(decision?.cycleAction || "").trim().toUpperCase();
+    runtime.max_worker_interrupt_cycles = maxWorkerInterruptCycle;
     if (cycleAction === "RESET") {
       nextCycle = 0;
     } else if (cycleAction === "INCREMENT") {
-      const requestedCycle = restartApplied
-        ? parseNonNegativeInteger(restartRepair?.restartDecision?.nextCycle, previousCycle + 1)
-        : parseNonNegativeInteger(decision?.nextCycle, previousCycle + 1);
+      const requestedCycle = parseNonNegativeInteger(decision?.nextCycle, previousCycle + 1);
       nextCycle = Math.min(maxCycle, Math.max(previousCycle + 1, requestedCycle));
+    }
+    if (restartApplied) {
+      const requestedWorkerInterruptCycle = parseNonNegativeInteger(
+        restartRepair?.restartDecision?.nextCycle,
+        previousWorkerInterruptCycle + 1,
+      );
+      nextWorkerInterruptCycle = Math.min(
+        maxWorkerInterruptCycle,
+        Math.max(previousWorkerInterruptCycle + 1, requestedWorkerInterruptCycle),
+      );
+    } else if (cycleAction === "RESET" || String(decision?.action || "").trim().toUpperCase() !== "REPORT_STALLED_ACTIVE_RUN") {
+      nextWorkerInterruptCycle = 0;
     }
 
     runtime.current_relay_escalation_cycle = nextCycle;
+    runtime.current_worker_interrupt_cycle = nextWorkerInterruptCycle;
     const lastEventAction = restartApplied
       ? "cancel_and_resteer"
       : String(decision?.action || "skip").trim().toLowerCase();
@@ -613,6 +660,9 @@ function updateRelayWatchdogRuntimeState({
       previousCycle,
       nextCycle,
       maxCycle,
+      previousWorkerInterruptCycle,
+      nextWorkerInterruptCycle,
+      maxWorkerInterruptCycle,
       attentionRequired: runtime.attention_required === true,
       lastEvent: runtime.last_event,
       lastEventAt: runtime.last_event_at,
@@ -666,6 +716,7 @@ function evaluateWp(wpId, {
   brokerState,
   allowWatchSteer,
   allowRestart,
+  observeOnly,
   restartOutputIdleSeconds,
 } = {}) {
   const base = loadWpRelayInputs(wpId, registrySessions);
@@ -695,6 +746,7 @@ function evaluateWp(wpId, {
   const outputFreshness = activeRuns.length > 0
     ? inspectActiveRunOutputFreshness(targetSessionRecord)
     : { status: "UNKNOWN", reason: "NO_ACTIVE_RUN", outputFile: null, outputIdleSeconds: null };
+  const workerInterruptBudget = workerInterruptCycleBudget(base.runtimeStatus);
   const decision = deriveRelayWatchdogDecision({
     relayStatus: base.relayStatus,
     activeRuns,
@@ -702,24 +754,65 @@ function evaluateWp(wpId, {
     outputFreshnessStatus: outputFreshness.status,
     allowWatchSteer,
   });
+  const laneVerdict = deriveRelayLaneVerdict({
+    relayStatus: base.relayStatus,
+    decision,
+    activeRuns,
+    stallScanStatus: stallScan.status,
+    stallScanSummary: stallScan.summary,
+    outputFreshnessStatus: outputFreshness.status,
+    waitingOn: base.runtimeStatus?.waiting_on || "",
+  });
   const restartRepair = maybeRestartStalledLane({
     wpId,
     registrySessions,
     targetRole,
     targetSession,
     decision,
+    laneVerdict,
+    runtimeStatus: base.runtimeStatus,
     activeRuns,
     allowRestart,
+    executeRestart: !observeOnly,
     restartOutputIdleSeconds,
   });
   const summary = buildRelayWatchdogSummary({
     wpId,
     relayStatus: base.relayStatus,
     decision,
+    laneVerdict,
+    workerInterruptBudget,
     activeRuns,
     stallScanStatus: stallScan.status,
     outputFreshnessStatus: outputFreshness.status,
   });
+
+  if (observeOnly) {
+    const previewAction = restartRepair?.status === "WOULD_RESTART"
+      ? restartRepair.restartDecision.action
+      : decision.action;
+    const previewReason = restartRepair?.status === "WOULD_RESTART"
+      ? restartRepair.reason
+      : decision.reason;
+    return {
+      wpId,
+      action: previewAction,
+      reason: previewReason,
+      summary,
+      relayStatus: base.relayStatus,
+      stallScan,
+      outputFreshness,
+      activeRuns,
+      decision,
+      laneVerdict,
+      workerInterruptBudget,
+      restartRepair,
+      runtimeUpdate: null,
+      repairSignal: { status: "NOT_APPLICABLE", reason: "OBSERVE_ONLY" },
+      observeOnly: true,
+      skipped: false,
+    };
+  }
 
   if (restartRepair?.status === "RESTARTED") {
     const runtimeUpdate = updateRelayWatchdogRuntimeState({
@@ -739,6 +832,8 @@ function evaluateWp(wpId, {
       outputFreshness,
       activeRuns,
       decision,
+      laneVerdict,
+      workerInterruptBudget,
       restartRepair,
       runtimeUpdate,
       outputLines: restartRepair.outputLines,
@@ -771,6 +866,8 @@ function evaluateWp(wpId, {
       outputFreshness,
       activeRuns,
       decision,
+      laneVerdict,
+      workerInterruptBudget,
       runtimeUpdate,
       repairSignal,
       skipped: true,
@@ -805,6 +902,8 @@ function evaluateWp(wpId, {
     activeRuns,
     outputLines,
     decision,
+    laneVerdict,
+    workerInterruptBudget,
     restartRepair,
     runtimeUpdate,
     repairSignal: { status: "NOT_APPLICABLE", reason: "STEER_ACTION" },
@@ -812,11 +911,71 @@ function evaluateWp(wpId, {
   };
 }
 
-function printResult(result) {
+function buildWatchdogErrorResult(wpId, error, { observeOnly = false } = {}) {
+  const reason = error instanceof Error ? error.message : String(error);
+  return {
+    wpId,
+    action: "ERROR",
+    reason,
+    observeOnly,
+    summary: `RELAY_WATCHDOG | wp=${wpId} | decision=ERROR | reason=${reason}`,
+    skipped: true,
+    error: reason,
+    relayStatus: null,
+    decision: null,
+    stallScan: null,
+    outputFreshness: null,
+    activeRuns: [],
+    laneVerdict: null,
+    workerInterruptBudget: null,
+    restartRepair: null,
+    runtimeUpdate: null,
+    repairSignal: { status: "NOT_APPLICABLE", reason: "WATCHDOG_EVALUATION_ERROR" },
+  };
+}
+
+function serializeResult(result) {
+  return {
+    kind: "RELAY_WATCHDOG_RESULT",
+    wpId: result.wpId,
+    action: result.action,
+    reason: result.reason || "",
+    observeOnly: result.observeOnly === true,
+    summary: result.summary,
+    laneVerdict: result.laneVerdict || null,
+    relayStatus: result.relayStatus || null,
+    decision: result.decision || null,
+    stallScan: result.stallScan || null,
+    outputFreshness: result.outputFreshness || null,
+    workerInterruptBudget: result.workerInterruptBudget || null,
+    runtimeUpdate: result.runtimeUpdate || null,
+    restartRepair: result.restartRepair || null,
+    repairSignal: result.repairSignal || null,
+    activeRunCount: Array.isArray(result.activeRuns) ? result.activeRuns.length : 0,
+  };
+}
+
+function printResult(result, { json = false } = {}) {
+  if (json) {
+    console.log(JSON.stringify(serializeResult(result)));
+    return;
+  }
   console.log(`RELAY_WATCHDOG_RESULT ${result.wpId}`);
   console.log(`- action: ${result.action}`);
   console.log(`- reason: ${result.reason || "<none>"}`);
+  if (result.error) {
+    console.log(`- error: ${result.error}`);
+  }
+  if (result.observeOnly) {
+    console.log(`- observe_only: YES`);
+  }
   console.log(`- summary: ${result.summary}`);
+  if (result.laneVerdict) {
+    console.log(`- lane_verdict: ${result.laneVerdict.verdict}`);
+    console.log(`- lane_verdict_reason: ${result.laneVerdict.reasonCode}`);
+    console.log(`- lane_poke_target: ${result.laneVerdict.pokeTarget}`);
+    console.log(`- lane_worker_interrupt_policy: ${result.laneVerdict.workerInterruptPolicy}`);
+  }
   if (result.relayStatus?.applicable) {
     console.log(`- relay_status: ${result.relayStatus.status}`);
     console.log(`- relay_reason_code: ${result.relayStatus.reason_code}`);
@@ -828,6 +987,10 @@ function printResult(result) {
       console.log(`- relay_cycle_after: ${result.decision.nextCycle}/${result.decision.maxCycle}`);
     }
     console.log(`- relay_limit_reached: ${result.decision.limitReached ? "YES" : "NO"}`);
+  }
+  if (result.workerInterruptBudget) {
+    console.log(`- worker_interrupt_cycle: ${result.workerInterruptBudget.currentCycle}/${result.workerInterruptBudget.maxCycle}`);
+    console.log(`- worker_interrupt_limit_reached: ${result.workerInterruptBudget.exhausted ? "YES" : "NO"}`);
   }
   if (result.stallScan) {
     console.log(`- stall_scan_status: ${result.stallScan.status}`);
@@ -843,6 +1006,8 @@ function printResult(result) {
   if (result.runtimeUpdate) {
     console.log(`- runtime_cycle_before: ${result.runtimeUpdate.previousCycle}/${result.runtimeUpdate.maxCycle}`);
     console.log(`- runtime_cycle_after: ${result.runtimeUpdate.nextCycle}/${result.runtimeUpdate.maxCycle}`);
+    console.log(`- runtime_worker_interrupt_before: ${result.runtimeUpdate.previousWorkerInterruptCycle}/${result.runtimeUpdate.maxWorkerInterruptCycle}`);
+    console.log(`- runtime_worker_interrupt_after: ${result.runtimeUpdate.nextWorkerInterruptCycle}/${result.runtimeUpdate.maxWorkerInterruptCycle}`);
     console.log(`- runtime_attention_required: ${result.runtimeUpdate.attentionRequired ? "YES" : "NO"}`);
   }
   if (result.restartRepair) {
@@ -882,15 +1047,27 @@ function runCycle(args) {
   const { registry } = loadSessionRegistry(REPO_ROOT);
   const brokerState = loadBrokerState();
   const wpIds = args.wpId ? [args.wpId] : listManagedPacketIds();
-  const results = wpIds.map((wpId) => evaluateWp(wpId, {
-    registrySessions: registry.sessions || [],
-    brokerState,
-    allowWatchSteer: args.allowWatchSteer,
-    allowRestart: args.allowRestart,
-    restartOutputIdleSeconds: args.restartOutputIdleSeconds,
-  }));
+  const results = wpIds.map((wpId) => {
+    try {
+      return evaluateWp(wpId, {
+        registrySessions: registry.sessions || [],
+        brokerState,
+        allowWatchSteer: args.allowWatchSteer,
+        allowRestart: args.allowRestart,
+        observeOnly: args.observeOnly,
+        restartOutputIdleSeconds: args.restartOutputIdleSeconds,
+      });
+    } catch (error) {
+      return buildWatchdogErrorResult(wpId, error, {
+        observeOnly: args.observeOnly,
+      });
+    }
+  });
   for (const result of results) {
-    printResult(result);
+    printResult(result, { json: args.json });
+  }
+  if (!args.loop && results.some((result) => result.action === "ERROR")) {
+    throw new Error("one or more work packets failed watchdog evaluation");
   }
   return results;
 }

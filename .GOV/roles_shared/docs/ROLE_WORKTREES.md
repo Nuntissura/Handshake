@@ -24,11 +24,11 @@ Recommended structure:
 ```
 
 Preferred session host:
-- Prefer the VS Code session bridge to host repo-governed Coder, WP Validator, and Integration Validator terminals inside VS Code integrated terminals.
-- Keep one dedicated VS Code terminal tab for `just operator-viewport` so the Operator can watch active WPs, heartbeats, and packet-scoped communications without using many floating terminal windows. `just operator-monitor` remains a compatibility alias.
+- Prefer the governed headless ACP lane for ordinary repo-governed Coder, WP Validator, and Integration Validator sessions.
+- Keep one dedicated terminal tab for `just operator-viewport` so the Operator can watch active WPs, heartbeats, and packet-scoped communications without relying on launched session windows. `just operator-monitor` remains a compatibility alias.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. New repo-governed launchers explicitly target `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
-- Launch requests are append-only in the external repo-governance `SESSION_LAUNCH_REQUESTS.jsonl` ledger; current launch state is projected in the matching external `ROLE_SESSION_REGISTRY.json` file.
-- CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session, unless the Operator explicitly waives the plugin-first path.
+- Ordinary launch/control state now lives primarily in the external repo-governance ACP/runtime surfaces: `ROLE_SESSION_REGISTRY.json`, `SESSION_CONTROL_REQUESTS.jsonl`, and `SESSION_CONTROL_RESULTS.jsonl`. The legacy `SESSION_LAUNCH_REQUESTS.jsonl` queue remains a compatibility surface for explicit `VSCODE_PLUGIN` repair launches only.
+- CLI escalation windows are repair-only surfaces. Use them only when the Orchestrator explicitly selects them.
 
 If you are an AI assistant operating in this repo:
 - You MUST read this file during session start (Pre-Flight) for your assigned role.

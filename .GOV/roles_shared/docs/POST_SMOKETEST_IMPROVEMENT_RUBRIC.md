@@ -1,5 +1,11 @@
 # Post-Smoketest Improvement Rubric
 
+Compatibility note:
+
+- The canonical closeout judgment layer is now `Workflow Dossier Rubric`.
+- This file remains a compatibility rubric for older references and lineage surfaces.
+- New work should prefer `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.
+
 Use this rubric after every live smoketest, workflow-proof run, recovery pass, closeout review, and workflow comparison audit.
 
 Purpose:

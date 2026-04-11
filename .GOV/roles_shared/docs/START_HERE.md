@@ -86,7 +86,8 @@ just gov-check
 - Governance-maintenance templates:
   - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
   - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
-  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
 
 **Gate 0 (Startup):** work packet MUST exist and pass `just phase-check STARTUP WP-{ID} CODER` before implementation starts. If blocked, STOP and request help.
 

@@ -25,6 +25,17 @@ export function relayEscalationCycleBudget(relayStatus = null) {
   };
 }
 
+export function workerInterruptCycleBudget(runtimeStatus = null) {
+  const currentCycle = parseNonNegativeInteger(runtimeStatus?.current_worker_interrupt_cycle, 0);
+  const maxCycle = parseNonNegativeInteger(runtimeStatus?.max_worker_interrupt_cycles, 1);
+  return {
+    currentCycle,
+    maxCycle,
+    exhausted: currentCycle >= maxCycle,
+    remainingCycles: Math.max(0, maxCycle - currentCycle),
+  };
+}
+
 export function activeRunsForTarget(activeRuns = [], {
   wpId = "",
   role = "",
@@ -159,6 +170,8 @@ export function buildRelayWatchdogSummary({
   wpId = "",
   relayStatus = null,
   decision = null,
+  laneVerdict = null,
+  workerInterruptBudget = null,
   activeRuns = [],
   stallScanStatus = "UNKNOWN",
   outputFreshnessStatus = "UNKNOWN",
@@ -186,24 +199,152 @@ export function buildRelayWatchdogSummary({
     `active_runs=${Array.isArray(activeRuns) ? activeRuns.length : 0}`,
     `stall_scan=${String(stallScanStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
     `output_freshness=${String(outputFreshnessStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
+    `lane_verdict=${String(laneVerdict?.verdict || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
+    `worker_interrupt=${Number.isInteger(workerInterruptBudget?.currentCycle) ? workerInterruptBudget.currentCycle : 0}/${Number.isInteger(workerInterruptBudget?.maxCycle) ? workerInterruptBudget.maxCycle : 1}`,
   ];
   return parts.join(" | ");
 }
 
+function classifyWaitVerdict({
+  waitingOn = "",
+  reasonCode = "",
+} = {}) {
+  const combined = [
+    String(waitingOn || "").trim(),
+    String(reasonCode || "").trim(),
+  ].join(" ").toUpperCase();
+  if (!combined) return null;
+  if (/HUMAN|OPERATOR|APPROVAL|SIGNATURE/.test(combined)) return "WAITING_ON_HUMAN_APPROVAL";
+  if (/DEPENDENCY|BLOCKED/.test(combined)) return "WAITING_ON_DEPENDENCY";
+  if (/ORCHESTRATOR|CHECKPOINT/.test(combined)) return "WAITING_ON_ORCHESTRATOR_CHECKPOINT";
+  if (/VALIDATOR|REVIEW|FINAL_REVIEW|INTEGRATION_VALIDATOR/.test(combined)) return "WAITING_ON_VALIDATOR";
+  if (/CODER|HANDOFF|REPAIR|INTENT/.test(combined)) return "WAITING_ON_CODER";
+  return null;
+}
+
+function extractStallVerdict(stallScanStatus = "", stallScanSummary = "") {
+  if (String(stallScanStatus || "").trim().toUpperCase() !== "STALL") return null;
+  const summary = String(stallScanSummary || "").trim().toUpperCase();
+  if (summary.includes("STALL_RETRY_LOOP")) return "STALL_RETRY_LOOP";
+  if (summary.includes("STALL_COMMAND_LOOP")) return "STALL_COMMAND_LOOP";
+  if (summary.includes("STALL_REPEATED_ERROR")) return "STALL_REPEATED_ERROR";
+  if (summary.includes("STALL_NO_PROGRESS")) return "STALL_NO_PROGRESS";
+  return null;
+}
+
+export function deriveRelayLaneVerdict({
+  relayStatus = null,
+  decision = null,
+  activeRuns = [],
+  stallScanStatus = "UNKNOWN",
+  stallScanSummary = "",
+  outputFreshnessStatus = "UNKNOWN",
+  waitingOn = "",
+} = {}) {
+  const relayApplicable = relayStatus?.applicable === true;
+  const activeRunCount = Array.isArray(activeRuns) ? activeRuns.length : 0;
+  const decisionAction = String(decision?.action || "SKIP").trim().toUpperCase() || "SKIP";
+  const relayState = String(relayStatus?.status || "NOT_APPLICABLE").trim().toUpperCase() || "NOT_APPLICABLE";
+  const decisionReasonCode = String(decision?.reason || "").trim().toUpperCase();
+  const relayReasonCode = String(relayStatus?.reason_code || "").trim().toUpperCase();
+  const reasonCode = (decisionReasonCode && !["NORMAL", "SKIP"].includes(decisionReasonCode))
+    ? decisionReasonCode
+    : (relayReasonCode || decisionReasonCode || "UNKNOWN");
+  const waitVerdict = classifyWaitVerdict({
+    waitingOn,
+    reasonCode,
+  });
+
+  let verdict = "ACTIVE_HEALTHY";
+  let pokeTarget = "NONE";
+  let workerInterruptPolicy = "FORBIDDEN";
+
+  if (!relayApplicable) {
+    verdict = "NOT_APPLICABLE";
+  } else if (activeRunCount > 0) {
+    if (decisionAction === "REPORT_STALLED_ACTIVE_RUN") {
+      verdict = extractStallVerdict(stallScanStatus, stallScanSummary)
+        || (decision?.limitReached ? "ACTIVE_RUN_STALLED_ESCALATE" : "ACTIVE_RUN_STALLED_RECOVERABLE");
+      pokeTarget = "ROUTE_MANAGER";
+      workerInterruptPolicy = decision?.limitReached ? "ROUTE_MANAGER_FIRST" : "BOUNDED_AFTER_ROUTE_REPAIR";
+    } else if (["RECENT", "FRESH"].includes(String(outputFreshnessStatus || "").trim().toUpperCase())) {
+      verdict = "QUIET_BUT_PROGRESSING";
+    } else if (waitVerdict) {
+      verdict = waitVerdict;
+    }
+  } else {
+    if (decisionAction === "ESCALATE_RELAY_LIMIT") {
+      verdict = "RELAY_BUDGET_EXHAUSTED";
+      pokeTarget = "ROUTE_MANAGER";
+      workerInterruptPolicy = "ROUTE_MANAGER_FIRST";
+    } else if (waitVerdict && !reasonCode.startsWith("ROUTE_STALE")) {
+      verdict = waitVerdict;
+      if (["STEER", "WATCH_ONLY"].includes(decisionAction) || ["WATCH", "ESCALATED"].includes(relayState)) {
+        pokeTarget = "ROUTE_MANAGER";
+        workerInterruptPolicy = "ROUTE_MANAGER_FIRST";
+      }
+    } else if (["WATCH", "ESCALATED"].includes(relayState) || ["STEER", "WATCH_ONLY"].includes(decisionAction)) {
+      verdict = "ROUTE_STALE_NO_ACTIVE_RUN";
+      pokeTarget = "ROUTE_MANAGER";
+      workerInterruptPolicy = "ROUTE_MANAGER_FIRST";
+    }
+  }
+
+  return {
+    verdict,
+    reasonCode,
+    pokeTarget,
+    workerInterruptPolicy,
+    evidence: {
+      relayState,
+      decisionAction,
+      targetRole: normalizeRole(relayStatus?.target_role),
+      targetSession: normalizeSession(relayStatus?.target_session),
+      activeRunCount,
+      stallScanStatus: String(stallScanStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN",
+      outputFreshnessStatus: String(outputFreshnessStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN",
+      waitingOn: String(waitingOn || "").trim() || "NONE",
+    },
+  };
+}
+
+export function formatRelayLaneVerdict(laneVerdict = null) {
+  if (!laneVerdict) return "NONE";
+  const verdict = String(laneVerdict.verdict || "UNKNOWN").trim().toUpperCase() || "UNKNOWN";
+  const reasonCode = String(laneVerdict.reasonCode || "UNKNOWN").trim().toUpperCase() || "UNKNOWN";
+  return `${verdict}/${reasonCode}`;
+}
+
 export function deriveRelayWatchdogRestartDecision({
   decision = null,
+  laneVerdict = null,
+  workerInterruptBudget = null,
   allowRestart = false,
   freshness = null,
 } = {}) {
   const action = String(decision?.action || "").trim().toUpperCase();
-  const currentCycle = parseNonNegativeInteger(decision?.currentCycle, 0);
-  const maxCycle = Math.max(1, parseNonNegativeInteger(decision?.maxCycle, 1));
+  const budget = workerInterruptBudget || workerInterruptCycleBudget();
+  const currentCycle = parseNonNegativeInteger(budget.currentCycle, 0);
+  const maxCycle = parseNonNegativeInteger(budget.maxCycle, 1);
+  const interruptPolicy = String(laneVerdict?.workerInterruptPolicy || "").trim().toUpperCase();
+  const verdict = String(laneVerdict?.verdict || "").trim().toUpperCase();
 
   if (!allowRestart) {
     return {
       action: "RESTART_DISABLED",
       shouldRestart: false,
       reason: "RESTART_DISABLED",
+      currentCycle,
+      nextCycle: currentCycle,
+      maxCycle,
+    };
+  }
+
+  if (interruptPolicy !== "BOUNDED_AFTER_ROUTE_REPAIR") {
+    return {
+      action: "RESTART_POLICY_FORBIDS",
+      shouldRestart: false,
+      reason: interruptPolicy || "WORKER_INTERRUPT_FORBIDDEN",
       currentCycle,
       nextCycle: currentCycle,
       maxCycle,
@@ -221,11 +362,22 @@ export function deriveRelayWatchdogRestartDecision({
     };
   }
 
-  if (currentCycle >= maxCycle) {
+  if (!(verdict.startsWith("STALL_") || verdict.startsWith("ACTIVE_RUN_STALLED"))) {
+    return {
+      action: "RESTART_NOT_APPLICABLE",
+      shouldRestart: false,
+      reason: verdict || "RESTART_VERDICT_NOT_STALLED",
+      currentCycle,
+      nextCycle: currentCycle,
+      maxCycle,
+    };
+  }
+
+  if (budget.exhausted) {
     return {
       action: "RESTART_BUDGET_EXHAUSTED",
       shouldRestart: false,
-      reason: "MAX_RELAY_ESCALATION_CYCLES_REACHED",
+      reason: "MAX_WORKER_INTERRUPT_CYCLES_REACHED",
       currentCycle,
       nextCycle: currentCycle,
       maxCycle,

@@ -14,6 +14,7 @@ import {
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
   buildRoleEnvironmentOverrides,
+  classifySessionControlOutcomeState,
   buildSessionControlRequest,
   buildStartupPrompt,
   defaultSessionOutputFile,
@@ -31,6 +32,11 @@ import {
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
 import { GOV_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import {
+  appendWorkflowDossierEntry,
+  formatWorkflowDossierTimestamp,
+  normalizePath,
+} from "../../../roles_shared/scripts/audit/workflow-dossier-lib.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 registerFailCaptureHook("session-control-command.mjs", { role: "ORCHESTRATOR" });
 
@@ -98,6 +104,148 @@ function reclaimOwnedTerminalsForSession(context = "") {
 
 function runGit(args) {
   return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+}
+
+function shortenDossierToken(value = "", prefix = 8, suffix = 6) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (text.length <= (prefix + suffix + 2)) return text;
+  return `${text.slice(0, prefix)}..${text.slice(-suffix)}`;
+}
+
+function acpFlowRoute(stage = "", settledRole = role) {
+  const normalizedStage = String(stage || "").trim().toLowerCase();
+  if (normalizedStage === "terminal.reclaimed") {
+    return "ACP -> ORCHESTRATOR";
+  }
+  if (normalizedStage === "run.started" || normalizedStage === "process.spawned") {
+    return `ORCHESTRATOR -> ACP -> ${settledRole}`;
+  }
+  return `${settledRole} -> ACP -> ORCHESTRATOR`;
+}
+
+function buildAcpExecutionLogLine({
+  when = new Date(),
+  commandKind: settledCommandKind = commandKind,
+  settledRole = role,
+  targetWpId = wpId,
+  status = "UNKNOWN",
+  outcomeState = "",
+  threadId = "",
+  outputJsonlFile = "",
+  detail = "",
+}) {
+  const whenIso = formatWorkflowDossierTimestamp(when);
+  const route = acpFlowRoute("completed", settledRole);
+  const parts = [
+    `status=${status}`,
+    outcomeState ? `outcome=${outcomeState}` : "",
+    threadId ? `thread=${threadId}` : "",
+    outputJsonlFile ? `output=${normalizePath(outputJsonlFile)}` : "",
+    targetWpId ? `wp=${targetWpId}` : "",
+    detail ? `detail=${detail}` : "",
+  ].filter(Boolean);
+  const suffix = parts.length > 0 ? ` | ${parts.join(" | ")}` : "";
+  return `- [${whenIso}] [ORCHESTRATOR] [ACP_SESSION_CONTROL] \`${route}\` ${settledCommandKind}/${status}${suffix}`;
+}
+
+function buildAcpUpdateLogLine({
+  notification,
+  commandKind: settledCommandKind = commandKind,
+  settledRole = role,
+  targetWpId = wpId,
+}) {
+  if (!notification || notification.method !== "session/update") return "";
+  const params = notification.params || {};
+  const stage = String(params.stage || "event").trim();
+  const whenIso = formatWorkflowDossierTimestamp(params.timestamp || new Date());
+  const route = acpFlowRoute(stage, settledRole);
+  const parts = [
+    params.command_id ? `cmd=${shortenDossierToken(params.command_id)}` : "",
+    targetWpId ? `wp=${targetWpId}` : "",
+    params.thread_id ? `thread=${shortenDossierToken(params.thread_id)}` : "",
+    params.pid ? `pid=${params.pid}` : "",
+    params.reclaim_status ? `reclaim=${params.reclaim_status}` : "",
+    params.process_id ? `process=${params.process_id}` : "",
+    params.terminal_batch_id ? `batch=${shortenDossierToken(params.terminal_batch_id)}` : "",
+  ].filter(Boolean);
+  const suffix = parts.length > 0 ? ` | ${parts.join(" | ")}` : "";
+  return `- [${whenIso}] [ORCHESTRATOR] [ACP_UPDATE] \`${route}\` ${settledCommandKind}/${stage}${suffix}`;
+}
+
+function appendWorkflowDossierExecutionLog(targetWpId, summaryLine) {
+  if (!summaryLine) return;
+  try {
+    appendWorkflowDossierEntry({
+      repoRoot,
+      wpId: targetWpId,
+      section: "EXECUTION",
+      line: summaryLine,
+    });
+  } catch {
+    // Non-fatal: dossier append is observability only.
+  }
+}
+
+function emitSessionOutcomeLines({
+  sessionKey = session?.session_key || "",
+  threadId = "",
+  runtimeState = session?.runtime_state || "",
+  settledCommandKind = commandKind,
+  outcomeState = "FAILED",
+  outputJsonlFile = "",
+  detail = "",
+  requestCommandId = "",
+  lastAgentMessage = "",
+} = {}) {
+  if (requestCommandId) {
+    console.log(`[SESSION_CONTROL] command_id=${requestCommandId}`);
+  }
+  if (sessionKey) console.log(`[SESSION_CONTROL] session_key=${sessionKey}`);
+  console.log(`[SESSION_CONTROL] thread_id=${threadId || "<missing>"}`);
+  if (runtimeState) console.log(`[SESSION_CONTROL] runtime_state=${runtimeState}`);
+  console.log(`[SESSION_CONTROL] command_kind=${settledCommandKind}`);
+  console.log(`[SESSION_CONTROL] outcome_state=${outcomeState}`);
+  if (outputJsonlFile) console.log(`[SESSION_CONTROL] output_jsonl=${outputJsonlFile}`);
+  if (lastAgentMessage) {
+    console.log(`[SESSION_CONTROL] last_agent_message=${lastAgentMessage}`);
+  }
+  if (detail) {
+    console.log(`[SESSION_CONTROL] detail=${detail}`);
+  }
+}
+
+function sessionAlreadyReady(currentSession) {
+  const threadId = String(currentSession?.session_thread_id || "").trim();
+  const runtimeState = String(currentSession?.runtime_state || "").trim().toUpperCase();
+  const startupProofState = String(currentSession?.startup_proof_state || "").trim().toUpperCase();
+  return Boolean(threadId) && (runtimeState === "READY" || startupProofState === "READY");
+}
+
+function loadSessionRecord(sessionKey) {
+  const registry = loadSessionRegistry(repoRoot).registry;
+  return (registry.sessions || []).find((entry) => entry.session_key === sessionKey) || null;
+}
+
+async function waitForSessionReady(sessionKey, timeoutMs = 2500) {
+  const startedAt = Date.now();
+  while ((Date.now() - startedAt) < timeoutMs) {
+    const currentSession = loadSessionRecord(sessionKey);
+    if (currentSession && sessionAlreadyReady(currentSession)) return currentSession;
+    await sleep(250);
+  }
+  const finalSession = loadSessionRecord(sessionKey);
+  return finalSession && sessionAlreadyReady(finalSession) ? finalSession : null;
+}
+
+function classifyResponseOutcome({ settledCommandKind = commandKind, response = {}, refreshedSession = session } = {}) {
+  return classifySessionControlOutcomeState({
+    status: String(response.status || "").trim().toUpperCase(),
+    commandKind: settledCommandKind,
+    error: response.error || "",
+    summary: response.last_agent_message || "",
+    cancelStatus: response.cancel_status || "",
+  });
 }
 
 if (!["START_SESSION", "SEND_PROMPT", "CANCEL_SESSION", "CLOSE_SESSION"].includes(commandKind)) {
@@ -225,6 +373,15 @@ if (commandKind === "CANCEL_SESSION") {
       method: "session/cancel",
       params: { request },
       timeoutMs: 30000,
+      notificationDrainMs: 250,
+      onNotification: (notification) => {
+        appendWorkflowDossierExecutionLog(wpId, buildAcpUpdateLogLine({
+          notification,
+          commandKind,
+          settledRole: role,
+          targetWpId: wpId,
+        }));
+      },
     });
   } catch (error) {
     const existingResult = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id);
@@ -234,6 +391,7 @@ if (commandKind === "CANCEL_SESSION") {
           command_id: existingResult.command_id,
           session_id: existingResult.session_key,
           status: String(existingResult.cancel_status || existingResult.status || "").toLowerCase(),
+          outcome_state: existingResult.outcome_state || "",
           output_jsonl_file: existingResult.output_jsonl_file || request.output_jsonl_file,
           error: existingResult.error || "",
           run_id: existingResult.target_command_id || targetCommandId,
@@ -248,6 +406,7 @@ if (commandKind === "CANCEL_SESSION") {
             command_id: recoveredResult.command_id,
             session_id: recoveredResult.session_key,
             status: String(recoveredResult.cancel_status || recoveredResult.status || "").toLowerCase(),
+            outcome_state: recoveredResult.outcome_state || "",
             output_jsonl_file: recoveredResult.output_jsonl_file || request.output_jsonl_file,
             error: recoveredResult.error || "",
             run_id: recoveredResult.target_command_id || targetCommandId,
@@ -297,6 +456,17 @@ if (commandKind === "CANCEL_SESSION") {
     syncWpTokenUsageLedger(repoRoot, settledTarget, { session });
   }
 
+  appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+    when: settledCancel.processed_at || new Date(),
+    commandKind,
+    settledRole: role,
+    targetWpId: wpId,
+    status: settledCancel.cancel_status || settledCancel.status || response.status || "UNKNOWN",
+    threadId: session.session_thread_id || "",
+    outputJsonlFile: settledCancel.output_jsonl_file || request.output_jsonl_file || "",
+    detail: settledCancel.summary || "",
+  }));
+
   process.exit(0);
 }
 
@@ -326,6 +496,15 @@ if (commandKind === "CLOSE_SESSION") {
       method: "session/close",
       params: { request },
       timeoutMs: 30000,
+      notificationDrainMs: 250,
+      onNotification: (notification) => {
+        appendWorkflowDossierExecutionLog(wpId, buildAcpUpdateLogLine({
+          notification,
+          commandKind,
+          settledRole: role,
+          targetWpId: wpId,
+        }));
+      },
     });
   } catch (error) {
     const existingResult = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id);
@@ -335,6 +514,7 @@ if (commandKind === "CLOSE_SESSION") {
           command_id: existingResult.command_id,
           session_id: existingResult.session_key,
           status: String(existingResult.status || "").toLowerCase(),
+          outcome_state: existingResult.outcome_state || "",
           output_jsonl_file: existingResult.output_jsonl_file || request.output_jsonl_file,
           error: existingResult.error || "",
           thread_id: existingResult.thread_id || "",
@@ -349,6 +529,7 @@ if (commandKind === "CLOSE_SESSION") {
             command_id: recoveredResult.command_id,
             session_id: recoveredResult.session_key,
             status: String(recoveredResult.status || "").toLowerCase(),
+            outcome_state: recoveredResult.outcome_state || "",
             output_jsonl_file: recoveredResult.output_jsonl_file || request.output_jsonl_file,
             error: recoveredResult.error || "",
             thread_id: recoveredResult.thread_id || "",
@@ -381,6 +562,16 @@ if (commandKind === "CLOSE_SESSION") {
   if (settledClose.summary) console.log(`[SESSION_CONTROL] summary=${settledClose.summary}`);
   if (settledClose.error) console.log(`[SESSION_CONTROL] error=${settledClose.error}`);
   syncWpTokenUsageLedger(repoRoot, settledClose, { session });
+  appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+    when: settledClose.processed_at || new Date(),
+    commandKind,
+    settledRole: role,
+    targetWpId: wpId,
+    status: settledClose.status || response.status || "UNKNOWN",
+    threadId: settledClose.thread_id || session.session_thread_id || "",
+    outputJsonlFile: settledClose.output_jsonl_file || request.output_jsonl_file || "",
+    detail: settledClose.summary || "",
+  }));
 
   // RGF-136: session-end memory flush — capture a semantic summary of the closed session
   try {
@@ -434,11 +625,49 @@ const prompt = commandKind === "START_SESSION"
 if (!prompt) {
   fail("SEND_PROMPT requires a non-empty prompt");
 }
-if (commandKind === "START_SESSION" && session.session_thread_id) {
-  fail(`Session ${session.session_key} already has thread ${session.session_thread_id}. Use SEND_PROMPT to steer it.`);
+if (commandKind === "START_SESSION" && sessionAlreadyReady(session)) {
+  const detail = `Session ${session.session_key} already has steerable thread ${session.session_thread_id}.`;
+  emitSessionOutcomeLines({
+    sessionKey: session.session_key,
+    threadId: session.session_thread_id,
+    runtimeState: session.runtime_state,
+    settledCommandKind: commandKind,
+    outcomeState: "ALREADY_READY",
+    detail,
+  });
+  appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+    when: new Date(),
+    commandKind,
+    settledRole: role,
+    targetWpId: wpId,
+    status: "COMPLETED",
+    outcomeState: "ALREADY_READY",
+    threadId: session.session_thread_id,
+    detail,
+  }));
+  process.exit(0);
 }
 if (commandKind === "SEND_PROMPT" && !session.session_thread_id) {
-  fail(`No steerable thread id is registered yet for ${session.session_key}. Start the session first.`);
+  const detail = `No steerable thread id is registered yet for ${session.session_key}. Start the session first.`;
+  emitSessionOutcomeLines({
+    sessionKey: session.session_key,
+    threadId: session.session_thread_id,
+    runtimeState: session.runtime_state,
+    settledCommandKind: commandKind,
+    outcomeState: "REQUIRES_START",
+    detail,
+  });
+  appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+    when: new Date(),
+    commandKind,
+    settledRole: role,
+    targetWpId: wpId,
+    status: "FAILED",
+    outcomeState: "REQUIRES_START",
+    threadId: session.session_thread_id,
+    detail,
+  }));
+  fail(detail);
 }
 
 const summary = commandKind === "START_SESSION"
@@ -477,19 +706,29 @@ try {
     method: commandKind === "START_SESSION" ? "session/new" : "session/prompt",
     params: { request },
     timeoutMs: (SESSION_CONTROL_RUN_TIMEOUT_SECONDS + SESSION_CONTROL_RUN_STALE_GRACE_SECONDS + 30) * 1000,
+    notificationDrainMs: 250,
+    onNotification: (notification) => {
+      appendWorkflowDossierExecutionLog(wpId, buildAcpUpdateLogLine({
+        notification,
+        commandKind,
+        settledRole: role,
+        targetWpId: wpId,
+      }));
+    },
   });
 } catch (error) {
   const existingResult = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id);
   if (existingResult) {
     acpResponse = {
-      result: {
-        command_id: existingResult.command_id,
-        session_id: existingResult.session_key,
-        thread_id: existingResult.thread_id || "",
-        status: String(existingResult.status || "").toLowerCase(),
-        output_jsonl_file: existingResult.output_jsonl_file || request.output_jsonl_file,
-        last_agent_message: existingResult.last_agent_message || "",
-        error: existingResult.error || "",
+        result: {
+          command_id: existingResult.command_id,
+          session_id: existingResult.session_key,
+          thread_id: existingResult.thread_id || "",
+          status: String(existingResult.status || "").toLowerCase(),
+          outcome_state: existingResult.outcome_state || "",
+          output_jsonl_file: existingResult.output_jsonl_file || request.output_jsonl_file,
+          last_agent_message: existingResult.last_agent_message || "",
+          error: existingResult.error || "",
         duration_ms: existingResult.duration_ms || 0,
       },
     };
@@ -503,6 +742,7 @@ try {
           session_id: recoveredResult.session_key,
           thread_id: recoveredResult.thread_id || "",
           status: String(recoveredResult.status || "").toLowerCase(),
+          outcome_state: recoveredResult.outcome_state || "",
           output_jsonl_file: recoveredResult.output_jsonl_file || request.output_jsonl_file,
           last_agent_message: recoveredResult.last_agent_message || "",
           error: recoveredResult.error || "",
@@ -510,8 +750,46 @@ try {
         },
       };
     } else {
+      const recoveredReadySession = commandKind === "START_SESSION"
+        ? await waitForSessionReady(session.session_key)
+        : null;
+      if (recoveredReadySession) {
+        const detail = `Session ${recoveredReadySession.session_key} became ready while broker dispatch recovery was converging.`;
+        emitSessionOutcomeLines({
+          requestCommandId: request.command_id,
+          sessionKey: recoveredReadySession.session_key,
+          threadId: recoveredReadySession.session_thread_id || "",
+          runtimeState: recoveredReadySession.runtime_state,
+          settledCommandKind: request.command_kind,
+          outcomeState: "ALREADY_READY",
+          outputJsonlFile: request.output_jsonl_file || "",
+          detail,
+        });
+        appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+          when: new Date(),
+          commandKind,
+          settledRole: role,
+          targetWpId: wpId,
+          status: "COMPLETED",
+          outcomeState: "ALREADY_READY",
+          threadId: recoveredReadySession.session_thread_id || "",
+          outputJsonlFile: request.output_jsonl_file || "",
+          detail,
+        }));
+        process.exit(0);
+      }
+      const dispatchFailure = `Broker dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`;
+      appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+        when: new Date(),
+        commandKind,
+        settledRole: role,
+        targetWpId: wpId,
+        status: "BROKER_DISPATCH_FAILED",
+        outputJsonlFile: request.output_jsonl_file || "",
+        detail: dispatchFailure,
+      }));
       reclaimOwnedTerminalsForSession("START_OR_SEND_DISPATCH_FAILURE");
-      fail(`Broker dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
+      fail(dispatchFailure);
     }
   }
 }
@@ -519,21 +797,90 @@ try {
 const response = acpResponse.result || {};
 const refreshedRegistry = loadSessionRegistry(repoRoot).registry;
 const refreshedSession = refreshedRegistry.sessions.find((entry) => entry.session_key === session.session_key) || session;
+const outcomeState = String(
+  response.outcome_state
+  || classifyResponseOutcome({ settledCommandKind: commandKind, response, refreshedSession }),
+).trim().toUpperCase() || "FAILED";
 
 if (String(response.status || "").toLowerCase() !== "completed") {
+  if (commandKind === "START_SESSION" && ["BUSY_ACTIVE_RUN", "REQUIRES_RECOVERY"].includes(outcomeState)) {
+    const recoveredReadySession = await waitForSessionReady(session.session_key);
+    if (recoveredReadySession) {
+      const detail = response.error
+        || response.last_agent_message
+        || `Session ${recoveredReadySession.session_key} became ready while the broker reported ${outcomeState}.`;
+      emitSessionOutcomeLines({
+        requestCommandId: request.command_id,
+        sessionKey: recoveredReadySession.session_key,
+        threadId: recoveredReadySession.session_thread_id || "",
+        runtimeState: recoveredReadySession.runtime_state,
+        settledCommandKind: request.command_kind,
+        outcomeState: "ALREADY_READY",
+        outputJsonlFile: response.output_jsonl_file || request.output_jsonl_file || "",
+        lastAgentMessage: response.last_agent_message || "",
+        detail,
+      });
+      appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+        when: new Date(),
+        commandKind,
+        settledRole: role,
+        targetWpId: wpId,
+        status: "COMPLETED",
+        outcomeState: "ALREADY_READY",
+        threadId: recoveredReadySession.session_thread_id || "",
+        outputJsonlFile: response.output_jsonl_file || request.output_jsonl_file || "",
+        detail,
+      }));
+      process.exit(0);
+    }
+  }
+  appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+    when: new Date(),
+    commandKind,
+    settledRole: role,
+    targetWpId: wpId,
+    status: String(response.status || "FAILED").trim().toUpperCase() || "FAILED",
+    outcomeState,
+    threadId: refreshedSession.session_thread_id || response.thread_id || "",
+    outputJsonlFile: response.output_jsonl_file || request.output_jsonl_file || "",
+    detail: response.error || response.last_agent_message || "no broker error reported",
+  }));
+  emitSessionOutcomeLines({
+    requestCommandId: request.command_id,
+    sessionKey: session.session_key,
+    threadId: refreshedSession.session_thread_id || response.thread_id || "",
+    runtimeState: refreshedSession.runtime_state,
+    settledCommandKind: request.command_kind,
+    outcomeState,
+    outputJsonlFile: response.output_jsonl_file || request.output_jsonl_file || "",
+    lastAgentMessage: response.last_agent_message || "",
+    detail: response.error || response.last_agent_message || "no broker error reported",
+  });
   reclaimOwnedTerminalsForSession("START_OR_SEND_COMPLETION_FAILURE");
-  fail(`Command ${request.command_id} failed (${response.error || "no broker error reported"})`);
+  fail(`Command ${request.command_id} failed [${outcomeState}] (${response.error || "no broker error reported"})`);
 }
 
-console.log(`[SESSION_CONTROL] command_id=${request.command_id}`);
-console.log(`[SESSION_CONTROL] session_key=${session.session_key}`);
-console.log(`[SESSION_CONTROL] thread_id=${refreshedSession.session_thread_id || response.thread_id || "<missing>"}`);
-console.log(`[SESSION_CONTROL] runtime_state=${refreshedSession.runtime_state}`);
-console.log(`[SESSION_CONTROL] command_kind=${request.command_kind}`);
-console.log(`[SESSION_CONTROL] output_jsonl=${response.output_jsonl_file || request.output_jsonl_file}`);
-if (response.last_agent_message) {
-  console.log(`[SESSION_CONTROL] last_agent_message=${response.last_agent_message}`);
-}
+emitSessionOutcomeLines({
+  requestCommandId: request.command_id,
+  sessionKey: session.session_key,
+  threadId: refreshedSession.session_thread_id || response.thread_id || "",
+  runtimeState: refreshedSession.runtime_state,
+  settledCommandKind: request.command_kind,
+  outcomeState,
+  outputJsonlFile: response.output_jsonl_file || request.output_jsonl_file,
+  lastAgentMessage: response.last_agent_message || "",
+});
+appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+  when: new Date(),
+  commandKind,
+  settledRole: role,
+  targetWpId: wpId,
+  status: "COMPLETED",
+  outcomeState,
+  threadId: refreshedSession.session_thread_id || response.thread_id || "",
+  outputJsonlFile: response.output_jsonl_file || request.output_jsonl_file || "",
+  detail: response.last_agent_message || "",
+}));
 syncWpTokenUsageLedger(repoRoot, {
   command_id: request.command_id,
   command_kind: request.command_kind,

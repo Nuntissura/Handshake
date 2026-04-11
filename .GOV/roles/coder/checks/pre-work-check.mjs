@@ -57,6 +57,7 @@ import {
   roleModelProfileFromPacket,
   roleModelProfileMatchesClaim,
   roleModelProfileMatchesReasoningStrength,
+  SESSION_COMPATIBILITY_SURFACE,
   SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
   SESSION_PLUGIN_BRIDGE_COMMAND,
   SESSION_PLUGIN_BRIDGE_ID,
@@ -68,6 +69,9 @@ import {
   SESSION_HOST_FALLBACK,
   SESSION_HOST_PREFERENCE,
   SESSION_LAUNCH_POLICY,
+  sessionCompatibilityQueueFileForPacketVersion,
+  sessionControlRequestsFileForPacketVersion,
+  sessionControlResultsFileForPacketVersion,
   sessionPluginRequestsFileForPacketVersion,
   sessionRegistryFileForPacketVersion,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
@@ -684,6 +688,12 @@ if (!fs.existsSync(taskPacketDir)) {
 
     const remoteBackupBranch = parseSingleField(packetContent, 'REMOTE_BACKUP_BRANCH');
     const remoteBackupUrl = parseSingleField(packetContent, 'REMOTE_BACKUP_URL');
+    const hasModernSessionPolicyFields = Boolean(
+      parseSingleField(packetContent, 'SESSION_CONTROL_REQUESTS_FILE')
+      || parseSingleField(packetContent, 'SESSION_CONTROL_RESULTS_FILE')
+      || parseSingleField(packetContent, 'SESSION_COMPATIBILITY_SURFACE')
+      || parseSingleField(packetContent, 'SESSION_COMPATIBILITY_QUEUE_FILE'),
+    );
     const expectedFields = [
       ['SESSION_START_AUTHORITY', SESSION_START_AUTHORITY],
       ['SESSION_HOST_PREFERENCE', SESSION_HOST_PREFERENCE],
@@ -691,12 +701,7 @@ if (!fs.existsSync(taskPacketDir)) {
       ['SESSION_LAUNCH_POLICY', SESSION_LAUNCH_POLICY],
       ['ROLE_SESSION_RUNTIME', ROLE_SESSION_RUNTIME],
       ['CLI_SESSION_TOOL', CLI_SESSION_TOOL],
-      ['SESSION_PLUGIN_BRIDGE_ID', SESSION_PLUGIN_BRIDGE_ID],
-      ['SESSION_PLUGIN_BRIDGE_COMMAND', SESSION_PLUGIN_BRIDGE_COMMAND],
-      ['SESSION_PLUGIN_REQUESTS_FILE', sessionPluginRequestsFileForPacketVersion(packetFormatVersion)],
       ['SESSION_REGISTRY_FILE', sessionRegistryFileForPacketVersion(packetFormatVersion)],
-      ['SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION', String(SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION)],
-      ['SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS', String(SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS)],
       ['SESSION_WATCH_POLICY', SESSION_WATCH_POLICY],
       ['SESSION_WAKE_CHANNEL_PRIMARY', SESSION_WAKE_CHANNEL_PRIMARY],
       ['SESSION_WAKE_CHANNEL_FALLBACK', SESSION_WAKE_CHANNEL_FALLBACK],
@@ -720,6 +725,23 @@ if (!fs.existsSync(taskPacketDir)) {
       ['INTEGRATION_VALIDATOR_STARTUP_COMMAND', 'just validator-startup'],
       ['INTEGRATION_VALIDATOR_RESUME_COMMAND', `just validator-next ${WP_ID}`],
     ];
+
+    if (hasModernSessionPolicyFields) {
+      expectedFields.push(
+        ['SESSION_CONTROL_REQUESTS_FILE', sessionControlRequestsFileForPacketVersion(packetFormatVersion)],
+        ['SESSION_CONTROL_RESULTS_FILE', sessionControlResultsFileForPacketVersion(packetFormatVersion)],
+        ['SESSION_COMPATIBILITY_SURFACE', SESSION_COMPATIBILITY_SURFACE],
+        ['SESSION_COMPATIBILITY_QUEUE_FILE', sessionCompatibilityQueueFileForPacketVersion(packetFormatVersion)],
+      );
+    } else {
+      expectedFields.push(
+        ['SESSION_PLUGIN_BRIDGE_ID', SESSION_PLUGIN_BRIDGE_ID],
+        ['SESSION_PLUGIN_BRIDGE_COMMAND', SESSION_PLUGIN_BRIDGE_COMMAND],
+        ['SESSION_PLUGIN_REQUESTS_FILE', sessionPluginRequestsFileForPacketVersion(packetFormatVersion)],
+        ['SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION', String(SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION)],
+        ['SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS', String(SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS)],
+      );
+    }
 
     if (!remoteBackupBranch) {
       errors.push('REMOTE_BACKUP_BRANCH missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-03-12');

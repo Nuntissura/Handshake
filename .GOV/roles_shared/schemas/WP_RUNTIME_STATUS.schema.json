@@ -666,6 +666,10 @@
       "type": "integer",
       "minimum": 1
     },
+    "max_worker_interrupt_cycles": {
+      "type": "integer",
+      "minimum": 0
+    },
     "current_coder_revision_cycle": {
       "type": "integer",
       "minimum": 0
@@ -675,6 +679,10 @@
       "minimum": 0
     },
     "current_relay_escalation_cycle": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "current_worker_interrupt_cycle": {
       "type": "integer",
       "minimum": 0
     },

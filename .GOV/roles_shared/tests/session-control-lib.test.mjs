@@ -5,8 +5,10 @@ import {
   buildStartupInjectionLines,
   buildRoleEnvironmentOverrides,
   buildSessionControlRequest,
+  buildSessionControlResult,
   buildStartupPrompt,
   buildSteeringPrompt,
+  classifySessionControlOutcomeState,
   CODEX_AUTHORITY_PATH,
   resolveRoleConfig,
 } from "../scripts/session/session-control-lib.mjs";
@@ -225,6 +227,45 @@ test("buildStartupInjectionLines returns no section when both sources are empty"
   });
 
   assert.deepEqual(lines, []);
+});
+
+test("session-control outcome classifier distinguishes ready, busy, recovery, and missing-start cases", () => {
+  assert.equal(classifySessionControlOutcomeState({
+    status: "COMPLETED",
+    commandKind: "START_SESSION",
+    summary: "Session CODER:WP-TEST already has steerable thread thread_123.",
+  }), "ALREADY_READY");
+  assert.equal(classifySessionControlOutcomeState({
+    status: "FAILED",
+    commandKind: "START_SESSION",
+    error: "Concurrent governed run already active for CODER:WP-TEST (1234)",
+  }), "BUSY_ACTIVE_RUN");
+  assert.equal(classifySessionControlOutcomeState({
+    status: "FAILED",
+    commandKind: "SEND_PROMPT",
+    error: "No steerable thread id is registered yet for CODER:WP-TEST. Start the session first.",
+  }), "REQUIRES_START");
+  assert.equal(classifySessionControlOutcomeState({
+    status: "FAILED",
+    commandKind: "SEND_PROMPT",
+    error: "Recovered orphaned governed request 123 after session stayed RUNNING without an active broker run.",
+  }), "REQUIRES_RECOVERY");
+});
+
+test("session-control results persist outcome_state", () => {
+  const result = buildSessionControlResult({
+    commandId: "123e4567-e89b-12d3-a456-426614174000",
+    commandKind: "START_SESSION",
+    sessionKey: "CODER:WP-TEST-v1",
+    wpId: "WP-TEST-v1",
+    role: "CODER",
+    status: "FAILED",
+    summary: "Concurrent governed run already active for CODER:WP-TEST-v1 (abc)",
+    error: "Concurrent governed run already active for CODER:WP-TEST-v1 (abc)",
+    outputJsonlFile: "../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/test.jsonl",
+  });
+
+  assert.equal(result.outcome_state, "BUSY_ACTIVE_RUN");
 });
 
 test("steering prompt stays compact and codex-explicit", () => {

@@ -32,14 +32,18 @@ export const ROLE_MODEL_PROFILE_PACKET_MIN_VERSION = "2026-04-06";
 export const ROLE_MODEL_PROFILE_STUB_MIN_VERSION = "2026-04-06";
 
 export const SESSION_START_AUTHORITY = "ORCHESTRATOR_ONLY";
-export const SESSION_HOST_PREFERENCE = "VSCODE_EXTENSION_TERMINAL";
-export const SESSION_HOST_FALLBACK = "CLI_ESCALATION_WINDOW";
-export const SESSION_LAUNCH_POLICY = "ORCHESTRATOR_PLUGIN_FIRST_WITH_2TRY_ESCALATION";
+export const SESSION_HOST_PREFERENCE = "HANDSHAKE_ACP_BROKER";
+export const SESSION_PLUGIN_HOST = "VSCODE_EXTENSION_TERMINAL";
+export const SESSION_HOST_FALLBACK = "SYSTEM_TERMINAL_REPAIR_ONLY";
+export const SESSION_HOST_FALLBACK_LEGACY = "CLI_ESCALATION_WINDOW";
+export const SESSION_LAUNCH_POLICY = "ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY";
 export const ROLE_SESSION_RUNTIME = "CLI";
 export const CLI_SESSION_TOOL = "codex";
 export const SESSION_PLUGIN_BRIDGE_ID = "handshake.handshake-session-bridge";
 export const SESSION_PLUGIN_BRIDGE_COMMAND = "handshakeSessionBridge.processLaunchQueue";
 export const SESSION_PLUGIN_REQUESTS_FILE = SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE;
+export const SESSION_COMPATIBILITY_SURFACE = "VSCODE_PLUGIN_REPAIR_ONLY";
+export const SESSION_COMPATIBILITY_QUEUE_FILE = SESSION_PLUGIN_REQUESTS_FILE;
 export const SESSION_REGISTRY_FILE = SHARED_GOV_SESSION_REGISTRY_FILE;
 export const SESSION_CONTROL_MODE = "STEERABLE";
 export const SESSION_CONTROL_TRANSPORT_PRIMARY = "CODEX_EXEC_RESUME_JSON";
@@ -296,17 +300,28 @@ export const SESSION_COMMAND_STATUSES = [
   "COMPLETED",
   "FAILED",
 ];
+export const SESSION_COMMAND_OUTCOME_STATES = [
+  "NONE",
+  "SETTLED",
+  "ALREADY_READY",
+  "BUSY_ACTIVE_RUN",
+  "ACCEPTED_PENDING",
+  "REQUIRES_START",
+  "REQUIRES_RECOVERY",
+  "FAILED",
+];
 export const SESSION_ACTIVE_HOST_NONE = "NONE";
 export const SESSION_ACTIVE_HOST_VALUES = [
   SESSION_ACTIVE_HOST_NONE,
   SESSION_HOST_PREFERENCE,
+  SESSION_PLUGIN_HOST,
   SESSION_CONTROL_HOST_PRIMARY,
   SESSION_HOST_FALLBACK,
 ];
 export const SESSION_ACTIVE_TERMINAL_KIND_NONE = "NONE";
 export const SESSION_ACTIVE_TERMINAL_KIND_VALUES = [
   SESSION_ACTIVE_TERMINAL_KIND_NONE,
-  SESSION_HOST_PREFERENCE,
+  SESSION_PLUGIN_HOST,
   CLI_ESCALATION_HOST_DEFAULT,
   "CURRENT",
   "PRINT",
@@ -333,12 +348,14 @@ export const SESSION_TERMINAL_RECLAIM_STATUS_VALUES = [
 export function normalizeActiveHostValue(value) {
   const token = String(value || "").trim();
   if (!token || token === SESSION_ACTIVE_HOST_NONE) return SESSION_ACTIVE_HOST_NONE;
+  if (token === SESSION_PLUGIN_HOST) return SESSION_PLUGIN_HOST;
   if (token === SESSION_CONTROL_PROTOCOL_PRIMARY || token === SESSION_CONTROL_TRANSPORT_PRIMARY) {
     return SESSION_CONTROL_HOST_PRIMARY;
   }
   if (
     token === CLI_ESCALATION_HOST_DEFAULT ||
     token === CLI_ESCALATION_HOST_LEGACY_ALIAS ||
+    token === SESSION_HOST_FALLBACK_LEGACY ||
     token === "CURRENT" ||
     token === "PRINT"
   ) {
@@ -350,11 +367,13 @@ export function normalizeActiveHostValue(value) {
 export function normalizeActiveTerminalKindValue(value) {
   const token = String(value || "").trim();
   if (!token || token === SESSION_ACTIVE_TERMINAL_KIND_NONE) return SESSION_ACTIVE_TERMINAL_KIND_NONE;
+  if (token === SESSION_PLUGIN_HOST) return SESSION_PLUGIN_HOST;
   if (token === SESSION_CONTROL_PROTOCOL_PRIMARY || token === SESSION_CONTROL_TRANSPORT_PRIMARY) {
     return SESSION_ACTIVE_TERMINAL_KIND_NONE;
   }
   if (token === SESSION_CONTROL_HOST_PRIMARY || token === "HANDSHAKE_ACP_BRIDGE") return SESSION_ACTIVE_TERMINAL_KIND_NONE;
   if (token === CLI_ESCALATION_HOST_LEGACY_ALIAS) return CLI_ESCALATION_HOST_DEFAULT;
+  if (token === SESSION_HOST_FALLBACK_LEGACY) return CLI_ESCALATION_HOST_DEFAULT;
   if (token === SESSION_HOST_FALLBACK) return CLI_ESCALATION_HOST_DEFAULT;
   return token;
 }
@@ -625,6 +644,10 @@ export function sessionPluginRequestsFileForPacketVersion(packetFormatVersion) {
     : LEGACY_SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE;
 }
 
+export function sessionCompatibilityQueueFileForPacketVersion(packetFormatVersion) {
+  return sessionPluginRequestsFileForPacketVersion(packetFormatVersion);
+}
+
 export function sessionRegistryFileForPacketVersion(packetFormatVersion) {
   return packetUsesExternalGovernanceRuntime(packetFormatVersion)
     ? SESSION_REGISTRY_FILE
@@ -659,6 +682,10 @@ export function sessionPluginRequestsFileForStubVersion(stubFormatVersion) {
   return stubUsesExternalGovernanceRuntime(stubFormatVersion)
     ? SESSION_PLUGIN_REQUESTS_FILE
     : LEGACY_SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE;
+}
+
+export function sessionCompatibilityQueueFileForStubVersion(stubFormatVersion) {
+  return sessionPluginRequestsFileForStubVersion(stubFormatVersion);
 }
 
 export function sessionRegistryFileForStubVersion(stubFormatVersion) {

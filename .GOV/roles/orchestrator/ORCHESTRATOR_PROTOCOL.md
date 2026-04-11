@@ -89,9 +89,13 @@ See also:
   - local model profiles: `OLLAMA_QWEN_CODER_7B`, `OLLAMA_QWEN_CODER_14B` (coder-only, zero API cost, auto-escalate to cloud on failure)
 - Repo-governed Activation Manager, Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, pre-launch governance authoring MUST run through the governed Activation Manager lane. For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch remains Orchestrator-owned.
-- Primary launch path is the VS Code bridge using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
-  - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
+- Primary launch path is headless/direct ACP launch using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
+  - `AUTO` launch resolves through the ACP broker and should not open a visible system terminal on the ordinary path
   - `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
+  - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+  - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- The VS Code bridge launch queue remains a compatibility surface only:
+  - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
 - For the governed `INTEGRATION_VALIDATOR` lane, the Orchestrator MUST preserve kernel governance authority even though execution occurs from `handshake_main`: launch/control requests must carry `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`, and any lane that resolves live authority from `handshake_main/.GOV` is misconfigured and must be repaired before closeout.
 - `handshake_main/.GOV` is only the synced main-branch mirror. It is not the live authority surface for orchestrator-managed integration validation, even immediately after `just sync-gov-to-main`.
 - Primary steering path is the governed session-control ledgers under that same external repo-governance runtime root:
@@ -449,8 +453,9 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just wp-heartbeat ...` is liveness-only. The route fields are assertions against current runtime truth; use receipts, notifications, or closeout projection to change next-actor routing.
 - `just session-registry-status WP-{ID}` now also surfaces derived stalled-relay state; when that state is `ESCALATED`, use `just orchestrator-steer-next WP-{ID} "<context>"` instead of waiting silently.
 - `just orchestrator-steer-next WP-{ID} "<context>"` must behave as a one-hop wakeup: if the projected target session is not running yet, start it and then immediately inject the typed route payload (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) in the same invocation.
-- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]` is the mechanical non-LLM watcher for orchestrator-managed lanes. It may re-steer a stale projected lane when the target session is not already running, but it must not kill active runs by default; active runs are inspected conservatively and only reported as stalled. Successful automatic re-steers consume `current_relay_escalation_cycle`, healthy lanes reset it, and once `max_relay_escalation_cycles` is exhausted the lane must stay machine-visible and attention-worthy instead of silently re-waking forever.
-- `--allow-restart` remains default-off. When explicitly enabled, the watchdog may perform one bounded `CANCEL_SESSION` plus re-steer only for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR` after all of the following are true: the lane is already `REPORT_STALLED_ACTIVE_RUN`, the target session still claims `COMMAND_RUNNING`, the last output file and session event are both older than `--restart-output-idle-seconds`, and every matching active run is already past `timeout_at`. If any guard fails, the watchdog must not restart and must stay in report/escalate mode.
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]` is the mechanical non-LLM watcher for orchestrator-managed lanes. It may re-steer a stale projected lane when the target session is not already running, but it must not kill active runs by default; active runs are inspected conservatively and only reported as stalled. Successful automatic re-steers consume `current_relay_escalation_cycle`, healthy lanes reset it, and once `max_relay_escalation_cycles` is exhausted the lane must stay machine-visible and attention-worthy instead of silently re-waking forever. In `--loop` mode, per-WP evaluation failures must be surfaced without terminating the whole watcher service.
+- Direct worker interruption is a separate budgeted rung. `CANCEL_SESSION` plus re-steer consumes `current_worker_interrupt_cycle` against `max_worker_interrupt_cycles`; a healthy route or later receipt progress resets that interrupt counter back to zero.
+- `--allow-restart` remains default-off. When explicitly enabled, the watchdog may perform one bounded `CANCEL_SESSION` plus re-steer only for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR` after all of the following are true: the lane verdict is an active stalled verdict with `workerInterruptPolicy=BOUNDED_AFTER_ROUTE_REPAIR`, the target session still claims `COMMAND_RUNNING`, the worker-interrupt budget still has remaining capacity, the last output file and session event are both older than `--restart-output-idle-seconds`, and every matching active run is already past `timeout_at`. If any guard fails, the watchdog must not restart and must stay in report/escalate mode.
 - `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - `just wp-validator-query WP-{ID} CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
 - `just wp-validator-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
@@ -459,7 +464,7 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just operator-viewport` (`just operator-monitor` remains a compatibility alias)
 - `just send-mt WP-{ID} MT-001 "description" [PRIMARY|FALLBACK]` — auto-includes session keys, wp-review-request command, and STOP instruction
 - `just wp-lane-health WP-{ID}` — single-command diagnostic: session states, hook status, MT progress, notification queue, stall detection
-- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]` — non-LLM relay watcher and safe re-wake helper for orchestrator-managed lanes; bounded by runtime relay-cycle budget and conservative default-off restart policy
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]` — non-LLM relay watcher and safe re-wake helper for orchestrator-managed lanes; bounded by runtime relay-cycle budget plus a stricter worker-interrupt budget and conservative default-off restart policy
 - `just install-mt-hook WP-{ID}` — installs post-commit hook for auto-relay (auto-installed by orchestrator-prepare-and-packet)
 - `just wp-closeout-format WP-{ID} <MERGED_MAIN_COMMIT>` — automates packet status, containment fields, verdict, and clause closure matrix updates
 - `just coder-worktree-add WP-{ID}`
@@ -469,9 +474,15 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `AUTO` is the ordinary headless/direct ACP launch path
+- `CURRENT` and `SYSTEM_TERMINAL` are explicit repair surfaces
+- `VSCODE_PLUGIN` is compatibility-only
 - `just manual-relay-next WP-{ID} [--debug]`
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
 - supported launch hosts must auto-issue the first governed `START_SESSION` on the ordinary path; `start-*` remains the explicit repair surface when launch could not complete autonomously
+- when `session-start` / `session-send` complete or fail, read the printed `outcome_state=` line before assuming launch/steer succeeded or needs another attempt. Treat `ALREADY_READY` and `BUSY_ACTIVE_RUN` as machine states, not prose to reinterpret manually.
+- After the single-attempt recovery slice, a surviving `BUSY_ACTIVE_RUN` should be interpreted as a real competing live run. Dead-child and expired-timeout residue should no longer require a second operator retry to clear.
+- `session-start` now waits briefly for READY when the first outcome is `BUSY_ACTIVE_RUN` or `REQUIRES_RECOVERY`; if the lane was already becoming steerable in the same attempt, expect `ALREADY_READY` instead of reflexively retrying launch.
 - `just start-activation-manager-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
@@ -550,7 +561,8 @@ Legacy flat compatibility:
 - Templates:
   - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
   - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
-  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
 - Shared workflow reference:
   - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
 - Minimum flow:
@@ -646,6 +658,13 @@ Legacy flat compatibility:
 ### 3. Delegation and Monitoring
 
 - Before launching coder sessions, `just orchestrator-prepare-and-packet WP-{ID}` commits the work packet, refinement, and micro tasks on `gov_kernel` and creates a backup snapshot.
+- `just orchestrator-prepare-and-packet WP-{ID}` also seeds the live Workflow Dossier under `.GOV/Audits/smoketest/` with the current ACP/session-control snapshot.
+- During the run, keep the dossier current in the live sections: `LIVE_EXECUTION_LOG`, `LIVE_IDLE_LEDGER`, `LIVE_GOVERNANCE_CHANGE_LOG`, `LIVE_CONCERNS_LOG`, and `LIVE_FINDINGS_LOG`.
+- Preferred live-maintenance surface: use `just workflow-dossier-note WP-{ID} ...` for typed run notes and `just workflow-dossier-sync WP-{ID}` when you want a fresh mechanical ACP/runtime/receipt snapshot plus the latency/drift idle ledger appended into the dossier.
+- Keep ACP live evidence readable: prefer compact lane-style entries in `LIVE_EXECUTION_LOG`, for example ``ORCHESTRATOR -> ACP -> CODER`` or ``CODER -> ACP -> ORCHESTRATOR``, not wide tables. The point is fast stall and drift diagnosis, not dense tabulation.
+- Keep `LIVE_IDLE_LEDGER` mechanical: append compact latency ledgers, not prose. The point is to surface request-to-response delay, validator-pass-to-coder delay, and real idle gaps before closeout memory drifts.
+- During terminal closeout, `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` now also appends the mechanical closeout trace into the active Workflow Dossier. The remaining human-authored post-mortem/review and rubric should be appended after that phase command succeeds.
+- Use the Workflow Dossier rubric only at closeout when appending the Orchestrator post-mortem/review layer. Do not try to score the rubric continuously during execution.
 - Micro tasks (one per CLAUSE_CLOSURE_MATRIX row) are generated in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, etc.) during packet creation.
 - During the work-packet compatibility migration, scripts must resolve those packet/MT paths through `runtime-paths.mjs` rather than assuming the literal `task_packets` folder name.
 - Use only the packet-declared communication artifacts for shared session/runtime coordination.

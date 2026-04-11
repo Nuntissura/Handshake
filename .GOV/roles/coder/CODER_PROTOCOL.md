@@ -193,7 +193,8 @@ Hard rules:
 - Use these templates when creating new governance records:
   - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
   - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
-  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
 - If `AGENTS.md` or the canonical root `justfile` must change, do that work from `handshake_main` on local `main`, not from `wt-gov-kernel` or a WP worktree.
 
 ---
@@ -348,14 +349,15 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
 
 - If the assigned packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a coder-local worktree as a competing inbox.
-- When available, prefer VS Code integrated terminals for coder sessions so the Operator can monitor active WPs alongside `just operator-viewport` (`just operator-monitor` remains a compatibility alias).
+- Prefer the governed headless ACP lane for ordinary coder sessions. Use `SYSTEM_TERMINAL`, `CURRENT`, or `VSCODE_PLUGIN` only when the Orchestrator intentionally chooses a repair/compatibility surface.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. For packet families with `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`, the packet-declared `CODER_MODEL_PROFILE` is authoritative for claim truth. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback, which currently map to `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` may be declared in packets, but governed launch must fail closed until provider-specific runtime support exists.
 - Fresh repo-governed coder session start is `ORCHESTRATOR_ONLY`. Do not self-start a new repo-governed coder session.
-- Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
+- Primary launch path is headless/direct ACP launch over the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` + `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
+- The VS Code bridge launch queue remains a compatibility surface only (`../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`).
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - The Coder does not own the steering lane. The Orchestrator owns `START_SESSION`, `SEND_PROMPT`, and `CANCEL_SESSION`; coder-side requests for pause, repair, or cancel must go through `THREAD.md`, `RECEIPTS.jsonl`, or an explicit operator/orchestrator instruction.
 - The external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger is the settled steering ledger; the matching external `SESSION_CONTROL_OUTPUTS/` directory holds the per-command ACP event logs that the Operator monitor can surface.
-- If the plugin path has failed twice and the Orchestrator opens a CLI escalation window, continue there; do not open your own untracked session.
+- If the Orchestrator explicitly opens a repair surface such as `SYSTEM_TERMINAL` or `CURRENT`, continue there; do not open your own untracked session.
 - Use `THREAD.md` for append-only questions, clarifications, blocker notes, and soft coordination.
 - Use `RUNTIME_STATUS.json` for liveness updates only:
   - `runtime_status`
@@ -405,7 +407,7 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
   - `just wp-spec-confirmation WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - For structured microtask steering, the direct-review helpers also accept an optional final `microtask_json` argument carrying `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, `expected_receipt_kind`, `review_mode`, `phase_gate`, and `review_outcome`.
   - Use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` in the kickoff/intent loop when you are naming early structure that still needs validator clearance.
-  - For rolling microtask review on orchestrator-managed lanes with declared MT files, after each completed MT you MUST open `just wp-review-exchange REVIEW_REQUEST ...` to `WP_VALIDATOR` with `review_mode=OVERLAP` bound to that completed MT before treating it as done. After recording that review request, you may continue into the next declared MT, but keep the unresolved overlap queue at 2 or less and do not post full `CODER_HANDOFF` until those overlap reviews are resolved.
+  - For rolling microtask review on orchestrator-managed lanes with declared MT files, after each completed MT you MUST open `just wp-review-exchange REVIEW_REQUEST ...` to `WP_VALIDATOR` with `review_mode=OVERLAP` bound to that completed MT before treating it as done. After recording that review request, you may continue into one next declared MT, but keep the unresolved overlap queue at 1 or less and do not post full `CODER_HANDOFF` until those overlap reviews are resolved.
   - If `WP_VALIDATOR` disapproves a previously completed MT while you are already inside the next MT, finish the current active MT first, then loop back to the failed MT before opening additional forward progress beyond the bounded overlap queue.
   - For the bootstrap/skeleton checkpoint, use `wp-coder-intent` with concrete `file_targets` + `proof_commands`, then wait for validator clearance instead of broad “ready end-to-end” language.
   - `just phase-check STARTUP WP-{ID} CODER <session>`
@@ -418,6 +420,7 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
   - `just operator-viewport` (canonical operator viewport for ACP-aware session/control/thread/receipt/artifact visibility; `just operator-monitor` remains a compatibility alias)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Coder session):
   - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `AUTO` is the ordinary headless/direct ACP launch path; `CURRENT` / `SYSTEM_TERMINAL` are explicit repair surfaces and `VSCODE_PLUGIN` is compatibility-only
   - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just steer-coder-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
   - `just cancel-coder-session WP-{ID}`
@@ -523,7 +526,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
   8. Only proceed to the next MT after the validator confirms the current MT or the orchestrator explicitly instructs continuation.
 - When MT files exist on an orchestrator-managed lane, governed `CODER_INTENT` and overlap `REVIEW_REQUEST` receipts must carry `microtask_json` that resolves to the active declared MT (`scope_ref=MT-001` or a clause-token alias such as `CLAUSE_CLOSURE_MATRIX/CX-...`), includes concrete `file_targets`, and keeps those targets inside that MT's `CODE_SURFACES`; receipt preflight now fails closed otherwise.
 - **Evidence Management:** Write proof per micro task, not one dump at the end. You MAY also append to `## EVIDENCE` in the work packet for aggregate evidence.
-- **Smoketest Live Findings:** During WP execution, append notable findings (compile errors, scope ambiguities, governance friction) to the active smoketest review's `LIVE_FINDINGS_LOG` section if one exists. Format: `- [TIMESTAMP] [CODER] [CATEGORY] <finding>`
+- **Workflow Dossier Live Findings:** During WP execution, append notable findings (compile errors, scope ambiguities, governance friction) to the active Workflow Dossier `LIVE_FINDINGS_LOG` section if one exists. On orchestrator-managed lanes, this live dossier is seeded at activation time by `just orchestrator-prepare-and-packet`. Format: `- [TIMESTAMP] [CODER] [CATEGORY] <finding>`
 - **Compile Gate [CX-503I]:** The post-commit hook runs `cargo check` before firing the review request. If your code does not compile, the hook does NOT notify the validator. You see the compile error in the git output — fix it and re-commit before the validator is involved.
 - **Self-Claim Task Board [CX-503L]:** When available, check the MT task board (`just mt-board WP-{ID}`) for the next unclaimed MT instead of waiting for orchestrator assignment. Claim it (`just mt-claim WP-{ID} MT-NNN`), implement, commit, and mark complete (`just mt-complete WP-{ID} MT-NNN`).
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.

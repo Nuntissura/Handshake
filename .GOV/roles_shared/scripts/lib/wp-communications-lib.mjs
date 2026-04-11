@@ -384,6 +384,8 @@ export function validateRuntimeStatus(data) {
     "current_main_compatibility_verified_at_utc",
     "packet_widening_decision",
     "packet_widening_evidence",
+    "max_worker_interrupt_cycles",
+    "current_worker_interrupt_cycle",
   ];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
@@ -612,6 +614,9 @@ export function validateRuntimeStatus(data) {
   if (!Number.isInteger(data.max_relay_escalation_cycles) || data.max_relay_escalation_cycles < 1) {
     errors.push("max_relay_escalation_cycles must be an integer >= 1");
   }
+  if (!(data.max_worker_interrupt_cycles === undefined || (Number.isInteger(data.max_worker_interrupt_cycles) && data.max_worker_interrupt_cycles >= 0))) {
+    errors.push("max_worker_interrupt_cycles must be an integer >= 0 when present");
+  }
   if (!Number.isInteger(data.current_coder_revision_cycle) || data.current_coder_revision_cycle < 0) {
     errors.push("current_coder_revision_cycle must be an integer >= 0");
   } else if (Number.isInteger(data.max_coder_revision_cycles) && data.current_coder_revision_cycle > data.max_coder_revision_cycles) {
@@ -632,6 +637,15 @@ export function validateRuntimeStatus(data) {
     data.current_relay_escalation_cycle > data.max_relay_escalation_cycles
   ) {
     errors.push("current_relay_escalation_cycle exceeds max_relay_escalation_cycles");
+  }
+  if (!(data.current_worker_interrupt_cycle === undefined || (Number.isInteger(data.current_worker_interrupt_cycle) && data.current_worker_interrupt_cycle >= 0))) {
+    errors.push("current_worker_interrupt_cycle must be an integer >= 0 when present");
+  } else if (
+    Number.isInteger(data.current_worker_interrupt_cycle) &&
+    Number.isInteger(data.max_worker_interrupt_cycles) &&
+    data.current_worker_interrupt_cycle > data.max_worker_interrupt_cycles
+  ) {
+    errors.push("current_worker_interrupt_cycle exceeds max_worker_interrupt_cycles");
   }
   if (!isNullableRfc3339Utc(data.last_backup_push_at)) errors.push("last_backup_push_at must be null or RFC3339 UTC");
   if (!isNullableSha(data.last_backup_push_sha)) errors.push("last_backup_push_sha must be null or a commit SHA");

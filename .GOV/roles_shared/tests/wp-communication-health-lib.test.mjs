@@ -15,6 +15,7 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = path.resolve(__dirname, "../fixtures/wp-communication-health");
+const repoRoot = path.resolve(__dirname, "..", "..", "..");
 
 for (const fixtureName of fs.readdirSync(FIXTURES_DIR).filter((name) => name.endsWith(".json")).sort()) {
   const fixturePath = path.join(FIXTURES_DIR, fixtureName);
@@ -38,6 +39,7 @@ for (const fixtureName of fs.readdirSync(FIXTURES_DIR).filter((name) => name.end
 }
 
 function baseInput({
+  wpId = "WP-TEST-AUTO-ROUTE",
   packetFormatVersion = "2026-03-22",
   communicationHealthGate = "HANDOFF_VERDICT_BLOCKING",
   packetContent = "",
@@ -45,9 +47,9 @@ function baseInput({
   runtimeStatus = {},
 } = {}) {
   return {
-    wpId: "WP-TEST-AUTO-ROUTE",
+    wpId,
     stage: "STATUS",
-    packetPath: ".GOV/task_packets/WP-TEST-AUTO-ROUTE/packet.md",
+    packetPath: `.GOV/task_packets/${wpId}/packet.md`,
     packetContent,
     workflowLane: "ORCHESTRATOR_MANAGED",
     packetFormatVersion,
@@ -91,6 +93,24 @@ function baseInput({
       ...runtimeStatus,
     },
   };
+}
+
+function writeMicrotask(packetDir, wpId, mtId, clause, codeSurfaces) {
+  fs.writeFileSync(
+    path.join(packetDir, `${mtId}.md`),
+    [
+      `# ${mtId}: ${clause}`,
+      "",
+      "## METADATA",
+      `- WP_ID: ${wpId}`,
+      `- MT_ID: ${mtId}`,
+      `- CLAUSE: ${clause}`,
+      `- CODE_SURFACES: ${codeSurfaces.join("; ")}`,
+      "- EXPECTED_TESTS: cargo test demo",
+      "- DEPENDS_ON: NONE",
+    ].join("\n"),
+    "utf8",
+  );
 }
 
 function contractHeavyPacketFixture() {
@@ -1048,6 +1068,135 @@ test("overlap microtask review requests do not block coder progression while bac
   assert.equal(route.secondaryNotifications[0].targetRole, "WP_VALIDATOR");
   assert.equal(route.secondaryNotifications[0].targetSession, "wpv-1");
   assert.equal(route.secondaryNotifications[0].autoRelay, true);
+});
+
+test("overlap repair debt is deferred until the coder closes the current active microtask", () => {
+  const wpId = "WP-TEST-AUTO-ROUTE-DEFERRED-REPAIR-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(path.join(packetDir, "packet.md"), `- WP_ID: ${wpId}\n`, "utf8");
+  writeMicrotask(packetDir, wpId, "MT-001", "Review-first scope [CX-MT-201]", ["src/review_first.rs"]);
+  writeMicrotask(packetDir, wpId, "MT-002", "Current active scope [CX-MT-202]", ["src/current_active.rs"]);
+
+  try {
+    const input = baseInput({
+      wpId,
+      packetContent: contractHeavyPacketFixture(),
+      receipts: [
+        {
+          receipt_kind: "VALIDATOR_KICKOFF",
+          actor_role: "WP_VALIDATOR",
+          actor_session: "wpv-1",
+          target_role: "CODER",
+          target_session: "coder-1",
+          correlation_id: "kickoff-1",
+          ack_for: null,
+          timestamp_utc: "2026-03-22T10:01:00Z",
+        },
+        {
+          receipt_kind: "CODER_INTENT",
+          actor_role: "CODER",
+          actor_session: "coder-1",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-1",
+          correlation_id: "kickoff-1",
+          ack_for: "kickoff-1",
+          summary: "Intent drafted.",
+          microtask_contract: {
+            scope_ref: "MT-001",
+            file_targets: ["src/review_first.rs"],
+            proof_commands: ["cargo test demo::tests::micro_1 -- --exact"],
+            phase_gate: "MICROTASK",
+            expected_receipt_kind: "VALIDATOR_RESPONSE",
+          },
+          timestamp_utc: "2026-03-22T10:02:00Z",
+        },
+        {
+          receipt_kind: "VALIDATOR_RESPONSE",
+          actor_role: "WP_VALIDATOR",
+          actor_session: "wpv-1",
+          target_role: "CODER",
+          target_session: "coder-1",
+          correlation_id: "kickoff-1",
+          ack_for: "kickoff-1",
+          summary: "Bootstrap cleared.",
+          timestamp_utc: "2026-03-22T10:03:00Z",
+        },
+        {
+          receipt_kind: "REVIEW_REQUEST",
+          actor_role: "CODER",
+          actor_session: "coder-1",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-1",
+          correlation_id: "micro-1",
+          summary: "MT-001 review_mode=OVERLAP: review the completed slice while I continue.",
+          microtask_contract: {
+            scope_ref: "MT-001",
+            file_targets: ["src/review_first.rs"],
+            proof_commands: ["cargo test demo::tests::micro_1 -- --exact"],
+            review_mode: "OVERLAP",
+            phase_gate: "MICROTASK",
+            expected_receipt_kind: "REVIEW_RESPONSE",
+          },
+          timestamp_utc: "2026-03-22T10:04:00Z",
+        },
+        {
+          receipt_kind: "CODER_INTENT",
+          actor_role: "CODER",
+          actor_session: "coder-1",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-1",
+          correlation_id: "intent-2",
+          ack_for: "micro-1",
+          summary: "Advance into the next declared microtask.",
+          microtask_contract: {
+            scope_ref: "MT-002",
+            file_targets: ["src/current_active.rs"],
+            proof_commands: ["cargo test demo::tests::micro_2 -- --exact"],
+            phase_gate: "MICROTASK",
+            expected_receipt_kind: "REVIEW_RESPONSE",
+          },
+          timestamp_utc: "2026-03-22T10:05:00Z",
+        },
+        {
+          receipt_kind: "REVIEW_RESPONSE",
+          actor_role: "WP_VALIDATOR",
+          actor_session: "wpv-1",
+          target_role: "CODER",
+          target_session: "coder-1",
+          correlation_id: "micro-1",
+          ack_for: "micro-1",
+          summary: "Repair required on MT-001 before wider closure.",
+          microtask_contract: {
+            scope_ref: "MT-001",
+            review_mode: "OVERLAP",
+            review_outcome: "REPAIR_REQUIRED",
+          },
+          timestamp_utc: "2026-03-22T10:06:00Z",
+        },
+      ],
+      runtimeStatus: {
+        open_review_items: [],
+      },
+    });
+
+    const evaluation = evaluateWpCommunicationHealth(input);
+    const route = deriveWpCommunicationAutoRoute({
+      evaluation,
+      runtimeStatus: input.runtimeStatus,
+      latestReceipt: input.receipts.at(-1),
+    });
+
+    assert.equal(evaluation.state, "COMM_DEFERRED_REPAIR_QUEUE");
+    assert.equal(evaluation.counts.deferredRepairQueued, 1);
+    assert.equal(evaluation.correlations.microtaskRepair, "micro-1");
+    assert.match(evaluation.details.join("\n"), /deferred_repair_queue=MT-001->after:MT-002/);
+    assert.equal(route.nextExpectedActor, "CODER");
+    assert.equal(route.waitingOn, "CURRENT_MICROTASK_COMPLETION_BEFORE_REPAIR");
+    assert.equal(route.notification, null);
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
 });
 
 test("overlap routing recovers from MT review requests that omitted microtask_contract but kept MT packet_row_ref", () => {

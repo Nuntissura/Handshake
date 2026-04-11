@@ -15,6 +15,7 @@ import {
   roleModelProfileField,
   roleModelProfileSupportsGovernedLaunch,
   SESSION_COMMAND_KINDS,
+  SESSION_COMMAND_OUTCOME_STATES,
   SESSION_COMMAND_STATUSES,
   SESSION_CONTROL_BROKER_AUTH_MODE,
   SESSION_CONTROL_BROKER_BUILD_ID,
@@ -833,7 +834,7 @@ export function buildStartupPrompt({
       `DIRECT COMMUNICATION (MANDATORY): Use the structured direct-review helpers, not generic thread traffic, for the required coder <-> WP validator lane. Respond to validator kickoff with \`just wp-coder-intent ${wpId} <your-session> <validator-session> "<summary>" <correlation_id>\`, use that kickoff/intent loop for bootstrap/skeleton/data-shape review, and publish review-ready handoff with \`just wp-coder-handoff ${wpId} <your-session> <validator-session> "<summary>"\`. Use \`just wp-thread-append ${wpId} CODER <your-session> "<message>" @wpval\` only for soft coordination that is not part of the required contract.`,
       `STARTUP MESH (MANDATORY): Before the first WP-specific bootstrap or code change, run \`${startupMeshCommand}\` and do not proceed until the startup communication mesh reports ready.`,
       `EARLY GATE (HARD): After every governed \`CODER_INTENT\`, wait for explicit WP-validator clearance before implementation hardens or full \`CODER_HANDOFF\` is legal. If runtime is waiting on \`WP_VALIDATOR_INTENT_CHECKPOINT\`, keep the lane in early review instead of treating it like implementation-ready state.`,
-      `MICROTASK OVERLAP (BOUNDED): For a completed narrow slice, you may open \`REVIEW_REQUEST\` to \`WP_VALIDATOR\` with \`microtask_json.review_mode=OVERLAP\` while you advance the next declared microtask, but the unresolved overlap queue is capped at 2 and full \`CODER_HANDOFF\` remains blocked until those overlap review items are drained.`,
+      `MICROTASK OVERLAP (BOUNDED): For a completed narrow slice, you may open \`REVIEW_REQUEST\` to \`WP_VALIDATOR\` with \`microtask_json.review_mode=OVERLAP\` while you advance one next declared microtask, but the unresolved overlap queue is capped at 1 and full \`CODER_HANDOFF\` remains blocked until those overlap review items are drained.`,
       `CONTRACT GATE (HARD): Before claiming validator-ready handoff, \`just wp-communication-health-check ${wpId} KICKOFF\` must pass.`,
       `HANDOFF QUALITY (MANDATORY): Before requesting validation, you MUST produce a WEAK_SPOTS section listing the least-proven requirement and the riskiest file/boundary. "Done, tests pass" is not an acceptable handoff. See .GOV/roles/coder/docs/CODER_RUBRIC_V2.md (live law).`,
       `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} CODER <your-session>\` to see only the notifications targeted to your governed session. After reading, run \`just ack-notifications ${wpId} CODER <your-session>\` to clear them. Check again before each handoff.`,
@@ -860,7 +861,7 @@ export function buildStartupPrompt({
       `DIRECT COMMUNICATION (MANDATORY): Use the structured direct-review helpers, not generic thread traffic, for the required WP validator <-> coder lane. Publish kickoff with \`just wp-validator-kickoff ${wpId} <your-session> <coder-session> "<summary>"\`, use that kickoff to judge bootstrap/skeleton/micro-task direction early, and publish the review with \`just wp-validator-review ${wpId} <your-session> <coder-session> "<summary>" <correlation_id>\`. Use \`just wp-thread-append ${wpId} WP_VALIDATOR <your-session> "<message>" @coder\` only for soft coordination that is not part of the required contract.`,
       `STARTUP MESH (MANDATORY): Before bootstrap steering or verdict work, run \`${startupMeshCommand}\` and do not proceed until the startup communication mesh reports ready.`,
       `EARLY STEERING (MANDATORY): You own the governed bootstrap/skeleton checkpoint. After \`CODER_INTENT\`, either clear the plan, narrow it, or reject it; do not let the lane drift into hard implementation or full handoff on coder say-so alone.`,
-      `MICROTASK OVERLAP (BOUNDED): While coder is the main projected actor, you may still review unresolved overlap microtask items in parallel. Keep that queue bounded to 2, reply explicitly with repair/clearance truth, and require the queue to drain before final coder handoff is accepted.`,
+      `MICROTASK OVERLAP (BOUNDED): While coder is the main projected actor, you may still review unresolved overlap microtask items in parallel. Keep that queue bounded to 1, reply explicitly with repair/clearance truth, and require the queue to drain before final coder handoff is accepted.`,
       `WORKTREE SYNC (MANDATORY): You share the coder \`feat/${wpId}\` branch and \`wtc-*\` worktree surface for this lane. Keep that shared review surface current instead of creating extra validator-only branches or worktrees.`,
       `CONTRACT GATE (HARD): Before PASS clearance, \`${contractGateCommand}\` must pass.`,
       `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
@@ -1095,22 +1096,35 @@ export function buildSessionControlResult({
   durationMs = 0,
   targetCommandId = "",
   cancelStatus = "",
+  outcomeState = "",
   brokerBuildId = SESSION_CONTROL_BROKER_BUILD_ID,
 }) {
   const STATUS = String(status || "").trim().toUpperCase();
   if (!SESSION_COMMAND_STATUSES.includes(STATUS)) {
     throw new Error(`Unknown SESSION_COMMAND status: ${STATUS}`);
   }
+  const COMMAND_KIND = String(commandKind || "").trim().toUpperCase();
+  const OUTCOME_STATE = String(outcomeState || classifySessionControlOutcomeState({
+    status: STATUS,
+    commandKind: COMMAND_KIND,
+    error,
+    summary,
+    cancelStatus,
+  })).trim().toUpperCase();
+  if (!SESSION_COMMAND_OUTCOME_STATES.includes(OUTCOME_STATE)) {
+    throw new Error(`Unknown SESSION_COMMAND outcome_state: ${OUTCOME_STATE}`);
+  }
   return {
     schema_id: SESSION_CONTROL_RESULT_SCHEMA_ID,
     schema_version: SESSION_CONTROL_RESULT_SCHEMA_VERSION,
     command_id: commandId,
     processed_at: nowIso(),
-    command_kind: commandKind,
+    command_kind: COMMAND_KIND,
     session_key: sessionKey,
     wp_id: wpId,
     role,
     status: STATUS,
+    outcome_state: OUTCOME_STATE,
     thread_id: threadId,
     summary,
     output_jsonl_file: normalizePath(outputJsonlFile),
@@ -1121,6 +1135,53 @@ export function buildSessionControlResult({
     cancel_status: cancelStatus,
     broker_build_id: brokerBuildId,
   };
+}
+
+export function classifySessionControlOutcomeState({
+  status = "",
+  commandKind = "",
+  error = "",
+  summary = "",
+  cancelStatus = "",
+} = {}) {
+  const STATUS = String(status || "").trim().toUpperCase();
+  const COMMAND_KIND = String(commandKind || "").trim().toUpperCase();
+  const CANCEL_STATUS = String(cancelStatus || "").trim().toUpperCase();
+  const detail = `${String(error || "").trim()} ${String(summary || "").trim()}`.trim();
+
+  if (STATUS === "QUEUED" || STATUS === "RUNNING") {
+    return "ACCEPTED_PENDING";
+  }
+  if (STATUS === "COMPLETED") {
+    if (COMMAND_KIND === "START_SESSION" && /already has steerable thread|already ready/i.test(detail)) {
+      return "ALREADY_READY";
+    }
+    return "SETTLED";
+  }
+  if (COMMAND_KIND === "CANCEL_SESSION" && (CANCEL_STATUS === "CANCELLATION_REQUESTED" || CANCEL_STATUS === "NOT_RUNNING")) {
+    return "SETTLED";
+  }
+  if (COMMAND_KIND === "START_SESSION" && /already has thread|already has steerable thread|already ready/i.test(detail)) {
+    return "ALREADY_READY";
+  }
+  if (COMMAND_KIND === "SEND_PROMPT" && /no steerable thread id is registered/i.test(detail)) {
+    return "REQUIRES_START";
+  }
+  if (/concurrent governed run already active/i.test(detail)) {
+    return "BUSY_ACTIVE_RUN";
+  }
+  if (
+    /recovered orphaned governed request/i.test(detail)
+    || /no active broker run or settled result remained/i.test(detail)
+    || /broker restarted while the governed run was active/i.test(detail)
+    || /broker dispatch failed/i.test(detail)
+    || /build mismatch while active runs exist/i.test(detail)
+    || /stale broker could not be stopped/i.test(detail)
+    || /could not be stopped before restart/i.test(detail)
+  ) {
+    return "REQUIRES_RECOVERY";
+  }
+  return "FAILED";
 }
 
 export function defaultSessionOutputFile(repoRoot, sessionKey, commandId) {
@@ -1644,11 +1705,13 @@ export function validateSessionControlRequestShape(request) {
 export function validateSessionControlResultShape(result) {
   const errors = [];
   const commandKind = String(result?.command_kind || "").trim().toUpperCase();
+  const outcomeState = String(result?.outcome_state || "").trim().toUpperCase();
   if (!result || typeof result !== "object") return ["result must be an object"];
   if (result.schema_id !== SESSION_CONTROL_RESULT_SCHEMA_ID) errors.push(`schema_id must be ${SESSION_CONTROL_RESULT_SCHEMA_ID}`);
   if (result.schema_version !== SESSION_CONTROL_RESULT_SCHEMA_VERSION) errors.push(`schema_version must be ${SESSION_CONTROL_RESULT_SCHEMA_VERSION}`);
   if (!SESSION_COMMAND_KINDS.includes(commandKind)) errors.push("command_kind is invalid");
   if (!SESSION_COMMAND_STATUSES.includes(String(result.status || "").trim().toUpperCase())) errors.push("status is invalid");
+  if ("outcome_state" in result && !SESSION_COMMAND_OUTCOME_STATES.includes(outcomeState)) errors.push("outcome_state is invalid");
   if (!result.command_id) errors.push("command_id is required");
   if (!result.session_key) errors.push("session_key is required");
   if (!result.wp_id) errors.push("wp_id is required");

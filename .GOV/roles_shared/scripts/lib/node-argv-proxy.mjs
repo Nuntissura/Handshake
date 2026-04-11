@@ -17,11 +17,13 @@ export function splitRawFlags(rawFlags) {
 
 export function buildForwardedArgv(argv = []) {
   const separatorIndex = argv.indexOf("--raw-flags");
-  if (separatorIndex === -1 || separatorIndex === argv.length - 1) usage();
+  if (separatorIndex === -1) usage();
 
   const [targetScript, ...baseArgs] = argv.slice(0, separatorIndex);
   if (!targetScript) usage();
 
+  // PowerShell drops empty-string args for native processes, so `--raw-flags ""`
+  // can arrive as a trailing `--raw-flags` with no payload.
   const rawFlags = argv[separatorIndex + 1] || "";
   return {
     targetScript,

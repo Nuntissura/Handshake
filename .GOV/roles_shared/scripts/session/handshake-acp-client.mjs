@@ -11,6 +11,7 @@ import {
   SESSION_CONTROL_RUN_TIMEOUT_SECONDS,
 } from "./session-policy.mjs";
 import { ensureBrokerAuthToken } from "./session-control-lib.mjs";
+import { settleRecoverableSessionControlResults } from "./session-control-self-settle-lib.mjs";
 
 export const HANDSHAKE_ACP_AGENT_REL_PATH = ".GOV/tools/handshake-acp-bridge/agent.mjs";
 
@@ -21,6 +22,10 @@ function readJson(filePath, fallbackValue) {
 
 function brokerStatePath(repoRoot) {
   return path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE);
+}
+
+function activeRunCount(state) {
+  return Array.isArray(state?.active_runs) ? state.active_runs.length : 0;
 }
 
 function isProcessAlive(pid) {
@@ -336,16 +341,47 @@ export async function shutdownHandshakeAcpBroker(repoRoot, { force = false } = {
   };
 }
 
+export function reconcileRecoverableBrokerState(
+  repoRoot,
+  brokerState,
+  {
+    settle = settleRecoverableSessionControlResults,
+    readState = (filePath, fallbackValue) => readJson(filePath, fallbackValue),
+  } = {},
+) {
+  const emptyState = { active_runs: [] };
+  const priorState = brokerState || emptyState;
+  const priorActiveRunCount = activeRunCount(priorState);
+  const reconciliation = settle(repoRoot, { brokerState: priorState });
+  const nextState = readState(brokerStatePath(repoRoot), emptyState);
+  const nextActiveRunCount = activeRunCount(nextState);
+  return {
+    changed: reconciliation.settled.length > 0 || priorActiveRunCount !== nextActiveRunCount,
+    reconciliation,
+    state: nextState,
+    priorActiveRunCount,
+    nextActiveRunCount,
+  };
+}
+
 async function ensureBroker(repoRoot) {
-  const inspected = await inspectHandshakeAcpBroker(repoRoot);
-  const { state, authToken, brokerIsAlive, brokerIsReachable, buildMatches } = inspected;
+  let inspected = await inspectHandshakeAcpBroker(repoRoot);
+  let { state, authToken, brokerIsAlive, brokerIsReachable, buildMatches } = inspected;
+
+  if (activeRunCount(state) > 0) {
+    const reconciled = reconcileRecoverableBrokerState(repoRoot, state);
+    if (reconciled.changed) {
+      inspected = await inspectHandshakeAcpBroker(repoRoot);
+      ({ state, authToken, brokerIsAlive, brokerIsReachable, buildMatches } = inspected);
+    }
+  }
 
   if (brokerIsAlive && brokerIsReachable && buildMatches) {
     return { ...state, auth_token: authToken };
   }
 
   if (brokerIsAlive && brokerIsReachable && !buildMatches) {
-    if (Array.isArray(state?.active_runs) && state.active_runs.length > 0) {
+    if (activeRunCount(state) > 0) {
       throw new Error(`Handshake ACP broker build mismatch while active runs exist; drain or cancel governed runs before restart (current=${state.broker_build_id || "<missing>"}, expected=${SESSION_CONTROL_BROKER_BUILD_ID})`);
     }
     const graceful = await shutdownBrokerGracefully(state, authToken);
@@ -362,7 +398,7 @@ async function ensureBroker(repoRoot) {
     return { ...(await spawnBroker(repoRoot)), auth_token: authToken };
   }
 
-  if (brokerIsAlive && !brokerIsReachable && Array.isArray(state?.active_runs) && state.active_runs.length > 0 && !activeRunsAreStale(state)) {
+  if (brokerIsAlive && !brokerIsReachable && activeRunCount(state) > 0 && !activeRunsAreStale(state)) {
     throw new Error("Handshake ACP broker is unreachable while governed runs are still active; refusing forced restart");
   }
 
@@ -386,6 +422,7 @@ export async function callHandshakeAcpMethod({
   params = {},
   timeoutMs = (SESSION_CONTROL_RUN_TIMEOUT_SECONDS + SESSION_CONTROL_RUN_STALE_GRACE_SECONDS + 30) * 1000,
   onNotification = null,
+  notificationDrainMs = 0,
 }) {
   const broker = await ensureBroker(repoRoot);
   return await new Promise((resolve, reject) => {
@@ -398,6 +435,7 @@ export async function callHandshakeAcpMethod({
     let methodResponse = null;
     let buffer = "";
     const notifications = [];
+    let drainTimer = null;
     const timer = timeoutMs > 0
       ? setTimeout(() => {
         finish(new Error(`Handshake ACP call timed out after ${timeoutMs}ms`), true);
@@ -408,10 +446,17 @@ export async function callHandshakeAcpMethod({
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
+      if (drainTimer) clearTimeout(drainTimer);
       socket.destroy();
       if (isError) reject(value);
       else resolve(value);
     };
+
+    const finishResolved = () => finish({
+      result: methodResponse,
+      notifications,
+      broker,
+    });
 
     const handleLine = (line) => {
       if (!line.trim()) return;
@@ -451,11 +496,11 @@ export async function callHandshakeAcpMethod({
           return;
         }
         methodResponse = message.result || null;
-        finish({
-          result: methodResponse,
-          notifications,
-          broker,
-        });
+        if (notificationDrainMs > 0) {
+          drainTimer = setTimeout(() => finishResolved(), notificationDrainMs);
+        } else {
+          finishResolved();
+        }
         return;
       }
 
@@ -502,6 +547,8 @@ export async function callHandshakeAcpMethod({
         finish(new Error("Handshake ACP broker closed before initialize"), true);
       } else if (!settled && !methodResponse) {
         finish(new Error(`Handshake ACP broker closed before ${method} response`), true);
+      } else if (!settled) {
+        finishResolved();
       }
     });
   });

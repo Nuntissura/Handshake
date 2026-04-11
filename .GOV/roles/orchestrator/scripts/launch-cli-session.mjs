@@ -10,6 +10,7 @@ import {
   ROLE_SESSION_REASONING_CONFIG_KEY,
   ROLE_SESSION_REASONING_CONFIG_VALUE,
   SESSION_HOST_PREFERENCE,
+  SESSION_PLUGIN_HOST,
   SESSION_HOST_FALLBACK,
   SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
   SESSION_PLUGIN_BRIDGE_COMMAND,
@@ -274,6 +275,13 @@ function printOnly(reason, resolvedHost) {
   console.log(`[LAUNCH_CLI_SESSION] command=${launchCommand}`);
 }
 
+function printLaunchResolution(reason, resolvedHost) {
+  console.log(`[LAUNCH_CLI_SESSION] host_preference=${SESSION_HOST_PREFERENCE}`);
+  console.log(`[LAUNCH_CLI_SESSION] host_fallback=${SESSION_HOST_FALLBACK}`);
+  console.log(`[LAUNCH_CLI_SESSION] host_resolved=${resolvedHost}`);
+  console.log(`[LAUNCH_CLI_SESSION] reason=${reason}`);
+}
+
 ensureSessionStateFiles(repoRoot);
 let { sessionSummary, batchSummary } = mutateSessionRegistrySync(repoRoot, (registry) => {
   const { requests } = loadSessionLaunchRequests(repoRoot);
@@ -358,6 +366,8 @@ function isHarmlessAutoStartFailure(output) {
   const normalized = String(output || "").toLowerCase();
   if (!normalized) return false;
   return [
+    "outcome_state=already_ready",
+    "outcome_state=busy_active_run",
     "already has thread",
     "cannot be started",
     "governed session",
@@ -472,7 +482,7 @@ function queueVsCodePluginLaunch() {
   }
   console.log(`[LAUNCH_CLI_SESSION] queued plugin launch request for ${SESSION_PLUGIN_BRIDGE_ID}`);
   console.log(`[LAUNCH_CLI_SESSION] request_id=${result.requestId}`);
-  console.log(`[LAUNCH_CLI_SESSION] preferred_host=${SESSION_HOST_PREFERENCE}`);
+  console.log(`[LAUNCH_CLI_SESSION] preferred_host=${SESSION_PLUGIN_HOST}`);
   console.log(`[LAUNCH_CLI_SESSION] plugin_command=${SESSION_PLUGIN_BRIDGE_COMMAND}`);
   console.log(`[LAUNCH_CLI_SESSION] wait_timeout_seconds=${SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS}`);
   autoStartGovernedSession("plugin launch request queued");
@@ -517,21 +527,26 @@ if (requestedHost === "PRINT") {
   process.exit(0);
 }
 
-if (requestedHost === "AUTO" || requestedHost === "VSCODE_PLUGIN" || requestedHost === "VSCODE") {
+if (requestedHost === "AUTO") {
+  printLaunchResolution("auto-resolved governed ACP headless launch", SESSION_HOST_PREFERENCE);
+  autoStartGovernedSession("auto headless ACP direct launch");
+  printSessionSummary();
+  process.exit(0);
+}
+
+if (requestedHost === "VSCODE_PLUGIN" || requestedHost === "VSCODE") {
   if (!cliEscalationGatePassed()) {
     queueVsCodePluginLaunch();
     process.exit(0);
   }
-  if (requestedHost !== "AUTO") {
-    printOnly(
-      batchSummary.launch_batch_mode === SESSION_BATCH_MODE_CLI_ESCALATION
-        ? `Batch launch mode is ${SESSION_BATCH_MODE_CLI_ESCALATION}; use AUTO/CURRENT/${CLI_ESCALATION_HOST_DEFAULT} until the governed batch is reset`
-        : `Plugin launch has already failed ${sessionSummary.plugin_failure_count} time(s); CLI escalation is now allowed and should be used from AUTO/CURRENT/${CLI_ESCALATION_HOST_DEFAULT}`,
-      "PRINT",
-    );
-    printSessionSummary();
-    process.exit(0);
-  }
+  printOnly(
+    batchSummary.launch_batch_mode === SESSION_BATCH_MODE_CLI_ESCALATION
+      ? `Batch launch mode is ${SESSION_BATCH_MODE_CLI_ESCALATION}; use AUTO for headless ACP direct launch or CURRENT/${CLI_ESCALATION_HOST_DEFAULT} for explicit repair until the governed batch is reset`
+      : `Plugin launch has already failed ${sessionSummary.plugin_failure_count} time(s); use AUTO for headless ACP direct launch or CURRENT/${CLI_ESCALATION_HOST_DEFAULT} for explicit repair`,
+    "PRINT",
+  );
+  printSessionSummary();
+  process.exit(0);
 }
 
 if ((requestedHost === "CURRENT" || isSystemTerminalMode(requestedHost)) && !cliEscalationGatePassed()) {
@@ -556,19 +571,6 @@ if (isSystemTerminalMode(requestedHost)) {
     autoStartGovernedSession("system terminal launch");
   } catch (error) {
     reclaimLaunchedTerminal("system terminal launch failure");
-    throw error;
-  }
-  printSessionSummary();
-  process.exit(0);
-}
-
-if (requestedHost === "AUTO") {
-  maybeRecordCliEscalation(CLI_ESCALATION_HOST_DEFAULT);
-  try {
-    launchSystemTerminal();
-    autoStartGovernedSession("auto-resolved system terminal launch");
-  } catch (error) {
-    reclaimLaunchedTerminal("auto-resolved system terminal launch failure");
     throw error;
   }
   printSessionSummary();
