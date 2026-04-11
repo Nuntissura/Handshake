@@ -25,6 +25,17 @@ export function relayEscalationCycleBudget(relayStatus = null) {
   };
 }
 
+export function workerInterruptCycleBudget(runtimeStatus = null) {
+  const currentCycle = parseNonNegativeInteger(runtimeStatus?.current_worker_interrupt_cycle, 0);
+  const maxCycle = parseNonNegativeInteger(runtimeStatus?.max_worker_interrupt_cycles, 1);
+  return {
+    currentCycle,
+    maxCycle,
+    exhausted: currentCycle >= maxCycle,
+    remainingCycles: Math.max(0, maxCycle - currentCycle),
+  };
+}
+
 export function activeRunsForTarget(activeRuns = [], {
   wpId = "",
   role = "",
@@ -160,6 +171,7 @@ export function buildRelayWatchdogSummary({
   relayStatus = null,
   decision = null,
   laneVerdict = null,
+  workerInterruptBudget = null,
   activeRuns = [],
   stallScanStatus = "UNKNOWN",
   outputFreshnessStatus = "UNKNOWN",
@@ -188,6 +200,7 @@ export function buildRelayWatchdogSummary({
     `stall_scan=${String(stallScanStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
     `output_freshness=${String(outputFreshnessStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
     `lane_verdict=${String(laneVerdict?.verdict || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
+    `worker_interrupt=${Number.isInteger(workerInterruptBudget?.currentCycle) ? workerInterruptBudget.currentCycle : 0}/${Number.isInteger(workerInterruptBudget?.maxCycle) ? workerInterruptBudget.maxCycle : 1}`,
   ];
   return parts.join(" | ");
 }
@@ -304,18 +317,34 @@ export function formatRelayLaneVerdict(laneVerdict = null) {
 
 export function deriveRelayWatchdogRestartDecision({
   decision = null,
+  laneVerdict = null,
+  workerInterruptBudget = null,
   allowRestart = false,
   freshness = null,
 } = {}) {
   const action = String(decision?.action || "").trim().toUpperCase();
-  const currentCycle = parseNonNegativeInteger(decision?.currentCycle, 0);
-  const maxCycle = Math.max(1, parseNonNegativeInteger(decision?.maxCycle, 1));
+  const budget = workerInterruptBudget || workerInterruptCycleBudget();
+  const currentCycle = parseNonNegativeInteger(budget.currentCycle, 0);
+  const maxCycle = parseNonNegativeInteger(budget.maxCycle, 1);
+  const interruptPolicy = String(laneVerdict?.workerInterruptPolicy || "").trim().toUpperCase();
+  const verdict = String(laneVerdict?.verdict || "").trim().toUpperCase();
 
   if (!allowRestart) {
     return {
       action: "RESTART_DISABLED",
       shouldRestart: false,
       reason: "RESTART_DISABLED",
+      currentCycle,
+      nextCycle: currentCycle,
+      maxCycle,
+    };
+  }
+
+  if (interruptPolicy !== "BOUNDED_AFTER_ROUTE_REPAIR") {
+    return {
+      action: "RESTART_POLICY_FORBIDS",
+      shouldRestart: false,
+      reason: interruptPolicy || "WORKER_INTERRUPT_FORBIDDEN",
       currentCycle,
       nextCycle: currentCycle,
       maxCycle,
@@ -333,11 +362,22 @@ export function deriveRelayWatchdogRestartDecision({
     };
   }
 
-  if (currentCycle >= maxCycle) {
+  if (!(verdict.startsWith("STALL_") || verdict.startsWith("ACTIVE_RUN_STALLED"))) {
+    return {
+      action: "RESTART_NOT_APPLICABLE",
+      shouldRestart: false,
+      reason: verdict || "RESTART_VERDICT_NOT_STALLED",
+      currentCycle,
+      nextCycle: currentCycle,
+      maxCycle,
+    };
+  }
+
+  if (budget.exhausted) {
     return {
       action: "RESTART_BUDGET_EXHAUSTED",
       shouldRestart: false,
-      reason: "MAX_RELAY_ESCALATION_CYCLES_REACHED",
+      reason: "MAX_WORKER_INTERRUPT_CYCLES_REACHED",
       currentCycle,
       nextCycle: currentCycle,
       maxCycle,

@@ -211,6 +211,8 @@ export function evaluateWpRelayEscalation({
     minutes_since_latest_session_activity: minutesBetween(nowTs, latestSessionActivityTs),
     current_relay_escalation_cycle: Number(runtimeStatus?.current_relay_escalation_cycle || 0),
     max_relay_escalation_cycles: Number(runtimeStatus?.max_relay_escalation_cycles || 0),
+    current_worker_interrupt_cycle: Number(runtimeStatus?.current_worker_interrupt_cycle || 0),
+    max_worker_interrupt_cycles: Number(runtimeStatus?.max_worker_interrupt_cycles ?? 1),
   };
 
   const warnings = [];

@@ -65,7 +65,7 @@ function readBrokerState(rootDir) {
   };
 }
 
-function readRelayLaneVerdict(rootDir, wpId) {
+function readRelayWatchdogSnapshot(rootDir, wpId) {
   const watchdogPath = path.resolve(rootDir, ".GOV", "roles", "orchestrator", "scripts", "wp-relay-watchdog.mjs");
   if (!fs.existsSync(watchdogPath)) return null;
   try {
@@ -77,8 +77,7 @@ function readRelayLaneVerdict(rootDir, wpId) {
     });
     const lines = String(output || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
     if (lines.length === 0) return null;
-    const payload = JSON.parse(lines.at(-1));
-    return payload?.laneVerdict || null;
+    return JSON.parse(lines.at(-1));
   } catch {
     return null;
   }
@@ -346,7 +345,9 @@ function runSync(rootDir, options) {
   const brokerSummary = readBrokerState(rootDir);
   const latestControlResult = controlResults.at(-1) || {};
   const latestReceipt = receipts.at(-1) || {};
-  const relayLaneVerdict = readRelayLaneVerdict(rootDir, options.wpId);
+  const relayWatchdog = readRelayWatchdogSnapshot(rootDir, options.wpId);
+  const relayLaneVerdict = relayWatchdog?.laneVerdict || null;
+  const workerInterruptBudget = relayWatchdog?.workerInterruptBudget || null;
   const sessionActivitySummary = sessions
     .map((session) => summarizeSessionLaneActivity(rootDir, session, nowMs))
     .filter(Boolean)
@@ -399,6 +400,7 @@ function runSync(rootDir, options) {
     `latest_receipt=${latestReceiptSummary}`,
     `acp=${sessionActivitySummary || "NONE"}`,
     `lane=${relayLaneVerdict ? `${relayLaneVerdict.verdict}/${relayLaneVerdict.reasonCode}` : "NONE"}`,
+    `interrupt_budget=${workerInterruptBudget ? `${workerInterruptBudget.currentCycle}/${workerInterruptBudget.maxCycle}` : "NONE"}`,
     `idle=${formatIdleMinutes(latestMechanicalEvent)}m`,
   ].join(" | ");
   const idleThresholdLabel = formatDurationCompact(idleMetrics.idle_threshold_ms);

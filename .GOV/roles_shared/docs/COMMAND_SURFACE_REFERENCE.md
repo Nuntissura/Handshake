@@ -64,7 +64,8 @@ These are safe starting points for orientation and health checks.
   - run a local non-LLM relay watcher over one or more orchestrator-managed WPs; stale `WATCH` / `ESCALATED` routes are re-steered only when the projected target session is not already running
   - active target runs are checked conservatively with `session-stall-scan`, which now treats ACP `command_execution`, `file_change`, `web_search`, and `todo_list` events as progress before reporting `WAIT_ACTIVE_RUN` / `REPORT_STALLED_ACTIVE_RUN`
   - successful automatic re-steers increment the runtime relay-cycle counter; healthy lanes reset it; once the WP exhausts `max_relay_escalation_cycles`, the watchdog stops auto-re-waking and leaves the lane attention-visible
-  - `--allow-restart` is default-off; when enabled, restart remains conservative and only cancels/re-steers a proven stale active run after freshness guards pass (`COMMAND_RUNNING`, expired `timeout_at`, and old output/session activity)
+  - direct worker interruption uses a separate runtime budget: `current_worker_interrupt_cycle` against `max_worker_interrupt_cycles`
+  - `--allow-restart` is default-off; when enabled, restart remains conservative and only cancels/re-steers a proven stale active run after the lane verdict permits bounded worker interruption, freshness guards pass (`COMMAND_RUNNING`, expired `timeout_at`, and old output/session activity), and the worker-interrupt budget has remaining capacity
   - `--observe-only` keeps the command read-only: it prints the same conservative poke verdict the watchdog would use, but does not steer, restart, or mutate runtime state
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
   - `read-only`
@@ -254,8 +255,8 @@ These legacy commands still work (they redirect to the governance memory DB) but
   - inspect lane health for a WP: session liveness, relay state, stall detection
 - `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--observe-only] [--restart-output-idle-seconds N]`
   - `runtime-write`
-  - non-LLM relay watcher for orchestrator-managed lanes; consumes receipt/notification/escalation truth, records a `STEERING` receipt when it performs a safe automatic re-wake, and persists bounded relay-cycle accounting into WP runtime status
-  - with `--allow-restart`, the watcher may perform one bounded cancel-plus-resteer only for a proven stale active run that has already exceeded timeout and freshness thresholds
+  - non-LLM relay watcher for orchestrator-managed lanes; consumes receipt/notification/escalation truth, records a `STEERING` receipt when it performs a safe automatic re-wake, and persists both bounded relay-cycle accounting and bounded worker-interrupt accounting into WP runtime status
+  - with `--allow-restart`, the watcher may perform one bounded cancel-plus-resteer only for a proven stale active run whose lane verdict permits bounded worker interruption and whose timeout/freshness thresholds are already exceeded
 - `just session-stall-scan <ROLE> WP-{ID}`
   - `read-only`
   - scan a governed session lane for stall conditions using ACP progress events (`command_execution`, `file_change`, `web_search`, `todo_list`) instead of only shell-command completions

@@ -180,6 +180,20 @@ function syncRuntimeDeclaredFieldsFromPacket(runtimeStatus = {}, packetText = ""
   syncedRuntime.agentic_mode = parseSingleField(packetText, "AGENTIC_MODE") || syncedRuntime.agentic_mode;
   syncedRuntime.current_branch = parseSingleField(packetText, "LOCAL_BRANCH") || syncedRuntime.current_branch;
   syncedRuntime.current_worktree_dir = parseSingleField(packetText, "LOCAL_WORKTREE_DIR") || syncedRuntime.current_worktree_dir;
+  syncedRuntime.max_worker_interrupt_cycles = Number.parseInt(
+    String(syncedRuntime.max_worker_interrupt_cycles ?? 1),
+    10,
+  );
+  if (!Number.isInteger(syncedRuntime.max_worker_interrupt_cycles) || syncedRuntime.max_worker_interrupt_cycles < 0) {
+    syncedRuntime.max_worker_interrupt_cycles = 1;
+  }
+  syncedRuntime.current_worker_interrupt_cycle = Number.parseInt(
+    String(syncedRuntime.current_worker_interrupt_cycle ?? 0),
+    10,
+  );
+  if (!Number.isInteger(syncedRuntime.current_worker_interrupt_cycle) || syncedRuntime.current_worker_interrupt_cycle < 0) {
+    syncedRuntime.current_worker_interrupt_cycle = 0;
+  }
   return syncedRuntime;
 }
 
@@ -265,6 +279,7 @@ export function reconcileWpCommunicationTruth({
     nextRuntimeStatus = applyWpReviewRuntimeProjection(nextRuntimeStatus, { evaluation });
     if (shouldResetRelayEscalationCycle(runtimeStatus, nextRuntimeStatus, latestReceipt)) {
       nextRuntimeStatus.current_relay_escalation_cycle = 0;
+      nextRuntimeStatus.current_worker_interrupt_cycle = 0;
       if (nextRuntimeStatus.attention_required !== true) {
         nextRuntimeStatus.attention_required = false;
       }
@@ -339,6 +354,7 @@ export function buildWpCommunicationTemplateReplacements({
   maxCoderRevisionCycles,
   maxValidatorReviewCycles,
   maxRelayEscalationCycles,
+  maxWorkerInterruptCycles,
 } = {}) {
   return {
     "{{WP_ID}}": wpId,
@@ -378,6 +394,7 @@ export function buildWpCommunicationTemplateReplacements({
     "{{MAX_CODER_REVISION_CYCLES}}": maxCoderRevisionCycles,
     "{{MAX_VALIDATOR_REVIEW_CYCLES}}": maxValidatorReviewCycles,
     "{{MAX_RELAY_ESCALATION_CYCLES}}": maxRelayEscalationCycles,
+    "{{MAX_WORKER_INTERRUPT_CYCLES}}": maxWorkerInterruptCycles,
   };
 }
 
@@ -450,6 +467,7 @@ function ensureWpCommunicationsCore({
   const MAX_CODER_REVISION_CYCLES = parseIntegerField(packetText, "MAX_CODER_REVISION_CYCLES", 3);
   const MAX_VALIDATOR_REVIEW_CYCLES = parseIntegerField(packetText, "MAX_VALIDATOR_REVIEW_CYCLES", 3);
   const MAX_RELAY_ESCALATION_CYCLES = parseIntegerField(packetText, "MAX_RELAY_ESCALATION_CYCLES", 2);
+  const MAX_WORKER_INTERRUPT_CYCLES = parseIntegerField(packetText, "MAX_WORKER_INTERRUPT_CYCLES", 1);
   const declaredCommunicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
   const declaredThreadFile = parseSingleField(packetText, "WP_THREAD_FILE");
   const declaredRuntimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
@@ -564,6 +582,7 @@ function ensureWpCommunicationsCore({
     maxCoderRevisionCycles: String(MAX_CODER_REVISION_CYCLES),
     maxValidatorReviewCycles: String(MAX_VALIDATOR_REVIEW_CYCLES),
     maxRelayEscalationCycles: String(MAX_RELAY_ESCALATION_CYCLES),
+    maxWorkerInterruptCycles: String(MAX_WORKER_INTERRUPT_CYCLES),
   });
 
   const threadTemplate = fs.readFileSync(repoPathAbs(THREAD_TEMPLATE), "utf8");

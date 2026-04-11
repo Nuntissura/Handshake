@@ -85,6 +85,7 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - Heartbeat is liveness only. `validator_trigger` is a validator wake signal only. Neither one is a steering channel.
 - Receipt/notification progress is the steering channel. If a governed next-actor route crosses `heartbeat_due_at` or `stale_after` without receipt progress, treat it as a relay-health signal, not as evidence that the route changed by itself.
 - Automatic relay repair is bounded. Successful non-LLM re-steers consume `current_relay_escalation_cycle`, healthy routes reset it, and once `max_relay_escalation_cycles` is exhausted the lane must remain attention-visible until a fresh orchestrator decision or later repair rung intervenes.
+- Direct worker interruption is stricter. Any watchdog-driven `CANCEL_SESSION` attempt consumes `current_worker_interrupt_cycle` against `max_worker_interrupt_cycles`, and restart is forbidden unless the lane verdict explicitly allows `BOUNDED_AFTER_ROUTE_REPAIR`.
 - One governed role/WP session has at most one active ACP run at a time. Concurrent steering for the same governed session is not allowed.
 
 ## Session Model Policy
@@ -181,7 +182,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
 - `just operator-viewport`
 - `just operator-admin`
 - When a WP filter is supplied, `just session-registry-status` now prints derived relay escalation state.
-- The relay-escalation block also prints the runtime relay-cycle budget so bounded auto-repair can be inspected without opening the runtime JSON directly.
+- The relay-escalation block also prints the runtime relay-cycle budget, and watchdog observe-only output now prints the worker-interrupt budget, so bounded auto-repair can be inspected without opening the runtime JSON directly.
 - `just active-lane-brief` is the compact authority digest for one governed lane; prefer it over rereading packet/runtime/session surfaces separately.
 - If derived relay escalation is `ESCALATED`, use `just orchestrator-steer-next WP-{ID} "<context>"` instead of waiting silently.
 - Prefer `just wp-relay-watchdog WP-{ID} --observe-only` before waking a lane when you need a mechanical "is this actually stalled?" verdict without disturbing a still-working active run.

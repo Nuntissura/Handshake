@@ -30,6 +30,7 @@ import {
   deriveRelayWatchdogDecision,
   deriveRelayWatchdogRestartDecision,
   relayRepairSignalAlreadyPending,
+  workerInterruptCycleBudget,
 } from "./lib/wp-relay-watchdog-lib.mjs";
 
 const ORCHESTRATOR_STEER_SCRIPT_PATH = path.resolve(REPO_ROOT, ".GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs");
@@ -421,6 +422,8 @@ function maybeRestartStalledLane({
   targetRole = "",
   targetSession = null,
   decision = null,
+  laneVerdict = null,
+  runtimeStatus = null,
   activeRuns = [],
   allowRestart = false,
   executeRestart = true,
@@ -439,8 +442,11 @@ function maybeRestartStalledLane({
     activeRuns,
     restartOutputIdleSeconds,
   });
+  const workerInterruptBudget = workerInterruptCycleBudget(runtimeStatus);
   const restartDecision = deriveRelayWatchdogRestartDecision({
     decision,
+    laneVerdict,
+    workerInterruptBudget,
     allowRestart,
     freshness,
   });
@@ -449,6 +455,7 @@ function maybeRestartStalledLane({
       status: "SKIPPED",
       reason: restartDecision.reason,
       freshness,
+      workerInterruptBudget,
       restartDecision,
       targetSessionRecord,
     };
@@ -459,6 +466,7 @@ function maybeRestartStalledLane({
       status: "WOULD_RESTART",
       reason: restartDecision.reason,
       freshness,
+      workerInterruptBudget,
       restartDecision,
       targetSessionRecord,
     };
@@ -470,6 +478,7 @@ function maybeRestartStalledLane({
       status: "FAILED",
       reason: cancel.cancelStatus || cancel.settledStatus || "CANCEL_SESSION_FAILED",
       freshness,
+      workerInterruptBudget,
       restartDecision,
       targetSessionRecord,
       cancel,
@@ -505,6 +514,7 @@ function maybeRestartStalledLane({
     status: "RESTARTED",
     reason: restartDecision.reason,
     freshness,
+    workerInterruptBudget,
     restartDecision,
     targetSessionRecord,
     cancel,
@@ -600,21 +610,36 @@ function updateRelayWatchdogRuntimeState({
     const runtime = parseJsonFile(runtimeStatusFile);
     const previousCycle = parseNonNegativeInteger(runtime.current_relay_escalation_cycle, 0);
     const maxCycle = Math.max(1, parseNonNegativeInteger(runtime.max_relay_escalation_cycles, 1));
+    const previousWorkerInterruptCycle = parseNonNegativeInteger(runtime.current_worker_interrupt_cycle, 0);
+    const maxWorkerInterruptCycle = parseNonNegativeInteger(runtime.max_worker_interrupt_cycles, 1);
     let nextCycle = previousCycle;
+    let nextWorkerInterruptCycle = previousWorkerInterruptCycle;
     const restartApplied = restartRepair?.status === "RESTARTED" && restartRepair?.restartDecision?.shouldRestart;
     const cycleAction = restartApplied
       ? "INCREMENT"
       : String(decision?.cycleAction || "").trim().toUpperCase();
+    runtime.max_worker_interrupt_cycles = maxWorkerInterruptCycle;
     if (cycleAction === "RESET") {
       nextCycle = 0;
     } else if (cycleAction === "INCREMENT") {
-      const requestedCycle = restartApplied
-        ? parseNonNegativeInteger(restartRepair?.restartDecision?.nextCycle, previousCycle + 1)
-        : parseNonNegativeInteger(decision?.nextCycle, previousCycle + 1);
+      const requestedCycle = parseNonNegativeInteger(decision?.nextCycle, previousCycle + 1);
       nextCycle = Math.min(maxCycle, Math.max(previousCycle + 1, requestedCycle));
+    }
+    if (restartApplied) {
+      const requestedWorkerInterruptCycle = parseNonNegativeInteger(
+        restartRepair?.restartDecision?.nextCycle,
+        previousWorkerInterruptCycle + 1,
+      );
+      nextWorkerInterruptCycle = Math.min(
+        maxWorkerInterruptCycle,
+        Math.max(previousWorkerInterruptCycle + 1, requestedWorkerInterruptCycle),
+      );
+    } else if (cycleAction === "RESET" || String(decision?.action || "").trim().toUpperCase() !== "REPORT_STALLED_ACTIVE_RUN") {
+      nextWorkerInterruptCycle = 0;
     }
 
     runtime.current_relay_escalation_cycle = nextCycle;
+    runtime.current_worker_interrupt_cycle = nextWorkerInterruptCycle;
     const lastEventAction = restartApplied
       ? "cancel_and_resteer"
       : String(decision?.action || "skip").trim().toLowerCase();
@@ -635,6 +660,9 @@ function updateRelayWatchdogRuntimeState({
       previousCycle,
       nextCycle,
       maxCycle,
+      previousWorkerInterruptCycle,
+      nextWorkerInterruptCycle,
+      maxWorkerInterruptCycle,
       attentionRequired: runtime.attention_required === true,
       lastEvent: runtime.last_event,
       lastEventAt: runtime.last_event_at,
@@ -718,6 +746,7 @@ function evaluateWp(wpId, {
   const outputFreshness = activeRuns.length > 0
     ? inspectActiveRunOutputFreshness(targetSessionRecord)
     : { status: "UNKNOWN", reason: "NO_ACTIVE_RUN", outputFile: null, outputIdleSeconds: null };
+  const workerInterruptBudget = workerInterruptCycleBudget(base.runtimeStatus);
   const decision = deriveRelayWatchdogDecision({
     relayStatus: base.relayStatus,
     activeRuns,
@@ -740,6 +769,8 @@ function evaluateWp(wpId, {
     targetRole,
     targetSession,
     decision,
+    laneVerdict,
+    runtimeStatus: base.runtimeStatus,
     activeRuns,
     allowRestart,
     executeRestart: !observeOnly,
@@ -750,6 +781,7 @@ function evaluateWp(wpId, {
     relayStatus: base.relayStatus,
     decision,
     laneVerdict,
+    workerInterruptBudget,
     activeRuns,
     stallScanStatus: stallScan.status,
     outputFreshnessStatus: outputFreshness.status,
@@ -773,6 +805,7 @@ function evaluateWp(wpId, {
       activeRuns,
       decision,
       laneVerdict,
+      workerInterruptBudget,
       restartRepair,
       runtimeUpdate: null,
       repairSignal: { status: "NOT_APPLICABLE", reason: "OBSERVE_ONLY" },
@@ -800,6 +833,7 @@ function evaluateWp(wpId, {
       activeRuns,
       decision,
       laneVerdict,
+      workerInterruptBudget,
       restartRepair,
       runtimeUpdate,
       outputLines: restartRepair.outputLines,
@@ -833,6 +867,7 @@ function evaluateWp(wpId, {
       activeRuns,
       decision,
       laneVerdict,
+      workerInterruptBudget,
       runtimeUpdate,
       repairSignal,
       skipped: true,
@@ -868,6 +903,7 @@ function evaluateWp(wpId, {
     outputLines,
     decision,
     laneVerdict,
+    workerInterruptBudget,
     restartRepair,
     runtimeUpdate,
     repairSignal: { status: "NOT_APPLICABLE", reason: "STEER_ACTION" },
@@ -888,6 +924,7 @@ function serializeResult(result) {
     decision: result.decision || null,
     stallScan: result.stallScan || null,
     outputFreshness: result.outputFreshness || null,
+    workerInterruptBudget: result.workerInterruptBudget || null,
     runtimeUpdate: result.runtimeUpdate || null,
     restartRepair: result.restartRepair || null,
     repairSignal: result.repairSignal || null,
@@ -925,6 +962,10 @@ function printResult(result, { json = false } = {}) {
     }
     console.log(`- relay_limit_reached: ${result.decision.limitReached ? "YES" : "NO"}`);
   }
+  if (result.workerInterruptBudget) {
+    console.log(`- worker_interrupt_cycle: ${result.workerInterruptBudget.currentCycle}/${result.workerInterruptBudget.maxCycle}`);
+    console.log(`- worker_interrupt_limit_reached: ${result.workerInterruptBudget.exhausted ? "YES" : "NO"}`);
+  }
   if (result.stallScan) {
     console.log(`- stall_scan_status: ${result.stallScan.status}`);
     console.log(`- stall_scan_summary: ${result.stallScan.summary}`);
@@ -939,6 +980,8 @@ function printResult(result, { json = false } = {}) {
   if (result.runtimeUpdate) {
     console.log(`- runtime_cycle_before: ${result.runtimeUpdate.previousCycle}/${result.runtimeUpdate.maxCycle}`);
     console.log(`- runtime_cycle_after: ${result.runtimeUpdate.nextCycle}/${result.runtimeUpdate.maxCycle}`);
+    console.log(`- runtime_worker_interrupt_before: ${result.runtimeUpdate.previousWorkerInterruptCycle}/${result.runtimeUpdate.maxWorkerInterruptCycle}`);
+    console.log(`- runtime_worker_interrupt_after: ${result.runtimeUpdate.nextWorkerInterruptCycle}/${result.runtimeUpdate.maxWorkerInterruptCycle}`);
     console.log(`- runtime_attention_required: ${result.runtimeUpdate.attentionRequired ? "YES" : "NO"}`);
   }
   if (result.restartRepair) {

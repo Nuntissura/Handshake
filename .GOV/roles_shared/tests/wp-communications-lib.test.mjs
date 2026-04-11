@@ -85,9 +85,11 @@ function runtimeStatusFixture(taskPacket) {
     max_coder_revision_cycles: 3,
     max_validator_review_cycles: 3,
     max_relay_escalation_cycles: 2,
+    max_worker_interrupt_cycles: 1,
     current_coder_revision_cycle: 1,
     current_validator_review_cycle: 0,
     current_relay_escalation_cycle: 0,
+    current_worker_interrupt_cycle: 0,
     last_backup_push_at: null,
     last_backup_push_sha: null,
   };

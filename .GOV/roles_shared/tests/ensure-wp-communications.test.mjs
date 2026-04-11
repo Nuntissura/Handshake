@@ -304,6 +304,8 @@ test("reconcileWpCommunicationTruth resets relay cycle after route progress clea
     ],
     current_relay_escalation_cycle: 2,
     max_relay_escalation_cycles: 2,
+    current_worker_interrupt_cycle: 1,
+    max_worker_interrupt_cycles: 1,
   };
 
   const receipts = [
@@ -360,6 +362,7 @@ test("reconcileWpCommunicationTruth resets relay cycle after route progress clea
   });
 
   assert.equal(reconciliation.nextRuntimeStatus.current_relay_escalation_cycle, 0);
+  assert.equal(reconciliation.nextRuntimeStatus.current_worker_interrupt_cycle, 0);
   assert.equal(reconciliation.nextRuntimeStatus.last_event, "receipt_review_response");
 });
 

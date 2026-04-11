@@ -11,6 +11,7 @@ import {
   formatRelayLaneVerdict,
   relayRepairSignalAlreadyPending,
   relayEscalationCycleBudget,
+  workerInterruptCycleBudget,
 } from "../scripts/lib/wp-relay-watchdog-lib.mjs";
 
 function relayStatus(overrides = {}) {
@@ -63,6 +64,27 @@ test("relay cycle budget normalizes missing and invalid values", () => {
   );
   assert.deepEqual(
     relayEscalationCycleBudget({ metrics: { current_relay_escalation_cycle: "-1", max_relay_escalation_cycles: "0" } }),
+    {
+      currentCycle: 0,
+      maxCycle: 1,
+      exhausted: false,
+      remainingCycles: 1,
+    },
+  );
+});
+
+test("worker interrupt budget normalizes missing and invalid values", () => {
+  assert.deepEqual(
+    workerInterruptCycleBudget({ current_worker_interrupt_cycle: "1", max_worker_interrupt_cycles: "2" }),
+    {
+      currentCycle: 1,
+      maxCycle: 2,
+      exhausted: false,
+      remainingCycles: 1,
+    },
+  );
+  assert.deepEqual(
+    workerInterruptCycleBudget({ current_worker_interrupt_cycle: "-1", max_worker_interrupt_cycles: "-1" }),
     {
       currentCycle: 0,
       maxCycle: 1,
@@ -189,6 +211,7 @@ test("watchdog summary is compact and includes the relay decision", () => {
   assert.match(summary, /next_cycle=1\/2/);
   assert.match(summary, /output_freshness=UNKNOWN/);
   assert.match(summary, /lane_verdict=ROUTE_STALE_NO_ACTIVE_RUN/);
+  assert.match(summary, /worker_interrupt=0\/1/);
 });
 
 test("lane verdict classifies active runs with fresh output as quiet but progressing", () => {
@@ -408,6 +431,15 @@ test("restart decision stays disabled unless explicitly allowed", () => {
       currentCycle: 0,
       maxCycle: 2,
     },
+    laneVerdict: {
+      verdict: "ACTIVE_RUN_STALLED_RECOVERABLE",
+      workerInterruptPolicy: "BOUNDED_AFTER_ROUTE_REPAIR",
+    },
+    workerInterruptBudget: {
+      currentCycle: 0,
+      maxCycle: 1,
+      exhausted: false,
+    },
     allowRestart: false,
     freshness: { eligible: true, reason: "STALE_ACTIVE_RUN_CONFIRMED" },
   });
@@ -416,12 +448,46 @@ test("restart decision stays disabled unless explicitly allowed", () => {
   assert.equal(restart.action, "RESTART_DISABLED");
 });
 
+test("restart decision is blocked when lane policy does not permit worker interrupts", () => {
+  const restart = deriveRelayWatchdogRestartDecision({
+    decision: {
+      action: "REPORT_STALLED_ACTIVE_RUN",
+      currentCycle: 0,
+      maxCycle: 2,
+    },
+    laneVerdict: {
+      verdict: "WAITING_ON_VALIDATOR",
+      workerInterruptPolicy: "ROUTE_MANAGER_FIRST",
+    },
+    workerInterruptBudget: {
+      currentCycle: 0,
+      maxCycle: 1,
+      exhausted: false,
+    },
+    allowRestart: true,
+    freshness: { eligible: true, reason: "STALE_ACTIVE_RUN_CONFIRMED" },
+  });
+
+  assert.equal(restart.shouldRestart, false);
+  assert.equal(restart.action, "RESTART_POLICY_FORBIDS");
+  assert.equal(restart.reason, "ROUTE_MANAGER_FIRST");
+});
+
 test("restart decision blocks when freshness guard is not satisfied", () => {
   const restart = deriveRelayWatchdogRestartDecision({
     decision: {
       action: "REPORT_STALLED_ACTIVE_RUN",
       currentCycle: 0,
       maxCycle: 2,
+    },
+    laneVerdict: {
+      verdict: "STALL_RETRY_LOOP",
+      workerInterruptPolicy: "BOUNDED_AFTER_ROUTE_REPAIR",
+    },
+    workerInterruptBudget: {
+      currentCycle: 0,
+      maxCycle: 1,
+      exhausted: false,
     },
     allowRestart: true,
     freshness: { eligible: false, reason: "OUTPUT_RECENTLY_UPDATED" },
@@ -432,12 +498,21 @@ test("restart decision blocks when freshness guard is not satisfied", () => {
   assert.equal(restart.reason, "OUTPUT_RECENTLY_UPDATED");
 });
 
-test("restart decision consumes bounded relay budget when a stalled run is confirmed", () => {
+test("restart decision consumes bounded worker interrupt budget when a stalled run is confirmed", () => {
   const restart = deriveRelayWatchdogRestartDecision({
     decision: {
       action: "REPORT_STALLED_ACTIVE_RUN",
       currentCycle: 1,
       maxCycle: 3,
+    },
+    laneVerdict: {
+      verdict: "STALL_RETRY_LOOP",
+      workerInterruptPolicy: "BOUNDED_AFTER_ROUTE_REPAIR",
+    },
+    workerInterruptBudget: {
+      currentCycle: 0,
+      maxCycle: 1,
+      exhausted: false,
     },
     allowRestart: true,
     freshness: { eligible: true, reason: "STALE_ACTIVE_RUN_CONFIRMED" },
@@ -445,6 +520,31 @@ test("restart decision consumes bounded relay budget when a stalled run is confi
 
   assert.equal(restart.shouldRestart, true);
   assert.equal(restart.action, "CANCEL_AND_RESTEER");
-  assert.equal(restart.currentCycle, 1);
-  assert.equal(restart.nextCycle, 2);
+  assert.equal(restart.currentCycle, 0);
+  assert.equal(restart.nextCycle, 1);
+});
+
+test("restart decision stops when the worker interrupt budget is exhausted", () => {
+  const restart = deriveRelayWatchdogRestartDecision({
+    decision: {
+      action: "REPORT_STALLED_ACTIVE_RUN",
+      currentCycle: 1,
+      maxCycle: 3,
+    },
+    laneVerdict: {
+      verdict: "STALL_RETRY_LOOP",
+      workerInterruptPolicy: "BOUNDED_AFTER_ROUTE_REPAIR",
+    },
+    workerInterruptBudget: {
+      currentCycle: 1,
+      maxCycle: 1,
+      exhausted: true,
+    },
+    allowRestart: true,
+    freshness: { eligible: true, reason: "STALE_ACTIVE_RUN_CONFIRMED" },
+  });
+
+  assert.equal(restart.shouldRestart, false);
+  assert.equal(restart.action, "RESTART_BUDGET_EXHAUSTED");
+  assert.equal(restart.reason, "MAX_WORKER_INTERRUPT_CYCLES_REACHED");
 });
