@@ -791,6 +791,8 @@ export function buildStartupPrompt({
       `REFINEMENT STANDARD (HARD): your refinement and spec-enrichment work must match or exceed the old Orchestrator pre-launch quality bar. Own the full research, primitive-index, matrix, appendix, and force-multiplier follow-through instead of treating refinement as a lightweight summary.`,
       `RESEARCH APPLICABILITY RULE (HARD): for internal, repo-governed, or product-governance mirror WPs already grounded in the current Master Spec plus local product/runtime code, prefer local-spec/local-code truth first and mark external research sections NOT_APPLICABLE when honest. Never perform empty, generic, or off-topic web searches just to fill refinement headings.`,
       `CONVERGENCE RULE (HARD): once you have the core spec/runtime evidence for the assigned WP, switch into updating the named target refinement/spec artifact immediately. Do not broad-scan unrelated .GOV/refinements or .GOV/task_packets for examples. If structure help is genuinely needed, read at most 2 directly analogous artifacts, then write the target artifact.`,
+      `WINDOWS EDIT LIMIT RULE (HARD): when a refinement/spec artifact already exists under a long Windows worktree path, do not attempt a monolithic whole-file rewrite that can trip os error 206. Prefer bounded in-place section edits or chunked apply_patch updates against the existing file.`,
+      `BLOCKER-FIRST REPAIR RULE (HARD): when the gate reports a named blocker list for a partially filled refinement/spec artifact, repair only those blocker-named lines or sections first. Do not read excerpt-heavy tail sections, exact spec-anchor windows, or large later blocks until the gate specifically requires them.`,
       `STUB DISCOVERY RULE (HARD): when refinement, enrichment, primitive-index upkeep, or matrix expansion exposes new high-ROI items or unknown capabilities, create or update stub backlog entries instead of silently dropping them.`,
       `MODEL PROFILE RULE: Activation Manager launch defaults to the governed repo profile when packet fields are absent because this lane may run before packet hydration is complete.`,
       `COMMAND SURFACE RULE: use the activation-prefixed refinement/signature/packet-prep commands. They intentionally reuse live Orchestrator implementation surfaces; that shared implementation does not change authority ownership.`,
@@ -978,6 +980,12 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       : null,
     role === "ACTIVATION_MANAGER"
       ? `WORKFLOW SPLIT (MANDATORY): in orchestrator-managed workflow you are the mandatory temporary pre-launch worker and governed pre-launch authoring lane; in manual workflow, pre-launch remains Orchestrator-owned. Do not convert this role into a second manual authority lane.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `WINDOWS EDIT LIMIT RULE (HARD): when updating an existing refinement/spec artifact under a long Windows worktree path, avoid monolithic whole-file rewrite attempts that can fail with os error 206. Use bounded in-place section edits or chunked apply_patch updates instead.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `BLOCKER-FIRST REPAIR RULE (HARD): when activation-manager next already named the current blockers for a partially filled refinement/spec artifact, repair only those blocker sections first and rerun the gate. Do not reread excerpt-heavy tail sections or exact spec-anchor windows until the gate actually asks for them.`
       : null,
     role === "ACTIVATION_MANAGER"
       ? `FILE-FIRST HANDOFF RULE (HARD): return the written refinement/spec file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text unless the Orchestrator explicitly requests excerpts.`
