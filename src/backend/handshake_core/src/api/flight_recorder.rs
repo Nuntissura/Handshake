@@ -65,7 +65,6 @@ pub struct EventFilter {
     pub actor: Option<String>,
     pub surface: Option<String>,
     pub event_type: Option<String>,
-    pub model_session_id: Option<String>,
     pub wsid: Option<String>,
 }
 

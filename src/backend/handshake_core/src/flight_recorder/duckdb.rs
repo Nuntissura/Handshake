@@ -847,6 +847,9 @@ impl DuckDbFlightRecorder {
                 }
                 "gov_mailbox_exported" => super::FlightRecorderEventType::GovMailboxExported,
                 "gov_mailbox_transcribed" => super::FlightRecorderEventType::GovMailboxTranscribed,
+                "gov_work_packet_activated" => {
+                    super::FlightRecorderEventType::GovWorkPacketActivated
+                }
                 "gov_decision_created" => super::FlightRecorderEventType::GovDecisionCreated,
                 "gov_decision_applied" => super::FlightRecorderEventType::GovDecisionApplied,
                 "gov_auto_signature_created" => {
@@ -942,21 +945,6 @@ impl DuckDbFlightRecorder {
                 }
                 "workspace_cross_session.approved" => {
                     super::FlightRecorderEventType::WorkspaceCrossSessionApproved
-                }
-                "session.created" | "session_created" => {
-                    super::FlightRecorderEventType::SessionCreated
-                }
-                "session.state_change" | "session_state_change" => {
-                    super::FlightRecorderEventType::SessionStateChange
-                }
-                "session.completed" | "session_completed" => {
-                    super::FlightRecorderEventType::SessionCompleted
-                }
-                "session.message" | "session_message" => {
-                    super::FlightRecorderEventType::SessionMessage
-                }
-                "session.budget_warning" | "session_budget_warning" => {
-                    super::FlightRecorderEventType::SessionBudgetWarning
                 }
                 "capability_action" => {
                     if payload_type == Some("terminal_command") {
@@ -1650,10 +1638,10 @@ mod tests {
         .with_model_id("model-roundtrip")
         .with_model_session_id("session-roundtrip")
         .with_wsids(vec!["ws-1".to_string(), "ws-2".to_string()])
-        .with_activity_span_id("activity-roundtrip")
-        .with_session_span_id("session-span-roundtrip")
-        .with_capability_id("capability-roundtrip")
-        .with_policy_decision_id("policy-roundtrip");
+        .with_activity_span("activity-roundtrip")
+        .with_session_span("session-span-roundtrip")
+        .with_capability("capability-roundtrip")
+        .with_policy_decision("policy-roundtrip");
 
         recorder.record_event(event).await?;
 

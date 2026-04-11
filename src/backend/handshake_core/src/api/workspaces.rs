@@ -14,6 +14,8 @@ use crate::ace::validators::atelier_scope::{
     SelectionRangeV1,
 };
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
+use crate::runtime_governance::RuntimeGovernancePaths;
+use crate::workflows::build_dcc_control_plane_snapshot;
 use crate::{
     diagnostics::{
         DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, LinkConfidence,
@@ -47,6 +49,7 @@ pub fn routes(state: AppState) -> Router {
         )
         .route("/atelier/roles", get(list_atelier_roles))
         .route("/workspaces/:workspace_id", delete(delete_workspace))
+        .route("/dcc/control-plane", get(dcc_control_plane_snapshot))
         .with_state(state)
 }
 
@@ -1188,6 +1191,40 @@ fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorRespons
 
 fn not_found(code: &'static str) -> (StatusCode, Json<ErrorResponse>) {
     (StatusCode::NOT_FOUND, Json(ErrorResponse { error: code }))
+}
+
+/// GET /dcc/control-plane — thin read-only projection endpoint.
+async fn dcc_control_plane_snapshot(
+    State(state): State<AppState>,
+) -> Result<Json<Value>, (StatusCode, Json<ErrorResponse>)> {
+    let runtime_paths = RuntimeGovernancePaths::resolve().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "HSK-500-DCC-RESOLVE",
+            }),
+        )
+    })?;
+    let snapshot =
+        build_dcc_control_plane_snapshot(&state.session_registry, &runtime_paths, &state.capability_registry, state.storage.as_ref())
+            .await
+            .map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        error: "HSK-500-DCC-BUILD",
+                    }),
+                )
+            })?;
+    let value = serde_json::to_value(&snapshot).map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "HSK-500-DCC-SERIALIZE",
+            }),
+        )
+    })?;
+    Ok(Json(value))
 }
 
 #[cfg(test)]
