@@ -384,6 +384,292 @@ Format: `- [TIMESTAMP] [ROLE] [CATEGORY] <finding>`
 - [2026-04-11 06:32:05 Europe/Brussels] [ORCHESTRATOR] [ACTIVATION_REPAIR] [GOVERNANCE] Recorded refinement/signature/profiles/prepare, created packet and coder worktree, repaired READY_FOR_DEV plus traceability, and seeded the live workflow dossier for the orchestrator-managed DCC backend run.
 - [2026-04-11 06:32:29 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [MECHANICAL] `BROKER(0 active) -> WP-1-Dev-Command-Center-Control-Plane-Backend-v1 [submitted / waiting_on=VALIDATOR_KICKOFF]` | sessions=1 | control=11/11 | receipts=1 | pending=0 | latest_control=SEND_PROMPT/FAILED | latest_receipt=ASSIGNMENT@2026-04-11T04:30:33.595Z | acp=ACTIVATION_MANAGER:FAILED:item.completed:command_execution@23m | lane=WAITING_ON_VALIDATOR/ROUTE_HEALTHY | interrupt_budget=0/1 | idle=1m
 - [2026-04-11 06:33:14 Europe/Brussels] [ORCHESTRATOR] [READY_REVIEW_SYNC] [MECHANICAL] `BROKER(0 active) -> WP-1-Dev-Command-Center-Control-Plane-Backend-v1 [submitted / waiting_on=VALIDATOR_KICKOFF]` | sessions=1 | control=11/11 | receipts=1 | pending=0 | latest_control=SEND_PROMPT/FAILED | latest_receipt=ASSIGNMENT@2026-04-11T04:30:33.595Z | acp=ACTIVATION_MANAGER:FAILED:item.completed:command_execution@24m | lane=WAITING_ON_VALIDATOR/ROUTE_HEALTHY | interrupt_budget=0/1 | idle=2m
+- [2026-04-11 06:35:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> ACTIVATION_MANAGER` START_SESSION/run.started | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:35:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> ACTIVATION_MANAGER` START_SESSION/process.spawned | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | pid=81900
+- [2026-04-11 06:35:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/thread.started | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=019d7ad3..92ba22
+- [2026-04-11 06:35:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/turn.started | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/stderr | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/turn.completed | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/process.closed | cmd=f6e6e8e3..7da827 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:29 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019d7ad3-274c-7112-9184-d0aac192ba22 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/ACTIVATION_MANAGER_WP-1-Dev-Command-Center-Control-Plane-Backend-v1/f6e6e8e3-1849-4f69-8c88-44329a7da827.jsonl | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | detail=**Lifecycle / Gate State**
+- `WORKFLOW_LANE: ORCHESTRATOR_MANAGED`
+- `PACKET_STATUS: Ready for Dev`
+- `CLEARLY_COVERS_VERDICT: PASS`
+- `ENRICHMENT_NEEDED: NO`
+- `CURRENT_VERDICT: READY_FOR_ORCHESTRATOR_REVIEW`
+- `PRIMARY_RUNTIME_ARTIFACT: ../gov_runtime/roles/activation_manager/runtime/activation_readiness/WP-1-Dev-Command-Center-Control-Plane-Backend-v1.md`
+
+**Blockers**
+- `just activation-manager startup` failed: `Recipe 'activation-manager' failed on line 578 with exit code 1`
+- `TASK_BOARD_STATUS: <not found>`
+- `CURRENT_WP_STATUS: <missing>`
+
+**Next Required Commands**
+- `just generate-refinement-rubric`
+- `just activation-manager readiness WP-1-Dev-Command-Center-Control-Plane-Backend-v1 --write`
+- Review runtime artifact: `../gov_runtime/roles/activation_manager/runtime/activation_readiness/WP-1-Dev-Command-Center-Control-Plane-Backend-v1.md`
+- [2026-04-11 06:36:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> ACTIVATION_MANAGER` SEND_PROMPT/run.started | cmd=048a70e7..80e9e4 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:36:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> ACTIVATION_MANAGER` SEND_PROMPT/process.spawned | cmd=048a70e7..80e9e4 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | pid=41708
+- [2026-04-11 06:36:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=048a70e7..80e9e4 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=019d7ad3..92ba22
+- [2026-04-11 06:36:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=048a70e7..80e9e4 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:37:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=048a70e7..80e9e4 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:37:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=048a70e7..80e9e4 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:37:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=048a70e7..80e9e4 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:37:38 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019d7ad3-274c-7112-9184-d0aac192ba22 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/ACTIVATION_MANAGER_WP-1-Dev-Command-Center-Control-Plane-Backend-v1/048a70e7-f46e-4967-9b05-49d2af80e9e4.jsonl | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | detail=`BLOCKER_CLASS: AUTHORITY_OVERRIDE_REQUIRED`
+
+Current truthful state: the fresh approved readiness artifact at [WP-1-Dev-Command-Center-Control-Plane-Backend-v1.md](../gov_runtime/roles/activation_manager/runtime/activation_readiness/WP-1-Dev-Command-Center-Control-Plane-Backend-v1.md), the official packet at [packet.md](/D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/wt-gov-kernel/.GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/packet.md), and the assigned coder worktree `../wtc-plane-backend-v1` are noted. No readiness refresh was run because you provided the artifact as fresh/clean and no current checker result was supplied proving drift. No coder, validator, or integration lanes were launched, and no downstream runtime receipts were emitted.
+
+Reason: this session is still role-locked to `ACTIVATION_MANAGER`, and that role’s hard boundaries prohibit coder/validator launch or steering and final workflow-status promotion. The actions you requested require explicit reassignment to `ORCHESTRATOR` or execution by the actual Orchestrator lane.
+
+Next required action: explicitly reassign this session from `ACTIVATION_MANAGER` to `ORCHESTRATOR`, or have the Orchestrator consume the readiness artifact and continue downstream launch/steering from that lane.
+- [2026-04-11 06:38:11 Europe/Brussels] [ORCHESTRATOR] [AM_BOUNDARY_SYNC] [MECHANICAL] `BROKER(0 active) -> WP-1-Dev-Command-Center-Control-Plane-Backend-v1 [submitted / waiting_on=VALIDATOR_KICKOFF]` | sessions=1 | control=13/13 | receipts=1 | pending=0 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=ASSIGNMENT@2026-04-11T04:30:33.595Z | acp=ACTIVATION_MANAGER:READY:item.completed:agent_message@32s | lane=WAITING_ON_VALIDATOR/ROUTE_HEALTHY | interrupt_budget=0/1 | idle=1m
+- [2026-04-11 06:38:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` START_SESSION/run.started | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:38:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` START_SESSION/process.spawned | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | pid=67256
+- [2026-04-11 06:38:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` START_SESSION/run.started | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:38:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` START_SESSION/process.spawned | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | pid=21232
+- [2026-04-11 06:38:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/thread.started | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=019d7ad5..ce23d6
+- [2026-04-11 06:38:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.started | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:38:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/system | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:38:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/assistant | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:38:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/assistant | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:38:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/rate_limit_event | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:39:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:39:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:39:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/system | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:39:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/user | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:39:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/assistant | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:39:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/assistant | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:39:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/assistant | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:39:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/stderr | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:39:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:39:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/user | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:39:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:39:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:39:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:39:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/assistant | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:39:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/assistant | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:39:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/result | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:39:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/process.closed | cmd=1a5d273f..b79dd2 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:39:39 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=324caa86-e144-4f91-beef-655fafbf7b7c | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Dev-Command-Center-Control-Plane-Backend-v1/1a5d273f-8eb6-44bf-9667-46535eb79dd2.jsonl | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | detail=**Startup Bootstrap Report**
+
+**Lifecycle/Gate State:**
+- **WP_ID:** WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- **Stage:** BOOTSTRAP
+- **Branch:** `feat/WP-1-Dev-Command-Center-Control-Plane-Backend-v1` (confirmed correct worktree)
+- **Workflow Lane:** ORCHESTRATOR_MANAGED
+- **Packet Status:** Ready for Dev
+- **Bootstrap Claim Commit:** Missing
+- **Microtasks:** 5 declared | active=MT-001 | next=MT-002
+
+**Blockers (2):**
+
+1. **`coder-startup` failed** — `session-policy-check` found 5 missing SESSION_PLUGIN fields in the packet:
+   - `SESSION_PLUGIN_BRIDGE_ID`
+   - `SESSION_PLUGIN_BRIDGE_COMMAND`
+   - `SESSION_PLUGIN_REQUESTS_FILE`
+   - `SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION`
+   - `SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS`
+   
+   **BLOCKER_CLASS: OPERATOR_ARTIFACT_REQUIRED** — these are packet-level governance fields outside coder authority.
+
+2. **Runtime waiting on `VALIDATOR_KICKOFF`** — WP Validator has not kicked off yet. Next actor per runtime is `WP_VALIDATOR`.
+
+**Next Required Commands (after blockers clear):**
+- `just phase-check STARTUP WP-1-Dev-Command-Center-Control-Plane-Backend-v1 CODER <session>`
+- Bootstrap claim via `coder-bootstrap-claim.mjs`
+
+Waiting for Orchestrator instruction.
+- [2026-04-11 06:39:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:39:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.completed | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:39:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/process.closed | cmd=32a3b140..95d82e | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:39:46 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019d7ad5-ea9a-74c2-9122-7a9e62ce23d6 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Dev-Command-Center-Control-Plane-Backend-v1/32a3b140-cdc0-4857-bbef-de1ec595d82e.jsonl | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | detail=**State**
+`just validator-startup` failed in preflight. `just validator-next WP-1-Dev-Command-Center-Control-Plane-Backend-v1` succeeded and reports:
+- `VERDICT: PENDING`
+- `STAGE: VALIDATION`
+- `NEXT: VALIDATION`
+- `OPERATOR_ACTION: NONE`
+- projected next actor: `WP_VALIDATOR`
+- runtime `waiting_on: VALIDATOR_KICKOFF`
+
+**Blockers**
+Startup is blocked by `gov-check` -> `session-policy-check.mjs` against `.GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/packet.md`. Missing required packet fields:
+- `SESSION_PLUGIN_BRIDGE_ID`
+- `SESSION_PLUGIN_BRIDGE_COMMAND`
+- `SESSION_PLUGIN_REQUESTS_FILE`
+- `SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION`
+- `SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS`
+
+**Next required commands**
+- `just check-notifications WP-1-Dev-Command-Center-Control-Plane-Backend-v1 WP_VALIDATOR`
+- `just ack-notifications WP-1-Dev-Command-Center-Control-Plane-Backend-v1 WP_VALIDATOR wp_validator:wp-1-dev-command-center-control-plane-backend-v1`
+- `just phase-check HANDOFF WP-1-Dev-Command-Center-Control-Plane-Backend-v1 WP_VALIDATOR`
+
+Waiting for the Orchestrator’s next prompt.
+- [2026-04-11 06:44:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | pid=138448
+- [2026-04-11 06:44:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/run.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/process.spawned | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | pid=36972
+- [2026-04-11 06:44:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/system | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=019d7ad5..ce23d6
+- [2026-04-11 06:44:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/rate_limit_event | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:44:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:44:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/system | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/system | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/system | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/system | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/system | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/system | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/system | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/system | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/system | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/user | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:46:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:46:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/system | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:46:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/assistant | cmd=723d6a95..1c09e0 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | thread=324caa86..bf7b7c
+- [2026-04-11 06:46:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:46:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:46:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:46:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:46:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:46:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:46:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:46:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=e200eefc..7cb463 | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1
+- [2026-04-11 06:46:33 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019d7ad5-ea9a-74c2-9122-7a9e62ce23d6 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Dev-Command-Center-Control-Plane-Backend-v1/e200eefc-4fe9-4ddd-9dca-e069b87cb463.jsonl | wp=WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | detail=Startup mesh is clear, notifications are empty, and the direct-review lane is now waiting on `CODER_INTENT` from session `324caa86-e144-4f91-beef-655fafbf7b7c` under the kickoff correlation `10.11 [ADD v02.160] Dev Command Center control-plane state`. Runtime status is `submitted / BOOTSTRAP`, `next_expected_actor=CODER`, `waiting_on=CODER_INTENT`.
+
+The packet read narrowed the early checkpoint to the eight hot files and five clause rows already named in the signed scope. The main bootstrap guardrails I’ll enforce on the incoming intent are:
+- Reuse existing structured-collaboration primitives instead of creating a second DCC authority. The current backend already carries compact summary records plus `workflow_state_family` and `queue_reason_code` in `locus/types.rs`, `locus/task_board.rs`, and `workflows.rs`.
+- Route the collaboration slice through structured mailbox artifacts, not prose parsing. The mailbox export already emits typed `thread_id`, `from_role`, `to_roles`, `message_type`, `authority_refs`, and `evidence_refs`.
+- Put the named DCC contract and tripwire tests on the first implementation path. None of the packet’s required `dcc_*` tests exist yet, so an intent that skips the contract/test seam and jumps straight to endpoint wiring is likely a `SPEC_GAP`.
+
+I’m ready to answer the first `CODER_INTENT` with a short `VALIDATOR_RESPONSE`, `SPEC_GAP`, or `VALIDATOR_QUERY` as soon as it lands.
+- [2026-04-11 06:47:43 Europe/Brussels] [ORCHESTRATOR] [STARTUP_PASS] [WP_COMMUNICATIONS] Started governed coder and WP validator lanes, registered both sessions into runtime via liveness heartbeats without mutating route fields, and passed just -f ../wtc-plane-backend-v1/justfile phase-check STARTUP WP-1-Dev-Command-Center-Control-Plane-Backend-v1 CODER before opening VALIDATOR_KICKOFF.
+- [2026-04-11 06:47:46 Europe/Brussels] [ORCHESTRATOR] [STARTUP_REPAIR_SYNC] [MECHANICAL] `BROKER(1 active) -> WP-1-Dev-Command-Center-Control-Plane-Backend-v1 [submitted / waiting_on=CODER_INTENT]` | sessions=3 | control=17/16 | receipts=4 | pending=1 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=VALIDATOR_KICKOFF@2026-04-11T04:43:06.634Z | acp=ACTIVATION_MANAGER:READY:item.completed:agent_message@10m,CODER:COMMAND_RUNNING:output@2m,WP_VALIDATOR:READY:item.completed:command_execution@1m | lane=QUIET_BUT_PROGRESSING/WAITING_ON_CODER_INTENT | interrupt_budget=0/1 | idle=1m
 
 ## LIVE_GOVERNANCE_CHANGE_LOG
 
@@ -397,8 +683,11 @@ Format: `- [TIMESTAMP] [ROLE] [CATEGORY] <finding>`
 ## LIVE_FINDINGS_LOG
 
 - [2026-04-11 06:32:21 Europe/Brussels] [ORCHESTRATOR] [SIGNATURE_GATE] Gate integrity depended on reverting a manually prefilled refinement USER_SIGNATURE to <pending> and re-consuming the one-time signature through orchestrator_gates.mjs so packet creation and role-model profile recording could proceed.
+- [2026-04-11 06:38:09 Europe/Brussels] [ORCHESTRATOR] [ACTIVATION_MANAGER_BOUNDARY] ACP Activation Manager session restarted successfully on OPENAI_GPT_5_4_XHIGH and confirmed the clean readiness bundle, but its role boundary refused downstream coder/validator launch. Control remains with the Orchestrator lane for live session launch.
 
 ## LIVE_IDLE_LEDGER
 
 - [2026-04-11 06:32:29 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Dev-Command-Center-Control-Plane-Backend-v1` | review_rtt(last=N/A|max=N/A|open=0) | pass_to_coder(last=N/A|max=N/A|waiting=0) | idle(current=2m|max_gap=22m|gaps>=15m:1) | wall_clock(active=0s|validator=2m|route=29m|dependency=0s|human=0s|repair=3s) | current_wait(VALIDATOR_WAIT@2m|reason=VALIDATOR_KICKOFF) | queue(level=LOW|score=0|pending=0|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
 - [2026-04-11 06:33:14 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Dev-Command-Center-Control-Plane-Backend-v1` | review_rtt(last=N/A|max=N/A|open=0) | pass_to_coder(last=N/A|max=N/A|waiting=0) | idle(current=3m|max_gap=22m|gaps>=15m:1) | wall_clock(active=0s|validator=3m|route=29m|dependency=0s|human=0s|repair=3s) | current_wait(VALIDATOR_WAIT@3m|reason=VALIDATOR_KICKOFF) | queue(level=LOW|score=0|pending=0|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
+- [2026-04-11 06:38:11 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Dev-Command-Center-Control-Plane-Backend-v1` | review_rtt(last=N/A|max=N/A|open=0) | pass_to_coder(last=N/A|max=N/A|waiting=0) | idle(current=32s|max_gap=22m|gaps>=15m:1) | wall_clock(active=0s|validator=32s|route=30m|dependency=0s|human=0s|repair=3s) | current_wait(VALIDATOR_WAIT@32s|reason=VALIDATOR_KICKOFF) | queue(level=LOW|score=0|pending=0|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
+- [2026-04-11 06:47:46 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Dev-Command-Center-Control-Plane-Backend-v1` | review_rtt(last=N/A|max=N/A|open=1) | pass_to_coder(last=N/A|max=N/A|waiting=0) | idle(current=1m|max_gap=22m|gaps>=15m:1) | wall_clock(active=0s|validator=0s|route=32m|dependency=0s|human=0s|repair=3s) | current_wait(CODER_WAIT@1m|reason=CODER_INTENT) | queue(level=MEDIUM|score=3|pending=1|open_reviews=1|open_control=1) | drift(dup_receipts=0|open_reviews=1|open_control=1)
