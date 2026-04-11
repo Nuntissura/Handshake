@@ -159,6 +159,7 @@ export function buildRelayWatchdogSummary({
   wpId = "",
   relayStatus = null,
   decision = null,
+  laneVerdict = null,
   activeRuns = [],
   stallScanStatus = "UNKNOWN",
   outputFreshnessStatus = "UNKNOWN",
@@ -186,8 +187,104 @@ export function buildRelayWatchdogSummary({
     `active_runs=${Array.isArray(activeRuns) ? activeRuns.length : 0}`,
     `stall_scan=${String(stallScanStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
     `output_freshness=${String(outputFreshnessStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
+    `lane_verdict=${String(laneVerdict?.verdict || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
   ];
   return parts.join(" | ");
+}
+
+function classifyWaitVerdict({
+  waitingOn = "",
+  reasonCode = "",
+  targetRole = "",
+} = {}) {
+  const combined = [
+    String(waitingOn || "").trim(),
+    String(reasonCode || "").trim(),
+    String(targetRole || "").trim(),
+  ].join(" ").toUpperCase();
+  if (!combined) return null;
+  if (/HUMAN|OPERATOR|APPROVAL|SIGNATURE/.test(combined)) return "WAITING_ON_HUMAN_APPROVAL";
+  if (/DEPENDENCY|BLOCKED/.test(combined)) return "WAITING_ON_DEPENDENCY";
+  if (/VALIDATOR|REVIEW/.test(combined)) return "WAITING_ON_REVIEW";
+  return null;
+}
+
+export function deriveRelayLaneVerdict({
+  relayStatus = null,
+  decision = null,
+  activeRuns = [],
+  stallScanStatus = "UNKNOWN",
+  outputFreshnessStatus = "UNKNOWN",
+  waitingOn = "",
+} = {}) {
+  const relayApplicable = relayStatus?.applicable === true;
+  const activeRunCount = Array.isArray(activeRuns) ? activeRuns.length : 0;
+  const decisionAction = String(decision?.action || "SKIP").trim().toUpperCase() || "SKIP";
+  const relayState = String(relayStatus?.status || "NOT_APPLICABLE").trim().toUpperCase() || "NOT_APPLICABLE";
+  const decisionReasonCode = String(decision?.reason || "").trim().toUpperCase();
+  const relayReasonCode = String(relayStatus?.reason_code || "").trim().toUpperCase();
+  const reasonCode = (decisionReasonCode && !["NORMAL", "SKIP"].includes(decisionReasonCode))
+    ? decisionReasonCode
+    : (relayReasonCode || decisionReasonCode || "UNKNOWN");
+  const waitVerdict = classifyWaitVerdict({
+    waitingOn,
+    reasonCode,
+    targetRole: relayStatus?.target_role,
+  });
+
+  let verdict = "ACTIVE_HEALTHY";
+  let pokeTarget = "NONE";
+  let workerInterruptPolicy = "FORBIDDEN";
+
+  if (!relayApplicable) {
+    verdict = "NOT_APPLICABLE";
+  } else if (activeRunCount > 0) {
+    if (decisionAction === "REPORT_STALLED_ACTIVE_RUN") {
+      verdict = decision?.limitReached ? "ACTIVE_RUN_STALLED_ESCALATE" : "ACTIVE_RUN_STALLED_RECOVERABLE";
+      pokeTarget = "ROUTE_MANAGER";
+      workerInterruptPolicy = decision?.limitReached ? "ROUTE_MANAGER_FIRST" : "BOUNDED_AFTER_ROUTE_REPAIR";
+    } else if (["RECENT", "FRESH"].includes(String(outputFreshnessStatus || "").trim().toUpperCase())) {
+      verdict = "QUIET_BUT_PROGRESSING";
+    } else if (waitVerdict) {
+      verdict = waitVerdict;
+    }
+  } else {
+    if (decisionAction === "ESCALATE_RELAY_LIMIT") {
+      verdict = "RELAY_BUDGET_EXHAUSTED";
+      pokeTarget = "ROUTE_MANAGER";
+      workerInterruptPolicy = "ROUTE_MANAGER_FIRST";
+    } else if (["WATCH", "ESCALATED"].includes(relayState) || ["STEER", "WATCH_ONLY"].includes(decisionAction)) {
+      verdict = "ROUTE_STALE_NO_ACTIVE_RUN";
+      pokeTarget = "ROUTE_MANAGER";
+      workerInterruptPolicy = "ROUTE_MANAGER_FIRST";
+    } else if (waitVerdict) {
+      verdict = waitVerdict;
+    }
+  }
+
+  return {
+    verdict,
+    reasonCode,
+    pokeTarget,
+    workerInterruptPolicy,
+    evidence: {
+      relayState,
+      decisionAction,
+      targetRole: normalizeRole(relayStatus?.target_role),
+      targetSession: normalizeSession(relayStatus?.target_session),
+      activeRunCount,
+      stallScanStatus: String(stallScanStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN",
+      outputFreshnessStatus: String(outputFreshnessStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN",
+      waitingOn: String(waitingOn || "").trim() || "NONE",
+    },
+  };
+}
+
+export function formatRelayLaneVerdict(laneVerdict = null) {
+  if (!laneVerdict) return "NONE";
+  const verdict = String(laneVerdict.verdict || "UNKNOWN").trim().toUpperCase() || "UNKNOWN";
+  const reasonCode = String(laneVerdict.reasonCode || "UNKNOWN").trim().toUpperCase() || "UNKNOWN";
+  return `${verdict}/${reasonCode}`;
 }
 
 export function deriveRelayWatchdogRestartDecision({

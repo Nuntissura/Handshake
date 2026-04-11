@@ -5,8 +5,10 @@ import {
   activeRunsForTarget,
   buildRelayRepairSignal,
   buildRelayWatchdogSummary,
+  deriveRelayLaneVerdict,
   deriveRelayWatchdogDecision,
   deriveRelayWatchdogRestartDecision,
+  formatRelayLaneVerdict,
   relayRepairSignalAlreadyPending,
   relayEscalationCycleBudget,
 } from "../scripts/lib/wp-relay-watchdog-lib.mjs";
@@ -165,10 +167,16 @@ test("watchdog summary is compact and includes the relay decision", () => {
     relayStatus: relayStatus(),
     activeRuns: [],
   });
+  const laneVerdict = deriveRelayLaneVerdict({
+    relayStatus: relayStatus(),
+    decision,
+    activeRuns: [],
+  });
   const summary = buildRelayWatchdogSummary({
     wpId: "WP-TEST-v1",
     relayStatus: relayStatus(),
     decision,
+    laneVerdict,
     activeRuns: [],
     stallScanStatus: "UNKNOWN",
     outputFreshnessStatus: "UNKNOWN",
@@ -180,6 +188,80 @@ test("watchdog summary is compact and includes the relay decision", () => {
   assert.match(summary, /cycle=0\/2/);
   assert.match(summary, /next_cycle=1\/2/);
   assert.match(summary, /output_freshness=UNKNOWN/);
+  assert.match(summary, /lane_verdict=ROUTE_STALE_NO_ACTIVE_RUN/);
+});
+
+test("lane verdict classifies active runs with fresh output as quiet but progressing", () => {
+  const decision = deriveRelayWatchdogDecision({
+    relayStatus: relayStatus({ status: "WATCH", reason_code: "PENDING_NOTIFICATION_WAITING" }),
+    activeRuns: [{ role: "CODER", session_key: "CODER:WP-TEST-v1" }],
+    stallScanStatus: "CLEAR",
+    outputFreshnessStatus: "RECENT",
+  });
+  const laneVerdict = deriveRelayLaneVerdict({
+    relayStatus: relayStatus({ status: "WATCH", reason_code: "PENDING_NOTIFICATION_WAITING" }),
+    decision,
+    activeRuns: [{ role: "CODER", session_key: "CODER:WP-TEST-v1" }],
+    stallScanStatus: "CLEAR",
+    outputFreshnessStatus: "RECENT",
+    waitingOn: "WP_VALIDATOR review response",
+  });
+
+  assert.equal(laneVerdict.verdict, "QUIET_BUT_PROGRESSING");
+  assert.equal(laneVerdict.pokeTarget, "NONE");
+  assert.equal(laneVerdict.workerInterruptPolicy, "FORBIDDEN");
+});
+
+test("lane verdict classifies stalled active runs as bounded route-manager repair", () => {
+  const stalledRelay = relayStatus({ status: "ESCALATED", reason_code: "SESSION_ACTIVE_NO_RECEIPT_PROGRESS" });
+  const decision = deriveRelayWatchdogDecision({
+    relayStatus: stalledRelay,
+    activeRuns: [{ role: "CODER", session_key: "CODER:WP-TEST-v1" }],
+    stallScanStatus: "STALL",
+  });
+  const laneVerdict = deriveRelayLaneVerdict({
+    relayStatus: stalledRelay,
+    decision,
+    activeRuns: [{ role: "CODER", session_key: "CODER:WP-TEST-v1" }],
+    stallScanStatus: "STALL",
+    outputFreshnessStatus: "STALE",
+    waitingOn: "CODER progress",
+  });
+
+  assert.equal(laneVerdict.verdict, "ACTIVE_RUN_STALLED_RECOVERABLE");
+  assert.equal(laneVerdict.pokeTarget, "ROUTE_MANAGER");
+  assert.equal(laneVerdict.workerInterruptPolicy, "BOUNDED_AFTER_ROUTE_REPAIR");
+});
+
+test("lane verdict classifies human approval waits separately from stale routes", () => {
+  const decision = deriveRelayWatchdogDecision({
+    relayStatus: relayStatus({
+      status: "NORMAL",
+      reason_code: "ROUTE_HEALTHY",
+      metrics: {
+        current_relay_escalation_cycle: 0,
+        max_relay_escalation_cycles: 2,
+      },
+    }),
+    activeRuns: [],
+    stallScanStatus: "UNKNOWN",
+  });
+  const laneVerdict = deriveRelayLaneVerdict({
+    relayStatus: relayStatus({
+      status: "NORMAL",
+      reason_code: "ROUTE_HEALTHY",
+      metrics: {
+        current_relay_escalation_cycle: 0,
+        max_relay_escalation_cycles: 2,
+      },
+    }),
+    decision,
+    activeRuns: [],
+    waitingOn: "operator approval",
+  });
+
+  assert.equal(laneVerdict.verdict, "WAITING_ON_HUMAN_APPROVAL");
+  assert.equal(formatRelayLaneVerdict(laneVerdict), "WAITING_ON_HUMAN_APPROVAL/ROUTE_HEALTHY");
 });
 
 test("watchdog builds a stalled-run repair signal for orchestrator visibility", () => {

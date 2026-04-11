@@ -65,6 +65,25 @@ function readBrokerState(rootDir) {
   };
 }
 
+function readRelayLaneVerdict(rootDir, wpId) {
+  const watchdogPath = path.resolve(rootDir, ".GOV", "roles", "orchestrator", "scripts", "wp-relay-watchdog.mjs");
+  if (!fs.existsSync(watchdogPath)) return null;
+  try {
+    const output = execFileSync(process.execPath, [watchdogPath, wpId, "--observe-only", "--json"], {
+      cwd: rootDir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    const lines = String(output || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (lines.length === 0) return null;
+    const payload = JSON.parse(lines.at(-1));
+    return payload?.laneVerdict || null;
+  } catch {
+    return null;
+  }
+}
+
 function summarizeNotifications(wpId, commDir) {
   const results = checkAllNotifications({ wpId });
   const checks = Object.values(results);
@@ -327,6 +346,7 @@ function runSync(rootDir, options) {
   const brokerSummary = readBrokerState(rootDir);
   const latestControlResult = controlResults.at(-1) || {};
   const latestReceipt = receipts.at(-1) || {};
+  const relayLaneVerdict = readRelayLaneVerdict(rootDir, options.wpId);
   const sessionActivitySummary = sessions
     .map((session) => summarizeSessionLaneActivity(rootDir, session, nowMs))
     .filter(Boolean)
@@ -378,6 +398,7 @@ function runSync(rootDir, options) {
     `latest_control=${latestControlSummary}`,
     `latest_receipt=${latestReceiptSummary}`,
     `acp=${sessionActivitySummary || "NONE"}`,
+    `lane=${relayLaneVerdict ? `${relayLaneVerdict.verdict}/${relayLaneVerdict.reasonCode}` : "NONE"}`,
     `idle=${formatIdleMinutes(latestMechanicalEvent)}m`,
   ].join(" | ");
   const idleThresholdLabel = formatDurationCompact(idleMetrics.idle_threshold_ms);

@@ -26,6 +26,7 @@ import {
   activeRunsForTarget,
   buildRelayRepairSignal,
   buildRelayWatchdogSummary,
+  deriveRelayLaneVerdict,
   deriveRelayWatchdogDecision,
   deriveRelayWatchdogRestartDecision,
   relayRepairSignalAlreadyPending,
@@ -79,6 +80,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     allowWatchSteer: true,
     allowRestart: false,
     observeOnly: false,
+    json: false,
     restartOutputIdleSeconds: DEFAULT_RESTART_OUTPUT_IDLE_SECONDS,
   };
   const rest = [...argv];
@@ -101,6 +103,10 @@ function parseArgs(argv = process.argv.slice(2)) {
     }
     if (token === "--observe-only") {
       args.observeOnly = true;
+      continue;
+    }
+    if (token === "--json") {
+      args.json = true;
       continue;
     }
     if (token === "--interval-seconds") {
@@ -719,6 +725,14 @@ function evaluateWp(wpId, {
     outputFreshnessStatus: outputFreshness.status,
     allowWatchSteer,
   });
+  const laneVerdict = deriveRelayLaneVerdict({
+    relayStatus: base.relayStatus,
+    decision,
+    activeRuns,
+    stallScanStatus: stallScan.status,
+    outputFreshnessStatus: outputFreshness.status,
+    waitingOn: base.runtimeStatus?.waiting_on || "",
+  });
   const restartRepair = maybeRestartStalledLane({
     wpId,
     registrySessions,
@@ -734,6 +748,7 @@ function evaluateWp(wpId, {
     wpId,
     relayStatus: base.relayStatus,
     decision,
+    laneVerdict,
     activeRuns,
     stallScanStatus: stallScan.status,
     outputFreshnessStatus: outputFreshness.status,
@@ -756,6 +771,7 @@ function evaluateWp(wpId, {
       outputFreshness,
       activeRuns,
       decision,
+      laneVerdict,
       restartRepair,
       runtimeUpdate: null,
       repairSignal: { status: "NOT_APPLICABLE", reason: "OBSERVE_ONLY" },
@@ -782,6 +798,7 @@ function evaluateWp(wpId, {
       outputFreshness,
       activeRuns,
       decision,
+      laneVerdict,
       restartRepair,
       runtimeUpdate,
       outputLines: restartRepair.outputLines,
@@ -814,6 +831,7 @@ function evaluateWp(wpId, {
       outputFreshness,
       activeRuns,
       decision,
+      laneVerdict,
       runtimeUpdate,
       repairSignal,
       skipped: true,
@@ -848,6 +866,7 @@ function evaluateWp(wpId, {
     activeRuns,
     outputLines,
     decision,
+    laneVerdict,
     restartRepair,
     runtimeUpdate,
     repairSignal: { status: "NOT_APPLICABLE", reason: "STEER_ACTION" },
@@ -855,7 +874,31 @@ function evaluateWp(wpId, {
   };
 }
 
-function printResult(result) {
+function serializeResult(result) {
+  return {
+    kind: "RELAY_WATCHDOG_RESULT",
+    wpId: result.wpId,
+    action: result.action,
+    reason: result.reason || "",
+    observeOnly: result.observeOnly === true,
+    summary: result.summary,
+    laneVerdict: result.laneVerdict || null,
+    relayStatus: result.relayStatus || null,
+    decision: result.decision || null,
+    stallScan: result.stallScan || null,
+    outputFreshness: result.outputFreshness || null,
+    runtimeUpdate: result.runtimeUpdate || null,
+    restartRepair: result.restartRepair || null,
+    repairSignal: result.repairSignal || null,
+    activeRunCount: Array.isArray(result.activeRuns) ? result.activeRuns.length : 0,
+  };
+}
+
+function printResult(result, { json = false } = {}) {
+  if (json) {
+    console.log(JSON.stringify(serializeResult(result)));
+    return;
+  }
   console.log(`RELAY_WATCHDOG_RESULT ${result.wpId}`);
   console.log(`- action: ${result.action}`);
   console.log(`- reason: ${result.reason || "<none>"}`);
@@ -863,6 +906,12 @@ function printResult(result) {
     console.log(`- observe_only: YES`);
   }
   console.log(`- summary: ${result.summary}`);
+  if (result.laneVerdict) {
+    console.log(`- lane_verdict: ${result.laneVerdict.verdict}`);
+    console.log(`- lane_verdict_reason: ${result.laneVerdict.reasonCode}`);
+    console.log(`- lane_poke_target: ${result.laneVerdict.pokeTarget}`);
+    console.log(`- lane_worker_interrupt_policy: ${result.laneVerdict.workerInterruptPolicy}`);
+  }
   if (result.relayStatus?.applicable) {
     console.log(`- relay_status: ${result.relayStatus.status}`);
     console.log(`- relay_reason_code: ${result.relayStatus.reason_code}`);
@@ -937,7 +986,7 @@ function runCycle(args) {
     restartOutputIdleSeconds: args.restartOutputIdleSeconds,
   }));
   for (const result of results) {
-    printResult(result);
+    printResult(result, { json: args.json });
   }
   return results;
 }
