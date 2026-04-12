@@ -324,6 +324,7 @@ Requirements (HARD):
   - ../handshake_main/src/backend/handshake_core/src/locus/types.rs
   - ../handshake_main/src/backend/handshake_core/src/role_mailbox.rs
   - ../handshake_main/src/backend/handshake_core/src/flight_recorder/mod.rs
+  - ../handshake_main/src/backend/handshake_core/src/flight_recorder/duckdb.rs
 - OUT_OF_SCOPE:
   - Any runtime code that reads from or writes to `/.GOV/`
   - Replacing Locus as the canonical work-tracking authority
@@ -391,7 +392,7 @@ Requirements (HARD):
   - CLAUSE: 2.6.8.8 Spec Session Log + 2.6.8.9 integration hooks | WHY_IN_SCOPE: Gate transitions and stub activation must append human-facing ledger entries and remain separately queryable from Flight Recorder | EXPECTED_CODE_SURFACES: `role_mailbox.rs`, workflow-mirror adapter in `workflows.rs` or adjacent runtime-governance service | EXPECTED_TESTS: session-log tests proving append/query behavior and stable `spec_id`/`task_board_id`/`work_packet_id` linkage | RISK_IF_MISSED: operators and models lose the required parallel planning ledger
   - CLAUSE: 7.5.4.8 hard repo/runtime boundary | WHY_IN_SCOPE: The product runtime mirror must be product-owned and must not read/write `/.GOV/` | EXPECTED_CODE_SURFACES: `runtime_governance.rs`, any new workflow-mirror service, boundary tests | EXPECTED_TESTS: negative-path tests proving `.GOV/` access is rejected and runtime roots stay under `.handshake/gov/` | RISK_IF_MISSED: the implementation violates a hard spec boundary
   - CLAUSE: 7.5.4.9 Governance Check Runner additive overlay rule and storage boundary | WHY_IN_SCOPE: This WP should reuse typed check execution/results and persist summaries through existing boundaries, not invent a side channel | EXPECTED_CODE_SURFACES: `governance_check_runner.rs`, `governance_artifact_registry.rs`, `storage/mod.rs`, workflow-mirror linkage surfaces | EXPECTED_TESTS: check-linkage tests proving result/evidence refs are persisted and projected without direct SQLite bypass | RISK_IF_MISSED: governed check state drifts from the runtime mirror or bypasses the storage contract
-  - CLAUSE: 11.5.4 `FR-EVT-GOV-GATES-001` and `FR-EVT-GOV-WP-001` | WHY_IN_SCOPE: The workflow mirror is the runtime surface that must emit those governance events on state change | EXPECTED_CODE_SURFACES: `flight_recorder/mod.rs`, workflow-mirror update paths in `workflows.rs` or adjacent service | EXPECTED_TESTS: FR payload tests validating event kind, refs, and idempotency behavior | RISK_IF_MISSED: governance transitions become invisible to the authoritative system log
+  - CLAUSE: 11.5.4 `FR-EVT-GOV-GATES-001` and `FR-EVT-GOV-WP-001` | WHY_IN_SCOPE: The workflow mirror is the runtime surface that must emit those governance events on state change | EXPECTED_CODE_SURFACES: `flight_recorder/mod.rs`, `flight_recorder/duckdb.rs`, workflow-mirror update paths in `workflows.rs` or adjacent service | EXPECTED_TESTS: FR payload tests validating event kind, refs, and idempotency behavior | RISK_IF_MISSED: governance transitions become invisible to the authoritative system log
 
 ### CONTRACT_SURFACES (serialization/producer/consumer checklist; required for REFINEMENT_FORMAT_VERSION >= 2026-03-15)
 - Rule: enumerate every contract surface likely to drift silently across producer/consumer/validator/test boundaries.
@@ -429,6 +430,7 @@ Requirements (HARD):
   - ../handshake_main/src/backend/handshake_core/src/role_mailbox.rs
   - ../handshake_main/src/backend/handshake_core/src/locus/types.rs
   - ../handshake_main/src/backend/handshake_core/src/flight_recorder/mod.rs
+  - ../handshake_main/src/backend/handshake_core/src/flight_recorder/duckdb.rs
   - ../wtc-workflow-mirror-v1/src/backend/handshake_core/src/workflows.rs
   - ../wtc-workflow-mirror-v1/src/backend/handshake_core/src/locus/types.rs
   - ../wtc-workflow-mirror-v1/src/backend/handshake_core/src/flight_recorder/mod.rs
