@@ -308,29 +308,208 @@ Assessment:
 
 ## Workflow Dossier Closeout Rubric
 
-- Fill at closeout using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.
+Comparison baseline: `.GOV/Audits/smoketest/AUDIT_20260410_GOVERNANCE_WORKFLOW_MIRROR_ACTIVATION_MANAGER_SMOKETEST_REVIEW.md:544`, `:562`, `:578`, `:593`, `:608`
+
+### Workflow Smoothness
+
+- TREND: REGRESSED
+- CURRENT_STATE: HIGH
+- NUMERIC_SCORE: 3
+- Evidence:
+  - Final governed metrics ended at `wall_clock=329.1min | active=4.4min | validator_wait=29.8min | route_wait=138.8min | stale_routes=5 | acp_fail=9 | turns=33` in `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Governance-Workflow-Mirror-v2/5b8684f9-c758-4adb-a1b7-d29732a1c8dc.jsonl`.
+  - The run spent most of its time in stale `CODER_HANDOFF` and later `VERDICT_PROGRESSION` / `MAIN_CONTAINMENT` routing rather than implementation; see the live idle-ledger entries and the repeated `phase-check CLOSEOUT` retries recorded in `../gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-closeout/WP-1-Governance-Workflow-Mirror-v2/`.
+  - The predecessor mirror audit scored workflow smoothness `6`; this run regressed because the v2 closeout path required more control-plane repair than the earlier v1 outdated-only closure. `.GOV/Audits/smoketest/AUDIT_20260410_GOVERNANCE_WORKFLOW_MIRROR_ACTIVATION_MANAGER_SMOKETEST_REVIEW.md:546`, `:548`
+- What improved:
+  - Once the product branch was rebuilt on current `main`, the actual code loop became a bounded six-file parity port rather than a replay of the stale v1 branch.
+  - Final closure was honest and complete: `packet.md` ended `Validated (PASS)` with contained-main truth instead of another outdated snapshot. `.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v2/packet.md:126`, `:128`, `:130`, `:134`
+- What still hurts:
+  - `CODER_HANDOFF` route truth drifted for hours even when notifications were empty and lifecycle state had advanced.
+  - Closeout was not atomic; it required packet, report, signed-patch, and baseline-sha repairs after technical product work was already correct.
+  - Shared `.GOV` junction cleanup was unsafe enough to require manual filesystem surgery before the v1 worktree could be removed.
+- Next structural fix:
+  - Make handoff-state reconciliation receipt-driven and self-healing, and make final-lane closeout preflight packet/report/artifact truth before running the validator.
+
+### Master Spec Gap Reduction
+
+- TREND: IMPROVED
+- CURRENT_STATE: MEDIUM
+- NUMERIC_SCORE: 8
+- Evidence:
+  - The packet now records full contained-main closure: `Validated (PASS)`, `MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN`, `MERGED_MAIN_COMMIT: 6a5e81da5497381aa0a7ee97f0f08282084dda37`, `CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE`. `.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v2/packet.md:126`, `:128`, `:130`, `:134`
+  - All five signed clause rows ended `CODER_STATUS: PROVED` and `VALIDATOR_STATUS: CONFIRMED`. `.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v2/packet.md:202`, `:203`, `:204`, `:205`, `:206`
+  - The predecessor audit only reached signed-scope closure plus `OUTDATED_ONLY`; this run actually contained the workflow-mirror parity slice in local `main`. `.GOV/Audits/smoketest/AUDIT_20260410_GOVERNANCE_WORKFLOW_MIRROR_ACTIVATION_MANAGER_SMOKETEST_REVIEW.md:564`, `:566`, `:572`, `:574`
+- What improved:
+  - The product now matches the WP's intended workflow-mirror slice on current `main`, not merely as a historical review snapshot.
+  - The v1 branch is now operationally resolved because the v2 port is contained and the stale v1 worktree has been removed.
+- What still hurts:
+  - The integration-validator report still records one bounded residual product gap: there is no dedicated first-class read API for workflow-mirror gate and activation summaries. `.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v2/packet.md:1311`, `:1312`
+  - Some remaining debt is now workflow/runtime debt rather than product-spec ambiguity.
+- Next structural fix:
+  - Decide whether gate and activation summaries should remain projection-only or whether the product needs a first-class read surface and a follow-on WP to codify it.
+
+### Token Cost Pressure
+
+- TREND: REGRESSED
+- CURRENT_STATE: HIGH
+- NUMERIC_SCORE: 2
+- Evidence:
+  - Final governed metrics ended at `tokens_in=255875165 | tokens_out=1055884 | turns=33 | gov_overhead=4.06`, with route wait dwarfing productive work. `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Governance-Workflow-Mirror-v2/5b8684f9-c758-4adb-a1b7-d29732a1c8dc.jsonl`
+  - Closeout retried through repeated `phase-check CLOSEOUT` failures before converging, including report completeness, clause coverage, baseline-sha, and signed-patch-path repairs. `../gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-closeout/WP-1-Governance-Workflow-Mirror-v2/`
+  - WP-specific repomem captured extra cost drivers: `validator-gate-append` advanced the lane without appending the PASS block (`#1536`), parallel validator test probes timed out from the kernel worktree (`#1537`), and packet/artifact path repair was needed for signed-scope closeout (`#1303`, `#1307`, `#1531`).
+  - The predecessor mirror audit already scored token cost pressure poorly at `3`; this run regressed further because containment and v1-resolution were real, but mechanically expensive. `.GOV/Audits/smoketest/AUDIT_20260410_GOVERNANCE_WORKFLOW_MIRROR_ACTIVATION_MANAGER_SMOKETEST_REVIEW.md:580`, `:582`
+- What improved:
+  - Once the final packet/report/artifact truth matched reality, the last contained-main closeout converged immediately and did not falsely green.
+- What still hurts:
+  - The workflow still burns far too many turns on route repair, closeout formatting, and worktree/path truth checks.
+  - Review-time memory tooling also showed avoidable overhead: `memory-search` broke on a literal WP-id query (`#1553`) and `memory-patterns` is wired to a missing module (`#1552`).
+- Next structural fix:
+  - Make PASS report generation, signed-patch mirroring, and current-main baseline sync mechanical prerequisites of closeout, and repair the memory review tools so post-run analysis does not require workaround queries.
+
+### Communication Maturity
+
+- TREND: REGRESSED
+- CURRENT_STATE: MEDIUM
+- NUMERIC_SCORE: 6
+- Evidence:
+  - Governed receipts were real: the coder's `REVIEW_RESPONSE` was appended and acknowledged under the governed session. `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Governance-Workflow-Mirror-v2/8ae06acb-f16e-429e-903f-ea901cd8da06.jsonl`
+  - However, route truth repeatedly lagged behind communication truth: multiple coder session outputs showed `just coder-next` and runtime payloads disagreeing about `CODER_HANDOFF`, and the final lane still had to clear stale receipt progression. `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Governance-Workflow-Mirror-v2/e803ccfa-a137-4732-93fe-1e110f3af2be.jsonl`, `cb2e4133-fb32-486d-922a-421cbd08d540.jsonl`, `c28a957f-a8ff-4962-b4ab-d0a222ab1f13.jsonl`
+  - The predecessor audit scored communication maturity `8`; this run regressed because governed receipts existed, but the orchestrator still had to act as a repair layer instead of a pure monitor. `.GOV/Audits/smoketest/AUDIT_20260410_GOVERNANCE_WORKFLOW_MIRROR_ACTIVATION_MANAGER_SMOKETEST_REVIEW.md:595`, `:597`
+- What improved:
+  - The coder, WP validator, and integration validator all produced auditable governed outputs and closed sessions cleanly.
+  - The final packet state is supported by real governed receipts, not manual prose-only closeout.
+- What still hurts:
+  - Notification and route state drift prevented the communication loop from being trustworthy without orchestrator intervention.
+  - Final-lane closeout still surfaced stale receipt/notification interpretations after the coder handoff was already materially complete.
+- Next structural fix:
+  - Reconcile routed wait states against receipt and notification truth automatically before any role wake or final-lane verdict progression.
+
+### Terminal and Session Hygiene
+
+- TREND: FLAT
+- CURRENT_STATE: MEDIUM
+- NUMERIC_SCORE: 6
+- Evidence:
+  - All four governed sessions ended closed by the end of the run. `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/ACTIVATION_MANAGER_WP-1-Governance-Workflow-Mirror-v2/4d069843-5252-4fc9-98fd-613d87b1e995.jsonl`, `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Governance-Workflow-Mirror-v2/313da9a2-dfaf-4ff8-9052-8857f74def03.jsonl`, `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Governance-Workflow-Mirror-v2/1935a36a-e81b-4c99-aad2-7f8bed28ef56.jsonl`, `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Governance-Workflow-Mirror-v2/5b8684f9-c758-4adb-a1b7-d29732a1c8dc.jsonl`
+  - The v1 worktree was ultimately removed cleanly, but only after a severe shared-junction hazard forced manual cleanup logic and immediate governance restoration.
+  - The predecessor audit scored session hygiene `7`; this run did not improve because sessions closed, but cleanup and settled-run inspection were still brittle. `.GOV/Audits/smoketest/AUDIT_20260410_GOVERNANCE_WORKFLOW_MIRROR_ACTIVATION_MANAGER_SMOKETEST_REVIEW.md:610`, `:612`
+- What improved:
+  - No governed role was left running at closeout, and the hard requirement to remove the stale v1 worktree was satisfied.
+- What still hurts:
+  - Shared `.GOV` junction worktrees are unsafe to remove with naive git commands.
+  - Settled-run inspection still has hygiene gaps; `just orchestrator-next` can fail to infer the active settled WP (`#1549`).
+- Next structural fix:
+  - Teach cleanup surfaces and settled-run inspection to understand junction-backed worktrees and closed-session state so post-close hygiene is mechanical.
 
 ## 17. Silent Failures, Command Surface Misuse, and Ambiguity Scan
 
-- Fill at closeout using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.
+- Silent failures and false greens:
+  - `validator-gate-append` advanced the lane to `WP_APPENDED` without writing the required PASS report block, creating a misleadingly advanced closeout state until the orchestrator patched `packet.md`. Repomem `#1536`.
+  - The contained-main lane briefly looked done even though the packet still had the wrong current-main baseline sha and a missing product-side signed-patch artifact. `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Governance-Workflow-Mirror-v2/55410ab2-9778-49c7-abf9-682d49f31a54.jsonl`
+- Systematic wrong tool or command-family usage:
+  - The integration-validator attempted a nonexistent repo command surface (`just repomem gate`) instead of using the existing open-session gate and closeout checks. Repomem `#1283`.
+  - Post-run review surfaced two more broken command surfaces: `memory-patterns` points at a missing module (`#1552`) and literal WP-id queries can break `memory-search` with `ERR_SQLITE_ERROR` (`#1553`).
+- Task, path, or worktree ambiguity:
+  - The largest ambiguity was stale `CODER_HANDOFF` route truth versus actual receipt and lifecycle state; coder outputs repeatedly showed no pending notifications while the lane still projected `waiting_on=CODER_HANDOFF`.
+  - Final-lane artifact ownership was ambiguous until the signed patch was treated as a product-closeout artifact resolved from the final-lane repo root. Repomem `#1303`, `#1307`, `#1531`.
+  - `just enumerate-cleanup-targets` did not expose `wtc-workflow-mirror-v1` as a removable worktree even though the operationally safe removal path existed after unlinking the shared junction.
+- Read amplification and governance-document churn:
+  - The run re-read packet truth, closeout logs, route state, and worktree status repeatedly because the packet/report/artifact surfaces were not self-consistent.
+  - Multiple `PRE_BOARD_STATUS_CHANGE` repomem snapshots for the same WP reflect mechanical status churn rather than meaningful state transitions. Repomem `#1423`, `#1438`, `#1452`, `#1469`, `#1486`, `#1495`, `#1498`, `#1500`, `#1501`, `#1502`, `#1508`, `#1512`, `#1513`, `#1514`, `#1515`.
+- Drift lens:
+  - Context drift: the original intent in repomem `#1390` was a fresh current-main parity port using v1 only as source material; that intent stayed correct, but the runtime often interpreted the lane as stale handoff cleanup instead of active bounded implementation.
+  - Cognitive drift: orchestrator and validator repeatedly had to correct the control plane's interpretation of what was actually blocking the run, especially during `CODER_HANDOFF` and final contained-main closeout.
+  - Weakly supported claims that had to be repaired were concentrated in packet/report/control surfaces, not in the final technical product verdict.
 
 ## 18. What Should Change Before The Next Run
 
-- NONE yet
+- Make `CODER_HANDOFF` and `VERDICT_PROGRESSION` derive mechanically from governed receipts plus notifications instead of stale runtime projections.
+- Generate the PASS report block, signed patch artifact mirror, and `CURRENT_MAIN_COMPATIBILITY_*` fields before the integration-validator closeout lane starts.
+- Add a junction-aware worktree cleanup path so shared `.GOV` product worktrees can be removed safely and can be surfaced by `enumerate-cleanup-targets`.
+- Repair the memory review command surface so `memory-search` handles literal WP ids and `memory-patterns` resolves to a real script.
 
 ## 19. Suggested Remediations
 
 ### Governance / Runtime
 
-- NONE yet
+- Implement receipt-driven state reconciliation for `CODER_HANDOFF`, `REVIEW_RESPONSE`, and `MAIN_CONTAINMENT` so stale route states self-heal.
+- Add a deterministic closeout preflight that rejects packet/report/artifact drift before the integration-validator burns a turn on `phase-check CLOSEOUT`.
+- Make worktree cleanup and inspection utilities aware of junction-backed `.GOV` trees and closed-session topology.
 
 ### Product / Validation Quality
 
-- NONE yet
+- Decide whether workflow-mirror gate and activation summaries need a dedicated first-class read API or whether projection-only access is the intended product law. `.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v2/packet.md:1311`, `:1312`
+- Keep the bounded six-file parity-port pattern as the standard for current-main remediation; do not resurrect stale whole-branch snapshots when later mainline runtime behavior already exists.
 
 ### Documentation / Review Practice
 
-- NONE yet
+- Require role reviews to cite both dossier evidence and repomem ids when command-surface or control-plane failures were durable enough to be memory-captured.
+- Teach the closeout packet template to include a dedicated "final-lane artifact ownership" note so signed-patch and baseline-sha truth do not need to be rediscovered mid-closeout.
+
+## Role Review by Governed Role
+
+### Activation Manager
+
+- Review: Effective setup role, but still brittle on first launch.
+- Work performed:
+  - Prepared the fresh v2 packet and delegation context on the intended `gpt-5.4` extra-high profile. Repomem `#1404`, `#1409`.
+  - Handed off a valid packet that could be used for the later current-main parity port.
+- Observed failures:
+  - The activation lane needed an early cancel/restart cycle before a clean `SEND_PROMPT/COMPLETED`, which shows startup remains less than idempotent. ACP control summary: `START_SESSION/COMPLETED`, `CANCEL_SESSION/COMPLETED`, `SEND_PROMPT/FAILED`, `SEND_PROMPT/COMPLETED`, `CLOSE_SESSION/COMPLETED`.
+- Next structural fix:
+  - Make activation reruns idempotent so a pre-existing packet and dossier confirm readiness instead of cancelling and rebuilding the lane.
+
+### Orchestrator
+
+- Review: Technically decisive, procedurally overburdened.
+- Work performed:
+  - Preserved the core intent of repomem `#1390`: rebuild from current `main`, use v1 only as source material, and keep later runtime behavior intact.
+  - Rebounded the product worktree to the actual six-file remediation, repaired packet/report/control truth, preserved unrelated `main` dirt in a stash, achieved contained-main closure, and resolved the hard v1-removal requirement.
+- Observed failures:
+  - Allowed stale `CODER_HANDOFF` routing to dominate the run for far too long before forcing route repair.
+  - Hit repeated steer/inspection fragility captured in repomem `#883`, `#886`, `#1549`.
+  - Triggered the most severe operational fault in the run: a naive shared-junction worktree removal deleted live kernel-governance contents and had to be restored immediately. This is the clearest orchestrator-observed failure in the dossier's concern log.
+  - Initially trusted governance cleanup eligibility too literally even when the filesystem reality allowed a safe removal path after junction unlink.
+- Next structural fix:
+  - Move route repair, worktree cleanup, and settled-run inspection out of orchestrator judgment calls and into deterministic runtime utilities.
+
+### Coder
+
+- Review: Strong product remediation quality inside a noisy lane.
+- Work performed:
+  - Delivered the bounded current-main parity port rather than replaying the stale v1 branch wholesale. `.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v2/packet.md:999`
+  - The clause closure matrix records all five signed clauses as `PROVED` and later `CONFIRMED`. `.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v2/packet.md:202`, `:203`, `:204`, `:205`, `:206`
+  - Governed handoff content was substantive and precise: repomem `#1503` accurately described the six-file range and the additive 7.5.4.9 retention requirement.
+- Observed failures:
+  - The coder lane repeatedly lived in contradictory state where lifecycle said implementation could continue while runtime still said `CODER_HANDOFF`; this was not a product-code failure, but it throttled the coder’s usefulness.
+  - One direct coder steer entered a scope-spill risk state while the worktree still showed many out-of-scope paths, forcing orchestrator containment before trust could be restored.
+- Next structural fix:
+  - Give the coder a single authoritative bounded-diff surface and prevent handoff prompts from being issued while the route still projects stale lifecycle state.
+
+### WP Validator
+
+- Review: Semantically useful, but handoff cleanliness was weaker than the product review quality.
+- Work performed:
+  - Confirmed the signed clause set to the point that all five packet rows ended `VALIDATOR_STATUS: CONFIRMED`. `.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v2/packet.md:202`, `:203`, `:204`, `:205`, `:206`
+  - Closed the direct governed validation lane cleanly. `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Governance-Workflow-Mirror-v2/1935a36a-e81b-4c99-aad2-7f8bed28ef56.jsonl`
+- Observed failures:
+  - Communication truth did not advance as cleanly as the technical verdict: the final lane still had to reason about stale coder review-response progression after the WP validator’s substantive review had already landed.
+  - Repomem `#1334` shows that stale validator re-wakes can be rejected by the steering layer, which means validator completion still depends on orchestrator repair when route state drifts.
+- Next structural fix:
+  - Make validator completion and review-response progression mechanically visible to the final lane before integration closeout begins.
+
+### Integration Validator
+
+- Review: Strongest guardrail role in the run; it prevented false-green closure until packet truth and main containment actually matched.
+- Work performed:
+  - Enforced diff-scoped closeout truth and refused to certify contained-main PASS until baseline-sha, signed-patch artifact, clause coverage, and packet state were all correct.
+  - Produced the final terminal proof that moved the WP from merge-pending to contained-main PASS. `.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v2/packet.md:126`, `:128`, `:130`, `:134`
+  - Closed the lane cleanly after the final contained-main sync. `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Governance-Workflow-Mirror-v2/5b8684f9-c758-4adb-a1b7-d29732a1c8dc.jsonl`
+- Observed failures:
+  - Tried a nonexistent command surface (`just repomem gate`) instead of using the actual repo commands. Repomem `#1283`.
+  - Closeout depended on brittle artifact mechanics captured in repomem `#1536`, `#1303`, `#1307`, and `#1531`.
+  - Initially treated v1 cleanup as blocked by governed cleanup enumeration even though the real blocker was the unsafe shared-junction removal path, which the orchestrator later resolved manually.
+- Next structural fix:
+  - Keep the integration validator as the hard truth gate, but eliminate its dependency on manual packet/artifact repair and stale cleanup enumeration.
 
 ## 20. Command Log
 
