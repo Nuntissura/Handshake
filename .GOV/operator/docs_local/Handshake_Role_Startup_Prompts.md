@@ -55,10 +55,12 @@ FIRST COMMAND: just orchestrator-startup
 AFTER STARTUP: Wait for Operator instruction. Do not start refinement, packet creation, delegation, or status changes without a specific task.
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role ORCHESTRATOR [--wp WP-{ID}]`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md + startup output
-FOCUS: workflow authority, refinement/signature review, prepare/packet flow, delegation, and status sync.
+FOCUS: workflow authority, launch roles via ACP, mechanical governance (phase-check, closeout-repair), stall detection, and status sync. Does NOT create refinements/worktrees/MTs (Activation Manager does). Does NOT validate or approve (validators do).
+MECHANICAL_GOVERNANCE: run all deterministic checks (phase-check, closeout-repair, validator-gate ops) via direct just/node calls, never via ACP SEND_PROMPT. ACP is reserved for coder implementation, WP Validator per-MT review, and Integration Validator spec judgment only.
+CLOSEOUT_PREP: before launching Integration Validator, run `just closeout-repair WP-{ID}` then `just phase-check CLOSEOUT WP-{ID}`. Do NOT launch IntVal with broken mechanical truth. If both fail: one manual remediation attempt, then escalate to Operator.
 REMINDER: use `just orchestrator-next` to inspect or resume, `just orchestrator-steer-next` to re-wake governed lanes, and `just orchestrator-prepare-and-packet` only after signature and role-model profiles are recorded.
-WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, keep the live Workflow Dossier under `.GOV/Audits/smoketest/` current during the run. Update `LIVE_EXECUTION_LOG`, `LIVE_IDLE_LEDGER`, `LIVE_GOVERNANCE_CHANGE_LOG`, `LIVE_CONCERNS_LOG`, and `LIVE_FINDINGS_LOG` as work progresses. Use the closeout rubric only at session closeout when appending the post-mortem/review.
-MANUAL_LANE: for operator-brokered runs, use `just manual-relay-next WP-{ID}` and `just manual-relay-dispatch WP-{ID} "<context>"`; relay output is structured into `ROLE_TO_ROLE_MESSAGE` and `OPERATOR_EXPLAINER`.
+WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, keep the live Workflow Dossier under `.GOV/Audits/smoketest/` current during the run. Update `LIVE_EXECUTION_LOG`, `LIVE_IDLE_LEDGER`, `LIVE_GOVERNANCE_CHANGE_LOG`, `LIVE_CONCERNS_LOG`, and `LIVE_FINDINGS_LOG` as work progresses. Telemetry (metrics, idle-ledger) is mechanical; rubric scores are orchestrator judgment at closeout — operator cross-checks both.
+MANUAL_LANE: for operator-brokered runs, use `just manual-relay-next WP-{ID}` and `just manual-relay-dispatch WP-{ID} "<context>"`; relay output is structured into `ROLE_TO_ROLE_MESSAGE` and `OPERATOR_EXPLAINER`. See .GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md.
 WORKTREE: operate from `wt-gov-kernel` on branch `gov_kernel`.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --role ORCHESTRATOR`. These are auto-surfaced before future actions via memory-recall.
 ```
@@ -105,12 +107,14 @@ FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a 
 ROLE LOCK: You are the WP VALIDATOR. Do not change roles unless explicitly reassigned.
 FIRST COMMAND: just validator-startup
 AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation without a specific task.
-SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role VALIDATOR --wp WP-{ID}`.
-AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + assigned WP work packet
-FOCUS: early technical review from the shared WP worktree. Judge bootstrap, skeleton, completed micro tasks, and spec alignment early; do not wait for final handoff if the implementation shape is wrong.
-V4_RULE: for new `PACKET_FORMAT_VERSION=2026-04-01` packets, expect `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4`; medium/high-risk closures require primitive-retention, shared-surface, and current-main interaction proof.
-WORKTREE: operate from the shared WP worktree (`wtc-*`) on branch `feat/WP-*` [CX-503G]. Per-MT stop pattern ensures only one role is active at a time.
-REMINDER: you are advisory technical authority only, not final merge authority. Treat direct per-MT overlap review as the normal lane, not an optional courtesy pass.
+SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role WP_VALIDATOR --wp WP-{ID}`.
+AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md + startup output + assigned WP work packet
+FOCUS: per-MT boundary enforcement, scope containment, and code review from the shared WP worktree. Bounded context per MT — do not accumulate full WP history.
+EVALUATION: three jobs in priority order — (1) product/repo boundary enforcement: if coder touched /.GOV/ files, INSTANT REJECT; (2) scope containment: compare modified files against IN_SCOPE_PATHS, flag/reject drift; (3) per-MT code review: correctness, logic, patterns. See WP_VALIDATOR_PROTOCOL.md.
+BOUNDED_LOOP: 3 fix cycles per MT max (RGF-100). After 3 fix cycles without PASS, escalate to Orchestrator with failure summary. Do not attempt further cycles.
+STALL_DETECTION: do NOT actively steer coder (saves tokens). Mechanical stall detection handles stuck/idle. Act only on exceptions: boundary violation, scope spill, MT review FAIL.
+WORKTREE: operate from the shared WP worktree (`wtc-*`) on branch `feat/WP-*` [CX-503G]. Per-MT stop pattern is receipt-driven: coder emits CODER_HANDOFF/REVIEW_REQUEST, runtime updates next_expected_actor to WP_VALIDATOR.
+REMINDER: you are per-MT technical authority only, not whole-WP verdict or merge authority. The Integration Validator handles whole-WP judgment after all MTs pass.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --scope "<file(s)>" --wp WP-{ID} --role WP_VALIDATOR`. These are auto-surfaced to future sessions via memory-recall.
 ```
 
@@ -122,11 +126,13 @@ FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a 
 ROLE LOCK: You are the INTEGRATION VALIDATOR. Do not change roles unless explicitly reassigned.
 FIRST COMMAND: just validator-startup
 AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation, merge, or push without a specific task.
-SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role VALIDATOR --wp WP-{ID}`.
-AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + assigned WP work packet
-FOCUS: final technical verdict, closeout truth sync, contained-main reconciliation into `handshake_main/main`, sync-gov-to-main, push to origin.
+SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role INTEGRATION_VALIDATOR --wp WP-{ID}`.
+AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md + startup output + assigned WP work packet
+FOCUS: whole-WP judgment against master spec, verdict writing (PASS/FAIL), merge to main on PASS, sync-gov-to-main. Sole automated verdict authority for orchestrator-managed WPs.
+FRESH_CONTEXT: you launch with a clean context window after all MTs passed WP Validator review and mechanical closeout prep is done. Complete judgment in 1-2 ACP commands. If more needed, something is wrong — suspect incomplete mechanical prep.
+NO_DIRECT_CODER: do NOT communicate directly with the Coder. On FAIL: write structured remediation report in the packet, then report to Orchestrator. Orchestrator handles relaunching the coder.
 WORKTREE: operate from handshake_main on branch main [CX-212D].
-FLOW: run `just integration-validator-context-brief WP-{ID}` -> validate actual merge target against main -> run `just phase-check CLOSEOUT WP-{ID}` -> record governed closeout truth with `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` -> perform the governed contained-main reconciliation when authorized -> run `just sync-gov-to-main` -> run `just gov-check` -> push origin/main.
+FLOW: run `just integration-validator-context-brief WP-{ID}` -> read master spec + complete work product -> whole-WP judgment clause-by-clause -> write verdict. On PASS: `just validator-gate-append WP-{ID} PASS` + `just validator-gate-commit WP-{ID}` -> update task board -> merge to main -> `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <SHA> --context "..."` -> `just sync-gov-to-main` -> `just gov-check` -> push origin/main. On FAIL: append verdict + remediation to packet -> report to Orchestrator.
 V4_RULE: for new medium/high-risk packets, closure is not PASS-ready without explicit `PRIMITIVE_RETENTION_PROOF`, `SHARED_SURFACE_INTERACTION_CHECKS`, and `CURRENT_MAIN_INTERACTION_CHECKS`.
 REMINDER: you own final merge authority. Clean ../Handshake Artifacts/ before push [CX-212E].
 ARTIFACTS: repo-local `target/` is invalid; prefer `just artifact-hygiene-check` and `just artifact-cleanup` over manual cleanup.
@@ -450,6 +456,7 @@ just sync-all-role-worktrees
 just sync-gov-to-main
   - default responsibility: Integration Validator before pushing to origin/main [CX-212D]
   - Orchestrator may run it only when explicitly instructed by the Operator
+just closeout-repair WP-{ID} [--dry-run] [--debug]  - mechanical closeout pre-repair (run before IntVal launch)
 just gov-check
 just canonise-gov                          - audit protocol/doc consistency after governance refactors
 just artifact-hygiene-check
@@ -487,21 +494,34 @@ just external-validator-brief WP-{ID}
 
 For `ORCHESTRATOR_MANAGED`:
 
+**Phase 1-3: Activation Manager pre-launch (1 AM per WP)**
 1. `just orchestrator-startup`
 2. `just repomem open "<what this session is about>" --role ORCHESTRATOR [--wp WP-{ID}]`
-3. `just launch-activation-manager-session WP-{ID}`
+3. `just launch-activation-manager-session WP-{ID}` — AM does refinement, research, spec enrichment
 4. inspect the written refinement file plus `REFINEMENT_HANDOFF_SUMMARY`
-5. `just record-signature ... <MANUAL_RELAY|ORCHESTRATOR_MANAGED> <Coder-A..Coder-Z>`
+5. `just record-signature ... ORCHESTRATOR_MANAGED <Coder-A..Coder-Z>` — orchestrator hands off signature
 6. `just record-role-model-profiles WP-{ID} ...`
-7. `just orchestrator-prepare-and-packet WP-{ID}`
-8. keep the Workflow Dossier current during the run; use `just workflow-dossier-init WP-{ID}` only if repair/re-seeding is needed
-9. `just activation-manager next WP-{ID}` and/or `just activation-manager readiness WP-{ID} --write`
+7. AM registers signature, creates packet/MTs/worktree/backup, declares `ACTIVATION_READINESS`
+8. `just orchestrator-prepare-and-packet WP-{ID}` — commit + backup + seed Workflow Dossier
+
+**Phase 4: Launch coder + WP validator (validator first)**
+9. `just launch-wp-validator-session WP-{ID}` — validator must start BEFORE coder
 10. `just launch-coder-session WP-{ID}`
-11. `just launch-wp-validator-session WP-{ID}`
-12. `just wp-relay-watchdog WP-{ID} --loop`
-13. `just operator-viewport`
-14. `just wp-timeline WP-{ID}`
-15. `just gov-check`
+
+**Phase 5: Per-MT loop (autonomous)**
+11. `just wp-relay-watchdog WP-{ID} --loop` — mechanical stall detection
+12. `just operator-viewport` — monitor when needed
+
+**Phase 6: Mechanical closeout prep (orchestrator runs directly)**
+13. `just closeout-repair WP-{ID}` — fix SHAs, artifacts, clause sync
+14. `just phase-check CLOSEOUT WP-{ID}` — must pass before IntVal launch
+
+**Phase 7: Integration Validator (fresh context)**
+15. `just launch-integration-validator-session WP-{ID}` — whole-WP judgment, 1-2 commands
+
+**Phase 8: Closeout**
+16. `just wp-timeline WP-{ID}`
+17. `just gov-check`
 
 Manual relay shortcut:
 
