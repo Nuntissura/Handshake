@@ -139,6 +139,7 @@ close-activation-manager-session wp-id *FLAGS:
 close-wp-validator-session wp-id *FLAGS:
 	@just session-close WP_VALIDATOR {{wp-id}} {{FLAGS}}
 
+
 close-integration-validator-session wp-id *FLAGS:
 	@just session-close INTEGRATION_VALIDATOR {{wp-id}} {{FLAGS}}
 
@@ -626,6 +627,9 @@ mt-complete wp-id mt-id:
 
 mt-populate wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/mt-board.mjs" populate {{wp-id}}
+
+closeout-repair wp-id *FLAGS:
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/closeout-repair.mjs" {{wp-id}} {{FLAGS}}
 
 wp-closeout-format wp-id merged-main-commit:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-closeout-format.mjs" {{wp-id}} {{merged-main-commit}}

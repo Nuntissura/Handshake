@@ -20,7 +20,10 @@ Open one of:
 - `.GOV/roles/orchestrator/README.md`
 - `.GOV/roles/activation_manager/README.md`
 - `.GOV/roles/coder/README.md`
-- `.GOV/roles/validator/README.md`
+- `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md` — per-MT boundary enforcement, scope containment, code review (orchestrator-managed workflow)
+- `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md` — whole-WP judgment, verdict, merge authority (orchestrator-managed workflow)
+- `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md` — manual relay workflow coordination role
+- `.GOV/roles/validator/README.md` — shared validation foundation protocol
 - `.GOV/roles/memory_manager/README.md`
 
 Shared cross-role state lives in `.GOV/roles_shared/README.md`.

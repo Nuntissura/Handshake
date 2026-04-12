@@ -90,7 +90,7 @@ just phase-check STARTUP WP-{ID} INTEGRATION_VALIDATOR <intval_session>
 just wp-review-exchange REVIEW_REQUEST WP-{ID} INTEGRATION_VALIDATOR <intval_session> CODER <coder_session> "Final merge-readiness review request" "" "<spec_anchor>" "<packet_row_ref>"
 ```
 
-### Coder responds directly to the Integration Validator
+### Coder submits response to Integration Validator review request
 
 ```bash
 just check-notifications WP-{ID} CODER <coder_session>
