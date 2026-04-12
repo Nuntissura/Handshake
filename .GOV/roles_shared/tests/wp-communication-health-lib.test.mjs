@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  buildRoleInbox,
   deriveWpCommunicationAutoRoute,
   deriveActiveWpNotificationProjection,
   deriveLatestValidatorAssessment,
@@ -2918,4 +2919,61 @@ test("operator rule restatement invalidity requires a lane reset route", () => {
   if (route.notification) {
     assert.equal(route.notification.summary, "AUTO_ROUTE: operator rule restatement recorded; orchestrator lane reset required");
   }
+});
+
+// --- buildRoleInbox tests ---
+
+test("buildRoleInbox returns PROCEED when no items target the role", () => {
+  const inbox = buildRoleInbox("CODER", {
+    open_review_items: [
+      { receipt_kind: "REVIEW_REQUEST", target_role: "WP_VALIDATOR", opened_by_role: "CODER", summary: "MT-001 ready" },
+    ],
+  });
+  assert.equal(inbox.next_action, "PROCEED");
+  assert.equal(inbox.items.length, 0);
+  assert.equal(inbox.blocked_reason, null);
+});
+
+test("buildRoleInbox detects steer items and returns REMEDIATE action", () => {
+  const inbox = buildRoleInbox("CODER", {
+    open_review_items: [
+      { receipt_kind: "REVIEW_RESPONSE", target_role: "CODER", opened_by_role: "WP_VALIDATOR", summary: "MT-001 STEER: fix compile error" },
+      { receipt_kind: "REVIEW_REQUEST", target_role: "WP_VALIDATOR", opened_by_role: "CODER", summary: "MT-002 ready" },
+    ],
+  });
+  assert.equal(inbox.items.length, 1);
+  assert.equal(inbox.next_action, "REMEDIATE_MT-001");
+  assert.ok(inbox.blocked_reason.includes("remediation"));
+  assert.equal(inbox.items[0].is_steer, true);
+  assert.equal(inbox.items[0].mt, "MT-001");
+});
+
+test("buildRoleInbox detects review requests for WP_VALIDATOR", () => {
+  const inbox = buildRoleInbox("WP_VALIDATOR", {
+    open_review_items: [
+      { receipt_kind: "REVIEW_REQUEST", target_role: "WP_VALIDATOR", opened_by_role: "CODER", summary: "MT-003 ready for review" },
+    ],
+  });
+  assert.equal(inbox.items.length, 1);
+  assert.equal(inbox.next_action, "REVIEW_MT-003");
+  assert.equal(inbox.items[0].is_review_request, true);
+});
+
+test("buildRoleInbox prioritizes steers over review requests", () => {
+  const inbox = buildRoleInbox("CODER", {
+    open_review_items: [
+      { receipt_kind: "REVIEW_REQUEST", target_role: "CODER", opened_by_role: "WP_VALIDATOR", summary: "MT-002 review notes" },
+      { receipt_kind: "REVIEW_RESPONSE", target_role: "CODER", opened_by_role: "WP_VALIDATOR", summary: "MT-001 STEER: missing proof" },
+    ],
+  });
+  assert.equal(inbox.items.length, 2);
+  assert.equal(inbox.items[0].is_steer, true);
+  assert.equal(inbox.items[0].mt, "MT-001");
+  assert.equal(inbox.next_action, "REMEDIATE_MT-001");
+});
+
+test("buildRoleInbox returns empty for missing or null runtime status", () => {
+  assert.equal(buildRoleInbox("CODER", null).next_action, "PROCEED");
+  assert.equal(buildRoleInbox("CODER", {}).next_action, "PROCEED");
+  assert.equal(buildRoleInbox("CODER", { open_review_items: [] }).next_action, "PROCEED");
 });

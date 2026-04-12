@@ -30,6 +30,7 @@ import {
   roleStartupCommand,
 } from "./session-policy.mjs";
 import { buildPhaseCheckCommand } from "../../checks/phase-check-lib.mjs";
+import { buildRoleInbox } from "../lib/wp-communication-health-lib.mjs";
 import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, GOVERNANCE_RUNTIME_ROOT_ABS, repoPathAbs, resolveWorkPacketPath, workPacketPath } from "../lib/runtime-paths.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
@@ -840,6 +841,7 @@ export function buildStartupPrompt({
       `CONTRACT GATE (HARD): Before claiming validator-ready handoff, \`just wp-communication-health-check ${wpId} KICKOFF\` must pass.`,
       `HANDOFF QUALITY (MANDATORY): Before requesting validation, you MUST produce a WEAK_SPOTS section listing the least-proven requirement and the riskiest file/boundary. "Done, tests pass" is not an acceptable handoff. See .GOV/roles/coder/docs/CODER_RUBRIC_V2.md (live law).`,
       `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} CODER <your-session>\` to see only the notifications targeted to your governed session. After reading, run \`just ack-notifications ${wpId} CODER <your-session>\` to clear them. Check again before each handoff.`,
+      `INBOX (MANDATORY): Before starting any new microtask and after completing one, check your inbox for pending obligations. If a validator STEER or rejection is pending for a prior MT, you MUST remediate that MT before starting new work. The bounded overlap limit (1 MT ahead) is hard — unresolved remediation debt blocks all new MT starts.`,
       `REMINDER: the Orchestrator remains workflow authority; only the Integration Validator can own merge-to-main authority.`,
     ];
   } else if (role === "WP_VALIDATOR") {
@@ -869,6 +871,7 @@ export function buildStartupPrompt({
       `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
       `SPEC EVIDENCE (MANDATORY): Every PASS verdict MUST include a spec_clause_map with file:line citations for each packet requirement. You MUST identify at least one spec requirement you verified is NOT fully implemented (negative proof) to demonstrate independent code reading.`,
       `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} WP_VALIDATOR <your-session>\` to see only the notifications targeted to your governed session. After reading, run \`just ack-notifications ${wpId} WP_VALIDATOR <your-session>\` to clear them. Check again before each verdict.`,
+      `INBOX (MANDATORY): Before starting any new review and after completing one, check your inbox for pending obligations. If a coder remediation resubmission is pending for a prior MT, review that before starting new work. Unresolved review requests must be drained before verdict.`,
       `REMINDER: status sync is not a validation verdict.`,
     ];
   } else if (role === "INTEGRATION_VALIDATOR") {
@@ -922,6 +925,43 @@ export function buildStartupPrompt({
     ...(role === "INTEGRATION_VALIDATOR" ? [`just integration-validator-context-brief ${wpId}`] : []),
   ];
 
+  // Inject runtime inbox state so the model sees concrete pending obligations.
+  const inboxLines = [];
+  if (role === "CODER" || role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") {
+    try {
+      const runtimeStatusPath = repoPathAbs(
+        `${GOV_ROOT_ABS.replace(/\\/g, "/").replace(/.*\.GOV$/i, ".GOV")}/../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}/RUNTIME_STATUS.json`
+          .replace(/^\.GOV\/\.\.\//, "")
+      );
+      // Try the canonical comm path from the packet if available.
+      const packetInfo = resolveWorkPacketPath(wpId);
+      let runtimeStatus = null;
+      if (packetInfo?.packetAbsPath && fs.existsSync(packetInfo.packetAbsPath)) {
+        const packetText = fs.readFileSync(packetInfo.packetAbsPath, "utf8");
+        const rtField = (packetText.match(/^\s*-\s*\**WP_RUNTIME_STATUS_FILE\**\s*:\s*(.+)/mi) || [])[1]?.trim();
+        if (rtField) {
+          const rtAbs = repoPathAbs(rtField);
+          if (fs.existsSync(rtAbs)) {
+            runtimeStatus = JSON.parse(fs.readFileSync(rtAbs, "utf8"));
+          }
+        }
+      }
+      if (runtimeStatus) {
+        const inbox = buildRoleInbox(role, runtimeStatus);
+        if (inbox.items.length > 0) {
+          inboxLines.push(`INBOX STATE (${inbox.items.length} pending):`);
+          inboxLines.push(`  NEXT_ACTION: ${inbox.next_action}`);
+          for (const item of inbox.items.slice(0, 5)) {
+            inboxLines.push(`  - [${item.kind}]${item.mt ? ` ${item.mt}` : ""}: ${item.summary}`);
+          }
+          inboxLines.push(`  You MUST address these before starting new work.`);
+        }
+      }
+    } catch {
+      // Non-fatal: inbox injection is best-effort at startup.
+    }
+  }
+
   const bootLines = [
     `Execute only this startup bootstrap now, in order, before any other work:`,
     ...startupCommands.map((command, index) => `${index + 1}. ${command}`),
@@ -930,7 +970,7 @@ export function buildStartupPrompt({
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
   ];
 
-  return [...commonLines, ...roleLines, ...startupInjectionLines, ...bootLines].join("\n");
+  return [...commonLines, ...roleLines, ...inboxLines, ...startupInjectionLines, ...bootLines].join("\n");
 }
 
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
