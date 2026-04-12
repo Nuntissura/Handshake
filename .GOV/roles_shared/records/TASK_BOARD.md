@@ -154,6 +154,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1]** - [STUB]
 - **[WP-1-FEMS-Acceptance-Replay-Eval-v1]** - [STUB]
 - **[WP-1-FEMS-Hygiene-Manager-Job-v1]** - [STUB]
+- **[WP-1-Governance-Workflow-Mirror-v2]** - [STUB]
 - **[WP-1-FEMS-Write-Time-Safeguards-v1]** - [STUB]
 - **[WP-1-FEMS-Injection-Scoring-Graceful-Degradation-v1]** - [STUB]
 - **[WP-1-FEMS-Working-Memory-Checkpoint-Schema-v1]** - [STUB]
@@ -898,9 +899,6 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 - **[WP-1-Session-Observability-Spans-FR-v1]** - [VALIDATED]
 
-- **[WP-1-Governance-Workflow-Mirror-v1]** - [OUTDATED_ONLY]
-
-
 - **[WP-1-Dev-Command-Center-Control-Plane-Backend-v1]** - [VALIDATED]
 
 ## Blocked
@@ -940,6 +938,7 @@ Entry format for this section:
 - **[WP-1-Storage-Foundation-20251228]** - [SUPERSEDED]
 - **[WP-1-Storage-Foundation]** - [SUPERSEDED]
 - **[WP-1-Gate-Check-Tool]** - [SUPERSEDED]
+- **[WP-1-Governance-Workflow-Mirror-v1]** - [SUPERSEDED]
 - **[WP-1-Operator-Consoles-v2]** - [SUPERSEDED]
 - **[WP-1-Operator-Consoles-v1]** - [SUPERSEDED]
 - **[WP-1-Operator-Consoles]** - [SUPERSEDED]
