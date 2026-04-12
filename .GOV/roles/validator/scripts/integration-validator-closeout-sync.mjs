@@ -355,6 +355,27 @@ capturePreTaskSnapshot({
 
 const gitContext = currentGitContext();
 const repoRoot = gitContext.topLevel || REPO_ROOT;
+
+// RGF-183: detect kernel-context closeout for product-contained WPs.
+// When repoRoot matches the kernel root but the WP's committed target lives in a product
+// worktree, signed-scope validation will use the wrong git context and produce false failures.
+const kernelRoot = kernelRepoRoot();
+const normalizedRepoRoot = path.resolve(repoRoot).replace(/\\/g, "/").toLowerCase();
+const normalizedKernelRoot = path.resolve(kernelRoot).replace(/\\/g, "/").toLowerCase();
+if (normalizedRepoRoot === normalizedKernelRoot) {
+  const injectedActiveRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
+  const injectedNormalized = injectedActiveRoot
+    ? path.resolve(injectedActiveRoot).replace(/\\/g, "/").toLowerCase()
+    : "";
+  if (injectedNormalized && injectedNormalized !== normalizedKernelRoot) {
+    console.error(
+      `[RGF-183] WARNING: closeout sync executing in kernel root (${kernelRoot}) `
+      + `despite HANDSHAKE_ACTIVE_REPO_ROOT pointing to ${injectedActiveRoot}. `
+      + `Signed-scope validation may produce false failures if the committed target lives in the product worktree.`
+    );
+  }
+}
+
 const taskBoardPath = path.resolve(GOV_ROOT_ABS, "roles_shared", "records", "TASK_BOARD.md");
 const resolvedPacket = resolveWorkPacketPath(wpId);
 if (!resolvedPacket?.packetAbsPath || !fs.existsSync(resolvedPacket.packetAbsPath)) {

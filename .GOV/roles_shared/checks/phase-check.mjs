@@ -347,6 +347,36 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
     wpId,
     phaseCheckCwd,
   });
+
+  // RGF-183: fail-fast when closeout resolves to the kernel root for a product-contained WP.
+  // If resolveCloseoutSyncCwd fell back to phaseCheckCwd (the kernel), the signed-scope
+  // validation will use kernel git context and produce false missing-file/drift failures.
+  const normalizedCloseoutCwd = path.resolve(closeoutSyncCwd).replace(/\\/g, "/").toLowerCase();
+  const normalizedKernelCwd = path.resolve(phaseCheckCwd).replace(/\\/g, "/").toLowerCase();
+  if (normalizedCloseoutCwd === normalizedKernelCwd) {
+    const packetInfo = resolveWorkPacketPath(wpId);
+    const packetText = packetInfo?.packetAbsPath && fs.existsSync(packetInfo.packetAbsPath)
+      ? fs.readFileSync(packetInfo.packetAbsPath, "utf8")
+      : "";
+    const prepareWorktreeDir = (packetText.match(/^\s*-\s*\**PREPARE_WORKTREE_DIR\**\s*:\s*(.+)/mi) || [])[1]?.trim() || "";
+    const intValWorktreeDir = (packetText.match(/^\s*-\s*\**INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR\**\s*:\s*(.+)/mi) || [])[1]?.trim() || "";
+    const declaredProductWorktree = intValWorktreeDir || prepareWorktreeDir;
+    if (declaredProductWorktree && declaredProductWorktree !== ".") {
+      return {
+        ok: false,
+        output: [
+          `[RGF-183] CLOSEOUT sync failed: resolved to kernel root instead of product worktree.`,
+          `  kernel_root: ${phaseCheckCwd}`,
+          `  declared_product_worktree: ${declaredProductWorktree}`,
+          `  resolved_closeout_cwd: ${closeoutSyncCwd}`,
+          `  The WP's committed target lives in a product worktree, but closeout resolved to the kernel.`,
+          `  Register an INTEGRATION_VALIDATOR session with local_worktree_dir pointing to the product worktree,`,
+          `  or run phase-check CLOSEOUT from the product worktree with HANDSHAKE_ACTIVE_REPO_ROOT set.`,
+        ].join("\n") + "\n",
+      };
+    }
+  }
+
   const outputChunks = [];
   const repomemGateResult = spawnSync(process.execPath, [repomemScript, "gate"], {
     cwd: phaseCheckCwd,

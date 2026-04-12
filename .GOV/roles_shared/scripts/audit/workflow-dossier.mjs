@@ -219,6 +219,11 @@ function parseArgs(argv) {
       options.file = String(args.shift() || "").trim();
       continue;
     }
+    // RGF-186: scope classification for findings/concerns
+    if (command === "note" && token === "--scope-type") {
+      options.scopeType = String(args.shift() || "").trim().toUpperCase();
+      continue;
+    }
     if (command === "note" && token === "--time") {
       options.time = String(args.shift() || "").trim();
       continue;
@@ -236,6 +241,11 @@ function parseArgs(argv) {
   return options;
 }
 
+// RGF-186: valid scope-type values for typed product-vs-governance classification.
+// .GOV = repo-governance paths, PRODUCT = product code, PRODUCT_GOV_BEHAVIOR = product code
+// implementing governance behavior, PACKET_DRIFT = signed-scope evidence drift.
+const VALID_SCOPE_TYPES = new Set([".GOV", "PRODUCT", "PRODUCT_GOV_BEHAVIOR", "PACKET_DRIFT"]);
+
 function buildNoteLine(options) {
   const section = normalizeWorkflowDossierSection(options.section);
   if (!section) {
@@ -246,6 +256,11 @@ function buildNoteLine(options) {
   const tag = String(options.tag || "").trim().toUpperCase();
   const surface = String(options.surface || "").trim() || "MANUAL";
   const summary = String(options.summary || "").trim();
+
+  // RGF-186: optional scope-type classification for CONCERN and FINDING entries.
+  const rawScopeType = String(options.scopeType || "").trim().toUpperCase();
+  const scopeType = VALID_SCOPE_TYPES.has(rawScopeType) ? rawScopeType : "";
+  const scopeTag = scopeType ? ` {${scopeType}}` : "";
 
   if (section === "EXECUTION" || section === "IDLE") {
     return {
@@ -262,12 +277,12 @@ function buildNoteLine(options) {
   if (section === "CONCERN") {
     return {
       section,
-      line: `- [${timestamp}] [${role}] [${tag || "CONCERN"}] ${summary}`,
+      line: `- [${timestamp}] [${role}] [${tag || "CONCERN"}]${scopeTag} ${summary}`,
     };
   }
   return {
     section,
-    line: `- [${timestamp}] [${role}] [${tag || "GENERAL"}] ${summary}`,
+    line: `- [${timestamp}] [${role}] [${tag || "GENERAL"}]${scopeTag} ${summary}`,
   };
 }
 

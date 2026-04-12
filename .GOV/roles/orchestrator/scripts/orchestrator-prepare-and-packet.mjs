@@ -206,6 +206,71 @@ function verifyTransactionalActivation() {
 }
 
 function main() {
+  // --- RGF-182: Idempotent reentry check ---
+  // If the lane is already fully prepared, confirm state and exit cleanly
+  // instead of attempting duplicate creation and rollback.
+  const reentryCheck = verifyTransactionalActivation();
+  if (reentryCheck.ok) {
+    const liveReviewPath = ensureLiveWorkflowDossier(wpId);
+
+    const findings = [
+      `REENTRY: lane already prepared — confirming state.`,
+      `PREPARE authority: ${reentryCheck.prepareEntry.workflow_lane} / ${reentryCheck.prepareEntry.execution_lane || reentryCheck.prepareEntry.coder_id}`,
+      `Packet: ${packetPathForWp(wpId)}`,
+      `Task Board: READY_FOR_DEV`,
+      `Communications: ${communicationPathsForWp(wpId).dir}`,
+    ];
+    if (liveReviewPath) {
+      findings.push(`Live workflow dossier: ${liveReviewPath}`);
+    } else {
+      findings.push("Live workflow dossier: NOT_CREATED (non-fatal; run `just live-smoketest-review-init`)");
+    }
+
+    const nextCommands = [];
+    const normalizedWorkflowLane = normalizeWorkflowLane(reentryCheck.prepareEntry.workflow_lane);
+    if (reentryCheck.syncState && !reentryCheck.syncState.ok) {
+      printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
+      printOperatorAction("NONE");
+      printState("Reentry confirmed: lane already prepared, but the assigned WP worktree is still stale.");
+      printFindings([...findings, ...reentryCheck.syncState.issues]);
+      nextCommands.push(
+        `# Repair ${reentryCheck.syncState.expectedBranch || "the assigned WP branch"} and ${reentryCheck.syncState.worktreeAbs || "the assigned WP worktree"} until they contain the official packet.`,
+      );
+      if (normalizedWorkflowLane === "ORCHESTRATOR_MANAGED") {
+        nextCommands.push(...buildActivationManagerLaunchCommands(wpId));
+      } else if (normalizedWorkflowLane === "MANUAL_RELAY") {
+        nextCommands.push(...buildManualRelayCommands(wpId));
+      } else {
+        nextCommands.push(
+          buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }),
+          ...buildDownstreamGovernedLaunchCommands(wpId),
+        );
+      }
+      nextCommands.push(`just orchestrator-next ${wpId}`);
+      printNextCommands(nextCommands);
+      return;
+    }
+
+    printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
+    printOperatorAction("NONE");
+    printState("Reentry confirmed: lane already prepared and governance state is coherent.");
+    printFindings(findings);
+    nextCommands.push(`cat ${packetPathForWp(wpId)}`);
+    if (normalizedWorkflowLane === "ORCHESTRATOR_MANAGED") {
+      nextCommands.push(...buildActivationManagerLaunchCommands(wpId));
+    } else if (normalizedWorkflowLane === "MANUAL_RELAY") {
+      nextCommands.push(...buildManualRelayCommands(wpId));
+    } else {
+      nextCommands.push(
+        buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }),
+        ...buildDownstreamGovernedLaunchCommands(wpId),
+      );
+    }
+    printNextCommands(nextCommands);
+    return;
+  }
+  // --- End RGF-182 reentry check ---
+
   const snapshot = createPathSnapshot([
     ORCHESTRATOR_GATES_PATH,
     packetDirForWp(wpId),

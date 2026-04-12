@@ -1520,6 +1520,32 @@ function selectCommittedValidationTarget(worktreeAbs, packetContent, { rev = "",
   };
 }
 
+// RGF-184: detect zero-execution in test proof output.
+// A test command that exits 0 but matched zero tests is a false green.
+// Returns { zeroExecution: boolean, detail: string }.
+function detectZeroExecutionEvidence(output) {
+  const text = String(output || "");
+  // Rust/Cargo: "running 0 tests" or "0 passed; 0 failed; 0 ignored"
+  if (/running 0 tests/i.test(text)) {
+    return { zeroExecution: true, detail: "cargo test matched 0 tests (running 0 tests)" };
+  }
+  if (/test result: ok\.\s+0 passed/i.test(text) && !/[1-9]\d* passed/i.test(text)) {
+    return { zeroExecution: true, detail: "cargo test result: 0 passed" };
+  }
+  // Node/Jest: "Tests: 0 passed, 0 total" or "No tests found"
+  if (/no tests found/i.test(text)) {
+    return { zeroExecution: true, detail: "test runner found no tests" };
+  }
+  if (/Tests:\s+0 passed,\s+0 total/i.test(text)) {
+    return { zeroExecution: true, detail: "jest: 0 passed, 0 total" };
+  }
+  // Generic: "0 passing" (mocha-style)
+  if (/\b0 passing\b/i.test(text) && !/[1-9]\d* passing/i.test(text)) {
+    return { zeroExecution: true, detail: "test runner: 0 passing" };
+  }
+  return { zeroExecution: false, detail: "" };
+}
+
 function persistCommittedValidationEvidence(wpId, evidence) {
   const state = loadValidatorGateState(wpId);
   state.committed_validation_evidence[wpId] = recordCommittedValidationRun(
@@ -1726,6 +1752,18 @@ export function buildValidatorHandoffCheckResult({
       cargo_clean_output: cargoClean.output,
       post_work_output: postWork.output,
     };
+
+    // RGF-184: reject PASS when proof commands matched zero tests (false green).
+    // A test command exiting 0 with zero executed tests is not valid evidence.
+    if (evidence.status === "PASS") {
+      const postWorkZero = detectZeroExecutionEvidence(postWork.output);
+      if (postWorkZero.zeroExecution) {
+        evidence.status = "FAIL";
+        evidence.committed_target_status = "FAIL";
+        evidence.zero_execution_detected = true;
+        evidence.zero_execution_detail = postWorkZero.detail;
+      }
+    }
 
     const persistedEvidence = persistCommittedValidationEvidence(normalizedWpId, evidence);
     const durableCommittedProof = committedEvidenceForCloseout(persistedEvidence);
