@@ -193,10 +193,9 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: MT-001 FAIL; remediation in progress on re-anchored substrate
-Blockers: MT-001 validator fail on `review:WP-1-Governance-Workflow-Mirror-v2:review_request:mnv8x6en:1f43b7`; previous candidate wrote display-path refs into canonical `task_board_id` fields and was proven on a stale branch substrate. The worktree has been re-anchored to clean `c11f3c1511748ff050916dda108b3f38c3f670b4`; coder must reapply MT-001 there before MT-002.
-Next: CODER remediates MT-001 on the re-anchored `../wtc-workflow-mirror-v2` branch, proves canonical `task_board_id` versus path-style `task_board_ref` separation, and returns a governed review request/handoff with exact proof.
-
+Verdict: MT-001 REPAIR_IN_PROGRESS
+Blockers: The latest governed CODER run for MT-001 was canceled after the implementation/proof turn drifted into fragile out-of-scope cleanup work. MT-001 must be reapplied cleanly on `../wtc-workflow-mirror-v2` with only the signed product surfaces (`runtime_governance.rs`, `locus/types.rs`, `workflows.rs`) changed before handoff to WP validator.
+Next: Rebuild MT-001 on the clean product substrate, rerun the exact MT-001 proofs, then record CODER_HANDOFF to WP validator with bounded scope and exact proof.
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
