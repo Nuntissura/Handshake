@@ -90,6 +90,7 @@ test("governance command contract keeps the orchestrator ACP/session-control rec
     "handshake-acp-broker-status",
     "handshake-acp-broker-stop",
     "phase-check",
+    "classic-orchestrator-startup",
     "wp-validator-query",
     "wp-review-request",
     "wp-validator-response",
@@ -116,6 +117,14 @@ test("governance command contract keeps the orchestrator ACP/session-control rec
     "validator-handoff-check",
     "integration-validator-closeout-check",
     "integration-validator-closeout-sync",
+    "activation-record-refinement",
+    "activation-record-signature",
+    "activation-record-role-model-profiles",
+    "activation-record-prepare",
+    "activation-create-task-packet",
+    "activation-task-board-set",
+    "activation-wp-traceability-set",
+    "activation-prepare-and-packet",
   ]) {
     assert.equal(recipeExists(justfile, retiredRecipeName), false, `Retired just recipe still exposed: ${retiredRecipeName}`);
   }

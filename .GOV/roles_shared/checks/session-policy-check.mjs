@@ -211,31 +211,19 @@ function checkPacket(filePath) {
   checkExpected(errors, rel, text, "CODER_STARTUP_COMMAND", "just coder-startup");
   checkExpected(errors, rel, text, "CODER_RESUME_COMMAND", `just coder-next ${wpId}`);
   if (version >= DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION) {
-    // Accept both legacy (validate/WP-{ID}, wtv-*) and current (feat/WP-{ID}, wtc-*) validator worktree models.
-    // Legacy packets declared separate validator worktrees; current model shares the coder worktree [CX-503G].
-    const wpValBranch = parseSingleField(text, "WP_VALIDATOR_LOCAL_BRANCH");
-    const wpValDir = parseSingleField(text, "WP_VALIDATOR_LOCAL_WORKTREE_DIR");
-    const legacyBranch = `validate/${wpId}`;
-    const currentBranch = defaultWpValidatorBranch(wpId);
-    const legacyDir = `../wtv-${wpId.replace(/^WP-1-/, '').replace(/-v\d+$/, '-v1').toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 30)}`;
-    if (wpValBranch && wpValBranch !== currentBranch && wpValBranch !== legacyBranch) {
-      errors.push(`${rel}: WP_VALIDATOR_LOCAL_BRANCH must be ${currentBranch} or legacy ${legacyBranch} (got: ${wpValBranch})`);
-    }
-    // Accept any wtv-* or wtc-* dir for backward compatibility.
-    if (wpValDir && !wpValDir.includes('wtv-') && !wpValDir.includes('wtc-')) {
-      errors.push(`${rel}: WP_VALIDATOR_LOCAL_WORKTREE_DIR must be a wtc-* (current) or wtv-* (legacy) path (got: ${wpValDir})`);
-    }
+    checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_BRANCH", defaultWpValidatorBranch(wpId));
+    checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_WORKTREE_DIR", defaultWpValidatorWorktreeDir(wpId));
   }
-  checkExpected(errors, rel, text, "WP_VALIDATOR_STARTUP_COMMAND", "just validator-startup");
-  checkExpected(errors, rel, text, "WP_VALIDATOR_RESUME_COMMAND", `just validator-next ${wpId}`);
+  checkExpected(errors, rel, text, "WP_VALIDATOR_STARTUP_COMMAND", "just validator-startup WP_VALIDATOR");
+  checkExpected(errors, rel, text, "WP_VALIDATOR_RESUME_COMMAND", `just validator-next WP_VALIDATOR ${wpId}`);
   if (version >= SPEC_CLAUSE_MAP_MIN_VERSION) {
     checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_BRANCH", defaultIntegrationValidatorBranch(wpId));
     checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR", defaultIntegrationValidatorWorktreeDir(wpId));
   } else {
     // Legacy packets used per-WP integration branches and worktrees; skip enforcement for those.
   }
-  checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_STARTUP_COMMAND", "just validator-startup");
-  checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_RESUME_COMMAND", `just validator-next ${wpId}`);
+  checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_STARTUP_COMMAND", "just validator-startup INTEGRATION_VALIDATOR");
+  checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_RESUME_COMMAND", `just validator-next INTEGRATION_VALIDATOR ${wpId}`);
   if (packetUsesSharedRemoteWpBackup(version)) {
     checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");
     if (version >= SPEC_CLAUSE_MAP_MIN_VERSION) {

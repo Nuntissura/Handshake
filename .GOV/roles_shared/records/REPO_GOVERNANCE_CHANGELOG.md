@@ -2185,3 +2185,87 @@
 - FOLLOW_ON_ITEMS:
   - `RGF-176`
 - OUTCOME: the board now explicitly tracks the remaining practical validation gap: a real `AUTO` ACP launch on a non-terminal WP must still be exercised and checked for one-attempt convergence, no focus-stealing terminal launch, no duplicate request/result rows, truthful `outcome_state`, bounded token/ledger churn, clean Workflow Dossier ACP traces, and no stale broker/session residue after settlement
+
+### 2026.04.12.1 / GOV-CHANGE-20260412-01
+
+- STATUS: APPLIED
+- SUMMARY: opened RGF-189 through RGF-193 for governance workflow restructure — mechanical orchestrator, Rubrik role, Integration Validator expansion, orchestrator protocol update, closeout auto-repair
+- CHANGE_TYPE: GOVERNANCE_PLANNING
+- DRIVER_EVIDENCE:
+  - `DOSSIER_20260412_GOVERNANCE_WORKFLOW_MIRROR_WORKFLOW_DOSSIER.md` — 329min wall clock, 4.4min active, 256M tokens_in for 1 MT; 85% cost from mechanical work routed through ACP sessions
+  - Operator diagnosis: workflow-state drift is the dominant cost, not document drift; closeout truth/artifact drift is second
+  - Recurring product/repo governance confusion causing coder scope spill (dossier line 1547, feedback memories)
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-189` — Orchestrator Mechanical Governance and No-Approval Boundary
+  - `RGF-190` — Rubrik Role Protocol (per-MT boundary enforcement, product/repo containment)
+  - `RGF-191` — Integration Validator Whole-WP Judgment and Merge Authority
+  - `RGF-192` — Orchestrator Protocol Update for Role-Split Workflow
+  - `RGF-193` — Closeout Auto-Repair Script
+- OUTCOME: the governance task board now tracks five new items for restructuring the governed workflow to separate mechanical governance (direct script execution by orchestrator) from AI-mediated judgment (Rubrik per-MT, Integration Validator whole-WP); classic VALIDATOR role preserved for manual relay workflow
+
+### 2026.04.12.2 / GOV-CHANGE-20260412-02
+
+- STATUS: APPLIED
+- SUMMARY: implemented RGF-189 through RGF-193 — created Rubrik role protocol, Integration Validator protocol, updated Orchestrator Protocol with mechanical governance + no-approval boundary + role-split workflow, added RUBRIK to session registry schema + session policy, created closeout-repair script, added justfile recipes for Rubrik sessions and closeout-repair
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-189` through `RGF-193`
+  - `DOSSIER_20260412_GOVERNANCE_WORKFLOW_MIRROR_WORKFLOW_DOSSIER.md` (cost evidence)
+  - Operator direction: Rubrik for per-MT boundary enforcement, Integration Validator for whole-WP judgment, orchestrator runs mechanical checks directly
+- SURFACES:
+  - `.GOV/roles/rubrik/RUBRIK_PROTOCOL.md` (new)
+  - `.GOV/roles/validator/INTEGRATION_VALIDATOR_PROTOCOL.md` (new)
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (updated: mechanical governance principle, no-approval boundary, role-split workflow, Rubrik references)
+  - `.GOV/roles_shared/schemas/ROLE_SESSION_REGISTRY.schema.json` (added RUBRIK to role enum)
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs` (added RUBRIK to SESSION_ROLES, model profiles, token budgets, terminal title, command mappings)
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs` (added RUBRIK to usage)
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs` (added RUBRIK to usage)
+  - `.GOV/roles/orchestrator/scripts/session-control-cancel.mjs` (added RUBRIK to role list + usage)
+  - `.GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs` (added RUBRIK to usage)
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs` (new)
+  - `.GOV/roles/README.md` (added Rubrik and Integration Validator links)
+  - `justfile` (added launch/start/steer/cancel/close-rubrik-session, closeout-repair recipes)
+- FOLLOW_ON_ITEMS:
+  - `RGF-189` through `RGF-193` (status update to DONE pending first governed run validation)
+- OUTCOME: governance framework now implements the role split: Rubrik handles per-MT boundary enforcement and code review, Integration Validator handles whole-WP spec judgment with fresh context, Orchestrator runs mechanical governance directly; classic Validator preserved for manual relay; `just gov-check` passes
+
+### 2026.04.12.3 / GOV-CHANGE-20260412-03
+
+- STATUS: APPLIED
+- SUMMARY: corrected RGF-190-193 implementation — removed RUBRIK as role/folder (evaluation criteria inlined into WP_VALIDATOR_PROTOCOL), fixed Integration Validator direct-coder contradiction, added FAIL remediation flow, added sync-gov-to-main as explicit IntVal duty, added orchestrator role definition block, added bounded loop reference (RGF-100), added closeout-repair failure recovery path, created classic_orchestrator role for manual relay workflow
+- CHANGE_TYPE: GOVERNANCE_CORRECTION
+- DRIVER_EVIDENCE:
+  - Operator correction: RUBRIK is not a role, not a document, not anything — evaluation criteria belong inside WP_VALIDATOR_PROTOCOL directly
+  - Operator correction: orchestrator does not create refinements, worktrees, MTs (Activation Manager does)
+  - Operator correction: WP Validator does not actively steer coder (saves tokens), mechanical stall detection instead
+  - ORCHESTRATOR_PROTOCOL line 752 contradicted INTEGRATION_VALIDATOR_PROTOCOL line 136 (direct coder communication)
+  - Manual relay workflow mixed into orchestrator protocol causing confusion
+- SURFACES:
+  - `.GOV/roles/rubrik/` (deleted)
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md` (rewritten — full standalone protocol with inline evaluation criteria)
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md` (updated — FAIL remediation flow, sync-gov-to-main duty, removed rubrik refs)
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (updated — role definition block, removed rubrik refs, fixed line 752 contradiction, bounded loop, closeout recovery)
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md` (new — manual relay workflow role identity)
+  - `.GOV/roles/README.md` (updated — removed rubrik, added classic_orchestrator)
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` (corrected RGF-190/192 descriptions)
+- OUTCOME: RUBRIK concept fully removed from governance; WP Validator is standalone per-MT reviewer with inline evaluation criteria; Integration Validator FAIL flow routes remediation through Orchestrator; orchestrator role narrowed to launch+watch+steer with mechanical stall detection; classic_orchestrator role created for manual relay workflow separation
+
+### 2026.04.12.4 / GOV-CHANGE-20260412-04
+
+- STATUS: APPLIED
+- SUMMARY: post-restructure sweep — fixed critical Integration Validator startup prompt (was telling IntVal to communicate directly with coder via structured review lane, contradicting protocol), cleaned 3 stale KUBRIK/RUBRIK memory entries from governance DB, fixed misleading doc heading, opened RGF-194 for check script consolidation (49→~15-20 bundled groups)
+- CHANGE_TYPE: GOVERNANCE_CORRECTION
+- DRIVER_EVIDENCE:
+  - session-control-lib.mjs line 898: startup prompt injected into IntVal sessions said "DIRECT COMMUNICATION (MANDATORY)" which contradicted INTEGRATION_VALIDATOR_PROTOCOL.md and orchestrator protocol line 765
+  - governance memory DB entries 1555-1557 contained stale KUBRIK/RUBRIK references from the transition period
+  - GOVERNED_WORKFLOW_EXAMPLES.md line 93 heading said "directly" when communication is packet-mediated
+  - full audit of roles/ and roles_shared/ revealed 49 standalone check scripts as consolidation opportunity
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs` (fixed IntVal startup prompt — replaced DIRECT COMMUNICATION with VERDICT COMMUNICATION routing through orchestrator)
+  - governance memory DB (deleted entries 1555, 1556, 1557)
+  - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md` (fixed heading)
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` (added RGF-194)
+- OUTCOME: Integration Validator startup prompt now correctly instructs the model to route FAIL remediation through Orchestrator instead of communicating directly with coder; governance memory DB is clean of stale RUBRIK/KUBRIK entries; RGF-194 opened for future check consolidation

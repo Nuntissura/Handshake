@@ -56,7 +56,8 @@ test("workflow lane guidance keeps orchestrator-managed launch on Activation Man
     `just manual-relay-next ${wpId}`,
     `just session-registry-status ${wpId}`,
   ]);
-  assert.match(manualCommands.join("\n"), /keep the Operator in the relay loop/i);
+  assert.match(manualCommands.join("\n"), /CLASSIC_ORCHESTRATOR/i);
+  assert.match(manualCommands.join("\n"), /keeping the Operator in the relay loop/i);
   assert.deepEqual(downstreamCommands.slice(0, 3), [
     `just launch-coder-session ${wpId}`,
     `just launch-wp-validator-session ${wpId}`,

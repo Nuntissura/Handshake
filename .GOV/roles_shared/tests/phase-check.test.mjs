@@ -8,6 +8,7 @@ import {
   buildPhaseCheckPlan,
   parseCloseoutSyncOptions,
   parseCommittedTargetArgs,
+  resolveCloseoutSyncCwd,
   resolveTerminalReadySessionsForWp,
   resolvePhaseCheckCwd,
   runGateCheck,
@@ -104,6 +105,34 @@ test("phase-check closeout uses injected active repo root when present", () => {
       process.env.HANDSHAKE_ACTIVE_REPO_ROOT = original;
     }
   }
+});
+
+test("closeout sync runs from the integration-validator product worktree when phase-check starts in kernel", () => {
+  const resolved = resolveCloseoutSyncCwd({
+    wpId: "WP-TEST-PHASE-v1",
+    phaseCheckCwd: REPO_ROOT,
+    registrySessions: [
+      {
+        wp_id: "WP-TEST-PHASE-v1",
+        role: "INTEGRATION_VALIDATOR",
+        session_key: "INTEGRATION_VALIDATOR:WP-TEST-PHASE-v1",
+        local_branch: "main",
+        local_worktree_dir: "../handshake_main",
+      },
+    ],
+  });
+
+  assert.equal(resolved, path.resolve(REPO_ROOT, "../handshake_main"));
+});
+
+test("closeout sync falls back to the default integration-validator worktree without a registry lane", () => {
+  const resolved = resolveCloseoutSyncCwd({
+    wpId: "WP-TEST-PHASE-v1",
+    phaseCheckCwd: REPO_ROOT,
+    registrySessions: [],
+  });
+
+  assert.equal(resolved, path.resolve(REPO_ROOT, "../handshake_main"));
 });
 
 test("committed target args preserve validator handoff range selection", () => {

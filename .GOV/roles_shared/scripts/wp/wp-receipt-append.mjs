@@ -40,6 +40,7 @@ import {
   deriveValidatorAssessmentVerdict,
   deriveWpCommunicationAutoRoute,
   evaluateWpCommunicationHealth,
+  buildRoleInbox,
   isDuplicateDecisiveValidatorAssessment,
   isOverlapMicrotaskReviewItem,
   MAX_OVERLAP_MICROTASK_REVIEW_ITEMS,
@@ -632,6 +633,16 @@ function assertOverlapReviewBackpressurePreflight({ runtimeStatus }) {
   }
 }
 
+// Inbox-clear gate applies when a coder emits forward-progress receipts
+// (REVIEW_REQUEST or CODER_HANDOFF) — these should be blocked if the coder
+// has unresolved steer/rejection debt from the validator.
+function inboxClearGateApplies(args) {
+  const role = String(args?.actorRole || "").trim().toUpperCase();
+  const kind = String(args?.receiptKind || "").trim().toUpperCase();
+  if (role !== "CODER") return false;
+  return kind === "REVIEW_REQUEST" || kind === "CODER_HANDOFF";
+}
+
 function assertReviewResolutionCorrelationPreflight({
   context,
   runtimeStatus,
@@ -923,6 +934,24 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
   })) {
     assertOverlapReviewBackpressurePreflight({ runtimeStatus });
   }
+
+  // Inbox-clear gate: block new REVIEW_REQUEST emissions when the actor has
+  // unresolved remediation debt (steer/rejection on a prior MT).
+  if (runtimeStatus && inboxClearGateApplies(args)) {
+    const inbox = buildRoleInbox(
+      String(args?.actorRole || "").trim(),
+      runtimeStatus,
+    );
+    const steers = inbox.items.filter((item) => item.is_steer);
+    if (steers.length > 0) {
+      throw new Error(
+        `Inbox-clear gate: ${steers.length} unresolved steer(s) must be remediated before emitting `
+        + `${normalize(args?.receiptKind)}. Pending: ${steers.map((s) => s.mt || s.kind).join(", ")}. `
+        + `Address remediation debt first, then retry.`
+      );
+    }
+  }
+
   if (microtaskScopeBudgetPreflightApplies({
     context,
     actorRole: args?.actorRole,

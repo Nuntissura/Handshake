@@ -293,6 +293,62 @@ test("WP closeout bundle tolerates the current integration-validator broker run 
   assert.match(evaluation.warnings.join("\n"), /treating that self-owned run as non-blocking/i);
 });
 
+test("WP closeout bundle infers the self-owned validator session key when actor context omits it", () => {
+  const evaluation = evaluateWpSessionControlCloseoutBundle({
+    repoRoot: ".",
+    wpId: "WP-TEST-VALIDATOR-v1",
+    actorContext: {
+      actorRole: "INTEGRATION_VALIDATOR",
+      actorSessionKey: "",
+      actorSessionId: "integration-validator-session",
+      actorThreadId: "thread-123",
+      actorBranch: "main",
+      actorWorktreeDir: "../handshake_main",
+      source: "SESSION_REGISTRY",
+    },
+    requests: [
+      {
+        command_id: "cmd-closeout-self",
+        wp_id: "WP-TEST-VALIDATOR-v1",
+        role: "INTEGRATION_VALIDATOR",
+        session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        command_kind: "SEND_PROMPT",
+        output_jsonl_file: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/cmd-closeout-self.jsonl",
+      },
+    ],
+    results: [],
+    sessions: [
+      {
+        wp_id: "WP-TEST-VALIDATOR-v1",
+        role: "INTEGRATION_VALIDATOR",
+        session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        session_thread_id: "thread-123",
+        local_branch: "main",
+        local_worktree_dir: "../handshake_main",
+        last_command_id: "cmd-closeout-self",
+        last_command_status: "RUNNING",
+      },
+    ],
+    brokerState: {
+      active_runs: [
+        {
+          command_id: "cmd-closeout-self",
+          wp_id: "WP-TEST-VALIDATOR-v1",
+          role: "INTEGRATION_VALIDATOR",
+          session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        },
+      ],
+    },
+    fileExists: () => false,
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.issues.length, 0);
+  assert.equal(evaluation.summary.self_active_run_count, 1);
+  assert.equal(evaluation.summary.blocking_active_run_count, 0);
+  assert.match(evaluation.warnings.join("\n"), /self-owned run/i);
+});
+
 test("integration-validator closeout state combines topology and WP-scoped closeout truth", () => {
   const repoRoot = repoRootWithArtifact(matchingDiff);
   const evaluation = evaluateIntegrationValidatorCloseoutState({

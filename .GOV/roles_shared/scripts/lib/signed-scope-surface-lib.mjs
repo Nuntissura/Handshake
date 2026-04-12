@@ -44,6 +44,7 @@ export function parseSignedScopeValidationEntries(packetText) {
         start: null,
         end: null,
         lineDelta: null,
+        containmentOnly: false,
       };
       continue;
     }
@@ -64,6 +65,12 @@ export function parseSignedScopeValidationEntries(packetText) {
     const deltaMatch = line.match(/^\s*-\s+\*\*Line Delta\*\*:\s*`?([^`]+?)`?\s*$/i);
     if (deltaMatch) {
       current.lineDelta = parseIntField(deltaMatch[1]);
+      continue;
+    }
+
+    const containmentOnlyMatch = line.match(/^\s*-\s+\*\*Containment-Only\*\*:\s*`?([^`]+?)`?\s*$/i);
+    if (containmentOnlyMatch) {
+      current.containmentOnly = /^YES$/i.test(String(containmentOnlyMatch[1] || "").trim());
       continue;
     }
   }
@@ -174,10 +181,34 @@ export function normalizeUnifiedDiff(diffText) {
   return normalizedLines.join("\n").trim();
 }
 
+function normalizedDiffForDeclaredFiles(summary, declaredEntries, {
+  includeContainmentOnly = true,
+} = {}) {
+  const allowedFiles = new Set(
+    (Array.isArray(declaredEntries) ? declaredEntries : [])
+      .filter((entry) => includeContainmentOnly || !entry?.containmentOnly)
+      .map((entry) => String(entry?.filePath || "").trim())
+      .filter(Boolean),
+  );
+  const normalizedLines = [];
+  let includeCurrentFile = false;
+  for (const line of String(summary?.normalizedDiff || "").split(/\r?\n/)) {
+    const diffMatch = line.match(/^diff --git a\/(.+?) b\/(.+)$/);
+    if (diffMatch) {
+      includeCurrentFile = allowedFiles.has(normalizeRepoRelativePath(diffMatch[2]));
+      if (includeCurrentFile) normalizedLines.push(line);
+      continue;
+    }
+    if (includeCurrentFile && line) normalizedLines.push(line);
+  }
+  return normalizedLines.join("\n").trim();
+}
+
 function compareSummaryAgainstDeclaredSurface(summary, declaredEntries, label, {
   enforceWindows = true,
   enforceLineDelta = true,
   requireDeclaredFiles = true,
+  allowDeclaredContainmentOnlyOmissions = false,
 } = {}) {
   const errors = [];
   const declaredByFile = new Map(declaredEntries.map((entry) => [entry.filePath, entry]));
@@ -186,6 +217,9 @@ function compareSummaryAgainstDeclaredSurface(summary, declaredEntries, label, {
   for (const [filePath, declared] of declaredByFile.entries()) {
     const actual = summaryByFile.get(filePath);
     if (!actual) {
+      if (allowDeclaredContainmentOnlyOmissions && declared?.containmentOnly) {
+        continue;
+      }
       if (requireDeclaredFiles) {
         errors.push(`${label}: missing diff for declared file ${filePath}`);
       }
@@ -608,9 +642,17 @@ export function validateCandidateTargetAgainstSignedScope(packetText, {
   errors.push(...compareSummaryAgainstDeclaredSurface(actualSummary, surface.declaredEntries, "candidate target diff", {
     enforceWindows: false,
     enforceLineDelta: false,
+    allowDeclaredContainmentOnlyOmissions: true,
   }));
 
-  if (surface.ok && actualSummary.normalizedDiff !== surface.artifactNormalizedDiff) {
+  const hasContainmentOnlyEntries = surface.declaredEntries.some((entry) => entry?.containmentOnly);
+  const actualNormalizedDiff = hasContainmentOnlyEntries
+    ? normalizedDiffForDeclaredFiles(actualSummary, surface.declaredEntries, { includeContainmentOnly: false })
+    : actualSummary.normalizedDiff;
+  const artifactNormalizedDiff = hasContainmentOnlyEntries
+    ? normalizedDiffForDeclaredFiles(surface.artifactSummary, surface.declaredEntries, { includeContainmentOnly: false })
+    : surface.artifactNormalizedDiff;
+  if (surface.ok && actualNormalizedDiff !== artifactNormalizedDiff) {
     errors.push(
       "candidate target diff does not match the signed patch artifact after normalization; committed target drifted from the clean-room proof surface",
     );

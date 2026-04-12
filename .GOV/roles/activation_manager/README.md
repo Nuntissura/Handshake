@@ -19,11 +19,11 @@ Authoritative folder-placement law for the Activation Manager bundle lives in `.
   - `just steer-activation-manager-session WP-{ID} "<prompt>"`
   - `just cancel-activation-manager-session WP-{ID}`
   - `just close-activation-manager-session WP-{ID}`
-- the role-local prompt/readiness family still exists: `just activation-manager <startup|prompt|next|readiness> [WP-{ID}] [--write|--json]`
+- the role-local action surface now stays under one recipe: `just activation-manager <startup|prompt|next|readiness|record-refinement|record-signature|record-role-model-profiles|record-prepare|create-task-packet|task-board-set|wp-traceability-set|prepare-and-packet> [WP-{ID}] [...]`
 - current preparation mechanics still live under shared or orchestrator-owned commands
 - manual workflow keeps pre-launch work under the Orchestrator; Activation Manager is the governed pre-launch lane for orchestrator-managed workflow, not a second manual authority path
 - the Orchestrator remains the live launch and final status authority
-- activation-manager now also has parallel `just` entrypoints that delegate into the live Orchestrator implementation so bounded manual activation repair/reference work can happen without introducing a second code path
+- activation-manager now dispatches its mutation actions through the same live Orchestrator implementation so bounded manual activation repair/reference work can happen without exposing a second named command family
 
 ## Transitional Shared / Inherited Surfaces
 
@@ -33,17 +33,17 @@ Authoritative folder-placement law for the Activation Manager bundle lives in `.
 - `just mt-populate WP-{ID}`
 - `just phase-check STARTUP WP-{ID} CODER`
 
-## Transitional Delegated Surfaces
+## Delegated Action Surface
 
-- `just activation-record-refinement WP-{ID}` -> delegates to `roles/orchestrator/checks/orchestrator_gates.mjs`
-- `just activation-record-signature WP-{ID} ...` -> delegates to `roles/orchestrator/checks/orchestrator_gates.mjs`
-- `just activation-record-role-model-profiles WP-{ID} ...` -> delegates to `roles/orchestrator/checks/orchestrator_gates.mjs`
-- `just activation-record-prepare WP-{ID} ...` -> delegates to `roles/orchestrator/checks/orchestrator_gates.mjs`
-- `just activation-create-task-packet WP-{ID} "<context>"` -> delegates to `roles/orchestrator/scripts/create-task-packet.mjs`
-- `just activation-task-board-set WP-{ID} <STATUS> [reason]` -> delegates to `roles/orchestrator/scripts/task-board-set.mjs`
-- `just activation-wp-traceability-set <BASE_WP_ID> <ACTIVE_PACKET_WP_ID> "<context>"` -> delegates to `roles/orchestrator/scripts/wp-traceability-set.mjs`
-- `just activation-prepare-and-packet WP-{ID}` -> delegates to `roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs`
-- this keeps one implementation path while still giving Activation Manager its own operator-facing surface
+- `just activation-manager record-refinement WP-{ID}` -> delegates to `record-refinement`
+- `just activation-manager record-signature WP-{ID} ...` -> delegates to `record-signature`
+- `just activation-manager record-role-model-profiles WP-{ID} ...` -> delegates to `record-role-model-profiles`
+- `just activation-manager record-prepare WP-{ID} ...` -> delegates to `record-prepare`
+- `just activation-manager create-task-packet WP-{ID} "<context>"` -> delegates to `create-task-packet`
+- `just activation-manager task-board-set WP-{ID} <STATUS> [reason]` -> delegates to `task-board-set`
+- `just activation-manager wp-traceability-set <BASE_WP_ID> <ACTIVE_PACKET_WP_ID> "<context>"` -> delegates to `wp-traceability-set`
+- `just activation-manager prepare-and-packet WP-{ID}` -> delegates to `orchestrator-prepare-and-packet`
+- this keeps one implementation path while still giving Activation Manager one role-local operator-facing surface
 
 ## Role Layout
 
@@ -71,16 +71,16 @@ Authoritative folder-placement law for the Activation Manager bundle lives in `.
 - Write/read the readiness artifact:
   - `just activation-manager readiness WP-{ID} --write`
 
-## Transitional Activation Commands
+## Activation Actions
 
-- `just activation-record-refinement WP-{ID}`
-- `just activation-record-signature WP-{ID} ...`
-- `just activation-record-role-model-profiles WP-{ID} ...`
-- `just activation-record-prepare WP-{ID} ...`
-- `just activation-create-task-packet WP-{ID} "<context>"`
-- `just activation-task-board-set WP-{ID} <STATUS> [reason]`
-- `just activation-wp-traceability-set <BASE_WP_ID> <ACTIVE_PACKET_WP_ID> "<context>"`
-- `just activation-prepare-and-packet WP-{ID}`
+- `just activation-manager record-refinement WP-{ID}`
+- `just activation-manager record-signature WP-{ID} ...`
+- `just activation-manager record-role-model-profiles WP-{ID} ...`
+- `just activation-manager record-prepare WP-{ID} ...`
+- `just activation-manager create-task-packet WP-{ID} "<context>"`
+- `just activation-manager task-board-set WP-{ID} <STATUS> [reason]`
+- `just activation-manager wp-traceability-set <BASE_WP_ID> <ACTIVE_PACKET_WP_ID> "<context>"`
+- `just activation-manager prepare-and-packet WP-{ID}`
 
 The readiness artifact is written to the external governance runtime root under:
 - `../gov_runtime/roles/activation_manager/runtime/activation_readiness/WP-{ID}.md`

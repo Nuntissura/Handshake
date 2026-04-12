@@ -73,17 +73,17 @@ These are safe starting points for orientation and health checks.
   - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, declared microtask plan (`active` / `next`), and next commands
 - `just manual-relay-next WP-{ID} [--debug]`
   - `read-only`
-  - operator-facing next-step helper for `WORKFLOW_LANE=MANUAL_RELAY`; prints the runtime-projected next actor, target session, a structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`), and exact governed follow-up commands without auto-steering
+  - Classic-Orchestrator-owned next-step helper for `WORKFLOW_LANE=MANUAL_RELAY`; prints the runtime-projected next actor, target session, a structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`), and exact governed follow-up commands without auto-steering
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
   - `runtime-write`
-  - operator-invoked broker for `WORKFLOW_LANE=MANUAL_RELAY`; starts the projected target session when needed, immediately delivers the active role-to-role payload, and injects typed relay context (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) into the target prompt instead of a generic resume-only steer
+  - Classic-Orchestrator-owned broker for `WORKFLOW_LANE=MANUAL_RELAY`; starts the projected target session when needed, immediately delivers the active role-to-role payload, and injects typed relay context (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) into the target prompt instead of a generic resume-only steer
 - `just wp-token-usage WP-{ID}`
   - `read-only`
   - print the governed per-WP token ledger aggregated from settled ACP session outputs
 - `just wp-timeline WP-{ID} [--json]`
   - `read-only`
   - print one merged WP timeline plus structured span rows for control commands, token-command windows, review exchanges, and microtask execution windows, together with stage counts, token totals, and budget health
-  - the summary now includes `relay_policy`: measured relay prompt burden for the current WP plus the default lane recommendation (`MANUAL_RELAY` unless autonomous steering is explicitly worth the extra prompt tax)
+  - the summary now includes `relay_policy`: measured relay prompt burden for the current WP plus the future-default lane recommendation (`ORCHESTRATOR_MANAGED` unless the operator explicitly wants the classic `MANUAL_RELAY` path)
   - the summary also includes `downtime_attribution` and `queue_pressure`, so wall-clock loss can be split into active build, validator wait, route wait, dependency wait, human wait, repair overhead, and current queue pressure without reading the dossier directly
 - `just wp-token-usage-settle WP-{ID} [REASON] [SETTLED_BY]`
   - `writes-runtime`
@@ -99,9 +99,9 @@ These are safe starting points for orientation and health checks.
   - compatibility alias for `just operator-viewport`
 - `just orchestrator-next [WP-{ID}] [--debug]`
 - `just coder-next [WP-{ID}]`
-- `just validator-next [WP-{ID}] [--debug]`
+- `just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-{ID}] [--debug]`
   - `read-only`
-  - role-specific resume helpers after startup/reset/compaction
+  - shared validator resume surface; the explicit role argument is mandatory so the lane does not collapse back to classical `VALIDATOR`
   - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, post-signature routine Operator interruptions are invalid; `just orchestrator-next` should print `OPERATOR_ACTION: NONE` unless a machine-visible `BLOCKER_CLASS` is present
 - `just orchestrator-steer-next WP-{ID} "<context>" [PRIMARY|FALLBACK]`
   - `runtime-write`
@@ -111,10 +111,10 @@ These are safe starting points for orientation and health checks.
   - when stalled-relay escalation is active, this is the canonical continue/repair command instead of silent waiting
 - `just manual-relay-next WP-{ID} [--debug]`
   - `read-only`
-  - for `WORKFLOW_LANE=MANUAL_RELAY`, inspect runtime next-actor truth without dispatching any prompt
+  - for `WORKFLOW_LANE=MANUAL_RELAY`, inspect runtime next-actor truth without dispatching any prompt; this surface belongs to `CLASSIC_ORCHESTRATOR`
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
   - `runtime-write`
-  - for `WORKFLOW_LANE=MANUAL_RELAY`, let the operator explicitly broker one governed start/send action against the currently projected next actor
+  - for `WORKFLOW_LANE=MANUAL_RELAY`, let the operator explicitly broker one governed start/send action against the currently projected next actor; this surface belongs to `CLASSIC_ORCHESTRATOR`
 
 ## Governance Memory System (RGF-115 through RGF-143)
 
@@ -349,11 +349,13 @@ If a role keeps needing those rereads:
 ## Startup and preflight
 
 - `just orchestrator-startup`
+- `just classic-orchestrator-startup`
 - `just coder-startup`
-- `just validator-startup`
+- `just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR`
 - `just memory-manager-startup`
   - `read-only`
   - protocol ack + backup context + role preflight
+  - `just validator-startup <ROLE>` is the shared startup surface for `WP_VALIDATOR`, `INTEGRATION_VALIDATOR`, and classical `VALIDATOR`; the explicit role argument selects the role-specific protocol and authority
   - governed startup prompts are derived from `session-control-lib.mjs` and now explicitly include `AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + role protocol + startup output + packet`
 - `just role-startup-topology-check [--audit-permanent]`
   - `read-only`
@@ -453,9 +455,9 @@ These mutate packet, board, traceability, or related governed surfaces.
 
 ## Activation Manager pre-launch helpers
 
-- `just activation-manager <startup|prompt|next|readiness> [WP-{ID}] [--write|--json]`
-  - `read-only` except `readiness --write`, which is `runtime-write`
-  - role-local Activation Manager startup, prompt, state, and readiness surface
+- `just activation-manager <startup|prompt|next|readiness|record-refinement|record-signature|record-role-model-profiles|record-prepare|create-task-packet|task-board-set|wp-traceability-set|prepare-and-packet> [WP-{ID}] [args...] [--write|--json]`
+  - `read-only` for `startup|prompt|next`, `runtime-write` for `readiness --write`, and `governance-write` for the delegated mutation actions
+  - one canonical role-local Activation Manager startup, prompt, state, readiness, and pre-launch mutation surface
   - use this as the compact activation context digest; manual workflow still keeps pre-launch authority on the Orchestrator
   - Activation Manager refinement/enrichment quality must match or exceed the old Orchestrator pre-launch lane: research, primitive-index upkeep, matrix upkeep, appendix follow-through, and high-ROI stub discovery all remain mandatory
   - default pre-signature handoff is file-first: return the written refinement/spec file path plus a compact `REFINEMENT_HANDOFF_SUMMARY`, not pasted full-text refinement blocks
@@ -463,16 +465,7 @@ These mutate packet, board, traceability, or related governed surfaces.
   - `REFINEMENT_CHECK` means the real refinement checker result on the written file; placeholder scan, ASCII-only scan, and diff sanity checks do not count as pass truth by themselves
   - only if excerpts are explicitly requested should refinement/spec text be pasted back, and then only the requested sections/anchors in bounded chunks; safe default is 4 blocks
   - only surface technology or implementation-technique replacement advice when it is a material upgrade; do not recommend swapping entrenched integrated technologies for small gains
-- `just activation-record-refinement WP-{ID}`
-- `just activation-record-signature WP-{ID} <signature> <workflow_lane> <execution_lane>`
-- `just activation-record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
-- `just activation-record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
-- `just activation-create-task-packet WP-{ID} "<context>"`
-- `just activation-task-board-set WP-{ID} <STATUS> ["reason"]`
-- `just activation-wp-traceability-set <BASE_WP_ID> <ACTIVE_PACKET_WP_ID> "<context>"`
-- `just activation-prepare-and-packet WP-{ID}`
-  - `governance-write`
-  - Activation Manager-prefixed wrappers over the live Orchestrator implementation surfaces; they preserve one implementation path while keeping pre-launch authority explicit
+  - mutation actions dispatch into the live Orchestrator/shared implementation surfaces; Activation Manager keeps one recipe instead of a duplicate activation-prefixed wrapper family
 
 ## Session launch and steering (Orchestrator-only)
 
@@ -579,6 +572,10 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
   - `HANDOFF`: proves coder closure or validator handoff readiness from one phase artifact, depending on role
   - `VERDICT`: proves the final review communication boundary from one phase artifact
   - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, and refreshes memory-manager maintenance; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact and appends the mechanical closeout trace into the active Workflow Dossier
+- `just closeout-repair WP-{ID} [--dry-run] [--debug]`
+  - `governance-write`
+  - mechanical closeout pre-repair surface owned by the Orchestrator
+  - run before `phase-check CLOSEOUT` when closeout truth is suspected to be broken; it attempts bounded mechanical repair of packet/runtime/SHA/artifact issues and then expects the canonical `phase-check CLOSEOUT` bundle to carry the real proof
 - `just wp-communication-health-check WP-{ID} [STATUS|KICKOFF|HANDOFF|VERDICT]`
   - `read-only`
   - low-level communication proof and route health; phase-level role guidance should usually prefer the canonical `phase-check` entrypoint above

@@ -275,8 +275,8 @@ requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just coder-next");
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just launch-coder-session");
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "CODER_MODEL_PROFILE");
 
-requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-startup");
-requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-next");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-wp-validator-session");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-integration-validator-session");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just phase-check STARTUP");

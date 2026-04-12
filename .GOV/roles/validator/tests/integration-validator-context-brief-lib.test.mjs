@@ -37,8 +37,8 @@ function modernPacket(artifactPath, integrationWorktreeDir) {
 - LOCAL_BRANCH: feat/WP-TEST-VALIDATOR-v1
 - LOCAL_WORKTREE_DIR: ../wtc-test-validator
 - INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ${integrationWorktreeDir}
-- WP_VALIDATOR_LOCAL_BRANCH: review/WP-TEST-VALIDATOR-v1
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtv-test-validator
+- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-TEST-VALIDATOR-v1
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-test-validator
 - **Artifacts**: \`${artifactPath}\`
 - **Target File**: \`src/backend/handshake_core/src/example.rs\`
 - **Start**: \`10\`

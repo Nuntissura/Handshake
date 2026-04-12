@@ -4,6 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { REPO_ROOT } from "../lib/runtime-paths.mjs";
 import {
+  buildWpMetrics,
+  buildWpMetricsComparison,
   buildWpTimelineEntries,
   buildWpTimelineSpans,
   buildWpTimelineSummary,
@@ -111,13 +113,7 @@ function printTextReport(summary, spans, entries) {
   }
 }
 
-function main() {
-  const wpId = String(process.argv[2] || "").trim();
-  const jsonMode = process.argv.slice(3).some((arg) => String(arg || "").trim() === "--json");
-  if (!wpId || !/^WP-/.test(wpId)) {
-    fail("Usage: node .GOV/roles_shared/scripts/session/wp-timeline-report.mjs WP-{ID} [--json]");
-  }
-
+function loadFullTimeline(wpId) {
   const artifacts = loadWpTimelineArtifacts(REPO_ROOT, wpId);
   const entries = buildWpTimelineEntries({
     threadEntries: artifacts.threadEntries,
@@ -146,6 +142,105 @@ function main() {
     entries,
     spans,
   });
+  return { artifacts, entries, spans, summary };
+}
+
+function printTextMetrics(m) {
+  console.log(`[WP_METRICS] ${m.wp_id}`);
+  console.log(`  extracted_at: ${m.extracted_at}`);
+  console.log(`  status: ${m.runtime_status} / ${m.current_phase}`);
+  console.log("");
+  console.log("VELOCITY");
+  console.log(`  wall_clock_minutes: ${m.wall_clock_minutes ?? "N/A"}`);
+  console.log(`  product_active_minutes: ${m.product_active_minutes ?? "N/A"}`);
+  console.log(`  repair_minutes: ${m.repair_minutes ?? "N/A"}`);
+  console.log(`  validator_wait_minutes: ${m.validator_wait_minutes ?? "N/A"}`);
+  console.log(`  route_wait_minutes: ${m.route_wait_minutes ?? "N/A"}`);
+  console.log(`  coder_wait_minutes: ${m.coder_wait_minutes ?? "N/A"}`);
+  console.log(`  governance_overhead_ratio: ${m.governance_overhead_ratio ?? "N/A"}`);
+  console.log("");
+  console.log("COMMUNICATION");
+  console.log(`  receipt_count: ${m.receipt_count}`);
+  console.log(`  receipt_kinds: ${JSON.stringify(m.receipt_kinds)}`);
+  console.log(`  duplicate_receipts: ${m.duplicate_receipts}`);
+  console.log(`  stale_route_incidents: ${m.stale_route_incidents}`);
+  console.log("");
+  console.log("SESSION CONTROL");
+  console.log(`  acp_commands: ${m.acp_commands}`);
+  console.log(`  acp_failures: ${m.acp_failures}`);
+  console.log(`  session_restarts: ${m.session_restarts}`);
+  console.log("");
+  console.log("MICROTASKS & FIX CYCLES");
+  console.log(`  mt_count: ${m.mt_count}`);
+  console.log(`  fix_cycles: ${m.fix_cycles}`);
+  if (Object.keys(m.fix_cycles_by_mt).length > 0) {
+    console.log(`  fix_cycles_by_mt: ${JSON.stringify(m.fix_cycles_by_mt)}`);
+  }
+  console.log("");
+  console.log("VALIDATION EVIDENCE");
+  console.log(`  proof_runs: ${m.proof_runs}`);
+  console.log(`  proof_pass: ${m.proof_pass}`);
+  console.log(`  proof_fail: ${m.proof_fail}`);
+  console.log(`  zero_execution_incidents: ${m.zero_execution_incidents}`);
+  console.log(`  first_pass_compile_success: ${m.first_pass_compile_success ?? "N/A"}`);
+  console.log("");
+  console.log("TOKENS & COST");
+  console.log(`  token_input_total: ${m.token_input_total}`);
+  console.log(`  token_output_total: ${m.token_output_total}`);
+  console.log(`  token_turn_count: ${m.token_turn_count}`);
+  console.log(`  ledger_health: ${m.ledger_health}`);
+  console.log(`  budget_status: ${m.budget_status}`);
+  console.log(`  cost_estimate: ${m.cost_estimate ?? "N/A"}`);
+}
+
+function printComparisonTable(comparison, wpIdA, wpIdB) {
+  console.log(`[WP_METRICS_COMPARE] ${wpIdA} -> ${wpIdB}`);
+  console.log("");
+  const lw = 24, cw = 14;
+  console.log("Metric".padEnd(lw) + wpIdA.slice(0, cw).padStart(cw) + wpIdB.slice(0, cw).padStart(cw) + "Delta".padStart(cw) + "Trend".padStart(8));
+  console.log("-".repeat(lw + cw * 3 + 8));
+  for (const row of comparison) {
+    const a = row.wp_a != null ? String(row.wp_a) : "N/A";
+    const b = row.wp_b != null ? String(row.wp_b) : "N/A";
+    const d = row.delta != null ? (row.delta > 0 ? `+${row.delta}` : String(row.delta)) : "";
+    console.log(row.metric.padEnd(lw) + a.padStart(cw) + b.padStart(cw) + d.padStart(cw) + row.trend.padStart(8));
+  }
+}
+
+function main() {
+  const args = process.argv.slice(2).map((a) => String(a || "").trim()).filter(Boolean);
+  const jsonMode = args.includes("--json");
+  const metricsMode = args.includes("--metrics");
+  const compareMode = args.includes("--compare");
+  const wpArgs = args.filter((a) => /^WP-/i.test(a));
+
+  if (compareMode) {
+    if (wpArgs.length < 2) fail("Usage: wp-timeline-report.mjs --compare WP-A WP-B [--json]");
+    const tA = loadFullTimeline(wpArgs[0]);
+    const tB = loadFullTimeline(wpArgs[1]);
+    const mA = buildWpMetrics({ wpId: wpArgs[0], summary: tA.summary, receipts: tA.artifacts.receipts, controlResults: tA.artifacts.controlResults });
+    const mB = buildWpMetrics({ wpId: wpArgs[1], summary: tB.summary, receipts: tB.artifacts.receipts, controlResults: tB.artifacts.controlResults });
+    const comparison = buildWpMetricsComparison(mA, mB);
+    if (jsonMode) {
+      console.log(JSON.stringify({ wp_a: mA, wp_b: mB, comparison }, null, 2));
+    } else {
+      printComparisonTable(comparison, wpArgs[0], wpArgs[1]);
+    }
+    return;
+  }
+
+  if (!wpArgs[0]) fail("Usage: wp-timeline-report.mjs WP-{ID} [--json] [--metrics] [--compare WP-A WP-B]");
+  const { artifacts, entries, spans, summary } = loadFullTimeline(wpArgs[0]);
+
+  if (metricsMode) {
+    const metrics = buildWpMetrics({ wpId: wpArgs[0], summary, receipts: artifacts.receipts, controlResults: artifacts.controlResults });
+    if (jsonMode) {
+      console.log(JSON.stringify(metrics, null, 2));
+    } else {
+      printTextMetrics(metrics);
+    }
+    return;
+  }
 
   if (jsonMode) {
     console.log(JSON.stringify({ summary, spans, entries }, null, 2));

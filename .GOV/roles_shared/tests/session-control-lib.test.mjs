@@ -59,9 +59,8 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
     conversationContextLines: [],
   });
 
-  assert.match(prompt, /DIRECT COMMUNICATION \(MANDATORY\): Use the structured final review lane/i);
-  assert.match(prompt, /wp-review-exchange REVIEW_REQUEST/i);
-  assert.match(prompt, /wp-review-response/i);
+  assert.match(prompt, /VERDICT COMMUNICATION \(MANDATORY\): The Integration Validator does NOT communicate directly with the Coder/i);
+  assert.match(prompt, /wp-receipt-append/i);
   assert.match(prompt, /integration-validator-context-brief/i);
   assert.match(prompt, /phase-check STARTUP .* INTEGRATION_VALIDATOR/i);
   assert.match(prompt, /phase-check VERDICT .* INTEGRATION_VALIDATOR/i);
@@ -73,6 +72,7 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
   assert.match(prompt, /packet_read_path/i);
   assert.match(prompt, /ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature\/prepare/i);
   assert.match(prompt, /3\. just integration-validator-context-brief WP-TEST-VALIDATOR-v1/i);
+  assert.match(prompt, /\.GOV\/roles\/integration_validator\/INTEGRATION_VALIDATOR_PROTOCOL\.md/i);
 });
 
 test("wp-validator startup prompt uses the dedicated validator lane and early steering instructions", () => {
@@ -95,6 +95,8 @@ test("wp-validator startup prompt uses the dedicated validator lane and early st
   assert.match(prompt, /WORKTREE SYNC \(MANDATORY\): You share the coder `feat\/WP-TEST-WPVAL-v1` branch and `wtc-\*` worktree surface/i);
   assert.match(prompt, /just phase-check STARTUP WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
   assert.match(prompt, /just check-notifications WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
+  assert.match(prompt, /\.GOV\/roles\/wp_validator\/WP_VALIDATOR_PROTOCOL\.md/i);
+  assert.doesNotMatch(prompt, /dedicated validator worktree/i);
 });
 
 test("activation-manager startup and steering prompts enforce the workflow split", () => {
@@ -127,7 +129,7 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.match(prompt, /UPGRADE DISCIPLINE \(HARD\):/i);
   assert.match(prompt, /EXCERPT FALLBACK RULE \(HARD\):/i);
   assert.match(prompt, /SIGNATURE ROUND-TRIP \(MANDATORY\):/i);
-  assert.match(prompt, /For `MANUAL_RELAY`, pre-launch remains Orchestrator-owned/i);
+  assert.match(prompt, /For `MANUAL_RELAY`, pre-launch belongs to `CLASSIC_ORCHESTRATOR`/i);
   assert.match(prompt, /just activation-manager readiness WP-TEST-ACTMAN-v1 --write/i);
   assert.match(prompt, /just activation-manager startup/i);
   assert.match(prompt, /just activation-manager next WP-TEST-ACTMAN-v1/i);
@@ -140,6 +142,7 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.match(steerPrompt, /UPGRADE DISCIPLINE \(HARD\):/i);
   assert.match(steerPrompt, /EXCERPT FALLBACK RULE \(HARD\):/i);
   assert.match(steerPrompt, /REPAIR LOOP \(MANDATORY\):/i);
+  assert.match(steerPrompt, /manual workflow, pre-launch belongs to CLASSIC_ORCHESTRATOR/i);
   assert.match(steerPrompt, /just activation-manager next WP-TEST-ACTMAN-v1/i);
   assert.match(steerPrompt, /just activation-manager readiness WP-TEST-ACTMAN-v1 --write/i);
   assert.doesNotMatch(steerPrompt, /check-notifications/i);
@@ -280,7 +283,7 @@ test("steering prompt stays compact and codex-explicit", () => {
   assert.match(prompt, /just active-lane-brief INTEGRATION_VALIDATOR WP-TEST-STEER-v1/i);
   assert.match(prompt, /Run in order:/i);
   assert.match(prompt, /just integration-validator-context-brief WP-TEST-STEER-v1/i);
-  assert.match(prompt, /just validator-next WP-TEST-STEER-v1/i);
+  assert.match(prompt, /just validator-next INTEGRATION_VALIDATOR WP-TEST-STEER-v1/i);
   assert.match(prompt, /just check-notifications WP-TEST-STEER-v1 INTEGRATION_VALIDATOR <your-session>/i);
   assert.match(prompt, /Do not manually inspect handshake_main\/.GOV as authoritative context/i);
   assert.match(prompt, /FIRST READ RULE: before any repo-wide search or packet rediscovery/i);
@@ -303,7 +306,7 @@ test("integration-validator control requests carry kernel governance env overrid
     absWorktreeDir: "D:/Handshake/Handshake Worktrees/handshake_main",
     selectedModel: ROLE_SESSION_PRIMARY_MODEL,
     selectedProfileId: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
-    prompt: "just validator-startup",
+    prompt: "just validator-startup INTEGRATION_VALIDATOR",
     outputJsonlFile: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/test.jsonl",
     environmentOverrides: env,
   });

@@ -129,3 +129,15 @@ Rules:
   - Receipt append can finish the write and trigger inline runtime re-projection or session wake-up before the shell tool times out.
 - Context:
   - Recurring on governed repair flows where one command both writes evidence and performs the immediate next mechanical wake.
+
+### TG-012
+- Do:
+  - Add new functions to an existing same-domain lib when the capability reads the same data sources or extends the same pipeline.
+  - Keep CLI entry points as thin wrappers (< 30 lines) over library exports, or add flags to existing CLIs.
+- Don't:
+  - Do not create a new `.mjs` script without first ruling out the existing file that covers the same domain.
+  - Do not put business logic in CLI scripts; keep it in importable library functions.
+- Why:
+  - File sprawl makes the governance surface harder to navigate, test, and maintain. Every new file adds import paths, test files, build-order entries, and cognitive overhead.
+- Context:
+  - Recurring pattern: a new capability (metrics, idle ledger, scope classification) gets its own script when it should be an export on the existing domain lib.

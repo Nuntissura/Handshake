@@ -566,7 +566,7 @@ test("validator review preflight suppresses duplicate decisive approvals for the
         receipt_kind: "VALIDATOR_REVIEW",
         summary: "Approved for final review. Suitable for integration review closure.",
         branch: "feat/test-review-exchange",
-        worktree_dir: "../wtv-test",
+        worktree_dir: "../wtc-test",
         state_before: null,
         state_after: null,
         target_role: "CODER",
@@ -680,7 +680,7 @@ test("coder handoff preflight rejects missing validator intent checkpoint on con
         {
           role: "WP_VALIDATOR",
           session_id: "wpv-1",
-          worktree_dir: "../wtv-test",
+          worktree_dir: "../wtc-test",
           state: "waiting",
           last_heartbeat_at: "2026-04-01T10:01:00Z",
         },
@@ -799,7 +799,7 @@ test("validator response preflight accepts intent checkpoint clearance after cod
         {
           role: "WP_VALIDATOR",
           session_id: "wpv-1",
-          worktree_dir: "../wtv-test",
+          worktree_dir: "../wtc-test",
           state: "waiting",
           last_heartbeat_at: "2026-04-01T10:01:00Z",
         },
@@ -961,7 +961,7 @@ test("validator response preflight accepts intent checkpoint clearance after spe
         {
           role: "WP_VALIDATOR",
           session_id: "wpv-1",
-          worktree_dir: "../wtv-test",
+          worktree_dir: "../wtc-test",
           state: "waiting",
           last_heartbeat_at: "2026-04-01T10:03:00Z",
         },
@@ -1026,7 +1026,7 @@ test("coder handoff preflight rejects unresolved overlap microtask reviews befor
         {
           role: "WP_VALIDATOR",
           session_id: "wpv-1",
-          worktree_dir: "../wtv-test",
+          worktree_dir: "../wtc-test",
           state: "waiting",
           last_heartbeat_at: "2026-04-01T10:01:00Z",
         },
@@ -1117,7 +1117,7 @@ test("overlap review request preflight rejects queue growth beyond the bounded b
         {
           role: "WP_VALIDATOR",
           session_id: "wpv-1",
-          worktree_dir: "../wtv-test",
+          worktree_dir: "../wtc-test",
           state: "waiting",
           last_heartbeat_at: "2026-04-01T10:01:00Z",
         },

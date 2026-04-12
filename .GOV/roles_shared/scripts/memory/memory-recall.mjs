@@ -137,7 +137,7 @@ export const VALID_ACTIONS = Object.keys(ACTION_SCOPES);
 
 const ACTION_HINTS = {
   REFINEMENT: {
-    roleCandidates: ["ORCHESTRATOR"],
+    roleCandidates: ["ORCHESTRATOR", "CLASSIC_ORCHESTRATOR"],
     triggerRefs: ["begin-refinement"],
     scriptCandidates: [],
   },
@@ -147,12 +147,14 @@ const ACTION_HINTS = {
     scriptCandidates: ["orchestrator-steer-next.mjs"],
   },
   RELAY: {
-    roleCandidates: ["ORCHESTRATOR"],
+    roleCandidates: ["CLASSIC_ORCHESTRATOR", "ORCHESTRATOR"],
     triggerRefs: ["manual-relay-next", "manual-relay-dispatch"],
     scriptCandidates: ["manual-relay-next.mjs", "manual-relay-dispatch.mjs"],
   },
+  // Keep retired activation-prefixed trigger aliases so historical recall still
+  // resolves after the public command surface collapses onto `activation-manager`.
   DELEGATION: {
-    roleCandidates: ["ORCHESTRATOR", "ACTIVATION_MANAGER"],
+    roleCandidates: ["ORCHESTRATOR", "CLASSIC_ORCHESTRATOR", "ACTIVATION_MANAGER"],
     triggerRefs: ["orchestrator-prepare-and-packet", "activation-prepare-and-packet"],
     scriptCandidates: ["orchestrator-prepare-and-packet.mjs"],
   },
@@ -167,7 +169,7 @@ const ACTION_HINTS = {
     scriptCandidates: ["validator-next.mjs", "integration-validator-closeout-sync.mjs"],
   },
   PACKET_CREATE: {
-    roleCandidates: ["ORCHESTRATOR", "ACTIVATION_MANAGER"],
+    roleCandidates: ["ORCHESTRATOR", "CLASSIC_ORCHESTRATOR", "ACTIVATION_MANAGER"],
     triggerRefs: ["create-task-packet", "activation-create-task-packet"],
     scriptCandidates: ["create-task-packet.mjs"],
   },

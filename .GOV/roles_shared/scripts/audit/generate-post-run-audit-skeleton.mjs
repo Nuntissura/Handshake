@@ -1014,7 +1014,7 @@ function buildLiveReview({
     "",
     "## 17. Silent Failures, Command Surface Misuse, and Ambiguity Scan",
     "",
-    "- Fill at closeout using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md` plus the compatibility probe rules in `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`.",
+    "- Fill at closeout using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.",
     "",
     "## 18. What Should Change Before The Next Run",
     "",

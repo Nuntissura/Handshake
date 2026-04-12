@@ -30,6 +30,7 @@ import {
   roleStartupCommand,
 } from "./session-policy.mjs";
 import { buildPhaseCheckCommand } from "../../checks/phase-check-lib.mjs";
+import { buildRoleInbox } from "../lib/wp-communication-health-lib.mjs";
 import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, GOVERNANCE_RUNTIME_ROOT_ABS, repoPathAbs, resolveWorkPacketPath, workPacketPath } from "../lib/runtime-paths.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
@@ -48,7 +49,9 @@ export function roleProtocolPath(role) {
   if (role === "ACTIVATION_MANAGER") return ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md";
   if (role === "CODER") return ".GOV/roles/coder/CODER_PROTOCOL.md";
   if (role === "MEMORY_MANAGER") return ".GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md";
-  if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") return ".GOV/roles/validator/VALIDATOR_PROTOCOL.md";
+  if (role === "WP_VALIDATOR") return ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md";
+  if (role === "INTEGRATION_VALIDATOR") return ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md";
+  if (role === "VALIDATOR") return ".GOV/roles/validator/VALIDATOR_PROTOCOL.md";
   return ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md";
 }
 
@@ -199,7 +202,7 @@ export function resolveRoleConfig(roleName, workPacketId) {
       title: `WPVAL ${workPacketId}`,
       startupCommand: roleStartupCommand("WP_VALIDATOR"),
       nextCommand: roleNextCommand("WP_VALIDATOR", workPacketId),
-      focus: "WP-scoped technical steering, bootstrap/skeleton review, and packet-scoped validation receipts (operates from a dedicated validator worktree and diffs against main)",
+      focus: "WP-scoped technical steering, bootstrap/skeleton review, and packet-scoped validation receipts (operates from the shared coder worktree and diffs against main)",
     };
   }
   if (roleName === "INTEGRATION_VALIDATOR") {
@@ -787,13 +790,15 @@ export function buildStartupPrompt({
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start downstream launch, workflow status sync, or product work without a specific task.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
       `FOCUS: pre-launch governance authoring only in wt-gov-kernel on branch gov_kernel.`,
-      `WORKFLOW SPLIT (MANDATORY): For \`WORKFLOW_LANE=ORCHESTRATOR_MANAGED\`, you are the mandatory governed pre-launch authoring lane and temporary worker. You must own the heavy pre-launch reasoning, hand back \`ACTIVATION_READINESS\` to the Orchestrator, and then self-close. For \`MANUAL_RELAY\`, pre-launch remains Orchestrator-owned; do not invent a second manual authority lane.`,
+      `WORKFLOW SPLIT (MANDATORY): For \`WORKFLOW_LANE=ORCHESTRATOR_MANAGED\`, you are the mandatory governed pre-launch authoring lane and temporary worker. You must own the heavy pre-launch reasoning, hand back \`ACTIVATION_READINESS\` to the Orchestrator, and then self-close. For \`MANUAL_RELAY\`, pre-launch belongs to \`CLASSIC_ORCHESTRATOR\`; do not invent a second manual authority lane.`,
       `REFINEMENT STANDARD (HARD): your refinement and spec-enrichment work must match or exceed the old Orchestrator pre-launch quality bar. Own the full research, primitive-index, matrix, appendix, and force-multiplier follow-through instead of treating refinement as a lightweight summary.`,
       `RESEARCH APPLICABILITY RULE (HARD): for internal, repo-governed, or product-governance mirror WPs already grounded in the current Master Spec plus local product/runtime code, prefer local-spec/local-code truth first and mark external research sections NOT_APPLICABLE when honest. Never perform empty, generic, or off-topic web searches just to fill refinement headings.`,
       `CONVERGENCE RULE (HARD): once you have the core spec/runtime evidence for the assigned WP, switch into updating the named target refinement/spec artifact immediately. Do not broad-scan unrelated .GOV/refinements or .GOV/task_packets for examples. If structure help is genuinely needed, read at most 2 directly analogous artifacts, then write the target artifact.`,
+      `WINDOWS EDIT LIMIT RULE (HARD): when a refinement/spec artifact already exists under a long Windows worktree path, do not attempt a monolithic whole-file rewrite that can trip os error 206. Prefer bounded in-place section edits or chunked apply_patch updates against the existing file.`,
+      `BLOCKER-FIRST REPAIR RULE (HARD): when the gate reports a named blocker list for a partially filled refinement/spec artifact, repair only those blocker-named lines or sections first. Do not read excerpt-heavy tail sections, exact spec-anchor windows, or large later blocks until the gate specifically requires them.`,
       `STUB DISCOVERY RULE (HARD): when refinement, enrichment, primitive-index upkeep, or matrix expansion exposes new high-ROI items or unknown capabilities, create or update stub backlog entries instead of silently dropping them.`,
       `MODEL PROFILE RULE: Activation Manager launch defaults to the governed repo profile when packet fields are absent because this lane may run before packet hydration is complete.`,
-      `COMMAND SURFACE RULE: use the activation-prefixed refinement/signature/packet-prep commands. They intentionally reuse live Orchestrator implementation surfaces; that shared implementation does not change authority ownership.`,
+      `COMMAND SURFACE RULE: use the canonical \`just activation-manager <action>\` surface for role-local repair/reference work and the shared refinement/signature/packet-prep commands the Orchestrator explicitly delegates. Shared implementation does not change authority ownership.`,
       `FILE-FIRST HANDOFF RULE (HARD): write the refinement/spec artifact, run the checks on that file, and return only the file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text by default.`,
       `REFINEMENT_HANDOFF_SUMMARY (HARD): include REFINEMENT_PATH, REFINEMENT_CHECK, ENRICHMENT_NEEDED, NEW_STUBS_CREATED_OR_UPDATED, NEW_FEATURES_OR_CAPABILITIES_DISCOVERED, MAJOR_TECH_UPGRADE_ADVICE, REVIEW_FOCUS, and NEXT_ORCHESTRATOR_ACTION.`,
       `REFINEMENT_CHECK RULE (HARD): REFINEMENT_CHECK must come from the real refinement checker on the written file. Placeholder scans, ASCII-only scans, and diff sanity checks do not count as pass truth by themselves.`,
@@ -838,6 +843,7 @@ export function buildStartupPrompt({
       `CONTRACT GATE (HARD): Before claiming validator-ready handoff, \`just wp-communication-health-check ${wpId} KICKOFF\` must pass.`,
       `HANDOFF QUALITY (MANDATORY): Before requesting validation, you MUST produce a WEAK_SPOTS section listing the least-proven requirement and the riskiest file/boundary. "Done, tests pass" is not an acceptable handoff. See .GOV/roles/coder/docs/CODER_RUBRIC_V2.md (live law).`,
       `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} CODER <your-session>\` to see only the notifications targeted to your governed session. After reading, run \`just ack-notifications ${wpId} CODER <your-session>\` to clear them. Check again before each handoff.`,
+      `INBOX (MANDATORY): Before starting any new microtask and after completing one, check your inbox for pending obligations. If a validator STEER or rejection is pending for a prior MT, you MUST remediate that MT before starting new work. The bounded overlap limit (1 MT ahead) is hard — unresolved remediation debt blocks all new MT starts.`,
       `REMINDER: the Orchestrator remains workflow authority; only the Integration Validator can own merge-to-main authority.`,
     ];
   } else if (role === "WP_VALIDATOR") {
@@ -867,6 +873,7 @@ export function buildStartupPrompt({
       `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
       `SPEC EVIDENCE (MANDATORY): Every PASS verdict MUST include a spec_clause_map with file:line citations for each packet requirement. You MUST identify at least one spec requirement you verified is NOT fully implemented (negative proof) to demonstrate independent code reading.`,
       `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} WP_VALIDATOR <your-session>\` to see only the notifications targeted to your governed session. After reading, run \`just ack-notifications ${wpId} WP_VALIDATOR <your-session>\` to clear them. Check again before each verdict.`,
+      `INBOX (MANDATORY): Before starting any new review and after completing one, check your inbox for pending obligations. If a coder remediation resubmission is pending for a prior MT, review that before starting new work. Unresolved review requests must be drained before verdict.`,
       `REMINDER: status sync is not a validation verdict.`,
     ];
   } else if (role === "INTEGRATION_VALIDATOR") {
@@ -887,10 +894,10 @@ export function buildStartupPrompt({
       `FOCUS: validate evidence in the assigned WP worktree, not intent. You own final technical verdict and merge-to-main authority.`,
       `GOVERNANCE ROOT (HARD): even though you operate from handshake_main on branch main, live governance authority must resolve through ${GOV_ROOT_ENV_VAR} to wt-gov-kernel/.GOV. Do not use handshake_main/.GOV as the live source of truth for orchestrator-managed work.`,
       `KERNEL GOVERNANCE USAGE (MANDATORY): Do not manually grep, browse, or rebuild authority from handshake_main/.GOV. Use \`just integration-validator-context-brief ${wpId}\`, \`just active-lane-brief INTEGRATION_VALIDATOR ${wpId}\`, and commands that resolve governance through ${GOV_ROOT_ENV_VAR}.`,
-      `FINAL-LANE STARTUP ORDER (HARD): Before any repo search, packet rediscovery, or broad .GOV inspection, complete \`just validator-startup\` -> \`just validator-next ${wpId}\` -> \`just integration-validator-context-brief ${wpId}\`, then treat the emitted \`packet_read_path\` and \`prepare_worktree_dir\` as the authoritative readable pointers.`,
+      `FINAL-LANE STARTUP ORDER (HARD): Before any repo search, packet rediscovery, or broad .GOV inspection, complete \`just validator-startup INTEGRATION_VALIDATOR\` -> \`just validator-next INTEGRATION_VALIDATOR ${wpId}\` -> \`just integration-validator-context-brief ${wpId}\`, then treat the emitted \`packet_read_path\` and \`prepare_worktree_dir\` as the authoritative readable pointers.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then close or merge validated work.`,
       `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
-      `DIRECT COMMUNICATION (MANDATORY): Use the structured final review lane, not generic thread traffic, for the required coder <-> integration-validator exchange. Open the final review pair with \`just wp-review-exchange REVIEW_REQUEST ${wpId} INTEGRATION_VALIDATOR <your-session> CODER <coder-session> "<summary>"\`, and record your final response with \`just wp-review-response ${wpId} INTEGRATION_VALIDATOR <your-session> CODER <coder-session> "<summary>" <correlation_id>\` when the coder replies. Use \`just wp-thread-append ${wpId} INTEGRATION_VALIDATOR <your-session> "<message>" @coder\` only for soft coordination that is not part of the required contract.`,
+      `VERDICT COMMUNICATION (MANDATORY): The Integration Validator does NOT communicate directly with the Coder. Judge the complete work product against the master spec independently. On PASS: write verdict in packet, run validator-gate-append/commit, update task board, merge to main, run sync-gov-to-main. On FAIL: write a structured remediation report in the packet with specific fix instructions, then report to the Orchestrator via \`just wp-receipt-append ${wpId} INTEGRATION_VALIDATOR <your-session> STATUS "<FAIL summary with remediation instructions given>"\`. The Orchestrator handles relaunching the coder with remediation context. See .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md for the full FAIL remediation flow.`,
       `STARTUP MESH (MANDATORY): Before entering the final review lane, run \`${startupMeshCommand}\` and do not proceed until the startup communication mesh reports ready.`,
       `FINAL-LANE CONTEXT (MANDATORY): Use \`just integration-validator-context-brief ${wpId}\` as the canonical authority/path/context bundle for this lane instead of rebuilding branch/worktree/session/main-compatibility truth manually.`,
       `CONTRACT GATE (HARD): Before PASS clearance, \`${contractGateCommand}\` must pass.`,
@@ -920,6 +927,43 @@ export function buildStartupPrompt({
     ...(role === "INTEGRATION_VALIDATOR" ? [`just integration-validator-context-brief ${wpId}`] : []),
   ];
 
+  // Inject runtime inbox state so the model sees concrete pending obligations.
+  const inboxLines = [];
+  if (role === "CODER" || role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") {
+    try {
+      const runtimeStatusPath = repoPathAbs(
+        `${GOV_ROOT_ABS.replace(/\\/g, "/").replace(/.*\.GOV$/i, ".GOV")}/../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}/RUNTIME_STATUS.json`
+          .replace(/^\.GOV\/\.\.\//, "")
+      );
+      // Try the canonical comm path from the packet if available.
+      const packetInfo = resolveWorkPacketPath(wpId);
+      let runtimeStatus = null;
+      if (packetInfo?.packetAbsPath && fs.existsSync(packetInfo.packetAbsPath)) {
+        const packetText = fs.readFileSync(packetInfo.packetAbsPath, "utf8");
+        const rtField = (packetText.match(/^\s*-\s*\**WP_RUNTIME_STATUS_FILE\**\s*:\s*(.+)/mi) || [])[1]?.trim();
+        if (rtField) {
+          const rtAbs = repoPathAbs(rtField);
+          if (fs.existsSync(rtAbs)) {
+            runtimeStatus = JSON.parse(fs.readFileSync(rtAbs, "utf8"));
+          }
+        }
+      }
+      if (runtimeStatus) {
+        const inbox = buildRoleInbox(role, runtimeStatus);
+        if (inbox.items.length > 0) {
+          inboxLines.push(`INBOX STATE (${inbox.items.length} pending):`);
+          inboxLines.push(`  NEXT_ACTION: ${inbox.next_action}`);
+          for (const item of inbox.items.slice(0, 5)) {
+            inboxLines.push(`  - [${item.kind}]${item.mt ? ` ${item.mt}` : ""}: ${item.summary}`);
+          }
+          inboxLines.push(`  You MUST address these before starting new work.`);
+        }
+      }
+    } catch {
+      // Non-fatal: inbox injection is best-effort at startup.
+    }
+  }
+
   const bootLines = [
     `Execute only this startup bootstrap now, in order, before any other work:`,
     ...startupCommands.map((command, index) => `${index + 1}. ${command}`),
@@ -928,7 +972,7 @@ export function buildStartupPrompt({
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
   ];
 
-  return [...commonLines, ...roleLines, ...startupInjectionLines, ...bootLines].join("\n");
+  return [...commonLines, ...roleLines, ...inboxLines, ...startupInjectionLines, ...bootLines].join("\n");
 }
 
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
@@ -977,7 +1021,13 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       ? `FIRST READ RULE: before any repo-wide search or packet rediscovery, open \`just integration-validator-context-brief ${wpId}\` and use its \`packet_read_path\` / \`prepare_worktree_dir\` output as the authoritative readable path bundle.`
       : null,
     role === "ACTIVATION_MANAGER"
-      ? `WORKFLOW SPLIT (MANDATORY): in orchestrator-managed workflow you are the mandatory temporary pre-launch worker and governed pre-launch authoring lane; in manual workflow, pre-launch remains Orchestrator-owned. Do not convert this role into a second manual authority lane.`
+      ? `WORKFLOW SPLIT (MANDATORY): in orchestrator-managed workflow you are the mandatory temporary pre-launch worker and governed pre-launch authoring lane; in manual workflow, pre-launch belongs to CLASSIC_ORCHESTRATOR. Do not convert this role into a second manual authority lane.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `WINDOWS EDIT LIMIT RULE (HARD): when updating an existing refinement/spec artifact under a long Windows worktree path, avoid monolithic whole-file rewrite attempts that can fail with os error 206. Use bounded in-place section edits or chunked apply_patch updates instead.`
+      : null,
+    role === "ACTIVATION_MANAGER"
+      ? `BLOCKER-FIRST REPAIR RULE (HARD): when activation-manager next already named the current blockers for a partially filled refinement/spec artifact, repair only those blocker sections first and rerun the gate. Do not reread excerpt-heavy tail sections or exact spec-anchor windows until the gate actually asks for them.`
       : null,
     role === "ACTIVATION_MANAGER"
       ? `FILE-FIRST HANDOFF RULE (HARD): return the written refinement/spec file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text unless the Orchestrator explicitly requests excerpts.`

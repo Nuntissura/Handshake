@@ -14,10 +14,10 @@ import { deriveManualRelayEnvelope, preferredTargetSession } from "./lib/manual-
 
 const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 
-registerFailCaptureHook("manual-relay-next.mjs", { role: "ORCHESTRATOR" });
+registerFailCaptureHook("manual-relay-next.mjs", { role: "CLASSIC_ORCHESTRATOR" });
 
 function fail(message, details = []) {
-  failWithMemory("manual-relay-next.mjs", message, { role: "ORCHESTRATOR", details });
+  failWithMemory("manual-relay-next.mjs", message, { role: "CLASSIC_ORCHESTRATOR", details });
 }
 
 function parseSingleField(text, label) {
@@ -95,6 +95,7 @@ const envelope = deriveManualRelayEnvelope({
 
 console.log(`[MANUAL_RELAY_NEXT] wp_id=${wpId}`);
 console.log(`[MANUAL_RELAY_NEXT] workflow_lane=${workflowLane}`);
+console.log("[MANUAL_RELAY_NEXT] lane_owner=CLASSIC_ORCHESTRATOR");
 console.log(`[MANUAL_RELAY_NEXT] next_actor=${nextActor}`);
 console.log(`[MANUAL_RELAY_NEXT] next_session=${targetSession || "<none>"}`);
 console.log(`[MANUAL_RELAY_NEXT] waiting_on=${runtimeStatus.waiting_on || "<missing>"}`);

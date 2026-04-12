@@ -334,6 +334,21 @@ export function validatePacketClosureMonitoring(packetText, {
       errors.push(`CLAUSE_CLOSURE_MATRIX malformed row: ${item}`);
       continue;
     }
+    // RGF-188: reject placeholder values in core matrix fields at handoff time
+    // instead of letting them through to closeout where they consume orchestrator budget.
+    const placeholderRe = /^(?:\{.+\}|<fill.*>|<pending>|<unclaimed>|<paste>|tbd)$/i;
+    if (placeholderRe.test(clause)) {
+      errors.push(`CLAUSE_CLOSURE_MATRIX row has placeholder CLAUSE value: ${item}`);
+      continue;
+    }
+    if (placeholderRe.test(codeSurfaces)) {
+      errors.push(`CLAUSE_CLOSURE_MATRIX row has placeholder CODE_SURFACES value: ${item}`);
+      continue;
+    }
+    if (placeholderRe.test(tests)) {
+      errors.push(`CLAUSE_CLOSURE_MATRIX row has placeholder TESTS value: ${item}`);
+      continue;
+    }
     const rowDebtIds = /^NONE$/i.test(debtIdsRaw)
       ? []
       : debtIdsRaw.split(',').map((value) => value.trim()).filter(Boolean);

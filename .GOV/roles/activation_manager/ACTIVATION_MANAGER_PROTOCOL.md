@@ -25,7 +25,7 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 ## Workflow Lane Split
 
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager is the mandatory governed pre-launch authoring lane and temporary worker. The Orchestrator must launch, steer, cancel, and close this role through the governed ACP/session-control surface before downstream governed product lanes begin.
-- For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch remains Orchestrator-owned. Do not replace the Orchestrator with a second manual Activation Manager authority lane.
+- For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch belongs to `CLASSIC_ORCHESTRATOR`. Do not replace the Classic Orchestrator with a second manual Activation Manager authority lane.
 - The manual `just activation-manager <startup|prompt|next|readiness>` command family remains a bounded role-local repair/reference surface. It does not redefine manual workflow ownership.
 
 ## Why This Role Exists
@@ -76,6 +76,7 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 - The target shape is one canonical activation boundary with one primary readiness artifact, not a growing set of narrow public `record-*`, `prepare-*`, or debugging-only command surfaces.
 - Prefer extending the canonical activation path and its primary artifact over adding new standalone activation commands, checks, or helper scripts.
 - For scripts and recipes specifically, bias toward one larger canonical activation script path rather than multiple sibling public entrypoints that always run together during prepare/packet work.
+- When refinement/signature/prepare/packet/readiness checks normally travel together, consolidate them behind the activation boundary and readiness artifact instead of preserving extra leaf activation surfaces.
 - If a candidate script shares the same owner, inputs, primary readiness artifact, and usual invocation path as the canonical activation path, extend that path instead of adding a sibling.
 - Keep separate public activation scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live activation surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is retired or intentionally kept distinct.
@@ -168,20 +169,16 @@ ACTIVATION_READINESS
   - `just steer-activation-manager-session WP-{ID} "<prompt>"`
   - `just cancel-activation-manager-session WP-{ID}`
   - `just close-activation-manager-session WP-{ID}`
-- Manual/prompt role-local startup and readiness still exist through:
-  - `just activation-manager startup`
-  - `just activation-manager prompt WP-{ID}`
-  - `just activation-manager next WP-{ID}`
-  - `just activation-manager readiness WP-{ID} --write`
-- Transitional activation entrypoints now also exist under Activation Manager naming:
-  - `just activation-record-refinement WP-{ID}`
-  - `just activation-record-signature WP-{ID} ...`
-  - `just activation-record-role-model-profiles WP-{ID} ...`
-  - `just activation-record-prepare WP-{ID} ...`
-  - `just activation-create-task-packet WP-{ID} "<context>"`
-  - `just activation-task-board-set WP-{ID} <STATUS> [reason]`
-  - `just activation-wp-traceability-set <BASE_WP_ID> <ACTIVE_PACKET_WP_ID> "<context>"`
-  - `just activation-prepare-and-packet WP-{ID}`
-- These activation-prefixed entrypoints are intentionally transitional wrappers over the active Orchestrator workflow. They exist so Activation Manager has its own command surface without introducing a second implementation path.
-- Until the command surface is properly split, the Orchestrator may invoke shared or orchestrator-owned refinement / packet-preparation mechanics on behalf of this role, and Activation Manager may invoke those same implementation surfaces through its delegated wrappers.
+- Manual/prompt role-local action surface now exists through one canonical dispatcher:
+  - `just activation-manager <startup|prompt|next|readiness> [WP-{ID}] [--write|--json]`
+  - `just activation-manager record-refinement WP-{ID} [detail]`
+  - `just activation-manager record-signature WP-{ID} <signature> [workflow_lane] [execution_lane]`
+  - `just activation-manager record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
+  - `just activation-manager record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
+  - `just activation-manager create-task-packet WP-{ID} "<context>"`
+  - `just activation-manager task-board-set WP-{ID} <STATUS> [reason]`
+  - `just activation-manager wp-traceability-set <BASE_WP_ID> <ACTIVE_PACKET_WP_ID> "<context>"`
+  - `just activation-manager prepare-and-packet WP-{ID} [workflow_lane] [execution_lane] [label]`
+- Those role-local actions dispatch into the canonical Orchestrator / shared implementation surfaces so Activation Manager keeps one public recipe instead of a parallel family of activation-prefixed wrapper recipes.
+- Until the command surface is properly split, the Orchestrator may invoke shared or orchestrator-owned refinement / packet-preparation mechanics on behalf of this role, and Activation Manager may invoke those same implementation surfaces through its dispatcher actions.
 - That temporary command reuse does not change the authority split defined here.

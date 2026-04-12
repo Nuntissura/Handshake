@@ -300,7 +300,7 @@ if (validatorGovernanceState.legacyRemediationRequired) {
     wpId: parsed.wpId,
     role: "WP_VALIDATOR",
   });
-  pushUnique(requiredCommands, "just validator-startup");
+  pushUnique(requiredCommands, "just validator-startup VALIDATOR");
   pushUnique(requiredCommands, `just external-validator-brief ${parsed.wpId}`);
   pushUnique(requiredCommands, handoffCommand);
   pushUnique(requiredCommands, "just gov-check");
@@ -347,7 +347,7 @@ const brief = {
       role: "WP_VALIDATOR",
     }),
   },
-  startup_sequence: ["just validator-startup", `just external-validator-brief ${parsed.wpId}`],
+  startup_sequence: ["just validator-startup VALIDATOR", `just external-validator-brief ${parsed.wpId}`],
   legal_verdicts: legalVerdicts,
   dispositions,
   split_fields: splitFields,

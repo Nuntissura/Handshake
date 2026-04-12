@@ -718,12 +718,12 @@ if (!fs.existsSync(taskPacketDir)) {
       ['CODER_RESUME_COMMAND', `just coder-next ${WP_ID}`],
       ['WP_VALIDATOR_LOCAL_BRANCH', defaultWpValidatorBranch(WP_ID)],
       ['WP_VALIDATOR_LOCAL_WORKTREE_DIR', defaultWpValidatorWorktreeDir(WP_ID)],
-      ['WP_VALIDATOR_STARTUP_COMMAND', 'just validator-startup'],
-      ['WP_VALIDATOR_RESUME_COMMAND', `just validator-next ${WP_ID}`],
+      ['WP_VALIDATOR_STARTUP_COMMAND', 'just validator-startup WP_VALIDATOR'],
+      ['WP_VALIDATOR_RESUME_COMMAND', `just validator-next WP_VALIDATOR ${WP_ID}`],
       ['INTEGRATION_VALIDATOR_LOCAL_BRANCH', defaultIntegrationValidatorBranch(WP_ID)],
       ['INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR', defaultIntegrationValidatorWorktreeDir(WP_ID)],
-      ['INTEGRATION_VALIDATOR_STARTUP_COMMAND', 'just validator-startup'],
-      ['INTEGRATION_VALIDATOR_RESUME_COMMAND', `just validator-next ${WP_ID}`],
+      ['INTEGRATION_VALIDATOR_STARTUP_COMMAND', 'just validator-startup INTEGRATION_VALIDATOR'],
+      ['INTEGRATION_VALIDATOR_RESUME_COMMAND', `just validator-next INTEGRATION_VALIDATOR ${WP_ID}`],
     ];
 
     if (hasModernSessionPolicyFields) {

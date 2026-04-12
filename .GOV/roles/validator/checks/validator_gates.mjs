@@ -177,7 +177,8 @@ function failIfWrongToolLaneForGovernedGateWrite(wpId, actionName) {
         `actor_branch=${actorContext.actorBranch || '<unknown>'}`,
         `actor_worktree_dir=${actorContext.actorWorktreeDir || '<unknown>'}`,
         'Governed validator gate writes require a bound WP_VALIDATOR or INTEGRATION_VALIDATOR lane.',
-        `Use: just validator-next ${wpId}`,
+        `Use: just validator-next WP_VALIDATOR ${wpId}`,
+        `Use: just validator-next INTEGRATION_VALIDATOR ${wpId}`,
         `Use: just integration-validator-context-brief ${wpId}`,
         `Use: just external-validator-brief ${wpId} (read-only independent audit only)`,
     ]);

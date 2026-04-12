@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja120420260458 | Orchestrator | 2026-04-12 04:58 | Work packet creation: WP-1-Governance-Workflow-Mirror-v2 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Governance-Workflow-Mirror-v2.md ). |
+| ilja110420260528 | Orchestrator | 2026-04-11 05:28 | Work packet creation: WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Dev-Command-Center-Control-Plane-Backend-v1.md ). |
 | ilja090420262301 | Orchestrator | 2026-04-09 23:01 | Work packet creation: WP-1-Governance-Workflow-Mirror-v1 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Governance-Workflow-Mirror-v1.md ). |
 | ilja090420260043 | Orchestrator | 2026-04-09 00:43 | Work packet creation: WP-1-Session-Observability-Spans-FR-v1 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Session-Observability-Spans-FR-v1.md ). |
 | ilja070420262230 | Orchestrator | 2026-04-07 22:30 | Work packet creation: WP-1-Product-Governance-Check-Runner-v1 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Product-Governance-Check-Runner-v1.md ). |

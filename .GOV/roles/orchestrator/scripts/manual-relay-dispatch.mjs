@@ -26,10 +26,10 @@ const SESSION_CONTROL_COMMAND_PATH = path.resolve(
   "session-control-command.mjs",
 );
 
-registerFailCaptureHook("manual-relay-dispatch.mjs", { role: "ORCHESTRATOR" });
+registerFailCaptureHook("manual-relay-dispatch.mjs", { role: "CLASSIC_ORCHESTRATOR" });
 
 function fail(message, details = []) {
-  failWithMemory("manual-relay-dispatch.mjs", message, { role: "ORCHESTRATOR", details });
+  failWithMemory("manual-relay-dispatch.mjs", message, { role: "CLASSIC_ORCHESTRATOR", details });
 }
 
 function parseSingleField(text, label) {
@@ -194,6 +194,7 @@ function logUsageLimitDefer(kind) {
 
 console.log(`[MANUAL_RELAY_DISPATCH] wp_id=${wpId}`);
 console.log(`[MANUAL_RELAY_DISPATCH] workflow_lane=${workflowLane}`);
+console.log("[MANUAL_RELAY_DISPATCH] lane_owner=CLASSIC_ORCHESTRATOR");
 console.log(`[MANUAL_RELAY_DISPATCH] next_actor=${nextActor}`);
 console.log(`[MANUAL_RELAY_DISPATCH] next_session=${targetSession || "<none>"}`);
 console.log(`[MANUAL_RELAY_DISPATCH] action=${action}`);

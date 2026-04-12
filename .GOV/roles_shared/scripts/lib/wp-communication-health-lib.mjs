@@ -143,6 +143,74 @@ function partitionOpenReviewItems(openReviewItems = []) {
   };
 }
 
+/**
+ * Build a role-specific inbox: pending obligations that must be addressed
+ * before the role can proceed to new work.
+ *
+ * @param {string} role - CODER, WP_VALIDATOR, or INTEGRATION_VALIDATOR
+ * @param {object} runtimeStatus - current WP runtime status
+ * @returns {{ items: Array, next_action: string, blocked_reason: string|null }}
+ */
+export function buildRoleInbox(role, runtimeStatus = {}) {
+  const normalizedRole = normalizeRole(role);
+  const openItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+
+  // Items targeted at this role that are still open.
+  const targetedItems = openItems
+    .filter((item) => normalizeRole(item?.target_role) === normalizedRole)
+    .map((item) => {
+      const kind = normalizeReceiptKind(item?.receipt_kind);
+      const mt = extractMicrotaskId(item);
+      const isSteer = kind === "REVIEW_RESPONSE"
+        && /steer|not.pass|rejected|remediation/i.test(String(item?.summary || ""));
+      const isReviewRequest = kind === "REVIEW_REQUEST";
+      // Priority: steers (remediation) > review requests > other
+      const priority = isSteer ? 1 : isReviewRequest ? 2 : 3;
+      return {
+        kind,
+        mt,
+        correlation_id: nullableComparable(item?.correlation_id) || null,
+        summary: String(item?.summary || "").trim().slice(0, 200),
+        opened_by: normalizeRole(item?.opened_by_role) || "UNKNOWN",
+        priority,
+        is_steer: isSteer,
+        is_review_request: isReviewRequest,
+      };
+    })
+    .sort((a, b) => a.priority - b.priority);
+
+  if (targetedItems.length === 0) {
+    return { items: [], next_action: "PROCEED", blocked_reason: null };
+  }
+
+  // Determine next action from highest-priority item.
+  const top = targetedItems[0];
+  let next_action = "PROCEED";
+  let blocked_reason = null;
+
+  if (top.is_steer) {
+    next_action = top.mt ? `REMEDIATE_${top.mt}` : "REMEDIATE";
+    blocked_reason = `Pending remediation: ${top.summary}`;
+  } else if (top.is_review_request) {
+    next_action = top.mt ? `REVIEW_${top.mt}` : "REVIEW";
+    blocked_reason = `Pending review: ${top.summary}`;
+  } else {
+    next_action = "ADDRESS_INBOX";
+    blocked_reason = `Pending obligation: ${top.summary}`;
+  }
+
+  return { items: targetedItems, next_action, blocked_reason };
+}
+
+function extractMicrotaskId(item) {
+  const summary = String(item?.summary || "");
+  const mt = String(item?.microtask_contract?.microtask_id || "").trim();
+  if (mt) return mt.toUpperCase();
+  const match = summary.match(/\bMT-\d+\b/i);
+  return match ? match[0].toUpperCase() : null;
+}
+
 function isClosedTerminalRuntimeState(runtimeStatus = {}) {
   const packetStatus = String(runtimeStatus?.current_packet_status || "").trim();
   const runtimeStatusValue = String(runtimeStatus?.runtime_status || "").trim().toLowerCase();

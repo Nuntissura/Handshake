@@ -67,6 +67,52 @@ function samePath(left, right) {
   return normalizePath(left).toLowerCase() === normalizePath(right).toLowerCase();
 }
 
+function uniqueStrings(values = []) {
+  return [...new Set(
+    (Array.isArray(values) ? values : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  )];
+}
+
+function inferActorSessionKeysForCloseout({
+  actorContext = {},
+  wpSessions = [],
+} = {}) {
+  const actorRole = normalizeValidatorRole(actorContext?.actorRole);
+  if (actorRole !== "INTEGRATION_VALIDATOR") return [];
+
+  const actorThreadId = String(actorContext?.actorThreadId || "").trim();
+  const actorBranch = String(actorContext?.actorBranch || "").trim();
+  const actorWorktreeDir = normalizePath(String(actorContext?.actorWorktreeDir || "").trim());
+  const candidates = (Array.isArray(wpSessions) ? wpSessions : [])
+    .filter((session) => normalizeValidatorRole(session?.role) === actorRole);
+
+  const threadMatches = actorThreadId
+    ? candidates.filter((session) => String(session?.session_thread_id || "").trim() === actorThreadId)
+    : [];
+  if (threadMatches.length === 1) {
+    return uniqueStrings([threadMatches[0]?.session_key]);
+  }
+
+  const branchWorktreeMatches = candidates.filter((session) => {
+    const sessionBranch = String(session?.local_branch || "").trim();
+    const sessionWorktreeDir = normalizePath(String(session?.local_worktree_dir || "").trim());
+    if (actorBranch && actorBranch !== sessionBranch) return false;
+    if (actorWorktreeDir && !samePath(actorWorktreeDir, sessionWorktreeDir)) return false;
+    return true;
+  });
+  if (branchWorktreeMatches.length === 1) {
+    return uniqueStrings([branchWorktreeMatches[0]?.session_key]);
+  }
+
+  if (candidates.length === 1) {
+    return uniqueStrings([candidates[0]?.session_key]);
+  }
+
+  return [];
+}
+
 function normalizeCloseoutSyncEventMap(rawValue) {
   if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue)) return {};
   return Object.fromEntries(
@@ -380,10 +426,17 @@ export function evaluateWpSessionControlCloseoutBundle({
     : [];
   const actorRole = normalizeValidatorRole(actorContext?.actorRole);
   const actorSessionKey = String(actorContext?.actorSessionKey || "").trim();
+  const actorSessionKeys = new Set(uniqueStrings([
+    actorSessionKey,
+    ...inferActorSessionKeysForCloseout({
+      actorContext,
+      wpSessions,
+    }),
+  ]));
   const selfActiveRuns = activeRuns.filter((run) =>
     actorRole === "INTEGRATION_VALIDATOR"
       && normalizeValidatorRole(run?.role) === actorRole
-      && String(run?.session_key || "").trim() === actorSessionKey,
+      && actorSessionKeys.has(String(run?.session_key || "").trim()),
   );
   const blockingActiveRuns = activeRuns.filter((run) => !selfActiveRuns.includes(run));
   const selfActiveRunIds = new Set(
@@ -457,7 +510,7 @@ export function evaluateWpSessionControlCloseoutBundle({
 
     const result = resultById.get(lastCommandId);
     if (lastCommandStatus === "RUNNING") {
-      if (selfActiveRunIds.has(lastCommandId) && sessionKey === actorSessionKey) {
+      if (selfActiveRunIds.has(lastCommandId) && actorSessionKeys.has(sessionKey)) {
         warnings.push(`Session ${sessionKey} still reports RUNNING for self-owned closeout command ${lastCommandId}; tolerated while the current final-lane command is in flight.`);
         continue;
       }
@@ -622,6 +675,8 @@ export function resolveIntegrationValidatorCloseoutRequirements({
 export function buildIntegrationValidatorCloseoutCheckResult({
   wpId = "",
   allowSyncRepair = false,
+  repoRootOverride = "",
+  gitContextOverride = null,
 } = {}) {
   const normalizedWpId = String(wpId || "").trim();
   if (!normalizedWpId || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(normalizedWpId)) {
@@ -632,8 +687,8 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     );
   }
 
-  const gitContext = currentGitContext();
-  const repoRoot = gitContext.topLevel || REPO_ROOT;
+  const gitContext = gitContextOverride || currentGitContext();
+  const repoRoot = repoRootOverride || gitContext.topLevel || REPO_ROOT;
   const packetContent = loadPacket(normalizedWpId);
   const governanceState = evaluateValidatorPacketGovernanceState({
     wpId: normalizedWpId,
