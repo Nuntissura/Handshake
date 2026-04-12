@@ -587,6 +587,66 @@ function runWorkflowDossierCloseoutStep({
     outputLines.push("[WORKFLOW_DOSSIER_CLOSEOUT] sync=SKIP (no terminal closeout sync mode requested)");
   }
 
+  // Append wp-metrics summary to the dossier at closeout.
+  const wpMetricsScript = path.resolve(GOV_ROOT_ABS, "roles_shared", "scripts", "session", "wp-metrics.mjs");
+  if (fs.existsSync(wpMetricsScript)) {
+    const metricsResult = spawnSync(process.execPath, [wpMetricsScript, normalizedWpId, "--json"], {
+      cwd: phaseCheckCwd,
+      encoding: "utf8",
+      env: process.env,
+    });
+    if (metricsResult.status === 0) {
+      try {
+        const m = JSON.parse(metricsResult.stdout);
+        const metricsLine = [
+          `wall_clock=${m.wall_clock_minutes ?? "?"}min`,
+          `active=${m.product_active_minutes ?? "?"}min`,
+          `repair=${m.repair_minutes ?? "?"}min`,
+          `validator_wait=${m.validator_wait_minutes ?? "?"}min`,
+          `route_wait=${m.route_wait_minutes ?? "?"}min`,
+          `gov_overhead=${m.governance_overhead_ratio ?? "?"}`,
+          `receipts=${m.receipt_count ?? "?"}`,
+          `dup_receipts=${m.duplicate_receipts ?? "?"}`,
+          `stale_routes=${m.stale_route_incidents ?? "?"}`,
+          `acp_cmds=${m.acp_commands ?? "?"}`,
+          `acp_fail=${m.acp_failures ?? "?"}`,
+          `restarts=${m.session_restarts ?? "?"}`,
+          `mt=${m.mt_count ?? "?"}`,
+          `fix_cycles=${m.fix_cycles ?? "?"}`,
+          `zero_exec=${m.zero_execution_incidents ?? "?"}`,
+          `tokens_in=${m.token_input_total ?? "?"}`,
+          `tokens_out=${m.token_output_total ?? "?"}`,
+          `turns=${m.token_turn_count ?? "?"}`,
+        ].join(" | ");
+        const workflowDossierScript = path.resolve(GOV_ROOT_ABS, "roles_shared", "scripts", "audit", "workflow-dossier.mjs");
+        spawnSync(process.execPath, [
+          workflowDossierScript,
+          "note",
+          normalizedWpId,
+          "EXECUTION",
+          metricsLine,
+          "--role",
+          "INTEGRATION_VALIDATOR",
+          "--tag",
+          "METRICS",
+          "--surface",
+          "wp-metrics",
+          "--file",
+          existingDossierPath,
+        ], {
+          cwd: phaseCheckCwd,
+          encoding: "utf8",
+          env: process.env,
+        });
+        outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] metrics=APPENDED`);
+      } catch {
+        outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] metrics=PARSE_ERROR`);
+      }
+    } else {
+      outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] metrics=SKIP (wp-metrics exited ${metricsResult.status})`);
+    }
+  }
+
   return {
     ok: noteResult.status === 0 && syncResultOk,
     output: `${outputLines.join("\n")}\n`,
