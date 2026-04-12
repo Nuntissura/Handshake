@@ -19,6 +19,7 @@ pub const RUNTIME_MICRO_TASKS_DIR: &str = "micro_tasks";
 pub const RUNTIME_TASK_BOARD_DIR: &str = "task_board";
 pub const RUNTIME_TASK_BOARD_VIEWS_DIR: &str = "views";
 pub const RUNTIME_VALIDATOR_GATES_DIR: &str = "validator_gates";
+pub const RUNTIME_ACTIVATION_TRACEABILITY_DIR: &str = "activation_traceability";
 pub const RUNTIME_GOVERNANCE_DECISIONS_DIR: &str = "governance_decisions";
 pub const RUNTIME_GOVERNANCE_AUTO_SIGNATURES_DIR: &str = "auto_signatures";
 
@@ -640,6 +641,30 @@ impl RuntimeGovernancePaths {
         display_path(&self.workspace_root, &self.validator_gate_path(wp_id))
     }
 
+    pub fn activation_traceability_dir(&self) -> PathBuf {
+        self.governance_root
+            .join(RUNTIME_ACTIVATION_TRACEABILITY_DIR)
+    }
+
+    pub fn activation_traceability_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.activation_traceability_dir(),
+        ))
+    }
+
+    pub fn activation_traceability_path(&self, wp_id: &str) -> PathBuf {
+        self.activation_traceability_dir()
+            .join(format!("{wp_id}.json"))
+    }
+
+    pub fn activation_traceability_display(&self, wp_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.activation_traceability_path(wp_id),
+        )
+    }
+
     pub fn auto_signatures_dir(&self) -> PathBuf {
         self.governance_root
             .join(RUNTIME_GOVERNANCE_AUTO_SIGNATURES_DIR)
@@ -938,6 +963,14 @@ mod tests {
                 .join(".handshake")
                 .join("gov")
                 .join("auto_signatures")
+        );
+        assert_eq!(
+            paths.activation_traceability_path("WP-1"),
+            workspace_root
+                .join(".handshake")
+                .join("gov")
+                .join("activation_traceability")
+                .join("WP-1.json")
         );
         Ok(())
     }
