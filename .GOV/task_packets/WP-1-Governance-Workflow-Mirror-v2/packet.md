@@ -123,7 +123,7 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** In Progress
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
 - MAIN_CONTAINMENT_STATUS: NOT_STARTED
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
@@ -193,9 +193,9 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
-Blockers: NONE
-Next: N/A
+Verdict: MT-001 FAIL; remediation in progress on re-anchored substrate
+Blockers: MT-001 validator fail on `review:WP-1-Governance-Workflow-Mirror-v2:review_request:mnv8x6en:1f43b7`; previous candidate wrote display-path refs into canonical `task_board_id` fields and was proven on a stale branch substrate. The worktree has been re-anchored to clean `c11f3c1511748ff050916dda108b3f38c3f670b4`; coder must reapply MT-001 there before MT-002.
+Next: CODER remediates MT-001 on the re-anchored `../wtc-workflow-mirror-v2` branch, proves canonical `task_board_id` versus path-style `task_board_ref` separation, and returns a governed review request/handoff with exact proof.
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
@@ -1095,3 +1095,7 @@ rg -n "gov_gate_transition|GovGateTransition|WorkflowMirrorGateSummary|WorkflowM
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+## LIVE_EXECUTION_LOG
+
+- [2026-04-12 06:35:18 Europe/Brussels] [ORCHESTRATOR] [NOTE] [TOPOLOGY] Pushed backup branch origin/feat/WP-1-Governance-Workflow-Mirror-v2 at fe4ebbd7 before topology repair, then removed the stale shared-repo worktree and recreated ../wtc-workflow-mirror-v2 as a clean handshake_main-based branch at c11f3c1511748ff050916dda108b3f38c3f670b4 with the same WP branch name and a fresh .GOV junction back to wt-gov-kernel.

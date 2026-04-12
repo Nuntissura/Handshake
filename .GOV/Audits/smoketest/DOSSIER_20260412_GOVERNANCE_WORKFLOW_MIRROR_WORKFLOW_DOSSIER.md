@@ -375,3 +375,228 @@ This section is append-only. Roles add findings as they occur during WP work.
 Format: `- [TIMESTAMP] [ROLE] [CATEGORY] <finding>`
 
 - [<TIMESTAMP>] [CODER|WP_VALIDATOR|ORCHESTRATOR] [CATEGORY] <finding>
+
+## LIVE_EXECUTION_LOG
+
+- [2026-04-12 06:32:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:32:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2 | pid=134464
+- [2026-04-12 06:32:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2 | thread=019d7fb0..296081
+- [2026-04-12 06:32:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:32:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:33:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:34:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:24 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [GOVERNED_RUN] `BROKER(1 active) -> WP-1-Governance-Workflow-Mirror-v2 [working / waiting_on=CODER_HANDOFF]` | sessions=3 | control=20/19 | receipts=8 | pending=0 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=REVIEW_RESPONSE@2026-04-12T04:26:44.001Z | acp=ACTIVATION_MANAGER:READY:item.completed:command_execution@1h21m,CODER:COMMAND_RUNNING:item.completed:command_execution@0s,WP_VALIDATOR:READY:item.completed:command_execution@7m | lane=QUIET_BUT_PROGRESSING/ROUTE_STALE_WAITING_ON_CODER_HANDOFF | interrupt_budget=0/1 | idle=3m
+- [2026-04-12 06:35:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:35:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:36:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:36:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:37:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:39:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:40:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:40:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:40:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:40:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:40:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:40:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:40:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=f4338e47..46d47d | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:40:24 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/FAILED | status=FAILED | outcome=BUSY_ACTIVE_RUN | thread=019d7fb0-1572-7651-b449-1751e9296081 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Governance-Workflow-Mirror-v2/abf775a2-de0e-4b07-a029-e2bef5026ca6.jsonl | wp=WP-1-Governance-Workflow-Mirror-v2 | detail=Concurrent governed run already active for CODER:WP-1-Governance-Workflow-Mirror-v2 (f4338e47-add8-47ad-994b-6aea0e46d47d)
+- [2026-04-12 06:40:24 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/FAILED | status=FAILED | outcome=REQUIRES_RECOVERY | thread=019d7fb0-1572-7651-b449-1751e9296081 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Governance-Workflow-Mirror-v2/f4338e47-add8-47ad-994b-6aea0e46d47d.jsonl | wp=WP-1-Governance-Workflow-Mirror-v2 | detail=Governed request remained RUNNING in session registry but no active broker run or settled result survived.
+- [2026-04-12 06:40:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:40:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2 | pid=108804
+- [2026-04-12 06:41:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2 | thread=019d7fb0..296081
+- [2026-04-12 06:41:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a361aed9..255a04 | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:41:49 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/FAILED | status=FAILED | outcome=BUSY_ACTIVE_RUN | thread=019d7fb0-1572-7651-b449-1751e9296081 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Governance-Workflow-Mirror-v2/aa5bc87a-5837-4834-9e67-a11cc0465a06.jsonl | wp=WP-1-Governance-Workflow-Mirror-v2 | detail=Concurrent governed run already active for CODER:WP-1-Governance-Workflow-Mirror-v2 (a361aed9-4247-4d18-a2c0-8e9256255a04)
+- [2026-04-12 06:41:49 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/FAILED | status=FAILED | outcome=REQUIRES_RECOVERY | thread=019d7fb0-1572-7651-b449-1751e9296081 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Governance-Workflow-Mirror-v2/a361aed9-4247-4d18-a2c0-8e9256255a04.jsonl | wp=WP-1-Governance-Workflow-Mirror-v2 | detail=Governed request remained RUNNING in session registry but no active broker run or settled result survived.
+- [2026-04-12 06:42:32 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [MECHANICAL] `BROKER(0 active) -> WP-1-Governance-Workflow-Mirror-v2 [working / waiting_on=CODER_HANDOFF]` | sessions=3 | control=23/23 | receipts=8 | pending=0 | latest_control=SEND_PROMPT/FAILED | latest_receipt=REVIEW_RESPONSE@2026-04-12T04:26:44.001Z | acp=ACTIVATION_MANAGER:READY:item.completed:command_execution@1h29m,CODER:FAILED:item.completed:command_execution@55s,WP_VALIDATOR:READY:item.completed:command_execution@14m | lane=ROUTE_STALE_NO_ACTIVE_RUN/ROUTE_STALE_WAITING_ON_CODER_HANDOFF | interrupt_budget=0/1 | idle=1m
+- [2026-04-12 06:42:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:42:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2 | pid=155104
+- [2026-04-12 06:43:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2 | thread=019d7fb0..296081
+- [2026-04-12 06:43:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:43:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:43:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:43:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:43:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:43:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:43:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:43:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:43:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=e803ccfa..3af2be | wp=WP-1-Governance-Workflow-Mirror-v2
+- [2026-04-12 06:43:47 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019d7fb0-1572-7651-b449-1751e9296081 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Governance-Workflow-Mirror-v2/e803ccfa-a137-4732-93fe-1e110f3af2be.jsonl | wp=WP-1-Governance-Workflow-Mirror-v2 | detail=Lifecycle/gate state: `just coder-next` reports `STAGE=BOOTSTRAP`, `NEXT=BOOTSTRAP`, `OPERATOR_ACTION=NONE`, but the current routed runtime payload says `RELAY_KIND=HANDOFF` and `waiting_on=CODER_HANDOFF`. `just check-notifications` returned no pending notifications for `coder:wp-1-governance-workflow-mirror-v2`, so no acknowledgement was emitted.
+
+Blockers: the live surfaces are inconsistent. `coder-next` is still projecting stale bootstrap state (`bootstrap claim commit missing`, `active=MT-002`, `MT-001 CLEARED`), while the direct routed context says the lane is waiting on `CODER_HANDOFF`. I did not emit a handoff against conflicting runtime/lifecycle state.
+
+Next required command(s):
+1. `just active-lane-brief CODER WP-1-Governance-Workflow-Mirror-v2`
+2. If that brief confirms the handoff route, `just wp-coder-handoff WP-1-Governance-Workflow-Mirror-v2 coder:wp-1-governance-workflow-mirror-v2 WP_VALIDATOR:WP-1-Governance-Workflow-Mirror-v2 "<summary>"`
+
+## LIVE_CONCERNS_LOG
+
+- [2026-04-12 06:35:17 Europe/Brussels] [ORCHESTRATOR] [CONCERN] Windows junction hazard: git worktree remove --force on a product worktree whose .GOV is a junction to wt-gov-kernel deleted the target governance contents instead of unlinking only the junction. Restored wt-gov-kernel/.GOV from HEAD immediately and resumed from runtime receipts. Future removal of shared-.GOV worktrees must avoid raw git worktree remove or unlink the junction first.
+
+## LIVE_IDLE_LEDGER
+
+- [2026-04-12 06:35:24 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [GOVERNED_RUN] `WP-1-Governance-Workflow-Mirror-v2` | review_rtt(last=16m|max=16m|open=0) | pass_to_coder(last=2m|max=2m|waiting=0) | idle(current=3m|max_gap=34m|gaps>=15m:1) | wall_clock(active=4m|validator=16m|route=1h13m|dependency=0s|human=0s|repair=1s) | current_wait(CODER_WAIT@3m|reason=CODER_HANDOFF) | queue(level=MEDIUM|score=1|pending=0|open_reviews=0|open_control=1) | drift(dup_receipts=0|open_reviews=0|open_control=1)
+- [2026-04-12 06:42:32 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Governance-Workflow-Mirror-v2` | review_rtt(last=16m|max=16m|open=0) | pass_to_coder(last=2m|max=2m|waiting=0) | idle(current=43s|max_gap=34m|gaps>=15m:1) | wall_clock(active=4m|validator=16m|route=1h22m|dependency=0s|human=0s|repair=1s) | current_wait(CODER_WAIT@43s|reason=CODER_HANDOFF) | queue(level=MEDIUM|score=0|pending=0|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
+
+## LIVE_FINDINGS_LOG
+
+- [2026-04-12 06:42:26 Europe/Brussels] [ORCHESTRATOR] [GENERAL] Confirmed MT-001 contract after local spec/schema review: task_board_id must remain a stable logical id, while task_board_ref/display paths stay path evidence only. Current-main and old v1 both carried inherited path-as-id drift in workflow projection code, so the remediation must patch workflows.rs on the clean c11f3c1 substrate without silently widening into role_mailbox during MT-001.
