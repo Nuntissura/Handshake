@@ -34,8 +34,8 @@ Mark each verified claim with `[VERIFIED: <evidence source>]`. If a claim cannot
 - Link each review with stable `AUDIT_ID` and `SMOKETEST_REVIEW_ID`.
 - When the review follows an earlier smoke review, name that lineage explicitly.
 - When the review follows an earlier smoke review, include a short required subsection named `What Improved vs Previous Smoketest`.
-- Include the required `Post-Smoketest Improvement Rubric` section using `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`.
-- Include the required `Silent Failures, Command Surface Misuse, and Ambiguity Scan` section using `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`.
+- Include the required `Workflow Dossier Closeout Rubric` section using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.
+- Include the required `Silent Failures, Command Surface Misuse, and Ambiguity Scan` section using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.
 - If the rubric document is not open, this template remains authoritative. Do not omit or collapse the rubric or ambiguity-scan sections.
 - Write `NONE` explicitly when a subsection truly has no findings. Do not leave sections blank.
 - Do not write only a verdict summary. Capture the failure ledger, role review, runtime truth, positive controls, and concrete remediations.

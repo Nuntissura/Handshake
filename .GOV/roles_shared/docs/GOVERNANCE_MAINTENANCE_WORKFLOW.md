@@ -44,7 +44,7 @@ If the planned change touches product code or the Master Spec, stop and use the 
 - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
 - `.GOV/templates/AUDIT_TEMPLATE.md`
 - `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`
-- `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md` (compatibility)
+- `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md` (deprecated — redirect to WORKFLOW_DOSSIER_RUBRIC.md)
 
 ## Workflow
 
