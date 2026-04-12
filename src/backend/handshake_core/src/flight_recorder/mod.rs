@@ -98,7 +98,8 @@ pub enum FlightRecorderEventType {
     GovMailboxExported,
     /// FR-EVT-GOV-MAILBOX-003: Role mailbox transcription link created [11.5.3]
     GovMailboxTranscribed,
-    /// FR-EVT-GOV-WP-001: Work packet activation event [11.5.4]
+    /// FR-EVT-GOV-GATES-001 / FR-EVT-GOV-WP-001: Governance workflow mirror events [11.5.4]
+    GovGateTransition,
     GovWorkPacketActivated,
     /// FR-EVT-GOV-001..005: Governance automation events [11.5.7]
     GovDecisionCreated,
@@ -260,6 +261,7 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::GovMailboxExported => write!(f, "gov_mailbox_exported"),
             FlightRecorderEventType::GovMailboxTranscribed => write!(f, "gov_mailbox_transcribed"),
+            FlightRecorderEventType::GovGateTransition => write!(f, "gov_gate_transition"),
             FlightRecorderEventType::GovWorkPacketActivated => {
                 write!(f, "gov_work_packet_activated")
             }
@@ -735,6 +737,14 @@ impl FlightRecorderEvent {
             }
             FlightRecorderEventType::GovMailboxTranscribed => {
                 validate_gov_mailbox_transcribed_payload(&self.payload)
+            }
+            FlightRecorderEventType::GovGateTransition => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "gov_gate_transition actor must be system".to_string(),
+                    ));
+                }
+                validate_gov_gate_transition_payload(&self.payload)
             }
             FlightRecorderEventType::GovWorkPacketActivated => {
                 validate_gov_work_packet_activated_payload(&self.payload)
@@ -4127,7 +4137,10 @@ fn require_scheduler_lane(map: &Map<String, Value>, key: &str) -> Result<(), Rec
     Ok(())
 }
 
-fn require_scheduler_retry_backoff(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+fn require_scheduler_retry_backoff(
+    map: &Map<String, Value>,
+    key: &str,
+) -> Result<(), RecorderError> {
     let raw = match require_key(map, key)? {
         Value::String(value) if !value.trim().is_empty() => value.trim().to_ascii_lowercase(),
         _ => {
@@ -4367,7 +4380,8 @@ fn validate_session_spawn_announce_back_payload(payload: &Value) -> Result<(), R
     require_safe_token_string(map, "child_session_id", 256)?;
     require_safe_token_string(map, "requester_session_id", 256)?;
     match require_key(map, "status")? {
-        Value::String(status) if status == "completed" || status == "failed" || status == "cancelled" => {}
+        Value::String(status)
+            if status == "completed" || status == "failed" || status == "cancelled" => {}
         Value::String(_) => {
             return Err(RecorderError::InvalidEvent(
                 "payload field status must be one of completed|failed|cancelled".to_string(),
@@ -4649,7 +4663,7 @@ fn validate_mailbox_message_type(value: &str) -> Result<(), RecorderError> {
         | "tooling_result"
         | "fyi" => Ok(()),
         _ => Err(RecorderError::InvalidEvent(format!(
-        "payload field message_type has invalid value: {value}"
+            "payload field message_type has invalid value: {value}"
         ))),
     }
 }
@@ -4789,6 +4803,65 @@ fn require_runtime_governance_path_suffix(
         return Err(RecorderError::InvalidEvent(format!(
             "payload field {key} must reference .handshake/gov/{suffix}"
         )));
+    }
+
+    Ok(())
+}
+
+fn validate_gov_gate_transition_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &[
+            "type",
+            "event_id",
+            "spec_id",
+            "work_packet_id",
+            "role",
+            "gate_kind",
+            "gate",
+            "gate_state_ref",
+            "idempotency_key",
+        ],
+        &["verdict"],
+    )?;
+    require_fixed_string(map, "type", "gov_gate_transition")?;
+    require_fixed_string(map, "event_id", "FR-EVT-GOV-GATES-001")?;
+    require_string_or_null(map, "spec_id")?;
+    require_string_or_null(map, "work_packet_id")?;
+
+    match require_key(map, "role")? {
+        Value::String(value)
+            if matches!(
+                value.as_str(),
+                "operator" | "orchestrator" | "coder" | "validator" | "system"
+            ) => {}
+        _ => return Err(RecorderError::InvalidEvent(
+            "payload field role must be one of: operator, orchestrator, coder, validator, system"
+                .to_string(),
+        )),
+    }
+    match require_key(map, "gate_kind")? {
+        Value::String(value) if matches!(value.as_str(), "orchestrator" | "validator") => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field gate_kind must be one of: orchestrator, validator".to_string(),
+            ))
+        }
+    }
+    require_safe_token_string(map, "gate", 128)?;
+    require_runtime_governance_path_suffix(map, "gate_state_ref", ".json")?;
+    require_string(map, "idempotency_key")?;
+    if map.contains_key("verdict") {
+        match require_key(map, "verdict")? {
+            Value::Null => {}
+            Value::String(value) if matches!(value.as_str(), "PASS" | "FAIL") => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field verdict must be PASS, FAIL, or null".to_string(),
+                ))
+            }
+        }
     }
 
     Ok(())
@@ -5005,8 +5078,8 @@ fn validate_gov_check_completed_payload(payload: &Value) -> Result<(), RecorderE
     require_uuid_string_non_nil(map, "session_id")?;
     require_string(map, "result_status")?;
     match require_key(map, "duration_ms")? {
-        Value::Number(value) if value.is_u64() || (value.is_i64() && value.as_i64().unwrap_or_default() >= 0) => {
-        }
+        Value::Number(value)
+            if value.is_u64() || (value.is_i64() && value.as_i64().unwrap_or_default() >= 0) => {}
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field duration_ms must be a non-negative integer".to_string(),
@@ -6186,6 +6259,63 @@ mod tests {
         }
         assert!(matches!(
             validate_gov_automation_event_payload(&extra, "gov_decision_created", false),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    fn valid_gov_gate_transition_payload() -> Value {
+        json!({
+            "type": "gov_gate_transition",
+            "event_id": "FR-EVT-GOV-GATES-001",
+            "spec_id": "SPEC-WP-1",
+            "work_packet_id": "WP-1-Governance-Workflow-Mirror-v2",
+            "role": "validator",
+            "gate_kind": "validator",
+            "gate": "PRE_WORK",
+            "verdict": "PASS",
+            "gate_state_ref": ".handshake/gov/validator_gates/WP-1-Governance-Workflow-Mirror-v2.json",
+            "idempotency_key": "gov_gate_transition:WP-1-Governance-Workflow-Mirror-v2:abcd1234",
+        })
+    }
+
+    #[test]
+    fn test_gov_gate_transition_payload_validation() {
+        let payload = valid_gov_gate_transition_payload();
+        assert!(validate_gov_gate_transition_payload(&payload).is_ok());
+
+        let mut bad_role = payload.clone();
+        if let Some(obj) = bad_role.as_object_mut() {
+            obj.insert("role".to_string(), json!("reviewer"));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_gate_transition_payload(&bad_role),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let mut bad_event_id = payload.clone();
+        if let Some(obj) = bad_event_id.as_object_mut() {
+            obj.insert("event_id".to_string(), json!("FR-EVT-GOV-WP-001"));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_gate_transition_payload(&bad_event_id),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let mut bad_ref = payload.clone();
+        if let Some(obj) = bad_ref.as_object_mut() {
+            obj.insert(
+                "gate_state_ref".to_string(),
+                json!(".GOV/validator_gates/WP-1.json"),
+            );
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_gate_transition_payload(&bad_ref),
             Err(RecorderError::InvalidEvent(_))
         ));
     }

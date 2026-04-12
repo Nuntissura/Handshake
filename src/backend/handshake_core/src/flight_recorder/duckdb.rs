@@ -847,6 +847,7 @@ impl DuckDbFlightRecorder {
                 }
                 "gov_mailbox_exported" => super::FlightRecorderEventType::GovMailboxExported,
                 "gov_mailbox_transcribed" => super::FlightRecorderEventType::GovMailboxTranscribed,
+                "gov_gate_transition" => super::FlightRecorderEventType::GovGateTransition,
                 "gov_work_packet_activated" => {
                     super::FlightRecorderEventType::GovWorkPacketActivated
                 }
@@ -861,7 +862,9 @@ impl DuckDbFlightRecorder {
                 "gov_human_intervention_received" => {
                     super::FlightRecorderEventType::GovHumanInterventionReceived
                 }
-                "governance.check.started" => super::FlightRecorderEventType::GovernanceCheckStarted,
+                "governance.check.started" => {
+                    super::FlightRecorderEventType::GovernanceCheckStarted
+                }
                 "governance.check.completed" => {
                     super::FlightRecorderEventType::GovernanceCheckCompleted
                 }
@@ -1355,8 +1358,13 @@ mod tests {
         for (event_type, payload) in session_events {
             recorder
                 .record_event(
-                    FlightRecorderEvent::new(event_type, FlightRecorderActor::System, trace_id, payload)
-                        .with_model_session_id(model_session_id.to_string()),
+                    FlightRecorderEvent::new(
+                        event_type,
+                        FlightRecorderActor::System,
+                        trace_id,
+                        payload,
+                    )
+                    .with_model_session_id(model_session_id.to_string()),
                 )
                 .await?;
         }
@@ -1656,20 +1664,35 @@ mod tests {
         let stored = &events[0];
         assert_eq!(stored.actor, FlightRecorderActor::Agent);
         assert_eq!(stored.actor_id, "agent".to_string());
-        assert_eq!(stored.event_type, FlightRecorderEventType::SessionSchedulerEnqueue);
+        assert_eq!(
+            stored.event_type,
+            FlightRecorderEventType::SessionSchedulerEnqueue
+        );
         assert_eq!(stored.trace_id, trace_id);
         assert_eq!(stored.job_id, Some("job-roundtrip".to_string()));
         assert_eq!(stored.workflow_id, Some("workflow-roundtrip".to_string()));
         assert_eq!(stored.model_id, Some("model-roundtrip".to_string()));
-        assert_eq!(stored.model_session_id, Some("session-roundtrip".to_string()));
-        assert_eq!(stored.activity_span_id, Some("activity-roundtrip".to_string()));
-        assert_eq!(stored.session_span_id, Some("session-span-roundtrip".to_string()));
-        assert_eq!(stored.capability_id, Some("capability-roundtrip".to_string()));
-        assert_eq!(stored.policy_decision_id, Some("policy-roundtrip".to_string()));
         assert_eq!(
-            stored.wsids,
-            vec!["ws-1".to_string(), "ws-2".to_string()]
+            stored.model_session_id,
+            Some("session-roundtrip".to_string())
         );
+        assert_eq!(
+            stored.activity_span_id,
+            Some("activity-roundtrip".to_string())
+        );
+        assert_eq!(
+            stored.session_span_id,
+            Some("session-span-roundtrip".to_string())
+        );
+        assert_eq!(
+            stored.capability_id,
+            Some("capability-roundtrip".to_string())
+        );
+        assert_eq!(
+            stored.policy_decision_id,
+            Some("policy-roundtrip".to_string())
+        );
+        assert_eq!(stored.wsids, vec!["ws-1".to_string(), "ws-2".to_string()]);
         assert_eq!(stored.payload["scheduler"], "unit-test");
         Ok(())
     }
