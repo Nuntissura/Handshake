@@ -212,27 +212,31 @@ export function evaluateWpRelayCostPolicy({
   }
 
   const currentLane = compactLabel(workflowLane, "<missing>");
-  const defaultLane = "MANUAL_RELAY";
+  const defaultLane = "ORCHESTRATOR_MANAGED";
   let recommendedLane = defaultLane;
-  let recommendationReason = "Default to MANUAL_RELAY for small and medium WPs; reserve ORCHESTRATOR_MANAGED for explicit autonomy or multi-WP concurrency needs.";
-  let assessment = "DEFAULT_MANUAL";
+  let recommendationReason = "Default to ORCHESTRATOR_MANAGED for future governed sessions; use MANUAL_RELAY deliberately when the operator explicitly wants the classic combined lane.";
+  let assessment = "DEFAULT_ORCHESTRATOR_MANAGED";
 
-  if (currentLane === "MANUAL_RELAY") {
+  if (currentLane === "ORCHESTRATOR_MANAGED") {
     assessment = "ALIGNED_WITH_DEFAULT";
-    recommendedLane = "MANUAL_RELAY";
-    recommendationReason = "Current lane already matches the cheaper default. Only switch to ORCHESTRATOR_MANAGED when autonomy or parallel steering is materially needed.";
-  } else if (currentLane === "ORCHESTRATOR_MANAGED") {
-    assessment = burdenLevel === "HIGH"
-      ? "ORCHESTRATOR_OVERHEAD_HIGH"
-      : burdenLevel === "MEDIUM"
-        ? "ORCHESTRATOR_OVERHEAD_VISIBLE"
-        : "ORCHESTRATOR_OVERHEAD_LIGHT";
-    recommendedLane = "MANUAL_RELAY";
+    recommendedLane = "ORCHESTRATOR_MANAGED";
     recommendationReason = burdenLevel === "HIGH"
-      ? "Observed orchestrator-managed relay burden is high; future small/medium WPs should default to MANUAL_RELAY unless explicit autonomous steering is required."
+      ? "Current lane already matches the future default, but observed relay burden is high; keep ORCHESTRATOR_MANAGED only when that autonomy is actually paying for itself."
       : burdenLevel === "MEDIUM"
-        ? "Observed relay burden is visible; future medium WPs should default to MANUAL_RELAY unless the operator expects meaningful autonomy or concurrency gains."
-        : "Observed relay burden is light, but the cheaper default remains MANUAL_RELAY unless autonomous steering is explicitly worth the extra prompt tax.";
+        ? "Current lane already matches the future default; observed relay burden is visible but still within the intended managed-lane tradeoff."
+        : "Current lane already matches the future default and relay burden is light.";
+  } else if (currentLane === "MANUAL_RELAY") {
+    assessment = burdenLevel === "HIGH"
+      ? "CLASSIC_MANUAL_BURDEN_HIGH"
+      : burdenLevel === "MEDIUM"
+        ? "CLASSIC_MANUAL_BURDEN_VISIBLE"
+        : "CLASSIC_MANUAL_BURDEN_LIGHT";
+    recommendedLane = "ORCHESTRATOR_MANAGED";
+    recommendationReason = burdenLevel === "HIGH"
+      ? "Observed manual-relay burden is high; future runs should prefer ORCHESTRATOR_MANAGED unless the operator still wants explicit classic brokering."
+      : burdenLevel === "MEDIUM"
+        ? "Observed manual-relay burden is visible; future runs should generally prefer ORCHESTRATOR_MANAGED unless the operator explicitly wants the classic lane."
+        : "Manual relay stayed light, but future-default lane policy still prefers ORCHESTRATOR_MANAGED unless the operator explicitly wants the classic path.";
   }
 
   return {

@@ -197,3 +197,10 @@ WP Validator does NOT communicate directly with the Integration Validator.
 
 - WP Validator sessions MUST use `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`.
 - Boundary violations and scope spills are captured to governance memory for future session priming.
+
+## Governance Surface Reduction Discipline
+
+- WP validation should stay centered on the per-MT review boundary, packet truth, and runtime receipts rather than a widening set of review-adjacent public helpers.
+- When deterministic review-side checks usually run together for the same MT boundary, consolidate them behind the canonical review bundle and primary debug artifact instead of adding more leaf commands or scripts.
+- Keep separate public WP Validator surfaces only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
+- If a new live WP-validator governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is being retired or intentionally kept distinct.

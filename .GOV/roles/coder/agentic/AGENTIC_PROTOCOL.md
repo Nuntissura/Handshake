@@ -46,6 +46,12 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 - Prefer the smallest refactor that satisfies the packet and gates.
 - Avoid opportunistic rewrites unless the packet explicitly authorizes it.
 
+## 4.5) Governance Surface Reduction Discipline (HARD)
+
+- Sub-agents must not invent new public governance helpers, leaf scripts, or duplicate phase commands while solving coder work.
+- If a deterministic governance step already belongs to an existing phase-owned bundle, use or extend that canonical surface instead of normalizing another leaf entrypoint.
+- If a governance-surface change is explicitly in scope, bias toward one larger canonical phase/authority script plus one primary debug artifact over several new wrappers, and make the Primary Coder justify any exception.
+
 ---
 
 ## 5) Handoff format (required)

@@ -43,6 +43,7 @@ Clarification: governed completion is evidenced by the `SESSION_COMPLETION` noti
 - Memory hygiene should remain centered on the existing `just memory-*` command family plus one primary output artifact: `MEMORY_HYGIENE_REPORT.md`.
 - Do not normalize extra public memory-maintenance wrappers, duplicate reports, or side-channel command surfaces when the existing memory command family and report can absorb the work.
 - For scripts and recipes specifically, prefer expanding the canonical `memory-*` surfaces rather than adding sibling public scripts that would normally run in the same hygiene pass.
+- When multiple deterministic hygiene checks or repairs belong to the same memory-maintenance pass, fold them into the existing `memory-*` bundle and `MEMORY_HYGIENE_REPORT.md` instead of exposing more leaf commands.
 - Keep a separate public memory script only when owner boundary, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live memory-governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, and what the primary debug artifact is.
 

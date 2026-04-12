@@ -2,35 +2,36 @@
 
 **Role name:** CLASSIC_ORCHESTRATOR
 **Workflow lane:** `MANUAL_RELAY` only
-**Scope:** Full WP lifecycle coordination in operator-relayed workflow
-**Authority:** Workflow authority — Operator is the active relay between roles
+**Scope:** Full WP lifecycle coordination plus combined pre-launch ownership in operator-relayed workflow
+**Authority:** Workflow authority for `MANUAL_RELAY` — Operator is the active relay between roles
 
 ## Purpose
 
-The Classic Orchestrator is the coordination role for the manual relay workflow (`WORKFLOW_LANE=MANUAL_RELAY`). In this workflow, the Operator is the active relay between Coder and Validator roles. No ACP session control is used — the Operator manually brokers all role-to-role communication.
+The Classic Orchestrator is the workflow authority for the manual relay workflow (`WORKFLOW_LANE=MANUAL_RELAY`). It combines the old Orchestrator + Activation Manager responsibilities: refinement, approved spec enrichment, signature capture, packet hydration, microtask/worktree/backup preparation, and operator-brokered relay coordination. The Operator stays in the relay loop between Coder and Validator roles. No autonomous ACP control plane is used for workflow authority, but the operator may still use `just manual-relay-dispatch` to broker one governed session hop mechanically.
 
 ## When to Use
 
-- Default for small and medium WPs where autonomous orchestration overhead is not justified
+- Deliberate legacy/manual choice when the operator wants the combined pre-launch lane and active relay control
 - When the operator wants active monitoring, steering, and judgment at every handoff
 - When the operator prefers to relay between roles manually using `just manual-relay-next` and `just manual-relay-dispatch`
+- Not the future default when autonomous ORCHESTRATOR-managed control-plane coverage is wanted
 
 ## How It Differs from Orchestrator-Managed
 
 | Concern | Classic Orchestrator | Orchestrator-Managed |
 |---------|---------------------|---------------------|
 | **Relay** | Operator relays between roles | ACP session control, autonomous |
-| **Pre-launch** | Orchestrator owns refinement, packet creation | Activation Manager owns pre-launch |
+| **Pre-launch** | Classic Orchestrator owns refinement, signature, packet/worktree/backup prep | Activation Manager owns pre-launch |
 | **Validation** | Classic Validator (single role, full scope) | WP Validator (per-MT) + Integration Validator (whole-WP) |
 | **Steering** | Operator steers actively | Mechanical stall detection, operator-invoked active steering |
 | **Cost** | Lower (no ACP overhead) | Higher (multiple sessions, ACP round-trips) |
-| **Session control** | None — operator manages terminals | Full ACP session lifecycle |
+| **Session control** | Operator-brokered only; `manual-relay-dispatch` may start/send one governed hop | Full ACP session lifecycle |
 
 ## Workflow
 
-1. Orchestrator performs refinement, research, spec enrichment
-2. Orchestrator shows refinement in chat, obtains operator signature
-3. Orchestrator creates packet, micro tasks, worktree, backup
+1. Classic Orchestrator performs refinement, research, approved spec enrichment
+2. Classic Orchestrator shows refinement in chat, obtains operator signature
+3. Classic Orchestrator creates packet, micro tasks, worktree, backup
 4. Operator relays between coder and validator using `just manual-relay-next` and `just manual-relay-dispatch`
 5. Classic Validator (`.GOV/roles/validator/VALIDATOR_PROTOCOL.md`) handles full validation scope
 6. On PASS: validator merges to main, updates task board
@@ -40,10 +41,18 @@ The Classic Orchestrator is the coordination role for the manual relay workflow 
 - All role-to-role communication is relayed through the Operator
 - Use structured relay envelope: `RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`
 - `just manual-relay-next WP-{ID}` reads the runtime-projected next actor
-- `just manual-relay-dispatch WP-{ID} "<context>"` brokers one governed role hop mechanically
+- `just manual-relay-dispatch WP-{ID} "<context>"` brokers one governed role hop mechanically and may start the projected governed target session when needed
+- Manual-relay implementation currently lives under `.GOV/roles/orchestrator/scripts/manual-relay-*.mjs` for compatibility, but those helpers are Classic-Orchestrator-owned surfaces by lane authority
+
+## Governance Surface Reduction Discipline
+
+- Manual relay does not justify a second parallel command surface per phase. Prefer extending the canonical relay and phase-owned surfaces rather than adding Classic-only public helpers, checks, or scripts.
+- When deterministic relay-side checks or repairs usually run together for one phase or authority boundary, consolidate them behind the canonical boundary command and primary debug artifact instead of minting more leaf entrypoints.
+- Keep separate public Classic Orchestrator surfaces only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
+- If a new live manual-relay governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is being retired or intentionally kept distinct.
 
 ## Protocol Reference
 
-The full orchestrator protocol (safety rules, branch model, governance folder structure, packet rules) is defined in `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`. The MANUAL_RELAY sections of that protocol apply to this role.
+Shared safety/topology/branch law still lives in `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, but manual-relay lane authority lives here. If the two files ever disagree about `MANUAL_RELAY` ownership, this protocol wins for the manual lane.
 
-For orchestrator-managed (autonomous) workflow, see the Orchestrator Role Definition block in ORCHESTRATOR_PROTOCOL.md.
+For orchestrator-managed (autonomous) workflow, see `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`.

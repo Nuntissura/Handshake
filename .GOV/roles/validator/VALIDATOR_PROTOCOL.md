@@ -143,6 +143,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 - If validator logic needs to grow, extend existing validator or shared libraries/surfaces first; do not normalize thin wrappers, compatibility aliases, or duplicate public entrypoints as the default pattern.
 - Surface proliferation is governance debt because it creates command drift, split proof paths, and parallel-run debugging overhead.
 - For scripts and recipes specifically, prefer one canonical public validator/phase script per boundary. If the same owner, inputs, primary artifact/debug surface, and usual invocation path already exist, extend that script instead of adding a sibling that normally runs with it.
+- When validator-side deterministic checks usually run as one boundary proof, consolidate them into the canonical phase-owned bundle and primary debug artifact instead of preserving extra leaf validator scripts.
 - Bias toward fewer larger canonical validator governance scripts over multiple small public wrappers.
 - Keep separate public scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is retired or intentionally kept distinct.
@@ -409,7 +410,7 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
   - `just ack-notifications WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session>` (acknowledge pending notifications after reading)
   - `just operator-viewport` (canonical operator viewport for ACP-aware session/control/thread/receipt/artifact visibility; `just operator-monitor` remains a compatibility alias)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Validator session):
-  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from the dedicated validator worktree; the governed launcher creates it if missing)
+  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from the shared coder/WP-validator worktree; the governed launcher reuses that declared worktree if missing)
   - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from handshake_main; no worktree-add needed)
   - `AUTO` is the ordinary headless/direct ACP launch path; `CURRENT` / `SYSTEM_TERMINAL` are explicit repair surfaces and `VSCODE_PLUGIN` is compatibility-only
   - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
@@ -659,7 +660,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
     - **Scope:** Ensure changes are restricted to the WP's `IN_SCOPE_PATHS`.
     - **Committed-handoff rule (preferred for orchestrator-managed WPs):** Run `just phase-check HANDOFF {WP_ID} WP_VALIDATOR`. This wraps packet completeness, PREPARE worktree source-of-truth validation, and the governed handoff communication proof into one boundary gate before `validator-gate-commit`.
     - **Final-lane closeout rule (orchestrator-managed PASS only):** Run `just phase-check CLOSEOUT {WP_ID}` before `validator-gate-commit`. This must prove verdict-route health, context bundling, topology safety, WP-scoped settled session-control truth, and current-`main` signed-scope compatibility; otherwise final review is not closeout-ready.
-    - **Local mirror sanity only:** You may still run `just phase-check HANDOFF {WP_ID} CODER` in your validator worktree for local diagnosis, but it does not replace committed handoff validation against the PREPARE worktree.
+    - **Local mirror sanity only:** You may still run `just phase-check HANDOFF {WP_ID} CODER` in the shared WP worktree for local diagnosis, but it does not replace committed handoff validation against the PREPARE worktree.
 
 
 7.1) Git & Build Hygiene Audit (execute when any build artifacts/.gitignore risk is suspected)

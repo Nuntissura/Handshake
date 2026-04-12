@@ -7,7 +7,7 @@ ARTIFACT_ROOT := env_var_or_default('HANDSHAKE_ARTIFACT_ROOT', '../Handshake Art
 CARGO_TARGET_DIR := "{{ARTIFACT_ROOT}}/handshake-cargo-target"
 
 docs-check:
-	node -e "['{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md', '{{MAIN_ROOT}}/AGENTS.md', '{{GOV_ROOT}}/README.md', '{{GOV_ROOT}}/roles/README.md', '{{GOV_ROOT}}/roles_shared/README.md', '{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md', '{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles_shared/docs/START_HERE.md', '{{GOV_ROOT}}/spec/SPEC_CURRENT.md', '{{GOV_ROOT}}/roles_shared/docs/ARCHITECTURE.md', '{{GOV_ROOT}}/roles_shared/docs/RUNBOOK_DEBUG.md', '{{GOV_ROOT}}/roles_shared/docs/REPO_RESILIENCE.md', '{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md', '{{GOV_ROOT}}/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node -e "['{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md', '{{MAIN_ROOT}}/AGENTS.md', '{{GOV_ROOT}}/README.md', '{{GOV_ROOT}}/roles/README.md', '{{GOV_ROOT}}/roles_shared/README.md', '{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md', '{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles_shared/docs/START_HERE.md', '{{GOV_ROOT}}/spec/SPEC_CURRENT.md', '{{GOV_ROOT}}/roles_shared/docs/ARCHITECTURE.md', '{{GOV_ROOT}}/roles_shared/docs/RUNBOOK_DEBUG.md', '{{GOV_ROOT}}/roles_shared/docs/REPO_RESILIENCE.md', '{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md', '{{GOV_ROOT}}/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
 
 gov-check:
 	just docs-check
@@ -275,6 +275,23 @@ orchestrator-startup:
 	@echo ''
 	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
 	@echo 'WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, keep the live dossier current with `just workflow-dossier-note ...` and `just workflow-dossier-sync WP-{ID}`. Use the rubric only at closeout.'
+	@echo 'REPO_TIMEZONE: Europe/Brussels for human-facing governance timestamps; ACP/session ledgers remain UTC.'
+
+classic-orchestrator-startup:
+	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md"
+	@just backup-status
+	@just role-startup-topology-check --audit-permanent
+	@just orchestrator-preflight
+	@just memory-refresh
+	@just memory-recall RESUME --role CLASSIC_ORCHESTRATOR
+	@just launch-memory-manager
+	@echo ''
+	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
+	@echo 'Run: just repomem open "<what this session is about>" --role CLASSIC_ORCHESTRATOR [--wp WP-ID]'
+	@echo 'This is MANDATORY before any refinement, packet, or manual-relay commands on MANUAL_RELAY.'
+	@echo ''
+	@echo 'RESUME_HINT: After a reset/compaction, use `just manual-relay-next WP-{ID} [--debug]` for active manual-lane relay truth, or the relevant pre-launch command for active refinement/packet work.'
+	@echo 'LANE_OWNER: CLASSIC_ORCHESTRATOR owns MANUAL_RELAY end-to-end, including the old combined Orchestrator + Activation Manager pre-launch flow.'
 	@echo 'REPO_TIMEZONE: Europe/Brussels for human-facing governance timestamps; ACP/session ledgers remain UTC.'
 
 validator-startup:
@@ -585,34 +602,6 @@ activation-manager action wp-id="" *FLAGS:
 	@if ("{{action}}" -eq "startup") { just --quiet protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md"; just --quiet backup-status; just --quiet role-startup-topology-check; just --quiet gov-check }
 	@node "{{GOV_ROOT}}/roles/activation_manager/scripts/activation-manager.mjs" {{action}} {{wp-id}} {{FLAGS}}; if ("{{action}}" -eq "readiness" -and $LASTEXITCODE -eq 2) { exit 0 } else { exit $LASTEXITCODE }
 
-activation-record-refinement wp-id detail="":
-	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" refine {{wp-id}} "{{detail}}"
-
-activation-record-signature wp-id signature workflow_lane="" execution_lane="":
-	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" sign {{wp-id}} {{signature}} {{workflow_lane}} {{execution_lane}}
-
-activation-record-prepare wp-id workflow_lane="" execution_lane="" branch="" worktree_dir="":
-	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" prepare {{wp-id}} {{workflow_lane}} {{execution_lane}} {{branch}} {{worktree_dir}}
-
-activation-record-role-model-profiles wp-id orchestrator_profile="" coder_profile="" wp_validator_profile="" integration_validator_profile="":
-	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" profiles {{wp-id}} {{orchestrator_profile}} {{coder_profile}} {{wp_validator_profile}} {{integration_validator_profile}}
-
-activation-create-task-packet wp-id context:
-	@just repomem-gate
-	@just memory-recall PACKET_CREATE --wp {{wp-id}}
-	@just repomem context "{{context}}" --trigger activation-create-task-packet --wp {{wp-id}}
-	@echo "Creating activation-manager task packet: {{wp-id}}..."
-	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/create-task-packet.mjs" {{wp-id}}
-	@just build-order-sync
-
-activation-task-board-set wp-id status reason="":
-	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs" {{wp-id}} {{status}} "{{reason}}"
-
-activation-wp-traceability-set base_wp_id active_packet_wp_id context:
-	@just repomem-gate
-	@just repomem context "{{context}}" --trigger activation-wp-traceability-set --wp {{base_wp_id}}
-	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/wp-traceability-set.mjs" {{base_wp_id}} {{active_packet_wp_id}}
-
 session-stall-scan role wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/session-stall-scan.mjs" {{role}} {{wp-id}}
 
@@ -713,15 +702,4 @@ orchestrator-prepare-and-packet wp-id workflow_lane="" execution_lane="" label="
 	@git add -A
 	@git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "gov: checkpoint packet+refinement+micro-tasks [{{wp-id}}]" }
 	@echo "[ORCHESTRATOR] Creating backup snapshot before coder launch..."
-	@just backup-snapshot "{{label}}"
-
-activation-prepare-and-packet wp-id workflow_lane="" execution_lane="" label="activation-pre-wp-launch":
-	@just worktree-add {{wp-id}}
-	@just install-mt-hook {{wp-id}}
-	@just memory-recall DELEGATION --wp {{wp-id}}
-	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs" {{wp-id}} {{workflow_lane}} {{execution_lane}}
-	@echo "[ACTIVATION_MANAGER] Committing governance checkpoint on gov_kernel..."
-	@git add -A
-	@git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "gov: checkpoint activation bundle [{{wp-id}}]" }
-	@echo "[ACTIVATION_MANAGER] Creating backup snapshot before orchestrator review..."
 	@just backup-snapshot "{{label}}"

@@ -141,6 +141,7 @@ Sub-agent delegation note (HARD):
 - If coder-owned governance tooling must change, prefer extending an existing coder or shared surface before adding a new standalone check, script, or public recipe.
 - Extra public wrappers and compatibility shims are harness debt, not harmless convenience.
 - For scripts and recipes specifically, prefer one canonical public script per phase or authority boundary. If the same owner, inputs, primary artifact/debug surface, and usual invocation path already exist, extend that script rather than asking for or normalizing a sibling.
+- When coder-facing deterministic governance checks belong to one phase and normally run together, expect them to collapse into the canonical phase-owned bundle and one debug artifact rather than splitting into additional leaf helper commands.
 - Bias toward fewer larger canonical governance scripts over several small coder-facing wrappers that always travel together.
 - Keep separate public scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live governance surface is genuinely required, state why the existing surface is insufficient, who owns the new surface, and what the primary debug artifact is.

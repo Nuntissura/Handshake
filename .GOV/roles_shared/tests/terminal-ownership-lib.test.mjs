@@ -71,8 +71,8 @@ test("reclaimOwnedSessionTerminals marks the owned terminal as reclaimed and cle
     recordOwnedTerminalLaunch(repoRoot, {
       wp_id: "WP-TEST",
       role: "WP_VALIDATOR",
-      local_branch: "validate/WP-TEST",
-      local_worktree_dir: "../wtv-test",
+      local_branch: "feat/WP-TEST",
+      local_worktree_dir: "../wtc-test",
       terminal_title: "WPVAL WP-TEST",
       requested_model: "gpt-5.4",
     }, {
@@ -81,9 +81,12 @@ test("reclaimOwnedSessionTerminals marks the owned terminal as reclaimed and cle
       terminalTitle: "WPVAL WP-TEST",
     });
 
+    const alive = new Set([9898]);
     const results = reclaimOwnedSessionTerminals(repoRoot, { wpId: "WP-TEST" }, {
-      inspectProcess: () => true,
-      stopProcess: () => {},
+      inspectProcess: (pid) => alive.has(pid),
+      stopProcess: (pid) => {
+        alive.delete(pid);
+      },
     });
 
     assert.equal(results.length, 1);
@@ -129,8 +132,8 @@ test("reclaimOwnedSessionTerminals honors terminal batch filtering", () => {
     const secondLaunch = recordOwnedTerminalLaunch(repoRoot, {
       wp_id: "WP-TEST",
       role: "WP_VALIDATOR",
-      local_branch: "validate/WP-TEST",
-      local_worktree_dir: "../wtv-test",
+      local_branch: "feat/WP-TEST",
+      local_worktree_dir: "../wtc-test",
       terminal_title: "WPVAL WP-TEST",
       requested_model: "gpt-5.4",
     }, {
@@ -142,12 +145,15 @@ test("reclaimOwnedSessionTerminals honors terminal batch filtering", () => {
     assert.notEqual(firstBatchId, secondBatchId);
     assert.equal(secondLaunch.owned_terminal_batch_id, secondBatchId);
 
+    const alive = new Set([1111, 2222]);
     const results = reclaimOwnedSessionTerminals(repoRoot, {
       wpId: "WP-TEST",
       terminalBatchId: secondBatchId,
     }, {
-      inspectProcess: () => true,
-      stopProcess: () => {},
+      inspectProcess: (pid) => alive.has(pid),
+      stopProcess: (pid) => {
+        alive.delete(pid);
+      },
     });
 
     assert.equal(results.length, 1);

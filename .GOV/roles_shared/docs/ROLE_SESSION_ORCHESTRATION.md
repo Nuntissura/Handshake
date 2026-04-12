@@ -5,10 +5,12 @@ This file is the shared law for repo-governed multi-session launch behavior.
 Default external repo-governance runtime root from a repo worktree: `../gov_runtime/roles_shared/`. This root may be overridden via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`.
 
 ## Core Rule
-- Only the Orchestrator may start repo-governed Activation Manager, Coder, WP Validator, and Integration Validator sessions.
+- Fresh governed session start is workflow-authority-only.
+- `ORCHESTRATOR` may start `ACTIVATION_MANAGER`, `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR` for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`.
+- `CLASSIC_ORCHESTRATOR` may broker-start governed `CODER` and validator sessions for `WORKFLOW_LANE=MANUAL_RELAY` through `just manual-relay-dispatch`; `ACTIVATION_MANAGER` is not used on that lane.
 - Activation Manager, Coder, and Validator sessions may resume work, but they do not self-start a fresh repo-governed session.
-- Only the Orchestrator may run fresh-start, close, cancel, or broker-stop control commands for governed role sessions. Coder and Validator sessions request repair, pause, or cancel actions through packet thread/receipt surfaces; they do not mutate the governed control ledgers directly.
-- The Activation Manager is the mandatory governed pre-launch authoring lane for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`. For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch remains Orchestrator-owned.
+- Only the active lane owner may run fresh-start, close, cancel, or broker-stop control commands for governed role sessions. Coder and Validator sessions request repair, pause, or cancel actions through packet thread/receipt surfaces; they do not mutate the governed control ledgers directly.
+- The Activation Manager is the mandatory governed pre-launch authoring lane for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`. For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch belongs to `CLASSIC_ORCHESTRATOR`.
 
 ## Primary launch path
 - Preferred host: `HANDSHAKE_ACP_BROKER`

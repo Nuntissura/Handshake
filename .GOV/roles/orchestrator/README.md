@@ -29,6 +29,10 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `.GOV/co
   - compatibility implementation: `scripts/operator-monitor-tui.mjs`
 - `scripts/task-board-set.mjs`
 - `scripts/wp-traceability-set.mjs`
+- manual-relay implementation host only:
+  - `scripts/manual-relay-next.mjs`
+  - `scripts/manual-relay-dispatch.mjs`
+  - these compatibility-hosted scripts are owned by `CLASSIC_ORCHESTRATOR` for `MANUAL_RELAY`; physical location does not change lane authority
 
 ## Role Map
 
@@ -57,6 +61,7 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `.GOV/co
 ## Key Commands
 
 - `just orchestrator-startup`
+- `just classic-orchestrator-startup`
 - `just orchestrator-next [WP-{ID}] [--debug]`
 - `just record-refinement WP-{ID}`
 - `just record-signature WP-{ID} ...`
@@ -66,4 +71,6 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `.GOV/co
 - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just manual-relay-next WP-{ID} [--debug]`
+- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
 - `AUTO` is the ordinary headless/direct ACP path; `CURRENT` / `SYSTEM_TERMINAL` are repair-only; `VSCODE_PLUGIN` is compatibility-only

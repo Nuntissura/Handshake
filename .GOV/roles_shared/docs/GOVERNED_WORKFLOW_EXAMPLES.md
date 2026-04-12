@@ -174,10 +174,10 @@ Use this as the minimal mental model for parallel governed work.
 
 - `WP-A`
   - `CODER` in `wtc-WP-A`
-  - `WP_VALIDATOR` in `wtv-WP-A`
+  - `WP_VALIDATOR` in the same `wtc-WP-A`
 - `WP-B`
   - `CODER` in `wtc-WP-B`
-  - `WP_VALIDATOR` in `wtv-WP-B`
+  - `WP_VALIDATOR` in the same `wtc-WP-B`
 - shared repo lanes
   - `ORCHESTRATOR` in `wt-gov-kernel`
   - `ACTIVATION_MANAGER` in `wt-gov-kernel` as the temporary pre-launch worker before a WP enters coder/validator execution

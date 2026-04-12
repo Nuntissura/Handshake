@@ -1,6 +1,6 @@
 # ORCHESTRATOR_PROTOCOL [CX-600-616]
 
-MANDATORY - The Orchestrator is the workflow authority. This file defines the current orchestrator-managed governance workflow. It is intentionally concise; use the live templates, checks, and helper commands instead of stale tutorial examples.
+MANDATORY - The Orchestrator is the workflow authority for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` only. This file does not define the manual relay lane; if the chosen lane is `MANUAL_RELAY`, stop and use `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`. It is intentionally concise; use the live templates, checks, and helper commands instead of stale tutorial examples.
 
 ## Orchestrator Role Definition (ORCHESTRATOR_MANAGED) [RGF-189]
 
@@ -103,7 +103,7 @@ See also:
   - Claude Code profile: `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` (governed launch supported)
   - local model profiles: `OLLAMA_QWEN_CODER_7B`, `OLLAMA_QWEN_CODER_14B` (coder-only, zero API cost, auto-escalate to cloud on failure)
 - Repo-governed Activation Manager, Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
-- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, pre-launch governance authoring MUST run through the governed Activation Manager lane. For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch remains Orchestrator-owned.
+- For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, pre-launch governance authoring MUST run through the governed Activation Manager lane. For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch belongs to `CLASSIC_ORCHESTRATOR`.
 - Primary launch path is headless/direct ACP launch using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
   - `AUTO` launch resolves through the ACP broker and should not open a visible system terminal on the ordinary path
   - `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
@@ -150,6 +150,7 @@ See also:
 - Prefer extending canonical phase-owned surfaces such as `phase-check`, governed launch/control surfaces, and packet/runtime artifacts before adding a new operator-facing `just` command, standalone check, standalone script, or duplicate helper flow.
 - Thin wrappers, compatibility aliases, and duplicate public helpers are workflow debt because they increase command drift, read amplification, and repair cost across parallel WPs.
 - For scripts and recipes specifically, bias toward fewer larger canonical phase scripts over sibling public entrypoints that normally run together anyway.
+- When several deterministic checks or repairs always travel together within one phase or authority boundary, collapse them into the canonical phase-owned bundle and primary debug artifact instead of minting more leaf scripts or recipes.
 - If a candidate script shares the same phase owner, core inputs, primary artifact/debug surface, and usual invocation path as an existing canonical surface, extend that canonical script instead of adding a sibling.
 - Keep separate public scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live governance surface is genuinely required, record in the same change why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and what retirement or drift-guard plan applies to the old surface.
@@ -328,20 +329,15 @@ Rules:
 - use the refinement approval evidence before consuming the signature
 
 Workflow semantics:
-- `MANUAL_RELAY` = Operator remains the main relay, but governed artifacts still apply. For the manual relay validator role, see `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`.
+- `MANUAL_RELAY` = legacy manual lane owned by `CLASSIC_ORCHESTRATOR`. If the packet chooses this lane, switch to `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md` instead of continuing under this protocol.
 - `ORCHESTRATOR_MANAGED` = Orchestrator steers sessions and workflow, but remains non-agentic and non-coding; Activation Manager is the mandatory temporary pre-launch worker and must own refinement, packet creation, worktree preparation, backup-branch preparation, and activation readiness before downstream launches begin
-- Default lane policy: prefer `MANUAL_RELAY` for small and medium WPs because it is the cheaper default; choose `ORCHESTRATOR_MANAGED` only when autonomous steering, operator absence, or multi-WP parallelism is explicitly worth the added control-plane cost of the mandatory Activation Manager pre-launch lane.
-- For `MANUAL_RELAY`, prefer `just manual-relay-next WP-{ID} [--debug]` to read the runtime-projected next actor and use `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]` only when the Operator explicitly wants to broker one governed role hop mechanically.
-- Manual relay outputs must keep role-to-role content separate from operator-only explanation. Use the structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`) instead of mixing handoff/question/reply content into hard-gate prose.
-- `just manual-relay-dispatch` must pass the same typed relay context into the governed target prompt (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) so the role sees whether the incoming payload is a handoff, question, answer, verdict, or intent without rediscovering it.
-- If the projected target session is not running yet, `just manual-relay-dispatch` must start that governed session and then immediately deliver the typed relay prompt in the same command invocation.
-- Use `just wp-timeline WP-{ID} [--json]` after a run to inspect measured relay burden. If the timeline reports visible or high relay overhead and the next WP is not autonomy-sensitive, route the next comparable packet through `MANUAL_RELAY`.
+- Future-default lane policy: prefer `ORCHESTRATOR_MANAGED` for new/future sessions unless the Operator explicitly wants the lower-cost hands-on classic path. Use `MANUAL_RELAY` deliberately, not by leftover habit.
 
-### Activation Manager Authority Split (HARD)
+### Activation Manager Authority Split (ORCHESTRATOR_MANAGED HARD)
 
-- The Orchestrator remains the workflow authority on both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED`. Activation Manager is a temporary pre-launch executor, not a second workflow owner.
+- On `ORCHESTRATOR_MANAGED`, the Orchestrator is the workflow authority and Activation Manager is a temporary pre-launch executor, not a second workflow owner.
 - Refinement and enrichment is one normative pre-launch phase with one quality bar across both workflow lanes; lane selection changes who executes it, never what completion means.
-- For `MANUAL_RELAY`, keep the legacy pre-launch flow on the Orchestrator: refinement, approved spec enrichment, signature handling, packet creation, microtask setup, worktree preparation, backup-branch preparation, and next-step control remain Orchestrator-owned.
+- `MANUAL_RELAY` is outside this role boundary. On that lane, `CLASSIC_ORCHESTRATOR` owns the old combined pre-launch flow instead of this role.
 - For `ORCHESTRATOR_MANAGED`, Activation Manager executes that same pre-launch flow, but the Orchestrator still owns operator review, signature solicitation, `Coder-A..Z` selection, governance bug patching, acceptance or rejection of readiness, and relaunch / repair decisions.
 - Activation Manager refinement/spec handback is file-first by default. Require the written file path plus a compact `REFINEMENT_HANDOFF_SUMMARY`; do not ask the operator to review pasted full-text refinement blocks by default.
 - The required summary fields are: `REFINEMENT_PATH`, `REFINEMENT_CHECK`, `ENRICHMENT_NEEDED`, `NEW_STUBS_CREATED_OR_UPDATED`, `NEW_FEATURES_OR_CAPABILITIES_DISCOVERED`, `MAJOR_TECH_UPGRADE_ADVICE`, `REVIEW_FOCUS`, and `NEXT_ORCHESTRATOR_ACTION`.
@@ -492,8 +488,8 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `AUTO` is the ordinary headless/direct ACP launch path
 - `CURRENT` and `SYSTEM_TERMINAL` are explicit repair surfaces
 - `VSCODE_PLUGIN` is compatibility-only
-- `just manual-relay-next WP-{ID} [--debug]`
-- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
+- `just manual-relay-next WP-{ID} [--debug]` (`CLASSIC_ORCHESTRATOR` / `MANUAL_RELAY` only)
+- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]` (`CLASSIC_ORCHESTRATOR` / `MANUAL_RELAY` only)
 - supported launch hosts must auto-issue the first governed `START_SESSION` on the ordinary path; `start-*` remains the explicit repair surface when launch could not complete autonomously
 - when `session-start` / `session-send` complete or fail, read the printed `outcome_state=` line before assuming launch/steer succeeded or needs another attempt. Treat `ALREADY_READY` and `BUSY_ACTIVE_RUN` as machine states, not prose to reinterpret manually.
 - After the single-attempt recovery slice, a surviving `BUSY_ACTIVE_RUN` should be interpreted as a real competing live run. Dead-child and expired-timeout residue should no longer require a second operator retry to clear.

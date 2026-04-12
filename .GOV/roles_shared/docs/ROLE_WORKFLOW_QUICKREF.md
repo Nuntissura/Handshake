@@ -31,8 +31,10 @@ All roles SHOULD follow a strict ordering to avoid interleaving narrative with e
 
 Startup commands:
 - `just orchestrator-startup`
+- `just classic-orchestrator-startup`
 - `just coder-startup`
 - `just validator-startup`
+  - shared startup surface for `WP_VALIDATOR`, `INTEGRATION_VALIDATOR`, and classical `VALIDATOR`; startup output and assigned role determine the active authority
 - `just memory-manager-startup`
 - `just role-startup-topology-check [--audit-permanent]`
 
@@ -48,7 +50,10 @@ Rule:
 
 ## High-Signal Governance References
 
-- Final validator authority split: `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+- Validator authority split:
+  - `WP_VALIDATOR`: `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `INTEGRATION_VALIDATOR`: `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - classical/manual `VALIDATOR`: `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
 - Direct-review contract and session-repair rules: `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
 - Legacy packet remediation policy: `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
 - Runtime placement and archival law: `.GOV/roles_shared/README.md`
@@ -123,7 +128,8 @@ Authoritative inputs:
 Primary commands:
 - `just record-refinement WP-...`
 - `just record-signature WP-... <sig> <MANUAL_RELAY|ORCHESTRATOR_MANAGED> <Coder-A..Coder-Z>`
-- lane default: choose `MANUAL_RELAY` for small and medium WPs unless you explicitly need autonomous steering or multi-WP parallel management; use `ORCHESTRATOR_MANAGED` only when that extra control-plane cost is justified
+- future default lane policy: prefer `ORCHESTRATOR_MANAGED` for new/future sessions; choose `MANUAL_RELAY` only when the operator explicitly wants the lower-cost classic combined lane
+- `MANUAL_RELAY` is owned by `CLASSIC_ORCHESTRATOR`; `ORCHESTRATOR` does not own that lane
 - if you choose `ORCHESTRATOR_MANAGED`, Activation Manager is mandatory as the temporary pre-launch worker before governed coder/validator launch
 - `just record-role-model-profiles WP-... [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
 - omit args only when you deliberately want the default all-GPT bundle recorded into the packet
@@ -154,6 +160,7 @@ Primary commands:
 - `just activation-manager readiness WP-... --write`
 - `just manual-relay-next WP-... [--debug]`
 - `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK] [--debug]`
+- those manual-relay helpers are Classic-Orchestrator-owned surfaces for `MANUAL_RELAY`
 - `just start-activation-manager-session WP-... [PRIMARY|FALLBACK]`
 - `just start-coder-session WP-... [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-... [PRIMARY|FALLBACK]`
@@ -220,6 +227,7 @@ Primary commands (per WP validation):
 - `just phase-check HANDOFF WP-... CODER` (canonical coder-side handoff closure)
 - `just phase-check HANDOFF WP-... WP_VALIDATOR`
 - `just phase-check VERDICT WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR`
+- `just closeout-repair WP-... [--dry-run] [--debug]` before whole-WP closeout when packet/runtime/SHA/artifact truth needs mechanical repair
 - `just phase-check CLOSEOUT WP-...`
 - governed closeout write through the same phase surface: `just phase-check CLOSEOUT WP-... --sync-mode <MODE> --context "<why this truth is being written>"`
 - `phase-check CLOSEOUT --sync-mode ...` now also appends the mechanical closeout trace into the active Workflow Dossier; add the human post-mortem/review and rubric after it succeeds

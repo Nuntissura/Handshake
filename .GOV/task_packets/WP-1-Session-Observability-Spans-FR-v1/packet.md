@@ -80,7 +80,7 @@ Requirements:
 - ROLE_SESSION_REASONING_CONFIG_VALUE: xhigh
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next WP-1-Session-Observability-Spans-FR-v1
-<!-- The WP Validator uses a dedicated local review branch/worktree rooted from the coder branch. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
+<!-- The WP Validator shares the coder branch/worktree [CX-503G]. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
 - WP_VALIDATOR_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH
 <!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
 - WP_VALIDATOR_MODEL: gpt-5.4

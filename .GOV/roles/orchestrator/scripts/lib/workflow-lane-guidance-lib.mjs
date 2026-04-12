@@ -71,7 +71,7 @@ export function buildManualRelayCommands(wpId) {
   return [
     `just manual-relay-next ${wpId}`,
     `just session-registry-status ${wpId}`,
-    "# manual-relay-dispatch will start the projected governed session when needed; keep the Operator in the relay loop.",
+    "# MANUAL_RELAY is owned by CLASSIC_ORCHESTRATOR; manual-relay-dispatch will start the projected governed session when needed while keeping the Operator in the relay loop.",
   ];
 }
 

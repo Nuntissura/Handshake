@@ -49,6 +49,7 @@ test("manual-relay-next reports the projected governed next actor for MANUAL_REL
 
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /\[MANUAL_RELAY_NEXT\] workflow_lane=MANUAL_RELAY/);
+    assert.match(result.stdout, /\[MANUAL_RELAY_NEXT\] lane_owner=CLASSIC_ORCHESTRATOR/);
     assert.match(result.stdout, /\[MANUAL_RELAY_NEXT\] next_actor=CODER/);
     assert.match(result.stdout, /\[MANUAL_RELAY_NEXT\] next_session=coder-test/);
     assert.match(result.stdout, /\[MANUAL_RELAY_NEXT\] dispatch_action=START_SESSION/);

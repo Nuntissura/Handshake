@@ -179,6 +179,13 @@ After verdict and merge:
 - Integration Validator sessions MUST use `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`.
 - Validation findings and process observations are captured to governance memory for future priming.
 
+## Governance Surface Reduction Discipline
+
+- Integration validation should stay centered on the canonical verdict/closeout boundary, not a growing set of closeout-adjacent public scripts.
+- When deterministic whole-WP validation or closeout checks usually run together for the same boundary, consolidate them behind the canonical phase-owned bundle and one debug artifact instead of preserving extra leaf commands.
+- Keep separate public Integration Validator surfaces only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or independently useful operator action materially differs.
+- If a new live integration-validation governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is being retired or intentionally kept distinct.
+
 ## Relationship to Classic Validator
 
 - The classic `VALIDATOR` role (VALIDATOR_PROTOCOL.md) remains available for manual relay / non-orchestrator-managed workflows.

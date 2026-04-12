@@ -74,9 +74,9 @@ Requirements:
 - ROLE_SESSION_REASONING_CONFIG_VALUE: xhigh
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next WP-1-Storage-Capability-Boundary-Refactor-v1
-<!-- The WP Validator uses a dedicated local review branch/worktree rooted from the coder branch. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
-- WP_VALIDATOR_LOCAL_BRANCH: validate/WP-1-Storage-Capability-Boundary-Refactor-v1
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtv-boundary-refactor-v1
+<!-- The WP Validator shares the coder branch/worktree [CX-503G]. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
+- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Storage-Capability-Boundary-Refactor-v1
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-boundary-refactor-v1
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Storage-Capability-Boundary-Refactor-v1
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Storage-Capability-Boundary-Refactor-v1
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup

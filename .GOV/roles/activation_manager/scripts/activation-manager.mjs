@@ -35,7 +35,7 @@ const DEFAULT_RUNTIME_DIR = path.join(
 
 function usage() {
   console.error(
-    `Usage: node ${SCRIPT_REPO_REL} <startup|prompt|next|readiness> [WP-{ID}] [--write] [--json]`,
+    `Usage: node ${SCRIPT_REPO_REL} <startup|prompt|next|readiness|record-refinement|record-signature|record-prepare|record-role-model-profiles|create-task-packet|task-board-set|wp-traceability-set|prepare-and-packet> [WP-{ID}] [args...] [--write] [--json]`,
   );
   process.exit(1);
 }
@@ -48,13 +48,14 @@ function parseArgs(argv) {
   const args = argv.slice(2);
   const action = String(args[0] || "").trim().toLowerCase();
   if (!action) usage();
-  const wpId = String(args.find((arg, index) => index > 0 && !String(arg || "").startsWith("--")) || "").trim();
-  const flags = new Set(args.filter((arg) => String(arg || "").startsWith("--")));
+  const positionals = args.filter((arg, index) => index > 0 && !String(arg || "").startsWith("--"));
+  const flags = args.filter((arg) => String(arg || "").startsWith("--"));
   return {
     action,
-    wpId,
-    write: flags.has("--write"),
-    json: flags.has("--json"),
+    wpId: String(positionals[0] || "").trim(),
+    extraArgs: positionals.slice(1),
+    write: flags.includes("--write"),
+    json: flags.includes("--json"),
   };
 }
 
@@ -70,6 +71,93 @@ function runNode(relativeScript, args = []) {
     stderr: String(result.stderr || "").trim(),
     status: result.status ?? 1,
   };
+}
+
+function runJust(recipe, args = []) {
+  const result = spawnSync("just", [recipe, ...args], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  return {
+    ok: result.status === 0,
+    stdout: String(result.stdout || "").trim(),
+    stderr: String(result.stderr || "").trim(),
+    status: result.status ?? 1,
+  };
+}
+
+function printCapturedOutput(result) {
+  if (result.stdout) {
+    process.stdout.write(result.stdout.endsWith("\n") ? result.stdout : `${result.stdout}\n`);
+  }
+  if (result.stderr) {
+    process.stderr.write(result.stderr.endsWith("\n") ? result.stderr : `${result.stderr}\n`);
+  }
+}
+
+function runRecipeOrFail(recipe, args, failureMessage) {
+  const result = runJust(recipe, args);
+  printCapturedOutput(result);
+  if (!result.ok) {
+    fail(failureMessage, [
+      `Recipe: just ${recipe}`,
+      result.stderr || result.stdout || `exit ${result.status}`,
+    ]);
+  }
+}
+
+function dispatchActivationAction(action, wpId, extraArgs) {
+  if (!wpId || !wpId.startsWith("WP-")) {
+    fail("WP_ID is required for this action and must start with WP-", [
+      `Example: just activation-manager ${action} WP-1-Example-v1`,
+    ]);
+  }
+
+  switch (action) {
+    case "record-refinement": {
+      runRecipeOrFail("record-refinement", [wpId, ...extraArgs], `Activation refinement recording failed for ${wpId}.`);
+      process.exit(0);
+    }
+    case "record-signature": {
+      runRecipeOrFail("record-signature", [wpId, ...extraArgs], `Activation signature recording failed for ${wpId}.`);
+      process.exit(0);
+    }
+    case "record-prepare": {
+      runRecipeOrFail("record-prepare", [wpId, ...extraArgs], `Activation prepare recording failed for ${wpId}.`);
+      process.exit(0);
+    }
+    case "record-role-model-profiles": {
+      runRecipeOrFail(
+        "record-role-model-profiles",
+        [wpId, ...extraArgs],
+        `Activation role-model profile recording failed for ${wpId}.`,
+      );
+      process.exit(0);
+    }
+    case "create-task-packet": {
+      runRecipeOrFail("create-task-packet", [wpId, ...extraArgs], `Activation packet creation failed for ${wpId}.`);
+      process.exit(0);
+    }
+    case "task-board-set": {
+      runRecipeOrFail("task-board-set", [wpId, ...extraArgs], `Activation task-board update failed for ${wpId}.`);
+      process.exit(0);
+    }
+    case "wp-traceability-set": {
+      runRecipeOrFail("wp-traceability-set", [wpId, ...extraArgs], `Activation traceability update failed for ${wpId}.`);
+      process.exit(0);
+    }
+    case "prepare-and-packet": {
+      runRecipeOrFail(
+        "orchestrator-prepare-and-packet",
+        [wpId, ...extraArgs],
+        `Activation prepare-and-packet failed for ${wpId}.`,
+      );
+      process.exit(0);
+    }
+    default:
+      return false;
+  }
 }
 
 function readTaskBoardStatus(wpId) {
@@ -417,10 +505,10 @@ function printStartup() {
     "  1. just backup-status",
     "  2. just gov-check",
     "  3. just activation-manager prompt WP-{ID}",
-    "  4. just activation-record-refinement WP-{ID}",
-    "  5. just activation-record-signature WP-{ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A..Coder-Z}",
-    "  6. just activation-create-task-packet WP-{ID} \"<context>\"",
-    "  7. just activation-prepare-and-packet WP-{ID}",
+    "  4. just activation-manager record-refinement WP-{ID}",
+    "  5. just activation-manager record-signature WP-{ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A..Coder-Z}",
+    "  6. just activation-manager create-task-packet WP-{ID} \"<context>\"",
+    "  7. just activation-manager prepare-and-packet WP-{ID}",
     "  8. just activation-manager readiness WP-{ID} --write",
     "- CHECKPOINT_REQUIRED: SESSION_OPEN",
     `- Run: just repomem open "<what this activation session is about>" --role ${ACTOR_ROLE} [--wp WP-ID]`,
@@ -447,7 +535,7 @@ function printPrompt(state) {
     "SIGNATURE ROUND-TRIP: stop after the review-ready refinement/spec bundle and wait for the Orchestrator to return operator approval evidence, the one-time signature, and the selected Coder-A..Z owner before continuing packet/worktree/backup/readiness work.",
     "HARD BOUNDARIES: no product code edits; no coder or validator session launch; no final workflow status claims.",
     "REQUIRED OUTPUT: emit exactly one ACTIVATION_READINESS block when the bundle is ready, blocked, or needs repair.",
-    `FIRST COMMANDS: just activation-manager next ${state.wpId} ; just activation-record-refinement ${state.wpId} ; just activation-manager readiness ${state.wpId} --write`,
+    `FIRST COMMANDS: just activation-manager next ${state.wpId} ; just activation-manager record-refinement ${state.wpId} ; just activation-manager readiness ${state.wpId} --write`,
   ];
   console.log(lines.join("\n"));
 }
@@ -475,7 +563,7 @@ function printNext(state) {
 
   if (!state.refinementExists) {
     lines.push(`- Create or repair the refinement file at ${state.refinementPath}`);
-    lines.push(`- just activation-create-task-packet ${state.wpId} "<context>"`);
+    lines.push(`- just activation-manager create-task-packet ${state.wpId} "<context>"`);
   } else {
     lines.push(`- just generate-refinement-rubric`);
   }
@@ -484,10 +572,10 @@ function printNext(state) {
   } else if (!state.userApprovalEvidence || /^<pending>$/i.test(state.userApprovalEvidence)) {
     lines.push(`- Record USER_APPROVAL_EVIDENCE in the refinement as: APPROVE REFINEMENT ${state.wpId}`);
   } else if (!state.refinementSignature || /^<pending>$/i.test(state.refinementSignature)) {
-    lines.push(`- just activation-record-signature ${state.wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A..Coder-Z}`);
+    lines.push(`- just activation-manager record-signature ${state.wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A..Coder-Z}`);
   }
   if (!state.packet.packetExists && state.refinementExists) {
-    lines.push(`- just activation-create-task-packet ${state.wpId} "<context>"`);
+    lines.push(`- just activation-manager create-task-packet ${state.wpId} "<context>"`);
   }
   lines.push(`- just activation-manager readiness ${state.wpId} --write`);
   lines.push(`- Review runtime artifact: ${path.relative(REPO_ROOT, readinessPath).replace(/\\/g, "/")}`);
@@ -507,10 +595,14 @@ function printJson(value) {
   console.log(JSON.stringify(value, null, 2));
 }
 
-const { action, wpId, write, json } = parseArgs(process.argv);
+const { action, wpId, extraArgs, write, json } = parseArgs(process.argv);
 
 if (action === "startup") {
   printStartup();
+  process.exit(0);
+}
+
+if (dispatchActivationAction(action, wpId, extraArgs) !== false) {
   process.exit(0);
 }
 

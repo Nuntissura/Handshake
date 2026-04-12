@@ -466,7 +466,7 @@ if (action === 'sign') {
         gateOutputLines: [
             `[ORCHESTRATOR GATE] Signature recorded for ${wpId}.`,
             ...(executionLane ? [`- execution_lane: ${executionLane}`] : []),
-            '- lane_default: MANUAL_RELAY for small and medium WPs; choose ORCHESTRATOR_MANAGED only when autonomous steering or multi-WP parallelism is worth the added control-plane cost of the mandatory Activation Manager pre-launch lane.',
+            '- lane_default: ORCHESTRATOR_MANAGED for future sessions unless the operator explicitly wants the lower-touch classic MANUAL_RELAY lane for this WP.',
         ],
         nextCommands: [
             `just record-signature ${wpId} ${signature} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${executionLane || EXECUTION_OWNER_USAGE}`,

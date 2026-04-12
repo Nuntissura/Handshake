@@ -45,6 +45,8 @@ test("activation-manager startup prints the role startup brief", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /ACTIVATION_MANAGER_STARTUP/);
   assert.match(result.stdout, /just activation-manager prompt WP-\{ID\}/);
+  assert.match(result.stdout, /just activation-manager record-refinement WP-\{ID\}/);
+  assert.match(result.stdout, /just activation-manager prepare-and-packet WP-\{ID\}/);
   assert.match(result.stdout, /ACTIVATION_MANAGER as the mandatory temporary pre-launch worker/i);
   assert.match(result.stdout, /REFINEMENT_STANDARD:/);
   assert.match(result.stdout, /HANDOFF_MODE:/);
@@ -69,6 +71,7 @@ test("activation-manager prompt and next produce WP-scoped guidance", () => {
   assert.match(promptResult.stdout, /UPGRADE DISCIPLINE:/);
   assert.match(promptResult.stdout, /EXCERPT FALLBACK RULE:/);
   assert.match(promptResult.stdout, /SIGNATURE ROUND-TRIP:/);
+  assert.match(promptResult.stdout, new RegExp(`just activation-manager record-refinement ${wpId}`));
 
   const nextResult = runCli(["next", wpId, "--json"]);
   assert.equal(nextResult.status, 0, nextResult.stderr);

@@ -49,7 +49,9 @@ export function roleProtocolPath(role) {
   if (role === "ACTIVATION_MANAGER") return ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md";
   if (role === "CODER") return ".GOV/roles/coder/CODER_PROTOCOL.md";
   if (role === "MEMORY_MANAGER") return ".GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md";
-  if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") return ".GOV/roles/validator/VALIDATOR_PROTOCOL.md";
+  if (role === "WP_VALIDATOR") return ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md";
+  if (role === "INTEGRATION_VALIDATOR") return ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md";
+  if (role === "VALIDATOR") return ".GOV/roles/validator/VALIDATOR_PROTOCOL.md";
   return ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md";
 }
 
@@ -200,7 +202,7 @@ export function resolveRoleConfig(roleName, workPacketId) {
       title: `WPVAL ${workPacketId}`,
       startupCommand: roleStartupCommand("WP_VALIDATOR"),
       nextCommand: roleNextCommand("WP_VALIDATOR", workPacketId),
-      focus: "WP-scoped technical steering, bootstrap/skeleton review, and packet-scoped validation receipts (operates from a dedicated validator worktree and diffs against main)",
+      focus: "WP-scoped technical steering, bootstrap/skeleton review, and packet-scoped validation receipts (operates from the shared coder worktree and diffs against main)",
     };
   }
   if (roleName === "INTEGRATION_VALIDATOR") {
@@ -788,7 +790,7 @@ export function buildStartupPrompt({
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start downstream launch, workflow status sync, or product work without a specific task.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
       `FOCUS: pre-launch governance authoring only in wt-gov-kernel on branch gov_kernel.`,
-      `WORKFLOW SPLIT (MANDATORY): For \`WORKFLOW_LANE=ORCHESTRATOR_MANAGED\`, you are the mandatory governed pre-launch authoring lane and temporary worker. You must own the heavy pre-launch reasoning, hand back \`ACTIVATION_READINESS\` to the Orchestrator, and then self-close. For \`MANUAL_RELAY\`, pre-launch remains Orchestrator-owned; do not invent a second manual authority lane.`,
+      `WORKFLOW SPLIT (MANDATORY): For \`WORKFLOW_LANE=ORCHESTRATOR_MANAGED\`, you are the mandatory governed pre-launch authoring lane and temporary worker. You must own the heavy pre-launch reasoning, hand back \`ACTIVATION_READINESS\` to the Orchestrator, and then self-close. For \`MANUAL_RELAY\`, pre-launch belongs to \`CLASSIC_ORCHESTRATOR\`; do not invent a second manual authority lane.`,
       `REFINEMENT STANDARD (HARD): your refinement and spec-enrichment work must match or exceed the old Orchestrator pre-launch quality bar. Own the full research, primitive-index, matrix, appendix, and force-multiplier follow-through instead of treating refinement as a lightweight summary.`,
       `RESEARCH APPLICABILITY RULE (HARD): for internal, repo-governed, or product-governance mirror WPs already grounded in the current Master Spec plus local product/runtime code, prefer local-spec/local-code truth first and mark external research sections NOT_APPLICABLE when honest. Never perform empty, generic, or off-topic web searches just to fill refinement headings.`,
       `CONVERGENCE RULE (HARD): once you have the core spec/runtime evidence for the assigned WP, switch into updating the named target refinement/spec artifact immediately. Do not broad-scan unrelated .GOV/refinements or .GOV/task_packets for examples. If structure help is genuinely needed, read at most 2 directly analogous artifacts, then write the target artifact.`,
@@ -796,7 +798,7 @@ export function buildStartupPrompt({
       `BLOCKER-FIRST REPAIR RULE (HARD): when the gate reports a named blocker list for a partially filled refinement/spec artifact, repair only those blocker-named lines or sections first. Do not read excerpt-heavy tail sections, exact spec-anchor windows, or large later blocks until the gate specifically requires them.`,
       `STUB DISCOVERY RULE (HARD): when refinement, enrichment, primitive-index upkeep, or matrix expansion exposes new high-ROI items or unknown capabilities, create or update stub backlog entries instead of silently dropping them.`,
       `MODEL PROFILE RULE: Activation Manager launch defaults to the governed repo profile when packet fields are absent because this lane may run before packet hydration is complete.`,
-      `COMMAND SURFACE RULE: use the activation-prefixed refinement/signature/packet-prep commands. They intentionally reuse live Orchestrator implementation surfaces; that shared implementation does not change authority ownership.`,
+      `COMMAND SURFACE RULE: use the canonical \`just activation-manager <action>\` surface for role-local repair/reference work and the shared refinement/signature/packet-prep commands the Orchestrator explicitly delegates. Shared implementation does not change authority ownership.`,
       `FILE-FIRST HANDOFF RULE (HARD): write the refinement/spec artifact, run the checks on that file, and return only the file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text by default.`,
       `REFINEMENT_HANDOFF_SUMMARY (HARD): include REFINEMENT_PATH, REFINEMENT_CHECK, ENRICHMENT_NEEDED, NEW_STUBS_CREATED_OR_UPDATED, NEW_FEATURES_OR_CAPABILITIES_DISCOVERED, MAJOR_TECH_UPGRADE_ADVICE, REVIEW_FOCUS, and NEXT_ORCHESTRATOR_ACTION.`,
       `REFINEMENT_CHECK RULE (HARD): REFINEMENT_CHECK must come from the real refinement checker on the written file. Placeholder scans, ASCII-only scans, and diff sanity checks do not count as pass truth by themselves.`,
@@ -1019,7 +1021,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       ? `FIRST READ RULE: before any repo-wide search or packet rediscovery, open \`just integration-validator-context-brief ${wpId}\` and use its \`packet_read_path\` / \`prepare_worktree_dir\` output as the authoritative readable path bundle.`
       : null,
     role === "ACTIVATION_MANAGER"
-      ? `WORKFLOW SPLIT (MANDATORY): in orchestrator-managed workflow you are the mandatory temporary pre-launch worker and governed pre-launch authoring lane; in manual workflow, pre-launch remains Orchestrator-owned. Do not convert this role into a second manual authority lane.`
+      ? `WORKFLOW SPLIT (MANDATORY): in orchestrator-managed workflow you are the mandatory temporary pre-launch worker and governed pre-launch authoring lane; in manual workflow, pre-launch belongs to CLASSIC_ORCHESTRATOR. Do not convert this role into a second manual authority lane.`
       : null,
     role === "ACTIVATION_MANAGER"
       ? `WINDOWS EDIT LIMIT RULE (HARD): when updating an existing refinement/spec artifact under a long Windows worktree path, avoid monolithic whole-file rewrite attempts that can fail with os error 206. Use bounded in-place section edits or chunked apply_patch updates instead.`

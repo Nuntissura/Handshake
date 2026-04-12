@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, execSync } from "node:child_process";
-import { registerFailCaptureHook, failWithMemory } from "../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import {
   REPO_ROOT,
   GOV_ROOT,
@@ -22,7 +22,7 @@ import {
   repoPathAbs,
   govRootAbsPath,
   resolvePacketPath,
-} from "../../roles_shared/scripts/lib/runtime-paths.mjs";
+} from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 registerFailCaptureHook("closeout-repair");
 
