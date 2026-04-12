@@ -129,13 +129,13 @@ Requirements:
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
 - CURRENT_MAIN_COMPATIBILITY_STATUS: ADJACENT_SCOPE_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 333b1a59bb6f891b3b0948514e3ef8b34f0ab58f
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: c11f3c1511748ff050916dda108b3f38c3f670b4
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-10T08:51:43.052Z
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-12T02:05:21.2011691Z
 <!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
 - PACKET_WIDENING_DECISION: FOLLOW_ON_WP_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
-- PACKET_WIDENING_EVIDENCE: Current local `main` commits a duplicate `model_session_id` field in `src/backend/handshake_core/src/api/flight_recorder.rs` at lines 62 and 68 with no local diff; this adjacent-scope blocker sits outside the signed five-file WP scope and requires a follow-on WP.
+- PACKET_WIDENING_EVIDENCE: Current local `main` remains outside contained-main PASS for this packet, but the earlier `src/backend/handshake_core/src/api/flight_recorder.rs` duplicate-`model_session_id` rationale is stale. Recheck on `c11f3c1511748ff050916dda108b3f38c3f670b4` shows the signed five-file slice is still branch-only while broader current-main proof now fails in adjacent-scope test/API surfaces outside signed scope, including `src/backend/handshake_core/tests/micro_task_executor_tests.rs:21` and `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:198`, `:1231`, `:1291`, `:1301`, `:1323`, `:1343`, `:1384`; follow-on or superseding work remains required.
 <!-- Use follow-on/superseding WP id, audit id, or short rationale when widening is required. -->
 - ZERO_DELTA_PROOF_ALLOWED: NO
 <!-- Allowed: YES | NO. YES => deterministic post-work may accept an empty diff only for an explicitly proof-only/status-sync packet. -->
@@ -1333,9 +1333,21 @@ SHARED_SURFACE_INTERACTION_CHECKS:
 - `src/backend/handshake_core/src/workflows.rs:4646` still emits governance events validated by `src/backend/handshake_core/src/flight_recorder/mod.rs:5397` and `:5468`.
 - `src/backend/handshake_core/src/runtime_governance.rs:259-330` still constrains the artifact refs persisted by `src/backend/handshake_core/src/workflows.rs:3813` / `:4772`.
 CURRENT_MAIN_INTERACTION_CHECKS:
-- `git show HEAD:src/backend/handshake_core/src/api/flight_recorder.rs` confirmed committed duplicate `model_session_id` fields at lines 62 and 68 on current local `main`.
+- `git show HEAD:src/backend/handshake_core/src/api/flight_recorder.rs` recheck on current local `main` showed `model_session_id` at `src/backend/handshake_core/src/api/flight_recorder.rs:48` and `:62` in two different structs, so the earlier duplicate-field blocker claim is superseded.
 - `git show HEAD:src/backend/handshake_core/src/flight_recorder/duckdb.rs` confirmed current-main helper calls still use `with_activity_span_id`, `with_session_span_id`, `with_capability_id`, and `with_policy_decision_id`.
 - `src/backend/handshake_core/src/flight_recorder/mod.rs:494`, `:503`, `:512`, `:521` retain those current-main compatibility aliases inside the signed scope.
+### 2026-04-12T02:05:21.2011691Z ORCHESTRATOR CURRENT-MAIN TRUTH REFRESH
+ROLE: ORCHESTRATOR
+Verdict: OUTDATED_ONLY
+Reason: The packet status remains directionally correct because current local `main` still does not contain the signed five-file workflow-mirror slice, but the earlier widening rationale citing duplicate `model_session_id` fields in `src/backend/handshake_core/src/api/flight_recorder.rs` is stale. Current `main` at `c11f3c1511748ff050916dda108b3f38c3f670b4` shows `model_session_id` in two different structs at `src/backend/handshake_core/src/api/flight_recorder.rs:48` and `:62`, so that no longer supports the blocker claim.
+REFRESH_CHECKS_RUN:
+- `cargo check --manifest-path ..\\wtc-workflow-mirror-v1\\src\\backend\\handshake_core\\Cargo.toml --lib` => PASS for signed target `7ed83940a06856359b6789060c792b8b1652ca42`.
+- `cargo test --manifest-path ..\\handshake_main\\src\\backend\\handshake_core\\Cargo.toml gov_gate_transition -- --nocapture` => FAIL on current local `main` in adjacent-scope tests outside the signed five-file slice.
+REFRESH_FINDINGS:
+- Current `main` does not contain branch head `7ed83940a06856359b6789060c792b8b1652ca42`, so contained-main PASS remains false for this WP.
+- The current-main failure surface is adjacent-scope test/API drift, not a duplicate-field defect in `src/backend/handshake_core/src/api/flight_recorder.rs`.
+- The failing current-main surfaces observed during recheck were `src/backend/handshake_core/tests/micro_task_executor_tests.rs:21` and `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:198`, `:1231`, `:1291`, `:1301`, `:1323`, `:1343`, `:1384`.
+- Follow-on or superseding work is still required before this workflow-mirror branch could be honestly re-evaluated for contained-main PASS.
 DATA_CONTRACT_PROOF:
 - `src/backend/handshake_core/src/locus/types.rs:353` and `:376` preserve structured gate / activation summaries for workflow-facing and LLM-friendly projection use.
 - `src/backend/handshake_core/src/workflows.rs:3813`, `:4669`, `:4738`, `:4772` keep the workflow mirror and spec-session-log artifacts in structured runtime-owned forms instead of repo-owned ad hoc text.

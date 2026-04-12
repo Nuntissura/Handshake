@@ -8,8 +8,10 @@ import {
 } from "../lib/wp-communications-lib.mjs";
 import {
   repoPathAbs,
+  REPO_ROOT,
   resolveWorkPacketPath,
 } from "../lib/runtime-paths.mjs";
+import { resolveValidatorGatePath } from "../lib/validator-gate-paths.mjs";
 import {
   SESSION_CONTROL_REQUESTS_FILE,
   SESSION_CONTROL_RESULTS_FILE,
@@ -1034,4 +1036,220 @@ export function loadWpTimelineArtifacts(repoRoot, wpId) {
     controlResults,
     tokenLedger,
   };
+}
+
+// --- WP Metrics (TG-012: same-domain functions, not a separate script) ---
+
+function msToMinutes(ms) {
+  return ms != null ? Math.round((ms / 60_000) * 10) / 10 : null;
+}
+
+function safeRatio(numerator, denominator) {
+  if (!denominator || denominator === 0) return null;
+  return Math.round((numerator / denominator) * 1000) / 1000;
+}
+
+export function countReceiptsByKind(receipts) {
+  const counts = {};
+  for (const r of receipts) {
+    const kind = String(r.receipt_kind || "UNKNOWN").trim();
+    counts[kind] = (counts[kind] || 0) + 1;
+  }
+  return counts;
+}
+
+function extractMicrotask(receipt) {
+  const summary = String(receipt.summary || "");
+  const match = summary.match(/\bMT-\d+\b/i);
+  return match ? match[0].toUpperCase() : null;
+}
+
+export function countFixCycles(receipts) {
+  let total = 0;
+  const byMt = {};
+  for (const r of receipts) {
+    if (r.receipt_kind !== "REVIEW_RESPONSE") continue;
+    const summary = String(r.summary || "").toLowerCase();
+    const isSteer = summary.includes("steer")
+      || summary.includes("not pass")
+      || summary.includes("not-pass")
+      || summary.includes("rejected")
+      || summary.includes("remediation");
+    if (!isSteer) continue;
+    total += 1;
+    const mt = extractMicrotask(r);
+    if (mt) {
+      byMt[mt] = (byMt[mt] || 0) + 1;
+    }
+  }
+  return { total, by_mt: byMt };
+}
+
+export function countMicrotasks(receipts) {
+  const mts = new Set();
+  for (const r of receipts) {
+    const mt = extractMicrotask(r);
+    if (mt) mts.add(mt);
+  }
+  return mts.size;
+}
+
+export function countSessionControlByStatus(controlResults) {
+  const counts = { total: 0, completed: 0, failed: 0 };
+  const byKind = {};
+  for (const r of controlResults) {
+    counts.total += 1;
+    const status = String(r.status || "").toUpperCase();
+    if (status === "COMPLETED") counts.completed += 1;
+    if (status === "FAILED") counts.failed += 1;
+    const kind = String(r.command_kind || "UNKNOWN").trim();
+    if (!byKind[kind]) byKind[kind] = { total: 0, completed: 0, failed: 0 };
+    byKind[kind].total += 1;
+    if (status === "COMPLETED") byKind[kind].completed += 1;
+    if (status === "FAILED") byKind[kind].failed += 1;
+  }
+  return { ...counts, by_kind: byKind };
+}
+
+export function countSessionRestarts(controlResults) {
+  const cancelledKeys = new Set();
+  let restarts = 0;
+  for (const r of controlResults) {
+    const key = String(r.session_key || "").trim();
+    const kind = String(r.command_kind || "").trim();
+    const status = String(r.status || "").toUpperCase();
+    if (kind === "CANCEL_SESSION" && status === "COMPLETED") {
+      cancelledKeys.add(key);
+    }
+    if (kind === "START_SESSION" && status === "COMPLETED" && cancelledKeys.has(key)) {
+      restarts += 1;
+    }
+  }
+  return restarts;
+}
+
+export function loadValidationEvidence(wpId) {
+  const gatePath = repoPathAbs(resolveValidatorGatePath(wpId));
+  if (!fs.existsSync(gatePath)) return null;
+  try {
+    const raw = JSON.parse(fs.readFileSync(gatePath, "utf8"));
+    const evidence = raw?.committed_validation_evidence?.[wpId];
+    if (!evidence) return null;
+    const history = Array.isArray(evidence.proof_history) ? evidence.proof_history : [];
+    return {
+      proof_runs: history.length,
+      proof_pass: history.filter((p) => p.status === "PASS").length,
+      proof_fail: history.filter((p) => p.status === "FAIL").length,
+      zero_execution_incidents: history.filter((p) => p.zero_execution_detected).length,
+      first_pass_success: history.length > 0 && history[0]?.status === "PASS",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function countStaleRouteIncidents(receipts, controlResults) {
+  let count = 0;
+  for (const r of receipts) {
+    const summary = String(r.summary || "").toLowerCase();
+    if (summary.includes("route_stale") || summary.includes("stale route")) count += 1;
+  }
+  for (const r of controlResults) {
+    const summary = String(r.summary || r.error || "").toLowerCase();
+    if (summary.includes("route_stale") || summary.includes("stale")) count += 1;
+  }
+  return count;
+}
+
+export function countDuplicateReceipts(receipts) {
+  const seen = new Set();
+  let duplicates = 0;
+  for (const r of receipts) {
+    const key = `${r.receipt_kind}:${r.correlation_id || ""}:${r.actor_role}:${r.target_role}`;
+    if (r.correlation_id && seen.has(key)) duplicates += 1;
+    seen.add(key);
+  }
+  return duplicates;
+}
+
+export function buildWpMetrics({ wpId, summary, receipts, controlResults }) {
+  const dt = summary.downtime_attribution || {};
+  const activeMs = dt.active_build_ms || 0;
+  const repairMs = dt.repair_overhead_ms || 0;
+  const validatorWaitMs = dt.validator_wait_ms || 0;
+  const routeWaitMs = dt.route_wait_ms || 0;
+  const coderWaitMs = dt.coder_wait_ms || 0;
+
+  const fixCycles = countFixCycles(receipts);
+  const sessionControl = countSessionControlByStatus(controlResults);
+  const validationEvidence = loadValidationEvidence(wpId);
+
+  return {
+    wp_id: wpId,
+    extracted_at: new Date().toISOString(),
+    wall_clock_minutes: msToMinutes(summary.event_window_duration_ms),
+    product_active_minutes: msToMinutes(activeMs),
+    repair_minutes: msToMinutes(repairMs),
+    validator_wait_minutes: msToMinutes(validatorWaitMs),
+    route_wait_minutes: msToMinutes(routeWaitMs),
+    coder_wait_minutes: msToMinutes(coderWaitMs),
+    governance_overhead_ratio: safeRatio(repairMs + routeWaitMs, activeMs + validatorWaitMs + coderWaitMs),
+    receipt_count: receipts.length,
+    receipt_kinds: countReceiptsByKind(receipts),
+    duplicate_receipts: countDuplicateReceipts(receipts),
+    stale_route_incidents: countStaleRouteIncidents(receipts, controlResults),
+    review_rtt_max_ms: dt.review_rtt_max_ms ?? null,
+    acp_commands: sessionControl.total,
+    acp_failures: sessionControl.failed,
+    acp_by_kind: sessionControl.by_kind,
+    session_restarts: countSessionRestarts(controlResults),
+    mt_count: countMicrotasks(receipts),
+    fix_cycles: fixCycles.total,
+    fix_cycles_by_mt: fixCycles.by_mt,
+    proof_runs: validationEvidence?.proof_runs ?? 0,
+    proof_pass: validationEvidence?.proof_pass ?? 0,
+    proof_fail: validationEvidence?.proof_fail ?? 0,
+    zero_execution_incidents: validationEvidence?.zero_execution_incidents ?? 0,
+    first_pass_compile_success: validationEvidence?.first_pass_success ?? null,
+    token_input_total: summary.token_input_total,
+    token_output_total: summary.token_output_total,
+    token_turn_count: summary.token_turn_count,
+    ledger_health: summary.ledger_health_status,
+    budget_status: summary.budget_status,
+    cost_estimate: summary.cost_estimate,
+    queue_pressure_max_score: summary.queue_pressure?.score ?? null,
+    runtime_status: summary.runtime_status,
+    current_phase: summary.current_phase,
+    workflow_lane: summary.workflow_lane,
+  };
+}
+
+export function buildWpMetricsComparison(metricsA, metricsB) {
+  const fields = [
+    ["wall_clock_minutes", "Wall clock (min)"],
+    ["product_active_minutes", "Product active (min)"],
+    ["repair_minutes", "Repair overhead (min)"],
+    ["validator_wait_minutes", "Validator wait (min)"],
+    ["governance_overhead_ratio", "Gov overhead ratio"],
+    ["receipt_count", "Receipts"],
+    ["duplicate_receipts", "Duplicate receipts"],
+    ["stale_route_incidents", "Stale route incidents"],
+    ["acp_commands", "ACP commands"],
+    ["acp_failures", "ACP failures"],
+    ["session_restarts", "Session restarts"],
+    ["mt_count", "Microtasks"],
+    ["fix_cycles", "Fix cycles"],
+    ["zero_execution_incidents", "Zero-execution incidents"],
+    ["token_input_total", "Tokens in"],
+    ["token_output_total", "Tokens out"],
+    ["token_turn_count", "Turns"],
+    ["cost_estimate", "Cost estimate"],
+  ];
+  return fields.map(([key, label]) => {
+    const a = metricsA[key];
+    const b = metricsB[key];
+    const delta = (a != null && b != null) ? Math.round((b - a) * 10) / 10 : null;
+    const trend = delta == null ? "" : delta > 0 ? "UP" : delta < 0 ? "DOWN" : "SAME";
+    return { metric: label, wp_a: a, wp_b: b, delta, trend };
+  });
 }
