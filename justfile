@@ -181,6 +181,12 @@ wp-token-usage wp-id:
 wp-timeline wp-id json="":
 	node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-timeline-report.mjs" {{wp-id}} {{json}}
 
+wp-metrics wp-id *flags="":
+	node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-metrics.mjs" {{wp-id}} {{flags}}
+
+wp-metrics-compare wp-a wp-b *flags="":
+	node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-metrics.mjs" --compare {{wp-a}} {{wp-b}} {{flags}}
+
 wp-token-usage-settle wp-id reason="HISTORICAL_BACKFILL" settled-by="SYSTEM":
 	node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-token-usage-settle.mjs" {{wp-id}} {{reason}} {{settled-by}}
 
