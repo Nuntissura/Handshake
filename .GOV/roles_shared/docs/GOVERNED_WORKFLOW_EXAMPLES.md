@@ -36,8 +36,8 @@ Normal launch note:
 ### WP Validator opens the review lane
 
 ```bash
-just validator-startup
-just validator-next WP-{ID}
+just validator-startup WP_VALIDATOR
+just validator-next WP_VALIDATOR WP-{ID}
 just phase-check STARTUP WP-{ID} WP_VALIDATOR <wp_validator_session>
 just wp-validator-kickoff WP-{ID} <wp_validator_session> <coder_session> "Review scope and tripwires for WP-{ID}"
 just wp-communication-health-check WP-{ID} KICKOFF
@@ -84,8 +84,8 @@ just launch-integration-validator-session WP-{ID}
 ### Integration Validator resumes and opens the final review pair
 
 ```bash
-just validator-startup
-just validator-next WP-{ID}
+just validator-startup INTEGRATION_VALIDATOR
+just validator-next INTEGRATION_VALIDATOR WP-{ID}
 just phase-check STARTUP WP-{ID} INTEGRATION_VALIDATOR <intval_session>
 just wp-review-exchange REVIEW_REQUEST WP-{ID} INTEGRATION_VALIDATOR <intval_session> CODER <coder_session> "Final merge-readiness review request" "" "<spec_anchor>" "<packet_row_ref>"
 ```
@@ -151,7 +151,7 @@ Use this when a historical packet was once "validated" but is now explicitly blo
 ### Read path
 
 ```bash
-just validator-next WP-{ID}
+just validator-next VALIDATOR WP-{ID}
 just validator-policy-gate WP-{ID}
 just session-registry-status WP-{ID}
 ```

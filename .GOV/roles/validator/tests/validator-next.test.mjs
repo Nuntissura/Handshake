@@ -74,7 +74,7 @@ test("validator gate writes reject unbound governed lanes and point to the corre
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Wrong lane\/tool surface for governed validator gate action commit/i);
-  assert.match(result.stderr, /Use: just validator-next WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/i);
+  assert.match(result.stderr, /Use: just validator-next WP_VALIDATOR WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/i);
   assert.match(result.stderr, /Use: just integration-validator-context-brief WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/i);
   assert.match(result.stderr, /Use: just external-validator-brief WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/i);
 });

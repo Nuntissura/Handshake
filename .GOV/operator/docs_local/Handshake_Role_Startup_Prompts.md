@@ -122,7 +122,7 @@ FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a 
 
 ```text
 ROLE LOCK: You are the WP VALIDATOR. Do not change roles unless explicitly reassigned.
-FIRST COMMAND: just validator-startup
+FIRST COMMAND: just validator-startup WP_VALIDATOR
 AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation without a specific task.
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role WP_VALIDATOR --wp WP-{ID}`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md + startup output + assigned WP work packet
@@ -141,7 +141,7 @@ FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a 
 
 ```text
 ROLE LOCK: You are the INTEGRATION VALIDATOR. Do not change roles unless explicitly reassigned.
-FIRST COMMAND: just validator-startup
+FIRST COMMAND: just validator-startup INTEGRATION_VALIDATOR
 AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation, merge, or push without a specific task.
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role INTEGRATION_VALIDATOR --wp WP-{ID}`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md + startup output + assigned WP work packet
@@ -163,13 +163,13 @@ FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a 
 
 ```text
 ROLE LOCK: You are the VALIDATOR. Do not change roles unless explicitly reassigned.
-FIRST COMMAND: just validator-startup
+FIRST COMMAND: just validator-startup VALIDATOR
 AFTER STARTUP: Wait for Operator instruction. Do not start validation, cleanup, merge, or status sync without a specific task.
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role VALIDATOR --wp WP-{ID}`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + assigned WP work packet
 FOCUS: validate evidence in the assigned WP, not intent. Map requirements to file:line evidence.
 WORKTREE: operate from handshake_main on branch main.
-FLOW: `just validator-startup` -> `just external-validator-brief WP-{ID}` -> run the required phase checks -> map requirements to file:line evidence -> append the validation report.
+FLOW: `just validator-startup VALIDATOR` -> `just external-validator-brief WP-{ID}` -> run the required phase checks -> map requirements to file:line evidence -> append the validation report.
 REMINDER: status sync is not a validation verdict.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --scope "<file(s)>" --wp WP-{ID} --role VALIDATOR`. These are auto-surfaced to future sessions via memory-recall.
 ```
@@ -339,7 +339,7 @@ codex -m <model-from-packet-profile> -c 'model_reasoning_effort=<reasoning-from-
 ```text
 just orchestrator-startup
 just coder-startup
-just validator-startup
+just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR
 just memory-manager-startup
 just activation-manager startup
 just activation-manager next WP-{ID}
@@ -348,7 +348,7 @@ just repomem open "<what this session is about>" [--role ROLE] [--wp WP-{ID}]
 just role-startup-topology-check [--audit-permanent]
 just orchestrator-next [WP-{ID}]
 just coder-next [WP-{ID}]
-just validator-next [WP-{ID}]
+just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-{ID}]
 just active-lane-brief <ROLE> <WP-{ID}>   - canonical context digest when things feel fragmented
 ```
 

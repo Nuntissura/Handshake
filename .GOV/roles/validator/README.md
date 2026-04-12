@@ -65,8 +65,8 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 
 ## Key Commands
 
-- `just validator-startup`
-- `just validator-next [WP-{ID}] [--debug]`
+- `just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR`
+- `just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-{ID}] [--debug]`
 - `just phase-check <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} [ROLE] [session]`
 - `just integration-validator-context-brief WP-{ID}`
 - `just validator-gate-present WP-{ID}`

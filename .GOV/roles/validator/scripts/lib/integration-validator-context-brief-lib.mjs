@@ -195,8 +195,8 @@ export function buildIntegrationValidatorContextBrief({
     anti_rediscovery_rule:
       "Do not rebuild final-lane branch/worktree/authority truth by rereading large protocols or rediscovering commands once this bundle is available.",
     startup_sequence: [
-      "just validator-startup",
-      `just validator-next ${wpId}`,
+      "just validator-startup INTEGRATION_VALIDATOR",
+      `just validator-next INTEGRATION_VALIDATOR ${wpId}`,
       `just integration-validator-context-brief ${wpId}`,
     ],
     authority: {

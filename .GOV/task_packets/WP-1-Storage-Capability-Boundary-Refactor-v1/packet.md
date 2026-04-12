@@ -79,16 +79,16 @@ Requirements:
 - WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-boundary-refactor-v1
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Storage-Capability-Boundary-Refactor-v1
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Storage-Capability-Boundary-Refactor-v1
-- WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
-- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-Storage-Capability-Boundary-Refactor-v1
+- WP_VALIDATOR_STARTUP_COMMAND: just validator-startup WP_VALIDATOR
+- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP_VALIDATOR WP-1-Storage-Capability-Boundary-Refactor-v1
 - INTEGRATION_VALIDATOR_LOCAL_BRANCH: main
 - INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Storage-Capability-Boundary-Refactor-v1
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Storage-Capability-Boundary-Refactor-v1
-- INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup
-- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-Storage-Capability-Boundary-Refactor-v1
+- INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup INTEGRATION_VALIDATOR
+- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next INTEGRATION_VALIDATOR WP-1-Storage-Capability-Boundary-Refactor-v1
 - EXTERNAL_VALIDATOR_BRIEF_COMMAND: just external-validator-brief WP-1-Storage-Capability-Boundary-Refactor-v1
-- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup -> just external-validator-brief WP-1-Storage-Capability-Boundary-Refactor-v1
+- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup VALIDATOR -> just external-validator-brief WP-1-Storage-Capability-Boundary-Refactor-v1
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY | ABANDONED
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING

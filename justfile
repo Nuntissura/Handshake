@@ -7,7 +7,7 @@ ARTIFACT_ROOT := env_var_or_default('HANDSHAKE_ARTIFACT_ROOT', '../Handshake Art
 CARGO_TARGET_DIR := "{{ARTIFACT_ROOT}}/handshake-cargo-target"
 
 docs-check:
-	node -e "['{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md', '{{MAIN_ROOT}}/AGENTS.md', '{{GOV_ROOT}}/README.md', '{{GOV_ROOT}}/roles/README.md', '{{GOV_ROOT}}/roles_shared/README.md', '{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md', '{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles_shared/docs/START_HERE.md', '{{GOV_ROOT}}/spec/SPEC_CURRENT.md', '{{GOV_ROOT}}/roles_shared/docs/ARCHITECTURE.md', '{{GOV_ROOT}}/roles_shared/docs/RUNBOOK_DEBUG.md', '{{GOV_ROOT}}/roles_shared/docs/REPO_RESILIENCE.md', '{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md', '{{GOV_ROOT}}/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node -e "['{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md', '{{MAIN_ROOT}}/AGENTS.md', '{{GOV_ROOT}}/README.md', '{{GOV_ROOT}}/roles/README.md', '{{GOV_ROOT}}/roles_shared/README.md', '{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md', '{{GOV_ROOT}}/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles_shared/docs/START_HERE.md', '{{GOV_ROOT}}/spec/SPEC_CURRENT.md', '{{GOV_ROOT}}/roles_shared/docs/ARCHITECTURE.md', '{{GOV_ROOT}}/roles_shared/docs/RUNBOOK_DEBUG.md', '{{GOV_ROOT}}/roles_shared/docs/REPO_RESILIENCE.md', '{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md', '{{GOV_ROOT}}/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
 
 gov-check:
 	just docs-check
@@ -294,18 +294,18 @@ classic-orchestrator-startup:
 	@echo 'LANE_OWNER: CLASSIC_ORCHESTRATOR owns MANUAL_RELAY end-to-end, including the old combined Orchestrator + Activation Manager pre-launch flow.'
 	@echo 'REPO_TIMEZONE: Europe/Brussels for human-facing governance timestamps; ACP/session ledgers remain UTC.'
 
-validator-startup:
-	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md"
+validator-startup role:
+	@switch ("{{role}}".Trim().ToUpper()) { "WP_VALIDATOR" { just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md"; break } "INTEGRATION_VALIDATOR" { just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md"; break } "VALIDATOR" { just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md"; break } default { Write-Error 'Usage: just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR'; exit 1 } }
 	@just backup-status
 	@just role-startup-topology-check
 	@just validator-preflight
 	@just memory-refresh
-	@just memory-recall VALIDATOR_RESUME
+	@just memory-recall VALIDATOR_RESUME --role {{role}}
 	@echo ''
 	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
-	@echo 'Run: just repomem open "<what this session is about>" --role VALIDATOR [--wp WP-ID]'
+	@echo 'Run: just repomem open "<what this session is about>" --role {{role}} [--wp WP-ID]'
 	@echo ''
-	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
+	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next {{role}} [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 coder-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md"
@@ -380,9 +380,10 @@ spec-debt-open wp-id clause notes blocking="NO":
 spec-debt-sync wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/debt/spec-debt-sync.mjs" {{wp-id}}
 
-validator-next wp-id="" *FLAGS:
-	@just memory-recall VALIDATOR_RESUME --wp {{wp-id}}
-	@node "{{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs" {{wp-id}} {{FLAGS}}
+validator-next role wp-id="" *FLAGS:
+	@if ("{{role}}".Trim().ToUpper() -notin @("WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR")) { Write-Error 'Usage: just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-ID] [--debug]'; exit 1 }
+	@just memory-recall VALIDATOR_RESUME --role {{role}} --wp {{wp-id}}
+	@$env:HANDSHAKE_VALIDATOR_ROLE="{{role}}"; node "{{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs" --role {{role}} {{wp-id}} {{FLAGS}}
 
 task-board-set wp-id status context reason="":
 	@just repomem-gate

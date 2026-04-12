@@ -99,9 +99,9 @@ These are safe starting points for orientation and health checks.
   - compatibility alias for `just operator-viewport`
 - `just orchestrator-next [WP-{ID}] [--debug]`
 - `just coder-next [WP-{ID}]`
-- `just validator-next [WP-{ID}] [--debug]`
+- `just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-{ID}] [--debug]`
   - `read-only`
-  - role-specific resume helpers after startup/reset/compaction
+  - shared validator resume surface; the explicit role argument is mandatory so the lane does not collapse back to classical `VALIDATOR`
   - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, post-signature routine Operator interruptions are invalid; `just orchestrator-next` should print `OPERATOR_ACTION: NONE` unless a machine-visible `BLOCKER_CLASS` is present
 - `just orchestrator-steer-next WP-{ID} "<context>" [PRIMARY|FALLBACK]`
   - `runtime-write`
@@ -351,11 +351,11 @@ If a role keeps needing those rereads:
 - `just orchestrator-startup`
 - `just classic-orchestrator-startup`
 - `just coder-startup`
-- `just validator-startup`
+- `just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR`
 - `just memory-manager-startup`
   - `read-only`
   - protocol ack + backup context + role preflight
-  - `just validator-startup` is the shared startup surface for `WP_VALIDATOR`, `INTEGRATION_VALIDATOR`, and classical `VALIDATOR`; the startup output carries the role-specific protocol and authority
+  - `just validator-startup <ROLE>` is the shared startup surface for `WP_VALIDATOR`, `INTEGRATION_VALIDATOR`, and classical `VALIDATOR`; the explicit role argument selects the role-specific protocol and authority
   - governed startup prompts are derived from `session-control-lib.mjs` and now explicitly include `AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + role protocol + startup output + packet`
 - `just role-startup-topology-check [--audit-permanent]`
   - `read-only`

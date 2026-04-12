@@ -33,15 +33,15 @@ Startup commands:
 - `just orchestrator-startup`
 - `just classic-orchestrator-startup`
 - `just coder-startup`
-- `just validator-startup`
-  - shared startup surface for `WP_VALIDATOR`, `INTEGRATION_VALIDATOR`, and classical `VALIDATOR`; startup output and assigned role determine the active authority
+- `just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR`
+  - shared startup surface for `WP_VALIDATOR`, `INTEGRATION_VALIDATOR`, and classical `VALIDATOR`; the explicit role argument determines the active authority and protocol ack
 - `just memory-manager-startup`
 - `just role-startup-topology-check [--audit-permanent]`
 
 Use the role-specific read-only resume helper immediately after `just <role>-startup` when a session resets or context compacts:
 - Orchestrator: `just orchestrator-next [WP-{ID}] [--debug]`
 - Coder: `just coder-next [WP-{ID}]`
-- Validator: `just validator-next [WP-{ID}] [--debug]`
+- Validator: `just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-{ID}] [--debug]`
 
 Rule:
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS`.

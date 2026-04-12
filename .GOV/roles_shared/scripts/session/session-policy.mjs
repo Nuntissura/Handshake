@@ -697,7 +697,9 @@ export function sessionRegistryFileForStubVersion(stubFormatVersion) {
 export function roleStartupCommand(role) {
   if (role === "ACTIVATION_MANAGER") return "just activation-manager startup";
   if (role === "CODER") return "just coder-startup";
-  if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") return "just validator-startup";
+  if (role === "WP_VALIDATOR") return "just validator-startup WP_VALIDATOR";
+  if (role === "INTEGRATION_VALIDATOR") return "just validator-startup INTEGRATION_VALIDATOR";
+  if (role === "VALIDATOR") return "just validator-startup VALIDATOR";
   if (role === "MEMORY_MANAGER") return "just memory-manager-startup";
   return "just orchestrator-startup";
 }
@@ -705,7 +707,9 @@ export function roleStartupCommand(role) {
 export function roleNextCommand(role, wpId) {
   if (role === "ACTIVATION_MANAGER") return `just activation-manager next ${wpId}`;
   if (role === "CODER") return `just coder-next ${wpId}`;
-  if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") return `just validator-next ${wpId}`;
+  if (role === "WP_VALIDATOR") return `just validator-next WP_VALIDATOR ${wpId}`;
+  if (role === "INTEGRATION_VALIDATOR") return `just validator-next INTEGRATION_VALIDATOR ${wpId}`;
+  if (role === "VALIDATOR") return `just validator-next VALIDATOR ${wpId}`;
   if (role === "MEMORY_MANAGER") return "just launch-memory-manager --force";
   return `just orchestrator-next ${wpId}`;
 }

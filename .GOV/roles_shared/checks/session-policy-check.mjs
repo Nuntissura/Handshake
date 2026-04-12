@@ -214,16 +214,16 @@ function checkPacket(filePath) {
     checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_BRANCH", defaultWpValidatorBranch(wpId));
     checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_WORKTREE_DIR", defaultWpValidatorWorktreeDir(wpId));
   }
-  checkExpected(errors, rel, text, "WP_VALIDATOR_STARTUP_COMMAND", "just validator-startup");
-  checkExpected(errors, rel, text, "WP_VALIDATOR_RESUME_COMMAND", `just validator-next ${wpId}`);
+  checkExpected(errors, rel, text, "WP_VALIDATOR_STARTUP_COMMAND", "just validator-startup WP_VALIDATOR");
+  checkExpected(errors, rel, text, "WP_VALIDATOR_RESUME_COMMAND", `just validator-next WP_VALIDATOR ${wpId}`);
   if (version >= SPEC_CLAUSE_MAP_MIN_VERSION) {
     checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_BRANCH", defaultIntegrationValidatorBranch(wpId));
     checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR", defaultIntegrationValidatorWorktreeDir(wpId));
   } else {
     // Legacy packets used per-WP integration branches and worktrees; skip enforcement for those.
   }
-  checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_STARTUP_COMMAND", "just validator-startup");
-  checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_RESUME_COMMAND", `just validator-next ${wpId}`);
+  checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_STARTUP_COMMAND", "just validator-startup INTEGRATION_VALIDATOR");
+  checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_RESUME_COMMAND", `just validator-next INTEGRATION_VALIDATOR ${wpId}`);
   if (packetUsesSharedRemoteWpBackup(version)) {
     checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");
     if (version >= SPEC_CLAUSE_MAP_MIN_VERSION) {
