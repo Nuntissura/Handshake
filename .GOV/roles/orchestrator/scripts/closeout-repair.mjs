@@ -17,11 +17,10 @@ import { execFileSync, execSync } from "node:child_process";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import {
   REPO_ROOT,
-  GOV_ROOT,
   GOV_ROOT_REPO_REL,
   repoPathAbs,
   govRootAbsPath,
-  resolvePacketPath,
+  resolveWorkPacketPath,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 registerFailCaptureHook("closeout-repair");
@@ -178,7 +177,8 @@ if (failures.includes("BASELINE_SHA_MISMATCH")) {
     }).trim();
 
     if (/^[0-9a-f]{40}$/i.test(currentMainHead)) {
-      const packetPath = resolvePacketPath(wpId);
+      const packetInfo = resolveWorkPacketPath(wpId);
+      const packetPath = packetInfo?.packetPath || null;
       if (packetPath && fs.existsSync(repoPathAbs(packetPath))) {
         let packetText = fs.readFileSync(repoPathAbs(packetPath), "utf8");
         const oldMatch = packetText.match(
@@ -210,11 +210,15 @@ if (failures.includes("BASELINE_SHA_MISMATCH")) {
 if (failures.includes("MISSING_SIGNED_SCOPE_PATCH")) {
   log("  Repairing: signed-scope.patch...");
   try {
-    const packetDir = path.dirname(repoPathAbs(resolvePacketPath(wpId)));
+    const packetInfo = resolveWorkPacketPath(wpId);
+    const packetPath = packetInfo?.packetPath || null;
+    if (!packetPath) {
+      throw new Error(`Could not resolve packet path for ${wpId}`);
+    }
+    const packetDir = path.dirname(repoPathAbs(packetPath));
     const patchPath = path.join(packetDir, "signed-scope.patch");
 
     // Read packet to find MERGE_BASE_SHA and target
-    const packetPath = resolvePacketPath(wpId);
     const packetText = fs.readFileSync(repoPathAbs(packetPath), "utf8");
     const baseMatch = packetText.match(/\*\*MERGE_BASE_SHA\*\*:\s*`?([0-9a-f]{40})`?/i);
     const targetMatch = packetText.match(/\*\*COMMITTED_TARGET_HEAD_SHA\*\*:\s*`?([0-9a-f]{40})`?/i);
