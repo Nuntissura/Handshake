@@ -152,6 +152,11 @@ pub struct CalendarSource {
     pub capability_profile_id: Option<String>,
     pub config: Value,
     pub sync_state: CalendarSourceSyncState,
+    pub last_job_id: Option<String>,
+    pub last_workflow_id: Option<String>,
+    pub last_actor_id: Option<String>,
+    pub edit_event_id: String,
+    pub last_actor_kind: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -303,6 +308,11 @@ pub struct CalendarEvent {
     pub attendees: Value,
     pub links: Value,
     pub provider_payload: Option<Value>,
+    pub last_job_id: Option<String>,
+    pub last_workflow_id: Option<String>,
+    pub last_actor_id: Option<String>,
+    pub edit_event_id: String,
+    pub last_actor_kind: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

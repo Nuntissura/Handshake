@@ -2209,6 +2209,11 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         updated_source.sync_state.sync_token.as_deref(),
         Some("sync-token-2")
     );
+    assert_eq!(updated_source.last_actor_kind, "HUMAN");
+    assert_eq!(updated_source.last_actor_id.as_deref(), Some("calendar-tester"));
+    assert_eq!(updated_source.last_job_id, None);
+    assert_eq!(updated_source.last_workflow_id, None);
+    assert!(!updated_source.edit_event_id.is_empty());
 
     let listed_sources = db.list_calendar_sources(&workspace.id).await?;
     assert_eq!(listed_sources.len(), 1);
@@ -2301,6 +2306,10 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         Some("etag-2")
     );
     assert!(duplicate_provider_event.is_override);
+    assert_eq!(duplicate_provider_event.last_actor_kind, "HUMAN");
+    assert_eq!(duplicate_provider_event.last_actor_id.as_deref(), Some("calendar-tester"));
+    assert_eq!(duplicate_provider_event.last_job_id, None);
+    assert!(!duplicate_provider_event.edit_event_id.is_empty());
 
     let local_start = provider_start + Duration::hours(5);
     let local_end = local_start + Duration::hours(2);

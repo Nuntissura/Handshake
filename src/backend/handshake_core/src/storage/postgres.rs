@@ -1619,6 +1619,11 @@ fn map_calendar_source(row: PgRow) -> StorageResult<CalendarSource> {
             last_remote_watermark: row.get("last_remote_watermark"),
             last_local_applied_rev: row.get("last_local_applied_rev"),
         },
+        last_job_id: row.get("last_job_id"),
+        last_workflow_id: row.get("last_workflow_id"),
+        last_actor_id: row.get("last_actor_id"),
+        edit_event_id: row.get("edit_event_id"),
+        last_actor_kind: row.get("last_actor_kind"),
         created_at: map_timestamp(&row, "created_at"),
         updated_at: map_timestamp(&row, "updated_at"),
     })
@@ -1661,6 +1666,11 @@ fn map_calendar_event(row: PgRow) -> StorageResult<CalendarEvent> {
             .get::<Option<String>, _>("provider_payload_json")
             .map(|raw| serde_json::from_str::<Value>(&raw))
             .transpose()?,
+        last_job_id: row.get("last_job_id"),
+        last_workflow_id: row.get("last_workflow_id"),
+        last_actor_id: row.get("last_actor_id"),
+        edit_event_id: row.get("edit_event_id"),
+        last_actor_kind: row.get("last_actor_kind"),
         created_at: map_timestamp(&row, "created_at"),
         updated_at: map_timestamp(&row, "updated_at"),
     })
@@ -4175,6 +4185,11 @@ impl super::Database for PostgresDatabase {
                 consecutive_failures,
                 last_remote_watermark,
                 last_local_applied_rev,
+                last_job_id,
+                last_workflow_id,
+                last_actor_id,
+                edit_event_id,
+                last_actor_kind,
                 created_at,
                 updated_at
             "#,
@@ -4249,6 +4264,11 @@ impl super::Database for PostgresDatabase {
                 consecutive_failures,
                 last_remote_watermark,
                 last_local_applied_rev,
+                last_job_id,
+                last_workflow_id,
+                last_actor_id,
+                edit_event_id,
+                last_actor_kind,
                 created_at,
                 updated_at
             FROM calendar_sources
@@ -4298,6 +4318,11 @@ impl super::Database for PostgresDatabase {
                 consecutive_failures,
                 last_remote_watermark,
                 last_local_applied_rev,
+                last_job_id,
+                last_workflow_id,
+                last_actor_id,
+                edit_event_id,
+                last_actor_kind,
                 created_at,
                 updated_at
             FROM calendar_sources
@@ -4448,6 +4473,11 @@ impl super::Database for PostgresDatabase {
                     attendees_json,
                     links_json,
                     provider_payload_json,
+                    last_job_id,
+                    last_workflow_id,
+                    last_actor_id,
+                    edit_event_id,
+                    last_actor_kind,
                     created_at,
                     updated_at
                 "#,
@@ -4605,6 +4635,11 @@ impl super::Database for PostgresDatabase {
                     attendees_json,
                     links_json,
                     provider_payload_json,
+                    last_job_id,
+                    last_workflow_id,
+                    last_actor_id,
+                    edit_event_id,
+                    last_actor_kind,
                     created_at,
                     updated_at
                 "#,
@@ -4692,6 +4727,11 @@ impl super::Database for PostgresDatabase {
                 attendees_json,
                 links_json,
                 provider_payload_json,
+                last_job_id,
+                last_workflow_id,
+                last_actor_id,
+                edit_event_id,
+                last_actor_kind,
                 created_at,
                 updated_at
             FROM calendar_events
