@@ -13,8 +13,8 @@
 - DATE_UTC: 2026-04-13
 - OPENED_AT_LOCAL: 2026-04-13 02:23:33 Europe/Brussels
 - OPENED_AT_UTC: 2026-04-13T00:23:33.495Z
-- LAST_UPDATED_LOCAL: 2026-04-13 07:21:50 Europe/Brussels
-- LAST_UPDATED_UTC: 2026-04-13T05:21:50.739Z
+- LAST_UPDATED_LOCAL: 2026-04-13 08:48:56 Europe/Brussels
+- LAST_UPDATED_UTC: 2026-04-13T06:48:56.482Z
 - SESSION_INTENTION: Run a work packet through the refactored orchestrator-managed autonomous workflow with ACP, tracking downtime, token cost, and time sinks
 - AUTHOR: Codex acting as ORCHESTRATOR
 - HISTORICAL_BASELINE_PACKET: NONE
@@ -3501,3 +3501,102 @@ No product blocker remains on this correlation. Remaining work is mechanical clo
 - [2026-04-13 05:36:23 Europe/Brussels] [ORCHESTRATOR] [TIMESINK] Even after the `handshake_main` justfile repair, the final-lane session still had to rediscover live command quirks (`repomem` quality gate, `validator-next` form, PowerShell `&&` incompatibility) before continuing with product proof.
 - [2026-04-13 05:48:40 Europe/Brussels] [ORCHESTRATOR] [TIMESINK] The current remediation loop confirms the operator warning: repo-governance topology is the major cost center. The feature worktree had to drop the `.GOV` junction just to merge current `main`, and that mechanical path consumed more lane time than understanding the remaining product conflict.
 - [2026-04-13 05:48:40 Europe/Brussels] [ORCHESTRATOR] [TOKEN_DRIFT] Session-registry telemetry still shows minor unsettled ledger drift on coder command `4f3bb514-6a5d-4be9-95e6-608a92ffc8fd`; treat token totals as route-level only until the command settles and the tracked ledger catches up.
+
+## Post-Closeout Rubric Addendum
+
+Review timestamp: `2026-04-13 08:48:56 Europe/Brussels`
+
+This addendum is a cost-focused reread of the completed workflow using the dossier rubric. It keeps the original closeout scores intact, but makes the time sink and token-burn story explicit now that runtime truth, merge progression, and push state have all settled.
+
+### Workflow Smoothness
+
+- TREND: FLAT
+- CURRENT_STATE: MEDIUM
+- NUMERIC_SCORE: 4
+- Evidence:
+  - The product diff was correct before the workflow was actually able to express closed truth; closeout still needed repeated `phase-check CLOSEOUT` retries, validator-gate sequencing repair, and contained-main proof correction.
+  - Silent-failure family remained present in the final lane: one integration-validator run did useful work but settled as `REQUIRES_RECOVERY` before a clean rerun produced the governed PASS receipt.
+- What improved:
+  - The MT loop itself remained bounded and the final contained-main closeout eventually settled mechanically without operator intervention.
+- What still hurts:
+  - Smoothness is still dominated by governance-topology repair after the product work is done, especially cross-clone containment semantics and late command-family corrections.
+- Next structural fix:
+  - Make the final-lane closeout tool own the approved-head-to-contained-main proof directly so the workflow does not need manual interpretation of approved head vs compatibility merge commit.
+
+### Master Spec Gap Reduction
+
+- TREND: IMPROVED
+- CURRENT_STATE: MEDIUM
+- NUMERIC_SCORE: 8
+- Evidence:
+  - The WP closed its intended product-governance gap and that outcome is now recorded as `Validated (PASS)` and `CONTAINED_IN_MAIN`.
+  - Validation produced real negative proof before closure, including current-main compatibility, signed-range semantics, and non-blocking compile debt outside the signed product surface.
+- What improved:
+  - The product-governance boundary held through closeout. Repo-governance confusion was named and actively contained instead of being allowed to redefine the review surface.
+- What still hurts:
+  - The workflow still exposes adjacent debt and ambient repository breakage during review, which increases the chance that future validators drift off the signed product surface.
+- Next structural fix:
+  - Encode signed-surface review anchors more aggressively in validator launch surfaces so ambient repository debt cannot steal review budget from the product delta.
+
+### Token Cost Pressure
+
+- TREND: FLAT
+- CURRENT_STATE: HIGH
+- NUMERIC_SCORE: 3
+- Evidence:
+  - Final runtime metrics peaked at `wall_clock=325min`, `tokens_in=46953608`, `tokens_out=280752`, `validator_wait=114.8min`, `route_wait=191.5min`, `acp_cmds=51`, `acp_fail=13`, `stale_routes=4`, and `fix_cycles=5`.
+  - The operator-stated split held true: Activation Manager cost was intentionally high, but the avoidable burn concentrated later in closeout, repo-governance topology handling, repeated command rediscovery, and cross-worktree source-of-truth checks.
+- What improved:
+  - Mechanical checks stayed out of ACP during the endgame, which limited additional model burn once the product verdict was already known.
+- What still hurts:
+  - The largest avoidable token sink was not product reasoning. It was repo-governance overhead: `.GOV` topology handling, separate-clone truth reconciliation, wrong command-family attempts, and rereading command surfaces during closeout.
+- Next structural fix:
+  - Eliminate post-startup command rediscovery and give the orchestrator one authoritative contained-main/validator-gate closeout bundle with explicit clone/worktree semantics.
+
+### Communication Maturity
+
+- TREND: IMPROVED
+- CURRENT_STATE: MEDIUM
+- NUMERIC_SCORE: 7
+- Evidence:
+  - The workflow ended with 31 governed receipts and a durable audit trail in `THREAD.md` and `RECEIPTS.jsonl`.
+  - Most substantive coder and validator exchanges survived into governed surfaces, but the orchestrator still had to recover orphaned and stale runs instead of only observing.
+- What improved:
+  - The lane kept governed communications intact even when sessions had to be recovered, and the final validator outcomes were durable rather than terminal-only.
+- What still hurts:
+  - Communication maturity still degrades under route drift. When the broker or wake surface misbehaves, the orchestrator becomes an active relay and token-pressure amplifier.
+- Next structural fix:
+  - Auto-trigger next-role wakeups from governed receipt state and refuse duplicate wake attempts while a valid review-response path is already in motion.
+
+### Terminal and Session Hygiene
+
+- TREND: IMPROVED
+- CURRENT_STATE: LOW
+- NUMERIC_SCORE: 8
+- Evidence:
+  - Runtime ended with no active role sessions and closeout session cleanup completed.
+  - The hygiene score is held back by orphan recovery and session-registry inconsistencies rather than by lingering terminals at the end.
+- What improved:
+  - The workflow ended in a clean closed session state even after multiple recovery events.
+- What still hurts:
+  - Session truth can still drift from broker truth mid-run, which forces recovery logic and inflates governance overhead long after the product work is finished.
+- Next structural fix:
+  - Promote orphan detection and settlement repair to a broker-side invariant so stale session truth cannot survive into final-lane closeout.
+
+## Time Sink and Token Burn Breakdown
+
+| Category | Classification | Evidence | Why it mattered |
+|---|---|---|---|
+| Activation Manager launch cost | Intentional | Operator explicitly called this reason/token heavy by design; dossier concern log keeps this separate from avoidable burn. | High cost, but not a workflow regression by itself. |
+| Repo-governance topology | Avoidable dominant cost center | Separate clone reconciliation, `.GOV` junction handling, and contained-main proof interpretation repeatedly delayed closeout. | This consumed more time than the remaining product reasoning once the WP implementation was already correct. |
+| Route wait | Avoidable overhead | Final metrics show `route_wait=191.5min`. | The workflow spent far more time moving truth across governed surfaces than deciding product correctness. |
+| Validator wait | Mixed | Final metrics show `validator_wait=114.8min`. Some of this is legitimate review time, but a material share came from wake drift, replay, and repair. | It inflated wall clock and delayed closure after the product delta was already stable. |
+| Command-surface rediscovery | Avoidable | Repeated fixes around `repomem`, `validator-next`, PowerShell quoting, and clone-specific command forms are named in the concern log. | This is pure governance-document churn and should have been front-loaded or eliminated. |
+| Cross-worktree ambiguity | Avoidable | Multiple concerns and procedural memories were needed to stop feature-branch evidence from being mixed with `handshake_main` or other clones. | It is both a correctness risk and a token amplifier. |
+| Transcript/read amplification | Avoidable | Large session-output tailing and broad grep/receipt scans were repeatedly called out as time sinks. | This burned tokens without advancing the product understanding. |
+
+## Cost Review Conclusion
+
+- The workflow did finish autonomously and correctly, but the post-implementation closure path is still too expensive for the amount of product reasoning involved.
+- The operator warning was validated: the dominant avoidable burn came from repo-governance mechanics, not from product-governance analysis.
+- The next meaningful efficiency gain will not come from shrinking coder prompts. It will come from removing closeout ambiguity, clone ambiguity, and command-surface rediscovery after startup.
