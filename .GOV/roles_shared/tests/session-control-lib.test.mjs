@@ -16,6 +16,7 @@ import {
   ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
   ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   ROLE_SESSION_PRIMARY_MODEL,
+  resolveRoleModelProfileSelection,
   roleModelProfile,
 } from "../scripts/session/session-policy.mjs";
 
@@ -146,6 +147,22 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.match(steerPrompt, /just activation-manager next WP-TEST-ACTMAN-v1/i);
   assert.match(steerPrompt, /just activation-manager readiness WP-TEST-ACTMAN-v1 --write/i);
   assert.doesNotMatch(steerPrompt, /check-notifications/i);
+});
+
+test("activation-manager profile selection honors an explicit declared Claude profile", () => {
+  const packetLikeText = [
+    "- ACTIVATION_MANAGER_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX",
+    "- ORCHESTRATOR_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH",
+  ].join("\n");
+
+  const selection = resolveRoleModelProfileSelection("ACTIVATION_MANAGER", packetLikeText, "PRIMARY");
+  const fallbackSelection = resolveRoleModelProfileSelection("ACTIVATION_MANAGER", packetLikeText, "FALLBACK");
+
+  assert.equal(selection.primary_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
+  assert.equal(selection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
+  assert.equal(selection.profile?.launch_model, "claude-opus-4-6");
+  assert.equal(selection.profile?.launch_reasoning_config_value, "max");
+  assert.equal(fallbackSelection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
 });
 
 test("memory-manager prompts advertise synthetic receipt emission instead of packet assumptions", () => {

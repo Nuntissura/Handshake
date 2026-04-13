@@ -31,7 +31,15 @@ import {
 } from "./session-policy.mjs";
 import { buildPhaseCheckCommand } from "../../checks/phase-check-lib.mjs";
 import { buildRoleInbox } from "../lib/wp-communication-health-lib.mjs";
-import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, GOVERNANCE_RUNTIME_ROOT_ABS, repoPathAbs, resolveWorkPacketPath, workPacketPath } from "../lib/runtime-paths.mjs";
+import {
+  GOV_ROOT_ABS,
+  GOV_ROOT_ENV_VAR,
+  GOVERNANCE_RUNTIME_ROOT_ABS,
+  listStubWorkPacketEntries,
+  repoPathAbs,
+  resolveWorkPacketPath,
+  workPacketPath,
+} from "../lib/runtime-paths.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
@@ -56,7 +64,15 @@ export function roleProtocolPath(role) {
 }
 
 export function buildRoleAuthorityString(role, wpId) {
-  return `AGENTS.md + ${CODEX_AUTHORITY_PATH} + ${roleProtocolPath(role)} + startup output + ${workPacketPath(wpId)}`;
+  return `AGENTS.md + ${CODEX_AUTHORITY_PATH} + ${roleProtocolPath(role)} + startup output + ${resolveAuthorityPacketPath(wpId)}`;
+}
+
+function resolveAuthorityPacketPath(wpId) {
+  const packetInfo = resolveWorkPacketPath(wpId);
+  if (packetInfo?.packetPath) return packetInfo.packetPath;
+  const stubInfo = listStubWorkPacketEntries().find((entry) => entry.wpId === wpId);
+  if (stubInfo?.packetPath) return stubInfo.packetPath;
+  return workPacketPath(wpId);
 }
 
 function nowIso() {
@@ -237,7 +253,7 @@ export function buildRoleEnvironmentOverrides({
 }
 
 export function loadWorkPacketContent(wpId) {
-  const packetPath = resolveWorkPacketPath(wpId)?.packetPath || workPacketPath(wpId);
+  const packetPath = resolveAuthorityPacketPath(wpId);
   const packetAbs = repoPathAbs(packetPath);
   if (!fs.existsSync(packetAbs)) return "";
   return fs.readFileSync(packetAbs, "utf8");
@@ -750,7 +766,6 @@ export function buildStartupPrompt({
   startupMemoryLines = null,
   conversationContextLines = null,
 }) {
-  const authorityPacketPath = workPacketPath(wpId);
   const isClaudeCodeProfile = selectedProfile && selectedProfile.provider === "ANTHROPIC";
   const modelProfileLine = selectedProfileId && selectedProfile
     ? `MODEL PROFILE: ${selectedProfileId} (${selectedProfile.provider}, tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}, claim_model=${selectedProfile.claim_model}, reasoning=${selectedProfile.reasoning_strength}${selectedProfile.reasoning_policy_note ? `, policy=${selectedProfile.reasoning_policy_note}` : ""}).`

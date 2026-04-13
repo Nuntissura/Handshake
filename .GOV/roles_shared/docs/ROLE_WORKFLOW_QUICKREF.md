@@ -131,7 +131,7 @@ Primary commands:
 - future default lane policy: prefer `ORCHESTRATOR_MANAGED` for new/future sessions; choose `MANUAL_RELAY` only when the operator explicitly wants the lower-cost classic combined lane
 - `MANUAL_RELAY` is owned by `CLASSIC_ORCHESTRATOR`; `ORCHESTRATOR` does not own that lane
 - if you choose `ORCHESTRATOR_MANAGED`, Activation Manager is mandatory as the temporary pre-launch worker before governed coder/validator launch
-- `just record-role-model-profiles WP-... [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
+- `just record-role-model-profiles WP-... [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE] [ACTIVATION_MANAGER_MODEL_PROFILE]`
 - omit args only when you deliberately want the default all-GPT bundle recorded into the packet
 - `just worktree-add WP-...`
 - `just record-prepare WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>] [branch] [worktree_dir]`

@@ -413,12 +413,12 @@ These mutate packet, board, traceability, or related governed surfaces.
   - shell/tool output does not count as "shown in chat"
   - if the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages before requesting approval
 - `just record-signature WP-{ID} <signature> <workflow_lane> <execution_lane>`
-- `just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
+- `just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE] [ACTIVATION_MANAGER_MODEL_PROFILE]`
 - `just record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
   - `governance-write`
   - orchestrator-owned workflow state writes
-  - `record-role-model-profiles` is the explicit per-role model/CLI policy gate for new packet families; omit args to record deliberate defaults (`OPENAI_GPT_5_4_XHIGH` for all roles)
-  - `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is now a valid declared packet profile, but governed launch/control remains fail-closed until provider-specific runtime support is implemented
+  - `record-role-model-profiles` is the explicit per-role model/CLI policy gate for new packet families; omit args to record deliberate defaults (`OPENAI_GPT_5_4_XHIGH` for all roles, including Activation Manager when no explicit override is declared)
+  - `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is a supported governed runtime profile and can be selected explicitly for Activation Manager, coder, or validator lanes when the packet or stub declares it
 - `just create-task-packet WP-{ID}`
   - `governance-write`
   - packet creation from the template
