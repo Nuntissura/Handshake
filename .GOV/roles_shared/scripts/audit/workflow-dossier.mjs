@@ -13,8 +13,10 @@ import {
 } from "../session/session-policy.mjs";
 import {
   buildWorkflowDossierIdleMetrics,
+  buildWpMetrics,
   buildWpTimelineEntries,
   buildWpTimelineSpans,
+  buildWpTimelineSummary,
   parseThreadEntriesText,
 } from "../session/wp-timeline-lib.mjs";
 import {
@@ -34,7 +36,13 @@ import {
   formatWorkflowDossierTimestamp,
   normalizePath,
   normalizeWorkflowDossierSection,
+  resolveWorkflowDossierPath,
 } from "./workflow-dossier-lib.mjs";
+import {
+  openGovernanceMemoryDb,
+  closeDb,
+} from "../memory/governance-memory-lib.mjs";
+import { readWpTokenUsageLedger } from "../session/wp-token-usage-lib.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
 
 registerFailCaptureHook("workflow-dossier.mjs", { role: "SHARED" });
@@ -148,7 +156,7 @@ function summarizeSessionLaneActivity(rootDir, session, nowMs) {
 }
 
 function usage() {
-  fail("Usage: node .GOV/roles_shared/scripts/audit/workflow-dossier.mjs <init|note|sync> WP-{ID} [args]");
+  fail("Usage: node .GOV/roles_shared/scripts/audit/workflow-dossier.mjs <init|note|sync|inject-repomem|autofill-costs> WP-{ID} [args]");
 }
 
 function parseArgs(argv) {
@@ -215,7 +223,7 @@ function parseArgs(argv) {
       options.surface = String(args.shift() || "").trim();
       continue;
     }
-    if ((command === "note" || command === "sync") && token === "--file") {
+    if ((command === "note" || command === "sync" || command === "inject-repomem" || command === "autofill-costs") && token === "--file") {
       options.file = String(args.shift() || "").trim();
       continue;
     }
@@ -231,7 +239,7 @@ function parseArgs(argv) {
     fail(`Unknown argument: ${token}`);
   }
 
-  if (!["init", "note", "sync"].includes(command)) {
+  if (!["init", "note", "sync", "inject-repomem", "autofill-costs"].includes(command)) {
     usage();
   }
   if (command === "init" && options.output && options.autoOutput) {
@@ -458,6 +466,224 @@ function runSync(rootDir, options) {
   console.log(normalizePath(path.relative(rootDir, dossierPath)) || normalizePath(dossierPath));
 }
 
+// RGF-196: Extract repomem conversation_log entries into the workflow dossier.
+const REPOMEM_CHECKPOINT_TO_SECTION = {
+  SESSION_OPEN: "EXECUTION",
+  SESSION_CLOSE: "EXECUTION",
+  PRE_TASK: "EXECUTION",
+  INSIGHT: "FINDING",
+  RESEARCH_CLOSE: "FINDING",
+};
+
+const REPOMEM_CHECKPOINT_TO_TAG = {
+  SESSION_OPEN: "REPOMEM_OPEN",
+  SESSION_CLOSE: "REPOMEM_CLOSE",
+  PRE_TASK: "REPOMEM_PRE",
+  INSIGHT: "REPOMEM_INSIGHT",
+  RESEARCH_CLOSE: "REPOMEM_RESEARCH",
+};
+
+function runInjectRepomem(rootDir, options) {
+  const dossierPath = resolveWorkflowDossierPath(rootDir, { wpId: options.wpId, filePath: options.file });
+  if (!dossierPath) {
+    fail(`No open workflow dossier found for ${options.wpId}. Run \`just workflow-dossier-init ${options.wpId}\` first or pass --file.`);
+  }
+
+  const dossierContent = fs.readFileSync(dossierPath, "utf8");
+
+  // Parse OPENED_AT_UTC from dossier metadata.
+  const openedMatch = dossierContent.match(/^-\s*OPENED_AT_UTC:\s*(.+)$/m);
+  const openedAtUtc = openedMatch ? openedMatch[1].trim() : "";
+  if (!openedAtUtc) {
+    fail(`Could not parse OPENED_AT_UTC from dossier: ${normalizePath(dossierPath)}`);
+  }
+
+  // Open governance memory DB and query conversation_log.
+  const { db } = openGovernanceMemoryDb();
+
+  let entries;
+  try {
+    const sql = `SELECT * FROM conversation_log
+      WHERE (wp_id = ? OR wp_id = '')
+        AND timestamp_utc >= ?
+      ORDER BY timestamp_utc ASC`;
+    entries = db.prepare(sql).all(options.wpId, openedAtUtc);
+  } finally {
+    closeDb(db);
+  }
+
+  if (!entries || entries.length === 0) {
+    console.log(`[workflow-dossier inject-repomem] No matching repomem entries for ${options.wpId} since ${openedAtUtc}. 0 appended.`);
+    return;
+  }
+
+  // Read current dossier content for idempotence checks.
+  const currentContent = fs.readFileSync(dossierPath, "utf8");
+  let appended = 0;
+
+  for (const entry of entries) {
+    const section = REPOMEM_CHECKPOINT_TO_SECTION[entry.checkpoint_type];
+    const tag = REPOMEM_CHECKPOINT_TO_TAG[entry.checkpoint_type];
+    if (!section || !tag) continue;
+
+    const timestamp = formatWorkflowDossierTimestamp(entry.timestamp_utc);
+    const role = String(entry.role || "ORCHESTRATOR").trim().toUpperCase();
+    const topic = String(entry.topic || "").trim().slice(0, 200);
+    const contentPreview = String(entry.content || "").trim().slice(0, 200);
+    const display = contentPreview && contentPreview !== topic
+      ? `${topic} :: ${contentPreview}`
+      : topic;
+    const sessionId = String(entry.session_id || "").trim();
+
+    // Idempotence: skip if a line with this session_id and timestamp already exists.
+    const dedupeMarker = `[${tag}] [GOVERNANCE_MEMORY] [${sessionId}]`;
+    if (currentContent.includes(dedupeMarker) && currentContent.includes(timestamp)) {
+      continue;
+    }
+
+    const line = `- [${timestamp}] [${role}] [${tag}] [GOVERNANCE_MEMORY] [${sessionId}] ${display}`;
+    appendWorkflowDossierEntry({
+      repoRoot: rootDir,
+      wpId: options.wpId,
+      filePath: options.file,
+      section,
+      line,
+    });
+    appended++;
+  }
+
+  console.log(`[workflow-dossier inject-repomem] ${appended} entries appended to ${normalizePath(path.relative(rootDir, dossierPath))} (${entries.length} matched, ${entries.length - appended} skipped as duplicates).`);
+}
+
+// RGF-187: Autofill Cost Attribution and Comparison Table from live timeline data.
+function loadWpTimelineData(rootDir, wpId) {
+  const resolvedPacket = resolveWorkPacketPath(wpId);
+  if (!resolvedPacket?.packetAbsPath || !fs.existsSync(resolvedPacket.packetAbsPath)) {
+    fail(`Packet not found for ${wpId}`);
+  }
+  const packetText = fs.readFileSync(resolvedPacket.packetAbsPath, "utf8");
+  const runtimePath = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsPath = parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  const threadPath = parseSingleField(packetText, "WP_THREAD_FILE");
+  const commDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
+  const runtime = runtimePath && fs.existsSync(path.resolve(rootDir, runtimePath))
+    ? parseJsonFile(path.resolve(rootDir, runtimePath)) : {};
+  const receipts = receiptsPath && fs.existsSync(path.resolve(rootDir, receiptsPath))
+    ? parseJsonlFile(path.resolve(rootDir, receiptsPath)) : [];
+  const threadEntries = threadPath && fs.existsSync(path.resolve(rootDir, threadPath))
+    ? parseThreadEntriesText(fs.readFileSync(path.resolve(rootDir, threadPath), "utf8")) : [];
+  const notificationsPath = commDir ? path.resolve(rootDir, commDir, NOTIFICATIONS_FILE_NAME) : "";
+  const notifications = notificationsPath && fs.existsSync(notificationsPath)
+    ? parseJsonlFile(notificationsPath) : [];
+  const { requests } = loadSessionControlRequests(rootDir);
+  const { results } = loadSessionControlResults(rootDir);
+  const controlRequests = requests.filter((e) => String(e.wp_id || "").trim() === wpId);
+  const controlResults = results.filter((e) => String(e.wp_id || "").trim() === wpId);
+  const tokenUsage = readWpTokenUsageLedger(rootDir, wpId);
+  const tokenLedger = tokenUsage?.ledger || {};
+  const timelineEntries = buildWpTimelineEntries({ threadEntries, receipts, notifications, controlRequests, controlResults });
+  const timelineSpans = buildWpTimelineSpans({ receipts, controlRequests, controlResults });
+  const summary = buildWpTimelineSummary({
+    wpId,
+    packetPath: resolvedPacket.packetPath,
+    runtimeStatus: runtime,
+    receipts, notifications, controlRequests, controlResults,
+    tokenLedger,
+    entries: timelineEntries,
+    spans: timelineSpans,
+  });
+  return { summary, receipts, controlResults };
+}
+
+function fmtMin(value) {
+  if (!Number.isFinite(value) || value === 0) return "0";
+  return String(Math.round(value * 10) / 10);
+}
+
+function fmtTokens(value) {
+  if (!Number.isFinite(value) || value === 0) return "0";
+  if (value >= 1000000) return `${Math.round(value / 100000) / 10}M`;
+  if (value >= 1000) return `${Math.round(value / 100) / 10}K`;
+  return String(Math.round(value));
+}
+
+function buildCostTable(metrics) {
+  const dt = metrics;
+  const totalMin = dt.wall_clock_minutes || 0;
+  const activeMin = dt.product_active_minutes || 0;
+  const repairMin = dt.repair_minutes || 0;
+  const valMin = dt.validator_wait_minutes || 0;
+  const routeMin = dt.route_wait_minutes || 0;
+  const coderMin = dt.coder_wait_minutes || 0;
+  const pollingMin = routeMin + coderMin;
+  const fixMin = repairMin;
+  const tokIn = dt.token_input_total || 0;
+  const tokOut = dt.token_output_total || 0;
+  const turns = dt.token_turn_count || 0;
+  const rows = [
+    `| Phase | Time (min) | Tokens | Notes |`,
+    `|---|---|---|---|`,
+    `| Product active | ${fmtMin(activeMin)} | — | implementation + test |`,
+    `| Validation | ${fmtMin(valMin)} | — | validator wait |`,
+    `| Fix/Repair | ${fmtMin(fixMin)} | — | governance repair overhead |`,
+    `| Routing/Waiting | ${fmtMin(pollingMin)} | — | route + coder wait |`,
+    `| TOTAL | ${fmtMin(totalMin)} | ${fmtTokens(tokIn)} in / ${fmtTokens(tokOut)} out / ${turns} turns | gov overhead ratio: ${metrics.governance_overhead_ratio != null ? Math.round(metrics.governance_overhead_ratio * 100) + "%" : "N/A"} |`,
+  ];
+  return rows.join("\n");
+}
+
+function buildComparisonTable(metrics) {
+  const rows = [
+    `| Metric | This WP | Notes |`,
+    `|---|---|---|`,
+    `| Wall clock (min) | ${fmtMin(metrics.wall_clock_minutes)} | |`,
+    `| Microtask count | ${metrics.mt_count ?? "N/A"} | |`,
+    `| Fix cycles | ${metrics.fix_cycles ?? 0} | |`,
+    `| Governed receipts | ${metrics.receipt_count ?? 0} | |`,
+    `| ACP commands | ${metrics.acp_commands ?? 0} | failures: ${metrics.acp_failures ?? 0} |`,
+    `| Session restarts | ${metrics.session_restarts ?? 0} | |`,
+    `| Tokens in | ${fmtTokens(metrics.token_input_total)} | |`,
+    `| Tokens out | ${fmtTokens(metrics.token_output_total)} | |`,
+    `| Turns | ${metrics.token_turn_count ?? 0} | |`,
+  ];
+  return rows.join("\n");
+}
+
+function runAutofillCosts(rootDir, options) {
+  const dossierPath = resolveWorkflowDossierPath(rootDir, { wpId: options.wpId, filePath: options.file });
+  if (!dossierPath) {
+    fail(`No workflow dossier found for ${options.wpId}. Pass --file for closed dossiers.`);
+  }
+
+  const { summary, receipts, controlResults } = loadWpTimelineData(rootDir, options.wpId);
+  const metrics = buildWpMetrics({ wpId: options.wpId, summary, receipts, controlResults });
+
+  let content = fs.readFileSync(dossierPath, "utf8");
+  let replaced = 0;
+
+  // Replace section 14 — Cost Attribution
+  const costSectionRe = /(## 14\. Cost Attribution\n+)\|[^\n]*\n\|[-| ]+\n(?:\|[^\n]*\n)*/;
+  if (costSectionRe.test(content)) {
+    content = content.replace(costSectionRe, `$1${buildCostTable(metrics)}\n`);
+    replaced++;
+  }
+
+  // Replace section 15 — Comparison Table
+  const compSectionRe = /(## 15\. Comparison Table[^\n]*\n+)\|[^\n]*\n\|[-| ]+\n(?:\|[^\n]*\n)*/;
+  if (compSectionRe.test(content)) {
+    content = content.replace(compSectionRe, `$1${buildComparisonTable(metrics)}\n`);
+    replaced++;
+  }
+
+  if (replaced > 0) {
+    fs.writeFileSync(dossierPath, content, "utf8");
+  }
+  console.log(`[workflow-dossier autofill-costs] ${replaced} section(s) replaced in ${normalizePath(path.relative(rootDir, dossierPath))}`);
+  if (replaced === 0) {
+    console.log(`[workflow-dossier autofill-costs] WARNING: no placeholder sections found to replace.`);
+  }
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const rootDir = repoRoot();
@@ -467,6 +693,14 @@ function main() {
   }
   if (options.command === "note") {
     runNote(rootDir, options);
+    return;
+  }
+  if (options.command === "inject-repomem") {
+    runInjectRepomem(rootDir, options);
+    return;
+  }
+  if (options.command === "autofill-costs") {
+    runAutofillCosts(rootDir, options);
     return;
   }
   runSync(rootDir, options);

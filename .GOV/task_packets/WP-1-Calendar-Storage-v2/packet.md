@@ -21,7 +21,8 @@ Requirements:
 - WP_ID: WP-1-Calendar-Storage-v2
 - BASE_WP_ID: WP-1-Calendar-Storage
 - DATE: 2026-04-13T09:54:43.222Z
-- MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7 (git merge-base main HEAD at creation time; use for deterministic `just phase-check HANDOFF ... CODER --range` evidence)
+- MERGE_BASE_SHA: e1243008365566d4cde3c707f1b6078b5837fdcd
+<!-- git merge-base main HEAD at creation time; use for deterministic `just phase-check HANDOFF ... CODER --range` evidence. -->
 - REQUESTOR: Operator
 - AGENT_ID: Orchestrator
 - ROLE: Orchestrator
@@ -108,7 +109,7 @@ Requirements:
 - INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup INTEGRATION_VALIDATOR
 - INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next INTEGRATION_VALIDATOR WP-1-Calendar-Storage-v2
 - EXTERNAL_VALIDATOR_BRIEF_COMMAND: just external-validator-brief WP-1-Calendar-Storage-v2
-- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup VALIDATOR -> just external-validator-brief WP-1-Calendar-Storage-v2
+- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup -> just external-validator-brief WP-1-Calendar-Storage-v2
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY | ABANDONED
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING
@@ -125,21 +126,21 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
-- MAIN_CONTAINMENT_STATUS: NOT_STARTED
+- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
-- MERGED_MAIN_COMMIT: NONE
+- MERGED_MAIN_COMMIT: 066cc18dcc401d413de5e66073ec84c7a2a0b3db
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
-- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-04-13T14:23:17.657Z
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
-- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
+- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 066cc18dcc401d413de5e66073ec84c7a2a0b3db
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-13T14:23:17.657Z
 <!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
-- PACKET_WIDENING_DECISION: NONE
+- PACKET_WIDENING_DECISION: NOT_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
 - PACKET_WIDENING_EVIDENCE: N/A
 <!-- Use follow-on/superseding WP id, audit id, or short rationale when widening is required. -->
@@ -182,8 +183,8 @@ Requirements:
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Storage-v2/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Storage-v2/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Storage-v2/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
-- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: wp_validator:wp-1-calendar-storage-v2
+- INTEGRATION_VALIDATOR_OF_RECORD: integration_validator:wp-1-calendar-storage-v2
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
@@ -195,18 +196,17 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
-Next: N/A
-
+Next: NONE
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: [HSK-CAL-WRITE-GATE] mutation governance | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/storage/mod.rs; ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs; ../handshake_main/src/backend/handshake_core/src/storage/postgres.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml storage | EXAMPLES: a calendar source row carrying sync-state and governed write-context metadata, a calendar event row proving time-window query shape and provider-payload preservation, a same-source/same-external-id upsert path that stays idempotent across both backends | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: temporal invariants (2.1.1) | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs; ../handshake_main/src/backend/handshake_core/migrations/0015_calendar_storage.sql; ../handshake_main/src/backend/handshake_core/src/storage/tests.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests | EXAMPLES: a calendar source row carrying sync-state and governed write-context metadata, a calendar event row proving time-window query shape and provider-payload preservation, a same-source/same-external-id upsert path that stays idempotent across both backends | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: recurrence invariants (2.1.2) | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs; ../handshake_main/src/backend/handshake_core/migrations/0015_calendar_storage.sql | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml storage | EXAMPLES: a calendar source row carrying sync-state and governed write-context metadata, a calendar event row proving time-window query shape and provider-payload preservation, a same-source/same-external-id upsert path that stays idempotent across both backends | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: portable schema and migrations [CX-DBP-011] plus dual-backend testing [CX-DBP-013] | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/migrations/0015_calendar_storage.sql; ../handshake_main/src/backend/handshake_core/src/storage/tests.rs; ../handshake_main/src/backend/handshake_core/tests/calendar_storage_tests.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests | EXAMPLES: a calendar source row carrying sync-state and governed write-context metadata, a calendar event row proving time-window query shape and provider-payload preservation, a same-source/same-external-id upsert path that stays idempotent across both backends | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: CalendarEvent and ActivitySpan join semantics (11.9.3) | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs; ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs; ../handshake_main/src/backend/handshake_core/src/storage/postgres.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml storage | EXAMPLES: a calendar source row carrying sync-state and governed write-context metadata, a calendar event row proving time-window query shape and provider-payload preservation, a same-source/same-external-id upsert path that stays idempotent across both backends | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: [HSK-CAL-WRITE-GATE] mutation governance | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/storage/mod.rs; ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs; ../handshake_main/src/backend/handshake_core/src/storage/postgres.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml storage | EXAMPLES: a calendar source row carrying sync-state and governed write-context metadata, a calendar event row proving time-window query shape and provider-payload preservation, a same-source/same-external-id upsert path that stays idempotent across both backends | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: temporal invariants (2.1.1) | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs; ../handshake_main/src/backend/handshake_core/migrations/0015_calendar_storage.sql; ../handshake_main/src/backend/handshake_core/src/storage/tests.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests | EXAMPLES: a calendar source row carrying sync-state and governed write-context metadata, a calendar event row proving time-window query shape and provider-payload preservation, a same-source/same-external-id upsert path that stays idempotent across both backends | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: recurrence invariants (2.1.2) | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs; ../handshake_main/src/backend/handshake_core/migrations/0015_calendar_storage.sql | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml storage | EXAMPLES: a calendar source row carrying sync-state and governed write-context metadata, a calendar event row proving time-window query shape and provider-payload preservation, a same-source/same-external-id upsert path that stays idempotent across both backends | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: portable schema and migrations [CX-DBP-011] plus dual-backend testing [CX-DBP-013] | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/migrations/0015_calendar_storage.sql; ../handshake_main/src/backend/handshake_core/src/storage/tests.rs; ../handshake_main/src/backend/handshake_core/tests/calendar_storage_tests.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests | EXAMPLES: a calendar source row carrying sync-state and governed write-context metadata, a calendar event row proving time-window query shape and provider-payload preservation, a same-source/same-external-id upsert path that stays idempotent across both backends | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: CalendarEvent and ActivitySpan join semantics (11.9.3) | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs; ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs; ../handshake_main/src/backend/handshake_core/src/storage/postgres.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml storage | EXAMPLES: a calendar source row carrying sync-state and governed write-context metadata, a calendar event row proving time-window query shape and provider-payload preservation, a same-source/same-external-id upsert path that stays idempotent across both backends | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -873,51 +873,108 @@ rg -n "upsert_calendar_source|upsert_calendar_event|query_calendar_events|Calend
 - (Mechanical manifest for audit. Fill real values to enable `just phase-check HANDOFF <WP_ID> CODER`. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Target File**: `src/backend/handshake_core/src/storage/calendar.rs`
+- **Start**: 152
+- **End**: 318
+- **Line Delta**: 10
+- **Pre-SHA1**: `9fbd02c81fd0f17cdea6b1bedde2da83797b2e24`
+- **Post-SHA1**: `8bb59c03345db33024a84ba46e217d35ad577590`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: cargo check --lib PASS (0 errors)
+- **Artifacts**: `.GOV/Audits/smoketest/WP-1-Calendar-Storage-v2-CANDIDATE_TARGET-066cc18d.patch`, d0832fe0
+- **Timestamp**: 2026-04-13T11:12:51Z
+- **Operator**: CODER
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.180.md
+- **Notes**: Added 5 provenance fields to CalendarSource (line 155) and CalendarEvent (line 313)
+
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 1071
+- **End**: 4296
+- **Line Delta**: 40
+- **Pre-SHA1**: `8bd60b245b4f3c5729bd2fb8248260cf9bcc6c24`
+- **Post-SHA1**: `7a1938f0d8fd42e34668767d389314228ae4e068`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Notes**: 8 edit sites: map_calendar_source_row, map_calendar_event_row, 3 source SELECT/RETURNING, 3 event SELECT/RETURNING
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 1619
+- **End**: 4737
+- **Line Delta**: 40
+- **Pre-SHA1**: `482ec755adabdb751605a91c2ff9648dcd0e7533`
+- **Post-SHA1**: `793ae16cf037731e209c8a9e55c941f35b8bd167`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Notes**: 8 edit sites mirroring sqlite.rs: map_calendar_source, map_calendar_event, 3 source SELECT/RETURNING, 3 event SELECT/RETURNING
+
+- **Target File**: `src/backend/handshake_core/src/storage/tests.rs`
+- **Start**: 2209
+- **End**: 2525
+- **Line Delta**: 139
+- **Pre-SHA1**: `eb46c0ca165706357d9de294bfb95560d01c5f0d`
+- **Post-SHA1**: `590629941d7518b67a3c44bec3453ef5b08e7891`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Notes**: HUMAN provenance assertions (lines 2212, 2309); workflow-backed AI provenance round-trip with non-None last_job_id/last_workflow_id proving governed read paths (get/list/query) on both backends (lines 2393-2525)
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
+- Current WP_STATUS: DONE_VALIDATED
+- What changed in this update: (1) Surfaced 5 provenance columns (last_job_id, last_workflow_id, last_actor_id, edit_event_id, last_actor_kind) in CalendarSource and CalendarEvent return types across both backends. (2) Added workflow-backed/job-backed provenance round-trip test (commit cfd7a388) proving last_job_id, last_workflow_id, edit_event_id, and last_actor_kind survive governed read paths (upsert RETURNING, get_calendar_source, list_calendar_sources, query_calendar_events) on both SQLite and PostgreSQL when using WriteContext::ai with non-None job_id and workflow_id. This addresses the validator REVIEW_RESPONSE blocker from correlation review:WP-1-Calendar-Storage-v2:coder_handoff:mnx4u19s:c5d92d.
+- Requirements / clauses self-audited: MT-001 [HSK-CAL-WRITE-GATE] mutation governance -- provenance columns present in migration 0015, written via MutationMetadata during upserts, but NOT surfaced in Rust return types or SELECT queries. This was the central gap. MT-002 through MT-005 assessed as already aligned: temporal fields (start_ts_utc, end_ts_utc, tzid, all_day, was_floating), recurrence fields (rrule, rdate, exdate, is_recurring, series_id, instance_key, is_override), half-open overlap query semantics, and migration portability all match spec v02.180.
+- Checks actually run: [post-review-response, cfd7a388] cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib (PASS, 0 errors, 34 warnings pre-existing); cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test calendar_storage_tests (PASS, 2/2: sqlite_calendar_storage_conformance + postgres_calendar_storage_conformance, both now include workflow-backed provenance assertions); cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib storage (PASS, 25/25)
+- Known gaps / weak spots: (1) FlightRecorder emission hooks for calendar mutations are absent in the storage layer -- spec-gap, not in WP scope per validator steer. (2) Two pre-existing test files (micro_task_executor_tests.rs, model_session_scheduler_tests.rs) fail to compile when building all test targets -- they reference APIs from unpushed handshake_main commits not yet on origin/main. Not introduced by this WP and not in scope. (3) created_by field on CalendarEvent is nullable but has no spec-mandated default; existing behavior preserved.
+- Heuristic risks / maintainability concerns: The 8-site-per-backend edit pattern (map function + 3 source queries + 3 event queries + query builder) is mechanically repetitive. Any future column additions must touch all 8 sites in both backends. The trait abstraction prevents drift between backends but the manual SQL column lists are a maintenance surface.
+- Validator focus request: Verify the 5 provenance columns appear in all 8 SELECT/RETURNING sites per backend. Verify the test assertions cover both HUMAN-context (actor_kind="HUMAN", job_id=None, workflow_id=None) AND AI/workflow-context (actor_kind="AI", job_id=Some(...), workflow_id=Some(...)) round-trips through upsert RETURNING, get, list, and query read paths. Confirm MT-002 through MT-005 are truthfully already-aligned rather than overlooked.
+- Rubric contract understanding proof: The packet clause for MT-001 requires [HSK-CAL-WRITE-GATE] mutation governance alignment. The spec v02.180 section 2.0.4 mandates that every mutation carries WriteContext provenance through to persisted rows. The gap was that the SQL writes (via MutationMetadata) stored provenance but the Rust return types and SELECT queries did not read it back, making provenance invisible to callers.
+- Rubric scope discipline proof: Only 4 files changed, all in src/backend/handshake_core/src/storage/. No trait changes (mod.rs untouched), no migration changes (0015 already correct), no downstream sync/policy/FR changes per validator steer. Diff is 229 insertions, 0 deletions (99 in d0832fe0 + 130 in cfd7a388).
+- Rubric baseline comparison: Branch rebased onto origin/main (e1243008). Pre-existing baseline issues (truncated workflows.rs and flight_recorder/mod.rs) resolved by the rebase. The WP branch diff against origin/main shows only the 4 storage files.
+- Rubric end-to-end proof: cargo test --test calendar_storage_tests exercises the full upsert->query->assert cycle for both SQLite and PostgreSQL backends, including HUMAN-context provenance assertions (None job/workflow) AND workflow-backed AI-context provenance assertions (non-None job_id, workflow_id, actor_kind=AI). Both backends pass.
+- Rubric architecture fit self-review: Changes follow the existing pattern: struct fields in calendar.rs, row.get() in map functions, column names in SQL strings. No new abstractions, no trait changes, no API surface changes. The storage layer remains the single source of truth for column projection.
+- Rubric heuristic quality self-review: The 5-field block (last_job_id, last_workflow_id, last_actor_id, edit_event_id, last_actor_kind) is inserted at the same position in every edit site: after the last domain field, before created_at/updated_at. This is consistent with the migration column order and the existing provenance pattern in non-calendar storage methods.
+- Rubric anti-gaming / counterfactual check: If the provenance columns were NOT added to the return types, callers would receive CalendarSource/CalendarEvent structs with default/zero values for provenance fields, silently losing audit trail data. The test assertions would not exist, so the gap would be invisible. The conformance test now fails if provenance is not read back.
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01 and CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2, also include: -->
-- Rubric anti-vibe / substance self-check:
-- Signed-scope debt ledger:
-- Data contract self-check:
-- Next step / handoff hint:
+- Rubric anti-vibe / substance self-check: Every claim above maps to a specific file:line or test assertion. No vague "improved" or "aligned" statements without evidence.
+- Signed-scope debt ledger: No signed-scope debt. All 4 files are within the packet's CODE_SURFACES for MT-001.
+- Data contract self-check: CalendarSource and CalendarEvent structs now match the 0015_calendar_storage.sql column set exactly. The Upsert variants intentionally omit provenance (it is injected by the storage layer via WriteContext/MutationMetadata, not caller-supplied).
+- Next step / handoff hint: WP Validator should verify MT-001 provenance alignment and assess whether MT-002 through MT-005 require code changes or are truthfully already-aligned. If all MTs clear, proceed to Integration Validator for final merge authority.
 
 ## MERGE_PROGRESSION_TRUTH
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, PASS closure is two-step and must stay explicit:
@@ -961,16 +1018,29 @@ rg -n "upsert_calendar_source|upsert_calendar_event|query_calendar_events|Calend
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+  - REQUIREMENT: "The calendar storage code is truthfully aligned to the current v02.180 packet scope"
+  - EVIDENCE: `src/backend/handshake_core/src/storage/calendar.rs:155` (CalendarSource provenance fields), `src/backend/handshake_core/src/storage/calendar.rs:313` (CalendarEvent provenance fields)
+  - REQUIREMENT: "SQLite and Postgres calendar storage tests pass from the product worktree"
+  - EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:2212` (source HUMAN provenance assertions), `src/backend/handshake_core/src/storage/tests.rs:2309` (event HUMAN provenance assertions)
+  - REQUIREMENT: "Workflow-backed/job-backed WriteContext provenance survives governed read paths on both backends"
+  - EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:2441` (AI source upsert provenance assertions), `src/backend/handshake_core/src/storage/tests.rs:2449` (AI source get provenance assertions), `src/backend/handshake_core/src/storage/tests.rs:2456` (AI source list provenance assertions), `src/backend/handshake_core/src/storage/tests.rs:2497` (AI event upsert provenance assertions), `src/backend/handshake_core/src/storage/tests.rs:2513` (AI event query provenance assertions)
+  - REQUIREMENT: "The storage boundary, migrations, row models, and conformance tests agree on the same governed calendar source/event contract"
+  - EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:1074` (map_calendar_source_row provenance), `src/backend/handshake_core/src/storage/postgres.rs:1622` (map_calendar_source provenance), `src/backend/handshake_core/src/storage/sqlite.rs:1121` (map_calendar_event_row provenance), `src/backend/handshake_core/src/storage/postgres.rs:1669` (map_calendar_event provenance)
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Calendar-Storage-v2/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+  - COMMAND: `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib`
+  - EXIT_CODE: `0`
+  - PROOF_LINES: `Finished dev profile [unoptimized + debuginfo] target(s) in 59.84s`
+  - SESSION: post-visibility-fix (066cc18d)
+  - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test calendar_storage_tests`
+  - EXIT_CODE: `0`
+  - PROOF_LINES: `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s`
+  - SESSION: post-visibility-fix (066cc18d)
+  - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib storage`
+  - EXIT_CODE: `0`
+  - PROOF_LINES: `test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 282 filtered out; finished in 56.34s`
+  - SESSION: post-visibility-fix (066cc18d)
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -1093,3 +1163,239 @@ rg -n "upsert_calendar_source|upsert_calendar_event|query_calendar_events|Calend
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+### 2026-04-13 INTEGRATION VALIDATION REPORT - WP-1-Calendar-Storage-v2 (Historical Remediation Snapshot)
+Historical_Verdict: FAIL
+Historical_Validated_at: 2026-04-13T13:22:55.1894314Z
+Historical_VALIDATION_CONTEXT: OK
+Historical_GOVERNANCE_VERDICT: PASS
+Historical_TEST_VERDICT: PARTIAL
+Historical_CODE_REVIEW_VERDICT: FAIL
+Historical_HEURISTIC_REVIEW_VERDICT: FAIL
+Historical_SPEC_ALIGNMENT_VERDICT: FAIL
+Historical_ENVIRONMENT_VERDICT: PASS
+Historical_DISPOSITION: NONE
+Historical_LEGAL_VERDICT: FAIL
+Historical_SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+Historical_WORKFLOW_VALIDITY: VALID
+Historical_SCOPE_VALIDITY: IN_SCOPE
+Historical_PROOF_COMPLETENESS: PARTIAL
+Historical_INTEGRATION_READINESS: NOT_READY
+Historical_DOMAIN_GOAL_COMPLETION: INCOMPLETE
+Historical_MECHANICAL_TRACK_VERDICT: FAIL
+Historical_SPEC_RETENTION_TRACK_VERDICT: FAIL
+Historical_MAIN_CONTAINMENT_STATUS: NOT_REQUIRED
+Historical_MERGED_MAIN_COMMIT: NONE
+Historical_MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+
+Historical_CLAUSES_REVIEWED:
+- [HSK-CAL-WRITE-GATE] mutation governance: FAIL on live `main`. The schema persists provenance columns in `src/backend/handshake_core/migrations/0015_calendar_storage.sql:29-33` and `src/backend/handshake_core/migrations/0015_calendar_storage.sql:69-73`, and both backends bind them on write in `src/backend/handshake_core/src/storage/sqlite.rs:3761-3765`, `src/backend/handshake_core/src/storage/sqlite.rs:4044-4048`, `src/backend/handshake_core/src/storage/sqlite.rs:4201-4205`, `src/backend/handshake_core/src/storage/postgres.rs:4207-4211`, `src/backend/handshake_core/src/storage/postgres.rs:4485-4489`, and `src/backend/handshake_core/src/storage/postgres.rs:4642-4646`. But the returned/read calendar shapes still omit those fields in `src/backend/handshake_core/src/storage/calendar.rs:142-156` and `src/backend/handshake_core/src/storage/calendar.rs:279-307`, the row mappers omit them in `src/backend/handshake_core/src/storage/sqlite.rs:1042-1076`, `src/backend/handshake_core/src/storage/sqlite.rs:1080-1118`, `src/backend/handshake_core/src/storage/postgres.rs:1590-1624`, and `src/backend/handshake_core/src/storage/postgres.rs:1628-1665`, and the live source/event `RETURNING` or read projections omit them in `src/backend/handshake_core/src/storage/sqlite.rs:3706-3733`, `src/backend/handshake_core/src/storage/sqlite.rs:3780-3807`, `src/backend/handshake_core/src/storage/sqlite.rs:3829-3856`, `src/backend/handshake_core/src/storage/sqlite.rs:3980-4011`, `src/backend/handshake_core/src/storage/sqlite.rs:4223-4255`, `src/backend/handshake_core/src/storage/postgres.rs:4152-4179`, `src/backend/handshake_core/src/storage/postgres.rs:4226-4253`, `src/backend/handshake_core/src/storage/postgres.rs:4275-4302`, `src/backend/handshake_core/src/storage/postgres.rs:4420-4452`, and `src/backend/handshake_core/src/storage/postgres.rs:4664-4696`.
+- temporal invariants (2.1.1): CONFIRMED. Temporal fields remain explicit in runtime structs at `src/backend/handshake_core/src/storage/calendar.rs:284-290` and `src/backend/handshake_core/src/storage/calendar.rs:320-326`, the migration keeps the same columns in `src/backend/handshake_core/migrations/0015_calendar_storage.sql:47-53`, and the conformance test exercises provider/local time-window behavior in `src/backend/handshake_core/src/storage/tests.rs:2235-2239`, `src/backend/handshake_core/src/storage/tests.rs:2272-2278`, `src/backend/handshake_core/src/storage/tests.rs:2319-2325`, and `src/backend/handshake_core/src/storage/tests.rs:2346-2367`.
+- recurrence invariants (2.1.2): CONFIRMED. Recurrence fields remain explicit in `src/backend/handshake_core/src/storage/calendar.rs:294-300` and `src/backend/handshake_core/src/storage/calendar.rs:330-336`, the migration keeps the recurrence columns in `src/backend/handshake_core/migrations/0015_calendar_storage.sql:57-62`, and the conformance test exercises recurring/provider override data in `src/backend/handshake_core/src/storage/tests.rs:2245-2251` and `src/backend/handshake_core/src/storage/tests.rs:2282-2288`.
+- portable schema and migrations [CX-DBP-011] plus dual-backend testing [CX-DBP-013]: CONFIRMED. The packet still targets a portable migration surface at `src/backend/handshake_core/migrations/0015_calendar_storage.sql:1-88`, and the dual-backend harness remains live in `src/backend/handshake_core/tests/calendar_storage_tests.rs:7-27`.
+- CalendarEvent and ActivitySpan join semantics (11.9.3): CONFIRMED for the owned half-open overlap substrate. SQLite enforces `start_ts_utc < window_end` and `end_ts_utc > window_start` in `src/backend/handshake_core/src/storage/sqlite.rs:4256-4264`, Postgres mirrors it in `src/backend/handshake_core/src/storage/postgres.rs:4697-4704`, and the conformance suite proves the wide and narrow window cases in `src/backend/handshake_core/src/storage/tests.rs:2346-2367`.
+
+Historical_NOT_PROVEN:
+- [HSK-CAL-WRITE-GATE] mutation governance is not satisfied on live `main`. The review thread cites MT-001 PASS on commit `066cc18d`, but that commit is not present in this checkout (`git branch --all --contains 066cc18d` failed with `malformed object name 066cc18d`), and the live calendar source/event read paths listed above still omit the five provenance fields.
+
+Historical_MAIN_BODY_GAPS:
+- Restore governed provenance to the live calendar source/event read contract on both backends by updating `src/backend/handshake_core/src/storage/calendar.rs:142-156` and `src/backend/handshake_core/src/storage/calendar.rs:279-307`, the SQLite mappers/projections at `src/backend/handshake_core/src/storage/sqlite.rs:1035-1118`, `src/backend/handshake_core/src/storage/sqlite.rs:3706-3733`, `src/backend/handshake_core/src/storage/sqlite.rs:3780-3807`, `src/backend/handshake_core/src/storage/sqlite.rs:3829-3856`, `src/backend/handshake_core/src/storage/sqlite.rs:3980-4011`, and `src/backend/handshake_core/src/storage/sqlite.rs:4223-4255`, and the Postgres counterparts at `src/backend/handshake_core/src/storage/postgres.rs:1583-1665`, `src/backend/handshake_core/src/storage/postgres.rs:4152-4179`, `src/backend/handshake_core/src/storage/postgres.rs:4226-4253`, `src/backend/handshake_core/src/storage/postgres.rs:4275-4302`, `src/backend/handshake_core/src/storage/postgres.rs:4420-4452`, and `src/backend/handshake_core/src/storage/postgres.rs:4664-4696`.
+- Repair the stale packet evidence block at `.GOV/task_packets/WP-1-Calendar-Storage-v2/packet.md:1021-1027`. It currently cites `src/backend/handshake_core/src/storage/calendar.rs:155` and `src/backend/handshake_core/src/storage/tests.rs:2441-2513` as calendar provenance proof, but those lines presently point to `created_at` / generic workspace-document-block-canvas mutation tests rather than calendar source/event read-path coverage.
+
+Historical_QUALITY_RISKS:
+- The live code persists provenance on write but drops it at the producer/consumer boundary for returned calendar rows, creating a silent data-contract split that happy-path conformance tests can miss.
+
+Historical_VALIDATOR_RISK_TIER: HIGH
+
+Historical_DIFF_ATTACK_SURFACES:
+- Migration columns and write bindings versus runtime `CalendarSource`/`CalendarEvent` return shapes.
+- Backend `RETURNING` / `SELECT` / query projections versus row-mapper expectations on both SQLite and Postgres.
+- Shared query substrate consumed by downstream policy/correlation packets, where hidden provenance drift would survive green overlap tests.
+
+Historical_INDEPENDENT_CHECKS_RUN:
+- `git branch --all --contains 066cc18d` => failed with `malformed object name 066cc18d`; the cited MT-001 review-loop commit is not present in this checkout.
+- Side-by-side source inspection of `src/backend/handshake_core/src/storage/calendar.rs`, `src/backend/handshake_core/src/storage/sqlite.rs`, and `src/backend/handshake_core/src/storage/postgres.rs` => live source/event return structs, mappers, and read projections still omit `last_actor_kind`, `last_actor_id`, `last_job_id`, `last_workflow_id`, and `edit_event_id`.
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test calendar_storage_tests sqlite_calendar_storage_conformance -- --exact` => PASS (`1 passed; 0 failed`).
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml storage::tests::sqlite_rejects_ai_writes_without_context_with_hsk_403_silent_edit --lib -- --exact` => PASS (`1 passed; 0 failed`).
+
+Historical_COUNTERFACTUAL_CHECKS:
+- If the source projections at `src/backend/handshake_core/src/storage/sqlite.rs:3706-3733`, `src/backend/handshake_core/src/storage/sqlite.rs:3780-3807`, `src/backend/handshake_core/src/storage/sqlite.rs:3829-3856`, `src/backend/handshake_core/src/storage/postgres.rs:4152-4179`, `src/backend/handshake_core/src/storage/postgres.rs:4226-4253`, and `src/backend/handshake_core/src/storage/postgres.rs:4275-4302` remain unchanged, calendar-source callers can never observe governed provenance even though the migration stores it.
+- If the event projections at `src/backend/handshake_core/src/storage/sqlite.rs:3980-4011`, `src/backend/handshake_core/src/storage/sqlite.rs:4223-4255`, `src/backend/handshake_core/src/storage/postgres.rs:4420-4452`, and `src/backend/handshake_core/src/storage/postgres.rs:4664-4696` remain unchanged, downstream calendar-window consumers inherit provenance-blind events and cannot prove governed lineage from the returned data.
+
+Historical_BOUNDARY_PROBES:
+- Compared `src/backend/handshake_core/migrations/0015_calendar_storage.sql:29-33` and `src/backend/handshake_core/migrations/0015_calendar_storage.sql:69-73` against the runtime structs at `src/backend/handshake_core/src/storage/calendar.rs:142-156` and `src/backend/handshake_core/src/storage/calendar.rs:279-307`, then against the backend mappers at `src/backend/handshake_core/src/storage/sqlite.rs:1035-1118` and `src/backend/handshake_core/src/storage/postgres.rs:1583-1665`. The write-side and schema-side provenance contract exists; the returned/read-side contract does not.
+
+Historical_NEGATIVE_PATH_CHECKS:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml storage::tests::sqlite_rejects_ai_writes_without_context_with_hsk_403_silent_edit --lib -- --exact` => PASS, confirming the existing negative-path guard still rejects AI writes without job/workflow context while the calendar provenance gap remains independent.
+
+Historical_INDEPENDENT_FINDINGS:
+- MT-001 is not present on live `main`, regardless of the WP thread's passing coder/WP-validator loop on `066cc18d`.
+- MT-002 through MT-005 are already aligned in the live code and did not reveal additional product-code work in this lane.
+- The packet's current EVIDENCE block is stale and points at unrelated or no-longer-correct line anchors, so it cannot be reused as final proof.
+
+Historical_RESIDUAL_UNCERTAINTY:
+- I did not rerun the Postgres variant in this lane. The live-code inspection supports the same clause conclusions on both backends, but only the SQLite conformance spot-check was re-executed here.
+- The exact contents of `066cc18d` remain unknown in this checkout because the commit object is absent locally.
+
+Historical_SPEC_CLAUSE_MAP:
+- [HSK-CAL-WRITE-GATE] mutation governance => FAIL on live `main`: persisted in `src/backend/handshake_core/migrations/0015_calendar_storage.sql:29-33` and `src/backend/handshake_core/migrations/0015_calendar_storage.sql:69-73`, but omitted from runtime/read surfaces in `src/backend/handshake_core/src/storage/calendar.rs:142-156`, `src/backend/handshake_core/src/storage/calendar.rs:279-307`, `src/backend/handshake_core/src/storage/sqlite.rs:1035-1118`, `src/backend/handshake_core/src/storage/sqlite.rs:3706-3733`, `src/backend/handshake_core/src/storage/sqlite.rs:3780-3807`, `src/backend/handshake_core/src/storage/sqlite.rs:3829-3856`, `src/backend/handshake_core/src/storage/sqlite.rs:3980-4011`, `src/backend/handshake_core/src/storage/sqlite.rs:4223-4255`, `src/backend/handshake_core/src/storage/postgres.rs:1583-1665`, `src/backend/handshake_core/src/storage/postgres.rs:4152-4179`, `src/backend/handshake_core/src/storage/postgres.rs:4226-4253`, `src/backend/handshake_core/src/storage/postgres.rs:4275-4302`, `src/backend/handshake_core/src/storage/postgres.rs:4420-4452`, and `src/backend/handshake_core/src/storage/postgres.rs:4664-4696`.
+- temporal invariants (2.1.1) => `src/backend/handshake_core/src/storage/calendar.rs:284-290`, `src/backend/handshake_core/src/storage/calendar.rs:320-326`, `src/backend/handshake_core/migrations/0015_calendar_storage.sql:47-53`, and `src/backend/handshake_core/src/storage/tests.rs:2235-2239`, `src/backend/handshake_core/src/storage/tests.rs:2272-2278`, `src/backend/handshake_core/src/storage/tests.rs:2319-2325`, `src/backend/handshake_core/src/storage/tests.rs:2346-2367`.
+- recurrence invariants (2.1.2) => `src/backend/handshake_core/src/storage/calendar.rs:294-300`, `src/backend/handshake_core/src/storage/calendar.rs:330-336`, `src/backend/handshake_core/migrations/0015_calendar_storage.sql:57-62`, and `src/backend/handshake_core/src/storage/tests.rs:2245-2251`, `src/backend/handshake_core/src/storage/tests.rs:2282-2288`.
+- portable schema and migrations [CX-DBP-011] plus dual-backend testing [CX-DBP-013] => `src/backend/handshake_core/migrations/0015_calendar_storage.sql:1-88` and `src/backend/handshake_core/tests/calendar_storage_tests.rs:7-27`.
+- CalendarEvent and ActivitySpan join semantics (11.9.3) => `src/backend/handshake_core/src/storage/sqlite.rs:4256-4264`, `src/backend/handshake_core/src/storage/postgres.rs:4697-4704`, and `src/backend/handshake_core/src/storage/tests.rs:2346-2367`.
+
+Historical_NEGATIVE_PROOF:
+- `.GOV/task_packets/WP-1-Calendar-Storage-v2/packet.md:1021-1027` is not valid live proof for MT-001. In the current checkout, `src/backend/handshake_core/src/storage/calendar.rs:155` is `created_at`, not a provenance field, and `src/backend/handshake_core/src/storage/tests.rs:2441-2513` covers generic mutation-traceability rows for workspaces/documents/blocks/canvases rather than calendar source/event read paths.
+
+Historical_ANTI_VIBE_FINDINGS:
+- The packet's current evidence block overclaims live calendar provenance proof by citing unrelated line anchors. This must be corrected in the next loop instead of being carried forward as if it were still true.
+
+Historical_SIGNED_SCOPE_DEBT:
+- Outstanding signed-scope debt remains on MT-001 until the live calendar read contract exposes the five governed provenance fields and the packet evidence block is updated to the real calendar-specific anchors.
+
+Historical_PRIMITIVE_RETENTION_PROOF:
+- `CalendarSourceWritePolicy`, `CalendarSourceSyncState`, and the calendar source retrieval surface remain present in `src/backend/handshake_core/src/storage/calendar.rs:147-155`, `src/backend/handshake_core/src/storage/calendar.rs:165-172`, `src/backend/handshake_core/src/storage/sqlite.rs:3780-3807`, and `src/backend/handshake_core/src/storage/postgres.rs:4226-4253`.
+- `CalendarEvent` temporal/recurrence/query primitives remain present in `src/backend/handshake_core/src/storage/calendar.rs:284-305`, `src/backend/handshake_core/src/storage/calendar.rs:320-338`, `src/backend/handshake_core/src/storage/sqlite.rs:4223-4255`, and `src/backend/handshake_core/src/storage/postgres.rs:4664-4696`.
+
+Historical_PRIMITIVE_RETENTION_GAPS:
+- The governed mutation-provenance primitive is not retained in the returned/read `CalendarSource` and `CalendarEvent` shapes on live `main`; the schema stores it, but the runtime contract does not expose it.
+
+Historical_SHARED_SURFACE_INTERACTION_CHECKS:
+- Compared migration `0015` against SQLite source/event mappers and projections: `src/backend/handshake_core/migrations/0015_calendar_storage.sql:29-33`, `src/backend/handshake_core/migrations/0015_calendar_storage.sql:69-73`, `src/backend/handshake_core/src/storage/sqlite.rs:1035-1118`, `src/backend/handshake_core/src/storage/sqlite.rs:3706-3733`, `src/backend/handshake_core/src/storage/sqlite.rs:3780-3807`, `src/backend/handshake_core/src/storage/sqlite.rs:3829-3856`, `src/backend/handshake_core/src/storage/sqlite.rs:3980-4011`, and `src/backend/handshake_core/src/storage/sqlite.rs:4223-4255`.
+- Compared the same contract boundary on Postgres in `src/backend/handshake_core/src/storage/postgres.rs:1583-1665`, `src/backend/handshake_core/src/storage/postgres.rs:4152-4179`, `src/backend/handshake_core/src/storage/postgres.rs:4226-4253`, `src/backend/handshake_core/src/storage/postgres.rs:4275-4302`, `src/backend/handshake_core/src/storage/postgres.rs:4420-4452`, and `src/backend/handshake_core/src/storage/postgres.rs:4664-4696`.
+
+Historical_CURRENT_MAIN_INTERACTION_CHECKS:
+- Current `main` source consumers call `list_calendar_sources` / `get_calendar_source` through `src/backend/handshake_core/src/storage/sqlite.rs:3774-3864` and `src/backend/handshake_core/src/storage/postgres.rs:4220-4312`, which only project the fields available on `CalendarSource` at `src/backend/handshake_core/src/storage/calendar.rs:142-156`; provenance is therefore inaccessible to current main callers.
+- Current `main` event-window consumers call `query_calendar_events` through `src/backend/handshake_core/src/storage/sqlite.rs:4215-4274` and `src/backend/handshake_core/src/storage/postgres.rs:4656-4715`; overlap semantics are intact, but returned `CalendarEvent` values still omit provenance because the current main shapes and mappers at `src/backend/handshake_core/src/storage/calendar.rs:279-307`, `src/backend/handshake_core/src/storage/sqlite.rs:1079-1118`, and `src/backend/handshake_core/src/storage/postgres.rs:1627-1665` do not carry it.
+
+Historical_DATA_CONTRACT_PROOF:
+- Reviewed the active calendar data contract across the migration DDL, runtime source/event shapes, backend projections, and conformance suite at `src/backend/handshake_core/migrations/0015_calendar_storage.sql:1-88`, `src/backend/handshake_core/src/storage/calendar.rs:142-172`, `src/backend/handshake_core/src/storage/calendar.rs:279-338`, `src/backend/handshake_core/src/storage/sqlite.rs:1035-1118`, `src/backend/handshake_core/src/storage/sqlite.rs:3706-3807`, `src/backend/handshake_core/src/storage/sqlite.rs:3829-3856`, `src/backend/handshake_core/src/storage/sqlite.rs:3980-4011`, `src/backend/handshake_core/src/storage/sqlite.rs:4223-4255`, `src/backend/handshake_core/src/storage/postgres.rs:1583-1665`, `src/backend/handshake_core/src/storage/postgres.rs:4152-4253`, `src/backend/handshake_core/src/storage/postgres.rs:4275-4302`, `src/backend/handshake_core/src/storage/postgres.rs:4420-4452`, `src/backend/handshake_core/src/storage/postgres.rs:4664-4696`, `src/backend/handshake_core/src/storage/tests.rs:2235-2367`, and `src/backend/handshake_core/tests/calendar_storage_tests.rs:7-27`.
+
+Historical_DATA_CONTRACT_GAPS:
+- Governed provenance is persisted but not exposed in the live calendar source/event read contract on either backend.
+
+Historical_REMEDIATION_REQUIRED:
+1. Add the five governed provenance fields to the live `CalendarSource` and `CalendarEvent` read contract in `src/backend/handshake_core/src/storage/calendar.rs`, and extend the SQLite/Postgres row mappers to decode them.
+2. Add those same five fields to every calendar-source and calendar-event `RETURNING` / read projection on both backends: source upsert/list/get plus event upsert and `query_calendar_events`.
+3. Replace the stale packet evidence anchors at `.GOV/task_packets/WP-1-Calendar-Storage-v2/packet.md:1021-1027` with the real calendar-specific line references after the product fix lands.
+4. Re-run calendar storage proof with real calendar provenance assertions on both HUMAN and AI/workflow contexts across upsert `RETURNING`, get, list, and query read paths, then re-enter final-lane validation.
+
+### 2026-04-13 INTEGRATION VALIDATION REPORT - WP-1-Calendar-Storage-v2 (PASS; Merge Pending)
+Verdict: PASS
+Validated_at: 2026-04-13T14:07:27.7982077Z
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+MECHANICAL_TRACK_VERDICT: PASS
+SPEC_RETENTION_TRACK_VERDICT: PASS
+MAIN_CONTAINMENT_STATUS: MERGE_PENDING
+MERGED_MAIN_COMMIT: NONE
+MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Calendar-Storage-v2/packet.md` (status at review time: `In Progress`)
+- Reviewed diff: `e1243008365566d4cde3c707f1b6078b5837fdcd..066cc18dcc401d413de5e66073ec84c7a2a0b3db`
+- Current main baseline: `e1243008365566d4cde3c707f1b6078b5837fdcd`
+- Prepared worktree: `../wtc-calendar-storage-v2`
+
+CLAUSES_REVIEWED:
+- `[HSK-CAL-WRITE-GATE] mutation governance` -> `src/backend/handshake_core/src/storage/calendar.rs:142-159`; `src/backend/handshake_core/src/storage/calendar.rs:280-315`; `src/backend/handshake_core/src/storage/sqlite.rs:1042-1078`; `src/backend/handshake_core/src/storage/sqlite.rs:1085-1125`; `src/backend/handshake_core/src/storage/sqlite.rs:3671-3746`; `src/backend/handshake_core/src/storage/sqlite.rs:3818-3879`; `src/backend/handshake_core/src/storage/sqlite.rs:3954-4040`; `src/backend/handshake_core/src/storage/sqlite.rs:4114-4202`; `src/backend/handshake_core/src/storage/sqlite.rs:4289-4293`; `src/backend/handshake_core/src/storage/postgres.rs:1590-1626`; `src/backend/handshake_core/src/storage/postgres.rs:1633-1673`; `src/backend/handshake_core/src/storage/postgres.rs:4117-4192`; `src/backend/handshake_core/src/storage/postgres.rs:4264-4325`; `src/backend/handshake_core/src/storage/postgres.rs:4395-4481`; `src/backend/handshake_core/src/storage/postgres.rs:4555-4643`; `src/backend/handshake_core/src/storage/postgres.rs:4730-4734`; `src/backend/handshake_core/src/storage/tests.rs:2212-2216`; `src/backend/handshake_core/src/storage/tests.rs:2309-2312`; `src/backend/handshake_core/src/storage/tests.rs:2439-2459`; `src/backend/handshake_core/src/storage/tests.rs:2499-2518`
+- `temporal invariants (2.1.1)` -> `src/backend/handshake_core/src/storage/calendar.rs:289-295`; `src/backend/handshake_core/src/storage/calendar.rs:330-336`; `src/backend/handshake_core/migrations/0015_calendar_storage.sql:47-53`; `src/backend/handshake_core/src/storage/tests.rs:2355-2376`
+- `recurrence invariants (2.1.2)` -> `src/backend/handshake_core/src/storage/calendar.rs:299-305`; `src/backend/handshake_core/src/storage/calendar.rs:339-346`; `src/backend/handshake_core/migrations/0015_calendar_storage.sql:57-63`; `src/backend/handshake_core/src/storage/tests.rs:2250-2251`; `src/backend/handshake_core/src/storage/tests.rs:2287-2288`
+- `portable schema and migrations [CX-DBP-011] plus dual-backend testing [CX-DBP-013]` -> `src/backend/handshake_core/migrations/0015_calendar_storage.sql:1-88`; `src/backend/handshake_core/tests/calendar_storage_tests.rs:1-27`; `src/backend/handshake_core/src/storage/tests.rs:2123-2518`
+- `CalendarEvent and ActivitySpan join semantics (11.9.3)` -> `src/backend/handshake_core/src/storage/calendar.rs:354-359`; `src/backend/handshake_core/src/storage/sqlite.rs:4300-4302`; `src/backend/handshake_core/src/storage/postgres.rs:4741-4743`; `src/backend/handshake_core/src/storage/tests.rs:2355-2376`
+
+NOT_PROVEN:
+- NONE
+
+MAIN_BODY_GAPS:
+- NONE
+
+QUALITY_RISKS:
+- NONE
+
+VALIDATOR_RISK_TIER: HIGH
+
+DIFF_ATTACK_SURFACES:
+- Provenance drift between the signed migration columns, runtime storage models, row mappers, and backend `RETURNING` / `SELECT` projections.
+- Dual-backend divergence where SQLite and Postgres expose different source/event row shapes after the same write-context mutation.
+- Half-open window-query regression that could silently break downstream correlation consumers while happy-path event upserts still pass.
+
+INDEPENDENT_CHECKS_RUN:
+- `just phase-check HANDOFF WP-1-Calendar-Storage-v2 CODER --range e1243008365566d4cde3c707f1b6078b5837fdcd..066cc18dcc401d413de5e66073ec84c7a2a0b3db --verbose` from `../wtc-calendar-storage-v2` => `PASS`
+- `git -C ../wtc-calendar-storage-v2 merge-base --is-ancestor e1243008365566d4cde3c707f1b6078b5837fdcd 066cc18dcc401d413de5e66073ec84c7a2a0b3db` => `ANCESTOR_OK`
+- `git diff --stat e1243008365566d4cde3c707f1b6078b5837fdcd 066cc18dcc401d413de5e66073ec84c7a2a0b3db` => `4 files changed, 229 insertions(+); scope limited to calendar storage models/backends/tests`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test calendar_storage_tests` from `../wtc-calendar-storage-v2` => `test result: ok. 2 passed; 0 failed`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib storage` from `../wtc-calendar-storage-v2` => `test result: ok. 25 passed; 0 failed`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml storage::tests::sqlite_rejects_ai_writes_without_context_with_hsk_403_silent_edit --lib -- --exact` from `../wtc-calendar-storage-v2` => `test result: ok. 1 passed; 0 failed`
+
+COUNTERFACTUAL_CHECKS:
+- If `map_calendar_source_row()` in `src/backend/handshake_core/src/storage/sqlite.rs:1042-1078` or `map_calendar_source()` in `src/backend/handshake_core/src/storage/postgres.rs:1590-1626` stopped decoding `last_job_id`, `last_workflow_id`, `last_actor_id`, `edit_event_id`, and `last_actor_kind`, the AI source round-trip assertions in `src/backend/handshake_core/src/storage/tests.rs:2439-2459` would stop proving governed provenance survives `upsert -> get -> list`.
+- If the event query projections in `src/backend/handshake_core/src/storage/sqlite.rs:4289-4293` or `src/backend/handshake_core/src/storage/postgres.rs:4730-4734` dropped any provenance column, the workflow-backed event assertions in `src/backend/handshake_core/src/storage/tests.rs:2513-2518` would fail even though writes still persist metadata.
+- If the half-open predicates in `src/backend/handshake_core/src/storage/sqlite.rs:4300-4302` or `src/backend/handshake_core/src/storage/postgres.rs:4741-4743` were widened or inverted, the narrow-window query assertions in `src/backend/handshake_core/src/storage/tests.rs:2367-2376` would stop matching the provider event boundary.
+
+BOUNDARY_PROBES:
+- Compared the schema contract in `src/backend/handshake_core/migrations/0015_calendar_storage.sql:29-33` and `src/backend/handshake_core/migrations/0015_calendar_storage.sql:69-73` against the runtime source/event shapes in `src/backend/handshake_core/src/storage/calendar.rs:142-159` and `src/backend/handshake_core/src/storage/calendar.rs:280-315`, then against the SQLite/Postgres row mappers in `src/backend/handshake_core/src/storage/sqlite.rs:1042-1125` and `src/backend/handshake_core/src/storage/postgres.rs:1590-1673`.
+- Probed the producer/consumer boundary for both backends by matching source/event upsert/list/get/query projections at `src/backend/handshake_core/src/storage/sqlite.rs:3671-3746`, `src/backend/handshake_core/src/storage/sqlite.rs:3818-3879`, `src/backend/handshake_core/src/storage/sqlite.rs:3954-4040`, `src/backend/handshake_core/src/storage/sqlite.rs:4114-4202`, `src/backend/handshake_core/src/storage/sqlite.rs:4289-4302`, `src/backend/handshake_core/src/storage/postgres.rs:4117-4192`, `src/backend/handshake_core/src/storage/postgres.rs:4264-4325`, `src/backend/handshake_core/src/storage/postgres.rs:4395-4481`, `src/backend/handshake_core/src/storage/postgres.rs:4555-4643`, and `src/backend/handshake_core/src/storage/postgres.rs:4730-4743` to the dual-backend conformance harness in `src/backend/handshake_core/tests/calendar_storage_tests.rs:1-27`.
+
+NEGATIVE_PATH_CHECKS:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml storage::tests::sqlite_rejects_ai_writes_without_context_with_hsk_403_silent_edit --lib -- --exact` from `../wtc-calendar-storage-v2` passed, confirming the governed AI-without-context rejection path still fails closed while the provenance visibility fix is present.
+- The migration still enforces `last_actor_kind != 'AI' OR last_job_id IS NOT NULL` at `src/backend/handshake_core/migrations/0015_calendar_storage.sql:33` and `src/backend/handshake_core/migrations/0015_calendar_storage.sql:73`, so the read-surface expansion did not weaken the write gate.
+
+INDEPENDENT_FINDINGS:
+- The committed candidate fully closes MT-001 without widening beyond the signed storage surfaces; the reviewed range remains limited to `src/backend/handshake_core/src/storage/calendar.rs`, `src/backend/handshake_core/src/storage/sqlite.rs`, `src/backend/handshake_core/src/storage/postgres.rs`, and `src/backend/handshake_core/src/storage/tests.rs`.
+- MT-002 through MT-005 were already aligned at the recorded `main` baseline and remain aligned after the candidate range; the candidate only adds provenance visibility plus one workflow-backed test visibility fix.
+- `CURRENT_MAIN_COMPATIBILITY_STATUS=COMPATIBLE` is truthful because local `main` stayed at `e1243008365566d4cde3c707f1b6078b5837fdcd` and the candidate head is a direct descendant of that baseline.
+
+RESIDUAL_UNCERTAINTY:
+- This report is diff-scoped and merge-pending. I have not yet recorded a post-merge `main` spotcheck in this appended report; the containment step must still land on local `main` before the packet can truthfully end `Validated (PASS)`.
+- Downstream Lens, sync, policy, correlation, and mailbox consumers remain explicitly outside this packet and were not revalidated here; this PASS only covers the signed calendar storage substrate.
+
+SPEC_CLAUSE_MAP:
+- `[HSK-CAL-WRITE-GATE] mutation governance` => `src/backend/handshake_core/src/storage/calendar.rs:142-159`; `src/backend/handshake_core/src/storage/calendar.rs:280-315`; `src/backend/handshake_core/src/storage/sqlite.rs:1042-1078`; `src/backend/handshake_core/src/storage/sqlite.rs:1085-1125`; `src/backend/handshake_core/src/storage/sqlite.rs:3671-3746`; `src/backend/handshake_core/src/storage/sqlite.rs:3818-3879`; `src/backend/handshake_core/src/storage/sqlite.rs:3954-4040`; `src/backend/handshake_core/src/storage/sqlite.rs:4114-4202`; `src/backend/handshake_core/src/storage/sqlite.rs:4289-4293`; `src/backend/handshake_core/src/storage/postgres.rs:1590-1626`; `src/backend/handshake_core/src/storage/postgres.rs:1633-1673`; `src/backend/handshake_core/src/storage/postgres.rs:4117-4192`; `src/backend/handshake_core/src/storage/postgres.rs:4264-4325`; `src/backend/handshake_core/src/storage/postgres.rs:4395-4481`; `src/backend/handshake_core/src/storage/postgres.rs:4555-4643`; `src/backend/handshake_core/src/storage/postgres.rs:4730-4734`; `src/backend/handshake_core/src/storage/tests.rs:2212-2216`; `src/backend/handshake_core/src/storage/tests.rs:2309-2312`; `src/backend/handshake_core/src/storage/tests.rs:2439-2459`; `src/backend/handshake_core/src/storage/tests.rs:2499-2518`
+- `temporal invariants (2.1.1)` => `src/backend/handshake_core/src/storage/calendar.rs:289-295`; `src/backend/handshake_core/src/storage/calendar.rs:330-336`; `src/backend/handshake_core/migrations/0015_calendar_storage.sql:47-53`; `src/backend/handshake_core/src/storage/tests.rs:2355-2376`
+- `recurrence invariants (2.1.2)` => `src/backend/handshake_core/src/storage/calendar.rs:299-305`; `src/backend/handshake_core/src/storage/calendar.rs:339-346`; `src/backend/handshake_core/migrations/0015_calendar_storage.sql:57-63`; `src/backend/handshake_core/src/storage/tests.rs:2250-2251`; `src/backend/handshake_core/src/storage/tests.rs:2287-2288`
+- `portable schema and migrations [CX-DBP-011] plus dual-backend testing [CX-DBP-013]` => `src/backend/handshake_core/migrations/0015_calendar_storage.sql:1-88`; `src/backend/handshake_core/tests/calendar_storage_tests.rs:1-27`; `src/backend/handshake_core/src/storage/tests.rs:2123-2518`
+- `CalendarEvent and ActivitySpan join semantics (11.9.3)` => `src/backend/handshake_core/src/storage/calendar.rs:354-359`; `src/backend/handshake_core/src/storage/sqlite.rs:4300-4302`; `src/backend/handshake_core/src/storage/postgres.rs:4741-4743`; `src/backend/handshake_core/src/storage/tests.rs:2355-2376`
+
+NEGATIVE_PROOF:
+- The validated candidate does not widen the signed storage substrate beyond provenance-read alignment: `src/backend/handshake_core/src/storage/calendar.rs:165-177` and `src/backend/handshake_core/src/storage/calendar.rs:354-359` still expose the same `CalendarSourceUpsert`, `CalendarEventUpsert`, and `CalendarEventWindowQuery` contract shape, while `src/backend/handshake_core/src/storage/sqlite.rs:3739-3743` / `src/backend/handshake_core/src/storage/postgres.rs:4185-4189` only add provenance columns to existing source/event projections rather than introducing new storage operations.
+
+ANTI_VIBE_FINDINGS:
+- NONE
+
+SIGNED_SCOPE_DEBT:
+- NONE
+
+PRIMITIVE_RETENTION_PROOF:
+- `CalendarSourceWritePolicy` and `CalendarSourceSyncState` remain first-class storage primitives at `src/backend/handshake_core/src/storage/calendar.rs:47-70`; `src/backend/handshake_core/src/storage/calendar.rs:123-139`; `src/backend/handshake_core/src/storage/calendar.rs:147-154`; `src/backend/handshake_core/src/storage/calendar.rs:165-178`
+- `CalendarEventVisibility`, `CalendarEventExportMode`, and `CalendarEventWindowQuery` remain first-class calendar query primitives at `src/backend/handshake_core/src/storage/calendar.rs:215-271`; `src/backend/handshake_core/src/storage/calendar.rs:297-305`; `src/backend/handshake_core/src/storage/calendar.rs:337-359`
+
+PRIMITIVE_RETENTION_GAPS:
+- NONE
+
+SHARED_SURFACE_INTERACTION_CHECKS:
+- Verified the shared migration/runtime/test contract across `src/backend/handshake_core/migrations/0015_calendar_storage.sql:1-88`, `src/backend/handshake_core/src/storage/calendar.rs:142-159`, `src/backend/handshake_core/src/storage/calendar.rs:280-359`, `src/backend/handshake_core/src/storage/sqlite.rs:1042-1125`, `src/backend/handshake_core/src/storage/postgres.rs:1590-1673`, `src/backend/handshake_core/src/storage/tests.rs:2123-2518`, and `src/backend/handshake_core/tests/calendar_storage_tests.rs:1-27`.
+- Verified both backends preserve the same governed row contract at the storage boundary by comparing source/event `RETURNING` and query projections in `src/backend/handshake_core/src/storage/sqlite.rs:3671-3746`, `src/backend/handshake_core/src/storage/sqlite.rs:3818-3879`, `src/backend/handshake_core/src/storage/sqlite.rs:3954-4040`, `src/backend/handshake_core/src/storage/sqlite.rs:4114-4202`, `src/backend/handshake_core/src/storage/sqlite.rs:4289-4302`, `src/backend/handshake_core/src/storage/postgres.rs:4117-4192`, `src/backend/handshake_core/src/storage/postgres.rs:4264-4325`, `src/backend/handshake_core/src/storage/postgres.rs:4395-4481`, `src/backend/handshake_core/src/storage/postgres.rs:4555-4643`, and `src/backend/handshake_core/src/storage/postgres.rs:4730-4743`.
+
+CURRENT_MAIN_INTERACTION_CHECKS:
+- Current `main` compatibility is additive rather than widening: `git -C ../wtc-calendar-storage-v2 merge-base --is-ancestor e1243008365566d4cde3c707f1b6078b5837fdcd 066cc18dcc401d413de5e66073ec84c7a2a0b3db` returned `ANCESTOR_OK`, so the reviewed candidate sits directly on top of the recorded `main` baseline without extra packet scope.
+- The current main caller surfaces that downstream code uses are the same source/event entrypoints extended by the candidate: `src/backend/handshake_core/src/storage/sqlite.rs:3789-3842`; `src/backend/handshake_core/src/storage/sqlite.rs:3842-3895`; `src/backend/handshake_core/src/storage/sqlite.rs:4250-4302`; `src/backend/handshake_core/src/storage/postgres.rs:4235-4288`; `src/backend/handshake_core/src/storage/postgres.rs:4288-4340`; `src/backend/handshake_core/src/storage/postgres.rs:4691-4743`. The candidate preserves those function boundaries and only widens the returned row shape with the signed provenance fields.
+
+DATA_CONTRACT_PROOF:
+- Reviewed the active calendar data contract across DDL, runtime structs, backend row mappers/projections, and the dual-backend conformance suite at `src/backend/handshake_core/migrations/0015_calendar_storage.sql:1-88`; `src/backend/handshake_core/src/storage/calendar.rs:142-159`; `src/backend/handshake_core/src/storage/calendar.rs:280-359`; `src/backend/handshake_core/src/storage/sqlite.rs:1042-1125`; `src/backend/handshake_core/src/storage/sqlite.rs:3671-3746`; `src/backend/handshake_core/src/storage/sqlite.rs:3818-3879`; `src/backend/handshake_core/src/storage/sqlite.rs:3954-4040`; `src/backend/handshake_core/src/storage/sqlite.rs:4114-4202`; `src/backend/handshake_core/src/storage/sqlite.rs:4289-4302`; `src/backend/handshake_core/src/storage/postgres.rs:1590-1673`; `src/backend/handshake_core/src/storage/postgres.rs:4117-4192`; `src/backend/handshake_core/src/storage/postgres.rs:4264-4325`; `src/backend/handshake_core/src/storage/postgres.rs:4395-4481`; `src/backend/handshake_core/src/storage/postgres.rs:4555-4643`; `src/backend/handshake_core/src/storage/postgres.rs:4730-4743`; `src/backend/handshake_core/src/storage/tests.rs:2123-2518`; `src/backend/handshake_core/tests/calendar_storage_tests.rs:1-27`
+
+DATA_CONTRACT_GAPS:
+- NONE

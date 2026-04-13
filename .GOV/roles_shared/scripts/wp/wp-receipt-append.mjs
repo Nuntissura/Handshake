@@ -272,6 +272,11 @@ function buildReceiptValidationEntry({
     packet_row_ref: nullableValue(args?.packetRowRef),
     microtask_contract: args?.microtaskContract && typeof args?.microtaskContract === "object" ? args.microtaskContract : null,
     workflow_invalidity_code: nullableValue(normalizeWorkflowInvalidityCode(args?.workflowInvalidityCode)),
+    // [CX-109D] Capture resolved cwd on CODER_INTENT receipts for worktree confinement verification.
+    resolved_cwd: normalizeRole(args?.actorRole) === "CODER"
+      && normalizeReceiptKind(args?.receiptKind) === "CODER_INTENT"
+      ? normalize(process.cwd())
+      : null,
     refs: [context.packetPath, ...(Array.isArray(args?.refs) ? args.refs : []).filter(Boolean).map((value) => normalize(value))],
   };
 

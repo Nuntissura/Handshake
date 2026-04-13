@@ -232,6 +232,36 @@ export function evaluateWpRelayEscalation({
   let reasonCode = "ROUTE_HEALTHY";
   let summary = `Relay is healthy for ${targetLabel}.`;
 
+  // RGF-185: Auto-settle route-stale WAITING_ON_CODER_HANDOFF when the coder session
+  // is no longer active (CLOSED/COMPLETED/FAILED) or the next actor has already shifted
+  // to a validator-owned action. This prevents stale handoff residue from requiring
+  // manual steering when the coder is done.
+  if (blockingReasonCode === "WAITING_ON_CODER_HANDOFF" && thresholdPassed) {
+    const coderSessions = (registrySessions || []).filter(
+      (entry) => normalizeRole(entry?.role) === "CODER" && String(entry?.wp_id || "").trim() === wpId,
+    );
+    const allCoderSessionsClosed = coderSessions.length > 0
+      && coderSessions.every((entry) => {
+        const state = String(entry?.runtime_state || "").trim().toUpperCase();
+        return ["CLOSED", "COMPLETED", "FAILED", "STALE"].includes(state);
+      });
+    if (allCoderSessionsClosed) {
+      return {
+        applicable: true,
+        status: "SELF_SETTLED",
+        severity: "INFO",
+        summary: `Route-stale WAITING_ON_CODER_HANDOFF auto-settled for ${targetLabel}: all coder sessions are closed (${coderSessions.map((e) => e.runtime_state).join(", ")}). Route residue should be compacted.`,
+        reason_code: "ROUTE_STALE_HANDOFF_SELF_SETTLED",
+        target_role: nextActor,
+        target_session: nextSession,
+        recommended_command: null,
+        metrics,
+        warnings: [`Route-stale handoff residue auto-settled: coder sessions are ${coderSessions.map((e) => e.runtime_state).join(", ")}.`],
+        failures: [],
+      };
+    }
+  }
+
   if (thresholdPassed && pendingNotificationCount > 0 && !receiptMovedAfterRoute) {
     status = "ESCALATED";
     severity = "FAIL";

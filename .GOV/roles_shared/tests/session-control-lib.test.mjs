@@ -300,7 +300,7 @@ test("steering prompt stays compact and codex-explicit", () => {
   assert.match(prompt, /just active-lane-brief INTEGRATION_VALIDATOR WP-TEST-STEER-v1/i);
   assert.match(prompt, /Run in order:/i);
   assert.match(prompt, /just integration-validator-context-brief WP-TEST-STEER-v1/i);
-  assert.match(prompt, /just validator-next INTEGRATION_VALIDATOR WP-TEST-STEER-v1/i);
+  assert.match(prompt, /just validator-next WP-TEST-STEER-v1/i);
   assert.match(prompt, /just check-notifications WP-TEST-STEER-v1 INTEGRATION_VALIDATOR <your-session>/i);
   assert.match(prompt, /Do not manually inspect handshake_main\/.GOV as authoritative context/i);
   assert.match(prompt, /FIRST READ RULE: before any repo-wide search or packet rediscovery/i);
@@ -323,7 +323,7 @@ test("integration-validator control requests carry kernel governance env overrid
     absWorktreeDir: "D:/Handshake/Handshake Worktrees/handshake_main",
     selectedModel: ROLE_SESSION_PRIMARY_MODEL,
     selectedProfileId: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
-    prompt: "just validator-startup INTEGRATION_VALIDATOR",
+    prompt: "just validator-startup",
     outputJsonlFile: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/test.jsonl",
     environmentOverrides: env,
   });

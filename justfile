@@ -82,6 +82,12 @@ workflow-dossier-note wp-id section summary *FLAGS:
 workflow-dossier-sync wp-id *FLAGS:
 	node "{{GOV_ROOT}}/roles_shared/scripts/audit/workflow-dossier.mjs" sync {{wp-id}} {{FLAGS}}
 
+workflow-dossier-inject-repomem wp-id *FLAGS:
+	node "{{GOV_ROOT}}/roles_shared/scripts/audit/workflow-dossier.mjs" inject-repomem {{wp-id}} {{FLAGS}}
+
+workflow-dossier-autofill-costs wp-id *FLAGS:
+	node "{{GOV_ROOT}}/roles_shared/scripts/audit/workflow-dossier.mjs" autofill-costs {{wp-id}} {{FLAGS}}
+
 launch-coder-session wp-id host="AUTO" model="PRIMARY" *FLAGS:
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" CODER {{wp-id}} {{host}} {{model}} {{FLAGS}}
 
