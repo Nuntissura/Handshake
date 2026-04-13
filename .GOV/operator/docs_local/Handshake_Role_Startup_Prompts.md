@@ -222,7 +222,7 @@ YOUR JOB: Intelligent maintenance that the script cannot do. Read the protocol a
 10. APPEND an `## Intelligent Review` section to MEMORY_HYGIENE_REPORT.md (do not overwrite the mechanical results).
 11. When done, run `just repomem close "<session summary>" --decisions "<key decisions>"` and stop.
 
-COMMANDS: `just memory-stats`, `just memory-search`, `just memory-recall <ACTION>`, `just memory-flag <id> "<reason>"`, `just memory-capture`, `just memory-prime`, `just memory-debug-snapshot`, `just memory-patterns`, `just memory-manager-proposal`, `just memory-manager-flag-receipt`, `just memory-manager-rgf-candidate`, `just repomem open/close/insight/log`.
+COMMANDS: `just memory-stats`, `just memory-search`, `just memory-recall <ACTION>`, `just memory-flag <id> "<reason>"`, `just memory-capture`, `just memory-prime`, `just memory-debug-snapshot`, `just memory-patterns`, `just memory-manager-proposal`, `just memory-manager-flag-receipt`, `just memory-manager-rgf-candidate`, `just repomem open/pre/insight/decision/error/abandon/concern/escalation/research-close/close/log`.
 CONSTRAINT: Do NOT edit protocols, codex, AGENTS.md, or product code. Memory DB, report, and proposals only.
 CONSTRAINT: Do NOT invent your own session-retirement mechanism. After `just repomem close ...`, stop and let governed `SESSION_COMPLETION` prove completion.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --role MEMORY_MANAGER`. These are auto-surfaced to future sessions via memory-recall.
@@ -345,6 +345,13 @@ just activation-manager startup
 just activation-manager next WP-{ID}
 just activation-manager readiness WP-{ID} --write
 just repomem open "<what this session is about>" [--role ROLE] [--wp WP-{ID}]
+just repomem decision "<what was chosen and why>" [--wp WP-{ID}] [--alternatives "rejected options"]
+just repomem error "<what went wrong>" [--wp WP-{ID}] [--trigger "cmd"] [--files "a,b"]
+just repomem abandon "<what was abandoned and why>" [--wp WP-{ID}] [--files "a,b"]
+just repomem concern "<risk or issue flagged>" [--wp WP-{ID}] [--files "a,b"]
+just repomem escalation "<what was escalated>" [--wp WP-{ID}]
+just repomem insight "<key realization>" [--wp WP-{ID}] [--files "a,b"] [--decisions "x"]
+just repomem close "<session summary>" --decisions "key decisions made" [--wp WP-{ID}]
 just role-startup-topology-check [--audit-permanent]
 just orchestrator-next [WP-{ID}]
 just coder-next [WP-{ID}]
@@ -372,6 +379,23 @@ just shell-with-memory <ROLE> <command-family> "<command>" [--wp WP-{ID}] [--she
 ```
 
 **Action-scoped memory recall:** `memory-recall` is visible injection as well as auto-injection. It now prints `MEMORY_INJECTION_APPLIED` and grouped findings before the governed action continues. Actions in the live surface include `RESUME`, `CODER_RESUME`, `VALIDATOR_RESUME`, `STEERING`, `RELAY`, `REFINEMENT`, `DELEGATION`, `PACKET_CREATE`, and `COMMAND`. Auto-injected into role startup/resume helpers and into orchestrator flows such as `begin-refinement`, `orchestrator-next`, `orchestrator-steer-next`, `manual-relay-next`, `manual-relay-dispatch`, `orchestrator-prepare-and-packet`, and `create-task-packet`.
+
+**Repomem checkpoint types (10):** All roles should use these during WP work. SESSION_OPEN and SESSION_CLOSE are MUST; the rest are SHOULD (encouraged for diagnostics).
+
+| Type | Gate | Dossier Section | When to use |
+|------|------|-----------------|-------------|
+| `open` | 80 chars | EXECUTION | Session start (MUST, blocks mutations) |
+| `pre` | 40 chars | EXECUTION | Before mutation commands |
+| `insight` | 80 chars | FINDING | Key discovery, non-obvious root cause |
+| `decision` | 80 chars | EXECUTION | Deliberate choice between alternatives |
+| `error` | 40 chars | EXECUTION | Something went wrong |
+| `abandon` | 80 chars | EXECUTION | Dropped an approach/path |
+| `concern` | 80 chars | CONCERN | Risk, issue, or regression potential flagged |
+| `escalation` | 40 chars | CONCERN | Escalated to operator/higher role |
+| `research-close` | 80 chars | FINDING | Research conclusion |
+| `close` | 80 chars + `--decisions` | EXECUTION | Session end (MUST) |
+
+Repomem entries are auto-injected into the dossier on every `just workflow-dossier-sync WP-{ID}`. Manual: `just workflow-dossier-inject-repomem WP-{ID}`.
 
 **Fail capture (all roles MUST):** When a role encounters a tool failure, wrong tool call, or discovers a workaround, it must immediately record it: `just memory-capture procedural "<what failed, why, and the fix>" --role ROLE [--wp WP-{ID}] [--scope "files"]`. These are surfaced automatically via `memory-recall` before future actions. This is a protocol-level MUST for ORCHESTRATOR, CODER, and WP_VALIDATOR.
 
@@ -419,7 +443,9 @@ just workflow-dossier-init WP-{ID} [output]
 just workflow-dossier-note WP-{ID} <EXECUTION|GOV_CHANGE|CONCERN|FINDING> "<summary>" [--role ROLE] [--tag TAG] [--surface SURFACE]
   - append a live Orchestrator or role note into the canonical dossier section without manual markdown editing
 just workflow-dossier-sync WP-{ID} [--role ROLE] [--tag ACP_SYNC] [--surface MECHANICAL]
-  - append a fresh mechanical ACP/runtime/receipt snapshot into `LIVE_EXECUTION_LOG`
+  - append a fresh mechanical ACP/runtime/receipt snapshot into `LIVE_EXECUTION_LOG`; also auto-injects repomem entries
+just workflow-dossier-inject-repomem WP-{ID}
+  - manually inject repomem conversation_log entries into the dossier (auto-runs inside sync; idempotent)
 just manual-relay-next WP-{ID}
   - Read-only operator helper for MANUAL_RELAY; prints RELAY_ENVELOPE, ROLE_TO_ROLE_MESSAGE, and OPERATOR_EXPLAINER.
 just manual-relay-dispatch WP-{ID} "<context>"
