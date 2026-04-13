@@ -1363,6 +1363,23 @@ export function evaluateWpCommunicationHealth({
     });
   }
 
+  // Closeout preflight runs before the Integration Validator has replied. Treat a
+  // final-review-ready lane as mechanically healthy at VERDICT/CLOSEOUT time so
+  // the final authority can be launched without requiring an impossible prelaunch
+  // direct-review resolution.
+  if (normalizedStage === "VERDICT" && requiresFinalAuthorityDirectReview(packetFormatVersion) && !integrationFinalPair.reply) {
+    return result({
+      applicable: true,
+      ok: true,
+      state: "COMM_WAITING_FOR_FINAL_REVIEW",
+      message: "Verdict preflight is ready; coder must initiate the final direct review exchange with Integration Validator",
+      details,
+      counts,
+      correlations,
+      latestWpValidatorReviewOutcome,
+    });
+  }
+
   if (requiresFinalAuthorityDirectReview(packetFormatVersion) && !integrationFinalPair.reply) {
     return result({
       applicable: true,

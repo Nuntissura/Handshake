@@ -1,0 +1,1204 @@
+diff --git a/src/backend/handshake_core/src/locus/task_board.rs b/src/backend/handshake_core/src/locus/task_board.rs
+index b5c80304..1601d6a0 100644
+--- a/src/backend/handshake_core/src/locus/task_board.rs
++++ b/src/backend/handshake_core/src/locus/task_board.rs
+@@ -48,0 +49,6 @@ pub struct TaskBoardEntryRecordV1 {
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub transition_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub queue_automation_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub executor_eligibility_policy_ids: Vec<String>,
+diff --git a/src/backend/handshake_core/src/locus/types.rs b/src/backend/handshake_core/src/locus/types.rs
+index bd61e394..c19c7341 100644
+--- a/src/backend/handshake_core/src/locus/types.rs
++++ b/src/backend/handshake_core/src/locus/types.rs
+@@ -154,0 +155,551 @@ pub struct GovernedActionDescriptorV1 {
++// ── Project-profile workflow extension [v02.171] ──
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct WorkflowFamilyDisplayLabel {
++    pub family: WorkflowStateFamily,
++    pub display_label: String,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct WorkflowReasonDisplayLabel {
++    pub reason: WorkflowQueueReasonCode,
++    pub display_label: String,
++}
++
++/// Project-profile extension for workflow display labels and action narrowing.
++/// Per v02.171: extensions MAY relabel families for display but MUST NOT change
++/// the base semantic meaning. Unknown extensions MUST degrade to the base
++/// workflow-state families, reason codes, and governed action ids.
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
++pub struct ProjectProfileWorkflowExtensionV1 {
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub family_display_labels: Vec<WorkflowFamilyDisplayLabel>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub reason_display_labels: Vec<WorkflowReasonDisplayLabel>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub narrowed_reason_codes: Option<Vec<WorkflowQueueReasonCode>>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub narrowed_action_ids: Option<Vec<String>>,
++}
++
++impl ProjectProfileWorkflowExtensionV1 {
++    /// Resolve the display label for a workflow state family.
++    /// Degrades to the base family label for unmapped families per v02.171.
++    pub fn display_label_for_family(&self, family: WorkflowStateFamily) -> String {
++        self.family_display_labels
++            .iter()
++            .find(|l| l.family == family)
++            .map(|l| l.display_label.clone())
++            .unwrap_or_else(|| base_workflow_family_label(family).to_string())
++    }
++
++    /// Resolve the display label for a queue reason code.
++    /// Degrades to the base reason label for unmapped reasons per v02.171.
++    pub fn display_label_for_reason(&self, reason: WorkflowQueueReasonCode) -> String {
++        self.reason_display_labels
++            .iter()
++            .find(|l| l.reason == reason)
++            .map(|l| l.display_label.clone())
++            .unwrap_or_else(|| base_queue_reason_label(reason).to_string())
++    }
++
++    /// Filter action_ids to only those narrowed by this profile.
++    /// Returns the full base set unchanged if no narrowing is defined.
++    pub fn narrow_action_ids(&self, base_action_ids: &[String]) -> Vec<String> {
++        match &self.narrowed_action_ids {
++            Some(narrowed) => base_action_ids
++                .iter()
++                .filter(|id| narrowed.contains(id))
++                .cloned()
++                .collect(),
++            None => base_action_ids.to_vec(),
++        }
++    }
++}
++
++// ── Governed action registry [v02.171] ──
++
++/// Returns all registered governed action descriptors for a workflow state family.
++/// This is the single source of truth for action legality per family.
++/// All action-resolution paths MUST resolve through this registry.
++pub fn governed_action_descriptors_for_family(
++    family: WorkflowStateFamily,
++) -> Vec<GovernedActionDescriptorV1> {
++    match family {
++        WorkflowStateFamily::Intake => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "triage".into(),
++                title: "Triage".into(),
++                description: Some("Classify and route the record for processing".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "prioritize".into(),
++                title: "Prioritize".into(),
++                description: Some("Set or adjust priority level".into()),
++            },
++        ],
++        WorkflowStateFamily::Ready => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "start".into(),
++                title: "Start".into(),
++                description: Some("Begin work on the record".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "assign".into(),
++                title: "Assign".into(),
++                description: Some("Assign to an executor".into()),
++            },
++        ],
++        WorkflowStateFamily::Active => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "update".into(),
++                title: "Update".into(),
++                description: Some("Record progress on active work".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "complete".into(),
++                title: "Complete".into(),
++                description: Some("Mark work as complete".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "pause".into(),
++                title: "Pause".into(),
++                description: Some("Pause active work".into()),
++            },
++        ],
++        WorkflowStateFamily::Waiting => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "resume".into(),
++                title: "Resume".into(),
++                description: Some("Resume after wait condition clears".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "escalate".into(),
++                title: "Escalate".into(),
++                description: Some("Escalate the wait to a higher authority".into()),
++            },
++        ],
++        WorkflowStateFamily::Review => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "review".into(),
++                title: "Review".into(),
++                description: Some("Perform review of the record".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "request_changes".into(),
++                title: "Request Changes".into(),
++                description: Some("Request changes after review".into()),
++            },
++        ],
++        WorkflowStateFamily::Approval => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "approve".into(),
++                title: "Approve".into(),
++                description: Some("Grant approval".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "reject".into(),
++                title: "Reject".into(),
++                description: Some("Reject the approval request".into()),
++            },
++        ],
++        WorkflowStateFamily::Validation => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "validate".into(),
++                title: "Validate".into(),
++                description: Some("Run validation checks".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "repair".into(),
++                title: "Repair".into(),
++                description: Some("Repair validation failures".into()),
++            },
++        ],
++        WorkflowStateFamily::Blocked => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "unblock".into(),
++                title: "Unblock".into(),
++                description: Some("Resolve the blocking condition".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "escalate".into(),
++                title: "Escalate".into(),
++                description: Some("Escalate the blocker".into()),
++            },
++        ],
++        WorkflowStateFamily::Done => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "archive".into(),
++                title: "Archive".into(),
++                description: Some("Archive the completed record".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "reopen".into(),
++                title: "Reopen".into(),
++                description: Some("Reopen for further work".into()),
++            },
++        ],
++        WorkflowStateFamily::Canceled => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "archive".into(),
++                title: "Archive".into(),
++                description: Some("Archive the cancelled record".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "reopen".into(),
++                title: "Reopen".into(),
++                description: Some("Reopen the cancelled record".into()),
++            },
++        ],
++        WorkflowStateFamily::Archived => vec![],
++    }
++}
++
++/// Returns all registered action IDs for a workflow state family.
++pub fn governed_action_ids_for_family(family: WorkflowStateFamily) -> Vec<String> {
++    governed_action_descriptors_for_family(family)
++        .into_iter()
++        .map(|d| d.action_id)
++        .collect()
++}
++
++// ── Base labels for degradation [v02.171] ──
++
++/// Base human-readable label for a workflow state family.
++/// Used as degradation target when project-profile extensions are unknown.
++pub fn base_workflow_family_label(family: WorkflowStateFamily) -> &'static str {
++    match family {
++        WorkflowStateFamily::Intake => "Intake",
++        WorkflowStateFamily::Ready => "Ready",
++        WorkflowStateFamily::Active => "Active",
++        WorkflowStateFamily::Waiting => "Waiting",
++        WorkflowStateFamily::Review => "Review",
++        WorkflowStateFamily::Approval => "Approval",
++        WorkflowStateFamily::Validation => "Validation",
++        WorkflowStateFamily::Blocked => "Blocked",
++        WorkflowStateFamily::Done => "Done",
++        WorkflowStateFamily::Canceled => "Canceled",
++        WorkflowStateFamily::Archived => "Archived",
++    }
++}
++
++/// Base human-readable label for a queue reason code.
++/// Used as degradation target when project-profile extensions are unknown.
++pub fn base_queue_reason_label(reason: WorkflowQueueReasonCode) -> &'static str {
++    match reason {
++        WorkflowQueueReasonCode::NewUntriaged => "new, untriaged",
++        WorkflowQueueReasonCode::DependencyWait => "dependency wait",
++        WorkflowQueueReasonCode::ReadyForLocalSmallModel => "ready for local model",
++        WorkflowQueueReasonCode::ReadyForCloudModel => "ready for cloud model",
++        WorkflowQueueReasonCode::ReadyForHuman => "ready for human",
++        WorkflowQueueReasonCode::ReviewWait => "review wait",
++        WorkflowQueueReasonCode::ApprovalWait => "approval wait",
++        WorkflowQueueReasonCode::ValidationWait => "validation wait",
++        WorkflowQueueReasonCode::MailboxResponseWait => "mailbox response wait",
++        WorkflowQueueReasonCode::TimerWait => "timer wait",
++        WorkflowQueueReasonCode::BlockedMissingContext => "blocked: missing context",
++        WorkflowQueueReasonCode::BlockedPolicy => "blocked: policy",
++        WorkflowQueueReasonCode::BlockedCapability => "blocked: capability",
++        WorkflowQueueReasonCode::BlockedError => "blocked: error",
++    }
++}
++
++// ── Mailbox-aware queue reason resolution [v02.171] ──
++
++/// Resolves queue_reason_code accounting for mailbox-linked wait state.
++/// Per v02.171: mailbox-linked waits MUST remain visible as
++/// queue_reason_code=mailbox_response_wait, but the mailbox thread
++/// MUST NOT become the authority for the linked record's state family.
++pub fn resolve_queue_reason_with_mailbox_context(
++    base_reason: WorkflowQueueReasonCode,
++    has_pending_mailbox_wait: bool,
++) -> WorkflowQueueReasonCode {
++    if has_pending_mailbox_wait {
++        WorkflowQueueReasonCode::MailboxResponseWait
++    } else {
++        base_reason
++    }
++}
++
++// ── Workflow transition matrix [v02.172] ──
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct WorkflowTransitionRuleV1 {
++    pub rule_id: String,
++    pub from_family: WorkflowStateFamily,
++    pub to_family: WorkflowStateFamily,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub description: Option<String>,
++}
++
++/// Returns all valid transition rules originating from the given family.
++/// Portable across Work Packets, Micro-Tasks, Task Board rows, and Role Mailbox-linked waits.
++pub fn transition_rules_for_family(family: WorkflowStateFamily) -> Vec<WorkflowTransitionRuleV1> {
++    let pairs: &[(WorkflowStateFamily, &str)] = match family {
++        WorkflowStateFamily::Intake => &[
++            (WorkflowStateFamily::Ready, "triage completes"),
++            (WorkflowStateFamily::Blocked, "blocked during triage"),
++            (WorkflowStateFamily::Canceled, "canceled before start"),
++        ],
++        WorkflowStateFamily::Ready => &[
++            (WorkflowStateFamily::Active, "work started"),
++            (WorkflowStateFamily::Blocked, "blocked before start"),
++            (WorkflowStateFamily::Canceled, "canceled before start"),
++        ],
++        WorkflowStateFamily::Active => &[
++            (WorkflowStateFamily::Waiting, "awaiting dependency or response"),
++            (WorkflowStateFamily::Review, "submitted for review"),
++            (WorkflowStateFamily::Blocked, "blocked during work"),
++            (WorkflowStateFamily::Done, "work completed"),
++            (WorkflowStateFamily::Canceled, "canceled during work"),
++        ],
++        WorkflowStateFamily::Waiting => &[
++            (WorkflowStateFamily::Active, "wait resolved"),
++            (WorkflowStateFamily::Blocked, "blocked while waiting"),
++            (WorkflowStateFamily::Canceled, "canceled while waiting"),
++        ],
++        WorkflowStateFamily::Review => &[
++            (WorkflowStateFamily::Active, "changes requested"),
++            (WorkflowStateFamily::Approval, "review approved"),
++            (WorkflowStateFamily::Blocked, "blocked during review"),
++        ],
++        WorkflowStateFamily::Approval => &[
++            (WorkflowStateFamily::Active, "approval rejected"),
++            (WorkflowStateFamily::Validation, "approval granted"),
++            (WorkflowStateFamily::Blocked, "blocked during approval"),
++        ],
++        WorkflowStateFamily::Validation => &[
++            (WorkflowStateFamily::Done, "validation passed"),
++            (WorkflowStateFamily::Active, "validation failed, repair"),
++            (WorkflowStateFamily::Blocked, "blocked during validation"),
++        ],
++        WorkflowStateFamily::Blocked => &[
++            (WorkflowStateFamily::Ready, "unblocked to ready"),
++            (WorkflowStateFamily::Active, "unblocked to active"),
++            (WorkflowStateFamily::Canceled, "canceled while blocked"),
++        ],
++        WorkflowStateFamily::Done => &[
++            (WorkflowStateFamily::Archived, "archived after completion"),
++            (WorkflowStateFamily::Active, "reopened from done"),
++        ],
++        WorkflowStateFamily::Canceled => &[
++            (WorkflowStateFamily::Ready, "reopened from canceled"),
++            (WorkflowStateFamily::Archived, "archived after cancellation"),
++        ],
++        WorkflowStateFamily::Archived => &[],
++    };
++    pairs
++        .iter()
++        .map(|(to, desc)| WorkflowTransitionRuleV1 {
++            rule_id: format!(
++                "transition:{}_{}", family_id_segment(family), family_id_segment(*to)
++            ),
++            from_family: family,
++            to_family: *to,
++            description: Some(desc.to_string()),
++        })
++        .collect()
++}
++
++pub fn transition_rule_ids_for_family(family: WorkflowStateFamily) -> Vec<String> {
++    transition_rules_for_family(family)
++        .into_iter()
++        .map(|r| r.rule_id)
++        .collect()
++}
++
++// ── Queue automation rules [v02.172] ──
++
++#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
++#[serde(rename_all = "snake_case")]
++pub enum QueueAutomationTrigger {
++    DependencyCleared,
++    MailboxResponseReceived,
++    ValidationPassed,
++    RetryTimerElapsed,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct QueueAutomationRuleV1 {
++    pub rule_id: String,
++    pub trigger: QueueAutomationTrigger,
++    pub from_reason: WorkflowQueueReasonCode,
++    pub to_reason: WorkflowQueueReasonCode,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub description: Option<String>,
++}
++
++pub fn queue_automation_rules() -> Vec<QueueAutomationRuleV1> {
++    vec![
++        QueueAutomationRuleV1 {
++            rule_id: "automation:dependency_cleared".to_string(),
++            trigger: QueueAutomationTrigger::DependencyCleared,
++            from_reason: WorkflowQueueReasonCode::DependencyWait,
++            to_reason: WorkflowQueueReasonCode::ReadyForHuman,
++            description: Some("dependency resolved, return to ready queue".to_string()),
++        },
++        QueueAutomationRuleV1 {
++            rule_id: "automation:mailbox_response_received".to_string(),
++            trigger: QueueAutomationTrigger::MailboxResponseReceived,
++            from_reason: WorkflowQueueReasonCode::MailboxResponseWait,
++            to_reason: WorkflowQueueReasonCode::ReadyForHuman,
++            description: Some("mailbox response received, return to ready queue".to_string()),
++        },
++        QueueAutomationRuleV1 {
++            rule_id: "automation:validation_passed".to_string(),
++            trigger: QueueAutomationTrigger::ValidationPassed,
++            from_reason: WorkflowQueueReasonCode::ValidationWait,
++            to_reason: WorkflowQueueReasonCode::ReadyForHuman,
++            description: Some("validation passed, return to ready queue for closeout".to_string()),
++        },
++        QueueAutomationRuleV1 {
++            rule_id: "automation:retry_timer_elapsed".to_string(),
++            trigger: QueueAutomationTrigger::RetryTimerElapsed,
++            from_reason: WorkflowQueueReasonCode::TimerWait,
++            to_reason: WorkflowQueueReasonCode::ReadyForLocalSmallModel,
++            description: Some("retry timer elapsed, return to model queue".to_string()),
++        },
++    ]
++}
++
++pub fn queue_automation_rule_ids_for_reason(
++    reason: WorkflowQueueReasonCode,
++) -> Vec<String> {
++    queue_automation_rules()
++        .into_iter()
++        .filter(|r| r.from_reason == reason)
++        .map(|r| r.rule_id)
++        .collect()
++}
++
++// ── Executor eligibility policies [v02.172] ──
++
++#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
++#[serde(rename_all = "snake_case")]
++pub enum ExecutorKind {
++    Operator,
++    LocalSmallModel,
++    CloudModel,
++    WorkflowEngine,
++    Reviewer,
++    Governance,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct ExecutorEligibilityPolicyV1 {
++    pub policy_id: String,
++    pub executor_kind: ExecutorKind,
++    pub eligible_families: Vec<WorkflowStateFamily>,
++    pub requires_compact_summary: bool,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub description: Option<String>,
++}
++
++pub fn executor_eligibility_policies() -> Vec<ExecutorEligibilityPolicyV1> {
++    vec![
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:operator".to_string(),
++            executor_kind: ExecutorKind::Operator,
++            eligible_families: vec![
++                WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
++                WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
++                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
++                WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
++                WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
++                WorkflowStateFamily::Archived,
++            ],
++            requires_compact_summary: false,
++            description: Some("operator can act on any workflow state".to_string()),
++        },
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:local_small_model".to_string(),
++            executor_kind: ExecutorKind::LocalSmallModel,
++            eligible_families: vec![WorkflowStateFamily::Ready],
++            requires_compact_summary: true,
++            description: Some(
++                "local small model requires ready-family state and compact summary".to_string(),
++            ),
++        },
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:cloud_model".to_string(),
++            executor_kind: ExecutorKind::CloudModel,
++            eligible_families: vec![
++                WorkflowStateFamily::Ready, WorkflowStateFamily::Active,
++                WorkflowStateFamily::Waiting, WorkflowStateFamily::Review,
++            ],
++            requires_compact_summary: false,
++            description: Some("cloud model can act on ready through review states".to_string()),
++        },
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:workflow_engine".to_string(),
++            executor_kind: ExecutorKind::WorkflowEngine,
++            eligible_families: vec![
++                WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
++                WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
++                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
++                WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
++                WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
++                WorkflowStateFamily::Archived,
++            ],
++            requires_compact_summary: false,
++            description: Some("workflow engine handles automated transitions".to_string()),
++        },
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:reviewer".to_string(),
++            executor_kind: ExecutorKind::Reviewer,
++            eligible_families: vec![
++                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
++                WorkflowStateFamily::Validation,
++            ],
++            requires_compact_summary: false,
++            description: Some("reviewer can act on review, approval, validation".to_string()),
++        },
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:governance".to_string(),
++            executor_kind: ExecutorKind::Governance,
++            eligible_families: vec![
++                WorkflowStateFamily::Approval, WorkflowStateFamily::Validation,
++                WorkflowStateFamily::Blocked,
++            ],
++            requires_compact_summary: false,
++            description: Some("governance acts on approval, validation, blocked".to_string()),
++        },
++    ]
++}
++
++pub fn executor_eligibility_policy_ids_for_family(
++    family: WorkflowStateFamily,
++) -> Vec<String> {
++    executor_eligibility_policies()
++        .into_iter()
++        .filter(|p| p.eligible_families.contains(&family))
++        .map(|p| p.policy_id)
++        .collect()
++}
++
++/// Checks whether a local small model executor is eligible.
++/// Per v02.172: local-small-model eligibility MUST require a ready-family state
++/// AND a compact summary being available.
++pub fn is_local_small_model_eligible(
++    family: WorkflowStateFamily,
++    has_compact_summary: bool,
++) -> bool {
++    family == WorkflowStateFamily::Ready && has_compact_summary
++}
++
++fn family_id_segment(family: WorkflowStateFamily) -> &'static str {
++    match family {
++        WorkflowStateFamily::Intake => "intake",
++        WorkflowStateFamily::Ready => "ready",
++        WorkflowStateFamily::Active => "active",
++        WorkflowStateFamily::Waiting => "waiting",
++        WorkflowStateFamily::Review => "review",
++        WorkflowStateFamily::Approval => "approval",
++        WorkflowStateFamily::Validation => "validation",
++        WorkflowStateFamily::Blocked => "blocked",
++        WorkflowStateFamily::Done => "done",
++        WorkflowStateFamily::Canceled => "canceled",
++        WorkflowStateFamily::Archived => "archived",
++    }
++}
++
+@@ -173,0 +725,6 @@ pub struct StructuredCollaborationSummaryV1 {
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub transition_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub queue_automation_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub executor_eligibility_policy_ids: Vec<String>,
+@@ -204,0 +762,6 @@ pub struct TrackedWorkPacketArtifactV1 {
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub transition_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub queue_automation_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub executor_eligibility_policy_ids: Vec<String>,
+@@ -260,0 +824,6 @@ pub struct TrackedMicroTaskArtifactV1 {
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub transition_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub queue_automation_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub executor_eligibility_policy_ids: Vec<String>,
+diff --git a/src/backend/handshake_core/src/runtime_governance.rs b/src/backend/handshake_core/src/runtime_governance.rs
+index 30a59f90..f52d0ae0 100644
+--- a/src/backend/handshake_core/src/runtime_governance.rs
++++ b/src/backend/handshake_core/src/runtime_governance.rs
+@@ -466,0 +467,215 @@ mod tests {
++
++    // ── MT-003 proof: workflow transition matrix, queue automation, executor eligibility ──
++
++    use crate::workflows::locus::types::{
++        WorkflowStateFamily, WorkflowQueueReasonCode, ExecutorKind,
++        transition_rules_for_family, transition_rule_ids_for_family,
++        queue_automation_rules, queue_automation_rule_ids_for_reason,
++        executor_eligibility_policies, executor_eligibility_policy_ids_for_family,
++        is_local_small_model_eligible,
++    };
++
++    #[test]
++    fn transition_rules_cover_all_families_and_archived_is_terminal() {
++        let all_families = [
++            WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
++            WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
++            WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
++            WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
++            WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
++            WorkflowStateFamily::Archived,
++        ];
++
++        for family in &all_families {
++            let rules = transition_rules_for_family(*family);
++            if *family == WorkflowStateFamily::Archived {
++                assert!(
++                    rules.is_empty(),
++                    "Archived must be terminal with no outbound transitions"
++                );
++            } else {
++                assert!(
++                    !rules.is_empty(),
++                    "Non-terminal family {:?} must have at least one transition rule",
++                    family
++                );
++            }
++
++            for rule in &rules {
++                assert_eq!(rule.from_family, *family);
++                assert_ne!(
++                    rule.from_family, rule.to_family,
++                    "self-transitions are not valid: {}",
++                    rule.rule_id
++                );
++                assert!(
++                    rule.rule_id.starts_with("transition:"),
++                    "rule_id must use transition: prefix: {}",
++                    rule.rule_id
++                );
++            }
++        }
++
++        // Verify id resolution matches
++        let ids = transition_rule_ids_for_family(WorkflowStateFamily::Active);
++        assert!(ids.len() >= 3, "Active must have transitions to Waiting, Review, Blocked, Done, Canceled");
++        assert!(ids.iter().all(|id| id.starts_with("transition:active_")));
++    }
++
++    #[test]
++    fn queue_automation_rules_cover_canonical_triggers() {
++        let rules = queue_automation_rules();
++        assert!(rules.len() >= 4, "must cover dependency, mailbox, validation, retry triggers");
++
++        let rule_ids: Vec<&str> = rules.iter().map(|r| r.rule_id.as_str()).collect();
++        assert!(rule_ids.contains(&"automation:dependency_cleared"));
++        assert!(rule_ids.contains(&"automation:mailbox_response_received"));
++        assert!(rule_ids.contains(&"automation:validation_passed"));
++        assert!(rule_ids.contains(&"automation:retry_timer_elapsed"));
++
++        for rule in &rules {
++            assert!(
++                rule.rule_id.starts_with("automation:"),
++                "rule_id must use automation: prefix: {}",
++                rule.rule_id
++            );
++            assert_ne!(
++                rule.from_reason, rule.to_reason,
++                "automation rule must change reason: {}",
++                rule.rule_id
++            );
++        }
++
++        // Verify reason-based resolution
++        let mailbox_rules = queue_automation_rule_ids_for_reason(
++            WorkflowQueueReasonCode::MailboxResponseWait,
++        );
++        assert_eq!(mailbox_rules, vec!["automation:mailbox_response_received"]);
++
++        let dependency_rules = queue_automation_rule_ids_for_reason(
++            WorkflowQueueReasonCode::DependencyWait,
++        );
++        assert_eq!(dependency_rules, vec!["automation:dependency_cleared"]);
++
++        // ReadyForHuman has no outbound automation rule
++        let ready_rules = queue_automation_rule_ids_for_reason(
++            WorkflowQueueReasonCode::ReadyForHuman,
++        );
++        assert!(ready_rules.is_empty());
++    }
++
++    #[test]
++    fn executor_eligibility_policies_cover_all_executor_kinds() {
++        let policies = executor_eligibility_policies();
++
++        let kinds: Vec<ExecutorKind> = policies.iter().map(|p| p.executor_kind).collect();
++        assert!(kinds.contains(&ExecutorKind::Operator));
++        assert!(kinds.contains(&ExecutorKind::LocalSmallModel));
++        assert!(kinds.contains(&ExecutorKind::CloudModel));
++        assert!(kinds.contains(&ExecutorKind::WorkflowEngine));
++        assert!(kinds.contains(&ExecutorKind::Reviewer));
++        assert!(kinds.contains(&ExecutorKind::Governance));
++
++        for policy in &policies {
++            assert!(
++                policy.policy_id.starts_with("eligibility:"),
++                "policy_id must use eligibility: prefix: {}",
++                policy.policy_id
++            );
++            assert!(
++                !policy.eligible_families.is_empty(),
++                "policy must have at least one eligible family: {}",
++                policy.policy_id
++            );
++        }
++
++        // Verify family-based resolution
++        let ready_policies = executor_eligibility_policy_ids_for_family(WorkflowStateFamily::Ready);
++        assert!(ready_policies.contains(&"eligibility:operator".to_string()));
++        assert!(ready_policies.contains(&"eligibility:local_small_model".to_string()));
++        assert!(ready_policies.contains(&"eligibility:cloud_model".to_string()));
++        assert!(ready_policies.contains(&"eligibility:workflow_engine".to_string()));
++
++        // Archived should only have operator and workflow_engine
++        let archived_policies = executor_eligibility_policy_ids_for_family(WorkflowStateFamily::Archived);
++        assert!(archived_policies.contains(&"eligibility:operator".to_string()));
++        assert!(archived_policies.contains(&"eligibility:workflow_engine".to_string()));
++        assert!(!archived_policies.contains(&"eligibility:local_small_model".to_string()));
++    }
++
++    #[test]
++    fn local_small_model_requires_ready_family_and_compact_summary() {
++        // Per v02.172: local-small-model eligibility MUST require
++        // a ready-family state AND a compact summary being available.
++        assert!(
++            is_local_small_model_eligible(WorkflowStateFamily::Ready, true),
++            "ready + compact_summary = eligible"
++        );
++        assert!(
++            !is_local_small_model_eligible(WorkflowStateFamily::Ready, false),
++            "ready without compact_summary = not eligible"
++        );
++        assert!(
++            !is_local_small_model_eligible(WorkflowStateFamily::Active, true),
++            "active + compact_summary = not eligible (wrong family)"
++        );
++        assert!(
++            !is_local_small_model_eligible(WorkflowStateFamily::Intake, true),
++            "intake + compact_summary = not eligible"
++        );
++        assert!(
++            !is_local_small_model_eligible(WorkflowStateFamily::Blocked, false),
++            "blocked without compact_summary = not eligible"
++        );
++
++        // Verify the policy registry matches
++        let lsm_policy = executor_eligibility_policies()
++            .into_iter()
++            .find(|p| p.executor_kind == ExecutorKind::LocalSmallModel)
++            .expect("local_small_model policy must exist");
++        assert!(
++            lsm_policy.requires_compact_summary,
++            "local_small_model policy must require compact summary"
++        );
++        assert_eq!(
++            lsm_policy.eligible_families,
++            vec![WorkflowStateFamily::Ready],
++            "local_small_model policy must only allow Ready family"
++        );
++    }
++
++    #[test]
++    fn transition_and_eligibility_ids_are_portable_across_families() {
++        // Verify the same function works for any family — proving portability
++        // across WP, MT, TaskBoard, and Mailbox surfaces.
++        let all_families = [
++            WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
++            WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
++            WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
++            WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
++            WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
++            WorkflowStateFamily::Archived,
++        ];
++
++        for family in &all_families {
++            let transition_ids = transition_rule_ids_for_family(*family);
++            let eligibility_ids = executor_eligibility_policy_ids_for_family(*family);
++
++            // All ids must be stable strings, not empty
++            for id in &transition_ids {
++                assert!(!id.is_empty());
++                assert!(id.starts_with("transition:"));
++            }
++            for id in &eligibility_ids {
++                assert!(!id.is_empty());
++                assert!(id.starts_with("eligibility:"));
++            }
++
++            // Every family must have at least operator eligibility
++            assert!(
++                eligibility_ids.contains(&"eligibility:operator".to_string()),
++                "{:?} must be eligible for operator",
++                family
++            );
++        }
++    }
+diff --git a/src/backend/handshake_core/src/storage/locus_sqlite.rs b/src/backend/handshake_core/src/storage/locus_sqlite.rs
+index bf0057ef..6af5861b 100644
+--- a/src/backend/handshake_core/src/storage/locus_sqlite.rs
++++ b/src/backend/handshake_core/src/storage/locus_sqlite.rs
+@@ -18 +18,3 @@ use crate::workflows::locus::types::{
+-    WorkflowStateFamily,
++    WorkflowStateFamily, executor_eligibility_policy_ids_for_family,
++    governed_action_ids_for_family, queue_automation_rule_ids_for_reason,
++    resolve_queue_reason_with_mailbox_context, transition_rule_ids_for_family,
+@@ -172 +174 @@ fn work_packet_status_str(status: WorkPacketStatus) -> &'static str {
+-fn micro_task_workflow_state(
++fn micro_task_workflow_state_with_mailbox(
+@@ -173,0 +176 @@ fn micro_task_workflow_state(
++    has_pending_mailbox_wait: bool,
+@@ -175 +178 @@ fn micro_task_workflow_state(
+-    match status {
++    let (family, base_reason) = match status {
+@@ -200,16 +202,0 @@ fn micro_task_workflow_state(
+-    }
+-}
+-
+-fn allowed_action_ids(family: WorkflowStateFamily) -> Vec<String> {
+-    let actions = match family {
+-        WorkflowStateFamily::Intake => &["triage", "prioritize"][..],
+-        WorkflowStateFamily::Ready => &["start", "assign"],
+-        WorkflowStateFamily::Active => &["update", "complete", "pause"],
+-        WorkflowStateFamily::Waiting => &["resume", "escalate"],
+-        WorkflowStateFamily::Review => &["review", "request_changes"],
+-        WorkflowStateFamily::Approval => &["approve", "reject"],
+-        WorkflowStateFamily::Validation => &["validate", "repair"],
+-        WorkflowStateFamily::Blocked => &["unblock", "escalate"],
+-        WorkflowStateFamily::Done => &["archive", "reopen"],
+-        WorkflowStateFamily::Canceled => &["archive", "reopen"],
+-        WorkflowStateFamily::Archived => &[],
+@@ -217 +204,2 @@ fn allowed_action_ids(family: WorkflowStateFamily) -> Vec<String> {
+-    actions.iter().map(|action| (*action).to_string()).collect()
++    let reason = resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
++    (family, reason)
+@@ -221 +209,7 @@ fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
+-    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state(tracked_mt.status);
++    let has_pending_mailbox_wait = tracked_mt
++        .metadata
++        .get("has_pending_mailbox_wait")
++        .and_then(Value::as_bool)
++        .unwrap_or(false);
++    let (workflow_state_family, queue_reason_code) =
++        micro_task_workflow_state_with_mailbox(tracked_mt.status, has_pending_mailbox_wait);
+@@ -248 +242,4 @@ fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
+-        allowed_action_ids: allowed_action_ids(workflow_state_family),
++        allowed_action_ids: governed_action_ids_for_family(workflow_state_family),
++        transition_rule_ids: transition_rule_ids_for_family(workflow_state_family),
++        queue_automation_rule_ids: queue_automation_rule_ids_for_reason(queue_reason_code),
++        executor_eligibility_policy_ids: executor_eligibility_policy_ids_for_family(workflow_state_family),
+diff --git a/src/backend/handshake_core/src/workflows.rs b/src/backend/handshake_core/src/workflows.rs
+index 1242230b..7c9fc9fb 100644
+--- a/src/backend/handshake_core/src/workflows.rs
++++ b/src/backend/handshake_core/src/workflows.rs
+@@ -3275 +3275,14 @@ async fn list_tracked_micro_tasks_for_artifacts(
+-fn work_packet_workflow_state(
++/// Reads pending mailbox wait state from linked-record metadata.
++/// Returns true when the metadata contains `has_pending_mailbox_wait: true`,
++/// indicating an open mailbox exchange awaiting response on the record.
++fn metadata_has_pending_mailbox_wait(metadata: &Value) -> bool {
++    metadata
++        .get("has_pending_mailbox_wait")
++        .and_then(Value::as_bool)
++        .unwrap_or(false)
++}
++
++/// Computes workflow state with mailbox-aware queue reason override.
++/// When `has_pending_mailbox_wait` is true, queue_reason_code is overridden
++/// to MailboxResponseWait per v02.171 while preserving the base state family.
++pub fn work_packet_workflow_state_with_mailbox(
+@@ -3276,0 +3290 @@ fn work_packet_workflow_state(
++    has_pending_mailbox_wait: bool,
+@@ -3278 +3292 @@ fn work_packet_workflow_state(
+-    match status {
++    let (family, base_reason) = match status {
+@@ -3307 +3321,3 @@ fn work_packet_workflow_state(
+-    }
++    };
++    let reason = locus::resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
++    (family, reason)
+@@ -3310 +3326 @@ fn work_packet_workflow_state(
+-fn micro_task_workflow_state(
++fn micro_task_workflow_state_with_mailbox(
+@@ -3311,0 +3328 @@ fn micro_task_workflow_state(
++    has_pending_mailbox_wait: bool,
+@@ -3313 +3330 @@ fn micro_task_workflow_state(
+-    match status {
++    let (family, base_reason) = match status {
+@@ -3338 +3355,3 @@ fn micro_task_workflow_state(
+-    }
++    };
++    let reason = locus::resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
++    (family, reason)
+@@ -3377,14 +3396 @@ fn allowed_action_ids(family: locus::WorkflowStateFamily) -> Vec<String> {
+-    let actions: &[&str] = match family {
+-        locus::WorkflowStateFamily::Intake => &["triage", "prioritize"],
+-        locus::WorkflowStateFamily::Ready => &["start", "assign"],
+-        locus::WorkflowStateFamily::Active => &["update", "complete", "pause"],
+-        locus::WorkflowStateFamily::Waiting => &["resume", "escalate"],
+-        locus::WorkflowStateFamily::Review => &["review", "request_changes"],
+-        locus::WorkflowStateFamily::Approval => &["approve", "reject"],
+-        locus::WorkflowStateFamily::Validation => &["validate", "repair"],
+-        locus::WorkflowStateFamily::Blocked => &["unblock", "escalate"],
+-        locus::WorkflowStateFamily::Done => &["archive", "reopen"],
+-        locus::WorkflowStateFamily::Canceled => &["archive", "reopen"],
+-        locus::WorkflowStateFamily::Archived => &[],
+-    };
+-    actions.iter().map(|action| (*action).to_string()).collect()
++    locus::governed_action_ids_for_family(family)
+@@ -3447,26 +3452,0 @@ fn micro_task_blockers(micro_task: &locus::TrackedMicroTask) -> Vec<String> {
+-fn next_action_for_work_packet(family: locus::WorkflowStateFamily) -> Option<String> {
+-    governed_next_action_for_family(family)
+-}
+-
+-fn next_action_for_micro_task(family: locus::WorkflowStateFamily) -> Option<String> {
+-    governed_next_action_for_family(family)
+-}
+-
+-fn governed_next_action_for_family(family: locus::WorkflowStateFamily) -> Option<String> {
+-    let action_id = match family {
+-        locus::WorkflowStateFamily::Intake => Some("triage"),
+-        locus::WorkflowStateFamily::Ready => Some("start"),
+-        locus::WorkflowStateFamily::Active => None,
+-        locus::WorkflowStateFamily::Waiting => Some("resume"),
+-        locus::WorkflowStateFamily::Review => Some("review"),
+-        locus::WorkflowStateFamily::Approval => None,
+-        locus::WorkflowStateFamily::Validation => Some("validate"),
+-        locus::WorkflowStateFamily::Blocked => None,
+-        locus::WorkflowStateFamily::Done => Some("archive"),
+-        locus::WorkflowStateFamily::Canceled => None,
+-        locus::WorkflowStateFamily::Archived => None,
+-    };
+-
+-    action_id.map(str::to_string)
+-}
+-
+@@ -3783 +3763 @@ async fn emit_task_board_projection_artifacts(
+-            work_packet_workflow_state(work_packet_status);
++            work_packet_workflow_state_with_mailbox(work_packet_status, metadata_has_pending_mailbox_wait(&metadata));
+@@ -3799,0 +3780,3 @@ async fn emit_task_board_projection_artifacts(
++            transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
++            queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
++            executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
+@@ -4870 +4853,4 @@ fn build_structured_work_packet_summary_value(
+-    let (workflow_state_family, _) = work_packet_workflow_state(tracked_wp.status);
++    let (workflow_state_family, queue_reason_code) = work_packet_workflow_state_with_mailbox(
++        tracked_wp.status,
++        metadata_has_pending_mailbox_wait(&tracked_wp.metadata),
++    );
+@@ -4880,0 +4867,15 @@ fn build_structured_work_packet_summary_value(
++    summary_object.insert(
++        "transition_rule_ids".to_string(),
++        serde_json::to_value(locus::transition_rule_ids_for_family(workflow_state_family))
++            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
++    );
++    summary_object.insert(
++        "queue_automation_rule_ids".to_string(),
++        serde_json::to_value(locus::queue_automation_rule_ids_for_reason(queue_reason_code))
++            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
++    );
++    summary_object.insert(
++        "executor_eligibility_policy_ids".to_string(),
++        serde_json::to_value(locus::executor_eligibility_policy_ids_for_family(workflow_state_family))
++            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
++    );
+@@ -4892 +4893,4 @@ fn build_structured_work_packet_packet(
+-    let (workflow_state_family, queue_reason_code) = work_packet_workflow_state(tracked_wp.status);
++    let (workflow_state_family, queue_reason_code) = work_packet_workflow_state_with_mailbox(
++        tracked_wp.status,
++        metadata_has_pending_mailbox_wait(&tracked_wp.metadata),
++    );
+@@ -4907,0 +4912,3 @@ fn build_structured_work_packet_packet(
++        transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
++        queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
++        executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
+@@ -4954 +4961,4 @@ fn build_structured_micro_task_summary_value(
+-    let (workflow_state_family, _) = micro_task_workflow_state(tracked_mt.status);
++    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state_with_mailbox(
++        tracked_mt.status,
++        metadata_has_pending_mailbox_wait(&tracked_mt.metadata),
++    );
+@@ -4964,0 +4975,15 @@ fn build_structured_micro_task_summary_value(
++    summary_object.insert(
++        "transition_rule_ids".to_string(),
++        serde_json::to_value(locus::transition_rule_ids_for_family(workflow_state_family))
++            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
++    );
++    summary_object.insert(
++        "queue_automation_rule_ids".to_string(),
++        serde_json::to_value(locus::queue_automation_rule_ids_for_reason(queue_reason_code))
++            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
++    );
++    summary_object.insert(
++        "executor_eligibility_policy_ids".to_string(),
++        serde_json::to_value(locus::executor_eligibility_policy_ids_for_family(workflow_state_family))
++            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
++    );
+@@ -4975 +5000,4 @@ fn build_structured_micro_task_packet(
+-    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state(tracked_mt.status);
++    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state_with_mailbox(
++        tracked_mt.status,
++        metadata_has_pending_mailbox_wait(&tracked_mt.metadata),
++    );
+@@ -4990,0 +5019,3 @@ fn build_structured_micro_task_packet(
++        transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
++        queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
++        executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
+@@ -25229,0 +25261,2 @@ mod tests {
++    }
++
+diff --git a/src/backend/handshake_core/tests/micro_task_executor_tests.rs b/src/backend/handshake_core/tests/micro_task_executor_tests.rs
+index bbd85dcb..81f59f78 100644
+--- a/src/backend/handshake_core/tests/micro_task_executor_tests.rs
++++ b/src/backend/handshake_core/tests/micro_task_executor_tests.rs
+@@ -21 +21,2 @@ use handshake_core::workflows::{
+-        is_governed_action_id_allowed_for_workflow_family, is_registered_governed_action_id,
++        governed_action_ids_for_family, is_governed_action_id_allowed_for_workflow_family,
++        is_registered_governed_action_id,
+@@ -3170,0 +3172,174 @@ async fn micro_task_executor_rejects_legacy_workflow_run_job_kind_contract(
++
++#[tokio::test]
++async fn locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait(
++) -> Result<(), Box<dyn std::error::Error>> {
++    let _test_guard = test_guard();
++    let dir = tempdir()?;
++    let root = dir.path().to_path_buf();
++    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
++    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
++    let state = setup_state(llm_client).await?;
++
++    let gov_root = root.join(".handshake").join("gov");
++    std::fs::create_dir_all(&gov_root)?;
++    std::fs::write(
++        gov_root.join("TASK_BOARD.md"),
++        concat!(
++            "# Task Board\n\n",
++            "## Ready for Dev\n",
++            "- **[WP-TEST]** - [ready]\n"
++        ),
++    )?;
++    let _ = run_locus_job(&state, "locus_sync_task_board_v1", json!({})).await?;
++
++    // Register two MTs: one normal, one with mailbox wait
++    let mut mt_base = base_tracked_micro_task_value("MT-PARITY-BASE");
++    mt_base["metadata"] = json!({ "source": "parity_test" });
++
++    let mut mt_mailbox = base_tracked_micro_task_value("MT-PARITY-MAILBOX");
++    mt_mailbox["metadata"] = json!({
++        "source": "parity_test",
++        "has_pending_mailbox_wait": true,
++    });
++
++    run_locus_job(
++        &state,
++        "locus_register_mts_v1",
++        json!({
++            "wp_id": "WP-TEST",
++            "micro_tasks": [mt_base, mt_mailbox],
++        }),
++    )
++    .await?;
++
++    // ── Base case: no mailbox wait ──
++    let progress_base = run_locus_job(
++        &state,
++        "locus_get_mt_progress_v1",
++        json!({ "mt_id": "MT-PARITY-BASE" }),
++    )
++    .await?;
++    let progress_meta_base = progress_base
++        .get("metadata")
++        .expect("progress metadata for base MT");
++
++    let packet_path_base = gov_root
++        .join("micro_tasks")
++        .join("WP-TEST")
++        .join("MT-PARITY-BASE")
++        .join("packet.json");
++    let packet_base: Value = serde_json::from_slice(&std::fs::read(&packet_path_base)?)?;
++
++    // workflow_state_family parity
++    assert_eq!(
++        progress_meta_base
++            .get("workflow_state_family")
++            .and_then(Value::as_str),
++        packet_base
++            .get("workflow_state_family")
++            .and_then(Value::as_str),
++        "workflow_state_family must match between progress metadata and emitted packet (base)"
++    );
++
++    // queue_reason_code parity
++    assert_eq!(
++        progress_meta_base
++            .get("queue_reason_code")
++            .and_then(Value::as_str),
++        packet_base
++            .get("queue_reason_code")
++            .and_then(Value::as_str),
++        "queue_reason_code must match between progress metadata and emitted packet (base)"
++    );
++
++    // allowed_action_ids parity
++    assert_eq!(
++        progress_meta_base.get("allowed_action_ids"),
++        packet_base.get("allowed_action_ids"),
++        "allowed_action_ids must match between progress metadata and emitted packet (base)"
++    );
++
++    // Verify base case uses canonical governed registry values
++    let expected_base_actions = governed_action_ids_for_family(WorkflowStateFamily::Ready);
++    let actual_base_actions = json_string_array_field(&packet_base, "allowed_action_ids");
++    assert_eq!(
++        actual_base_actions, expected_base_actions,
++        "allowed_action_ids must come from governed registry"
++    );
++
++    // Base case should NOT have mailbox_response_wait
++    assert_ne!(
++        progress_meta_base
++            .get("queue_reason_code")
++            .and_then(Value::as_str),
++        Some("mailbox_response_wait"),
++        "base MT without mailbox wait should not have mailbox_response_wait reason"
++    );
++
++    // ── Mailbox wait case ──
++    let progress_mailbox = run_locus_job(
++        &state,
++        "locus_get_mt_progress_v1",
++        json!({ "mt_id": "MT-PARITY-MAILBOX" }),
++    )
++    .await?;
++    let progress_meta_mailbox = progress_mailbox
++        .get("metadata")
++        .expect("progress metadata for mailbox MT");
++
++    let packet_path_mailbox = gov_root
++        .join("micro_tasks")
++        .join("WP-TEST")
++        .join("MT-PARITY-MAILBOX")
++        .join("packet.json");
++    let packet_mailbox: Value = serde_json::from_slice(&std::fs::read(&packet_path_mailbox)?)?;
++
++    // workflow_state_family parity (mailbox)
++    assert_eq!(
++        progress_meta_mailbox
++            .get("workflow_state_family")
++            .and_then(Value::as_str),
++        packet_mailbox
++            .get("workflow_state_family")
++            .and_then(Value::as_str),
++        "workflow_state_family must match between progress metadata and emitted packet (mailbox)"
++    );
++
++    // queue_reason_code parity (mailbox)
++    assert_eq!(
++        progress_meta_mailbox
++            .get("queue_reason_code")
++            .and_then(Value::as_str),
++        packet_mailbox
++            .get("queue_reason_code")
++            .and_then(Value::as_str),
++        "queue_reason_code must match between progress metadata and emitted packet (mailbox)"
++    );
++
++    // allowed_action_ids parity (mailbox)
++    assert_eq!(
++        progress_meta_mailbox.get("allowed_action_ids"),
++        packet_mailbox.get("allowed_action_ids"),
++        "allowed_action_ids must match between progress metadata and emitted packet (mailbox)"
++    );
++
++    // Mailbox case MUST have queue_reason_code overridden to mailbox_response_wait
++    assert_eq!(
++        progress_meta_mailbox
++            .get("queue_reason_code")
++            .and_then(Value::as_str),
++        Some("mailbox_response_wait"),
++        "MT with has_pending_mailbox_wait=true must resolve to mailbox_response_wait"
++    );
++
++    // State family should be preserved (still Ready for pending status)
++    assert_eq!(
++        progress_meta_mailbox
++            .get("workflow_state_family")
++            .and_then(Value::as_str),
++        Some("ready"),
++        "mailbox wait must preserve base workflow_state_family"
++    );
++
++    Ok(())
++}

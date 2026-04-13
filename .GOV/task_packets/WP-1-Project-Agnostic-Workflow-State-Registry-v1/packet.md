@@ -123,21 +123,21 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
-- MAIN_CONTAINMENT_STATUS: NOT_STARTED
+- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
-- MERGED_MAIN_COMMIT: NONE
+- MERGED_MAIN_COMMIT: 896e808714f0d584c06efb457b5be0a9e85e2fd5
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
-- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-04-13T05:19:28.442Z
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
-- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
+- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 17f0a543276a0393e3746478a82d059af9160b53
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-13T05:19:28.442Z
 <!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
-- PACKET_WIDENING_DECISION: NONE
+- PACKET_WIDENING_DECISION: NOT_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
 - PACKET_WIDENING_EVIDENCE: N/A
 <!-- Use follow-on/superseding WP id, audit id, or short rationale when widening is required. -->
@@ -180,8 +180,8 @@ Requirements:
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Project-Agnostic-Workflow-State-Registry-v1/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Project-Agnostic-Workflow-State-Registry-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Project-Agnostic-Workflow-State-Registry-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
-- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: WP_VALIDATOR:WP-1-Project-Agnostic-Workflow-State-Registry-v1
+- INTEGRATION_VALIDATOR_OF_RECORD: integration_validator:wp-1-project-agnostic-workflow-state-registry-v1
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
@@ -193,16 +193,15 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
-Next: N/A
-
+Next: NONE
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171] | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/locus/types.rs; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/locus/task_board.rs; ../handshake_main/src/backend/handshake_core/src/runtime_governance.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml micro_task_executor_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml task_board | EXAMPLES: A work packet artifact, a micro-task artifact, and a compact summary that all expose the same `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids`, A mailbox-linked wait that still leaves the linked record in a canonical waiting posture with an explicit queue reason, A project-profile label override that changes display wording while preserving the base family, reason, and governed action ids | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Workflow State Families, Queue Reasons, and Governed Actions [ADD v02.171] | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/locus/types.rs; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/storage/locus_sqlite.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml micro_task_executor_tests | EXAMPLES: A work packet artifact, a micro-task artifact, and a compact summary that all expose the same `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids`, A mailbox-linked wait that still leaves the linked record in a canonical waiting posture with an explicit queue reason, A project-profile label override that changes display wording while preserving the base family, reason, and governed action ids | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Workflow Transition Matrix, Queue Automation, and Executor Eligibility [ADD v02.172] | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/locus/types.rs; ../handshake_main/src/backend/handshake_core/src/runtime_governance.rs; ../handshake_main/src/backend/handshake_core/src/workflows.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml runtime_governance; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | EXAMPLES: A work packet artifact, a micro-task artifact, and a compact summary that all expose the same `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids`, A mailbox-linked wait that still leaves the linked record in a canonical waiting posture with an explicit queue reason, A project-profile label override that changes display wording while preserving the base family, reason, and governed action ids | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171] | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/locus/types.rs; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/locus/task_board.rs; ../handshake_main/src/backend/handshake_core/src/runtime_governance.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml micro_task_executor_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml task_board | EXAMPLES: A work packet artifact, a micro-task artifact, and a compact summary that all expose the same `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids`, A mailbox-linked wait that still leaves the linked record in a canonical waiting posture with an explicit queue reason, A project-profile label override that changes display wording while preserving the base family, reason, and governed action ids | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Workflow State Families, Queue Reasons, and Governed Actions [ADD v02.171] | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/locus/types.rs; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/storage/locus_sqlite.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml micro_task_executor_tests | EXAMPLES: A work packet artifact, a micro-task artifact, and a compact summary that all expose the same `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids`, A mailbox-linked wait that still leaves the linked record in a canonical waiting posture with an explicit queue reason, A project-profile label override that changes display wording while preserving the base family, reason, and governed action ids | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Workflow Transition Matrix, Queue Automation, and Executor Eligibility [ADD v02.172] | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/locus/types.rs; ../handshake_main/src/backend/handshake_core/src/locus/task_board.rs; ../handshake_main/src/backend/handshake_core/src/runtime_governance.rs; ../handshake_main/src/backend/handshake_core/src/storage/locus_sqlite.rs; ../handshake_main/src/backend/handshake_core/src/workflows.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml runtime_governance; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | EXAMPLES: A work packet artifact, a micro-task artifact, and a compact summary that all expose the same `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids`, A mailbox-linked wait that still leaves the linked record in a canonical waiting posture with an explicit queue reason, A project-profile label override that changes display wording while preserving the base family, reason, and governed action ids | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -733,60 +732,158 @@ rg -n "workflow_state_family|queue_reason_code|allowed_action_ids|GovernedAction
 - VALIDATOR_ASSERTIONS:
   - Validate the packet-scoped spec anchors, in-scope files, and deterministic evidence recorded during implementation.
 ## IMPLEMENTATION
-- (Coder fills after the docs-only skeleton checkpoint commit exists.)
+- MT-001 established the product-side workflow state contract in `src/backend/handshake_core/src/locus/types.rs` and `src/backend/handshake_core/src/workflows.rs`: governed action registry resolution, project-profile display relabel degradation, and mailbox-aware queue-reason handling now derive from shared helpers instead of helper-local action maps.
+- MT-002 removed storage-layer legality drift in `src/backend/handshake_core/src/storage/locus_sqlite.rs` and added parity proof in `src/backend/handshake_core/tests/micro_task_executor_tests.rs`, so persisted MT progress metadata emits the same workflow family, queue reason, and allowed action ids as the structured artifacts.
+- MT-003 added the portable transition matrix, queue automation rules, and executor eligibility policies in `src/backend/handshake_core/src/locus/types.rs`, wired those ids through task-board, work-packet, micro-task, summary, and persisted-progress emitters in `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/locus/task_board.rs`, and `src/backend/handshake_core/src/storage/locus_sqlite.rs`, and proved the registry semantics in `src/backend/handshake_core/src/runtime_governance.rs`.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Bounded the whole-WP committed product range to `e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5` after the default creation-time `MERGE_BASE_SHA..HEAD` handoff preflight pulled unrelated historic branch drift.
+- Confirmed the signed WP implementation is fully contained in six product files: `src/backend/handshake_core/src/locus/task_board.rs`, `src/backend/handshake_core/src/locus/types.rs`, `src/backend/handshake_core/src/runtime_governance.rs`, `src/backend/handshake_core/src/storage/locus_sqlite.rs`, `src/backend/handshake_core/src/workflows.rs`, and `src/backend/handshake_core/tests/micro_task_executor_tests.rs`.
+- Completed overlap review on all declared MTs with PASS receipts: MT-001 correlation `review:WP-1-Project-Agnostic-Workflow-State-Registry-v1:review_request:mnwj1u5r:89db1a`, MT-002 correlation `review:WP-1-Project-Agnostic-Workflow-State-Registry-v1:review_request:mnwjo83m:60bc83`, MT-003 correlation `review:WP-1-Project-Agnostic-Workflow-State-Registry-v1:review_request:mnwksumj:006d86`.
+- Rebuilt the deterministic manifest from committed blob ids and `git diff --unified=0` output because the packet still contained placeholder `VALIDATION`, `STATUS_HANDOFF`, `EVIDENCE_MAPPING`, and `EVIDENCE` sections.
+- Attempted a fresh targeted product proof run with `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait -- --exact --nocapture`, but the compile stopped early on a pre-existing out-of-scope unclosed delimiter in `src/backend/handshake_core/src/flight_recorder/mod.rs`.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable `just phase-check HANDOFF <WP_ID> CODER`. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- **Target File**: `src/backend/handshake_core/src/locus/task_board.rs`
+- **Start**: 48
+- **End**: 54
+- **Line Delta**: +6
+- **Pre-SHA1**: `94420cf97740ebc3df0bf2a1fda05b8d0a40e634`
+- **Post-SHA1**: `a93551b18629a826c30648137d9cf97b156fe53b`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/locus/types.rs`
+- **Start**: 154
+- **End**: 829
+- **Line Delta**: +569
+- **Pre-SHA1**: `20426e53c50e4fa53a5840aea0132ab045590a86`
+- **Post-SHA1**: `6596ebbf12a9f58223f70cf507e6b28d5bf72000`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/runtime_governance.rs`
+- **Start**: 466
+- **End**: 681
+- **Line Delta**: +215
+- **Pre-SHA1**: `b0d6defd4569ee504af2930fe7264427d258af4e`
+- **Post-SHA1**: `4ce3f1882174eb994533e19eaf86d878bc10ee4d`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Start**: 18
+- **End**: 248
+- **Line Delta**: -3
+- **Pre-SHA1**: `e8b673477c97e800f09b9d469276969d48b0be08`
+- **Post-SHA1**: `fc8d53f5303e284b2921556fd9af705f14f1dd4e`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 3275
+- **End**: 25262
+- **Line Delta**: +33
+- **Pre-SHA1**: `292b63d2c0da2ccd5dfd1505461575223096d6d5`
+- **Post-SHA1**: `0c4c341fa7db77c06f68680183e71d5490b01d5a`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Start**: 21
+- **End**: 3345
+- **Line Delta**: +175
+- **Pre-SHA1**: `d0d8c79a208ac5f9152ff28769f02f04d5dd0af7`
+- **Post-SHA1**: `9d15fd0c6a9924280db018506cb6b63422525916`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Lint Results**: Whole-WP overlap review passed for all declared MTs. Fresh local Rust reruns are still blocked by the out-of-scope parse error in `src/backend/handshake_core/src/flight_recorder/mod.rs`, so the active proof set is the committed-range manifest plus the MT PASS receipts already recorded on this WP.
+- **Artifacts**: committed product range `e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5`; commits `6d18529c`, `6c61d07e`, `a77df5e3`, `896e8087`; signed patch artifact `.GOV/task_packets/WP-1-Project-Agnostic-Workflow-State-Registry-v1/signed-scope.patch`; remote backup branch `feat/WP-1-Project-Agnostic-Workflow-State-Registry-v1`
+- **Timestamp**: 2026-04-13T02:50:48.1097478Z
+- **Operator**: CODER_A
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.180.md
+- Deterministic Handoff Command: `just phase-check HANDOFF WP-1-Project-Agnostic-Workflow-State-Registry-v1 CODER --range e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5`
+- **Notes**: The bounded six-file committed range above is the authoritative product proof surface for this WP. It intentionally supersedes the stale creation-time `MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7` handoff range because that broader base pulled unrelated historical branch drift outside the signed WP scope.
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
-- What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
+- Current WP_STATUS: DONE_VALIDATED
+- What changed in this update: Across MT-001..MT-003, the product workflow registry now exposes project-agnostic workflow families, canonical queue reasons, governed action ids, transition ids, queue automation ids, executor eligibility ids, and mailbox-aware wait posture across task-board rows, work-packet artifacts, micro-task artifacts, compact summaries, and persisted MT progress metadata.
+- Requirements / clauses self-audited: `Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171]` is implemented through `src/backend/handshake_core/src/locus/types.rs:174`, `:225`, `:359`, `:413`, `src/backend/handshake_core/src/workflows.rs:3278`, `:3288`, `:3326`, `:3763`, `:4853`, `:4893`, `:4961`, `:5000`, and `src/backend/handshake_core/src/locus/task_board.rs:50`; `Workflow State Families, Queue Reasons, and Governed Actions [ADD v02.171]` is retained in persisted MT progress via `src/backend/handshake_core/src/storage/locus_sqlite.rs:174`, `:215`, `:242` and parity proof `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3174`; `Workflow Transition Matrix, Queue Automation, and Executor Eligibility [ADD v02.172]` is implemented by `src/backend/handshake_core/src/locus/types.rs:437`, `:504`, `:532`, `:565`, `:598`, `:670`, `:683`, exposed by `src/backend/handshake_core/src/locus/task_board.rs:50`, `:52`, `:54`, `src/backend/handshake_core/src/workflows.rs:3780`, `:3781`, `:3782`, `:4868`, `:4873`, `:4878`, `:4912`, `:4913`, `:4914`, `:4976`, `:4981`, `:4986`, `:5019`, `:5020`, `:5021`, and proven in `src/backend/handshake_core/src/runtime_governance.rs:479`, `:526`, `:607`.
+- Checks actually run: `git -C ..\\wtc-state-registry-v1 log --oneline --decorate --graph --max-count 5`; `git -C ..\\wtc-state-registry-v1 diff --numstat e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5`; `git -C ..\\wtc-state-registry-v1 diff --unified=0 e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5 -- src/backend/handshake_core/src/locus/task_board.rs src/backend/handshake_core/src/locus/types.rs src/backend/handshake_core/src/runtime_governance.rs src/backend/handshake_core/src/storage/locus_sqlite.rs src/backend/handshake_core/src/workflows.rs src/backend/handshake_core/tests/micro_task_executor_tests.rs`; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait -- --exact --nocapture` (blocked by out-of-scope `src/backend/handshake_core/src/flight_recorder/mod.rs` parse error); `just phase-check HANDOFF WP-1-Project-Agnostic-Workflow-State-Registry-v1 CODER --range e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5`.
+- Known gaps / weak spots: Fresh local cargo proof is still blocked by the out-of-scope `src/backend/handshake_core/src/flight_recorder/mod.rs` syntax error. Inside signed scope, `ProjectProfileWorkflowExtensionV1.narrowed_reason_codes` is present at `src/backend/handshake_core/src/locus/types.rs:180` but is not yet consumed by a runtime narrowing helper, and `structured_work_packet_next_action` / `structured_micro_task_next_action` at `src/backend/handshake_core/src/workflows.rs:5056` and `:12850` still emit ad hoc strings outside the governed action registry.
+- Heuristic risks / maintainability concerns: `src/backend/handshake_core/src/workflows.rs` remains a large shared emitter surface with widely separated packet/summary/task-board construction paths. Future callers can still reintroduce drift if they bypass the registry helpers in `src/backend/handshake_core/src/locus/types.rs` and hardcode ids locally.
+- Validator focus request: Re-check that every product artifact family member and persisted MT progress path carries the same workflow family, queue reason, allowed action ids, transition ids, automation ids, and executor eligibility ids for the bounded six-file range; confirm the residual `narrowed_reason_codes` and `structured_*_next_action` gaps are non-blocking relative to the signed spec anchors; and verify current-`main` compatibility on the shared `locus/types.rs`, `storage/locus_sqlite.rs`, and `workflows.rs` surfaces before merge.
+- Rubric contract understanding proof: This WP is product governance only. The contract is the portable product-side workflow vocabulary consumed by work packets, micro tasks, summaries, task-board rows, and persisted progress metadata. It is not a repo-governance task, and it does not authorize `.GOV` workflow, protocol, or task-board process changes as part of product closure.
+- Rubric scope discipline proof: The authoritative handoff range is bounded to the six signed product files and four product commits from `e450df81` through `896e8087`. The out-of-scope `src/backend/handshake_core/src/flight_recorder/mod.rs` parse failure was recorded as external blocker evidence, not accepted into this WP or patched inside the signed product range.
+- Rubric baseline comparison: Relative to `e450df813b20e2dddeb7b7b51cac28d922e41a29`, the committed WP delta adds project-profile display relabel degradation, governed action registry helpers, mailbox-aware reason resolution, storage parity, transition rules, queue automation rules, executor eligibility policies, six emitted-surface id arrays, and targeted parity / semantics tests. Net delta across the six-file bounded range is `+995` lines.
+- Rubric end-to-end proof: The bounded range proves end-to-end propagation from registry helpers in `src/backend/handshake_core/src/locus/types.rs` through emitters in `src/backend/handshake_core/src/workflows.rs` and persistence in `src/backend/handshake_core/src/storage/locus_sqlite.rs`, while `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3174` and `src/backend/handshake_core/src/runtime_governance.rs:479`, `:526`, `:607` provide the diff-scoped parity and semantics proofs. The only missing fresh rerun is blocked outside signed scope by the `flight_recorder` parse error.
+- Rubric architecture fit self-review: The implementation keeps the product workflow contract in `locus/types.rs` and reuses existing emitter and storage layers instead of introducing a second authority or repo-governance dependency. Task-board projection, packet emission, summary emission, and persisted MT progress all consume the same registry helpers.
+- Rubric heuristic quality self-review: The new logic is centralized enough to prevent the old action-legality drift, but the shared emitter breadth in `workflows.rs` means future edits still need direct line review on each artifact builder. The current shape is maintainable if those callers continue to flow through the typed helper functions rather than inline strings.
+- Rubric anti-gaming / counterfactual check: If `governed_action_ids_for_family` were removed from `src/backend/handshake_core/src/workflows.rs:3396` or `src/backend/handshake_core/src/storage/locus_sqlite.rs:242`, allowed action ids would drift again across emitted and persisted surfaces. If `resolve_queue_reason_with_mailbox_context` stopped overriding only the reason at `src/backend/handshake_core/src/locus/types.rs:413`, the mailbox parity proof in `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3174` would lose `mailbox_response_wait` while preserving the wrong semantics. If `transition_rule_ids_for_family`, `queue_automation_rule_ids_for_reason`, or `executor_eligibility_policy_ids_for_family` were removed from the emitter callsites at `src/backend/handshake_core/src/workflows.rs:3780-3782`, `:4868-4879`, `:4912-4914`, `:4976-4987`, or `:5019-5021`, the packet and summary artifacts would immediately stop exposing the v02.172 contract.
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01 and CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2, also include: -->
-- Rubric anti-vibe / substance self-check:
-- Signed-scope debt ledger:
-- Data contract self-check:
-- Next step / handoff hint:
+- Rubric anti-vibe / substance self-check: This handoff is tied to a concrete committed range, committed blob ids, explicit file windows, and MT review receipts. It no longer depends on placeholder packet sections, stale creation-time merge-base assumptions, or a generic "tests passed" claim.
+- Signed-scope debt ledger: NONE inside the bounded six-file range. The out-of-scope `src/backend/handshake_core/src/flight_recorder/mod.rs` parse error remains external product debt and is not accepted as WP-owned residue.
+- Data contract self-check: The active data contract is emitted structurally on `TaskBoardEntryRecordV1` in `src/backend/handshake_core/src/locus/task_board.rs:50`, on work-packet / micro-task artifacts and summaries in `src/backend/handshake_core/src/locus/types.rs:726`, `:763`, `:825` plus `src/backend/handshake_core/src/workflows.rs:4868-4879`, `:4912-4914`, `:4976-4987`, `:5019-5021`, and on persisted MT progress metadata in `src/backend/handshake_core/src/storage/locus_sqlite.rs:242-245`. The ids are typed, low-cardinality, and emitter-backed rather than UI-only strings.
+- Next step / handoff hint: Re-run `just phase-check HANDOFF WP-1-Project-Agnostic-Workflow-State-Registry-v1 CODER --range e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5`, publish `CODER_HANDOFF` on that bounded range, then wake `WP_VALIDATOR` for whole-WP review before closeout prep and final-lane launch.
 
 ## MERGE_PROGRESSION_TRUTH
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, PASS closure is two-step and must stay explicit:
@@ -830,16 +927,36 @@ rg -n "workflow_state_family|queue_reason_code|allowed_action_ids|GovernedAction
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+  - REQUIREMENT: "Every canonical Work Packet, Micro-Task, Task Board projection row, and Dev Command Center queue row SHALL expose `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids`."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/task_board.rs:50`; `src/backend/handshake_core/src/locus/types.rs:726`; `src/backend/handshake_core/src/locus/types.rs:763`; `src/backend/handshake_core/src/locus/types.rs:825`; `src/backend/handshake_core/src/workflows.rs:3763`; `src/backend/handshake_core/src/workflows.rs:4893`; `src/backend/handshake_core/src/workflows.rs:5000`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:215`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3174`
+  - REQUIREMENT: "`allowed_action_ids` MUST reference registered `GovernedActionDescriptorV1` records rather than ad hoc user-interface verbs."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:225`; `src/backend/handshake_core/src/locus/types.rs:359`; `src/backend/handshake_core/src/workflows.rs:3396`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:242`
+  - REQUIREMENT: "Mailbox-linked waits MUST remain visible as `queue_reason_code=mailbox_response_wait`, but the mailbox thread itself MUST NOT become the authority for the linked record's state family."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:413`; `src/backend/handshake_core/src/workflows.rs:3278`; `src/backend/handshake_core/src/workflows.rs:3288`; `src/backend/handshake_core/src/workflows.rs:3326`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:174`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3174`
+  - REQUIREMENT: "Canonical records SHOULD expose or reference `transition_rule_ids`, `queue_automation_rule_ids`, and `executor_eligibility_policy_ids`."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/task_board.rs:50`; `src/backend/handshake_core/src/locus/types.rs:726`; `src/backend/handshake_core/src/locus/types.rs:763`; `src/backend/handshake_core/src/locus/types.rs:825`; `src/backend/handshake_core/src/workflows.rs:3780`; `src/backend/handshake_core/src/workflows.rs:4868`; `src/backend/handshake_core/src/workflows.rs:4976`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:243`
+  - REQUIREMENT: "`WorkflowTransitionRuleV1` MUST remain portable across Work Packets, Micro-Tasks, Task Board rows, and Role Mailbox-linked waits."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:437`; `src/backend/handshake_core/src/locus/types.rs:504`; `src/backend/handshake_core/src/workflows.rs:3780`; `src/backend/handshake_core/src/workflows.rs:4912`; `src/backend/handshake_core/src/workflows.rs:5019`; `src/backend/handshake_core/src/runtime_governance.rs:479`
+  - REQUIREMENT: "Local-small-model eligibility MUST require a compact summary and a ready-family state."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:598`; `src/backend/handshake_core/src/locus/types.rs:683`; `src/backend/handshake_core/src/runtime_governance.rs:607`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Project-Agnostic-Workflow-State-Registry-v1/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+  - COMMAND: `git -C ..\wtc-state-registry-v1 log --oneline --decorate --graph --max-count 5`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `N/A`
+  - LOG_SHA256: `N/A`
+  - PROOF_LINES: `* 896e8087 feat: add workflow transition matrix, queue automation, and executor eligibility registry [WP-1-Project-Agnostic-Workflow-State-Registry-v1] [MT-003]`; `* a77df5e3 feat: eliminate storage-layer legality drift and prove MT progress workflow parity [WP-1-Project-Agnostic-Workflow-State-Registry-v1] [MT-002]`; `* 6c61d07e fix: wire mailbox-aware queue_reason into all emitter callsites and revert out-of-scope flight_recorder edits [WP-1-Project-Agnostic-Workflow-State-Registry-v1] [MT-001]`; `* 6d18529c feat: establish GovernedActionDescriptorV1 registry and workflow state contract [WP-1-Project-Agnostic-Workflow-State-Registry-v1] [MT-001]`; `* e450df81 docs: bootstrap claim [WP-1-Project-Agnostic-Workflow-State-Registry-v1]`
+  - COMMAND: `git -C ..\wtc-state-registry-v1 diff --numstat e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `N/A`
+  - LOG_SHA256: `N/A`
+  - PROOF_LINES: `6 0 src/backend/handshake_core/src/locus/task_board.rs`; `569 0 src/backend/handshake_core/src/locus/types.rs`; `215 0 src/backend/handshake_core/src/runtime_governance.rs`; `19 22 src/backend/handshake_core/src/storage/locus_sqlite.rs`; `84 51 src/backend/handshake_core/src/workflows.rs`; `176 1 src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+  - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait -- --exact --nocapture`
+  - EXIT_CODE: `1`
+  - LOG_PATH: `N/A`
+  - LOG_SHA256: `N/A`
+  - PROOF_LINES: `error: this file contains an unclosed delimiter`; `--> src\flight_recorder\mod.rs:6180:3`; `impl fmt::Display for FlightRecorderEventType {`; `impl FlightRecorderEvent {`; `could not compile \`handshake_core\` (lib) due to 1 previous error`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -962,3 +1079,178 @@ rg -n "workflow_state_family|queue_reason_code|allowed_action_ids|GovernedAction
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+### 2026-04-13T05:00:11Z - INTEGRATION_VALIDATOR TERMINAL VERDICT SUMMARY
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+MECHANICAL_TRACK_VERDICT: PASS
+SPEC_RETENTION_TRACK_VERDICT: PASS
+VALIDATOR_RISK_TIER: HIGH
+Verdict: PASS
+
+### 2026-04-13T03:39:26Z - INTEGRATION_VALIDATOR FINAL WHOLE-WP REVIEW
+- Review Range: `e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5`
+- Review Scope: bounded six-file signed product surface only (`src/backend/handshake_core/src/locus/task_board.rs`, `src/backend/handshake_core/src/locus/types.rs`, `src/backend/handshake_core/src/runtime_governance.rs`, `src/backend/handshake_core/src/storage/locus_sqlite.rs`, `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs`) against current local `main`
+- Verdict: BLOCKED
+- VALIDATION_CONTEXT: OK
+- GOVERNANCE_VERDICT: PARTIAL
+- TEST_VERDICT: PARTIAL
+- CODE_REVIEW_VERDICT: PASS
+- HEURISTIC_REVIEW_VERDICT: PARTIAL
+- SPEC_ALIGNMENT_VERDICT: PASS
+- ENVIRONMENT_VERDICT: PARTIAL
+- DISPOSITION: NONE
+- LEGAL_VERDICT: PENDING
+- SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+- WORKFLOW_VALIDITY: PARTIAL
+- SCOPE_VALIDITY: IN_SCOPE
+- PROOF_COMPLETENESS: PROVEN
+- INTEGRATION_READINESS: BLOCKED
+- DOMAIN_GOAL_COMPLETION: PARTIAL
+- MECHANICAL_TRACK_VERDICT: BLOCKED
+- SPEC_RETENTION_TRACK_VERDICT: PASS
+- VALIDATOR_RISK_TIER: HIGH
+CLAUSES_REVIEWED:
+  - `Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171]` proved via `src/backend/handshake_core/src/locus/types.rs:148-363` (governed action registry), `src/backend/handshake_core/src/workflows.rs:3395-3397` (`allowed_action_ids` delegates to the registry), `src/backend/handshake_core/src/storage/locus_sqlite.rs:208-245` (persisted MT progress metadata emits governed ids), and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3233-3268` (packet/progress parity + governed registry assertion).
+  - `Workflow State Families, Queue Reasons, and Governed Actions [ADD v02.171]` proved via `src/backend/handshake_core/src/locus/types.rs:169-218` (display-only profile extension + degradation), `src/backend/handshake_core/src/locus/types.rs:413-421` (mailbox-aware queue reason resolution), `src/backend/handshake_core/src/workflows.rs:3275-3358` (mailbox-aware state emitters), `src/backend/handshake_core/src/workflows.rs:3762-3782`, `4853-4881`, and `4961-4988` (task-board, WP summary, and MT summary propagation), plus `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3279-3342` (mailbox override preserves family while forcing `mailbox_response_wait`).
+  - `Workflow Transition Matrix, Queue Automation, and Executor Eligibility [ADD v02.172]` proved via `src/backend/handshake_core/src/locus/types.rs:424-688` (transition, automation, and eligibility registries), `src/backend/handshake_core/src/locus/task_board.rs:45-54` (portable ids carried on task-board rows), `src/backend/handshake_core/src/workflows.rs:3779-3782`, `4867-4879`, and `4975-4987` (ids emitted on task-board, WP summary, and MT summary surfaces), `src/backend/handshake_core/src/storage/locus_sqlite.rs:242-245` (ids persisted in MT progress metadata), and `src/backend/handshake_core/src/runtime_governance.rs:479-639` (proof tests for transition, automation, and eligibility semantics).
+NOT_PROVEN:
+  - NONE
+MAIN_BODY_GAPS:
+  - NONE
+QUALITY_RISKS:
+  - NONE
+DIFF_ATTACK_SURFACES:
+  - Shared registry drift: the patch adds one registry source of truth in `types.rs` that must stay aligned with packet, summary, task-board, and storage emitters.
+  - Mailbox wait producer/consumer drift: `has_pending_mailbox_wait` must override `queue_reason_code` without mutating `workflow_state_family`.
+  - Current-main containment: the same six signed files have advanced on local `main`, so merge readiness depends on compatibility rather than clause proof alone.
+INDEPENDENT_CHECKS_RUN:
+  - `git diff --numstat e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5 -- <6 files>` => touched exactly the six in-scope product files and no out-of-scope product surfaces.
+  - `git merge-tree --write-tree --merge-base 5336e8f23b7a6e2f35b450124dccb65a17644d7f --name-only HEAD 896e808714f0d584c06efb457b5be0a9e85e2fd5` => `CONFLICT (content): Merge conflict in src/backend/handshake_core/src/runtime_governance.rs`, so current-main compatibility is not clean.
+  - `rg -n "ProjectProfileWorkflowExtensionV1|WorkflowTransitionRuleV1|QueueAutomationRuleV1|ExecutorEligibilityPolicyV1" src/backend/handshake_core/src/locus/types.rs src/backend/handshake_core/src/workflows.rs ...` on current `main` => no hits outside the reviewed commit, confirming the signed range is not already contained on `main`.
+COUNTERFACTUAL_CHECKS:
+  - If `src/backend/handshake_core/src/workflows.rs:3275-3358` stopped routing through `resolve_queue_reason_with_mailbox_context`, mailbox-linked waits would fall back to ready/human/model queue reasons and violate the `[ADD v02.171]` mailbox requirement.
+  - If `src/backend/handshake_core/src/locus/types.rs:225-363` were no longer the single source for governed action ids, `src/backend/handshake_core/src/workflows.rs:3395-3397`, `src/backend/handshake_core/src/storage/locus_sqlite.rs:242-245`, and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3255-3268` would drift again on action legality.
+  - If `transition_rule_ids_for_family`, `queue_automation_rule_ids_for_reason`, and `executor_eligibility_policy_ids_for_family` were removed from `src/backend/handshake_core/src/workflows.rs:3779-3782`, `4867-4879`, and `4975-4987`, the portable id contract would disappear from task-board rows and structured packet/summary consumers.
+BOUNDARY_PROBES:
+  - Producer/consumer boundary: `src/backend/handshake_core/src/locus/task_board.rs:45-54` declares the three new portable id arrays, and `src/backend/handshake_core/src/workflows.rs:3779-3782` populates them from the locus registries on the emitted task-board surface.
+  - Writer/reader boundary: `src/backend/handshake_core/src/storage/locus_sqlite.rs:228-245` writes mailbox-aware workflow metadata plus governed ids into MT progress records, and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3226-3333` reads both progress metadata and emitted packet JSON to assert parity.
+NEGATIVE_PATH_CHECKS:
+  - `src/backend/handshake_core/src/locus/types.rs:413-421` preserves `base_reason` when `has_pending_mailbox_wait=false`; the non-mailbox branch is asserted at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3270-3277`.
+  - `src/backend/handshake_core/src/locus/types.rs:683-688` rejects local-small-model eligibility without a compact summary or outside the `Ready` family; those negative cases are asserted at `src/backend/handshake_core/src/runtime_governance.rs:607-639`.
+INDEPENDENT_FINDINGS:
+  - The signed range is internally coherent on the packet clauses: types, emitters, storage metadata, and targeted tests line up on workflow family, queue reason, governed action ids, and the new transition/automation/eligibility ids.
+  - Current local `main` is not merge-ready for this range. `runtime_governance.rs` conflicts in a three-way merge, and current `main` still lacks the new workflow primitive definitions immediately after `GovernedActionDescriptorV1` (`src/backend/handshake_core/src/locus/types.rs:155-156` resumes `StructuredCollaborationSummaryV1`).
+  - Current `main` still retains ad-hoc next-action helpers outside the governed registry at `src/backend/handshake_core/src/workflows.rs:5941-5950` and `13722-13730`; this is spec-adjacent debt that survives independently of the signed range.
+RESIDUAL_UNCERTAINTY:
+  - I did not rerun cargo tests in this turn; the packet already records a pre-existing out-of-scope `flight_recorder` compile blocker affecting broad cargo execution.
+  - Current-main compatibility was validated by non-mutating merge simulation only; no containment commit or closeout gate was executed in this turn by instruction.
+SPEC_CLAUSE_MAP:
+  - `Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171]` -> `src/backend/handshake_core/src/locus/types.rs:148-363`; `src/backend/handshake_core/src/workflows.rs:3395-3397`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:208-245`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3233-3268`
+  - `Workflow State Families, Queue Reasons, and Governed Actions [ADD v02.171]` -> `src/backend/handshake_core/src/locus/types.rs:169-218`; `src/backend/handshake_core/src/locus/types.rs:413-421`; `src/backend/handshake_core/src/workflows.rs:3275-3358`; `src/backend/handshake_core/src/workflows.rs:3762-3782`; `src/backend/handshake_core/src/workflows.rs:4853-4881`; `src/backend/handshake_core/src/workflows.rs:4961-4988`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3279-3342`
+  - `Workflow Transition Matrix, Queue Automation, and Executor Eligibility [ADD v02.172]` -> `src/backend/handshake_core/src/locus/types.rs:424-688`; `src/backend/handshake_core/src/locus/task_board.rs:45-54`; `src/backend/handshake_core/src/workflows.rs:3779-3782`; `src/backend/handshake_core/src/workflows.rs:4867-4879`; `src/backend/handshake_core/src/workflows.rs:4975-4987`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:242-245`; `src/backend/handshake_core/src/runtime_governance.rs:479-639`
+NEGATIVE_PROOF:
+  - `ProjectProfileWorkflowExtensionV1.narrowed_reason_codes` is declared at `src/backend/handshake_core/src/locus/types.rs:179-180` but never consumed inside the signed six-file surface, so queue-reason narrowing is not fully implemented.
+  - Current `main` still derives next actions from ad-hoc status maps at `src/backend/handshake_core/src/workflows.rs:5941-5950` and `13722-13730` instead of the governed action registry, so the broader governed-action contract is not fully retained on current `main`.
+ANTI_VIBE_FINDINGS:
+  - NONE
+SIGNED_SCOPE_DEBT:
+  - NONE
+PRIMITIVE_RETENTION_PROOF:
+  - Existing `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids` remain present on task-board rows while the new ids are appended rather than replacing them (`src/backend/handshake_core/src/locus/task_board.rs:45-54`).
+  - MT progress metadata still emits the original trio and now adds transition/automation/eligibility ids without removing prior fields (`src/backend/handshake_core/src/storage/locus_sqlite.rs:240-245`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3233-3259` and `3297-3323`).
+PRIMITIVE_RETENTION_GAPS:
+  - NONE
+SHARED_SURFACE_INTERACTION_CHECKS:
+  - Registry -> emitter: `src/backend/handshake_core/src/locus/types.rs:358-363` defines the governed action id source of truth, and it is consumed by `src/backend/handshake_core/src/workflows.rs:3395-3397`, `4893-4914`, `5000-5021`, and `src/backend/handshake_core/src/storage/locus_sqlite.rs:242-245`.
+  - Mailbox flag -> emitter parity: `src/backend/handshake_core/src/locus/types.rs:413-421` is threaded through `src/backend/handshake_core/src/workflows.rs:3275-3358`, then reflected in task-board rows (`3762-3782`), WP summaries (`4853-4881`), MT summaries (`4961-4988`), and MT progress metadata (`208-245`).
+CURRENT_MAIN_INTERACTION_CHECKS:
+  - `git merge-tree --write-tree --merge-base 5336e8f23b7a6e2f35b450124dccb65a17644d7f --name-only HEAD 896e808714f0d584c06efb457b5be0a9e85e2fd5` reports `CONFLICT (content): Merge conflict in src/backend/handshake_core/src/runtime_governance.rs`; direct containment into current `main` is blocked.
+  - On current `main`, `src/backend/handshake_core/src/locus/types.rs:155-156` resumes `StructuredCollaborationSummaryV1` immediately after `GovernedActionDescriptorV1`, proving the project-profile extension and transition/automation/eligibility primitives are not already contained.
+  - On current `main`, `src/backend/handshake_core/src/workflows.rs:5941-5950` and `13722-13730` still derive next actions from status-local helpers instead of the governed action registry.
+DATA_CONTRACT_PROOF:
+  - `src/backend/handshake_core/src/locus/task_board.rs:45-54` exposes the portable ids on the task-board record surface.
+  - `src/backend/handshake_core/src/workflows.rs:4893-4914` and `5000-5021` emit the same portable ids and mailbox-aware queue reasons on work-packet and micro-task packet artifacts.
+  - `src/backend/handshake_core/src/storage/locus_sqlite.rs:208-245` persists the same fields for MT progress metadata, and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3233-3333` compares the persisted values against emitted packet JSON.
+DATA_CONTRACT_GAPS:
+  - NONE
+
+### 2026-04-13T04:40:55Z - INTEGRATION_VALIDATOR RETRY WHOLE-WP REVIEW
+- Correlation: `review:WP-1-Project-Agnostic-Workflow-State-Registry-v1:direct_final_lane_review_retry:20260413`
+- Review Range: `e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5`
+- Compatibility Evidence Reviewed: `17f0a543276a0393e3746478a82d059af9160b53` as current-main remediation only; not treated as a widened signed product range
+- Verdict: BLOCKED
+- VALIDATION_CONTEXT: OK
+- INTEGRATION_READINESS: BLOCKED
+- MECHANICAL_TRACK_VERDICT: BLOCKED
+- CURRENT_MAIN_COMPATIBILITY:
+  - The retry remediation does not prove compatibility against the actual current local `main`.
+  - The feature worktree still resolves `main` to stale base `5336e8f23b7a6e2f35b450124dccb65a17644d7f`, while the live `handshake_main` head is `3aee07ecaaf9236eebf39e4a7d76912bc3302e98`.
+  - Direct object-level merge simulation against the real local `main` still reports content conflicts in `src/backend/handshake_core/src/runtime_governance.rs` and `src/backend/handshake_core/src/workflows.rs`.
+- INDEPENDENT_CHECKS_RUN:
+  - `git rev-parse HEAD` in `handshake_main` => `3aee07ecaaf9236eebf39e4a7d76912bc3302e98`
+  - `git -C ../wtc-state-registry-v1 rev-parse main` => `5336e8f23b7a6e2f35b450124dccb65a17644d7f`
+  - `git -C ../wtc-state-registry-v1 merge-tree --write-tree --merge-base 5336e8f23b7a6e2f35b450124dccb65a17644d7f 3aee07ecaaf9236eebf39e4a7d76912bc3302e98 17f0a543276a0393e3746478a82d059af9160b53` => `CONFLICT (content)` in `src/backend/handshake_core/src/runtime_governance.rs` and `src/backend/handshake_core/src/workflows.rs`
+- RETRY_FINDINGS:
+  - The earlier signed-range clause proof remains unchanged; no new in-scope spec defect was identified in the original six-file range during this retry.
+  - The only blocking issue in this retry lane is unresolved compatibility against the actual current local `main`.
+- REQUIRED_FOLLOW_UP:
+  - Rebuild the compatibility remediation on top of the real local `main` head `3aee07ecaaf9236eebf39e4a7d76912bc3302e98`, then reopen final-lane review on the same signed six-file scope.
+
+### 2026-04-13T04:59:40Z - INTEGRATION_VALIDATOR CURRENT-MAIN-VERIFIED WHOLE-WP REVIEW
+- Correlation: `review:WP-1-Project-Agnostic-Workflow-State-Registry-v1:direct_final_lane_review_current_main_verified:20260413`
+- Review Range: `e450df813b20e2dddeb7b7b51cac28d922e41a29..896e808714f0d584c06efb457b5be0a9e85e2fd5`
+- Compatibility Evidence Reviewed: recovered validator-run evidence from `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Project-Agnostic-Workflow-State-Registry-v1/0dce5f44-97f8-4cca-a2ef-e71fcd148617.jsonl`
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+MECHANICAL_TRACK_VERDICT: PASS
+SPEC_RETENTION_TRACK_VERDICT: PASS
+VALIDATOR_RISK_TIER: HIGH
+Verdict: PASS
+- PRODUCT_VERDICT_SCOPE:
+  - This verdict covers product governance only: the signed six-file range plus verified current-main compatibility through `17f0a543276a0393e3746478a82d059af9160b53`.
+  - Packet mechanical truth sync for `CURRENT_MAIN_COMPATIBILITY` and closeout gates remains orchestrator-owned follow-up and is not treated as a product blocker in this review.
+SPEC_CLAUSE_MAP:
+  - `Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171]` -> `src/backend/handshake_core/src/locus/types.rs:148-363`; `src/backend/handshake_core/src/workflows.rs:3395-3397`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:208-245`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3233-3268`
+  - `Workflow State Families, Queue Reasons, and Governed Actions [ADD v02.171]` -> `src/backend/handshake_core/src/locus/types.rs:169-218`; `src/backend/handshake_core/src/locus/types.rs:413-421`; `src/backend/handshake_core/src/workflows.rs:3275-3358`; `src/backend/handshake_core/src/workflows.rs:3762-3782`; `src/backend/handshake_core/src/workflows.rs:4853-4881`; `src/backend/handshake_core/src/workflows.rs:4961-4988`; `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3279-3342`
+  - `Workflow Transition Matrix, Queue Automation, and Executor Eligibility [ADD v02.172]` -> `src/backend/handshake_core/src/locus/types.rs:424-688`; `src/backend/handshake_core/src/locus/task_board.rs:45-54`; `src/backend/handshake_core/src/workflows.rs:3779-3782`; `src/backend/handshake_core/src/workflows.rs:4867-4879`; `src/backend/handshake_core/src/workflows.rs:4975-4987`; `src/backend/handshake_core/src/storage/locus_sqlite.rs:242-245`; `src/backend/handshake_core/src/runtime_governance.rs:479-639`
+- CURRENT_MAIN_COMPATIBILITY_PROOF:
+  - The recovered run confirmed `17f0a543276a0393e3746478a82d059af9160b53` has parents `896e808714f0d584c06efb457b5be0a9e85e2fd5` and actual current local `main` `3aee07ecaaf9236eebf39e4a7d76912bc3302e98`.
+  - The recovered run confirmed `git merge-tree --write-tree 17f0a543276a0393e3746478a82d059af9160b53 3aee07ecaaf9236eebf39e4a7d76912bc3302e98` returned clean tree `8399a698cfe800438d9bfd1ad46a305d1233bb45`.
+  - The recovered run's signed-scope-restricted diff confirmed only `src/backend/handshake_core/src/locus/task_board.rs`, `src/backend/handshake_core/src/locus/types.rs`, `src/backend/handshake_core/src/runtime_governance.rs`, and `src/backend/handshake_core/src/workflows.rs` changed between `896e8087` and `17f0a543`.
+- TEST_PROOF:
+  - The recovered run completed `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib runtime_governance` successfully.
+  - Broad cargo test remains blocked only by pre-existing out-of-scope main debt in `src/backend/handshake_core/tests/micro_task_executor_tests.rs` and `src/backend/handshake_core/tests/model_session_scheduler_tests.rs`; that ambient debt is not introduced by the signed range or by `17f0a543`.
+NEGATIVE_PROOF:
+  - `ProjectProfileWorkflowExtensionV1.narrowed_reason_codes` is still declared but unconsumed at `src/backend/handshake_core/src/locus/types.rs:179-180`, so queue-reason narrowing remains only partially implemented. This is non-blocking for the packet clauses under review.
+  - Current `main` still carries ad-hoc next-action helpers at `src/backend/handshake_core/src/workflows.rs:5941-5950` and `src/backend/handshake_core/src/workflows.rs:13722-13730` instead of full governed-action unification. This remains broader product debt, not a blocker for the signed packet scope.
+- FINAL_PRODUCT_JUDGMENT:
+  - The earlier clause proof from the `2026-04-13T03:39:26Z` final whole-WP review stands.
+  - The prior product blocker is now resolved because the signed surface is proven compatible with the actual current local `main`.
+  - Product review is PASS. Orchestrator must still run closeout-repair plus `phase-check CLOSEOUT` sync before merge.
