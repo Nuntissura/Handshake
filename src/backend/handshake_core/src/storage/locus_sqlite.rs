@@ -15,7 +15,7 @@ use crate::workflows::locus::types::{
     LocusRemoveDependencyParams, LocusStartMtParams, LocusUnbindSessionParams, LocusUpdateWpParams,
     MicroTaskIterationOutcome, MicroTaskStatus, RoutingPolicy, TaskBoardStatus, TrackedMicroTask,
     TrackedMicroTaskArtifactV1, WorkPacketPhase, WorkPacketStatus, WorkflowQueueReasonCode,
-    WorkflowStateFamily,
+    WorkflowStateFamily, governed_action_ids_for_family, resolve_queue_reason_with_mailbox_context,
 };
 
 pub(crate) fn ensure_locus_sqlite(db: &(impl Database + ?Sized)) -> StorageResult<()> {
@@ -169,10 +169,11 @@ fn work_packet_status_str(status: WorkPacketStatus) -> &'static str {
     }
 }
 
-fn micro_task_workflow_state(
+fn micro_task_workflow_state_with_mailbox(
     status: MicroTaskStatus,
+    has_pending_mailbox_wait: bool,
 ) -> (WorkflowStateFamily, WorkflowQueueReasonCode) {
-    match status {
+    let (family, base_reason) = match status {
         MicroTaskStatus::Pending => (
             WorkflowStateFamily::Ready,
             WorkflowQueueReasonCode::ReadyForLocalSmallModel,
@@ -197,28 +198,19 @@ fn micro_task_workflow_state(
             WorkflowStateFamily::Canceled,
             WorkflowQueueReasonCode::BlockedPolicy,
         ),
-    }
-}
-
-fn allowed_action_ids(family: WorkflowStateFamily) -> Vec<String> {
-    let actions = match family {
-        WorkflowStateFamily::Intake => &["triage", "prioritize"][..],
-        WorkflowStateFamily::Ready => &["start", "assign"],
-        WorkflowStateFamily::Active => &["update", "complete", "pause"],
-        WorkflowStateFamily::Waiting => &["resume", "escalate"],
-        WorkflowStateFamily::Review => &["review", "request_changes"],
-        WorkflowStateFamily::Approval => &["approve", "reject"],
-        WorkflowStateFamily::Validation => &["validate", "repair"],
-        WorkflowStateFamily::Blocked => &["unblock", "escalate"],
-        WorkflowStateFamily::Done => &["archive", "reopen"],
-        WorkflowStateFamily::Canceled => &["archive", "reopen"],
-        WorkflowStateFamily::Archived => &[],
     };
-    actions.iter().map(|action| (*action).to_string()).collect()
+    let reason = resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
+    (family, reason)
 }
 
 fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
-    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state(tracked_mt.status);
+    let has_pending_mailbox_wait = tracked_mt
+        .metadata
+        .get("has_pending_mailbox_wait")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let (workflow_state_family, queue_reason_code) =
+        micro_task_workflow_state_with_mailbox(tracked_mt.status, has_pending_mailbox_wait);
     let summary_ref = tracked_mt
         .summary_record_path
         .clone()
@@ -245,7 +237,7 @@ fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
         mirror_contract: None,
         workflow_state_family,
         queue_reason_code,
-        allowed_action_ids: allowed_action_ids(workflow_state_family),
+        allowed_action_ids: governed_action_ids_for_family(workflow_state_family),
         summary_ref,
         mt_id: tracked_mt.mt_id.clone(),
         wp_id: tracked_mt.wp_id.clone(),

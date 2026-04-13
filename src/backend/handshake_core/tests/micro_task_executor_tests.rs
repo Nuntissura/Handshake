@@ -18,7 +18,8 @@ use handshake_core::storage::{
 };
 use handshake_core::workflows::{
     locus::{
-        is_governed_action_id_allowed_for_workflow_family, is_registered_governed_action_id,
+        governed_action_ids_for_family, is_governed_action_id_allowed_for_workflow_family,
+        is_registered_governed_action_id,
         task_board::{TaskBoardEntryRecordV1, TaskBoardIndexV1, TaskBoardViewV1},
         validate_structured_collaboration_record, validate_structured_collaboration_summary_join,
         validate_task_board_entry_authoritative_fields, StructuredCollaborationRecordFamily,
@@ -3165,6 +3166,180 @@ async fn micro_task_executor_rejects_legacy_workflow_run_job_kind_contract(
         .await;
 
     assert!(matches!(result, Err(StorageError::Validation(_))));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let gov_root = root.join(".handshake").join("gov");
+    std::fs::create_dir_all(&gov_root)?;
+    std::fs::write(
+        gov_root.join("TASK_BOARD.md"),
+        concat!(
+            "# Task Board\n\n",
+            "## Ready for Dev\n",
+            "- **[WP-TEST]** - [ready]\n"
+        ),
+    )?;
+    let _ = run_locus_job(&state, "locus_sync_task_board_v1", json!({})).await?;
+
+    // Register two MTs: one normal, one with mailbox wait
+    let mut mt_base = base_tracked_micro_task_value("MT-PARITY-BASE");
+    mt_base["metadata"] = json!({ "source": "parity_test" });
+
+    let mut mt_mailbox = base_tracked_micro_task_value("MT-PARITY-MAILBOX");
+    mt_mailbox["metadata"] = json!({
+        "source": "parity_test",
+        "has_pending_mailbox_wait": true,
+    });
+
+    run_locus_job(
+        &state,
+        "locus_register_mts_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "micro_tasks": [mt_base, mt_mailbox],
+        }),
+    )
+    .await?;
+
+    // ── Base case: no mailbox wait ──
+    let progress_base = run_locus_job(
+        &state,
+        "locus_get_mt_progress_v1",
+        json!({ "mt_id": "MT-PARITY-BASE" }),
+    )
+    .await?;
+    let progress_meta_base = progress_base
+        .get("metadata")
+        .expect("progress metadata for base MT");
+
+    let packet_path_base = gov_root
+        .join("micro_tasks")
+        .join("WP-TEST")
+        .join("MT-PARITY-BASE")
+        .join("packet.json");
+    let packet_base: Value = serde_json::from_slice(&std::fs::read(&packet_path_base)?)?;
+
+    // workflow_state_family parity
+    assert_eq!(
+        progress_meta_base
+            .get("workflow_state_family")
+            .and_then(Value::as_str),
+        packet_base
+            .get("workflow_state_family")
+            .and_then(Value::as_str),
+        "workflow_state_family must match between progress metadata and emitted packet (base)"
+    );
+
+    // queue_reason_code parity
+    assert_eq!(
+        progress_meta_base
+            .get("queue_reason_code")
+            .and_then(Value::as_str),
+        packet_base
+            .get("queue_reason_code")
+            .and_then(Value::as_str),
+        "queue_reason_code must match between progress metadata and emitted packet (base)"
+    );
+
+    // allowed_action_ids parity
+    assert_eq!(
+        progress_meta_base.get("allowed_action_ids"),
+        packet_base.get("allowed_action_ids"),
+        "allowed_action_ids must match between progress metadata and emitted packet (base)"
+    );
+
+    // Verify base case uses canonical governed registry values
+    let expected_base_actions = governed_action_ids_for_family(WorkflowStateFamily::Ready);
+    let actual_base_actions = json_string_array_field(&packet_base, "allowed_action_ids");
+    assert_eq!(
+        actual_base_actions, expected_base_actions,
+        "allowed_action_ids must come from governed registry"
+    );
+
+    // Base case should NOT have mailbox_response_wait
+    assert_ne!(
+        progress_meta_base
+            .get("queue_reason_code")
+            .and_then(Value::as_str),
+        Some("mailbox_response_wait"),
+        "base MT without mailbox wait should not have mailbox_response_wait reason"
+    );
+
+    // ── Mailbox wait case ──
+    let progress_mailbox = run_locus_job(
+        &state,
+        "locus_get_mt_progress_v1",
+        json!({ "mt_id": "MT-PARITY-MAILBOX" }),
+    )
+    .await?;
+    let progress_meta_mailbox = progress_mailbox
+        .get("metadata")
+        .expect("progress metadata for mailbox MT");
+
+    let packet_path_mailbox = gov_root
+        .join("micro_tasks")
+        .join("WP-TEST")
+        .join("MT-PARITY-MAILBOX")
+        .join("packet.json");
+    let packet_mailbox: Value = serde_json::from_slice(&std::fs::read(&packet_path_mailbox)?)?;
+
+    // workflow_state_family parity (mailbox)
+    assert_eq!(
+        progress_meta_mailbox
+            .get("workflow_state_family")
+            .and_then(Value::as_str),
+        packet_mailbox
+            .get("workflow_state_family")
+            .and_then(Value::as_str),
+        "workflow_state_family must match between progress metadata and emitted packet (mailbox)"
+    );
+
+    // queue_reason_code parity (mailbox)
+    assert_eq!(
+        progress_meta_mailbox
+            .get("queue_reason_code")
+            .and_then(Value::as_str),
+        packet_mailbox
+            .get("queue_reason_code")
+            .and_then(Value::as_str),
+        "queue_reason_code must match between progress metadata and emitted packet (mailbox)"
+    );
+
+    // allowed_action_ids parity (mailbox)
+    assert_eq!(
+        progress_meta_mailbox.get("allowed_action_ids"),
+        packet_mailbox.get("allowed_action_ids"),
+        "allowed_action_ids must match between progress metadata and emitted packet (mailbox)"
+    );
+
+    // Mailbox case MUST have queue_reason_code overridden to mailbox_response_wait
+    assert_eq!(
+        progress_meta_mailbox
+            .get("queue_reason_code")
+            .and_then(Value::as_str),
+        Some("mailbox_response_wait"),
+        "MT with has_pending_mailbox_wait=true must resolve to mailbox_response_wait"
+    );
+
+    // State family should be preserved (still Ready for pending status)
+    assert_eq!(
+        progress_meta_mailbox
+            .get("workflow_state_family")
+            .and_then(Value::as_str),
+        Some("ready"),
+        "mailbox wait must preserve base workflow_state_family"
+    );
 
     Ok(())
 }
