@@ -363,14 +363,6 @@ pub fn governed_action_ids_for_family(family: WorkflowStateFamily) -> Vec<String
         .collect()
 }
 
-/// Returns the primary (first registered) governed action ID for a family.
-pub fn primary_governed_action_for_family(family: WorkflowStateFamily) -> Option<String> {
-    governed_action_descriptors_for_family(family)
-        .into_iter()
-        .next()
-        .map(|d| d.action_id)
-}
-
 // ── Base labels for degradation [v02.171] ──
 
 /// Base human-readable label for a workflow state family.

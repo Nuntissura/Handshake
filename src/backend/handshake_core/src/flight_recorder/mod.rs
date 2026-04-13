@@ -378,7 +378,6 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::SessionRecoveryAttempted => {
                 write!(f, "session_recovery_attempted")
-            }
             FlightRecorderEventType::WorkspaceIsolationDenied => {
                 write!(f, "workspace_isolation.denied")
             }
@@ -912,7 +911,6 @@ impl FlightRecorderEvent {
             }
             FlightRecorderEventType::SessionCascadeCancel => {
                 validate_session_cascade_cancel_payload(&self.payload)
-            }
             FlightRecorderEventType::SessionCheckpointCreated => {
                 if self.actor != FlightRecorderActor::System {
                     return Err(RecorderError::InvalidEvent(
@@ -4363,9 +4361,6 @@ fn validate_session_cascade_cancel_payload(payload: &Value) -> Result<(), Record
     )?;
     require_safe_token_string(map, "root_session_id", 256)?;
     require_string_array_allow_empty(map, "cancelled_session_ids")?;
-    Ok(())
-}
-
 fn validate_session_checkpoint_created_payload(payload: &Value) -> Result<(), RecorderError> {
     let map = payload_object(payload)?;
     require_allowed_keys(

@@ -3272,10 +3272,14 @@ async fn list_tracked_micro_tasks_for_artifacts(
     Ok(items)
 }
 
-fn work_packet_workflow_state(
-    status: locus::WorkPacketStatus,
-) -> (locus::WorkflowStateFamily, locus::WorkflowQueueReasonCode) {
-    work_packet_workflow_state_with_mailbox(status, false)
+/// Reads pending mailbox wait state from linked-record metadata.
+/// Returns true when the metadata contains `has_pending_mailbox_wait: true`,
+/// indicating an open mailbox exchange awaiting response on the record.
+fn metadata_has_pending_mailbox_wait(metadata: &Value) -> bool {
+    metadata
+        .get("has_pending_mailbox_wait")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 /// Computes workflow state with mailbox-aware queue reason override.
@@ -3319,10 +3323,11 @@ pub fn work_packet_workflow_state_with_mailbox(
     (family, reason)
 }
 
-fn micro_task_workflow_state(
+fn micro_task_workflow_state_with_mailbox(
     status: locus::MicroTaskStatus,
+    has_pending_mailbox_wait: bool,
 ) -> (locus::WorkflowStateFamily, locus::WorkflowQueueReasonCode) {
-    match status {
+    let (family, base_reason) = match status {
         locus::MicroTaskStatus::Pending => (
             locus::WorkflowStateFamily::Ready,
             locus::WorkflowQueueReasonCode::ReadyForLocalSmallModel,
@@ -3347,7 +3352,9 @@ fn micro_task_workflow_state(
             locus::WorkflowStateFamily::Canceled,
             locus::WorkflowQueueReasonCode::BlockedPolicy,
         ),
-    }
+    };
+    let reason = locus::resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
+    (family, reason)
 }
 
 fn task_board_workflow_state(
@@ -3753,7 +3760,7 @@ async fn emit_task_board_projection_artifacts(
             current
         };
         let (workflow_state_family, queue_reason_code) =
-            work_packet_workflow_state(work_packet_status);
+            work_packet_workflow_state_with_mailbox(work_packet_status, metadata_has_pending_mailbox_wait(&metadata));
         let allowed_action_ids = allowed_action_ids(workflow_state_family);
         let entry = locus::task_board::TaskBoardEntryRecordV1 {
             schema_id: TASK_BOARD_ENTRY_SCHEMA_ID.to_string(),
@@ -4840,7 +4847,10 @@ fn build_structured_work_packet_summary_value(
     tracked_wp: &locus::TrackedWorkPacket,
 ) -> Result<Value, WorkflowError> {
     let summary = build_structured_work_packet_summary(tracked_wp);
-    let (workflow_state_family, _) = work_packet_workflow_state(tracked_wp.status);
+    let (workflow_state_family, _) = work_packet_workflow_state_with_mailbox(
+        tracked_wp.status,
+        metadata_has_pending_mailbox_wait(&tracked_wp.metadata),
+    );
     let mut summary_value =
         serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let summary_object = summary_value.as_object_mut().ok_or_else(|| {
@@ -4862,7 +4872,10 @@ fn build_structured_work_packet_packet(
     tracked_wp: &locus::TrackedWorkPacket,
     note_refs: Vec<String>,
 ) -> locus::TrackedWorkPacketArtifactV1 {
-    let (workflow_state_family, queue_reason_code) = work_packet_workflow_state(tracked_wp.status);
+    let (workflow_state_family, queue_reason_code) = work_packet_workflow_state_with_mailbox(
+        tracked_wp.status,
+        metadata_has_pending_mailbox_wait(&tracked_wp.metadata),
+    );
     locus::TrackedWorkPacketArtifactV1 {
         schema_id: tracked_wp.schema_id.clone(),
         schema_version: tracked_wp.schema_version.clone(),
@@ -4924,7 +4937,10 @@ fn build_structured_micro_task_summary_value(
     tracked_mt: &locus::TrackedMicroTask,
 ) -> Result<Value, WorkflowError> {
     let summary = build_structured_micro_task_summary(tracked_mt);
-    let (workflow_state_family, _) = micro_task_workflow_state(tracked_mt.status);
+    let (workflow_state_family, _) = micro_task_workflow_state_with_mailbox(
+        tracked_mt.status,
+        metadata_has_pending_mailbox_wait(&tracked_mt.metadata),
+    );
     let mut summary_value =
         serde_json::to_value(&summary).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let summary_object = summary_value.as_object_mut().ok_or_else(|| {
@@ -4945,7 +4961,10 @@ fn build_structured_micro_task_packet(
     runtime_paths: &RuntimeGovernancePaths,
     tracked_mt: &locus::TrackedMicroTask,
 ) -> locus::TrackedMicroTaskArtifactV1 {
-    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state(tracked_mt.status);
+    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state_with_mailbox(
+        tracked_mt.status,
+        metadata_has_pending_mailbox_wait(&tracked_mt.metadata),
+    );
     locus::TrackedMicroTaskArtifactV1 {
         schema_id: tracked_mt.schema_id.clone(),
         schema_version: tracked_mt.schema_version.clone(),
