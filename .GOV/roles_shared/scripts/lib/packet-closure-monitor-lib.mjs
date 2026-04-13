@@ -36,6 +36,30 @@ function extractSectionAfterHeading(text, heading) {
   return lines.slice(startIndex, endIndex).join('\n').trim();
 }
 
+function replaceSection(text, heading, replacement) {
+  const lines = String(text || '').split(/\r?\n/);
+  const headingRe = new RegExp(`^##\\s+${heading}\\b`, 'i');
+  const startIndex = lines.findIndex((line) => headingRe.test(line));
+  if (startIndex === -1) {
+    throw new Error(`Missing packet section heading: ${heading}`);
+  }
+
+  let endIndex = lines.length;
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    if (/^##\s+\S/.test(lines[index])) {
+      endIndex = index;
+      break;
+    }
+  }
+
+  const replacementLines = String(replacement || '').replace(/\r/g, '').split('\n');
+  return [
+    ...lines.slice(0, startIndex),
+    ...replacementLines,
+    ...lines.slice(endIndex),
+  ].join('\n');
+}
+
 function extractListItemsAfterLabel(sectionText, label) {
   const lines = String(sectionText || '').split(/\r?\n/);
   const labelRe = new RegExp(`^(?:-\\s*)?(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*$`, 'i');
@@ -161,6 +185,92 @@ export function formatClauseClosureMatrixSection(clauseRows) {
 ${formatList(clauseRows)}`;
 }
 
+function canonicalizeCoderStatus(rawValue) {
+  const normalized = String(rawValue || '').trim().toUpperCase();
+  if (!normalized) return 'UNPROVEN';
+  if (normalized === 'PROVEN') return 'PROVED';
+  return normalized;
+}
+
+function canonicalizeValidatorStatus(rawValue) {
+  const normalized = String(rawValue || '').trim().toUpperCase();
+  if (!normalized) return 'PENDING';
+  if (normalized === 'PASS') return 'CONFIRMED';
+  if (normalized === 'FAIL') return 'REJECTED';
+  return normalized;
+}
+
+function validatorAllowsCoderProof(validatorStatus) {
+  return ['CONFIRMED', 'NOT_APPLICABLE'].includes(String(validatorStatus || '').trim().toUpperCase());
+}
+
+export function normalizeActiveClauseClosureMatrix(packetText) {
+  const clauseSection = extractSectionAfterHeading(packetText, 'CLAUSE_CLOSURE_MATRIX');
+  if (!clauseSection) {
+    return {
+      changed: false,
+      packetText: String(packetText || ''),
+      repairs: [],
+    };
+  }
+
+  const rawClauseRows = extractListItemsAfterLabel(clauseSection, 'CLAUSE_ROWS');
+  if (rawClauseRows.length === 0) {
+    return {
+      changed: false,
+      packetText: String(packetText || ''),
+      repairs: [],
+    };
+  }
+
+  const repairs = [];
+  let changed = false;
+  const nextClauseRows = rawClauseRows.map((item) => {
+    if (/^NONE$/i.test(item || '')) return item;
+    const record = parsePipeRecord(item);
+    const clause = String(record.CLAUSE || '').trim();
+    const codeSurfaces = String(record.CODE_SURFACES || '').trim();
+    const tests = String(record.TESTS || 'NONE').trim() || 'NONE';
+    const examples = String(record.EXAMPLES || 'NONE').trim() || 'NONE';
+    const debtIds = String(record.DEBT_IDS || 'NONE').trim() || 'NONE';
+    const originalValidatorStatus = String(record.VALIDATOR_STATUS || 'PENDING').trim().toUpperCase() || 'PENDING';
+    const validatorStatus = canonicalizeValidatorStatus(originalValidatorStatus);
+    const originalCoderStatus = String(record.CODER_STATUS || 'UNPROVEN').trim().toUpperCase() || 'UNPROVEN';
+    let nextCoderStatus = canonicalizeCoderStatus(originalCoderStatus);
+
+    if (originalCoderStatus === 'PROVEN') {
+      changed = true;
+      repairs.push(`canonicalized invalid CODER_STATUS=PROVEN to PROVED for clause ${clause || '<unknown>'}`);
+    }
+    if (originalValidatorStatus !== validatorStatus) {
+      changed = true;
+      repairs.push(`canonicalized invalid VALIDATOR_STATUS=${originalValidatorStatus} to ${validatorStatus} for clause ${clause || '<unknown>'}`);
+    }
+
+    if (nextCoderStatus === 'PROVED' && !validatorAllowsCoderProof(validatorStatus)) {
+      nextCoderStatus = 'UNPROVEN';
+      changed = true;
+      repairs.push(`reset premature coder proof on clause ${clause || '<unknown>'} because VALIDATOR_STATUS=${validatorStatus}`);
+    }
+
+    return `CLAUSE: ${clause} | CODE_SURFACES: ${codeSurfaces} | TESTS: ${tests} | EXAMPLES: ${examples} | DEBT_IDS: ${debtIds} | CODER_STATUS: ${nextCoderStatus} | VALIDATOR_STATUS: ${validatorStatus}`;
+  });
+
+  if (!changed) {
+    return {
+      changed: false,
+      packetText: String(packetText || ''),
+      repairs,
+    };
+  }
+
+  return {
+    changed: true,
+    packetText: replaceSection(String(packetText || ''), 'CLAUSE_CLOSURE_MATRIX', formatClauseClosureMatrixSection(nextClauseRows)),
+    repairs,
+  };
+}
+
 export function formatSpecDebtStatusSection({ openSpecDebt = 'NO', blockingSpecDebt = 'NO', debtIds = [] } = {}) {
   const normalizedDebtIds = (debtIds || []).map((item) => String(item || '').trim()).filter(Boolean);
   return `## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
@@ -222,6 +332,21 @@ export function validatePacketClosureMonitoring(packetText, {
       || !/^(PENDING|CONFIRMED|PARTIAL|REJECTED|NOT_APPLICABLE)$/.test(validatorStatus)
     ) {
       errors.push(`CLAUSE_CLOSURE_MATRIX malformed row: ${item}`);
+      continue;
+    }
+    // RGF-188: reject placeholder values in core matrix fields at handoff time
+    // instead of letting them through to closeout where they consume orchestrator budget.
+    const placeholderRe = /^(?:\{.+\}|<fill.*>|<pending>|<unclaimed>|<paste>|tbd)$/i;
+    if (placeholderRe.test(clause)) {
+      errors.push(`CLAUSE_CLOSURE_MATRIX row has placeholder CLAUSE value: ${item}`);
+      continue;
+    }
+    if (placeholderRe.test(codeSurfaces)) {
+      errors.push(`CLAUSE_CLOSURE_MATRIX row has placeholder CODE_SURFACES value: ${item}`);
+      continue;
+    }
+    if (placeholderRe.test(tests)) {
+      errors.push(`CLAUSE_CLOSURE_MATRIX row has placeholder TESTS value: ${item}`);
       continue;
     }
     const rowDebtIds = /^NONE$/i.test(debtIdsRaw)
@@ -312,6 +437,9 @@ export function validatePacketClosureMonitoring(packetText, {
   }
 
   for (const row of clauseRows) {
+    if (row.coderStatus === 'PROVED' && !validatorAllowsCoderProof(row.validatorStatus)) {
+      errors.push(`CLAUSE_CLOSURE_MATRIX row cannot use CODER_STATUS=PROVED before validator confirmation: ${row.clause}`);
+    }
     if (row.debtIds.length > 0 && debtIds.length === 0) {
       errors.push(`CLAUSE_CLOSURE_MATRIX row references DEBT_IDS not reflected in SPEC_DEBT_STATUS: ${row.clause}`);
     }

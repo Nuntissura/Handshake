@@ -41,6 +41,28 @@ function normalizeStatus(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+export function classifyRecoverableBrokerActiveRun({
+  run = null,
+  resultById = new Map(),
+  nowMs = Date.now(),
+  isChildProcessAlive = true,
+} = {}) {
+  const commandId = String(run?.command_id || run?.request?.command_id || "").trim();
+  if (commandId && resultById.has(commandId)) {
+    return { recoverable: true, reason: "stale_active_run_with_settled_result" };
+  }
+  if (!run) return { recoverable: false, reason: "" };
+  const childPid = Number(run?.child_pid || run?.childPid || 0);
+  if (childPid > 0 && !isChildProcessAlive) {
+    return { recoverable: true, reason: "child_process_not_alive" };
+  }
+  const timeoutAtMs = Date.parse(run?.timeout_at || run?.timeoutAt || "");
+  if (!Number.isNaN(timeoutAtMs) && nowMs > timeoutAtMs) {
+    return { recoverable: true, reason: "broker_timeout_expired" };
+  }
+  return { recoverable: false, reason: "" };
+}
+
 function appendResultOnce(repoRoot, result, resultById) {
   if (resultById.has(result.command_id)) return;
   appendJsonlLine(path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE), result);

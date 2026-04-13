@@ -17,8 +17,13 @@ Do not place new historical/reference studies at the role root. Put them under t
 
 Open one of:
 
-- `.GOV/roles/orchestrator/README.md`
+- `.GOV/roles/orchestrator/README.md` — `ORCHESTRATOR_MANAGED` workflow authority, ACP/session control, mechanical governance
+- `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md` — `MANUAL_RELAY` workflow authority, combined old pre-launch lane, operator-brokered relay
+- `.GOV/roles/activation_manager/README.md` — bounded pre-launch authoring lane for `ORCHESTRATOR_MANAGED`
 - `.GOV/roles/coder/README.md`
-- `.GOV/roles/validator/README.md`
+- `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md` — per-MT boundary enforcement, scope containment, code review (orchestrator-managed workflow)
+- `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md` — whole-WP judgment, verdict, merge authority (orchestrator-managed workflow)
+- `.GOV/roles/validator/README.md` — shared validation foundation protocol
+- `.GOV/roles/memory_manager/README.md`
 
 Shared cross-role state lives in `.GOV/roles_shared/README.md`.

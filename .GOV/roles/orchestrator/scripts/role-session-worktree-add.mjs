@@ -10,6 +10,8 @@ import {
   defaultWpValidatorWorktreeDir,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("role-session-worktree-add.mjs", { role: "ORCHESTRATOR" });
 
 const role = String(process.argv[2] || "").trim().toUpperCase();
 const wpId = String(process.argv[3] || "").trim();
@@ -17,12 +19,11 @@ const branchArg = String(process.argv[4] || "").trim();
 const dirArg = String(process.argv[5] || "").trim();
 
 function fail(message) {
-  console.error(`[ROLE_SESSION_WORKTREE_ADD] ${message}`);
-  process.exit(1);
+  failWithMemory("role-session-worktree-add.mjs", message, { role: "ORCHESTRATOR" });
 }
 
 if (!wpId || !wpId.startsWith("WP-")) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/role-session-worktree-add.mjs <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [branch] [dir]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/role-session-worktree-add.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [branch] [dir]`);
 }
 
 function defaultsForRole(roleName, workPacketId) {
@@ -79,7 +80,29 @@ function loadPacketBaseBranch(wpIdValue) {
   }
 }
 
+function loadPacketMergeBaseSha(wpIdValue) {
+  const resolved = resolveWorkPacketPath(wpIdValue);
+  const packetPath = resolved?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpIdValue}.md`);
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!fs.existsSync(packetAbsPath)) return "";
+  try {
+    const packetText = fs.readFileSync(packetAbsPath, "utf8");
+    const mergeBaseField = parseSingleField(packetText, "MERGE_BASE_SHA");
+    const mergeBaseSha = String(mergeBaseField || "").match(/\b([a-f0-9]{40})\b/i)?.[1] || "";
+    return mergeBaseSha;
+  } catch {
+    return "";
+  }
+}
+
 // Integration validator operates from handshake_main — no worktree creation [CX-212D].
+if (role === "ACTIVATION_MANAGER" || role === "MEMORY_MANAGER") {
+  console.log(`[ROLE_SESSION_WORKTREE_ADD] ${role} operates from the current governance worktree on branch gov_kernel.`);
+  console.log(`[ROLE_SESSION_WORKTREE_ADD] No WP-specific worktree creation needed.`);
+  console.log(`[ROLE_SESSION_WORKTREE_ADD] Next: stay in the current worktree.`);
+  process.exit(0);
+}
+
 if (role === "INTEGRATION_VALIDATOR") {
   console.log(`[ROLE_SESSION_WORKTREE_ADD] Integration Validator operates from handshake_main on branch main [CX-212D].`);
   console.log(`[ROLE_SESSION_WORKTREE_ADD] No WP-specific worktree creation needed.`);
@@ -94,8 +117,9 @@ if (!defaults) {
 
 const branch = branchArg || defaults.branch;
 const dir = dirArg || defaults.dir;
+const coderBaseRef = loadPacketMergeBaseSha(wpId) || "main";
 const baseBranch = role === "CODER"
-  ? "main"
+  ? coderBaseRef
   : (loadPacketBaseBranch(wpId) || loadPrepareBaseBranch(wpId));
 if (role !== "CODER" && !baseBranch) {
   fail(`Cannot create ${role} worktree for ${wpId}: missing PREPARE/packet coder branch to base validator checkout on.`);

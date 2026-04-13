@@ -19,7 +19,10 @@ import {
   roleNextCommand,
   roleStartupCommand,
 } from "../scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("protocol-alignment-check.mjs", { role: "SHARED" });
 
 const JUSTFILE_PATH = "justfile";
 // The justfile uses {{GOV_ROOT}} (a just variable) — when matching raw justfile text,
@@ -64,12 +67,11 @@ const ACTIVE_SURFACE_PATHS = [
   ROLE_SESSION_REGISTRY_SCHEMA_PATH,
 ];
 
-function resolveRepoRoot() {
-  const injectedRepoRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
-  if (injectedRepoRoot) {
-    return injectedRepoRoot;
+function resolveGovernanceRepoRoot() {
+  const governedRepoRoot = path.resolve(GOV_ROOT_ABS, "..");
+  if (fs.existsSync(governedRepoRoot)) {
+    return governedRepoRoot;
   }
-
   const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   try {
     const out = execFileSync("git", ["-C", fileRelativeRepoRoot, "rev-parse", "--show-toplevel"], {
@@ -85,9 +87,7 @@ function resolveRepoRoot() {
 }
 
 function fail(message, details = []) {
-  console.error(`[PROTOCOL_ALIGNMENT_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("protocol-alignment-check.mjs", message, { role: "SHARED", details });
 }
 
 function escapeRegex(value) {
@@ -95,11 +95,11 @@ function escapeRegex(value) {
 }
 
 function readUtf8(filePath) {
-  return fs.readFileSync(path.join(repoRoot, filePath), "utf8");
+  return fs.readFileSync(path.join(governanceRepoRoot, filePath), "utf8");
 }
 
 function requireFileExists(filePath) {
-  if (!fs.existsSync(path.join(repoRoot, filePath))) {
+  if (!fs.existsSync(path.join(governanceRepoRoot, filePath))) {
     fail("Missing required active governance surface", [filePath]);
   }
 }
@@ -147,8 +147,8 @@ function justRecipeName(command) {
   return match ? match[1] : "";
 }
 
-const repoRoot = path.resolve(resolveRepoRoot());
-process.chdir(repoRoot);
+const governanceRepoRoot = path.resolve(resolveGovernanceRepoRoot());
+process.chdir(governanceRepoRoot);
 
 for (const filePath of ACTIVE_SURFACE_PATHS) requireFileExists(filePath);
 
@@ -275,8 +275,8 @@ requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just coder-next");
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just launch-coder-session");
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "CODER_MODEL_PROFILE");
 
-requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-startup");
-requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-next");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-wp-validator-session");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-integration-validator-session");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just phase-check STARTUP");

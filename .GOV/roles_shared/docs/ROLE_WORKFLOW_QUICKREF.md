@@ -29,10 +29,19 @@ All roles SHOULD follow a strict ordering to avoid interleaving narrative with e
 
 ## Resume After Reset / Compaction
 
+Startup commands:
+- `just orchestrator-startup`
+- `just classic-orchestrator-startup`
+- `just coder-startup`
+- `just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR`
+  - shared startup surface for `WP_VALIDATOR`, `INTEGRATION_VALIDATOR`, and classical `VALIDATOR`; the explicit role argument determines the active authority and protocol ack
+- `just memory-manager-startup`
+- `just role-startup-topology-check [--audit-permanent]`
+
 Use the role-specific read-only resume helper immediately after `just <role>-startup` when a session resets or context compacts:
 - Orchestrator: `just orchestrator-next [WP-{ID}] [--debug]`
 - Coder: `just coder-next [WP-{ID}]`
-- Validator: `just validator-next [WP-{ID}] [--debug]`
+- Validator: `just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-{ID}] [--debug]`
 
 Rule:
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS`.
@@ -41,7 +50,10 @@ Rule:
 
 ## High-Signal Governance References
 
-- Final validator authority split: `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+- Validator authority split:
+  - `WP_VALIDATOR`: `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `INTEGRATION_VALIDATOR`: `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - classical/manual `VALIDATOR`: `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
 - Direct-review contract and session-repair rules: `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
 - Legacy packet remediation policy: `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
 - Runtime placement and archival law: `.GOV/roles_shared/README.md`
@@ -51,15 +63,15 @@ Rule:
 
 ## Governance Memory Quick Commands
 
-- `just memory-stats` — health overview (active/consolidated counts, schema version)
-- `just memory-search "<query>"` — FTS5 keyword search
-- `just memory-intent-snapshot "<intent>" --wp WP-{ID} --role ROLE` — context+intent capture before complex reasoning (judgment-based, SHOULD)
-- `just memory-debug-snapshot [WP-{ID}]` — inspect pre-task + intent snapshots
-- `just memory-capture <type> "<insight>" --wp WP-{ID}` — mid-session memory capture
-- `just memory-flag <id> "<reason>"` — suppress bad memory (importance → 0.1)
-- `just memory-patterns` — cross-WP pattern synthesis → governance improvement candidates
-- `just memory-refresh --force-compact` — force extraction + compaction cycle
-- `just memory-export` / `just memory-import <file>` — JSONL archival
+- `just memory-stats` â€” health overview (active/consolidated counts, schema version)
+- `just memory-search "<query>"` â€” FTS5 keyword search
+- `just memory-recall <ACTION> [--wp WP-{ID}]` â€” visible memory injection for the next governed action; prints `MEMORY_INJECTION_APPLIED`
+- `just memory-intent-snapshot "<intent>" --wp WP-{ID} --role ROLE` â€” context+intent capture before complex reasoning (judgment-based, SHOULD)
+- `just memory-debug-snapshot [WP-{ID}]` â€” inspect pre-task + intent snapshots
+- `just memory-capture <type> "<insight>" --wp WP-{ID}` â€” mid-session memory capture
+- `just memory-flag <id> "<reason>"` â€” suppress bad memory (importance â†’ 0.1)
+- `just memory-patterns` â€” cross-WP pattern synthesis â†’ governance improvement candidates
+- `just memory-refresh --force-compact` â€” force extraction + compaction cycle
 
 Pre-task snapshots are captured automatically at: WP delegation, steering, relay dispatch, packet creation, closeout, board status change.
 
@@ -67,7 +79,7 @@ Pre-task snapshots are captured automatically at: WP delegation, steering, relay
 
 Governance-only (does not scan `src/` or `app/`):
 - `just gov-check`
-- `just canonise-gov` — inspect every listed governance file and update drift across intent, rules, and instructions; run after any governance change and do not stop at the green summary
+- `just canonise-gov` â€” inspect every listed governance file and update drift across intent, rules, and instructions; run after any governance change and do not stop at the green summary
 - Governance-only maintenance does not require a Work Packet or USER_SIGNATURE (Codex [CX-111]).
 - Shared repo tooling notes live in `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`; use it as short append-only shared tooling memory, not as a second LAW surface.
 
@@ -77,12 +89,13 @@ Product-scanning / product-boundary enforcement:
 
 ## Session Host + Operator Monitor
 
-- When available, prefer VS Code integrated terminals for multi-session work instead of many floating desktop terminals.
+- Prefer the governed headless ACP lane for ordinary multi-session work. Use visible terminals only when the Orchestrator intentionally selects a repair/compatibility host.
 - Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs record per-role model profiles explicitly. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` may be declared, but governed launch stays fail-closed until runtime support exists.
 - Repo-governed role-session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`).
+- Primary launch path is headless/direct ACP launch over the external repo-governance runtime root (default repo-relative: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` + `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
+- The VS Code bridge launch queue remains a compatibility surface only (`../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`); treat it as explicit `VSCODE_PLUGIN` repair state, not ordinary launch truth.
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
-- CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session.
+- `SYSTEM_TERMINAL` and `CURRENT` are repair-only surfaces, not the ordinary launch path.
 - Recommended VS Code tabs:
   - `ORCH`
   - `CODER <WP_ID>`
@@ -115,7 +128,9 @@ Authoritative inputs:
 Primary commands:
 - `just record-refinement WP-...`
 - `just record-signature WP-... <sig> <MANUAL_RELAY|ORCHESTRATOR_MANAGED> <Coder-A..Coder-Z>`
-- lane default: choose `MANUAL_RELAY` for small and medium WPs unless you explicitly need autonomous steering or multi-WP parallel management; use `ORCHESTRATOR_MANAGED` only when that extra control-plane cost is justified
+- future default lane policy: prefer `ORCHESTRATOR_MANAGED` for new/future sessions; choose `MANUAL_RELAY` only when the operator explicitly wants the lower-cost classic combined lane
+- `MANUAL_RELAY` is owned by `CLASSIC_ORCHESTRATOR`; `ORCHESTRATOR` does not own that lane
+- if you choose `ORCHESTRATOR_MANAGED`, Activation Manager is mandatory as the temporary pre-launch worker before governed coder/validator launch
 - `just record-role-model-profiles WP-... [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
 - omit args only when you deliberately want the default all-GPT bundle recorded into the packet
 - `just worktree-add WP-...`
@@ -126,17 +141,32 @@ Primary commands:
 - for `PACKET_FORMAT_VERSION >= 2026-04-05` and `RISK_TIER=MEDIUM|HIGH`, validator closeout is dual-track: PASS requires both `MECHANICAL_TRACK_VERDICT=PASS` and `SPEC_RETENTION_TRACK_VERDICT=PASS`
 - if `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, keep `DATA_CONTRACT_MONITORING` credible from the start; validator closeout later requires concrete `DATA_CONTRACT_PROOF` plus `DATA_CONTRACT_GAPS`
 - `just orchestrator-prepare-and-packet WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>]`
+- `just workflow-dossier-init WP-... [output]`
+- `just workflow-dossier-note WP-... <EXECUTION|GOV_CHANGE|CONCERN|FINDING> "<summary>" [--role ROLE] [--tag TAG] [--surface SURFACE]`
+- `just workflow-dossier-sync WP-... [--role ROLE] [--tag ACP_SYNC] [--surface MECHANICAL]`
+- `just orchestrator-prepare-and-packet` now seeds the live workflow dossier automatically; use `workflow-dossier-init` only for repair or manual re-seeding
 - `just coder-worktree-add WP-...`
 - `just wp-validator-worktree-add WP-...`
 - `just integration-validator-worktree-add WP-...`
+- `just launch-activation-manager-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- for `ORCHESTRATOR_MANAGED`, launch Activation Manager first and wait for truthful `ACTIVATION_READINESS` before governed coder/validator launch
 - `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `AUTO` is the ordinary headless/direct ACP launch path
+- `CURRENT` and `SYSTEM_TERMINAL` are explicit repair surfaces
+- `VSCODE_PLUGIN` is compatibility-only
+- `just activation-manager next WP-...`
+- `just activation-manager readiness WP-... --write`
 - `just manual-relay-next WP-... [--debug]`
 - `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK] [--debug]`
+- those manual-relay helpers are Classic-Orchestrator-owned surfaces for `MANUAL_RELAY`
+- `just start-activation-manager-session WP-... [PRIMARY|FALLBACK]`
 - `just start-coder-session WP-... [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-... [PRIMARY|FALLBACK]`
 - `just start-integration-validator-session WP-... [PRIMARY|FALLBACK]`
+- `just steer-activation-manager-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
+- `just cancel-activation-manager-session WP-...`
 - `just steer-coder-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
 - `just cancel-coder-session WP-...`
 - `just steer-wp-validator-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
@@ -148,7 +178,7 @@ Primary commands:
 - `just session-cancel <ROLE> WP-...`
 - `just session-registry-status [WP-...]`
 - `just active-lane-brief <ROLE> WP-... [--json]`
-- `just orchestrator-steer-next WP-... [PRIMARY|FALLBACK]`
+- `just orchestrator-steer-next WP-... "<context>" [PRIMARY|FALLBACK]`
 - `just manual-relay-next WP-... [--debug]`
 - `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK] [--debug]`
 - `just phase-check STARTUP WP-... CODER`
@@ -158,8 +188,8 @@ Primary commands:
 - `just operator-viewport`
 - Heartbeat note: `wp-heartbeat` is liveness-only. `next_actor` / `waiting_on` must match current runtime route and cannot be used to steer the lane.
 - `just session-registry-status WP-...` now also surfaces derived stalled-relay state for the filtered WP.
-- If relay state is `ESCALATED`, use `just orchestrator-steer-next WP-...` instead of waiting silently.
-- `just orchestrator-steer-next` now performs a one-hop wakeup: if the projected target session is not running yet, it starts that governed session and immediately injects the typed route payload in the same invocation.
+- If relay state is `ESCALATED`, use `just orchestrator-steer-next WP-... "<context>"` instead of waiting silently.
+- `just orchestrator-steer-next WP-... "<context>"` now performs a one-hop wakeup: if the projected target session is not running yet, it starts that governed session and immediately injects the typed route payload in the same invocation.
 - Inside the monitor:
   - `c` closes governed sessions for the selected WP after a role prompt + confirmation.
   - `b` stops the ACP broker after confirmation, but only if no governed runs are active.
@@ -197,8 +227,10 @@ Primary commands (per WP validation):
 - `just phase-check HANDOFF WP-... CODER` (canonical coder-side handoff closure)
 - `just phase-check HANDOFF WP-... WP_VALIDATOR`
 - `just phase-check VERDICT WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR`
+- `just closeout-repair WP-... [--dry-run] [--debug]` before whole-WP closeout when packet/runtime/SHA/artifact truth needs mechanical repair
 - `just phase-check CLOSEOUT WP-...`
 - governed closeout write through the same phase surface: `just phase-check CLOSEOUT WP-... --sync-mode <MODE> --context "<why this truth is being written>"`
+- `phase-check CLOSEOUT --sync-mode ...` now also appends the mechanical closeout trace into the active Workflow Dossier; add the human post-mortem/review and rubric after it succeeds
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
 - `just product-scan` (product boundary enforcement)

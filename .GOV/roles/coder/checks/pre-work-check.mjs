@@ -31,6 +31,7 @@ import {
   DIRECT_REVIEW_CONTRACT_VERSION,
   DIRECT_REVIEW_HEALTH_GATE,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
+  parseJsonlFile,
 } from '../../../roles_shared/scripts/lib/wp-communications-lib.mjs';
 import {
   CLI_ESCALATION_HOST_DEFAULT,
@@ -56,6 +57,7 @@ import {
   roleModelProfileFromPacket,
   roleModelProfileMatchesClaim,
   roleModelProfileMatchesReasoningStrength,
+  SESSION_COMPATIBILITY_SURFACE,
   SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
   SESSION_PLUGIN_BRIDGE_COMMAND,
   SESSION_PLUGIN_BRIDGE_ID,
@@ -67,6 +69,9 @@ import {
   SESSION_HOST_FALLBACK,
   SESSION_HOST_PREFERENCE,
   SESSION_LAUNCH_POLICY,
+  sessionCompatibilityQueueFileForPacketVersion,
+  sessionControlRequestsFileForPacketVersion,
+  sessionControlResultsFileForPacketVersion,
   sessionPluginRequestsFileForPacketVersion,
   sessionRegistryFileForPacketVersion,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
@@ -110,6 +115,32 @@ function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
   const m = text.match(re);
   return m ? m[1].trim() : '';
+}
+
+function parseRepairFieldTokens(value) {
+  return String(value || '')
+    .split(/[;,]/)
+    .map((token) => token.trim().toUpperCase())
+    .filter(Boolean);
+}
+
+function loadHydrationRepairFieldSet(packetContent) {
+  const repairedFields = new Set();
+  const receiptsFile = parseSingleField(packetContent, 'WP_RECEIPTS_FILE');
+  if (!receiptsFile) return repairedFields;
+  try {
+    const receiptsAbsPath = repoPathAbs(receiptsFile);
+    if (!fs.existsSync(receiptsAbsPath)) return repairedFields;
+    const receipts = parseJsonlFile(receiptsFile);
+    for (const entry of receipts) {
+      if (String(entry?.receipt_kind || '').trim().toUpperCase() !== 'REPAIR') continue;
+      for (const token of parseRepairFieldTokens(entry?.state_before)) repairedFields.add(token);
+      for (const token of parseRepairFieldTokens(entry?.state_after)) repairedFields.add(token);
+    }
+  } catch {
+    return repairedFields;
+  }
+  return repairedFields;
 }
 
 function parseStatus(text) {
@@ -657,6 +688,12 @@ if (!fs.existsSync(taskPacketDir)) {
 
     const remoteBackupBranch = parseSingleField(packetContent, 'REMOTE_BACKUP_BRANCH');
     const remoteBackupUrl = parseSingleField(packetContent, 'REMOTE_BACKUP_URL');
+    const hasModernSessionPolicyFields = Boolean(
+      parseSingleField(packetContent, 'SESSION_CONTROL_REQUESTS_FILE')
+      || parseSingleField(packetContent, 'SESSION_CONTROL_RESULTS_FILE')
+      || parseSingleField(packetContent, 'SESSION_COMPATIBILITY_SURFACE')
+      || parseSingleField(packetContent, 'SESSION_COMPATIBILITY_QUEUE_FILE'),
+    );
     const expectedFields = [
       ['SESSION_START_AUTHORITY', SESSION_START_AUTHORITY],
       ['SESSION_HOST_PREFERENCE', SESSION_HOST_PREFERENCE],
@@ -664,12 +701,7 @@ if (!fs.existsSync(taskPacketDir)) {
       ['SESSION_LAUNCH_POLICY', SESSION_LAUNCH_POLICY],
       ['ROLE_SESSION_RUNTIME', ROLE_SESSION_RUNTIME],
       ['CLI_SESSION_TOOL', CLI_SESSION_TOOL],
-      ['SESSION_PLUGIN_BRIDGE_ID', SESSION_PLUGIN_BRIDGE_ID],
-      ['SESSION_PLUGIN_BRIDGE_COMMAND', SESSION_PLUGIN_BRIDGE_COMMAND],
-      ['SESSION_PLUGIN_REQUESTS_FILE', sessionPluginRequestsFileForPacketVersion(packetFormatVersion)],
       ['SESSION_REGISTRY_FILE', sessionRegistryFileForPacketVersion(packetFormatVersion)],
-      ['SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION', String(SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION)],
-      ['SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS', String(SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS)],
       ['SESSION_WATCH_POLICY', SESSION_WATCH_POLICY],
       ['SESSION_WAKE_CHANNEL_PRIMARY', SESSION_WAKE_CHANNEL_PRIMARY],
       ['SESSION_WAKE_CHANNEL_FALLBACK', SESSION_WAKE_CHANNEL_FALLBACK],
@@ -686,13 +718,30 @@ if (!fs.existsSync(taskPacketDir)) {
       ['CODER_RESUME_COMMAND', `just coder-next ${WP_ID}`],
       ['WP_VALIDATOR_LOCAL_BRANCH', defaultWpValidatorBranch(WP_ID)],
       ['WP_VALIDATOR_LOCAL_WORKTREE_DIR', defaultWpValidatorWorktreeDir(WP_ID)],
-      ['WP_VALIDATOR_STARTUP_COMMAND', 'just validator-startup'],
-      ['WP_VALIDATOR_RESUME_COMMAND', `just validator-next ${WP_ID}`],
+      ['WP_VALIDATOR_STARTUP_COMMAND', 'just validator-startup WP_VALIDATOR'],
+      ['WP_VALIDATOR_RESUME_COMMAND', `just validator-next WP_VALIDATOR ${WP_ID}`],
       ['INTEGRATION_VALIDATOR_LOCAL_BRANCH', defaultIntegrationValidatorBranch(WP_ID)],
       ['INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR', defaultIntegrationValidatorWorktreeDir(WP_ID)],
-      ['INTEGRATION_VALIDATOR_STARTUP_COMMAND', 'just validator-startup'],
-      ['INTEGRATION_VALIDATOR_RESUME_COMMAND', `just validator-next ${WP_ID}`],
+      ['INTEGRATION_VALIDATOR_STARTUP_COMMAND', 'just validator-startup INTEGRATION_VALIDATOR'],
+      ['INTEGRATION_VALIDATOR_RESUME_COMMAND', `just validator-next INTEGRATION_VALIDATOR ${WP_ID}`],
     ];
+
+    if (hasModernSessionPolicyFields) {
+      expectedFields.push(
+        ['SESSION_CONTROL_REQUESTS_FILE', sessionControlRequestsFileForPacketVersion(packetFormatVersion)],
+        ['SESSION_CONTROL_RESULTS_FILE', sessionControlResultsFileForPacketVersion(packetFormatVersion)],
+        ['SESSION_COMPATIBILITY_SURFACE', SESSION_COMPATIBILITY_SURFACE],
+        ['SESSION_COMPATIBILITY_QUEUE_FILE', sessionCompatibilityQueueFileForPacketVersion(packetFormatVersion)],
+      );
+    } else {
+      expectedFields.push(
+        ['SESSION_PLUGIN_BRIDGE_ID', SESSION_PLUGIN_BRIDGE_ID],
+        ['SESSION_PLUGIN_BRIDGE_COMMAND', SESSION_PLUGIN_BRIDGE_COMMAND],
+        ['SESSION_PLUGIN_REQUESTS_FILE', sessionPluginRequestsFileForPacketVersion(packetFormatVersion)],
+        ['SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION', String(SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION)],
+        ['SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS', String(SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS)],
+      );
+    }
 
     if (!remoteBackupBranch) {
       errors.push('REMOTE_BACKUP_BRANCH missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-03-12');
@@ -1006,6 +1055,7 @@ if (!fs.existsSync(taskPacketDir)) {
       const packetUiStates = extractIndentedListAfterLabel(packetContent, 'UI_STATES (empty/loading/error)');
       const packetUiMicrocopy = extractIndentedListAfterLabel(packetContent, 'UI_MICROCOPY_NOTES (labels, helper text, hover explainers)');
       const packetUiAccessibility = extractIndentedListAfterLabel(packetContent, 'UI_ACCESSIBILITY_NOTES');
+      const hydrationRepairFields = loadHydrationRepairFieldSet(packetContent);
 
       const expectedSourceLog = (refinementData.researchSources || []).map((source) => {
         const kind = (source.kind || '').trim() || 'UNKNOWN';
@@ -1167,7 +1217,13 @@ if (!fs.existsSync(taskPacketDir)) {
       if ((packetBuildOrderBlocks || '').trim() !== (hydration.buildOrderBlocksRaw || '').trim()) errors.push('BUILD_ORDER_BLOCKS in the packet drifted from the signed refinement');
       if ((packetScopeWhat || '').trim() !== (hydration.what || '').trim()) errors.push('SCOPE What in the packet drifted from the signed refinement');
       if ((packetScopeWhy || '').trim() !== (hydration.why || '').trim()) errors.push('SCOPE Why in the packet drifted from the signed refinement');
-      if (!sameList(packetInScope, hydration.inScopePaths || [])) errors.push('IN_SCOPE_PATHS in the packet drifted from the signed refinement');
+      if (!sameList(packetInScope, hydration.inScopePaths || [])) {
+        if (hydrationRepairFields.has('IN_SCOPE_PATHS')) {
+          console.log('PASS: IN_SCOPE_PATHS drift is covered by a later REPAIR receipt');
+        } else {
+          errors.push('IN_SCOPE_PATHS in the packet drifted from the signed refinement');
+        }
+      }
       if (!sameList(packetOutOfScope, hydration.outOfScope || [])) errors.push('OUT_OF_SCOPE in the packet drifted from the signed refinement');
       if (normalizeBlock(packetTestPlan) !== normalizeBlock(hydration.testPlan || '')) errors.push('TEST_PLAN in the packet drifted from the signed refinement');
       if (!sameList(packetDoneMeans, hydration.doneMeans || [])) errors.push('DONE_MEANS in the packet drifted from the signed refinement');

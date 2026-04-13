@@ -2,11 +2,12 @@ import fs from "node:fs";
 
 import { resolveSpecCurrent } from "./refinement-check.mjs";
 import { repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("spec-eof-appendices-check.mjs", { role: "SHARED" });
 
 function fail(msg, details = []) {
-  console.error(msg);
-  for (const d of details) console.error(`- ${d}`);
-  process.exit(1);
+  failWithMemory("spec-eof-appendices-check.mjs", msg, { role: "SHARED", details });
 }
 
 function escapeRegExp(s) {

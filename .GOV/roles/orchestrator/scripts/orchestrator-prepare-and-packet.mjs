@@ -30,6 +30,12 @@ import {
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { communicationPathsForWp } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { buildPhaseCheckCommand } from "../../../roles_shared/checks/phase-check-lib.mjs";
+import {
+  buildActivationManagerLaunchCommands,
+  buildDownstreamGovernedLaunchCommands,
+  buildManualRelayCommands,
+  normalizeWorkflowLane,
+} from "./lib/workflow-lane-guidance-lib.mjs";
 
 const wpId = (process.argv[2] || "").trim();
 const workflowLane = (process.argv[3] || "").trim();
@@ -39,6 +45,7 @@ const TASK_BOARD_PATH = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles_shared",
 const TRACEABILITY_PATH = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "WP_TRACEABILITY_REGISTRY.md"));
 const BUILD_ORDER_PATH = repoPathAbs(path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "BUILD_ORDER.md"));
 const ORCHESTRATOR_GATES_PATH = repoPathAbs(resolveOrchestratorGatesPath());
+const LIVE_REVIEW_SCRIPT_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "scripts", "audit", "generate-post-run-audit-skeleton.mjs");
 
 function usageAndExit() {
   console.error("Usage: node .GOV/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs WP-{ID} [WORKFLOW_LANE] [EXECUTION_OWNER]");
@@ -101,6 +108,20 @@ function runNodeStep(stepName, scriptRelativePath, args = []) {
   } catch (error) {
     error.stepName = stepName;
     throw error;
+  }
+}
+
+function ensureLiveWorkflowDossier(targetWpId) {
+  try {
+    const output = execFileSync(process.execPath, [LIVE_REVIEW_SCRIPT_PATH, targetWpId, "--mode", "live", "--auto-output"], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return normalize(String(output || "").trim());
+  } catch (error) {
+    logProcessOutput(error);
+    return "";
   }
 }
 
@@ -185,6 +206,71 @@ function verifyTransactionalActivation() {
 }
 
 function main() {
+  // --- RGF-182: Idempotent reentry check ---
+  // If the lane is already fully prepared, confirm state and exit cleanly
+  // instead of attempting duplicate creation and rollback.
+  const reentryCheck = verifyTransactionalActivation();
+  if (reentryCheck.ok) {
+    const liveReviewPath = ensureLiveWorkflowDossier(wpId);
+
+    const findings = [
+      `REENTRY: lane already prepared — confirming state.`,
+      `PREPARE authority: ${reentryCheck.prepareEntry.workflow_lane} / ${reentryCheck.prepareEntry.execution_lane || reentryCheck.prepareEntry.coder_id}`,
+      `Packet: ${packetPathForWp(wpId)}`,
+      `Task Board: READY_FOR_DEV`,
+      `Communications: ${communicationPathsForWp(wpId).dir}`,
+    ];
+    if (liveReviewPath) {
+      findings.push(`Live workflow dossier: ${liveReviewPath}`);
+    } else {
+      findings.push("Live workflow dossier: NOT_CREATED (non-fatal; run `just live-smoketest-review-init`)");
+    }
+
+    const nextCommands = [];
+    const normalizedWorkflowLane = normalizeWorkflowLane(reentryCheck.prepareEntry.workflow_lane);
+    if (reentryCheck.syncState && !reentryCheck.syncState.ok) {
+      printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
+      printOperatorAction("NONE");
+      printState("Reentry confirmed: lane already prepared, but the assigned WP worktree is still stale.");
+      printFindings([...findings, ...reentryCheck.syncState.issues]);
+      nextCommands.push(
+        `# Repair ${reentryCheck.syncState.expectedBranch || "the assigned WP branch"} and ${reentryCheck.syncState.worktreeAbs || "the assigned WP worktree"} until they contain the official packet.`,
+      );
+      if (normalizedWorkflowLane === "ORCHESTRATOR_MANAGED") {
+        nextCommands.push(...buildActivationManagerLaunchCommands(wpId));
+      } else if (normalizedWorkflowLane === "MANUAL_RELAY") {
+        nextCommands.push(...buildManualRelayCommands(wpId));
+      } else {
+        nextCommands.push(
+          buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }),
+          ...buildDownstreamGovernedLaunchCommands(wpId),
+        );
+      }
+      nextCommands.push(`just orchestrator-next ${wpId}`);
+      printNextCommands(nextCommands);
+      return;
+    }
+
+    printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
+    printOperatorAction("NONE");
+    printState("Reentry confirmed: lane already prepared and governance state is coherent.");
+    printFindings(findings);
+    nextCommands.push(`cat ${packetPathForWp(wpId)}`);
+    if (normalizedWorkflowLane === "ORCHESTRATOR_MANAGED") {
+      nextCommands.push(...buildActivationManagerLaunchCommands(wpId));
+    } else if (normalizedWorkflowLane === "MANUAL_RELAY") {
+      nextCommands.push(...buildManualRelayCommands(wpId));
+    } else {
+      nextCommands.push(
+        buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }),
+        ...buildDownstreamGovernedLaunchCommands(wpId),
+      );
+    }
+    printNextCommands(nextCommands);
+    return;
+  }
+  // --- End RGF-182 reentry check ---
+
   const snapshot = createPathSnapshot([
     ORCHESTRATOR_GATES_PATH,
     packetDirForWp(wpId),
@@ -237,6 +323,7 @@ function main() {
     }
 
     cleanupPathSnapshot(snapshot);
+    const liveReviewPath = ensureLiveWorkflowDossier(wpId);
 
     const findings = [
       `PREPARE authority: ${verification.prepareEntry.workflow_lane} / ${verification.prepareEntry.execution_lane || verification.prepareEntry.coder_id}`,
@@ -244,37 +331,63 @@ function main() {
       `Task Board: READY_FOR_DEV`,
       `Communications: ${communicationPathsForWp(wpId).dir}`,
     ];
+    if (liveReviewPath) {
+      findings.push(`Live workflow dossier: ${liveReviewPath}`);
+    } else {
+      findings.push("Live workflow dossier: NOT_CREATED (non-fatal; run `just live-smoketest-review-init`)");
+    }
 
     const nextCommands = [];
+    const normalizedWorkflowLane = normalizeWorkflowLane(verification.prepareEntry.workflow_lane);
     if (verification.syncState && !verification.syncState.ok) {
-      const startupCommand = buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" });
       printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
       printOperatorAction("NONE");
-      printState("Transactional activation completed, but the assigned WP worktree is still stale for coder handoff.");
+      printState(
+        normalizedWorkflowLane === "ORCHESTRATOR_MANAGED"
+          ? "Transactional activation completed, but the assigned WP worktree is still stale for Activation Manager-owned pre-launch."
+          : "Transactional activation completed, but the assigned WP worktree is still stale for manual relay into implementation.",
+      );
       printFindings([
         ...findings,
         ...verification.syncState.issues,
       ]);
       nextCommands.push(
-        `# Validator: fast-forward ${verification.syncState.expectedBranch || "the assigned WP branch"} and ${verification.syncState.worktreeAbs || "the assigned WP worktree"} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`,
-        `# Then re-run in ${verification.syncState.worktreeAbs || "the assigned WP worktree"}: ${startupCommand}`,
-        `just orchestrator-next ${wpId}`,
+        `# Repair ${verification.syncState.expectedBranch || "the assigned WP branch"} and ${verification.syncState.worktreeAbs || "the assigned WP worktree"} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`,
       );
+      if (normalizedWorkflowLane === "ORCHESTRATOR_MANAGED") {
+        nextCommands.push(...buildActivationManagerLaunchCommands(wpId));
+      } else if (normalizedWorkflowLane === "MANUAL_RELAY") {
+        nextCommands.push(...buildManualRelayCommands(wpId));
+      } else {
+        nextCommands.push(
+          buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }),
+          ...buildDownstreamGovernedLaunchCommands(wpId),
+        );
+      }
+      nextCommands.push(`just orchestrator-next ${wpId}`);
       printNextCommands(nextCommands);
       return;
     }
 
     printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
     printOperatorAction("NONE");
-    printState("Transactional activation completed and governance state is coherent for coder handoff.");
-    printFindings(findings);
-    nextCommands.push(
-      `cat ${packetPathForWp(wpId)}`,
-      buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }),
-      `just launch-coder-session ${wpId}`,
-      `just launch-wp-validator-session ${wpId}`,
-      `just session-registry-status ${wpId}`,
+    printState(
+      normalizedWorkflowLane === "ORCHESTRATOR_MANAGED"
+        ? "Transactional activation completed and governance state is coherent for Activation Manager pre-launch."
+        : "Transactional activation completed and governance state is coherent for manual relay.",
     );
+    printFindings(findings);
+    nextCommands.push(`cat ${packetPathForWp(wpId)}`);
+    if (normalizedWorkflowLane === "ORCHESTRATOR_MANAGED") {
+      nextCommands.push(...buildActivationManagerLaunchCommands(wpId));
+    } else if (normalizedWorkflowLane === "MANUAL_RELAY") {
+      nextCommands.push(...buildManualRelayCommands(wpId));
+    } else {
+      nextCommands.push(
+        buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }),
+        ...buildDownstreamGovernedLaunchCommands(wpId),
+      );
+    }
     printNextCommands(nextCommands);
   } catch (error) {
     rollbackAndExit(error.stepName || "transaction", error, snapshot);

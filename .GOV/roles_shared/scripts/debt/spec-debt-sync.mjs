@@ -9,11 +9,14 @@ import {
   writePacket,
 } from "../lib/spec-debt-packet-lib.mjs";
 
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("spec-debt-sync.mjs", { role: "SHARED" });
+
 const wpId = String(process.argv[2] || "").trim();
 
 function fail(message) {
-  console.error(`[SPEC_DEBT_SYNC] ${message}`);
-  process.exit(1);
+  failWithMemory("spec-debt-sync.mjs", message, { role: "SHARED" });
 }
 
 if (!/^WP-[A-Za-z0-9][A-Za-z0-9-]*$/i.test(wpId)) {

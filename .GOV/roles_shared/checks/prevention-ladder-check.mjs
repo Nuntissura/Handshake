@@ -9,6 +9,9 @@ import {
   LEGACY_SHARED_GOV_VALIDATOR_GATES_ROOT,
   normalizePath,
 } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("prevention-ladder-check.mjs", { role: "SHARED" });
 
 const PREVENTION_LADDER_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "GOVERNANCE_PREVENTION_LADDER.md");
 const SHIM_LEDGER_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "COMPATIBILITY_SHIM_LEDGER.md");
@@ -43,9 +46,7 @@ function resolveRepoRoot() {
 }
 
 function fail(message, details = []) {
-  console.error(`prevention-ladder-check: FAIL - ${message}`);
-  for (const detail of details) console.error(detail);
-  process.exit(1);
+  failWithMemory("prevention-ladder-check.mjs", message, { role: "SHARED", details });
 }
 
 function parseBlocks(content, heading) {

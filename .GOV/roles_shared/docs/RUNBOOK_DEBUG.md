@@ -24,6 +24,10 @@
 | Build/test fails | `justfile`, package configs (`app/package.json`, Rust `Cargo.toml`) | Re-run `pnpm -C app test`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` |
 | Worktree removal "Filename too long" | Windows MAX_PATH (260 char) limit on deeply nested paths | See **Windows long-path recovery** section below |
 | Governance file edit does not appear in `git status` | worktree-local topology and ignore rules | `git ls-files <path>`, `git check-ignore -v <path>`, inspect `.git/info/exclude`, confirm the current worktree/branch before changing public command surfaces |
+| `just` wrapper fails before Node sees the arguments | PowerShell metacharacter parsing in variadic flags | Prefer the governed wrappers that use `node-argv-proxy.mjs`; reproduce with the exact `just ... --decisions "..."` or `--metadata '{...}'` text, then inspect the wrapper recipe instead of the downstream Node script first |
+| `WORKFLOW_INVALIDITY` says a declared `../handshake_main/...` path is out of scope in a WP worktree | scope comparison drift between packet repo-relative aliases and product-worktree relative paths | Check shared scope classification first; compare the packet `IN_SCOPE_PATHS` alias against the worktree-relative path before widening signed scope or rewriting the packet |
+| `wp-receipt-append ... REPAIR` times out but the lane looks like it may have resumed | receipt append wrote the repair and inline auto-relay before the shell boundary timed out | Inspect the WP `RECEIPTS.jsonl`, runtime `RUNTIME_STATUS.json`, and `just session-registry-status WP-{ID}` before retrying; do not assume the timeout means the repair failed |
+| Shared coder/WP-validator worktree is dirty or invalid but the branch must be repaired to packet truth | governed cleanup/reseed path is required; manual reuse risks stale evidence or mixed scope | Snapshot first, use `just delete-local-worktree <worktree_id> "<approval>"` with the governed flags/helpers, then recreate from the packet baseline instead of hand-cleaning or reusing the dirty worktree |
 
 ### Windows long-path recovery
 
@@ -49,6 +53,12 @@
 3. **Use `\\?\` prefix paths** in PowerShell/cmd for targeted file operations.
 
 After any manual filesystem recovery, always run `git worktree prune` and `just gov-check` to verify consistency.
+
+## Workflow invalidity and governed repair
+
+- Treat workflow invalidity as a control-plane truth mismatch first, not an automatic packet-widening event.
+- When scope invalidity appears after a packet was signed, check shared path aliasing and baseline drift before editing packet scope or steering the coder wider.
+- When a coder/WP-validator shared worktree must be repaired, prefer: immutable snapshot -> governed delete/cleanup -> recreate from packet `MERGE_BASE_SHA` -> append `REPAIR` receipt -> verify runtime/session truth before any new steer.
 
 ## If you only remember one thing
 - Use `rg "<feature or error string>" app/src src/backend/handshake_core` to jump to the owning layer, then open the matching file and cross-check the expected behavior in `.GOV/spec/SPEC_CURRENT.md`.

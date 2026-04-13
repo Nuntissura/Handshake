@@ -37,8 +37,8 @@ function modernPacket(artifactPath, integrationWorktreeDir) {
 - LOCAL_BRANCH: feat/WP-TEST-VALIDATOR-v1
 - LOCAL_WORKTREE_DIR: ../wtc-test-validator
 - INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ${integrationWorktreeDir}
-- WP_VALIDATOR_LOCAL_BRANCH: review/WP-TEST-VALIDATOR-v1
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtv-test-validator
+- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-TEST-VALIDATOR-v1
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-test-validator
 - **Artifacts**: \`${artifactPath}\`
 - **Target File**: \`src/backend/handshake_core/src/example.rs\`
 - **Start**: \`10\`
@@ -82,6 +82,7 @@ test("integration-validator context brief surfaces canonical final-lane authorit
       repoRoot,
       wpId: "WP-TEST-VALIDATOR-v1",
       packetContent: modernPacket(artifactPath, integrationWorktreeDir),
+      packetPathValueOverride: ".GOV/task_packets/WP-TEST-VALIDATOR-v1/packet.md",
       gitContext: {
         branch: "main",
         topLevel: integrationWorktreeDir,
@@ -147,6 +148,12 @@ test("integration-validator context brief surfaces canonical final-lane authorit
     assert.equal(brief.closeout_readiness, "READY");
     assert.equal(brief.actor_context.role, "INTEGRATION_VALIDATOR");
     assert.equal(brief.governance_root.mode, "KERNEL");
+    assert.equal(
+      brief.packet_read_path,
+      path.resolve(repoRoot, ".GOV/task_packets/WP-TEST-VALIDATOR-v1/packet.md").replace(/\\/g, "/"),
+    );
+    assert.match(brief.minimal_live_read_set[0], /startup output/i);
+    assert.match(brief.minimal_live_read_set[1], /packet_read_path/i);
     assert.equal(brief.current_main_compatibility.status, "COMPATIBLE");
     assert.deepEqual(brief.required_commands, [
       "just check-notifications WP-TEST-VALIDATOR-v1 INTEGRATION_VALIDATOR",
@@ -182,6 +189,10 @@ test("integration-validator context brief falls back to remediation commands for
   });
 
   assert.equal(brief.context_status, "GOVERNANCE_BLOCKED");
+  assert.equal(
+    brief.packet_read_path,
+    path.resolve(".GOV/task_packets/WP-TEST-VALIDATOR-v1/packet.md").replace(/\\/g, "/"),
+  );
   assert.deepEqual(brief.required_commands, [
     "just validator-policy-gate WP-TEST-VALIDATOR-v1",
     "just phase-check CLOSEOUT WP-TEST-VALIDATOR-v1",

@@ -22,11 +22,15 @@ import {
   loadSessionRegistry,
   validateRegistryShape,
 } from "../scripts/session/session-registry-lib.mjs";
+import { settleRecoverableSessionControlResults } from "../scripts/session/session-control-self-settle-lib.mjs";
 import { evaluateSessionGovernanceState } from "../scripts/session/session-governance-state-lib.mjs";
 import {
   validateSessionControlRequestShape,
   validateSessionControlResultShape,
 } from "../scripts/session/session-control-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("session-control-runtime-check.mjs", { role: "SHARED" });
 
 const repoRoot = REPO_ROOT;
 const registryPath = path.resolve(repoRoot, SESSION_REGISTRY_FILE);
@@ -38,9 +42,7 @@ const maxUnsettledAgeMs = (SESSION_CONTROL_RUN_TIMEOUT_SECONDS + SESSION_CONTROL
 const GOVERNED_COMMAND_KINDS = new Set(["START_SESSION", "SEND_PROMPT", "CANCEL_SESSION", "CLOSE_SESSION"]);
 
 function fail(message, details = []) {
-  console.error(`[SESSION_CONTROL_RUNTIME_CHECK] ${message}`);
-  for (const detail of details) console.error(`  - ${detail}`);
-  process.exit(1);
+  failWithMemory("session-control-runtime-check.mjs", message, { role: "SHARED", details });
 }
 
 function readJson(filePath, fallbackValue = null) {
@@ -224,6 +226,21 @@ if (!fs.existsSync(resultsPath)) {
 
 if (!fs.existsSync(outputDirPath)) {
   fail("Missing session control output directory", [SESSION_CONTROL_OUTPUT_DIR]);
+}
+
+const initialBrokerState = fs.existsSync(brokerStatePath)
+  ? readJson(brokerStatePath, null)
+  : null;
+if (
+  Array.isArray(initialBrokerState?.active_runs)
+  && initialBrokerState.active_runs.length > 0
+  && !isProcessAlive(initialBrokerState.broker_pid)
+) {
+  settleRecoverableSessionControlResults(repoRoot, {
+    commandIds: initialBrokerState.active_runs
+      .map((run) => String(run?.command_id || "").trim())
+      .filter(Boolean),
+  });
 }
 
 const { registry } = loadSessionRegistry(repoRoot);

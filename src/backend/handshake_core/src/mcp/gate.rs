@@ -14,15 +14,14 @@ use crate::bundles::schemas::RedactionMode;
 use crate::capabilities::CapabilityRegistry;
 use crate::flight_recorder::duckdb::store_tool_payload_redacted;
 use crate::flight_recorder::{
-    canonical_json_sha256_hex, FlightRecorder, FlightRecorderActor, FlightRecorderEvent,
+    canonical_json_sha256_hex, model_run_activity_span_id, model_session_span_id,
+    tool_call_activity_span_id, FlightRecorder, FlightRecorderActor, FlightRecorderEvent,
     FlightRecorderEventType,
 };
 use crate::storage::{AccessMode, AiJobMcpUpdate, Database};
 
 use super::client::{JsonRpcMcpClient, McpDispatcher, PendingMeta};
-use super::discovery::{
-    McpResourceDescriptor, McpToolDescriptor, ResourcesListResult,
-};
+use super::discovery::{McpResourceDescriptor, McpToolDescriptor, ResourcesListResult};
 use super::errors::{McpError, McpResult};
 use super::fr_events;
 use super::jsonrpc::{JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
@@ -270,7 +269,9 @@ pub struct GatedMcpClient {
 fn strip_ref_scheme(uri: &str) -> McpResult<&str> {
     if let Some(path) = uri.strip_prefix("ref://") {
         if path.trim().is_empty() {
-            return Err(McpError::SecurityViolation("ref uri path is empty".to_string()));
+            return Err(McpError::SecurityViolation(
+                "ref uri path is empty".to_string(),
+            ));
         }
         return Ok(path);
     }
@@ -299,7 +300,9 @@ const HTC_MAX_PAYLOAD_BYTES: usize = 32 * 1024;
 const HTC_VALIDATION_ERROR_CODE: &str = "VAL-HTC-001";
 
 fn json_encoded_len(value: &Value) -> usize {
-    serde_json::to_vec(value).map(|bytes| bytes.len()).unwrap_or(usize::MAX)
+    serde_json::to_vec(value)
+        .map(|bytes| bytes.len())
+        .unwrap_or(usize::MAX)
 }
 
 fn htc_schema() -> &'static Value {
@@ -321,6 +324,51 @@ fn default_actor_payload() -> Value {
         "agent_id": null,
         "model_id": null,
     })
+}
+
+fn tool_call_event_with_context(
+    ctx: &McpContext,
+    tool_call_id: Uuid,
+    mut payload: Value,
+) -> FlightRecorderEvent {
+    let tool_call_id_raw = tool_call_id.to_string();
+    let tool_activity_span_id = tool_call_activity_span_id(tool_call_id_raw.as_str());
+    let parent_span_id = ctx.job_id.map(|job_id| {
+        let job_id = job_id.to_string();
+        model_run_activity_span_id(job_id.as_str())
+    });
+
+    if let (Some(parent_span_id), Some(map)) = (parent_span_id.as_ref(), payload.as_object_mut()) {
+        map.entry("parent_span_id".to_string())
+            .or_insert_with(|| Value::String(parent_span_id.clone()));
+    }
+
+    let mut event = FlightRecorderEvent::new(
+        FlightRecorderEventType::ToolCall,
+        FlightRecorderActor::Agent,
+        ctx.trace_id,
+        payload,
+    )
+    .with_activity_span(tool_activity_span_id);
+
+    if let Some(job_id) = ctx.job_id {
+        event = event.with_job_id(job_id.to_string());
+    }
+    if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+        event = event.with_workflow_id(workflow_run_id.to_string());
+    }
+    if let Some(session_id) = ctx
+        .session_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        event = event
+            .with_model_session_id(session_id.to_string())
+            .with_session_span(model_session_span_id(session_id));
+    }
+
+    event
 }
 
 fn canonical_tool_id_segment(raw: &str) -> String {
@@ -582,9 +630,11 @@ impl GatedMcpClient {
             return Ok(entry);
         }
 
-        let mut matches = self.gate.tool_registry.iter().filter(|entry| {
-            entry.transport_bindings.mcp_name == tool_id_or_alias
-        });
+        let mut matches = self
+            .gate
+            .tool_registry
+            .iter()
+            .filter(|entry| entry.transport_bindings.mcp_name == tool_id_or_alias);
         let Some(first) = matches.next() else {
             return Err(McpError::UnknownTool(tool_id_or_alias.to_string()));
         };
@@ -696,10 +746,11 @@ impl GatedMcpClient {
 
         let tool_call_id = Uuid::new_v4();
 
-        let (registry_entry, registry_error) = match self.resolve_tool_registry_entry(tool_id_or_alias) {
-            Ok(entry) => (Some(entry), None),
-            Err(err) => (None, Some(err)),
-        };
+        let (registry_entry, registry_error) =
+            match self.resolve_tool_registry_entry(tool_id_or_alias) {
+                Ok(entry) => (Some(entry), None),
+                Err(err) => (None, Some(err)),
+            };
 
         let tool_id = match registry_entry {
             Some(entry) => entry.tool_id.clone(),
@@ -744,20 +795,19 @@ impl GatedMcpClient {
         };
 
         let redactor = SecretRedactor::new();
-        let (args_redacted, args_redaction_logs) = redactor.redact_value(
-            &arguments,
-            RedactionMode::SafeDefault,
-            "tool_gate/mcp/args",
-        );
+        let (args_redacted, args_redaction_logs) =
+            redactor.redact_value(&arguments, RedactionMode::SafeDefault, "tool_gate/mcp/args");
 
-        let (args_handle, args_hash) = if let Some(conn) = self.flight_recorder.duckdb_connection() {
+        let (args_handle, args_hash) = if let Some(conn) = self.flight_recorder.duckdb_connection()
+        {
             let conn = conn.lock().map_err(|_| {
                 McpError::FlightRecorder("duckdb connection lock error".to_string())
             })?;
             store_tool_payload_redacted(&conn, tool_call_id, "args", &args_redacted)
                 .map_err(|e| McpError::FlightRecorder(e.to_string()))?
         } else {
-            let artifact_path = format!("data/flight_recorder/tool_payloads/{tool_call_id}/args.json");
+            let artifact_path =
+                format!("data/flight_recorder/tool_payloads/{tool_call_id}/args.json");
             (
                 ArtifactHandle::new(tool_call_id, artifact_path),
                 canonical_json_sha256_hex(&args_redacted),
@@ -848,7 +898,9 @@ impl GatedMcpClient {
                 .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
 
             return Err(McpError::SchemaValidation {
-                details: format!("{HTC_VALIDATION_ERROR_CODE}: request envelope invalid\n{details}"),
+                details: format!(
+                    "{HTC_VALIDATION_ERROR_CODE}: request envelope invalid\n{details}"
+                ),
             });
         }
 
@@ -920,10 +972,8 @@ impl GatedMcpClient {
 
         if let Some(allowed) = &self.gate.allowed_tools {
             if !allowed.contains(&tool_id) && !allowed.contains(&mcp_tool_name) {
-                let err = McpError::CapabilityDenied(format!(
-                    "tool not in allowed_tools: {}",
-                    tool_id
-                ));
+                let err =
+                    McpError::CapabilityDenied(format!("tool not in allowed_tools: {}", tool_id));
                 let _ = fr_events::record_gate_decision(
                     Arc::clone(&self.flight_recorder),
                     &ctx,
@@ -1202,18 +1252,7 @@ impl GatedMcpClient {
                     "timing": htc_timing(started_at_utc, ended_at_utc),
                     "capability_ids": &required_caps,
                 });
-                let mut event = FlightRecorderEvent::new(
-                    FlightRecorderEventType::ToolCall,
-                    FlightRecorderActor::Agent,
-                    ctx.trace_id,
-                    payload,
-                );
-                if let Some(job_id) = ctx.job_id {
-                    event = event.with_job_id(job_id.to_string());
-                }
-                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
-                    event = event.with_workflow_id(workflow_run_id.to_string());
-                }
+                let event = tool_call_event_with_context(&ctx, tool_call_id, payload);
                 self.flight_recorder
                     .record_event(event)
                     .await
@@ -1556,10 +1595,13 @@ impl GatedMcpClient {
         }
 
         let call = match request_id {
-            Some(id) => self
+            Some(id) => {
+                self.inner
+                    .send_request_with_id(id, "tools/call", Some(params), Some(meta))?
+            }
+            None => self
                 .inner
-                .send_request_with_id(id, "tools/call", Some(params), Some(meta))?,
-            None => self.inner.send_request("tools/call", Some(params), Some(meta))?,
+                .send_request("tools/call", Some(params), Some(meta))?,
         };
 
         let result = match tokio::time::timeout(self.gate.request_timeout, call).await {
@@ -1681,21 +1723,22 @@ impl GatedMcpClient {
                     "tool_gate/mcp/result",
                 );
 
-                let (result_handle, result_hash) =
-                    if let Some(conn) = self.flight_recorder.duckdb_connection() {
-                        let conn = conn.lock().map_err(|_| {
-                            McpError::FlightRecorder("duckdb connection lock error".to_string())
-                        })?;
-                        store_tool_payload_redacted(&conn, tool_call_id, "result", &result_redacted)
-                            .map_err(|e| McpError::FlightRecorder(e.to_string()))?
-                    } else {
-                        let artifact_path =
-                            format!("data/flight_recorder/tool_payloads/{tool_call_id}/result.json");
-                        (
-                            ArtifactHandle::new(tool_call_id, artifact_path),
-                            canonical_json_sha256_hex(&result_redacted),
-                        )
-                    };
+                let (result_handle, result_hash) = if let Some(conn) =
+                    self.flight_recorder.duckdb_connection()
+                {
+                    let conn = conn.lock().map_err(|_| {
+                        McpError::FlightRecorder("duckdb connection lock error".to_string())
+                    })?;
+                    store_tool_payload_redacted(&conn, tool_call_id, "result", &result_redacted)
+                        .map_err(|e| McpError::FlightRecorder(e.to_string()))?
+                } else {
+                    let artifact_path =
+                        format!("data/flight_recorder/tool_payloads/{tool_call_id}/result.json");
+                    (
+                        ArtifactHandle::new(tool_call_id, artifact_path),
+                        canonical_json_sha256_hex(&result_redacted),
+                    )
+                };
                 let result_ref = result_handle.canonical_id();
 
                 let result_inline = if json_encoded_len(&result_redacted) <= HTC_MAX_PAYLOAD_BYTES {
@@ -1717,7 +1760,9 @@ impl GatedMcpClient {
                 });
                 schema::validate_instance(htc_schema(), &response_envelope).map_err(|e| {
                     McpError::SchemaValidation {
-                        details: format!("{HTC_VALIDATION_ERROR_CODE}: response envelope invalid\n{e}"),
+                        details: format!(
+                            "{HTC_VALIDATION_ERROR_CODE}: response envelope invalid\n{e}"
+                        ),
                     }
                 })?;
 
@@ -1756,18 +1801,7 @@ impl GatedMcpClient {
                     "timing": htc_timing(started_at_utc, ended_at_utc),
                     "capability_ids": &required_caps,
                 });
-                let mut event = FlightRecorderEvent::new(
-                    FlightRecorderEventType::ToolCall,
-                    FlightRecorderActor::Agent,
-                    ctx.trace_id,
-                    payload,
-                );
-                if let Some(job_id) = ctx.job_id {
-                    event = event.with_job_id(job_id.to_string());
-                }
-                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
-                    event = event.with_workflow_id(workflow_run_id.to_string());
-                }
+                let event = tool_call_event_with_context(&ctx, tool_call_id, payload);
                 self.flight_recorder
                     .record_event(event)
                     .await
@@ -1832,18 +1866,7 @@ impl GatedMcpClient {
                     "timing": htc_timing(started_at_utc, ended_at_utc),
                     "capability_ids": &required_caps,
                 });
-                let mut event = FlightRecorderEvent::new(
-                    FlightRecorderEventType::ToolCall,
-                    FlightRecorderActor::Agent,
-                    ctx.trace_id,
-                    payload,
-                );
-                if let Some(job_id) = ctx.job_id {
-                    event = event.with_job_id(job_id.to_string());
-                }
-                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
-                    event = event.with_workflow_id(workflow_run_id.to_string());
-                }
+                let event = tool_call_event_with_context(&ctx, tool_call_id, payload);
                 self.flight_recorder
                     .record_event(event)
                     .await
@@ -1867,7 +1890,10 @@ impl GatedMcpClient {
         let path_str = strip_ref_scheme(uri)?;
         let canonical = security::canonicalize_under_roots(path_str, &ctx.allowed_roots)?;
         let bytes = std::fs::read(&canonical).map_err(|e| {
-            McpError::Protocol(format!("failed to read ref uri target {}: {e}", canonical.display()))
+            McpError::Protocol(format!(
+                "failed to read ref uri target {}: {e}",
+                canonical.display()
+            ))
         })?;
 
         self.inner.send_notification(

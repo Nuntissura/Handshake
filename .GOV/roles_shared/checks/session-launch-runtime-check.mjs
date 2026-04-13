@@ -5,6 +5,7 @@ import {
   SESSION_REGISTRY_FILE,
 } from "../scripts/session/session-policy.mjs";
 import { REPO_ROOT } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 import {
   loadSessionLaunchRequests,
   loadSessionRegistry,
@@ -16,10 +17,10 @@ const repoRoot = REPO_ROOT;
 const registryPath = path.resolve(repoRoot, SESSION_REGISTRY_FILE);
 const requestsPath = path.resolve(repoRoot, SESSION_PLUGIN_REQUESTS_FILE);
 
+registerFailCaptureHook("session-launch-runtime-check.mjs", { role: "SHARED" });
+
 function fail(message, details = []) {
-  console.error(`[SESSION_LAUNCH_RUNTIME_CHECK] ${message}`);
-  for (const detail of details) console.error(`  - ${detail}`);
-  process.exit(1);
+  failWithMemory("session-launch-runtime-check.mjs", message, { role: "SHARED", details });
 }
 
 if (!fs.existsSync(registryPath)) {
@@ -27,7 +28,7 @@ if (!fs.existsSync(registryPath)) {
 }
 
 if (!fs.existsSync(requestsPath)) {
-  fail("Missing session launch requests file", [SESSION_PLUGIN_REQUESTS_FILE]);
+  fail("Missing compatibility launch queue file", [SESSION_PLUGIN_REQUESTS_FILE]);
 }
 
 const { registry } = loadSessionRegistry(repoRoot);
@@ -44,7 +45,7 @@ for (let index = 0; index < requests.length; index += 1) {
 }
 
 if (requestErrors.length > 0) {
-  fail("Session launch request schema violations found", requestErrors);
+  fail("Compatibility launch request schema violations found", requestErrors);
 }
 
 console.log("session-launch-runtime-check ok");

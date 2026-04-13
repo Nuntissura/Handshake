@@ -54,9 +54,11 @@
   "max_coder_revision_cycles": {{MAX_CODER_REVISION_CYCLES}},
   "max_validator_review_cycles": {{MAX_VALIDATOR_REVIEW_CYCLES}},
   "max_relay_escalation_cycles": {{MAX_RELAY_ESCALATION_CYCLES}},
+  "max_worker_interrupt_cycles": {{MAX_WORKER_INTERRUPT_CYCLES}},
   "current_coder_revision_cycle": 0,
   "current_validator_review_cycle": 0,
   "current_relay_escalation_cycle": 0,
+  "current_worker_interrupt_cycle": 0,
   "last_backup_push_at": null,
   "last_backup_push_sha": null
 }

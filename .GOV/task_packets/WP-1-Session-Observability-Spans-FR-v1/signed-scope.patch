@@ -1,0 +1,1851 @@
+diff --git a/src/backend/handshake_core/src/api/flight_recorder.rs b/src/backend/handshake_core/src/api/flight_recorder.rs
+index 84b968ac..7db60f70 100644
+--- a/src/backend/handshake_core/src/api/flight_recorder.rs
++++ b/src/backend/handshake_core/src/api/flight_recorder.rs
+@@ -47,0 +48 @@ pub struct FlightEvent {
++    pub model_session_id: Option<String>,
+@@ -60,0 +62 @@ pub struct EventFilter {
++    pub model_session_id: Option<String>,
+@@ -185,0 +188 @@ async fn list_events(
++        model_session_id: filter.model_session_id,
+@@ -259,0 +263 @@ async fn list_events(
++            model_session_id: e.model_session_id,
+@@ -270,0 +275,123 @@ async fn list_events(
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::capabilities::CapabilityRegistry;
++    use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
++    use crate::flight_recorder::{
++        FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
++    };
++    use crate::llm::{
++        CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
++    };
++    use crate::storage::{sqlite::SqliteDatabase, Database};
++    use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
++    use crate::AppState;
++    use std::sync::Arc;
++    use uuid::Uuid;
++
++    struct TestLlmClient {
++        profile: ModelProfile,
++    }
++
++    impl TestLlmClient {
++        fn new() -> Self {
++            Self {
++                profile: ModelProfile::new("flight-recorder-api-test".to_string(), 4096),
++            }
++        }
++    }
++
++    #[async_trait::async_trait]
++    impl LlmClient for TestLlmClient {
++        async fn completion(
++            &self,
++            _req: CompletionRequest,
++        ) -> Result<CompletionResponse, LlmError> {
++            Ok(CompletionResponse {
++                text: "ok".to_string(),
++                usage: TokenUsage {
++                    prompt_tokens: 1,
++                    completion_tokens: 1,
++                    total_tokens: 2,
++                },
++                latency_ms: 0,
++            })
++        }
++
++        fn profile(&self) -> &ModelProfile {
++            &self.profile
++        }
++    }
++
++    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
++        let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
++        sqlite.run_migrations().await?;
++
++        let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
++
++        Ok(AppState {
++            storage: sqlite.into_arc(),
++            flight_recorder: recorder.clone(),
++            diagnostics: recorder,
++            llm_client: Arc::new(TestLlmClient::new()),
++            capability_registry: Arc::new(CapabilityRegistry::new()),
++            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
++        })
++    }
++
++    #[tokio::test]
++    async fn list_events_preserves_model_session_id_filter_and_payload(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let state = setup_state().await?;
++        let trace_id = Uuid::new_v4();
++
++        state
++            .flight_recorder
++            .record_event(
++                FlightRecorderEvent::new(
++                    FlightRecorderEventType::System,
++                    FlightRecorderActor::System,
++                    trace_id,
++                    json!({
++                        "type": "system",
++                        "event_id": "FR-EVT-SYS-001",
++                    }),
++                )
++                .with_model_session_id("sess-keep"),
++            )
++            .await?;
++
++        state
++            .flight_recorder
++            .record_event(FlightRecorderEvent::new(
++                FlightRecorderEventType::System,
++                FlightRecorderActor::System,
++                trace_id,
++                json!({
++                    "type": "system",
++                    "event_id": "FR-EVT-SYS-000",
++                }),
++            ))
++            .await?;
++
++        let response = list_events(
++            State(state),
++            Query(EventFilter {
++                model_session_id: Some("sess-keep".to_string()),
++                ..Default::default()
++            }),
++        )
++        .await;
++        let Json(events) = match response {
++            Ok(payload) => payload,
++            Err(_) => panic!("filtered flight recorder api response failed"),
++        };
++
++        assert_eq!(events.len(), 1);
++        assert_eq!(events[0].model_session_id.as_deref(), Some("sess-keep"));
++        assert_eq!(events[0].event_type, "system");
++
++        Ok(())
++    }
++}
+diff --git a/src/backend/handshake_core/src/flight_recorder/duckdb.rs b/src/backend/handshake_core/src/flight_recorder/duckdb.rs
+index 2eb5c215..268fdcec 100644
+--- a/src/backend/handshake_core/src/flight_recorder/duckdb.rs
++++ b/src/backend/handshake_core/src/flight_recorder/duckdb.rs
+@@ -249,0 +250 @@ impl DuckDbFlightRecorder {
++                model_session_id TEXT,
+@@ -268,0 +270 @@ impl DuckDbFlightRecorder {
++            ALTER TABLE events ADD COLUMN IF NOT EXISTS model_session_id TEXT;
+@@ -285,0 +288 @@ impl DuckDbFlightRecorder {
++            CREATE INDEX IF NOT EXISTS idx_events_model_session_id ON events(model_session_id);
+@@ -559,0 +563 @@ impl DuckDbFlightRecorder {
++                model_session_id,
+@@ -566 +570 @@ impl DuckDbFlightRecorder {
+-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
++            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+@@ -577,0 +582 @@ impl DuckDbFlightRecorder {
++                event.model_session_id.as_deref(),
+@@ -657,0 +663,5 @@ impl DuckDbFlightRecorder {
++        if let Some(model_session_id) = filter.model_session_id {
++            conditions.push("model_session_id = ?".to_string());
++            params.push(Box::new(model_session_id));
++        }
++
+@@ -669 +679 @@ impl DuckDbFlightRecorder {
+-        let mut query = String::from("SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events");
++        let mut query = String::from("SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events");
+@@ -692,0 +703 @@ impl DuckDbFlightRecorder {
++            model_session_id: Option<String>,
+@@ -713,6 +724,7 @@ impl DuckDbFlightRecorder {
+-                    wsids: row.get(9)?,
+-                    activity_span_id: row.get(10)?,
+-                    session_span_id: row.get(11)?,
+-                    capability_id: row.get(12)?,
+-                    policy_decision_id: row.get(13)?,
+-                    payload: row.get(14)?,
++                    model_session_id: row.get(9)?,
++                    wsids: row.get(10)?,
++                    activity_span_id: row.get(11)?,
++                    session_span_id: row.get(12)?,
++                    capability_id: row.get(13)?,
++                    policy_decision_id: row.get(14)?,
++                    payload: row.get(15)?,
+@@ -906,0 +919,15 @@ impl DuckDbFlightRecorder {
++                "session.created" | "session_created" => {
++                    super::FlightRecorderEventType::SessionCreated
++                }
++                "session.state_change" | "session_state_change" => {
++                    super::FlightRecorderEventType::SessionStateChange
++                }
++                "session.completed" | "session_completed" => {
++                    super::FlightRecorderEventType::SessionCompleted
++                }
++                "session.message" | "session_message" => {
++                    super::FlightRecorderEventType::SessionMessage
++                }
++                "session.budget_warning" | "session_budget_warning" => {
++                    super::FlightRecorderEventType::SessionBudgetWarning
++                }
+@@ -927,0 +955 @@ impl DuckDbFlightRecorder {
++                model_session_id: raw.model_session_id,
+diff --git a/src/backend/handshake_core/src/flight_recorder/mod.rs b/src/backend/handshake_core/src/flight_recorder/mod.rs
+index 2124dcde..93806950 100644
+--- a/src/backend/handshake_core/src/flight_recorder/mod.rs
++++ b/src/backend/handshake_core/src/flight_recorder/mod.rs
+@@ -160,0 +161,6 @@ pub enum FlightRecorderEventType {
++    /// FR-EVT-SESS-001..005: Session lifecycle events [4.3.9.18]
++    SessionCreated,
++    SessionStateChange,
++    SessionCompleted,
++    SessionMessage,
++    SessionBudgetWarning,
+@@ -322,0 +329,7 @@ impl fmt::Display for FlightRecorderEventType {
++            FlightRecorderEventType::SessionCreated => write!(f, "session.created"),
++            FlightRecorderEventType::SessionStateChange => write!(f, "session.state_change"),
++            FlightRecorderEventType::SessionCompleted => write!(f, "session.completed"),
++            FlightRecorderEventType::SessionMessage => write!(f, "session.message"),
++            FlightRecorderEventType::SessionBudgetWarning => {
++                write!(f, "session.budget_warning")
++            }
+@@ -350,0 +364 @@ pub struct FlightRecorderEvent {
++    pub model_session_id: Option<String>,
+@@ -376,0 +391 @@ impl FlightRecorderEvent {
++            model_session_id: None,
+@@ -405,0 +421,5 @@ impl FlightRecorderEvent {
++    pub fn with_model_session_id(mut self, model_session_id: impl Into<String>) -> Self {
++        self.model_session_id = Some(model_session_id.into());
++        self
++    }
++
+@@ -816,0 +837,15 @@ impl FlightRecorderEvent {
++            FlightRecorderEventType::SessionCreated => {
++                validate_session_created_payload(&self.payload)
++            }
++            FlightRecorderEventType::SessionStateChange => {
++                validate_session_state_change_payload(&self.payload)
++            }
++            FlightRecorderEventType::SessionCompleted => {
++                validate_session_completed_payload(&self.payload)
++            }
++            FlightRecorderEventType::SessionMessage => {
++                validate_session_message_payload(&self.payload)
++            }
++            FlightRecorderEventType::SessionBudgetWarning => {
++                validate_session_budget_warning_payload(&self.payload)
++            }
+@@ -849,0 +885,15 @@ impl FlightRecorderEvent {
++        if let Some(ref model_session_id) = self.model_session_id {
++            self.model_session_id = Some(model_session_id.nfc().collect());
++        }
++        if let Some(ref activity_span_id) = self.activity_span_id {
++            self.activity_span_id = Some(activity_span_id.nfc().collect());
++        }
++        if let Some(ref session_span_id) = self.session_span_id {
++            self.session_span_id = Some(session_span_id.nfc().collect());
++        }
++        if let Some(ref capability_id) = self.capability_id {
++            self.capability_id = Some(capability_id.nfc().collect());
++        }
++        if let Some(ref policy_decision_id) = self.policy_decision_id {
++            self.policy_decision_id = Some(policy_decision_id.nfc().collect());
++        }
+@@ -853,0 +904,29 @@ impl FlightRecorderEvent {
++fn stable_span_token(prefix: &str, raw: &str) -> String {
++    let trimmed = raw.trim();
++    if !trimmed.is_empty() && is_safe_token(trimmed, 224) {
++        return format!("{prefix}:{trimmed}");
++    }
++
++    let mut hasher = Sha256::new();
++    hasher.update(trimmed.as_bytes());
++    let digest = hasher.finalize();
++    let hex = digest
++        .iter()
++        .take(16)
++        .map(|byte| format!("{byte:02x}"))
++        .collect::<String>();
++    format!("{prefix}:{hex}")
++}
++
++pub fn model_session_span_id(session_id: &str) -> String {
++    stable_span_token("span.session", session_id)
++}
++
++pub fn model_run_activity_span_id(job_id: &str) -> String {
++    stable_span_token("span.activity.model_run", job_id)
++}
++
++pub fn tool_call_activity_span_id(tool_call_id: &str) -> String {
++    stable_span_token("span.activity.tool_call", tool_call_id)
++}
++
+@@ -3990 +4069,4 @@ fn require_scheduler_lane(map: &Map<String, Value>, key: &str) -> Result<(), Rec
+-fn require_scheduler_retry_backoff(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
++fn require_scheduler_retry_backoff(
++    map: &Map<String, Value>,
++    key: &str,
++) -> Result<(), RecorderError> {
+@@ -4006,0 +4089,141 @@ fn require_scheduler_retry_backoff(map: &Map<String, Value>, key: &str) -> Resul
++fn validate_session_lifecycle_common_payload(
++    map: &Map<String, Value>,
++    expected_type: &str,
++    expected_event_id: &str,
++    required: &[&str],
++) -> Result<(), RecorderError> {
++    require_allowed_keys(map, required, &[])?;
++    require_fixed_string(map, "type", expected_type)?;
++    require_fixed_string(map, "event_id", expected_event_id)?;
++    require_string(map, "session_id")?;
++    ensure_no_inline_content_fields(map)?;
++    Ok(())
++}
++
++fn validate_session_created_payload(payload: &Value) -> Result<(), RecorderError> {
++    let map = payload_object(payload)?;
++    validate_session_lifecycle_common_payload(
++        map,
++        "session.created",
++        "FR-EVT-SESS-001",
++        &[
++            "type",
++            "event_id",
++            "session_id",
++            "model_id",
++            "backend",
++            "role",
++            "wp_id",
++            "mt_id",
++            "memory_policy",
++            "spawn_depth",
++        ],
++    )?;
++    require_string(map, "model_id")?;
++    require_string(map, "backend")?;
++    require_string(map, "role")?;
++    require_string(map, "wp_id")?;
++    require_string(map, "mt_id")?;
++    match require_key(map, "memory_policy")? {
++        Value::String(value)
++            if matches!(
++                value.as_str(),
++                "EPHEMERAL" | "SESSION_SCOPED" | "WORKSPACE_SCOPED"
++            ) => {}
++        _ => return Err(RecorderError::InvalidEvent(
++            "payload field memory_policy must be EPHEMERAL, SESSION_SCOPED, or WORKSPACE_SCOPED"
++                .to_string(),
++        )),
++    }
++    require_non_negative_integer(map, "spawn_depth")?;
++    Ok(())
++}
++
++fn validate_session_state_change_payload(payload: &Value) -> Result<(), RecorderError> {
++    let map = payload_object(payload)?;
++    validate_session_lifecycle_common_payload(
++        map,
++        "session.state_change",
++        "FR-EVT-SESS-002",
++        &[
++            "type",
++            "event_id",
++            "session_id",
++            "from_state",
++            "to_state",
++            "reason",
++        ],
++    )?;
++    require_string(map, "from_state")?;
++    require_string(map, "to_state")?;
++    require_string(map, "reason")?;
++    Ok(())
++}
++
++fn validate_session_completed_payload(payload: &Value) -> Result<(), RecorderError> {
++    let map = payload_object(payload)?;
++    validate_session_lifecycle_common_payload(
++        map,
++        "session.completed",
++        "FR-EVT-SESS-003",
++        &[
++            "type",
++            "event_id",
++            "session_id",
++            "total_tokens",
++            "total_cost_usd",
++            "duration_ms",
++            "messages_count",
++        ],
++    )?;
++    require_non_negative_integer(map, "total_tokens")?;
++    require_number(map, "total_cost_usd")?;
++    require_non_negative_integer(map, "duration_ms")?;
++    require_non_negative_integer(map, "messages_count")?;
++    Ok(())
++}
++
++fn validate_session_message_payload(payload: &Value) -> Result<(), RecorderError> {
++    let map = payload_object(payload)?;
++    validate_session_lifecycle_common_payload(
++        map,
++        "session.message",
++        "FR-EVT-SESS-004",
++        &[
++            "type",
++            "event_id",
++            "session_id",
++            "message_id",
++            "role",
++            "content_hash",
++            "token_count",
++        ],
++    )?;
++    require_string(map, "message_id")?;
++    require_string(map, "role")?;
++    require_sha256_hex(map, "content_hash")?;
++    require_non_negative_integer(map, "token_count")?;
++    Ok(())
++}
++
++fn validate_session_budget_warning_payload(payload: &Value) -> Result<(), RecorderError> {
++    let map = payload_object(payload)?;
++    validate_session_lifecycle_common_payload(
++        map,
++        "session.budget_warning",
++        "FR-EVT-SESS-005",
++        &[
++            "type",
++            "event_id",
++            "session_id",
++            "budget_type",
++            "current_value",
++            "threshold_value",
++        ],
++    )?;
++    require_string(map, "budget_type")?;
++    require_number(map, "current_value")?;
++    require_number(map, "threshold_value")?;
++    Ok(())
++}
++
+@@ -5179,0 +5403 @@ pub struct EventFilter {
++    pub model_session_id: Option<String>,
+@@ -5561,0 +5786,180 @@ mod tests {
++    #[test]
++    fn session_lifecycle_event_payloads_are_validated() {
++        let trace_id = Uuid::new_v4();
++
++        let valid_payloads = vec![
++            (
++                FlightRecorderEventType::SessionCreated,
++                json!({
++                    "type": "session.created",
++                    "event_id": "FR-EVT-SESS-001",
++                    "session_id": "sess-1",
++                    "model_id": "model-session-test",
++                    "backend": "local-test",
++                    "role": "assistant",
++                    "wp_id": "WP-1",
++                    "mt_id": "MT-001",
++                    "memory_policy": "EPHEMERAL",
++                    "spawn_depth": 0
++                }),
++            ),
++            (
++                FlightRecorderEventType::SessionStateChange,
++                json!({
++                    "type": "session.state_change",
++                    "event_id": "FR-EVT-SESS-002",
++                    "session_id": "sess-2",
++                    "from_state": "queued",
++                    "to_state": "running",
++                    "reason": "scheduler_dispatch"
++                }),
++            ),
++            (
++                FlightRecorderEventType::SessionCompleted,
++                json!({
++                    "type": "session.completed",
++                    "event_id": "FR-EVT-SESS-003",
++                    "session_id": "sess-3",
++                    "total_tokens": 15,
++                    "total_cost_usd": 0.25,
++                    "duration_ms": 1200,
++                    "messages_count": 2
++                }),
++            ),
++            (
++                FlightRecorderEventType::SessionMessage,
++                json!({
++                    "type": "session.message",
++                    "event_id": "FR-EVT-SESS-004",
++                    "session_id": "sess-4",
++                    "message_id": "msg-1",
++                    "role": "assistant",
++                    "content_hash": DUMMY_SHA256,
++                    "token_count": 5
++                }),
++            ),
++            (
++                FlightRecorderEventType::SessionBudgetWarning,
++                json!({
++                    "type": "session.budget_warning",
++                    "event_id": "FR-EVT-SESS-005",
++                    "session_id": "sess-5",
++                    "budget_type": "token_limit",
++                    "current_value": 95.0,
++                    "threshold_value": 100.0
++                }),
++            ),
++        ];
++
++        for (event_type, payload) in valid_payloads {
++            let event = FlightRecorderEvent::new(
++                event_type.clone(),
++                FlightRecorderActor::Agent,
++                trace_id,
++                payload,
++            );
++            assert!(
++                event.validate().is_ok(),
++                "expected {} payload to validate",
++                event_type
++            );
++        }
++
++        let invalid_created = FlightRecorderEvent::new(
++            FlightRecorderEventType::SessionCreated,
++            FlightRecorderActor::Agent,
++            trace_id,
++            json!({
++                "type": "session.created",
++                "event_id": "FR-EVT-SESS-001",
++                "session_id": "sess-bad-created",
++                "model_id": "model-session-test",
++                "backend": "local-test",
++                "role": "assistant",
++                "wp_id": "WP-1",
++                "mt_id": "MT-001",
++                "memory_policy": "INVALID",
++                "spawn_depth": 0
++            }),
++        );
++        assert!(matches!(
++            invalid_created.validate(),
++            Err(RecorderError::InvalidEvent(_))
++        ));
++
++        let invalid_state_change = FlightRecorderEvent::new(
++            FlightRecorderEventType::SessionStateChange,
++            FlightRecorderActor::Agent,
++            trace_id,
++            json!({
++                "type": "session.state_change",
++                "event_id": "FR-EVT-SESS-002",
++                "session_id": "sess-bad-state",
++                "from_state": "queued",
++                "to_state": "running",
++                "reason": "scheduler_dispatch",
++                "extra": true
++            }),
++        );
++        assert!(matches!(
++            invalid_state_change.validate(),
++            Err(RecorderError::InvalidEvent(_))
++        ));
++
++        let invalid_completed = FlightRecorderEvent::new(
++            FlightRecorderEventType::SessionCompleted,
++            FlightRecorderActor::Agent,
++            trace_id,
++            json!({
++                "type": "session.completed",
++                "event_id": "FR-EVT-SESS-003",
++                "session_id": "sess-bad-completed",
++                "total_tokens": -1,
++                "total_cost_usd": 0.25,
++                "duration_ms": 1200,
++                "messages_count": 2
++            }),
++        );
++        assert!(matches!(
++            invalid_completed.validate(),
++            Err(RecorderError::InvalidEvent(_))
++        ));
++
++        let invalid_message = FlightRecorderEvent::new(
++            FlightRecorderEventType::SessionMessage,
++            FlightRecorderActor::Agent,
++            trace_id,
++            json!({
++                "type": "session.message",
++                "event_id": "FR-EVT-SESS-004",
++                "session_id": "sess-bad-message",
++                "message_id": "msg-2",
++                "role": "assistant",
++                "content_hash": "not-a-sha",
++                "token_count": 5
++            }),
++        );
++        assert!(matches!(
++            invalid_message.validate(),
++            Err(RecorderError::InvalidEvent(_))
++        ));
++
++        let invalid_budget_warning = FlightRecorderEvent::new(
++            FlightRecorderEventType::SessionBudgetWarning,
++            FlightRecorderActor::Agent,
++            trace_id,
++            json!({
++                "type": "session.budget_warning",
++                "event_id": "FR-EVT-SESS-005",
++                "session_id": "sess-bad-budget",
++                "budget_type": "token_limit",
++                "current_value": "95",
++                "threshold_value": 100.0
++            }),
++        );
++        assert!(matches!(
++            invalid_budget_warning.validate(),
++            Err(RecorderError::InvalidEvent(_))
++        ));
++    }
++
+diff --git a/src/backend/handshake_core/src/mcp/gate.rs b/src/backend/handshake_core/src/mcp/gate.rs
+index f286f612..ba5c842a 100644
+--- a/src/backend/handshake_core/src/mcp/gate.rs
++++ b/src/backend/handshake_core/src/mcp/gate.rs
+@@ -17 +17,2 @@ use crate::flight_recorder::{
+-    canonical_json_sha256_hex, FlightRecorder, FlightRecorderActor, FlightRecorderEvent,
++    canonical_json_sha256_hex, model_run_activity_span_id, model_session_span_id,
++    tool_call_activity_span_id, FlightRecorder, FlightRecorderActor, FlightRecorderEvent,
+@@ -23,3 +24 @@ use super::client::{JsonRpcMcpClient, McpDispatcher, PendingMeta};
+-use super::discovery::{
+-    McpResourceDescriptor, McpToolDescriptor, ResourcesListResult,
+-};
++use super::discovery::{McpResourceDescriptor, McpToolDescriptor, ResourcesListResult};
+@@ -273 +272,3 @@ fn strip_ref_scheme(uri: &str) -> McpResult<&str> {
+-            return Err(McpError::SecurityViolation("ref uri path is empty".to_string()));
++            return Err(McpError::SecurityViolation(
++                "ref uri path is empty".to_string(),
++            ));
+@@ -302 +303,3 @@ fn json_encoded_len(value: &Value) -> usize {
+-    serde_json::to_vec(value).map(|bytes| bytes.len()).unwrap_or(usize::MAX)
++    serde_json::to_vec(value)
++        .map(|bytes| bytes.len())
++        .unwrap_or(usize::MAX)
+@@ -325,0 +329,45 @@ fn default_actor_payload() -> Value {
++fn tool_call_event_with_context(
++    ctx: &McpContext,
++    tool_call_id: Uuid,
++    mut payload: Value,
++) -> FlightRecorderEvent {
++    let tool_call_id_raw = tool_call_id.to_string();
++    let tool_activity_span_id = tool_call_activity_span_id(tool_call_id_raw.as_str());
++    let parent_span_id = ctx.job_id.map(|job_id| {
++        let job_id = job_id.to_string();
++        model_run_activity_span_id(job_id.as_str())
++    });
++
++    if let (Some(parent_span_id), Some(map)) = (parent_span_id.as_ref(), payload.as_object_mut()) {
++        map.entry("parent_span_id".to_string())
++            .or_insert_with(|| Value::String(parent_span_id.clone()));
++    }
++
++    let mut event = FlightRecorderEvent::new(
++        FlightRecorderEventType::ToolCall,
++        FlightRecorderActor::Agent,
++        ctx.trace_id,
++        payload,
++    )
++    .with_activity_span(tool_activity_span_id);
++
++    if let Some(job_id) = ctx.job_id {
++        event = event.with_job_id(job_id.to_string());
++    }
++    if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
++        event = event.with_workflow_id(workflow_run_id.to_string());
++    }
++    if let Some(session_id) = ctx
++        .session_id
++        .as_deref()
++        .map(str::trim)
++        .filter(|value| !value.is_empty())
++    {
++        event = event
++            .with_model_session_id(session_id.to_string())
++            .with_session_span(model_session_span_id(session_id));
++    }
++
++    event
++}
++
+@@ -585,3 +633,5 @@ impl GatedMcpClient {
+-        let mut matches = self.gate.tool_registry.iter().filter(|entry| {
+-            entry.transport_bindings.mcp_name == tool_id_or_alias
+-        });
++        let mut matches = self
++            .gate
++            .tool_registry
++            .iter()
++            .filter(|entry| entry.transport_bindings.mcp_name == tool_id_or_alias);
+@@ -699,4 +749,5 @@ impl GatedMcpClient {
+-        let (registry_entry, registry_error) = match self.resolve_tool_registry_entry(tool_id_or_alias) {
+-            Ok(entry) => (Some(entry), None),
+-            Err(err) => (None, Some(err)),
+-        };
++        let (registry_entry, registry_error) =
++            match self.resolve_tool_registry_entry(tool_id_or_alias) {
++                Ok(entry) => (Some(entry), None),
++                Err(err) => (None, Some(err)),
++            };
+@@ -747,5 +798,2 @@ impl GatedMcpClient {
+-        let (args_redacted, args_redaction_logs) = redactor.redact_value(
+-            &arguments,
+-            RedactionMode::SafeDefault,
+-            "tool_gate/mcp/args",
+-        );
++        let (args_redacted, args_redaction_logs) =
++            redactor.redact_value(&arguments, RedactionMode::SafeDefault, "tool_gate/mcp/args");
+@@ -753 +801,2 @@ impl GatedMcpClient {
+-        let (args_handle, args_hash) = if let Some(conn) = self.flight_recorder.duckdb_connection() {
++        let (args_handle, args_hash) = if let Some(conn) = self.flight_recorder.duckdb_connection()
++        {
+@@ -760 +809,2 @@ impl GatedMcpClient {
+-            let artifact_path = format!("data/flight_recorder/tool_payloads/{tool_call_id}/args.json");
++            let artifact_path =
++                format!("data/flight_recorder/tool_payloads/{tool_call_id}/args.json");
+@@ -851 +901,3 @@ impl GatedMcpClient {
+-                details: format!("{HTC_VALIDATION_ERROR_CODE}: request envelope invalid\n{details}"),
++                details: format!(
++                    "{HTC_VALIDATION_ERROR_CODE}: request envelope invalid\n{details}"
++                ),
+@@ -923,4 +975,2 @@ impl GatedMcpClient {
+-                let err = McpError::CapabilityDenied(format!(
+-                    "tool not in allowed_tools: {}",
+-                    tool_id
+-                ));
++                let err =
++                    McpError::CapabilityDenied(format!("tool not in allowed_tools: {}", tool_id));
+@@ -1205,12 +1255 @@ impl GatedMcpClient {
+-                let mut event = FlightRecorderEvent::new(
+-                    FlightRecorderEventType::ToolCall,
+-                    FlightRecorderActor::Agent,
+-                    ctx.trace_id,
+-                    payload,
+-                );
+-                if let Some(job_id) = ctx.job_id {
+-                    event = event.with_job_id(job_id.to_string());
+-                }
+-                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+-                    event = event.with_workflow_id(workflow_run_id.to_string());
+-                }
++                let event = tool_call_event_with_context(&ctx, tool_call_id, payload);
+@@ -1559 +1598,5 @@ impl GatedMcpClient {
+-            Some(id) => self
++            Some(id) => {
++                self.inner
++                    .send_request_with_id(id, "tools/call", Some(params), Some(meta))?
++            }
++            None => self
+@@ -1561,2 +1604 @@ impl GatedMcpClient {
+-                .send_request_with_id(id, "tools/call", Some(params), Some(meta))?,
+-            None => self.inner.send_request("tools/call", Some(params), Some(meta))?,
++                .send_request("tools/call", Some(params), Some(meta))?,
+@@ -1684,15 +1726,16 @@ impl GatedMcpClient {
+-                let (result_handle, result_hash) =
+-                    if let Some(conn) = self.flight_recorder.duckdb_connection() {
+-                        let conn = conn.lock().map_err(|_| {
+-                            McpError::FlightRecorder("duckdb connection lock error".to_string())
+-                        })?;
+-                        store_tool_payload_redacted(&conn, tool_call_id, "result", &result_redacted)
+-                            .map_err(|e| McpError::FlightRecorder(e.to_string()))?
+-                    } else {
+-                        let artifact_path =
+-                            format!("data/flight_recorder/tool_payloads/{tool_call_id}/result.json");
+-                        (
+-                            ArtifactHandle::new(tool_call_id, artifact_path),
+-                            canonical_json_sha256_hex(&result_redacted),
+-                        )
+-                    };
++                let (result_handle, result_hash) = if let Some(conn) =
++                    self.flight_recorder.duckdb_connection()
++                {
++                    let conn = conn.lock().map_err(|_| {
++                        McpError::FlightRecorder("duckdb connection lock error".to_string())
++                    })?;
++                    store_tool_payload_redacted(&conn, tool_call_id, "result", &result_redacted)
++                        .map_err(|e| McpError::FlightRecorder(e.to_string()))?
++                } else {
++                    let artifact_path =
++                        format!("data/flight_recorder/tool_payloads/{tool_call_id}/result.json");
++                    (
++                        ArtifactHandle::new(tool_call_id, artifact_path),
++                        canonical_json_sha256_hex(&result_redacted),
++                    )
++                };
+@@ -1720 +1763,3 @@ impl GatedMcpClient {
+-                        details: format!("{HTC_VALIDATION_ERROR_CODE}: response envelope invalid\n{e}"),
++                        details: format!(
++                            "{HTC_VALIDATION_ERROR_CODE}: response envelope invalid\n{e}"
++                        ),
+@@ -1759,12 +1804 @@ impl GatedMcpClient {
+-                let mut event = FlightRecorderEvent::new(
+-                    FlightRecorderEventType::ToolCall,
+-                    FlightRecorderActor::Agent,
+-                    ctx.trace_id,
+-                    payload,
+-                );
+-                if let Some(job_id) = ctx.job_id {
+-                    event = event.with_job_id(job_id.to_string());
+-                }
+-                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+-                    event = event.with_workflow_id(workflow_run_id.to_string());
+-                }
++                let event = tool_call_event_with_context(&ctx, tool_call_id, payload);
+@@ -1835,12 +1869 @@ impl GatedMcpClient {
+-                let mut event = FlightRecorderEvent::new(
+-                    FlightRecorderEventType::ToolCall,
+-                    FlightRecorderActor::Agent,
+-                    ctx.trace_id,
+-                    payload,
+-                );
+-                if let Some(job_id) = ctx.job_id {
+-                    event = event.with_job_id(job_id.to_string());
+-                }
+-                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+-                    event = event.with_workflow_id(workflow_run_id.to_string());
+-                }
++                let event = tool_call_event_with_context(&ctx, tool_call_id, payload);
+@@ -1870 +1893,4 @@ impl GatedMcpClient {
+-            McpError::Protocol(format!("failed to read ref uri target {}: {e}", canonical.display()))
++            McpError::Protocol(format!(
++                "failed to read ref uri target {}: {e}",
++                canonical.display()
++            ))
+diff --git a/src/backend/handshake_core/src/workflows.rs b/src/backend/handshake_core/src/workflows.rs
+index 96df6d06..c53b83bb 100644
+--- a/src/backend/handshake_core/src/workflows.rs
++++ b/src/backend/handshake_core/src/workflows.rs
+@@ -28 +28,2 @@ use crate::{
+-        EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
++        model_run_activity_span_id, model_session_span_id, tool_call_activity_span_id, EventFilter,
++        FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+@@ -51 +52 @@ use crate::{
+-        SessionMessageRole, StorageError,
++        SessionMessage, SessionMessageRole, StorageError,
+@@ -2113,0 +2115,208 @@ async fn record_event_required(
++fn model_run_activity_span(job_id: Uuid) -> String {
++    let job_id = job_id.to_string();
++    model_run_activity_span_id(job_id.as_str())
++}
++
++fn bind_model_session_event(
++    mut event: FlightRecorderEvent,
++    session_id: &str,
++    activity_span_id: Option<&str>,
++) -> FlightRecorderEvent {
++    event = event
++        .with_model_session_id(session_id.to_string())
++        .with_session_span(model_session_span_id(session_id));
++    if let Some(activity_span_id) = activity_span_id {
++        event = event.with_activity_span(activity_span_id.to_string());
++    }
++    event
++}
++
++async fn emit_session_created_event(
++    state: &AppState,
++    trace_id: Uuid,
++    job_id: Uuid,
++    metadata: &ModelRunMetadata,
++) -> Result<(), WorkflowError> {
++    let payload = json!({
++        "type": "session.created",
++        "event_id": "FR-EVT-SESS-001",
++        "session_id": metadata.session_id,
++        "model_id": metadata.model_id,
++        "backend": metadata.backend,
++        "role": metadata.role,
++        "wp_id": metadata
++            .wp_id
++            .clone()
++            .unwrap_or_else(|| "WP-UNSPECIFIED".to_string()),
++        "mt_id": metadata
++            .mt_id
++            .clone()
++            .unwrap_or_else(|| "MT-UNSPECIFIED".to_string()),
++        "memory_policy": metadata.memory_policy,
++        "spawn_depth": metadata.spawn_depth,
++    });
++    record_event_required(
++        state,
++        bind_model_session_event(
++            FlightRecorderEvent::new(
++                FlightRecorderEventType::SessionCreated,
++                FlightRecorderActor::System,
++                trace_id,
++                payload,
++            ),
++            metadata.session_id.as_str(),
++            None,
++        )
++        .with_job_id(job_id.to_string()),
++    )
++    .await
++}
++
++async fn emit_session_state_change_event(
++    state: &AppState,
++    trace_id: Uuid,
++    job_id: Uuid,
++    session_id: &str,
++    from_state: &ModelSessionState,
++    to_state: &ModelSessionState,
++    reason: &str,
++) -> Result<(), WorkflowError> {
++    let payload = json!({
++        "type": "session.state_change",
++        "event_id": "FR-EVT-SESS-002",
++        "session_id": session_id,
++        "from_state": from_state.as_str(),
++        "to_state": to_state.as_str(),
++        "reason": reason,
++    });
++    let activity_span = model_run_activity_span(job_id);
++    record_event_required(
++        state,
++        bind_model_session_event(
++            FlightRecorderEvent::new(
++                FlightRecorderEventType::SessionStateChange,
++                FlightRecorderActor::System,
++                trace_id,
++                payload,
++            )
++            .with_job_id(job_id.to_string()),
++            session_id,
++            Some(activity_span.as_str()),
++        ),
++    )
++    .await
++}
++
++async fn emit_session_message_event(
++    state: &AppState,
++    trace_id: Uuid,
++    job_id: Uuid,
++    session_id: &str,
++    message: &SessionMessage,
++) -> Result<(), WorkflowError> {
++    let payload = json!({
++        "type": "session.message",
++        "event_id": "FR-EVT-SESS-004",
++        "session_id": session_id,
++        "message_id": message.message_id,
++        "role": message.role.as_str(),
++        "content_hash": message.content_hash,
++        "token_count": message.token_count.unwrap_or(0).max(0),
++    });
++    let activity_span = message
++        .tool_call_id
++        .as_deref()
++        .map(tool_call_activity_span_id)
++        .unwrap_or_else(|| model_run_activity_span(job_id));
++    record_event_required(
++        state,
++        bind_model_session_event(
++            FlightRecorderEvent::new(
++                FlightRecorderEventType::SessionMessage,
++                FlightRecorderActor::Agent,
++                trace_id,
++                payload,
++            )
++            .with_job_id(job_id.to_string()),
++            session_id,
++            Some(activity_span.as_str()),
++        ),
++    )
++    .await
++}
++
++async fn emit_session_completed_event(
++    state: &AppState,
++    trace_id: Uuid,
++    job_id: Uuid,
++    session: &ModelSession,
++    total_tokens: u64,
++    total_cost_usd: f64,
++    messages_count: u64,
++) -> Result<(), WorkflowError> {
++    let duration_ms = session
++        .updated_at
++        .signed_duration_since(session.created_at)
++        .num_milliseconds()
++        .max(0) as u64;
++    let payload = json!({
++        "type": "session.completed",
++        "event_id": "FR-EVT-SESS-003",
++        "session_id": session.session_id,
++        "total_tokens": total_tokens,
++        "total_cost_usd": total_cost_usd,
++        "duration_ms": duration_ms,
++        "messages_count": messages_count,
++    });
++    let activity_span = model_run_activity_span(job_id);
++    record_event_required(
++        state,
++        bind_model_session_event(
++            FlightRecorderEvent::new(
++                FlightRecorderEventType::SessionCompleted,
++                FlightRecorderActor::System,
++                trace_id,
++                payload,
++            )
++            .with_job_id(job_id.to_string()),
++            session.session_id.as_str(),
++            Some(activity_span.as_str()),
++        ),
++    )
++    .await
++}
++
++async fn emit_session_budget_warning_event(
++    state: &AppState,
++    trace_id: Uuid,
++    job_id: Uuid,
++    session_id: &str,
++    current_value: f64,
++    threshold_value: f64,
++) -> Result<(), WorkflowError> {
++    let payload = json!({
++        "type": "session.budget_warning",
++        "event_id": "FR-EVT-SESS-005",
++        "session_id": session_id,
++        "budget_type": "tokens.total",
++        "current_value": current_value,
++        "threshold_value": threshold_value,
++    });
++    let activity_span = model_run_activity_span(job_id);
++    record_event_required(
++        state,
++        bind_model_session_event(
++            FlightRecorderEvent::new(
++                FlightRecorderEventType::SessionBudgetWarning,
++                FlightRecorderActor::System,
++                trace_id,
++                payload,
++            )
++            .with_job_id(job_id.to_string()),
++            session_id,
++            Some(activity_span.as_str()),
++        ),
++    )
++    .await
++}
++
+@@ -5163,0 +5373 @@ async fn emit_session_scheduler_enqueue_event(
++    let activity_span = model_run_activity_span(job.job_id);
+@@ -5181,7 +5391,11 @@ async fn emit_session_scheduler_enqueue_event(
+-        FlightRecorderEvent::new(
+-            FlightRecorderEventType::SessionSchedulerEnqueue,
+-            FlightRecorderActor::System,
+-            trace_id,
+-            payload,
+-        )
+-        .with_job_id(job.job_id.to_string()),
++        bind_model_session_event(
++            FlightRecorderEvent::new(
++                FlightRecorderEventType::SessionSchedulerEnqueue,
++                FlightRecorderActor::System,
++                trace_id,
++                payload,
++            )
++            .with_job_id(job.job_id.to_string()),
++            metadata.session_id.as_str(),
++            Some(activity_span.as_str()),
++        ),
+@@ -5198,0 +5413 @@ async fn emit_session_scheduler_dispatch_event(
++    let activity_span = model_run_activity_span(job.job_id);
+@@ -5213,7 +5428,11 @@ async fn emit_session_scheduler_dispatch_event(
+-        FlightRecorderEvent::new(
+-            FlightRecorderEventType::SessionSchedulerDispatch,
+-            FlightRecorderActor::System,
+-            trace_id,
+-            payload,
+-        )
+-        .with_job_id(job.job_id.to_string()),
++        bind_model_session_event(
++            FlightRecorderEvent::new(
++                FlightRecorderEventType::SessionSchedulerDispatch,
++                FlightRecorderActor::System,
++                trace_id,
++                payload,
++            )
++            .with_job_id(job.job_id.to_string()),
++            metadata.session_id.as_str(),
++            Some(activity_span.as_str()),
++        ),
+@@ -5233,0 +5453 @@ async fn emit_session_scheduler_rate_limited_event(
++    let activity_span = model_run_activity_span(job.job_id);
+@@ -5251,7 +5471,11 @@ async fn emit_session_scheduler_rate_limited_event(
+-        FlightRecorderEvent::new(
+-            FlightRecorderEventType::SessionSchedulerRateLimited,
+-            FlightRecorderActor::System,
+-            trace_id,
+-            payload,
+-        )
+-        .with_job_id(job.job_id.to_string()),
++        bind_model_session_event(
++            FlightRecorderEvent::new(
++                FlightRecorderEventType::SessionSchedulerRateLimited,
++                FlightRecorderActor::System,
++                trace_id,
++                payload,
++            )
++            .with_job_id(job.job_id.to_string()),
++            metadata.session_id.as_str(),
++            Some(activity_span.as_str()),
++        ),
+@@ -5269,0 +5494 @@ async fn emit_session_scheduler_cancelled_event(
++    let activity_span = model_run_activity_span(job.job_id);
+@@ -5285,7 +5510,11 @@ async fn emit_session_scheduler_cancelled_event(
+-        FlightRecorderEvent::new(
+-            FlightRecorderEventType::SessionSchedulerCancelled,
+-            FlightRecorderActor::System,
+-            trace_id,
+-            payload,
+-        )
+-        .with_job_id(job.job_id.to_string()),
++        bind_model_session_event(
++            FlightRecorderEvent::new(
++                FlightRecorderEventType::SessionSchedulerCancelled,
++                FlightRecorderActor::System,
++                trace_id,
++                payload,
++            )
++            .with_job_id(job.job_id.to_string()),
++            metadata.session_id.as_str(),
++            Some(activity_span.as_str()),
++        ),
+@@ -5300,0 +5530,5 @@ async fn ensure_model_session_artifact_refs(
++    let session_was_missing = state
++        .storage
++        .get_model_session(metadata.session_id.as_str())
++        .await
++        .is_err();
+@@ -5323,0 +5558,3 @@ async fn ensure_model_session_artifact_refs(
++    if session_was_missing {
++        emit_session_created_event(state, derive_trace_id(job, None), job.job_id, metadata).await?;
++    }
+@@ -5372 +5609 @@ async fn ensure_model_session_artifact_refs(
+-        state
++        let message = state
+@@ -5385,0 +5623,8 @@ async fn ensure_model_session_artifact_refs(
++        emit_session_message_event(
++            state,
++            derive_trace_id(job, None),
++            job.job_id,
++            metadata.session_id.as_str(),
++            &message,
++        )
++        .await?;
+@@ -5613,0 +5859,4 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
++    let previous_session = state
++        .storage
++        .get_model_session(metadata.session_id.as_str())
++        .await?;
+@@ -5622,0 +5872,12 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
++    if previous_session.state != ModelSessionState::Active {
++        emit_session_state_change_event(
++            state,
++            trace_id,
++            job.job_id,
++            metadata.session_id.as_str(),
++            &previous_session.state,
++            &ModelSessionState::Active,
++            "dispatch_started",
++        )
++        .await?;
++    }
+@@ -6037 +6298 @@ async fn run_model_run_job(
+-    state
++    let assistant_message = state
+@@ -6050,0 +6312,31 @@ async fn run_model_run_job(
++    emit_session_message_event(
++        state,
++        trace_id,
++        job.job_id,
++        metadata.session_id.as_str(),
++        &assistant_message,
++    )
++    .await?;
++    let session_total_tokens = state
++        .storage
++        .list_session_messages(metadata.session_id.as_str())
++        .await?
++        .iter()
++        .fold(0_u64, |acc, message| {
++            acc.saturating_add(message.token_count.unwrap_or(0).max(0) as u64)
++        });
++    if let Some(max_tokens_budget) = metadata.max_tokens_budget {
++        let current_tokens = session_total_tokens as f64;
++        let threshold = max_tokens_budget.max(0) as f64;
++        if threshold > 0.0 && current_tokens >= threshold {
++            emit_session_budget_warning_event(
++                state,
++                trace_id,
++                job.job_id,
++                metadata.session_id.as_str(),
++                current_tokens,
++                threshold,
++            )
++            .await?;
++        }
++    }
+@@ -6098,0 +6391,4 @@ async fn finalize_model_run_after_terminal(
++    let previous_session = state
++        .storage
++        .get_model_session(metadata.session_id.as_str())
++        .await?;
+@@ -6103 +6399 @@ async fn finalize_model_run_after_terminal(
+-            session_state,
++            session_state.clone(),
+@@ -6107 +6403,35 @@ async fn finalize_model_run_after_terminal(
+-    state.session_registry.upsert_session(session).await;
++    state.session_registry.upsert_session(session.clone()).await;
++    if previous_session.state != session_state {
++        emit_session_state_change_event(
++            state,
++            trace_id,
++            job.job_id,
++            metadata.session_id.as_str(),
++            &previous_session.state,
++            &session_state,
++            status_reason,
++        )
++        .await?;
++    }
++    if matches!(
++        final_status,
++        JobState::Completed | JobState::CompletedWithIssues
++    ) {
++        let messages = state
++            .storage
++            .list_session_messages(metadata.session_id.as_str())
++            .await?;
++        let total_tokens = messages.iter().fold(0_u64, |acc, message| {
++            acc.saturating_add(message.token_count.unwrap_or(0).max(0) as u64)
++        });
++        emit_session_completed_event(
++            state,
++            trace_id,
++            job.job_id,
++            &session,
++            total_tokens,
++            metadata.estimated_cost_usd.unwrap_or(0.0),
++            messages.len() as u64,
++        )
++        .await?;
++    }
+@@ -6113,0 +6444 @@ async fn finalize_model_run_after_terminal(
++                model_session_id: None,
+@@ -6187,0 +6519,5 @@ pub async fn cancel_model_run_job(
++    let previous_session = state
++        .storage
++        .get_model_session(metadata.session_id.as_str())
++        .await
++        .ok();
+@@ -6190 +6526,5 @@ pub async fn cancel_model_run_job(
+-        .update_model_session_state(metadata.session_id.as_str(), session_state, Some(job_id))
++        .update_model_session_state(
++            metadata.session_id.as_str(),
++            session_state.clone(),
++            Some(job_id),
++        )
+@@ -6193,0 +6534,14 @@ pub async fn cancel_model_run_job(
++        if let Some(previous_session) = previous_session.as_ref() {
++            if previous_session.state != session_state {
++                emit_session_state_change_event(
++                    state,
++                    derive_trace_id(&job, None),
++                    job_id,
++                    metadata.session_id.as_str(),
++                    &previous_session.state,
++                    &session_state,
++                    reason.as_str(),
++                )
++                .await?;
++            }
++        }
+@@ -6525,0 +6880,5 @@ async fn run_and_finalize_workflow_job(
++    if matches!(job.job_kind, JobKind::ModelRun) {
++        finalize_model_run_after_terminal(&state, &job, &final_status, &status_reason, trace_id)
++            .await?;
++    }
++
+@@ -6545,5 +6903,0 @@ async fn run_and_finalize_workflow_job(
+-    if matches!(job.job_kind, JobKind::ModelRun) {
+-        finalize_model_run_after_terminal(&state, &job, &final_status, &status_reason, trace_id)
+-            .await?;
+-    }
+-
+diff --git a/src/backend/handshake_core/tests/model_session_scheduler_tests.rs b/src/backend/handshake_core/tests/model_session_scheduler_tests.rs
+index 7231ed7b..7e30cd7e 100644
+--- a/src/backend/handshake_core/tests/model_session_scheduler_tests.rs
++++ b/src/backend/handshake_core/tests/model_session_scheduler_tests.rs
+@@ -19,0 +20,6 @@ use handshake_core::llm::{
++use handshake_core::mcp::gate::{
++    canonical_mcp_tool_id, ConsentDecision, ConsentProvider, GateConfig, GatedMcpClient,
++    McpContext, ToolPolicy, ToolRegistryEntry, ToolTransportBindings,
++};
++use handshake_core::mcp::jsonrpc::{JsonRpcMessage, JsonRpcResponse};
++use handshake_core::mcp::transport::duplex::DuplexTransport;
+@@ -29,0 +36 @@ use serde_json::{json, Value};
++use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter, DuplexStream};
+@@ -62,0 +70,15 @@ impl LlmClient for EchoLlmClient {
++struct AllowAllConsent;
++
++#[async_trait]
++impl ConsentProvider for AllowAllConsent {
++    async fn request_consent(
++        &self,
++        _ctx: &McpContext,
++        _server_id: &str,
++        _tool_name: &str,
++        _capability_id: Option<&str>,
++    ) -> ConsentDecision {
++        ConsentDecision::Allow
++    }
++}
++
+@@ -96 +118,6 @@ fn is_terminal_state(state: &JobState) -> bool {
+-async fn wait_for_state(state: &AppState, job_id: Uuid, target: JobState, timeout_ms: u64) -> AiJob {
++async fn wait_for_state(
++    state: &AppState,
++    job_id: Uuid,
++    target: JobState,
++    timeout_ms: u64,
++) -> AiJob {
+@@ -161,0 +189,114 @@ async fn create_model_run_job(
++async fn write_jsonrpc_message(
++    writer: &mut BufWriter<tokio::io::WriteHalf<DuplexStream>>,
++    msg: &JsonRpcMessage,
++) {
++    let line = serde_json::to_string(msg).expect("serialize jsonrpc");
++    writer.write_all(line.as_bytes()).await.unwrap();
++    writer.write_all(b"\n").await.unwrap();
++    writer.flush().await.unwrap();
++}
++
++async fn run_echo_mcp_server(stream: DuplexStream) {
++    let (read_half, write_half) = tokio::io::split(stream);
++    let mut lines = BufReader::new(read_half).lines();
++    let mut writer = BufWriter::new(write_half);
++
++    while let Ok(Some(line)) = lines.next_line().await {
++        let msg: JsonRpcMessage = serde_json::from_str(&line).expect("parse jsonrpc");
++        match msg {
++            JsonRpcMessage::Request(req) => match req.method.as_str() {
++                "tools/list" => {
++                    let schema = json!({
++                        "type": "object",
++                        "properties": {
++                            "message": { "type": "string" }
++                        },
++                        "required": ["message"],
++                        "additionalProperties": false
++                    });
++                    let result = json!({
++                        "tools": [{
++                            "name": "echo",
++                            "description": "echo a string",
++                            "inputSchema": schema
++                        }]
++                    });
++                    write_jsonrpc_message(
++                        &mut writer,
++                        &JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)),
++                    )
++                    .await;
++                }
++                "resources/list" => {
++                    write_jsonrpc_message(
++                        &mut writer,
++                        &JsonRpcMessage::Response(JsonRpcResponse::ok(
++                            req.id,
++                            json!({ "resources": [] }),
++                        )),
++                    )
++                    .await;
++                }
++                "tools/call" => {
++                    let args = req
++                        .params
++                        .as_ref()
++                        .and_then(|value| value.get("arguments"))
++                        .cloned()
++                        .unwrap_or(Value::Null);
++                    let echoed = args
++                        .get("message")
++                        .and_then(Value::as_str)
++                        .unwrap_or("")
++                        .to_string();
++                    write_jsonrpc_message(
++                        &mut writer,
++                        &JsonRpcMessage::Response(JsonRpcResponse::ok(
++                            req.id,
++                            json!({ "echoed": echoed }),
++                        )),
++                    )
++                    .await;
++                }
++                _ => {
++                    write_jsonrpc_message(
++                        &mut writer,
++                        &JsonRpcMessage::Response(JsonRpcResponse::err(
++                            req.id,
++                            -32601,
++                            "method not found",
++                            None,
++                        )),
++                    )
++                    .await;
++                }
++            },
++            JsonRpcMessage::Notification(_) | JsonRpcMessage::Response(_) => {}
++        }
++    }
++}
++
++fn echo_tool_registry_entry(server_id: &str) -> ToolRegistryEntry {
++    ToolRegistryEntry {
++        tool_id: canonical_mcp_tool_id(server_id, "echo"),
++        tool_version: "1.0.0".to_string(),
++        input_schema: json!({
++            "type": "object",
++            "properties": {
++                "message": { "type": "string" }
++            },
++            "required": ["message"],
++            "additionalProperties": false
++        }),
++        output_schema: None,
++        side_effect: "READ".to_string(),
++        idempotency: "IDEMPOTENT".to_string(),
++        determinism: "DETERMINISTIC".to_string(),
++        availability: "AVAILABLE".to_string(),
++        required_capabilities: vec!["fs.read".to_string()],
++        transport_bindings: ToolTransportBindings {
++            mcp_name: "echo".to_string(),
++        },
++    }
++}
++
+@@ -274 +415,4 @@ async fn model_run_persists_session_and_artifact_first_messages(
+-    let session_by_job = state.storage.get_model_session_by_job_id(job.job_id).await?;
++    let session_by_job = state
++        .storage
++        .get_model_session_by_job_id(job.job_id)
++        .await?;
+@@ -277 +421,4 @@ async fn model_run_persists_session_and_artifact_first_messages(
+-    let messages = state.storage.list_session_messages(&session_by_job.session_id).await?;
++    let messages = state
++        .storage
++        .list_session_messages(&session_by_job.session_id)
++        .await?;
+@@ -307,6 +454,8 @@ async fn model_run_persists_session_and_artifact_first_messages(
+-    assert!(events
+-        .iter()
+-        .any(|e| matches!(e.event_type, FlightRecorderEventType::SessionSchedulerEnqueue)));
+-    assert!(events
+-        .iter()
+-        .any(|e| matches!(e.event_type, FlightRecorderEventType::SessionSchedulerDispatch)));
++    assert!(events.iter().any(|e| matches!(
++        e.event_type,
++        FlightRecorderEventType::SessionSchedulerEnqueue
++    )));
++    assert!(events.iter().any(|e| matches!(
++        e.event_type,
++        FlightRecorderEventType::SessionSchedulerDispatch
++    )));
+@@ -481 +630,2 @@ async fn trust002_partial_provenance_is_rejected() -> Result<(), Box<dyn std::er
+-        err.to_string().contains("cross-session routed session_messages"),
++        err.to_string()
++            .contains("cross-session routed session_messages"),
+@@ -489,2 +639 @@ async fn trust002_partial_provenance_is_rejected() -> Result<(), Box<dyn std::er
+-async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn std::error::Error>>
+-{
++async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn std::error::Error>> {
+@@ -540 +689,4 @@ async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn s
+-        matches!(event.event_type, FlightRecorderEventType::CloudEscalationDenied)
++        matches!(
++            event.event_type,
++            FlightRecorderEventType::CloudEscalationDenied
++        )
+@@ -557,2 +709,2 @@ async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn s
+-async fn model_run_cloud_consent_allows_with_valid_bundle(
+-) -> Result<(), Box<dyn std::error::Error>> {
++async fn model_run_cloud_consent_allows_with_valid_bundle() -> Result<(), Box<dyn std::error::Error>>
++{
+@@ -618 +770,4 @@ async fn model_run_cloud_consent_allows_with_valid_bundle(
+-        matches!(event.event_type, FlightRecorderEventType::CloudEscalationExecuted)
++        matches!(
++            event.event_type,
++            FlightRecorderEventType::CloudEscalationExecuted
++        )
+@@ -838 +993,4 @@ async fn model_run_cancellation_is_cooperative_and_cancelled_not_failed(
+-        cancelled_event.payload.get("reason").and_then(Value::as_str),
++        cancelled_event
++            .payload
++            .get("reason")
++            .and_then(Value::as_str),
+@@ -917,2 +1075,4 @@ async fn consent_revocation_cancels_pending_model_runs_and_blocks_sessions(
+-        matches!(event.event_type, FlightRecorderEventType::CloudEscalationDenied)
+-            && event.payload.get("reason").and_then(Value::as_str) == Some("consent_revoked")
++        matches!(
++            event.event_type,
++            FlightRecorderEventType::CloudEscalationDenied
++        ) && event.payload.get("reason").and_then(Value::as_str) == Some("consent_revoked")
+@@ -924,0 +1085,328 @@ async fn consent_revocation_cancels_pending_model_runs_and_blocks_sessions(
++#[tokio::test]
++async fn session_observability_spans_bind_model_runs_and_tool_calls(
++) -> Result<(), Box<dyn std::error::Error>> {
++    let state = setup_state().await?;
++    let session_id = format!("sess-{}", Uuid::new_v4());
++    let assistant_artifact = format!("artifact:{session_id}:assistant");
++
++    let job = create_model_run_job(
++        &state,
++        json!({
++            "session_id": session_id,
++            "lane": "PRIMARY",
++            "priority": 5,
++            "prompt": "span-test",
++            "model_id": "model-session-test",
++            "backend": "local-test",
++            "parameter_class": "default",
++            "role": "assistant",
++            "execution_mode": "STANDARD",
++            "memory_policy": "EPHEMERAL",
++            "capability_grants": ["fs.read"],
++            "assistant_content_artifact_id": assistant_artifact,
++            "estimated_cost_usd": 1.25,
++            "max_tokens_budget": 10,
++            "session_messages": [
++                {
++                    "message_id": format!("msg-{}", Uuid::new_v4()),
++                    "role": "USER",
++                    "content_hash": hex64('a'),
++                    "content_artifact_id": format!("artifact:{session_id}:user-1"),
++                    "token_count": 7
++                }
++            ]
++        }),
++    )
++    .await?;
++
++    let run = start_workflow_for_job(&state, job.clone()).await?;
++    assert!(matches!(run.status, JobState::Queued | JobState::Running));
++
++    let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
++    assert_eq!(final_job.state, JobState::Completed);
++
++    let workflow_run_id = final_job
++        .workflow_run_id
++        .expect("workflow_run_id")
++        .to_string();
++
++    let (client_stream, server_stream) = tokio::io::duplex(64 * 1024);
++    let server_id = "span-test-mcp";
++    tokio::spawn(run_echo_mcp_server(server_stream));
++
++    let transport = DuplexTransport::new(client_stream);
++    let mut gate = GateConfig::minimal();
++    let echo_entry = echo_tool_registry_entry(server_id);
++    let tool_id = echo_entry.tool_id.clone();
++    gate.tool_registry.push(echo_entry);
++    gate.tool_policies.insert(
++        tool_id.clone(),
++        ToolPolicy {
++            required_capability: Some("fs.read".to_string()),
++            requires_consent: false,
++            path_argument: None,
++        },
++    );
++
++    let client = GatedMcpClient::connect_with_db(
++        server_id,
++        transport,
++        Arc::clone(&state.flight_recorder),
++        Arc::clone(&state.capability_registry),
++        Arc::new(AllowAllConsent),
++        gate,
++        false,
++        Arc::clone(&state.storage),
++    )
++    .await?;
++
++    client.refresh_tools().await?;
++    let tool_result = client
++        .tools_call(
++            McpContext {
++                job_id: Some(job.job_id),
++                trace_id: final_job.trace_id,
++                session_id: Some(session_id.clone()),
++                task_id: Some("task-1".to_string()),
++                workflow_run_id: Some(workflow_run_id),
++                granted_capabilities: vec!["fs.read".to_string()],
++                access_mode: AccessMode::AnalysisOnly,
++                human_consent_obtained: false,
++                agentic_mode_enabled: false,
++                allowed_roots: Vec::new(),
++            },
++            tool_id.as_str(),
++            json!({ "message": "hi" }),
++        )
++        .await?;
++    assert_eq!(
++        tool_result.get("echoed").and_then(Value::as_str),
++        Some("hi")
++    );
++
++    let events = state
++        .flight_recorder
++        .list_events(EventFilter {
++            job_id: Some(job.job_id.to_string()),
++            model_session_id: Some(session_id.clone()),
++            ..Default::default()
++        })
++        .await?;
++
++    let session_created = events
++        .iter()
++        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionCreated))
++        .expect("session.created event");
++    assert_eq!(
++        session_created.model_session_id.as_deref(),
++        Some(session_id.as_str())
++    );
++    let session_span = session_created
++        .session_span_id
++        .clone()
++        .expect("session span id");
++    assert!(session_created.activity_span_id.is_none());
++
++    let scheduler_enqueue = events
++        .iter()
++        .find(|event| {
++            matches!(
++                event.event_type,
++                FlightRecorderEventType::SessionSchedulerEnqueue
++            )
++        })
++        .expect("session scheduler enqueue");
++    let scheduler_dispatch = events
++        .iter()
++        .find(|event| {
++            matches!(
++                event.event_type,
++                FlightRecorderEventType::SessionSchedulerDispatch
++            )
++        })
++        .expect("session scheduler dispatch");
++    let model_run_span = scheduler_dispatch
++        .activity_span_id
++        .clone()
++        .expect("model run activity span");
++    assert_eq!(
++        scheduler_enqueue.model_session_id.as_deref(),
++        Some(session_id.as_str())
++    );
++    assert_eq!(
++        scheduler_enqueue.session_span_id.as_deref(),
++        Some(session_span.as_str())
++    );
++    assert_eq!(
++        scheduler_enqueue.activity_span_id.as_deref(),
++        Some(model_run_span.as_str())
++    );
++    assert_eq!(
++        scheduler_dispatch.session_span_id.as_deref(),
++        Some(session_span.as_str())
++    );
++    assert_eq!(
++        scheduler_dispatch.activity_span_id.as_deref(),
++        Some(model_run_span.as_str())
++    );
++
++    let created_to_active = events
++        .iter()
++        .find(|event| {
++            matches!(
++                event.event_type,
++                FlightRecorderEventType::SessionStateChange
++            ) && event.payload.get("from_state").and_then(Value::as_str) == Some("CREATED")
++                && event.payload.get("to_state").and_then(Value::as_str) == Some("ACTIVE")
++        })
++        .expect("created->active state change");
++    let active_to_completed = events
++        .iter()
++        .find(|event| {
++            matches!(
++                event.event_type,
++                FlightRecorderEventType::SessionStateChange
++            ) && event.payload.get("from_state").and_then(Value::as_str) == Some("ACTIVE")
++                && event.payload.get("to_state").and_then(Value::as_str) == Some("COMPLETED")
++        })
++        .expect("active->completed state change");
++    for state_change in [created_to_active, active_to_completed] {
++        assert_eq!(
++            state_change.model_session_id.as_deref(),
++            Some(session_id.as_str())
++        );
++        assert_eq!(
++            state_change.session_span_id.as_deref(),
++            Some(session_span.as_str())
++        );
++        assert_eq!(
++            state_change.activity_span_id.as_deref(),
++            Some(model_run_span.as_str())
++        );
++    }
++
++    let session_messages: Vec<_> = events
++        .iter()
++        .filter(|event| matches!(event.event_type, FlightRecorderEventType::SessionMessage))
++        .collect();
++    assert_eq!(session_messages.len(), 2);
++    for message_event in session_messages {
++        assert_eq!(
++            message_event.model_session_id.as_deref(),
++            Some(session_id.as_str())
++        );
++        assert_eq!(
++            message_event.session_span_id.as_deref(),
++            Some(session_span.as_str())
++        );
++        assert_eq!(
++            message_event.activity_span_id.as_deref(),
++            Some(model_run_span.as_str())
++        );
++    }
++
++    let session_completed = events
++        .iter()
++        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionCompleted))
++        .expect("session completed event");
++    assert_eq!(
++        session_completed.model_session_id.as_deref(),
++        Some(session_id.as_str())
++    );
++    assert_eq!(
++        session_completed.session_span_id.as_deref(),
++        Some(session_span.as_str())
++    );
++    assert_eq!(
++        session_completed.activity_span_id.as_deref(),
++        Some(model_run_span.as_str())
++    );
++    assert_eq!(
++        session_completed
++            .payload
++            .get("total_tokens")
++            .and_then(Value::as_u64),
++        Some(22)
++    );
++    assert_eq!(
++        session_completed
++            .payload
++            .get("messages_count")
++            .and_then(Value::as_u64),
++        Some(2)
++    );
++    assert_eq!(
++        session_completed
++            .payload
++            .get("total_cost_usd")
++            .and_then(Value::as_f64),
++        Some(1.25)
++    );
++
++    let budget_warning = events
++        .iter()
++        .find(|event| {
++            matches!(
++                event.event_type,
++                FlightRecorderEventType::SessionBudgetWarning
++            )
++        })
++        .expect("session budget warning event");
++    assert_eq!(
++        budget_warning.model_session_id.as_deref(),
++        Some(session_id.as_str())
++    );
++    assert_eq!(
++        budget_warning.session_span_id.as_deref(),
++        Some(session_span.as_str())
++    );
++    assert_eq!(
++        budget_warning.activity_span_id.as_deref(),
++        Some(model_run_span.as_str())
++    );
++    assert_eq!(
++        budget_warning
++            .payload
++            .get("current_value")
++            .and_then(Value::as_f64),
++        Some(22.0)
++    );
++    assert_eq!(
++        budget_warning
++            .payload
++            .get("threshold_value")
++            .and_then(Value::as_f64),
++        Some(10.0)
++    );
++
++    let tool_call = events
++        .iter()
++        .find(|event| {
++            matches!(event.event_type, FlightRecorderEventType::ToolCall)
++                && event.payload.get("ok").and_then(Value::as_bool) == Some(true)
++        })
++        .expect("tool call event");
++    assert_eq!(
++        tool_call.model_session_id.as_deref(),
++        Some(session_id.as_str())
++    );
++    assert_eq!(
++        tool_call.session_span_id.as_deref(),
++        Some(session_span.as_str())
++    );
++    let tool_span = tool_call
++        .activity_span_id
++        .clone()
++        .expect("tool activity span");
++    assert_ne!(tool_span, model_run_span);
++    assert_eq!(
++        tool_call
++            .payload
++            .get("parent_span_id")
++            .and_then(Value::as_str),
++        Some(model_run_span.as_str())
++    );
++
++    Ok(())
++}
++
+@@ -1000,6 +1488,2 @@ fn session_scheduler_event_payloads_are_validated() {
+-        let event = FlightRecorderEvent::new(
+-            event_type,
+-            FlightRecorderActor::System,
+-            trace_id,
+-            payload,
+-        );
++        let event =
++            FlightRecorderEvent::new(event_type, FlightRecorderActor::System, trace_id, payload);

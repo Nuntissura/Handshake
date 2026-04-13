@@ -23,6 +23,9 @@ Use this when a normal orchestrator-managed WP is active and the coder needs to 
 ```bash
 just orchestrator-startup
 just orchestrator-prepare-and-packet WP-{ID}
+# Activation Manager is mandatory for orchestrator-managed pre-launch:
+just launch-activation-manager-session WP-{ID}
+# After truthful ACTIVATION_READINESS says READY_FOR_ORCHESTRATOR_REVIEW:
 just launch-coder-session WP-{ID}
 just launch-wp-validator-session WP-{ID}
 ```
@@ -33,8 +36,8 @@ Normal launch note:
 ### WP Validator opens the review lane
 
 ```bash
-just validator-startup
-just validator-next WP-{ID}
+just validator-startup WP_VALIDATOR
+just validator-next WP_VALIDATOR WP-{ID}
 just phase-check STARTUP WP-{ID} WP_VALIDATOR <wp_validator_session>
 just wp-validator-kickoff WP-{ID} <wp_validator_session> <coder_session> "Review scope and tripwires for WP-{ID}"
 just wp-communication-health-check WP-{ID} KICKOFF
@@ -81,13 +84,13 @@ just launch-integration-validator-session WP-{ID}
 ### Integration Validator resumes and opens the final review pair
 
 ```bash
-just validator-startup
-just validator-next WP-{ID}
+just validator-startup INTEGRATION_VALIDATOR
+just validator-next INTEGRATION_VALIDATOR WP-{ID}
 just phase-check STARTUP WP-{ID} INTEGRATION_VALIDATOR <intval_session>
 just wp-review-exchange REVIEW_REQUEST WP-{ID} INTEGRATION_VALIDATOR <intval_session> CODER <coder_session> "Final merge-readiness review request" "" "<spec_anchor>" "<packet_row_ref>"
 ```
 
-### Coder responds directly to the Integration Validator
+### Coder submits response to Integration Validator review request
 
 ```bash
 just check-notifications WP-{ID} CODER <coder_session>
@@ -148,7 +151,7 @@ Use this when a historical packet was once "validated" but is now explicitly blo
 ### Read path
 
 ```bash
-just validator-next WP-{ID}
+just validator-next VALIDATOR WP-{ID}
 just validator-policy-gate WP-{ID}
 just session-registry-status WP-{ID}
 ```
@@ -171,12 +174,13 @@ Use this as the minimal mental model for parallel governed work.
 
 - `WP-A`
   - `CODER` in `wtc-WP-A`
-  - `WP_VALIDATOR` in `wtv-WP-A`
+  - `WP_VALIDATOR` in the same `wtc-WP-A`
 - `WP-B`
   - `CODER` in `wtc-WP-B`
-  - `WP_VALIDATOR` in `wtv-WP-B`
+  - `WP_VALIDATOR` in the same `wtc-WP-B`
 - shared repo lanes
   - `ORCHESTRATOR` in `wt-gov-kernel`
+  - `ACTIVATION_MANAGER` in `wt-gov-kernel` as the temporary pre-launch worker before a WP enters coder/validator execution
   - `INTEGRATION_VALIDATOR` in `handshake_main`
 
 ### Not allowed

@@ -18,17 +18,16 @@ Recommended structure:
     handshake_main/        # main repo checkout (branch: main)
     wt-ilja/               # Operator role worktree (branch: user_ilja)
     wt-gov-kernel/         # Governance kernel worktree (branch: gov_kernel)
-    wtc-.../               # Coder WP worktrees (branch: feat/WP-...)
-    wtv-.../               # WP Validator review worktrees (branch: validate/WP-...)
+    wtc-.../               # Shared WP worktrees for CODER + WP_VALIDATOR (branch: feat/WP-...)
     # Integration Validator operates from handshake_main on branch main [CX-212D]
 ```
 
 Preferred session host:
-- Prefer the VS Code session bridge to host repo-governed Coder, WP Validator, and Integration Validator terminals inside VS Code integrated terminals.
-- Keep one dedicated VS Code terminal tab for `just operator-viewport` so the Operator can watch active WPs, heartbeats, and packet-scoped communications without using many floating terminal windows. `just operator-monitor` remains a compatibility alias.
+- Prefer the governed headless ACP lane for ordinary repo-governed Coder, WP Validator, and Integration Validator sessions.
+- Keep one dedicated terminal tab for `just operator-viewport` so the Operator can watch active WPs, heartbeats, and packet-scoped communications without relying on launched session windows. `just operator-monitor` remains a compatibility alias.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. New repo-governed launchers explicitly target `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
-- Launch requests are append-only in the external repo-governance `SESSION_LAUNCH_REQUESTS.jsonl` ledger; current launch state is projected in the matching external `ROLE_SESSION_REGISTRY.json` file.
-- CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session, unless the Operator explicitly waives the plugin-first path.
+- Ordinary launch/control state now lives primarily in the external repo-governance ACP/runtime surfaces: `ROLE_SESSION_REGISTRY.json`, `SESSION_CONTROL_REQUESTS.jsonl`, and `SESSION_CONTROL_RESULTS.jsonl`. The legacy `SESSION_LAUNCH_REQUESTS.jsonl` queue remains a compatibility surface for explicit `VSCODE_PLUGIN` repair launches only.
+- CLI escalation windows are repair-only surfaces. Use them only when the Orchestrator explicitly selects them.
 
 If you are an AI assistant operating in this repo:
 - You MUST read this file during session start (Pre-Flight) for your assigned role.
@@ -60,11 +59,12 @@ If you are an AI assistant operating in this repo:
 
 Notes:
 - CODER agents MUST work only in the WP-assigned worktree/branch created and recorded by the Orchestrator. They must not "pick" a worktree.
-- WP Validator sessions operate from the packet-declared validator worktree (`wtv-*` on `validate/WP-*`), rooted from the coder branch and kept reviewable against it [CX-212D].
+- WP Validator sessions operate from the same packet-declared shared WP worktree as the coder (`wtc-*` on `feat/WP-*`) [CX-503G].
 - Integration Validator sessions operate from `handshake_main` on branch `main` [CX-212D].
 - WP Validator and Integration Validator local lanes do not mint separate GitHub WP backup branches. Coder, WP Validator, and Integration Validator reuse the single packet-declared WP backup branch on GitHub.
 - WP assignment is recorded in `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` as a `PREPARE` entry (via `just record-prepare ...`) with `branch` and `worktree_dir`.
 - Orchestrator governance work uses `wt-gov-kernel` on `gov_kernel`. Integration Validator works from `handshake_main` on `main`.
+- Legacy packets or runtime artifacts that still declare `validate/WP-*` or `wtv-*` validator topology are unsupported for live reuse and must be migrated first. Current live law and defaults use the shared `wtc-*` model only.
 - Permanent role/user branches are backup branches on GitHub. Their purpose is recoverability, not integration. They may be ahead of, equal to, or behind `main`.
 - Refreshing a permanent non-main worktree has two distinct paths:
   - `just sync-all-role-worktrees` refreshes the local `main` branch across the permanent worktrees when all are clean.
@@ -79,7 +79,7 @@ This repo is designed for parallel governed execution, but the parallel model is
 
 - `ORCHESTRATOR`: one governed coordinator lane for the repo, running from `wt-gov-kernel` on `gov_kernel`
 - `CODER`: one governed product-execution lane per active WP, running only from the WP-assigned worktree/branch
-- `WP_VALIDATOR`: one governed advisory validator lane per active WP, operating from the packet-declared validator worktree for that WP
+- `WP_VALIDATOR`: one governed advisory validator lane per active WP, operating from the same packet-declared shared WP worktree as the coder
 - `INTEGRATION_VALIDATOR`: one governed final-validation lane running from `handshake_main` on `main`
 
 ### Allowed parallel states
@@ -94,7 +94,7 @@ This repo is designed for parallel governed execution, but the parallel model is
 - Two active WPs sharing the same WP-specific worktree.
 - Detached or convenience WP-adjacent check/postwork/validator clones that are not the packet-declared coder worktree.
 - Product edits from `wt-gov-kernel` or `wt-ilja`.
-- Extra validator-only WP worktrees beyond the packet-declared `wtv-*` worktree for ordinary `WP_VALIDATOR` work.
+- Extra validator-only WP worktrees beyond the packet-declared shared `wtc-*` worktree for ordinary `WP_VALIDATOR` work.
 - Treating `WP_VALIDATOR` as final merge authority for an orchestrator-managed WP.
 - Concurrent steering for the same governed role/WP session.
 
@@ -121,7 +121,7 @@ This repo is designed for parallel governed execution, but the parallel model is
 
 Why this gate exists (CX-WT-001):
 - Prevent work in the wrong directory/branch (especially accidental `main` or role-branch edits).
-- Enforce WP isolation via dedicated worktrees/branches (no shared working trees across active WPs).
+- Enforce WP isolation via one recorded WP worktree per active WP, with the known shared-coder-validator exception inside that WP.
 - Provide a verifiable snapshot for Operator/Validator using `.GOV/roles_shared/docs/ROLE_WORKTREES.md` + `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` (`PREPARE` entries).
 
 Next actions (CX-WT-001):
@@ -158,11 +158,13 @@ WP worktrees (Orchestrator action, not Coder):
 - If the signature was recorded without the full workflow tuple (legacy recovery), the only remaining operator decision is the missing workflow lane and/or coder lane; do not ask again for branch/worktree authorization.
 - Create a WP worktree/branch:
   - `just worktree-add WP-{ID}`
-- Validator worktrees [CX-212D]: WP Validator uses the packet-declared validator worktree (`wtv-*` on `validate/WP-*`); Integration Validator uses `handshake_main` on `main`. The ordinary governed lane therefore has one packet-scoped coder worktree and one packet-scoped validator worktree.
+- Validator worktrees [CX-212D/CX-503G]: WP Validator uses the same packet-declared shared WP worktree as the coder (`wtc-*` on `feat/WP-*`); Integration Validator uses `handshake_main` on `main`.
 - Launch the repo-governed CLI sessions:
+  - `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, launch Activation Manager first and wait for truthful `ACTIVATION_READINESS` before coder/WP-validator launch; for `MANUAL_RELAY`, use `just manual-relay-next` / `just manual-relay-dispatch` as the ordinary path instead of direct coder launch
 - View current launch state:
   - `just session-registry-status [WP-{ID}]`
 - Create/preserve the matching GitHub backup branch for the WP when sync is authorized for the activation turn:

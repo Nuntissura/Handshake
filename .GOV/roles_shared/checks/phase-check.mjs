@@ -4,11 +4,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 import { compactGateOutputSummary, writeGateOutputArtifact } from "../scripts/lib/gate-output-artifact-lib.mjs";
 import { ensureWpCommunications } from "../scripts/wp/ensure-wp-communications.mjs";
 import { captureCheckFindings } from "../scripts/memory/memory-capture-from-check.mjs";
 import { buildActiveLaneBrief, formatActiveLaneBrief } from "../scripts/session/active-lane-brief-lib.mjs";
+import { loadSessionRegistry } from "../scripts/session/session-registry-lib.mjs";
+import {
+  defaultIntegrationValidatorWorktreeDir,
+} from "../scripts/session/session-policy.mjs";
 import {
   buildWpCommunicationHealthCheckResult,
   formatWpCommunicationHealthCheckResult,
@@ -29,11 +33,81 @@ import {
   formatValidatorHandoffCheckResult,
 } from "../../roles/validator/scripts/lib/validator-governance-lib.mjs";
 import { parseMergeProgressionTruth } from "../scripts/lib/merge-progression-truth-lib.mjs";
+import { findOpenWorkflowDossierPath } from "../scripts/audit/workflow-dossier-lib.mjs";
+import {
+  buildWpMetrics,
+  buildWpTimelineEntries,
+  buildWpTimelineSpans,
+  buildWpTimelineSummary,
+  loadWpTimelineArtifacts,
+} from "../scripts/session/wp-timeline-lib.mjs";
 
 export { buildPhaseCheckCommand, buildPhaseCheckPlan, PHASE_VALUES } from "./phase-check-lib.mjs";
 
 const CLOSEOUT_SYNC_SHA_RE = /^[0-9a-f]{7,40}$/i;
 const CLOSEOUT_SYNC_FLAG_SET = new Set(["--sync-mode", "--context", "--merged-main-sha", "--sync-debug"]);
+const TERMINAL_READY_SESSION_CLOSE_ROLE_VALUES = new Set([
+  "ACTIVATION_MANAGER",
+  "CODER",
+  "WP_VALIDATOR",
+  "INTEGRATION_VALIDATOR",
+  "MEMORY_MANAGER",
+]);
+
+export function resolvePhaseCheckCwd() {
+  const injectedRepoRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
+  return path.resolve(injectedRepoRoot || REPO_ROOT);
+}
+
+export function resolveCloseoutSyncCwd({
+  wpId = "",
+  phaseCheckCwd = resolvePhaseCheckCwd(),
+  registrySessions = null,
+} = {}) {
+  const defaultCwd = path.resolve(phaseCheckCwd || resolvePhaseCheckCwd());
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId) return defaultCwd;
+
+  const sessions = Array.isArray(registrySessions)
+    ? registrySessions
+    : loadSessionRegistry(defaultCwd).registry.sessions || [];
+  const preferredSessionKey = `INTEGRATION_VALIDATOR:${normalizedWpId}`;
+  const integrationValidatorSession = sessions.find((session) =>
+    String(session?.wp_id || "").trim() === normalizedWpId
+    && String(session?.role || "").trim().toUpperCase() === "INTEGRATION_VALIDATOR"
+    && String(session?.session_key || "").trim() === preferredSessionKey
+    && String(session?.local_worktree_dir || "").trim()
+  ) || sessions.find((session) =>
+    String(session?.wp_id || "").trim() === normalizedWpId
+    && String(session?.role || "").trim().toUpperCase() === "INTEGRATION_VALIDATOR"
+    && String(session?.local_worktree_dir || "").trim()
+  );
+
+  const targetWorktreeDir = String(
+    integrationValidatorSession?.local_worktree_dir
+    || defaultIntegrationValidatorWorktreeDir(normalizedWpId)
+    || "",
+  ).trim();
+  return targetWorktreeDir ? path.resolve(REPO_ROOT, targetWorktreeDir) : defaultCwd;
+}
+
+function currentGitContextAt(cwd = resolvePhaseCheckCwd()) {
+  const resolvedCwd = path.resolve(cwd || resolvePhaseCheckCwd());
+  const runGit = (args = []) => {
+    const result = spawnSync("git", args, {
+      cwd: resolvedCwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return result.status === 0 ? String(result.stdout || "").trim() : "";
+  };
+  return {
+    branch: runGit(["rev-parse", "--abbrev-ref", "HEAD"]),
+    topLevel: runGit(["rev-parse", "--show-toplevel"]),
+    statusShort: runGit(["status", "-sb"]),
+    statusPorcelain: runGit(["status", "--porcelain=v1"]),
+  };
+}
 
 function printUsage(message = "") {
   if (message) console.error(`[PHASE_CHECK] ${message}`);
@@ -93,7 +167,9 @@ export function runGateCheck(wpId) {
   }
 
   const resolved = resolveWorkPacketPath(normalizedWpId);
-  const wpPath = resolved?.absolutePath || repoPathAbs(`${GOV_ROOT_REPO_REL}/task_packets/${normalizedWpId}.md`);
+  const wpPath = resolved?.packetPath
+    ? repoPathAbs(resolved.packetPath)
+    : repoPathAbs(`${GOV_ROOT_REPO_REL}/task_packets/${normalizedWpId}.md`);
   if (!fs.existsSync(wpPath)) {
     return {
       ok: false,
@@ -238,6 +314,30 @@ export function parseCloseoutSyncOptions(args = []) {
   };
 }
 
+export function parseCommittedTargetArgs(args = []) {
+  const tokens = Array.isArray(args) ? args.map((value) => String(value || "")).filter((value) => value !== "") : [];
+  let rev = "";
+  let range = "";
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = String(tokens[index] || "").trim();
+    if (token === "--rev" || token === "--range") {
+      const nextValue = String(tokens[index + 1] || "");
+      if (!nextValue || String(nextValue).trim().startsWith("--")) {
+        continue;
+      }
+      if (token === "--rev") rev = nextValue;
+      if (token === "--range") range = nextValue;
+      index += 1;
+    }
+  }
+
+  return {
+    rev: String(rev || "").trim(),
+    range: String(range || "").trim(),
+  };
+}
+
 function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
   const mode = String(syncOptions?.modeSpec?.mode || "").trim();
   if (!wpId || !mode) {
@@ -249,9 +349,44 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
   const repomemScript = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/scripts/memory/repomem.mjs`);
   const closeoutSyncScript = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles/validator/scripts/integration-validator-closeout-sync.mjs`);
   const triggerRef = `phase-check CLOSEOUT ${wpId} --sync-mode ${mode}`;
+  const phaseCheckCwd = resolvePhaseCheckCwd();
+  const closeoutSyncCwd = resolveCloseoutSyncCwd({
+    wpId,
+    phaseCheckCwd,
+  });
+
+  // RGF-183: fail-fast when closeout resolves to the kernel root for a product-contained WP.
+  // If resolveCloseoutSyncCwd fell back to phaseCheckCwd (the kernel), the signed-scope
+  // validation will use kernel git context and produce false missing-file/drift failures.
+  const normalizedCloseoutCwd = path.resolve(closeoutSyncCwd).replace(/\\/g, "/").toLowerCase();
+  const normalizedKernelCwd = path.resolve(phaseCheckCwd).replace(/\\/g, "/").toLowerCase();
+  if (normalizedCloseoutCwd === normalizedKernelCwd) {
+    const packetInfo = resolveWorkPacketPath(wpId);
+    const packetText = packetInfo?.packetAbsPath && fs.existsSync(packetInfo.packetAbsPath)
+      ? fs.readFileSync(packetInfo.packetAbsPath, "utf8")
+      : "";
+    const prepareWorktreeDir = (packetText.match(/^\s*-\s*\**PREPARE_WORKTREE_DIR\**\s*:\s*(.+)/mi) || [])[1]?.trim() || "";
+    const intValWorktreeDir = (packetText.match(/^\s*-\s*\**INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR\**\s*:\s*(.+)/mi) || [])[1]?.trim() || "";
+    const declaredProductWorktree = intValWorktreeDir || prepareWorktreeDir;
+    if (declaredProductWorktree && declaredProductWorktree !== ".") {
+      return {
+        ok: false,
+        output: [
+          `[RGF-183] CLOSEOUT sync failed: resolved to kernel root instead of product worktree.`,
+          `  kernel_root: ${phaseCheckCwd}`,
+          `  declared_product_worktree: ${declaredProductWorktree}`,
+          `  resolved_closeout_cwd: ${closeoutSyncCwd}`,
+          `  The WP's committed target lives in a product worktree, but closeout resolved to the kernel.`,
+          `  Register an INTEGRATION_VALIDATOR session with local_worktree_dir pointing to the product worktree,`,
+          `  or run phase-check CLOSEOUT from the product worktree with HANDSHAKE_ACTIVE_REPO_ROOT set.`,
+        ].join("\n") + "\n",
+      };
+    }
+  }
+
   const outputChunks = [];
   const repomemGateResult = spawnSync(process.execPath, [repomemScript, "gate"], {
-    cwd: REPO_ROOT,
+    cwd: phaseCheckCwd,
     encoding: "utf8",
   });
   outputChunks.push(ensureTrailingNewline(`${repomemGateResult.stdout || ""}${repomemGateResult.stderr || ""}`.trimEnd()));
@@ -271,7 +406,7 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
     wpId,
   ];
   const repomemContextResult = spawnSync(process.execPath, repomemContextArgs, {
-    cwd: REPO_ROOT,
+    cwd: phaseCheckCwd,
     encoding: "utf8",
   });
   outputChunks.push(ensureTrailingNewline(`${repomemContextResult.stdout || ""}${repomemContextResult.stderr || ""}`.trimEnd()));
@@ -293,8 +428,13 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
     commandArgs.push("--debug");
   }
   const result = spawnSync(process.execPath, commandArgs, {
-    cwd: REPO_ROOT,
+    cwd: closeoutSyncCwd,
     encoding: "utf8",
+    env: {
+      ...process.env,
+      HANDSHAKE_GOV_ROOT: GOV_ROOT_ABS,
+      HANDSHAKE_ACTIVE_REPO_ROOT: closeoutSyncCwd,
+    },
   });
   outputChunks.push(ensureTrailingNewline(`${result.stdout || ""}${result.stderr || ""}`.trimEnd()));
   return {
@@ -303,11 +443,237 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
   };
 }
 
+export function resolveTerminalReadySessionsForWp({
+  wpId = "",
+  registrySessions = [],
+} = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  return (Array.isArray(registrySessions) ? registrySessions : [])
+    .filter((session) => String(session?.wp_id || "").trim() === normalizedWpId)
+    .filter((session) => TERMINAL_READY_SESSION_CLOSE_ROLE_VALUES.has(String(session?.role || "").trim().toUpperCase()))
+    .filter((session) => String(session?.runtime_state || "").trim().toUpperCase() === "READY");
+}
+
+function runTerminalReadySessionCloseStep({ wpId = "" } = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId) {
+    return {
+      ok: false,
+      output: "Terminal session cleanup requires WP_ID.\n",
+    };
+  }
+
+  const registrySessions = loadSessionRegistry(resolvePhaseCheckCwd()).registry.sessions || [];
+  const sessionsToClose = resolveTerminalReadySessionsForWp({
+    wpId: normalizedWpId,
+    registrySessions,
+  });
+  if (sessionsToClose.length === 0) {
+    return {
+      ok: true,
+      output: "[TERMINAL_SESSION_CLEANUP] PASS: no stale READY governed sessions remain.\n",
+    };
+  }
+
+  const closeScript = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-command.mjs`);
+  const lines = [
+    `[TERMINAL_SESSION_CLEANUP] ${sessionsToClose.length} terminal READY session(s) will be closed.`,
+  ];
+
+  for (const session of sessionsToClose) {
+    const role = String(session?.role || "").trim().toUpperCase();
+    const result = spawnSync(process.execPath, [closeScript, "CLOSE_SESSION", role, normalizedWpId], {
+      cwd: resolvePhaseCheckCwd(),
+      encoding: "utf8",
+      env: process.env,
+    });
+    const rendered = ensureTrailingNewline(`${result.stdout || ""}${result.stderr || ""}`.trimEnd());
+    lines.push(`- ${role}: ${result.status === 0 ? "PASS" : "FAIL"}`);
+    for (const line of rendered.trimEnd().split("\n")) {
+      if (line.trim()) lines.push(`  ${line}`);
+    }
+    if (result.status !== 0) {
+      return {
+        ok: false,
+        output: `${lines.join("\n")}\n`,
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    output: `${lines.join("\n")}\n`,
+  };
+}
+
+function runWorkflowDossierCloseoutStep({
+  wpId = "",
+  ok = true,
+  syncOptions = {},
+  why = "",
+} = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId) {
+    return {
+      ok: false,
+      output: "Workflow dossier closeout append requires WP_ID.\n",
+    };
+  }
+
+  const governanceRepoRoot = path.resolve(GOV_ROOT_ABS, "..");
+  const existingDossierPath = findOpenWorkflowDossierPath(governanceRepoRoot, normalizedWpId);
+  if (!existingDossierPath) {
+    return {
+      ok: true,
+      output: "[WORKFLOW_DOSSIER_CLOSEOUT] SKIP: no open Workflow Dossier found for this WP.\n",
+    };
+  }
+
+  const workflowDossierScript = path.resolve(GOV_ROOT_ABS, "roles_shared", "scripts", "audit", "workflow-dossier.mjs");
+  const phaseCheckCwd = governanceRepoRoot;
+  const syncMode = String(syncOptions?.modeSpec?.mode || "").trim().toUpperCase() || "NONE";
+  const outputLines = [];
+
+  const noteSummary = [
+    `phase-check CLOSEOUT result=${ok ? "PASS" : "FAIL"}`,
+    `sync_mode=${syncMode}`,
+    `why=${String(why || "").trim() || "NONE"}`,
+  ].join(" | ");
+
+  const noteResult = spawnSync(process.execPath, [
+    workflowDossierScript,
+    "note",
+    normalizedWpId,
+    "EXECUTION",
+    noteSummary,
+    "--role",
+    "INTEGRATION_VALIDATOR",
+    "--tag",
+    "CLOSEOUT_GATE",
+    "--surface",
+    "phase-check CLOSEOUT",
+    "--file",
+    existingDossierPath,
+  ], {
+    cwd: phaseCheckCwd,
+    encoding: "utf8",
+    env: process.env,
+  });
+  outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] note=${noteResult.status === 0 ? "PASS" : "FAIL"}`);
+  const renderedNoteOutput = ensureTrailingNewline(`${noteResult.stdout || ""}${noteResult.stderr || ""}`.trimEnd());
+  for (const line of renderedNoteOutput.trimEnd().split("\n")) {
+    if (line.trim()) outputLines.push(`  ${line}`);
+  }
+
+  let syncResultOk = true;
+  if (syncOptions?.modeSpec) {
+    const syncResult = spawnSync(process.execPath, [
+      workflowDossierScript,
+      "sync",
+      normalizedWpId,
+      "--role",
+      "INTEGRATION_VALIDATOR",
+      "--tag",
+      "CLOSEOUT_SYNC",
+      "--surface",
+      "PHASE_CHECK_CLOSEOUT",
+      "--file",
+      existingDossierPath,
+    ], {
+      cwd: phaseCheckCwd,
+      encoding: "utf8",
+      env: process.env,
+    });
+    syncResultOk = syncResult.status === 0;
+    outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] sync=${syncResultOk ? "PASS" : "FAIL"}`);
+    const renderedSyncOutput = ensureTrailingNewline(`${syncResult.stdout || ""}${syncResult.stderr || ""}`.trimEnd());
+    for (const line of renderedSyncOutput.trimEnd().split("\n")) {
+      if (line.trim()) outputLines.push(`  ${line}`);
+    }
+  } else {
+    outputLines.push("[WORKFLOW_DOSSIER_CLOSEOUT] sync=SKIP (no terminal closeout sync mode requested)");
+  }
+
+  // Append wp-metrics summary to the dossier at closeout (direct import, no subprocess).
+  try {
+    const metricsArtifacts = loadWpTimelineArtifacts(REPO_ROOT, normalizedWpId);
+    const metricsEntries = buildWpTimelineEntries({
+      threadEntries: metricsArtifacts.threadEntries,
+      receipts: metricsArtifacts.receipts,
+      notifications: metricsArtifacts.notifications,
+      controlRequests: metricsArtifacts.controlRequests,
+      controlResults: metricsArtifacts.controlResults,
+      tokenCommands: metricsArtifacts.tokenLedger?.commands || [],
+    });
+    const metricsSpans = buildWpTimelineSpans({
+      receipts: metricsArtifacts.receipts,
+      controlRequests: metricsArtifacts.controlRequests,
+      controlResults: metricsArtifacts.controlResults,
+      tokenCommands: metricsArtifacts.tokenLedger?.commands || [],
+    });
+    const metricsSummary = buildWpTimelineSummary({
+      wpId: normalizedWpId,
+      packetPath: metricsArtifacts.packetPath,
+      workflowLane: metricsArtifacts.workflowLane,
+      runtimeStatus: metricsArtifacts.runtimeStatus,
+      receipts: metricsArtifacts.receipts,
+      notifications: metricsArtifacts.notifications,
+      controlRequests: metricsArtifacts.controlRequests,
+      controlResults: metricsArtifacts.controlResults,
+      tokenLedger: metricsArtifacts.tokenLedger,
+      entries: metricsEntries,
+      spans: metricsSpans,
+    });
+    const m = buildWpMetrics({
+      wpId: normalizedWpId,
+      summary: metricsSummary,
+      receipts: metricsArtifacts.receipts,
+      controlResults: metricsArtifacts.controlResults,
+    });
+    const metricsLine = [
+      `wall_clock=${m.wall_clock_minutes ?? "?"}min`,
+      `active=${m.product_active_minutes ?? "?"}min`,
+      `repair=${m.repair_minutes ?? "?"}min`,
+      `validator_wait=${m.validator_wait_minutes ?? "?"}min`,
+      `route_wait=${m.route_wait_minutes ?? "?"}min`,
+      `gov_overhead=${m.governance_overhead_ratio ?? "?"}`,
+      `receipts=${m.receipt_count ?? "?"}`,
+      `dup_receipts=${m.duplicate_receipts ?? "?"}`,
+      `stale_routes=${m.stale_route_incidents ?? "?"}`,
+      `acp_cmds=${m.acp_commands ?? "?"}`,
+      `acp_fail=${m.acp_failures ?? "?"}`,
+      `restarts=${m.session_restarts ?? "?"}`,
+      `mt=${m.mt_count ?? "?"}`,
+      `fix_cycles=${m.fix_cycles ?? "?"}`,
+      `zero_exec=${m.zero_execution_incidents ?? "?"}`,
+      `tokens_in=${m.token_input_total ?? "?"}`,
+      `tokens_out=${m.token_output_total ?? "?"}`,
+      `turns=${m.token_turn_count ?? "?"}`,
+    ].join(" | ");
+    const workflowDossierScript = path.resolve(GOV_ROOT_ABS, "roles_shared", "scripts", "audit", "workflow-dossier.mjs");
+    spawnSync(process.execPath, [
+      workflowDossierScript, "note", normalizedWpId, "EXECUTION", metricsLine,
+      "--role", "INTEGRATION_VALIDATOR", "--tag", "METRICS", "--surface", "wp-metrics",
+      "--file", existingDossierPath,
+    ], { cwd: phaseCheckCwd, encoding: "utf8", env: process.env });
+    outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] metrics=APPENDED`);
+  } catch {
+    outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] metrics=SKIP (extraction error)`);
+  }
+
+  return {
+    ok: noteResult.status === 0 && syncResultOk,
+    output: `${outputLines.join("\n")}\n`,
+  };
+}
+
 function readPacketText(wpId) {
   const normalizedWpId = String(wpId || "").trim();
   if (!normalizedWpId) return "";
   const resolved = resolveWorkPacketPath(normalizedWpId);
-  const wpPath = resolved?.absolutePath || repoPathAbs(`${GOV_ROOT_REPO_REL}/task_packets/${normalizedWpId}.md`);
+  const wpPath = resolved?.packetPath
+    ? repoPathAbs(resolved.packetPath)
+    : repoPathAbs(`${GOV_ROOT_REPO_REL}/task_packets/${normalizedWpId}.md`);
   try {
     return fs.readFileSync(wpPath, "utf8");
   } catch {
@@ -360,8 +726,14 @@ function runStep(step) {
     };
   }
   if (label === "integration-validator-context-brief") {
+    const validatorCwd = resolveCloseoutSyncCwd({
+      wpId: args[0],
+      phaseCheckCwd: resolvePhaseCheckCwd(),
+    });
     const brief = buildIntegrationValidatorContextBriefFromEnvironment({
       wpId: args[0],
+      repoRoot: validatorCwd,
+      gitContext: currentGitContextAt(validatorCwd),
     });
     return {
       ok: true,
@@ -369,8 +741,11 @@ function runStep(step) {
     };
   }
   if (label === "validator-handoff-check") {
+    const committedTargetArgs = parseCommittedTargetArgs(args.slice(1));
     const result = buildValidatorHandoffCheckResult({
       wpId: args[0],
+      rev: committedTargetArgs.rev,
+      range: committedTargetArgs.range,
     });
     return {
       ok: result.ok,
@@ -387,8 +762,15 @@ function runStep(step) {
     };
   }
   if (label === "integration-validator-closeout-check") {
+    const validatorCwd = resolveCloseoutSyncCwd({
+      wpId: args[0],
+      phaseCheckCwd: resolvePhaseCheckCwd(),
+    });
     const result = buildIntegrationValidatorCloseoutCheckResult({
       wpId: args[0],
+      allowSyncRepair: args.slice(1).includes("--sync-mode"),
+      repoRootOverride: validatorCwd,
+      gitContextOverride: currentGitContextAt(validatorCwd),
     });
     return {
       ok: result.ok,
@@ -564,6 +946,7 @@ function buildCloseoutNextCommands({
   verbose = false,
   ok = true,
   syncOptions = {},
+  workflowDossierCloseoutOk = true,
 } = {}) {
   const rerunArgs = verbose ? args : [...args.filter((value) => value !== "--verbose"), "--verbose"];
   const rerunVerbose = buildPhaseCheckCommand({
@@ -584,18 +967,26 @@ function buildCloseoutNextCommands({
     return nextCommands;
   }
 
+  if (!workflowDossierCloseoutOk) {
+    nextCommands.push(`Repair the Workflow Dossier append path: just workflow-dossier-sync ${wpId} --role INTEGRATION_VALIDATOR --tag CLOSEOUT_SYNC --surface PHASE_CHECK_CLOSEOUT`);
+    nextCommands.push(`Then append any missing human note with: just workflow-dossier-note ${wpId} EXECUTION "<summary>" --role INTEGRATION_VALIDATOR --tag CLOSEOUT_GATE --surface "phase-check CLOSEOUT"`);
+  }
+
   const syncMode = String(syncOptions?.modeSpec?.mode || "").trim().toUpperCase();
   if (syncMode === "MERGE_PENDING") {
+    nextCommands.push("Mechanical Workflow Dossier closeout sync is recorded. Keep the dossier live; add the final review/rubric only after terminal closeout.");
     nextCommands.push(
       `After local main containment is real: just phase-check CLOSEOUT ${wpId} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`,
     );
     return nextCommands;
   }
   if (syncMode === "CONTAINED_IN_MAIN") {
+    nextCommands.push("Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended.");
     nextCommands.push(`Proceed to final PASS gate flow (for example: just validator-gate-commit ${wpId}).`);
     return nextCommands;
   }
   if (syncMode) {
+    nextCommands.push("Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended.");
     nextCommands.push("Proceed with the remaining validator gate flow for the recorded terminal verdict.");
     return nextCommands;
   }
@@ -687,6 +1078,7 @@ async function runCli() {
     let ok = true;
     let why = `${normalizedPhase} phase checks passed.`;
     let deferredCloseoutMaintenanceStep = null;
+    let workflowDossierCloseoutResult = null;
 
     console.log(`PHASE_CHECK_OUTPUT [CX-PHASE-CHECK-001]`);
     console.log("");
@@ -734,6 +1126,31 @@ async function runCli() {
       }
     }
 
+    if (normalizedPhase === "CLOSEOUT" && ok) {
+      const terminalCleanupResult = runTerminalReadySessionCloseStep({
+        wpId: wpIdArg,
+      });
+      stepResults.set("close-terminal-sessions", terminalCleanupResult);
+      sections.push({ title: "close-terminal-sessions", body: terminalCleanupResult.output });
+      printStepSummary({ label: "close-terminal-sessions", result: terminalCleanupResult, verbose });
+      if (!terminalCleanupResult.ok) {
+        ok = false;
+        why = "close-terminal-sessions failed.";
+      }
+    }
+
+    if (normalizedPhase === "CLOSEOUT") {
+      workflowDossierCloseoutResult = runWorkflowDossierCloseoutStep({
+        wpId: wpIdArg,
+        ok,
+        syncOptions: closeoutSyncOptions,
+        why,
+      });
+      stepResults.set("workflow-dossier-closeout", workflowDossierCloseoutResult);
+      sections.push({ title: "workflow-dossier-closeout", body: workflowDossierCloseoutResult.output });
+      printStepSummary({ label: "workflow-dossier-closeout", result: workflowDossierCloseoutResult, verbose });
+    }
+
     if (normalizedPhase === "STARTUP" && normalizedRole === "CODER") {
       const startupOutcome = buildStartupCoderOutcome({
         wpId: wpIdArg,
@@ -762,6 +1179,7 @@ async function runCli() {
         verbose,
         ok,
         syncOptions: closeoutSyncOptions,
+        workflowDossierCloseoutOk: workflowDossierCloseoutResult?.ok !== false,
       });
       console.log("");
       console.log("NEXT_COMMANDS [CX-PHASE-CHECK-001]");

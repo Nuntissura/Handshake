@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -10,6 +11,10 @@ const VALIDATOR_PROTOCOL_PATH = path.resolve(".GOV/roles/validator/VALIDATOR_PRO
 function recipeExists(text, recipeName) {
   const escaped = recipeName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`^${escaped}(?:\\s|:|$)`, "m").test(text);
+}
+
+function readCanonicalMainJustfile() {
+  return execSync("git show main:justfile", { encoding: "utf8" });
 }
 
 test("justfile exposes the live validator command surface referenced by validator docs and helpers", () => {
@@ -77,4 +82,23 @@ test("critical integration-validator helper commands stay aligned across docs, p
   assert.equal(recipeExists(justfile, "validator-handoff-check"), false);
   assert.equal(recipeExists(justfile, "validator-packet-complete"), false);
   assert.equal(recipeExists(justfile, "wp-token-usage"), true);
+});
+
+test("canonical main justfile preserves the governed WP command surface used by active worktrees", () => {
+  const mainJustfile = readCanonicalMainJustfile();
+  const requiredMainRecipes = [
+    "phase-check",
+    "wp-invalidity-flag",
+    "wp-operator-rule-restatement",
+    "wp-review-exchange",
+    "wp-spec-gap",
+    "wp-spec-confirmation",
+    "wp-communication-health-check",
+    "check-notifications",
+    "ack-notifications",
+  ];
+
+  for (const recipeName of requiredMainRecipes) {
+    assert.equal(recipeExists(mainJustfile, recipeName), true, `main justfile is missing canonical recipe: ${recipeName}`);
+  }
 });

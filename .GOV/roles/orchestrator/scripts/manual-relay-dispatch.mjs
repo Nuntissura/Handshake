@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import { buildSteeringPrompt, resolveRoleConfig } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
@@ -25,10 +26,10 @@ const SESSION_CONTROL_COMMAND_PATH = path.resolve(
   "session-control-command.mjs",
 );
 
+registerFailCaptureHook("manual-relay-dispatch.mjs", { role: "CLASSIC_ORCHESTRATOR" });
+
 function fail(message, details = []) {
-  console.error(`[MANUAL_RELAY_DISPATCH] ${message}`);
-  for (const line of details) console.error(`- ${line}`);
-  process.exit(1);
+  failWithMemory("manual-relay-dispatch.mjs", message, { role: "CLASSIC_ORCHESTRATOR", details });
 }
 
 function parseSingleField(text, label) {
@@ -193,6 +194,7 @@ function logUsageLimitDefer(kind) {
 
 console.log(`[MANUAL_RELAY_DISPATCH] wp_id=${wpId}`);
 console.log(`[MANUAL_RELAY_DISPATCH] workflow_lane=${workflowLane}`);
+console.log("[MANUAL_RELAY_DISPATCH] lane_owner=CLASSIC_ORCHESTRATOR");
 console.log(`[MANUAL_RELAY_DISPATCH] next_actor=${nextActor}`);
 console.log(`[MANUAL_RELAY_DISPATCH] next_session=${targetSession || "<none>"}`);
 console.log(`[MANUAL_RELAY_DISPATCH] action=${action}`);

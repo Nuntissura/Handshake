@@ -20,11 +20,11 @@ import {
   validatorReportProfileRequiresRiskAudit,
   validatorReportProfileUsesHeuristicRigor,
 } from "../../../roles_shared/scripts/lib/validator-report-profile-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("validator-report-structure-check.mjs", { role: "WP_VALIDATOR" });
 
 function fail(message, details = []) {
-  console.error(`[VALIDATOR_REPORT_STRUCTURE_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("validator-report-structure-check.mjs", message, { role: "WP_VALIDATOR", details });
 }
 
 function parseSingleField(text, label) {

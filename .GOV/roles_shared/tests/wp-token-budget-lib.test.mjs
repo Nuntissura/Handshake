@@ -45,6 +45,7 @@ test("evaluateWpTokenBudget reports WARN when turn or token spend crosses warnin
   assert.match(budget.summary, /warning budget/i);
   assert.equal(budget.roles.CODER.status, "WARN");
   assert.equal(budget.total.status, "WARN");
+  assert.equal(budget.roles.CODER.fresh_input_tokens, 121000000);
 });
 
 test("evaluateWpTokenBudget reports FAIL and a policy blocker when fail thresholds are exceeded", () => {
@@ -72,5 +73,44 @@ test("evaluateWpTokenBudget reports FAIL and a policy blocker when fail threshol
   assert.equal(budget.status, "FAIL");
   assert.equal(budget.blocker_class, "POLICY_CONFLICT");
   assert.equal(budget.invalidity_code, "TOKEN_BUDGET_EXCEEDED");
-  assert.match(budget.failures.join("\n"), /TOTAL input_tokens|CODER input_tokens/i);
+  assert.match(budget.failures.join("\n"), /TOTAL fresh_input_tokens|CODER fresh_input_tokens/i);
+});
+
+test("evaluateWpTokenBudget keeps cached-heavy replay visible without blocking the lane", () => {
+  const budget = evaluateWpTokenBudget(ledgerWith(
+    {
+      command_count: 19,
+      turn_count: 11,
+      input_tokens: 234332575,
+      cached_input_tokens: 227941760,
+    },
+    {
+      CODER: {
+        command_count: 5,
+        turn_count: 5,
+        usage_totals: {
+          input_tokens: 210118771,
+          cached_input_tokens: 204985216,
+          output_tokens: 654820,
+        },
+      },
+      WP_VALIDATOR: {
+        command_count: 5,
+        turn_count: 0,
+        usage_totals: {
+          input_tokens: 0,
+          cached_input_tokens: 0,
+          output_tokens: 0,
+        },
+      },
+    },
+  ));
+
+  assert.equal(budget.status, "PASS");
+  assert.equal(budget.blocker_class, "NONE");
+  assert.equal(budget.invalidity_code, "");
+  assert.equal(budget.roles.CODER.fresh_input_tokens, 5133555);
+  assert.equal(budget.total.fresh_input_tokens, 6390815);
+  assert.match(budget.summary, /cached replay/i);
+  assert.match(budget.warnings.join("\n"), /gross_input_tokens/i);
 });

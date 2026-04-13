@@ -8,6 +8,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import { fileURLToPath } from "node:url";
 import {
   defaultRefinementPath,
@@ -40,6 +41,13 @@ import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { parsePolicyWaiverLedger } from "../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
+import {
+  buildActivationManagerLaunchCommands,
+  buildDownstreamGovernedLaunchCommands,
+  buildManualRelayCommands,
+  normalizeWorkflowLane,
+  readActivationReadinessState,
+} from "./lib/workflow-lane-guidance-lib.mjs";
 
 // RGF-129/G4: Surface governance memory insights for the active WP
 function loadMemoryInsights(wpId) {
@@ -79,10 +87,10 @@ const GOVERNED_ROLE_RELAY_TARGETS = new Set(["CODER", "WP_VALIDATOR", "INTEGRATI
 const TERMINAL_ORCHESTRATOR_BOARD_STATUSES = new Set(["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"]);
 const TOKEN_POLICY_CONFLICT_RE = /TOKEN_BUDGET_EXCEEDED|POLICY_CONFLICT|token\s+budget|token-ledger\s+drift/i;
 
+registerFailCaptureHook("orchestrator-next.mjs", { role: "ORCHESTRATOR" });
+
 function fail(message, details = []) {
-  console.error(`[ORCHESTRATOR_NEXT] ${message}`);
-  for (const line of details) console.error(`- ${line}`);
-  process.exit(1);
+  failWithMemory("orchestrator-next.mjs", message, { role: "ORCHESTRATOR", details });
 }
 
 function loadState() {
@@ -285,10 +293,10 @@ function closeoutSyncCommandForProjection(wpId, projection = {}, runtimeStatus =
 }
 
 function relayCommandForRuntime(wpId, workflowLane = "", runtimeStatus = {}) {
-  if (String(workflowLane || "").trim().toUpperCase() !== "ORCHESTRATOR_MANAGED") return "";
+  if (normalizeWorkflowLane(workflowLane) !== "ORCHESTRATOR_MANAGED") return "";
   const nextActor = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
   if (!GOVERNED_ROLE_RELAY_TARGETS.has(nextActor)) return "";
-  return `just orchestrator-steer-next ${wpId}`;
+  return `just orchestrator-steer-next ${wpId} "<why this stalled relay should be re-woken, >=40 chars>"`;
 }
 
 function stageScore(stage, detail = {}) {
@@ -816,6 +824,11 @@ function main() {
       ? "Work packet exists; Task Board still lists this WP as [STUB]."
       : "Work packet exists; ready to delegate to Coder."
   );
+  const normalizedWorkflowLane = normalizeWorkflowLane(workflowLane);
+  const activationReadiness = normalizedWorkflowLane === "ORCHESTRATOR_MANAGED"
+    ? readActivationReadinessState(wpId)
+    : null;
+
   printFindings([
     ...tokenPolicyContinuation.findings,
     `Resume source: ${inferred.source}`,
@@ -836,25 +849,29 @@ function main() {
     ...(relayEscalation?.applicable && relayEscalation.status === "WATCH"
       ? [relayEscalation.summary]
       : []),
+    ...(activationReadiness
+      ? [`ACTIVATION_READINESS: ${activationReadiness.verdict} (${activationReadiness.path})`]
+      : []),
     ...loadMemoryInsights(wpId),
   ]);
   const runtimeRelayCommand = relayCommandForRuntime(wpId, workflowLane, packetRuntimeState?.runtimeStatus || {});
-  const startupCommand = buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" });
-  const cmds = [
-    `cat ${packetPath}`,
-    startupCommand,
-  ];
-  if (runtimeRelayCommand) cmds.push(runtimeRelayCommand);
-  if (String(workflowLane || "").trim().toUpperCase() === "MANUAL_RELAY") {
-    cmds.push(`just manual-relay-next ${wpId}`);
+  const cmds = [`cat ${packetPath}`];
+  if (runtimeRelayCommand) {
+    cmds.push(runtimeRelayCommand);
+    cmds.push(`just session-registry-status ${wpId}`);
+  } else if (normalizedWorkflowLane === "MANUAL_RELAY") {
+    cmds.push(...buildManualRelayCommands(wpId));
+  } else if (normalizedWorkflowLane === "ORCHESTRATOR_MANAGED") {
+    if (activationReadiness?.readyForDownstreamLaunch) {
+      cmds.push(buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }));
+      cmds.push(...buildDownstreamGovernedLaunchCommands(wpId));
+    } else {
+      cmds.push(...buildActivationManagerLaunchCommands(wpId, activationReadiness));
+    }
+  } else {
+    cmds.push(`just session-registry-status ${wpId}`);
   }
   if (needsStubCleanup) cmds.push(`just task-board-set ${wpId} READY_FOR_DEV`);
-  if (!runtimeRelayCommand && String(workflowLane || "").trim().toUpperCase() !== "MANUAL_RELAY") {
-    cmds.push(`just launch-coder-session ${wpId}`);
-    cmds.push(`just launch-wp-validator-session ${wpId}`);
-  }
-  cmds.push(`just session-registry-status ${wpId}`);
-  cmds.push(`# Integration Validator is downstream of WP validation PASS; launch later with: just launch-integration-validator-session ${wpId}`);
   printNextCommands(cmds);
 }
 

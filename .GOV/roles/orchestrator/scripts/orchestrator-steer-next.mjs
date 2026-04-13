@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import { buildSteeringPrompt, resolveRoleConfig } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
@@ -12,6 +13,7 @@ import { checkAllNotifications, checkNotifications } from "../../../roles_shared
 import { evaluateWpCommunicationBoundary, evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import { steerActionForSession } from "./lib/orchestrator-steer-lib.mjs";
+import { activationReadinessRequiresActivationManager } from "./lib/workflow-lane-guidance-lib.mjs";
 import {
   buildRelayDispatchPrompt,
   deriveRelayEnvelope,
@@ -21,6 +23,22 @@ import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/mem
 
 const wpId = String(process.argv[2] || "").trim();
 const debugMode = process.argv.slice(3).some((arg) => String(arg || "").trim() === "--debug");
+const explicitTargetRole = (() => {
+  for (const candidate of process.argv.slice(3)) {
+    const value = String(candidate || "").trim();
+    if (!value.startsWith("--target-role=")) continue;
+    return normalizeRole(value.slice("--target-role=".length));
+  }
+  return "";
+})();
+const explicitTargetSession = (() => {
+  for (const candidate of process.argv.slice(3)) {
+    const value = String(candidate || "").trim();
+    if (!value.startsWith("--target-session=")) continue;
+    return String(value.slice("--target-session=".length) || "").trim();
+  }
+  return "";
+})();
 const requestedModel = (() => {
   for (const candidate of process.argv.slice(3)) {
     const value = String(candidate || "").trim().toUpperCase();
@@ -30,16 +48,16 @@ const requestedModel = (() => {
   }
   return "PRIMARY";
 })();
-const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const ACTIVE_ROLE_SET = new Set(["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const sessionControlEnv = {
   ...process.env,
   ...(debugMode ? { HANDSHAKE_SESSION_CONTROL_DEBUG: "1" } : {}),
 };
 
+registerFailCaptureHook("orchestrator-steer-next.mjs", { role: "ORCHESTRATOR" });
+
 function fail(message, details = []) {
-  console.error(`[ORCHESTRATOR_STEER_NEXT] ${message}`);
-  for (const line of details) console.error(`- ${line}`);
-  process.exit(1);
+  failWithMemory("orchestrator-steer-next.mjs", message, { role: "ORCHESTRATOR", details });
 }
 
 function runGit(args) {
@@ -73,7 +91,7 @@ function loadRuntimeStatus(packetText) {
 }
 
 if (!wpId || !/^WP-/.test(wpId)) {
-  fail("Usage: node .GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs WP-{ID} [PRIMARY|FALLBACK]");
+  fail("Usage: node .GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs WP-{ID} [PRIMARY|FALLBACK] [--target-role=ROLE] [--target-session=SESSION]");
 }
 
 if (debugMode) {
@@ -122,26 +140,6 @@ const communicationEvaluation = evaluateWpCommunicationHealth({
   runtimeStatus,
 });
 const pendingNotifications = Object.values(checkAllNotifications({ wpId })).flatMap((entry) => entry.notifications || []);
-const boundaryEvaluation = evaluateWpCommunicationBoundary({
-  stage: "STATUS",
-  statusEvaluation: communicationEvaluation,
-  runtimeStatus,
-  latestReceipt: receipts.at(-1) || null,
-  pendingNotifications,
-});
-if (communicationEvaluation.applicable && !boundaryEvaluation.ok) {
-  fail("Runtime route drift prevents mechanical relay", boundaryEvaluation.issues);
-}
-
-const nextActor = normalizeRole(runtimeStatus.next_expected_actor);
-if (!ACTIVE_ROLE_SET.has(nextActor)) {
-  fail("No governed next actor is currently projected for automatic relay", [
-    `next_expected_actor=${runtimeStatus.next_expected_actor || "<missing>"}`,
-    `waiting_on=${runtimeStatus.waiting_on || "<missing>"}`,
-    runtimeStatusFile,
-  ]);
-}
-
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const { registry } = loadSessionRegistry(repoRoot);
 const relayEscalation = evaluateWpRelayEscalation({
@@ -152,6 +150,34 @@ const relayEscalation = evaluateWpRelayEscalation({
   pendingNotifications,
   registrySessions: registry.sessions || [],
 });
+const boundaryEvaluation = evaluateWpCommunicationBoundary({
+  stage: "STATUS",
+  statusEvaluation: communicationEvaluation,
+  runtimeStatus,
+  latestReceipt: receipts.at(-1) || null,
+  pendingNotifications,
+});
+const boundaryIssues = (boundaryEvaluation.issues || []).filter((issue) => {
+  if (!issue.startsWith("runtime.attention_required")) return true;
+  return relayEscalation.status === "NOT_APPLICABLE";
+});
+if (!explicitTargetRole && communicationEvaluation.applicable && boundaryIssues.length > 0) {
+  fail("Runtime route drift prevents mechanical relay", boundaryIssues);
+}
+
+const activationGate = activationReadinessRequiresActivationManager(wpId);
+const defaultNextActor = activationGate.requiresActivationManager
+  ? "ACTIVATION_MANAGER"
+  : normalizeRole(runtimeStatus.next_expected_actor);
+const nextActor = explicitTargetRole || defaultNextActor;
+if (!ACTIVE_ROLE_SET.has(nextActor)) {
+  fail("No governed next actor is currently projected for automatic relay", [
+    `next_expected_actor=${runtimeStatus.next_expected_actor || "<missing>"}`,
+    `waiting_on=${runtimeStatus.waiting_on || "<missing>"}`,
+    runtimeStatusFile,
+  ]);
+}
+
 const governedSession = (registry.sessions || []).find((entry) => entry.session_key === sessionKey(nextActor, wpId)) || null;
 const roleConfig = resolveRoleConfig(nextActor, wpId);
 if (!roleConfig) {
@@ -160,41 +186,76 @@ if (!roleConfig) {
 
 const commandScript = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
 const action = steerActionForSession(governedSession);
-const nextSession = preferredTargetSession(runtimeStatus, governedSession);
-const targetNotifications = checkNotifications({ wpId, role: nextActor, session: nextSession });
-const envelope = deriveRelayEnvelope({
-  wpId,
-  runtimeStatus,
-  nextActor,
-  targetSession: nextSession,
-  notifications: targetNotifications,
-  dispatchAction: action,
-});
-const prompt = buildRelayDispatchPrompt({
-  basePrompt: buildSteeringPrompt({ role: nextActor, wpId, roleConfig }),
-  envelope,
-  contextLabel: "GOVERNED_ROUTE_CONTEXT [CX-ROUTE-001]",
-  messageLabel: "DIRECT_ROLE_MESSAGE [CX-ROUTE-002]",
-  terminalInstructions: [
-    "Treat DIRECT_ROLE_MESSAGE as the current receipt/notification-derived payload for WORKFLOW_LANE=ORCHESTRATOR_MANAGED.",
-    "Do not rediscover the relay type from scratch before acting; use RELAY_KIND and SOURCE_KIND as the current route context.",
-    `If you emit a paired acknowledgement, question, or response, preserve correlation_id=${envelope.correlationId} when applicable.`,
-  ],
-});
+const nextSession = explicitTargetRole
+  ? (explicitTargetSession || preferredTargetSession(runtimeStatus, governedSession))
+  : nextActor === "ACTIVATION_MANAGER"
+  ? sessionKey("ACTIVATION_MANAGER", wpId)
+  : preferredTargetSession(runtimeStatus, governedSession);
+let envelope = null;
+let prompt = "";
+if (nextActor === "ACTIVATION_MANAGER") {
+  prompt = [
+    buildSteeringPrompt({ role: nextActor, wpId, roleConfig }),
+    "ACTIVATION_GATE_OVERRIDE [CX-ACT-OVERRIDE-001]",
+    `- ACTIVATION_READINESS_PATH: ${activationGate.readiness.path}`,
+    `- ACTIVATION_READINESS_VERDICT: ${activationGate.readiness.verdict}`,
+    "- REASON: Downstream governed lanes remain blocked until Activation Manager writes truthful readiness for the signed packet/worktree state.",
+    "- REQUIRED_NOW: refresh packet/worktree/backup/readiness artifacts for the current signed packet and write/update ACTIVATION_READINESS before any coder or validator launch.",
+  ].join("\n");
+} else {
+  const targetNotifications = checkNotifications({ wpId, role: nextActor, session: nextSession });
+  if (explicitTargetRole && (targetNotifications.notifications || []).length === 0) {
+    fail("Explicit target role has no pending routed notification to dispatch", [
+      `target_role=${nextActor}`,
+      `target_session=${nextSession || "<none>"}`,
+      `runtime_next_expected_actor=${runtimeStatus.next_expected_actor || "<missing>"}`,
+      `runtime_waiting_on=${runtimeStatus.waiting_on || "<missing>"}`,
+    ]);
+  }
+  envelope = deriveRelayEnvelope({
+    wpId,
+    runtimeStatus,
+    nextActor,
+    targetSession: nextSession,
+    notifications: targetNotifications,
+    dispatchAction: action,
+  });
+  prompt = buildRelayDispatchPrompt({
+    basePrompt: buildSteeringPrompt({ role: nextActor, wpId, roleConfig }),
+    envelope,
+    contextLabel: "GOVERNED_ROUTE_CONTEXT [CX-ROUTE-001]",
+    messageLabel: "DIRECT_ROLE_MESSAGE [CX-ROUTE-002]",
+    terminalInstructions: [
+      "Treat DIRECT_ROLE_MESSAGE as the current receipt/notification-derived payload for WORKFLOW_LANE=ORCHESTRATOR_MANAGED.",
+      "Do not rediscover the relay type from scratch before acting; use RELAY_KIND and SOURCE_KIND as the current route context.",
+      `If you emit a paired acknowledgement, question, or response, preserve correlation_id=${envelope.correlationId} when applicable.`,
+    ],
+  });
+}
 
 console.log(`[ORCHESTRATOR_STEER_NEXT] wp_id=${wpId}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] next_actor=${nextActor}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] next_session=${nextSession || "<none>"}`);
+if (explicitTargetRole) {
+  console.log(`[ORCHESTRATOR_STEER_NEXT] explicit_target_role=${explicitTargetRole}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] explicit_target_session=${explicitTargetSession || "<none>"}`);
+}
 console.log(`[ORCHESTRATOR_STEER_NEXT] waiting_on=${runtimeStatus.waiting_on || "<missing>"}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] relay_status=${relayEscalation.status}`);
 if (relayEscalation.status !== "NOT_APPLICABLE") {
   console.log(`[ORCHESTRATOR_STEER_NEXT] relay_summary=${relayEscalation.summary}`);
 }
+if (nextActor === "ACTIVATION_MANAGER") {
+  console.log(`[ORCHESTRATOR_STEER_NEXT] activation_readiness_verdict=${activationGate.readiness.verdict}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] activation_readiness_path=${activationGate.readiness.path}`);
+}
 console.log(`[ORCHESTRATOR_STEER_NEXT] action=${action}`);
-console.log(`[ORCHESTRATOR_STEER_NEXT] relay_kind=${envelope.relayKind}`);
-console.log(`[ORCHESTRATOR_STEER_NEXT] source_kind=${envelope.sourceKind}`);
-console.log("DIRECT_ROLE_MESSAGE [CX-ROUTE-002]");
-console.log(`- ${envelope.message}`);
+if (envelope) {
+  console.log(`[ORCHESTRATOR_STEER_NEXT] relay_kind=${envelope.relayKind}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] source_kind=${envelope.sourceKind}`);
+  console.log("DIRECT_ROLE_MESSAGE [CX-ROUTE-002]");
+  console.log(`- ${envelope.message}`);
+}
 
 if (action === "START_SESSION") {
   execFileSync(process.execPath, [commandScript, "START_SESSION", nextActor, wpId, "", requestedModel], {

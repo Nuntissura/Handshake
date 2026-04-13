@@ -3,6 +3,8 @@ import { execSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { REPO_ROOT, normalizePath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluateArtifactHygiene } from "../../../roles_shared/scripts/lib/artifact-hygiene-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("validator-git-hygiene.mjs", { role: "WP_VALIDATOR" });
 
 const gitignorePath = ".gitignore";
 const requiredPatterns = ["target/", "node_modules/", "*.pdb", "*.dSYM", ".DS_Store", "Thumbs.db"];
@@ -10,9 +12,7 @@ const artifactRegex =
   /(\/|^)(target\/|node_modules\/)|\.pdb$|\.dSYM$|\.DS_Store$|Thumbs\.db$/;
 
 function fail(message, details = "") {
-  console.error(`validator-git-hygiene: FAIL — ${message}`);
-  if (details) console.error(details);
-  process.exit(1);
+  failWithMemory("validator-git-hygiene.mjs", message, { role: "WP_VALIDATOR", details: details ? [details] : [] });
 }
 
 let gitignore;

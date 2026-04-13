@@ -5,6 +5,7 @@ const PHASE_VALUE_SET = new Set(PHASE_VALUES);
 const STARTUP_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const HANDOFF_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR"]);
 const VERDICT_ROLE_VALUES = new Set(["WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const STARTUP_INTERNAL_FLAG_SET = new Set(["--committed-handoff-preflight"]);
 
 function normalizePhase(value) {
   return String(value || "").trim().toUpperCase();
@@ -74,6 +75,7 @@ export function buildPhaseCheckPlan({
   const normalizedRole = normalizeRole(role);
   const normalizedSession = String(session || "").trim();
   const normalizedArgs = Array.isArray(args) ? args.map((value) => String(value || "")).filter((value) => value !== "") : [];
+  const startupInternalFlags = new Set(normalizedArgs.filter((value) => STARTUP_INTERNAL_FLAG_SET.has(String(value || "").trim())));
 
   if (!PHASE_VALUE_SET.has(normalizedPhase)) {
     throw new Error(`PHASE must be one of ${PHASE_VALUES.join(", ")}`);
@@ -84,7 +86,7 @@ export function buildPhaseCheckPlan({
       throw new Error("STARTUP phase requires role CODER, WP_VALIDATOR, or INTEGRATION_VALIDATOR");
     }
     if (normalizedRole === "CODER") {
-      return [
+      const plan = [
         step("ensure-wp-communications", "roles_shared/scripts/wp/ensure-wp-communications.mjs", [normalizedWpId]),
         step("active-lane-brief", "roles_shared/scripts/session/active-lane-brief-lib.mjs", [normalizedRole, normalizedWpId, "--json"]),
         step("wp-communication-health-check", "roles_shared/checks/wp-communication-health-check.mjs", [
@@ -94,8 +96,11 @@ export function buildPhaseCheckPlan({
           normalizedSession,
         ]),
         step("gate-check", "", [normalizedWpId]),
-        step("pre-work-check", "roles/coder/checks/pre-work-check.mjs", [normalizedWpId]),
       ];
+      if (!startupInternalFlags.has("--committed-handoff-preflight")) {
+        plan.push(step("pre-work-check", "roles/coder/checks/pre-work-check.mjs", [normalizedWpId]));
+      }
+      return plan;
     }
     return [
       step("ensure-wp-communications", "roles_shared/scripts/wp/ensure-wp-communications.mjs", [normalizedWpId]),
@@ -125,7 +130,7 @@ export function buildPhaseCheckPlan({
     return [
       step("active-lane-brief", "roles_shared/scripts/session/active-lane-brief-lib.mjs", [handoffRole, normalizedWpId, "--json"]),
       step("validator-packet-complete", "roles/validator/scripts/lib/validator-governance-lib.mjs", [normalizedWpId]),
-      step("validator-handoff-check", "roles/validator/scripts/lib/validator-governance-lib.mjs", [normalizedWpId]),
+      step("validator-handoff-check", "roles/validator/scripts/lib/validator-governance-lib.mjs", [normalizedWpId, ...normalizedArgs]),
       step("wp-communication-health-check", "roles_shared/checks/wp-communication-health-check.mjs", [normalizedWpId, "HANDOFF"]),
     ];
   }
@@ -149,7 +154,7 @@ export function buildPhaseCheckPlan({
       role: normalizedRole || "INTEGRATION_VALIDATOR",
     }),
     step("integration-validator-context-brief", "roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs", [normalizedWpId]),
-    step("integration-validator-closeout-check", "roles/validator/scripts/lib/integration-validator-closeout-lib.mjs", [normalizedWpId]),
+    step("integration-validator-closeout-check", "roles/validator/scripts/lib/integration-validator-closeout-lib.mjs", [normalizedWpId, ...normalizedArgs]),
     step("launch-memory-manager", "roles/memory_manager/scripts/launch-memory-manager.mjs", ["--force"]),
   ];
 }

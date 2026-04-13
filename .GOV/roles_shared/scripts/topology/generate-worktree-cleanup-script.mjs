@@ -20,6 +20,9 @@ import {
 } from "../session/session-policy.mjs";
 import { loadJson, loadPacket, packetExists, packetPath, parseClaimField } from "../lib/role-resume-utils.mjs";
 import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("generate-worktree-cleanup-script.mjs", { role: "SHARED" });
 
 const WORKTREE_CLEANUP_TOKEN_SCHEMA = "hsk.worktree_cleanup_token@1";
 const WORKTREE_CLEANUP_TOKEN_VERSION = "worktree_cleanup_token_v1";
@@ -30,9 +33,7 @@ const SESSION_REGISTRY_PATH = SESSION_REGISTRY_FILE;
 const TOKEN_TTL_DAYS = 7;
 
 function fail(message, details = []) {
-  console.error(`[GENERATE_WORKTREE_CLEANUP_SCRIPT] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("generate-worktree-cleanup-script.mjs", message, { role: "SHARED", details });
 }
 
 function usage() {

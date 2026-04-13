@@ -10,6 +10,7 @@ import {
   evaluateIntegrationValidatorTopology,
   evaluateWpSessionControlCloseoutBundle,
   latestCloseoutSyncEvent,
+  resolveIntegrationValidatorCloseoutRequirements,
   resolveCloseoutValidatorSessionsOfRecord,
 } from "../scripts/lib/integration-validator-closeout-lib.mjs";
 
@@ -47,10 +48,23 @@ function actorContextFixture() {
   };
 }
 
-function packetFixture() {
+function packetFixture(overrides = {}) {
+  const {
+    status = "Done",
+    currentMainCompatibilityStatus = "COMPATIBLE",
+    currentMainCompatibilityBaselineSha = "0123456789abcdef0123456789abcdef01234567",
+    currentMainCompatibilityVerifiedAtUtc = "2026-03-26T10:00:00Z",
+    packetWideningDecision = "NOT_REQUIRED",
+    packetWideningEvidence = "N/A",
+    currentWpStatus = "",
+  } = overrides;
+  const currentWpStatusLine = currentWpStatus
+    ? `- Current WP_STATUS: ${currentWpStatus}\n`
+    : "";
+
   return `# Task Packet: WP-TEST-VALIDATOR-v1
 
-**Status:** Done
+**Status:** ${status}
 
 ## METADATA
 - WP_ID: WP-TEST-VALIDATOR-v1
@@ -58,18 +72,36 @@ function packetFixture() {
 - WORKFLOW_LANE: ORCHESTRATOR_MANAGED
 - TECHNICAL_AUTHORITY: INTEGRATION_VALIDATOR
 - MERGE_AUTHORITY: INTEGRATION_VALIDATOR
-- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 0123456789abcdef0123456789abcdef01234567
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-03-26T10:00:00Z
-- PACKET_WIDENING_DECISION: NOT_REQUIRED
-- PACKET_WIDENING_EVIDENCE: N/A
+- INTEGRATION_VALIDATOR_OF_RECORD: INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1
+- CURRENT_MAIN_COMPATIBILITY_STATUS: ${currentMainCompatibilityStatus}
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: ${currentMainCompatibilityBaselineSha}
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: ${currentMainCompatibilityVerifiedAtUtc}
+- PACKET_WIDENING_DECISION: ${packetWideningDecision}
+- PACKET_WIDENING_EVIDENCE: ${packetWideningEvidence}
 - **Target File**: \`src/demo.rs\`
 - **Start**: 10
 - **End**: 20
 - **Line Delta**: 3
 - **Artifacts**: \`artifacts/signed.patch\`
-`.trim();
+## STATUS_HANDOFF
+${currentWpStatusLine}`.trim();
 }
+
+test("terminal OUTDATED_ONLY packets drop PASS-ready closeout requirements while keeping recorded compatibility truth", () => {
+  const requirements = resolveIntegrationValidatorCloseoutRequirements({
+    packetContent: packetFixture({
+      status: "Validated (OUTDATED_ONLY)",
+      currentMainCompatibilityStatus: "ADJACENT_SCOPE_REQUIRED",
+      packetWideningDecision: "FOLLOW_ON_WP_REQUIRED",
+      packetWideningEvidence: "Adjacent current-main drift lives in api/flight_recorder.rs outside the signed packet.",
+      currentWpStatus: "DONE_OUTDATED_ONLY",
+    }),
+  });
+
+  assert.equal(requirements.terminalNonPass, true);
+  assert.equal(requirements.requireReadyForPass, false);
+  assert.equal(requirements.requireRecordedScopeCompatibility, true);
+});
 
 test("integration-validator topology passes when the governed final lane resolves the committed target", () => {
   const evaluation = evaluateIntegrationValidatorTopology({
@@ -259,6 +291,62 @@ test("WP closeout bundle tolerates the current integration-validator broker run 
   assert.equal(evaluation.summary.self_active_run_count, 1);
   assert.equal(evaluation.summary.blocking_active_run_count, 0);
   assert.match(evaluation.warnings.join("\n"), /treating that self-owned run as non-blocking/i);
+});
+
+test("WP closeout bundle infers the self-owned validator session key when actor context omits it", () => {
+  const evaluation = evaluateWpSessionControlCloseoutBundle({
+    repoRoot: ".",
+    wpId: "WP-TEST-VALIDATOR-v1",
+    actorContext: {
+      actorRole: "INTEGRATION_VALIDATOR",
+      actorSessionKey: "",
+      actorSessionId: "integration-validator-session",
+      actorThreadId: "thread-123",
+      actorBranch: "main",
+      actorWorktreeDir: "../handshake_main",
+      source: "SESSION_REGISTRY",
+    },
+    requests: [
+      {
+        command_id: "cmd-closeout-self",
+        wp_id: "WP-TEST-VALIDATOR-v1",
+        role: "INTEGRATION_VALIDATOR",
+        session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        command_kind: "SEND_PROMPT",
+        output_jsonl_file: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/cmd-closeout-self.jsonl",
+      },
+    ],
+    results: [],
+    sessions: [
+      {
+        wp_id: "WP-TEST-VALIDATOR-v1",
+        role: "INTEGRATION_VALIDATOR",
+        session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        session_thread_id: "thread-123",
+        local_branch: "main",
+        local_worktree_dir: "../handshake_main",
+        last_command_id: "cmd-closeout-self",
+        last_command_status: "RUNNING",
+      },
+    ],
+    brokerState: {
+      active_runs: [
+        {
+          command_id: "cmd-closeout-self",
+          wp_id: "WP-TEST-VALIDATOR-v1",
+          role: "INTEGRATION_VALIDATOR",
+          session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        },
+      ],
+    },
+    fileExists: () => false,
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.issues.length, 0);
+  assert.equal(evaluation.summary.self_active_run_count, 1);
+  assert.equal(evaluation.summary.blocking_active_run_count, 0);
+  assert.match(evaluation.warnings.join("\n"), /self-owned run/i);
 });
 
 test("integration-validator closeout state combines topology and WP-scoped closeout truth", () => {

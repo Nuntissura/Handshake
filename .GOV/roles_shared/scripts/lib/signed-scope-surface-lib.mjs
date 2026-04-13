@@ -3,6 +3,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { defaultIntegrationValidatorWorktreeDir } from "../session/session-policy.mjs";
 import { REPO_ROOT } from "./runtime-paths.mjs";
+import { parseExplicitCoderHandoffRange } from "./role-resume-utils.mjs";
 
 function parseSingleField(packetText, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -43,6 +44,7 @@ export function parseSignedScopeValidationEntries(packetText) {
         start: null,
         end: null,
         lineDelta: null,
+        containmentOnly: false,
       };
       continue;
     }
@@ -63,6 +65,12 @@ export function parseSignedScopeValidationEntries(packetText) {
     const deltaMatch = line.match(/^\s*-\s+\*\*Line Delta\*\*:\s*`?([^`]+?)`?\s*$/i);
     if (deltaMatch) {
       current.lineDelta = parseIntField(deltaMatch[1]);
+      continue;
+    }
+
+    const containmentOnlyMatch = line.match(/^\s*-\s+\*\*Containment-Only\*\*:\s*`?([^`]+?)`?\s*$/i);
+    if (containmentOnlyMatch) {
+      current.containmentOnly = /^YES$/i.test(String(containmentOnlyMatch[1] || "").trim());
       continue;
     }
   }
@@ -173,10 +181,34 @@ export function normalizeUnifiedDiff(diffText) {
   return normalizedLines.join("\n").trim();
 }
 
+function normalizedDiffForDeclaredFiles(summary, declaredEntries, {
+  includeContainmentOnly = true,
+} = {}) {
+  const allowedFiles = new Set(
+    (Array.isArray(declaredEntries) ? declaredEntries : [])
+      .filter((entry) => includeContainmentOnly || !entry?.containmentOnly)
+      .map((entry) => String(entry?.filePath || "").trim())
+      .filter(Boolean),
+  );
+  const normalizedLines = [];
+  let includeCurrentFile = false;
+  for (const line of String(summary?.normalizedDiff || "").split(/\r?\n/)) {
+    const diffMatch = line.match(/^diff --git a\/(.+?) b\/(.+)$/);
+    if (diffMatch) {
+      includeCurrentFile = allowedFiles.has(normalizeRepoRelativePath(diffMatch[2]));
+      if (includeCurrentFile) normalizedLines.push(line);
+      continue;
+    }
+    if (includeCurrentFile && line) normalizedLines.push(line);
+  }
+  return normalizedLines.join("\n").trim();
+}
+
 function compareSummaryAgainstDeclaredSurface(summary, declaredEntries, label, {
   enforceWindows = true,
   enforceLineDelta = true,
   requireDeclaredFiles = true,
+  allowDeclaredContainmentOnlyOmissions = false,
 } = {}) {
   const errors = [];
   const declaredByFile = new Map(declaredEntries.map((entry) => [entry.filePath, entry]));
@@ -185,6 +217,9 @@ function compareSummaryAgainstDeclaredSurface(summary, declaredEntries, label, {
   for (const [filePath, declared] of declaredByFile.entries()) {
     const actual = summaryByFile.get(filePath);
     if (!actual) {
+      if (allowDeclaredContainmentOnlyOmissions && declared?.containmentOnly) {
+        continue;
+      }
       if (requireDeclaredFiles) {
         errors.push(`${label}: missing diff for declared file ${filePath}`);
       }
@@ -301,7 +336,59 @@ function readCandidateTargetDiff({
   const runGit = typeof gitRunner === "function"
     ? gitRunner
     : (args) => defaultGitRunner(mainWorktreeAbs, args);
+  const packetWpId = stripTicks(parseSingleField(packetText, "WP_ID"));
+  const explicitCommittedRange = parseExplicitCoderHandoffRange(packetText, packetWpId);
   const declaredMergeBaseSha = stripTicks(parseSingleField(packetText, "MERGE_BASE_SHA"));
+
+  if (
+    explicitCommittedRange
+    && /^[0-9a-f]{7,40}$/i.test(explicitCommittedRange.baseRev)
+    && /^[0-9a-f]{7,40}$/i.test(explicitCommittedRange.headRev)
+    && explicitCommittedRange.headRev.toLowerCase() === String(targetHeadSha || "").trim().toLowerCase()
+  ) {
+    const explicitBaseAncestorResult = runGit([
+      "merge-base",
+      "--is-ancestor",
+      explicitCommittedRange.baseRev,
+      targetHeadSha,
+    ]);
+    if (explicitBaseAncestorResult.code === 1) {
+      return {
+        ok: false,
+        error: `explicit committed handoff base ${explicitCommittedRange.baseRev} is not an ancestor of target ${targetHeadSha}`,
+        mainWorktreeAbs,
+      };
+    }
+    if (explicitBaseAncestorResult.code !== 0) {
+      return {
+        ok: false,
+        error: `cannot determine whether explicit committed handoff base ${explicitCommittedRange.baseRev} reaches target ${targetHeadSha}`,
+        mainWorktreeAbs,
+      };
+    }
+
+    const explicitRangeDiffResult = runGit([
+      "diff",
+      "--unified=0",
+      "--no-ext-diff",
+      explicitCommittedRange.baseRev,
+      targetHeadSha,
+    ]);
+    if (explicitRangeDiffResult.code !== 0) {
+      return {
+        ok: false,
+        error: `cannot read candidate target diff for ${targetHeadSha} from explicit committed handoff range ${explicitCommittedRange.baseRev}..${targetHeadSha}`,
+        mainWorktreeAbs,
+      };
+    }
+
+    return {
+      ok: true,
+      diffText: String(explicitRangeDiffResult.output || ""),
+      mergeBaseSha: explicitCommittedRange.baseRev,
+      mainWorktreeAbs,
+    };
+  }
 
   if (/^[0-9a-f]{40}$/i.test(declaredMergeBaseSha)) {
     const declaredBaseAncestorResult = runGit(["merge-base", "--is-ancestor", declaredMergeBaseSha, targetHeadSha]);
@@ -555,9 +642,17 @@ export function validateCandidateTargetAgainstSignedScope(packetText, {
   errors.push(...compareSummaryAgainstDeclaredSurface(actualSummary, surface.declaredEntries, "candidate target diff", {
     enforceWindows: false,
     enforceLineDelta: false,
+    allowDeclaredContainmentOnlyOmissions: true,
   }));
 
-  if (surface.ok && actualSummary.normalizedDiff !== surface.artifactNormalizedDiff) {
+  const hasContainmentOnlyEntries = surface.declaredEntries.some((entry) => entry?.containmentOnly);
+  const actualNormalizedDiff = hasContainmentOnlyEntries
+    ? normalizedDiffForDeclaredFiles(actualSummary, surface.declaredEntries, { includeContainmentOnly: false })
+    : actualSummary.normalizedDiff;
+  const artifactNormalizedDiff = hasContainmentOnlyEntries
+    ? normalizedDiffForDeclaredFiles(surface.artifactSummary, surface.declaredEntries, { includeContainmentOnly: false })
+    : surface.artifactNormalizedDiff;
+  if (surface.ok && actualNormalizedDiff !== artifactNormalizedDiff) {
     errors.push(
       "candidate target diff does not match the signed patch artifact after normalization; committed target drifted from the clean-room proof surface",
     );

@@ -8,10 +8,13 @@ import { fileURLToPath } from "node:url";
 
 import {
   activeOrchestratorCandidates,
+  buildPostWorkCommand,
   comparePrepareAgainstPacketTruth,
   inferWpIdFromPrepare,
   isTerminalTaskBoardStatus,
   normalizeVerdict,
+  parseExplicitCoderHandoffRange,
+  resolveCommittedCoderHandoffRange,
   workflowStartReadinessState,
 } from "../scripts/lib/role-resume-utils.mjs";
 
@@ -80,6 +83,58 @@ test("comparePrepareAgainstPacketTruth flags packet/PREPARE authority drift", ()
     "Official packet LOCAL_BRANCH conflicts with PREPARE: expected feat/WP-1-Example-v1, got feat/WP-1-Other-v1",
     "Official packet LOCAL_WORKTREE_DIR conflicts with PREPARE: expected ../wtc-example-v1, got ../wtc-other-v1",
   ]);
+});
+
+test("parseExplicitCoderHandoffRange prefers the latest fixed packet range and ignores HEAD-based commands", () => {
+  const packet = [
+    "- MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7",
+    "- Ran: `just phase-check HANDOFF WP-1-Example-v1 CODER --range facce56f..HEAD`",
+    "- Ran: `just phase-check HANDOFF WP-1-Example-v1 CODER --range bf3e7f81..4ba26a4`",
+    "- COMMAND: `just phase-check HANDOFF WP-1-Example-v1 CODER --range deadbee..feed123`",
+  ].join("\n");
+
+  assert.deepEqual(parseExplicitCoderHandoffRange(packet, "WP-1-Example-v1"), {
+    baseRev: "deadbee",
+    headRev: "feed123",
+  });
+});
+
+test("resolveCommittedCoderHandoffRange falls back to MERGE_BASE_SHA when no fixed packet range exists", () => {
+  const packet = [
+    "- MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7",
+    "- Ran: `just phase-check HANDOFF WP-1-Example-v1 CODER --range facce56f..HEAD`",
+  ].join("\n");
+
+  assert.deepEqual(resolveCommittedCoderHandoffRange(packet, "WP-1-Example-v1"), {
+    baseRev: "facce56f879d4ee990f62566b12a8b26d8bc61d7",
+    headRev: "HEAD",
+    source: "PACKET_MERGE_BASE",
+  });
+});
+
+test("resolveCommittedCoderHandoffRange accepts MERGE_BASE_SHA lines with explanatory comments", () => {
+  const packet = [
+    "- MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7 (git merge-base main HEAD at creation time; use for deterministic handoff evidence)",
+    "- Ran: `just phase-check HANDOFF WP-1-Example-v1 CODER --range facce56f..HEAD`",
+  ].join("\n");
+
+  assert.deepEqual(resolveCommittedCoderHandoffRange(packet, "WP-1-Example-v1"), {
+    baseRev: "facce56f879d4ee990f62566b12a8b26d8bc61d7",
+    headRev: "HEAD",
+    source: "PACKET_MERGE_BASE",
+  });
+});
+
+test("buildPostWorkCommand prefers the packet explicit committed handoff range over MERGE_BASE_SHA", () => {
+  const packet = [
+    "- MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7",
+    "- Ran: `just phase-check HANDOFF WP-1-Example-v1 CODER --range bf3e7f81..4ba26a4`",
+  ].join("\n");
+
+  assert.equal(
+    buildPostWorkCommand("WP-1-Example-v1", packet),
+    "just phase-check HANDOFF WP-1-Example-v1 CODER --range bf3e7f81..4ba26a4",
+  );
 });
 
 test("terminal board helpers treat ABANDONED as a first-class terminal state", () => {

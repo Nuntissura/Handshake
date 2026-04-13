@@ -43,6 +43,15 @@
   - `/.GOV/codex/Handshake_Codex_v1.4.md`
   - `/AGENTS.md`
 - Hard rule: if any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), STOP and require a WP.
+- Governance surface minimization rule:
+  - Prefer extending an existing phase-owned command, role-owned surface, or primary debug artifact instead of creating a new public `just` recipe, standalone check, standalone script, or duplicate operator-facing doc path.
+  - Target shape: one real public command per phase or authority boundary and one primary artifact/debug surface per phase or boundary.
+  - Thin wrappers, compatibility aliases, and duplicate public helpers are governance debt, not neutral convenience.
+  - For governance scripts and public recipes specifically, prefer one canonical public script per phase or authority boundary. If a new script would share the same owner, inputs, primary artifact/debug surface, and usual invocation path as an existing script, extend the existing script instead of adding a sibling.
+  - Bias toward fewer larger canonical scripts over multiple small public wrappers that always travel together anyway.
+  - Keep a separate public script only when authority owner, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs. Internal helper libs are still allowed; the real target is fewer public entrypoints.
+  - If a new live governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether any older surface is being retired or intentionally kept distinct.
+  - Do not retire an old public governance surface until the replacement is confirmed as tracked and usable in the active topology.
 - Build/test/tool outputs MUST live at the external sibling root `../Handshake Artifacts/` (subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`). Repo-local `target/` directories are governance violations.
 - When old governance scripts/tests are retired during repo-governance cleanup, move them to an operator-designated external archive root outside the repo for safekeeping and posterity instead of hard-deleting them. Keep that archive location out of runtime assumptions; record the concrete path in the relevant audit/log for the cleanup wave.
 - Operator-facing scope split rule:

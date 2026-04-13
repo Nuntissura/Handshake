@@ -4,12 +4,14 @@ import path from "node:path";
 import { WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 import { loadSpecDebtRegistry, writeSpecDebtRegistryRows } from "../lib/spec-debt-registry-lib.mjs";
 import { parseClauseRows, readPacket } from "../lib/spec-debt-packet-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("spec-debt-close.mjs", { role: "SHARED" });
 
 const debtId = String(process.argv[2] || "").trim();
 
 function fail(message) {
-  console.error(`[SPEC_DEBT_CLOSE] ${message}`);
-  process.exit(1);
+  failWithMemory("spec-debt-close.mjs", message, { role: "SHARED" });
 }
 
 if (!/^SPECDEBT-[A-Za-z0-9][A-Za-z0-9_-]*$/i.test(debtId)) {

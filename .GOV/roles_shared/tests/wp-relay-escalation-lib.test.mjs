@@ -33,7 +33,7 @@ test("relay escalation warns after heartbeat_due_at when pending notifications a
   const result = evaluateWpRelayEscalation({
     wpId: "WP-TEST-RELAY-v1",
     runtimeStatus: baseRuntime(),
-    communicationEvaluation: { applicable: true },
+    communicationEvaluation: { applicable: true, state: "COMM_WAITING_FOR_REVIEW" },
     receipts: [
       { actor_role: "CODER", actor_session: "coder-1", timestamp_utc: "2026-03-30T10:00:00Z" },
     ],
@@ -45,7 +45,7 @@ test("relay escalation warns after heartbeat_due_at when pending notifications a
 
   assert.equal(result.applicable, true);
   assert.equal(result.status, "WATCH");
-  assert.equal(result.reason_code, "PENDING_NOTIFICATION_WAITING");
+  assert.equal(result.reason_code, "WAITING_ON_VALIDATOR_REVIEW");
 });
 
 test("relay escalation fails when stale notifications cross stale_after without receipt progress", () => {
@@ -68,7 +68,10 @@ test("relay escalation fails when stale notifications cross stale_after without 
 
   assert.equal(result.status, "ESCALATED");
   assert.match(result.reason_code, /PENDING_NOTIFICATION_STALE|SESSION_ACTIVE_NO_RECEIPT_PROGRESS/);
-  assert.match(result.summary, /Use just orchestrator-steer-next WP-TEST-RELAY-v1/i);
+  assert.match(
+    result.summary,
+    /Use just orchestrator-steer-next WP-TEST-RELAY-v1 "<why this stalled relay should be re-woken, >=40 chars>"/i,
+  );
 });
 
 test("relay escalation fails when receipt progress is stale even without pending notifications", () => {
@@ -78,7 +81,7 @@ test("relay escalation fails when receipt progress is stale even without pending
       next_expected_actor: "CODER",
       next_expected_session: "coder-1",
     }),
-    communicationEvaluation: { applicable: true },
+    communicationEvaluation: { applicable: true, state: "COMM_WAITING_FOR_HANDOFF" },
     receipts: [
       { actor_role: "WP_VALIDATOR", actor_session: "wpv-1", timestamp_utc: "2026-03-30T10:00:00Z" },
     ],
@@ -87,7 +90,7 @@ test("relay escalation fails when receipt progress is stale even without pending
   });
 
   assert.equal(result.status, "ESCALATED");
-  assert.equal(result.reason_code, "RECEIPT_PROGRESS_STALE");
+  assert.equal(result.reason_code, "ROUTE_STALE_WAITING_ON_CODER_HANDOFF");
 });
 
 test("relay escalation records route and session activity timestamps when registry activity occurs after the route opened", () => {
@@ -118,4 +121,52 @@ test("relay escalation records route and session activity timestamps when regist
   assert.equal(result.reason_code, "SESSION_ACTIVE_NO_RECEIPT_PROGRESS");
   assert.equal(result.metrics.route_anchor_at, "2026-03-30T10:00:00.000Z");
   assert.equal(result.metrics.latest_session_activity_at, "2026-03-30T10:25:00.000Z");
+});
+
+test("relay escalation surfaces human approval waits even before watchdog thresholds are crossed", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime({
+      waiting_on: "OPERATOR_APPROVAL",
+    }),
+    communicationEvaluation: { applicable: true, state: "COMM_OK" },
+    receipts: [],
+    pendingNotifications: [],
+    nowIso: "2026-03-30T10:05:00Z",
+  });
+
+  assert.equal(result.status, "NORMAL");
+  assert.equal(result.reason_code, "WAITING_ON_HUMAN_APPROVAL");
+});
+
+test("relay escalation surfaces dependency waits from blocked open review items", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime({
+      waiting_on: "BLOCKED_OPEN_REVIEW_ITEM",
+    }),
+    communicationEvaluation: { applicable: true, state: "COMM_BLOCKED_OPEN_ITEMS" },
+    receipts: [],
+    pendingNotifications: [],
+    nowIso: "2026-03-30T10:12:00Z",
+  });
+
+  assert.equal(result.reason_code, "WAITING_ON_DEPENDENCY");
+});
+
+test("relay escalation surfaces deferred overlap repair as a coder-owned wait state", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime({
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-1",
+      waiting_on: "CURRENT_MICROTASK_COMPLETION_BEFORE_REPAIR",
+    }),
+    communicationEvaluation: { applicable: true, state: "COMM_DEFERRED_REPAIR_QUEUE" },
+    receipts: [],
+    pendingNotifications: [],
+    nowIso: "2026-03-30T10:12:00Z",
+  });
+
+  assert.equal(result.reason_code, "WAITING_ON_CODER_DEFERRED_REPAIR");
 });

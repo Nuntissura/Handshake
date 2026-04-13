@@ -13,7 +13,7 @@ function writeFile(targetPath, content) {
   fs.writeFileSync(targetPath, content, "utf8");
 }
 
-function packetFixture({ mergeBaseSha = "" } = {}) {
+function packetFixture({ mergeBaseSha = "", committedRange = null } = {}) {
   const lines = [
     "# Task Packet: WP-TEST-SIGNED-SCOPE-v1",
     "",
@@ -29,6 +29,11 @@ function packetFixture({ mergeBaseSha = "" } = {}) {
     "- **Artifacts**: `artifacts/signed.patch`",
   ];
   if (mergeBaseSha) lines.splice(4, 0, `- MERGE_BASE_SHA: ${mergeBaseSha}`);
+  if (committedRange?.baseRev && committedRange?.headRev) {
+    lines.push("");
+    lines.push("## STATUS_HANDOFF");
+    lines.push(`- Proof command: \`just phase-check HANDOFF WP-TEST-SIGNED-SCOPE-v1 CODER --range ${committedRange.baseRev}..${committedRange.headRev}\``);
+  }
   return lines.join("\n");
 }
 
@@ -81,6 +86,49 @@ test("validateCandidateTargetAgainstSignedScope fails when the candidate diff wi
 
   assert.equal(result.ok, false);
   assert.match(result.errors.join("\n"), /undeclared file changed/i);
+});
+
+test("validateCandidateTargetAgainstSignedScope allows declared containment-only files to be absent from the candidate target diff", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-surface-containment-only-"));
+  const packetText = [
+    "# Task Packet: WP-TEST-SIGNED-SCOPE-v1",
+    "",
+    "## METADATA",
+    "- WP_ID: WP-TEST-SIGNED-SCOPE-v1",
+    "- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main",
+    "",
+    "## VALIDATION",
+    "- **Target File**: `src/demo.rs`",
+    "- **Start**: 10",
+    "- **End**: 20",
+    "- **Line Delta**: 3",
+    "- **Target File**: `src/api/flight_recorder.rs`",
+    "- **Start**: 1",
+    "- **End**: 200",
+    "- **Line Delta**: 1",
+    "- **Containment-Only**: YES",
+    "- **Artifacts**: `artifacts/signed.patch`",
+  ].join("\n");
+  const containmentOnlyDiff = [
+    matchingDiff.trimEnd(),
+    "diff --git a/src/api/flight_recorder.rs b/src/api/flight_recorder.rs",
+    "--- a/src/api/flight_recorder.rs",
+    "+++ b/src/api/flight_recorder.rs",
+    "@@ -68 +67,0 @@",
+    "-    pub model_session_id: Option<String>,",
+    "",
+  ].join("\n");
+  writeFile(path.join(tempRoot, "artifacts", "signed.patch"), containmentOnlyDiff);
+
+  const result = validateCandidateTargetAgainstSignedScope(packetText, {
+    repoRoot: tempRoot,
+    targetHeadSha: "abc1234",
+    currentMainHeadSha: "def5678",
+    candidateDiffText: matchingDiff,
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
 });
 
 test("validateContainedMainCommitAgainstSignedScope fails when merged main diff drifts from the signed patch artifact", () => {
@@ -208,6 +256,47 @@ test("validateCandidateTargetAgainstSignedScope honors MERGE_BASE_SHA for multi-
   assert.equal(result.ok, true);
   assert.deepEqual(result.errors, []);
   assert.equal(result.mergeBaseSha, mergeBaseSha);
+});
+
+test("validateCandidateTargetAgainstSignedScope prefers the explicit committed handoff range over stale MERGE_BASE_SHA", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-surface-explicit-range-"));
+  writeFile(path.join(tempRoot, "artifacts", "signed.patch"), matchingDiff);
+  const staleMergeBaseSha = "1111111111111111111111111111111111111111";
+  const committedBaseSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const targetHeadSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+  const result = validateCandidateTargetAgainstSignedScope(
+    packetFixture({
+      mergeBaseSha: staleMergeBaseSha,
+      committedRange: {
+        baseRev: committedBaseSha,
+        headRev: targetHeadSha,
+      },
+    }),
+    {
+      repoRoot: tempRoot,
+      targetHeadSha,
+      currentMainHeadSha: "3333333333333333333333333333333333333333",
+      gitRunner: (args) => {
+        if (
+          args[0] === "merge-base"
+          && args[1] === "--is-ancestor"
+          && args[2] === committedBaseSha
+          && args[3] === targetHeadSha
+        ) {
+          return { code: 0, output: "" };
+        }
+        if (args[0] === "diff" && args[3] === committedBaseSha && args[4] === targetHeadSha) {
+          return { code: 0, output: matchingDiff };
+        }
+        return { code: 1, output: "unexpected git call" };
+      },
+    },
+  );
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.mergeBaseSha, committedBaseSha);
 });
 
 test("validateContainedMainCommitAgainstSignedScope allows a subset of the signed file surface during harmonized containment", () => {

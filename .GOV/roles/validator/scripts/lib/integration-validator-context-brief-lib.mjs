@@ -17,6 +17,7 @@ import { resolveValidatorGatePath } from "../../../../roles_shared/scripts/lib/v
 import {
   evaluateIntegrationValidatorCloseoutState,
   latestCloseoutSyncEvent,
+  resolveIntegrationValidatorCloseoutRequirements,
 } from "./integration-validator-closeout-lib.mjs";
 import {
   evaluateValidatorPacketGovernanceState,
@@ -90,6 +91,7 @@ export function buildIntegrationValidatorContextBrief({
   }
 
   const packetPathValue = normalizePath(packetPathValueOverride || packetPath(wpId));
+  const packetReadPath = normalizePath(repoPathAbs(packetPathValue));
   const packetStatus = normalizeStatus(parseStatus(packetContent), "<missing>");
   const currentWpStatus = normalizeStatus(parseCurrentWpStatus(packetContent), "<empty>");
   const boardStatus = normalizeStatus(taskBoardStatus(wpId), "<none>");
@@ -100,6 +102,9 @@ export function buildIntegrationValidatorContextBrief({
     packetContent,
     gitContext,
     registrySessions,
+  });
+  const closeoutRequirements = resolveIntegrationValidatorCloseoutRequirements({
+    packetContent,
   });
   const governanceState = evaluateValidatorPacketGovernanceState({
     wpId,
@@ -127,6 +132,8 @@ export function buildIntegrationValidatorContextBrief({
     gitRunner,
     worktreeExists,
     fileExists,
+    requireReadyForPass: closeoutRequirements.requireReadyForPass,
+    requireRecordedScopeCompatibility: closeoutRequirements.requireRecordedScopeCompatibility,
   });
   const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
   const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
@@ -167,23 +174,29 @@ export function buildIntegrationValidatorContextBrief({
     wp_id: wpId,
     context_status: contextStatus,
     closeout_readiness: closeoutReadiness,
+    closeout_requirements: {
+      require_ready_for_pass: closeoutRequirements.requireReadyForPass,
+      require_recorded_scope_compatibility: closeoutRequirements.requireRecordedScopeCompatibility,
+      terminal_non_pass_packet: closeoutRequirements.terminalNonPass,
+    },
     workflow_lane: authority.workflowLane || "<missing>",
     packet_path: packetPathValue,
+    packet_read_path: packetReadPath || "<missing>",
     packet_status: packetStatus,
     current_wp_status: currentWpStatus,
     task_board_status: boardStatus,
     command_surface_path: COMMAND_SURFACE_PATH,
     minimal_live_read_set: [
       "startup output",
-      "active packet",
+      "packet_read_path from integration-validator-context-brief",
       "active WP thread/notifications",
       COMMAND_SURFACE_PATH,
     ],
     anti_rediscovery_rule:
       "Do not rebuild final-lane branch/worktree/authority truth by rereading large protocols or rediscovering commands once this bundle is available.",
     startup_sequence: [
-      "just validator-startup",
-      `just validator-next ${wpId}`,
+      "just validator-startup INTEGRATION_VALIDATOR",
+      `just validator-next INTEGRATION_VALIDATOR ${wpId}`,
       `just integration-validator-context-brief ${wpId}`,
     ],
     authority: {
@@ -272,6 +285,7 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- CONTEXT_STATUS: ${brief.context_status}`,
     `- CLOSEOUT_READINESS: ${brief.closeout_readiness}`,
     `- WORKFLOW_LANE: ${brief.workflow_lane} | PACKET_STATUS: ${brief.packet_status} | CURRENT_WP_STATUS: ${brief.current_wp_status} | TASK_BOARD_STATUS: ${brief.task_board_status}`,
+    `- CLOSEOUT_REQUIREMENTS: require_ready_for_pass=${brief.closeout_requirements.require_ready_for_pass ? "YES" : "NO"} | require_recorded_scope_compatibility=${brief.closeout_requirements.require_recorded_scope_compatibility ? "YES" : "NO"} | terminal_non_pass_packet=${brief.closeout_requirements.terminal_non_pass_packet ? "YES" : "NO"}`,
     `- AUTHORITIES: technical=${brief.authority.technical_authority} | merge=${brief.authority.merge_authority} | integration_validator=${brief.authority.integration_validator_of_record} | wp_validator=${brief.authority.wp_validator_of_record}`,
     `- ACTOR_CONTEXT: role=${brief.actor_context.role} | source=${brief.actor_context.source} | session=${brief.actor_context.session_id} | thread=${brief.actor_context.thread_id} | branch=${brief.actor_context.branch}`,
     `- GOVERNANCE_ROOT: live=${brief.governance_root.live_root} | main_backup=${brief.governance_root.local_main_backup_root} | mode=${brief.governance_root.mode}`,
@@ -279,7 +293,7 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- MAIN_COMPATIBILITY: status=${brief.current_main_compatibility.status} | baseline=${brief.current_main_compatibility.baseline_sha} | verified_at=${brief.current_main_compatibility.verified_at_utc} | main_head=${brief.current_main_compatibility.current_main_head_sha}`,
     `- CLOSEOUT_BUNDLE: requests=${brief.closeout_bundle.request_count} | results=${brief.closeout_bundle.result_count} | sessions=${brief.closeout_bundle.session_count} | active_runs=${brief.closeout_bundle.active_run_count}`,
     `- CLOSEOUT_PROVENANCE: status=${brief.closeout_provenance.status} | mode=${brief.closeout_provenance.mode} | actor=${brief.closeout_provenance.actor_role}/${brief.closeout_provenance.actor_session_id} | recorded_at=${brief.closeout_provenance.recorded_at_utc}`,
-    `- ARTIFACT_POINTERS: packet=${brief.packet_path} | command_surface=${brief.command_surface_path} | gate_state=${brief.committed_handoff.gate_state_path} | prepare_worktree=${brief.committed_handoff.prepare_worktree_dir}`,
+    `- ARTIFACT_POINTERS: packet_logical=${brief.packet_path} | packet_read=${brief.packet_read_path} | command_surface=${brief.command_surface_path} | gate_state=${brief.committed_handoff.gate_state_path} | prepare_worktree=${brief.committed_handoff.prepare_worktree_dir}`,
     `- MINIMAL_LIVE_READ_SET: ${formatBoundedList(brief.minimal_live_read_set, 6).join(" | ")}`,
     `- STARTUP_SEQUENCE: ${brief.startup_sequence.join(" -> ")}`,
     `- ANTI_REDISCOVERY_RULE: ${brief.anti_rediscovery_rule}`,

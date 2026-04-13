@@ -14,15 +14,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { repoPathAbs, resolveWorkPacketPath, GOV_ROOT_REPO_REL, WORK_PACKET_STORAGE_ROOT_REPO_REL, WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("wp-traceability-set.mjs", { role: "ORCHESTRATOR" });
 
 const REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 const OFFICIAL_DIR = WORK_PACKET_STORAGE_ROOT_REPO_REL;
 const STUB_DIR = WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL;
 
 function fail(message, details = []) {
-  console.error(`[WP_TRACEABILITY_SET] ${message}`);
-  for (const line of details) console.error(`- ${line}`);
-  process.exit(1);
+  failWithMemory("wp-traceability-set.mjs", message, { role: "ORCHESTRATOR", details });
 }
 
 function detectEol(text) {

@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import { validateSemanticProofAssets } from "../scripts/lib/semantic-proof-lib.mjs";
 import { listOfficialWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("semantic-proof-check.mjs", { role: "SHARED" });
 
 function fail(message, details = []) {
-  console.error(`[SEMANTIC_PROOF_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("semantic-proof-check.mjs", message, { role: "SHARED", details });
 }
 
 function parseSingleField(text, label) {

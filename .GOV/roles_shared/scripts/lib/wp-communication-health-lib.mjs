@@ -17,6 +17,7 @@ import {
   parsePacketScopeList,
   parsePacketSingleField,
 } from "./scope-surface-lib.mjs";
+import { deriveWpMicrotaskPlan } from "./wp-microtask-lib.mjs";
 import { validatorReportProfileUsesHeuristicRigor } from "./validator-report-profile-lib.mjs";
 
 export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STARTUP", "STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
@@ -27,6 +28,7 @@ export const COMMUNICATION_MONITOR_STATE_VALUES = [
   "COMM_WAITING_FOR_INTENT",
   "COMM_WAITING_FOR_INTENT_CHECKPOINT",
   "COMM_WAITING_FOR_HANDOFF",
+  "COMM_DEFERRED_REPAIR_QUEUE",
   "COMM_REPAIR_REQUIRED",
   "COMM_WAITING_FOR_REVIEW",
   "COMM_WAITING_FOR_FINAL_REVIEW",
@@ -42,7 +44,7 @@ export const VALIDATOR_REVIEW_OUTCOME_VALUES = [
   "APPROVED_FOR_FINAL_REVIEW",
 ];
 export const VALIDATOR_ASSESSMENT_VERDICT_VALUES = ["ASSESSED", "FAIL", "PASS"];
-export const MAX_OVERLAP_MICROTASK_REVIEW_ITEMS = 2;
+export const MAX_OVERLAP_MICROTASK_REVIEW_ITEMS = 1;
 const INTENT_CHECKPOINT_CLEARANCE_RECEIPT_KIND_VALUES = new Set([
   "VALIDATOR_RESPONSE",
   "SPEC_CONFIRMATION",
@@ -102,11 +104,26 @@ function normalizeMicrotaskReviewMode(value) {
   return MICROTASK_REVIEW_MODE_VALUES.includes(normalized) ? normalized : "BLOCKING";
 }
 
+function inferMicrotaskReviewMode(entry = null) {
+  const rawReviewMode = String(entry?.microtask_contract?.review_mode || "").trim();
+  if (rawReviewMode) return normalizeMicrotaskReviewMode(rawReviewMode);
+  if (/review_mode\s*=\s*OVERLAP/i.test(String(entry?.summary || ""))) return "OVERLAP";
+  if (
+    normalizeReceiptKind(entry?.receipt_kind) === "REVIEW_REQUEST"
+    && normalizeRole(entry?.opened_by_role || entry?.actor_role) === "CODER"
+    && normalizeRole(entry?.target_role) === "WP_VALIDATOR"
+    && /^MT-\d{3}$/i.test(String(entry?.packet_row_ref || "").trim())
+  ) {
+    return "OVERLAP";
+  }
+  return "BLOCKING";
+}
+
 export function isOverlapMicrotaskReviewItem(item = null) {
   return normalizeReceiptKind(item?.receipt_kind) === "REVIEW_REQUEST"
     && normalizeRole(item?.opened_by_role) === "CODER"
     && normalizeRole(item?.target_role) === "WP_VALIDATOR"
-    && normalizeMicrotaskReviewMode(item?.microtask_contract?.review_mode) === "OVERLAP";
+    && inferMicrotaskReviewMode(item) === "OVERLAP";
 }
 
 function partitionOpenReviewItems(openReviewItems = []) {
@@ -124,6 +141,74 @@ function partitionOpenReviewItems(openReviewItems = []) {
     blockingQueue,
     exceedsOverlapLimit: overlapQueue.length > MAX_OVERLAP_MICROTASK_REVIEW_ITEMS,
   };
+}
+
+/**
+ * Build a role-specific inbox: pending obligations that must be addressed
+ * before the role can proceed to new work.
+ *
+ * @param {string} role - CODER, WP_VALIDATOR, or INTEGRATION_VALIDATOR
+ * @param {object} runtimeStatus - current WP runtime status
+ * @returns {{ items: Array, next_action: string, blocked_reason: string|null }}
+ */
+export function buildRoleInbox(role, runtimeStatus = {}) {
+  const normalizedRole = normalizeRole(role);
+  const openItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+
+  // Items targeted at this role that are still open.
+  const targetedItems = openItems
+    .filter((item) => normalizeRole(item?.target_role) === normalizedRole)
+    .map((item) => {
+      const kind = normalizeReceiptKind(item?.receipt_kind);
+      const mt = extractMicrotaskId(item);
+      const isSteer = kind === "REVIEW_RESPONSE"
+        && /steer|not.pass|rejected|remediation/i.test(String(item?.summary || ""));
+      const isReviewRequest = kind === "REVIEW_REQUEST";
+      // Priority: steers (remediation) > review requests > other
+      const priority = isSteer ? 1 : isReviewRequest ? 2 : 3;
+      return {
+        kind,
+        mt,
+        correlation_id: nullableComparable(item?.correlation_id) || null,
+        summary: String(item?.summary || "").trim().slice(0, 200),
+        opened_by: normalizeRole(item?.opened_by_role) || "UNKNOWN",
+        priority,
+        is_steer: isSteer,
+        is_review_request: isReviewRequest,
+      };
+    })
+    .sort((a, b) => a.priority - b.priority);
+
+  if (targetedItems.length === 0) {
+    return { items: [], next_action: "PROCEED", blocked_reason: null };
+  }
+
+  // Determine next action from highest-priority item.
+  const top = targetedItems[0];
+  let next_action = "PROCEED";
+  let blocked_reason = null;
+
+  if (top.is_steer) {
+    next_action = top.mt ? `REMEDIATE_${top.mt}` : "REMEDIATE";
+    blocked_reason = `Pending remediation: ${top.summary}`;
+  } else if (top.is_review_request) {
+    next_action = top.mt ? `REVIEW_${top.mt}` : "REVIEW";
+    blocked_reason = `Pending review: ${top.summary}`;
+  } else {
+    next_action = "ADDRESS_INBOX";
+    blocked_reason = `Pending obligation: ${top.summary}`;
+  }
+
+  return { items: targetedItems, next_action, blocked_reason };
+}
+
+function extractMicrotaskId(item) {
+  const summary = String(item?.summary || "");
+  const mt = String(item?.microtask_contract?.microtask_id || "").trim();
+  if (mt) return mt.toUpperCase();
+  const match = summary.match(/\bMT-\d+\b/i);
+  return match ? match[0].toUpperCase() : null;
 }
 
 function isClosedTerminalRuntimeState(runtimeStatus = {}) {
@@ -173,6 +258,23 @@ function latestProjectedNotifications(notifications = []) {
   );
 }
 
+function startupMeshAlreadySatisfied({ counts = {}, runtimeStatus = {} } = {}) {
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+  return Number(counts?.validatorKickoffs || 0) > 0
+    || Number(counts?.coderIntents || 0) > 0
+    || Number(counts?.coderHandoffs || 0) > 0
+    || Number(counts?.validatorReviews || 0) > 0
+    || Number(counts?.integrationFinalOpenReceipts || 0) > 0
+    || Number(counts?.integrationFinalResolutionReceipts || 0) > 0
+    || Number(counts?.openReviewItems || 0) > 0
+    || waitingOn === "WP_VALIDATOR_INTENT_CHECKPOINT"
+    || waitingOn === "CODER_HANDOFF"
+    || waitingOn === "CODER_REPAIR_HANDOFF"
+    || waitingOn === "FINAL_REVIEW_EXCHANGE"
+    || waitingOn === "VERDICT_PROGRESSION"
+    || waitingOn.startsWith("OPEN_REVIEW_ITEM");
+}
+
 function activeCorrelationIdsFromStatus(statusEvaluation = null, runtimeStatus = {}) {
   const ids = new Set();
   for (const item of Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : []) {
@@ -190,14 +292,35 @@ function notificationMatchesProjectedRoute(notification = null, autoRoute = null
   const sourceKind = normalizeReceiptKind(notification?.source_kind);
   if (!ACTIVE_NOTIFICATION_SOURCE_KIND_VALUES.has(sourceKind)) return false;
 
-  const nextActor = normalizeRole(autoRoute?.nextExpectedActor);
-  if (!nextActor || nextActor === "NONE") return false;
-
   const targetRole = normalizeRole(notification?.target_role);
   const targetSession = normalizeSession(notification?.target_session);
+  const projectedTargets = [];
+
+  const nextActor = normalizeRole(autoRoute?.nextExpectedActor);
   const nextSession = normalizeSession(autoRoute?.nextExpectedSession);
-  if (targetRole !== nextActor) return false;
-  if (nextSession && targetSession && targetSession !== nextSession) return false;
+  if (nextActor && nextActor !== "NONE") {
+    projectedTargets.push({ role: nextActor, session: nextSession });
+  }
+
+  if (Array.isArray(autoRoute?.secondaryNotifications)) {
+    for (const secondary of autoRoute.secondaryNotifications) {
+      const role = normalizeRole(secondary?.targetRole);
+      if (!role || role === "NONE") continue;
+      projectedTargets.push({
+        role,
+        session: normalizeSession(secondary?.targetSession),
+      });
+    }
+  }
+
+  if (projectedTargets.length === 0) return false;
+
+  const matchesProjectedTarget = projectedTargets.some((candidate) => {
+    if (candidate.role !== targetRole) return false;
+    if (candidate.session && targetSession && candidate.session !== targetSession) return false;
+    return true;
+  });
+  if (!matchesProjectedTarget) return false;
 
   const correlationId = nullableComparable(notification?.correlation_id);
   if (sourceKind === "AUTO_ROUTE") return true;
@@ -304,28 +427,34 @@ export function communicationContractApplies({
 
 function matchingReply(openReceipt, resolutionReceipts) {
   const correlationId = String(openReceipt?.correlation_id || "").trim();
+  const openTimestamp = String(openReceipt?.timestamp_utc || "").trim();
   if (!correlationId) return null;
-  return resolutionReceipts.find((entry) => {
-    const replyCorrelation = String(entry?.correlation_id || "").trim();
-    const ackFor = String(entry?.ack_for || "").trim();
-    const openActorRole = normalizeRole(openReceipt?.actor_role);
-    const openTargetRole = normalizeRole(openReceipt?.target_role);
-    const replyActorRole = normalizeRole(entry?.actor_role);
-    const replyTargetRole = normalizeRole(entry?.target_role);
-    if (replyCorrelation !== correlationId || ackFor !== correlationId) return false;
-    if (openActorRole !== replyTargetRole || openTargetRole !== replyActorRole) return false;
-    const directReviewSessions = DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(openActorRole)
-      && DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(openTargetRole);
-    if (!directReviewSessions) return true;
-    const openActorSession = normalizeSession(openReceipt?.actor_session);
-    const openTargetSession = normalizeSession(openReceipt?.target_session);
-    const replyActorSession = normalizeSession(entry?.actor_session);
-    const replyTargetSession = normalizeSession(entry?.target_session);
-    if (!openActorSession || !replyActorSession || !replyTargetSession) return false;
-    if (openActorSession !== replyTargetSession) return false;
-    if (openTargetSession && openTargetSession !== replyActorSession) return false;
-    return true;
-  }) || null;
+  return [...(resolutionReceipts || [])]
+    .filter((entry) => {
+      const replyCorrelation = String(entry?.correlation_id || "").trim();
+      const ackFor = String(entry?.ack_for || "").trim();
+      const openActorRole = normalizeRole(openReceipt?.actor_role);
+      const openTargetRole = normalizeRole(openReceipt?.target_role);
+      const replyActorRole = normalizeRole(entry?.actor_role);
+      const replyTargetRole = normalizeRole(entry?.target_role);
+      if (replyCorrelation !== correlationId || ackFor !== correlationId) return false;
+      if (openActorRole !== replyTargetRole || openTargetRole !== replyActorRole) return false;
+      const replyTimestamp = String(entry?.timestamp_utc || "").trim();
+      if (openTimestamp && replyTimestamp && replyTimestamp <= openTimestamp) return false;
+      const directReviewSessions = DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(openActorRole)
+        && DIRECT_REVIEW_SESSION_ROLE_VALUES.includes(openTargetRole);
+      if (!directReviewSessions) return true;
+      const openActorSession = normalizeSession(openReceipt?.actor_session);
+      const openTargetSession = normalizeSession(openReceipt?.target_session);
+      const replyActorSession = normalizeSession(entry?.actor_session);
+      const replyTargetSession = normalizeSession(entry?.target_session);
+      if (!openActorSession || !replyActorSession || !replyTargetSession) return false;
+      if (openActorSession !== replyTargetSession) return false;
+      if (openTargetSession && openTargetSession !== replyActorSession) return false;
+      return true;
+    })
+    .sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0]
+    || null;
 }
 
 function latestMatchingPair(openReceipts, resolutionReceipts) {
@@ -372,7 +501,7 @@ function summarySuggestsRepairRequired(summary) {
     || /\bplease repair\b/i.test(normalized)
     || /\brework required\b/i.test(normalized)
     || /\bfix required\b/i.test(normalized)
-    || /\bre-handoff\b/i.test(normalized);
+    || /\bre[-\s]?handoff\b/i.test(normalized);
 }
 
 function summarySuggestsFinalReviewApproval(summary) {
@@ -590,7 +719,11 @@ function receiptKindsFilter(receipts, { receiptKinds, actorRole, targetRole }) {
 }
 
 function requiresFinalAuthorityDirectReview(packetFormatVersion = "") {
-  return isVersionAtLeast(packetFormatVersion, FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION);
+  // PACKET_FORMAT_VERSION >= 2026-04-06 retires the direct coder<->integration-validator
+  // final review pair. From that law version onward, WP_VALIDATOR closes the direct-review
+  // lane and ORCHESTRATOR launches INTEGRATION_VALIDATOR as the downstream containment authority.
+  return isVersionAtLeast(packetFormatVersion, FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION)
+    && !isVersionAtLeast(packetFormatVersion, "2026-04-06");
 }
 
 function buildBaseDetails({
@@ -630,6 +763,12 @@ function buildBaseDetails({
     lines.push(`validator_assessment_duplicates_collapsed=${Number(validatorAssessmentDuplicatesCollapsed)}`);
   }
   return lines;
+}
+
+function summarizeMicrotaskState(entry = null) {
+  if (!entry?.mt_id) return null;
+  const state = String(entry?.state || "").trim().toUpperCase() || "UNKNOWN";
+  return `${entry.mt_id}:${state}`;
 }
 
 function result({
@@ -731,11 +870,24 @@ export function evaluateWpCommunicationHealth({
     actorRole: "CODER",
     targetRole: "WP_VALIDATOR",
   });
-  const validatorReviews = receiptFilter(receipts, {
-    receiptKind: "VALIDATOR_REVIEW",
+  const validatorReviews = receiptKindsFilter(receipts, {
+    receiptKinds: ["VALIDATOR_REVIEW", "REVIEW_RESPONSE"],
     actorRole: "WP_VALIDATOR",
     targetRole: "CODER",
   });
+  const microtaskPlan = deriveWpMicrotaskPlan({
+    wpId,
+    receipts,
+    runtimeStatus,
+  });
+  const activeMicrotask = microtaskPlan?.active_microtask || null;
+  const previousMicrotask = microtaskPlan?.previous_microtask || null;
+  const deferredRepairQueued =
+    String(activeMicrotask?.state || "").trim().toUpperCase() === "ACTIVE"
+    && activeMicrotask?.mt_id
+    && activeMicrotask.mt_id !== previousMicrotask?.mt_id
+    && String(previousMicrotask?.state || "").trim().toUpperCase() === "REPAIR_REQUIRED"
+    && normalizeMicrotaskReviewMode(previousMicrotask?.review_mode) === "OVERLAP";
 
   const kickoffIntentPair = latestOpenReceiptStatus(validatorKickoffs, coderIntents);
   const intentCheckpoint = summarizeIntentCheckpointRequirement({
@@ -788,6 +940,14 @@ export function evaluateWpCommunicationHealth({
     workflowInvalidities,
     validatorAssessmentDuplicatesCollapsed: Number(latestValidatorAssessment?.suppressedDuplicateCount || 0),
   });
+  if (microtaskPlan?.declared_count > 0) {
+    details.push(`declared_microtasks=${microtaskPlan.declared_count}`);
+    if (summarizeMicrotaskState(activeMicrotask)) details.push(`active_microtask=${summarizeMicrotaskState(activeMicrotask)}`);
+    if (summarizeMicrotaskState(previousMicrotask)) details.push(`previous_microtask=${summarizeMicrotaskState(previousMicrotask)}`);
+    if (deferredRepairQueued) {
+      details.push(`deferred_repair_queue=${previousMicrotask.mt_id}->after:${activeMicrotask.mt_id}`);
+    }
+  }
   const counts = {
     workflowInvalidities: workflowInvalidities.length,
     validatorKickoffs: validatorKickoffs.length,
@@ -799,12 +959,14 @@ export function evaluateWpCommunicationHealth({
     openReviewItems: openReviewItems.length,
     blockingOpenReviewItems: openReviewPartition.blockingQueue.length,
     overlapOpenReviewItems: openReviewPartition.overlapQueue.length,
+    deferredRepairQueued: deferredRepairQueued ? 1 : 0,
     validatorAssessmentDuplicatesCollapsed: Number(latestValidatorAssessment?.suppressedDuplicateCount || 0),
   };
   const correlations = {
     kickoff: kickoffIntentPair.openReceipt?.correlation_id || null,
     handoff: handoffReviewPair.openReceipt?.correlation_id || null,
     finalReview: integrationFinalPair.openReceipt?.correlation_id || null,
+    microtaskRepair: deferredRepairQueued ? (previousMicrotask?.correlation_id || null) : null,
   };
   if (normalizedStage === "STARTUP") {
     const startupRole = normalizeRole(actorRole);
@@ -823,6 +985,22 @@ export function evaluateWpCommunicationHealth({
         details: [
           ...startupDetails,
           `expected_startup_roles=${STARTUP_COMMUNICATION_ROLE_VALUES.join(",")}`,
+        ],
+        counts,
+        correlations,
+      });
+    }
+
+    if (startupMeshAlreadySatisfied({ counts, runtimeStatus })) {
+      return result({
+        applicable: true,
+        ok: true,
+        state: "COMM_OK",
+        message: `Startup communication mesh was already satisfied earlier in this lane for ${startupRole}`,
+        details: [
+          ...startupDetails,
+          `startup_mesh_status=already_satisfied`,
+          `runtime_waiting_on=${String(runtimeStatus?.waiting_on || "").trim() || "<missing>"}`,
         ],
         counts,
         correlations,
@@ -963,6 +1141,23 @@ export function evaluateWpCommunicationHealth({
         latestWpValidatorReviewOutcome,
       });
     }
+    if (deferredRepairQueued) {
+      return result({
+        applicable: true,
+        ok: false,
+        state: "COMM_DEFERRED_REPAIR_QUEUE",
+        message: "WP validator repair debt is queued on a previous overlap microtask while coder finishes the current active microtask",
+        details: [
+          ...details,
+          `deferred_repair_microtask=${previousMicrotask?.mt_id || "<missing>"}`,
+          `active_execution_microtask=${activeMicrotask?.mt_id || "<missing>"}`,
+        ],
+        counts,
+        correlations,
+        latestValidatorAssessment,
+        latestWpValidatorReviewOutcome,
+      });
+    }
     if (coderHandoffs.length === 0) {
       return result({
         applicable: true,
@@ -1092,8 +1287,26 @@ export function evaluateWpCommunicationHealth({
         counts,
         correlations,
         latestValidatorAssessment,
-        latestWpValidatorReviewOutcome,
-      });
+      latestWpValidatorReviewOutcome,
+    });
+  }
+
+  if (deferredRepairQueued) {
+    return result({
+      applicable: true,
+      ok: false,
+      state: "COMM_DEFERRED_REPAIR_QUEUE",
+      message: "WP validator repair debt is queued on a previous overlap microtask while coder finishes the current active microtask",
+      details: [
+        ...details,
+        `deferred_repair_microtask=${previousMicrotask?.mt_id || "<missing>"}`,
+        `active_execution_microtask=${activeMicrotask?.mt_id || "<missing>"}`,
+      ],
+      counts,
+      correlations,
+      latestValidatorAssessment,
+      latestWpValidatorReviewOutcome,
+    });
   }
 
   if (coderHandoffs.length === 0) {
@@ -1237,6 +1450,10 @@ function sessionForRole(runtimeStatus, role, preferredSession = null) {
   const ROLE = normalizeRole(role);
   const explicitSession = normalizeSession(preferredSession);
   if (explicitSession) return explicitSession;
+  const projectedSession = normalizeRole(runtimeStatus?.next_expected_actor) === ROLE
+    ? normalizeSession(runtimeStatus?.next_expected_session) || normalizeSession(runtimeStatus?.waiting_on_session)
+    : null;
+  if (projectedSession) return projectedSession;
   if (ROLE === "WP_VALIDATOR") {
     return normalizeSession(runtimeStatus?.wp_validator_of_record) || mostRecentActiveSessionForRole(runtimeStatus, ROLE);
   }
@@ -1286,6 +1503,23 @@ function runtimeIsContainedTerminalCloseout(runtimeStatus = {}) {
     && mainContainmentStatus === "CONTAINED_IN_MAIN";
 }
 
+function runtimeIsMergePendingCloseout(runtimeStatus = {}) {
+  const runtimeStatusValue = String(runtimeStatus?.runtime_status || "").trim().toLowerCase();
+  const currentPhase = String(runtimeStatus?.current_phase || "").trim().toUpperCase();
+  const nextExpectedActor = normalizeRole(runtimeStatus?.next_expected_actor);
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+  const mainContainmentStatus = String(runtimeStatus?.main_containment_status || "").trim().toUpperCase();
+  const packetStatus = String(runtimeStatus?.current_packet_status || "").trim().toUpperCase();
+  const taskBoardStatus = String(runtimeStatus?.current_task_board_status || "").trim().toUpperCase();
+  return runtimeStatusValue === "completed"
+    && currentPhase === "STATUS_SYNC"
+    && nextExpectedActor === "INTEGRATION_VALIDATOR"
+    && waitingOn === "MAIN_CONTAINMENT"
+    && mainContainmentStatus === "MERGE_PENDING"
+    && packetStatus === "DONE"
+    && taskBoardStatus === "DONE_MERGE_PENDING";
+}
+
 function latestInvalidityCode(latestReceipt = null) {
   return String(latestReceipt?.workflow_invalidity_code || "").trim().toUpperCase();
 }
@@ -1314,15 +1548,28 @@ export function deriveWpCommunicationAutoRoute({
       readyForValidationReason: null,
       attentionRequired: false,
       notification: null,
+      secondaryNotifications: [],
     };
   }
 
-  if (evaluation.ok && runtimeIsContainedTerminalCloseout(runtimeStatus)) {
+  if (evaluation.ok && isClosedTerminalRuntimeState(runtimeStatus)) {
     return {
       ...route({
         state: evaluation.state,
         nextExpectedActor: "NONE",
         waitingOn: "CLOSED",
+      }),
+      notification: null,
+    };
+  }
+
+  if (evaluation.ok && runtimeIsMergePendingCloseout(runtimeStatus)) {
+    return {
+      ...route({
+        state: evaluation.state,
+        nextExpectedActor: "INTEGRATION_VALIDATOR",
+        nextExpectedSession: sessionForRole(runtimeStatus, "INTEGRATION_VALIDATOR"),
+        waitingOn: "MAIN_CONTAINMENT",
       }),
       notification: null,
     };
@@ -1338,6 +1585,7 @@ export function deriveWpCommunicationAutoRoute({
     latestTargetRole === "INTEGRATION_VALIDATOR" ? latestTargetSession : null,
   );
   const openReviewItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
+  let secondaryNotifications = [];
 
   let projection;
   switch (evaluation.state) {
@@ -1386,12 +1634,44 @@ export function deriveWpCommunicationAutoRoute({
       });
       break;
     case "COMM_WAITING_FOR_HANDOFF":
+      if (Array.isArray(openReviewItems) && openReviewItems.some((item) => isOverlapMicrotaskReviewItem(item))) {
+        projection = route({
+          state: evaluation.state,
+          nextExpectedActor: "CODER",
+          nextExpectedSession: coderSession,
+          waitingOn: "CODER_HANDOFF",
+          waitingOnSession: coderSession,
+          validatorTrigger: "MICROTASK_REVIEW_READY",
+          validatorTriggerReason: "Previous completed microtask is awaiting overlap review while coder continues the current microtask",
+          readyForValidation: true,
+          readyForValidationReason: "Overlap microtask review is open for the WP validator while coder remains in bounded forward execution",
+          notificationSummary: "AUTO_ROUTE: coder continues forward execution while overlap review remains open",
+        });
+        secondaryNotifications = [{
+          targetRole: "WP_VALIDATOR",
+          targetSession: wpValidatorSession,
+          sourceKind: "AUTO_ROUTE",
+          summary: "AUTO_ROUTE: WP validator overlap review required while coder continues current microtask",
+          autoRelay: true,
+        }];
+        break;
+      }
       projection = route({
         state: evaluation.state,
         nextExpectedActor: "CODER",
         nextExpectedSession: coderSession,
         waitingOn: "CODER_HANDOFF",
         notificationSummary: "AUTO_ROUTE: coder handoff required",
+      });
+      break;
+    case "COMM_DEFERRED_REPAIR_QUEUE":
+      projection = route({
+        state: evaluation.state,
+        nextExpectedActor: "CODER",
+        nextExpectedSession: coderSession,
+        waitingOn: "CURRENT_MICROTASK_COMPLETION_BEFORE_REPAIR",
+        waitingOnSession: coderSession,
+        notificationSummary: "AUTO_ROUTE: coder completes the current microtask, then loops back to validator-requested repair debt",
       });
       break;
     case "COMM_REPAIR_REQUIRED":
@@ -1503,6 +1783,7 @@ export function deriveWpCommunicationAutoRoute({
   return {
     ...projection,
     notification,
+    secondaryNotifications,
   };
 }
 
@@ -1517,6 +1798,9 @@ function boundaryCorrelationId(statusEvaluation, runtimeStatus = {}) {
     case "COMM_WAITING_FOR_INTENT_CHECKPOINT":
     case "COMM_WAITING_FOR_HANDOFF":
       return nullableComparable(statusEvaluation?.correlations?.kickoff);
+    case "COMM_DEFERRED_REPAIR_QUEUE":
+      return nullableComparable(statusEvaluation?.correlations?.microtaskRepair)
+        || nullableComparable(statusEvaluation?.correlations?.handoff);
     case "COMM_REPAIR_REQUIRED":
     case "COMM_WAITING_FOR_REVIEW":
       return nullableComparable(statusEvaluation?.correlations?.handoff);

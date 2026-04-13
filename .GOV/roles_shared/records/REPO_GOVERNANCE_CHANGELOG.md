@@ -1,4 +1,4 @@
-# Repo Governance Changelog
+﻿# Repo Governance Changelog
 
 ## Metadata
 
@@ -1377,7 +1377,7 @@
   - `RGF-84`
   - `RGF-82`
   - `RGF-85`
-- OUTCOME: the authoritative human-facing surfaces now teach “resolve Work Packets through the logical `work_packets` model, with `.GOV/task_packets/` as compatibility storage” instead of presenting `task_packets` as the conceptual source of truth
+- OUTCOME: the authoritative human-facing surfaces now teach â€œresolve Work Packets through the logical `work_packets` model, with `.GOV/task_packets/` as compatibility storageâ€ instead of presenting `task_packets` as the conceptual source of truth
 
 ### 2026.04.05.14 / GOV-CHANGE-20260405-14
 
@@ -1781,3 +1781,491 @@
   - `.GOV/roles_shared/records/SCRIPT_RATIONALIZATION_LOG.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
 - OUTCOME: closeout mutation now runs only through `phase-check CLOSEOUT ... --sync-mode ... --context ...`, the phase runner performs its own repomem gate/context capture before invoking the governed writer directly, the retired recipe body is preserved under `../../scripts_archive/justfile/retired-governance-phase-shims-20260408.just`, and active command surfaces no longer expose a second closeout command
+
+### 2026.04.09.1 / GOV-CHANGE-20260409-01
+
+- STATUS: APPLIED
+- SUMMARY: added trigger-aware and role-weighted governance memory recall so existing action entry points inject command-specific pitfalls and role habits before general findings
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260409-TRIGGER-AWARE-MEMORY-RECALL-INJECTION`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/memory/memory-recall.mjs`
+  - `.GOV/roles_shared/tests/memory-recall.test.mjs`
+  - `.GOV/Audits/audits/AUDIT_20260409_TRIGGER_AWARE_MEMORY_RECALL_INJECTION.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `NONE`
+- OUTCOME: `memory-recall` now uses stored trigger, script, and role metadata to surface repeated command failures and role-authored habits earlier, while keeping the existing public command surface stable inside the gov-kernel worktree
+
+### 2026.04.09.2 / GOV-CHANGE-20260409-02
+
+- STATUS: APPLIED
+- SUMMARY: opened `RGF-162` to track ACP governed-role launch and steer reliability as a first-class state-machine hardening item instead of treating repeated attempts as model-quality drift
+- CHANGE_TYPE: RECORDKEEPING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-162`
+  - `WP-1-Governance-Workflow-Mirror-v1`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-162`
+- OUTCOME: ACP launch/steer retries, broker drift recovery, self-settlement, and explicit busy/pending command states are now tracked as concrete governance implementation work that can proceed while Activation Manager continues refinement-heavy pre-launch work elsewhere
+
+### 2026.04.09.3 / GOV-CHANGE-20260409-03
+
+- STATUS: APPLIED
+- SUMMARY: tightened the direct coder<->WP-validator contract so per-MT overlap review is the normal orchestrator-managed lane, while opening `RGF-163` for the remaining mechanical enforcement work
+- CHANGE_TYPE: POLICY_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-163`
+  - 2026-04-09 operator directive on coder/wp-validator communication and non-relay workflow
+- SURFACES:
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-163`
+- OUTCOME: governance law now makes per-MT direct review and validator-owned steering explicit on orchestrator-managed lanes, clarifies deferred loop-back repair after validator disapproval, and reaffirms that the Orchestrator should only step in for governance workflow defects rather than relay ordinary coder/validator traffic
+
+### 2026.04.09.3 / GOV-CHANGE-20260409-03
+
+- STATUS: APPLIED
+- SUMMARY: made governed memory injection visibly auditable and restored bounded startup prompt memory injection
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260409-VISIBLE-MEMORY-INJECTION-AND-STARTUP-BOUNDS`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/memory/memory-recall.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/tests/memory-recall.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/Audits/audits/AUDIT_20260409_VISIBLE_MEMORY_INJECTION_AND_STARTUP_BOUNDS.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `NONE`
+- OUTCOME: governed `memory-recall` now prints a compact `MEMORY_INJECTION_APPLIED` summary for operator visibility, and governed startup prompts once again carry a small bounded fail/context block instead of leaving the startup loader code disconnected from the active prompt builder
+
+### 2026.04.09.4 / GOV-CHANGE-20260409-04
+
+- STATUS: APPLIED
+- SUMMARY: made the Memory Manager mechanical pre-pass conservative and report-first instead of letting automatic runs make destructive judgment calls
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260409-MEMORY-MANAGER-MECHANICAL-CONSERVATISM`
+- SURFACES:
+  - `.GOV/roles/memory_manager/scripts/launch-memory-manager.mjs`
+  - `.GOV/roles/memory_manager/scripts/memory-manager-policy.mjs`
+  - `.GOV/roles/memory_manager/tests/memory-manager-policy.test.mjs`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/Audits/audits/AUDIT_20260409_MEMORY_MANAGER_MECHANICAL_CONSERVATISM.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `NONE`
+- OUTCOME: automatic startup/closeout hygiene now performs soft decay and deterministic repair only, while stale, contradictory, and old low-value memories are surfaced as report-only candidates for the intelligent Memory Manager review instead of being auto-pruned or auto-consolidated
+
+### 2026.04.09.5 / GOV-CHANGE-20260409-05
+
+- STATUS: APPLIED
+- SUMMARY: restored real governed receipt emission for packetless Memory Manager ACP lanes
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260409-MEMORY-MANAGER-PACKETLESS-RECEIPT-EMISSION`
+- SURFACES:
+  - `.GOV/roles/memory_manager/scripts/memory-manager-receipt.mjs`
+  - `.GOV/roles/memory_manager/tests/memory-manager-receipt.test.mjs`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `justfile`
+  - `.GOV/Audits/audits/AUDIT_20260409_MEMORY_MANAGER_PACKETLESS_RECEIPT_EMISSION.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-160`
+- OUTCOME: synthetic `WP-MEMORY-HYGIENE_<timestamp>` sessions now create packetless communication scaffolds, Memory Manager can emit `MEMORY_PROPOSAL` / `MEMORY_FLAG` / `MEMORY_RGF_CANDIDATE` receipts plus ORCHESTRATOR notifications through explicit just commands, and the governed startup/steering prompts now tell the role to use that surface instead of assuming an official packet-backed lane
+
+### 2026.04.09.6 / GOV-CHANGE-20260409-06
+
+- STATUS: APPLIED
+- SUMMARY: opened `RGF-166` / `RGF-167` and implemented the first non-LLM relay watchdog slice for orchestrator-managed lanes
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-166`
+  - `RGF-167`
+  - 2026-04-09 operator directive on token-efficient autonomous relay watching, early stall capture, and removing screen babysitting from orchestrator-managed flow
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `justfile`
+- FOLLOW_ON_ITEMS:
+  - `RGF-166`
+  - `RGF-167`
+- OUTCOME: governance now has a public `just wp-relay-watchdog` command that consumes the existing receipt/notification/relay-escalation truth and safely re-steers only when the projected target is not already running; active runs are inspected with the existing stall scanner and reported conservatively as stalled rather than being killed by default, which establishes the mechanical watcher boundary for a later bounded repair ladder
+
+### 2026.04.10.1 / GOV-CHANGE-20260410-01
+
+- STATUS: APPLIED
+- SUMMARY: started the `RGF-167` repair-ladder slice with bounded relay-cycle persistence and explicit repair signaling
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-167`
+  - 2026-04-10 operator directive to commit the bounded auto-repair slice first and continue into repair handling
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-167`
+- OUTCOME: the watchdog now persists bounded relay-cycle state into WP runtime truth, surfaces relay-cycle budget in session-registry inspection, and emits deduped ORCHESTRATOR-targeted repair signals when a lane hits a true stalled-active-run or exhausted-relay-budget condition, without introducing destructive auto-cancel behavior by default
+
+### 2026.04.10.2 / GOV-CHANGE-20260410-02
+
+- STATUS: APPLIED
+- SUMMARY: excluded packetless Memory Manager hygiene lanes from worktree concurrency gating and began command-family shell memory injection
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `procedural memory #776`
+  - 2026-04-10 operator directive to remediate the `gov-check` blocker, then continue the two memory follow-up items
+- SURFACES:
+  - `.GOV/roles_shared/checks/worktree-concurrency-check.mjs`
+  - `.GOV/roles_shared/tests/worktree-concurrency-check.test.mjs`
+  - `.GOV/roles_shared/scripts/memory/memory-recall.mjs`
+  - `.GOV/roles_shared/scripts/memory/shell-with-memory.mjs`
+  - `.GOV/roles_shared/tests/memory-recall.test.mjs`
+  - `.GOV/roles_shared/tests/shell-with-memory.test.mjs`
+  - `justfile`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-160`
+  - `RGF-168`
+- OUTCOME: `gov-check` no longer treats synthetic `WP-MEMORY-HYGIENE_<ts>` Memory Manager lanes as product WPs that require coder/WP-validator worktrees, and governance now has an initial command-family shell wrapper that performs trigger-aware recall before ad hoc shell commands and can capture structured `shell-command` procedural memory keyed by command family
+
+### 2026.04.10.3 / GOV-CHANGE-20260410-03
+
+- STATUS: APPLIED
+- SUMMARY: added a conservative default-off restart rung to the relay watchdog and documented the guardrail contract
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-167`
+  - 2026-04-10 operator directive to proceed after evaluating restart safeguards for stalled governed lanes
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-167`
+- OUTCOME: the relay watchdog now supports an explicit `--allow-restart` repair rung that stays default-off and only cancels plus re-steers a governed lane when the projected target is one of `CODER` / `WP_VALIDATOR` / `INTEGRATION_VALIDATOR`, the lane is already classified as `REPORT_STALLED_ACTIVE_RUN`, the target session still claims `COMMAND_RUNNING`, the output file and session activity are both older than the configured freshness threshold, and every matching active run is already past `timeout_at`; otherwise the watchdog remains in report/escalate mode without destructive intervention
+
+### 2026.04.10.4 / GOV-CHANGE-20260410-04
+
+- STATUS: APPLIED
+- SUMMARY: completed the Memory Manager ACP proof lane and hardened shell-command memory forwarding on the live `just` surface
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260410-MEMORY-MANAGER-COMPLETION-AND-COMMAND-MEMORY-FORWARDING`
+  - `procedural memory #791`
+  - 2026-04-10 follow-on after the first ACP Memory Manager proof and the operator-directed shell-memory injection work
+- SURFACES:
+  - `.GOV/Audits/audits/AUDIT_20260410_MEMORY_MANAGER_COMPLETION_AND_COMMAND_MEMORY_FORWARDING.md`
+  - `.GOV/roles_shared/scripts/lib/node-argv-proxy.mjs`
+  - `.GOV/roles_shared/tests/node-argv-proxy.test.mjs`
+  - `.GOV/roles_shared/scripts/memory/governance-memory-cli.mjs`
+  - `.GOV/roles_shared/scripts/memory/shell-with-memory.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/checks/wp-communications-check.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-check.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `justfile`
+- FOLLOW_ON_ITEMS:
+  - `RGF-160`
+  - `RGF-168`
+- OUTCOME: packetless Memory Manager ACP lanes now survive `gov-check`, completion is documented through governed `SESSION_COMPLETION` plus `repomem close`, and the `shell-with-memory` / `repomem` command family now forwards variadic flag text safely through PowerShell while routing structured shell-command memory through the canonical memory CLI
+
+### 2026.04.11.1 / GOV-CHANGE-20260411-01
+
+- STATUS: APPLIED
+- SUMMARY: retroactively recorded the Workflow Dossier migration and ACP mechanical dossier trace as concrete governance workstreams
+- CHANGE_TYPE: RECORDKEEPING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT_20260410_GOVERNANCE_WORKFLOW_MIRROR_ACTIVATION_MANAGER_SMOKETEST_REVIEW.md`
+  - 2026-04-10/11 operator directive on live run dossiers, ACP printouts, closeout drift control, and rubric-at-closeout only
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-171`
+- OUTCOME: the board now has stable IDs for the already-applied Workflow Dossier and ACP dossier-trace work (`RGF-169` / `RGF-170`), so later audits, memory extraction, and follow-on items can cite concrete workstreams instead of only operator chat or broad audit filenames
+
+### 2026.04.11.2 / GOV-CHANGE-20260411-02
+
+- STATUS: APPLIED
+- SUMMARY: marked `RGF-162` in progress after the headless ACP launch slice and opened grouped follow-ons for downtime metrics, explicit result states, single-attempt recovery, and bridge-era compatibility cleanup
+- CHANGE_TYPE: RECORDKEEPING_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-162`
+  - `AUDIT_20260410_GOVERNANCE_WORKFLOW_MIRROR_ACTIVATION_MANAGER_SMOKETEST_REVIEW.md`
+  - 2026-04-11 operator directive on ACP launch reliability, launch polish, and downtime reduction
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-171`
+  - `RGF-172`
+  - `RGF-173`
+  - `RGF-174`
+- OUTCOME: governance now explicitly records that `RGF-162` has started landing through the headless/direct `AUTO` ACP slice and failure-visible dossier logging, while the remaining ACP reliability and downtime work is grouped into concrete next-wave items instead of lingering as loose notes
+
+### 2026.04.11.3 / GOV-CHANGE-20260411-03
+
+- STATUS: APPLIED
+- SUMMARY: removed the historical duplicate `RGF-163` board collision by re-keying the visible-memory/startup-restore workstream to `RGF-175`
+- CHANGE_TYPE: RECORDKEEPING_HARDENING
+- DRIVER_EVIDENCE:
+  - duplicate `RGF-163` collision found in `REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `AUDIT-20260409-VISIBLE-MEMORY-INJECTION-AND-STARTUP-BOUNDS`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `NONE`
+- OUTCOME: `RGF-163` now refers only to the per-MT validator steering workstream, while the already-completed visible memory injection and bounded startup restore work has a unique stable board ID (`RGF-175`) for future audit and memory references
+
+### 2026.04.11.4 / GOV-CHANGE-20260411-04
+
+- STATUS: APPLIED
+- SUMMARY: started `RGF-172` by introducing explicit ACP `outcome_state` reporting and idempotent `START_SESSION` handling for already-ready governed sessions
+- CHANGE_TYPE: SESSION_CONTROL_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-172`
+  - 2026-04-11 operator directive on repeated ACP launch attempts, launch polish, and reducing workflow downtime
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-172`
+  - `RGF-173`
+- OUTCOME: governed session-control results now carry a machine-readable `outcome_state`, `session-start` returns `ALREADY_READY` instead of failing when a steerable thread is already registered, broker concurrency is surfaced as `BUSY_ACTIVE_RUN`, and the Workflow Dossier/operator surface no longer collapses those steady states into generic opaque failures
+
+### 2026.04.11.5 / GOV-CHANGE-20260411-05
+
+- STATUS: APPLIED
+- SUMMARY: started `RGF-173` by making the ACP broker recover stale same-session active runs in the same request path before returning `BUSY_ACTIVE_RUN`
+- CHANGE_TYPE: SESSION_CONTROL_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-173`
+  - 2026-04-11 operator directive on repeated ACP launch attempts, stale busy states, and removing visible launch slop
+- SURFACES:
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-self-settle-lib.mjs`
+  - `.GOV/roles_shared/tests/session-control-self-settle-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-173`
+  - `RGF-174`
+- OUTCOME: if a governed lane appears busy only because the broker still holds a same-session run whose child process already died, whose timeout already expired, or whose terminal result row already exists, the broker now repairs or prunes that stale run inside the same launch/steer attempt and only returns `BUSY_ACTIVE_RUN` when a genuinely live competing run remains
+
+### 2026.04.11.6 / GOV-CHANGE-20260411-06
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-174` by retiring bridge-era packet law from the ordinary path and bounding the remaining launch queue/runtime surfaces to explicit compatibility usage
+- CHANGE_TYPE: SESSION_POLICY_MIGRATION
+- DRIVER_EVIDENCE:
+  - `RGF-174`
+  - 2026-04-11 operator directive after removing the local VS Code bridge and asking for lingering plugin-first residue to be cleaned up
+- SURFACES:
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles_shared/checks/session-launch-runtime-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs`
+  - `.GOV/roles/coder/checks/pre-work-check.mjs`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
+  - `.GOV/roles/orchestrator/README.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-172`
+  - `RGF-173`
+- OUTCOME: new packets/stubs now describe ACP control ledgers as the ordinary launch/steer path, legacy bridge queue fields are no longer stamped into fresh packet law, pre-work accepts both the new ACP-first shape and older bridge-era packets, and the remaining `VSCODE_PLUGIN` queue/runtime artifacts are explicitly framed as compatibility-only instead of the normal governed launch path
+
+### 2026.04.11.7 / GOV-CHANGE-20260411-07
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-171` by adding a live Workflow Dossier idle ledger that appends mechanical latency and drift metrics during dossier sync
+- CHANGE_TYPE: DOSSIER_OBSERVABILITY
+- DRIVER_EVIDENCE:
+  - `RGF-171`
+  - 2026-04-11 operator directive on reducing workflow downtime, closeout drift, and token cost aggressively where possible
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-timeline-lib.test.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier-lib.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-172`
+  - `RGF-173`
+- OUTCOME: `just workflow-dossier-sync WP-{ID}` now appends both the ACP/runtime execution summary and a separate `LIVE_IDLE_LEDGER` line with request-to-response latency, validator-pass-to-coder latency, current/max idle gaps, and compact drift markers so stall diagnosis is mechanical during the run instead of reconstructed from closeout memory
+
+### 2026.04.11.8 / GOV-CHANGE-20260411-08
+
+- STATUS: APPLIED
+- SUMMARY: advanced the next `RGF-172` / `RGF-173` slice by reconciling recoverable broker state before restart refusal and by letting `START_SESSION` absorb the common busy-while-becoming-ready race
+- CHANGE_TYPE: SESSION_CONTROL_HARDENING
+- DRIVER_EVIDENCE:
+  - `RGF-172`
+  - `RGF-173`
+  - 2026-04-11 operator directive to continue the remaining ACP reliability work after the bridge cleanup and dossier idle-metrics slices
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/handshake-acp-client.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles_shared/tests/handshake-acp-client.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-self-settle-lib.test.mjs`
+  - `.GOV/roles_shared/checks/session-control-runtime-check.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-172`
+  - `RGF-173`
+- OUTCOME: the ACP client now prunes/self-settles recoverable broker-state residue before deciding that a mismatched or unreachable broker still has blocking active runs, and the `START_SESSION` wrapper now waits briefly for the session to become READY before failing `BUSY_ACTIVE_RUN` / `REQUIRES_RECOVERY`, which removes one common double-launch race without pretending that genuinely live competing runs are safe
+
+### 2026.04.11.9 / GOV-CHANGE-20260411-09
+
+- STATUS: APPLIED
+- SUMMARY: opened `RGF-176` to require a real post-refactor ACP launch proof on a non-terminal WP and to preserve the concrete watchpoints for that validation
+- CHANGE_TYPE: GOVERNANCE_PLANNING
+- DRIVER_EVIDENCE:
+  - `RGF-176`
+  - 2026-04-11 live `just launch-activation-manager-session WP-1-Governance-Workflow-Mirror-v1 AUTO PRIMARY` attempt was blocked before ACP by terminal task-board status `OUTDATED_ONLY`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-176`
+- OUTCOME: the board now explicitly tracks the remaining practical validation gap: a real `AUTO` ACP launch on a non-terminal WP must still be exercised and checked for one-attempt convergence, no focus-stealing terminal launch, no duplicate request/result rows, truthful `outcome_state`, bounded token/ledger churn, clean Workflow Dossier ACP traces, and no stale broker/session residue after settlement
+
+### 2026.04.12.1 / GOV-CHANGE-20260412-01
+
+- STATUS: APPLIED
+- SUMMARY: opened RGF-189 through RGF-193 for governance workflow restructure — mechanical orchestrator, Rubrik role, Integration Validator expansion, orchestrator protocol update, closeout auto-repair
+- CHANGE_TYPE: GOVERNANCE_PLANNING
+- DRIVER_EVIDENCE:
+  - `DOSSIER_20260412_GOVERNANCE_WORKFLOW_MIRROR_WORKFLOW_DOSSIER.md` — 329min wall clock, 4.4min active, 256M tokens_in for 1 MT; 85% cost from mechanical work routed through ACP sessions
+  - Operator diagnosis: workflow-state drift is the dominant cost, not document drift; closeout truth/artifact drift is second
+  - Recurring product/repo governance confusion causing coder scope spill (dossier line 1547, feedback memories)
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-189` — Orchestrator Mechanical Governance and No-Approval Boundary
+  - `RGF-190` — Rubrik Role Protocol (per-MT boundary enforcement, product/repo containment)
+  - `RGF-191` — Integration Validator Whole-WP Judgment and Merge Authority
+  - `RGF-192` — Orchestrator Protocol Update for Role-Split Workflow
+  - `RGF-193` — Closeout Auto-Repair Script
+- OUTCOME: the governance task board now tracks five new items for restructuring the governed workflow to separate mechanical governance (direct script execution by orchestrator) from AI-mediated judgment (Rubrik per-MT, Integration Validator whole-WP); classic VALIDATOR role preserved for manual relay workflow
+
+### 2026.04.12.2 / GOV-CHANGE-20260412-02
+
+- STATUS: APPLIED
+- SUMMARY: implemented RGF-189 through RGF-193 — created Rubrik role protocol, Integration Validator protocol, updated Orchestrator Protocol with mechanical governance + no-approval boundary + role-split workflow, added RUBRIK to session registry schema + session policy, created closeout-repair script, added justfile recipes for Rubrik sessions and closeout-repair
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-189` through `RGF-193`
+  - `DOSSIER_20260412_GOVERNANCE_WORKFLOW_MIRROR_WORKFLOW_DOSSIER.md` (cost evidence)
+  - Operator direction: Rubrik for per-MT boundary enforcement, Integration Validator for whole-WP judgment, orchestrator runs mechanical checks directly
+- SURFACES:
+  - `.GOV/roles/rubrik/RUBRIK_PROTOCOL.md` (new)
+  - `.GOV/roles/validator/INTEGRATION_VALIDATOR_PROTOCOL.md` (new)
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (updated: mechanical governance principle, no-approval boundary, role-split workflow, Rubrik references)
+  - `.GOV/roles_shared/schemas/ROLE_SESSION_REGISTRY.schema.json` (added RUBRIK to role enum)
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs` (added RUBRIK to SESSION_ROLES, model profiles, token budgets, terminal title, command mappings)
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs` (added RUBRIK to usage)
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs` (added RUBRIK to usage)
+  - `.GOV/roles/orchestrator/scripts/session-control-cancel.mjs` (added RUBRIK to role list + usage)
+  - `.GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs` (added RUBRIK to usage)
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs` (new)
+  - `.GOV/roles/README.md` (added Rubrik and Integration Validator links)
+  - `justfile` (added launch/start/steer/cancel/close-rubrik-session, closeout-repair recipes)
+- FOLLOW_ON_ITEMS:
+  - `RGF-189` through `RGF-193` (status update to DONE pending first governed run validation)
+- OUTCOME: governance framework now implements the role split: Rubrik handles per-MT boundary enforcement and code review, Integration Validator handles whole-WP spec judgment with fresh context, Orchestrator runs mechanical governance directly; classic Validator preserved for manual relay; `just gov-check` passes
+
+### 2026.04.12.3 / GOV-CHANGE-20260412-03
+
+- STATUS: APPLIED
+- SUMMARY: corrected RGF-190-193 implementation — removed RUBRIK as role/folder (evaluation criteria inlined into WP_VALIDATOR_PROTOCOL), fixed Integration Validator direct-coder contradiction, added FAIL remediation flow, added sync-gov-to-main as explicit IntVal duty, added orchestrator role definition block, added bounded loop reference (RGF-100), added closeout-repair failure recovery path, created classic_orchestrator role for manual relay workflow
+- CHANGE_TYPE: GOVERNANCE_CORRECTION
+- DRIVER_EVIDENCE:
+  - Operator correction: RUBRIK is not a role, not a document, not anything — evaluation criteria belong inside WP_VALIDATOR_PROTOCOL directly
+  - Operator correction: orchestrator does not create refinements, worktrees, MTs (Activation Manager does)
+  - Operator correction: WP Validator does not actively steer coder (saves tokens), mechanical stall detection instead
+  - ORCHESTRATOR_PROTOCOL line 752 contradicted INTEGRATION_VALIDATOR_PROTOCOL line 136 (direct coder communication)
+  - Manual relay workflow mixed into orchestrator protocol causing confusion
+- SURFACES:
+  - `.GOV/roles/rubrik/` (deleted)
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md` (rewritten — full standalone protocol with inline evaluation criteria)
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md` (updated — FAIL remediation flow, sync-gov-to-main duty, removed rubrik refs)
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (updated — role definition block, removed rubrik refs, fixed line 752 contradiction, bounded loop, closeout recovery)
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md` (new — manual relay workflow role identity)
+  - `.GOV/roles/README.md` (updated — removed rubrik, added classic_orchestrator)
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` (corrected RGF-190/192 descriptions)
+- OUTCOME: RUBRIK concept fully removed from governance; WP Validator is standalone per-MT reviewer with inline evaluation criteria; Integration Validator FAIL flow routes remediation through Orchestrator; orchestrator role narrowed to launch+watch+steer with mechanical stall detection; classic_orchestrator role created for manual relay workflow separation
+
+### 2026.04.12.4 / GOV-CHANGE-20260412-04
+
+- STATUS: APPLIED
+- SUMMARY: post-restructure sweep — fixed critical Integration Validator startup prompt (was telling IntVal to communicate directly with coder via structured review lane, contradicting protocol), cleaned 3 stale KUBRIK/RUBRIK memory entries from governance DB, fixed misleading doc heading, opened RGF-194 for check script consolidation (49→~15-20 bundled groups)
+- CHANGE_TYPE: GOVERNANCE_CORRECTION
+- DRIVER_EVIDENCE:
+  - session-control-lib.mjs line 898: startup prompt injected into IntVal sessions said "DIRECT COMMUNICATION (MANDATORY)" which contradicted INTEGRATION_VALIDATOR_PROTOCOL.md and orchestrator protocol line 765
+  - governance memory DB entries 1555-1557 contained stale KUBRIK/RUBRIK references from the transition period
+  - GOVERNED_WORKFLOW_EXAMPLES.md line 93 heading said "directly" when communication is packet-mediated
+  - full audit of roles/ and roles_shared/ revealed 49 standalone check scripts as consolidation opportunity
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs` (fixed IntVal startup prompt — replaced DIRECT COMMUNICATION with VERDICT COMMUNICATION routing through orchestrator)
+  - governance memory DB (deleted entries 1555, 1556, 1557)
+  - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md` (fixed heading)
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` (added RGF-194)
+- OUTCOME: Integration Validator startup prompt now correctly instructs the model to route FAIL remediation through Orchestrator instead of communicating directly with coder; governance memory DB is clean of stale RUBRIK/KUBRIK entries; RGF-194 opened for future check consolidation

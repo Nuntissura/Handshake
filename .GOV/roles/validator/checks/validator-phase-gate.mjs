@@ -4,13 +4,14 @@
  */
 import { readFileSync } from "node:fs";
 import { GOV_ROOT_REPO_REL, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("validator-phase-gate.mjs", { role: "WP_VALIDATOR" });
 
 const phase = process.argv[2] || "Phase-1";
 const taskBoardPath = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 
 function fail(msg) {
-  console.error(`validator-phase-gate: FAIL - ${msg}`);
-  process.exit(1);
+  failWithMemory("validator-phase-gate.mjs", msg, { role: "WP_VALIDATOR" });
 }
 
 function extractSectionLines(board, headingText) {

@@ -37,6 +37,7 @@ Requirements (HARD):
 - SPEC_IMPACT_REASON: <fill; if YES, point to Main Body and/or EOF Appendix blocks that must change>
 
 ### RESEARCH_CURRENCY (current external signal scan; mandatory unless the WP is strictly internal/mechanical)
+- Rule: if the WP is an internal repo-governed change or product-governance mirror patch already grounded in the current Master Spec plus local code/runtime truth, it is valid and often preferable to set `RESEARCH_CURRENCY_REQUIRED=NO`. Do not force unrelated or generic web research just to populate this section.
 - RESEARCH_CURRENCY_REQUIRED: PENDING (YES | NO)
 - RESEARCH_CURRENCY_REASON_NO: <fill if RESEARCH_CURRENCY_REQUIRED=NO>
 - SOURCE_MAX_AGE_DAYS: <fill integer 30-730; if RESEARCH_CURRENCY_REQUIRED=NO write N/A>
@@ -59,7 +60,7 @@ Requirements (HARD):
 - RESEARCH_DEPTH_VERDICT: PENDING (PASS | NOT_APPLICABLE)
 
 ### GITHUB_PROJECT_SCOUTING (same-topic repo exploration; feed useful findings back into governance)
-- Rule: if RESEARCH_CURRENCY_REQUIRED=YES, inspect topic-adjacent GitHub projects/repos that touch the same intent, implementation topic, or UI surface. This is for discovering better execution patterns, richer feature combinations, and UI/UX force multipliers. Useful findings MUST flow back into spec/governance through scope expansion, new stubs, spec updates, or UI enrichment.
+- Rule: if RESEARCH_CURRENCY_REQUIRED=YES, inspect topic-adjacent GitHub projects/repos that touch the same intent, implementation topic, or UI surface. This is for discovering better execution patterns, richer feature combinations, and UI/UX force multipliers. Useful findings MUST flow back into spec/governance through scope expansion, new stubs, spec updates, or UI enrichment. If no directly topical project search exists, mark this section `NOT_APPLICABLE`; do not substitute off-topic searches.
 - SEARCH_QUERIES:
   - <fill; repo/topic search query or angle>
 - MATCHED_PROJECTS:
@@ -135,7 +136,7 @@ Requirements (HARD):
 - MECHANICAL_ENGINE_ALIGNMENT_VERDICT: PENDING (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
 
 ### PILLAR_ALIGNMENT (Handshake pillars cross-check)
-- Rule: Refinement MUST explicitly consider pillar alignment and interconnections (force multipliers). If unknown, write UNKNOWN and create stubs instead of guessing.
+- Rule: Refinement MUST explicitly consider pillar alignment and interconnections (force multipliers). Pillar feature definition and technical implementation MUST be derived from the current Master Spec. If unknown or underspecified, write UNKNOWN and create stubs or spec updates instead of guessing.
 - Required rubric lines (one per pillar; do not delete lines, fill values):
   - PILLAR: Flight Recorder | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: Calendar | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
@@ -162,7 +163,7 @@ Requirements (HARD):
 - PILLAR_ALIGNMENT_VERDICT: PENDING (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
 
 ### PILLAR_DECOMPOSITION (deeper pillar -> subfeature/capability slice mapping)
-- Rule: for `REFINEMENT_FORMAT_VERSION >= 2026-03-08`, decompose touched or adjacent pillars into concrete capability slices so Appendix 12 can grow beyond coarse pillar rows. This is where Calendar/Loom/Locus/Stage/Studio/Atelier-Lens/Command Center/Flight Recorder/RAG mixes become explicit. Silent omission is forbidden; every row must resolve through `IN_THIS_WP`, `NEW_STUB`, or `SPEC_UPDATE_NOW`.
+- Rule: for `REFINEMENT_FORMAT_VERSION >= 2026-03-08`, decompose touched or adjacent pillars into concrete capability slices so Appendix 12 can grow beyond coarse pillar rows. This is where Calendar/Loom/Locus/Stage/Studio/Atelier-Lens/Command Center/Flight Recorder/RAG mixes become explicit. Derive pillar slices and subfeatures from the current Master Spec; do not invent pillar semantics from memory. Silent omission is forbidden; every row must resolve through `IN_THIS_WP`, `NEW_STUB`, or `SPEC_UPDATE_NOW`.
 - Required row format:
   - PILLAR: <fill> | CAPABILITY_SLICE: <fill> | SUBFEATURES: <fill> | PRIMITIVES_FEATURES: <comma-separated PRIM-/FEAT-/TOOL-/TECH- ids | NONE> | MECHANICAL: <comma-separated engine IDs | NONE> | ROI: <HIGH|MEDIUM|LOW> | RESOLUTION: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | STUB: <WP-... | NONE> | NOTES: <fill>
 - PILLAR_DECOMPOSITION_VERDICT: PENDING (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
@@ -190,7 +191,7 @@ Requirements (HARD):
 - PRIMITIVE_MATRIX_REASON: <fill>
 
 ### MATRIX_RESEARCH_RUBRIC (external combo research; separate from local matrix scan)
-- Rule: inspect vendor docs/papers, university/lab work, official design systems, and high-signal GitHub repos when relevant. This section records what those systems combine, what Handshake should steal or reject, and which engineering tricks should carry over into primitives/tools/features/runtime surfaces. Link dumping is forbidden; every useful row must resolve explicitly.
+- Rule: inspect vendor docs/papers, university/lab work, official design systems, and high-signal GitHub repos when relevant. For internal/product-governance mirror work, it is valid to mark this section `NOT_APPLICABLE` when no directly topical external combo research is needed. Link dumping is forbidden; every useful row must resolve explicitly.
 - MATRIX_RESEARCH_REQUIRED: PENDING (YES | NO)
 - MATRIX_RESEARCH_REASON_NO: <fill if MATRIX_RESEARCH_REQUIRED=NO>
 - SOURCE_SCAN:

@@ -41,9 +41,12 @@ function normalizeScopeRefKey(value) {
     .toUpperCase();
 }
 
-function parseSemicolonList(rawValue, { normalizeAsRepoPath = false } = {}) {
-  const entries = String(rawValue || "")
-    .split(";")
+function parseDelimitedList(rawValue, { normalizeAsRepoPath = false } = {}) {
+  const raw = String(rawValue || "");
+  const backtickEntries = Array.from(raw.matchAll(/`([^`]+)`/g))
+    .map((match) => String(match[1] || "").trim())
+    .filter(Boolean);
+  const entries = (backtickEntries.length > 0 ? backtickEntries : raw.split(/[;,]/))
     .map((value) => value.trim())
     .filter(Boolean);
   if (!normalizeAsRepoPath) return Array.from(new Set(entries));
@@ -54,8 +57,8 @@ function parseMicrotaskDefinition(mtAbsPath, mtRelPath) {
   const text = fs.readFileSync(mtAbsPath, "utf8");
   const mtId = String(parsePacketSingleField(text, "MT_ID") || "").trim();
   const clause = String(parsePacketSingleField(text, "CLAUSE") || "").trim();
-  const codeSurfaces = parseSemicolonList(parsePacketSingleField(text, "CODE_SURFACES"), { normalizeAsRepoPath: true });
-  const expectedTests = parseSemicolonList(parsePacketSingleField(text, "EXPECTED_TESTS"));
+  const codeSurfaces = parseDelimitedList(parsePacketSingleField(text, "CODE_SURFACES"), { normalizeAsRepoPath: true });
+  const expectedTests = parseDelimitedList(parsePacketSingleField(text, "EXPECTED_TESTS"));
   const dependsOn = String(parsePacketSingleField(text, "DEPENDS_ON") || "").trim() || "NONE";
 
   if (!mtId) {
@@ -173,13 +176,42 @@ function statePriority(state = "") {
   }
 }
 
-function executionCompleteState(state = "") {
+function reviewBoundaryState(state = "") {
   const normalized = String(state || "").trim().toUpperCase();
-  return normalized === "CLEARED" || normalized === "IN_REVIEW";
+  return normalized === "CLEARED" || normalized === "IN_REVIEW" || normalized === "REPAIR_REQUIRED";
 }
 
 function normalizeReviewMode(value = "") {
   return String(value || "").trim().toUpperCase();
+}
+
+function scopeRefFromEntry(entry = {}, correlationScopeRefs = new Map()) {
+  const explicitScopeRef = String(entry?.microtask_contract?.scope_ref || "").trim();
+  if (explicitScopeRef) return explicitScopeRef;
+  const packetRowRef = String(entry?.packet_row_ref || "").trim();
+  if (/^MT-\d{3}$/i.test(packetRowRef)) return packetRowRef.toUpperCase();
+  const summaryMatch = String(entry?.summary || "").match(/\b(MT-\d{3})\b/i);
+  if (summaryMatch) return summaryMatch[1].toUpperCase();
+  const correlationId = String(entry?.correlation_id || "").trim();
+  if (correlationId && correlationScopeRefs.has(correlationId)) {
+    return correlationScopeRefs.get(correlationId);
+  }
+  return "";
+}
+
+function reviewModeFromEntry(entry = {}) {
+  const explicitReviewModeRaw = String(entry?.microtask_contract?.review_mode || "").trim();
+  if (explicitReviewModeRaw) return normalizeReviewMode(explicitReviewModeRaw);
+  if (/review_mode\s*=\s*OVERLAP/i.test(String(entry?.summary || ""))) return "OVERLAP";
+  if (
+    normalizeReceiptKind(entry?.receipt_kind) === "REVIEW_REQUEST"
+    && normalizeRole(entry?.opened_by_role || entry?.actor_role) === "CODER"
+    && normalizeRole(entry?.target_role) === "WP_VALIDATOR"
+    && /^MT-\d{3}$/i.test(String(entry?.packet_row_ref || "").trim())
+  ) {
+    return "OVERLAP";
+  }
+  return null;
 }
 
 function stateFromReceipt(receipt = {}) {
@@ -207,13 +239,25 @@ function findFirstItemByState(items = [], expectedState = "") {
   return items.find((entry) => String(entry?.state || "").trim().toUpperCase() === normalized) || null;
 }
 
+function findMostRecentItemByState(items = [], expectedState = "") {
+  const normalized = String(expectedState || "").trim().toUpperCase();
+  const matches = items
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => String(entry?.state || "").trim().toUpperCase() === normalized)
+    .sort((left, right) =>
+      String(right.entry?.last_activity_at || "").localeCompare(String(left.entry?.last_activity_at || ""))
+      || right.index - left.index
+    );
+  return matches[0]?.entry || null;
+}
+
 function deriveActiveExecutionMicrotask(items = []) {
-  return findFirstItemByState(items, "REPAIR_REQUIRED")
-    || findFirstItemByState(items, "ACTIVE")
+  return findMostRecentItemByState(items, "ACTIVE")
     || items.find((entry) =>
       String(entry?.state || "").trim().toUpperCase() === "IN_REVIEW"
       && normalizeReviewMode(entry?.review_mode) !== "OVERLAP"
     )
+    || findFirstItemByState(items, "REPAIR_REQUIRED")
     || findFirstItemByState(items, "DECLARED")
     || null;
 }
@@ -225,13 +269,13 @@ function derivePreviousExecutionMicrotask(items = [], activeMicrotask = null) {
     const activeIndex = items.findIndex((entry) => entry.mt_id === activeMicrotask.mt_id);
     if (activeIndex > 0) {
       const previous = items[activeIndex - 1];
-      return executionCompleteState(previous?.state) ? previous : null;
+      return reviewBoundaryState(previous?.state) ? previous : null;
     }
     return null;
   }
 
   const reversed = [...items].reverse();
-  return reversed.find((entry) => executionCompleteState(entry?.state)) || null;
+  return reversed.find((entry) => reviewBoundaryState(entry?.state)) || null;
 }
 
 export function deriveWpMicrotaskPlan({
@@ -263,10 +307,13 @@ export function deriveWpMicrotaskPlan({
   const orderedReceipts = [...(Array.isArray(receipts) ? receipts : [])].sort((left, right) =>
     String(left?.timestamp_utc || "").localeCompare(String(right?.timestamp_utc || ""))
   );
+  const correlationScopeRefs = new Map();
 
   for (const receipt of orderedReceipts) {
-    const scopeRef = String(receipt?.microtask_contract?.scope_ref || "").trim();
+    const scopeRef = scopeRefFromEntry(receipt, correlationScopeRefs);
     if (!scopeRef) continue;
+    const correlationId = String(receipt?.correlation_id || "").trim();
+    if (correlationId) correlationScopeRefs.set(correlationId, scopeRef);
     const definition = resolvedMicrotaskForScopeRef(wpId, scopeRef, declaredMicrotasks);
     if (!definition) continue;
     const entry = byId.get(definition.mtId);
@@ -280,12 +327,12 @@ export function deriveWpMicrotaskPlan({
     entry.last_activity_at = String(receipt?.timestamp_utc || "").trim() || null;
     entry.last_receipt_kind = normalizeReceiptKind(receipt?.receipt_kind) || null;
     entry.last_actor_role = normalizeRole(receipt?.actor_role) || null;
-    entry.correlation_id = String(receipt?.correlation_id || "").trim() || null;
-    entry.review_mode = normalizeReviewMode(receipt?.microtask_contract?.review_mode) || null;
+    entry.correlation_id = correlationId || null;
+    entry.review_mode = reviewModeFromEntry(receipt) || entry.review_mode;
   }
 
   for (const item of Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : []) {
-    const scopeRef = String(item?.microtask_contract?.scope_ref || "").trim();
+    const scopeRef = scopeRefFromEntry(item, correlationScopeRefs);
     if (!scopeRef) continue;
     const definition = resolvedMicrotaskForScopeRef(wpId, scopeRef, declaredMicrotasks);
     if (!definition) continue;
@@ -297,7 +344,7 @@ export function deriveWpMicrotaskPlan({
     entry.last_receipt_kind = normalizeReceiptKind(item?.receipt_kind) || entry.last_receipt_kind;
     entry.last_actor_role = normalizeRole(item?.opened_by_role) || entry.last_actor_role;
     entry.correlation_id = String(item?.correlation_id || "").trim() || entry.correlation_id;
-    entry.review_mode = normalizeReviewMode(item?.microtask_contract?.review_mode) || entry.review_mode;
+    entry.review_mode = reviewModeFromEntry(item) || entry.review_mode;
   }
 
   const items = declaredMicrotasks.map((definition) => byId.get(definition.mtId));
@@ -313,7 +360,14 @@ export function deriveWpMicrotaskPlan({
   const previousMicrotask = derivePreviousExecutionMicrotask(items, activeMicrotask);
 
   let suggestedNextMicrotask = null;
-  if (activeMicrotask && ["ACTIVE", "DECLARED"].includes(activeMicrotask.state)) {
+  const deferredRepairMicrotask = activeMicrotask?.mt_id
+    ? items
+      .slice(0, items.findIndex((entry) => entry.mt_id === activeMicrotask.mt_id))
+      .find((entry) => entry.state === "REPAIR_REQUIRED") || null
+    : null;
+  if (deferredRepairMicrotask) {
+    suggestedNextMicrotask = deferredRepairMicrotask;
+  } else if (activeMicrotask && ["ACTIVE", "DECLARED"].includes(activeMicrotask.state)) {
     const activeIndex = items.findIndex((entry) => entry.mt_id === activeMicrotask.mt_id);
     suggestedNextMicrotask = items.slice(activeIndex + 1).find((entry) => entry.state === "DECLARED") || null;
   }

@@ -3,6 +3,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("drive-agnostic-check.mjs", { role: "SHARED" });
 
 function resolveRepoRoot() {
   const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -25,9 +28,7 @@ const repoRoot = path.resolve(resolveRepoRoot());
 process.chdir(repoRoot);
 
 function fail(message, details = "") {
-  console.error(message);
-  if (details) console.error(details);
-  process.exit(1);
+  failWithMemory("drive-agnostic-check.mjs", message, { role: "SHARED", details: details ? [details] : [] });
 }
 
 function listFilesRecursive(rootDir) {
@@ -115,6 +116,7 @@ const roots = [
   path.join(repoRoot, GOV_ROOT_REPO_REL, "templates"),
   path.join(repoRoot, GOV_ROOT_REPO_REL, "tools"),
   path.join(repoRoot, GOV_ROOT_REPO_REL, "docs", "vscode-session-bridge", "GOVERNED_SESSION_CONTROL_ARCHITECTURE.md"),
+  path.join(repoRoot, GOV_ROOT_REPO_REL, "docs_repo", "GOVERNED_SESSION_CONTROL_ARCHITECTURE.md"),
 ];
 
 const files = roots.flatMap((root) => {

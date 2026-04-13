@@ -39,6 +39,11 @@ import {
   formatDataContractMonitoringSection,
 } from '../../../roles_shared/scripts/lib/data-contract-lib.mjs';
 import {
+  buildActivationManagerLaunchCommands,
+  buildDownstreamGovernedLaunchCommands,
+  buildManualRelayCommands,
+} from './lib/workflow-lane-guidance-lib.mjs';
+import {
   communicationPathsForWp,
   EXECUTION_OWNER_VALUES,
   WORKFLOW_LANE_VALUES,
@@ -73,7 +78,11 @@ import {
   SESSION_PLUGIN_BRIDGE_COMMAND,
   SESSION_PLUGIN_BRIDGE_ID,
   SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION,
-  SESSION_PLUGIN_REQUESTS_FILE,
+  SESSION_COMPATIBILITY_QUEUE_FILE,
+  SESSION_COMPATIBILITY_SURFACE,
+  SESSION_CONTROL_REQUESTS_FILE,
+  SESSION_CONTROL_RESULTS_FILE,
+  sessionPluginRequestsFileForPacketVersion,
   SESSION_REGISTRY_FILE,
   SESSION_START_AUTHORITY,
   SESSION_WAKE_CHANNEL_FALLBACK,
@@ -843,7 +852,11 @@ template = replaceSingleField(template, 'ROLE_SESSION_RUNTIME', ROLE_SESSION_RUN
 template = replaceSingleField(template, 'CLI_SESSION_TOOL', CLI_SESSION_TOOL);
 template = replaceSingleField(template, 'SESSION_PLUGIN_BRIDGE_ID', SESSION_PLUGIN_BRIDGE_ID);
 template = replaceSingleField(template, 'SESSION_PLUGIN_BRIDGE_COMMAND', SESSION_PLUGIN_BRIDGE_COMMAND);
-template = replaceSingleField(template, 'SESSION_PLUGIN_REQUESTS_FILE', SESSION_PLUGIN_REQUESTS_FILE);
+template = replaceSingleField(template, 'SESSION_PLUGIN_REQUESTS_FILE', sessionPluginRequestsFileForPacketVersion(PACKET_FORMAT_VERSION));
+template = replaceSingleField(template, 'SESSION_CONTROL_REQUESTS_FILE', SESSION_CONTROL_REQUESTS_FILE);
+template = replaceSingleField(template, 'SESSION_CONTROL_RESULTS_FILE', SESSION_CONTROL_RESULTS_FILE);
+template = replaceSingleField(template, 'SESSION_COMPATIBILITY_SURFACE', SESSION_COMPATIBILITY_SURFACE);
+template = replaceSingleField(template, 'SESSION_COMPATIBILITY_QUEUE_FILE', SESSION_COMPATIBILITY_QUEUE_FILE);
 template = replaceSingleField(template, 'SESSION_REGISTRY_FILE', SESSION_REGISTRY_FILE);
 template = replaceSingleField(template, 'SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION', String(SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION));
 template = replaceSingleField(template, 'SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS', String(SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS));
@@ -1256,7 +1269,7 @@ ${formatList(hydration.riskMap)}
 
   template = replaceSection(template, 'VALIDATION', `
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable `just phase-check HANDOFF <WP_ID> CODER`. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
+- (Mechanical manifest for audit. Fill real values to enable \`just phase-check HANDOFF <WP_ID> CODER\`. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-\`${GOV_ROOT_REPO_REL}/\` files, repeat the manifest block once per changed file (multiple \`**Target File**\` entries are supported).
 - SHA1 hint: stage your changes and run \`just cor701-sha <changed file>\` to get deterministic \`Pre-SHA1\` / \`Post-SHA1\` values.
 - **Target File**: \`N/A (fill after implementation)\`
@@ -1458,9 +1471,12 @@ try {
     nextCommands.push(`just wp-traceability-set ${baseWpId} ${WP_ID}`);
   }
   if (!syncState.ok) {
-    const startupCommand = buildPhaseCheckCommand({ phase: 'STARTUP', wpId: WP_ID, role: 'CODER' });
-    nextCommands.push(`# Validator: fast-forward ${syncState.expectedBranch || 'the assigned WP branch'} and ${syncState.worktreeAbs || 'the assigned WP worktree'} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`);
-    nextCommands.push(`# Then in the assigned WP worktree: ${startupCommand}`);
+    nextCommands.push(`# Repair ${syncState.expectedBranch || 'the assigned WP branch'} and ${syncState.worktreeAbs || 'the assigned WP worktree'} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`);
+    if (normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED') {
+      nextCommands.push(...buildActivationManagerLaunchCommands(WP_ID));
+    } else if (normalizedWorkflowLane === 'MANUAL_RELAY') {
+      nextCommands.push(...buildManualRelayCommands(WP_ID));
+    }
     nextCommands.push(`just orchestrator-next ${WP_ID}`);
 
     printGateBlocks({
@@ -1470,7 +1486,9 @@ try {
       operatorAction: 'NONE',
       gateRan: `just create-task-packet ${WP_ID}`,
       result: 'PASS',
-      why: 'Work packet was created, but coder handoff is blocked until the assigned WP worktree contains the current packet/spec/governance state.',
+      why: normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED'
+        ? 'Work packet was created, but Activation Manager-owned pre-launch cannot continue until the assigned WP worktree contains the current packet/spec/governance state.'
+        : 'Work packet was created, but manual relay into implementation cannot continue until the assigned WP worktree contains the current packet/spec/governance state.',
       gateOutputLines: [
         `OK: Work packet created: ${filePath.replace(/\\/g, '/')}`,
         `OK: WP communication folder ready: ${wpCommunicationPaths.dir}`,
@@ -1480,12 +1498,15 @@ try {
       nextCommands,
     });
   } else {
-    nextCommands.push(buildPhaseCheckCommand({ phase: 'STARTUP', wpId: WP_ID, role: 'CODER' }));
     if (/^CODER_[A-Z]$/i.test(normalizedExecutionOwner)) {
-      nextCommands.push(`just launch-coder-session ${WP_ID}`);
-      nextCommands.push(`just launch-wp-validator-session ${WP_ID}`);
-      nextCommands.push(`just session-registry-status ${WP_ID}`);
-      nextCommands.push(`# Integration Validator stays downstream of WP validation PASS; launch later with: just launch-integration-validator-session ${WP_ID}`);
+      if (normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED') {
+        nextCommands.push(...buildActivationManagerLaunchCommands(WP_ID));
+      } else if (normalizedWorkflowLane === 'MANUAL_RELAY') {
+        nextCommands.push(...buildManualRelayCommands(WP_ID));
+      } else {
+        nextCommands.push(buildPhaseCheckCommand({ phase: 'STARTUP', wpId: WP_ID, role: 'CODER' }));
+        nextCommands.push(...buildDownstreamGovernedLaunchCommands(WP_ID));
+      }
       nextCommands.push(`# Then provide a relayable implementation brief in chat for ${executionLane}; orchestrator implementation agents stay blocked in this lane.`);
     }
     nextCommands.push('# Use the assigned worktree/branch from ORCHESTRATOR_GATES.json PREPARE for the chosen workflow lane + execution owner.');

@@ -17,6 +17,10 @@ Rules:
 - If multiple files collapse into one target, add one row per input file.
 - If a script is intentionally retained after review, log `ACTION=KEEP` with the reason.
 - If `ACTION` archives a live repo file, add or update the matching row in the `Current Archive Inventory` section below.
+- When a public governance script or recipe is created, edited, or reviewed, scan for same-phase siblings that share the same owner, core inputs, primary artifact/debug surface, and usual invocation path.
+- Default to assimilating that behavior into the canonical script or recipe. If separation is kept, log the reason explicitly.
+- Bias toward fewer larger canonical public scripts rather than multiple small public wrappers that always run together.
+- Internal helper-library extraction is allowed. The rationalization target is public surface count first, not mandatory single-file implementation.
 
 ## Current Archive Inventory
 

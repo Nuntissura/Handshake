@@ -49,10 +49,23 @@ function currentStateForEvaluation(evaluationState, autoRoute = {}, evaluation =
         next: "WP_VALIDATOR reviews CODER_INTENT and records SPEC_GAP / VALIDATOR_QUERY for missing signed surfaces or proof, or VALIDATOR_RESPONSE to clear bootstrap/skeleton intent review.",
       };
     case "COMM_WAITING_FOR_HANDOFF":
+      if (Number(evaluation?.counts?.overlapOpenReviewItems || 0) > 0) {
+        return {
+          verdict: "PENDING",
+          blockers: "Implementation is in progress; a completed previous microtask is awaiting WP validator overlap review while the coder continues the current bounded microtask.",
+          next: "WP_VALIDATOR reviews the open overlap microtask item while CODER completes the current microtask before any loop-back or further forward advance.",
+        };
+      }
       return {
         verdict: "PENDING",
         blockers: "Implementation is in progress; awaiting coder handoff to WP validator.",
         next: "CODER completes in-scope work and records CODER_HANDOFF with proof.",
+      };
+    case "COMM_DEFERRED_REPAIR_QUEUE":
+      return {
+        verdict: "PENDING",
+        blockers: "A previous overlap-reviewed microtask failed validator review, but the coder is still finishing the current active microtask before loop-back repair begins.",
+        next: "CODER closes the current active microtask, then repairs the queued failed prior microtask before opening further forward progress or full handoff.",
       };
     case "COMM_REPAIR_REQUIRED":
       return {
@@ -164,6 +177,7 @@ export function applyWpReviewRuntimeProjection(runtimeStatus, {
       nextRuntime.current_phase = "BOOTSTRAP";
       break;
     case "COMM_WAITING_FOR_HANDOFF":
+    case "COMM_DEFERRED_REPAIR_QUEUE":
     case "COMM_REPAIR_REQUIRED":
       nextRuntime.runtime_status = "working";
       nextRuntime.current_phase = "IMPLEMENTATION";

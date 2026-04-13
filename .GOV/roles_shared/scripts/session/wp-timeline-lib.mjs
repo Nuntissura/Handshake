@@ -8,8 +8,10 @@ import {
 } from "../lib/wp-communications-lib.mjs";
 import {
   repoPathAbs,
+  REPO_ROOT,
   resolveWorkPacketPath,
 } from "../lib/runtime-paths.mjs";
+import { resolveValidatorGatePath } from "../lib/validator-gate-paths.mjs";
 import {
   SESSION_CONTROL_REQUESTS_FILE,
   SESSION_CONTROL_RESULTS_FILE,
@@ -54,6 +56,8 @@ function durationMs(startTs, endTs) {
   if (!Number.isFinite(startTs) || !Number.isFinite(endTs) || endTs < startTs) return null;
   return endTs - startTs;
 }
+
+export const WORKFLOW_DOSSIER_IDLE_THRESHOLD_MS = 15 * 60 * 1000;
 
 function compactLabel(value, fallback = "<none>") {
   const text = normalizeText(value);
@@ -208,27 +212,31 @@ export function evaluateWpRelayCostPolicy({
   }
 
   const currentLane = compactLabel(workflowLane, "<missing>");
-  const defaultLane = "MANUAL_RELAY";
+  const defaultLane = "ORCHESTRATOR_MANAGED";
   let recommendedLane = defaultLane;
-  let recommendationReason = "Default to MANUAL_RELAY for small and medium WPs; reserve ORCHESTRATOR_MANAGED for explicit autonomy or multi-WP concurrency needs.";
-  let assessment = "DEFAULT_MANUAL";
+  let recommendationReason = "Default to ORCHESTRATOR_MANAGED for future governed sessions; use MANUAL_RELAY deliberately when the operator explicitly wants the classic combined lane.";
+  let assessment = "DEFAULT_ORCHESTRATOR_MANAGED";
 
-  if (currentLane === "MANUAL_RELAY") {
+  if (currentLane === "ORCHESTRATOR_MANAGED") {
     assessment = "ALIGNED_WITH_DEFAULT";
-    recommendedLane = "MANUAL_RELAY";
-    recommendationReason = "Current lane already matches the cheaper default. Only switch to ORCHESTRATOR_MANAGED when autonomy or parallel steering is materially needed.";
-  } else if (currentLane === "ORCHESTRATOR_MANAGED") {
-    assessment = burdenLevel === "HIGH"
-      ? "ORCHESTRATOR_OVERHEAD_HIGH"
-      : burdenLevel === "MEDIUM"
-        ? "ORCHESTRATOR_OVERHEAD_VISIBLE"
-        : "ORCHESTRATOR_OVERHEAD_LIGHT";
-    recommendedLane = "MANUAL_RELAY";
+    recommendedLane = "ORCHESTRATOR_MANAGED";
     recommendationReason = burdenLevel === "HIGH"
-      ? "Observed orchestrator-managed relay burden is high; future small/medium WPs should default to MANUAL_RELAY unless explicit autonomous steering is required."
+      ? "Current lane already matches the future default, but observed relay burden is high; keep ORCHESTRATOR_MANAGED only when that autonomy is actually paying for itself."
       : burdenLevel === "MEDIUM"
-        ? "Observed relay burden is visible; future medium WPs should default to MANUAL_RELAY unless the operator expects meaningful autonomy or concurrency gains."
-        : "Observed relay burden is light, but the cheaper default remains MANUAL_RELAY unless autonomous steering is explicitly worth the extra prompt tax.";
+        ? "Current lane already matches the future default; observed relay burden is visible but still within the intended managed-lane tradeoff."
+        : "Current lane already matches the future default and relay burden is light.";
+  } else if (currentLane === "MANUAL_RELAY") {
+    assessment = burdenLevel === "HIGH"
+      ? "CLASSIC_MANUAL_BURDEN_HIGH"
+      : burdenLevel === "MEDIUM"
+        ? "CLASSIC_MANUAL_BURDEN_VISIBLE"
+        : "CLASSIC_MANUAL_BURDEN_LIGHT";
+    recommendedLane = "ORCHESTRATOR_MANAGED";
+    recommendationReason = burdenLevel === "HIGH"
+      ? "Observed manual-relay burden is high; future runs should prefer ORCHESTRATOR_MANAGED unless the operator still wants explicit classic brokering."
+      : burdenLevel === "MEDIUM"
+        ? "Observed manual-relay burden is visible; future runs should generally prefer ORCHESTRATOR_MANAGED unless the operator explicitly wants the classic lane."
+        : "Manual relay stayed light, but future-default lane policy still prefers ORCHESTRATOR_MANAGED unless the operator explicitly wants the classic path.";
   }
 
   return {
@@ -640,6 +648,8 @@ export function buildWpTimelineSummary({
   notifications = [],
   controlRequests = [],
   controlResults = [],
+  laneVerdict = null,
+  pendingNotificationCount = null,
   tokenLedger = {},
   entries = [],
   spans = [],
@@ -670,6 +680,17 @@ export function buildWpTimelineSummary({
     workflowLane,
     spans,
     tokenLedger,
+  });
+  const idleMetrics = buildWorkflowDossierIdleMetrics({
+    entries,
+    spans,
+    receipts,
+    notifications,
+    controlRequests,
+    controlResults,
+    runtimeStatus,
+    laneVerdict,
+    pendingNotificationCount,
   });
 
   return {
@@ -714,8 +735,253 @@ export function buildWpTimelineSummary({
     budget_status: tokenBudget.status,
     budget_summary: tokenBudget.summary,
     relay_policy: relayPolicy,
+    downtime_attribution: idleMetrics.downtime_attribution,
+    queue_pressure: idleMetrics.queue_pressure,
     cost_estimate: null,
     cost_estimate_note: "unavailable_without_pricing_manifest",
+  };
+}
+
+function summarizeDurations(values = []) {
+  const finiteValues = values.filter((value) => Number.isFinite(value));
+  return {
+    count: finiteValues.length,
+    latest_ms: finiteValues.length > 0 ? finiteValues.at(-1) : null,
+    max_ms: finiteValues.length > 0 ? Math.max(...finiteValues) : null,
+  };
+}
+
+function sumSpanDurations(spans = [], predicate = () => true) {
+  return (Array.isArray(spans) ? spans : []).reduce((total, span) => {
+    if (!predicate(span) || !Number.isFinite(span?.duration_ms)) return total;
+    return total + Number(span.duration_ms);
+  }, 0);
+}
+
+function classifyCurrentWait({
+  runtimeStatus = null,
+  laneVerdict = null,
+  currentIdleMs = null,
+} = {}) {
+  const waitingOn = compactLabel(runtimeStatus?.waiting_on, "");
+  const nextActor = compactLabel(runtimeStatus?.next_expected_actor, "");
+  const verdict = compactLabel(laneVerdict?.verdict, "");
+  const reasonCode = compactLabel(laneVerdict?.reasonCode, "");
+  const combined = [waitingOn, nextActor, verdict, reasonCode].join(" ").toUpperCase();
+
+  let bucket = "UNCLASSIFIED";
+  if (/HUMAN|OPERATOR|APPROVAL|SIGNATURE|MERGE_PUSH/.test(combined)) {
+    bucket = "HUMAN_WAIT";
+  } else if (/DEPENDENCY|BLOCKED|OPEN_REVIEW_ITEM/.test(combined)) {
+    bucket = "DEPENDENCY_WAIT";
+  } else if (/VALIDATOR|FINAL_REVIEW|REVIEW/.test(combined)) {
+    bucket = "VALIDATOR_WAIT";
+  } else if (/REPAIR/.test(combined)) {
+    bucket = "REPAIR_WAIT";
+  } else if (/CODER|HANDOFF|INTENT/.test(combined)) {
+    bucket = "CODER_WAIT";
+  } else if (/ORCHESTRATOR|ROUTE|RELAY|CHECKPOINT|VERDICT|SESSION_CONTROL|STEER/.test(combined)) {
+    bucket = "ROUTE_WAIT";
+  }
+
+  return {
+    bucket,
+    reason: waitingOn || reasonCode || verdict || nextActor || "NONE",
+    duration_ms: Number.isFinite(currentIdleMs) ? currentIdleMs : null,
+  };
+}
+
+function deriveQueuePressure({
+  notifications = [],
+  pendingNotificationCount = null,
+  openReviewCount = 0,
+  unresolvedControlCount = 0,
+  runtimeStatus = null,
+} = {}) {
+  const pendingNotifications = Number.isFinite(Number(pendingNotificationCount))
+    ? Number(pendingNotificationCount)
+    : (Array.isArray(notifications) ? notifications.length : 0);
+  const activeRoleSessionCount = Array.isArray(runtimeStatus?.active_role_sessions)
+    ? runtimeStatus.active_role_sessions.length
+    : 0;
+  const score = pendingNotifications + Number(openReviewCount || 0) + Number(unresolvedControlCount || 0);
+  let level = "LOW";
+  if (pendingNotifications >= 2 || openReviewCount >= 2 || unresolvedControlCount >= 2 || score >= 4) {
+    level = "HIGH";
+  } else if (score >= 2 || activeRoleSessionCount >= 2) {
+    level = "MEDIUM";
+  }
+  return {
+    level,
+    score,
+    pending_notification_count: pendingNotifications,
+    open_review_count: Number(openReviewCount || 0),
+    unresolved_control_count: Number(unresolvedControlCount || 0),
+    active_role_session_count: activeRoleSessionCount,
+  };
+}
+
+function isValidatorRole(role) {
+  return ["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"].includes(normalizeRole(role));
+}
+
+function isValidatorPassReceipt(receipt = {}) {
+  if (!isValidatorRole(receipt?.actor_role)) return false;
+  const outcome = normalizeText(receipt?.microtask_contract?.review_outcome).toUpperCase();
+  if (outcome === "APPROVED_FOR_FINAL_REVIEW") return true;
+  const receiptKind = normalizeReceiptKind(receipt?.receipt_kind);
+  if (!REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(receiptKind) && receiptKind !== "VALIDATOR_REVIEW") {
+    return false;
+  }
+  return /\b(PASS|APPROVED|CLEARED)\b/i.test(compactLabel(receipt?.summary, ""));
+}
+
+function nextCoderActionTimestamp(afterTimestampMs, entries = []) {
+  for (const entry of entries) {
+    if (!Number.isFinite(entry?.timestamp_ms) || entry.timestamp_ms <= afterTimestampMs) continue;
+    if (normalizeRole(entry?.role) !== "CODER") continue;
+    if (String(entry?.kind || "").trim().toUpperCase() === "NOTIFICATION") continue;
+    return entry.timestamp_ms;
+  }
+  return null;
+}
+
+function duplicateReceiptCount(receipts = []) {
+  const counts = new Map();
+  let duplicates = 0;
+  for (const receipt of Array.isArray(receipts) ? receipts : []) {
+    const key = [
+      normalizeReceiptKind(receipt?.receipt_kind),
+      normalizeRole(receipt?.actor_role),
+      normalizeRole(receipt?.target_role),
+      compactLabel(receipt?.target_session, ""),
+      compactLabel(receipt?.correlation_id, ""),
+      compactLabel(receipt?.packet_row_ref, ""),
+      microtaskScopeRef(receipt),
+      compactLabel(receipt?.summary, ""),
+    ].join("|");
+    const nextCount = Number(counts.get(key) || 0) + 1;
+    counts.set(key, nextCount);
+    if (nextCount > 1) duplicates += 1;
+  }
+  return duplicates;
+}
+
+export function buildWorkflowDossierIdleMetrics({
+  entries = [],
+  spans = [],
+  receipts = [],
+  notifications = [],
+  controlRequests = [],
+  controlResults = [],
+  runtimeStatus = null,
+  laneVerdict = null,
+  pendingNotificationCount = null,
+  now = Date.now(),
+  idleThresholdMs = WORKFLOW_DOSSIER_IDLE_THRESHOLD_MS,
+} = {}) {
+  const sortedEntries = [...(Array.isArray(entries) ? entries : [])]
+    .filter((entry) => Number.isFinite(entry?.timestamp_ms))
+    .sort((left, right) => left.timestamp_ms - right.timestamp_ms || left.sequence - right.sequence);
+  const gapDurations = [];
+  for (let index = 1; index < sortedEntries.length; index += 1) {
+    const gapMs = durationMs(sortedEntries[index - 1].timestamp_ms, sortedEntries[index].timestamp_ms);
+    if (Number.isFinite(gapMs) && gapMs >= idleThresholdMs) gapDurations.push(gapMs);
+  }
+
+  const lastEventTimestampMs = sortedEntries.length > 0 ? sortedEntries.at(-1).timestamp_ms : null;
+  const currentIdleMs = Number.isFinite(lastEventTimestampMs)
+    ? Math.max(0, now - lastEventTimestampMs)
+    : null;
+  const countedIdleGaps = [...gapDurations];
+  if (Number.isFinite(currentIdleMs) && currentIdleMs >= idleThresholdMs) {
+    countedIdleGaps.push(currentIdleMs);
+  }
+  const reviewDurations = (Array.isArray(spans) ? spans : [])
+    .filter((span) => span?.span_kind === "REVIEW_EXCHANGE" && Number.isFinite(span?.duration_ms))
+    .map((span) => Number(span.duration_ms));
+  const openReviewCount = (Array.isArray(spans) ? spans : [])
+    .filter((span) => span?.span_kind === "REVIEW_EXCHANGE" && !Number.isFinite(span?.duration_ms))
+    .length;
+
+  const sortedReceipts = [...(Array.isArray(receipts) ? receipts : [])]
+    .filter((entry) => Number.isFinite(parseTimestamp(entry?.timestamp_utc)))
+    .sort((left, right) => parseTimestamp(left?.timestamp_utc) - parseTimestamp(right?.timestamp_utc));
+  const passToCoderDurations = [];
+  let validatorPassWaitingCount = 0;
+  for (const receipt of sortedReceipts) {
+    if (!isValidatorPassReceipt(receipt)) continue;
+    const passTimestampMs = parseTimestamp(receipt?.timestamp_utc);
+    const nextCoderActionMs = nextCoderActionTimestamp(passTimestampMs, sortedEntries);
+    if (Number.isFinite(nextCoderActionMs)) {
+      passToCoderDurations.push(nextCoderActionMs - passTimestampMs);
+      continue;
+    }
+    validatorPassWaitingCount += 1;
+  }
+
+  const unresolvedControlCount = Math.max(
+    0,
+    Number((controlRequests || []).length || 0) - Number((controlResults || []).length || 0),
+  );
+  const currentWait = classifyCurrentWait({
+    runtimeStatus,
+    laneVerdict,
+    currentIdleMs,
+  });
+  const measuredActiveBuildMs = sumSpanDurations(spans, (span) =>
+    span?.span_kind === "MICROTASK_EXECUTION" && span?.span_stage !== "REPAIR_LOOP"
+  );
+  const measuredRepairOverheadMs = sumSpanDurations(spans, (span) =>
+    (span?.span_kind === "MICROTASK_EXECUTION" && span?.span_stage === "REPAIR_LOOP")
+    || (span?.span_kind === "CONTROL_COMMAND" && normalizeCommandKind(span?.command_kind) === "CANCEL_SESSION")
+  );
+  const measuredValidatorWaitMs = sumSpanDurations(spans, (span) =>
+    span?.span_kind === "REVIEW_EXCHANGE" && isValidatorRole(span?.target_role)
+  );
+  const measuredRouteWaitMs = sumSpanDurations(spans, (span) =>
+    span?.span_kind === "CONTROL_COMMAND" && span?.span_stage === "RELAY"
+  );
+  const queuePressure = deriveQueuePressure({
+    notifications,
+    pendingNotificationCount,
+    openReviewCount,
+    unresolvedControlCount,
+    runtimeStatus,
+  });
+
+  return {
+    idle_threshold_ms: idleThresholdMs,
+    current_idle_ms: currentIdleMs,
+    current_idle_exceeds_threshold: Number.isFinite(currentIdleMs) ? currentIdleMs >= idleThresholdMs : false,
+    idle_gap_count: countedIdleGaps.length,
+    latest_idle_gap_ms: countedIdleGaps.length > 0 ? countedIdleGaps.at(-1) : null,
+    max_idle_gap_ms: countedIdleGaps.length > 0 ? Math.max(...countedIdleGaps) : null,
+    review_response: {
+      ...summarizeDurations(reviewDurations),
+      open_count: openReviewCount,
+    },
+    validator_pass_to_next_coder_action: {
+      ...summarizeDurations(passToCoderDurations),
+      waiting_count: validatorPassWaitingCount,
+    },
+    downtime_attribution: {
+      active_build_ms: measuredActiveBuildMs,
+      validator_wait_ms: measuredValidatorWaitMs + (currentWait.bucket === "VALIDATOR_WAIT" ? Number(currentIdleMs || 0) : 0),
+      route_wait_ms: measuredRouteWaitMs + (currentWait.bucket === "ROUTE_WAIT" ? Number(currentIdleMs || 0) : 0),
+      dependency_wait_ms: currentWait.bucket === "DEPENDENCY_WAIT" ? Number(currentIdleMs || 0) : 0,
+      human_wait_ms: currentWait.bucket === "HUMAN_WAIT" ? Number(currentIdleMs || 0) : 0,
+      repair_overhead_ms: measuredRepairOverheadMs + (currentWait.bucket === "REPAIR_WAIT" ? Number(currentIdleMs || 0) : 0),
+      coder_wait_ms: currentWait.bucket === "CODER_WAIT" ? Number(currentIdleMs || 0) : 0,
+      unattributed_current_idle_ms: currentWait.bucket === "UNCLASSIFIED" ? Number(currentIdleMs || 0) : 0,
+      current_wait: currentWait,
+    },
+    queue_pressure: queuePressure,
+    drift_markers: {
+      duplicate_receipt_count: duplicateReceiptCount(receipts),
+      open_review_count: openReviewCount,
+      unresolved_control_count: unresolvedControlCount,
+    },
   };
 }
 
@@ -774,4 +1040,220 @@ export function loadWpTimelineArtifacts(repoRoot, wpId) {
     controlResults,
     tokenLedger,
   };
+}
+
+// --- WP Metrics (TG-012: same-domain functions, not a separate script) ---
+
+function msToMinutes(ms) {
+  return ms != null ? Math.round((ms / 60_000) * 10) / 10 : null;
+}
+
+function safeRatio(numerator, denominator) {
+  if (!denominator || denominator === 0) return null;
+  return Math.round((numerator / denominator) * 1000) / 1000;
+}
+
+export function countReceiptsByKind(receipts) {
+  const counts = {};
+  for (const r of receipts) {
+    const kind = String(r.receipt_kind || "UNKNOWN").trim();
+    counts[kind] = (counts[kind] || 0) + 1;
+  }
+  return counts;
+}
+
+function extractMicrotask(receipt) {
+  const summary = String(receipt.summary || "");
+  const match = summary.match(/\bMT-\d+\b/i);
+  return match ? match[0].toUpperCase() : null;
+}
+
+export function countFixCycles(receipts) {
+  let total = 0;
+  const byMt = {};
+  for (const r of receipts) {
+    if (r.receipt_kind !== "REVIEW_RESPONSE") continue;
+    const summary = String(r.summary || "").toLowerCase();
+    const isSteer = summary.includes("steer")
+      || summary.includes("not pass")
+      || summary.includes("not-pass")
+      || summary.includes("rejected")
+      || summary.includes("remediation");
+    if (!isSteer) continue;
+    total += 1;
+    const mt = extractMicrotask(r);
+    if (mt) {
+      byMt[mt] = (byMt[mt] || 0) + 1;
+    }
+  }
+  return { total, by_mt: byMt };
+}
+
+export function countMicrotasks(receipts) {
+  const mts = new Set();
+  for (const r of receipts) {
+    const mt = extractMicrotask(r);
+    if (mt) mts.add(mt);
+  }
+  return mts.size;
+}
+
+export function countSessionControlByStatus(controlResults) {
+  const counts = { total: 0, completed: 0, failed: 0 };
+  const byKind = {};
+  for (const r of controlResults) {
+    counts.total += 1;
+    const status = String(r.status || "").toUpperCase();
+    if (status === "COMPLETED") counts.completed += 1;
+    if (status === "FAILED") counts.failed += 1;
+    const kind = String(r.command_kind || "UNKNOWN").trim();
+    if (!byKind[kind]) byKind[kind] = { total: 0, completed: 0, failed: 0 };
+    byKind[kind].total += 1;
+    if (status === "COMPLETED") byKind[kind].completed += 1;
+    if (status === "FAILED") byKind[kind].failed += 1;
+  }
+  return { ...counts, by_kind: byKind };
+}
+
+export function countSessionRestarts(controlResults) {
+  const cancelledKeys = new Set();
+  let restarts = 0;
+  for (const r of controlResults) {
+    const key = String(r.session_key || "").trim();
+    const kind = String(r.command_kind || "").trim();
+    const status = String(r.status || "").toUpperCase();
+    if (kind === "CANCEL_SESSION" && status === "COMPLETED") {
+      cancelledKeys.add(key);
+    }
+    if (kind === "START_SESSION" && status === "COMPLETED" && cancelledKeys.has(key)) {
+      restarts += 1;
+    }
+  }
+  return restarts;
+}
+
+export function loadValidationEvidence(wpId) {
+  const gatePath = repoPathAbs(resolveValidatorGatePath(wpId));
+  if (!fs.existsSync(gatePath)) return null;
+  try {
+    const raw = JSON.parse(fs.readFileSync(gatePath, "utf8"));
+    const evidence = raw?.committed_validation_evidence?.[wpId];
+    if (!evidence) return null;
+    const history = Array.isArray(evidence.proof_history) ? evidence.proof_history : [];
+    return {
+      proof_runs: history.length,
+      proof_pass: history.filter((p) => p.status === "PASS").length,
+      proof_fail: history.filter((p) => p.status === "FAIL").length,
+      zero_execution_incidents: history.filter((p) => p.zero_execution_detected).length,
+      first_pass_success: history.length > 0 && history[0]?.status === "PASS",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function countStaleRouteIncidents(receipts, controlResults) {
+  let count = 0;
+  for (const r of receipts) {
+    const summary = String(r.summary || "").toLowerCase();
+    if (summary.includes("route_stale") || summary.includes("stale route")) count += 1;
+  }
+  for (const r of controlResults) {
+    const summary = String(r.summary || r.error || "").toLowerCase();
+    if (summary.includes("route_stale") || summary.includes("stale")) count += 1;
+  }
+  return count;
+}
+
+export function countDuplicateReceipts(receipts) {
+  const seen = new Set();
+  let duplicates = 0;
+  for (const r of receipts) {
+    const key = `${r.receipt_kind}:${r.correlation_id || ""}:${r.actor_role}:${r.target_role}`;
+    if (r.correlation_id && seen.has(key)) duplicates += 1;
+    seen.add(key);
+  }
+  return duplicates;
+}
+
+export function buildWpMetrics({ wpId, summary, receipts, controlResults }) {
+  const dt = summary.downtime_attribution || {};
+  const activeMs = dt.active_build_ms || 0;
+  const repairMs = dt.repair_overhead_ms || 0;
+  const validatorWaitMs = dt.validator_wait_ms || 0;
+  const routeWaitMs = dt.route_wait_ms || 0;
+  const coderWaitMs = dt.coder_wait_ms || 0;
+
+  const fixCycles = countFixCycles(receipts);
+  const sessionControl = countSessionControlByStatus(controlResults);
+  const validationEvidence = loadValidationEvidence(wpId);
+
+  return {
+    wp_id: wpId,
+    extracted_at: new Date().toISOString(),
+    wall_clock_minutes: msToMinutes(summary.event_window_duration_ms),
+    product_active_minutes: msToMinutes(activeMs),
+    repair_minutes: msToMinutes(repairMs),
+    validator_wait_minutes: msToMinutes(validatorWaitMs),
+    route_wait_minutes: msToMinutes(routeWaitMs),
+    coder_wait_minutes: msToMinutes(coderWaitMs),
+    governance_overhead_ratio: safeRatio(repairMs + routeWaitMs, activeMs + validatorWaitMs + coderWaitMs),
+    receipt_count: receipts.length,
+    receipt_kinds: countReceiptsByKind(receipts),
+    duplicate_receipts: countDuplicateReceipts(receipts),
+    stale_route_incidents: countStaleRouteIncidents(receipts, controlResults),
+    review_rtt_max_ms: dt.review_rtt_max_ms ?? null,
+    acp_commands: sessionControl.total,
+    acp_failures: sessionControl.failed,
+    acp_by_kind: sessionControl.by_kind,
+    session_restarts: countSessionRestarts(controlResults),
+    mt_count: countMicrotasks(receipts),
+    fix_cycles: fixCycles.total,
+    fix_cycles_by_mt: fixCycles.by_mt,
+    proof_runs: validationEvidence?.proof_runs ?? 0,
+    proof_pass: validationEvidence?.proof_pass ?? 0,
+    proof_fail: validationEvidence?.proof_fail ?? 0,
+    zero_execution_incidents: validationEvidence?.zero_execution_incidents ?? 0,
+    first_pass_compile_success: validationEvidence?.first_pass_success ?? null,
+    token_input_total: summary.token_input_total,
+    token_output_total: summary.token_output_total,
+    token_turn_count: summary.token_turn_count,
+    ledger_health: summary.ledger_health_status,
+    budget_status: summary.budget_status,
+    cost_estimate: summary.cost_estimate,
+    queue_pressure_max_score: summary.queue_pressure?.score ?? null,
+    runtime_status: summary.runtime_status,
+    current_phase: summary.current_phase,
+    workflow_lane: summary.workflow_lane,
+  };
+}
+
+export function buildWpMetricsComparison(metricsA, metricsB) {
+  const fields = [
+    ["wall_clock_minutes", "Wall clock (min)"],
+    ["product_active_minutes", "Product active (min)"],
+    ["repair_minutes", "Repair overhead (min)"],
+    ["validator_wait_minutes", "Validator wait (min)"],
+    ["governance_overhead_ratio", "Gov overhead ratio"],
+    ["receipt_count", "Receipts"],
+    ["duplicate_receipts", "Duplicate receipts"],
+    ["stale_route_incidents", "Stale route incidents"],
+    ["acp_commands", "ACP commands"],
+    ["acp_failures", "ACP failures"],
+    ["session_restarts", "Session restarts"],
+    ["mt_count", "Microtasks"],
+    ["fix_cycles", "Fix cycles"],
+    ["zero_execution_incidents", "Zero-execution incidents"],
+    ["token_input_total", "Tokens in"],
+    ["token_output_total", "Tokens out"],
+    ["token_turn_count", "Turns"],
+    ["cost_estimate", "Cost estimate"],
+  ];
+  return fields.map(([key, label]) => {
+    const a = metricsA[key];
+    const b = metricsB[key];
+    const delta = (a != null && b != null) ? Math.round((b - a) * 10) / 10 : null;
+    const trend = delta == null ? "" : delta > 0 ? "UP" : delta < 0 ? "DOWN" : "SAME";
+    return { metric: label, wp_a: a, wp_b: b, delta, trend };
+  });
 }

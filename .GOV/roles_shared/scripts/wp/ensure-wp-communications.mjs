@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import {
   addMinutes,
   COMM_ROOT,
@@ -33,6 +34,7 @@ import {
   applyWpReviewRuntimeProjection,
   deriveWpReviewPacketProjection,
 } from "../lib/wp-review-projection-lib.mjs";
+import { normalizeActiveClauseClosureMatrix } from "../lib/packet-closure-monitor-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
 import {
   derivePacketMilestone,
@@ -141,6 +143,10 @@ function normalizeSessionValue(value) {
   return raw || null;
 }
 
+function normalizeActor(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
 function parseSecondaryValidatorSessions(rawValue) {
   const raw = String(rawValue || "").trim();
   if (!raw || /^NONE$/i.test(raw)) return [];
@@ -174,7 +180,44 @@ function syncRuntimeDeclaredFieldsFromPacket(runtimeStatus = {}, packetText = ""
   syncedRuntime.agentic_mode = parseSingleField(packetText, "AGENTIC_MODE") || syncedRuntime.agentic_mode;
   syncedRuntime.current_branch = parseSingleField(packetText, "LOCAL_BRANCH") || syncedRuntime.current_branch;
   syncedRuntime.current_worktree_dir = parseSingleField(packetText, "LOCAL_WORKTREE_DIR") || syncedRuntime.current_worktree_dir;
+  syncedRuntime.max_worker_interrupt_cycles = Number.parseInt(
+    String(syncedRuntime.max_worker_interrupt_cycles ?? 1),
+    10,
+  );
+  if (!Number.isInteger(syncedRuntime.max_worker_interrupt_cycles) || syncedRuntime.max_worker_interrupt_cycles < 0) {
+    syncedRuntime.max_worker_interrupt_cycles = 1;
+  }
+  syncedRuntime.current_worker_interrupt_cycle = Number.parseInt(
+    String(syncedRuntime.current_worker_interrupt_cycle ?? 0),
+    10,
+  );
+  if (!Number.isInteger(syncedRuntime.current_worker_interrupt_cycle) || syncedRuntime.current_worker_interrupt_cycle < 0) {
+    syncedRuntime.current_worker_interrupt_cycle = 0;
+  }
   return syncedRuntime;
+}
+
+function shouldResetRelayEscalationCycle(previousRuntimeStatus = {}, nextRuntimeStatus = {}, latestReceipt = null) {
+  const previousCycle = Number.parseInt(String(previousRuntimeStatus?.current_relay_escalation_cycle || 0), 10);
+  if (!Number.isInteger(previousCycle) || previousCycle <= 0) return false;
+
+  const previousActor = normalizeActor(previousRuntimeStatus?.next_expected_actor);
+  const previousSession = normalizeSessionValue(previousRuntimeStatus?.next_expected_session);
+  const previousWaitingOn = String(previousRuntimeStatus?.waiting_on || "").trim().toUpperCase();
+  const nextActor = normalizeActor(nextRuntimeStatus?.next_expected_actor);
+  const nextSession = normalizeSessionValue(nextRuntimeStatus?.next_expected_session);
+  const nextWaitingOn = String(nextRuntimeStatus?.waiting_on || "").trim().toUpperCase();
+
+  const routeChanged = previousActor !== nextActor
+    || previousSession !== nextSession
+    || previousWaitingOn !== nextWaitingOn;
+  if (routeChanged) return true;
+
+  const latestActor = normalizeActor(latestReceipt?.actor_role);
+  const latestSession = normalizeSessionValue(latestReceipt?.actor_session);
+  return Boolean(previousActor)
+    && latestActor === previousActor
+    && (!previousSession || previousSession === latestSession);
 }
 
 function isTerminalPacketStatus(status) {
@@ -188,11 +231,13 @@ export function reconcileWpCommunicationTruth({
   runtimeStatus = {},
   receipts = [],
 } = {}) {
+  const clauseClosureNormalization = normalizeActiveClauseClosureMatrix(packetText);
+  const normalizedPacketText = clauseClosureNormalization.packetText;
   const evaluation = evaluateWpCommunicationHealth({
     wpId,
     stage: "STATUS",
     packetPath,
-    packetContent: packetText,
+    packetContent: normalizedPacketText,
     workflowLane: parseSingleField(packetText, "WORKFLOW_LANE"),
     packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
     communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
@@ -209,11 +254,11 @@ export function reconcileWpCommunicationTruth({
   const packetProjection = deriveWpReviewPacketProjection({
     evaluation,
     autoRoute,
-    packetText,
+    packetText: normalizedPacketText,
   });
   const nextPacketText = packetProjection?.packetStatus
-    ? applyWpReviewPacketProjection(packetText, packetProjection)
-    : packetText;
+    ? applyWpReviewPacketProjection(normalizedPacketText, packetProjection)
+    : normalizedPacketText;
   const terminalPacketStatus = isTerminalPacketStatus(parsePacketStatus(nextPacketText));
   let nextRuntimeStatus = syncRuntimeDeclaredFieldsFromPacket(runtimeStatus, nextPacketText, {
     packetPath,
@@ -232,6 +277,13 @@ export function reconcileWpCommunicationTruth({
       nextRuntimeStatus.last_event_at = latestReceipt.timestamp_utc || nextRuntimeStatus.last_event_at;
     }
     nextRuntimeStatus = applyWpReviewRuntimeProjection(nextRuntimeStatus, { evaluation });
+    if (shouldResetRelayEscalationCycle(runtimeStatus, nextRuntimeStatus, latestReceipt)) {
+      nextRuntimeStatus.current_relay_escalation_cycle = 0;
+      nextRuntimeStatus.current_worker_interrupt_cycle = 0;
+      if (nextRuntimeStatus.attention_required !== true) {
+        nextRuntimeStatus.attention_required = false;
+      }
+    }
   }
 
   return {
@@ -241,6 +293,7 @@ export function reconcileWpCommunicationTruth({
     latestReceipt,
     nextPacketText,
     nextRuntimeStatus,
+    clauseClosureNormalization,
   };
 }
 
@@ -301,6 +354,7 @@ export function buildWpCommunicationTemplateReplacements({
   maxCoderRevisionCycles,
   maxValidatorReviewCycles,
   maxRelayEscalationCycles,
+  maxWorkerInterruptCycles,
 } = {}) {
   return {
     "{{WP_ID}}": wpId,
@@ -340,6 +394,7 @@ export function buildWpCommunicationTemplateReplacements({
     "{{MAX_CODER_REVISION_CYCLES}}": maxCoderRevisionCycles,
     "{{MAX_VALIDATOR_REVIEW_CYCLES}}": maxValidatorReviewCycles,
     "{{MAX_RELAY_ESCALATION_CYCLES}}": maxRelayEscalationCycles,
+    "{{MAX_WORKER_INTERRUPT_CYCLES}}": maxWorkerInterruptCycles,
   };
 }
 
@@ -412,6 +467,7 @@ function ensureWpCommunicationsCore({
   const MAX_CODER_REVISION_CYCLES = parseIntegerField(packetText, "MAX_CODER_REVISION_CYCLES", 3);
   const MAX_VALIDATOR_REVIEW_CYCLES = parseIntegerField(packetText, "MAX_VALIDATOR_REVIEW_CYCLES", 3);
   const MAX_RELAY_ESCALATION_CYCLES = parseIntegerField(packetText, "MAX_RELAY_ESCALATION_CYCLES", 2);
+  const MAX_WORKER_INTERRUPT_CYCLES = parseIntegerField(packetText, "MAX_WORKER_INTERRUPT_CYCLES", 1);
   const declaredCommunicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
   const declaredThreadFile = parseSingleField(packetText, "WP_THREAD_FILE");
   const declaredRuntimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
@@ -526,6 +582,7 @@ function ensureWpCommunicationsCore({
     maxCoderRevisionCycles: String(MAX_CODER_REVISION_CYCLES),
     maxValidatorReviewCycles: String(MAX_VALIDATOR_REVIEW_CYCLES),
     maxRelayEscalationCycles: String(MAX_RELAY_ESCALATION_CYCLES),
+    maxWorkerInterruptCycles: String(MAX_WORKER_INTERRUPT_CYCLES),
   });
 
   const threadTemplate = fs.readFileSync(repoPathAbs(THREAD_TEMPLATE), "utf8");
@@ -615,5 +672,5 @@ function runCli() {
   console.log(`- ${RECEIPTS_FILE_NAME}: ${result.receiptsFile}`);
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = isInvokedAsMain(import.meta.url, process.argv[1]);
 if (isMain) runCli();

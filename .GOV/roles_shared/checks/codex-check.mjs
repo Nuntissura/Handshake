@@ -3,6 +3,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("codex-check.mjs", { role: "SHARED" });
 
 function resolveRepoRoot() {
   try {
@@ -24,11 +27,7 @@ function resolveRepoRoot() {
 const repoRoot = path.resolve(resolveRepoRoot());
 
 function fail(message, details = "") {
-  console.error(message);
-  if (details) {
-    console.error(details);
-  }
-  process.exit(1);
+  failWithMemory("codex-check.mjs", message, { role: "SHARED", details: details ? [details] : [] });
 }
 
 function listFilesRecursive(rootDir) {

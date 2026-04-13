@@ -1,16 +1,23 @@
 # Smoketest Review Template
 
+Compatibility note:
+
+- The canonical live-run artifact is now `Workflow Dossier`.
+- This file remains a compatibility template for older references, stable lineage, and partial migration surfaces.
+- New work should prefer `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`.
+
 Use this template for workflow-proof runs, recovery passes, and closeout reviews that must link into repo-governance task-board and changelog records.
 
 ## Live Document Model
 
 This review is a LIVE DOCUMENT. It is created at WP activation time and roles append to it during execution:
 
-- **Orchestrator** appends: broker failures, format issues, role boundary decisions, MT dispatch timestamps, relay overhead observations.
+- **Orchestrator** appends: ACP/session-control failures, broker state changes, governance refactors, patch-on-the-spot notes, role boundary decisions, MT dispatch timestamps, relay overhead observations, and concerns about dead time or drift.
 - **Coder** appends: compile errors per MT, timeout issues, scope questions, MT completion timestamps.
 - **Validator** appends: review findings per MT, test results, negative proof, spec misalignments.
 - At closeout, the Orchestrator compiles the final review using the live findings plus the post-smoketest rubric.
 - Do NOT delegate the full review to a subagent that did not observe the run. Subagents produce plausible prose from narrated facts but do not independently verify claims against git diffs, session outputs, or actual code. This produces reviews that LOOK complete but contain factual errors.
+- Canonical runtime/session timestamps remain RFC3339 UTC in ledgers and receipts. Review display time defaults to `Europe/Brussels` for human-readable summaries unless a different repo timezone is explicitly declared.
 
 ## Claim Verification Requirement
 
@@ -27,8 +34,8 @@ Mark each verified claim with `[VERIFIED: <evidence source>]`. If a claim cannot
 - Link each review with stable `AUDIT_ID` and `SMOKETEST_REVIEW_ID`.
 - When the review follows an earlier smoke review, name that lineage explicitly.
 - When the review follows an earlier smoke review, include a short required subsection named `What Improved vs Previous Smoketest`.
-- Include the required `Post-Smoketest Improvement Rubric` section using `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`.
-- Include the required `Silent Failures, Command Surface Misuse, and Ambiguity Scan` section using `.GOV/roles_shared/docs/POST_SMOKETEST_IMPROVEMENT_RUBRIC.md`.
+- Include the required `Workflow Dossier Closeout Rubric` section using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.
+- Include the required `Silent Failures, Command Surface Misuse, and Ambiguity Scan` section using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.
 - If the rubric document is not open, this template remains authoritative. Do not omit or collapse the rubric or ambiguity-scan sections.
 - Write `NONE` explicitly when a subsection truly has no findings. Do not leave sections blank.
 - Do not write only a verdict summary. Capture the failure ledger, role review, runtime truth, positive controls, and concrete remediations.
@@ -41,8 +48,17 @@ Mark each verified claim with `[VERIFIED: <evidence source>]`. If a claim cannot
 
 - AUDIT_ID: <AUDIT-YYYYMMDD-<short-name>>
 - SMOKETEST_REVIEW_ID: <SMOKETEST-REVIEW-YYYYMMDD-<short-name>>
+- DOCUMENT_KIND: <SMOKETEST_REVIEW|LIVE_WORKFLOW_DOSSIER>
+- LIVE_REVIEW_STATUS: <OPEN|CLOSED>
+- REPO_TIMEZONE: <Europe/Brussels>
 - REVIEW_KIND: <RECOVERY|CLOSEOUT|PROOF_RUN|COMPARISON>
+- DATE_LOCAL: <YYYY-MM-DD>
 - DATE_UTC: <YYYY-MM-DD>
+- OPENED_AT_LOCAL: <YYYY-MM-DD HH:MM:SS Europe/Brussels>
+- OPENED_AT_UTC: <YYYY-MM-DDTHH:MM:SSZ>
+- LAST_UPDATED_LOCAL: <YYYY-MM-DD HH:MM:SS Europe/Brussels>
+- LAST_UPDATED_UTC: <YYYY-MM-DDTHH:MM:SSZ>
+- SESSION_INTENTION: <what this session is about>
 - AUTHOR: <name/role>
 - HISTORICAL_BASELINE_PACKET: <WP-... or NONE>
 - ACTIVE_RECOVERY_PACKET: <WP-... or NONE>
@@ -249,6 +265,7 @@ Assessment:
 - <broker, queue, session-control, topology, or closeout issues>
 - <whether runtime truth was clean or repaired>
 - <broker dispatch success rate: N successes / M attempts = X%>
+- <broker state summary, active-run count, request/result counts, and any stale/repair cycles observed>
 
 ## 11. Terminal Hygiene
 
@@ -409,6 +426,34 @@ If exact token counts are unavailable, use percentages of total estimated cost.
 ## 20. Command Log
 
 - `<command>` -> <PASS|FAIL|PARTIAL> (<notes>)
+
+## LIVE_EXECUTION_LOG (append-only during WP execution)
+
+This section is append-only. The Orchestrator records execution milestones, dead-time observations, ACP/runtime events, and notable route changes as they happen.
+
+Format: `- [TIMESTAMP] [ROLE] [TYPE] [SURFACE] <summary>`
+
+Example:
+- [2026-04-06T01:04:11Z] [ORCHESTRATOR] [ACP_RUNTIME] [SESSION_CONTROL_RESULTS.jsonl] START_SESSION failed due to stale broker build; restart attempted
+- [2026-04-06T01:21:02Z] [ORCHESTRATOR] [DOWNTIME] [CODER->WP_VALIDATOR] 11m gap between review request and first validator action
+
+## LIVE_GOVERNANCE_CHANGE_LOG (append-only during WP execution)
+
+This section is append-only. Record governance-only refactors, template changes, helper patches, law clarifications, or on-the-spot protocol repairs made during the run.
+
+Format: `- [TIMESTAMP] [ROLE] [CHANGE_TYPE] <surface> :: <summary>`
+
+Example:
+- [2026-04-06T01:40:00Z] [ORCHESTRATOR] [PATCH] `.GOV/roles_shared/scripts/session/session-control-lib.mjs` :: tightened overlap-forward resume contract
+
+## LIVE_CONCERNS_LOG (append-only during WP execution)
+
+This section is append-only. Capture unresolved concerns, skepticism, or operator-observed smells before they are forgotten at closeout.
+
+Format: `- [TIMESTAMP] [ROLE] [CONCERN] <summary>`
+
+Example:
+- [2026-04-06T02:05:00Z] [ORCHESTRATOR] [CONCERN] watchdog intervention count is rising faster than product progress
 
 ## LIVE_FINDINGS_LOG (append-only during WP execution)
 

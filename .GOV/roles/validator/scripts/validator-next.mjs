@@ -33,8 +33,48 @@ import {
   evaluateValidatorPacketGovernanceState,
   evaluateValidatorPassAuthority,
   loadValidatorCommunicationState,
+  normalizeValidatorRole,
   resolveValidatorActorContext,
 } from "./lib/validator-governance-lib.mjs";
+
+function displayValidatorRole(role = "") {
+  const normalized = normalizeValidatorRole(role);
+  if (normalized === "CLASSICAL_VALIDATOR") return "VALIDATOR";
+  return normalized || "";
+}
+
+function parseValidatorNextCli() {
+  const cliArgs = process.argv.slice(2);
+  let requestedRole = "";
+  const positionalArgs = [];
+  const passthroughArgs = [];
+
+  for (let index = 0; index < cliArgs.length; index += 1) {
+    const value = String(cliArgs[index] || "").trim();
+    if (!value) continue;
+    if (value === "--role") {
+      requestedRole = String(cliArgs[index + 1] || "").trim();
+      index += 1;
+      continue;
+    }
+    passthroughArgs.push(value);
+    if (!value.startsWith("--")) positionalArgs.push(value);
+  }
+
+  const normalizedRequestedRole = normalizeValidatorRole(requestedRole);
+  return {
+    debugMode: passthroughArgs.includes("--debug"),
+    requestedRole,
+    requestedRoleNormalized: normalizedRequestedRole,
+    requestedRoleDisplay: displayValidatorRole(requestedRole),
+    positionalArgs,
+  };
+}
+
+const cli = parseValidatorNextCli();
+
+import { registerFailCaptureHook } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("validator-next.mjs", { role: process.env.HANDSHAKE_VALIDATOR_ROLE || cli.requestedRoleDisplay || "VALIDATOR" });
 
 function freshnessBoost(timestampMs) {
   const ageHours = Math.max(0, (Date.now() - timestampMs) / (1000 * 60 * 60));
@@ -186,17 +226,11 @@ function loadValidationSession(wpId) {
 }
 
 function resolveWpId() {
-  const cliArgs = process.argv.slice(2);
-  const debugMode = cliArgs.some((arg) => String(arg || "").trim() === "--debug");
-  const positionalArgs = cliArgs.filter((arg) => {
-    const normalized = String(arg || "").trim();
-    return normalized && !normalized.startsWith("--");
-  });
-  const provided = String(positionalArgs[0] || "").trim();
+  const provided = String(cli.positionalArgs[0] || "").trim();
   const gitContext = currentGitContext();
   const logs = loadOrchestratorGateLogs();
 
-  if (debugMode) {
+  if (cli.debugMode) {
     console.log("[VALIDATOR_NEXT] debug_mode=enabled");
   }
 
@@ -260,11 +294,12 @@ function resolveWpId() {
       return acc;
     }, []);
 
+  const commandRole = cli.requestedRoleDisplay || "<VALIDATOR_ROLE>";
   const nextCommands = inferred.candidates.length
-    ? inferred.candidates.map((candidate) => `just validator-next ${candidate}`)
+    ? inferred.candidates.map((candidate) => `just validator-next ${commandRole} ${candidate}`)
     : suggested.length
-      ? suggested.slice(0, 5).map((candidate) => `just validator-next ${candidate.wpId}`)
-      : ["just validator-next WP-{ID}"];
+      ? suggested.slice(0, 5).map((candidate) => `just validator-next ${commandRole} ${candidate.wpId}`)
+      : [`just validator-next ${commandRole} WP-{ID}`];
 
   failWithContext({
     state: "Unable to infer the active WP for validation from the current branch/worktree.",
@@ -322,6 +357,48 @@ const validatorActorContext = resolveValidatorActorContext({
   packetContent,
   gitContext,
 });
+if (cli.requestedRoleNormalized) {
+  const resolvedRole = normalizeValidatorRole(validatorActorContext.actorRole);
+  if (!resolvedRole || resolvedRole === "UNKNOWN") {
+    failWithContext({
+      wpId,
+      stage: "BOOTSTRAP",
+      next: "STOP",
+      confidence,
+      confidenceDetail,
+      state: `Requested validator lane ${cli.requestedRoleDisplay || cli.requestedRole} could not be proven from the current branch/worktree/session context.`,
+      findings: [
+        `Requested validator role: ${cli.requestedRoleDisplay || cli.requestedRole}`,
+        `Resolved validator role: ${validatorActorContext.actorRole || "UNKNOWN"}`,
+        `Resolution source: ${validatorActorContext.source || "UNRESOLVED"}`,
+        `Current branch: ${gitContext.branch || "<unknown>"}`,
+        `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+      ],
+      nextCommands: [`just validator-next ${cli.requestedRoleDisplay || "VALIDATOR"} ${wpId}`],
+    });
+  }
+  if (resolvedRole !== cli.requestedRoleNormalized) {
+    failWithContext({
+      wpId,
+      stage: "BOOTSTRAP",
+      next: "STOP",
+      confidence,
+      confidenceDetail,
+      state: `Requested validator lane ${cli.requestedRoleDisplay || cli.requestedRole} does not match the resolved lane ${displayValidatorRole(resolvedRole) || resolvedRole}.`,
+      findings: [
+        `Requested validator role: ${cli.requestedRoleDisplay || cli.requestedRole}`,
+        `Resolved validator role: ${displayValidatorRole(resolvedRole) || resolvedRole}`,
+        `Resolution source: ${validatorActorContext.source || "UNRESOLVED"}`,
+        `Current branch: ${gitContext.branch || "<unknown>"}`,
+        `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+      ],
+      nextCommands: [
+        `just validator-next ${displayValidatorRole(resolvedRole) || "<VALIDATOR_ROLE>"} ${wpId}`,
+        `just validator-next ${cli.requestedRoleDisplay || "VALIDATOR"} ${wpId}`,
+      ],
+    });
+  }
+}
 const validatorGovernanceState = evaluateValidatorPacketGovernanceState({
   wpId,
   packetPath: packetPath(wpId),

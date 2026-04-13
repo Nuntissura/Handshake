@@ -10,7 +10,7 @@ import {
   WP_TOKEN_LEDGER_HEALTH_POLICY_ID,
   WP_TOKEN_LEDGER_HEALTH_THRESHOLDS,
 } from "./session-policy.mjs";
-import { writeJsonFile } from "./session-registry-lib.mjs";
+import { parseJsonlFile, writeJsonFile } from "./session-registry-lib.mjs";
 
 export const WP_TOKEN_USAGE_SCHEMA_ID = "hsk.wp_token_usage@1";
 export const WP_TOKEN_USAGE_SCHEMA_VERSION = "wp_token_usage_v1";
@@ -223,6 +223,38 @@ function resolveGovernanceRuntimeRootForRepo(repoRoot) {
 
 function governanceRuntimeFileForRepo(repoRoot, ...segments) {
   return path.resolve(resolveGovernanceRuntimeRootForRepo(repoRoot), "roles_shared", ...segments);
+}
+
+function scanTrackedResultCommands(repoRoot, wpId) {
+  const normalizedWpId = normalizeText(wpId);
+  if (!normalizedWpId) return [];
+
+  const resultsPath = governanceRuntimeFileForRepo(repoRoot, "SESSION_CONTROL_RESULTS.jsonl");
+  if (!fs.existsSync(resultsPath)) return [];
+
+  const results = parseJsonlFile(resultsPath)
+    .filter((entry) => normalizeText(entry?.wp_id) === normalizedWpId)
+    .filter((entry) => normalizeText(entry?.command_id));
+
+  return results.map((entry) => {
+    const outputJsonlFile = normalizeText(entry.output_jsonl_file)
+      ? path.resolve(repoRoot, normalizeText(entry.output_jsonl_file))
+      : "";
+    const usage = parseUsageFromOutputJsonl(outputJsonlFile);
+    return normalizeCommandEntry({
+      command_id: entry.command_id,
+      command_kind: entry.command_kind,
+      role: entry.role,
+      session_key: entry.session_key,
+      session_thread_id: entry.thread_id,
+      status: entry.status,
+      processed_at: entry.processed_at,
+      output_jsonl_file: normalizeText(entry.output_jsonl_file),
+      turn_count: usage.turnCount,
+      usage_totals: usage.usageTotals,
+      turn_usage: usage.turnUsage,
+    });
+  });
 }
 
 function parseRawOutputCommand(outputJsonlFile, role, repoRoot) {
@@ -564,16 +596,21 @@ export function defaultWpTokenUsageLedger(wpId) {
 }
 
 export function normalizeWpTokenUsageLedger(raw, wpId = "", { repoRoot = "" } = {}) {
+  const normalizedWpId = normalizeText(wpId || raw?.wp_id);
   const ledger = {
-    ...defaultWpTokenUsageLedger(wpId || raw?.wp_id),
+    ...defaultWpTokenUsageLedger(normalizedWpId),
     ...(raw && typeof raw === "object" ? raw : {}),
   };
-  const trackedCommands = Array.isArray(raw?.commands)
+  const storedTrackedCommands = Array.isArray(raw?.commands)
     ? stableSortCommands(raw.commands.map((entry) => normalizeCommandEntry(entry)).filter((entry) => entry.command_id))
     : [];
+  const reconciledTrackedCommands = repoRoot
+    ? stableSortCommands(scanTrackedResultCommands(repoRoot, normalizedWpId))
+    : [];
+  const trackedCommands = reconciledTrackedCommands.length > 0 ? reconciledTrackedCommands : storedTrackedCommands;
 
   const rawScan = repoRoot
-    ? scanWpSessionOutputCommands(repoRoot, normalizeText(ledger.wp_id || wpId))
+    ? scanWpSessionOutputCommands(repoRoot, normalizedWpId)
     : { output_root: "", directories: [], commands: [] };
   const rawCommands = stableSortCommands(rawScan.commands || []);
   const trackedSummary = summarizeCommands(trackedCommands);
@@ -582,7 +619,7 @@ export function normalizeWpTokenUsageLedger(raw, wpId = "", { repoRoot = "" } = 
   const rawRoleTotals = buildRoleTotals(rawCommands);
   const authoritativeCommands = rawCommands.length > 0 ? rawCommands : trackedCommands;
 
-  ledger.wp_id = normalizeText(ledger.wp_id || wpId);
+  ledger.wp_id = normalizedWpId;
   ledger.commands = trackedCommands;
   ledger.tracked_summary = trackedSummary;
   ledger.tracked_role_totals = trackedRoleTotals;
@@ -657,6 +694,25 @@ export function syncWpTokenUsageLedger(repoRoot, result = {}, {
     filePath,
     ledger: nextLedger,
     command: nextEntry,
+  };
+}
+
+export function repairWpTokenUsageLedger(repoRoot, wpId) {
+  const normalizedWpId = normalizeText(wpId);
+  if (!normalizedWpId) {
+    throw new Error("repairWpTokenUsageLedger requires wpId");
+  }
+
+  const { filePath, ledger } = readWpTokenUsageLedger(repoRoot, normalizedWpId);
+  const repairedLedger = normalizeWpTokenUsageLedger({
+    ...ledger,
+    updated_at: nowIso(),
+  }, normalizedWpId, { repoRoot });
+  repairedLedger.updated_at = nowIso();
+  writeJsonFile(filePath, repairedLedger);
+  return {
+    filePath,
+    ledger: repairedLedger,
   };
 }
 

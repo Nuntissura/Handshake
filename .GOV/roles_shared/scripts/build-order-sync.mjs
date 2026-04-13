@@ -20,6 +20,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath } from "./lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "./lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("build-order-sync.mjs", { role: "SHARED" });
 
 const BUILD_ORDER_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md`;
 const SPEC_CURRENT_PATH = `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md`;
@@ -47,9 +50,7 @@ function resolveRepoRoot() {
 }
 
 function fail(message, details = []) {
-  console.error(`[BUILD_ORDER_SYNC] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("build-order-sync.mjs", message, { role: "SHARED", details });
 }
 
 function readText(filePath) {

@@ -1,10 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { GOV_ROOT_REPO_REL, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("lifecycle-ux-check.mjs", { role: "SHARED" });
 
 function fail(message) {
-  console.error(message);
-  process.exit(1);
+  failWithMemory("lifecycle-ux-check.mjs", message, { role: "SHARED" });
 }
 
 function readUtf8(filePath) {

@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { resolveRoleConfig } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
@@ -13,10 +14,10 @@ import { deriveManualRelayEnvelope, preferredTargetSession } from "./lib/manual-
 
 const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 
+registerFailCaptureHook("manual-relay-next.mjs", { role: "CLASSIC_ORCHESTRATOR" });
+
 function fail(message, details = []) {
-  console.error(`[MANUAL_RELAY_NEXT] ${message}`);
-  for (const line of details) console.error(`- ${line}`);
-  process.exit(1);
+  failWithMemory("manual-relay-next.mjs", message, { role: "CLASSIC_ORCHESTRATOR", details });
 }
 
 function parseSingleField(text, label) {
@@ -94,6 +95,7 @@ const envelope = deriveManualRelayEnvelope({
 
 console.log(`[MANUAL_RELAY_NEXT] wp_id=${wpId}`);
 console.log(`[MANUAL_RELAY_NEXT] workflow_lane=${workflowLane}`);
+console.log("[MANUAL_RELAY_NEXT] lane_owner=CLASSIC_ORCHESTRATOR");
 console.log(`[MANUAL_RELAY_NEXT] next_actor=${nextActor}`);
 console.log(`[MANUAL_RELAY_NEXT] next_session=${targetSession || "<none>"}`);
 console.log(`[MANUAL_RELAY_NEXT] waiting_on=${runtimeStatus.waiting_on || "<missing>"}`);

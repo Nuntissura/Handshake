@@ -17,12 +17,13 @@
  */
 
 import fs from 'fs';
+import path from 'path';
 import { spawnSync } from 'child_process';
 import {
     ensureValidatorGateDir,
     resolveValidatorGatePath,
 } from '../../../roles_shared/scripts/lib/validator-gate-paths.mjs';
-import { GOV_ROOT_REPO_REL, workPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, workPacketAbsPath, workPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 import {
     currentGitContext,
     loadPacket,
@@ -38,6 +39,8 @@ import {
     committedEvidenceForCloseout,
     livePrepareWorktreeHealthEvidence,
 } from '../scripts/lib/committed-validation-evidence-lib.mjs';
+import { registerFailCaptureHook, failWithMemory } from '../../../roles_shared/scripts/lib/fail-capture-lib.mjs';
+registerFailCaptureHook("validator_gates.mjs", { role: "WP_VALIDATOR" });
 
 const MIN_GATE_INTERVAL_SECONDS = 5; // Minimum time between gates to prevent automation momentum
 
@@ -107,9 +110,7 @@ function saveWpState(wpId, state) {
 }
 
 function fail(msg, details = []) {
-    console.error(`[VALIDATOR GATE ERROR] ${msg}`);
-    details.forEach((d) => console.error(`  - ${d}`));
-    process.exit(1);
+    failWithMemory("validator_gates.mjs", msg, { role: "WP_VALIDATOR", details });
 }
 
 function success(msg, details = []) {
@@ -118,7 +119,11 @@ function success(msg, details = []) {
 }
 
 function runNode(args) {
-    const result = spawnSync(process.execPath, args, {
+    const commandArgs = Array.isArray(args) ? [...args] : [];
+    if (commandArgs[0] && !path.isAbsolute(commandArgs[0])) {
+        commandArgs[0] = path.resolve(REPO_ROOT, commandArgs[0]);
+    }
+    const result = spawnSync(process.execPath, commandArgs, {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -172,7 +177,8 @@ function failIfWrongToolLaneForGovernedGateWrite(wpId, actionName) {
         `actor_branch=${actorContext.actorBranch || '<unknown>'}`,
         `actor_worktree_dir=${actorContext.actorWorktreeDir || '<unknown>'}`,
         'Governed validator gate writes require a bound WP_VALIDATOR or INTEGRATION_VALIDATOR lane.',
-        `Use: just validator-next ${wpId}`,
+        `Use: just validator-next WP_VALIDATOR ${wpId}`,
+        `Use: just validator-next INTEGRATION_VALIDATOR ${wpId}`,
         `Use: just integration-validator-context-brief ${wpId}`,
         `Use: just external-validator-brief ${wpId} (read-only independent audit only)`,
     ]);
@@ -427,7 +433,8 @@ if (action === 'append') {
 
     // Verify work packet exists
     const packetPath = workPacketPath(wpId);
-    if (!fs.existsSync(packetPath)) {
+    const packetAbsPath = workPacketAbsPath(wpId);
+    if (!fs.existsSync(packetAbsPath)) {
         fail(`Work packet not found: ${packetPath}`);
     }
 
@@ -578,6 +585,8 @@ if (action === 'commit') {
         `${GOV_ROOT_REPO_REL}/roles_shared/checks/wp-communication-health-check.mjs`,
         wpId,
         'VERDICT',
+        actorAuthority.actorContext.actorRole || '',
+        actorAuthority.actorContext.actorSessionKey || actorAuthority.actorContext.actorSessionId || '',
     ]);
     if (communicationHealth.code !== 0) {
         fail(`Cannot commit: ${wpId} is missing verdict-ready direct review communication evidence`, [

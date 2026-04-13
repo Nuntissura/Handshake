@@ -1,6 +1,9 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("close-wp-branch.mjs", { role: "SHARED" });
 
 function runGit(args, opts = {}) {
   return execFileSync("git", args, { stdio: "pipe", ...opts }).toString().trim();
@@ -11,9 +14,7 @@ function runGitInherit(args) {
 }
 
 function fail(message, details = []) {
-  console.error(`[CLOSE_WP_BRANCH] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("close-wp-branch.mjs", message, { role: "SHARED", details });
 }
 
 function usage() {

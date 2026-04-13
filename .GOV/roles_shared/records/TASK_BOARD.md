@@ -88,6 +88,10 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
+
+
+
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -142,7 +146,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Distillation-v2]** - [STUB]
 - **[WP-1-ContextPack-Recorder-Visibility-v1]** - [STUB]
 - **[WP-1-Governance-Hooks-v2]** - [STUB]
-- **[WP-1-Governance-Workflow-Mirror-v1]** - [STUB]
 - **[WP-1-Workspace-Bundle-v2]** - [STUB]
 - **[WP-1-Semantic-Catalog-v2]** - [STUB]
 - **[WP-1-Metrics-Traces-v2]** - [STUB]
@@ -161,7 +164,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-FEMS-Outcome-Feedback-Loop-v1]** - [STUB]
 - **[WP-1-FEMS-MT-Handoff-Memory-Context-v1]** - [STUB]
 - **[WP-1-Provider-Feature-Coverage-Agentic-Ready-v1]** - [STUB]
-- **[WP-1-Session-Observability-Spans-FR-v1]** - [STUB]
 - **[WP-1-Consent-Audit-Projection-v1]** - [STUB]
 - **[WP-1-Cloud-Consent-Evidence-Portability-v1]** - [STUB]
 - **[WP-1-Diagnostics-Debug-Bundle-Bridge-v1]** - [STUB]
@@ -170,7 +172,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Project-Agnostic-Workflow-State-Registry-v1]** - [STUB]
 - **[WP-1-Workflow-Transition-Automation-Registry-v1]** - [STUB]
 - **[WP-1-Markdown-Mirror-Sync-Drift-Guard-v1]** - [STUB]
-- **[WP-1-Dev-Command-Center-Control-Plane-Backend-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-MVP-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-Layout-Projection-Registry-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1]** - [STUB]
@@ -203,6 +204,268 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -649,6 +912,15 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 - **[WP-1-Workspace-Safety-Parallel-Sessions-v1]** - [VALIDATED]
 
+
+- **[WP-1-Session-Observability-Spans-FR-v1]** - [VALIDATED]
+
+- **[WP-1-Dev-Command-Center-Control-Plane-Backend-v1]** - [VALIDATED]
+
+
+
+- **[WP-1-Governance-Workflow-Mirror-v2]** - [VALIDATED]
+
 ## Blocked
 ---
 
@@ -686,6 +958,7 @@ Entry format for this section:
 - **[WP-1-Storage-Foundation-20251228]** - [SUPERSEDED]
 - **[WP-1-Storage-Foundation]** - [SUPERSEDED]
 - **[WP-1-Gate-Check-Tool]** - [SUPERSEDED]
+- **[WP-1-Governance-Workflow-Mirror-v1]** - [SUPERSEDED]
 - **[WP-1-Operator-Consoles-v2]** - [SUPERSEDED]
 - **[WP-1-Operator-Consoles-v1]** - [SUPERSEDED]
 - **[WP-1-Operator-Consoles]** - [SUPERSEDED]

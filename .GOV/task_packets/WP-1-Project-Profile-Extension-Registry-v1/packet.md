@@ -49,9 +49,9 @@ Requirements:
 - CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
-- SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
-- SESSION_HOST_FALLBACK: CLI_ESCALATION_WINDOW
-- SESSION_LAUNCH_POLICY: ORCHESTRATOR_PLUGIN_FIRST_WITH_2TRY_ESCALATION
+- SESSION_HOST_PREFERENCE: HANDSHAKE_ACP_BROKER
+- SESSION_HOST_FALLBACK: SYSTEM_TERMINAL_REPAIR_ONLY
+- SESSION_LAUNCH_POLICY: ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY
 - ROLE_SESSION_RUNTIME: CLI
 - CLI_SESSION_TOOL: codex
 - SESSION_PLUGIN_BRIDGE_ID: handshake.handshake-session-bridge
@@ -73,21 +73,21 @@ Requirements:
 - ROLE_SESSION_REASONING_CONFIG_VALUE: xhigh
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next WP-1-Project-Profile-Extension-Registry-v1
-<!-- The WP Validator uses a dedicated local review branch/worktree rooted from the coder branch. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
-- WP_VALIDATOR_LOCAL_BRANCH: validate/WP-1-Project-Profile-Extension-Registry-v1
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtv-extension-registry-v1
+<!-- The WP Validator shares the coder branch/worktree [CX-503G]. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
+- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Project-Profile-Extension-Registry-v1
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-extension-registry-v1
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Project-Profile-Extension-Registry-v1
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Project-Profile-Extension-Registry-v1
-- WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
-- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-Project-Profile-Extension-Registry-v1
+- WP_VALIDATOR_STARTUP_COMMAND: just validator-startup WP_VALIDATOR
+- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP_VALIDATOR WP-1-Project-Profile-Extension-Registry-v1
 - INTEGRATION_VALIDATOR_LOCAL_BRANCH: main
 - INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Project-Profile-Extension-Registry-v1
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Project-Profile-Extension-Registry-v1
-- INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup
-- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-Project-Profile-Extension-Registry-v1
+- INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup INTEGRATION_VALIDATOR
+- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next INTEGRATION_VALIDATOR WP-1-Project-Profile-Extension-Registry-v1
 - EXTERNAL_VALIDATOR_BRIEF_COMMAND: just external-validator-brief WP-1-Project-Profile-Extension-Registry-v1
-- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup -> just external-validator-brief WP-1-Project-Profile-Extension-Registry-v1
+- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup VALIDATOR -> just external-validator-brief WP-1-Project-Profile-Extension-Registry-v1
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY | ABANDONED
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING

@@ -31,38 +31,22 @@ if (!String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim()) {
 process.chdir(repoRoot);
 
 // Governance-only checks (no product source scanning).
+// Bundled checks [RGF-194] run sub-checks as child processes and collect ALL failures.
+// 6 bundles replace 24 individual imports; 8 standalone checks remain (unique purpose, no natural grouping).
 await import("../scripts/spec-current-check.mjs");
-await import("./spec-eof-appendices-check.mjs");
-await import("./spec-debt-registry-check.mjs");
+await import("./spec-bundle-check.mjs");                       // spec-debt-registry, spec-eof-appendices, spec-growth-discipline, spec-governance-reference
 await import("./atelier_role_registry_check.mjs");
-await import("./task-board-check.mjs");
 await import("../../roles/validator/checks/validator-report-structure-check.mjs");
-await import("./packet-closure-monitor-check.mjs");
+await import("./packet-truth-bundle-check.mjs");               // task-board, packet-closure-monitor, packet-truth, merge-progression-truth, task-packet-claim
 await import("./semantic-proof-check.mjs");
 await import("./computed-policy-gate-check.mjs");
-await import("./packet-truth-check.mjs");
-await import("./merge-progression-truth-check.mjs");
 await import("./historical-smoketest-lineage-check.mjs");
-await import("./wp-communications-check.mjs");
 await import("./build-order-check.mjs");
-await import("./task-packet-claim-check.mjs");
-await import("./session-policy-check.mjs");
-await import("./protocol-alignment-check.mjs");
-await import("./session-launch-runtime-check.mjs");
-await import("./session-control-runtime-check.mjs");
-await import("./wp-activation-traceability-check.mjs");
-await import("./worktree-concurrency-check.mjs");
-await import("./lifecycle-ux-check.mjs");
-await import("./drive-agnostic-check.mjs");
-await import("./runtime-placement-check.mjs");
-await import("./migration-path-truth-check.mjs");
-await import("./prevention-ladder-check.mjs");
-await import("./role-worktree-surface-check.mjs");
+await import("./wp-comm-bundle-check.mjs");                    // wp-communications, wp-activation-traceability
+await import("./session-bundle-check.mjs");                    // session-policy, session-launch-runtime, session-control-runtime, lifecycle-ux
+await import("./governance-structure-bundle-check.mjs");       // protocol-alignment, prevention-ladder, deprecation-sunset, migration-path-truth
+await import("./topology-bundle-check.mjs");                   // worktree-concurrency, drive-agnostic, runtime-placement, role-worktree-surface, topology-registry
 await import("./phase1-add-coverage-check.mjs");
-await import("./spec-growth-discipline-check.mjs");
-await import("./spec-governance-reference-check.mjs");
-await import("./deprecation-sunset-check.mjs");
-await import("./topology-registry-check.mjs");
 await import("./memory-health-check.mjs");
 
 // Lightweight memory maintenance — runs dedup if >6h stale, full compact if >24h stale.

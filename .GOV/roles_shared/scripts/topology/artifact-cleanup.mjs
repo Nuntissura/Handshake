@@ -11,13 +11,14 @@ import {
   evaluateArtifactHygiene,
   writeArtifactRetentionManifest,
 } from "../lib/artifact-hygiene-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("artifact-cleanup.mjs", { role: "SHARED" });
 
 const dryRun = process.argv.slice(2).includes("--dry-run");
 
 function fail(message, details = []) {
-  console.error(`[ARTIFACT_CLEANUP] FAIL: ${message}`);
-  for (const detail of details) console.error(`  - ${detail}`);
-  process.exit(1);
+  failWithMemory("artifact-cleanup.mjs", message, { role: "SHARED", details });
 }
 
 ensureArtifactRootStructure(REPO_ROOT);

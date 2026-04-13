@@ -1,11 +1,16 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { EXECUTION_OWNER_RANGE_HELP } from "../scripts/session/session-policy.mjs";
 import { loadSessionRegistry } from "../scripts/session/session-registry-lib.mjs";
 import { evaluateSessionGovernanceState } from "../scripts/session/session-governance-state-lib.mjs";
 import { loadPacket } from "../scripts/lib/role-resume-utils.mjs";
 import { evaluateWpDeclaredTopology } from "../scripts/lib/wp-declared-topology-lib.mjs";
 import { REPO_ROOT, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("worktree-concurrency-check.mjs", { role: "SHARED" });
 
 const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 const ACTIVE_SESSION_RUNTIME_STATES = new Set([
@@ -26,9 +31,7 @@ function runGit(args) {
 }
 
 function fail(message, details = []) {
-  console.error(`[WORKTREE_CONCURRENCY_CHECK] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("worktree-concurrency-check.mjs", message, { role: "SHARED", details });
 }
 
 function listInProgressWps(taskBoard) {
@@ -71,6 +74,42 @@ function normalizeBranch(branch) {
   return (branch || "").replace(/^refs\/heads\//, "").trim();
 }
 
+function isDirectExecution() {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  return path.resolve(entry) === fileURLToPath(import.meta.url);
+}
+
+export function wpRequiresDedicatedWorktreeMapping({ role = "", wpId = "" } = {}) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId.startsWith("WP-")) return false;
+  if (normalizedRole === "MEMORY_MANAGER") return false;
+  if (/^WP-MEMORY-HYGIENE_/i.test(normalizedWpId)) return false;
+  return true;
+}
+
+export function collectWpIdsRequiringDedicatedWorktrees({
+  inProgressWpIds = [],
+  sessions = [],
+  repoRoot,
+} = {}) {
+  const activeSessionWpIds = new Set();
+  for (const session of sessions || []) {
+    const runtimeState = String(session?.runtime_state || "").trim().toUpperCase();
+    if (!ACTIVE_SESSION_RUNTIME_STATES.has(runtimeState)) continue;
+    const governance = evaluateSessionGovernanceState(repoRoot, session);
+    if (!governance.launchAllowed) continue;
+    if (!wpRequiresDedicatedWorktreeMapping({ role: session?.role, wpId: governance.wpId })) continue;
+    activeSessionWpIds.add(governance.wpId);
+  }
+
+  return [...new Set([
+    ...(inProgressWpIds || []).filter((wpId) => wpRequiresDedicatedWorktreeMapping({ wpId })),
+    ...activeSessionWpIds,
+  ])];
+}
+
 function main() {
   // Local guard only; CI clones cannot/should not be required to have worktrees.
   if (process.env.CI || process.env.GITHUB_ACTIONS) {
@@ -86,15 +125,11 @@ function main() {
   const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
   const inProgressWpIds = listInProgressWps(taskBoard);
   const { registry } = loadSessionRegistry(repoRoot);
-  const activeSessionWpIds = new Set();
-  for (const session of registry.sessions || []) {
-    const runtimeState = String(session?.runtime_state || "").trim().toUpperCase();
-    if (!ACTIVE_SESSION_RUNTIME_STATES.has(runtimeState)) continue;
-    const governance = evaluateSessionGovernanceState(repoRoot, session);
-    if (!governance.launchAllowed) continue;
-    if (governance.wpId) activeSessionWpIds.add(governance.wpId);
-  }
-  const wpIdsToCheck = [...new Set([...inProgressWpIds, ...activeSessionWpIds])];
+  const wpIdsToCheck = collectWpIdsRequiringDedicatedWorktrees({
+    inProgressWpIds,
+    sessions: registry.sessions || [],
+    repoRoot,
+  });
   if (wpIdsToCheck.length === 0) {
     console.log("worktree-concurrency-check ok");
     return;
@@ -157,4 +192,6 @@ function main() {
   console.log("worktree-concurrency-check ok");
 }
 
-main();
+if (isDirectExecution()) {
+  main();
+}

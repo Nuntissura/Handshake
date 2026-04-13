@@ -3,12 +3,13 @@
 import { execFileSync } from "node:child_process";
 import { inspectHandshakeAcpBroker, shutdownHandshakeAcpBroker } from "../../../roles_shared/scripts/session/handshake-acp-client.mjs";
 import { assertOrchestratorLaunchAuthority } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("session-control-broker.mjs", { role: "ORCHESTRATOR" });
 
 const action = String(process.argv[2] || "").trim().toLowerCase() || "status";
 
 function fail(message) {
-  console.error(`[BROKER_CONTROL] ${message}`);
-  process.exit(1);
+  failWithMemory("session-control-broker.mjs", message, { role: "ORCHESTRATOR" });
 }
 
 function runGit(args) {

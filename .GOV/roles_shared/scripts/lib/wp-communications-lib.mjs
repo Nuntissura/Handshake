@@ -8,6 +8,7 @@ import {
   LEGACY_TASK_PACKETS_DIRNAME,
   LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT,
   repoPathAbs,
+  resolveWorkPacketPath,
   SHARED_GOV_WP_COMMUNICATIONS_ROOT,
   WORK_PACKETS_LOGICAL_DIRNAME,
 } from "./runtime-paths.mjs";
@@ -65,6 +66,7 @@ export const VALIDATOR_TRIGGER_VALUES = [
   "VALIDATOR_QUERY",
   "POST_WORK_PASS",
   "BLOCKED_NEEDS_VALIDATOR",
+  "MICROTASK_REVIEW_READY",
   "STALE_HEARTBEAT",
   "HANDOFF_READY",
 ];
@@ -75,6 +77,7 @@ export const AUTHORITY_KIND_VALUES = [
   "OPERATOR",
   "WORKFLOW_AUTHORITY",
   "PRIMARY_CODER",
+  "MEMORY_MANAGER",
   "WP_VALIDATOR",
   "INTEGRATION_VALIDATOR",
   "SECONDARY_VALIDATOR",
@@ -85,11 +88,12 @@ export const RECEIPT_ROLE_VALUES = [
   "OPERATOR",
   "ORCHESTRATOR",
   "CODER",
+  "MEMORY_MANAGER",
   "WP_VALIDATOR",
   "INTEGRATION_VALIDATOR",
   "VALIDATOR",
 ];
-export const ROUTABLE_ROLE_VALUES = ["OPERATOR", "ORCHESTRATOR", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"];
+export const ROUTABLE_ROLE_VALUES = ["OPERATOR", "ORCHESTRATOR", "CODER", "MEMORY_MANAGER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"];
 export const RECEIPT_KIND_VALUES = [
   "ASSIGNMENT",
   "STATUS",
@@ -111,6 +115,9 @@ export const RECEIPT_KIND_VALUES = [
   "STEERING",
   "REPAIR",
   WORKFLOW_INVALIDITY_RECEIPT_KIND,
+  "MEMORY_PROPOSAL",
+  "MEMORY_FLAG",
+  "MEMORY_RGF_CANDIDATE",
 ];
 export const REVIEW_OPEN_RECEIPT_KIND_VALUES = [
   "VALIDATOR_KICKOFF",
@@ -377,6 +384,8 @@ export function validateRuntimeStatus(data) {
     "current_main_compatibility_verified_at_utc",
     "packet_widening_decision",
     "packet_widening_evidence",
+    "max_worker_interrupt_cycles",
+    "current_worker_interrupt_cycle",
   ];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
@@ -392,13 +401,19 @@ export function validateRuntimeStatus(data) {
   const taskPacketPrefix = GOV_ROOT_REPO_REL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const taskPacketFallback = "\\.GOV";
   const normalizedTaskPacket = normalize(data.task_packet);
+  const authoritativeTaskPacketAbs = normalize(resolveWorkPacketPath(data.wp_id)?.packetAbsPath || "");
+  const resolvedTaskPacketAbs = isNonEmptyString(data.task_packet) ? normalize(repoPathAbs(data.task_packet)) : "";
   const matchesPacketPath = (prefix) =>
     [LEGACY_TASK_PACKETS_DIRNAME, WORK_PACKETS_LOGICAL_DIRNAME].some((dirName) =>
       new RegExp(`^${prefix}/${dirName}/WP-.*\\.md$`).test(normalizedTaskPacket)
       || new RegExp(`^${prefix}/${dirName}/WP-[^/]+/packet\\.md$`).test(normalizedTaskPacket)
     );
+  const taskPacketMatchesAuthoritativePath = authoritativeTaskPacketAbs
+    ? resolvedTaskPacketAbs === authoritativeTaskPacketAbs
+    : false;
   if (!isNonEmptyString(data.task_packet) || !(
-    matchesPacketPath(taskPacketPrefix)
+    taskPacketMatchesAuthoritativePath
+    || matchesPacketPath(taskPacketPrefix)
     || matchesPacketPath(taskPacketFallback)
   )) {
     errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md, ${GOV_ROOT_REPO_REL}/task_packets/WP-*/packet.md, or the logical ${GOV_ROOT_REPO_REL}/work_packets equivalents`);
@@ -599,6 +614,9 @@ export function validateRuntimeStatus(data) {
   if (!Number.isInteger(data.max_relay_escalation_cycles) || data.max_relay_escalation_cycles < 1) {
     errors.push("max_relay_escalation_cycles must be an integer >= 1");
   }
+  if (!(data.max_worker_interrupt_cycles === undefined || (Number.isInteger(data.max_worker_interrupt_cycles) && data.max_worker_interrupt_cycles >= 0))) {
+    errors.push("max_worker_interrupt_cycles must be an integer >= 0 when present");
+  }
   if (!Number.isInteger(data.current_coder_revision_cycle) || data.current_coder_revision_cycle < 0) {
     errors.push("current_coder_revision_cycle must be an integer >= 0");
   } else if (Number.isInteger(data.max_coder_revision_cycles) && data.current_coder_revision_cycle > data.max_coder_revision_cycles) {
@@ -619,6 +637,15 @@ export function validateRuntimeStatus(data) {
     data.current_relay_escalation_cycle > data.max_relay_escalation_cycles
   ) {
     errors.push("current_relay_escalation_cycle exceeds max_relay_escalation_cycles");
+  }
+  if (!(data.current_worker_interrupt_cycle === undefined || (Number.isInteger(data.current_worker_interrupt_cycle) && data.current_worker_interrupt_cycle >= 0))) {
+    errors.push("current_worker_interrupt_cycle must be an integer >= 0 when present");
+  } else if (
+    Number.isInteger(data.current_worker_interrupt_cycle) &&
+    Number.isInteger(data.max_worker_interrupt_cycles) &&
+    data.current_worker_interrupt_cycle > data.max_worker_interrupt_cycles
+  ) {
+    errors.push("current_worker_interrupt_cycle exceeds max_worker_interrupt_cycles");
   }
   if (!isNullableRfc3339Utc(data.last_backup_push_at)) errors.push("last_backup_push_at must be null or RFC3339 UTC");
   if (!isNullableSha(data.last_backup_push_sha)) errors.push("last_backup_push_sha must be null or a commit SHA");
@@ -754,6 +781,58 @@ export function communicationPathsForWp(wpId) {
   return communicationPathsForRoot(COMM_ROOT, wpId);
 }
 
+export function ensurePacketlessWpCommunicationScaffold(wpId, {
+  threadHeading = "",
+  noteLines = [],
+} = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId || !/^WP-/.test(normalizedWpId)) {
+    throw new Error("WP_ID is required");
+  }
+
+  const paths = communicationPathsForWp(normalizedWpId);
+  const dirAbsPath = repoPathAbs(paths.dir);
+  fs.mkdirSync(dirAbsPath, { recursive: true });
+
+  const threadAbsPath = repoPathAbs(paths.threadFile);
+  if (!fs.existsSync(threadAbsPath)) {
+    const heading = String(threadHeading || `# WP Thread: ${normalizedWpId}`).trim();
+    const bodyLines = [
+      heading,
+      "",
+      `Synthetic packetless communication lane for ${normalizedWpId}.`,
+      ...[].concat(noteLines || []).map((line) => String(line || "").trim()).filter(Boolean),
+      "",
+    ];
+    fs.writeFileSync(threadAbsPath, bodyLines.join("\n"), "utf8");
+  }
+
+  const receiptsAbsPath = repoPathAbs(paths.receiptsFile);
+  if (!fs.existsSync(receiptsAbsPath)) {
+    fs.writeFileSync(receiptsAbsPath, "", "utf8");
+  }
+
+  const notificationsFile = normalize(path.join(paths.dir, NOTIFICATIONS_FILE_NAME));
+  const notificationsAbsPath = repoPathAbs(notificationsFile);
+  if (!fs.existsSync(notificationsAbsPath)) {
+    fs.writeFileSync(notificationsAbsPath, "", "utf8");
+  }
+
+  const cursorFile = normalize(path.join(paths.dir, NOTIFICATION_CURSOR_FILE_NAME));
+  const cursorAbsPath = repoPathAbs(cursorFile);
+  if (!fs.existsSync(cursorAbsPath)) {
+    fs.writeFileSync(cursorAbsPath, `${JSON.stringify({ schema_version: "wp_notification_cursor@1", cursors: {} }, null, 2)}\n`, "utf8");
+  }
+
+  return {
+    dir: paths.dir,
+    threadFile: paths.threadFile,
+    receiptsFile: paths.receiptsFile,
+    notificationsFile,
+    cursorFile,
+  };
+}
+
 export function communicationTransactionLockPathForWp(wpId) {
   const normalizedWpId = String(wpId || "").trim();
   if (!normalizedWpId || !/^WP-/.test(normalizedWpId)) {
@@ -777,6 +856,7 @@ export function deriveAuthorityKinds({ actorRole, actorSession, runtimeStatus })
   if (role === "OPERATOR") return { authorityKind: "OPERATOR", validatorRoleKind: null };
   if (role === "ORCHESTRATOR") return { authorityKind: "WORKFLOW_AUTHORITY", validatorRoleKind: null };
   if (role === "CODER") return { authorityKind: "PRIMARY_CODER", validatorRoleKind: null };
+  if (role === "MEMORY_MANAGER") return { authorityKind: "MEMORY_MANAGER", validatorRoleKind: null };
   if (role === "WP_VALIDATOR") return { authorityKind: "WP_VALIDATOR", validatorRoleKind: "WP_VALIDATOR" };
   if (role === "INTEGRATION_VALIDATOR") return { authorityKind: "INTEGRATION_VALIDATOR", validatorRoleKind: "INTEGRATION_VALIDATOR" };
   if (role === "VALIDATOR") {

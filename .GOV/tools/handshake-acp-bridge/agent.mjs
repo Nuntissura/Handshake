@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   appendJsonlLine,
   ensureSessionStateFiles,
@@ -18,13 +18,19 @@ import {
 import { reclaimOwnedSessionTerminals } from "../../roles_shared/scripts/session/terminal-ownership-lib.mjs";
 import {
   buildSessionControlResult,
+  classifySessionControlOutcomeState,
   defaultSessionOutputFile,
   ensureBrokerAuthToken,
   runCodexThreadCommand,
   runGovernedRoleCommand,
   validateSessionControlRequestShape,
 } from "../../roles_shared/scripts/session/session-control-lib.mjs";
-import { settleRecoverableSessionControlResults } from "../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
+import {
+  classifyRecoverableBrokerActiveRun,
+  inferRecoverableSessionControlResult,
+  settleRecoverableSessionControlResults,
+} from "../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
+import { syncWpTokenUsageLedger } from "../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { appendWpNotificationCore } from "../../roles_shared/scripts/wp/wp-notification-append.mjs";
 import {
   SESSION_ACTIVE_TERMINAL_KIND_NONE,
@@ -46,6 +52,7 @@ import {
 const repoRoot = process.cwd();
 const brokerStatePath = path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE);
 const resultsPath = path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE);
+const orchestratorSteerNextScriptPath = path.resolve(repoRoot, ".GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs");
 const serverHost = "127.0.0.1";
 const activeRuns = new Map();
 const socketContexts = new WeakMap();
@@ -210,6 +217,142 @@ function findActiveRunBySession(sessionId) {
   return [...activeRuns.values()].find((run) => run.request.session_key === sessionId) || null;
 }
 
+function recoverActiveRun(run, repairReason) {
+  if (!run) return null;
+  const request = run.request;
+  const commandId = String(request?.command_id || "").trim();
+  if (!commandId) return null;
+
+  if (run.childPid) {
+    killProcessTree(run.childPid);
+  }
+  if (run.timer) clearTimeout(run.timer);
+  run.settled = true;
+  activeRuns.delete(commandId);
+  persistBrokerState(server.address().port);
+
+  const resultMap = loadResultMap();
+  const existingResult = resultMap.get(commandId);
+  if (existingResult) {
+    respond(run.socket, run.rpcId, {
+      command_id: existingResult.command_id,
+      session_id: existingResult.session_key,
+      thread_id: existingResult.thread_id || "",
+      status: String(existingResult.status || "").toLowerCase(),
+      outcome_state: existingResult.outcome_state || classifySessionControlOutcomeState({
+        status: existingResult.status,
+        commandKind: request.command_kind,
+        error: existingResult.error,
+        summary: existingResult.summary,
+        cancelStatus: existingResult.cancel_status,
+      }),
+      output_jsonl_file: existingResult.output_jsonl_file || defaultSessionOutputFile(repoRoot, request.session_key, commandId),
+      last_agent_message: existingResult.last_agent_message || "",
+      error: existingResult.error || "",
+      duration_ms: existingResult.duration_ms || 0,
+      broker_run_id: commandId,
+    });
+    return existingResult;
+  }
+
+  const { registry } = loadSessionRegistry(repoRoot);
+  const session = registry.sessions.find((entry) => entry.session_key === request.session_key) || null;
+  const inferred = inferRecoverableSessionControlResult({
+    repoRoot,
+    request,
+    session,
+    resultById: resultMap,
+  });
+  const outputFile = inferred.outputJsonlFile || defaultSessionOutputFile(repoRoot, request.session_key, commandId);
+  appendOutputEvent(outputFile, {
+    type: "broker.repair",
+    reason: repairReason || inferred.repairReason || "stale_active_run_recovered",
+  });
+  const result = buildSessionControlResult({
+    commandId,
+    commandKind: request.command_kind,
+    sessionKey: request.session_key,
+    wpId: request.wp_id,
+    role: request.role,
+    status: inferred.status,
+    threadId: inferred.threadId,
+    summary: inferred.summary,
+    outputJsonlFile: outputFile,
+    lastAgentMessage: "",
+    error: inferred.error,
+    durationMs: 0,
+    targetCommandId: inferred.targetCommandId,
+    cancelStatus: inferred.cancelStatus,
+  });
+
+  const persisted = mutateSessionRegistrySync(repoRoot, (liveRegistry) => {
+    const liveSession = (liveRegistry.sessions || []).find((entry) => entry.session_key === request.session_key) || null;
+    if (!liveSession) return false;
+    ensureResultPersisted(request, liveSession, result);
+    return true;
+  });
+  if (!persisted) {
+    appendResultOnce(result);
+  }
+  syncWpTokenUsageLedger(repoRoot, result, { session: session || undefined });
+
+  respond(run.socket, run.rpcId, {
+    command_id: request.command_id,
+    session_id: request.session_key,
+    thread_id: result.thread_id || "",
+    status: String(result.status || "").toLowerCase(),
+    outcome_state: result.outcome_state || classifySessionControlOutcomeState({
+      status: result.status,
+      commandKind: request.command_kind,
+      error: result.error,
+      summary: result.summary,
+      cancelStatus: result.cancel_status,
+    }),
+    output_jsonl_file: outputFile,
+    last_agent_message: result.last_agent_message || "",
+    error: result.error || "",
+    duration_ms: result.duration_ms,
+    broker_run_id: request.command_id,
+  });
+  return result;
+}
+
+function maybeAutoContinueGovernedRoute(request) {
+  const role = String(request?.role || "").trim().toUpperCase();
+  if (!["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(role)) return;
+  if (String(request?.command_kind || "").trim().toUpperCase() !== "SEND_PROMPT") return;
+  const wpId = String(request?.wp_id || "").trim();
+  if (!wpId) return;
+
+  try {
+    const packetPath = path.resolve(repoRoot, ".GOV", "task_packets", wpId, "packet.md");
+    if (!fs.existsSync(packetPath)) return;
+    const packetText = fs.readFileSync(packetPath, "utf8");
+    if (!/^\s*-\s*(?:\*\*)?WORKFLOW_LANE(?:\*\*)?\s*:\s*ORCHESTRATOR_MANAGED\s*$/mi.test(packetText)) return;
+
+    const runtimeStatusPathMatch = packetText.match(/^\s*-\s*(?:\*\*)?WP_RUNTIME_STATUS_FILE(?:\*\*)?\s*:\s*(.+)\s*$/mi);
+    if (!runtimeStatusPathMatch) return;
+    const runtimeStatusPath = path.resolve(repoRoot, String(runtimeStatusPathMatch[1] || "").trim());
+    if (!fs.existsSync(runtimeStatusPath)) return;
+
+    const runtimeStatus = JSON.parse(fs.readFileSync(runtimeStatusPath, "utf8"));
+    const nextActor = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
+    const validatorTrigger = String(runtimeStatus?.validator_trigger || "").trim().toUpperCase();
+    if (!["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "ACTIVATION_MANAGER"].includes(nextActor)) return;
+
+    const overlapForwardRoute = validatorTrigger === "MICROTASK_REVIEW_READY";
+    if (!overlapForwardRoute) return;
+
+    execFileSync(process.execPath, [orchestratorSteerNextScriptPath, wpId, "PRIMARY"], {
+      cwd: repoRoot,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+  } catch {
+    // Best-effort: completion auto-continue is opportunistic and must not break request settlement.
+  }
+}
+
 function ensureResultPersisted(request, session, result) {
   appendResultOnce(result);
   session.active_host = SESSION_CONTROL_HOST_PRIMARY;
@@ -248,6 +391,10 @@ function ensureResultPersisted(request, session, result) {
       }
     } catch {
       // Non-fatal: terminal cleanup is best-effort.
+    }
+
+    if (status === "COMPLETED") {
+      maybeAutoContinueGovernedRoute(request);
     }
   }
 }
@@ -491,6 +638,13 @@ function handleSessionClose(socket, id, params = {}) {
     command_id: requestRecord.command_id,
     session_id: requestRecord.session_key,
     status: "completed",
+    outcome_state: result.outcome_state || classifySessionControlOutcomeState({
+      status: result.status,
+      commandKind: requestRecord.command_kind,
+      error: result.error,
+      summary: result.summary,
+      cancelStatus: result.cancel_status,
+    }),
     output_jsonl_file: outputFile,
     closed_thread_id: priorThreadId,
   });
@@ -510,9 +664,21 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
 
   const concurrent = findActiveRunBySession(request.session_key);
   if (concurrent) {
+    const recovery = classifyRecoverableBrokerActiveRun({
+      run: concurrent,
+      resultById: loadResultMap(),
+      isChildProcessAlive: Number(concurrent.childPid || 0) > 0 ? isProcessAlive(concurrent.childPid) : true,
+    });
+    if (recovery.recoverable) {
+      recoverActiveRun(concurrent, recovery.reason);
+    }
+  }
+
+  const remainingConcurrent = findActiveRunBySession(request.session_key);
+  if (remainingConcurrent) {
     const result = settleRejectedRequest(
       request,
-      `Concurrent governed run already active for ${request.session_key} (${concurrent.request.command_id})`,
+      `Concurrent governed run already active for ${request.session_key} (${remainingConcurrent.request.command_id})`,
     );
     respond(socket, id, result);
     return;
@@ -610,6 +776,13 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
       session_id: requestRecord.session_key,
       thread_id: result.thread_id || "",
       status: String(result.status || "").toLowerCase(),
+      outcome_state: result.outcome_state || classifySessionControlOutcomeState({
+        status: result.status,
+        commandKind: requestRecord.command_kind,
+        error: result.error,
+        summary: result.summary,
+        cancelStatus: result.cancel_status,
+      }),
       output_jsonl_file: outputFile,
       last_agent_message: result.last_agent_message || "",
       error: result.error || "",
@@ -798,6 +971,7 @@ function handleSessionCancel(socket, id, params = {}) {
       respond(socket, id, {
         command_id: result.command_id,
         status: "not_running",
+        outcome_state: result.outcome_state || "SETTLED",
         run_id: runId || "",
         session_id: sessionId || "",
         output_jsonl_file: cancelOutputFile,
@@ -862,6 +1036,7 @@ function handleSessionCancel(socket, id, params = {}) {
   respond(socket, id, {
     command_id: requestRecord?.command_id || "",
     status: "cancellation_requested",
+    outcome_state: "SETTLED",
     run_id: run.request.command_id,
     session_id: run.request.session_key,
     output_jsonl_file: cancelOutputFile,

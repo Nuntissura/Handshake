@@ -228,6 +228,40 @@ test("PASS authority accepts the integration-validator lane when a governed sess
   assert.equal(actorContext.source, "SESSION_REGISTRY");
 });
 
+test("PASS authority accepts packet validator-of-record session keys when the governed session id differs", () => {
+  const wpId = "WP-TEST-VALIDATOR-v1";
+  const packetContent = packetFixture({
+    integrationValidatorOfRecord: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+  });
+  const actorContext = resolveValidatorActorContext({
+    repoRoot: ".",
+    wpId,
+    packetContent,
+    gitContext: {
+      branch: "main",
+      topLevel: "../handshake_main",
+    },
+    registrySessions: [
+      {
+        wp_id: wpId,
+        role: "INTEGRATION_VALIDATOR",
+        session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+        session_id: "integration_validator:wp-test-validator-v1",
+        session_thread_id: "thread-123",
+        local_branch: "main",
+        local_worktree_dir: "../handshake_main",
+      },
+    ],
+  });
+  const evaluation = evaluateValidatorPassAuthority({
+    packetContent,
+    actorContext,
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.deepEqual(evaluation.issues, []);
+});
+
 test("validator actor context matches governed integration-validator sessions from the handshake_main root", () => {
   const wpId = "WP-TEST-VALIDATOR-v1";
   const actorContext = resolveValidatorActorContext({

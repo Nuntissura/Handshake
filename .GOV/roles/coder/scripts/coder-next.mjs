@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { registerFailCaptureHook } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("coder-next.mjs", { role: "CODER" });
+
 import {
   buildPhaseCheckCommand,
   buildPostWorkCommand,
@@ -183,16 +186,17 @@ const commonFindings = [
   `Skeleton checkpoint: ${usesSkeletonCheckpointGate ? (skeletonCheckpoint ? "present" : "missing") : "N/A (forbidden on ORCHESTRATOR_MANAGED)"}`,
   `Skeleton approval: ${usesSkeletonCheckpointGate ? (skeletonApproved ? "present" : "missing") : "N/A (forbidden on ORCHESTRATOR_MANAGED)"}`,
 ];
+const coderCommunicationState = loadCoderCommunicationState({
+  wpId,
+  packetPath: packetPath(wpId),
+  packetContent,
+});
 const coderGovernanceState = evaluateCoderPacketGovernanceState({
   wpId,
   packetPath: packetPath(wpId),
   packetContent,
   currentWpStatus,
-});
-const coderCommunicationState = loadCoderCommunicationState({
-  wpId,
-  packetPath: packetPath(wpId),
-  packetContent,
+  communicationState: coderCommunicationState,
 });
 const microtaskPlan = deriveWpMicrotaskPlan({
   wpId,

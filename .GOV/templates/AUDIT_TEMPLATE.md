@@ -1,6 +1,6 @@
 # Audit Template (Code vs Master Spec)
 
-For workflow-proof or smoketest reviews that must link into repo-governance task-board and changelog records, prefer `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`.
+For live workflow dossiers and workflow-proof reviews that must link into repo-governance task-board and changelog records, prefer `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`. `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` remains a compatibility alias.
 
 ## METADATA
 - AUDIT_ID: <AUDIT-YYYYMMDD-<short-name>>

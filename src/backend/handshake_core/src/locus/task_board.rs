@@ -212,6 +212,92 @@ impl TaskBoardSections {
     }
 }
 
+// ── Ready-query filter extensions (MT-004) ─────────────────────────────
+
+impl TaskBoardIndexV1 {
+    /// Return entries whose workflow_state_family matches the given family.
+    pub fn entries_by_state_family(
+        &self,
+        family: WorkflowStateFamily,
+    ) -> Vec<&TaskBoardEntryRecordV1> {
+        self.rows
+            .iter()
+            .filter(|e| e.workflow_state_family == family)
+            .collect()
+    }
+
+    /// Return entries whose queue_reason_code matches the given reason.
+    pub fn entries_by_queue_reason(
+        &self,
+        reason: WorkflowQueueReasonCode,
+    ) -> Vec<&TaskBoardEntryRecordV1> {
+        self.rows
+            .iter()
+            .filter(|e| e.queue_reason_code == reason)
+            .collect()
+    }
+
+    /// Return work-packet IDs for entries matching a given state family.
+    /// Generalises the DCC ready_queue to any WorkflowStateFamily.
+    pub fn work_packet_ids_by_state_family(
+        &self,
+        family: WorkflowStateFamily,
+    ) -> Vec<String> {
+        self.rows
+            .iter()
+            .filter(|e| e.workflow_state_family == family)
+            .map(|e| e.work_packet_id.clone())
+            .collect()
+    }
+
+    /// Return work-packet IDs for entries matching a given queue reason code.
+    pub fn work_packet_ids_by_queue_reason(
+        &self,
+        reason: WorkflowQueueReasonCode,
+    ) -> Vec<String> {
+        self.rows
+            .iter()
+            .filter(|e| e.queue_reason_code == reason)
+            .map(|e| e.work_packet_id.clone())
+            .collect()
+    }
+
+    /// Return entries that expose a specific allowed action ID.
+    pub fn entries_by_allowed_action(
+        &self,
+        action_id: &str,
+    ) -> Vec<&TaskBoardEntryRecordV1> {
+        self.rows
+            .iter()
+            .filter(|e| e.allowed_action_ids.iter().any(|a| a == action_id))
+            .collect()
+    }
+}
+
+impl TaskBoardViewV1 {
+    /// Return entries whose workflow_state_family matches the given family.
+    pub fn entries_by_state_family(
+        &self,
+        family: WorkflowStateFamily,
+    ) -> Vec<&TaskBoardEntryRecordV1> {
+        self.rows
+            .iter()
+            .filter(|e| e.workflow_state_family == family)
+            .collect()
+    }
+
+    /// Return entries whose queue_reason_code matches the given reason.
+    pub fn entries_by_queue_reason(
+        &self,
+        reason: WorkflowQueueReasonCode,
+    ) -> Vec<&TaskBoardEntryRecordV1> {
+        self.rows
+            .iter()
+            .filter(|e| e.queue_reason_code == reason)
+            .collect()
+    }
+}
+
 fn status_for_heading(heading: &str) -> Option<TaskBoardStatus> {
     let heading = heading.trim();
     let heading = heading.strip_prefix("## ")?;

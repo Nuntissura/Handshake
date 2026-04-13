@@ -11,6 +11,7 @@ import {
   validateMergeProgressionTruth,
 } from "../../../roles_shared/scripts/lib/merge-progression-truth-lib.mjs";
 import {
+  parseSignedScopeCompatibilityTruth,
   updateSignedScopeCompatibilityTruth,
 } from "../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
 import {
@@ -53,11 +54,11 @@ import {
   writeArtifactRetentionManifest,
 } from "../../../roles_shared/scripts/lib/artifact-hygiene-lib.mjs";
 import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+registerFailCaptureHook("integration-validator-closeout-sync.mjs", { role: "INTEGRATION_VALIDATOR" });
 
 function fail(message, details = []) {
-  console.error(`[INTEGRATION_VALIDATOR_CLOSEOUT_SYNC] ${message}`);
-  for (const detail of details) console.error(`  - ${detail}`);
-  process.exit(1);
+  failWithMemory("integration-validator-closeout-sync.mjs", message, { role: "INTEGRATION_VALIDATOR", details });
 }
 
 function readText(filePath) {
@@ -84,6 +85,59 @@ function replaceSingleField(packetText, label, nextValue) {
     throw new Error(`Missing packet field: ${label}`);
   }
   return String(packetText || "").replace(re, `$1${nextValue}`);
+}
+
+function replaceCurrentStateField(packetText, label, nextValue) {
+  const re = new RegExp(`^(\\s*${label}\\s*:\\s*)(.+)\\s*$`, "mi");
+  if (!re.test(String(packetText || ""))) {
+    throw new Error(`Missing CURRENT_STATE field: ${label}`);
+  }
+  return String(packetText || "").replace(re, `$1${nextValue}`);
+}
+
+function replaceStatusHandoffField(packetText, label, nextValue) {
+  const re = new RegExp(`^(\\s*-\\s*${label}\\s*:\\s*)(.*)\\s*$`, "mi");
+  if (!re.test(String(packetText || ""))) {
+    throw new Error(`Missing STATUS_HANDOFF field: ${label}`);
+  }
+  return String(packetText || "").replace(re, `$1${nextValue}`);
+}
+
+function terminalCurrentStateForMode(requestedMode) {
+  switch (requestedMode?.mode) {
+    case "MERGE_PENDING":
+      return {
+        verdict: "PASS",
+        blockers: "Awaiting local main containment verification for the approved PASS closure.",
+        next: "INTEGRATION_VALIDATOR verifies main containment once the approved merge lands in local main.",
+      };
+    case "CONTAINED_IN_MAIN":
+      return {
+        verdict: "PASS",
+        blockers: "NONE",
+        next: "NONE",
+      };
+    case "FAIL":
+      return {
+        verdict: "FAIL",
+        blockers: "Validator recorded FAIL; see VALIDATION_REPORTS for the authoritative signed-scope findings.",
+        next: "NONE",
+      };
+    case "OUTDATED_ONLY":
+      return {
+        verdict: "OUTDATED_ONLY",
+        blockers: "Current local main requires adjacent-scope follow-on work outside this signed packet; see PACKET_WIDENING_EVIDENCE and VALIDATION_REPORTS.",
+        next: "NONE",
+      };
+    case "ABANDONED":
+      return {
+        verdict: "ABANDONED",
+        blockers: "Packet abandoned; see VALIDATION_REPORTS for the authoritative rationale.",
+        next: "NONE",
+      };
+    default:
+      return null;
+  }
 }
 
 function sessionNeedsClosure(repoRoot, role, wpId) {
@@ -119,6 +173,43 @@ function writeGateState(wpId, gateState) {
   ensureValidatorGateDir();
   const filePath = repoPathAbs(resolveValidatorGatePath(wpId));
   fs.writeFileSync(filePath, `${JSON.stringify(gateState, null, 2)}\n`, "utf8");
+}
+
+function resolveCloseoutSignedScopeCompatibilityUpdate({
+  packetText,
+  requestedMode,
+  baselineSha,
+  timestamp,
+}) {
+  if (requestedMode.mode === "MERGE_PENDING" || requestedMode.mode === "CONTAINED_IN_MAIN") {
+    return {
+      currentMainCompatibilityStatus: "COMPATIBLE",
+      currentMainCompatibilityBaselineSha: baselineSha,
+      currentMainCompatibilityVerifiedAtUtc: timestamp,
+      packetWideningDecision: "NOT_REQUIRED",
+      packetWideningEvidence: "N/A",
+    };
+  }
+
+  const recorded = parseSignedScopeCompatibilityTruth(packetText);
+  if (recorded.currentMainCompatibilityStatus === "NOT_RUN") {
+    fail(
+      "Non-PASS closeout sync requires explicit current-main compatibility truth before terminal sync",
+      [
+        `mode=${requestedMode.mode}`,
+        "CURRENT_MAIN_COMPATIBILITY_STATUS is still NOT_RUN",
+        "Record COMPATIBLE, ADJACENT_SCOPE_REQUIRED, or BLOCKED in the packet first, then retry closeout sync.",
+      ],
+    );
+  }
+
+  return {
+    currentMainCompatibilityStatus: recorded.currentMainCompatibilityStatus,
+    currentMainCompatibilityBaselineSha: baselineSha,
+    currentMainCompatibilityVerifiedAtUtc: timestamp,
+    packetWideningDecision: recorded.packetWideningDecision,
+    packetWideningEvidence: recorded.packetWideningEvidence,
+  };
 }
 
 function appendCloseoutGovernanceInvalidityIfNeeded({
@@ -264,6 +355,27 @@ capturePreTaskSnapshot({
 
 const gitContext = currentGitContext();
 const repoRoot = gitContext.topLevel || REPO_ROOT;
+
+// RGF-183: detect kernel-context closeout for product-contained WPs.
+// When repoRoot matches the kernel root but the WP's committed target lives in a product
+// worktree, signed-scope validation will use the wrong git context and produce false failures.
+const kernelRoot = kernelRepoRoot();
+const normalizedRepoRoot = path.resolve(repoRoot).replace(/\\/g, "/").toLowerCase();
+const normalizedKernelRoot = path.resolve(kernelRoot).replace(/\\/g, "/").toLowerCase();
+if (normalizedRepoRoot === normalizedKernelRoot) {
+  const injectedActiveRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
+  const injectedNormalized = injectedActiveRoot
+    ? path.resolve(injectedActiveRoot).replace(/\\/g, "/").toLowerCase()
+    : "";
+  if (injectedNormalized && injectedNormalized !== normalizedKernelRoot) {
+    console.error(
+      `[RGF-183] WARNING: closeout sync executing in kernel root (${kernelRoot}) `
+      + `despite HANDSHAKE_ACTIVE_REPO_ROOT pointing to ${injectedActiveRoot}. `
+      + `Signed-scope validation may produce false failures if the committed target lives in the product worktree.`
+    );
+  }
+}
+
 const taskBoardPath = path.resolve(GOV_ROOT_ABS, "roles_shared", "records", "TASK_BOARD.md");
 const resolvedPacket = resolveWorkPacketPath(wpId);
 if (!resolvedPacket?.packetAbsPath || !fs.existsSync(resolvedPacket.packetAbsPath)) {
@@ -419,19 +531,28 @@ if (validatorSessionsOfRecord.integrationValidatorOfRecord) {
     validatorSessionsOfRecord.integrationValidatorOfRecord,
   );
 }
-nextPacketText = updateSignedScopeCompatibilityTruth(nextPacketText, {
-  currentMainCompatibilityStatus: "COMPATIBLE",
-  currentMainCompatibilityBaselineSha: baselineSha,
-  currentMainCompatibilityVerifiedAtUtc: timestamp,
-  packetWideningDecision: "NOT_REQUIRED",
-  packetWideningEvidence: "N/A",
-});
+nextPacketText = updateSignedScopeCompatibilityTruth(
+  nextPacketText,
+  resolveCloseoutSignedScopeCompatibilityUpdate({
+    packetText: nextPacketText,
+    requestedMode,
+    baselineSha,
+    timestamp,
+  }),
+);
 nextPacketText = updateMergeProgressionTruth(nextPacketText, {
   status: requestedMode.packetStatus,
   mainContainmentStatus: requestedMode.mainContainmentStatus,
   mergedMainCommit: requestedMode.requireMergedMainCommit ? mergedMainCommit : "NONE",
   mainContainmentVerifiedAtUtc: requestedMode.requireMergedMainCommit ? timestamp : "N/A",
 });
+const terminalCurrentState = terminalCurrentStateForMode(requestedMode);
+if (terminalCurrentState) {
+  nextPacketText = replaceCurrentStateField(nextPacketText, "Verdict", terminalCurrentState.verdict);
+  nextPacketText = replaceCurrentStateField(nextPacketText, "Blockers", terminalCurrentState.blockers);
+  nextPacketText = replaceCurrentStateField(nextPacketText, "Next", terminalCurrentState.next);
+  nextPacketText = replaceStatusHandoffField(nextPacketText, "Current WP_STATUS", requestedMode.boardStatus);
+}
 const nextRuntimeStatusData = originalRuntimeStatusData
   ? syncRuntimeProjectionFromPacket(originalRuntimeStatusData, nextPacketText, {
     eventName: "integration_validator_closeout_sync",

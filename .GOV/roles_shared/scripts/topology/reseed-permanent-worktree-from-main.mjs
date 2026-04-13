@@ -18,15 +18,28 @@ import {
   runGitInherit,
 } from "./git-topology-lib.mjs";
 import { detachExternalGovLink } from "./delete-local-worktree.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("reseed-permanent-worktree-from-main.mjs", { role: "SHARED" });
 
 const RESEEDABLE_WORKTREE_ROLES = new Set(["OPERATOR"]);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SHARED_GOV_EXCLUDE_MARKER = "# HANDSHAKE_SHARED_GOV_JUNCTION";
 const SHARED_GOV_EXCLUDE_RULE = ".GOV/";
+const GOV_KERNEL_SPEC = WORKTREE_SPECS.find((entry) => entry.id === "wt-gov-kernel");
+const GOV_KERNEL_WORKTREE_ABS = GOV_KERNEL_SPEC ? absFromRepo(GOV_KERNEL_SPEC.rel_path) : "";
+const CLEAN_SETTLE_ATTEMPTS = 30;
+const CLEAN_SETTLE_DELAY_MS = 2000;
 
 function normalizeComparablePath(value) {
   const normalized = path.resolve(String(value || "")).replace(/\\/g, "/").replace(/\/+$/, "");
   return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
+function sleepSync(ms) {
+  const delayMs = Math.max(0, Number(ms) || 0);
+  if (!delayMs) return;
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
 }
 
 function removeDirectoryLinkOnly(linkPath) {
@@ -41,9 +54,7 @@ function removeDirectoryLinkOnly(linkPath) {
 }
 
 function fail(message, details = []) {
-  console.error(`[RESEED_PERMANENT_WORKTREE_FROM_MAIN] ${message}`);
-  for (const line of details) console.error(`  - ${line}`);
-  process.exit(1);
+  failWithMemory("reseed-permanent-worktree-from-main.mjs", message, { role: "SHARED", details });
 }
 
 function usage() {
@@ -149,12 +160,136 @@ function gitPathInRepo(repoDir, gitPath) {
   return path.resolve(repoDir, resolved);
 }
 
+function gitDirPathInRepo(repoDir) {
+  const resolved = runGitInRepo(repoDir, ["rev-parse", "--git-dir"]);
+  return path.resolve(repoDir, resolved);
+}
+
+function gitCommonDirPathInRepo(repoDir) {
+  const resolved = runGitInRepo(repoDir, ["rev-parse", "--git-common-dir"]);
+  return path.resolve(repoDir, resolved);
+}
+
+function usesLinkedGitWorktree(repoDir) {
+  return normalizeComparablePath(gitDirPathInRepo(repoDir)) !== normalizeComparablePath(gitCommonDirPathInRepo(repoDir));
+}
+
+function commonGitConfigPath(repoDir) {
+  return path.join(gitCommonDirPathInRepo(repoDir), "config");
+}
+
+function worktreeConfigPath(repoDir) {
+  return path.join(gitDirPathInRepo(repoDir), "config.worktree");
+}
+
+function managedGovExcludePath(repoDir) {
+  if (usesLinkedGitWorktree(repoDir)) {
+    return path.join(gitDirPathInRepo(repoDir), "info", "exclude");
+  }
+  return path.join(gitCommonDirPathInRepo(repoDir), "info", "exclude");
+}
+
+function commonInfoExcludePath(repoDir) {
+  return path.join(gitCommonDirPathInRepo(repoDir), "info", "exclude");
+}
+
+function gitConfigValueOrEmpty(repoDir, args) {
+  try {
+    return runGitInRepo(repoDir, args);
+  } catch {
+    return "";
+  }
+}
+
+function ensureWorktreeConfigEnabled(repoDir) {
+  if (!usesLinkedGitWorktree(repoDir)) return;
+  const configPath = commonGitConfigPath(repoDir);
+  const current = gitConfigValueOrEmpty(repoDir, ["config", "--file", configPath, "--get", "extensions.worktreeConfig"]);
+  if (String(current || "").trim().toLowerCase() === "true") return;
+  execFileSync("git", ["config", "--file", configPath, "extensions.worktreeConfig", "true"], {
+    cwd: repoDir,
+    stdio: ["ignore", "ignore", "ignore"],
+  });
+}
+
+function ensureManagedWorktreeExcludeConfig(repoDir, excludePath) {
+  if (!usesLinkedGitWorktree(repoDir)) return;
+  ensureWorktreeConfigEnabled(repoDir);
+  const configPath = worktreeConfigPath(repoDir);
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  execFileSync("git", ["config", "--file", configPath, "core.excludesFile", excludePath], {
+    cwd: repoDir,
+    stdio: ["ignore", "ignore", "ignore"],
+  });
+}
+
+function clearManagedWorktreeExcludeConfig(repoDir, excludePath) {
+  if (!usesLinkedGitWorktree(repoDir)) return;
+  const configPath = worktreeConfigPath(repoDir);
+  if (!fs.existsSync(configPath)) return;
+  const current = gitConfigValueOrEmpty(repoDir, ["config", "--file", configPath, "--get", "core.excludesFile"]);
+  if (normalizeComparablePath(current) !== normalizeComparablePath(excludePath)) return;
+  execFileSync("git", ["config", "--file", configPath, "--unset-all", "core.excludesFile"], {
+    cwd: repoDir,
+    stdio: ["ignore", "ignore", "ignore"],
+  });
+}
+
+function readTextOrEmpty(filePath) {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+}
+
+function removeManagedGovExcludeRule(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const filtered = fs.readFileSync(filePath, "utf8")
+    .split(/\r?\n/)
+    .filter((line) => line !== SHARED_GOV_EXCLUDE_MARKER && line !== SHARED_GOV_EXCLUDE_RULE);
+  const next = filtered.join("\n").replace(/\n+$/, "");
+  fs.writeFileSync(filePath, next.length > 0 ? `${next}\n` : "", "utf8");
+}
+
+function repoDirUsesSharedGovKernelJunction(repoDir) {
+  const repoAbs = path.resolve(repoDir);
+  const govDir = path.join(repoAbs, ".GOV");
+  const expectedGovKernelAbs = path.resolve(repoAbs, "..", "wt-gov-kernel", ".GOV");
+  if (!fs.existsSync(govDir) || !fs.existsSync(expectedGovKernelAbs)) return false;
+
+  const stat = fs.lstatSync(govDir);
+  if (!stat.isSymbolicLink()) return false;
+
+  try {
+    const actualTarget = path.resolve(fs.realpathSync(govDir));
+    const expectedTarget = path.resolve(fs.realpathSync(expectedGovKernelAbs));
+    return normalizeComparablePath(actualTarget) === normalizeComparablePath(expectedTarget);
+  } catch {
+    return false;
+  }
+}
+
+function isGovKernelWorktree(repoDir) {
+  if (!GOV_KERNEL_WORKTREE_ABS) return false;
+  return normalizeComparablePath(path.resolve(repoDir)) === normalizeComparablePath(GOV_KERNEL_WORKTREE_ABS);
+}
+
+function resolveWorktreeSpecForRepoDir(repoDir) {
+  const repoAbs = path.resolve(repoDir);
+  return WORKTREE_SPECS.find((entry) =>
+    normalizeComparablePath(absFromRepo(entry.rel_path)) === normalizeComparablePath(repoAbs));
+}
+
 function trackedGovEntriesBuffer(repoDir) {
   return execFileSync("git", ["ls-files", "-z", "--", ".GOV"], {
     cwd: repoDir,
     encoding: "buffer",
     stdio: ["ignore", "pipe", "ignore"],
   });
+}
+
+function repoStatusLines(repoDir) {
+  return runGitInRepo(repoDir, ["status", "--porcelain=v1", "--untracked-files=all"])
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 export function setGovTrackedPathsSkipWorktree(repoDir, enabled) {
@@ -173,8 +308,8 @@ export function setGovTrackedPathsSkipWorktree(repoDir, enabled) {
 }
 
 export function ensureGovWorktreeExclude(repoDir) {
-  const excludePath = gitPathInRepo(repoDir, "info/exclude");
-  const original = fs.existsSync(excludePath) ? fs.readFileSync(excludePath, "utf8") : "";
+  const excludePath = managedGovExcludePath(repoDir);
+  const original = readTextOrEmpty(excludePath);
   if (original.includes(SHARED_GOV_EXCLUDE_MARKER)) return;
 
   const next = original.endsWith("\n") || original.length === 0
@@ -182,27 +317,111 @@ export function ensureGovWorktreeExclude(repoDir) {
     : `${original}\n${SHARED_GOV_EXCLUDE_MARKER}\n${SHARED_GOV_EXCLUDE_RULE}\n`;
   fs.mkdirSync(path.dirname(excludePath), { recursive: true });
   fs.writeFileSync(excludePath, next, "utf8");
+  ensureManagedWorktreeExcludeConfig(repoDir, excludePath);
+  if (normalizeComparablePath(excludePath) !== normalizeComparablePath(commonInfoExcludePath(repoDir))) {
+    removeManagedGovExcludeRule(commonInfoExcludePath(repoDir));
+  }
 }
 
 export function clearGovWorktreeExclude(repoDir) {
-  const excludePath = gitPathInRepo(repoDir, "info/exclude");
-  if (!fs.existsSync(excludePath)) return;
-
-  const filtered = fs.readFileSync(excludePath, "utf8")
-    .split(/\r?\n/)
-    .filter((line) => line !== SHARED_GOV_EXCLUDE_MARKER && line !== SHARED_GOV_EXCLUDE_RULE);
-  const next = filtered.join("\n").replace(/\n+$/, "");
-  fs.writeFileSync(excludePath, next.length > 0 ? `${next}\n` : "", "utf8");
+  const excludePath = managedGovExcludePath(repoDir);
+  removeManagedGovExcludeRule(excludePath);
+  if (normalizeComparablePath(excludePath) !== normalizeComparablePath(commonInfoExcludePath(repoDir))) {
+    removeManagedGovExcludeRule(commonInfoExcludePath(repoDir));
+  }
+  clearManagedWorktreeExcludeConfig(repoDir, excludePath);
 }
 
 export function suppressSharedGovJunctionDirt(repoDir) {
+  if (!repoDirUsesSharedGovKernelJunction(repoDir)) {
+    clearSharedGovJunctionSuppression(repoDir);
+    return false;
+  }
   ensureGovWorktreeExclude(repoDir);
   setGovTrackedPathsSkipWorktree(repoDir, true);
+  return true;
 }
 
 export function clearSharedGovJunctionSuppression(repoDir) {
   clearGovWorktreeExclude(repoDir);
   setGovTrackedPathsSkipWorktree(repoDir, false);
+}
+
+export function inspectGovTrackingMode(repoDir) {
+  const repoAbs = path.resolve(repoDir);
+  const worktreeSpec = resolveWorktreeSpecForRepoDir(repoAbs);
+  const sharedGovJunction = repoDirUsesSharedGovKernelJunction(repoAbs);
+  return {
+    repoDir: repoAbs,
+    worktreeId: worktreeSpec?.id || "",
+    worktreeRole: worktreeSpec?.role || "",
+    sharedGovJunction,
+    tracksGov: !sharedGovJunction,
+    mode: sharedGovJunction ? "SUPPRESS_SHARED_GOV" : "TRACK_GOV",
+    govKernelWorktree: isGovKernelWorktree(repoAbs),
+  };
+}
+
+export function normalizeGovTrackingMode(repoDir) {
+  const repoAbs = path.resolve(repoDir);
+  if (repoDirUsesSharedGovKernelJunction(repoAbs)) {
+    suppressSharedGovJunctionDirt(repoAbs);
+    return inspectGovTrackingMode(repoAbs);
+  }
+  clearSharedGovJunctionSuppression(repoAbs);
+  return inspectGovTrackingMode(repoAbs);
+}
+
+export function normalizePermanentGovTracking() {
+  return WORKTREE_SPECS.map((spec) => {
+    const repoAbs = absFromRepo(spec.rel_path);
+    if (!fs.existsSync(repoAbs) || !gitCheckoutExists(repoAbs)) {
+      return {
+        repoDir: repoAbs,
+        worktreeId: spec.id,
+        worktreeRole: spec.role,
+        exists: false,
+        sharedGovJunction: false,
+        tracksGov: false,
+        mode: "MISSING",
+      };
+    }
+    return {
+      ...normalizeGovTrackingMode(repoAbs),
+      exists: true,
+    };
+  });
+}
+
+export function ensureGovKernelTracksGov(repoDir) {
+  if (isGovKernelWorktree(repoDir) || !repoDirUsesSharedGovKernelJunction(repoDir)) {
+    clearSharedGovJunctionSuppression(repoDir);
+    return { normalized: true, sharedGovJunction: false };
+  }
+  return { normalized: false, sharedGovJunction: true };
+}
+
+function settleCleanRepoState(repoDir) {
+  let lastStatusLines = repoStatusLines(repoDir);
+  if (lastStatusLines.length === 0) return { clean: true, statusLines: [] };
+
+  for (let attempt = 1; attempt <= CLEAN_SETTLE_ATTEMPTS; attempt += 1) {
+    suppressSharedGovJunctionDirt(repoDir);
+    try {
+      runGitInRepo(repoDir, ["update-index", "-q", "--refresh"]);
+    } catch {
+      // Continue: git status remains the source of truth for the final verdict.
+    }
+    lastStatusLines = repoStatusLines(repoDir);
+    if (lastStatusLines.length === 0) {
+      return { clean: true, statusLines: [] };
+    }
+    if (attempt < CLEAN_SETTLE_ATTEMPTS) {
+      sleepSync(CLEAN_SETTLE_DELAY_MS);
+    }
+  }
+
+  return { clean: false, statusLines: lastStatusLines };
 }
 
 function main() {
@@ -286,9 +505,13 @@ function main() {
   ensureGovJunction(absDir);
   suppressSharedGovJunctionDirt(absDir);
 
-  if (dirtyInRepo(absDir)) {
+  const cleanSettle = settleCleanRepoState(absDir);
+  if (!cleanSettle.clean || dirtyInRepo(absDir)) {
     fail("Worktree is dirty after reseed", [
       `path=${absDir}`,
+      `settle_attempts=${CLEAN_SETTLE_ATTEMPTS}`,
+      `settle_delay_ms=${CLEAN_SETTLE_DELAY_MS}`,
+      `status_sample=${cleanSettle.statusLines.slice(0, 12).join(" | ") || "<none>"}`,
       "Expected a fully clean worktree after branch reset, .GOV junction repair, and local .GOV suppression.",
     ]);
   }

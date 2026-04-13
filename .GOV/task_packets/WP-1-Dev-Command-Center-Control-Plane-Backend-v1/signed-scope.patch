@@ -1,0 +1,3219 @@
+diff --git a/src/backend/handshake_core/src/api/workspaces.rs b/src/backend/handshake_core/src/api/workspaces.rs
+index 0c307de..41ea4c7 100644
+--- a/src/backend/handshake_core/src/api/workspaces.rs
++++ b/src/backend/handshake_core/src/api/workspaces.rs
+@@ -14,6 +14,8 @@ use crate::ace::validators::atelier_scope::{
+     SelectionRangeV1,
+ };
+ use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
++use crate::runtime_governance::RuntimeGovernancePaths;
++use crate::workflows::build_dcc_control_plane_snapshot;
+ use crate::{
+     diagnostics::{
+         DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, LinkConfidence,
+@@ -47,6 +49,7 @@ pub fn routes(state: AppState) -> Router {
+         )
+         .route("/atelier/roles", get(list_atelier_roles))
+         .route("/workspaces/:workspace_id", delete(delete_workspace))
++        .route("/dcc/control-plane", get(dcc_control_plane_snapshot))
+         .with_state(state)
+ }
+ 
+@@ -1190,6 +1193,40 @@ fn not_found(code: &'static str) -> (StatusCode, Json<ErrorResponse>) {
+     (StatusCode::NOT_FOUND, Json(ErrorResponse { error: code }))
+ }
+ 
++/// GET /dcc/control-plane — thin read-only projection endpoint.
++async fn dcc_control_plane_snapshot(
++    State(state): State<AppState>,
++) -> Result<Json<Value>, (StatusCode, Json<ErrorResponse>)> {
++    let runtime_paths = RuntimeGovernancePaths::resolve().map_err(|_| {
++        (
++            StatusCode::INTERNAL_SERVER_ERROR,
++            Json(ErrorResponse {
++                error: "HSK-500-DCC-RESOLVE",
++            }),
++        )
++    })?;
++    let snapshot =
++        build_dcc_control_plane_snapshot(&state.session_registry, &runtime_paths, &state.capability_registry, state.storage.as_ref())
++            .await
++            .map_err(|_| {
++                (
++                    StatusCode::INTERNAL_SERVER_ERROR,
++                    Json(ErrorResponse {
++                        error: "HSK-500-DCC-BUILD",
++                    }),
++                )
++            })?;
++    let value = serde_json::to_value(&snapshot).map_err(|_| {
++        (
++            StatusCode::INTERNAL_SERVER_ERROR,
++            Json(ErrorResponse {
++                error: "HSK-500-DCC-SERIALIZE",
++            }),
++        )
++    })?;
++    Ok(Json(value))
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+diff --git a/src/backend/handshake_core/src/flight_recorder/duckdb.rs b/src/backend/handshake_core/src/flight_recorder/duckdb.rs
+index abc2982..d4a85a3 100644
+--- a/src/backend/handshake_core/src/flight_recorder/duckdb.rs
++++ b/src/backend/handshake_core/src/flight_recorder/duckdb.rs
+@@ -1635,10 +1635,10 @@ mod tests {
+         .with_model_id("model-roundtrip")
+         .with_model_session_id("session-roundtrip")
+         .with_wsids(vec!["ws-1".to_string(), "ws-2".to_string()])
+-        .with_activity_span_id("activity-roundtrip")
+-        .with_session_span_id("session-span-roundtrip")
+-        .with_capability_id("capability-roundtrip")
+-        .with_policy_decision_id("policy-roundtrip");
++        .with_activity_span("activity-roundtrip")
++        .with_session_span("session-span-roundtrip")
++        .with_capability("capability-roundtrip")
++        .with_policy_decision("policy-roundtrip");
+ 
+         recorder.record_event(event).await?;
+ 
+diff --git a/src/backend/handshake_core/src/flight_recorder/mod.rs b/src/backend/handshake_core/src/flight_recorder/mod.rs
+index 6ec091a..635d110 100644
+--- a/src/backend/handshake_core/src/flight_recorder/mod.rs
++++ b/src/backend/handshake_core/src/flight_recorder/mod.rs
+@@ -378,6 +378,7 @@ impl fmt::Display for FlightRecorderEventType {
+             }
+             FlightRecorderEventType::SessionRecoveryAttempted => {
+                 write!(f, "session_recovery_attempted")
++            }
+             FlightRecorderEventType::WorkspaceIsolationDenied => {
+                 write!(f, "workspace_isolation.denied")
+             }
+@@ -911,6 +912,7 @@ impl FlightRecorderEvent {
+             }
+             FlightRecorderEventType::SessionCascadeCancel => {
+                 validate_session_cascade_cancel_payload(&self.payload)
++            }
+             FlightRecorderEventType::SessionCheckpointCreated => {
+                 if self.actor != FlightRecorderActor::System {
+                     return Err(RecorderError::InvalidEvent(
+@@ -4361,6 +4363,9 @@ fn validate_session_cascade_cancel_payload(payload: &Value) -> Result<(), Record
+     )?;
+     require_safe_token_string(map, "root_session_id", 256)?;
+     require_string_array_allow_empty(map, "cancelled_session_ids")?;
++    Ok(())
++}
++
+ fn validate_session_checkpoint_created_payload(payload: &Value) -> Result<(), RecorderError> {
+     let map = payload_object(payload)?;
+     require_allowed_keys(
+diff --git a/src/backend/handshake_core/src/locus/task_board.rs b/src/backend/handshake_core/src/locus/task_board.rs
+index b5c8030..63ea38f 100644
+--- a/src/backend/handshake_core/src/locus/task_board.rs
++++ b/src/backend/handshake_core/src/locus/task_board.rs
+@@ -206,6 +206,92 @@ impl TaskBoardSections {
+     }
+ }
+ 
++// ── Ready-query filter extensions (MT-004) ─────────────────────────────
++
++impl TaskBoardIndexV1 {
++    /// Return entries whose workflow_state_family matches the given family.
++    pub fn entries_by_state_family(
++        &self,
++        family: WorkflowStateFamily,
++    ) -> Vec<&TaskBoardEntryRecordV1> {
++        self.rows
++            .iter()
++            .filter(|e| e.workflow_state_family == family)
++            .collect()
++    }
++
++    /// Return entries whose queue_reason_code matches the given reason.
++    pub fn entries_by_queue_reason(
++        &self,
++        reason: WorkflowQueueReasonCode,
++    ) -> Vec<&TaskBoardEntryRecordV1> {
++        self.rows
++            .iter()
++            .filter(|e| e.queue_reason_code == reason)
++            .collect()
++    }
++
++    /// Return work-packet IDs for entries matching a given state family.
++    /// Generalises the DCC ready_queue to any WorkflowStateFamily.
++    pub fn work_packet_ids_by_state_family(
++        &self,
++        family: WorkflowStateFamily,
++    ) -> Vec<String> {
++        self.rows
++            .iter()
++            .filter(|e| e.workflow_state_family == family)
++            .map(|e| e.work_packet_id.clone())
++            .collect()
++    }
++
++    /// Return work-packet IDs for entries matching a given queue reason code.
++    pub fn work_packet_ids_by_queue_reason(
++        &self,
++        reason: WorkflowQueueReasonCode,
++    ) -> Vec<String> {
++        self.rows
++            .iter()
++            .filter(|e| e.queue_reason_code == reason)
++            .map(|e| e.work_packet_id.clone())
++            .collect()
++    }
++
++    /// Return entries that expose a specific allowed action ID.
++    pub fn entries_by_allowed_action(
++        &self,
++        action_id: &str,
++    ) -> Vec<&TaskBoardEntryRecordV1> {
++        self.rows
++            .iter()
++            .filter(|e| e.allowed_action_ids.iter().any(|a| a == action_id))
++            .collect()
++    }
++}
++
++impl TaskBoardViewV1 {
++    /// Return entries whose workflow_state_family matches the given family.
++    pub fn entries_by_state_family(
++        &self,
++        family: WorkflowStateFamily,
++    ) -> Vec<&TaskBoardEntryRecordV1> {
++        self.rows
++            .iter()
++            .filter(|e| e.workflow_state_family == family)
++            .collect()
++    }
++
++    /// Return entries whose queue_reason_code matches the given reason.
++    pub fn entries_by_queue_reason(
++        &self,
++        reason: WorkflowQueueReasonCode,
++    ) -> Vec<&TaskBoardEntryRecordV1> {
++        self.rows
++            .iter()
++            .filter(|e| e.queue_reason_code == reason)
++            .collect()
++    }
++}
++
+ fn status_for_heading(heading: &str) -> Option<TaskBoardStatus> {
+     let heading = heading.trim();
+     let heading = heading.strip_prefix("## ")?;
+diff --git a/src/backend/handshake_core/src/locus/types.rs b/src/backend/handshake_core/src/locus/types.rs
+index bd61e39..7aac5f5 100644
+--- a/src/backend/handshake_core/src/locus/types.rs
++++ b/src/backend/handshake_core/src/locus/types.rs
+@@ -181,6 +181,60 @@ pub struct StructuredCollaborationSummaryV1 {
+     pub summary_ref: Option<String>,
+ }
+ 
++/// Compact summary contract for DCC and Role Mailbox triage (6.3).
++/// Extends the base StructuredCollaborationSummaryV1 envelope with
++/// DCC-specific stable identifiers and routing hints so local-small-model
++/// routing and operator views can default to this payload first, loading
++/// canonical detail records or Markdown sidecars only on demand.
++///
++/// Both DccCompactSummaryV1 and the canonical detail record MUST share the
++/// same record_id, project_profile_kind, and authoritative references so
++/// deterministic joins remain possible without transcript reconstruction.
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
++pub struct DccCompactSummaryV1 {
++    // ── Base envelope (shared with StructuredCollaborationSummaryV1) ──
++    pub schema_id: String,
++    pub schema_version: String,
++    pub record_id: String,
++    pub record_kind: String,
++    pub project_profile_kind: ProjectProfileKind,
++    pub updated_at: String,
++    pub mirror_state: MirrorSyncState,
++    #[serde(default)]
++    pub authority_refs: Vec<String>,
++    #[serde(default)]
++    pub evidence_refs: Vec<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub mirror_contract: Option<MarkdownMirrorContractV1>,
++    pub workflow_state_family: WorkflowStateFamily,
++    pub queue_reason_code: WorkflowQueueReasonCode,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub allowed_action_ids: Vec<String>,
++    pub status: String,
++    pub title_or_objective: String,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub blockers: Vec<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub next_action: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub summary_ref: Option<String>,
++    // ── DCC stable identifiers ──
++    pub work_packet_id: String,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub task_board_id: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub workflow_run_id: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub model_session_id: Option<String>,
++    // ── Routing hints for triage ──
++    #[serde(default)]
++    pub pending_wait_count: u32,
++    #[serde(default)]
++    pub active_thread_count: u32,
++    #[serde(default)]
++    pub session_bound: bool,
++}
++
+ #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+ pub struct TrackedWorkPacketArtifactV1 {
+     pub schema_id: String,
+@@ -825,6 +879,7 @@ pub const TASK_BOARD_INDEX_SCHEMA_ID_V1: &str = "hsk.task_board_index@1";
+ pub const TASK_BOARD_VIEW_SCHEMA_ID_V1: &str = "hsk.task_board_view@1";
+ pub const ROLE_MAILBOX_INDEX_SCHEMA_ID_V1: &str = "hsk.role_mailbox_index@1";
+ pub const ROLE_MAILBOX_THREAD_LINE_SCHEMA_ID_V1: &str = "hsk.role_mailbox_thread_line@1";
++pub const DCC_COMPACT_SUMMARY_SCHEMA_ID_V1: &str = "hsk.dcc_compact_summary@1";
+ pub const GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1: &str =
+     "hsk.governance_artifact_registry@1";
+ pub const GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1: &str =
+@@ -846,6 +901,7 @@ pub enum StructuredCollaborationRecordFamily {
+     TaskBoardView,
+     RoleMailboxIndex,
+     RoleMailboxThreadLine,
++    DccCompactSummary,
+ }
+ 
+ #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+@@ -1043,6 +1099,15 @@ pub fn structured_collaboration_schema_descriptor(
+                 summary_family: None,
+             }
+         }
++        StructuredCollaborationRecordFamily::DccCompactSummary => {
++            StructuredCollaborationSchemaDescriptor {
++                family,
++                schema_id: DCC_COMPACT_SUMMARY_SCHEMA_ID_V1,
++                schema_version: STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1,
++                record_kind: "dcc_compact_summary",
++                summary_family: None,
++            }
++        }
+     }
+ }
+ 
+@@ -1157,6 +1222,15 @@ pub fn validate_structured_collaboration_record(
+                 &mut result,
+             );
+         }
++        StructuredCollaborationRecordFamily::DccCompactSummary => {
++            require_non_empty_string(obj.get("status"), "status", &mut result);
++            require_non_empty_string(
++                obj.get("title_or_objective"),
++                "title_or_objective",
++                &mut result,
++            );
++            require_non_empty_string(obj.get("work_packet_id"), "work_packet_id", &mut result);
++        }
+     }
+ 
+     result
+diff --git a/src/backend/handshake_core/src/runtime_governance.rs b/src/backend/handshake_core/src/runtime_governance.rs
+index 30a59f9..c5c1f36 100644
+--- a/src/backend/handshake_core/src/runtime_governance.rs
++++ b/src/backend/handshake_core/src/runtime_governance.rs
+@@ -3,6 +3,9 @@ use std::{
+     path::{Component, Path, PathBuf},
+ };
+ 
++use serde::{Deserialize, Serialize};
++
++use crate::workflows::locus::{self, task_board::TaskBoardEntryRecordV1};
+ use crate::storage::artifacts::resolve_workspace_root;
+ 
+ pub const RUNTIME_GOVERNANCE_ROOT_ENV: &str = "HANDSHAKE_GOVERNANCE_ROOT";
+@@ -17,6 +20,366 @@ pub const RUNTIME_TASK_BOARD_VIEWS_DIR: &str = "views";
+ pub const RUNTIME_GOVERNANCE_DECISIONS_DIR: &str = "governance_decisions";
+ pub const RUNTIME_GOVERNANCE_AUTO_SIGNATURES_DIR: &str = "auto_signatures";
+ 
++// DCC Control Plane projection constants
++pub const DCC_CONTROL_PLANE_SCHEMA_ID: &str = "hsk.dcc_control_plane_snapshot@1";
++pub const DCC_CONTROL_PLANE_SCHEMA_VERSION: &str = "1.0.0";
++
++/// Read-only projection aggregate for the Dev Command Center control plane.
++/// All state is sourced from existing backend artifacts — never a second authority.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccControlPlaneSnapshot {
++    pub schema_id: String,
++    pub schema_version: String,
++    pub snapshot_id: String,
++    pub generated_at: String,
++    pub work_state: DccWorkState,
++    pub session_state: DccSessionState,
++    pub governance_state: DccGovernanceState,
++    pub collaboration_state: DccCollaborationState,
++}
++
++/// Work orchestration projection from task board entries.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccWorkState {
++    pub task_board_id: String,
++    pub entries: Vec<TaskBoardEntryRecordV1>,
++    pub active_workflow_summaries: Vec<DccWorkflowSummary>,
++    pub freshness: String,
++    /// Work packet IDs whose workflow_state_family is Ready — ready-query result.
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub ready_queue: Vec<String>,
++}
++
++/// Compact workflow state per work packet — stable-id-first.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccWorkflowSummary {
++    pub work_packet_id: String,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub workflow_run_id: Option<String>,
++    pub state_family: locus::WorkflowStateFamily,
++    pub queue_reason_code: locus::WorkflowQueueReasonCode,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub allowed_action_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub model_session_id: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub summary_ref: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub micro_task_summary: Option<DccMicroTaskSummary>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub gate_state: Option<DccGateState>,
++    #[serde(default)]
++    pub authority_refs: Vec<String>,
++    #[serde(default)]
++    pub evidence_refs: Vec<String>,
++}
++
++/// Aggregated micro-task status per work packet.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccMicroTaskSummary {
++    pub total: u32,
++    pub completed: u32,
++    pub failed: u32,
++    pub in_progress: u32,
++    pub blocked: u32,
++    #[serde(default)]
++    pub mt_ids: Vec<String>,
++}
++
++/// Hard-gate state projection per work packet.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccGateState {
++    pub pre_work: String,
++    pub post_work: String,
++}
++
++/// Session binding projection from SessionRegistry.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccSessionState {
++    pub bindings: Vec<DccSessionBinding>,
++}
++
++/// Individual session entry for DCC projection.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccSessionBinding {
++    pub session_id: String,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub worktree_dir: Option<String>,
++    pub role: String,
++    pub state: String,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub bound_work_packet_id: Option<String>,
++    /// Model provider identity for parallel session occupancy.
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub model_id: Option<String>,
++    /// Backend provider for parallel session occupancy.
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub backend: Option<String>,
++    /// Micro-task ID this session is bound to, if any.
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub bound_micro_task_id: Option<String>,
++}
++
++/// Governance evidence projection from RuntimeGovernancePaths artifacts.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccGovernanceState {
++    pub governance_root: String,
++    #[serde(default)]
++    pub pending_decisions: Vec<String>,
++    /// Approval decision state read from governance_decisions JSON files.
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub approval_decisions: Vec<DccApprovalDecision>,
++    #[serde(default)]
++    pub active_auto_signatures: Vec<String>,
++    #[serde(default)]
++    pub effective_capability_axes: Vec<String>,
++    #[serde(default)]
++    pub effective_capability_ids: Vec<String>,
++    #[serde(default)]
++    pub authority_refs: Vec<String>,
++    #[serde(default)]
++    pub evidence_refs: Vec<String>,
++}
++
++/// Projected approval decision from governance_decisions directory.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccApprovalDecision {
++    pub decision_id: String,
++    pub gate_type: String,
++    pub target_ref: String,
++    pub decision: String,
++    pub timestamp: String,
++}
++
++/// Collaboration state projection from role-mailbox export artifacts.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccCollaborationState {
++    pub active_threads: Vec<DccMailboxThreadSummary>,
++    pub pending_wait_reasons: Vec<DccWaitReason>,
++    pub mailbox_summary: DccMailboxSummary,
++}
++
++/// Projected summary of a single mailbox thread.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccMailboxThreadSummary {
++    pub thread_id: String,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub work_packet_id: Option<String>,
++    pub participants: Vec<String>,
++    pub message_count: u64,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub latest_message_type: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub latest_from_role: Option<String>,
++    pub created_at: String,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub closed_at: Option<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub evidence_refs: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub linked_work_ids: Vec<String>,
++}
++
++/// Pending wait reason derived from the latest unanswered request in a thread.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccWaitReason {
++    pub thread_id: String,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub work_packet_id: Option<String>,
++    pub waiting_for_role: String,
++    pub expected_response: String,
++    pub wait_since: String,
++}
++
++/// Aggregate mailbox statistics.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct DccMailboxSummary {
++    pub total_threads: u64,
++    pub active_threads: u64,
++    pub total_messages: u64,
++}
++
++// ── Compact summary derivation (MT-005) ──────────────────────────────
++
++impl DccControlPlaneSnapshot {
++    /// Derive compact summary-first payloads from the full snapshot.
++    /// One `DccCompactSummaryV1` per work packet in `work_state`, cross-
++    /// referencing session bindings and collaboration state for routing hints.
++    /// Shares record_id, project_profile_kind, and authority_refs with the
++    /// canonical detail record so deterministic joins remain possible.
++    pub fn compact_summaries(&self) -> Vec<locus::DccCompactSummaryV1> {
++        let descriptor = locus::structured_collaboration_schema_descriptor(
++            locus::StructuredCollaborationRecordFamily::DccCompactSummary,
++        );
++
++        self.work_state
++            .active_workflow_summaries
++            .iter()
++            .map(|ws| {
++                let session_bound = ws.model_session_id.is_some();
++
++                // Collect wait reasons linked to this work packet
++                let wp_waits: Vec<&DccWaitReason> = self
++                    .collaboration_state
++                    .pending_wait_reasons
++                    .iter()
++                    .filter(|w| w.work_packet_id.as_deref() == Some(&ws.work_packet_id))
++                    .collect();
++                let pending_wait_count = wp_waits.len() as u32;
++
++                let active_thread_count = self
++                    .collaboration_state
++                    .active_threads
++                    .iter()
++                    .filter(|t| {
++                        t.work_packet_id.as_deref() == Some(&ws.work_packet_id)
++                            && t.closed_at.is_none()
++                    })
++                    .count() as u32;
++
++                // Derive status from state family
++                let status = format!("{:?}", ws.state_family);
++
++                // Derive bounded title_or_objective for triage without detail load.
++                // Combines work_packet_id, state, and queue context into a
++                // bounded 160-char string usable by local-small-model routing.
++                let queue_label = queue_reason_label(ws.queue_reason_code);
++                let mt_progress = ws.micro_task_summary.as_ref().map(|mt| {
++                    format!(" [{}/{} MTs]", mt.completed, mt.total)
++                });
++                let raw_title = format!(
++                    "{}: {} — {}{}",
++                    ws.work_packet_id,
++                    status,
++                    queue_label,
++                    mt_progress.as_deref().unwrap_or(""),
++                );
++                let title_or_objective = bounded_text(&raw_title, 160);
++
++                // Derive blockers from wait reasons and blocked-family state
++                let mut blockers: Vec<String> = Vec::new();
++                for wr in &wp_waits {
++                    blockers.push(bounded_text(
++                        &format!(
++                            "waiting for {} ({})",
++                            wr.waiting_for_role, wr.expected_response
++                        ),
++                        160,
++                    ));
++                }
++                if matches!(
++                    ws.state_family,
++                    locus::WorkflowStateFamily::Blocked
++                ) && blockers.is_empty()
++                {
++                    blockers.push(bounded_text(
++                        &format!("blocked: {}", queue_label),
++                        160,
++                    ));
++                }
++
++                // Derive next_action from allowed actions or state family default
++                let next_action = if let Some(first) = ws.allowed_action_ids.first() {
++                    Some(first.clone())
++                } else {
++                    default_next_action(ws.state_family)
++                };
++
++                // Find matching task board entry for profile_kind and mirror_state
++                let entry = self
++                    .work_state
++                    .entries
++                    .iter()
++                    .find(|e| e.work_packet_id == ws.work_packet_id);
++                let project_profile_kind = entry
++                    .map(|e| e.project_profile_kind)
++                    .unwrap_or(locus::ProjectProfileKind::SoftwareDelivery);
++                let mirror_state = entry
++                    .map(|e| e.mirror_state)
++                    .unwrap_or(locus::MirrorSyncState::CanonicalOnly);
++
++                locus::DccCompactSummaryV1 {
++                    schema_id: descriptor.schema_id.to_string(),
++                    schema_version: descriptor.schema_version.to_string(),
++                    record_id: ws.work_packet_id.clone(),
++                    record_kind: descriptor.record_kind.to_string(),
++                    project_profile_kind,
++                    updated_at: self.generated_at.clone(),
++                    mirror_state,
++                    authority_refs: ws.authority_refs.clone(),
++                    evidence_refs: ws.evidence_refs.clone(),
++                    mirror_contract: None,
++                    workflow_state_family: ws.state_family,
++                    queue_reason_code: ws.queue_reason_code,
++                    allowed_action_ids: ws.allowed_action_ids.clone(),
++                    status,
++                    title_or_objective,
++                    blockers,
++                    next_action,
++                    summary_ref: ws.summary_ref.clone(),
++                    work_packet_id: ws.work_packet_id.clone(),
++                    task_board_id: Some(self.work_state.task_board_id.clone()),
++                    workflow_run_id: ws.workflow_run_id.clone(),
++                    model_session_id: ws.model_session_id.clone(),
++                    pending_wait_count,
++                    active_thread_count,
++                    session_bound,
++                }
++            })
++            .collect()
++    }
++}
++
++/// Bounded text: collapse whitespace and truncate to max_len chars.
++fn bounded_text(value: &str, max_len: usize) -> String {
++    let collapsed = value.split_whitespace().collect::<Vec<_>>().join(" ");
++    let mut out = String::new();
++    for ch in collapsed.chars() {
++        if out.chars().count() >= max_len {
++            break;
++        }
++        out.push(ch);
++    }
++    out.trim().to_string()
++}
++
++/// Human-readable label for a queue reason code, for triage routing.
++fn queue_reason_label(code: locus::WorkflowQueueReasonCode) -> &'static str {
++    match code {
++        locus::WorkflowQueueReasonCode::NewUntriaged => "new, untriaged",
++        locus::WorkflowQueueReasonCode::DependencyWait => "dependency wait",
++        locus::WorkflowQueueReasonCode::ReadyForLocalSmallModel => "ready for local model",
++        locus::WorkflowQueueReasonCode::ReadyForCloudModel => "ready for cloud model",
++        locus::WorkflowQueueReasonCode::ReadyForHuman => "ready for human",
++        locus::WorkflowQueueReasonCode::ReviewWait => "review wait",
++        locus::WorkflowQueueReasonCode::ApprovalWait => "approval wait",
++        locus::WorkflowQueueReasonCode::ValidationWait => "validation wait",
++        locus::WorkflowQueueReasonCode::MailboxResponseWait => "mailbox response wait",
++        locus::WorkflowQueueReasonCode::TimerWait => "timer wait",
++        locus::WorkflowQueueReasonCode::BlockedMissingContext => "blocked: missing context",
++        locus::WorkflowQueueReasonCode::BlockedPolicy => "blocked: policy",
++        locus::WorkflowQueueReasonCode::BlockedCapability => "blocked: capability",
++        locus::WorkflowQueueReasonCode::BlockedError => "blocked: error",
++    }
++}
++
++/// Default next action for a state family when no allowed_action_ids are set.
++fn default_next_action(family: locus::WorkflowStateFamily) -> Option<String> {
++    match family {
++        locus::WorkflowStateFamily::Intake => Some("triage".into()),
++        locus::WorkflowStateFamily::Ready => Some("start".into()),
++        locus::WorkflowStateFamily::Active => Some("continue".into()),
++        locus::WorkflowStateFamily::Waiting => Some("wait".into()),
++        locus::WorkflowStateFamily::Review => Some("complete_review".into()),
++        locus::WorkflowStateFamily::Approval => Some("approve".into()),
++        locus::WorkflowStateFamily::Validation => Some("validate".into()),
++        locus::WorkflowStateFamily::Blocked => Some("unblock".into()),
++        locus::WorkflowStateFamily::Done
++        | locus::WorkflowStateFamily::Canceled
++        | locus::WorkflowStateFamily::Archived => None,
++    }
++}
++
+ #[derive(Debug, Clone)]
+ pub struct RuntimeGovernancePaths {
+     workspace_root: PathBuf,
+@@ -281,6 +644,46 @@ impl RuntimeGovernancePaths {
+         normalized.starts_with(&governance_root)
+     }
+ 
++    pub fn dcc_control_plane_dir(&self) -> PathBuf {
++        self.governance_root.join("dcc")
++    }
++
++    pub fn dcc_control_plane_snapshot_path(&self) -> PathBuf {
++        self.dcc_control_plane_dir().join("control_plane.json")
++    }
++
++    /// Build a DccGovernanceState by reading existing governance artifacts
++    /// and projecting effective capability state from the registry.
++    pub fn build_dcc_governance_state(
++        &self,
++        capability_registry: &crate::capabilities::CapabilityRegistry,
++    ) -> DccGovernanceState {
++        let pending_decisions = list_dir_stems(&self.governance_decisions_dir());
++        let approval_decisions = read_approval_decisions(&self.governance_decisions_dir());
++        let active_auto_signatures = list_dir_stems(&self.auto_signatures_dir());
++        let governance_root = self.governance_root_display();
++        let authority_refs = vec![
++            self.governance_root_display(),
++            self.task_board_display(),
++        ];
++        let mut effective_capability_axes: Vec<String> =
++            capability_registry.axes().iter().cloned().collect();
++        effective_capability_axes.sort();
++        let mut effective_capability_ids: Vec<String> =
++            capability_registry.ids().iter().cloned().collect();
++        effective_capability_ids.sort();
++        DccGovernanceState {
++            governance_root,
++            pending_decisions,
++            approval_decisions,
++            active_auto_signatures,
++            effective_capability_axes,
++            effective_capability_ids,
++            authority_refs,
++            evidence_refs: Vec::new(),
++        }
++    }
++
+     pub fn invalid_runtime_authority_refs<'a>(&self, refs: &'a [String]) -> Vec<&'a str> {
+         refs.iter()
+             .filter_map(|value| {
+@@ -379,6 +782,70 @@ fn normalize_display_like(value: &str) -> String {
+     value.trim().replace('\\', "/")
+ }
+ 
++fn list_dir_stems(dir: &Path) -> Vec<String> {
++    let Ok(entries) = std::fs::read_dir(dir) else {
++        return Vec::new();
++    };
++    entries
++        .filter_map(|e| e.ok())
++        .filter(|e| e.path().is_file())
++        .filter_map(|e| e.path().file_stem().map(|s| s.to_string_lossy().into_owned()))
++        .collect()
++}
++
++/// Read governance decision JSON files and project approval state.
++/// Matches the GovernanceDecision schema from workflows.rs (decision_id,
++/// gate_type, target_ref, decision, timestamp).
++fn read_approval_decisions(dir: &Path) -> Vec<DccApprovalDecision> {
++    let Ok(entries) = std::fs::read_dir(dir) else {
++        return Vec::new();
++    };
++    let mut decisions = Vec::new();
++    for entry in entries.flatten() {
++        let path = entry.path();
++        if !path.is_file() || path.extension().and_then(|e| e.to_str()) != Some("json") {
++            continue;
++        }
++        let Ok(content) = std::fs::read_to_string(&path) else {
++            continue;
++        };
++        let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) else {
++            continue;
++        };
++        let decision_id = val.get("decision_id")
++            .and_then(|v| v.as_str())
++            .unwrap_or("")
++            .to_string();
++        let gate_type = val.get("gate_type")
++            .and_then(|v| v.as_str())
++            .unwrap_or("")
++            .to_string();
++        let target_ref = val.get("target_ref")
++            .and_then(|v| v.as_str())
++            .unwrap_or("")
++            .to_string();
++        let decision = val.get("decision")
++            .and_then(|v| v.as_str())
++            .unwrap_or("")
++            .to_string();
++        let timestamp = val.get("timestamp")
++            .and_then(|v| v.as_str())
++            .unwrap_or("")
++            .to_string();
++        if !decision_id.is_empty() {
++            decisions.push(DccApprovalDecision {
++                decision_id,
++                gate_type,
++                target_ref,
++                decision,
++                timestamp,
++            });
++        }
++    }
++    decisions.sort_by(|a, b| a.decision_id.cmp(&b.decision_id));
++    decisions
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::RuntimeGovernancePaths;
+@@ -464,4 +931,220 @@ mod tests {
+         .expect_err(".GOV root must be rejected");
+         assert!(err.to_string().contains(".GOV directory"));
+     }
++
++    #[test]
++    fn dcc_control_plane_projection_keeps_stable_ids() {
++        use super::*;
++
++        let wp_id = "WP-1-Test";
++        let task_board_id = "tb-001";
++        let workflow_run_id = "wfr-abc-123";
++        let session_id = "sess-xyz-789";
++
++        let snapshot = DccControlPlaneSnapshot {
++            schema_id: DCC_CONTROL_PLANE_SCHEMA_ID.to_string(),
++            schema_version: DCC_CONTROL_PLANE_SCHEMA_VERSION.to_string(),
++            snapshot_id: "snap-001".to_string(),
++            generated_at: "2026-04-11T00:00:00Z".to_string(),
++            work_state: DccWorkState {
++                task_board_id: task_board_id.to_string(),
++                entries: vec![],
++                active_workflow_summaries: vec![DccWorkflowSummary {
++                    work_packet_id: wp_id.to_string(),
++                    workflow_run_id: Some(workflow_run_id.to_string()),
++                    state_family: locus::WorkflowStateFamily::Active,
++                    queue_reason_code: locus::WorkflowQueueReasonCode::ReadyForHuman,
++                    allowed_action_ids: vec![],
++                    model_session_id: Some(session_id.to_string()),
++                    summary_ref: None,
++                    micro_task_summary: Some(DccMicroTaskSummary {
++                        total: 3,
++                        completed: 1,
++                        failed: 0,
++                        in_progress: 1,
++                        blocked: 0,
++                        mt_ids: vec!["MT-001".to_string(), "MT-002".to_string(), "MT-003".to_string()],
++                    }),
++                    gate_state: Some(DccGateState {
++                        pre_work: "pass".to_string(),
++                        post_work: "pending".to_string(),
++                    }),
++                    authority_refs: vec![".handshake/gov/work_packets/WP-1-Test/".to_string()],
++                    evidence_refs: vec![".handshake/gov/task_board/index.json".to_string()],
++                }],
++                freshness: "2026-04-11T00:00:00Z".to_string(),
++                ready_queue: vec![],
++            },
++            session_state: DccSessionState {
++                bindings: vec![DccSessionBinding {
++                    session_id: session_id.to_string(),
++                    worktree_dir: Some("/tmp/wt".to_string()),
++                    role: "coder".to_string(),
++                    state: "active".to_string(),
++                    bound_work_packet_id: Some(wp_id.to_string()),
++                    model_id: Some("claude-opus-4-6".to_string()),
++                    backend: Some("anthropic".to_string()),
++                    bound_micro_task_id: Some("MT-002".to_string()),
++                }],
++            },
++            governance_state: DccGovernanceState {
++                governance_root: ".handshake/gov/".to_string(),
++                pending_decisions: vec![],
++                approval_decisions: vec![DccApprovalDecision {
++                    decision_id: "dec-001".to_string(),
++                    gate_type: "pre_work".to_string(),
++                    target_ref: "WP-1-Test".to_string(),
++                    decision: "approve".to_string(),
++                    timestamp: "2026-04-11T00:00:00Z".to_string(),
++                }],
++                active_auto_signatures: vec![],
++                effective_capability_axes: vec!["fs".to_string(), "locus".to_string()],
++                effective_capability_ids: vec!["doc.summarize".to_string()],
++                authority_refs: vec![".handshake/gov/".to_string()],
++                evidence_refs: vec![],
++            },
++            collaboration_state: DccCollaborationState {
++                active_threads: vec![DccMailboxThreadSummary {
++                    thread_id: "thread-001".to_string(),
++                    work_packet_id: Some(wp_id.to_string()),
++                    participants: vec!["orchestrator".to_string(), "coder".to_string()],
++                    message_count: 2,
++                    latest_message_type: Some("clarification_request".to_string()),
++                    latest_from_role: Some("orchestrator".to_string()),
++                    created_at: "2026-04-11T00:00:00Z".to_string(),
++                    closed_at: None,
++                    evidence_refs: vec![".handshake/gov/ROLE_MAILBOX/threads/thread-001.jsonl".to_string()],
++                    linked_work_ids: vec![wp_id.to_string()],
++                }],
++                pending_wait_reasons: vec![DccWaitReason {
++                    thread_id: "thread-001".to_string(),
++                    work_packet_id: Some(wp_id.to_string()),
++                    waiting_for_role: "coder".to_string(),
++                    expected_response: "clarification_response".to_string(),
++                    wait_since: "2026-04-11T00:00:00Z".to_string(),
++                }],
++                mailbox_summary: DccMailboxSummary {
++                    total_threads: 1,
++                    active_threads: 1,
++                    total_messages: 2,
++                },
++            },
++        };
++
++        // Round-trip through serde and verify stable IDs survive
++        let json = serde_json::to_value(&snapshot).expect("serialize");
++        assert_eq!(json["schema_id"], DCC_CONTROL_PLANE_SCHEMA_ID);
++        assert_eq!(json["work_state"]["task_board_id"], task_board_id);
++        assert_eq!(
++            json["work_state"]["active_workflow_summaries"][0]["work_packet_id"],
++            wp_id
++        );
++        assert_eq!(
++            json["work_state"]["active_workflow_summaries"][0]["workflow_run_id"],
++            workflow_run_id
++        );
++        assert_eq!(
++            json["work_state"]["active_workflow_summaries"][0]["model_session_id"],
++            session_id
++        );
++        assert_eq!(
++            json["work_state"]["active_workflow_summaries"][0]["state_family"],
++            "active"
++        );
++        assert_eq!(
++            json["work_state"]["active_workflow_summaries"][0]["authority_refs"][0],
++            ".handshake/gov/work_packets/WP-1-Test/"
++        );
++        assert_eq!(json["session_state"]["bindings"][0]["session_id"], session_id);
++        assert_eq!(
++            json["session_state"]["bindings"][0]["bound_work_packet_id"],
++            wp_id
++        );
++        assert_eq!(
++            json["governance_state"]["governance_root"],
++            ".handshake/gov/"
++        );
++        assert_eq!(
++            json["governance_state"]["effective_capability_axes"],
++            serde_json::json!(["fs", "locus"])
++        );
++        assert_eq!(
++            json["governance_state"]["effective_capability_ids"],
++            serde_json::json!(["doc.summarize"])
++        );
++
++        // MT-002: micro-task summary round-trip
++        let mt_summary = &json["work_state"]["active_workflow_summaries"][0]["micro_task_summary"];
++        assert_eq!(mt_summary["total"], 3);
++        assert_eq!(mt_summary["completed"], 1);
++        assert_eq!(mt_summary["in_progress"], 1);
++        assert_eq!(mt_summary["mt_ids"], serde_json::json!(["MT-001", "MT-002", "MT-003"]));
++
++        // MT-002: gate state round-trip
++        let gate = &json["work_state"]["active_workflow_summaries"][0]["gate_state"];
++        assert_eq!(gate["pre_work"], "pass");
++        assert_eq!(gate["post_work"], "pending");
++
++        // MT-002: session occupancy fields
++        assert_eq!(json["session_state"]["bindings"][0]["model_id"], "claude-opus-4-6");
++        assert_eq!(json["session_state"]["bindings"][0]["backend"], "anthropic");
++        assert_eq!(json["session_state"]["bindings"][0]["bound_micro_task_id"], "MT-002");
++
++        // MT-001 fix: approval decision state round-trip
++        let ad = &json["governance_state"]["approval_decisions"][0];
++        assert_eq!(ad["decision_id"], "dec-001");
++        assert_eq!(ad["gate_type"], "pre_work");
++        assert_eq!(ad["target_ref"], "WP-1-Test");
++        assert_eq!(ad["decision"], "approve");
++
++        // MT-003: collaboration state round-trip (must check JSON before from_value consumes it)
++        let collab = &json["collaboration_state"];
++        assert_eq!(collab["active_threads"][0]["thread_id"], "thread-001");
++        assert_eq!(collab["active_threads"][0]["work_packet_id"], wp_id);
++        assert_eq!(collab["active_threads"][0]["latest_message_type"], "clarification_request");
++        assert_eq!(collab["active_threads"][0]["linked_work_ids"][0], wp_id);
++        assert_eq!(collab["pending_wait_reasons"][0]["expected_response"], "clarification_response");
++        assert_eq!(collab["pending_wait_reasons"][0]["waiting_for_role"], "coder");
++        assert_eq!(collab["mailbox_summary"]["total_threads"], 1);
++        assert_eq!(collab["mailbox_summary"]["active_threads"], 1);
++        assert_eq!(collab["mailbox_summary"]["total_messages"], 2);
++
++        // Deserialize back and verify structural equality
++        let deserialized: DccControlPlaneSnapshot =
++            serde_json::from_value(json).expect("deserialize");
++        assert_eq!(deserialized.snapshot_id, "snap-001");
++        assert_eq!(deserialized.work_state.task_board_id, task_board_id);
++        assert_eq!(
++            deserialized.work_state.active_workflow_summaries[0].work_packet_id,
++            wp_id
++        );
++        assert_eq!(deserialized.session_state.bindings[0].session_id, session_id);
++        // MT-002: micro-task summary survives deserialization
++        let mt = deserialized.work_state.active_workflow_summaries[0]
++            .micro_task_summary.as_ref().expect("micro_task_summary present");
++        assert_eq!(mt.total, 3);
++        assert_eq!(mt.completed, 1);
++        assert_eq!(mt.mt_ids.len(), 3);
++        // MT-002: gate state survives deserialization
++        let gs = deserialized.work_state.active_workflow_summaries[0]
++            .gate_state.as_ref().expect("gate_state present");
++        assert_eq!(gs.pre_work, "pass");
++        assert_eq!(gs.post_work, "pending");
++        // MT-002: session occupancy survives deserialization
++        assert_eq!(deserialized.session_state.bindings[0].model_id.as_deref(), Some("claude-opus-4-6"));
++        assert_eq!(deserialized.session_state.bindings[0].bound_micro_task_id.as_deref(), Some("MT-002"));
++        // MT-001 fix: approval decisions survive deserialization
++        assert_eq!(deserialized.governance_state.approval_decisions.len(), 1);
++        assert_eq!(deserialized.governance_state.approval_decisions[0].decision_id, "dec-001");
++        assert_eq!(deserialized.governance_state.approval_decisions[0].decision, "approve");
++
++        // MT-003: collaboration state survives deserialization
++        assert_eq!(deserialized.collaboration_state.active_threads.len(), 1);
++        assert_eq!(deserialized.collaboration_state.active_threads[0].thread_id, "thread-001");
++        assert_eq!(deserialized.collaboration_state.active_threads[0].work_packet_id.as_deref(), Some(wp_id));
++        assert_eq!(deserialized.collaboration_state.pending_wait_reasons.len(), 1);
++        assert_eq!(deserialized.collaboration_state.pending_wait_reasons[0].expected_response, "clarification_response");
++        assert_eq!(deserialized.collaboration_state.mailbox_summary.total_threads, 1);
++        assert_eq!(deserialized.collaboration_state.mailbox_summary.active_threads, 1);
++    }
+ }
+diff --git a/src/backend/handshake_core/src/workflows.rs b/src/backend/handshake_core/src/workflows.rs
+index 1242230..e74e300 100644
+--- a/src/backend/handshake_core/src/workflows.rs
++++ b/src/backend/handshake_core/src/workflows.rs
+@@ -50,8 +50,8 @@ use crate::{
+     storage::{
+         validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate, ModelSession,
+         ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
+-        SessionMessageRole, StorageCapabilityStore, StorageError, StructuredCollabWorkPacketRow,
+-        StructuredCollaborationStore,
++        SessionCheckpoint, SessionMessageRole, StorageCapabilityStore, StorageError,
++        StructuredCollabWorkPacketRow, StructuredCollaborationStore,
+     },
+     terminal::{
+         config::TerminalConfig,
+@@ -5010,6 +5010,465 @@ fn build_structured_micro_task_packet(
+     }
+ }
+ 
++/// Build a read-only DCC control-plane snapshot from existing backend state.
++/// Reuses TaskBoardIndexV1, SessionRegistry, and RuntimeGovernancePaths —
++/// never introduces a second authority.
++pub async fn build_dcc_control_plane_snapshot(
++    session_registry: &SessionRegistry,
++    runtime_paths: &RuntimeGovernancePaths,
++    capability_registry: &crate::capabilities::CapabilityRegistry,
++    db: &(dyn crate::storage::Database + Send + Sync),
++) -> Result<crate::runtime_governance::DccControlPlaneSnapshot, WorkflowError> {
++    use crate::runtime_governance::*;
++
++    let generated_at = Utc::now().to_rfc3339();
++    let snapshot_id = Uuid::new_v4().to_string();
++
++    // Work state: read projected task board index from disk
++    let (task_board_id, entries, freshness) =
++        read_task_board_index_for_dcc(runtime_paths)?;
++
++    // Session state: snapshot from registry (needed for both workflow summaries and bindings)
++    let multi = session_registry.snapshot().await;
++    let worktree_reg = session_registry.snapshot_worktree_registry().await;
++
++    // Build wp_id → (session_id, workflow_run_id) lookup.
++    // workflow_run_id comes from AiJob.workflow_run_id (via ModelSession.job_id → AiJob lookup),
++    // NOT from ModelSession.job_id directly.
++    let mut wp_session_lookup: std::collections::HashMap<String, (String, Option<String>)> =
++        std::collections::HashMap::new();
++    for sess in multi.active_sessions.values() {
++        if let Some(ref wp_id) = sess.wp_id {
++            let workflow_run_id = match sess.job_id {
++                Some(job_id) => {
++                    db.get_ai_job(&job_id.to_string())
++                        .await
++                        .ok()
++                        .and_then(|job| job.workflow_run_id.map(|wrid| wrid.to_string()))
++                }
++                None => None,
++            };
++            wp_session_lookup.insert(
++                wp_id.clone(),
++                (sess.session_id.clone(), workflow_run_id),
++            );
++        }
++    }
++
++    // Read micro-task summaries per work packet from governance dir
++    let mt_summaries = read_micro_task_summaries_for_dcc(runtime_paths);
++
++    // Read gate state per work packet from governance decisions
++    let gate_states = read_gate_states_for_dcc(runtime_paths);
++
++    // Build workflow summaries from task board entries (stable-id-first),
++    // cross-referencing session registry for workflow_run_id (from AiJob),
++    // model_session_id, micro-task summaries, and gate state
++    let active_workflow_summaries: Vec<DccWorkflowSummary> = entries
++        .iter()
++        .map(|entry| {
++            let (model_session_id, workflow_run_id) = wp_session_lookup
++                .get(&entry.work_packet_id)
++                .map(|(sid, wrid)| {
++                    (Some(sid.clone()), wrid.clone())
++                })
++                .unwrap_or((None, None));
++            let micro_task_summary = mt_summaries.get(&entry.work_packet_id).cloned();
++            let gate_state = gate_states.get(&entry.work_packet_id).cloned();
++            DccWorkflowSummary {
++                work_packet_id: entry.work_packet_id.clone(),
++                workflow_run_id,
++                state_family: entry.workflow_state_family,
++                queue_reason_code: entry.queue_reason_code,
++                allowed_action_ids: entry.allowed_action_ids.clone(),
++                model_session_id,
++                summary_ref: Some(entry.summary_ref.clone()),
++                micro_task_summary,
++                gate_state,
++                authority_refs: entry.authority_refs.clone(),
++                evidence_refs: entry.evidence_refs.clone(),
++            }
++        })
++        .collect();
++
++    // Ready-queue: work packet IDs with Ready workflow state family
++    let ready_queue: Vec<String> = entries
++        .iter()
++        .filter(|e| e.workflow_state_family == locus::WorkflowStateFamily::Ready)
++        .map(|e| e.work_packet_id.clone())
++        .collect();
++
++    // Session bindings with parallel session occupancy (model_id, backend, mt_id)
++    let bindings: Vec<DccSessionBinding> = multi
++        .active_sessions
++        .values()
++        .map(|sess| {
++            let wt = worktree_reg
++                .get(&sess.session_id)
++                .map(|p| p.to_string_lossy().into_owned());
++            DccSessionBinding {
++                session_id: sess.session_id.clone(),
++                worktree_dir: wt,
++                role: sess.role.clone(),
++                state: sess.state.as_str().to_string(),
++                bound_work_packet_id: sess.wp_id.clone(),
++                model_id: Some(sess.model_id.clone()),
++                backend: Some(sess.backend.clone()),
++                bound_micro_task_id: sess.mt_id.clone(),
++            }
++        })
++        .collect();
++
++    // Governance state: from paths + capability registry
++    let governance_state = runtime_paths.build_dcc_governance_state(capability_registry);
++
++    // Collaboration state: from role-mailbox export artifacts
++    let collaboration_state = read_dcc_collaboration_state(runtime_paths);
++
++    Ok(DccControlPlaneSnapshot {
++        schema_id: DCC_CONTROL_PLANE_SCHEMA_ID.to_string(),
++        schema_version: DCC_CONTROL_PLANE_SCHEMA_VERSION.to_string(),
++        snapshot_id,
++        generated_at,
++        work_state: DccWorkState {
++            task_board_id,
++            entries,
++            active_workflow_summaries,
++            freshness,
++            ready_queue,
++        },
++        session_state: DccSessionState { bindings },
++        governance_state,
++        collaboration_state,
++    })
++}
++
++/// Read the projected task board index JSON. Returns (task_board_id, entries, freshness).
++fn read_task_board_index_for_dcc(
++    runtime_paths: &RuntimeGovernancePaths,
++) -> Result<(String, Vec<locus::task_board::TaskBoardEntryRecordV1>, String), WorkflowError> {
++    let index_path = runtime_paths.task_board_index_path();
++    if !index_path.exists() {
++        return Ok(("".to_string(), Vec::new(), "".to_string()));
++    }
++    let content = std::fs::read_to_string(&index_path)
++        .map_err(|e| WorkflowError::Terminal(format!("read task board index: {e}")))?;
++    let index: locus::task_board::TaskBoardIndexV1 = serde_json::from_str(&content)
++        .map_err(|e| WorkflowError::Terminal(format!("parse task board index: {e}")))?;
++    Ok((index.task_board_id, index.rows, index.generated_at))
++}
++
++/// Read micro-task summaries per work packet from the governance micro_tasks directory.
++/// Returns a map of work_packet_id → DccMicroTaskSummary.
++fn read_micro_task_summaries_for_dcc(
++    runtime_paths: &RuntimeGovernancePaths,
++) -> std::collections::HashMap<String, crate::runtime_governance::DccMicroTaskSummary> {
++    let mt_root = runtime_paths.micro_tasks_dir();
++    let Ok(wp_dirs) = std::fs::read_dir(&mt_root) else {
++        return std::collections::HashMap::new();
++    };
++    let mut result = std::collections::HashMap::new();
++    for wp_entry in wp_dirs.flatten() {
++        if !wp_entry.path().is_dir() {
++            continue;
++        }
++        let wp_id = wp_entry.file_name().to_string_lossy().into_owned();
++        let Ok(mt_dirs) = std::fs::read_dir(wp_entry.path()) else {
++            continue;
++        };
++        let mut mt_ids = Vec::new();
++        let mut completed = 0u32;
++        let mut failed = 0u32;
++        let mut in_progress = 0u32;
++        let mut blocked = 0u32;
++        for mt_entry in mt_dirs.flatten() {
++            if !mt_entry.path().is_dir() {
++                continue;
++            }
++            let mt_id = mt_entry.file_name().to_string_lossy().into_owned();
++            // Read packet.json to extract status if available
++            let packet_path = mt_entry.path().join("packet.json");
++            if let Ok(content) = std::fs::read_to_string(&packet_path) {
++                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
++                    match val.get("status").and_then(|s| s.as_str()) {
++                        Some("Completed" | "completed") => completed += 1,
++                        Some("Failed" | "failed") => failed += 1,
++                        Some("InProgress" | "in_progress") => in_progress += 1,
++                        Some("Blocked" | "blocked") => blocked += 1,
++                        _ => {} // Pending, Skipped, or unknown — counted only in total
++                    }
++                }
++            }
++            mt_ids.push(mt_id);
++        }
++        mt_ids.sort();
++        let total = mt_ids.len() as u32;
++        if total > 0 {
++            result.insert(wp_id, crate::runtime_governance::DccMicroTaskSummary {
++                total,
++                completed,
++                failed,
++                in_progress,
++                blocked,
++                mt_ids,
++            });
++        }
++    }
++    result
++}
++
++/// Read hard-gate state per work packet from governance work_packets directory.
++/// Checks for gate_statuses in packet.json metadata.
++fn read_gate_states_for_dcc(
++    runtime_paths: &RuntimeGovernancePaths,
++) -> std::collections::HashMap<String, crate::runtime_governance::DccGateState> {
++    let wp_root = runtime_paths.work_packets_dir();
++    let Ok(wp_dirs) = std::fs::read_dir(&wp_root) else {
++        return std::collections::HashMap::new();
++    };
++    let mut result = std::collections::HashMap::new();
++    for wp_entry in wp_dirs.flatten() {
++        if !wp_entry.path().is_dir() {
++            continue;
++        }
++        let wp_id = wp_entry.file_name().to_string_lossy().into_owned();
++        let packet_path = wp_entry.path().join("packet.json");
++        if let Ok(content) = std::fs::read_to_string(&packet_path) {
++            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
++                let gates = val.get("metadata")
++                    .and_then(|m| m.get("gate_statuses"))
++                    .or_else(|| val.get("gate_statuses"));
++                if let Some(gs) = gates {
++                    let pre_work = gs.get("pre_work")
++                        .and_then(|g| g.get("status"))
++                        .and_then(|s| s.as_str())
++                        .unwrap_or("pending")
++                        .to_string();
++                    let post_work = gs.get("post_work")
++                        .and_then(|g| g.get("status"))
++                        .and_then(|s| s.as_str())
++                        .unwrap_or("pending")
++                        .to_string();
++                    result.insert(wp_id, crate::runtime_governance::DccGateState {
++                        pre_work,
++                        post_work,
++                    });
++                }
++            }
++        }
++    }
++    result
++}
++
++/// Read collaboration state from the role-mailbox export artifacts on disk.
++/// Parses index.json for thread summaries and thread JSONL files for
++/// wait-reason derivation. Returns an empty state if no export exists.
++fn read_dcc_collaboration_state(
++    runtime_paths: &RuntimeGovernancePaths,
++) -> crate::runtime_governance::DccCollaborationState {
++    use crate::runtime_governance::{
++        DccCollaborationState, DccMailboxSummary, DccMailboxThreadSummary, DccWaitReason,
++    };
++
++    let index_path = runtime_paths.role_mailbox_export_dir().join("index.json");
++    let Ok(content) = std::fs::read_to_string(&index_path) else {
++        return DccCollaborationState {
++            active_threads: vec![],
++            pending_wait_reasons: vec![],
++            mailbox_summary: DccMailboxSummary {
++                total_threads: 0,
++                active_threads: 0,
++                total_messages: 0,
++            },
++        };
++    };
++    let Ok(index) = serde_json::from_str::<serde_json::Value>(&content) else {
++        return DccCollaborationState {
++            active_threads: vec![],
++            pending_wait_reasons: vec![],
++            mailbox_summary: DccMailboxSummary {
++                total_threads: 0,
++                active_threads: 0,
++                total_messages: 0,
++            },
++        };
++    };
++
++    let threads = index
++        .get("threads")
++        .and_then(|t| t.as_array())
++        .cloned()
++        .unwrap_or_default();
++
++    let mut active_threads = Vec::new();
++    let mut pending_wait_reasons = Vec::new();
++    let mut total_messages: u64 = 0;
++
++    for thread in &threads {
++        let thread_id = thread
++            .get("thread_id")
++            .and_then(|v| v.as_str())
++            .unwrap_or("")
++            .to_string();
++        let created_at = thread
++            .get("created_at")
++            .and_then(|v| v.as_str())
++            .unwrap_or("")
++            .to_string();
++        let closed_at = thread
++            .get("closed_at")
++            .and_then(|v| v.as_str())
++            .map(|s| s.to_string());
++        let message_count = thread
++            .get("message_count")
++            .and_then(|v| v.as_u64())
++            .unwrap_or(0);
++        let participants: Vec<String> = thread
++            .get("participants")
++            .and_then(|v| v.as_array())
++            .map(|arr| {
++                arr.iter()
++                    .filter_map(|p| p.as_str().map(|s| s.to_string()))
++                    .collect()
++            })
++            .unwrap_or_default();
++        let work_packet_id = thread
++            .get("context")
++            .and_then(|c| c.get("work_packet_id"))
++            .and_then(|v| v.as_str())
++            .map(|s| s.to_string());
++
++        total_messages += message_count;
++
++        // Build linked_work_ids from context
++        let mut linked_work_ids = Vec::new();
++        if let Some(ref wpid) = work_packet_id {
++            linked_work_ids.push(wpid.clone());
++        }
++
++        // Read thread JSONL for latest message and evidence refs
++        let thread_file = thread
++            .get("thread_file")
++            .and_then(|v| v.as_str())
++            .unwrap_or("");
++        let thread_path = runtime_paths.role_mailbox_export_dir().join(thread_file);
++        let mut latest_message_type: Option<String> = None;
++        let mut latest_from_role: Option<String> = None;
++        let mut latest_to_roles: Vec<String> = Vec::new();
++        let mut latest_created_at: Option<String> = None;
++        let mut evidence_refs: Vec<String> = Vec::new();
++
++        if let Ok(thread_content) = std::fs::read_to_string(&thread_path) {
++            for line in thread_content.lines() {
++                let line = line.trim();
++                if line.is_empty() {
++                    continue;
++                }
++                if let Ok(msg) = serde_json::from_str::<serde_json::Value>(line) {
++                    // Track latest message (JSONL is ordered by created_at ASC)
++                    latest_message_type = msg
++                        .get("message_type")
++                        .and_then(|v| v.as_str())
++                        .map(|s| s.to_string());
++                    latest_from_role = msg
++                        .get("from_role")
++                        .and_then(|v| v.as_str())
++                        .map(|s| s.to_string());
++                    latest_to_roles = msg
++                        .get("to_roles")
++                        .and_then(|v| v.as_array())
++                        .map(|arr| {
++                            arr.iter()
++                                .filter_map(|r| r.as_str().map(|s| s.to_string()))
++                                .collect()
++                        })
++                        .unwrap_or_default();
++                    latest_created_at = msg
++                        .get("created_at")
++                        .and_then(|v| v.as_str())
++                        .map(|s| s.to_string());
++
++                    // Collect transcription link target_refs as evidence
++                    if let Some(links) = msg.get("transcription_links").and_then(|v| v.as_array()) {
++                        for link in links {
++                            if let Some(target_ref) =
++                                link.get("target_ref").and_then(|v| v.as_str())
++                            {
++                                if !evidence_refs.contains(&target_ref.to_string()) {
++                                    evidence_refs.push(target_ref.to_string());
++                                }
++                            }
++                        }
++                    }
++                }
++            }
++        }
++
++        let is_open = closed_at.is_none();
++
++        active_threads.push(DccMailboxThreadSummary {
++            thread_id: thread_id.clone(),
++            work_packet_id: work_packet_id.clone(),
++            participants,
++            message_count,
++            latest_message_type: latest_message_type.clone(),
++            latest_from_role: latest_from_role.clone(),
++            created_at,
++            closed_at,
++            evidence_refs,
++            linked_work_ids,
++        });
++
++        // Derive wait reasons from open threads whose latest message expects a response
++        if is_open {
++            if let Some(ref msg_type) = latest_message_type {
++                let expected_response = match msg_type.as_str() {
++                    "clarification_request" => Some("clarification_response"),
++                    "scope_change_proposal" => Some("scope_change_approval"),
++                    "waiver_proposal" => Some("waiver_approval"),
++                    "tooling_request" => Some("tooling_result"),
++                    "validation_finding" => Some("validation_fix"),
++                    "blocker" => Some("blocker_resolution"),
++                    "handoff" => Some("handoff_ack"),
++                    _ => None,
++                };
++
++                if let Some(expected) = expected_response {
++                    // Waiting for the to_roles of the latest message
++                    let waiting_for = if latest_to_roles.is_empty() {
++                        "unknown".to_string()
++                    } else {
++                        latest_to_roles.join(",")
++                    };
++                    pending_wait_reasons.push(DccWaitReason {
++                        thread_id: thread_id.clone(),
++                        work_packet_id,
++                        waiting_for_role: waiting_for,
++                        expected_response: expected.to_string(),
++                        wait_since: latest_created_at.unwrap_or_default(),
++                    });
++                }
++            }
++        }
++    }
++
++    let total_thread_count = threads.len() as u64;
++    let active_count = active_threads
++        .iter()
++        .filter(|t| t.closed_at.is_none())
++        .count() as u64;
++
++    DccCollaborationState {
++        active_threads,
++        pending_wait_reasons,
++        mailbox_summary: DccMailboxSummary {
++            total_threads: total_thread_count,
++            active_threads: active_count,
++            total_messages,
++        },
++    }
++}
++
+ fn structured_work_packet_status(status: locus::WorkPacketStatus) -> &'static str {
+     match status {
+         locus::WorkPacketStatus::Unknown => "stub",
+@@ -5290,7 +5749,8 @@ pub async fn create_session_checkpoint(
+     let now = Utc::now();
+     let checkpoint_id = Uuid::new_v4().to_string();
+     let checkpoint_artifact_id = Uuid::new_v4().to_string();
+-    let session_state_json = serde_json::to_string(&session)?;
++    let session_state_json =
++        serde_json::to_string(&session).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+     let message_thread_tail_id = messages
+         .last()
+         .map(|message| message.message_id.clone())
+@@ -5300,7 +5760,8 @@ pub async fn create_session_checkpoint(
+         .filter(|message| matches!(message.role, SessionMessageRole::ToolCall))
+         .filter_map(|message| message.tool_call_id.clone())
+         .collect();
+-    let pending_tool_calls_json = serde_json::to_string(&pending_tool_call_ids)?;
++    let pending_tool_calls_json = serde_json::to_string(&pending_tool_call_ids)
++        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+ 
+     let checkpoint = SessionCheckpoint {
+         checkpoint_id: checkpoint_id.clone(),
+@@ -25227,6 +25688,8 @@ mod tests {
+         assert_eq!(display_orders, vec![0, 1]);
+ 
+         Ok(())
++    }
++
+     async fn create_test_model_session(
+         state: &AppState,
+         session_state: ModelSessionState,
+@@ -25325,6 +25788,10 @@ mod tests {
+             capability_grants: capability_grants.iter().map(|cap| cap.to_string()).collect(),
+             capability_token_ids: None,
+             job_id: None,
++            checkpoint_artifact_id: None,
++            last_checkpoint_at: None,
++            checkpoint_count: 0,
++            merge_back_artifact: None,
+             created_at: Utc::now(),
+             updated_at: Utc::now(),
+         }
+@@ -26354,4 +26821,1297 @@ mod tests {
+ 
+         Ok(())
+     }
++
++    // ── MT-002 backend-backed DCC projection tests ──────────────────────
++
++    /// Materialise governance artifacts on disk (task-board index, micro-task
++    /// packets, gate metadata) and prove the DCC snapshot builder reads them
++    /// back through the real code path, producing correct ready_queue,
++    /// micro_task_summary, and gate_state fields.
++    #[tokio::test]
++    async fn dcc_ready_query_projection_is_backend_backed(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let state = setup_state().await?;
++
++        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
++        let tmp = tempfile::tempdir()?;
++        let gov_root = tmp.path().join(".handshake/gov");
++        let _workspace_root = EnvVarGuard::set(
++            "HANDSHAKE_WORKSPACE_ROOT",
++            &tmp.path().display().to_string(),
++        );
++        let _gov_root_env =
++            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
++
++        let runtime_paths = RuntimeGovernancePaths::resolve()?;
++
++        // ── 1. Write a task-board index with two WPs: one Ready, one Active ──
++        let tb_dir = gov_root.join("task_board");
++        std::fs::create_dir_all(&tb_dir)?;
++
++        let ready_wp = "WP-READY-1";
++        let active_wp = "WP-ACTIVE-1";
++
++        let index = locus::task_board::TaskBoardIndexV1 {
++            schema_id: "hsk.task_board_index@1".into(),
++            schema_version: "1.0.0".into(),
++            record_id: "tb-idx-test".into(),
++            record_kind: "task_board_index".into(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            profile_extension: None,
++            updated_at: Utc::now().to_rfc3339(),
++            mirror_state: locus::MirrorSyncState::CanonicalOnly,
++            authority_refs: vec![],
++            evidence_refs: vec![],
++            mirror_contract: None,
++            task_board_id: "tb-test-001".into(),
++            generated_at: Utc::now().to_rfc3339(),
++            view_ids: vec![],
++            rows: vec![
++                locus::task_board::TaskBoardEntryRecordV1 {
++                    schema_id: "hsk.task_board_entry@1".into(),
++                    schema_version: "1.0.0".into(),
++                    record_id: format!("tbe-{ready_wp}"),
++                    record_kind: "task_board_entry".into(),
++                    project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++                    profile_extension: None,
++                    updated_at: Utc::now().to_rfc3339(),
++                    mirror_state: locus::MirrorSyncState::CanonicalOnly,
++                    authority_refs: vec![],
++                    evidence_refs: vec![],
++                    mirror_contract: None,
++                    workflow_state_family: locus::WorkflowStateFamily::Ready,
++                    queue_reason_code: locus::WorkflowQueueReasonCode::ReadyForCloudModel,
++                    allowed_action_ids: vec!["start".into()],
++                    task_board_id: "tb-test-001".into(),
++                    work_packet_id: ready_wp.into(),
++                    lane_id: "default".into(),
++                    display_order: 0,
++                    view_ids: vec![],
++                    token: "tok-ready".into(),
++                    status: "ready".into(),
++                    summary_ref: "summary-ready.json".into(),
++                },
++                locus::task_board::TaskBoardEntryRecordV1 {
++                    schema_id: "hsk.task_board_entry@1".into(),
++                    schema_version: "1.0.0".into(),
++                    record_id: format!("tbe-{active_wp}"),
++                    record_kind: "task_board_entry".into(),
++                    project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++                    profile_extension: None,
++                    updated_at: Utc::now().to_rfc3339(),
++                    mirror_state: locus::MirrorSyncState::CanonicalOnly,
++                    authority_refs: vec![],
++                    evidence_refs: vec![],
++                    mirror_contract: None,
++                    workflow_state_family: locus::WorkflowStateFamily::Active,
++                    queue_reason_code: locus::WorkflowQueueReasonCode::ReadyForCloudModel,
++                    allowed_action_ids: vec![],
++                    task_board_id: "tb-test-001".into(),
++                    work_packet_id: active_wp.into(),
++                    lane_id: "default".into(),
++                    display_order: 1,
++                    view_ids: vec![],
++                    token: "tok-active".into(),
++                    status: "in_progress".into(),
++                    summary_ref: "summary-active.json".into(),
++                },
++            ],
++        };
++        std::fs::write(
++            tb_dir.join("index.json"),
++            serde_json::to_string_pretty(&index)?,
++        )?;
++
++        // ── 2. Write micro-task packet.json files for the ready WP ──
++        let mt_wp_dir = gov_root.join("micro_tasks").join(ready_wp);
++        std::fs::create_dir_all(mt_wp_dir.join("MT-001"))?;
++        std::fs::create_dir_all(mt_wp_dir.join("MT-002"))?;
++        std::fs::create_dir_all(mt_wp_dir.join("MT-003"))?;
++        std::fs::write(
++            mt_wp_dir.join("MT-001/packet.json"),
++            json!({"mt_id": "MT-001", "status": "Completed"}).to_string(),
++        )?;
++        std::fs::write(
++            mt_wp_dir.join("MT-002/packet.json"),
++            json!({"mt_id": "MT-002", "status": "InProgress"}).to_string(),
++        )?;
++        std::fs::write(
++            mt_wp_dir.join("MT-003/packet.json"),
++            json!({"mt_id": "MT-003", "status": "Blocked"}).to_string(),
++        )?;
++
++        // ── 3. Write gate metadata for the ready WP ──
++        let wp_packet_dir = gov_root.join("work_packets").join(ready_wp);
++        std::fs::create_dir_all(&wp_packet_dir)?;
++        std::fs::write(
++            wp_packet_dir.join("packet.json"),
++            json!({
++                "wp_id": ready_wp,
++                "metadata": {
++                    "gate_statuses": {
++                        "pre_work": { "status": "passed" },
++                        "post_work": { "status": "pending" }
++                    }
++                }
++            })
++            .to_string(),
++        )?;
++
++        // ── 4. Call the real snapshot builder ──
++        let snapshot = build_dcc_control_plane_snapshot(
++            &state.session_registry,
++            &runtime_paths,
++            &state.capability_registry,
++            state.storage.as_ref(),
++        )
++        .await?;
++
++        // ── 5. Assert ready_queue ──
++        assert_eq!(
++            snapshot.work_state.ready_queue,
++            vec![ready_wp.to_string()],
++            "ready_queue must contain only the WP with Ready state_family"
++        );
++        assert!(
++            !snapshot.work_state.ready_queue.contains(&active_wp.to_string()),
++            "Active WP must NOT appear in ready_queue"
++        );
++
++        // ── 6. Assert micro_task_summary on the Ready WP's workflow summary ──
++        let ready_summary = snapshot
++            .work_state
++            .active_workflow_summaries
++            .iter()
++            .find(|ws| ws.work_packet_id == ready_wp)
++            .expect("Ready WP must appear in workflow summaries");
++
++        let mt_summary = ready_summary
++            .micro_task_summary
++            .as_ref()
++            .expect("Ready WP must carry a micro_task_summary");
++        assert_eq!(mt_summary.total, 3, "total micro-tasks");
++        assert_eq!(mt_summary.completed, 1, "completed micro-tasks");
++        assert_eq!(mt_summary.in_progress, 1, "in-progress micro-tasks");
++        assert_eq!(mt_summary.blocked, 1, "blocked micro-tasks");
++        assert_eq!(mt_summary.failed, 0, "failed micro-tasks");
++        assert!(
++            mt_summary.mt_ids.contains(&"MT-001".to_string()),
++            "mt_ids must include MT-001"
++        );
++
++        // ── 7. Assert gate_state on the Ready WP's workflow summary ──
++        let gate = ready_summary
++            .gate_state
++            .as_ref()
++            .expect("Ready WP must carry a gate_state");
++        assert_eq!(gate.pre_work, "passed");
++        assert_eq!(gate.post_work, "pending");
++
++        // ── 8. Assert the Active WP has no micro-task summary (no artifacts written) ──
++        let active_summary = snapshot
++            .work_state
++            .active_workflow_summaries
++            .iter()
++            .find(|ws| ws.work_packet_id == active_wp)
++            .expect("Active WP must appear in workflow summaries");
++        assert!(
++            active_summary.micro_task_summary.is_none(),
++            "Active WP should have no micro_task_summary (no disk artifacts)"
++        );
++
++        // ── 9. Assert task_board_id and freshness come through ──
++        assert_eq!(snapshot.work_state.task_board_id, "tb-test-001");
++        assert!(
++            !snapshot.work_state.freshness.is_empty(),
++            "freshness must be populated from index generated_at"
++        );
++
++        Ok(())
++    }
++
++    /// Register model sessions with worktree bindings in the SessionRegistry
++    /// and prove the DCC snapshot builder projects them into DccSessionBinding
++    /// with correct model_id, backend, bound_micro_task_id, and worktree_dir.
++    #[tokio::test]
++    async fn dcc_session_binding_projection_matches_runtime_state(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let state = setup_state().await?;
++
++        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
++        let tmp = tempfile::tempdir()?;
++        let _workspace_root = EnvVarGuard::set(
++            "HANDSHAKE_WORKSPACE_ROOT",
++            &tmp.path().display().to_string(),
++        );
++        let _gov_root_env =
++            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
++
++        let runtime_paths = RuntimeGovernancePaths::resolve()?;
++
++        // ── 1. Create an AiJob with a workflow_run_id ──
++        let workflow_run_id = Uuid::new_v4();
++        let job = state
++            .storage
++            .create_ai_job(crate::storage::NewAiJob {
++                trace_id: Uuid::new_v4(),
++                job_kind: JobKind::WorkflowRun,
++                protocol_id: "protocol-default".into(),
++                profile_id: "default".into(),
++                capability_profile_id: "Analyst".into(),
++                access_mode: AccessMode::AnalysisOnly,
++                safety_mode: SafetyMode::Normal,
++                entity_refs: vec![],
++                planned_operations: vec![],
++                status_reason: "queued".into(),
++                metrics: JobMetrics::zero(),
++                job_inputs: None,
++            })
++            .await?;
++
++        // Set workflow_run_id via status update
++        state
++            .storage
++            .update_ai_job_status(crate::storage::JobStatusUpdate {
++                job_id: job.job_id,
++                state: JobState::Running,
++                error_message: None,
++                status_reason: "running".into(),
++                metrics: None,
++                workflow_run_id: Some(workflow_run_id),
++                trace_id: None,
++                job_outputs: None,
++            })
++            .await?;
++
++        // ── 2. Register a model session bound to a WP + MT with the AiJob ──
++        let bound_wp = "WP-BINDING-TEST";
++        let bound_mt = "MT-002";
++        let session_id = Uuid::new_v4().to_string();
++        let mut session = test_model_session(&session_id, &[]);
++        session.model_id = "claude-sonnet-4-20250514".into();
++        session.backend = "anthropic".into();
++        session.role = "CODER".into();
++        session.wp_id = Some(bound_wp.into());
++        session.mt_id = Some(bound_mt.into());
++        session.job_id = Some(job.job_id);
++        state.session_registry.upsert_session(session).await;
++
++        // ── 3. Register a worktree allocation for this session ──
++        let wt_path = tmp.path().join("worktrees").join("wt-coder");
++        std::fs::create_dir_all(&wt_path)?;
++        state
++            .session_registry
++            .register_session_worktree_allocation(SessionWorktreeAllocation::new(
++                &session_id,
++                &wt_path,
++            ))
++            .await;
++
++        // ── 4. Write a minimal task-board index so the builder doesn't exit empty ──
++        let tb_dir = tmp.path().join(".handshake/gov/task_board");
++        std::fs::create_dir_all(&tb_dir)?;
++        let index = locus::task_board::TaskBoardIndexV1 {
++            schema_id: "hsk.task_board_index@1".into(),
++            schema_version: "1.0.0".into(),
++            record_id: "tb-idx-bind".into(),
++            record_kind: "task_board_index".into(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            profile_extension: None,
++            updated_at: Utc::now().to_rfc3339(),
++            mirror_state: locus::MirrorSyncState::CanonicalOnly,
++            authority_refs: vec![],
++            evidence_refs: vec![],
++            mirror_contract: None,
++            task_board_id: "tb-bind-001".into(),
++            generated_at: Utc::now().to_rfc3339(),
++            view_ids: vec![],
++            rows: vec![locus::task_board::TaskBoardEntryRecordV1 {
++                schema_id: "hsk.task_board_entry@1".into(),
++                schema_version: "1.0.0".into(),
++                record_id: format!("tbe-{bound_wp}"),
++                record_kind: "task_board_entry".into(),
++                project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++                profile_extension: None,
++                updated_at: Utc::now().to_rfc3339(),
++                mirror_state: locus::MirrorSyncState::CanonicalOnly,
++                authority_refs: vec![],
++                evidence_refs: vec![],
++                mirror_contract: None,
++                workflow_state_family: locus::WorkflowStateFamily::Active,
++                queue_reason_code: locus::WorkflowQueueReasonCode::ReadyForCloudModel,
++                allowed_action_ids: vec![],
++                task_board_id: "tb-bind-001".into(),
++                work_packet_id: bound_wp.into(),
++                lane_id: "default".into(),
++                display_order: 0,
++                view_ids: vec![],
++                token: "tok-bind".into(),
++                status: "in_progress".into(),
++                summary_ref: "summary-bind.json".into(),
++            }],
++        };
++        std::fs::write(
++            tb_dir.join("index.json"),
++            serde_json::to_string_pretty(&index)?,
++        )?;
++
++        // ── 5. Call the real snapshot builder ──
++        let snapshot = build_dcc_control_plane_snapshot(
++            &state.session_registry,
++            &runtime_paths,
++            &state.capability_registry,
++            state.storage.as_ref(),
++        )
++        .await?;
++
++        // ── 6. Assert session binding fields ──
++        let binding = snapshot
++            .session_state
++            .bindings
++            .iter()
++            .find(|b| b.session_id == session_id)
++            .expect("DCC snapshot must include the registered session binding");
++
++        assert_eq!(binding.role, "CODER");
++        assert_eq!(binding.state, "ACTIVE");
++        assert_eq!(
++            binding.bound_work_packet_id.as_deref(),
++            Some(bound_wp),
++            "bound_work_packet_id must match registered wp_id"
++        );
++        assert_eq!(
++            binding.model_id.as_deref(),
++            Some("claude-sonnet-4-20250514"),
++            "model_id must be projected from ModelSession"
++        );
++        assert_eq!(
++            binding.backend.as_deref(),
++            Some("anthropic"),
++            "backend must be projected from ModelSession"
++        );
++        assert_eq!(
++            binding.bound_micro_task_id.as_deref(),
++            Some(bound_mt),
++            "bound_micro_task_id must match registered mt_id"
++        );
++        assert_eq!(
++            binding.worktree_dir.as_deref(),
++            Some(wt_path.to_string_lossy().as_ref()),
++            "worktree_dir must match the registered worktree allocation"
++        );
++
++        // ── 7. Assert workflow_run_id in the workflow summary comes from AiJob ──
++        let wp_summary = snapshot
++            .work_state
++            .active_workflow_summaries
++            .iter()
++            .find(|ws| ws.work_packet_id == bound_wp)
++            .expect("Bound WP must appear in workflow summaries");
++        assert_eq!(
++            wp_summary.workflow_run_id.as_deref(),
++            Some(workflow_run_id.to_string()).as_deref(),
++            "workflow_run_id must come from AiJob.workflow_run_id, not ModelSession.job_id"
++        );
++        assert_eq!(
++            wp_summary.model_session_id.as_deref(),
++            Some(session_id.as_str()),
++            "model_session_id must match the bound session"
++        );
++
++        Ok(())
++    }
++
++    // ── MT-003 backend-backed DCC collaboration projection tests ────────
++
++    /// Materialise role-mailbox export artifacts on disk (index.json + thread
++    /// JSONL) and prove the DCC snapshot builder reads them back through the
++    /// real code path, producing correct active_threads, pending_wait_reasons,
++    /// mailbox_summary, evidence refs, and linked work IDs.
++    #[tokio::test]
++    async fn dcc_mailbox_projection_preserves_wait_reasons(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let state = setup_state().await?;
++
++        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
++        let tmp = tempfile::tempdir()?;
++        let gov_root = tmp.path().join(".handshake/gov");
++        let _workspace_root = EnvVarGuard::set(
++            "HANDSHAKE_WORKSPACE_ROOT",
++            &tmp.path().display().to_string(),
++        );
++        let _gov_root_env =
++            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
++
++        let runtime_paths = RuntimeGovernancePaths::resolve()?;
++
++        // ── 1. Write a minimal task-board index (builder requires it) ──
++        let tb_dir = gov_root.join("task_board");
++        std::fs::create_dir_all(&tb_dir)?;
++        let tb_index = locus::task_board::TaskBoardIndexV1 {
++            schema_id: "hsk.task_board_index@1".into(),
++            schema_version: "1.0.0".into(),
++            record_id: "tb-idx-mail".into(),
++            record_kind: "task_board_index".into(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            profile_extension: None,
++            updated_at: Utc::now().to_rfc3339(),
++            mirror_state: locus::MirrorSyncState::CanonicalOnly,
++            authority_refs: vec![],
++            evidence_refs: vec![],
++            mirror_contract: None,
++            task_board_id: "tb-mail-001".into(),
++            generated_at: Utc::now().to_rfc3339(),
++            view_ids: vec![],
++            rows: vec![],
++        };
++        std::fs::write(
++            tb_dir.join("index.json"),
++            serde_json::to_string_pretty(&tb_index)?,
++        )?;
++
++        // ── 2. Write role-mailbox export artifacts ──
++        let mailbox_dir = gov_root.join("ROLE_MAILBOX");
++        let threads_dir = mailbox_dir.join("threads");
++        std::fs::create_dir_all(&threads_dir)?;
++
++        let open_wp = "WP-COLLAB-OPEN";
++        let closed_wp = "WP-COLLAB-CLOSED";
++
++        // Thread 1: open, has a clarification_request → should generate a wait reason
++        let thread1_msgs = vec![
++            json!({
++                "schema_id": "hsk.role_mailbox_thread_line@1",
++                "schema_version": "role_mailbox_export_v1",
++                "record_id": "msg-001",
++                "record_kind": "role_mailbox_message",
++                "project_profile_kind": "generic",
++                "profile_extension": null,
++                "mirror_state": "canonical_only",
++                "updated_at": "2026-04-11T10:00:00Z",
++                "authority_refs": [],
++                "evidence_refs": [],
++                "message_id": "msg-001",
++                "thread_id": "thread-open",
++                "created_at": "2026-04-11T10:00:00Z",
++                "from_role": "orchestrator",
++                "to_roles": ["coder"],
++                "message_type": "handoff",
++                "body_ref": ".handshake/gov/ROLE_MAILBOX/bodies/body-001",
++                "body_sha256": "abc123",
++                "attachments": [],
++                "relates_to_message_id": null,
++                "transcription_links": [{
++                    "target_kind": "task_packet",
++                    "target_ref": ".handshake/gov/work_packets/WP-COLLAB-OPEN/packet.json",
++                    "target_sha256": "def456",
++                    "note": "task packet reference"
++                }],
++                "idempotency_key": "idem-001"
++            }),
++            json!({
++                "schema_id": "hsk.role_mailbox_thread_line@1",
++                "schema_version": "role_mailbox_export_v1",
++                "record_id": "msg-002",
++                "record_kind": "role_mailbox_message",
++                "project_profile_kind": "generic",
++                "profile_extension": null,
++                "mirror_state": "canonical_only",
++                "updated_at": "2026-04-11T11:00:00Z",
++                "authority_refs": [],
++                "evidence_refs": [],
++                "message_id": "msg-002",
++                "thread_id": "thread-open",
++                "created_at": "2026-04-11T11:00:00Z",
++                "from_role": "coder",
++                "to_roles": ["orchestrator"],
++                "message_type": "clarification_request",
++                "body_ref": ".handshake/gov/ROLE_MAILBOX/bodies/body-002",
++                "body_sha256": "ghi789",
++                "attachments": [],
++                "relates_to_message_id": "msg-001",
++                "transcription_links": [{
++                    "target_kind": "refinement",
++                    "target_ref": ".handshake/gov/ROLE_MAILBOX/refs/refinement-001",
++                    "target_sha256": "jkl012",
++                    "note": "scope clarification"
++                }],
++                "idempotency_key": "idem-002"
++            }),
++        ];
++        let thread1_content: String = thread1_msgs
++            .iter()
++            .map(|m| serde_json::to_string(m).unwrap())
++            .collect::<Vec<_>>()
++            .join("\n");
++        std::fs::write(threads_dir.join("thread-open.jsonl"), &thread1_content)?;
++
++        // Thread 2: closed, has FYI messages only → no wait reason
++        let thread2_msgs = vec![json!({
++            "schema_id": "hsk.role_mailbox_thread_line@1",
++            "schema_version": "role_mailbox_export_v1",
++            "record_id": "msg-003",
++            "record_kind": "role_mailbox_message",
++            "project_profile_kind": "generic",
++            "profile_extension": null,
++            "mirror_state": "canonical_only",
++            "updated_at": "2026-04-10T08:00:00Z",
++            "authority_refs": [],
++            "evidence_refs": [],
++            "message_id": "msg-003",
++            "thread_id": "thread-closed",
++            "created_at": "2026-04-10T08:00:00Z",
++            "from_role": "orchestrator",
++            "to_roles": ["coder", "validator"],
++            "message_type": "fyi",
++            "body_ref": ".handshake/gov/ROLE_MAILBOX/bodies/body-003",
++            "body_sha256": "mno345",
++            "attachments": [],
++            "relates_to_message_id": null,
++            "transcription_links": [],
++            "idempotency_key": "idem-003"
++        })];
++        let thread2_content: String = thread2_msgs
++            .iter()
++            .map(|m| serde_json::to_string(m).unwrap())
++            .collect::<Vec<_>>()
++            .join("\n");
++        std::fs::write(threads_dir.join("thread-closed.jsonl"), &thread2_content)?;
++
++        // Write the mailbox index.json
++        let mailbox_index = json!({
++            "schema_id": "hsk.role_mailbox_index@1",
++            "schema_version": "role_mailbox_export_v1",
++            "record_id": "role_mailbox_index",
++            "record_kind": "generic",
++            "project_profile_kind": "generic",
++            "profile_extension": null,
++            "mirror_state": "canonical_only",
++            "updated_at": "2026-04-11T11:00:00Z",
++            "generated_at": "2026-04-11T11:00:00Z",
++            "authority_refs": [],
++            "evidence_refs": [],
++            "threads": [
++                {
++                    "thread_id": "thread-open",
++                    "created_at": "2026-04-11T10:00:00Z",
++                    "closed_at": null,
++                    "participants": ["orchestrator", "coder"],
++                    "context": {
++                        "spec_id": null,
++                        "work_packet_id": open_wp,
++                        "task_board_id": "tb-mail-001",
++                        "governance_mode": "GovStandard",
++                        "project_id": null
++                    },
++                    "subject_redacted": "Scope clarification needed",
++                    "subject_sha256": "subj-hash-1",
++                    "message_count": 2,
++                    "thread_file": "threads/thread-open.jsonl"
++                },
++                {
++                    "thread_id": "thread-closed",
++                    "created_at": "2026-04-10T08:00:00Z",
++                    "closed_at": "2026-04-10T09:00:00Z",
++                    "participants": ["orchestrator", "coder", "validator"],
++                    "context": {
++                        "spec_id": null,
++                        "work_packet_id": closed_wp,
++                        "task_board_id": "tb-mail-001",
++                        "governance_mode": "GovStandard",
++                        "project_id": null
++                    },
++                    "subject_redacted": "FYI status update",
++                    "subject_sha256": "subj-hash-2",
++                    "message_count": 1,
++                    "thread_file": "threads/thread-closed.jsonl"
++                }
++            ]
++        });
++        std::fs::write(
++            mailbox_dir.join("index.json"),
++            serde_json::to_string_pretty(&mailbox_index)?,
++        )?;
++
++        // ── 3. Call the real snapshot builder ──
++        let snapshot = build_dcc_control_plane_snapshot(
++            &state.session_registry,
++            &runtime_paths,
++            &state.capability_registry,
++            state.storage.as_ref(),
++        )
++        .await?;
++
++        let collab = &snapshot.collaboration_state;
++
++        // ── 4. Assert mailbox_summary ──
++        assert_eq!(collab.mailbox_summary.total_threads, 2);
++        assert_eq!(
++            collab.mailbox_summary.active_threads, 1,
++            "only the open thread counts as active"
++        );
++        assert_eq!(collab.mailbox_summary.total_messages, 3);
++
++        // ── 5. Assert active_threads ──
++        assert_eq!(collab.active_threads.len(), 2, "both threads projected");
++
++        let open_thread = collab
++            .active_threads
++            .iter()
++            .find(|t| t.thread_id == "thread-open")
++            .expect("open thread must be projected");
++        assert_eq!(open_thread.work_packet_id.as_deref(), Some(open_wp));
++        assert_eq!(open_thread.message_count, 2);
++        assert_eq!(
++            open_thread.latest_message_type.as_deref(),
++            Some("clarification_request")
++        );
++        assert_eq!(
++            open_thread.latest_from_role.as_deref(),
++            Some("coder")
++        );
++        assert!(open_thread.closed_at.is_none());
++        assert!(
++            open_thread.linked_work_ids.contains(&open_wp.to_string()),
++            "linked_work_ids must include the WP from context"
++        );
++        assert!(
++            open_thread
++                .evidence_refs
++                .contains(&".handshake/gov/work_packets/WP-COLLAB-OPEN/packet.json".to_string()),
++            "evidence_refs must include transcription link target_refs"
++        );
++        assert!(
++            open_thread
++                .evidence_refs
++                .contains(&".handshake/gov/ROLE_MAILBOX/refs/refinement-001".to_string()),
++            "evidence_refs must include refinement transcription link"
++        );
++
++        let closed_thread = collab
++            .active_threads
++            .iter()
++            .find(|t| t.thread_id == "thread-closed")
++            .expect("closed thread must be projected");
++        assert!(closed_thread.closed_at.is_some());
++        assert_eq!(closed_thread.work_packet_id.as_deref(), Some(closed_wp));
++
++        // ── 6. Assert pending_wait_reasons ──
++        assert_eq!(
++            collab.pending_wait_reasons.len(),
++            1,
++            "only the open thread with a request-type message should generate a wait reason"
++        );
++        let wait = &collab.pending_wait_reasons[0];
++        assert_eq!(wait.thread_id, "thread-open");
++        assert_eq!(wait.work_packet_id.as_deref(), Some(open_wp));
++        assert_eq!(
++            wait.expected_response, "clarification_response",
++            "expected_response must map from clarification_request"
++        );
++        assert_eq!(wait.waiting_for_role, "orchestrator");
++        assert_eq!(wait.wait_since, "2026-04-11T11:00:00Z");
++
++        // ── 7. Closed thread must NOT generate a wait reason ──
++        assert!(
++            !collab
++                .pending_wait_reasons
++                .iter()
++                .any(|w| w.thread_id == "thread-closed"),
++            "closed threads must not generate wait reasons"
++        );
++
++        Ok(())
++    }
++
++    // ── MT-004 task-board ready-query filter extension tests ─────────────
++
++    /// Prove that the task-board index filter extensions let a consumer
++    /// deterministically query entries by WorkflowStateFamily and
++    /// WorkflowQueueReasonCode without lane-name heuristics — and that
++    /// allowed_action_ids remain visible through the filtered results.
++    #[tokio::test]
++    async fn dcc_task_board_filters_by_state_family_and_queue_reason(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let state = setup_state().await?;
++
++        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
++        let tmp = tempfile::tempdir()?;
++        let gov_root = tmp.path().join(".handshake/gov");
++        let _workspace_root = EnvVarGuard::set(
++            "HANDSHAKE_WORKSPACE_ROOT",
++            &tmp.path().display().to_string(),
++        );
++        let _gov_root_env =
++            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
++
++        let runtime_paths = RuntimeGovernancePaths::resolve()?;
++
++        // ── 1. Build a task-board index with entries in multiple families/reasons ──
++        let tb_dir = gov_root.join("task_board");
++        std::fs::create_dir_all(&tb_dir)?;
++
++        fn make_entry(
++            wp_id: &str,
++            family: locus::WorkflowStateFamily,
++            reason: locus::WorkflowQueueReasonCode,
++            actions: Vec<String>,
++            order: u64,
++        ) -> locus::task_board::TaskBoardEntryRecordV1 {
++            locus::task_board::TaskBoardEntryRecordV1 {
++                schema_id: "hsk.task_board_entry@1".into(),
++                schema_version: "1.0.0".into(),
++                record_id: format!("tbe-{wp_id}"),
++                record_kind: "task_board_entry".into(),
++                project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++                profile_extension: None,
++                updated_at: Utc::now().to_rfc3339(),
++                mirror_state: locus::MirrorSyncState::CanonicalOnly,
++                authority_refs: vec![],
++                evidence_refs: vec![],
++                mirror_contract: None,
++                workflow_state_family: family,
++                queue_reason_code: reason,
++                allowed_action_ids: actions,
++                task_board_id: "tb-filter-001".into(),
++                work_packet_id: wp_id.into(),
++                lane_id: "default".into(),
++                display_order: order,
++                view_ids: vec![],
++                token: format!("tok-{wp_id}"),
++                status: "ready".into(),
++                summary_ref: format!("summary-{wp_id}.json"),
++            }
++        }
++
++        let index = locus::task_board::TaskBoardIndexV1 {
++            schema_id: "hsk.task_board_index@1".into(),
++            schema_version: "1.0.0".into(),
++            record_id: "tb-idx-filter".into(),
++            record_kind: "task_board_index".into(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            profile_extension: None,
++            updated_at: Utc::now().to_rfc3339(),
++            mirror_state: locus::MirrorSyncState::CanonicalOnly,
++            authority_refs: vec![],
++            evidence_refs: vec![],
++            mirror_contract: None,
++            task_board_id: "tb-filter-001".into(),
++            generated_at: Utc::now().to_rfc3339(),
++            view_ids: vec![],
++            rows: vec![
++                make_entry(
++                    "WP-READY-LOCAL",
++                    locus::WorkflowStateFamily::Ready,
++                    locus::WorkflowQueueReasonCode::ReadyForLocalSmallModel,
++                    vec!["start".into()],
++                    0,
++                ),
++                make_entry(
++                    "WP-READY-CLOUD",
++                    locus::WorkflowStateFamily::Ready,
++                    locus::WorkflowQueueReasonCode::ReadyForCloudModel,
++                    vec!["start".into(), "defer".into()],
++                    1,
++                ),
++                make_entry(
++                    "WP-READY-HUMAN",
++                    locus::WorkflowStateFamily::Ready,
++                    locus::WorkflowQueueReasonCode::ReadyForHuman,
++                    vec!["start".into()],
++                    2,
++                ),
++                make_entry(
++                    "WP-BLOCKED-POLICY",
++                    locus::WorkflowStateFamily::Blocked,
++                    locus::WorkflowQueueReasonCode::BlockedPolicy,
++                    vec![],
++                    3,
++                ),
++                make_entry(
++                    "WP-REVIEW",
++                    locus::WorkflowStateFamily::Review,
++                    locus::WorkflowQueueReasonCode::ReviewWait,
++                    vec![],
++                    4,
++                ),
++                make_entry(
++                    "WP-INTAKE",
++                    locus::WorkflowStateFamily::Intake,
++                    locus::WorkflowQueueReasonCode::NewUntriaged,
++                    vec!["triage".into()],
++                    5,
++                ),
++            ],
++        };
++        std::fs::write(
++            tb_dir.join("index.json"),
++            serde_json::to_string_pretty(&index)?,
++        )?;
++
++        // ── 2. Verify filter extensions on the index directly ──
++
++        // Filter by state family: Ready → 3 entries
++        let ready = index.entries_by_state_family(locus::WorkflowStateFamily::Ready);
++        assert_eq!(ready.len(), 3, "Ready family must match 3 entries");
++        let ready_wp_ids: Vec<&str> = ready.iter().map(|e| e.work_packet_id.as_str()).collect();
++        assert!(ready_wp_ids.contains(&"WP-READY-LOCAL"));
++        assert!(ready_wp_ids.contains(&"WP-READY-CLOUD"));
++        assert!(ready_wp_ids.contains(&"WP-READY-HUMAN"));
++
++        // Filter by state family: Blocked → 1 entry
++        let blocked = index.entries_by_state_family(locus::WorkflowStateFamily::Blocked);
++        assert_eq!(blocked.len(), 1);
++        assert_eq!(blocked[0].work_packet_id, "WP-BLOCKED-POLICY");
++
++        // Filter by state family: Done → 0 entries
++        let done = index.entries_by_state_family(locus::WorkflowStateFamily::Done);
++        assert!(done.is_empty(), "no Done entries in this index");
++
++        // Filter by queue reason: ReadyForLocalSmallModel → 1 entry
++        let local = index.entries_by_queue_reason(
++            locus::WorkflowQueueReasonCode::ReadyForLocalSmallModel,
++        );
++        assert_eq!(local.len(), 1);
++        assert_eq!(local[0].work_packet_id, "WP-READY-LOCAL");
++
++        // Filter by queue reason: ReadyForCloudModel → 1 entry
++        let cloud = index.entries_by_queue_reason(
++            locus::WorkflowQueueReasonCode::ReadyForCloudModel,
++        );
++        assert_eq!(cloud.len(), 1);
++        assert_eq!(cloud[0].work_packet_id, "WP-READY-CLOUD");
++
++        // work_packet_ids_by_state_family generalises ready_queue
++        let ready_ids = index.work_packet_ids_by_state_family(
++            locus::WorkflowStateFamily::Ready,
++        );
++        assert_eq!(ready_ids.len(), 3);
++
++        // work_packet_ids_by_queue_reason
++        let human_ids = index.work_packet_ids_by_queue_reason(
++            locus::WorkflowQueueReasonCode::ReadyForHuman,
++        );
++        assert_eq!(human_ids, vec!["WP-READY-HUMAN"]);
++
++        // Filter by allowed action: "start" → 3 ready entries
++        let startable = index.entries_by_allowed_action("start");
++        assert_eq!(startable.len(), 3, "3 entries allow the 'start' action");
++
++        // Filter by allowed action: "triage" → 1 intake entry
++        let triageable = index.entries_by_allowed_action("triage");
++        assert_eq!(triageable.len(), 1);
++        assert_eq!(triageable[0].work_packet_id, "WP-INTAKE");
++
++        // Filter by allowed action: "defer" → 1 cloud entry
++        let deferrable = index.entries_by_allowed_action("defer");
++        assert_eq!(deferrable.len(), 1);
++        assert_eq!(deferrable[0].work_packet_id, "WP-READY-CLOUD");
++
++        // ── 3. allowed_action_ids preserved through filtered results ──
++        for entry in &ready {
++            assert!(
++                !entry.allowed_action_ids.is_empty(),
++                "Ready entries must expose allowed_action_ids; WP {} has none",
++                entry.work_packet_id
++            );
++        }
++
++        // ── 4. Call the DCC snapshot builder and verify ready_queue consistency ──
++        let snapshot = build_dcc_control_plane_snapshot(
++            &state.session_registry,
++            &runtime_paths,
++            &state.capability_registry,
++            state.storage.as_ref(),
++        )
++        .await?;
++
++        // DCC ready_queue must agree with the filter extension
++        assert_eq!(
++            snapshot.work_state.ready_queue.len(),
++            ready_ids.len(),
++            "DCC ready_queue must match entries_by_state_family(Ready)"
++        );
++        for wp_id in &ready_ids {
++            assert!(
++                snapshot.work_state.ready_queue.contains(wp_id),
++                "DCC ready_queue missing {wp_id}"
++            );
++        }
++
++        // Workflow summaries must carry state_family and queue_reason_code
++        for ws in &snapshot.work_state.active_workflow_summaries {
++            let original = index
++                .rows
++                .iter()
++                .find(|r| r.work_packet_id == ws.work_packet_id)
++                .expect("every summary must trace to a task-board entry");
++            assert_eq!(
++                ws.state_family, original.workflow_state_family,
++                "DCC summary state_family must match task-board entry"
++            );
++            assert_eq!(
++                ws.queue_reason_code, original.queue_reason_code,
++                "DCC summary queue_reason_code must match task-board entry"
++            );
++            assert_eq!(
++                ws.allowed_action_ids, original.allowed_action_ids,
++                "DCC summary allowed_action_ids must match task-board entry"
++            );
++        }
++
++        Ok(())
++    }
++
++    // ── MT-005: compact summary contract (6.3) ──────────────────────────
++
++    #[tokio::test]
++    async fn dcc_compact_summary_contract_preserves_stable_ids(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let state = setup_state().await?;
++
++        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
++        let tmp = tempfile::tempdir()?;
++        let gov_root = tmp.path().join(".handshake/gov");
++        let _workspace_root = EnvVarGuard::set(
++            "HANDSHAKE_WORKSPACE_ROOT",
++            &tmp.path().display().to_string(),
++        );
++        let _gov_root_env =
++            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
++
++        let runtime_paths = RuntimeGovernancePaths::resolve()?;
++
++        // ── 1. Materialise a task-board index with two work packets ──
++        let tb_dir = gov_root.join("task_board");
++        std::fs::create_dir_all(&tb_dir)?;
++
++        fn make_entry(
++            wp_id: &str,
++            family: locus::WorkflowStateFamily,
++            reason: locus::WorkflowQueueReasonCode,
++            actions: Vec<String>,
++            order: u64,
++        ) -> locus::task_board::TaskBoardEntryRecordV1 {
++            locus::task_board::TaskBoardEntryRecordV1 {
++                schema_id: "hsk.task_board_entry@1".into(),
++                schema_version: "1.0.0".into(),
++                record_id: format!("tbe-{wp_id}"),
++                record_kind: "task_board_entry".into(),
++                project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++                profile_extension: None,
++                updated_at: Utc::now().to_rfc3339(),
++                mirror_state: locus::MirrorSyncState::CanonicalOnly,
++                authority_refs: vec![format!("ref:{wp_id}")],
++                evidence_refs: vec![format!("ev:{wp_id}")],
++                mirror_contract: None,
++                workflow_state_family: family,
++                queue_reason_code: reason,
++                allowed_action_ids: actions,
++                task_board_id: "tb-compact-001".into(),
++                work_packet_id: wp_id.into(),
++                lane_id: "default".into(),
++                display_order: order,
++                view_ids: vec![],
++                token: format!("tok-{wp_id}"),
++                status: "ready".into(),
++                summary_ref: format!("summary-{wp_id}.json"),
++            }
++        }
++
++        let index = locus::task_board::TaskBoardIndexV1 {
++            schema_id: "hsk.task_board_index@1".into(),
++            schema_version: "1.0.0".into(),
++            record_id: "tb-idx-compact".into(),
++            record_kind: "task_board_index".into(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            profile_extension: None,
++            updated_at: Utc::now().to_rfc3339(),
++            mirror_state: locus::MirrorSyncState::CanonicalOnly,
++            authority_refs: vec![],
++            evidence_refs: vec![],
++            mirror_contract: None,
++            task_board_id: "tb-compact-001".into(),
++            generated_at: Utc::now().to_rfc3339(),
++            view_ids: vec![],
++            rows: vec![
++                make_entry(
++                    "WP-SUM-READY",
++                    locus::WorkflowStateFamily::Ready,
++                    locus::WorkflowQueueReasonCode::ReadyForLocalSmallModel,
++                    vec!["start".into()],
++                    0,
++                ),
++                make_entry(
++                    "WP-SUM-BLOCKED",
++                    locus::WorkflowStateFamily::Blocked,
++                    locus::WorkflowQueueReasonCode::BlockedPolicy,
++                    vec![],
++                    1,
++                ),
++            ],
++        };
++        std::fs::write(
++            tb_dir.join("index.json"),
++            serde_json::to_string_pretty(&index)?,
++        )?;
++
++        // ── 2. Materialise role-mailbox artifacts with a wait reason linked
++        //       to WP-SUM-BLOCKED ──
++        let mb_dir = gov_root.join("ROLE_MAILBOX");
++        let threads_dir = mb_dir.join("threads");
++        std::fs::create_dir_all(&threads_dir)?;
++
++        let mb_index = serde_json::json!({
++            "generated_at": Utc::now().to_rfc3339(),
++            "threads": [{
++                "thread_id": "thr-wait-001",
++                "created_at": "2026-04-11T00:00:00Z",
++                "closed_at": null,
++                "participants": ["CODER", "VALIDATOR"],
++                "context": {
++                    "work_packet_id": "WP-SUM-BLOCKED"
++                },
++                "subject_redacted": "blocker on WP-SUM-BLOCKED",
++                "message_count": 1,
++                "thread_file": "threads/thr-wait-001.jsonl"
++            }]
++        });
++        std::fs::write(
++            mb_dir.join("index.json"),
++            serde_json::to_string_pretty(&mb_index)?,
++        )?;
++        std::fs::write(
++            threads_dir.join("thr-wait-001.jsonl"),
++            serde_json::to_string(&serde_json::json!({
++                "message_id": "msg-001",
++                "thread_id": "thr-wait-001",
++                "from_role": "CODER",
++                "to_roles": ["VALIDATOR"],
++                "message_type": "blocker",
++                "created_at": "2026-04-11T00:00:00Z",
++                "body_ref": "body.md",
++                "body_sha256": "abc123",
++                "transcription_links": [],
++                "attachments": []
++            }))?,
++        )?;
++
++        // ── 3. Build snapshot and derive compact summaries ──
++        let snapshot = build_dcc_control_plane_snapshot(
++            &state.session_registry,
++            &runtime_paths,
++            &state.capability_registry,
++            state.storage.as_ref(),
++        )
++        .await?;
++
++        let summaries = snapshot.compact_summaries();
++        assert_eq!(
++            summaries.len(),
++            2,
++            "one compact summary per work packet in the snapshot"
++        );
++
++        // ── 4. Verify schema envelope on every summary ──
++        let descriptor = locus::structured_collaboration_schema_descriptor(
++            locus::StructuredCollaborationRecordFamily::DccCompactSummary,
++        );
++        for cs in &summaries {
++            assert_eq!(cs.schema_id, descriptor.schema_id);
++            assert_eq!(cs.schema_version, descriptor.schema_version);
++            assert_eq!(cs.record_kind, descriptor.record_kind);
++        }
++
++        // ── 5. Verify stable IDs survive the compact summary derivation ──
++        let ready_cs = summaries
++            .iter()
++            .find(|s| s.work_packet_id == "WP-SUM-READY")
++            .expect("compact summary for WP-SUM-READY must exist");
++        let blocked_cs = summaries
++            .iter()
++            .find(|s| s.work_packet_id == "WP-SUM-BLOCKED")
++            .expect("compact summary for WP-SUM-BLOCKED must exist");
++
++        // record_id must equal work_packet_id (joinable to detail record)
++        assert_eq!(ready_cs.record_id, "WP-SUM-READY");
++        assert_eq!(blocked_cs.record_id, "WP-SUM-BLOCKED");
++
++        // task_board_id preserved
++        assert_eq!(
++            ready_cs.task_board_id.as_deref(),
++            Some("tb-compact-001")
++        );
++        assert_eq!(
++            blocked_cs.task_board_id.as_deref(),
++            Some("tb-compact-001")
++        );
++
++        // workflow_state_family and queue_reason_code carry through
++        assert_eq!(
++            ready_cs.workflow_state_family,
++            locus::WorkflowStateFamily::Ready
++        );
++        assert_eq!(
++            ready_cs.queue_reason_code,
++            locus::WorkflowQueueReasonCode::ReadyForLocalSmallModel
++        );
++        assert_eq!(
++            blocked_cs.workflow_state_family,
++            locus::WorkflowStateFamily::Blocked
++        );
++        assert_eq!(
++            blocked_cs.queue_reason_code,
++            locus::WorkflowQueueReasonCode::BlockedPolicy
++        );
++
++        // allowed_action_ids preserved
++        assert_eq!(ready_cs.allowed_action_ids, vec!["start"]);
++        assert!(blocked_cs.allowed_action_ids.is_empty());
++
++        // authority_refs and evidence_refs preserved (joinable)
++        assert_eq!(ready_cs.authority_refs, vec!["ref:WP-SUM-READY"]);
++        assert_eq!(ready_cs.evidence_refs, vec!["ev:WP-SUM-READY"]);
++
++        // project_profile_kind preserved
++        assert_eq!(
++            ready_cs.project_profile_kind,
++            locus::ProjectProfileKind::SoftwareDelivery
++        );
++
++        // summary_ref preserved
++        assert_eq!(
++            ready_cs.summary_ref.as_deref(),
++            Some("summary-WP-SUM-READY.json")
++        );
++
++        // ── 5b. Verify semantic summary-first contract (6.3) ──
++        // title_or_objective must carry bounded triage content, not raw refs
++        assert!(
++            ready_cs.title_or_objective.contains("WP-SUM-READY"),
++            "ready title must include work_packet_id: got {:?}",
++            ready_cs.title_or_objective
++        );
++        assert!(
++            ready_cs.title_or_objective.contains("Ready"),
++            "ready title must include state family: got {:?}",
++            ready_cs.title_or_objective
++        );
++        assert!(
++            ready_cs.title_or_objective.contains("ready for local model"),
++            "ready title must include queue reason label: got {:?}",
++            ready_cs.title_or_objective
++        );
++        assert!(
++            ready_cs.title_or_objective.len() <= 160,
++            "title_or_objective must be bounded to 160 chars"
++        );
++
++        assert!(
++            blocked_cs.title_or_objective.contains("WP-SUM-BLOCKED"),
++            "blocked title must include work_packet_id: got {:?}",
++            blocked_cs.title_or_objective
++        );
++        assert!(
++            blocked_cs.title_or_objective.contains("Blocked"),
++            "blocked title must include state family: got {:?}",
++            blocked_cs.title_or_objective
++        );
++        assert!(
++            blocked_cs.title_or_objective.contains("blocked: policy"),
++            "blocked title must include queue reason label: got {:?}",
++            blocked_cs.title_or_objective
++        );
++
++        // blockers: blocked WP must carry blocker text from wait reasons
++        assert!(
++            !blocked_cs.blockers.is_empty(),
++            "blocked WP must have non-empty blockers"
++        );
++        assert!(
++            blocked_cs.blockers.iter().any(|b| b.contains("blocker_resolution")),
++            "blocked WP blocker must reference expected_response from wait reason: got {:?}",
++            blocked_cs.blockers
++        );
++        // ready WP has no blockers
++        assert!(
++            ready_cs.blockers.is_empty(),
++            "ready WP must have no blockers"
++        );
++
++        // next_action: derived from allowed_action_ids or state family default
++        assert_eq!(
++            ready_cs.next_action.as_deref(),
++            Some("start"),
++            "ready WP next_action must be first allowed action 'start'"
++        );
++        assert_eq!(
++            blocked_cs.next_action.as_deref(),
++            Some("unblock"),
++            "blocked WP with no allowed actions must default to 'unblock'"
++        );
++
++        // all blockers must be bounded to 160 chars
++        for b in &blocked_cs.blockers {
++            assert!(
++                b.len() <= 160,
++                "blocker text must be bounded to 160 chars"
++            );
++        }
++
++        // ── 6. Verify routing hints ──
++        // WP-SUM-BLOCKED has one linked mailbox thread with an unanswered blocker
++        assert_eq!(
++            blocked_cs.active_thread_count, 1,
++            "WP-SUM-BLOCKED has one active mailbox thread"
++        );
++        assert_eq!(
++            blocked_cs.pending_wait_count, 1,
++            "WP-SUM-BLOCKED has one pending wait reason"
++        );
++
++        // WP-SUM-READY has no mailbox threads
++        assert_eq!(ready_cs.active_thread_count, 0);
++        assert_eq!(ready_cs.pending_wait_count, 0);
++
++        // No sessions bound (empty registry)
++        assert!(!ready_cs.session_bound);
++        assert!(!blocked_cs.session_bound);
++
++        // ── 7. Verify serde round-trip ──
++        let json = serde_json::to_value(&summaries)?;
++        let round_tripped: Vec<locus::DccCompactSummaryV1> =
++            serde_json::from_value(json)?;
++        assert_eq!(round_tripped.len(), summaries.len());
++        for (original, rt) in summaries.iter().zip(round_tripped.iter()) {
++            assert_eq!(original.record_id, rt.record_id);
++            assert_eq!(original.work_packet_id, rt.work_packet_id);
++            assert_eq!(original.task_board_id, rt.task_board_id);
++            assert_eq!(original.workflow_state_family, rt.workflow_state_family);
++            assert_eq!(original.queue_reason_code, rt.queue_reason_code);
++            assert_eq!(original.pending_wait_count, rt.pending_wait_count);
++            assert_eq!(original.active_thread_count, rt.active_thread_count);
++            assert_eq!(original.session_bound, rt.session_bound);
++            // Semantic fields survive round-trip
++            assert_eq!(original.title_or_objective, rt.title_or_objective);
++            assert_eq!(original.blockers, rt.blockers);
++            assert_eq!(original.next_action, rt.next_action);
++        }
++
++        // ── 8. Validate via structured collaboration validator ──
++        for cs in &summaries {
++            let val = serde_json::to_value(cs)?;
++            let result = locus::validate_structured_collaboration_record(
++                locus::StructuredCollaborationRecordFamily::DccCompactSummary,
++                &val,
++            );
++            assert!(
++                result.ok,
++                "compact summary must pass structured validation: {:?}",
++                result.issues
++            );
++        }
++
++        Ok(())
++    }
+ }
+
+diff --git a/src/backend/handshake_core/src/api/flight_recorder.rs b/src/backend/handshake_core/src/api/flight_recorder.rs
+index 70c5180..7db60f7 100644
+--- a/src/backend/handshake_core/src/api/flight_recorder.rs
++++ b/src/backend/handshake_core/src/api/flight_recorder.rs
+@@ -68 +67,0 @@ pub struct EventFilter {
+-    pub model_session_id: Option<String>,
++
++    // ── MT-005: compact summary contract (6.3) ──────────────────────────
++
++    #[tokio::test]
++    async fn dcc_compact_summary_contract_preserves_stable_ids(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let state = setup_state().await?;
++
++        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
++        let tmp = tempfile::tempdir()?;
++        let gov_root = tmp.path().join(".handshake/gov");
++        let _workspace_root = EnvVarGuard::set(
++            "HANDSHAKE_WORKSPACE_ROOT",
++            &tmp.path().display().to_string(),
++        );
++        let _gov_root_env =
++            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
++
++        let runtime_paths = RuntimeGovernancePaths::resolve()?;
++
++        // ── 1. Materialise a task-board index with two work packets ──
++        let tb_dir = gov_root.join("task_board");
++        std::fs::create_dir_all(&tb_dir)?;
++
++        fn make_entry(
++            wp_id: &str,
++            family: locus::WorkflowStateFamily,
++            reason: locus::WorkflowQueueReasonCode,
++            actions: Vec<String>,
++            order: u64,
++        ) -> locus::task_board::TaskBoardEntryRecordV1 {
++            locus::task_board::TaskBoardEntryRecordV1 {
++                schema_id: "hsk.task_board_entry@1".into(),
++                schema_version: "1.0.0".into(),
++                record_id: format!("tbe-{wp_id}"),
++                record_kind: "task_board_entry".into(),
++                project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++                profile_extension: None,
++                updated_at: Utc::now().to_rfc3339(),
++                mirror_state: locus::MirrorSyncState::CanonicalOnly,
++                authority_refs: vec![format!("ref:{wp_id}")],
++                evidence_refs: vec![format!("ev:{wp_id}")],
++                mirror_contract: None,
++                workflow_state_family: family,
++                queue_reason_code: reason,
++                allowed_action_ids: actions,
++                task_board_id: "tb-compact-001".into(),
++                work_packet_id: wp_id.into(),
++                lane_id: "default".into(),
++                display_order: order,
++                view_ids: vec![],
++                token: format!("tok-{wp_id}"),
++                status: "ready".into(),
++                summary_ref: format!("summary-{wp_id}.json"),
++            }
++        }
++
++        let index = locus::task_board::TaskBoardIndexV1 {
++            schema_id: "hsk.task_board_index@1".into(),
++            schema_version: "1.0.0".into(),
++            record_id: "tb-idx-compact".into(),
++            record_kind: "task_board_index".into(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            profile_extension: None,
++            updated_at: Utc::now().to_rfc3339(),
++            mirror_state: locus::MirrorSyncState::CanonicalOnly,
++            authority_refs: vec![],
++            evidence_refs: vec![],
++            mirror_contract: None,
++            task_board_id: "tb-compact-001".into(),
++            generated_at: Utc::now().to_rfc3339(),
++            view_ids: vec![],
++            rows: vec![
++                make_entry(
++                    "WP-SUM-READY",
++                    locus::WorkflowStateFamily::Ready,
++                    locus::WorkflowQueueReasonCode::ReadyForLocalSmallModel,
++                    vec!["start".into()],
++                    0,
++                ),
++                make_entry(
++                    "WP-SUM-BLOCKED",
++                    locus::WorkflowStateFamily::Blocked,
++                    locus::WorkflowQueueReasonCode::BlockedPolicy,
++                    vec![],
++                    1,
++                ),
++            ],
++        };
++        std::fs::write(
++            tb_dir.join("index.json"),
++            serde_json::to_string_pretty(&index)?,
++        )?;
++
++        // ── 2. Materialise role-mailbox artifacts with a wait reason linked
++        //       to WP-SUM-BLOCKED ──
++        let mb_dir = gov_root.join("ROLE_MAILBOX");
++        let threads_dir = mb_dir.join("threads");
++        std::fs::create_dir_all(&threads_dir)?;
++
++        let mb_index = serde_json::json!({
++            "generated_at": Utc::now().to_rfc3339(),
++            "threads": [{
++                "thread_id": "thr-wait-001",
++                "created_at": "2026-04-11T00:00:00Z",
++                "closed_at": null,
++                "participants": ["CODER", "VALIDATOR"],
++                "context": {
++                    "work_packet_id": "WP-SUM-BLOCKED"
++                },
++                "subject_redacted": "blocker on WP-SUM-BLOCKED",
++                "message_count": 1,
++                "thread_file": "threads/thr-wait-001.jsonl"
++            }]
++        });
++        std::fs::write(
++            mb_dir.join("index.json"),
++            serde_json::to_string_pretty(&mb_index)?,
++        )?;
++        std::fs::write(
++            threads_dir.join("thr-wait-001.jsonl"),
++            serde_json::to_string(&serde_json::json!({
++                "message_id": "msg-001",
++                "thread_id": "thr-wait-001",
++                "from_role": "CODER",
++                "to_roles": ["VALIDATOR"],
++                "message_type": "blocker",
++                "created_at": "2026-04-11T00:00:00Z",
++                "body_ref": "body.md",
++                "body_sha256": "abc123",
++                "transcription_links": [],
++                "attachments": []
++            }))?,
++        )?;
++
++        // ── 3. Build snapshot and derive compact summaries ──
++        let snapshot = build_dcc_control_plane_snapshot(
++            &state.session_registry,
++            &runtime_paths,
++            &state.capability_registry,
++            state.storage.as_ref(),
++        )
++        .await?;
++
++        let summaries = snapshot.compact_summaries();
++        assert_eq!(
++            summaries.len(),
++            2,
++            "one compact summary per work packet in the snapshot"
++        );
++
++        // ── 4. Verify schema envelope on every summary ──
++        let descriptor = locus::structured_collaboration_schema_descriptor(
++            locus::StructuredCollaborationRecordFamily::DccCompactSummary,
++        );
++        for cs in &summaries {
++            assert_eq!(cs.schema_id, descriptor.schema_id);
++            assert_eq!(cs.schema_version, descriptor.schema_version);
++            assert_eq!(cs.record_kind, descriptor.record_kind);
++        }
++
++        // ── 5. Verify stable IDs survive the compact summary derivation ──
++        let ready_cs = summaries
++            .iter()
++            .find(|s| s.work_packet_id == "WP-SUM-READY")
++            .expect("compact summary for WP-SUM-READY must exist");
++        let blocked_cs = summaries
++            .iter()
++            .find(|s| s.work_packet_id == "WP-SUM-BLOCKED")
++            .expect("compact summary for WP-SUM-BLOCKED must exist");
++
++        // record_id must equal work_packet_id (joinable to detail record)
++        assert_eq!(ready_cs.record_id, "WP-SUM-READY");
++        assert_eq!(blocked_cs.record_id, "WP-SUM-BLOCKED");
++
++        // task_board_id preserved
++        assert_eq!(
++            ready_cs.task_board_id.as_deref(),
++            Some("tb-compact-001")
++        );
++        assert_eq!(
++            blocked_cs.task_board_id.as_deref(),
++            Some("tb-compact-001")
++        );
++
++        // workflow_state_family and queue_reason_code carry through
++        assert_eq!(
++            ready_cs.workflow_state_family,
++            locus::WorkflowStateFamily::Ready
++        );
++        assert_eq!(
++            ready_cs.queue_reason_code,
++            locus::WorkflowQueueReasonCode::ReadyForLocalSmallModel
++        );
++        assert_eq!(
++            blocked_cs.workflow_state_family,
++            locus::WorkflowStateFamily::Blocked
++        );
++        assert_eq!(
++            blocked_cs.queue_reason_code,
++            locus::WorkflowQueueReasonCode::BlockedPolicy
++        );
++
++        // allowed_action_ids preserved
++        assert_eq!(ready_cs.allowed_action_ids, vec!["start"]);
++        assert!(blocked_cs.allowed_action_ids.is_empty());
++
++        // authority_refs and evidence_refs preserved (joinable)
++        assert_eq!(ready_cs.authority_refs, vec!["ref:WP-SUM-READY"]);
++        assert_eq!(ready_cs.evidence_refs, vec!["ev:WP-SUM-READY"]);
++
++        // project_profile_kind preserved
++        assert_eq!(
++            ready_cs.project_profile_kind,
++            locus::ProjectProfileKind::SoftwareDelivery
++        );
++
++        // summary_ref preserved
++        assert_eq!(
++            ready_cs.summary_ref.as_deref(),
++            Some("summary-WP-SUM-READY.json")
++        );
++
++        // ── 5b. Verify semantic summary-first contract (6.3) ──
++        // title_or_objective must carry bounded triage content, not raw refs
++        assert!(
++            ready_cs.title_or_objective.contains("WP-SUM-READY"),
++            "ready title must include work_packet_id: got {:?}",
++            ready_cs.title_or_objective
++        );
++        assert!(
++            ready_cs.title_or_objective.contains("Ready"),
++            "ready title must include state family: got {:?}",
++            ready_cs.title_or_objective
++        );
++        assert!(
++            ready_cs.title_or_objective.contains("ready for local model"),
++            "ready title must include queue reason label: got {:?}",
++            ready_cs.title_or_objective
++        );
++        assert!(
++            ready_cs.title_or_objective.len() <= 160,
++            "title_or_objective must be bounded to 160 chars"
++        );
++
++        assert!(
++            blocked_cs.title_or_objective.contains("WP-SUM-BLOCKED"),
++            "blocked title must include work_packet_id: got {:?}",
++            blocked_cs.title_or_objective
++        );
++        assert!(
++            blocked_cs.title_or_objective.contains("Blocked"),
++            "blocked title must include state family: got {:?}",
++            blocked_cs.title_or_objective
++        );
++        assert!(
++            blocked_cs.title_or_objective.contains("blocked: policy"),
++            "blocked title must include queue reason label: got {:?}",
++            blocked_cs.title_or_objective
++        );
++
++        // blockers: blocked WP must carry blocker text from wait reasons
++        assert!(
++            !blocked_cs.blockers.is_empty(),
++            "blocked WP must have non-empty blockers"
++        );
++        assert!(
++            blocked_cs.blockers.iter().any(|b| b.contains("blocker_resolution")),
++            "blocked WP blocker must reference expected_response from wait reason: got {:?}",
++            blocked_cs.blockers
++        );
++        // ready WP has no blockers
++        assert!(
++            ready_cs.blockers.is_empty(),
++            "ready WP must have no blockers"
++        );
++
++        // next_action: derived from allowed_action_ids or state family default
++        assert_eq!(
++            ready_cs.next_action.as_deref(),
++            Some("start"),
++            "ready WP next_action must be first allowed action 'start'"
++        );
++        assert_eq!(
++            blocked_cs.next_action.as_deref(),
++            Some("unblock"),
++            "blocked WP with no allowed actions must default to 'unblock'"
++        );
++
++        // all blockers must be bounded to 160 chars
++        for b in &blocked_cs.blockers {
++            assert!(
++                b.len() <= 160,
++                "blocker text must be bounded to 160 chars"
++            );
++        }
++
++        // ── 6. Verify routing hints ──
++        // WP-SUM-BLOCKED has one linked mailbox thread with an unanswered blocker
++        assert_eq!(
++            blocked_cs.active_thread_count, 1,
++            "WP-SUM-BLOCKED has one active mailbox thread"
++        );
++        assert_eq!(
++            blocked_cs.pending_wait_count, 1,
++            "WP-SUM-BLOCKED has one pending wait reason"
++        );
++
++        // WP-SUM-READY has no mailbox threads
++        assert_eq!(ready_cs.active_thread_count, 0);
++        assert_eq!(ready_cs.pending_wait_count, 0);
++
++        // No sessions bound (empty registry)
++        assert!(!ready_cs.session_bound);
++        assert!(!blocked_cs.session_bound);
++
++        // ── 7. Verify serde round-trip ──
++        let json = serde_json::to_value(&summaries)?;
++        let round_tripped: Vec<locus::DccCompactSummaryV1> =
++            serde_json::from_value(json)?;
++        assert_eq!(round_tripped.len(), summaries.len());
++        for (original, rt) in summaries.iter().zip(round_tripped.iter()) {
++            assert_eq!(original.record_id, rt.record_id);
++            assert_eq!(original.work_packet_id, rt.work_packet_id);
++            assert_eq!(original.task_board_id, rt.task_board_id);
++            assert_eq!(original.workflow_state_family, rt.workflow_state_family);
++            assert_eq!(original.queue_reason_code, rt.queue_reason_code);
++            assert_eq!(original.pending_wait_count, rt.pending_wait_count);
++            assert_eq!(original.active_thread_count, rt.active_thread_count);
++            assert_eq!(original.session_bound, rt.session_bound);
++            // Semantic fields survive round-trip
++            assert_eq!(original.title_or_objective, rt.title_or_objective);
++            assert_eq!(original.blockers, rt.blockers);
++            assert_eq!(original.next_action, rt.next_action);
++        }
++
++        // ── 8. Validate via structured collaboration validator ──
++        for cs in &summaries {
++            let val = serde_json::to_value(cs)?;
++            let result = locus::validate_structured_collaboration_record(
++                locus::StructuredCollaborationRecordFamily::DccCompactSummary,
++                &val,
++            );
++            assert!(
++                result.ok,
++                "compact summary must pass structured validation: {:?}",
++                result.issues
++            );
++        }
++
++        Ok(())
++    }

@@ -4,11 +4,12 @@ import {
   evaluateComputedPolicyGateFromPacketText,
 } from "../scripts/lib/computed-policy-gate-lib.mjs";
 import { GOV_ROOT_REPO_REL, listOfficialWorkPacketEntries, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("computed-policy-gate-check.mjs", { role: "SHARED" });
 
 function fail(message, details = []) {
-  console.error(`[COMPUTED_POLICY_GATE] ${message}`);
-  for (const detail of details) console.error(`  - ${detail}`);
-  process.exit(1);
+  failWithMemory("computed-policy-gate-check.mjs", message, { role: "SHARED", details });
 }
 
 function summarizeIssues(items) {

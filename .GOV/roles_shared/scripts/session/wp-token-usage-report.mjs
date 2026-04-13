@@ -3,13 +3,15 @@
 import { evaluateWpTokenBudget } from "./wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "./wp-token-usage-lib.mjs";
 import { REPO_ROOT } from "../lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("wp-token-usage-report.mjs", { role: "SHARED" });
 
 const repoRoot = REPO_ROOT;
 const wpId = String(process.argv[2] || "").trim();
 
 function fail(message) {
-  console.error(`[WP_TOKEN_USAGE] ${message}`);
-  process.exit(1);
+  failWithMemory("wp-token-usage-report.mjs", message, { role: "SHARED" });
 }
 
 if (!wpId || !/^WP-/.test(wpId)) {
@@ -41,6 +43,7 @@ console.log(`- command_count: ${ledger.summary.command_count}`);
 console.log(`- turn_count: ${ledger.summary.turn_count}`);
 console.log(`- input_tokens: ${ledger.summary.usage_totals.input_tokens}`);
 console.log(`- cached_input_tokens: ${ledger.summary.usage_totals.cached_input_tokens}`);
+console.log(`- fresh_input_tokens: ${Math.max(0, Number(ledger.summary.usage_totals.input_tokens || 0) - Number(ledger.summary.usage_totals.cached_input_tokens || 0))}`);
 console.log(`- output_tokens: ${ledger.summary.usage_totals.output_tokens}`);
 if (ledger.ledger_health.status !== "NO_OUTPUTS") {
   console.log(`- tracked_command_count: ${ledger.tracked_summary.command_count}`);
@@ -81,6 +84,7 @@ if (roleNames.length === 0) {
     console.log(`  turn_count: ${totals.turn_count}`);
     console.log(`  input_tokens: ${totals.usage_totals.input_tokens}`);
     console.log(`  cached_input_tokens: ${totals.usage_totals.cached_input_tokens}`);
+    console.log(`  fresh_input_tokens: ${Math.max(0, Number(totals.usage_totals.input_tokens || 0) - Number(totals.usage_totals.cached_input_tokens || 0))}`);
     console.log(`  output_tokens: ${totals.usage_totals.output_tokens}`);
   }
 }
@@ -96,16 +100,19 @@ if (budget.invalidity_code) {
 console.log(`- summary: ${budget.summary}`);
 console.log(`- total_warn_turn_count: ${budget.total.budgets.warn_turn_count}`);
 console.log(`- total_fail_turn_count: ${budget.total.budgets.fail_turn_count}`);
-console.log(`- total_warn_input_tokens: ${budget.total.budgets.warn_input_tokens}`);
-console.log(`- total_fail_input_tokens: ${budget.total.budgets.fail_input_tokens}`);
+console.log(`- total_warn_fresh_input_tokens: ${budget.total.budgets.warn_input_tokens}`);
+console.log(`- total_fail_fresh_input_tokens: ${budget.total.budgets.fail_input_tokens}`);
 for (const roleName of Object.keys(budget.roles || {}).sort((left, right) => left.localeCompare(right))) {
   const evaluation = budget.roles[roleName];
   console.log(`- role: ${roleName}`);
   console.log(`  status: ${evaluation.status}`);
   console.log(`  warn_turn_count: ${evaluation.budgets.warn_turn_count}`);
   console.log(`  fail_turn_count: ${evaluation.budgets.fail_turn_count}`);
-  console.log(`  warn_input_tokens: ${evaluation.budgets.warn_input_tokens}`);
-  console.log(`  fail_input_tokens: ${evaluation.budgets.fail_input_tokens}`);
+  console.log(`  warn_fresh_input_tokens: ${evaluation.budgets.warn_input_tokens}`);
+  console.log(`  fail_fresh_input_tokens: ${evaluation.budgets.fail_input_tokens}`);
+  console.log(`  gross_input_tokens: ${evaluation.input_tokens}`);
+  console.log(`  cached_input_tokens: ${evaluation.cached_input_tokens}`);
+  console.log(`  fresh_input_tokens: ${evaluation.fresh_input_tokens}`);
 }
 if (budget.warnings.length > 0) {
   console.log(`- warnings: ${budget.warnings.join(" | ")}`);

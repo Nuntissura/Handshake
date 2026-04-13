@@ -18,24 +18,26 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   WORKTREE_SPECS,
   absFromRepo,
   currentBranchInRepo,
-  dirtyInRepo,
   gitCheckoutExists,
   headShaInRepo,
   runGitInRepo,
   runGitInherit,
 } from "./git-topology-lib.mjs";
 import { GOV_ROOT_ABS } from "../lib/runtime-paths.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("sync-gov-to-main.mjs", { role: "SHARED" });
 
 const PREFIX = "[SYNC_GOV_TO_MAIN]";
 
 function fail(message) {
-  console.error(`${PREFIX} FAIL: ${message}`);
-  process.exit(1);
+  failWithMemory("sync-gov-to-main.mjs", message, { role: "SHARED" });
 }
 
 function parseMainWorktreeOverride(argv) {
@@ -52,6 +54,77 @@ function parseMainWorktreeOverride(argv) {
   const envValue = process.env.HANDSHAKE_MAIN_WORKTREE_OVERRIDE?.trim();
   return envValue ? path.resolve(envValue) : null;
 }
+
+function normalizeRepoPath(value) {
+  return String(value || "").replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function pathTouchesGov(value) {
+  const normalized = normalizeRepoPath(value);
+  return normalized === ".GOV" || normalized.startsWith(".GOV/");
+}
+
+function pathsFromPorcelainEntry(line) {
+  const raw = String(line || "");
+  if (raw.length < 4) return [];
+  const pathPortion = raw.slice(3).trim();
+  if (!pathPortion) return [];
+  return pathPortion
+    .split(" -> ")
+    .map((entry) => normalizeRepoPath(entry))
+    .filter(Boolean);
+}
+
+export function classifyMainWorktreeGovSyncStatus(statusOutput = "") {
+  const entries = String(statusOutput || "")
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map((line) => {
+      const indexStatus = line[0] || " ";
+      const worktreeStatus = line[1] || " ";
+      const paths = pathsFromPorcelainEntry(line);
+      return {
+        line,
+        indexStatus,
+        worktreeStatus,
+        paths,
+        touchesGov: paths.some((entry) => pathTouchesGov(entry)),
+      };
+    });
+
+  return {
+    entries,
+    govEntries: entries.filter((entry) => entry.touchesGov),
+    stagedOutsideGovEntries: entries.filter((entry) => !entry.touchesGov && entry.indexStatus !== " " && entry.indexStatus !== "?"),
+    unstagedOutsideGovEntries: entries.filter((entry) =>
+      !entry.touchesGov
+      && (entry.indexStatus === " " || entry.indexStatus === "?")
+      && (entry.worktreeStatus !== " " || entry.indexStatus === "?")
+    ),
+  };
+}
+
+function summarizeStatusEntries(entries = [], limit = 5) {
+  return entries
+    .slice(0, limit)
+    .map((entry) => entry.line)
+    .join(", ");
+}
+
+function readGitStatusPorcelainRaw(repoDir, args = []) {
+  return execFileSync(
+    "git",
+    ["status", "--porcelain=v1", "--untracked-files=all", ...args],
+    {
+      cwd: repoDir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    },
+  );
+}
+
+function runSyncGovToMain() {
 
 // --- Resolve paths ---
 
@@ -95,8 +168,21 @@ if (mainBranch !== "main") {
   fail(`Main worktree is on branch '${mainBranch}', expected 'main'`);
 }
 
-if (dirtyInRepo(mainWorktreeAbs)) {
-  fail("Main worktree has uncommitted changes. Commit or stash before syncing.");
+const mainStatus = readGitStatusPorcelainRaw(mainWorktreeAbs);
+const mainDirtiness = classifyMainWorktreeGovSyncStatus(mainStatus);
+
+if (mainDirtiness.govEntries.length > 0) {
+  fail(`Main .GOV has uncommitted changes. Commit or stash before syncing. ${summarizeStatusEntries(mainDirtiness.govEntries)}`);
+}
+
+if (mainDirtiness.stagedOutsideGovEntries.length > 0) {
+  fail(`Main worktree has staged non-governance changes. Unstage or commit them before syncing. ${summarizeStatusEntries(mainDirtiness.stagedOutsideGovEntries)}`);
+}
+
+if (mainDirtiness.unstagedOutsideGovEntries.length > 0) {
+  console.log(
+    `${PREFIX} allowing unrelated unstaged main drift outside .GOV/: ${summarizeStatusEntries(mainDirtiness.unstagedOutsideGovEntries)}`
+  );
 }
 
 console.log(`${PREFIX} kernel .GOV/: ${kernelGovAbs}`);
@@ -171,3 +257,9 @@ const commitMessage = `gov: sync governance kernel ${shortSha}`;
 runGitInherit(mainWorktreeAbs, ["commit", "-m", commitMessage]);
 console.log(`${PREFIX} committed on main: ${commitMessage}`);
 console.log(`${PREFIX} done - push main when ready: git -C ${mainWorktreeAbs} push origin main`);
+}
+
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  runSyncGovToMain();
+}

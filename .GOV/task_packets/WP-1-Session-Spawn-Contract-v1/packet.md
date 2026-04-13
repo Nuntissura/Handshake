@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_TEMPLATE
+# TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
 
@@ -55,9 +55,9 @@ Requirements:
 - CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
-- SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
-- SESSION_HOST_FALLBACK: CLI_ESCALATION_WINDOW
-- SESSION_LAUNCH_POLICY: ORCHESTRATOR_PLUGIN_FIRST_WITH_2TRY_ESCALATION
+- SESSION_HOST_PREFERENCE: HANDSHAKE_ACP_BROKER
+- SESSION_HOST_FALLBACK: SYSTEM_TERMINAL_REPAIR_ONLY
+- SESSION_LAUNCH_POLICY: ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY
 - ROLE_SESSION_RUNTIME: CLI
 - CLI_SESSION_TOOL: codex
 - SESSION_PLUGIN_BRIDGE_ID: handshake.handshake-session-bridge
@@ -80,17 +80,17 @@ Requirements:
 - ROLE_SESSION_REASONING_CONFIG_VALUE: xhigh
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next WP-1-Session-Spawn-Contract-v1
-<!-- The WP Validator uses a dedicated local review branch/worktree rooted from the coder branch. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
+<!-- The WP Validator shares the coder branch/worktree [CX-503G]. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
 - WP_VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX
 <!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
 - WP_VALIDATOR_MODEL: claude-opus-4-6
 - WP_VALIDATOR_REASONING_STRENGTH: EXTRA_HIGH
-- WP_VALIDATOR_LOCAL_BRANCH: validate/WP-1-Session-Spawn-Contract-v1
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtv-spawn-contract-v1
+- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Session-Spawn-Contract-v1
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-spawn-contract-v1
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Session-Spawn-Contract-v1
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Session-Spawn-Contract-v1
-- WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
-- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-Session-Spawn-Contract-v1
+- WP_VALIDATOR_STARTUP_COMMAND: just validator-startup WP_VALIDATOR
+- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP_VALIDATOR WP-1-Session-Spawn-Contract-v1
 - INTEGRATION_VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX
 <!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
 - INTEGRATION_VALIDATOR_MODEL: claude-opus-4-6
@@ -99,10 +99,10 @@ Requirements:
 - INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Session-Spawn-Contract-v1
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Session-Spawn-Contract-v1
-- INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup
-- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-Session-Spawn-Contract-v1
+- INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup INTEGRATION_VALIDATOR
+- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next INTEGRATION_VALIDATOR WP-1-Session-Spawn-Contract-v1
 - EXTERNAL_VALIDATOR_BRIEF_COMMAND: just external-validator-brief WP-1-Session-Spawn-Contract-v1
-- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup -> just external-validator-brief WP-1-Session-Spawn-Contract-v1
+- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup VALIDATOR -> just external-validator-brief WP-1-Session-Spawn-Contract-v1
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY | ABANDONED
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING
@@ -1282,4 +1282,3 @@ INDEPENDENT_FINDINGS:
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
-

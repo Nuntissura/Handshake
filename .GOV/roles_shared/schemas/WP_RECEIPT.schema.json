@@ -37,6 +37,7 @@
         "OPERATOR",
         "ORCHESTRATOR",
         "CODER",
+        "MEMORY_MANAGER",
         "WP_VALIDATOR",
         "INTEGRATION_VALIDATOR",
         "VALIDATOR"
@@ -52,6 +53,7 @@
         "OPERATOR",
         "WORKFLOW_AUTHORITY",
         "PRIMARY_CODER",
+        "MEMORY_MANAGER",
         "WP_VALIDATOR",
         "INTEGRATION_VALIDATOR",
         "SECONDARY_VALIDATOR"
@@ -90,7 +92,10 @@
         "VALIDATION_STATUS_SYNC",
         "STEERING",
         "REPAIR",
-        "WORKFLOW_INVALIDITY"
+        "WORKFLOW_INVALIDITY",
+        "MEMORY_PROPOSAL",
+        "MEMORY_FLAG",
+        "MEMORY_RGF_CANDIDATE"
       ]
     },
     "summary": {
@@ -130,6 +135,7 @@
         "OPERATOR",
         "ORCHESTRATOR",
         "CODER",
+        "MEMORY_MANAGER",
         "WP_VALIDATOR",
         "INTEGRATION_VALIDATOR",
         "VALIDATOR",

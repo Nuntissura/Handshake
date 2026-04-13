@@ -1,4 +1,4 @@
-ï»¿# TASK_PACKET_TEMPLATE
+# TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
 
@@ -55,9 +55,9 @@ Requirements:
 - CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
-- SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
-- SESSION_HOST_FALLBACK: CLI_ESCALATION_WINDOW
-- SESSION_LAUNCH_POLICY: ORCHESTRATOR_PLUGIN_FIRST_WITH_2TRY_ESCALATION
+- SESSION_HOST_PREFERENCE: HANDSHAKE_ACP_BROKER
+- SESSION_HOST_FALLBACK: SYSTEM_TERMINAL_REPAIR_ONLY
+- SESSION_LAUNCH_POLICY: ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY
 - ROLE_SESSION_RUNTIME: CLI
 - CLI_SESSION_TOOL: codex
 - SESSION_PLUGIN_BRIDGE_ID: handshake.handshake-session-bridge
@@ -80,7 +80,7 @@ Requirements:
 - ROLE_SESSION_REASONING_CONFIG_VALUE: xhigh
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next WP-1-FR-ModelSessionId-v1
-<!-- The WP Validator uses a dedicated local review branch/worktree rooted from the coder branch. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
+<!-- The WP Validator shares the coder branch/worktree [CX-503G]. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
 - WP_VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX
 <!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
 - WP_VALIDATOR_MODEL: claude-opus-4-6
@@ -89,8 +89,8 @@ Requirements:
 - WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-fr-modelsessionid-v1
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-FR-ModelSessionId-v1
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-FR-ModelSessionId-v1
-- WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
-- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-FR-ModelSessionId-v1
+- WP_VALIDATOR_STARTUP_COMMAND: just validator-startup WP_VALIDATOR
+- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP_VALIDATOR WP-1-FR-ModelSessionId-v1
 - INTEGRATION_VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX
 <!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
 - INTEGRATION_VALIDATOR_MODEL: claude-opus-4-6
@@ -99,10 +99,10 @@ Requirements:
 - INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-FR-ModelSessionId-v1
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-FR-ModelSessionId-v1
-- INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup
-- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-FR-ModelSessionId-v1
+- INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup INTEGRATION_VALIDATOR
+- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next INTEGRATION_VALIDATOR WP-1-FR-ModelSessionId-v1
 - EXTERNAL_VALIDATOR_BRIEF_COMMAND: just external-validator-brief WP-1-FR-ModelSessionId-v1
-- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup -> just external-validator-brief WP-1-FR-ModelSessionId-v1
+- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup VALIDATOR -> just external-validator-brief WP-1-FR-ModelSessionId-v1
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY | ABANDONED
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING
@@ -1007,12 +1007,12 @@ COUNTERFACTUAL_CHECKS:
 BOUNDARY_PROBES:
 - Producer/consumer: `FlightRecorderEvent.model_session_id` produced by builder at `mod.rs:408-410`, consumed by DuckDB INSERT at `duckdb.rs:582`, SELECT at `duckdb.rs:724`, and API response mapping at `api/flight_recorder.rs:263`. Chain is complete.
 - Storage/query: DuckDB column `model_session_id TEXT` at `duckdb.rs:250`, index at `duckdb.rs:288`, filter at `duckdb.rs:663-665`. Column is nullable, consistent with `Option<String>` in Rust.
-- Emitter/session: All 12 emitter call sites source model_session_id from `metadata.session_id.as_str()` â€” never from user input, job fields, or other indirect sources.
+- Emitter/session: All 12 emitter call sites source model_session_id from `metadata.session_id.as_str()` — never from user input, job fields, or other indirect sources.
 NEGATIVE_PATH_CHECKS:
 - Events created without `.with_model_session_id()` carry `model_session_id: None` (verified at `mod.rs:378`). DuckDB stores this as NULL. Queries with `model_session_id = ?` filter exclude NULL rows, so None-events are correctly excluded from session-scoped queries.
 - Non-session-scoped emitters (e.g., `FlightRecorderEventType::System` at `workflows.rs:6430`) correctly omit `.with_model_session_id()`, preserving the "when applicable" semantics from spec.
 INDEPENDENT_FINDINGS:
-- The packet declares 9 session emitters but the actual diff updates 12 call sites across 7 functions. The additional 3 are denied-outcome branches in `run_model_run_job` that the refinement undercount. This is correct â€” more coverage than expected.
+- The packet declares 9 session emitters but the actual diff updates 12 call sites across 7 functions. The additional 3 are denied-outcome branches in `run_model_run_job` that the refinement undercount. This is correct — more coverage than expected.
 - The `flight_recorder_round_trip` test was the most ambitious test (full field coverage) but was committed without compilation verification. The other two tests (`fr_model_session_id`, `query_by_session`) use only `with_model_session_id()` and appear syntactically correct.
 - The API file `api/flight_recorder.rs` is outside IN_SCOPE_PATHS but correctly plumbs model_session_id through filter and response. The TOUCHED_FILE_BUDGET of 3 counts in-scope files only, so this is not a budget violation, but it is out-of-scope modification.
 RESIDUAL_UNCERTAINTY:
@@ -1026,7 +1026,7 @@ SPEC_CLAUSE_MAP:
 - API model_session_id => `src/backend/handshake_core/src/api/flight_recorder.rs:48` (FlightEvent), `api/flight_recorder.rs:67` (EventFilter), `api/flight_recorder.rs:188` (filter forwarding), `api/flight_recorder.rs:263` (response mapping)
 NEGATIVE_PROOF:
 - The DONE_MEANS criterion "Tripwire test: verify all session-scoped FR events carry non-None model_session_id" has no dedicated automated test. The three tests verify FR layer storage/query but none mechanically enforces that all emitters populate the field. A future emitter added without `.with_model_session_id()` would not be caught by any existing test. Coverage was verified by code review (12/12 correct) but not by runtime test.
-- The `flight_recorder_round_trip` test at `duckdb.rs:1477-1540` does not compile â€” it calls 4 nonexistent builder methods, proving the test was never run before commit.
+- The `flight_recorder_round_trip` test at `duckdb.rs:1477-1540` does not compile — it calls 4 nonexistent builder methods, proving the test was never run before commit.
 ANTI_VIBE_FINDINGS:
 - The `flight_recorder_round_trip` test at `duckdb.rs:1502-1505` uses builder method names inferred from struct field names rather than verified against the actual builder API. All 4 non-model_session_id builder calls use the wrong names: `with_activity_span_id`, `with_session_span_id`, `with_capability_id`, `with_policy_decision_id`. The correct names are `with_activity_span`, `with_session_span`, `with_capability`, `with_policy_decision`. This indicates the test was generated without compilation verification.
 SIGNED_SCOPE_DEBT:
@@ -1042,10 +1042,10 @@ SHARED_SURFACE_INTERACTION_CHECKS:
 - EventFilter (mod.rs:5182-5190) is consumed by DuckDB query builder (duckdb.rs:640-678) and API filter (api/flight_recorder.rs:184-191). The model_session_id filter is additive (Option with Default::default() = None).
 - DuckDB events table schema is shared across all FR consumers. The ADD COLUMN IF NOT EXISTS migration at duckdb.rs:270 ensures backward compatibility with existing databases.
 CURRENT_MAIN_INTERACTION_CHECKS:
-- FlightRecorderEvent on main does NOT have model_session_id (confirmed by diff). Addition is purely additive â€” no existing field removed, renamed, or retyped.
+- FlightRecorderEvent on main does NOT have model_session_id (confirmed by diff). Addition is purely additive — no existing field removed, renamed, or retyped.
 - EventFilter on main does NOT have model_session_id. The #[derive(Default)] on EventFilter means new Option fields default to None, preserving backward compatibility for all existing callers.
-- DuckDB migration uses ADD COLUMN IF NOT EXISTS â€” safe for existing databases on main.
-- All 12 emitter changes are additive `.with_model_session_id()` chain calls appended to existing `.with_job_id()` chains â€” no existing emitter behavior altered.
+- DuckDB migration uses ADD COLUMN IF NOT EXISTS — safe for existing databases on main.
+- All 12 emitter changes are additive `.with_model_session_id()` chain calls appended to existing `.with_job_id()` chains — no existing emitter behavior altered.
 DATA_CONTRACT_PROOF:
 - DuckDB column is TEXT (nullable), PostgreSQL-ready (TEXT maps directly). No SQLite-only semantics introduced at `duckdb.rs:250,270`.
 - model_session_id is a stable structured field with explicit naming (`model_session_id`), not an overloaded text blob. LLM-parseable as a discrete correlation key.

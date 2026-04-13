@@ -22,6 +22,8 @@ import {
   parsePacketScopeDiscipline,
   scopeDisciplineRequiresEnforcement,
 } from '../../../roles_shared/scripts/lib/scope-surface-lib.mjs';
+import { validatePacketClosureMonitoring } from '../../../roles_shared/scripts/lib/packet-closure-monitor-lib.mjs';
+import { resolveCommittedCoderHandoffRange } from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
 import { resolveGitBaselineMergeBase } from '../scripts/lib/coder-governance-lib.mjs';
 
 const usage = () => [
@@ -283,13 +285,7 @@ const scopeContract = deriveWpScopeContract({ wpId: WP_ID, packetContent });
 const scopeDiscipline = parsePacketScopeDiscipline(packetContent);
 const enforceScopeDiscipline = scopeDisciplineRequiresEnforcement(parsePacketSingleField(packetContent, 'PACKET_FORMAT_VERSION'));
 
-const parseMergeBaseSha = (content) => {
-  if (!content) return null;
-  const m = content.match(/^\s*-\s*MERGE_BASE_SHA\s*:\s*([a-f0-9]{40})\s*$/mi);
-  return m ? m[1].toLowerCase() : null;
-};
-
-const PACKET_MERGE_BASE_SHA = parseMergeBaseSha(packetContent);
+const PACKET_COMMITTED_HANDOFF_RANGE = resolveCommittedCoderHandoffRange(packetContent, WP_ID);
 
 const requiresManifest = (filePath) => {
   const p = filePath.replace(/\\/g, '/');
@@ -484,6 +480,16 @@ const hasConcreteStatusField = (section, label) => {
 // Check 0: Canonical evidence must live in the packet for modern packets.
 // This is intentionally mechanical to keep validation reproducible.
 if (isModernPacket) {
+  const clauseClosureMonitorProfile = parsePacketSingleField(packetContent, 'CLAUSE_CLOSURE_MONITOR_PROFILE');
+  if (/^CLAUSE_MONITOR_V1$/i.test(clauseClosureMonitorProfile)) {
+    const closureMonitorValidation = validatePacketClosureMonitoring(packetContent, {
+      requireRows: true,
+    });
+    if (closureMonitorValidation.errors.length > 0) {
+      errors.push(`CLAUSE_CLOSURE_MATRIX invalid for handoff: ${closureMonitorValidation.errors.join('; ')}`);
+    }
+  }
+
   const evidenceMapping = extractSection(packetContent, 'EVIDENCE_MAPPING');
   if (!evidenceMapping) {
     errors.push('Missing ## EVIDENCE_MAPPING section (required for modern packets)');
@@ -500,7 +506,7 @@ if (isModernPacket) {
   } else {
     const evidenceLines = evidence.split('\n');
     const hasCommand = evidenceLines.some((l) => /COMMAND\s*:/i.test(l) && !/<paste>/i.test(l));
-    const hasExitCode = evidenceLines.some((l) => /EXIT_CODE\s*:\s*\d+/i.test(l));
+    const hasExitCode = evidenceLines.some((l) => /EXIT_CODE\s*:\s*`?\d+`?/i.test(l));
     if (!(hasCommand && hasExitCode)) {
       errors.push('EVIDENCE must include at least one COMMAND + EXIT_CODE entry for modern packets');
     }
@@ -593,10 +599,14 @@ const resolveEvaluation = () => {
   if (stagedFiles.length > 0) return { mode: 'staged', baseRev: null, headRev: null, reason: 'staged changes present' };
   if (workingFiles.length > 0) return { mode: 'worktree', baseRev: null, headRev: null, reason: 'working tree changes present' };
 
-  const head = 'HEAD';
-  if (PACKET_MERGE_BASE_SHA) {
-    return { mode: 'range', baseRev: PACKET_MERGE_BASE_SHA, headRev: head, reason: 'clean tree; validate packet MERGE_BASE_SHA..HEAD' };
+  if (PACKET_COMMITTED_HANDOFF_RANGE) {
+    const { baseRev, headRev, source } = PACKET_COMMITTED_HANDOFF_RANGE;
+    const reason = source === 'PACKET_EXPLICIT_HANDOFF_RANGE'
+      ? 'clean tree; validate packet explicit committed coder handoff range'
+      : 'clean tree; validate packet MERGE_BASE_SHA..HEAD';
+    return { mode: 'range', baseRev, headRev, reason };
   }
+  const head = 'HEAD';
   if (MERGE_BASE) {
     try {
       const headSha = gitTrim('git rev-parse HEAD');

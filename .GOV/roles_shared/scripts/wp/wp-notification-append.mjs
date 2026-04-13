@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import {
   communicationTransactionLockPathForWp,
   communicationPathsForWp,
@@ -57,12 +58,15 @@ function attemptOrchestratorAutoRelay({ wpId, notification }) {
     return { status: "NOT_APPLICABLE", reason: "NON_ORCHESTRATOR_MANAGED" };
   }
   const targetRole = String(notification?.target_role || "").trim().toUpperCase();
+  const targetSession = String(notification?.target_session || "").trim();
   if (!ACTIVE_AUTO_RELAY_ROLE_VALUES.has(targetRole)) {
     return { status: "NOT_APPLICABLE", reason: "NO_GOVERNED_TARGET_ROLE" };
   }
 
   try {
-    const output = execFileSync(process.execPath, [ORCHESTRATOR_STEER_SCRIPT_PATH, wpId, "PRIMARY"], {
+    const steerArgs = [ORCHESTRATOR_STEER_SCRIPT_PATH, wpId, "PRIMARY", `--target-role=${targetRole}`];
+    if (targetSession) steerArgs.push(`--target-session=${targetSession}`);
+    const output = execFileSync(process.execPath, steerArgs, {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -208,6 +212,6 @@ function runCli() {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isInvokedAsMain(import.meta.url, process.argv[1])) {
   runCli();
 }

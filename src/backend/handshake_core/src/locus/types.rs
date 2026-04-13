@@ -738,6 +738,60 @@ pub struct StructuredCollaborationSummaryV1 {
     pub summary_ref: Option<String>,
 }
 
+/// Compact summary contract for DCC and Role Mailbox triage (6.3).
+/// Extends the base StructuredCollaborationSummaryV1 envelope with
+/// DCC-specific stable identifiers and routing hints so local-small-model
+/// routing and operator views can default to this payload first, loading
+/// canonical detail records or Markdown sidecars only on demand.
+///
+/// Both DccCompactSummaryV1 and the canonical detail record MUST share the
+/// same record_id, project_profile_kind, and authoritative references so
+/// deterministic joins remain possible without transcript reconstruction.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DccCompactSummaryV1 {
+    // ── Base envelope (shared with StructuredCollaborationSummaryV1) ──
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub updated_at: String,
+    pub mirror_state: MirrorSyncState,
+    #[serde(default)]
+    pub authority_refs: Vec<String>,
+    #[serde(default)]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_contract: Option<MarkdownMirrorContractV1>,
+    pub workflow_state_family: WorkflowStateFamily,
+    pub queue_reason_code: WorkflowQueueReasonCode,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_action_ids: Vec<String>,
+    pub status: String,
+    pub title_or_objective: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blockers: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_action: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary_ref: Option<String>,
+    // ── DCC stable identifiers ──
+    pub work_packet_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_board_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_session_id: Option<String>,
+    // ── Routing hints for triage ──
+    #[serde(default)]
+    pub pending_wait_count: u32,
+    #[serde(default)]
+    pub active_thread_count: u32,
+    #[serde(default)]
+    pub session_bound: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrackedWorkPacketArtifactV1 {
     pub schema_id: String,
@@ -912,6 +966,57 @@ pub struct GateStatuses {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum WorkflowMirrorVerdict {
+    Pass,
+    Fail,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkflowMirrorGateSummary {
+    pub task_board_id: String,
+    pub gate_state_ref: String,
+    pub pre_work: GateStatus,
+    pub post_work: GateStatus,
+    #[serde(default)]
+    pub verdict: Option<WorkflowMirrorVerdict>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub check_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkflowMirrorGateArtifactV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub wp_id: String,
+    pub task_board_id: String,
+    pub gate_state_ref: String,
+    pub gate_summary: WorkflowMirrorGateSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkflowMirrorActivationSummary {
+    pub base_wp_id: String,
+    pub work_packet_id: String,
+    pub task_board_id: String,
+    pub active_packet_ref: String,
+    pub traceability_ref: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkflowMirrorActivationArtifactV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub base_wp_id: String,
+    pub work_packet_id: String,
+    pub task_board_id: String,
+    pub active_packet_ref: String,
+    pub traceability_ref: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkPacketPhase {
     #[serde(rename = "0")]
@@ -950,6 +1055,10 @@ pub struct WorkPacketGovernance {
     #[serde(default)]
     pub task_packet_path: Option<String>,
     pub task_board_status: TaskBoardStatus,
+    #[serde(default)]
+    pub gate_summary: Option<WorkflowMirrorGateSummary>,
+    #[serde(default)]
+    pub activation_summary: Option<WorkflowMirrorActivationSummary>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -1394,6 +1503,7 @@ pub const TASK_BOARD_INDEX_SCHEMA_ID_V1: &str = "hsk.task_board_index@1";
 pub const TASK_BOARD_VIEW_SCHEMA_ID_V1: &str = "hsk.task_board_view@1";
 pub const ROLE_MAILBOX_INDEX_SCHEMA_ID_V1: &str = "hsk.role_mailbox_index@1";
 pub const ROLE_MAILBOX_THREAD_LINE_SCHEMA_ID_V1: &str = "hsk.role_mailbox_thread_line@1";
+pub const DCC_COMPACT_SUMMARY_SCHEMA_ID_V1: &str = "hsk.dcc_compact_summary@1";
 pub const GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1: &str =
     "hsk.governance_artifact_registry@1";
 pub const GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1: &str =
@@ -1415,6 +1525,7 @@ pub enum StructuredCollaborationRecordFamily {
     TaskBoardView,
     RoleMailboxIndex,
     RoleMailboxThreadLine,
+    DccCompactSummary,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -1612,6 +1723,15 @@ pub fn structured_collaboration_schema_descriptor(
                 summary_family: None,
             }
         }
+        StructuredCollaborationRecordFamily::DccCompactSummary => {
+            StructuredCollaborationSchemaDescriptor {
+                family,
+                schema_id: DCC_COMPACT_SUMMARY_SCHEMA_ID_V1,
+                schema_version: STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1,
+                record_kind: "dcc_compact_summary",
+                summary_family: None,
+            }
+        }
     }
 }
 
@@ -1725,6 +1845,15 @@ pub fn validate_structured_collaboration_record(
                 "transcription_links",
                 &mut result,
             );
+        }
+        StructuredCollaborationRecordFamily::DccCompactSummary => {
+            require_non_empty_string(obj.get("status"), "status", &mut result);
+            require_non_empty_string(
+                obj.get("title_or_objective"),
+                "title_or_objective",
+                &mut result,
+            );
+            require_non_empty_string(obj.get("work_packet_id"), "work_packet_id", &mut result);
         }
     }
 

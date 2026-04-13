@@ -10,6 +10,8 @@ import {
   registrySessionSummary,
 } from "../session/session-registry-lib.mjs";
 import {
+  SESSION_CONTROL_BROKER_STATE_FILE,
+  SESSION_CONTROL_OUTPUT_DIR,
   SESSION_CONTROL_REQUESTS_FILE,
   SESSION_CONTROL_RESULTS_FILE,
   SESSION_REGISTRY_FILE,
@@ -36,22 +38,81 @@ import {
   resolveRefinementPath,
   resolveWorkPacketPath,
 } from "../lib/runtime-paths.mjs";
+import { getCurrentSession } from "../memory/governance-memory-lib.mjs";
 import { checkAllNotifications } from "../wp/wp-check-notifications.mjs";
+import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+
+registerFailCaptureHook("generate-post-run-audit-skeleton.mjs", { role: "SHARED" });
 
 function fail(message) {
-  console.error(`[POST_RUN_AUDIT_SKELETON] ${message}`);
-  process.exit(1);
+  failWithMemory("generate-post-run-audit-skeleton.mjs", message, { role: "SHARED" });
 }
 
 function normalizePath(value) {
   return String(value || "").replace(/\\/g, "/");
 }
 
+const REPORT_TIMEZONE = "Europe/Brussels";
+
+function dateTimeParts(value = new Date(), timeZone = REPORT_TIMEZONE) {
+  const date = value instanceof Date ? value : new Date(value);
+  return Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+}
+
+function formatLocalDate(value = new Date(), timeZone = REPORT_TIMEZONE) {
+  const parts = dateTimeParts(value, timeZone);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function formatLocalTimestamp(value = new Date(), timeZone = REPORT_TIMEZONE) {
+  const parts = dateTimeParts(value, timeZone);
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second} ${timeZone}`;
+}
+
+function formatDateTag(value = new Date(), timeZone = REPORT_TIMEZONE) {
+  const parts = dateTimeParts(value, timeZone);
+  return `${parts.year}${parts.month}${parts.day}`;
+}
+
+function auditSlugFromWpId(wpId) {
+  return String(wpId || "")
+    .replace(/^WP-\d+-/i, "")
+    .replace(/-v\d+$/i, "")
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+}
+
+function auditSlugHyphen(wpId) {
+  return auditSlugFromWpId(wpId).replace(/_/g, "-");
+}
+
+function countBy(items, predicate) {
+  return (items || []).reduce((sum, item) => sum + (predicate(item) ? 1 : 0), 0);
+}
+
 function parseArgs(argv) {
   const args = [...argv];
   const options = {
     wpId: "",
+    mode: "post-run",
     output: "",
+    autoOutput: false,
+    force: false,
+    sessionIntention: "",
   };
 
   while (args.length > 0) {
@@ -61,15 +122,37 @@ function parseArgs(argv) {
       options.wpId = token;
       continue;
     }
+    if (token === "--mode") {
+      options.mode = String(args.shift() || "").trim().toLowerCase();
+      continue;
+    }
     if (token === "--output") {
       options.output = String(args.shift() || "").trim();
+      continue;
+    }
+    if (token === "--auto-output") {
+      options.autoOutput = true;
+      continue;
+    }
+    if (token === "--force") {
+      options.force = true;
+      continue;
+    }
+    if (token === "--session-intention") {
+      options.sessionIntention = String(args.shift() || "").trim();
       continue;
     }
     fail(`Unknown argument: ${token}`);
   }
 
   if (!options.wpId) {
-    fail("Usage: node .GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs WP-{ID} [--output <file.md>]");
+    fail("Usage: node .GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs WP-{ID} [--mode post-run|live] [--output <file.md>] [--auto-output] [--force] [--session-intention \"...\"]");
+  }
+  if (!["post-run", "live"].includes(options.mode)) {
+    fail(`Unknown mode: ${options.mode}`);
+  }
+  if (options.output && options.autoOutput) {
+    fail("Use either --output or --auto-output, not both.");
   }
 
   return options;
@@ -95,6 +178,91 @@ function taskBoardStatus(governanceRepoRoot, wpId) {
   const content = fs.readFileSync(boardPath, "utf8");
   const match = content.match(new RegExp(`- \\*\\*\\[${wpId.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\]\\*\\* - \\[([^\\]]+)\\]`, "i"));
   return match ? match[1].trim() : "";
+}
+
+function readBrokerState(repoRoot) {
+  const brokerPath = path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE);
+  const broker = fs.existsSync(brokerPath) ? parseJsonFile(brokerPath) : null;
+  const activeRuns = Array.isArray(broker?.active_runs) ? broker.active_runs : [];
+  return {
+    path: normalizePath(SESSION_CONTROL_BROKER_STATE_FILE),
+    outputDir: normalizePath(SESSION_CONTROL_OUTPUT_DIR),
+    exists: Boolean(broker),
+    buildId: broker?.broker_build_id || "NONE",
+    authMode: broker?.broker_auth_mode || "NONE",
+    brokerPid: broker?.broker_pid || 0,
+    host: broker?.host || "NONE",
+    port: broker?.port || 0,
+    updatedAt: broker?.updated_at || "NONE",
+    activeRuns,
+  };
+}
+
+function formatBrokerActiveRuns(activeRuns) {
+  if (!activeRuns || activeRuns.length === 0) return ["- NONE"];
+  return activeRuns.map((run) =>
+    `- ${run.role || "ROLE"} ${run.command_kind || "COMMAND"} | session=${run.session_key || "NONE"} | started=${run.started_at || "NONE"} | timeout=${run.timeout_at || "NONE"}`
+  );
+}
+
+function listMicrotasks(packetAbsPath) {
+  const packetDir = path.dirname(packetAbsPath);
+  if (!fs.existsSync(packetDir)) return [];
+  return fs.readdirSync(packetDir)
+    .filter((entry) => /^MT-\d+\.md$/i.test(entry))
+    .sort((left, right) => left.localeCompare(right, "en", { numeric: true }))
+    .map((entry) => entry.replace(/\.md$/i, ""));
+}
+
+function buildPerMicrotaskSeedRows(microtasks) {
+  if (!microtasks || microtasks.length === 0) {
+    return ["MICROTASKS_NOT_USED or MT files not yet generated"];
+  }
+  return microtasks.map((mtId) => `| ${mtId} | <pending> | NONE | NOT_SENT | N/A | N/A | NO | 0 |`);
+}
+
+function formatDisplayTimeFromIso(iso, timeZone = REPORT_TIMEZONE) {
+  if (!iso) return "N/A";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "N/A";
+  return formatLocalTimestamp(date, timeZone);
+}
+
+function defaultLiveReviewRelativePath(governanceRepoRoot, wpId, now = new Date()) {
+  return normalizePath(path.relative(
+    governanceRepoRoot,
+    path.join(
+      governanceRepoRoot,
+      ".GOV",
+      "Audits",
+      "smoketest",
+      `DOSSIER_${formatDateTag(now)}_${auditSlugFromWpId(wpId)}_WORKFLOW_DOSSIER.md`,
+    ),
+  ));
+}
+
+function findExistingLiveReviewRelativePath(governanceRepoRoot, wpId) {
+  const auditsDir = path.join(governanceRepoRoot, ".GOV", "Audits", "smoketest");
+  if (!fs.existsSync(auditsDir)) return "";
+  const matches = fs.readdirSync(auditsDir)
+    .filter((entry) => entry.toLowerCase().endsWith(".md"))
+    .map((entry) => {
+      const absPath = path.join(auditsDir, entry);
+      try {
+        const text = fs.readFileSync(absPath, "utf8");
+        const isTargetPacket = text.includes(`- ACTIVE_RECOVERY_PACKET: ${wpId}`);
+        const isLive = text.includes("- LIVE_REVIEW_STATUS: OPEN");
+        return isTargetPacket && isLive
+          ? { absPath, mtimeMs: fs.statSync(absPath).mtimeMs }
+          : null;
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .sort((left, right) => right.mtimeMs - left.mtimeMs);
+  if (matches.length === 0) return "";
+  return normalizePath(path.relative(governanceRepoRoot, matches[0].absPath));
 }
 
 function readThreadSummary(threadPath) {
@@ -180,6 +348,29 @@ function formatNotificationLines(notificationSummary) {
   return notificationSummary.checks.map((entry) =>
     `- ${entry.role}: pending=${entry.pendingCount} | by_kind=${Object.entries(entry.byKind).map(([kind, count]) => `${kind}:${count}`).join(", ") || "NONE"}`
   );
+}
+
+function communicationMetrics(receipts, controlRequests) {
+  const governedReceiptCount = countBy(
+    receipts,
+    (entry) => ["WP-REVIEW-REQUEST", "WP-REVIEW-RESPONSE", "WP-NOTIFICATION"].includes(String(entry?.receipt_kind || "").trim().toUpperCase()),
+  );
+  const rawPromptCount = countBy(
+    controlRequests,
+    (entry) => String(entry?.command_kind || "").trim().toUpperCase() === "SEND_PROMPT",
+  );
+  const total = governedReceiptCount + rawPromptCount;
+  const ratio = total > 0 ? (governedReceiptCount / total) : 0;
+  let verdict = "NONE";
+  if (governedReceiptCount > 0 && rawPromptCount === 0) verdict = "GOVERNED";
+  else if (governedReceiptCount > rawPromptCount) verdict = "MOSTLY_GOVERNED";
+  else if (total > 0) verdict = "IMPLICIT";
+  return {
+    governedReceiptCount,
+    rawPromptCount,
+    governedRatio: total > 0 ? ratio.toFixed(2) : "0.00",
+    communicationVerdict: verdict,
+  };
 }
 
 function formatSessionLine(session) {
@@ -469,8 +660,429 @@ function buildSkeleton({
   ].join("\n");
 }
 
+function buildLiveReview({
+  governanceRepoRoot,
+  now,
+  wpId,
+  packetPath,
+  refinementPath,
+  packetAbsPath,
+  packetText,
+  runtimePath,
+  receiptsPath,
+  threadPath,
+  runtime,
+  receipts,
+  threadSummary,
+  sessions,
+  controlRequests,
+  controlResults,
+  notificationSummary,
+  brokerSummary,
+  currentSession,
+}) {
+  const dateTag = formatDateTag(now);
+  const slugUnderscore = auditSlugFromWpId(wpId);
+  const slugHyphen = auditSlugHyphen(wpId);
+  const packetStatus = parsePacketStatus(packetText) || "<missing>";
+  const boardStatus = taskBoardStatus(governanceRepoRoot, wpId) || "<missing>";
+  const workflowLane = parseSingleField(packetText, "WORKFLOW_LANE") || "<missing>";
+  const executionOwner = parseSingleField(packetText, "EXECUTION_OWNER") || "<missing>";
+  const microtaskRows = buildPerMicrotaskSeedRows(listMicrotasks(packetAbsPath));
+  const metrics = communicationMetrics(receipts, controlRequests);
+  const brokerRunLines = formatBrokerActiveRuns(brokerSummary.activeRuns);
+  const sessionLines = sessions.length > 0
+    ? sessions.map((session) => formatSessionLine(session))
+    : ["- NONE"];
+  const commandLines = controlResults.length > 0
+    ? controlResults.slice(-8).map((entry) => `- ${entry.command_kind}/${entry.status} | ${entry.processed_at || "<no-ts>"} | ${entry.role}/${entry.wp_id}`)
+    : ["- NONE"];
+  const receiptKindLines = formatReceiptKinds(receipts);
+  const notificationLines = formatNotificationLines(notificationSummary);
+  const sessionIntention = String(
+    currentSession?.topic
+    || ""
+  ).trim() || "<fill from repomem session topic>";
+  const currentStatusLine = runtime
+    ? `Current packet/runtime status is ${packetStatus} / ${runtime?.runtime_status || "<missing>"} with next actor ${runtime?.next_expected_actor || "<missing>"}.`
+    : "Runtime status file is missing or not yet initialized.";
+
+  return [
+    `# DOSSIER_${dateTag}_${slugUnderscore}_WORKFLOW_DOSSIER`,
+    "",
+    "## METADATA",
+    "",
+    `- WORKFLOW_DOSSIER_ID: WORKFLOW-DOSSIER-${dateTag}-${slugHyphen}`,
+    `- AUDIT_ID: AUDIT-${dateTag}-${slugHyphen}-SMOKETEST-REVIEW`,
+    `- SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-${dateTag}-${slugHyphen}`,
+    "- DOCUMENT_KIND: LIVE_WORKFLOW_DOSSIER",
+    "- LIVE_REVIEW_STATUS: OPEN",
+    `- REPO_TIMEZONE: ${REPORT_TIMEZONE}`,
+    "- REVIEW_KIND: <SET_AT_CLOSEOUT>",
+    `- DATE_LOCAL: ${formatLocalDate(now)}`,
+    `- DATE_UTC: ${now.toISOString().slice(0, 10)}`,
+    `- OPENED_AT_LOCAL: ${formatLocalTimestamp(now)}`,
+    `- OPENED_AT_UTC: ${now.toISOString()}`,
+    `- LAST_UPDATED_LOCAL: ${formatLocalTimestamp(now)}`,
+    `- LAST_UPDATED_UTC: ${now.toISOString()}`,
+    `- SESSION_INTENTION: ${sessionIntention}`,
+    "- AUTHOR: Codex acting as ORCHESTRATOR",
+    "- HISTORICAL_BASELINE_PACKET: NONE",
+    `- ACTIVE_RECOVERY_PACKET: ${wpId}`,
+    "- LINEAGE_STATUS: NONE",
+    "- RELATED_PREVIOUS_REVIEWS:",
+    "  - NONE",
+    "- SCOPE:",
+    `  - live workflow dossier opened at WP activation for \`${packetPath}\``,
+    `  - workflow lane \`${workflowLane}\` with execution owner \`${executionOwner}\``,
+    `  - ACP/session-control/runtime surfaces under \`../gov_runtime\``,
+    "- RESULT:",
+    "  - PRODUCT_REMEDIATION: PARTIAL",
+    "  - MASTER_SPEC_AUDIT: PARTIAL",
+    "  - WORKFLOW_DISCIPLINE: PARTIAL",
+    "  - ACP_RUNTIME_DISCIPLINE: PARTIAL",
+    "  - MERGE_PROGRESSION: PARTIAL",
+    "- KEY_COMMITS_REVIEWED:",
+    "  - NONE yet",
+    "- EVIDENCE_SOURCES:",
+    `  - \`${packetPath}\``,
+    `  - \`${normalizePath(refinementPath || "NONE")}\``,
+    `  - \`${normalizePath(runtimePath || "NONE")}\``,
+    `  - \`${normalizePath(receiptsPath || "NONE")}\``,
+    `  - \`${normalizePath(threadPath || "NONE")}\``,
+    `  - \`${normalizePath(SESSION_CONTROL_REQUESTS_FILE)}\``,
+    `  - \`${normalizePath(SESSION_CONTROL_RESULTS_FILE)}\``,
+    `  - \`${normalizePath(SESSION_CONTROL_OUTPUT_DIR)}\``,
+    `  - \`${normalizePath(SESSION_REGISTRY_FILE)}\``,
+    `  - \`${brokerSummary.path}\``,
+    "- RELATED_GOVERNANCE_ITEMS:",
+    "  - NONE",
+    "- RELATED_CHANGESETS:",
+    "  - NONE",
+    "",
+    "---",
+    "",
+    "## 1. Executive Summary",
+    "",
+    "- LIVE REVIEW OPENED at activation. This document is the run-time workflow dossier for the WP and should be updated as the run progresses.",
+    `- ${currentStatusLine}`,
+    "",
+    "## 2. Lineage and What This Run Needed To Prove",
+    "",
+    "- This review was opened at packet activation instead of reconstructed at closeout.",
+    "- Fill this section with the specific product and workflow truths the run needs to prove.",
+    "",
+    "### What Improved vs Previous Smoketest",
+    "",
+    "- NONE yet — live review opened at activation.",
+    "",
+    "## 3. Product Outcome",
+    "",
+    "- NONE yet — fill as product work lands.",
+    "",
+    "## 4. Timeline",
+    "",
+    "| Time (Europe/Brussels) | Event |",
+    "|---|---|",
+    `| ${formatLocalTimestamp(now)} | Live workflow dossier created at WP activation |`,
+    `| ${formatDisplayTimeFromIso(runtime?.last_event_at)} | Latest runtime event at creation time |`,
+    "",
+    "## 5. Per-Microtask Breakdown",
+    "",
+    "| MT | Prompt Summary | Commit | Time Sent | Time Committed | Compile First Pass | Validator Flagged | Fix Cycles |",
+    "|---|---|---|---|---|---|---|---|",
+    ...microtaskRows,
+    "",
+    "## 6. Communication Trail Audit",
+    "",
+    "List every inter-role message with timestamps and communication surface used as the run progresses.",
+    "",
+    "| # | Time | From | To | Surface | Content Summary |",
+    "|---|---|---|---|---|---|",
+    "| 1 | <fill> | <fill> | <fill> | <fill> | <fill> |",
+    "",
+    "Assessment:",
+    `- GOVERNED_RECEIPT_COUNT: ${metrics.governedReceiptCount}`,
+    `- RAW_PROMPT_COUNT: ${metrics.rawPromptCount}`,
+    `- GOVERNED_RATIO: ${metrics.governedRatio}`,
+    `- COMMUNICATION_VERDICT: ${metrics.communicationVerdict}`,
+    "",
+    "## 7. Structured Failure Ledger",
+    "",
+    `### 7.1 ${wpId} finding placeholder`,
+    `- FINDING_ID: SMOKE-FIND-${dateTag}-01`,
+    "- CATEGORY: WORKFLOW_DISCIPLINE",
+    "- ROLE_OWNER: SHARED",
+    "- SYSTEM_SCOPE: CONTROL_PLANE",
+    "- FAILURE_CLASS: UX_AMBIGUITY",
+    "- SURFACE:",
+    "- SEVERITY: MEDIUM",
+    "- STATUS: OPEN",
+    "- RELATED_GOVERNANCE_ITEMS:",
+    "  - NONE",
+    "- REGRESSION_HOOKS:",
+    "  - just gov-check",
+    "- Evidence:",
+    "  - NONE",
+    "- What went wrong:",
+    "  - NONE yet",
+    "- Impact:",
+    "  - NONE yet",
+    "- Mechanical fix direction:",
+    "  - NONE yet",
+    "",
+    "## 8. Role Review",
+    "",
+    "### 8.1 Orchestrator Review",
+    "",
+    "Strengths:",
+    "",
+    "- NONE yet",
+    "",
+    "Failures:",
+    "",
+    "- NONE yet",
+    "",
+    "Assessment:",
+    "",
+    "- NONE yet",
+    "",
+    "### 8.2 Coder Review",
+    "",
+    "Strengths:",
+    "",
+    "- NONE yet",
+    "",
+    "Failures:",
+    "",
+    "- NONE yet",
+    "",
+    "Assessment:",
+    "",
+    "- NONE yet",
+    "",
+    "### 8.3 WP Validator Review",
+    "",
+    "Strengths:",
+    "",
+    "- NONE yet",
+    "",
+    "Failures:",
+    "",
+    "- NONE yet",
+    "",
+    "Assessment:",
+    "",
+    "- NONE yet",
+    "",
+    "### 8.4 Integration Validator Review",
+    "",
+    "Strengths:",
+    "",
+    "- NONE yet",
+    "",
+    "Failures:",
+    "",
+    "- NONE yet",
+    "",
+    "Assessment:",
+    "",
+    "- NONE yet",
+    "",
+    "## 9. Review Of Coder and Validator Communication",
+    "",
+    "- NONE yet — fill as direct review traffic appears.",
+    "",
+    "## 9a. Memory Discipline",
+    "",
+    "- MEMORY_WRITES_BY_ROLE:",
+    "  - ORCHESTRATOR: NONE",
+    "  - CODER: NONE",
+    "  - WP_VALIDATOR: NONE",
+    "  - INTEGRATION_VALIDATOR: NONE",
+    "- MEMORY_WRITE_EVIDENCE:",
+    "  - NONE",
+    "- DUAL_WRITE_COMPLIANCE: PARTIAL",
+    "- MEMORY_VERDICT: NONE",
+    "- Assessment:",
+    "  - NONE yet",
+    "",
+    "## 9b. Build Artifact Hygiene",
+    "",
+    "- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake Artifacts`",
+    "- BUILD_TARGET_CLEANED_BY: NONE",
+    "- BUILD_TARGET_CLEANED_AT: N/A",
+    "- BUILD_TARGET_STATE_AT_CLOSEOUT: NOT_CHECKED",
+    "- Assessment:",
+    "  - NONE yet",
+    "",
+    "## 10. ACP Runtime / Session Control Findings",
+    "",
+    `- BROKER_STATE_FILE: \`${brokerSummary.path}\``,
+    `- SESSION_CONTROL_OUTPUT_DIR: \`${brokerSummary.outputDir}\``,
+    `- BROKER_PRESENT: ${brokerSummary.exists ? "YES" : "NO"}`,
+    `- BROKER_BUILD_ID: ${brokerSummary.buildId}`,
+    `- BROKER_AUTH_MODE: ${brokerSummary.authMode}`,
+    `- BROKER_HOST: ${brokerSummary.host}:${brokerSummary.port || 0}`,
+    `- BROKER_PID: ${brokerSummary.brokerPid || 0}`,
+    `- BROKER_UPDATED_AT_UTC: ${brokerSummary.updatedAt}`,
+    `- BROKER_ACTIVE_RUN_COUNT: ${brokerSummary.activeRuns.length}`,
+    `- GOVERNED_SESSION_COUNT: ${sessions.length}`,
+    `- CONTROL_REQUEST_COUNT: ${controlRequests.length}`,
+    `- CONTROL_RESULT_COUNT: ${controlResults.length}`,
+    `- PENDING_NOTIFICATION_TOTAL: ${notificationSummary.totalPending}`,
+    "",
+    "Active runs:",
+    ...brokerRunLines,
+    "",
+    "Governed sessions:",
+    ...sessionLines,
+    "",
+    "Latest control results:",
+    ...commandLines,
+    "",
+    "Receipt kinds:",
+    ...receiptKindLines,
+    "",
+    "Notification state:",
+    ...notificationLines,
+    "",
+    "## 11. Terminal Hygiene",
+    "",
+    "- TERMINALS_LAUNCHED: <fill>",
+    "- TERMINALS_CLOSED_ON_COMPLETION: <fill>",
+    "- TERMINALS_CLOSED_ON_FAILURE: <fill>",
+    "- TERMINALS_RECLAIMED_AT_CLOSEOUT: <fill>",
+    "- STALE_BLANK_TERMINALS_REMAINING: <fill>",
+    "- TERMINAL_HYGIENE_VERDICT: <CLEAN|PARTIAL|FAILED>",
+    "",
+    "Assessment:",
+    "",
+    "- NONE yet",
+    "",
+    "## 12. Governance Linkage and Board Mapping",
+    "",
+    "- BOARD_LINKS:",
+    "  - NONE",
+    "- CHANGESET_LINKS:",
+    "  - NONE",
+    "- POLICY_OR_TEMPLATE_FOLLOWUPS:",
+    "  - NONE yet",
+    "",
+    "## 13. Positive Controls Worth Preserving",
+    "",
+    `### 13.1 ${wpId} positive control placeholder`,
+    `- CONTROL_ID: SMOKE-CONTROL-${dateTag}-01`,
+    "- CONTROL_TYPE: REGRESSION_GUARD",
+    "- SURFACE:",
+    "- What went well:",
+    "  - NONE yet",
+    "- Why it mattered:",
+    "  - NONE yet",
+    "- Evidence:",
+    "  - NONE yet",
+    "- REGRESSION_GUARDS:",
+    "  - just gov-check",
+    "",
+    "## 14. Cost Attribution",
+    "",
+    "| Phase | Time (min) | Orchestrator Tokens (est) | Notes |",
+    "|---|---|---|---|",
+    "| Refinement | <N> | <N or %> | |",
+    "| Per-MT Coding (total) | <N> | <N or %> | |",
+    "| Validation | <N> | <N or %> | |",
+    "| Fix Cycle | <N> | <N or %> | |",
+    "| Closeout | <N> | <N or %> | |",
+    "| Polling/Waiting | <N> | <N or %> | |",
+    "| TOTAL | <N> | <N or %> | |",
+    "",
+    "## 15. Comparison Table (vs Previous WP)",
+    "",
+    "| Metric | Previous WP | This WP | Trend |",
+    "|---|---|---|---|",
+    "| Total lines changed | <N> | <N> | |",
+    "| Microtask count | <N> | <N> | |",
+    "| Compile errors (first pass) | <N> | <N> | |",
+    "| Validator findings | <N> | <N> | |",
+    "| Fix cycles | <N> | <N> | |",
+    "| Stubs discovered | <N> | <N> | |",
+    "| Governed receipts created | <N> | <N> | |",
+    "",
+    "## Workflow Dossier Closeout Rubric",
+    "",
+    "- Fill at closeout using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.",
+    "",
+    "## 17. Silent Failures, Command Surface Misuse, and Ambiguity Scan",
+    "",
+    "- Fill at closeout using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.",
+    "",
+    "## 18. What Should Change Before The Next Run",
+    "",
+    "- NONE yet",
+    "",
+    "## 19. Suggested Remediations",
+    "",
+    "### Governance / Runtime",
+    "",
+    "- NONE yet",
+    "",
+    "### Product / Validation Quality",
+    "",
+    "- NONE yet",
+    "",
+    "### Documentation / Review Practice",
+    "",
+    "- NONE yet",
+    "",
+    "## 20. Command Log",
+    "",
+    "- `just orchestrator-prepare-and-packet` -> PASS (live workflow dossier created during activation)",
+    "",
+    "## LIVE_EXECUTION_LOG (append-only during WP execution)",
+    "",
+    "This section is append-only. The Orchestrator records execution milestones, dead-time observations, ACP/runtime events, and route changes as they happen.",
+    "",
+    "Format: `- [TIMESTAMP] [ROLE] [TYPE] [SURFACE] <summary>`",
+    "",
+    `- [${formatLocalTimestamp(now)}] [ORCHESTRATOR] [REVIEW_OPENED] [${normalizePath(packetPath)}] Live workflow dossier created with current ACP/session snapshot`,
+    "",
+    "## LIVE_IDLE_LEDGER (append-only during WP execution)",
+    "",
+    "This section is append-only. Mechanical sync appends latency, idle-gap, and drift markers derived from ACP/session-control plus WP communication timing.",
+    "",
+    "Format: `- [TIMESTAMP] [ROLE] [IDLE_LEDGER] [SURFACE] <mechanical summary>`",
+    "",
+    "- [<TIMESTAMP>] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] <review_rtt|pass_to_coder|idle|drift>",
+    "",
+    "## LIVE_GOVERNANCE_CHANGE_LOG (append-only during WP execution)",
+    "",
+    "This section is append-only. Record governance-only refactors, template changes, helper patches, and protocol repairs made during the run.",
+    "",
+    "Format: `- [TIMESTAMP] [ROLE] [CHANGE_TYPE] <surface> :: <summary>`",
+    "",
+    "- [<TIMESTAMP>] [ORCHESTRATOR] [PATCH] <surface> :: <summary>",
+    "",
+    "## LIVE_CONCERNS_LOG (append-only during WP execution)",
+    "",
+    "This section is append-only. Capture unresolved concerns, skepticism, or operator-observed smells before closeout.",
+    "",
+    "Format: `- [TIMESTAMP] [ROLE] [CONCERN] <summary>`",
+    "",
+    "- [<TIMESTAMP>] [ORCHESTRATOR] [CONCERN] <summary>",
+    "",
+    "## LIVE_FINDINGS_LOG (append-only during WP execution)",
+    "",
+    "This section is append-only. Roles add findings as they occur during WP work.",
+    "",
+    "Format: `- [TIMESTAMP] [ROLE] [CATEGORY] <finding>`",
+    "",
+    "- [<TIMESTAMP>] [CODER|WP_VALIDATOR|ORCHESTRATOR] [CATEGORY] <finding>",
+  ].join("\n");
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
+  const now = new Date();
   const resolvedPacket = resolveWorkPacketPath(options.wpId);
   if (!resolvedPacket?.packetPath || !fs.existsSync(resolvedPacket.packetAbsPath || "")) {
     fail(`Packet not found for ${options.wpId}`);
@@ -490,6 +1102,11 @@ function main() {
   const receipts = receiptsPath && fs.existsSync(repoPathAbs(receiptsPath)) ? parseJsonlFile(receiptsPath) : [];
   const threadSummary = readThreadSummary(threadPath);
   const notificationSummary = summarizeNotifications(options.wpId, commDir);
+  const brokerSummary = readBrokerState(repoRoot);
+  const currentSession = getCurrentSession() || {};
+  if (options.sessionIntention) {
+    currentSession.topic = options.sessionIntention;
+  }
   const latestReceipt = receipts.at(-1) || null;
   const pendingNotifications = notificationSummary.checks.flatMap((entry) => entry.notifications || []);
   const communicationHealthArgs = {
@@ -540,33 +1157,68 @@ function main() {
   const controlRequests = controlRequestsAll.filter((entry) => String(entry.wp_id || "").trim() === options.wpId);
   const controlResults = controlResultsAll.filter((entry) => String(entry.wp_id || "").trim() === options.wpId);
 
-  const content = buildSkeleton({
-    governanceRepoRoot,
-    wpId: options.wpId,
-    packetPath,
-    refinementPath,
-    packetText,
-    runtimePath,
-    receiptsPath,
-    threadPath,
-    runtime,
-    receipts,
-    threadSummary,
-    gateLogs,
-    sessions,
-    batchSummary,
-    controlRequests,
-    controlResults,
-    notificationSummary,
-    validatorGateSummary,
-    communicationStatusEvaluation,
-    communicationVerdictEvaluation,
-    communicationBoundaryEvaluation,
-    computedPolicyEvaluation,
-  });
+  const content = options.mode === "live"
+    ? buildLiveReview({
+        governanceRepoRoot,
+        now,
+        wpId: options.wpId,
+        packetPath,
+        refinementPath,
+        packetAbsPath,
+        packetText,
+        runtimePath,
+        receiptsPath,
+        threadPath,
+        runtime,
+        receipts,
+        threadSummary,
+        sessions,
+        controlRequests,
+        controlResults,
+        notificationSummary,
+        brokerSummary,
+        currentSession,
+      })
+    : buildSkeleton({
+        governanceRepoRoot,
+        wpId: options.wpId,
+        packetPath,
+        refinementPath,
+        packetText,
+        runtimePath,
+        receiptsPath,
+        threadPath,
+        runtime,
+        receipts,
+        threadSummary,
+        gateLogs,
+        sessions,
+        batchSummary,
+        controlRequests,
+        controlResults,
+        notificationSummary,
+        validatorGateSummary,
+        communicationStatusEvaluation,
+        communicationVerdictEvaluation,
+        communicationBoundaryEvaluation,
+        computedPolicyEvaluation,
+      });
 
-  if (options.output) {
-    const outputPath = path.resolve(repoRoot, options.output);
+  const existingLiveRelativePath = options.mode === "live"
+    ? findExistingLiveReviewRelativePath(governanceRepoRoot, options.wpId)
+    : "";
+  const outputRelativePath = options.output
+    ? normalizePath(options.output)
+    : options.autoOutput
+      ? (existingLiveRelativePath || defaultLiveReviewRelativePath(governanceRepoRoot, options.wpId, now))
+      : "";
+
+  if (outputRelativePath) {
+    const outputPath = path.resolve(repoRoot, outputRelativePath);
+    if (options.mode === "live" && fs.existsSync(outputPath) && !options.force) {
+      console.log(normalizePath(path.relative(repoRoot, outputPath)) || normalizePath(outputPath));
+      return;
+    }
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     fs.writeFileSync(outputPath, `${content}\n`, "utf8");
     console.log(normalizePath(path.relative(repoRoot, outputPath)) || normalizePath(outputPath));

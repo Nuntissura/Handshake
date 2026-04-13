@@ -32,14 +32,18 @@ export const ROLE_MODEL_PROFILE_PACKET_MIN_VERSION = "2026-04-06";
 export const ROLE_MODEL_PROFILE_STUB_MIN_VERSION = "2026-04-06";
 
 export const SESSION_START_AUTHORITY = "ORCHESTRATOR_ONLY";
-export const SESSION_HOST_PREFERENCE = "VSCODE_EXTENSION_TERMINAL";
-export const SESSION_HOST_FALLBACK = "CLI_ESCALATION_WINDOW";
-export const SESSION_LAUNCH_POLICY = "ORCHESTRATOR_PLUGIN_FIRST_WITH_2TRY_ESCALATION";
+export const SESSION_HOST_PREFERENCE = "HANDSHAKE_ACP_BROKER";
+export const SESSION_PLUGIN_HOST = "VSCODE_EXTENSION_TERMINAL";
+export const SESSION_HOST_FALLBACK = "SYSTEM_TERMINAL_REPAIR_ONLY";
+export const SESSION_HOST_FALLBACK_LEGACY = "CLI_ESCALATION_WINDOW";
+export const SESSION_LAUNCH_POLICY = "ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY";
 export const ROLE_SESSION_RUNTIME = "CLI";
 export const CLI_SESSION_TOOL = "codex";
 export const SESSION_PLUGIN_BRIDGE_ID = "handshake.handshake-session-bridge";
 export const SESSION_PLUGIN_BRIDGE_COMMAND = "handshakeSessionBridge.processLaunchQueue";
 export const SESSION_PLUGIN_REQUESTS_FILE = SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE;
+export const SESSION_COMPATIBILITY_SURFACE = "VSCODE_PLUGIN_REPAIR_ONLY";
+export const SESSION_COMPATIBILITY_QUEUE_FILE = SESSION_PLUGIN_REQUESTS_FILE;
 export const SESSION_REGISTRY_FILE = SHARED_GOV_SESSION_REGISTRY_FILE;
 export const SESSION_CONTROL_MODE = "STEERABLE";
 export const SESSION_CONTROL_TRANSPORT_PRIMARY = "CODEX_EXEC_RESUME_JSON";
@@ -183,10 +187,12 @@ export const ROLE_MODEL_PROFILE_CATALOG = Object.freeze({
 export const ROLE_MODEL_PROFILE_IDS = Object.freeze(Object.keys(ROLE_MODEL_PROFILE_CATALOG));
 export const ROLE_MODEL_PROFILE_HELP = ROLE_MODEL_PROFILE_IDS.join(" | ");
 export const DEFAULT_ROLE_MODEL_PROFILE_IDS = Object.freeze({
+  ACTIVATION_MANAGER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   ORCHESTRATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   CODER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   WP_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   INTEGRATION_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+  MEMORY_MANAGER: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
 });
 export const ROLE_MODEL_PROFILE_FALLBACKS = Object.freeze({
   [ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
@@ -196,7 +202,7 @@ export const ROLE_MODEL_PROFILE_FALLBACKS = Object.freeze({
   [ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_7B]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
   [ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_14B]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
 });
-export const WP_TOKEN_BUDGET_POLICY_ID = "ORCHESTRATOR_MANAGED_V1";
+export const WP_TOKEN_BUDGET_POLICY_ID = "ORCHESTRATOR_MANAGED_V2_CACHED_AWARE";
 export const WP_TOKEN_LEDGER_HEALTH_POLICY_ID = "ORCHESTRATOR_MANAGED_LEDGER_V1";
 export const WP_TOKEN_LEDGER_HEALTH_THRESHOLDS = Object.freeze({
   warn_command_delta_count: 1,
@@ -248,7 +254,7 @@ export const EXECUTION_OWNER_TOKENS = Array.from({ length: 26 }, (_, index) =>
 );
 export const EXECUTION_OWNER_VALUES = EXECUTION_OWNER_TOKENS.map((token) => `CODER_${token}`);
 export const EXECUTION_OWNER_RANGE_HELP = "Coder-A..Coder-Z";
-export const SESSION_ROLES = ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
+export const SESSION_ROLES = ["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "MEMORY_MANAGER"];
 export const SESSION_RUNTIME_STATES = [
   "UNSTARTED",
   "PLUGIN_REQUESTED",
@@ -294,17 +300,28 @@ export const SESSION_COMMAND_STATUSES = [
   "COMPLETED",
   "FAILED",
 ];
+export const SESSION_COMMAND_OUTCOME_STATES = [
+  "NONE",
+  "SETTLED",
+  "ALREADY_READY",
+  "BUSY_ACTIVE_RUN",
+  "ACCEPTED_PENDING",
+  "REQUIRES_START",
+  "REQUIRES_RECOVERY",
+  "FAILED",
+];
 export const SESSION_ACTIVE_HOST_NONE = "NONE";
 export const SESSION_ACTIVE_HOST_VALUES = [
   SESSION_ACTIVE_HOST_NONE,
   SESSION_HOST_PREFERENCE,
+  SESSION_PLUGIN_HOST,
   SESSION_CONTROL_HOST_PRIMARY,
   SESSION_HOST_FALLBACK,
 ];
 export const SESSION_ACTIVE_TERMINAL_KIND_NONE = "NONE";
 export const SESSION_ACTIVE_TERMINAL_KIND_VALUES = [
   SESSION_ACTIVE_TERMINAL_KIND_NONE,
-  SESSION_HOST_PREFERENCE,
+  SESSION_PLUGIN_HOST,
   CLI_ESCALATION_HOST_DEFAULT,
   "CURRENT",
   "PRINT",
@@ -331,12 +348,14 @@ export const SESSION_TERMINAL_RECLAIM_STATUS_VALUES = [
 export function normalizeActiveHostValue(value) {
   const token = String(value || "").trim();
   if (!token || token === SESSION_ACTIVE_HOST_NONE) return SESSION_ACTIVE_HOST_NONE;
+  if (token === SESSION_PLUGIN_HOST) return SESSION_PLUGIN_HOST;
   if (token === SESSION_CONTROL_PROTOCOL_PRIMARY || token === SESSION_CONTROL_TRANSPORT_PRIMARY) {
     return SESSION_CONTROL_HOST_PRIMARY;
   }
   if (
     token === CLI_ESCALATION_HOST_DEFAULT ||
     token === CLI_ESCALATION_HOST_LEGACY_ALIAS ||
+    token === SESSION_HOST_FALLBACK_LEGACY ||
     token === "CURRENT" ||
     token === "PRINT"
   ) {
@@ -348,11 +367,13 @@ export function normalizeActiveHostValue(value) {
 export function normalizeActiveTerminalKindValue(value) {
   const token = String(value || "").trim();
   if (!token || token === SESSION_ACTIVE_TERMINAL_KIND_NONE) return SESSION_ACTIVE_TERMINAL_KIND_NONE;
+  if (token === SESSION_PLUGIN_HOST) return SESSION_PLUGIN_HOST;
   if (token === SESSION_CONTROL_PROTOCOL_PRIMARY || token === SESSION_CONTROL_TRANSPORT_PRIMARY) {
     return SESSION_ACTIVE_TERMINAL_KIND_NONE;
   }
   if (token === SESSION_CONTROL_HOST_PRIMARY || token === "HANDSHAKE_ACP_BRIDGE") return SESSION_ACTIVE_TERMINAL_KIND_NONE;
   if (token === CLI_ESCALATION_HOST_LEGACY_ALIAS) return CLI_ESCALATION_HOST_DEFAULT;
+  if (token === SESSION_HOST_FALLBACK_LEGACY) return CLI_ESCALATION_HOST_DEFAULT;
   if (token === SESSION_HOST_FALLBACK) return CLI_ESCALATION_HOST_DEFAULT;
   return token;
 }
@@ -417,6 +438,7 @@ export function sessionKey(role, wpId) {
 }
 
 export function terminalTitle(role, wpId) {
+  if (role === "ACTIVATION_MANAGER") return `ACTMAN ${wpId}`;
   if (role === "CODER") return `CODER ${wpId}`;
   if (role === "WP_VALIDATOR") return `WPVAL ${wpId}`;
   if (role === "INTEGRATION_VALIDATOR") return `INTVAL ${wpId}`;
@@ -622,6 +644,10 @@ export function sessionPluginRequestsFileForPacketVersion(packetFormatVersion) {
     : LEGACY_SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE;
 }
 
+export function sessionCompatibilityQueueFileForPacketVersion(packetFormatVersion) {
+  return sessionPluginRequestsFileForPacketVersion(packetFormatVersion);
+}
+
 export function sessionRegistryFileForPacketVersion(packetFormatVersion) {
   return packetUsesExternalGovernanceRuntime(packetFormatVersion)
     ? SESSION_REGISTRY_FILE
@@ -658,6 +684,10 @@ export function sessionPluginRequestsFileForStubVersion(stubFormatVersion) {
     : LEGACY_SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE;
 }
 
+export function sessionCompatibilityQueueFileForStubVersion(stubFormatVersion) {
+  return sessionPluginRequestsFileForStubVersion(stubFormatVersion);
+}
+
 export function sessionRegistryFileForStubVersion(stubFormatVersion) {
   return stubUsesExternalGovernanceRuntime(stubFormatVersion)
     ? SESSION_REGISTRY_FILE
@@ -665,18 +695,27 @@ export function sessionRegistryFileForStubVersion(stubFormatVersion) {
 }
 
 export function roleStartupCommand(role) {
+  if (role === "ACTIVATION_MANAGER") return "just activation-manager startup";
   if (role === "CODER") return "just coder-startup";
-  if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") return "just validator-startup";
+  if (role === "WP_VALIDATOR") return "just validator-startup WP_VALIDATOR";
+  if (role === "INTEGRATION_VALIDATOR") return "just validator-startup INTEGRATION_VALIDATOR";
+  if (role === "VALIDATOR") return "just validator-startup VALIDATOR";
+  if (role === "MEMORY_MANAGER") return "just memory-manager-startup";
   return "just orchestrator-startup";
 }
 
 export function roleNextCommand(role, wpId) {
+  if (role === "ACTIVATION_MANAGER") return `just activation-manager next ${wpId}`;
   if (role === "CODER") return `just coder-next ${wpId}`;
-  if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") return `just validator-next ${wpId}`;
+  if (role === "WP_VALIDATOR") return `just validator-next WP_VALIDATOR ${wpId}`;
+  if (role === "INTEGRATION_VALIDATOR") return `just validator-next INTEGRATION_VALIDATOR ${wpId}`;
+  if (role === "VALIDATOR") return `just validator-next VALIDATOR ${wpId}`;
+  if (role === "MEMORY_MANAGER") return "just launch-memory-manager --force";
   return `just orchestrator-next ${wpId}`;
 }
 
 export function roleStageLabel(role) {
+  if (role === "ACTIVATION_MANAGER") return "ACTIVATION_MANAGER";
   if (role === "CODER") return "CODER";
   if (role === "WP_VALIDATOR") return "WP_VALIDATOR";
   if (role === "INTEGRATION_VALIDATOR") return "INTEGRATION_VALIDATOR";
