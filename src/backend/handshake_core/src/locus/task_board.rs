@@ -46,6 +46,12 @@ pub struct TaskBoardEntryRecordV1 {
     pub queue_reason_code: WorkflowQueueReasonCode,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_action_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub transition_rule_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub queue_automation_rule_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub executor_eligibility_policy_ids: Vec<String>,
     pub task_board_id: String,
     pub work_packet_id: String,
     pub lane_id: String,

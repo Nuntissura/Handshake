@@ -15,7 +15,9 @@ use crate::workflows::locus::types::{
     LocusRemoveDependencyParams, LocusStartMtParams, LocusUnbindSessionParams, LocusUpdateWpParams,
     MicroTaskIterationOutcome, MicroTaskStatus, RoutingPolicy, TaskBoardStatus, TrackedMicroTask,
     TrackedMicroTaskArtifactV1, WorkPacketPhase, WorkPacketStatus, WorkflowQueueReasonCode,
-    WorkflowStateFamily, governed_action_ids_for_family, resolve_queue_reason_with_mailbox_context,
+    WorkflowStateFamily, executor_eligibility_policy_ids_for_family,
+    governed_action_ids_for_family, queue_automation_rule_ids_for_reason,
+    resolve_queue_reason_with_mailbox_context, transition_rule_ids_for_family,
 };
 
 pub(crate) fn ensure_locus_sqlite(db: &(impl Database + ?Sized)) -> StorageResult<()> {
@@ -238,6 +240,9 @@ fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
         workflow_state_family,
         queue_reason_code,
         allowed_action_ids: governed_action_ids_for_family(workflow_state_family),
+        transition_rule_ids: transition_rule_ids_for_family(workflow_state_family),
+        queue_automation_rule_ids: queue_automation_rule_ids_for_reason(queue_reason_code),
+        executor_eligibility_policy_ids: executor_eligibility_policy_ids_for_family(workflow_state_family),
         summary_ref,
         mt_id: tracked_mt.mt_id.clone(),
         wp_id: tracked_mt.wp_id.clone(),

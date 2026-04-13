@@ -3777,6 +3777,9 @@ async fn emit_task_board_projection_artifacts(
             workflow_state_family,
             queue_reason_code,
             allowed_action_ids: allowed_action_ids.clone(),
+            transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
+            queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
+            executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
             task_board_id: task_board_id.clone(),
             work_packet_id: row.wp_id.clone(),
             lane_id,
@@ -4847,7 +4850,7 @@ fn build_structured_work_packet_summary_value(
     tracked_wp: &locus::TrackedWorkPacket,
 ) -> Result<Value, WorkflowError> {
     let summary = build_structured_work_packet_summary(tracked_wp);
-    let (workflow_state_family, _) = work_packet_workflow_state_with_mailbox(
+    let (workflow_state_family, queue_reason_code) = work_packet_workflow_state_with_mailbox(
         tracked_wp.status,
         metadata_has_pending_mailbox_wait(&tracked_wp.metadata),
     );
@@ -4859,6 +4862,21 @@ fn build_structured_work_packet_summary_value(
     summary_object.insert(
         "workflow_state_family".to_string(),
         serde_json::to_value(workflow_state_family)
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    );
+    summary_object.insert(
+        "transition_rule_ids".to_string(),
+        serde_json::to_value(locus::transition_rule_ids_for_family(workflow_state_family))
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    );
+    summary_object.insert(
+        "queue_automation_rule_ids".to_string(),
+        serde_json::to_value(locus::queue_automation_rule_ids_for_reason(queue_reason_code))
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    );
+    summary_object.insert(
+        "executor_eligibility_policy_ids".to_string(),
+        serde_json::to_value(locus::executor_eligibility_policy_ids_for_family(workflow_state_family))
             .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
     );
     if let Some(profile_extension) = tracked_wp.profile_extension.clone() {
@@ -4891,6 +4909,9 @@ fn build_structured_work_packet_packet(
         workflow_state_family,
         queue_reason_code,
         allowed_action_ids: allowed_action_ids(workflow_state_family),
+        transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
+        queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
+        executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
         summary_ref: runtime_paths.work_packet_summary_display(&tracked_wp.wp_id),
         note_refs,
         wp_id: tracked_wp.wp_id.clone(),
@@ -4937,7 +4958,7 @@ fn build_structured_micro_task_summary_value(
     tracked_mt: &locus::TrackedMicroTask,
 ) -> Result<Value, WorkflowError> {
     let summary = build_structured_micro_task_summary(tracked_mt);
-    let (workflow_state_family, _) = micro_task_workflow_state_with_mailbox(
+    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state_with_mailbox(
         tracked_mt.status,
         metadata_has_pending_mailbox_wait(&tracked_mt.metadata),
     );
@@ -4949,6 +4970,21 @@ fn build_structured_micro_task_summary_value(
     summary_object.insert(
         "workflow_state_family".to_string(),
         serde_json::to_value(workflow_state_family)
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    );
+    summary_object.insert(
+        "transition_rule_ids".to_string(),
+        serde_json::to_value(locus::transition_rule_ids_for_family(workflow_state_family))
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    );
+    summary_object.insert(
+        "queue_automation_rule_ids".to_string(),
+        serde_json::to_value(locus::queue_automation_rule_ids_for_reason(queue_reason_code))
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    );
+    summary_object.insert(
+        "executor_eligibility_policy_ids".to_string(),
+        serde_json::to_value(locus::executor_eligibility_policy_ids_for_family(workflow_state_family))
             .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
     );
     if let Some(profile_extension) = tracked_mt.profile_extension.clone() {
@@ -4980,6 +5016,9 @@ fn build_structured_micro_task_packet(
         workflow_state_family,
         queue_reason_code,
         allowed_action_ids: allowed_action_ids(workflow_state_family),
+        transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
+        queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
+        executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
         summary_ref: runtime_paths.micro_task_summary_display(&tracked_mt.wp_id, &tracked_mt.mt_id),
         mt_id: tracked_mt.mt_id.clone(),
         wp_id: tracked_mt.wp_id.clone(),

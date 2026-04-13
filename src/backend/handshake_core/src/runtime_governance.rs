@@ -464,4 +464,219 @@ mod tests {
         .expect_err(".GOV root must be rejected");
         assert!(err.to_string().contains(".GOV directory"));
     }
+
+    // ── MT-003 proof: workflow transition matrix, queue automation, executor eligibility ──
+
+    use crate::workflows::locus::types::{
+        WorkflowStateFamily, WorkflowQueueReasonCode, ExecutorKind,
+        transition_rules_for_family, transition_rule_ids_for_family,
+        queue_automation_rules, queue_automation_rule_ids_for_reason,
+        executor_eligibility_policies, executor_eligibility_policy_ids_for_family,
+        is_local_small_model_eligible,
+    };
+
+    #[test]
+    fn transition_rules_cover_all_families_and_archived_is_terminal() {
+        let all_families = [
+            WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
+            WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
+            WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
+            WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
+            WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
+            WorkflowStateFamily::Archived,
+        ];
+
+        for family in &all_families {
+            let rules = transition_rules_for_family(*family);
+            if *family == WorkflowStateFamily::Archived {
+                assert!(
+                    rules.is_empty(),
+                    "Archived must be terminal with no outbound transitions"
+                );
+            } else {
+                assert!(
+                    !rules.is_empty(),
+                    "Non-terminal family {:?} must have at least one transition rule",
+                    family
+                );
+            }
+
+            for rule in &rules {
+                assert_eq!(rule.from_family, *family);
+                assert_ne!(
+                    rule.from_family, rule.to_family,
+                    "self-transitions are not valid: {}",
+                    rule.rule_id
+                );
+                assert!(
+                    rule.rule_id.starts_with("transition:"),
+                    "rule_id must use transition: prefix: {}",
+                    rule.rule_id
+                );
+            }
+        }
+
+        // Verify id resolution matches
+        let ids = transition_rule_ids_for_family(WorkflowStateFamily::Active);
+        assert!(ids.len() >= 3, "Active must have transitions to Waiting, Review, Blocked, Done, Canceled");
+        assert!(ids.iter().all(|id| id.starts_with("transition:active_")));
+    }
+
+    #[test]
+    fn queue_automation_rules_cover_canonical_triggers() {
+        let rules = queue_automation_rules();
+        assert!(rules.len() >= 4, "must cover dependency, mailbox, validation, retry triggers");
+
+        let rule_ids: Vec<&str> = rules.iter().map(|r| r.rule_id.as_str()).collect();
+        assert!(rule_ids.contains(&"automation:dependency_cleared"));
+        assert!(rule_ids.contains(&"automation:mailbox_response_received"));
+        assert!(rule_ids.contains(&"automation:validation_passed"));
+        assert!(rule_ids.contains(&"automation:retry_timer_elapsed"));
+
+        for rule in &rules {
+            assert!(
+                rule.rule_id.starts_with("automation:"),
+                "rule_id must use automation: prefix: {}",
+                rule.rule_id
+            );
+            assert_ne!(
+                rule.from_reason, rule.to_reason,
+                "automation rule must change reason: {}",
+                rule.rule_id
+            );
+        }
+
+        // Verify reason-based resolution
+        let mailbox_rules = queue_automation_rule_ids_for_reason(
+            WorkflowQueueReasonCode::MailboxResponseWait,
+        );
+        assert_eq!(mailbox_rules, vec!["automation:mailbox_response_received"]);
+
+        let dependency_rules = queue_automation_rule_ids_for_reason(
+            WorkflowQueueReasonCode::DependencyWait,
+        );
+        assert_eq!(dependency_rules, vec!["automation:dependency_cleared"]);
+
+        // ReadyForHuman has no outbound automation rule
+        let ready_rules = queue_automation_rule_ids_for_reason(
+            WorkflowQueueReasonCode::ReadyForHuman,
+        );
+        assert!(ready_rules.is_empty());
+    }
+
+    #[test]
+    fn executor_eligibility_policies_cover_all_executor_kinds() {
+        let policies = executor_eligibility_policies();
+
+        let kinds: Vec<ExecutorKind> = policies.iter().map(|p| p.executor_kind).collect();
+        assert!(kinds.contains(&ExecutorKind::Operator));
+        assert!(kinds.contains(&ExecutorKind::LocalSmallModel));
+        assert!(kinds.contains(&ExecutorKind::CloudModel));
+        assert!(kinds.contains(&ExecutorKind::WorkflowEngine));
+        assert!(kinds.contains(&ExecutorKind::Reviewer));
+        assert!(kinds.contains(&ExecutorKind::Governance));
+
+        for policy in &policies {
+            assert!(
+                policy.policy_id.starts_with("eligibility:"),
+                "policy_id must use eligibility: prefix: {}",
+                policy.policy_id
+            );
+            assert!(
+                !policy.eligible_families.is_empty(),
+                "policy must have at least one eligible family: {}",
+                policy.policy_id
+            );
+        }
+
+        // Verify family-based resolution
+        let ready_policies = executor_eligibility_policy_ids_for_family(WorkflowStateFamily::Ready);
+        assert!(ready_policies.contains(&"eligibility:operator".to_string()));
+        assert!(ready_policies.contains(&"eligibility:local_small_model".to_string()));
+        assert!(ready_policies.contains(&"eligibility:cloud_model".to_string()));
+        assert!(ready_policies.contains(&"eligibility:workflow_engine".to_string()));
+
+        // Archived should only have operator and workflow_engine
+        let archived_policies = executor_eligibility_policy_ids_for_family(WorkflowStateFamily::Archived);
+        assert!(archived_policies.contains(&"eligibility:operator".to_string()));
+        assert!(archived_policies.contains(&"eligibility:workflow_engine".to_string()));
+        assert!(!archived_policies.contains(&"eligibility:local_small_model".to_string()));
+    }
+
+    #[test]
+    fn local_small_model_requires_ready_family_and_compact_summary() {
+        // Per v02.172: local-small-model eligibility MUST require
+        // a ready-family state AND a compact summary being available.
+        assert!(
+            is_local_small_model_eligible(WorkflowStateFamily::Ready, true),
+            "ready + compact_summary = eligible"
+        );
+        assert!(
+            !is_local_small_model_eligible(WorkflowStateFamily::Ready, false),
+            "ready without compact_summary = not eligible"
+        );
+        assert!(
+            !is_local_small_model_eligible(WorkflowStateFamily::Active, true),
+            "active + compact_summary = not eligible (wrong family)"
+        );
+        assert!(
+            !is_local_small_model_eligible(WorkflowStateFamily::Intake, true),
+            "intake + compact_summary = not eligible"
+        );
+        assert!(
+            !is_local_small_model_eligible(WorkflowStateFamily::Blocked, false),
+            "blocked without compact_summary = not eligible"
+        );
+
+        // Verify the policy registry matches
+        let lsm_policy = executor_eligibility_policies()
+            .into_iter()
+            .find(|p| p.executor_kind == ExecutorKind::LocalSmallModel)
+            .expect("local_small_model policy must exist");
+        assert!(
+            lsm_policy.requires_compact_summary,
+            "local_small_model policy must require compact summary"
+        );
+        assert_eq!(
+            lsm_policy.eligible_families,
+            vec![WorkflowStateFamily::Ready],
+            "local_small_model policy must only allow Ready family"
+        );
+    }
+
+    #[test]
+    fn transition_and_eligibility_ids_are_portable_across_families() {
+        // Verify the same function works for any family — proving portability
+        // across WP, MT, TaskBoard, and Mailbox surfaces.
+        let all_families = [
+            WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
+            WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
+            WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
+            WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
+            WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
+            WorkflowStateFamily::Archived,
+        ];
+
+        for family in &all_families {
+            let transition_ids = transition_rule_ids_for_family(*family);
+            let eligibility_ids = executor_eligibility_policy_ids_for_family(*family);
+
+            // All ids must be stable strings, not empty
+            for id in &transition_ids {
+                assert!(!id.is_empty());
+                assert!(id.starts_with("transition:"));
+            }
+            for id in &eligibility_ids {
+                assert!(!id.is_empty());
+                assert!(id.starts_with("eligibility:"));
+            }
+
+            // Every family must have at least operator eligibility
+            assert!(
+                eligibility_ids.contains(&"eligibility:operator".to_string()),
+                "{:?} must be eligible for operator",
+                family
+            );
+        }
+    }
 }

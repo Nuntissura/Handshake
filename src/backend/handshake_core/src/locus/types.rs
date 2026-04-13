@@ -421,6 +421,288 @@ pub fn resolve_queue_reason_with_mailbox_context(
     }
 }
 
+// ── Workflow transition matrix [v02.172] ──
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorkflowTransitionRuleV1 {
+    pub rule_id: String,
+    pub from_family: WorkflowStateFamily,
+    pub to_family: WorkflowStateFamily,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+/// Returns all valid transition rules originating from the given family.
+/// Portable across Work Packets, Micro-Tasks, Task Board rows, and Role Mailbox-linked waits.
+pub fn transition_rules_for_family(family: WorkflowStateFamily) -> Vec<WorkflowTransitionRuleV1> {
+    let pairs: &[(WorkflowStateFamily, &str)] = match family {
+        WorkflowStateFamily::Intake => &[
+            (WorkflowStateFamily::Ready, "triage completes"),
+            (WorkflowStateFamily::Blocked, "blocked during triage"),
+            (WorkflowStateFamily::Canceled, "canceled before start"),
+        ],
+        WorkflowStateFamily::Ready => &[
+            (WorkflowStateFamily::Active, "work started"),
+            (WorkflowStateFamily::Blocked, "blocked before start"),
+            (WorkflowStateFamily::Canceled, "canceled before start"),
+        ],
+        WorkflowStateFamily::Active => &[
+            (WorkflowStateFamily::Waiting, "awaiting dependency or response"),
+            (WorkflowStateFamily::Review, "submitted for review"),
+            (WorkflowStateFamily::Blocked, "blocked during work"),
+            (WorkflowStateFamily::Done, "work completed"),
+            (WorkflowStateFamily::Canceled, "canceled during work"),
+        ],
+        WorkflowStateFamily::Waiting => &[
+            (WorkflowStateFamily::Active, "wait resolved"),
+            (WorkflowStateFamily::Blocked, "blocked while waiting"),
+            (WorkflowStateFamily::Canceled, "canceled while waiting"),
+        ],
+        WorkflowStateFamily::Review => &[
+            (WorkflowStateFamily::Active, "changes requested"),
+            (WorkflowStateFamily::Approval, "review approved"),
+            (WorkflowStateFamily::Blocked, "blocked during review"),
+        ],
+        WorkflowStateFamily::Approval => &[
+            (WorkflowStateFamily::Active, "approval rejected"),
+            (WorkflowStateFamily::Validation, "approval granted"),
+            (WorkflowStateFamily::Blocked, "blocked during approval"),
+        ],
+        WorkflowStateFamily::Validation => &[
+            (WorkflowStateFamily::Done, "validation passed"),
+            (WorkflowStateFamily::Active, "validation failed, repair"),
+            (WorkflowStateFamily::Blocked, "blocked during validation"),
+        ],
+        WorkflowStateFamily::Blocked => &[
+            (WorkflowStateFamily::Ready, "unblocked to ready"),
+            (WorkflowStateFamily::Active, "unblocked to active"),
+            (WorkflowStateFamily::Canceled, "canceled while blocked"),
+        ],
+        WorkflowStateFamily::Done => &[
+            (WorkflowStateFamily::Archived, "archived after completion"),
+            (WorkflowStateFamily::Active, "reopened from done"),
+        ],
+        WorkflowStateFamily::Canceled => &[
+            (WorkflowStateFamily::Ready, "reopened from canceled"),
+            (WorkflowStateFamily::Archived, "archived after cancellation"),
+        ],
+        WorkflowStateFamily::Archived => &[],
+    };
+    pairs
+        .iter()
+        .map(|(to, desc)| WorkflowTransitionRuleV1 {
+            rule_id: format!(
+                "transition:{}_{}", family_id_segment(family), family_id_segment(*to)
+            ),
+            from_family: family,
+            to_family: *to,
+            description: Some(desc.to_string()),
+        })
+        .collect()
+}
+
+pub fn transition_rule_ids_for_family(family: WorkflowStateFamily) -> Vec<String> {
+    transition_rules_for_family(family)
+        .into_iter()
+        .map(|r| r.rule_id)
+        .collect()
+}
+
+// ── Queue automation rules [v02.172] ──
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum QueueAutomationTrigger {
+    DependencyCleared,
+    MailboxResponseReceived,
+    ValidationPassed,
+    RetryTimerElapsed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct QueueAutomationRuleV1 {
+    pub rule_id: String,
+    pub trigger: QueueAutomationTrigger,
+    pub from_reason: WorkflowQueueReasonCode,
+    pub to_reason: WorkflowQueueReasonCode,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+pub fn queue_automation_rules() -> Vec<QueueAutomationRuleV1> {
+    vec![
+        QueueAutomationRuleV1 {
+            rule_id: "automation:dependency_cleared".to_string(),
+            trigger: QueueAutomationTrigger::DependencyCleared,
+            from_reason: WorkflowQueueReasonCode::DependencyWait,
+            to_reason: WorkflowQueueReasonCode::ReadyForHuman,
+            description: Some("dependency resolved, return to ready queue".to_string()),
+        },
+        QueueAutomationRuleV1 {
+            rule_id: "automation:mailbox_response_received".to_string(),
+            trigger: QueueAutomationTrigger::MailboxResponseReceived,
+            from_reason: WorkflowQueueReasonCode::MailboxResponseWait,
+            to_reason: WorkflowQueueReasonCode::ReadyForHuman,
+            description: Some("mailbox response received, return to ready queue".to_string()),
+        },
+        QueueAutomationRuleV1 {
+            rule_id: "automation:validation_passed".to_string(),
+            trigger: QueueAutomationTrigger::ValidationPassed,
+            from_reason: WorkflowQueueReasonCode::ValidationWait,
+            to_reason: WorkflowQueueReasonCode::ReadyForHuman,
+            description: Some("validation passed, return to ready queue for closeout".to_string()),
+        },
+        QueueAutomationRuleV1 {
+            rule_id: "automation:retry_timer_elapsed".to_string(),
+            trigger: QueueAutomationTrigger::RetryTimerElapsed,
+            from_reason: WorkflowQueueReasonCode::TimerWait,
+            to_reason: WorkflowQueueReasonCode::ReadyForLocalSmallModel,
+            description: Some("retry timer elapsed, return to model queue".to_string()),
+        },
+    ]
+}
+
+pub fn queue_automation_rule_ids_for_reason(
+    reason: WorkflowQueueReasonCode,
+) -> Vec<String> {
+    queue_automation_rules()
+        .into_iter()
+        .filter(|r| r.from_reason == reason)
+        .map(|r| r.rule_id)
+        .collect()
+}
+
+// ── Executor eligibility policies [v02.172] ──
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutorKind {
+    Operator,
+    LocalSmallModel,
+    CloudModel,
+    WorkflowEngine,
+    Reviewer,
+    Governance,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ExecutorEligibilityPolicyV1 {
+    pub policy_id: String,
+    pub executor_kind: ExecutorKind,
+    pub eligible_families: Vec<WorkflowStateFamily>,
+    pub requires_compact_summary: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+pub fn executor_eligibility_policies() -> Vec<ExecutorEligibilityPolicyV1> {
+    vec![
+        ExecutorEligibilityPolicyV1 {
+            policy_id: "eligibility:operator".to_string(),
+            executor_kind: ExecutorKind::Operator,
+            eligible_families: vec![
+                WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
+                WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
+                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
+                WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
+                WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
+                WorkflowStateFamily::Archived,
+            ],
+            requires_compact_summary: false,
+            description: Some("operator can act on any workflow state".to_string()),
+        },
+        ExecutorEligibilityPolicyV1 {
+            policy_id: "eligibility:local_small_model".to_string(),
+            executor_kind: ExecutorKind::LocalSmallModel,
+            eligible_families: vec![WorkflowStateFamily::Ready],
+            requires_compact_summary: true,
+            description: Some(
+                "local small model requires ready-family state and compact summary".to_string(),
+            ),
+        },
+        ExecutorEligibilityPolicyV1 {
+            policy_id: "eligibility:cloud_model".to_string(),
+            executor_kind: ExecutorKind::CloudModel,
+            eligible_families: vec![
+                WorkflowStateFamily::Ready, WorkflowStateFamily::Active,
+                WorkflowStateFamily::Waiting, WorkflowStateFamily::Review,
+            ],
+            requires_compact_summary: false,
+            description: Some("cloud model can act on ready through review states".to_string()),
+        },
+        ExecutorEligibilityPolicyV1 {
+            policy_id: "eligibility:workflow_engine".to_string(),
+            executor_kind: ExecutorKind::WorkflowEngine,
+            eligible_families: vec![
+                WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
+                WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
+                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
+                WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
+                WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
+                WorkflowStateFamily::Archived,
+            ],
+            requires_compact_summary: false,
+            description: Some("workflow engine handles automated transitions".to_string()),
+        },
+        ExecutorEligibilityPolicyV1 {
+            policy_id: "eligibility:reviewer".to_string(),
+            executor_kind: ExecutorKind::Reviewer,
+            eligible_families: vec![
+                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
+                WorkflowStateFamily::Validation,
+            ],
+            requires_compact_summary: false,
+            description: Some("reviewer can act on review, approval, validation".to_string()),
+        },
+        ExecutorEligibilityPolicyV1 {
+            policy_id: "eligibility:governance".to_string(),
+            executor_kind: ExecutorKind::Governance,
+            eligible_families: vec![
+                WorkflowStateFamily::Approval, WorkflowStateFamily::Validation,
+                WorkflowStateFamily::Blocked,
+            ],
+            requires_compact_summary: false,
+            description: Some("governance acts on approval, validation, blocked".to_string()),
+        },
+    ]
+}
+
+pub fn executor_eligibility_policy_ids_for_family(
+    family: WorkflowStateFamily,
+) -> Vec<String> {
+    executor_eligibility_policies()
+        .into_iter()
+        .filter(|p| p.eligible_families.contains(&family))
+        .map(|p| p.policy_id)
+        .collect()
+}
+
+/// Checks whether a local small model executor is eligible.
+/// Per v02.172: local-small-model eligibility MUST require a ready-family state
+/// AND a compact summary being available.
+pub fn is_local_small_model_eligible(
+    family: WorkflowStateFamily,
+    has_compact_summary: bool,
+) -> bool {
+    family == WorkflowStateFamily::Ready && has_compact_summary
+}
+
+fn family_id_segment(family: WorkflowStateFamily) -> &'static str {
+    match family {
+        WorkflowStateFamily::Intake => "intake",
+        WorkflowStateFamily::Ready => "ready",
+        WorkflowStateFamily::Active => "active",
+        WorkflowStateFamily::Waiting => "waiting",
+        WorkflowStateFamily::Review => "review",
+        WorkflowStateFamily::Approval => "approval",
+        WorkflowStateFamily::Validation => "validation",
+        WorkflowStateFamily::Blocked => "blocked",
+        WorkflowStateFamily::Done => "done",
+        WorkflowStateFamily::Canceled => "canceled",
+        WorkflowStateFamily::Archived => "archived",
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StructuredCollaborationSummaryV1 {
     pub schema_id: String,
@@ -440,6 +722,12 @@ pub struct StructuredCollaborationSummaryV1 {
     pub queue_reason_code: WorkflowQueueReasonCode,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_action_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub transition_rule_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub queue_automation_rule_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub executor_eligibility_policy_ids: Vec<String>,
     pub status: String,
     pub title_or_objective: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -471,6 +759,12 @@ pub struct TrackedWorkPacketArtifactV1 {
     pub queue_reason_code: WorkflowQueueReasonCode,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_action_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub transition_rule_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub queue_automation_rule_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub executor_eligibility_policy_ids: Vec<String>,
     pub summary_ref: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub note_refs: Vec<String>,
@@ -527,6 +821,12 @@ pub struct TrackedMicroTaskArtifactV1 {
     pub queue_reason_code: WorkflowQueueReasonCode,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_action_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub transition_rule_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub queue_automation_rule_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub executor_eligibility_policy_ids: Vec<String>,
     pub summary_ref: String,
     pub mt_id: String,
     pub wp_id: String,
