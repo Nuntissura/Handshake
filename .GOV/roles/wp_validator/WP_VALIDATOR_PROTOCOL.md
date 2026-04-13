@@ -193,6 +193,17 @@ WP Validator does NOT communicate directly with the Integration Validator.
 - WP Validator operates in the coder worktree (`wtc-*`) with read access for review purposes.
 - WP Validator MUST NOT modify files in the coder worktree directly.
 
+## Conversation Memory (MUST — `just repomem`)
+
+Cross-session conversational memory captures what was reviewed, decided, and flagged during validation. All WP Validator sessions MUST use repomem:
+- **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this validation session covers>" --role WP_VALIDATOR --wp WP-{ID}`. Blocked from mutation commands until done.
+- **INSIGHT after discoveries (MUST):** When review reveals a non-obvious issue — a hidden coupling, a missing edge case, a pattern violation: `just repomem insight "<what was found>"`. Min 80 chars.
+- **DECISION when accepting or rejecting (SHOULD):** When you pass or fail a microtask review, record the reasoning: `just repomem decision "<verdict and why>" --wp WP-{ID}`. Min 80 chars. This is the only durable record of validation judgment beyond the receipt.
+- **ERROR when validation tooling breaks (SHOULD):** When a check fails to run, a file is missing, or the review context is broken: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
+- **CONCERN when flagging scope or quality risks (SHOULD):** When you spot a boundary violation, scope spill, missing test, or quality concern that may not warrant a FAIL but needs tracking: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars. Lands in the dossier's LIVE_CONCERNS_LOG.
+- **ESCALATION when the verdict is unclear (SHOULD):** When the MT is ambiguous, the spec is contradictory, or you need orchestrator/operator judgment: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).
+- **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what was reviewed, outcome>" --decisions "<key judgments made>"`.
+
 ## Fail Capture
 
 - WP Validator sessions MUST use `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`.

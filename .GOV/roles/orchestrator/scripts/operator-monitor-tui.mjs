@@ -1369,6 +1369,8 @@ function compactNextActionLabel(record) {
   if (relay?.status === "ESCALATED" && relay.target_role) {
     return `${relay.target_role}${relay.target_session ? `:${relay.target_session}` : ""}`;
   }
+  const operatorPending = Number(record.packetRecord?.pendingNotifications?.byRole?.OPERATOR || 0);
+  if (operatorPending > 0) return "operator";
   const runtime = record.packetRecord?.runtime || {};
   const nextTarget = formatTarget(runtime.next_expected_actor, runtime.next_expected_session);
   if (nextTarget) return nextTarget;
@@ -1386,6 +1388,10 @@ function nextActionSummary(record) {
   const relay = record.packetRecord?.relayEscalation || null;
   if (relay?.status === "ESCALATED") {
     return `${relay.summary}${relay.recommended_command ? ` Run: ${relay.recommended_command}` : ""}`;
+  }
+  const operatorPending = Number(record.packetRecord?.pendingNotifications?.byRole?.OPERATOR || 0);
+  if (operatorPending > 0) {
+    return `Operator action required: ${operatorPending} unread operator notification(s) are pending for this WP.`;
   }
   const runtime = record.packetRecord?.runtime || {};
   const nextTarget = formatTarget(runtime.next_expected_actor, runtime.next_expected_session);

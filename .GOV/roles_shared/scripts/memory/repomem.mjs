@@ -7,14 +7,19 @@
  * written; content comes from the model/operator.
  *
  * Quality gates:
- *   - open/close/insight/research-close require >=80 character content
+ *   - open/close/insight/research-close/decision/abandon/concern require >=80 character content
  *   - close requires --decisions flag (non-empty)
- *   - pre requires >=40 characters (shorter is acceptable for pre-task notes)
+ *   - pre/error/escalation require >=40 characters (fast capture under pressure)
  *
  * Usage:
  *   just repomem open  "<what this session is about>"  [--role ROLE] [--wp WP-ID]
  *   just repomem pre   "<about to do X because Y>"     [--wp WP-ID] [--trigger "cmd"]
  *   just repomem insight "<key realization>"            [--wp WP-ID] [--files "a,b"] [--decisions "x"]
+ *   just repomem decision "<what was chosen and why>"   [--wp WP-ID] [--alternatives "rejected options"]
+ *   just repomem error "<what went wrong>"              [--wp WP-ID] [--trigger "cmd"] [--files "a,b"]
+ *   just repomem abandon "<what was abandoned and why>" [--wp WP-ID] [--files "a,b"]
+ *   just repomem concern "<risk or issue flagged>"      [--wp WP-ID] [--files "a,b"]
+ *   just repomem escalation "<what was escalated>"      [--wp WP-ID]
  *   just repomem research-close "<what was found>"      [--wp WP-ID] [--files "a,b"] [--decisions "x"]
  *   just repomem close "<session summary>"              --decisions "key decisions made"
  *   just repomem log                                    [--session last] [--week] [--search "q"] [--wp WP-ID] [--limit N]
@@ -88,11 +93,16 @@ function enforceDecisions(decisions, command) {
 // ---------------------------------------------------------------------------
 
 function usage() {
-  console.error(`Usage: repomem <open|pre|insight|research-close|close|log|gate|context>
+  console.error(`Usage: repomem <open|pre|insight|decision|error|abandon|concern|escalation|research-close|close|log|gate|context>
 
   open  "<intent>"           Start session checkpoint (>=80 chars, required before work)
   pre   "<about to do>"      Pre-task checkpoint (>=40 chars, before mutation commands)
-  insight "<realization>"    Insight checkpoint (>=80 chars, key discovery or decision)
+  insight "<realization>"    Insight checkpoint (>=80 chars, key discovery)
+  decision "<choice+why>"    Decision checkpoint (>=80 chars, deliberate choice between alternatives)
+  error "<what broke>"       Error checkpoint (>=40 chars, what went wrong)
+  abandon "<path+why>"       Abandon checkpoint (>=80 chars, approach/path abandoned)
+  concern "<risk flagged>"   Concern checkpoint (>=80 chars, risk or issue identified)
+  escalation "<what+to>"     Escalation checkpoint (>=40 chars, escalated to operator/role)
   research-close "<found>"   Research conclusion checkpoint (>=80 chars)
   close "<summary>"          Session end checkpoint (>=80 chars, --decisions required)
   log                        Show conversation history
@@ -232,6 +242,127 @@ try {
       decisions: flags.decisions || "",
     });
     console.log(`[repomem] INSIGHT #${id}: ${content.slice(0, 100)}`);
+
+  } else if (command === "decision") {
+    const [content] = positional;
+    if (!content) {
+      console.error('Usage: repomem decision "<what was chosen and why>" [--wp WP-ID] [--alternatives "rejected options"]');
+      process.exit(1);
+    }
+    enforceContentLength(content, "decision");
+    const session = getCurrentSession();
+    if (!session) {
+      console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
+      process.exit(1);
+    }
+
+    const id = addConversationCheckpoint(db, {
+      sessionId: session.session_id,
+      role: session.role,
+      checkpointType: "DECISION",
+      wpId: flags.wp || "",
+      topic: content.slice(0, 120),
+      content,
+      filesReferenced: flags.files || "",
+      decisions: flags.alternatives ? `Alternatives rejected: ${flags.alternatives}` : "",
+    });
+    console.log(`[repomem] DECISION #${id}: ${content.slice(0, 100)}`);
+
+  } else if (command === "error") {
+    const [content] = positional;
+    if (!content) {
+      console.error('Usage: repomem error "<what went wrong>" [--wp WP-ID] [--trigger "cmd"] [--files "a,b"]');
+      process.exit(1);
+    }
+    enforceContentLength(content, "error", MIN_PRE_CONTENT_LENGTH);
+    const session = getCurrentSession();
+    if (!session) {
+      console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
+      process.exit(1);
+    }
+
+    const id = addConversationCheckpoint(db, {
+      sessionId: session.session_id,
+      role: session.role,
+      checkpointType: "ERROR",
+      triggerRef: flags.trigger || "",
+      wpId: flags.wp || "",
+      topic: `[error] ${content.slice(0, 112)}`,
+      content,
+      filesReferenced: flags.files || "",
+    });
+    console.log(`[repomem] ERROR #${id}: ${content.slice(0, 100)}`);
+
+  } else if (command === "abandon") {
+    const [content] = positional;
+    if (!content) {
+      console.error('Usage: repomem abandon "<what was abandoned and why>" [--wp WP-ID] [--files "a,b"]');
+      process.exit(1);
+    }
+    enforceContentLength(content, "abandon");
+    const session = getCurrentSession();
+    if (!session) {
+      console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
+      process.exit(1);
+    }
+
+    const id = addConversationCheckpoint(db, {
+      sessionId: session.session_id,
+      role: session.role,
+      checkpointType: "ABANDON",
+      wpId: flags.wp || "",
+      topic: `[abandon] ${content.slice(0, 110)}`,
+      content,
+      filesReferenced: flags.files || "",
+    });
+    console.log(`[repomem] ABANDON #${id}: ${content.slice(0, 100)}`);
+
+  } else if (command === "concern") {
+    const [content] = positional;
+    if (!content) {
+      console.error('Usage: repomem concern "<risk or issue flagged>" [--wp WP-ID] [--files "a,b"]');
+      process.exit(1);
+    }
+    enforceContentLength(content, "concern");
+    const session = getCurrentSession();
+    if (!session) {
+      console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
+      process.exit(1);
+    }
+
+    const id = addConversationCheckpoint(db, {
+      sessionId: session.session_id,
+      role: session.role,
+      checkpointType: "CONCERN",
+      wpId: flags.wp || "",
+      topic: `[concern] ${content.slice(0, 109)}`,
+      content,
+      filesReferenced: flags.files || "",
+    });
+    console.log(`[repomem] CONCERN #${id}: ${content.slice(0, 100)}`);
+
+  } else if (command === "escalation") {
+    const [content] = positional;
+    if (!content) {
+      console.error('Usage: repomem escalation "<what was escalated>" [--wp WP-ID]');
+      process.exit(1);
+    }
+    enforceContentLength(content, "escalation", MIN_PRE_CONTENT_LENGTH);
+    const session = getCurrentSession();
+    if (!session) {
+      console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
+      process.exit(1);
+    }
+
+    const id = addConversationCheckpoint(db, {
+      sessionId: session.session_id,
+      role: session.role,
+      checkpointType: "ESCALATION",
+      wpId: flags.wp || "",
+      topic: `[escalation] ${content.slice(0, 107)}`,
+      content,
+    });
+    console.log(`[repomem] ESCALATION #${id}: ${content.slice(0, 100)}`);
 
   } else if (command === "research-close") {
     const [content] = positional;

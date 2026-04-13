@@ -82,6 +82,18 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 - If a new live activation surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is retired or intentionally kept distinct.
 - **Fail capture wiring (HARD — CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
 
+## Conversation Memory (MUST — `just repomem`)
+
+Cross-session conversational memory captures what was refined, decided, and flagged during activation. All Activation Manager sessions MUST use repomem:
+- **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this activation session covers>" --role ACTIVATION_MANAGER --wp WP-{ID}`. Blocked from mutation commands until done.
+- **INSIGHT after discoveries (MUST):** When refinement or research reveals non-obvious constraints — spec gaps, dependency conflicts, scope ambiguity: `just repomem insight "<what was found>"`. Min 80 chars.
+- **DECISION when making activation choices (SHOULD):** When choosing MT breakdown, scope boundaries, build order, or spec enrichment strategy: `just repomem decision "<what was chosen and why>" --wp WP-{ID}`. Min 80 chars.
+- **ERROR when activation tooling breaks (SHOULD):** When phase-check fails, signature validation breaks, or readiness checks return unexpected results: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
+- **ABANDON when dropping a refinement path (SHOULD):** When a refinement direction is abandoned — scope too large, dependencies missing, operator redirect: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
+- **CONCERN when flagging activation risks (SHOULD):** When you spot a scope risk, missing prerequisite, or spec ambiguity that may affect downstream work: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars.
+- **ESCALATION when needing operator/orchestrator input (SHOULD):** When activation decisions exceed your authority — scope questions, spec conflicts, build-order ambiguity: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).
+- **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what was activated, outcome>" --decisions "<key choices made>"`.
+
 ## Worktree And Branch
 
 - Default execution surface: `wt-gov-kernel`

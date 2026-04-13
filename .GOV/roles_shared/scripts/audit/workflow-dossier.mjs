@@ -463,6 +463,14 @@ function runSync(rootDir, options) {
     section: "IDLE",
     line: `- [${timestamp}] [${role}] [IDLE_LEDGER] [${surface}] \`${options.wpId}\` | ${idleSummary}`,
   });
+  // RGF-196: piggyback repomem injection on every sync so dossier stays current.
+  try {
+    runInjectRepomem(rootDir, { wpId: options.wpId, file: options.file });
+  } catch (err) {
+    // Non-fatal: sync should not fail if repomem injection has an issue.
+    console.error(`[workflow-dossier sync] repomem injection warning: ${err.message}`);
+  }
+
   console.log(normalizePath(path.relative(rootDir, dossierPath)) || normalizePath(dossierPath));
 }
 
@@ -471,16 +479,26 @@ const REPOMEM_CHECKPOINT_TO_SECTION = {
   SESSION_OPEN: "EXECUTION",
   SESSION_CLOSE: "EXECUTION",
   PRE_TASK: "EXECUTION",
+  DECISION: "EXECUTION",
+  ERROR: "EXECUTION",
+  ABANDON: "EXECUTION",
   INSIGHT: "FINDING",
   RESEARCH_CLOSE: "FINDING",
+  CONCERN: "CONCERN",
+  ESCALATION: "CONCERN",
 };
 
 const REPOMEM_CHECKPOINT_TO_TAG = {
   SESSION_OPEN: "REPOMEM_OPEN",
   SESSION_CLOSE: "REPOMEM_CLOSE",
   PRE_TASK: "REPOMEM_PRE",
+  DECISION: "REPOMEM_DECISION",
+  ERROR: "REPOMEM_ERROR",
+  ABANDON: "REPOMEM_ABANDON",
   INSIGHT: "REPOMEM_INSIGHT",
   RESEARCH_CLOSE: "REPOMEM_RESEARCH",
+  CONCERN: "REPOMEM_CONCERN",
+  ESCALATION: "REPOMEM_ESCALATION",
 };
 
 function runInjectRepomem(rootDir, options) {

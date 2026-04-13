@@ -21,6 +21,22 @@
 
 ## Entries
 
+### 2026.04.14.1 / GOV-CHANGE-20260414-01
+
+- STATUS: APPLIED
+- SUMMARY: hardened operator-gate handoff so approval/signature blockers emit durable machine notifications immediately on governed session settlement
+- CHANGE_TYPE: WORKFLOW_HARDENING
+- DRIVER_EVIDENCE:
+  - `Operator directive 2026-04-14`
+  - `WP-1-Distillation-v2 pre-signature handoff miss`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles/orchestrator/scripts/lib/operator-gate-notification-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/roles/orchestrator/tests/operator-gate-notification-lib.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+- OUTCOME: the governed control plane now emits an idempotent `OPERATOR_GATE` notification as soon as a settled session lands in an operator-required blocker state, logs that event into the workflow dossier trail, and the operator viewport surfaces those waits as explicit operator action instead of generic notification debt. No governed role is restarted, interrupted, or auto-steered by this path.
+
 ### 2026.03.25.1 / GOV-CHANGE-20260325-01
 
 - STATUS: APPLIED

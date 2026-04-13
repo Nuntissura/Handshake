@@ -37,6 +37,7 @@ import {
   formatWorkflowDossierTimestamp,
   normalizePath,
 } from "../../../roles_shared/scripts/audit/workflow-dossier-lib.mjs";
+import { emitOperatorGateNotificationIfNeeded } from "./lib/operator-gate-notification-lib.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 registerFailCaptureHook("session-control-command.mjs", { role: "ORCHESTRATOR" });
 
@@ -919,3 +920,29 @@ syncWpTokenUsageLedger(repoRoot, {
 }, {
   session: refreshedSession,
 });
+
+if (commandKind === "SEND_PROMPT") {
+  const operatorGateNotification = emitOperatorGateNotificationIfNeeded({
+    repoRoot,
+    wpId,
+    sourceSession: session.session_key,
+  });
+  if (operatorGateNotification.status === "EMITTED") {
+    console.log(`[SESSION_CONTROL] operator_gate_status=${operatorGateNotification.status}`);
+    console.log(`[SESSION_CONTROL] operator_gate_reason=${operatorGateNotification.reason}`);
+    console.log(`[SESSION_CONTROL] operator_gate_correlation=${operatorGateNotification.candidate?.correlationId || ""}`);
+    console.log(`[SESSION_CONTROL] operator_gate_summary=${operatorGateNotification.candidate?.summary || ""}`);
+    appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+      when: new Date(),
+      commandKind: "OPERATOR_GATE",
+      settledRole: "ORCHESTRATOR",
+      targetWpId: wpId,
+      status: "EMITTED",
+      outcomeState: String(operatorGateNotification.lifecycle?.blockerClass || "").trim().toUpperCase() || "OPERATOR_GATE",
+      detail: operatorGateNotification.candidate?.summary || "",
+    }));
+  } else if (operatorGateNotification.status === "FAILED") {
+    console.log(`[SESSION_CONTROL] operator_gate_status=${operatorGateNotification.status}`);
+    console.log(`[SESSION_CONTROL] operator_gate_reason=${operatorGateNotification.reason}`);
+  }
+}
