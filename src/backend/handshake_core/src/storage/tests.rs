@@ -2390,6 +2390,136 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         .await?;
     assert!(no_events.is_empty());
 
+    // ── Workflow-backed / job-backed provenance round-trip ──────────
+    let test_job_id = Uuid::new_v4();
+    let test_workflow_id = Uuid::new_v4();
+    let ai_ctx = WriteContext::ai(
+        Some("ai-sync-agent".into()),
+        Some(test_job_id),
+        Some(test_workflow_id),
+    );
+
+    let ai_source_id = format!("google:ai-test:{}", Uuid::new_v4());
+    let ai_source = db
+        .upsert_calendar_source(
+            &ai_ctx,
+            CalendarSourceUpsert {
+                id: ai_source_id.clone(),
+                workspace_id: workspace.id.clone(),
+                display_name: "Google / AI Sync".into(),
+                provider_type: CalendarSourceProviderType::Google,
+                write_policy: CalendarSourceWritePolicy::TwoWayMirror,
+                default_tzid: "UTC".into(),
+                auto_export: false,
+                credentials_ref: Some("cred:ai".into()),
+                provider_calendar_id: Some("ai-primary".into()),
+                capability_profile_id: Some("calendar-google".into()),
+                config: json!({"calendar_id": "ai-primary"}),
+                sync_state: CalendarSourceSyncState {
+                    state: None,
+                    sync_token: Some("ai-sync-1".into()),
+                    last_synced_at: Some(Utc::now()),
+                    last_full_sync_at: None,
+                    last_ok_at: None,
+                    last_pull_at: None,
+                    last_push_at: None,
+                    last_error_at: None,
+                    last_error_code: None,
+                    last_error: None,
+                    backoff_until: None,
+                    consecutive_failures: Some(0),
+                    last_remote_watermark: None,
+                    last_local_applied_rev: None,
+                },
+            },
+        )
+        .await?;
+    let job_str = test_job_id.to_string();
+    let wf_str = test_workflow_id.to_string();
+    assert_eq!(ai_source.last_actor_kind, "AI");
+    assert_eq!(ai_source.last_actor_id.as_deref(), Some("ai-sync-agent"));
+    assert_eq!(ai_source.last_job_id.as_deref(), Some(job_str.as_str()));
+    assert_eq!(ai_source.last_workflow_id.as_deref(), Some(wf_str.as_str()));
+    assert!(!ai_source.edit_event_id.is_empty());
+
+    let fetched_ai_source = db
+        .get_calendar_source(&workspace.id, &ai_source_id)
+        .await?
+        .ok_or(StorageError::NotFound("calendar_source"))?;
+    assert_eq!(fetched_ai_source.last_actor_kind, "AI");
+    assert_eq!(fetched_ai_source.last_actor_id.as_deref(), Some("ai-sync-agent"));
+    assert_eq!(fetched_ai_source.last_job_id.as_deref(), Some(job_str.as_str()));
+    assert_eq!(fetched_ai_source.last_workflow_id.as_deref(), Some(wf_str.as_str()));
+    assert!(!fetched_ai_source.edit_event_id.is_empty());
+
+    let listed_ai = db.list_calendar_sources(&workspace.id).await?;
+    let listed_match = listed_ai.iter().find(|s| s.id == ai_source_id).expect("AI source in list");
+    assert_eq!(listed_match.last_actor_kind, "AI");
+    assert_eq!(listed_match.last_job_id.as_deref(), Some(job_str.as_str()));
+    assert_eq!(listed_match.last_workflow_id.as_deref(), Some(wf_str.as_str()));
+
+    let ai_event_start = Utc::now() + Duration::days(10);
+    let ai_event_end = ai_event_start + Duration::hours(1);
+    let ai_event = db
+        .upsert_calendar_event(
+            &ai_ctx,
+            CalendarEventUpsert {
+                id: Uuid::new_v4().to_string(),
+                workspace_id: workspace.id.clone(),
+                source_id: ai_source_id.clone(),
+                external_id: Some("ai-provider-event-1".into()),
+                external_etag: Some("ai-etag-1".into()),
+                title: "AI-synced meeting".into(),
+                description: Some("synced by workflow".into()),
+                location: None,
+                start_ts_utc: ai_event_start,
+                end_ts_utc: ai_event_end,
+                start_local: Some("2026-03-17T09:00:00".into()),
+                end_local: Some("2026-03-17T10:00:00".into()),
+                tzid: "UTC".into(),
+                all_day: false,
+                was_floating: false,
+                status: CalendarEventStatus::Confirmed,
+                visibility: CalendarEventVisibility::Default,
+                export_mode: CalendarEventExportMode::FullExport,
+                rrule: None,
+                rdate: Vec::new(),
+                exdate: Vec::new(),
+                is_recurring: false,
+                series_id: None,
+                instance_key: None,
+                is_override: false,
+                source_last_seen_at: Some(Utc::now()),
+                attendees: json!([]),
+                links: json!([]),
+                provider_payload: Some(json!({"source": "workflow"})),
+            },
+        )
+        .await?;
+    assert_eq!(ai_event.last_actor_kind, "AI");
+    assert_eq!(ai_event.last_actor_id.as_deref(), Some("ai-sync-agent"));
+    assert_eq!(ai_event.last_job_id.as_deref(), Some(job_str.as_str()));
+    assert_eq!(ai_event.last_workflow_id.as_deref(), Some(wf_str.as_str()));
+    assert!(!ai_event.edit_event_id.is_empty());
+
+    let queried_ai_events = db
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: workspace.id.clone(),
+            window_start_utc: ai_event_start - Duration::minutes(15),
+            window_end_utc: ai_event_end + Duration::minutes(15),
+            source_ids: vec![ai_source_id.clone()],
+        })
+        .await?;
+    assert_eq!(queried_ai_events.len(), 1);
+    assert_eq!(queried_ai_events[0].last_actor_kind, "AI");
+    assert_eq!(queried_ai_events[0].last_actor_id.as_deref(), Some("ai-sync-agent"));
+    assert_eq!(queried_ai_events[0].last_job_id.as_deref(), Some(job_str.as_str()));
+    assert_eq!(queried_ai_events[0].last_workflow_id.as_deref(), Some(wf_str.as_str()));
+    assert!(!queried_ai_events[0].edit_event_id.is_empty());
+
+    db.delete_calendar_data_by_source(&ai_ctx, &workspace.id, &ai_source_id)
+        .await?;
+
     db.delete_workspace(&ctx, &workspace.id).await?;
     Ok(())
 }
