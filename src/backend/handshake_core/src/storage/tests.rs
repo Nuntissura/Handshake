@@ -2480,7 +2480,7 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
                 all_day: false,
                 was_floating: false,
                 status: CalendarEventStatus::Confirmed,
-                visibility: CalendarEventVisibility::Default,
+                visibility: CalendarEventVisibility::Public,
                 export_mode: CalendarEventExportMode::FullExport,
                 rrule: None,
                 rdate: Vec::new(),
