@@ -152,6 +152,283 @@ pub struct GovernedActionDescriptorV1 {
     pub description: Option<String>,
 }
 
+// ── Project-profile workflow extension [v02.171] ──
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorkflowFamilyDisplayLabel {
+    pub family: WorkflowStateFamily,
+    pub display_label: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorkflowReasonDisplayLabel {
+    pub reason: WorkflowQueueReasonCode,
+    pub display_label: String,
+}
+
+/// Project-profile extension for workflow display labels and action narrowing.
+/// Per v02.171: extensions MAY relabel families for display but MUST NOT change
+/// the base semantic meaning. Unknown extensions MUST degrade to the base
+/// workflow-state families, reason codes, and governed action ids.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProjectProfileWorkflowExtensionV1 {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub family_display_labels: Vec<WorkflowFamilyDisplayLabel>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reason_display_labels: Vec<WorkflowReasonDisplayLabel>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub narrowed_reason_codes: Option<Vec<WorkflowQueueReasonCode>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub narrowed_action_ids: Option<Vec<String>>,
+}
+
+impl ProjectProfileWorkflowExtensionV1 {
+    /// Resolve the display label for a workflow state family.
+    /// Degrades to the base family label for unmapped families per v02.171.
+    pub fn display_label_for_family(&self, family: WorkflowStateFamily) -> String {
+        self.family_display_labels
+            .iter()
+            .find(|l| l.family == family)
+            .map(|l| l.display_label.clone())
+            .unwrap_or_else(|| base_workflow_family_label(family).to_string())
+    }
+
+    /// Resolve the display label for a queue reason code.
+    /// Degrades to the base reason label for unmapped reasons per v02.171.
+    pub fn display_label_for_reason(&self, reason: WorkflowQueueReasonCode) -> String {
+        self.reason_display_labels
+            .iter()
+            .find(|l| l.reason == reason)
+            .map(|l| l.display_label.clone())
+            .unwrap_or_else(|| base_queue_reason_label(reason).to_string())
+    }
+
+    /// Filter action_ids to only those narrowed by this profile.
+    /// Returns the full base set unchanged if no narrowing is defined.
+    pub fn narrow_action_ids(&self, base_action_ids: &[String]) -> Vec<String> {
+        match &self.narrowed_action_ids {
+            Some(narrowed) => base_action_ids
+                .iter()
+                .filter(|id| narrowed.contains(id))
+                .cloned()
+                .collect(),
+            None => base_action_ids.to_vec(),
+        }
+    }
+}
+
+// ── Governed action registry [v02.171] ──
+
+/// Returns all registered governed action descriptors for a workflow state family.
+/// This is the single source of truth for action legality per family.
+/// All action-resolution paths MUST resolve through this registry.
+pub fn governed_action_descriptors_for_family(
+    family: WorkflowStateFamily,
+) -> Vec<GovernedActionDescriptorV1> {
+    match family {
+        WorkflowStateFamily::Intake => vec![
+            GovernedActionDescriptorV1 {
+                action_id: "triage".into(),
+                title: "Triage".into(),
+                description: Some("Classify and route the record for processing".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "prioritize".into(),
+                title: "Prioritize".into(),
+                description: Some("Set or adjust priority level".into()),
+            },
+        ],
+        WorkflowStateFamily::Ready => vec![
+            GovernedActionDescriptorV1 {
+                action_id: "start".into(),
+                title: "Start".into(),
+                description: Some("Begin work on the record".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "assign".into(),
+                title: "Assign".into(),
+                description: Some("Assign to an executor".into()),
+            },
+        ],
+        WorkflowStateFamily::Active => vec![
+            GovernedActionDescriptorV1 {
+                action_id: "update".into(),
+                title: "Update".into(),
+                description: Some("Record progress on active work".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "complete".into(),
+                title: "Complete".into(),
+                description: Some("Mark work as complete".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "pause".into(),
+                title: "Pause".into(),
+                description: Some("Pause active work".into()),
+            },
+        ],
+        WorkflowStateFamily::Waiting => vec![
+            GovernedActionDescriptorV1 {
+                action_id: "resume".into(),
+                title: "Resume".into(),
+                description: Some("Resume after wait condition clears".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "escalate".into(),
+                title: "Escalate".into(),
+                description: Some("Escalate the wait to a higher authority".into()),
+            },
+        ],
+        WorkflowStateFamily::Review => vec![
+            GovernedActionDescriptorV1 {
+                action_id: "review".into(),
+                title: "Review".into(),
+                description: Some("Perform review of the record".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "request_changes".into(),
+                title: "Request Changes".into(),
+                description: Some("Request changes after review".into()),
+            },
+        ],
+        WorkflowStateFamily::Approval => vec![
+            GovernedActionDescriptorV1 {
+                action_id: "approve".into(),
+                title: "Approve".into(),
+                description: Some("Grant approval".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "reject".into(),
+                title: "Reject".into(),
+                description: Some("Reject the approval request".into()),
+            },
+        ],
+        WorkflowStateFamily::Validation => vec![
+            GovernedActionDescriptorV1 {
+                action_id: "validate".into(),
+                title: "Validate".into(),
+                description: Some("Run validation checks".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "repair".into(),
+                title: "Repair".into(),
+                description: Some("Repair validation failures".into()),
+            },
+        ],
+        WorkflowStateFamily::Blocked => vec![
+            GovernedActionDescriptorV1 {
+                action_id: "unblock".into(),
+                title: "Unblock".into(),
+                description: Some("Resolve the blocking condition".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "escalate".into(),
+                title: "Escalate".into(),
+                description: Some("Escalate the blocker".into()),
+            },
+        ],
+        WorkflowStateFamily::Done => vec![
+            GovernedActionDescriptorV1 {
+                action_id: "archive".into(),
+                title: "Archive".into(),
+                description: Some("Archive the completed record".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "reopen".into(),
+                title: "Reopen".into(),
+                description: Some("Reopen for further work".into()),
+            },
+        ],
+        WorkflowStateFamily::Canceled => vec![
+            GovernedActionDescriptorV1 {
+                action_id: "archive".into(),
+                title: "Archive".into(),
+                description: Some("Archive the cancelled record".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "reopen".into(),
+                title: "Reopen".into(),
+                description: Some("Reopen the cancelled record".into()),
+            },
+        ],
+        WorkflowStateFamily::Archived => vec![],
+    }
+}
+
+/// Returns all registered action IDs for a workflow state family.
+pub fn governed_action_ids_for_family(family: WorkflowStateFamily) -> Vec<String> {
+    governed_action_descriptors_for_family(family)
+        .into_iter()
+        .map(|d| d.action_id)
+        .collect()
+}
+
+/// Returns the primary (first registered) governed action ID for a family.
+pub fn primary_governed_action_for_family(family: WorkflowStateFamily) -> Option<String> {
+    governed_action_descriptors_for_family(family)
+        .into_iter()
+        .next()
+        .map(|d| d.action_id)
+}
+
+// ── Base labels for degradation [v02.171] ──
+
+/// Base human-readable label for a workflow state family.
+/// Used as degradation target when project-profile extensions are unknown.
+pub fn base_workflow_family_label(family: WorkflowStateFamily) -> &'static str {
+    match family {
+        WorkflowStateFamily::Intake => "Intake",
+        WorkflowStateFamily::Ready => "Ready",
+        WorkflowStateFamily::Active => "Active",
+        WorkflowStateFamily::Waiting => "Waiting",
+        WorkflowStateFamily::Review => "Review",
+        WorkflowStateFamily::Approval => "Approval",
+        WorkflowStateFamily::Validation => "Validation",
+        WorkflowStateFamily::Blocked => "Blocked",
+        WorkflowStateFamily::Done => "Done",
+        WorkflowStateFamily::Canceled => "Canceled",
+        WorkflowStateFamily::Archived => "Archived",
+    }
+}
+
+/// Base human-readable label for a queue reason code.
+/// Used as degradation target when project-profile extensions are unknown.
+pub fn base_queue_reason_label(reason: WorkflowQueueReasonCode) -> &'static str {
+    match reason {
+        WorkflowQueueReasonCode::NewUntriaged => "new, untriaged",
+        WorkflowQueueReasonCode::DependencyWait => "dependency wait",
+        WorkflowQueueReasonCode::ReadyForLocalSmallModel => "ready for local model",
+        WorkflowQueueReasonCode::ReadyForCloudModel => "ready for cloud model",
+        WorkflowQueueReasonCode::ReadyForHuman => "ready for human",
+        WorkflowQueueReasonCode::ReviewWait => "review wait",
+        WorkflowQueueReasonCode::ApprovalWait => "approval wait",
+        WorkflowQueueReasonCode::ValidationWait => "validation wait",
+        WorkflowQueueReasonCode::MailboxResponseWait => "mailbox response wait",
+        WorkflowQueueReasonCode::TimerWait => "timer wait",
+        WorkflowQueueReasonCode::BlockedMissingContext => "blocked: missing context",
+        WorkflowQueueReasonCode::BlockedPolicy => "blocked: policy",
+        WorkflowQueueReasonCode::BlockedCapability => "blocked: capability",
+        WorkflowQueueReasonCode::BlockedError => "blocked: error",
+    }
+}
+
+// ── Mailbox-aware queue reason resolution [v02.171] ──
+
+/// Resolves queue_reason_code accounting for mailbox-linked wait state.
+/// Per v02.171: mailbox-linked waits MUST remain visible as
+/// queue_reason_code=mailbox_response_wait, but the mailbox thread
+/// MUST NOT become the authority for the linked record's state family.
+pub fn resolve_queue_reason_with_mailbox_context(
+    base_reason: WorkflowQueueReasonCode,
+    has_pending_mailbox_wait: bool,
+) -> WorkflowQueueReasonCode {
+    if has_pending_mailbox_wait {
+        WorkflowQueueReasonCode::MailboxResponseWait
+    } else {
+        base_reason
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StructuredCollaborationSummaryV1 {
     pub schema_id: String,

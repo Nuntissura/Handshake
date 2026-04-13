@@ -3275,7 +3275,17 @@ async fn list_tracked_micro_tasks_for_artifacts(
 fn work_packet_workflow_state(
     status: locus::WorkPacketStatus,
 ) -> (locus::WorkflowStateFamily, locus::WorkflowQueueReasonCode) {
-    match status {
+    work_packet_workflow_state_with_mailbox(status, false)
+}
+
+/// Computes workflow state with mailbox-aware queue reason override.
+/// When `has_pending_mailbox_wait` is true, queue_reason_code is overridden
+/// to MailboxResponseWait per v02.171 while preserving the base state family.
+pub fn work_packet_workflow_state_with_mailbox(
+    status: locus::WorkPacketStatus,
+    has_pending_mailbox_wait: bool,
+) -> (locus::WorkflowStateFamily, locus::WorkflowQueueReasonCode) {
+    let (family, base_reason) = match status {
         locus::WorkPacketStatus::Unknown => (
             locus::WorkflowStateFamily::Intake,
             locus::WorkflowQueueReasonCode::NewUntriaged,
@@ -3304,7 +3314,9 @@ fn work_packet_workflow_state(
             locus::WorkflowStateFamily::Canceled,
             locus::WorkflowQueueReasonCode::BlockedPolicy,
         ),
-    }
+    };
+    let reason = locus::resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
+    (family, reason)
 }
 
 fn micro_task_workflow_state(
@@ -3374,20 +3386,7 @@ fn task_board_workflow_state(
 }
 
 fn allowed_action_ids(family: locus::WorkflowStateFamily) -> Vec<String> {
-    let actions: &[&str] = match family {
-        locus::WorkflowStateFamily::Intake => &["triage", "prioritize"],
-        locus::WorkflowStateFamily::Ready => &["start", "assign"],
-        locus::WorkflowStateFamily::Active => &["update", "complete", "pause"],
-        locus::WorkflowStateFamily::Waiting => &["resume", "escalate"],
-        locus::WorkflowStateFamily::Review => &["review", "request_changes"],
-        locus::WorkflowStateFamily::Approval => &["approve", "reject"],
-        locus::WorkflowStateFamily::Validation => &["validate", "repair"],
-        locus::WorkflowStateFamily::Blocked => &["unblock", "escalate"],
-        locus::WorkflowStateFamily::Done => &["archive", "reopen"],
-        locus::WorkflowStateFamily::Canceled => &["archive", "reopen"],
-        locus::WorkflowStateFamily::Archived => &[],
-    };
-    actions.iter().map(|action| (*action).to_string()).collect()
+    locus::governed_action_ids_for_family(family)
 }
 
 fn work_packet_blockers(work_packet: &locus::TrackedWorkPacket) -> Vec<String> {
@@ -3442,32 +3441,6 @@ fn micro_task_blockers(micro_task: &locus::TrackedMicroTask) -> Vec<String> {
     }
 
     dedupe_sort_strings(blockers)
-}
-
-fn next_action_for_work_packet(family: locus::WorkflowStateFamily) -> Option<String> {
-    governed_next_action_for_family(family)
-}
-
-fn next_action_for_micro_task(family: locus::WorkflowStateFamily) -> Option<String> {
-    governed_next_action_for_family(family)
-}
-
-fn governed_next_action_for_family(family: locus::WorkflowStateFamily) -> Option<String> {
-    let action_id = match family {
-        locus::WorkflowStateFamily::Intake => Some("triage"),
-        locus::WorkflowStateFamily::Ready => Some("start"),
-        locus::WorkflowStateFamily::Active => None,
-        locus::WorkflowStateFamily::Waiting => Some("resume"),
-        locus::WorkflowStateFamily::Review => Some("review"),
-        locus::WorkflowStateFamily::Approval => None,
-        locus::WorkflowStateFamily::Validation => Some("validate"),
-        locus::WorkflowStateFamily::Blocked => None,
-        locus::WorkflowStateFamily::Done => Some("archive"),
-        locus::WorkflowStateFamily::Canceled => None,
-        locus::WorkflowStateFamily::Archived => None,
-    };
-
-    action_id.map(str::to_string)
 }
 
 fn work_packet_authority_refs(work_packet: &locus::TrackedWorkPacket) -> Vec<String> {
@@ -25227,6 +25200,8 @@ mod tests {
         assert_eq!(display_orders, vec![0, 1]);
 
         Ok(())
+    }
+
     async fn create_test_model_session(
         state: &AppState,
         session_state: ModelSessionState,
