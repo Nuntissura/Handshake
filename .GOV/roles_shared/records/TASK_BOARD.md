@@ -92,6 +92,8 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
+- **[WP-1-Project-Agnostic-Workflow-State-Registry-v1]** - [READY_FOR_DEV]
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -169,7 +171,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Diagnostics-Debug-Bundle-Bridge-v1]** - [STUB]
 - **[WP-1-Session-Anti-Pattern-Registry-v1]** - [STUB]
 - **[WP-1-Layerwise-Inference-Foundations-v1]** - [STUB]
-- **[WP-1-Project-Agnostic-Workflow-State-Registry-v1]** - [STUB]
 - **[WP-1-Workflow-Transition-Automation-Registry-v1]** - [STUB]
 - **[WP-1-Markdown-Mirror-Sync-Drift-Guard-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-MVP-v1]** - [STUB]
