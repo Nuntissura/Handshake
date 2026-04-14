@@ -90,8 +90,11 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
 
         // High-entropy base64 tokens (>= 32 base64 chars, optionally padded).
         // Two-part guard rejects natural-language identifiers:
-        //   1. At least one non-alphabetic base64 character (digit, +, or /).
-        //      Pure-alpha CamelCase identifiers never contain these.
+        //   1. Non-alpha check OR case-balance check. If the match contains
+        //      a digit, +, or / it is structurally non-prose. If pure-alpha,
+        //      check whether uppercase ratio is near 0.5 (between 0.30–0.70):
+        //      random base64 produces ~50/50 case, while CamelCase identifiers
+        //      are heavily lowercase-skewed (~20-25% uppercase).
         //   2. Distinct-character ratio >= 0.55 on the non-padding portion
         //      (rejects low-diversity repetitive strings).
         // Both conditions must hold to redact.
@@ -107,6 +110,14 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
                 let has_non_alpha = stripped
                     .bytes()
                     .any(|b| b.is_ascii_digit() || b == b'+' || b == b'/');
+                let looks_random = if has_non_alpha {
+                    true
+                } else {
+                    let upper = stripped.bytes().filter(|b| b.is_ascii_uppercase()).count();
+                    let alpha = stripped.bytes().filter(|b| b.is_ascii_alphabetic()).count();
+                    let upper_ratio = upper as f64 / alpha as f64;
+                    (0.30..=0.70).contains(&upper_ratio)
+                };
                 let len = stripped.len() as f64;
                 let mut seen = [false; 256];
                 for b in stripped.bytes() {
@@ -114,7 +125,7 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
                 }
                 let distinct = seen.iter().filter(|&&v| v).count() as f64;
                 let ratio = distinct / len;
-                if has_non_alpha && ratio >= 0.55 {
+                if looks_random && ratio >= 0.55 {
                     new_result.push_str(SECRET_PLACEHOLDER);
                     any_replaced = true;
                 } else {
@@ -737,5 +748,17 @@ mod tests {
 
         assert!(result.secrets_found, "base64 with +/ but no digits must be redacted");
         assert!(!input_text(&result.redacted_entry).contains("aCZZVEZh"));
+    }
+
+    #[test]
+    fn redaction_detects_base64_pure_alpha() {
+        // Pure-alpha base64 token (no digits, no +/) — caught by case-balance
+        // guard: uppercase ratio 0.51 is near 0.5, indicating randomness.
+        let b64 = "pgRrGbitwZCCAyRlOGuDrRcTMYaqEaaEPDPGacpTFwc";
+        let entry = entry_with_input(&format!("key: {b64}"));
+        let result = redact_entry(&entry);
+
+        assert!(result.secrets_found, "pure-alpha base64 with balanced case must be redacted");
+        assert!(!input_text(&result.redacted_entry).contains("pgRrGbitw"));
     }
 }
