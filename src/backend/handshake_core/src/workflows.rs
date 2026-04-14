@@ -9615,6 +9615,35 @@ pub fn distillation_candidate_to_log_entry(
     let teacher = &candidate.teacher_success;
     let student = &candidate.student_attempt;
 
+    // Build structured metadata for a ChatMessage from an attempt + artifact.
+    // Preserves model_id, lora_id, lora_version, outcome, iterations, and
+    // the full artifact handle so downstream consumers can resolve snapshots.
+    let msg_meta =
+        |attempt: &CandidateAttempt, artifact: &crate::ace::ArtifactHandle| {
+            let mut m: HashMap<String, serde_json::Value> = HashMap::new();
+            m.insert("model_id".into(), serde_json::json!(attempt.model_id));
+            m.insert(
+                "artifact_id".into(),
+                serde_json::json!(artifact.artifact_id.to_string()),
+            );
+            m.insert(
+                "artifact_path".into(),
+                serde_json::json!(artifact.path),
+            );
+            if let Some(ref lid) = attempt.lora_id {
+                m.insert("lora_id".into(), serde_json::json!(lid));
+            }
+            if let Some(ref lv) = attempt.lora_version {
+                m.insert("lora_version".into(), serde_json::json!(lv));
+            }
+            m.insert("outcome".into(), serde_json::json!(attempt.outcome));
+            m.insert(
+                "iterations".into(),
+                serde_json::json!(attempt.iterations),
+            );
+            m
+        };
+
     SkillBankLogEntry {
         version: "1.0.0".to_string(),
         log_id: candidate.skill_log_entry_id,
@@ -9649,15 +9678,22 @@ pub fn distillation_candidate_to_log_entry(
             precision: None,
             inference_params: HashMap::new(),
         },
-        context_refs: ContextRefs::default(),
+        context_refs: ContextRefs {
+            files: Vec::new(),
+            spec_sections: vec![candidate.mt_id.clone()],
+            requirements: candidate.contributing_factors.clone(),
+            tools_invoked: Vec::new(),
+        },
         snapshots_input: ChatSnapshot {
             format: SnapshotFormat::Chatml,
             messages: vec![ChatMessage {
                 id: Uuid::new_v4(),
                 parent_id: None,
                 role: Role::User,
-                content: Content::Plain(teacher.prompt_snapshot_ref.canonical_id()),
-                metadata: HashMap::new(),
+                content: Content::Plain(
+                    teacher.prompt_snapshot_ref.canonical_id(),
+                ),
+                metadata: msg_meta(teacher, &teacher.prompt_snapshot_ref),
             }],
             focus_message_id: None,
         },
@@ -9667,12 +9703,45 @@ pub fn distillation_candidate_to_log_entry(
                 id: Uuid::new_v4(),
                 parent_id: None,
                 role: Role::Assistant,
-                content: Content::Plain(teacher.output_snapshot_ref.canonical_id()),
-                metadata: HashMap::new(),
+                content: Content::Plain(
+                    teacher.output_snapshot_ref.canonical_id(),
+                ),
+                metadata: msg_meta(teacher, &teacher.output_snapshot_ref),
             }],
             focus_message_id: None,
         },
-        snapshots_output_final: None,
+        // Preserve the student attempt as the contrasting output snapshot
+        // so the full student/teacher pair is durably stored.
+        snapshots_output_final: Some(ChatSnapshot {
+            format: SnapshotFormat::Chatml,
+            messages: vec![
+                ChatMessage {
+                    id: Uuid::new_v4(),
+                    parent_id: None,
+                    role: Role::User,
+                    content: Content::Plain(
+                        student.prompt_snapshot_ref.canonical_id(),
+                    ),
+                    metadata: msg_meta(
+                        student,
+                        &student.prompt_snapshot_ref,
+                    ),
+                },
+                ChatMessage {
+                    id: Uuid::new_v4(),
+                    parent_id: None,
+                    role: Role::Assistant,
+                    content: Content::Plain(
+                        student.output_snapshot_ref.canonical_id(),
+                    ),
+                    metadata: msg_meta(
+                        student,
+                        &student.output_snapshot_ref,
+                    ),
+                },
+            ],
+            focus_message_id: None,
+        }),
         quality: QualityMeta {
             quality_tag: if candidate.distillation_eligible {
                 QualityTag::Good
@@ -9688,10 +9757,6 @@ pub fn distillation_candidate_to_log_entry(
             data_trust_score: Some(candidate.data_trust_score),
             reward_features: {
                 let mut rf = HashMap::new();
-                rf.insert(
-                    "student_model".to_string(),
-                    0.0, // placeholder — student model id stored in metadata
-                );
                 rf.insert(
                     "student_iterations".to_string(),
                     student.iterations as f64,
@@ -26626,6 +26691,111 @@ mod tests {
         let rf = &entry.quality.reward_features;
         assert_eq!(rf.get("student_iterations"), Some(&3.0));
         assert_eq!(rf.get("teacher_iterations"), Some(&1.0));
+        // No fake placeholder entries
+        assert!(rf.get("student_model").is_none());
+    }
+
+    #[test]
+    fn distillation_candidate_populates_context_refs() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        assert_eq!(entry.context_refs.spec_sections, vec!["MT-001"]);
+        assert_eq!(entry.context_refs.requirements, vec!["complex_lifetime"]);
+    }
+
+    #[test]
+    fn distillation_candidate_teacher_snapshot_metadata() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        // Teacher prompt snapshot carries structured artifact metadata
+        let prompt_msg = &entry.snapshots_input.messages[0];
+        assert_eq!(
+            prompt_msg.metadata.get("model_id"),
+            Some(&serde_json::json!("gpt-4o"))
+        );
+        assert!(prompt_msg.metadata.contains_key("artifact_id"));
+        assert_eq!(
+            prompt_msg.metadata.get("artifact_path"),
+            Some(&serde_json::json!("teacher_prompt"))
+        );
+        assert_eq!(
+            prompt_msg.metadata.get("outcome"),
+            Some(&serde_json::json!("VALIDATION_PASSED"))
+        );
+
+        // Teacher output snapshot also carries metadata
+        let output_msg = &entry.snapshots_output_raw.messages[0];
+        assert_eq!(
+            output_msg.metadata.get("model_id"),
+            Some(&serde_json::json!("gpt-4o"))
+        );
+        assert_eq!(
+            output_msg.metadata.get("artifact_path"),
+            Some(&serde_json::json!("teacher_output"))
+        );
+    }
+
+    #[test]
+    fn distillation_candidate_preserves_student_attempt() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        // Student attempt stored in snapshots_output_final
+        let student_snap = entry.snapshots_output_final.as_ref().unwrap();
+        assert_eq!(student_snap.messages.len(), 2);
+
+        let student_prompt = &student_snap.messages[0];
+        assert_eq!(
+            student_prompt.metadata.get("model_id"),
+            Some(&serde_json::json!("codellama-7b"))
+        );
+        assert_eq!(
+            student_prompt.metadata.get("artifact_path"),
+            Some(&serde_json::json!("student_prompt"))
+        );
+        assert_eq!(
+            student_prompt.metadata.get("outcome"),
+            Some(&serde_json::json!("VALIDATION_FAILED"))
+        );
+        assert_eq!(
+            student_prompt.metadata.get("iterations"),
+            Some(&serde_json::json!(3))
+        );
+
+        let student_output = &student_snap.messages[1];
+        assert_eq!(
+            student_output.metadata.get("model_id"),
+            Some(&serde_json::json!("codellama-7b"))
+        );
+        assert_eq!(
+            student_output.metadata.get("artifact_path"),
+            Some(&serde_json::json!("student_output"))
+        );
+    }
+
+    #[test]
+    fn distillation_candidate_persists_lora_metadata() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        // Student has lora_id and lora_version set
+        let student_snap = entry.snapshots_output_final.as_ref().unwrap();
+        let student_msg = &student_snap.messages[0];
+        assert_eq!(
+            student_msg.metadata.get("lora_id"),
+            Some(&serde_json::json!("adapter-v3"))
+        );
+        assert_eq!(
+            student_msg.metadata.get("lora_version"),
+            Some(&serde_json::json!("3"))
+        );
+
+        // Teacher has no lora — keys should be absent
+        let teacher_msg = &entry.snapshots_input.messages[0];
+        assert!(teacher_msg.metadata.get("lora_id").is_none());
+        assert!(teacher_msg.metadata.get("lora_version").is_none());
     }
 
     #[test]
