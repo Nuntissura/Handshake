@@ -89,8 +89,10 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         }
 
         // High-entropy base64 tokens (>= 32 base64 chars, optionally padded).
-        // Post-match guard: require >= 4 digit characters to distinguish
-        // real base64 tokens from prose that may contain a stray digit.
+        // Post-match entropy guard: redact if the match contains base64-
+        // specific special chars (+/) OR has >= 4 digits. This rejects
+        // ordinary prose/identifiers while catching real tokens with few
+        // digits (which almost always contain + or /).
         let base64_re =
             Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}").unwrap();
         {
@@ -99,9 +101,11 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
             let mut any_replaced = false;
             for m in base64_re.find_iter(&result) {
                 new_result.push_str(&result[last_end..m.start()]);
+                let has_special =
+                    m.as_str().bytes().any(|b| b == b'+' || b == b'/');
                 let digit_count =
                     m.as_str().bytes().filter(|b| b.is_ascii_digit()).count();
-                if digit_count >= 4 {
+                if has_special || digit_count >= 4 {
                     new_result.push_str(SECRET_PLACEHOLDER);
                     any_replaced = true;
                 } else {
@@ -675,5 +679,16 @@ mod tests {
             !result.secrets_found,
             "long alpha-only string should not trigger secret detection"
         );
+    }
+
+    #[test]
+    fn redaction_detects_base64_with_few_digits() {
+        // Real base64 tokens with <4 digits but containing + or /
+        let b64 = "xFb/ltoDgyIvIzUTyFmO+ZSCgHy4guJj+1iNW7yAlLw=";
+        let entry = entry_with_input(&format!("key: {b64}"));
+        let result = redact_entry(&entry);
+
+        assert!(result.secrets_found);
+        assert!(!input_text(&result.redacted_entry).contains("xFb"));
     }
 }
