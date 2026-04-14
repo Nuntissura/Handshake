@@ -88,6 +88,16 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
             result = hex_re.replace_all(&result, SECRET_PLACEHOLDER).to_string();
         }
 
+        // High-entropy base64 tokens (>= 32 base64 chars, optionally padded)
+        let base64_re =
+            Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}\b").unwrap();
+        if base64_re.is_match(&result) {
+            *secrets = true;
+            result = base64_re
+                .replace_all(&result, SECRET_PLACEHOLDER)
+                .to_string();
+        }
+
         // Email addresses
         let email_re = Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap();
         if email_re.is_match(&result) {
@@ -606,5 +616,26 @@ mod tests {
         assert!(result.pii_found);
         assert!(input_text(&result.redacted_entry).contains(IBAN_PLACEHOLDER));
         assert!(!input_text(&result.redacted_entry).contains("de89"));
+    }
+
+    #[test]
+    fn redaction_detects_base64_token() {
+        let b64 = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo0MTIzNDU2Nzg5MA==";
+        let text = format!("Secret: {b64}");
+        let entry = entry_with_input(&text);
+        let result = redact_entry(&entry);
+
+        assert!(result.secrets_found);
+        assert!(!input_text(&result.redacted_entry).contains(b64));
+        assert!(input_text(&result.redacted_entry).contains(SECRET_PLACEHOLDER));
+    }
+
+    #[test]
+    fn redaction_no_false_positive_on_short_base64() {
+        // 16 base64 chars should not trigger
+        let entry = entry_with_input("id: QWJjRGVmR2hJams=");
+        let result = redact_entry(&entry);
+
+        assert!(!result.secrets_found, "short base64 should not trigger secret detection");
     }
 }
