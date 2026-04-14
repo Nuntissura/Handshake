@@ -91,11 +91,13 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         // High-entropy base64 tokens (>= 32 base64 chars, optionally padded).
         // Guard rejects natural-language identifiers via two paths:
         //   A. If the match contains a digit, +, or / → structurally non-prose.
-        //   B. If pure-alpha, require case balance: uppercase ratio 0.40–0.60.
-        //      Random base64 of random bytes produces ~50/50 upper/lower
-        //      (expected ratio 0.50, std ≈ 0.08 for 43-char strings).
-        //      CamelCase identifiers are heavily lowercase-skewed (0.20–0.25)
-        //      and even acronym-heavy identifiers stay below 0.40.
+        //   B. If pure-alpha, require BOTH:
+        //      1. Case balance: uppercase ratio 0.40–0.60.
+        //         Random base64 ≈ 50/50 upper/lower; plain CamelCase ≈ 0.20–0.25.
+        //      2. Short case-runs: average run-of-same-case length < 3.0.
+        //         Acronym-heavy CamelCase has long same-case runs (e.g.
+        //         "AIHTTPJSON" = 11-char upper run → avg ≥ 3.0), while random
+        //         base64 alternates frequently (expected avg ≈ 2.0 for 50/50).
         // Then: distinct-character ratio ≥ 0.55 filters low-diversity strings.
         let base64_re =
             Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}").unwrap();
@@ -115,7 +117,15 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
                     let upper = stripped.bytes().filter(|b| b.is_ascii_uppercase()).count();
                     let alpha = stripped.bytes().filter(|b| b.is_ascii_alphabetic()).count();
                     let upper_ratio = upper as f64 / alpha as f64;
-                    (0.40..=0.60).contains(&upper_ratio)
+                    let bytes: Vec<u8> = stripped.bytes().collect();
+                    let mut runs = 1u32;
+                    for i in 1..bytes.len() {
+                        if bytes[i - 1].is_ascii_uppercase() != bytes[i].is_ascii_uppercase() {
+                            runs += 1;
+                        }
+                    }
+                    let avg_run = bytes.len() as f64 / runs as f64;
+                    (0.40..=0.60).contains(&upper_ratio) && avg_run < 3.0
                 };
                 let len = stripped.len() as f64;
                 let mut seen = [false; 256];
@@ -752,6 +762,22 @@ mod tests {
     }
 
     #[test]
+    fn redaction_no_false_positive_on_balanced_acronym_identifier() {
+        // Upper ratio 0.4412 (inside 0.40–0.60) but long same-case runs
+        // from concatenated acronyms ("AIHTTPJSON" = 11 uppercase chars).
+        // Average case-run length = 34/10 = 3.4, above the 3.0 threshold,
+        // so the case-run guard rejects it as structured CamelCase.
+        let ident = "OpenAIHTTPJSONRpcModelPolicyConfig";
+        let entry = entry_with_input(ident);
+        let result = redact_entry(&entry);
+
+        assert!(
+            !result.secrets_found,
+            "balanced-case CamelCase with long acronym runs should not trigger secret detection"
+        );
+    }
+
+    #[test]
     fn redaction_detects_base64_zero_digits_with_special() {
         // Real base64 token with +/ but zero digits — caught by
         // has_non_alpha (+ and / count) + ratio guard.
@@ -765,8 +791,8 @@ mod tests {
 
     #[test]
     fn redaction_detects_base64_pure_alpha() {
-        // Pure-alpha base64 token (no digits, no +/) — caught by case-balance
-        // guard: upper ratio 0.51 is within 0.40–0.60.
+        // Pure-alpha base64 (no digits, no +/) — upper ratio 0.51 (in
+        // 0.40–0.60) and avg case-run 1.87 (< 3.0): both guards pass.
         let b64 = "pgRrGbitwZCCAyRlOGuDrRcTMYaqEaaEPDPGacpTFwc";
         let entry = entry_with_input(&format!("key: {b64}"));
         let result = redact_entry(&entry);
@@ -777,8 +803,8 @@ mod tests {
 
     #[test]
     fn redaction_detects_base64_pure_alpha_low_transition() {
-        // Pure-alpha base64 with low transition density but case balance 0.42
-        // still within the 0.40–0.60 window.
+        // Pure-alpha base64 — upper ratio 0.42 (in 0.40–0.60) and avg
+        // case-run 2.26 (< 3.0): both guards pass.
         let b64 = "QAHrVTlmQfgfOxmGZIwrMSQFgqjjrpmhsyCpPolnRzQ";
         let entry = entry_with_input(&format!("token: {b64}"));
         let result = redact_entry(&entry);
@@ -789,8 +815,8 @@ mod tests {
 
     #[test]
     fn redaction_detects_base64_pure_alpha_very_low_transition() {
-        // Pure-alpha base64 with very low transition density (0.36) but case
-        // balance 0.42 still within the 0.40–0.60 window.
+        // Pure-alpha base64 — upper ratio 0.42 (in 0.40–0.60) and avg
+        // case-run 2.69 (< 3.0): both guards pass despite long internal runs.
         let b64 = "ScturGNgyeAPONBMkHHJTmsqtvwtkHhwvnufYkZPhHc";
         let entry = entry_with_input(&format!("secret: {b64}"));
         let result = redact_entry(&entry);
