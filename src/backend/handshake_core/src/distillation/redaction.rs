@@ -91,12 +91,11 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         // High-entropy base64 tokens (>= 32 base64 chars, optionally padded).
         // Guard rejects natural-language identifiers via two paths:
         //   A. If the match contains a digit, +, or / → structurally non-prose.
-        //   B. If pure-alpha, require BOTH:
-        //      - Case balance: uppercase ratio 0.35–0.65 (random base64 ≈ 0.50,
-        //        CamelCase ≈ 0.20–0.25, acronym-heavy ≈ 0.35–0.40).
-        //      - Case transition density ≥ 0.40: the fraction of adjacent pairs
-        //        that switch case (U→L or L→U). Random base64 ≈ 0.50, CamelCase
-        //        ≈ 0.25–0.35 because words and acronyms form same-case runs.
+        //   B. If pure-alpha, require case balance: uppercase ratio 0.40–0.60.
+        //      Random base64 of random bytes produces ~50/50 upper/lower
+        //      (expected ratio 0.50, std ≈ 0.08 for 43-char strings).
+        //      CamelCase identifiers are heavily lowercase-skewed (0.20–0.25)
+        //      and even acronym-heavy identifiers stay below 0.40.
         // Then: distinct-character ratio ≥ 0.55 filters low-diversity strings.
         let base64_re =
             Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}").unwrap();
@@ -116,17 +115,7 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
                     let upper = stripped.bytes().filter(|b| b.is_ascii_uppercase()).count();
                     let alpha = stripped.bytes().filter(|b| b.is_ascii_alphabetic()).count();
                     let upper_ratio = upper as f64 / alpha as f64;
-                    let bytes: Vec<u8> = stripped.bytes().collect();
-                    let transitions = bytes
-                        .windows(2)
-                        .filter(|w| {
-                            w[0].is_ascii_uppercase() != w[1].is_ascii_uppercase()
-                        })
-                        .count();
-                    let transition_density =
-                        transitions as f64 / (bytes.len() - 1) as f64;
-                    (0.35..=0.65).contains(&upper_ratio)
-                        && transition_density >= 0.40
+                    (0.40..=0.60).contains(&upper_ratio)
                 };
                 let len = stripped.len() as f64;
                 let mut seen = [false; 256];
@@ -750,8 +739,8 @@ mod tests {
 
     #[test]
     fn redaction_no_false_positive_on_acronym_heavy_identifier() {
-        // Acronym-heavy CamelCase (upper ratio 0.37, diversity 0.71) must NOT
-        // be redacted — case transition density 0.32 is below 0.45 threshold.
+        // Acronym-heavy CamelCase (upper ratio 0.37) must NOT be redacted —
+        // upper ratio is below the 0.40 pure-alpha case-balance threshold.
         let ident = "OAuthJWTHttpXMLApiTokenParserConfig";
         let entry = entry_with_input(ident);
         let result = redact_entry(&entry);
@@ -777,7 +766,7 @@ mod tests {
     #[test]
     fn redaction_detects_base64_pure_alpha() {
         // Pure-alpha base64 token (no digits, no +/) — caught by case-balance
-        // (upper ratio 0.51) + transition density (0.52 ≥ 0.40).
+        // guard: upper ratio 0.51 is within 0.40–0.60.
         let b64 = "pgRrGbitwZCCAyRlOGuDrRcTMYaqEaaEPDPGacpTFwc";
         let entry = entry_with_input(&format!("key: {b64}"));
         let result = redact_entry(&entry);
@@ -788,13 +777,25 @@ mod tests {
 
     #[test]
     fn redaction_detects_base64_pure_alpha_low_transition() {
-        // Pure-alpha base64 with lower transition density (0.43) — still caught
-        // because density ≥ 0.40 and case balance 0.42 is in range.
+        // Pure-alpha base64 with low transition density but case balance 0.42
+        // still within the 0.40–0.60 window.
         let b64 = "QAHrVTlmQfgfOxmGZIwrMSQFgqjjrpmhsyCpPolnRzQ";
         let entry = entry_with_input(&format!("token: {b64}"));
         let result = redact_entry(&entry);
 
         assert!(result.secrets_found, "low-transition pure-alpha base64 must be redacted");
         assert!(!input_text(&result.redacted_entry).contains("QAHrVTlm"));
+    }
+
+    #[test]
+    fn redaction_detects_base64_pure_alpha_very_low_transition() {
+        // Pure-alpha base64 with very low transition density (0.36) but case
+        // balance 0.42 still within the 0.40–0.60 window.
+        let b64 = "ScturGNgyeAPONBMkHHJTmsqtvwtkHhwvnufYkZPhHc";
+        let entry = entry_with_input(&format!("secret: {b64}"));
+        let result = redact_entry(&entry);
+
+        assert!(result.secrets_found, "very-low-transition pure-alpha base64 must be redacted");
+        assert!(!input_text(&result.redacted_entry).contains("ScturGNg"));
     }
 }
