@@ -23,6 +23,7 @@ pub struct RedactionResult {
 const SECRET_PLACEHOLDER: &str = "[REDACTED_SECRET]";
 const EMAIL_PLACEHOLDER: &str = "[REDACTED_EMAIL]";
 const PHONE_PLACEHOLDER: &str = "[REDACTED_PHONE]";
+const IBAN_PLACEHOLDER: &str = "[REDACTED_IBAN]";
 const ENV_PLACEHOLDER: &str = "[REDACTED_ENV]";
 
 /// Scan and redact a [`SkillBankLogEntry`] before persistence or training.
@@ -93,6 +94,18 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
             *pii = true;
             result = email_re
                 .replace_all(&result, EMAIL_PLACEHOLDER)
+                .to_string();
+        }
+
+        // IBAN (International Bank Account Number) — must run before phone
+        // to prevent phone regex from consuming digit sequences within IBANs
+        let iban_re =
+            Regex::new(r"\b[A-Z]{2}\d{2}[\s]?[A-Z0-9]{4}[\s]?(?:[A-Z0-9]{4}[\s]?){2,7}[A-Z0-9]{1,4}\b")
+                .unwrap();
+        if iban_re.is_match(&result) {
+            *pii = true;
+            result = iban_re
+                .replace_all(&result, IBAN_PLACEHOLDER)
                 .to_string();
         }
 
@@ -562,5 +575,26 @@ mod tests {
         let path = &result.redacted_entry.context_refs.files[0].path;
         assert!(path.contains(EMAIL_PLACEHOLDER));
         assert!(!path.contains("user@example.com"));
+    }
+
+    #[test]
+    fn redaction_detects_iban() {
+        let entry = entry_with_input("Transfer to DE89370400440532013000 please.");
+        let result = redact_entry(&entry);
+
+        assert!(result.pii_found);
+        assert!(input_text(&result.redacted_entry).contains(IBAN_PLACEHOLDER));
+        assert!(!input_text(&result.redacted_entry).contains("DE89370400440532013000"));
+        assert!(result.redacted_entry.privacy.pii_present);
+    }
+
+    #[test]
+    fn redaction_detects_iban_with_spaces() {
+        let entry = entry_with_input("IBAN: GB29 NWBK 6016 1331 9268 19");
+        let result = redact_entry(&entry);
+
+        assert!(result.pii_found);
+        assert!(input_text(&result.redacted_entry).contains(IBAN_PLACEHOLDER));
+        assert!(!input_text(&result.redacted_entry).contains("NWBK"));
     }
 }
