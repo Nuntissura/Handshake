@@ -89,9 +89,12 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         }
 
         // High-entropy base64 tokens (>= 32 base64 chars, optionally padded).
-        // Post-match guard: compute distinct-character ratio on the non-padding
-        // portion. Real base64-encoded secrets have high character diversity
-        // (ratio >= 0.55), while prose/identifiers reuse letters heavily.
+        // Two-part guard rejects natural-language identifiers:
+        //   1. At least one ASCII digit (base64-encoded binary almost always
+        //      contains digits; pure-alpha CamelCase identifiers do not).
+        //   2. Distinct-character ratio >= 0.55 on the non-padding portion
+        //      (rejects low-diversity repetitive strings).
+        // Both conditions must hold to redact.
         let base64_re =
             Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}").unwrap();
         {
@@ -101,6 +104,7 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
             for m in base64_re.find_iter(&result) {
                 new_result.push_str(&result[last_end..m.start()]);
                 let stripped = m.as_str().trim_end_matches('=');
+                let has_digit = stripped.bytes().any(|b| b.is_ascii_digit());
                 let len = stripped.len() as f64;
                 let mut seen = [false; 256];
                 for b in stripped.bytes() {
@@ -108,7 +112,7 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
                 }
                 let distinct = seen.iter().filter(|&&v| v).count() as f64;
                 let ratio = distinct / len;
-                if ratio >= 0.55 {
+                if has_digit && ratio >= 0.55 {
                     new_result.push_str(SECRET_PLACEHOLDER);
                     any_replaced = true;
                 } else {
@@ -698,12 +702,26 @@ mod tests {
     #[test]
     fn redaction_detects_base64_no_special_low_digit() {
         // Real base64 token with neither +/ nor >= 4 digits — caught by
-        // distinct-character ratio guard (ratio ~0.72 >> 0.55 threshold).
+        // has_digit + distinct-character ratio guard.
         let b64 = "lWmAhErUCMa4bWKSEtCVHpdNwJi4lsvAwmdcHtgP5zA=";
         let entry = entry_with_input(&format!("token: {b64}"));
         let result = redact_entry(&entry);
 
         assert!(result.secrets_found, "high-entropy base64 without +/ or many digits must be redacted");
         assert!(!input_text(&result.redacted_entry).contains("lWmAhEr"));
+    }
+
+    #[test]
+    fn redaction_no_false_positive_on_high_diversity_identifier() {
+        // Pure-alpha CamelCase with high character diversity (ratio 0.74)
+        // must NOT be redacted — no digits means it's not base64.
+        let ident = "SphinxOfBlackQuartzJudgeMyVowAlphaBeta";
+        let entry = entry_with_input(ident);
+        let result = redact_entry(&entry);
+
+        assert!(
+            !result.secrets_found,
+            "high-diversity pure-alpha identifier should not trigger secret detection"
+        );
     }
 }
