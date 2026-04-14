@@ -90,8 +90,8 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
 
         // High-entropy base64 tokens (>= 32 base64 chars, optionally padded).
         // Two-part guard rejects natural-language identifiers:
-        //   1. At least one ASCII digit (base64-encoded binary almost always
-        //      contains digits; pure-alpha CamelCase identifiers do not).
+        //   1. At least one non-alphabetic base64 character (digit, +, or /).
+        //      Pure-alpha CamelCase identifiers never contain these.
         //   2. Distinct-character ratio >= 0.55 on the non-padding portion
         //      (rejects low-diversity repetitive strings).
         // Both conditions must hold to redact.
@@ -104,7 +104,9 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
             for m in base64_re.find_iter(&result) {
                 new_result.push_str(&result[last_end..m.start()]);
                 let stripped = m.as_str().trim_end_matches('=');
-                let has_digit = stripped.bytes().any(|b| b.is_ascii_digit());
+                let has_non_alpha = stripped
+                    .bytes()
+                    .any(|b| b.is_ascii_digit() || b == b'+' || b == b'/');
                 let len = stripped.len() as f64;
                 let mut seen = [false; 256];
                 for b in stripped.bytes() {
@@ -112,7 +114,7 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
                 }
                 let distinct = seen.iter().filter(|&&v| v).count() as f64;
                 let ratio = distinct / len;
-                if has_digit && ratio >= 0.55 {
+                if has_non_alpha && ratio >= 0.55 {
                     new_result.push_str(SECRET_PLACEHOLDER);
                     any_replaced = true;
                 } else {
@@ -714,7 +716,7 @@ mod tests {
     #[test]
     fn redaction_no_false_positive_on_high_diversity_identifier() {
         // Pure-alpha CamelCase with high character diversity (ratio 0.74)
-        // must NOT be redacted — no digits means it's not base64.
+        // must NOT be redacted — no non-alpha base64 chars.
         let ident = "SphinxOfBlackQuartzJudgeMyVowAlphaBeta";
         let entry = entry_with_input(ident);
         let result = redact_entry(&entry);
@@ -723,5 +725,17 @@ mod tests {
             !result.secrets_found,
             "high-diversity pure-alpha identifier should not trigger secret detection"
         );
+    }
+
+    #[test]
+    fn redaction_detects_base64_zero_digits_with_special() {
+        // Real base64 token with +/ but zero digits — caught by
+        // has_non_alpha (+ and / count) + ratio guard.
+        let b64 = "aCZZVEZhGX/DAWor+ayXVmLRjeeRCdIVGbuqZJTJNjc=";
+        let entry = entry_with_input(&format!("secret: {b64}"));
+        let result = redact_entry(&entry);
+
+        assert!(result.secrets_found, "base64 with +/ but no digits must be redacted");
+        assert!(!input_text(&result.redacted_entry).contains("aCZZVEZh"));
     }
 }
