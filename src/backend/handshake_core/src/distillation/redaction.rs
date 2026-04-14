@@ -91,15 +91,14 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         // High-entropy base64 tokens (>= 32 base64 chars, optionally padded).
         // Guard rejects natural-language identifiers via two paths:
         //   A. If the match contains a digit, +, or / → structurally non-prose.
-        //   B. If pure-alpha, require ALL of:
+        //   B. If pure-alpha, require:
         //      1. Case balance: uppercase ratio 0.40–0.60.
-        //         Random base64 ≈ 50/50 upper/lower; plain CamelCase ≈ 0.20–0.25.
-        //      2. Short case-runs: average run-of-same-case length < 3.0.
-        //         Acronym-heavy CamelCase has long same-case runs (avg ≥ 3.0),
-        //         while random base64 alternates frequently (expected avg ≈ 2.0).
-        //      3. Low vowel density: vowel ratio < 0.30.
-        //         CamelCase identifiers contain English words with ~35% vowels;
-        //         random base64 has expected vowel ratio ~19% (10/52 alpha chars).
+        //      2. Low identifier score: avg_run + 3 × vowel_ratio < 3.5.
+        //         CamelCase identifiers score high because they have BOTH long
+        //         same-case runs from acronyms (avg_run ≥ 2.9) AND vowels from
+        //         English words (~35%). Random base64 can spike on ONE axis
+        //         (high avg_run OR high vowels) but not both simultaneously —
+        //         expected score ≈ 2.0 + 3×0.19 = 2.58, std ≈ 0.35.
         // Then: distinct-character ratio ≥ 0.55 filters low-diversity strings.
         let base64_re =
             Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}").unwrap();
@@ -132,9 +131,8 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
                          | b'A' | b'E' | b'I' | b'O' | b'U'
                     )).count();
                     let vowel_ratio = vowels as f64 / stripped.len() as f64;
-                    (0.40..=0.60).contains(&upper_ratio)
-                        && avg_run < 3.0
-                        && vowel_ratio < 0.30
+                    let ident_score = avg_run + 3.0 * vowel_ratio;
+                    (0.40..=0.60).contains(&upper_ratio) && ident_score < 3.5
                 };
                 let len = stripped.len() as f64;
                 let mut seen = [false; 256];
@@ -772,8 +770,8 @@ mod tests {
 
     #[test]
     fn redaction_no_false_positive_on_balanced_acronym_identifier() {
-        // Upper ratio 0.4412 (inside 0.40–0.60) but avg case-run 3.4
-        // (≥ 3.0) and vowel ratio 0.32 (≥ 0.30) — both guards reject it.
+        // Upper ratio 0.4412 (in 0.40–0.60) but ident score
+        // 3.4 + 3×0.32 = 4.36 ≥ 3.5 — combined score rejects it.
         let ident = "OpenAIHTTPJSONRpcModelPolicyConfig";
         let entry = entry_with_input(ident);
         let result = redact_entry(&entry);
@@ -786,9 +784,9 @@ mod tests {
 
     #[test]
     fn redaction_no_false_positive_on_near_threshold_acronym_identifier() {
-        // Upper ratio 0.4062 (in 0.40–0.60), avg case-run 2.91 (< 3.0),
-        // but vowel ratio 0.34 (≥ 0.30) — vowel guard rejects it as
-        // English-derived CamelCase despite borderline case-run length.
+        // Upper ratio 0.4062 (in 0.40–0.60) but ident score
+        // 2.91 + 3×0.34 = 3.93 ≥ 3.5 — high vowel density from English
+        // words compensates for borderline avg case-run length.
         let ident = "OpenOAuthHTTPTokenPolicyModelRPC";
         let entry = entry_with_input(ident);
         let result = redact_entry(&entry);
@@ -814,7 +812,7 @@ mod tests {
     #[test]
     fn redaction_detects_base64_pure_alpha() {
         // Pure-alpha base64 (no digits, no +/) — upper ratio 0.51,
-        // avg case-run 1.87, vowel ratio 0.23: all three guards pass.
+        // ident score 1.87 + 3×0.23 = 2.56 < 3.5.
         let b64 = "pgRrGbitwZCCAyRlOGuDrRcTMYaqEaaEPDPGacpTFwc";
         let entry = entry_with_input(&format!("key: {b64}"));
         let result = redact_entry(&entry);
@@ -825,8 +823,8 @@ mod tests {
 
     #[test]
     fn redaction_detects_base64_pure_alpha_low_transition() {
-        // Pure-alpha base64 — upper ratio 0.42, avg case-run 2.26,
-        // vowel ratio 0.09: all three guards pass.
+        // Pure-alpha base64 — upper ratio 0.42,
+        // ident score 2.26 + 3×0.09 = 2.53 < 3.5.
         let b64 = "QAHrVTlmQfgfOxmGZIwrMSQFgqjjrpmhsyCpPolnRzQ";
         let entry = entry_with_input(&format!("token: {b64}"));
         let result = redact_entry(&entry);
@@ -837,13 +835,26 @@ mod tests {
 
     #[test]
     fn redaction_detects_base64_pure_alpha_very_low_transition() {
-        // Pure-alpha base64 — upper ratio 0.42, avg case-run 2.69,
-        // vowel ratio 0.12: all three guards pass despite long internal runs.
+        // Pure-alpha base64 — upper ratio 0.42,
+        // ident score 2.69 + 3×0.12 = 3.05 < 3.5 despite long internal runs.
         let b64 = "ScturGNgyeAPONBMkHHJTmsqtvwtkHhwvnufYkZPhHc";
         let entry = entry_with_input(&format!("secret: {b64}"));
         let result = redact_entry(&entry);
 
         assert!(result.secrets_found, "very-low-transition pure-alpha base64 must be redacted");
         assert!(!input_text(&result.redacted_entry).contains("ScturGNg"));
+    }
+
+    #[test]
+    fn redaction_detects_base64_pure_alpha_high_vowel() {
+        // Pure-alpha base64 with high vowel ratio (0.35) — upper ratio 0.51,
+        // ident score 1.95 + 3×0.35 = 3.00 < 3.5. Low avg-run compensates
+        // for the high vowel density in the combined score.
+        let b64 = "nXkWoELayEarXcHcnMXEUPWbfjiPiVRebLijoaCRAUY";
+        let entry = entry_with_input(&format!("secret: {b64}"));
+        let result = redact_entry(&entry);
+
+        assert!(result.secrets_found, "high-vowel pure-alpha base64 must be redacted");
+        assert!(!input_text(&result.redacted_entry).contains("nXkWoELay"));
     }
 }
