@@ -117,14 +117,59 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
             Content::Segments(ref mut segments) => {
                 for seg in segments.iter_mut() {
                     seg.text = redact_text(&seg.text, secrets, pii);
+                    if let Some(ref fp) = seg.file_path {
+                        let redacted = redact_text(fp, secrets, pii);
+                        seg.file_path = Some(redacted);
+                    }
                 }
             }
         }
     };
 
+    // Recursively redact string values inside serde_json::Value trees.
+    fn redact_json_value(
+        val: &serde_json::Value,
+        redact_text: &dyn Fn(&str, &mut bool, &mut bool) -> String,
+        secrets: &mut bool,
+        pii: &mut bool,
+    ) -> serde_json::Value {
+        match val {
+            serde_json::Value::String(s) => {
+                serde_json::Value::String(redact_text(s, secrets, pii))
+            }
+            serde_json::Value::Array(arr) => serde_json::Value::Array(
+                arr.iter()
+                    .map(|v| redact_json_value(v, redact_text, secrets, pii))
+                    .collect(),
+            ),
+            serde_json::Value::Object(map) => {
+                let mut out = serde_json::Map::new();
+                for (k, v) in map {
+                    out.insert(
+                        k.clone(),
+                        redact_json_value(v, redact_text, secrets, pii),
+                    );
+                }
+                serde_json::Value::Object(out)
+            }
+            other => other.clone(),
+        }
+    }
+
     let redact_snapshot = |snapshot: &mut ChatSnapshot, secrets: &mut bool, pii: &mut bool| {
         for msg in snapshot.messages.iter_mut() {
             redact_content(&mut msg.content, secrets, pii);
+            let redacted_meta: std::collections::HashMap<String, serde_json::Value> = msg
+                .metadata
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        redact_json_value(v, &redact_text, secrets, pii),
+                    )
+                })
+                .collect();
+            msg.metadata = redacted_meta;
         }
     };
 
@@ -142,6 +187,12 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
     if let Some(ref summary) = entry.task.request_summary {
         let redacted = redact_text(summary, &mut secrets_found, &mut pii_found);
         entry.task.request_summary = Some(redacted);
+    }
+
+    // Scan edit_summary in UserEditStats
+    if let Some(ref summary) = entry.quality.user_edit_stats.edit_summary {
+        let redacted = redact_text(summary, &mut secrets_found, &mut pii_found);
+        entry.quality.user_edit_stats.edit_summary = Some(redacted);
     }
 
     // Set privacy flags
@@ -410,5 +461,84 @@ mod tests {
         let result = redact_entry(&entry);
 
         assert!(!result.secrets_found, "16-char hex should not trigger secret detection");
+    }
+
+    #[test]
+    fn redaction_scans_content_segment_file_path() {
+        let mut entry = entry_with_input("placeholder");
+        entry.snapshots_input.messages[0].content = Content::Segments(vec![ContentSegment {
+            r#type: ContentSegmentType::Code,
+            text: "clean code".to_string(),
+            language: Some("rust".to_string()),
+            file_path: Some("/home/user@example.com/project/main.rs".to_string()),
+        }]);
+
+        let result = redact_entry(&entry);
+        assert!(result.pii_found);
+
+        if let Content::Segments(segs) = &result.redacted_entry.snapshots_input.messages[0].content
+        {
+            let fp = segs[0].file_path.as_ref().unwrap();
+            assert!(fp.contains(EMAIL_PLACEHOLDER));
+            assert!(!fp.contains("user@example.com"));
+        } else {
+            panic!("expected Segments content");
+        }
+    }
+
+    #[test]
+    fn redaction_scans_chat_message_metadata() {
+        let mut entry = entry_with_input("clean input");
+        entry.snapshots_input.messages[0]
+            .metadata
+            .insert("note".to_string(), serde_json::json!("Contact admin@corp.com"));
+
+        let result = redact_entry(&entry);
+        assert!(result.pii_found);
+
+        let meta_val = result.redacted_entry.snapshots_input.messages[0]
+            .metadata
+            .get("note")
+            .unwrap();
+        let s = meta_val.as_str().unwrap();
+        assert!(s.contains(EMAIL_PLACEHOLDER));
+        assert!(!s.contains("admin@corp.com"));
+    }
+
+    #[test]
+    fn redaction_scans_nested_metadata_values() {
+        let mut entry = entry_with_input("clean input");
+        entry.snapshots_input.messages[0].metadata.insert(
+            "config".to_string(),
+            serde_json::json!({"key": "OPENAI_API_KEY=sk-secret999"}),
+        );
+
+        let result = redact_entry(&entry);
+        assert!(result.secrets_found);
+
+        let meta_val = &result.redacted_entry.snapshots_input.messages[0].metadata["config"];
+        let inner = meta_val.get("key").unwrap().as_str().unwrap();
+        assert!(inner.contains(ENV_PLACEHOLDER));
+        assert!(!inner.contains("sk-secret999"));
+    }
+
+    #[test]
+    fn redaction_scans_edit_summary() {
+        let mut entry = entry_with_input("clean input");
+        entry.quality.user_edit_stats.edit_summary =
+            Some("Fixed api_key=leaked-secret in handler".to_string());
+
+        let result = redact_entry(&entry);
+        assert!(result.secrets_found);
+
+        let summary = result
+            .redacted_entry
+            .quality
+            .user_edit_stats
+            .edit_summary
+            .as_ref()
+            .unwrap();
+        assert!(summary.contains(SECRET_PLACEHOLDER));
+        assert!(!summary.contains("leaked-secret"));
     }
 }
