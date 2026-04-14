@@ -89,15 +89,15 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         }
 
         // High-entropy base64 tokens (>= 32 base64 chars, optionally padded).
-        // Two-part guard rejects natural-language identifiers:
-        //   1. Non-alpha check OR case-balance check. If the match contains
-        //      a digit, +, or / it is structurally non-prose. If pure-alpha,
-        //      check whether uppercase ratio is near 0.5 (between 0.30–0.70):
-        //      random base64 produces ~50/50 case, while CamelCase identifiers
-        //      are heavily lowercase-skewed (~20-25% uppercase).
-        //   2. Distinct-character ratio >= 0.55 on the non-padding portion
-        //      (rejects low-diversity repetitive strings).
-        // Both conditions must hold to redact.
+        // Guard rejects natural-language identifiers via two paths:
+        //   A. If the match contains a digit, +, or / → structurally non-prose.
+        //   B. If pure-alpha, require BOTH:
+        //      - Case balance: uppercase ratio 0.35–0.65 (random base64 ≈ 0.50,
+        //        CamelCase ≈ 0.20–0.25, acronym-heavy ≈ 0.35–0.40).
+        //      - Case transition density ≥ 0.45: the fraction of adjacent pairs
+        //        that switch case (U→L or L→U). Random base64 ≈ 0.50, CamelCase
+        //        ≈ 0.30–0.35 because words form long same-case runs.
+        // Then: distinct-character ratio ≥ 0.55 filters low-diversity strings.
         let base64_re =
             Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}").unwrap();
         {
@@ -116,7 +116,17 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
                     let upper = stripped.bytes().filter(|b| b.is_ascii_uppercase()).count();
                     let alpha = stripped.bytes().filter(|b| b.is_ascii_alphabetic()).count();
                     let upper_ratio = upper as f64 / alpha as f64;
-                    (0.30..=0.70).contains(&upper_ratio)
+                    let bytes: Vec<u8> = stripped.bytes().collect();
+                    let transitions = bytes
+                        .windows(2)
+                        .filter(|w| {
+                            w[0].is_ascii_uppercase() != w[1].is_ascii_uppercase()
+                        })
+                        .count();
+                    let transition_density =
+                        transitions as f64 / (bytes.len() - 1) as f64;
+                    (0.35..=0.65).contains(&upper_ratio)
+                        && transition_density >= 0.45
                 };
                 let len = stripped.len() as f64;
                 let mut seen = [false; 256];
@@ -727,7 +737,7 @@ mod tests {
     #[test]
     fn redaction_no_false_positive_on_high_diversity_identifier() {
         // Pure-alpha CamelCase with high character diversity (ratio 0.74)
-        // must NOT be redacted — no non-alpha base64 chars.
+        // must NOT be redacted — uppercase ratio 0.24 is outside 0.35–0.65.
         let ident = "SphinxOfBlackQuartzJudgeMyVowAlphaBeta";
         let entry = entry_with_input(ident);
         let result = redact_entry(&entry);
@@ -735,6 +745,20 @@ mod tests {
         assert!(
             !result.secrets_found,
             "high-diversity pure-alpha identifier should not trigger secret detection"
+        );
+    }
+
+    #[test]
+    fn redaction_no_false_positive_on_acronym_heavy_identifier() {
+        // Acronym-heavy CamelCase (upper ratio 0.37, diversity 0.71) must NOT
+        // be redacted — case transition density 0.32 is below 0.45 threshold.
+        let ident = "OAuthJWTHttpXMLApiTokenParserConfig";
+        let entry = entry_with_input(ident);
+        let result = redact_entry(&entry);
+
+        assert!(
+            !result.secrets_found,
+            "acronym-heavy CamelCase identifier should not trigger secret detection"
         );
     }
 
@@ -753,7 +777,7 @@ mod tests {
     #[test]
     fn redaction_detects_base64_pure_alpha() {
         // Pure-alpha base64 token (no digits, no +/) — caught by case-balance
-        // guard: uppercase ratio 0.51 is near 0.5, indicating randomness.
+        // (upper ratio 0.51) + transition density (0.52 ≥ 0.45).
         let b64 = "pgRrGbitwZCCAyRlOGuDrRcTMYaqEaaEPDPGacpTFwc";
         let entry = entry_with_input(&format!("key: {b64}"));
         let result = redact_entry(&entry);
