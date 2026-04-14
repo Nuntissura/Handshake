@@ -88,14 +88,32 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
             result = hex_re.replace_all(&result, SECRET_PLACEHOLDER).to_string();
         }
 
-        // High-entropy base64 tokens (>= 32 base64 chars, optionally padded)
+        // High-entropy base64 tokens (>= 32 base64 chars, optionally padded).
+        // Post-match guard: require >= 4 digit characters to distinguish
+        // real base64 tokens from prose that may contain a stray digit.
         let base64_re =
             Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}").unwrap();
-        if base64_re.is_match(&result) {
-            *secrets = true;
-            result = base64_re
-                .replace_all(&result, SECRET_PLACEHOLDER)
-                .to_string();
+        {
+            let mut new_result = String::new();
+            let mut last_end = 0;
+            let mut any_replaced = false;
+            for m in base64_re.find_iter(&result) {
+                new_result.push_str(&result[last_end..m.start()]);
+                let digit_count =
+                    m.as_str().bytes().filter(|b| b.is_ascii_digit()).count();
+                if digit_count >= 4 {
+                    new_result.push_str(SECRET_PLACEHOLDER);
+                    any_replaced = true;
+                } else {
+                    new_result.push_str(m.as_str());
+                }
+                last_end = m.end();
+            }
+            if any_replaced {
+                new_result.push_str(&result[last_end..]);
+                *secrets = true;
+                result = new_result;
+            }
         }
 
         // Email addresses
@@ -643,5 +661,19 @@ mod tests {
         let result = redact_entry(&entry);
 
         assert!(!result.secrets_found, "short base64 should not trigger secret detection");
+    }
+
+    #[test]
+    fn redaction_no_false_positive_on_long_alpha_string() {
+        // Pure-alpha CamelCase identifiers must not trigger base64 detection
+        let entry = entry_with_input(
+            "ThisSentenceHasManyLettersButNoPaddingAndIsProbablyNotBase64Token",
+        );
+        let result = redact_entry(&entry);
+
+        assert!(
+            !result.secrets_found,
+            "long alpha-only string should not trigger secret detection"
+        );
     }
 }
