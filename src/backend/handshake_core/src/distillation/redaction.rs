@@ -100,7 +100,7 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         // IBAN (International Bank Account Number) — must run before phone
         // to prevent phone regex from consuming digit sequences within IBANs
         let iban_re =
-            Regex::new(r"\b[A-Z]{2}\d{2}[\s]?[A-Z0-9]{4}[\s]?(?:[A-Z0-9]{4}[\s]?){2,7}[A-Z0-9]{1,4}\b")
+            Regex::new(r"(?i)\b[A-Z]{2}\d{2}[\s]?[A-Z0-9]{4}[\s]?(?:[A-Z0-9]{4}[\s]?){2,7}[A-Z0-9]{1,4}\b")
                 .unwrap();
         if iban_re.is_match(&result) {
             *pii = true;
@@ -596,5 +596,15 @@ mod tests {
         assert!(result.pii_found);
         assert!(input_text(&result.redacted_entry).contains(IBAN_PLACEHOLDER));
         assert!(!input_text(&result.redacted_entry).contains("NWBK"));
+    }
+
+    #[test]
+    fn redaction_detects_iban_mixed_case() {
+        let entry = entry_with_input("Pay to de89370400440532013000 now");
+        let result = redact_entry(&entry);
+
+        assert!(result.pii_found);
+        assert!(input_text(&result.redacted_entry).contains(IBAN_PLACEHOLDER));
+        assert!(!input_text(&result.redacted_entry).contains("de89"));
     }
 }
