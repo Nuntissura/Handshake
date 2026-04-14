@@ -1635,10 +1635,10 @@ mod tests {
         .with_model_id("model-roundtrip")
         .with_model_session_id("session-roundtrip")
         .with_wsids(vec!["ws-1".to_string(), "ws-2".to_string()])
-        .with_activity_span_id("activity-roundtrip")
-        .with_session_span_id("session-span-roundtrip")
-        .with_capability_id("capability-roundtrip")
-        .with_policy_decision_id("policy-roundtrip");
+        .with_activity_span("activity-roundtrip")
+        .with_session_span("session-span-roundtrip")
+        .with_capability("capability-roundtrip")
+        .with_policy_decision("policy-roundtrip");
 
         recorder.record_event(event).await?;
 

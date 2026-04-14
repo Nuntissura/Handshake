@@ -50,8 +50,8 @@ use crate::{
     storage::{
         validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate, ModelSession,
         ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
-        SessionMessageRole, StorageCapabilityStore, StorageError, StructuredCollabWorkPacketRow,
-        StructuredCollaborationStore,
+        SessionCheckpoint, SessionMessageRole, StorageCapabilityStore, StorageError,
+        StructuredCollabWorkPacketRow, StructuredCollaborationStore,
     },
     terminal::{
         config::TerminalConfig,
@@ -60,7 +60,7 @@ use crate::{
         JobContext, TerminalMode, TerminalRequest, TerminalService,
     },
     workspace_safety::{
-        cleanup_session_worktree, collect_merge_back_artifact, enforce_cross_session_access,
+        cleanup_session_worktree, collect_merge_back_artifact, enforce_cross_session_access, MergeBackArtifact,
         enforce_workspace_isolation, ensure_session_worktree_allocation,
         SessionWorktreeAllocation, SessionWorktreeRegistry,
     },
@@ -117,6 +117,8 @@ pub enum WorkflowError {
     /// This error triggers JobState::Poisoned transition
     #[error("Security violation: {0}")]
     SecurityViolation(#[from] AceError),
+    #[error("Serialization error: {0}")]
+    Serialization(#[from] serde_json::Error),
 }
 
 #[derive(Error, Debug)]
@@ -25227,6 +25229,8 @@ mod tests {
         assert_eq!(display_orders, vec![0, 1]);
 
         Ok(())
+    }
+
     async fn create_test_model_session(
         state: &AppState,
         session_state: ModelSessionState,
@@ -25325,6 +25329,10 @@ mod tests {
             capability_grants: capability_grants.iter().map(|cap| cap.to_string()).collect(),
             capability_token_ids: None,
             job_id: None,
+            checkpoint_artifact_id: None,
+            last_checkpoint_at: None,
+            checkpoint_count: 0,
+            merge_back_artifact: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
