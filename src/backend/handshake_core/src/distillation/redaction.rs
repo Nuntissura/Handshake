@@ -90,7 +90,7 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
 
         // High-entropy base64 tokens (>= 32 base64 chars, optionally padded)
         let base64_re =
-            Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}\b").unwrap();
+            Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}").unwrap();
         if base64_re.is_match(&result) {
             *secrets = true;
             result = base64_re
@@ -628,6 +628,12 @@ mod tests {
         assert!(result.secrets_found);
         assert!(!input_text(&result.redacted_entry).contains(b64));
         assert!(input_text(&result.redacted_entry).contains(SECRET_PLACEHOLDER));
+        // No trailing padding remnant survives
+        assert!(
+            !input_text(&result.redacted_entry).contains("=="),
+            "base64 padding must not leak: got {:?}",
+            input_text(&result.redacted_entry)
+        );
     }
 
     #[test]
