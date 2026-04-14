@@ -183,6 +183,11 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         redact_snapshot(final_snap, &mut secrets_found, &mut pii_found);
     }
 
+    // Scan context_refs.files[].path for PII leakage in provenance paths
+    for file_ref in entry.context_refs.files.iter_mut() {
+        file_ref.path = redact_text(&file_ref.path, &mut secrets_found, &mut pii_found);
+    }
+
     // Also scan request_summary
     if let Some(ref summary) = entry.task.request_summary {
         let redacted = redact_text(summary, &mut secrets_found, &mut pii_found);
@@ -540,5 +545,22 @@ mod tests {
             .unwrap();
         assert!(summary.contains(SECRET_PLACEHOLDER));
         assert!(!summary.contains("leaked-secret"));
+    }
+
+    #[test]
+    fn redaction_scans_context_refs_file_paths() {
+        let mut entry = entry_with_input("clean input");
+        entry.context_refs.files.push(FileContextRef {
+            path: "/home/user@example.com/project/src/main.rs".to_string(),
+            hash: None,
+            selection_ranges: vec![],
+        });
+
+        let result = redact_entry(&entry);
+        assert!(result.pii_found);
+
+        let path = &result.redacted_entry.context_refs.files[0].path;
+        assert!(path.contains(EMAIL_PLACEHOLDER));
+        assert!(!path.contains("user@example.com"));
     }
 }
