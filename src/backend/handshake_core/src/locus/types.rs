@@ -1803,6 +1803,26 @@ fn normalized_string_array(value: Option<&Value>) -> Vec<String> {
     values
 }
 
+/// Returns `true` if the given string is a registered governed action identifier.
+///
+/// Current implementation accepts any non-empty ASCII identifier as registered.
+/// A stricter registry will replace this in a future MT.
+pub fn is_registered_governed_action_id(action_id: &str) -> bool {
+    !action_id.is_empty()
+}
+
+/// Returns `true` if the given governed action id is allowed for the specified
+/// workflow state family.
+///
+/// Current implementation permits all registered action ids in any family.
+/// Family-specific constraints will be added in a future MT.
+pub fn is_governed_action_id_allowed_for_workflow_family(
+    _family: WorkflowStateFamily,
+    action_id: &str,
+) -> bool {
+    is_registered_governed_action_id(action_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
