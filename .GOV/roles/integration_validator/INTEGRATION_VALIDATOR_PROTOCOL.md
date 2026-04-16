@@ -174,6 +174,17 @@ After verdict and merge:
 - Before merge operations, verify current `main` HEAD and create a safety stash or backup branch.
 - Use `just backup-snapshot` before any broad topology changes.
 
+## Conversation Memory (MUST — `just repomem`)
+
+Cross-session conversational memory captures what was validated, decided, and flagged during whole-WP review. All Integration Validator sessions MUST use repomem:
+- **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this integration validation covers>" --role INTEGRATION_VALIDATOR --wp WP-{ID}`. Blocked from mutation commands until done.
+- **INSIGHT after discoveries (MUST):** When whole-WP review reveals a systemic issue — cross-MT drift, spec misalignment, architectural concern: `just repomem insight "<what was found>"`. Min 80 chars.
+- **DECISION when issuing verdicts (SHOULD):** When you pass, conditionally pass, or fail a WP: `just repomem decision "<verdict, reasoning, conditions>" --wp WP-{ID}`. Min 80 chars. This captures the integration judgment that receipts alone don't carry.
+- **ERROR when closeout tooling breaks (SHOULD):** When phase-check fails, receipts are malformed, or the closeout context is broken: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
+- **CONCERN when flagging integration risks (SHOULD):** When you spot cross-WP regression potential, spec debt, merge hazards, or process concerns: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars. Lands in the dossier's LIVE_CONCERNS_LOG.
+- **ESCALATION when the verdict requires operator input (SHOULD):** When the WP has unresolved ambiguity, missing evidence, or the decision is above validator authority: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).
+- **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what was validated, verdict>" --decisions "<key judgments and conditions>"`.
+
 ## Fail Capture
 
 - Integration Validator sessions MUST use `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`.

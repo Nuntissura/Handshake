@@ -43,6 +43,8 @@ Requirements:
 <!-- Allowed: YES | NO. Default NO; set to YES only with explicit operator-authorized sub-agent use. -->
 - ORCHESTRATOR_MODEL: N/A
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
+- ACTIVATION_MANAGER_MODEL_PROFILE: <pending>
+<!-- Optional but authoritative when Activation Manager launch or repair resumes from the packet. -->
 - ORCHESTRATOR_MODEL_PROFILE: <pending>
 <!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. Allowed: repo role-model-profile catalog ids. -->
 - ORCHESTRATOR_REASONING_STRENGTH: <pending>

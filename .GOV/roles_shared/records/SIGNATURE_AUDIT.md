@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja140420260053 | Orchestrator | 2026-04-14 00:53 | Work packet creation: WP-1-Distillation-v2 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Distillation-v2.md ). |
+| ilja130420261117 | Orchestrator | 2026-04-13 11:17 | Work packet creation: WP-1-Calendar-Storage-v2 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Calendar-Storage-v2.md ). |
 | ilja130420260159 | Orchestrator | 2026-04-13 01:59 | Work packet creation: WP-1-Project-Agnostic-Workflow-State-Registry-v1 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Project-Agnostic-Workflow-State-Registry-v1.md ). |
 | ilja120420260458 | Orchestrator | 2026-04-12 04:58 | Work packet creation: WP-1-Governance-Workflow-Mirror-v2 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Governance-Workflow-Mirror-v2.md ). |
 | ilja110420260528 | Orchestrator | 2026-04-11 05:28 | Work packet creation: WP-1-Dev-Command-Center-Control-Plane-Backend-v1 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Dev-Command-Center-Control-Plane-Backend-v1.md ). |

@@ -488,22 +488,25 @@ if (action === 'profiles') {
     const coderProfileArg = (argvData[1] || '').trim();
     const wpValidatorProfileArg = (argvData[2] || '').trim();
     const integrationValidatorProfileArg = (argvData[3] || '').trim();
+    const activationManagerProfileArg = (argvData[4] || '').trim();
 
     const orchestratorProfile = normalizeRoleModelProfileId(orchestratorProfileArg) || DEFAULT_ROLE_MODEL_PROFILE_IDS.ORCHESTRATOR;
     const coderProfile = normalizeRoleModelProfileId(coderProfileArg) || DEFAULT_ROLE_MODEL_PROFILE_IDS.CODER;
     const wpValidatorProfile = normalizeRoleModelProfileId(wpValidatorProfileArg) || DEFAULT_ROLE_MODEL_PROFILE_IDS.WP_VALIDATOR;
     const integrationValidatorProfile = normalizeRoleModelProfileId(integrationValidatorProfileArg) || DEFAULT_ROLE_MODEL_PROFILE_IDS.INTEGRATION_VALIDATOR;
+    const activationManagerProfile = normalizeRoleModelProfileId(activationManagerProfileArg) || DEFAULT_ROLE_MODEL_PROFILE_IDS.ACTIVATION_MANAGER;
 
     const invalidProfiles = [];
     if (orchestratorProfileArg && !normalizeRoleModelProfileId(orchestratorProfileArg)) invalidProfiles.push(`ORCHESTRATOR_MODEL_PROFILE=${orchestratorProfileArg}`);
     if (coderProfileArg && !normalizeRoleModelProfileId(coderProfileArg)) invalidProfiles.push(`CODER_MODEL_PROFILE=${coderProfileArg}`);
     if (wpValidatorProfileArg && !normalizeRoleModelProfileId(wpValidatorProfileArg)) invalidProfiles.push(`WP_VALIDATOR_MODEL_PROFILE=${wpValidatorProfileArg}`);
     if (integrationValidatorProfileArg && !normalizeRoleModelProfileId(integrationValidatorProfileArg)) invalidProfiles.push(`INTEGRATION_VALIDATOR_MODEL_PROFILE=${integrationValidatorProfileArg}`);
+    if (activationManagerProfileArg && !normalizeRoleModelProfileId(activationManagerProfileArg)) invalidProfiles.push(`ACTIVATION_MANAGER_MODEL_PROFILE=${activationManagerProfileArg}`);
     if (invalidProfiles.length > 0) {
         v2Fail('Invalid role model profile id(s).', [
             ...invalidProfiles,
             `Allowed: ${ROLE_MODEL_PROFILE_HELP}`,
-            `Usage: just record-role-model-profiles ${wpId} [orchestrator_profile] [coder_profile] [wp_validator_profile] [integration_validator_profile]`,
+            `Usage: just record-role-model-profiles ${wpId} [orchestrator_profile] [coder_profile] [wp_validator_profile] [integration_validator_profile] [activation_manager_profile]`,
         ]);
     }
 
@@ -515,6 +518,7 @@ if (action === 'profiles') {
         coder_model_profile: coderProfile,
         wp_validator_model_profile: wpValidatorProfile,
         integration_validator_model_profile: integrationValidatorProfile,
+        activation_manager_model_profile: activationManagerProfile,
         timestamp: now,
     });
     saveState(state);
@@ -524,7 +528,7 @@ if (action === 'profiles') {
         stage: 'ROLE_MODEL_PROFILES',
         next: 'PREPARE',
         operatorAction: 'NONE',
-        gateRan: `just record-role-model-profiles ${wpId} ${orchestratorProfileArg} ${coderProfileArg} ${wpValidatorProfileArg} ${integrationValidatorProfileArg}`.trim(),
+        gateRan: `just record-role-model-profiles ${wpId} ${orchestratorProfileArg} ${coderProfileArg} ${wpValidatorProfileArg} ${integrationValidatorProfileArg} ${activationManagerProfileArg}`.trim(),
         result: 'PASS',
         why: 'Per-role model profiles recorded for packet creation and governed runtime/session policy enforcement.',
         gateOutputLines: [
@@ -533,6 +537,7 @@ if (action === 'profiles') {
             `- CODER_MODEL_PROFILE: ${coderProfile}`,
             `- WP_VALIDATOR_MODEL_PROFILE: ${wpValidatorProfile}`,
             `- INTEGRATION_VALIDATOR_MODEL_PROFILE: ${integrationValidatorProfile}`,
+            `- ACTIVATION_MANAGER_MODEL_PROFILE: ${activationManagerProfile}`,
             `- note: profiles with provider-specific runtime_support=DECLARED_ONLY remain auditable in packets, but governed launch/session-control will fail closed until runtime support exists.`,
         ],
         nextCommands: [

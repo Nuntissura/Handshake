@@ -1,0 +1,255 @@
+diff --git a/src/backend/handshake_core/src/storage/calendar.rs b/src/backend/handshake_core/src/storage/calendar.rs
+index bffe4ec7..610e6edf 100644
+--- a/src/backend/handshake_core/src/storage/calendar.rs
++++ b/src/backend/handshake_core/src/storage/calendar.rs
+@@ -152,6 +152,11 @@ pub struct CalendarSource {
+     pub capability_profile_id: Option<String>,
+     pub config: Value,
+     pub sync_state: CalendarSourceSyncState,
++    pub last_job_id: Option<String>,
++    pub last_workflow_id: Option<String>,
++    pub last_actor_id: Option<String>,
++    pub edit_event_id: String,
++    pub last_actor_kind: String,
+     pub created_at: DateTime<Utc>,
+     pub updated_at: DateTime<Utc>,
+ }
+@@ -303,6 +308,11 @@ pub struct CalendarEvent {
+     pub attendees: Value,
+     pub links: Value,
+     pub provider_payload: Option<Value>,
++    pub last_job_id: Option<String>,
++    pub last_workflow_id: Option<String>,
++    pub last_actor_id: Option<String>,
++    pub edit_event_id: String,
++    pub last_actor_kind: String,
+     pub created_at: DateTime<Utc>,
+     pub updated_at: DateTime<Utc>,
+ }
+diff --git a/src/backend/handshake_core/src/storage/postgres.rs b/src/backend/handshake_core/src/storage/postgres.rs
+index 0ee0572c..ee8392dd 100644
+--- a/src/backend/handshake_core/src/storage/postgres.rs
++++ b/src/backend/handshake_core/src/storage/postgres.rs
+@@ -1619,6 +1619,11 @@ fn map_calendar_source(row: PgRow) -> StorageResult<CalendarSource> {
+             last_remote_watermark: row.get("last_remote_watermark"),
+             last_local_applied_rev: row.get("last_local_applied_rev"),
+         },
++        last_job_id: row.get("last_job_id"),
++        last_workflow_id: row.get("last_workflow_id"),
++        last_actor_id: row.get("last_actor_id"),
++        edit_event_id: row.get("edit_event_id"),
++        last_actor_kind: row.get("last_actor_kind"),
+         created_at: map_timestamp(&row, "created_at"),
+         updated_at: map_timestamp(&row, "updated_at"),
+     })
+@@ -1661,6 +1666,11 @@ fn map_calendar_event(row: PgRow) -> StorageResult<CalendarEvent> {
+             .get::<Option<String>, _>("provider_payload_json")
+             .map(|raw| serde_json::from_str::<Value>(&raw))
+             .transpose()?,
++        last_job_id: row.get("last_job_id"),
++        last_workflow_id: row.get("last_workflow_id"),
++        last_actor_id: row.get("last_actor_id"),
++        edit_event_id: row.get("edit_event_id"),
++        last_actor_kind: row.get("last_actor_kind"),
+         created_at: map_timestamp(&row, "created_at"),
+         updated_at: map_timestamp(&row, "updated_at"),
+     })
+@@ -4175,6 +4185,11 @@ impl super::Database for PostgresDatabase {
+                 consecutive_failures,
+                 last_remote_watermark,
+                 last_local_applied_rev,
++                last_job_id,
++                last_workflow_id,
++                last_actor_id,
++                edit_event_id,
++                last_actor_kind,
+                 created_at,
+                 updated_at
+             "#,
+@@ -4249,6 +4264,11 @@ impl super::Database for PostgresDatabase {
+                 consecutive_failures,
+                 last_remote_watermark,
+                 last_local_applied_rev,
++                last_job_id,
++                last_workflow_id,
++                last_actor_id,
++                edit_event_id,
++                last_actor_kind,
+                 created_at,
+                 updated_at
+             FROM calendar_sources
+@@ -4298,6 +4318,11 @@ impl super::Database for PostgresDatabase {
+                 consecutive_failures,
+                 last_remote_watermark,
+                 last_local_applied_rev,
++                last_job_id,
++                last_workflow_id,
++                last_actor_id,
++                edit_event_id,
++                last_actor_kind,
+                 created_at,
+                 updated_at
+             FROM calendar_sources
+@@ -4448,6 +4473,11 @@ impl super::Database for PostgresDatabase {
+                     attendees_json,
+                     links_json,
+                     provider_payload_json,
++                    last_job_id,
++                    last_workflow_id,
++                    last_actor_id,
++                    edit_event_id,
++                    last_actor_kind,
+                     created_at,
+                     updated_at
+                 "#,
+@@ -4605,6 +4635,11 @@ impl super::Database for PostgresDatabase {
+                     attendees_json,
+                     links_json,
+                     provider_payload_json,
++                    last_job_id,
++                    last_workflow_id,
++                    last_actor_id,
++                    edit_event_id,
++                    last_actor_kind,
+                     created_at,
+                     updated_at
+                 "#,
+@@ -4692,6 +4727,11 @@ impl super::Database for PostgresDatabase {
+                 attendees_json,
+                 links_json,
+                 provider_payload_json,
++                last_job_id,
++                last_workflow_id,
++                last_actor_id,
++                edit_event_id,
++                last_actor_kind,
+                 created_at,
+                 updated_at
+             FROM calendar_events
+diff --git a/src/backend/handshake_core/src/storage/sqlite.rs b/src/backend/handshake_core/src/storage/sqlite.rs
+index 726f202c..c4272f7c 100644
+--- a/src/backend/handshake_core/src/storage/sqlite.rs
++++ b/src/backend/handshake_core/src/storage/sqlite.rs
+@@ -1071,6 +1071,11 @@ fn map_calendar_source_row(row: sqlx::sqlite::SqliteRow) -> StorageResult<Calend
+             last_remote_watermark: row.get("last_remote_watermark"),
+             last_local_applied_rev: row.get("last_local_applied_rev"),
+         },
++        last_job_id: row.get("last_job_id"),
++        last_workflow_id: row.get("last_workflow_id"),
++        last_actor_id: row.get("last_actor_id"),
++        edit_event_id: row.get("edit_event_id"),
++        last_actor_kind: row.get("last_actor_kind"),
+         created_at: row.get("created_at"),
+         updated_at: row.get("updated_at"),
+     })
+@@ -1113,6 +1118,11 @@ fn map_calendar_event_row(row: sqlx::sqlite::SqliteRow) -> StorageResult<Calenda
+             .get::<Option<String>, _>("provider_payload_json")
+             .map(|raw| serde_json::from_str::<Value>(&raw))
+             .transpose()?,
++        last_job_id: row.get("last_job_id"),
++        last_workflow_id: row.get("last_workflow_id"),
++        last_actor_id: row.get("last_actor_id"),
++        edit_event_id: row.get("edit_event_id"),
++        last_actor_kind: row.get("last_actor_kind"),
+         created_at: row.get("created_at"),
+         updated_at: row.get("updated_at"),
+     })
+@@ -3729,6 +3739,11 @@ impl super::Database for SqliteDatabase {
+                 consecutive_failures,
+                 last_remote_watermark,
+                 last_local_applied_rev,
++                last_job_id,
++                last_workflow_id,
++                last_actor_id,
++                edit_event_id,
++                last_actor_kind,
+                 created_at,
+                 updated_at
+             "#,
+@@ -3803,6 +3818,11 @@ impl super::Database for SqliteDatabase {
+                 consecutive_failures,
+                 last_remote_watermark,
+                 last_local_applied_rev,
++                last_job_id,
++                last_workflow_id,
++                last_actor_id,
++                edit_event_id,
++                last_actor_kind,
+                 created_at,
+                 updated_at
+             FROM calendar_sources
+@@ -3852,6 +3872,11 @@ impl super::Database for SqliteDatabase {
+                 consecutive_failures,
+                 last_remote_watermark,
+                 last_local_applied_rev,
++                last_job_id,
++                last_workflow_id,
++                last_actor_id,
++                edit_event_id,
++                last_actor_kind,
+                 created_at,
+                 updated_at
+             FROM calendar_sources
+@@ -4007,6 +4032,11 @@ impl super::Database for SqliteDatabase {
+                     attendees_json,
+                     links_json,
+                     provider_payload_json,
++                    last_job_id,
++                    last_workflow_id,
++                    last_actor_id,
++                    edit_event_id,
++                    last_actor_kind,
+                     created_at,
+                     updated_at
+                 "#,
+@@ -4164,6 +4194,11 @@ impl super::Database for SqliteDatabase {
+                     attendees_json,
+                     links_json,
+                     provider_payload_json,
++                    last_job_id,
++                    last_workflow_id,
++                    last_actor_id,
++                    edit_event_id,
++                    last_actor_kind,
+                     created_at,
+                     updated_at
+                 "#,
+@@ -4251,6 +4286,11 @@ impl super::Database for SqliteDatabase {
+                 attendees_json,
+                 links_json,
+                 provider_payload_json,
++                last_job_id,
++                last_workflow_id,
++                last_actor_id,
++                edit_event_id,
++                last_actor_kind,
+                 created_at,
+                 updated_at
+             FROM calendar_events
+diff --git a/src/backend/handshake_core/src/storage/tests.rs b/src/backend/handshake_core/src/storage/tests.rs
+index 2ac71a31..907a0cb9 100644
+--- a/src/backend/handshake_core/src/storage/tests.rs
++++ b/src/backend/handshake_core/src/storage/tests.rs
+@@ -2209,6 +2209,11 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
+         updated_source.sync_state.sync_token.as_deref(),
+         Some("sync-token-2")
+     );
++    assert_eq!(updated_source.last_actor_kind, "HUMAN");
++    assert_eq!(updated_source.last_actor_id.as_deref(), Some("calendar-tester"));
++    assert_eq!(updated_source.last_job_id, None);
++    assert_eq!(updated_source.last_workflow_id, None);
++    assert!(!updated_source.edit_event_id.is_empty());
+ 
+     let listed_sources = db.list_calendar_sources(&workspace.id).await?;
+     assert_eq!(listed_sources.len(), 1);
+@@ -2301,6 +2306,10 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
+         Some("etag-2")
+     );
+     assert!(duplicate_provider_event.is_override);
++    assert_eq!(duplicate_provider_event.last_actor_kind, "HUMAN");
++    assert_eq!(duplicate_provider_event.last_actor_id.as_deref(), Some("calendar-tester"));
++    assert_eq!(duplicate_provider_event.last_job_id, None);
++    assert!(!duplicate_provider_event.edit_event_id.is_empty());
+ 
+     let local_start = provider_start + Duration::hours(5);
+     let local_end = local_start + Duration::hours(2);

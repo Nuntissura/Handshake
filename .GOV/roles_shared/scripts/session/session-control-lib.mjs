@@ -31,7 +31,15 @@ import {
 } from "./session-policy.mjs";
 import { buildPhaseCheckCommand } from "../../checks/phase-check-lib.mjs";
 import { buildRoleInbox } from "../lib/wp-communication-health-lib.mjs";
-import { GOV_ROOT_ABS, GOV_ROOT_ENV_VAR, GOVERNANCE_RUNTIME_ROOT_ABS, repoPathAbs, resolveWorkPacketPath, workPacketPath } from "../lib/runtime-paths.mjs";
+import {
+  GOV_ROOT_ABS,
+  GOV_ROOT_ENV_VAR,
+  GOVERNANCE_RUNTIME_ROOT_ABS,
+  listStubWorkPacketEntries,
+  repoPathAbs,
+  resolveWorkPacketPath,
+  workPacketPath,
+} from "../lib/runtime-paths.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
@@ -56,7 +64,15 @@ export function roleProtocolPath(role) {
 }
 
 export function buildRoleAuthorityString(role, wpId) {
-  return `AGENTS.md + ${CODEX_AUTHORITY_PATH} + ${roleProtocolPath(role)} + startup output + ${workPacketPath(wpId)}`;
+  return `AGENTS.md + ${CODEX_AUTHORITY_PATH} + ${roleProtocolPath(role)} + startup output + ${resolveAuthorityPacketPath(wpId)}`;
+}
+
+function resolveAuthorityPacketPath(wpId) {
+  const packetInfo = resolveWorkPacketPath(wpId);
+  if (packetInfo?.packetPath) return packetInfo.packetPath;
+  const stubInfo = listStubWorkPacketEntries().find((entry) => entry.wpId === wpId);
+  if (stubInfo?.packetPath) return stubInfo.packetPath;
+  return workPacketPath(wpId);
 }
 
 function nowIso() {
@@ -237,7 +253,7 @@ export function buildRoleEnvironmentOverrides({
 }
 
 export function loadWorkPacketContent(wpId) {
-  const packetPath = resolveWorkPacketPath(wpId)?.packetPath || workPacketPath(wpId);
+  const packetPath = resolveAuthorityPacketPath(wpId);
   const packetAbs = repoPathAbs(packetPath);
   if (!fs.existsSync(packetAbs)) return "";
   return fs.readFileSync(packetAbs, "utf8");
@@ -750,7 +766,6 @@ export function buildStartupPrompt({
   startupMemoryLines = null,
   conversationContextLines = null,
 }) {
-  const authorityPacketPath = workPacketPath(wpId);
   const isClaudeCodeProfile = selectedProfile && selectedProfile.provider === "ANTHROPIC";
   const modelProfileLine = selectedProfileId && selectedProfile
     ? `MODEL PROFILE: ${selectedProfileId} (${selectedProfile.provider}, tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}, claim_model=${selectedProfile.claim_model}, reasoning=${selectedProfile.reasoning_strength}${selectedProfile.reasoning_policy_note ? `, policy=${selectedProfile.reasoning_policy_note}` : ""}).`
@@ -894,7 +909,7 @@ export function buildStartupPrompt({
       `FOCUS: validate evidence in the assigned WP worktree, not intent. You own final technical verdict and merge-to-main authority.`,
       `GOVERNANCE ROOT (HARD): even though you operate from handshake_main on branch main, live governance authority must resolve through ${GOV_ROOT_ENV_VAR} to wt-gov-kernel/.GOV. Do not use handshake_main/.GOV as the live source of truth for orchestrator-managed work.`,
       `KERNEL GOVERNANCE USAGE (MANDATORY): Do not manually grep, browse, or rebuild authority from handshake_main/.GOV. Use \`just integration-validator-context-brief ${wpId}\`, \`just active-lane-brief INTEGRATION_VALIDATOR ${wpId}\`, and commands that resolve governance through ${GOV_ROOT_ENV_VAR}.`,
-      `FINAL-LANE STARTUP ORDER (HARD): Before any repo search, packet rediscovery, or broad .GOV inspection, complete \`just validator-startup INTEGRATION_VALIDATOR\` -> \`just validator-next INTEGRATION_VALIDATOR ${wpId}\` -> \`just integration-validator-context-brief ${wpId}\`, then treat the emitted \`packet_read_path\` and \`prepare_worktree_dir\` as the authoritative readable pointers.`,
+      `FINAL-LANE STARTUP ORDER (HARD): Before any repo search, packet rediscovery, or broad .GOV inspection, complete \`just validator-startup\` -> \`just validator-next ${wpId}\` -> \`just integration-validator-context-brief ${wpId}\`, then treat the emitted \`packet_read_path\` and \`prepare_worktree_dir\` as the authoritative readable pointers.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then close or merge validated work.`,
       `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
       `VERDICT COMMUNICATION (MANDATORY): The Integration Validator does NOT communicate directly with the Coder. Judge the complete work product against the master spec independently. On PASS: write verdict in packet, run validator-gate-append/commit, update task board, merge to main, run sync-gov-to-main. On FAIL: write a structured remediation report in the packet with specific fix instructions, then report to the Orchestrator via \`just wp-receipt-append ${wpId} INTEGRATION_VALIDATOR <your-session> STATUS "<FAIL summary with remediation instructions given>"\`. The Orchestrator handles relaunching the coder with remediation context. See .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md for the full FAIL remediation flow.`,

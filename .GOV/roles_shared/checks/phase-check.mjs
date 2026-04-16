@@ -11,6 +11,7 @@ import { captureCheckFindings } from "../scripts/memory/memory-capture-from-chec
 import { buildActiveLaneBrief, formatActiveLaneBrief } from "../scripts/session/active-lane-brief-lib.mjs";
 import { loadSessionRegistry } from "../scripts/session/session-registry-lib.mjs";
 import {
+  defaultCoderWorktreeDir,
   defaultIntegrationValidatorWorktreeDir,
 } from "../scripts/session/session-policy.mjs";
 import {
@@ -861,6 +862,24 @@ async function printFailLog(wpId) {
   }
 }
 
+// [CX-109D] Forbidden worktree directories for coder sessions.
+const CODER_FORBIDDEN_WORKTREE_NAMES = ["handshake_main", "wt-gov-kernel", "wt-ilja"];
+
+function checkCoderWorktreeConfinement(wpId) {
+  const cwd = path.resolve(process.cwd());
+  const cwdBase = path.basename(cwd);
+  const forbidden = CODER_FORBIDDEN_WORKTREE_NAMES.find((name) => cwdBase === name);
+  if (forbidden) {
+    return { ok: false, why: `CODER_WORKTREE_BREACH [CX-109D]: coder session is running in forbidden directory '${forbidden}'. Coder must operate in the declared WP worktree.` };
+  }
+  const expectedWorktreeDir = defaultCoderWorktreeDir(wpId);
+  const expectedBase = path.basename(path.resolve(REPO_ROOT, expectedWorktreeDir));
+  if (cwdBase !== expectedBase) {
+    return { ok: false, why: `CODER_WORKTREE_MISMATCH [CX-109D]: coder cwd '${cwdBase}' does not match declared WP worktree '${expectedBase}'. Coder must operate in the assigned WP worktree.` };
+  }
+  return { ok: true, why: "" };
+}
+
 function buildStartupCoderOutcome({
   wpId,
   session = "",
@@ -872,6 +891,14 @@ function buildStartupCoderOutcome({
 }) {
   let ok = defaultOk;
   let why = defaultWhy;
+
+  // [CX-109D] Worktree confinement check — must run before any other startup logic.
+  const confinement = checkCoderWorktreeConfinement(wpId);
+  if (!confinement.ok) {
+    ok = false;
+    why = confinement.why;
+  }
+
   const preWorkResult = stepResults.get("pre-work-check");
   const blockedOnBootstrapClaim = /Missing docs-only bootstrap claim commit/i.test(String(preWorkResult?.output || ""));
   const workflowLane = workflowLaneForPacket(wpId);

@@ -55,6 +55,7 @@ import {
   CLI_ESCALATION_HOST_DEFAULT,
   CLI_SESSION_TOOL,
   CODEX_MODEL_ALIASES_ALLOWED,
+  DEFAULT_ROLE_MODEL_PROFILE_IDS,
   defaultCoderBranch,
   defaultCoderWorktreeDir,
   defaultIntegrationValidatorBranch,
@@ -807,16 +808,19 @@ const integrationValidatorWorktreeDir = defaultIntegrationValidatorWorktreeDir(W
 const integrationValidatorRemoteBackupBranch = remoteBackupBranch;
 const integrationValidatorRemoteBackupUrl = remoteBackupUrl;
 const packetWpCommunicationPaths = communicationPathsForWp(WP_ID);
+const activationManagerModelProfileId =
+  (roleModelProfilesGate?.activation_manager_model_profile || DEFAULT_ROLE_MODEL_PROFILE_IDS.ACTIVATION_MANAGER || '').trim();
 const orchestratorModelProfileId = (roleModelProfilesGate?.orchestrator_model_profile || '').trim();
 const coderModelProfileId = (roleModelProfilesGate?.coder_model_profile || '').trim();
 const wpValidatorModelProfileId = (roleModelProfilesGate?.wp_validator_model_profile || '').trim();
 const integrationValidatorModelProfileId = (roleModelProfilesGate?.integration_validator_model_profile || '').trim();
+const activationManagerModelProfile = roleModelProfile(activationManagerModelProfileId);
 const orchestratorModelProfile = roleModelProfile(orchestratorModelProfileId);
 const coderModelProfile = roleModelProfile(coderModelProfileId);
 const wpValidatorModelProfile = roleModelProfile(wpValidatorModelProfileId);
 const integrationValidatorModelProfile = roleModelProfile(integrationValidatorModelProfileId);
 
-if (!orchestratorModelProfile || !coderModelProfile || !wpValidatorModelProfile || !integrationValidatorModelProfile) {
+if (!activationManagerModelProfile || !orchestratorModelProfile || !coderModelProfile || !wpValidatorModelProfile || !integrationValidatorModelProfile) {
   printGateBlocks({
     wpId: WP_ID,
     stage: 'ROLE_MODEL_PROFILES',
@@ -827,6 +831,7 @@ if (!orchestratorModelProfile || !coderModelProfile || !wpValidatorModelProfile 
     why: 'Recorded role-model-profile ids must resolve to the active profile catalog before a packet can be created.',
     gateOutputLines: [
       `BLOCKED: unresolved role-model-profile selection for ${WP_ID}.`,
+      `- ACTIVATION_MANAGER_MODEL_PROFILE: ${activationManagerModelProfileId || '<missing>'}`,
       `- ORCHESTRATOR_MODEL_PROFILE: ${orchestratorModelProfileId || '<missing>'}`,
       `- CODER_MODEL_PROFILE: ${coderModelProfileId || '<missing>'}`,
       `- WP_VALIDATOR_MODEL_PROFILE: ${wpValidatorModelProfileId || '<missing>'}`,
@@ -938,6 +943,7 @@ template = replaceSingleField(template, 'WORKFLOW_LANE', normalizedWorkflowLane)
 template = replaceSingleField(template, 'EXECUTION_OWNER', normalizedExecutionOwner);
 template = replaceSingleField(template, 'AGENTIC_MODE', 'NO');
 template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'N/A');
+template = replaceSingleField(template, 'ACTIVATION_MANAGER_MODEL_PROFILE', activationManagerModelProfileId);
 template = replaceSingleField(template, 'ORCHESTRATOR_MODEL_PROFILE', orchestratorModelProfileId);
 template = replaceSingleField(
   template,

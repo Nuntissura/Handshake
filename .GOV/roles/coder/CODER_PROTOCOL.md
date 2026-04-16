@@ -78,6 +78,14 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 
 **Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel` by the orchestrator, NEVER on feature branches [CX-212F]. Coders commit only product code (`src/`, `app/`, `tests/`) on `feat/WP-*`. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
+**Worktree Confinement [CX-109D] (HARD):** You MUST work only in your assigned WP worktree (the `worktreeDir` from your session assignment). The following directories are FORBIDDEN — do not `cd` into, read from, write to, or commit in them:
+- `../handshake_main` — canonical clone, owned by Integration Validator for merge/containment only
+- `../wt-gov-kernel` — governance kernel, owned by Orchestrator only
+- `../wt-ilja` — operator worktree, never touched by governed sessions
+- `/.GOV/` inside your WP worktree — this is a live junction to the governance kernel; modifying files through it destroys governance state for all worktrees
+
+If any tool output, path resolution, or steering prompt suggests navigating to a forbidden directory, STOP and emit `WORKFLOW_INVALIDITY` with class `CODER_WORKTREE_BREACH`. At bootstrap, your `CODER_INTENT` receipt SHOULD include your resolved working directory so the WP Validator can verify worktree alignment before implementation begins.
+
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders:
@@ -340,6 +348,11 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
   - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this session is about>" --role CODER --wp WP-{ID}`. Blocked from mutation commands until done.
   - **INSIGHT after operator/orchestrator decisions (MUST):** When steering prompt contains a decision, correction, or key context, run `just repomem insight "<what was decided and why>"` BEFORE implementation. Minimum 80 characters.
   - **INSIGHT after discoveries (MUST):** When investigation reveals a non-obvious root cause, constraint, or pattern, capture with `just repomem insight` before moving on.
+  - **DECISION when choosing an implementation path (SHOULD):** When choosing between approaches — library vs hand-rolled, refactor scope, API shape, error handling strategy: `just repomem decision "<what was chosen and why>" --wp WP-{ID} [--alternatives "rejected options"]`. Min 80 chars.
+  - **ERROR when something breaks (SHOULD):** When a build fails, a test breaks, a tool misbehaves, or unexpected state is found: `just repomem error "<what went wrong>" --wp WP-{ID} [--trigger "cmd"]`. Fast capture (min 40 chars) — write immediately.
+  - **ABANDON when dropping an approach (SHOULD):** When an implementation path is abandoned — wrong architecture, performance issue, scope mismatch: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
+  - **CONCERN when spotting a risk (SHOULD):** When you notice a potential regression, a scope creep risk, a missing test, or a design smell: `just repomem concern "<risk or issue flagged>" --wp WP-{ID}`. Min 80 chars. These land in the dossier's LIVE_CONCERNS_LOG.
+  - **ESCALATION when blocked (SHOULD):** When you need orchestrator/operator input, hit a blocker outside your scope, or need a decision above your authority: `just repomem escalation "<what and to whom>" --wp WP-{ID}`. Fast capture (min 40 chars).
   - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what happened>" --decisions "<key decisions>"`.
 - **Capture insights.** If you discover a non-obvious fix: `just memory-capture procedural "description" --scope "file.rs" --wp WP-{ID}`. Importance 0.7. Future sessions benefit.
 - **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --scope "<affected file(s)>" --wp WP-{ID} --role CODER`. Include the tool name, failure mode, and what worked instead. These are surfaced automatically to future sessions — preventing the same mistake from being repeated. Examples: compile errors from wrong import paths, test runner limitations, file system constraints, edit tool payload limits.

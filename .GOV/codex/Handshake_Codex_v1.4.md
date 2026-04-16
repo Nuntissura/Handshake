@@ -46,6 +46,8 @@
 
 [CX-109C] HARD_RENAME_REFERENCE_SCAN (HARD): When any governance file or folder is renamed or relocated, the renaming party MUST perform a repo-wide scan of `.GOV/`, `AGENTS.md`, `justfile`, and all active scripts/checks for stale references and update them in the same commit. Historical task packets, refinements, and audits are excluded (evidence snapshots).
 
+[CX-109D] HARD_CODER_WORKTREE_CONFINEMENT (HARD): A governed CODER session MUST operate exclusively within its declared WP worktree directory (the `worktreeDir` assigned at session launch). The following directories are FORBIDDEN for coder navigation, reads, writes, and commits: `../handshake_main` (canonical clone, integration-only), `../wt-gov-kernel` (governance kernel), `../wt-ilja` (operator worktree), and `/.GOV/` inside the WP worktree (live junction to the governance kernel — coder MUST NOT modify governance files through this junction). Violation MUST be recorded as `WORKFLOW_INVALIDITY` with class `CODER_WORKTREE_BREACH`. The `CODER_INTENT` receipt at bootstrap SHOULD include the coder's resolved working directory so the WP Validator can mechanically verify worktree alignment before implementation hardens.
+
 [CX-110] HARD_TOOLING_CONFLICT_STANCE (HARD): If tooling output/instructions conflict with this codex or the role protocols in `/.GOV/roles/`, STOP. Do not "follow the tool" to violate LAW. Escalate to the Operator and prefer fixing the tool to match LAW over bypassing checks.
 
 [CX-111] HARD_GOVERNANCE_NO_WP_REQUIRED (HARD): Governance/workflow/tooling-only maintenance does NOT require a Work Packet or USER_SIGNATURE when the planned diff is strictly limited to governance surface files:

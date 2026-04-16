@@ -37,6 +37,7 @@ import {
   formatWorkflowDossierTimestamp,
   normalizePath,
 } from "../../../roles_shared/scripts/audit/workflow-dossier-lib.mjs";
+import { emitOperatorGateNotificationIfNeeded } from "./lib/operator-gate-notification-lib.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 registerFailCaptureHook("session-control-command.mjs", { role: "ORCHESTRATOR" });
 
@@ -834,6 +835,31 @@ if (String(response.status || "").toLowerCase() !== "completed") {
       process.exit(0);
     }
   }
+  // RGF-172: SEND_PROMPT + BUSY_ACTIVE_RUN — report explicitly, do not retry.
+  if (commandKind === "SEND_PROMPT" && outcomeState === "BUSY_ACTIVE_RUN") {
+    const detail = response.error
+      || `Session ${session.session_key} has a concurrent active run. Wait for it to complete before sending another prompt.`;
+    emitSessionOutcomeLines({
+      requestCommandId: request.command_id,
+      sessionKey: session.session_key,
+      threadId: refreshedSession.session_thread_id || response.thread_id || "",
+      runtimeState: refreshedSession.runtime_state,
+      settledCommandKind: request.command_kind,
+      outcomeState: "BUSY_ACTIVE_RUN",
+      detail,
+    });
+    appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+      when: new Date(),
+      commandKind,
+      settledRole: role,
+      targetWpId: wpId,
+      status: "BUSY",
+      outcomeState: "BUSY_ACTIVE_RUN",
+      threadId: refreshedSession.session_thread_id || response.thread_id || "",
+      detail,
+    }));
+    fail(`SEND_PROMPT rejected [BUSY_ACTIVE_RUN]: ${detail}`);
+  }
   appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
     when: new Date(),
     commandKind,
@@ -894,3 +920,29 @@ syncWpTokenUsageLedger(repoRoot, {
 }, {
   session: refreshedSession,
 });
+
+if (commandKind === "SEND_PROMPT") {
+  const operatorGateNotification = emitOperatorGateNotificationIfNeeded({
+    repoRoot,
+    wpId,
+    sourceSession: session.session_key,
+  });
+  if (operatorGateNotification.status === "EMITTED") {
+    console.log(`[SESSION_CONTROL] operator_gate_status=${operatorGateNotification.status}`);
+    console.log(`[SESSION_CONTROL] operator_gate_reason=${operatorGateNotification.reason}`);
+    console.log(`[SESSION_CONTROL] operator_gate_correlation=${operatorGateNotification.candidate?.correlationId || ""}`);
+    console.log(`[SESSION_CONTROL] operator_gate_summary=${operatorGateNotification.candidate?.summary || ""}`);
+    appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+      when: new Date(),
+      commandKind: "OPERATOR_GATE",
+      settledRole: "ORCHESTRATOR",
+      targetWpId: wpId,
+      status: "EMITTED",
+      outcomeState: String(operatorGateNotification.lifecycle?.blockerClass || "").trim().toUpperCase() || "OPERATOR_GATE",
+      detail: operatorGateNotification.candidate?.summary || "",
+    }));
+  } else if (operatorGateNotification.status === "FAILED") {
+    console.log(`[SESSION_CONTROL] operator_gate_status=${operatorGateNotification.status}`);
+    console.log(`[SESSION_CONTROL] operator_gate_reason=${operatorGateNotification.reason}`);
+  }
+}

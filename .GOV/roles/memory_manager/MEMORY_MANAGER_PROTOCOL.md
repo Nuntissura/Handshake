@@ -68,10 +68,11 @@ The memory DB has 3 memory types, 1 snapshot type, 1 conversation log, and 6 tab
 
 **Conversation log (`conversation_log` table):**
 - Cross-session conversational memory — captures what was discussed, decided, and discovered
-- Checkpoint types: `SESSION_OPEN`, `PRE_TASK`, `INSIGHT`, `RESEARCH_CLOSE`, `SESSION_CLOSE`
+- Checkpoint types (10): `SESSION_OPEN`, `PRE_TASK`, `INSIGHT`, `DECISION`, `ERROR`, `ABANDON`, `CONCERN`, `ESCALATION`, `RESEARCH_CLOSE`, `SESSION_CLOSE`
 - Written by all roles via `just repomem` commands; injected into startup prompts as `CONVERSATION CONTEXT`
-- `INSIGHT` entries are the highest-signal source of institutional knowledge — they capture operator decisions, corrections, and discoveries that would otherwise be lost at session end
-- Quality-gated: >=80 chars for open/close/insight, >=40 for pre-task; close requires `--decisions`
+- `INSIGHT` entries are the highest-signal source of institutional knowledge — operator decisions, corrections, and discoveries
+- `DECISION`/`ERROR`/`ABANDON`/`CONCERN`/`ESCALATION` provide granular WP diagnostic context — these land in the workflow dossier (EXECUTION or CONCERNS section) via `inject-repomem`
+- Quality-gated: >=80 chars for open/close/insight/decision/abandon/concern, >=40 for pre-task/error/escalation; close requires `--decisions`
 
 **Snapshot types (stored as episodic with `snapshot_type` column):**
 - `PRE_WP_DELEGATION`, `PRE_STEERING`, `PRE_RELAY_DISPATCH`, `PRE_PACKET_CREATE`, `PRE_CLOSEOUT`, `PRE_BOARD_STATUS_CHANGE` — mechanical, captured automatically at script entry points (importance 0.85)
@@ -120,8 +121,8 @@ Your job is to ensure the data that flows through this formula is clean, relevan
 8. **Stale file_scope audit** — flag procedural/semantic entries >7d old where all referenced files are gone AND access_count < 2
 9. **Contradiction candidate audit** — find entries with `metadata.contradiction=true`, group by `file_scope`, and report candidate pairs for intelligent review. Do not mechanically pick a winner.
 10. **Supersession chain audit** — check `metadata.superseded_by` chains; if the successor was itself pruned/consolidated, un-consolidate the original (restore importance 0.4)
-11. **Conversation insight promotion** — FTS5 keyword similarity across `conversation_log` INSIGHT entries; promote to semantic memory (importance 0.8) when the same insight appears across 3+ sessions. Also promote decisions from `decisions` column that repeat across 2+ sessions
-12. **Conversation log pruning** — delete sessions >30 days old with no INSIGHT or RESEARCH_CLOSE checkpoints
+11. **Conversation insight promotion** — FTS5 keyword similarity across `conversation_log` INSIGHT and DECISION entries; promote to semantic memory (importance 0.8) when the same insight appears across 3+ sessions. Also promote decisions from `decisions` column that repeat across 2+ sessions. CONCERN entries recurring across 2+ WPs should be promoted as semantic (systemic risk patterns).
+12. **Conversation log pruning** — delete sessions >30 days old with no INSIGHT, DECISION, ERROR, CONCERN, or RESEARCH_CLOSE checkpoints (sessions with only OPEN/CLOSE/PRE_TASK have low diagnostic value)
 13. **Age-based consolidation candidates** — report entries >30 days old with access_count < 2 AND importance < 0.4 for intelligent review. Do not mechanically consolidate them during automatic runs.
 14. **Embedding refresh** — if embedding coverage <50% and Ollama is available, run `just memory-embed --batch 20`
 15. **Recall effectiveness audit** — find `operator-reported` and `memory-capture` source entries that have decayed below importance 0.5; restore to 0.8 (these are high-value fail captures that must not decay). Report total active operator-reported count
@@ -131,7 +132,7 @@ Your job is to ensure the data that flows through this formula is clean, relevan
 16. **Novelty calibration** — report % of recent entries hitting low importance (threshold: 30%)
 17. **Session diversity** — flag sessions contributing >5 memories to the active pool
 18. **Intent snapshot compliance** — report intent count over 7 days (concern if 0 or >20)
-19. **Conversation checkpoint compliance** — report OPEN/CLOSE/INSIGHT/PRE_TASK/RESEARCH_CLOSE counts for 7 days; flag unclosed sessions or zero insights
+19. **Conversation checkpoint compliance** — report all 10 checkpoint type counts (OPEN/CLOSE/INSIGHT/DECISION/ERROR/ABANDON/CONCERN/ESCALATION/PRE_TASK/RESEARCH_CLOSE) for 7 days; flag unclosed sessions, zero insights, or zero decisions (roles should be recording choices)
 20. **RGF candidate drafting** — cross-WP procedural patterns (3+ WPs) + high-access memories (10+ accesses) → draft governance improvement candidates
 
 ### Phase 4: Report

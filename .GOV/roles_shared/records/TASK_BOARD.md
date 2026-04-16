@@ -93,6 +93,9 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
+
+- **[WP-1-Distillation-v2]** - [READY_FOR_DEV]
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -138,13 +141,11 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Atelier-Lens-v2]** - [STUB]
 - **[WP-1-Studio-Runtime-Visibility-v1]** - [STUB]
 - **[WP-1-Calendar-Lens-v3]** - [STUB]
-- **[WP-1-Calendar-Storage-v2]** - [STUB]
 - **[WP-1-Calendar-Sync-Engine-v1]** - [STUB]
 - **[WP-1-Calendar-Policy-Integration-v1]** - [STUB]
 - **[WP-1-Calendar-Law-Compliance-Tests-v1]** - [STUB]
 - **[WP-1-Calendar-Correlation-Export-v1]** - [STUB]
 - **[WP-1-Calendar-Mailbox-Correlation-v1]** - [STUB]
-- **[WP-1-Distillation-v2]** - [STUB]
 - **[WP-1-ContextPack-Recorder-Visibility-v1]** - [STUB]
 - **[WP-1-Governance-Hooks-v2]** - [STUB]
 - **[WP-1-Workspace-Bundle-v2]** - [STUB]
@@ -169,8 +170,14 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Cloud-Consent-Evidence-Portability-v1]** - [STUB]
 - **[WP-1-Diagnostics-Debug-Bundle-Bridge-v1]** - [STUB]
 - **[WP-1-Session-Anti-Pattern-Registry-v1]** - [STUB]
+- **[WP-1-Packet-Candidate-Range-Truth-v1]** - [STUB]
+- **[WP-1-Validator-Command-Surface-Preflight-v1]** - [STUB]
+- **[WP-1-Worktree-Path-Root-Guardrails-v1]** - [STUB]
+- **[WP-1-Bootstrap-Skeleton-Receipt-Projection-v1]** - [STUB]
 - **[WP-1-Layerwise-Inference-Foundations-v1]** - [STUB]
 - **[WP-1-Workflow-Transition-Automation-Registry-v1]** - [STUB]
+- **[WP-1-Canonical-Closeout-Bundle-v1]** - [STUB]
+- **[WP-1-Receipt-Driven-Lane-Wake-Settlement-v1]** - [STUB]
 - **[WP-1-Markdown-Mirror-Sync-Drift-Guard-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-MVP-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-Layout-Projection-Registry-v1]** - [STUB]
@@ -204,6 +211,79 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1004,6 +1084,8 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 - **[WP-1-Project-Agnostic-Workflow-State-Registry-v1]** - [VALIDATED]
+
+- **[WP-1-Calendar-Storage-v2]** - [VALIDATED]
 
 ## Blocked
 ---

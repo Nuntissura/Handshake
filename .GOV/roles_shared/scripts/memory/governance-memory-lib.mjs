@@ -658,6 +658,7 @@ export function extractMemoryFromReceipt(db, wpId, receipt) {
 
 export const VALID_CHECKPOINT_TYPES = [
   "SESSION_OPEN", "PRE_TASK", "INSIGHT", "RESEARCH_CLOSE", "SESSION_CLOSE",
+  "DECISION", "ERROR", "ABANDON", "CONCERN", "ESCALATION",
 ];
 
 const SESSION_MARKER_FILE = "CURRENT_REPOMEM_SESSION.json";
@@ -780,8 +781,8 @@ export function getRecentConversationContext(db, { maxEntries = 8, maxTokens = 6
     lines.push(`PRIOR SESSION (${sessionDate}, ${lastSession[0].role || "unknown role"}):`);
     tokenCount += 15;
 
-    // Prioritize: SESSION_OPEN, INSIGHTs, RESEARCH_CLOSEs, SESSION_CLOSE
-    const priority = ["SESSION_OPEN", "INSIGHT", "RESEARCH_CLOSE", "SESSION_CLOSE"];
+    // Prioritize: SESSION_OPEN, high-signal types, then SESSION_CLOSE
+    const priority = ["SESSION_OPEN", "ERROR", "DECISION", "CONCERN", "INSIGHT", "ESCALATION", "ABANDON", "RESEARCH_CLOSE", "SESSION_CLOSE"];
     const sorted = [...lastSession].sort((a, b) => {
       const aP = priority.indexOf(a.checkpoint_type);
       const bP = priority.indexOf(b.checkpoint_type);
