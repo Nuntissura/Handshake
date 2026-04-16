@@ -183,6 +183,14 @@ pub enum FlightRecorderEventType {
     WorkspaceIsolationDenied,
     WorkspaceCrossSessionDenied,
     WorkspaceCrossSessionApproved,
+    /// FR-EVT-DISTILL-001..007: Distillation pipeline events [§5.3.6]
+    DistillDatasetAssembled,
+    DistillTeacherRun,
+    DistillStudentRun,
+    DistillScoreComputed,
+    DistillCheckpointCreated,
+    DistillEvalCompleted,
+    DistillPromotionDecided,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -394,6 +402,19 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::WorkspaceCrossSessionApproved => {
                 write!(f, "workspace_cross_session.approved")
+            }
+            FlightRecorderEventType::DistillDatasetAssembled => {
+                write!(f, "distill.dataset_assembled")
+            }
+            FlightRecorderEventType::DistillTeacherRun => write!(f, "distill.teacher_run"),
+            FlightRecorderEventType::DistillStudentRun => write!(f, "distill.student_run"),
+            FlightRecorderEventType::DistillScoreComputed => write!(f, "distill.score_computed"),
+            FlightRecorderEventType::DistillCheckpointCreated => {
+                write!(f, "distill.checkpoint_created")
+            }
+            FlightRecorderEventType::DistillEvalCompleted => write!(f, "distill.eval_completed"),
+            FlightRecorderEventType::DistillPromotionDecided => {
+                write!(f, "distill.promotion_decided")
             }
         }
     }
@@ -946,6 +967,27 @@ impl FlightRecorderEvent {
                     ));
                 }
                 validate_session_recovery_attempted_payload(&self.payload)
+            }
+            FlightRecorderEventType::DistillDatasetAssembled => {
+                validate_distill_dataset_assembled_payload(&self.payload)
+            }
+            FlightRecorderEventType::DistillTeacherRun => {
+                validate_distill_teacher_run_payload(&self.payload)
+            }
+            FlightRecorderEventType::DistillStudentRun => {
+                validate_distill_student_run_payload(&self.payload)
+            }
+            FlightRecorderEventType::DistillScoreComputed => {
+                validate_distill_score_computed_payload(&self.payload)
+            }
+            FlightRecorderEventType::DistillCheckpointCreated => {
+                validate_distill_checkpoint_created_payload(&self.payload)
+            }
+            FlightRecorderEventType::DistillEvalCompleted => {
+                validate_distill_eval_completed_payload(&self.payload)
+            }
+            FlightRecorderEventType::DistillPromotionDecided => {
+                validate_distill_promotion_decided_payload(&self.payload)
             }
             _ => Ok(()),
         }
@@ -5797,6 +5839,152 @@ pub trait FlightRecorder: Send + Sync {
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError>;
 }
 
+// ---------------------------------------------------------------------------
+// FR-EVT-DISTILL-001..007: Distillation pipeline event validators [§5.3.6]
+// ---------------------------------------------------------------------------
+
+fn validate_distill_dataset_assembled_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "job_id",
+            "example_count",
+            "new_count",
+            "replay_count",
+            "min_trust_score",
+        ],
+    )?;
+    require_fixed_string(map, "type", "distill.dataset_assembled")?;
+    require_string(map, "job_id")?;
+    require_number(map, "example_count")?;
+    require_number(map, "new_count")?;
+    require_number(map, "replay_count")?;
+    require_number(map, "min_trust_score")?;
+    Ok(())
+}
+
+fn validate_distill_teacher_run_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "job_id",
+            "model_name",
+            "tokenizer_id",
+            "example_count",
+        ],
+    )?;
+    require_fixed_string(map, "type", "distill.teacher_run")?;
+    require_string(map, "job_id")?;
+    require_string(map, "model_name")?;
+    require_string(map, "tokenizer_id")?;
+    require_number(map, "example_count")?;
+    Ok(())
+}
+
+fn validate_distill_student_run_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "job_id",
+            "model_name",
+            "tokenizer_id",
+            "example_count",
+            "checkpoint_id",
+        ],
+    )?;
+    require_fixed_string(map, "type", "distill.student_run")?;
+    require_string(map, "job_id")?;
+    require_string(map, "model_name")?;
+    require_string(map, "tokenizer_id")?;
+    require_number(map, "example_count")?;
+    require_string(map, "checkpoint_id")?;
+    Ok(())
+}
+
+fn validate_distill_score_computed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &["type", "job_id", "example_count", "mean_score"],
+    )?;
+    require_fixed_string(map, "type", "distill.score_computed")?;
+    require_string(map, "job_id")?;
+    require_number(map, "example_count")?;
+    require_number(map, "mean_score")?;
+    Ok(())
+}
+
+fn validate_distill_checkpoint_created_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "job_id",
+            "checkpoint_id",
+            "parent_checkpoint_id",
+            "adapter_type",
+            "data_signature",
+        ],
+    )?;
+    require_fixed_string(map, "type", "distill.checkpoint_created")?;
+    require_string(map, "job_id")?;
+    require_string(map, "checkpoint_id")?;
+    require_string_or_null(map, "parent_checkpoint_id")?;
+    require_string(map, "adapter_type")?;
+    require_string(map, "data_signature")?;
+    Ok(())
+}
+
+fn validate_distill_eval_completed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "job_id",
+            "checkpoint_id",
+            "suite_name",
+            "pass_at_1",
+            "compile_success_rate",
+        ],
+    )?;
+    require_fixed_string(map, "type", "distill.eval_completed")?;
+    require_string(map, "job_id")?;
+    require_string(map, "checkpoint_id")?;
+    require_string(map, "suite_name")?;
+    require_number(map, "pass_at_1")?;
+    require_number(map, "compile_success_rate")?;
+    Ok(())
+}
+
+fn validate_distill_promotion_decided_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &["type", "job_id", "checkpoint_id", "approved", "reason"],
+    )?;
+    require_fixed_string(map, "type", "distill.promotion_decided")?;
+    require_string(map, "job_id")?;
+    require_string(map, "checkpoint_id")?;
+    match require_key(map, "approved")? {
+        Value::Bool(_) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field approved must be a boolean".to_string(),
+            ))
+        }
+    }
+    require_string(map, "reason")?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -6455,5 +6643,217 @@ mod tests {
             validate_memory_write_proposed_payload(&payload),
             Err(RecorderError::InvalidEvent(_))
         ));
+    }
+
+    // -----------------------------------------------------------------------
+    // FR-EVT-DISTILL: Distillation pipeline events [§5.3.6]
+    // -----------------------------------------------------------------------
+
+    fn distill_event(event_type: FlightRecorderEventType, payload: Value) -> FlightRecorderEvent {
+        FlightRecorderEvent::new(
+            event_type,
+            FlightRecorderActor::System,
+            Uuid::new_v4(),
+            payload,
+        )
+    }
+
+    #[test]
+    fn flight_recorder_distill_dataset_assembled_valid() {
+        let event = distill_event(
+            FlightRecorderEventType::DistillDatasetAssembled,
+            json!({
+                "type": "distill.dataset_assembled",
+                "job_id": Uuid::new_v4().to_string(),
+                "example_count": 100,
+                "new_count": 70,
+                "replay_count": 30,
+                "min_trust_score": 0.1
+            }),
+        );
+        assert!(event.validate().is_ok(), "{:?}", event.validate());
+    }
+
+    #[test]
+    fn flight_recorder_distill_dataset_assembled_rejects_missing_field() {
+        let event = distill_event(
+            FlightRecorderEventType::DistillDatasetAssembled,
+            json!({
+                "type": "distill.dataset_assembled",
+                "job_id": Uuid::new_v4().to_string(),
+                "example_count": 100
+            }),
+        );
+        assert!(event.validate().is_err());
+    }
+
+    #[test]
+    fn flight_recorder_distill_teacher_run_valid() {
+        let event = distill_event(
+            FlightRecorderEventType::DistillTeacherRun,
+            json!({
+                "type": "distill.teacher_run",
+                "job_id": Uuid::new_v4().to_string(),
+                "model_name": "gpt-4o",
+                "tokenizer_id": "cl100k_base",
+                "example_count": 50
+            }),
+        );
+        assert!(event.validate().is_ok(), "{:?}", event.validate());
+    }
+
+    #[test]
+    fn flight_recorder_distill_student_run_valid() {
+        let event = distill_event(
+            FlightRecorderEventType::DistillStudentRun,
+            json!({
+                "type": "distill.student_run",
+                "job_id": Uuid::new_v4().to_string(),
+                "model_name": "codellama-7b",
+                "tokenizer_id": "llama_tokenizer",
+                "example_count": 50,
+                "checkpoint_id": Uuid::new_v4().to_string()
+            }),
+        );
+        assert!(event.validate().is_ok(), "{:?}", event.validate());
+    }
+
+    #[test]
+    fn flight_recorder_distill_score_computed_valid() {
+        let event = distill_event(
+            FlightRecorderEventType::DistillScoreComputed,
+            json!({
+                "type": "distill.score_computed",
+                "job_id": Uuid::new_v4().to_string(),
+                "example_count": 100,
+                "mean_score": 0.82
+            }),
+        );
+        assert!(event.validate().is_ok(), "{:?}", event.validate());
+    }
+
+    #[test]
+    fn flight_recorder_distill_checkpoint_created_valid() {
+        let event = distill_event(
+            FlightRecorderEventType::DistillCheckpointCreated,
+            json!({
+                "type": "distill.checkpoint_created",
+                "job_id": Uuid::new_v4().to_string(),
+                "checkpoint_id": Uuid::new_v4().to_string(),
+                "parent_checkpoint_id": null,
+                "adapter_type": "dora",
+                "data_signature": "sha256:abcdef0123456789"
+            }),
+        );
+        assert!(event.validate().is_ok(), "{:?}", event.validate());
+    }
+
+    #[test]
+    fn flight_recorder_distill_checkpoint_created_with_parent() {
+        let event = distill_event(
+            FlightRecorderEventType::DistillCheckpointCreated,
+            json!({
+                "type": "distill.checkpoint_created",
+                "job_id": Uuid::new_v4().to_string(),
+                "checkpoint_id": Uuid::new_v4().to_string(),
+                "parent_checkpoint_id": Uuid::new_v4().to_string(),
+                "adapter_type": "lora",
+                "data_signature": "sha256:abcdef0123456789"
+            }),
+        );
+        assert!(event.validate().is_ok(), "{:?}", event.validate());
+    }
+
+    #[test]
+    fn flight_recorder_distill_eval_completed_valid() {
+        let event = distill_event(
+            FlightRecorderEventType::DistillEvalCompleted,
+            json!({
+                "type": "distill.eval_completed",
+                "job_id": Uuid::new_v4().to_string(),
+                "checkpoint_id": Uuid::new_v4().to_string(),
+                "suite_name": "core_code_eval_v1",
+                "pass_at_1": 0.85,
+                "compile_success_rate": 0.98
+            }),
+        );
+        assert!(event.validate().is_ok(), "{:?}", event.validate());
+    }
+
+    #[test]
+    fn flight_recorder_distill_promotion_decided_approved() {
+        let event = distill_event(
+            FlightRecorderEventType::DistillPromotionDecided,
+            json!({
+                "type": "distill.promotion_decided",
+                "job_id": Uuid::new_v4().to_string(),
+                "checkpoint_id": Uuid::new_v4().to_string(),
+                "approved": true,
+                "reason": "all gates passed"
+            }),
+        );
+        assert!(event.validate().is_ok(), "{:?}", event.validate());
+    }
+
+    #[test]
+    fn flight_recorder_distill_promotion_decided_rejected() {
+        let event = distill_event(
+            FlightRecorderEventType::DistillPromotionDecided,
+            json!({
+                "type": "distill.promotion_decided",
+                "job_id": Uuid::new_v4().to_string(),
+                "checkpoint_id": Uuid::new_v4().to_string(),
+                "approved": false,
+                "reason": "pass@1 regressed vs previous"
+            }),
+        );
+        assert!(event.validate().is_ok(), "{:?}", event.validate());
+    }
+
+    #[test]
+    fn flight_recorder_distill_promotion_rejects_non_bool_approved() {
+        let event = distill_event(
+            FlightRecorderEventType::DistillPromotionDecided,
+            json!({
+                "type": "distill.promotion_decided",
+                "job_id": Uuid::new_v4().to_string(),
+                "checkpoint_id": Uuid::new_v4().to_string(),
+                "approved": "yes",
+                "reason": "all gates passed"
+            }),
+        );
+        assert!(event.validate().is_err());
+    }
+
+    #[test]
+    fn flight_recorder_distill_display_strings() {
+        assert_eq!(
+            FlightRecorderEventType::DistillDatasetAssembled.to_string(),
+            "distill.dataset_assembled"
+        );
+        assert_eq!(
+            FlightRecorderEventType::DistillTeacherRun.to_string(),
+            "distill.teacher_run"
+        );
+        assert_eq!(
+            FlightRecorderEventType::DistillStudentRun.to_string(),
+            "distill.student_run"
+        );
+        assert_eq!(
+            FlightRecorderEventType::DistillScoreComputed.to_string(),
+            "distill.score_computed"
+        );
+        assert_eq!(
+            FlightRecorderEventType::DistillCheckpointCreated.to_string(),
+            "distill.checkpoint_created"
+        );
+        assert_eq!(
+            FlightRecorderEventType::DistillEvalCompleted.to_string(),
+            "distill.eval_completed"
+        );
+        assert_eq!(
+            FlightRecorderEventType::DistillPromotionDecided.to_string(),
+            "distill.promotion_decided"
+        );
     }
 }

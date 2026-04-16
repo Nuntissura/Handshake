@@ -1629,9 +1629,19 @@ mod tests {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
         let trace_id = Uuid::new_v4();
         let expected_payload = json!({
-            "type": "session_scheduler_enqueue",
-            "scheduler": "unit-test",
-            "model_session_id": "session-roundtrip"
+            "type": "session_scheduler.enqueue",
+            "event_id": "FR-EVT-SESS-SCHED-001",
+            "session_id": "session-roundtrip",
+            "job_id": "job-roundtrip",
+            "job_kind": "model_run",
+            "lane": "PRIMARY",
+            "priority": 10,
+            "concurrency_group": null,
+            "queue_depth": 0,
+            "attempt": 1,
+            "max_retries": 3,
+            "retry_backoff": "fixed",
+            "cancellation_token": null
         });
 
         let event = FlightRecorderEvent::new(
@@ -1694,6 +1704,7 @@ mod tests {
         );
         assert_eq!(stored.wsids, vec!["ws-1".to_string(), "ws-2".to_string()]);
         assert_eq!(stored.payload["scheduler"], "unit-test");
+        assert_eq!(stored.payload["session_id"], "session-roundtrip");
         Ok(())
     }
 

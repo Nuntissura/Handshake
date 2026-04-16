@@ -1,3 +1,5 @@
+pub mod skill_bank;
+
 pub use crate::capabilities::{CapabilityProfile, CapabilityRegistry, RegistryError};
 pub use crate::storage::{AiJob, JobKind, JobState, WorkflowRun};
 use chrono::{DateTime, Utc};

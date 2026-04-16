@@ -61,8 +61,8 @@ use crate::{
     },
     workspace_safety::{
         cleanup_session_worktree, collect_merge_back_artifact, enforce_cross_session_access,
-        enforce_workspace_isolation, ensure_session_worktree_allocation, SessionWorktreeAllocation,
-        SessionWorktreeRegistry,
+        enforce_workspace_isolation, ensure_session_worktree_allocation, MergeBackArtifact,
+        SessionWorktreeAllocation, SessionWorktreeRegistry,
     },
     AppState,
 };
@@ -117,6 +117,8 @@ pub enum WorkflowError {
     /// This error triggers JobState::Poisoned transition
     #[error("Security violation: {0}")]
     SecurityViolation(#[from] AceError),
+    #[error("Serialization error: {0}")]
+    Serialization(#[from] serde_json::Error),
 }
 
 #[derive(Error, Debug)]
@@ -10487,6 +10489,223 @@ struct DistillationAttempt {
     pub output_snapshot_ref: ArtifactHandle,
     pub outcome: String,
     pub iterations: u32,
+}
+
+// ---------------------------------------------------------------------------
+// Section 2.6.6.8.13.1 — DistillationCandidate persistence (public API)
+// ---------------------------------------------------------------------------
+
+/// A student or teacher attempt snapshot within a distillation candidate.
+///
+/// Mirrors the spec interface fields: model_id, lora_id, lora_version,
+/// prompt/output snapshot refs, outcome, and iteration count.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidateAttempt {
+    pub model_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lora_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lora_version: Option<String>,
+    pub prompt_snapshot_ref: ArtifactHandle,
+    pub output_snapshot_ref: ArtifactHandle,
+    pub outcome: String,
+    pub iterations: u32,
+}
+
+/// Full distillation candidate per Section 2.6.6.8.13.1.
+///
+/// Captures both the failed student attempt and the successful teacher
+/// response alongside task context and quality signals. Designed for
+/// conversion to a durable [`SkillBankLogEntry`] via
+/// [`distillation_candidate_to_log_entry`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DistillationCandidate {
+    pub skill_log_entry_id: Uuid,
+    pub mt_id: String,
+    pub wp_id: String,
+    pub student_attempt: CandidateAttempt,
+    pub teacher_success: CandidateAttempt,
+    #[serde(default)]
+    pub task_type_tags: Vec<String>,
+    #[serde(default)]
+    pub contributing_factors: Vec<String>,
+    pub data_trust_score: f64,
+    pub distillation_eligible: bool,
+}
+
+/// Convert a [`DistillationCandidate`] into a [`SkillBankLogEntry`] for
+/// durable persistence.
+///
+/// The resulting log entry captures the teacher success as the primary
+/// output (the training signal) and records student context in metadata.
+/// Fields not available from the candidate (e.g. full telemetry) use
+/// sensible defaults.
+pub fn distillation_candidate_to_log_entry(
+    candidate: &DistillationCandidate,
+) -> crate::models::skill_bank::SkillBankLogEntry {
+    use crate::models::skill_bank::*;
+    use std::collections::HashMap;
+
+    let teacher = &candidate.teacher_success;
+    let student = &candidate.student_attempt;
+
+    // Build structured metadata for a ChatMessage from an attempt + artifact.
+    // Preserves model_id, lora_id, lora_version, outcome, iterations, and
+    // the full artifact handle so downstream consumers can resolve snapshots.
+    let msg_meta =
+        |attempt: &CandidateAttempt, artifact: &crate::ace::ArtifactHandle| {
+            let mut m: HashMap<String, serde_json::Value> = HashMap::new();
+            m.insert("model_id".into(), serde_json::json!(attempt.model_id));
+            m.insert(
+                "artifact_id".into(),
+                serde_json::json!(artifact.artifact_id.to_string()),
+            );
+            m.insert(
+                "artifact_path".into(),
+                serde_json::json!(artifact.path),
+            );
+            if let Some(ref lid) = attempt.lora_id {
+                m.insert("lora_id".into(), serde_json::json!(lid));
+            }
+            if let Some(ref lv) = attempt.lora_version {
+                m.insert("lora_version".into(), serde_json::json!(lv));
+            }
+            m.insert("outcome".into(), serde_json::json!(attempt.outcome));
+            m.insert(
+                "iterations".into(),
+                serde_json::json!(attempt.iterations),
+            );
+            m
+        };
+
+    SkillBankLogEntry {
+        version: "1.0.0".to_string(),
+        log_id: candidate.skill_log_entry_id,
+        timestamp: chrono::Utc::now(),
+        session: SessionMeta {
+            session_id: Uuid::new_v4(),
+            turn_index: 0,
+            task_id: Some(candidate.mt_id.clone()),
+            user_id_hash: None,
+            workspace_id: Some(candidate.wp_id.clone()),
+        },
+        task: TaskMeta {
+            r#type: candidate
+                .task_type_tags
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "distillation_candidate".to_string()),
+            subtype: None,
+            language: None,
+            tags: candidate.task_type_tags.clone(),
+            request_summary: None,
+        },
+        engine: EngineMeta {
+            actor_role: ActorRole::Teacher,
+            model_name: teacher.model_id.clone(),
+            model_family: None,
+            model_revision: None,
+            provider: None,
+            tokenizer_id: None,
+            tokenizer_family: None,
+            context_window_tokens: None,
+            precision: None,
+            inference_params: HashMap::new(),
+        },
+        context_refs: ContextRefs {
+            files: Vec::new(),
+            spec_sections: vec![candidate.mt_id.clone()],
+            requirements: candidate.contributing_factors.clone(),
+            tools_invoked: Vec::new(),
+        },
+        snapshots_input: ChatSnapshot {
+            format: SnapshotFormat::Chatml,
+            messages: vec![ChatMessage {
+                id: Uuid::new_v4(),
+                parent_id: None,
+                role: Role::User,
+                content: Content::Plain(
+                    teacher.prompt_snapshot_ref.canonical_id(),
+                ),
+                metadata: msg_meta(teacher, &teacher.prompt_snapshot_ref),
+            }],
+            focus_message_id: None,
+        },
+        snapshots_output_raw: ChatSnapshot {
+            format: SnapshotFormat::Chatml,
+            messages: vec![ChatMessage {
+                id: Uuid::new_v4(),
+                parent_id: None,
+                role: Role::Assistant,
+                content: Content::Plain(
+                    teacher.output_snapshot_ref.canonical_id(),
+                ),
+                metadata: msg_meta(teacher, &teacher.output_snapshot_ref),
+            }],
+            focus_message_id: None,
+        },
+        // Preserve the student attempt as the contrasting output snapshot
+        // so the full student/teacher pair is durably stored.
+        snapshots_output_final: Some(ChatSnapshot {
+            format: SnapshotFormat::Chatml,
+            messages: vec![
+                ChatMessage {
+                    id: Uuid::new_v4(),
+                    parent_id: None,
+                    role: Role::User,
+                    content: Content::Plain(
+                        student.prompt_snapshot_ref.canonical_id(),
+                    ),
+                    metadata: msg_meta(
+                        student,
+                        &student.prompt_snapshot_ref,
+                    ),
+                },
+                ChatMessage {
+                    id: Uuid::new_v4(),
+                    parent_id: None,
+                    role: Role::Assistant,
+                    content: Content::Plain(
+                        student.output_snapshot_ref.canonical_id(),
+                    ),
+                    metadata: msg_meta(
+                        student,
+                        &student.output_snapshot_ref,
+                    ),
+                },
+            ],
+            focus_message_id: None,
+        }),
+        quality: QualityMeta {
+            quality_tag: if candidate.distillation_eligible {
+                QualityTag::Good
+            } else {
+                QualityTag::NeedsEdit
+            },
+            thumb: ThumbValue::None,
+            score: Some(candidate.data_trust_score),
+            source: Some("distillation_candidate".to_string()),
+            labels: candidate.contributing_factors.clone(),
+            auto_eval: AutoEvalMeta::default(),
+            user_edit_stats: UserEditStats::default(),
+            data_trust_score: Some(candidate.data_trust_score),
+            reward_features: {
+                let mut rf = HashMap::new();
+                rf.insert(
+                    "student_iterations".to_string(),
+                    student.iterations as f64,
+                );
+                rf.insert(
+                    "teacher_iterations".to_string(),
+                    teacher.iterations as f64,
+                );
+                rf
+            },
+        },
+        telemetry: TelemetryMeta::default(),
+        environment: EnvironmentMeta::default(),
+        privacy: PrivacyMeta::default(),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28852,5 +29071,243 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Section 2.6.6.8.13 — DistillationCandidate persistence tests
+    // -----------------------------------------------------------------------
+
+    fn make_candidate() -> DistillationCandidate {
+        DistillationCandidate {
+            skill_log_entry_id: Uuid::new_v4(),
+            mt_id: "MT-001".to_string(),
+            wp_id: "WP-1".to_string(),
+            student_attempt: CandidateAttempt {
+                model_id: "codellama-7b".to_string(),
+                lora_id: Some("adapter-v3".to_string()),
+                lora_version: Some("3".to_string()),
+                prompt_snapshot_ref: ArtifactHandle::new(Uuid::new_v4(), "student_prompt".to_string()),
+                output_snapshot_ref: ArtifactHandle::new(Uuid::new_v4(), "student_output".to_string()),
+                outcome: "VALIDATION_FAILED".to_string(),
+                iterations: 3,
+            },
+            teacher_success: CandidateAttempt {
+                model_id: "gpt-4o".to_string(),
+                lora_id: None,
+                lora_version: None,
+                prompt_snapshot_ref: ArtifactHandle::new(Uuid::new_v4(), "teacher_prompt".to_string()),
+                output_snapshot_ref: ArtifactHandle::new(Uuid::new_v4(), "teacher_output".to_string()),
+                outcome: "VALIDATION_PASSED".to_string(),
+                iterations: 1,
+            },
+            task_type_tags: vec!["code_generation".to_string(), "rust".to_string()],
+            contributing_factors: vec!["complex_lifetime".to_string()],
+            data_trust_score: 0.85,
+            distillation_eligible: true,
+        }
+    }
+
+    #[test]
+    fn distillation_candidate_converts_to_log_entry() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        assert_eq!(entry.log_id, candidate.skill_log_entry_id);
+        assert_eq!(entry.session.task_id, Some("MT-001".to_string()));
+        assert_eq!(entry.session.workspace_id, Some("WP-1".to_string()));
+    }
+
+    #[test]
+    fn distillation_candidate_uses_teacher_as_engine() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        assert_eq!(entry.engine.model_name, "gpt-4o");
+        assert_eq!(
+            entry.engine.actor_role,
+            crate::models::skill_bank::ActorRole::Teacher
+        );
+    }
+
+    #[test]
+    fn distillation_candidate_preserves_trust_score() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        assert_eq!(entry.quality.data_trust_score, Some(0.85));
+        assert_eq!(entry.quality.score, Some(0.85));
+    }
+
+    #[test]
+    fn distillation_candidate_eligible_is_good_quality() {
+        let candidate = make_candidate(); // distillation_eligible = true
+        let entry = distillation_candidate_to_log_entry(&candidate);
+        assert_eq!(
+            entry.quality.quality_tag,
+            crate::models::skill_bank::QualityTag::Good
+        );
+    }
+
+    #[test]
+    fn distillation_candidate_ineligible_is_needs_edit() {
+        let mut candidate = make_candidate();
+        candidate.distillation_eligible = false;
+        let entry = distillation_candidate_to_log_entry(&candidate);
+        assert_eq!(
+            entry.quality.quality_tag,
+            crate::models::skill_bank::QualityTag::NeedsEdit
+        );
+    }
+
+    #[test]
+    fn distillation_candidate_records_task_tags() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        assert_eq!(entry.task.r#type, "code_generation");
+        assert_eq!(entry.task.tags, vec!["code_generation", "rust"]);
+    }
+
+    #[test]
+    fn distillation_candidate_records_contributing_factors() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        assert_eq!(entry.quality.labels, vec!["complex_lifetime"]);
+    }
+
+    #[test]
+    fn distillation_candidate_records_iteration_counts() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        let rf = &entry.quality.reward_features;
+        assert_eq!(rf.get("student_iterations"), Some(&3.0));
+        assert_eq!(rf.get("teacher_iterations"), Some(&1.0));
+        // No fake placeholder entries
+        assert!(rf.get("student_model").is_none());
+    }
+
+    #[test]
+    fn distillation_candidate_populates_context_refs() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        assert_eq!(entry.context_refs.spec_sections, vec!["MT-001"]);
+        assert_eq!(entry.context_refs.requirements, vec!["complex_lifetime"]);
+    }
+
+    #[test]
+    fn distillation_candidate_teacher_snapshot_metadata() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        // Teacher prompt snapshot carries structured artifact metadata
+        let prompt_msg = &entry.snapshots_input.messages[0];
+        assert_eq!(
+            prompt_msg.metadata.get("model_id"),
+            Some(&serde_json::json!("gpt-4o"))
+        );
+        assert!(prompt_msg.metadata.contains_key("artifact_id"));
+        assert_eq!(
+            prompt_msg.metadata.get("artifact_path"),
+            Some(&serde_json::json!("teacher_prompt"))
+        );
+        assert_eq!(
+            prompt_msg.metadata.get("outcome"),
+            Some(&serde_json::json!("VALIDATION_PASSED"))
+        );
+
+        // Teacher output snapshot also carries metadata
+        let output_msg = &entry.snapshots_output_raw.messages[0];
+        assert_eq!(
+            output_msg.metadata.get("model_id"),
+            Some(&serde_json::json!("gpt-4o"))
+        );
+        assert_eq!(
+            output_msg.metadata.get("artifact_path"),
+            Some(&serde_json::json!("teacher_output"))
+        );
+    }
+
+    #[test]
+    fn distillation_candidate_preserves_student_attempt() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        // Student attempt stored in snapshots_output_final
+        let student_snap = entry.snapshots_output_final.as_ref().unwrap();
+        assert_eq!(student_snap.messages.len(), 2);
+
+        let student_prompt = &student_snap.messages[0];
+        assert_eq!(
+            student_prompt.metadata.get("model_id"),
+            Some(&serde_json::json!("codellama-7b"))
+        );
+        assert_eq!(
+            student_prompt.metadata.get("artifact_path"),
+            Some(&serde_json::json!("student_prompt"))
+        );
+        assert_eq!(
+            student_prompt.metadata.get("outcome"),
+            Some(&serde_json::json!("VALIDATION_FAILED"))
+        );
+        assert_eq!(
+            student_prompt.metadata.get("iterations"),
+            Some(&serde_json::json!(3))
+        );
+
+        let student_output = &student_snap.messages[1];
+        assert_eq!(
+            student_output.metadata.get("model_id"),
+            Some(&serde_json::json!("codellama-7b"))
+        );
+        assert_eq!(
+            student_output.metadata.get("artifact_path"),
+            Some(&serde_json::json!("student_output"))
+        );
+    }
+
+    #[test]
+    fn distillation_candidate_persists_lora_metadata() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        // Student has lora_id and lora_version set
+        let student_snap = entry.snapshots_output_final.as_ref().unwrap();
+        let student_msg = &student_snap.messages[0];
+        assert_eq!(
+            student_msg.metadata.get("lora_id"),
+            Some(&serde_json::json!("adapter-v3"))
+        );
+        assert_eq!(
+            student_msg.metadata.get("lora_version"),
+            Some(&serde_json::json!("3"))
+        );
+
+        // Teacher has no lora — keys should be absent
+        let teacher_msg = &entry.snapshots_input.messages[0];
+        assert!(teacher_msg.metadata.get("lora_id").is_none());
+        assert!(teacher_msg.metadata.get("lora_version").is_none());
+    }
+
+    #[test]
+    fn distillation_candidate_serde_round_trip() {
+        let candidate = make_candidate();
+        let json = serde_json::to_string(&candidate).unwrap();
+        let parsed: DistillationCandidate = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.skill_log_entry_id, candidate.skill_log_entry_id);
+        assert_eq!(parsed.mt_id, candidate.mt_id);
+        assert_eq!(parsed.data_trust_score, candidate.data_trust_score);
+        assert_eq!(parsed.distillation_eligible, candidate.distillation_eligible);
+    }
+
+    #[test]
+    fn distillation_candidate_privacy_defaults_clean() {
+        let candidate = make_candidate();
+        let entry = distillation_candidate_to_log_entry(&candidate);
+
+        assert!(!entry.privacy.contains_secrets);
+        assert!(!entry.privacy.pii_present);
     }
 }

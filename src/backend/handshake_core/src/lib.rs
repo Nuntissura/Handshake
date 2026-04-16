@@ -5,6 +5,7 @@ pub mod bundles;
 pub mod capabilities;
 pub mod capability_registry_workflow;
 pub mod diagnostics;
+pub mod distillation;
 pub mod flight_recorder;
 pub mod governance_artifact_registry;
 pub mod governance_pack;

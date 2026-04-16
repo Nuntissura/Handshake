@@ -213,6 +213,9 @@ async fn seed_active_model_session(
             capability_grants: capability_grants.iter().map(ToString::to_string).collect(),
             capability_token_ids: None,
             job_id: Some(Uuid::new_v4()),
+            checkpoint_artifact_id: None,
+            last_checkpoint_at: None,
+            checkpoint_count: 0,
         })
         .await?;
     state.session_registry.upsert_session(session.clone()).await;
