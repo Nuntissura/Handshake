@@ -95,6 +95,9 @@ CREATE INDEX IF NOT EXISTS idx_skill_log_entry_quality
 CREATE INDEX IF NOT EXISTS idx_skill_log_entry_privacy
     ON skill_log_entry (contains_secrets, pii_present, can_export_off_device);
 
+CREATE INDEX IF NOT EXISTS idx_skill_log_entry_created_at
+    ON skill_log_entry (created_at);
+
 CREATE INDEX IF NOT EXISTS idx_skill_log_entry_task_type
     ON skill_log_entry (task_type, task_language);
 
@@ -120,6 +123,9 @@ CREATE TABLE IF NOT EXISTS distill_job (
     description     TEXT,
     config_json     TEXT NOT NULL           -- adapter hyperparams, data filters, etc.
 );
+
+CREATE INDEX IF NOT EXISTS idx_distill_job_status
+    ON distill_job (status, created_at);
 
 CREATE TABLE IF NOT EXISTS distill_example (
     job_id          TEXT NOT NULL REFERENCES distill_job(id) ON DELETE CASCADE,
@@ -159,6 +165,9 @@ CREATE TABLE IF NOT EXISTS adapter_checkpoint (
 
 CREATE INDEX IF NOT EXISTS idx_adapter_checkpoint_current
     ON adapter_checkpoint (is_current);
+
+CREATE INDEX IF NOT EXISTS idx_adapter_checkpoint_parent
+    ON adapter_checkpoint (parent_checkpoint_id);
 
 CREATE TABLE IF NOT EXISTS eval_run (
     id              TEXT PRIMARY KEY,

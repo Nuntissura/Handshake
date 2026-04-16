@@ -385,6 +385,129 @@ impl Default for TelemetryMeta {
     }
 }
 
+#[cfg(test)]
+fn golden_skill_bank_entry() -> SkillBankLogEntry {
+    SkillBankLogEntry {
+        version: "2.0.0-distillation-v1".to_string(),
+        log_id: Uuid::new_v4(),
+        timestamp: Utc::now(),
+        session: SessionMeta {
+            session_id: Uuid::new_v4(),
+            turn_index: 42,
+            task_id: Some("wp-distillation-task-001".to_string()),
+            user_id_hash: Some("userhash-001".to_string()),
+            workspace_id: Some("workspace-distill".to_string()),
+        },
+        task: TaskMeta {
+            r#type: "distillation".to_string(),
+            subtype: Some("teacher_student".to_string()),
+            language: Some("rust".to_string()),
+            tags: vec!["distillation".to_string(), "loRA".to_string()],
+            request_summary: Some("capture durable teacher/student lineage".to_string()),
+        },
+        engine: EngineMeta {
+            actor_role: ActorRole::Teacher,
+            model_name: "gpt-dummy".to_string(),
+            model_family: Some("llm-base-v1".to_string()),
+            model_revision: Some("rev-1".to_string()),
+            provider: Some("local".to_string()),
+            tokenizer_id: Some("tok-001".to_string()),
+            tokenizer_family: Some("bpe".to_string()),
+            context_window_tokens: Some(8192),
+            precision: Some("fp16".to_string()),
+            inference_params: HashMap::from([
+                ("temperature".to_string(), serde_json::json!(0.7)),
+                ("top_p".to_string(), serde_json::json!(0.9)),
+            ]),
+        },
+        context_refs: ContextRefs {
+            files: vec![FileContextRef {
+                path: "src/backend/handshake_core/src/models/skill_bank.rs".to_string(),
+                hash: Some("file-hash-001".to_string()),
+                selection_ranges: vec![FileSelectionRange {
+                    start_line: 1,
+                    end_line: 10,
+                }],
+            }],
+            spec_sections: vec!["9.1.1".to_string()],
+            requirements: vec!["distillation lineage".to_string()],
+            tools_invoked: Vec::new(),
+        },
+        snapshots_input: ChatSnapshot {
+            format: SnapshotFormat::Chatml,
+            messages: vec![ChatMessage {
+                id: Uuid::new_v4(),
+                parent_id: None,
+                role: Role::User,
+                content: Content::Plain("input".to_string()),
+                metadata: HashMap::new(),
+            }],
+            focus_message_id: None,
+        },
+        snapshots_output_raw: ChatSnapshot {
+            format: SnapshotFormat::Chatml,
+            messages: vec![ChatMessage {
+                id: Uuid::new_v4(),
+                parent_id: None,
+                role: Role::Assistant,
+                content: Content::Plain("output".to_string()),
+                metadata: HashMap::new(),
+            }],
+            focus_message_id: None,
+        },
+        snapshots_output_final: None,
+        quality: QualityMeta {
+            quality_tag: QualityTag::Good,
+            thumb: ThumbValue::Up,
+            score: Some(0.92),
+            source: Some("e2e-fixture".to_string()),
+            labels: vec!["reviewed".to_string()],
+            auto_eval: AutoEvalMeta {
+                tests_passed: 18,
+                tests_failed: 0,
+                compile_success: Some(true),
+                security_flags: vec!["none".to_string()],
+                toxicity_scores: HashMap::from([("overall".to_string(), 0.01)]),
+                style_score: Some(0.88),
+                reasoning_score: Some(0.71),
+                factuality_score: Some(0.79),
+            },
+            user_edit_stats: UserEditStats {
+                output_was_edited: false,
+                edit_char_fraction: Some(0.0),
+                edit_summary: None,
+                style_only_edit: Some(false),
+            },
+            data_trust_score: Some(0.93),
+            reward_features: HashMap::from([("entropy".to_string(), 0.2)]),
+        },
+        telemetry: TelemetryMeta {
+            latency_ms: Some(120),
+            prompt_tokens: Some(14),
+            completion_tokens: Some(34),
+            total_tokens: Some(48),
+            truncation_occurred: Some(false),
+            cache_hit: Some(true),
+            output_char_len: Some(1024),
+            output_line_count: Some(24),
+        },
+        environment: EnvironmentMeta {
+            handshake_version: Some("v2.0.0".to_string()),
+            orchestrator_build: Some("ci-001".to_string()),
+            git_commit: Some("placeholder".to_string()),
+            os: Some("test".to_string()),
+            hardware_profile: Some("cpu".to_string()),
+            config_profile: Some("default".to_string()),
+        },
+        privacy: PrivacyMeta {
+            contains_secrets: false,
+            pii_present: false,
+            can_export_off_device: false,
+            redaction_applied: false,
+        },
+    }
+}
+
 impl Default for EnvironmentMeta {
     fn default() -> Self {
         Self {
@@ -568,6 +691,20 @@ mod tests {
         assert_eq!(back.environment.handshake_version.as_deref(), Some("0.1.0"));
         assert!(back.privacy.pii_present);
         assert!(back.privacy.redaction_applied);
+    }
+
+    #[test]
+    fn round_trip_golden_distillation_entry() {
+        let entry = golden_skill_bank_entry();
+        let json = serde_json::to_string_pretty(&entry).expect("serialize");
+        let back = serde_json::from_str::<SkillBankLogEntry>(&json).expect("deserialize");
+
+        assert_eq!(back.version, entry.version);
+        assert_eq!(back.quality.data_trust_score, entry.quality.data_trust_score);
+        assert!(back.quality.auto_eval.compile_success.unwrap_or_default());
+        assert_eq!(back.engine.actor_role, ActorRole::Teacher);
+        assert_eq!(back.context_refs.spec_sections.first().map(|value| value.as_str()), Some("9.1.1"));
+        assert_eq!(back.quality.labels.first().map(|value| value.as_str()), Some("reviewed"));
     }
 
     #[test]
