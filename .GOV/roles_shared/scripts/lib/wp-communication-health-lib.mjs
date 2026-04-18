@@ -337,6 +337,17 @@ function notificationMatchesProjectedRoute(notification = null, autoRoute = null
   return Boolean(correlationId) && activeCorrelationIds.has(correlationId);
 }
 
+function runtimeFallbackNotificationRoute(runtimeStatus = {}) {
+  const nextExpectedActor = normalizeRole(runtimeStatus?.route_anchor_target_role || runtimeStatus?.next_expected_actor);
+  if (!nextExpectedActor || nextExpectedActor === "NONE") return null;
+  return {
+    applicable: true,
+    nextExpectedActor,
+    nextExpectedSession: normalizeSession(runtimeStatus?.route_anchor_target_session || runtimeStatus?.next_expected_session),
+    secondaryNotifications: [],
+  };
+}
+
 export function deriveActiveWpNotificationProjection({
   statusEvaluation = null,
   runtimeStatus = {},
@@ -360,6 +371,28 @@ export function deriveActiveWpNotificationProjection({
   }
 
   if (!statusEvaluation?.applicable) {
+    const runtimeFallbackRouteProjection = runtimeFallbackNotificationRoute(runtimeStatus);
+    if (runtimeFallbackRouteProjection) {
+      const activeCorrelationIds = activeCorrelationIdsFromStatus(statusEvaluation, runtimeStatus);
+      const visibleNotifications = latestProjectedNotifications(
+        unreadNotifications.filter((entry) =>
+          notificationMatchesProjectedRoute(entry, runtimeFallbackRouteProjection, activeCorrelationIds)
+        ),
+      );
+      if (visibleNotifications.length > 0) {
+        const hiddenNotifications = unreadNotifications.filter((entry) => !visibleNotifications.includes(entry));
+        return {
+          notifications: visibleNotifications,
+          pendingCount: visibleNotifications.length,
+          byKind: buildNotificationKindCounts(visibleNotifications),
+          hiddenNotifications,
+          hiddenPendingCount: hiddenNotifications.length,
+          hiddenByKind: buildNotificationKindCounts(hiddenNotifications),
+          historyHidden: hiddenNotifications.length > 0,
+          autoRoute: runtimeFallbackRouteProjection,
+        };
+      }
+    }
     return {
       notifications: fallbackVisible,
       pendingCount: fallbackVisible.length,

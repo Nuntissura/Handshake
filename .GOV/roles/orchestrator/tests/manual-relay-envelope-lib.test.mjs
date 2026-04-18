@@ -127,6 +127,51 @@ test("deriveRelayEnvelope reuses route anchor context when no targeted notificat
   assert.match(envelope.message, /OPEN_REVIEW_ITEM_REVIEW_REQUEST/);
 });
 
+test("deriveRelayEnvelope prefers the anchored target notification over a newer stale notification for the same target", () => {
+  const envelope = deriveRelayEnvelope({
+    wpId: "WP-TEST-GOVERNED-ROUTE",
+    runtimeStatus: {
+      waiting_on: "OPEN_REVIEW_ITEM_REVIEW_REQUEST",
+      current_phase: "VALIDATION",
+      route_anchor_kind: "REVIEW_REQUEST",
+      route_anchor_correlation_id: "review-2",
+      route_anchor_target_role: "WP_VALIDATOR",
+      route_anchor_target_session: "wpv-2",
+      open_review_items: [],
+    },
+    nextActor: "WP_VALIDATOR",
+    targetSession: "wpv-2",
+    notifications: {
+      notifications: [
+        {
+          timestamp_utc: "2026-04-05T10:02:00Z",
+          source_kind: "REVIEW_REQUEST",
+          source_role: "CODER",
+          source_session: "coder-1",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-2",
+          correlation_id: "older-review",
+          summary: "Newer stale notification",
+        },
+        {
+          timestamp_utc: "2026-04-05T10:01:00Z",
+          source_kind: "REVIEW_REQUEST",
+          source_role: "CODER",
+          source_session: "coder-1",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-2",
+          correlation_id: "review-2",
+          summary: "Anchored notification",
+        },
+      ],
+    },
+    dispatchAction: "SEND_PROMPT",
+  });
+
+  assert.equal(envelope.correlationId, "review-2");
+  assert.equal(envelope.message, "Anchored notification");
+});
+
 test("buildRelayDispatchPrompt supports orchestrator-managed route labels", () => {
   const prompt = buildRelayDispatchPrompt({
     basePrompt: "RESUME GOVERNED CODER lane for WP-TEST-GOVERNED-ROUTE.",

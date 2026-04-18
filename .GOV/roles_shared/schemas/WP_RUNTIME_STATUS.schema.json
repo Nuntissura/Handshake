@@ -273,6 +273,24 @@
         "null"
       ]
     },
+    "last_relay_failure_fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "last_relay_failure_first_seen_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "last_relay_failure_last_seen_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "authoritative_review_receipt_kind": {
       "type": [
         "string",
@@ -764,6 +782,14 @@
       "minimum": 0
     },
     "current_worker_interrupt_cycle": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "max_same_failure_rewake_attempts": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "current_same_failure_rewake_count": {
       "type": "integer",
       "minimum": 0
     },

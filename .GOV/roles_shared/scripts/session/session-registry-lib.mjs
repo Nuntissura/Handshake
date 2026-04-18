@@ -48,6 +48,7 @@ import {
   sessionKey,
   terminalTitle,
 } from "./session-policy.mjs";
+import { SESSION_HEALTH_SOURCE, SESSION_HEALTH_STATE_VALUES } from "./session-health-projection-lib.mjs";
 
 export const ROLE_SESSION_REGISTRY_SCHEMA_ID = "hsk.role_session_registry@1";
 export const ROLE_SESSION_REGISTRY_SCHEMA_VERSION = "role_session_registry_v1";
@@ -238,6 +239,13 @@ function normalizeSessionRecord(session) {
   session.owned_terminal_reclaim_status = SESSION_TERMINAL_RECLAIM_STATUS_VALUES.includes(session.owned_terminal_reclaim_status)
     ? session.owned_terminal_reclaim_status
     : SESSION_TERMINAL_RECLAIM_STATUS_NONE;
+  session.health_state = SESSION_HEALTH_STATE_VALUES.includes(String(session.health_state || "").trim().toUpperCase())
+    ? String(session.health_state || "").trim().toUpperCase()
+    : "UNKNOWN";
+  session.health_reason_code = String(session.health_reason_code || "").trim().toUpperCase() || "UNKNOWN";
+  session.health_summary = session.health_summary || "";
+  session.health_source = session.health_source || SESSION_HEALTH_SOURCE;
+  session.health_updated_at = session.health_updated_at || "";
   session.last_heartbeat_at = session.last_heartbeat_at || "";
   session.last_error = session.last_error || "";
   session.last_event_at = session.last_event_at || "";
@@ -581,6 +589,11 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
       owned_terminal_recorded_at: "",
       owned_terminal_reclaimed_at: "",
       owned_terminal_reclaim_status: SESSION_TERMINAL_RECLAIM_STATUS_NONE,
+      health_state: "UNKNOWN",
+      health_reason_code: "UNKNOWN",
+      health_summary: "",
+      health_source: SESSION_HEALTH_SOURCE,
+      health_updated_at: "",
       last_heartbeat_at: "",
       last_error: "",
       last_event_at: "",
@@ -604,10 +617,10 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
     );
 
     if (allowLaunchSelectionRefresh) {
-      session.requested_model = sessionDescriptor.requested_model || session.requested_model || "";
-      session.requested_profile_id = sessionDescriptor.requested_profile_id || session.requested_profile_id || "";
-      session.reasoning_config_key = sessionDescriptor.reasoning_config_key || session.reasoning_config_key || "";
-      session.reasoning_config_value = sessionDescriptor.reasoning_config_value || session.reasoning_config_value || "";
+      session.requested_model = session.requested_model || sessionDescriptor.requested_model || "";
+      session.requested_profile_id = session.requested_profile_id || sessionDescriptor.requested_profile_id || "";
+      session.reasoning_config_key = session.reasoning_config_key || sessionDescriptor.reasoning_config_key || "";
+      session.reasoning_config_value = session.reasoning_config_value || sessionDescriptor.reasoning_config_value || "";
       if (startupProofState !== "READY") {
         session.session_thread_id = "";
         session.session_thread_started_at = "";
@@ -918,6 +931,11 @@ export function registrySessionSummary(session) {
     plugin_last_result: session.plugin_last_result,
     plugin_last_error: session.plugin_last_error,
     active_terminal_title: session.active_terminal_title,
+    health_state: session.health_state || "UNKNOWN",
+    health_reason_code: session.health_reason_code || "UNKNOWN",
+    health_summary: session.health_summary || "",
+    health_source: session.health_source || SESSION_HEALTH_SOURCE,
+    health_updated_at: session.health_updated_at || "",
     last_command_id: session.last_command_id || "",
     last_command_kind: session.last_command_kind || "NONE",
     last_command_status: session.last_command_status || "NONE",
@@ -1047,6 +1065,9 @@ export function validateRegistryShape(registry) {
     }
     if (session.last_command_status && session.last_command_status !== "NONE" && !SESSION_COMMAND_STATUSES.includes(session.last_command_status)) {
       errors.push(`session ${session.session_key || "<missing>"} has invalid last_command_status ${session.last_command_status}`);
+    }
+    if (!SESSION_HEALTH_STATE_VALUES.includes(session.health_state || "UNKNOWN")) {
+      errors.push(`session ${session.session_key || "<missing>"} has invalid health_state ${session.health_state}`);
     }
   }
   for (const entry of registry.processed_requests || []) {

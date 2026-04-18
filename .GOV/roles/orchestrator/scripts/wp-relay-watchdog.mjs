@@ -20,15 +20,23 @@ import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { appendWpNotification } from "../../../roles_shared/scripts/wp/wp-notification-append.mjs";
 import { appendWpReceipt } from "../../../roles_shared/scripts/wp/wp-receipt-append.mjs";
-import { loadSessionRegistry, withFileLockSync } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { loadSessionRegistry, saveSessionRegistry, withFileLockSync } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { SESSION_CONTROL_BROKER_STATE_FILE, sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import {
+  acpHealthAlertAlreadyPending,
+  applySessionHealthProjection,
+  buildAcpHealthAlertCandidate,
+  evaluateGovernedSessionHealth,
+} from "../../../roles_shared/scripts/session/session-health-projection-lib.mjs";
 import {
   activeRunsForTarget,
   buildRelayRepairSignal,
   buildRelayWatchdogSummary,
+  deriveRelayFailureFingerprint,
   deriveRelayLaneVerdict,
   deriveRelayWatchdogDecision,
   deriveRelayWatchdogRestartDecision,
+  duplicateRelayRewakeBudget,
   relayRepairSignalAlreadyPending,
   workerInterruptCycleBudget,
 } from "./lib/wp-relay-watchdog-lib.mjs";
@@ -591,7 +599,7 @@ function shouldPersistRelayWatchdogState(decision = null, restartRepair = null) 
     return true;
   }
   return ["INCREMENT", "RESET"].includes(String(decision?.cycleAction || "").trim().toUpperCase())
-    || ["ESCALATE_RELAY_LIMIT", "REPORT_STALLED_ACTIVE_RUN"].includes(String(decision?.action || "").trim().toUpperCase());
+    || ["ESCALATE_RELAY_LIMIT", "REPORT_STALLED_ACTIVE_RUN", "SUPPRESS_DUPLICATE_REWAKE"].includes(String(decision?.action || "").trim().toUpperCase());
 }
 
 function updateRelayWatchdogRuntimeState({
@@ -600,6 +608,7 @@ function updateRelayWatchdogRuntimeState({
   runtimeStatusAbsPath = "",
   decision = null,
   restartRepair = null,
+  failureFingerprint = null,
 } = {}) {
   if (!runtimeStatusFile || !runtimeStatusAbsPath || !fs.existsSync(runtimeStatusAbsPath) || !shouldPersistRelayWatchdogState(decision, restartRepair)) {
     return null;
@@ -612,6 +621,9 @@ function updateRelayWatchdogRuntimeState({
     const maxCycle = Math.max(1, parseNonNegativeInteger(runtime.max_relay_escalation_cycles, 1));
     const previousWorkerInterruptCycle = parseNonNegativeInteger(runtime.current_worker_interrupt_cycle, 0);
     const maxWorkerInterruptCycle = parseNonNegativeInteger(runtime.max_worker_interrupt_cycles, 1);
+    const previousFailureFingerprint = String(runtime.last_relay_failure_fingerprint || "").trim();
+    const previousSameFailureRewakeCount = parseNonNegativeInteger(runtime.current_same_failure_rewake_count, 0);
+    const maxSameFailureRewakeAttempts = Math.max(1, parseNonNegativeInteger(runtime.max_same_failure_rewake_attempts, 2));
     let nextCycle = previousCycle;
     let nextWorkerInterruptCycle = previousWorkerInterruptCycle;
     const restartApplied = restartRepair?.status === "RESTARTED" && restartRepair?.restartDecision?.shouldRestart;
@@ -649,6 +661,30 @@ function updateRelayWatchdogRuntimeState({
       runtime.attention_required = false;
     } else if (["ESCALATE_RELAY_LIMIT", "REPORT_STALLED_ACTIVE_RUN"].includes(String(decision?.action || "").trim().toUpperCase())) {
       runtime.attention_required = true;
+    } else if (String(decision?.action || "").trim().toUpperCase() === "SUPPRESS_DUPLICATE_REWAKE") {
+      runtime.attention_required = true;
+    }
+
+    runtime.max_same_failure_rewake_attempts = maxSameFailureRewakeAttempts;
+    const normalizedFailureFingerprint = String(failureFingerprint || "").trim();
+    if (!normalizedFailureFingerprint) {
+      runtime.last_relay_failure_fingerprint = null;
+      runtime.last_relay_failure_first_seen_at = null;
+      runtime.last_relay_failure_last_seen_at = null;
+      runtime.current_same_failure_rewake_count = 0;
+    } else {
+      runtime.last_relay_failure_fingerprint = normalizedFailureFingerprint;
+      runtime.last_relay_failure_last_seen_at = runtime.last_event_at;
+      if (previousFailureFingerprint === normalizedFailureFingerprint) {
+        runtime.last_relay_failure_first_seen_at = runtime.last_relay_failure_first_seen_at || runtime.last_event_at;
+        runtime.current_same_failure_rewake_count = Math.min(
+          maxSameFailureRewakeAttempts,
+          previousSameFailureRewakeCount + (String(decision?.action || "").trim().toUpperCase() === "SUPPRESS_DUPLICATE_REWAKE" ? 0 : 1),
+        );
+      } else {
+        runtime.last_relay_failure_first_seen_at = runtime.last_event_at;
+        runtime.current_same_failure_rewake_count = 1;
+      }
     }
 
     const runtimeErrors = validateRuntimeStatus(runtime);
@@ -663,6 +699,9 @@ function updateRelayWatchdogRuntimeState({
       previousWorkerInterruptCycle,
       nextWorkerInterruptCycle,
       maxWorkerInterruptCycle,
+      previousSameFailureRewakeCount,
+      nextSameFailureRewakeCount: runtime.current_same_failure_rewake_count || 0,
+      maxSameFailureRewakeAttempts,
       attentionRequired: runtime.attention_required === true,
       lastEvent: runtime.last_event,
       lastEventAt: runtime.last_event_at,
@@ -711,6 +750,43 @@ function maybeEmitRelayRepairSignal({
   };
 }
 
+function maybeEmitAcpHealthAlert({
+  wpId,
+  base = null,
+  projection = null,
+} = {}) {
+  const alertCandidate = buildAcpHealthAlertCandidate({
+    wpId,
+    projection,
+  });
+  if (!alertCandidate) {
+    return { status: "NOT_APPLICABLE", reason: "NO_HEALTH_ALERT" };
+  }
+  if (acpHealthAlertAlreadyPending(base?.pendingNotifications, alertCandidate)) {
+    return {
+      status: "ALREADY_PENDING",
+      reason: "DUPLICATE_CORRELATION",
+      correlationId: alertCandidate.correlationId,
+      summary: alertCandidate.summary,
+    };
+  }
+  const notification = appendWpNotification({
+    wpId,
+    sourceKind: alertCandidate.sourceKind,
+    sourceRole: "ORCHESTRATOR",
+    sourceSession: WATCHDOG_SESSION,
+    targetRole: alertCandidate.targetRole,
+    correlationId: alertCandidate.correlationId,
+    summary: alertCandidate.summary,
+  }, { autoRelay: false });
+  return {
+    status: notification ? "EMITTED" : "SKIPPED",
+    reason: notification ? "HEALTH_ALERT_APPENDED" : "NOTIFICATION_APPEND_SKIPPED",
+    correlationId: alertCandidate.correlationId,
+    summary: alertCandidate.summary,
+  };
+}
+
 function evaluateWp(wpId, {
   registrySessions,
   brokerState,
@@ -737,7 +813,7 @@ function evaluateWp(wpId, {
     role: targetRole,
     session: targetSession,
   });
-  const targetSessionRecord = activeRuns.length > 0
+  const targetSessionRecord = targetRole
     ? findTargetRegistrySession(registrySessions, { wpId, role: targetRole, session: targetSession })
     : null;
   const stallScan = activeRuns.length > 0 && ACTIVE_TARGET_ROLE_VALUES.has(targetRole)
@@ -746,13 +822,34 @@ function evaluateWp(wpId, {
   const outputFreshness = activeRuns.length > 0
     ? inspectActiveRunOutputFreshness(targetSessionRecord)
     : { status: "UNKNOWN", reason: "NO_ACTIVE_RUN", outputFile: null, outputIdleSeconds: null };
+  const sessionHealth = targetRole
+    ? evaluateGovernedSessionHealth({
+      targetRole,
+      targetSession,
+      session: targetSessionRecord,
+      activeRuns,
+      outputFreshnessStatus: outputFreshness.status,
+      outputIdleSeconds: outputFreshness.outputIdleSeconds,
+      relayStatus: base.relayStatus,
+    })
+    : null;
+  const healthStateChanged = !observeOnly && targetSessionRecord && sessionHealth
+    ? applySessionHealthProjection(targetSessionRecord, sessionHealth)
+    : false;
   const workerInterruptBudget = workerInterruptCycleBudget(base.runtimeStatus);
+  const initialFailureFingerprint = deriveRelayFailureFingerprint({
+    relayStatus: base.relayStatus,
+    decision: { action: "STEER", reason: base.relayStatus?.reason_code },
+    laneVerdict: { verdict: "ROUTE_STALE_NO_ACTIVE_RUN" },
+  });
+  const duplicateRewakeBudget = duplicateRelayRewakeBudget(base.runtimeStatus, initialFailureFingerprint);
   const decision = deriveRelayWatchdogDecision({
     relayStatus: base.relayStatus,
     activeRuns,
     stallScanStatus: stallScan.status,
     outputFreshnessStatus: outputFreshness.status,
     allowWatchSteer,
+    duplicateRewakeBudget,
   });
   const laneVerdict = deriveRelayLaneVerdict({
     relayStatus: base.relayStatus,
@@ -763,6 +860,12 @@ function evaluateWp(wpId, {
     outputFreshnessStatus: outputFreshness.status,
     waitingOn: base.runtimeStatus?.waiting_on || "",
   });
+  const failureFingerprint = deriveRelayFailureFingerprint({
+    relayStatus: base.relayStatus,
+    decision,
+    laneVerdict,
+  });
+  const effectiveDuplicateRewakeBudget = duplicateRelayRewakeBudget(base.runtimeStatus, failureFingerprint);
   const restartRepair = maybeRestartStalledLane({
     wpId,
     registrySessions,
@@ -782,6 +885,7 @@ function evaluateWp(wpId, {
     decision,
     laneVerdict,
     workerInterruptBudget,
+    duplicateRewakeBudget: effectiveDuplicateRewakeBudget,
     activeRuns,
     stallScanStatus: stallScan.status,
     outputFreshnessStatus: outputFreshness.status,
@@ -803,12 +907,17 @@ function evaluateWp(wpId, {
       stallScan,
       outputFreshness,
       activeRuns,
+      sessionHealth,
+      healthStateChanged,
       decision,
       laneVerdict,
       workerInterruptBudget,
+      duplicateRewakeBudget: effectiveDuplicateRewakeBudget,
+      failureFingerprint,
       restartRepair,
       runtimeUpdate: null,
       repairSignal: { status: "NOT_APPLICABLE", reason: "OBSERVE_ONLY" },
+      healthAlert: { status: "NOT_APPLICABLE", reason: "OBSERVE_ONLY" },
       observeOnly: true,
       skipped: false,
     };
@@ -831,13 +940,18 @@ function evaluateWp(wpId, {
       stallScan,
       outputFreshness,
       activeRuns,
+      sessionHealth,
+      healthStateChanged,
       decision,
       laneVerdict,
       workerInterruptBudget,
+      duplicateRewakeBudget: effectiveDuplicateRewakeBudget,
+      failureFingerprint,
       restartRepair,
       runtimeUpdate,
       outputLines: restartRepair.outputLines,
       repairSignal: { status: "NOT_APPLICABLE", reason: "RESTARTED" },
+      healthAlert: { status: "NOT_APPLICABLE", reason: "RESTARTED" },
       skipped: false,
     };
   }
@@ -849,12 +963,18 @@ function evaluateWp(wpId, {
       runtimeStatusAbsPath: base.runtimeStatusAbsPath,
       decision,
       restartRepair,
+      failureFingerprint,
     });
     const repairSignal = maybeEmitRelayRepairSignal({
       wpId,
       base,
       decision,
       stallScan,
+    });
+    const healthAlert = maybeEmitAcpHealthAlert({
+      wpId,
+      base,
+      projection: sessionHealth,
     });
     return {
       wpId,
@@ -865,11 +985,16 @@ function evaluateWp(wpId, {
       stallScan,
       outputFreshness,
       activeRuns,
+      sessionHealth,
+      healthStateChanged,
       decision,
       laneVerdict,
       workerInterruptBudget,
+      duplicateRewakeBudget: effectiveDuplicateRewakeBudget,
+      failureFingerprint,
       runtimeUpdate,
       repairSignal,
+      healthAlert,
       skipped: true,
     };
   }
@@ -880,6 +1005,7 @@ function evaluateWp(wpId, {
     runtimeStatusFile: base.runtimeStatusFile,
     runtimeStatusAbsPath: base.runtimeStatusAbsPath,
     decision,
+    failureFingerprint,
   });
   appendWpReceipt({
     wpId,
@@ -900,13 +1026,18 @@ function evaluateWp(wpId, {
     stallScan,
     outputFreshness,
     activeRuns,
+    sessionHealth,
+    healthStateChanged,
     outputLines,
     decision,
     laneVerdict,
     workerInterruptBudget,
+    duplicateRewakeBudget: effectiveDuplicateRewakeBudget,
+    failureFingerprint,
     restartRepair,
     runtimeUpdate,
     repairSignal: { status: "NOT_APPLICABLE", reason: "STEER_ACTION" },
+    healthAlert: { status: "NOT_APPLICABLE", reason: "STEER_ACTION" },
     skipped: false,
   };
 }
@@ -926,11 +1057,16 @@ function buildWatchdogErrorResult(wpId, error, { observeOnly = false } = {}) {
     stallScan: null,
     outputFreshness: null,
     activeRuns: [],
+    sessionHealth: null,
+    healthStateChanged: false,
     laneVerdict: null,
     workerInterruptBudget: null,
+    duplicateRewakeBudget: null,
+    failureFingerprint: null,
     restartRepair: null,
     runtimeUpdate: null,
     repairSignal: { status: "NOT_APPLICABLE", reason: "WATCHDOG_EVALUATION_ERROR" },
+    healthAlert: { status: "NOT_APPLICABLE", reason: "WATCHDOG_EVALUATION_ERROR" },
   };
 }
 
@@ -947,10 +1083,15 @@ function serializeResult(result) {
     decision: result.decision || null,
     stallScan: result.stallScan || null,
     outputFreshness: result.outputFreshness || null,
+    sessionHealth: result.sessionHealth || null,
+    healthStateChanged: result.healthStateChanged === true,
     workerInterruptBudget: result.workerInterruptBudget || null,
+    duplicateRewakeBudget: result.duplicateRewakeBudget || null,
+    failureFingerprint: result.failureFingerprint || null,
     runtimeUpdate: result.runtimeUpdate || null,
     restartRepair: result.restartRepair || null,
     repairSignal: result.repairSignal || null,
+    healthAlert: result.healthAlert || null,
     activeRunCount: Array.isArray(result.activeRuns) ? result.activeRuns.length : 0,
   };
 }
@@ -992,6 +1133,10 @@ function printResult(result, { json = false } = {}) {
     console.log(`- worker_interrupt_cycle: ${result.workerInterruptBudget.currentCycle}/${result.workerInterruptBudget.maxCycle}`);
     console.log(`- worker_interrupt_limit_reached: ${result.workerInterruptBudget.exhausted ? "YES" : "NO"}`);
   }
+  if (result.duplicateRewakeBudget) {
+    console.log(`- same_failure_rewake_budget: ${result.duplicateRewakeBudget.currentAttempts}/${result.duplicateRewakeBudget.maxAttempts}`);
+    console.log(`- same_failure_rewake_exhausted: ${result.duplicateRewakeBudget.exhausted ? "YES" : "NO"}`);
+  }
   if (result.stallScan) {
     console.log(`- stall_scan_status: ${result.stallScan.status}`);
     console.log(`- stall_scan_summary: ${result.stallScan.summary}`);
@@ -1003,11 +1148,20 @@ function printResult(result, { json = false } = {}) {
       console.log(`- output_idle_seconds: ${result.outputFreshness.outputIdleSeconds}`);
     }
   }
+  if (result.sessionHealth) {
+    console.log(`- session_health_state: ${result.sessionHealth.healthState}`);
+    console.log(`- session_health_reason: ${result.sessionHealth.reasonCode}`);
+    if (result.healthStateChanged) {
+      console.log("- session_health_registry_update: YES");
+    }
+  }
   if (result.runtimeUpdate) {
     console.log(`- runtime_cycle_before: ${result.runtimeUpdate.previousCycle}/${result.runtimeUpdate.maxCycle}`);
     console.log(`- runtime_cycle_after: ${result.runtimeUpdate.nextCycle}/${result.runtimeUpdate.maxCycle}`);
     console.log(`- runtime_worker_interrupt_before: ${result.runtimeUpdate.previousWorkerInterruptCycle}/${result.runtimeUpdate.maxWorkerInterruptCycle}`);
     console.log(`- runtime_worker_interrupt_after: ${result.runtimeUpdate.nextWorkerInterruptCycle}/${result.runtimeUpdate.maxWorkerInterruptCycle}`);
+    console.log(`- runtime_same_failure_rewake_before: ${result.runtimeUpdate.previousSameFailureRewakeCount}/${result.runtimeUpdate.maxSameFailureRewakeAttempts}`);
+    console.log(`- runtime_same_failure_rewake_after: ${result.runtimeUpdate.nextSameFailureRewakeCount}/${result.runtimeUpdate.maxSameFailureRewakeAttempts}`);
     console.log(`- runtime_attention_required: ${result.runtimeUpdate.attentionRequired ? "YES" : "NO"}`);
   }
   if (result.restartRepair) {
@@ -1031,6 +1185,11 @@ function printResult(result, { json = false } = {}) {
     console.log(`- repair_signal_status: ${result.repairSignal.status}`);
     console.log(`- repair_signal_reason: ${result.repairSignal.reason}`);
     if (result.repairSignal.correlationId) console.log(`- repair_signal_correlation: ${result.repairSignal.correlationId}`);
+  }
+  if (result.healthAlert && result.healthAlert.status !== "NOT_APPLICABLE") {
+    console.log(`- health_alert_status: ${result.healthAlert.status}`);
+    console.log(`- health_alert_reason: ${result.healthAlert.reason}`);
+    if (result.healthAlert.correlationId) console.log(`- health_alert_correlation: ${result.healthAlert.correlationId}`);
   }
   if (Array.isArray(result.activeRuns) && result.activeRuns.length > 0) {
     console.log(`- active_runs: ${result.activeRuns.length}`);
@@ -1063,6 +1222,9 @@ function runCycle(args) {
       });
     }
   });
+  if (!args.observeOnly && results.some((result) => result.healthStateChanged === true)) {
+    saveSessionRegistry(REPO_ROOT, registry);
+  }
   for (const result of results) {
     printResult(result, { json: args.json });
   }

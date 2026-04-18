@@ -194,6 +194,20 @@ function syncRuntimeDeclaredFieldsFromPacket(runtimeStatus = {}, packetText = ""
   if (!Number.isInteger(syncedRuntime.current_worker_interrupt_cycle) || syncedRuntime.current_worker_interrupt_cycle < 0) {
     syncedRuntime.current_worker_interrupt_cycle = 0;
   }
+  syncedRuntime.max_same_failure_rewake_attempts = Number.parseInt(
+    String(syncedRuntime.max_same_failure_rewake_attempts ?? 2),
+    10,
+  );
+  if (!Number.isInteger(syncedRuntime.max_same_failure_rewake_attempts) || syncedRuntime.max_same_failure_rewake_attempts < 1) {
+    syncedRuntime.max_same_failure_rewake_attempts = 2;
+  }
+  syncedRuntime.current_same_failure_rewake_count = Number.parseInt(
+    String(syncedRuntime.current_same_failure_rewake_count ?? 0),
+    10,
+  );
+  if (!Number.isInteger(syncedRuntime.current_same_failure_rewake_count) || syncedRuntime.current_same_failure_rewake_count < 0) {
+    syncedRuntime.current_same_failure_rewake_count = 0;
+  }
   return syncedRuntime;
 }
 
@@ -288,6 +302,10 @@ export function reconcileWpCommunicationTruth({
     if (shouldResetRelayEscalationCycle(runtimeStatus, nextRuntimeStatus, latestReceipt)) {
       nextRuntimeStatus.current_relay_escalation_cycle = 0;
       nextRuntimeStatus.current_worker_interrupt_cycle = 0;
+      nextRuntimeStatus.last_relay_failure_fingerprint = null;
+      nextRuntimeStatus.last_relay_failure_first_seen_at = null;
+      nextRuntimeStatus.last_relay_failure_last_seen_at = null;
+      nextRuntimeStatus.current_same_failure_rewake_count = 0;
       if (nextRuntimeStatus.attention_required !== true) {
         nextRuntimeStatus.attention_required = false;
       }

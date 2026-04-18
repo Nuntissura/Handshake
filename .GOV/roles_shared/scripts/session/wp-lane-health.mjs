@@ -44,6 +44,7 @@ if (!coderSession) {
   issues.push("CODER session not registered");
 } else {
   info.push(`CODER: ${coderSession.runtime_state}`);
+  info.push(`CODER health: ${coderSession.health_state || "UNKNOWN"} (${coderSession.health_reason_code || "UNKNOWN"})`);
   if (coderSession.runtime_state === "FAILED") issues.push("CODER session FAILED — needs restart");
   if (coderSession.runtime_state === "COMPLETED") issues.push("CODER session COMPLETED — may need restart for more MTs");
 }
@@ -52,6 +53,7 @@ if (!validatorSession) {
   issues.push("WP_VALIDATOR session not registered");
 } else {
   info.push(`WP_VALIDATOR: ${validatorSession.runtime_state}`);
+  info.push(`WP_VALIDATOR health: ${validatorSession.health_state || "UNKNOWN"} (${validatorSession.health_reason_code || "UNKNOWN"})`);
   if (validatorSession.runtime_state === "FAILED") issues.push("WP_VALIDATOR session FAILED — auto-relay will not work");
   if (validatorSession.runtime_state === "COMPLETED") issues.push("WP_VALIDATOR session COMPLETED — auto-relay will not work");
   if (!["READY", "COMMAND_RUNNING"].includes(validatorSession.runtime_state)) {

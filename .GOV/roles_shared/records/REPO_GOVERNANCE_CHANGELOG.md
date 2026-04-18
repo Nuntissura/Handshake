@@ -2373,3 +2373,73 @@
   - `RGF-201`
   - `RGF-202`
 - OUTCOME: runtime status now stores `route_anchor_*` fields so reconciliation, boundary checks, and manual relay all converge on the same correlation and target; blocked review queues keep the anchored work item even if `open_review_items` reorder; verdict progression retains the authoritative final-review correlation after a completed review; and the waiting-for-final-review fixture now matches the deliberate VERDICT preflight rule that the lane can be mechanically healthy while still waiting for the Integration Validator exchange
+
+### 2026.04.18.5 / GOV-CHANGE-20260418-05
+
+- STATUS: APPLIED
+- SUMMARY: added durable ACP session health projection, push-alert emission, and operator stop surfaces for degraded or failed governed sessions
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-201`
+  - ACP/session control research: `.GOV/reference/research_and_papers/Multi_Model_Architecture/ACP_Broker_and_Session_Control.md`
+  - failure taxonomy research: `.GOV/reference/research_and_papers/Multi_Model_Architecture/Repo_Governance_Failure_Taxonomy.md`
+  - workflow-mirror, project-agnostic registry, and distillation smoketest dossiers documenting repeated stalls, lock-ups, and late session-health discovery
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-health-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles_shared/tests/session-health-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-registry-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-202`
+  - `RGF-203`
+- OUTCOME: relay watchdog now computes governed-session health from runtime state, heartbeat age, active-run timeout, and command-output freshness; registry sessions persist `health_state`, `health_reason_code`, `health_summary`, and update time; degraded/failed sessions emit deduped `ACP_HEALTH_ALERT` notifications to `ORCHESTRATOR`; `orchestrator-next`, `session-registry-status`, and `wp-lane-health` surface the same health truth directly; and session reopen no longer rewrites previously approved launch-selection authority fields while this health state is being maintained across recovery loops
+
+### 2026.04.18.6 / GOV-CHANGE-20260418-06
+
+- STATUS: APPLIED
+- SUMMARY: added same-failure rewake suppression so identical stale-route failures stop consuming repeated automatic governed wakes
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-202`
+  - failure taxonomy research: `.GOV/reference/research_and_papers/Multi_Model_Architecture/Repo_Governance_Failure_Taxonomy.md`
+  - ACP/session control research: `.GOV/reference/research_and_papers/Multi_Model_Architecture/ACP_Broker_and_Session_Control.md`
+  - smoketest dossiers documenting repeated stalls, lock-ups, and re-wake loops on unchanged session/control-plane conditions
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-203`
+- OUTCOME: relay watchdog now derives a typed failure fingerprint for stale-route and stalled-run control-plane failures, stores same-failure rewake counters in runtime status, suppresses duplicate automatic `STEER` attempts when the identical failure state repeats without evidence movement, emits `RELAY_WATCHDOG_REPAIR` notifications for the suppressed state, and makes `orchestrator-next` stop on that repair notification instead of recommending another blind re-wake on unchanged conditions
+
+### 2026.04.18.7 / GOV-CHANGE-20260418-07
+
+- STATUS: APPLIED
+- SUMMARY: normalized manual relay onto the same anchored route and packet/runtime drift truth used by the governed ACP lane
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-203`
+  - workflow truth drift research: `.GOV/reference/research_and_papers/Multi_Model_Architecture/Workflow_State_Packet_Truth_and_Range_Drift.md`
+  - harness comparison research: `.GOV/reference/research_and_papers/Multi_Model_Architecture/_work/Repo_Governance_Harness_Comparison_WORKING.md`
+  - capability matrix and kernel-to-swarm gap research calling for one state model across autonomous and manual relay modes
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/manual-relay-envelope-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/manual-relay-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/manual-relay-dispatch.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles/orchestrator/tests/manual-relay-envelope-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/manual-relay-next.test.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - none in the current repo-governance hardening queue
+- OUTCOME: manual relay now prefers the runtime-anchored notification correlation when multiple stale candidate notifications exist, reuses the shared active-notification projection to hide non-live residue for the target role, surfaces hidden-notification counts to the classic operator view, and hard-stops manual-relay-next/manual-relay-dispatch when packet/runtime closeout truth drifts so degraded mode no longer bypasses the same workflow-state spine that governs ACP lanes

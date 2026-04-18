@@ -5,7 +5,9 @@ import {
   closeoutModeFromPacketStatus,
   findActiveTokenBudgetContinuationWaiver,
   isTerminalOrchestratorBoardStatus,
+  latestOrchestratorAcpHealthAlert,
   latestOrchestratorGovernanceCheckpoint,
+  latestOrchestratorRelayWatchdogRepair,
   tokenPolicyContinuationDecision,
 } from "../scripts/orchestrator-next.mjs";
 
@@ -50,6 +52,58 @@ test("orchestrator-next picks the latest governance checkpoint notification for 
   });
 
   assert.equal(notification?.summary, "latest checkpoint");
+});
+
+test("orchestrator-next picks the latest ACP health alert notification for orchestrator repair", () => {
+  const notification = latestOrchestratorAcpHealthAlert({
+    ORCHESTRATOR: {
+      notifications: [
+        {
+          source_kind: "ACP_HEALTH_ALERT",
+          timestamp_utc: "2026-04-18T10:00:00Z",
+          summary: "older health alert",
+        },
+        {
+          source_kind: "GOVERNANCE_CHECKPOINT",
+          timestamp_utc: "2026-04-18T10:01:00Z",
+          summary: "not a health alert",
+        },
+        {
+          source_kind: "ACP_HEALTH_ALERT",
+          timestamp_utc: "2026-04-18T10:02:00Z",
+          summary: "latest health alert",
+        },
+      ],
+    },
+  });
+
+  assert.equal(notification?.summary, "latest health alert");
+});
+
+test("orchestrator-next picks the latest relay watchdog repair notification for retry suppression", () => {
+  const notification = latestOrchestratorRelayWatchdogRepair({
+    ORCHESTRATOR: {
+      notifications: [
+        {
+          source_kind: "RELAY_WATCHDOG_REPAIR",
+          timestamp_utc: "2026-04-18T10:00:00Z",
+          summary: "older repair",
+        },
+        {
+          source_kind: "ACP_HEALTH_ALERT",
+          timestamp_utc: "2026-04-18T10:01:00Z",
+          summary: "not a relay repair",
+        },
+        {
+          source_kind: "RELAY_WATCHDOG_REPAIR",
+          timestamp_utc: "2026-04-18T10:02:00Z",
+          summary: "latest repair",
+        },
+      ],
+    },
+  });
+
+  assert.equal(notification?.summary, "latest repair");
 });
 
 test("orchestrator-next detects an active governance waiver for token-budget continuation", () => {

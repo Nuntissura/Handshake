@@ -5,9 +5,11 @@ import {
   activeRunsForTarget,
   buildRelayRepairSignal,
   buildRelayWatchdogSummary,
+  deriveRelayFailureFingerprint,
   deriveRelayLaneVerdict,
   deriveRelayWatchdogDecision,
   deriveRelayWatchdogRestartDecision,
+  duplicateRelayRewakeBudget,
   formatRelayLaneVerdict,
   relayRepairSignalAlreadyPending,
   relayEscalationCycleBudget,
@@ -108,6 +110,41 @@ test("watchdog steers a watched route when no active run exists", () => {
   assert.equal(decision.nextCycle, 1);
 });
 
+test("duplicate rewake budget tracks identical failure fingerprints and suppresses repeated identical steers", () => {
+  const staleRelay = relayStatus({
+    status: "ESCALATED",
+    reason_code: "PENDING_NOTIFICATION_STALE",
+    metrics: {
+      current_relay_escalation_cycle: 1,
+      max_relay_escalation_cycles: 3,
+      route_anchor_at: "2026-04-18T10:00:00Z",
+      latest_notification_at: "2026-04-18T10:00:00Z",
+      latest_target_receipt_at: "2026-04-18T09:55:00Z",
+      latest_session_activity_at: "2026-04-18T09:54:00Z",
+    },
+  });
+  const fingerprint = deriveRelayFailureFingerprint({
+    relayStatus: staleRelay,
+    decision: { action: "STEER", reason: staleRelay.reason_code },
+    laneVerdict: { verdict: "ROUTE_STALE_NO_ACTIVE_RUN" },
+  });
+  const budget = duplicateRelayRewakeBudget({
+    last_relay_failure_fingerprint: fingerprint,
+    current_same_failure_rewake_count: 2,
+    max_same_failure_rewake_attempts: 2,
+  }, fingerprint);
+  const decision = deriveRelayWatchdogDecision({
+    relayStatus: staleRelay,
+    activeRuns: [],
+    stallScanStatus: "UNKNOWN",
+    duplicateRewakeBudget: budget,
+  });
+
+  assert.equal(budget.exhausted, true);
+  assert.equal(decision.action, "SUPPRESS_DUPLICATE_REWAKE");
+  assert.equal(decision.shouldSteer, false);
+});
+
 test("watchdog waits when the target role already has an active run", () => {
   const decision = deriveRelayWatchdogDecision({
     relayStatus: relayStatus(),
@@ -199,6 +236,10 @@ test("watchdog summary is compact and includes the relay decision", () => {
     relayStatus: relayStatus(),
     decision,
     laneVerdict,
+    duplicateRewakeBudget: {
+      currentAttempts: 1,
+      maxAttempts: 2,
+    },
     activeRuns: [],
     stallScanStatus: "UNKNOWN",
     outputFreshnessStatus: "UNKNOWN",
@@ -212,6 +253,7 @@ test("watchdog summary is compact and includes the relay decision", () => {
   assert.match(summary, /output_freshness=UNKNOWN/);
   assert.match(summary, /lane_verdict=ROUTE_STALE_NO_ACTIVE_RUN/);
   assert.match(summary, /worker_interrupt=0\/1/);
+  assert.match(summary, /same_failure_rewake=1\/2/);
 });
 
 test("lane verdict classifies active runs with fresh output as quiet but progressing", () => {
@@ -422,6 +464,25 @@ test("watchdog builds a relay-limit repair signal and suppresses duplicates", ()
     ], repair),
     true,
   );
+});
+
+test("watchdog builds a repair signal when duplicate re-wake suppression activates", () => {
+  const repair = buildRelayRepairSignal({
+    wpId: "WP-TEST-v1",
+    relayStatus: relayStatus({
+      status: "ESCALATED",
+      reason_code: "PENDING_NOTIFICATION_STALE",
+    }),
+    decision: {
+      action: "SUPPRESS_DUPLICATE_REWAKE",
+      reason: "SAME_FAILURE_REWAKE_BUDGET_EXHAUSTED",
+      currentCycle: 1,
+      maxCycle: 3,
+    },
+  });
+
+  assert.match(repair.summary, /duplicate auto re-wake is suppressed/i);
+  assert.match(repair.correlationId, /SUPPRESS_DUPLICATE_REWAKE/);
 });
 
 test("restart decision stays disabled unless explicitly allowed", () => {

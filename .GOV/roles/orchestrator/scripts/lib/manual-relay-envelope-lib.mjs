@@ -23,6 +23,14 @@ function formatEndpoint(role, session = null) {
   return normalizedSession ? `${normalizedRole}:${normalizedSession}` : normalizedRole;
 }
 
+function notificationMatchesTarget(entry = null, nextActor = "", targetSession = null) {
+  if (normalizeRole(entry?.target_role) !== normalizeRole(nextActor)) return false;
+  const entryTargetSession = normalizeSession(entry?.target_session);
+  const normalizedTargetSession = normalizeSession(targetSession);
+  if (!normalizedTargetSession || !entryTargetSession) return true;
+  return entryTargetSession === normalizedTargetSession;
+}
+
 export function preferredTargetSession(runtimeStatus = {}, governedSession = null) {
   return normalizeSession(runtimeStatus?.next_expected_session)
     || normalizeSession(runtimeStatus?.route_anchor_target_session)
@@ -63,8 +71,23 @@ function targetOpenReviewItem(runtimeStatus = {}, nextActor = "", targetSession 
     || null;
 }
 
-function latestTargetNotification(notifications = []) {
-  return [...(Array.isArray(notifications) ? notifications : [])]
+function latestTargetNotification(notifications = [], {
+  nextActor = "",
+  targetSession = null,
+  correlationId = null,
+} = {}) {
+  const unreadNotifications = Array.isArray(notifications) ? notifications : [];
+  const matchingTargetNotifications = unreadNotifications.filter((entry) =>
+    notificationMatchesTarget(entry, nextActor, targetSession)
+  );
+  const anchoredCorrelationId = nullableText(correlationId);
+  const matchingCorrelationNotifications = anchoredCorrelationId
+    ? matchingTargetNotifications.filter((entry) => nullableText(entry?.correlation_id) === anchoredCorrelationId)
+    : [];
+  const candidates = matchingCorrelationNotifications.length > 0
+    ? matchingCorrelationNotifications
+    : matchingTargetNotifications;
+  return [...candidates]
     .sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
 }
 
@@ -76,8 +99,12 @@ export function deriveRelayEnvelope({
   notifications = {},
   dispatchAction = "SEND_PROMPT",
 } = {}) {
-  const notification = latestTargetNotification(notifications?.notifications || []);
   const routeAnchorCorrelationId = nullableText(runtimeStatus?.route_anchor_correlation_id);
+  const notification = latestTargetNotification(notifications?.notifications || [], {
+    nextActor,
+    targetSession,
+    correlationId: routeAnchorCorrelationId,
+  });
   const reviewItem = targetOpenReviewItem(runtimeStatus, nextActor, targetSession, routeAnchorCorrelationId);
   const sourceKind = normalizeRole(
     notification?.source_kind

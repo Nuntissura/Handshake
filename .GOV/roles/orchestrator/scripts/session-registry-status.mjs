@@ -157,6 +157,17 @@ for (const session of sessions) {
   console.log(`  last_command_kind: ${session.last_command_kind}`);
   console.log(`  last_command_status: ${session.last_command_status}`);
   console.log(`  last_command_output_file: ${session.last_command_output_file || "<none>"}`);
+  console.log(`  health_state: ${session.health_state || "UNKNOWN"}`);
+  console.log(`  health_reason_code: ${session.health_reason_code || "UNKNOWN"}`);
+  console.log(`  health_source: ${session.health_source || "<none>"}`);
+  if (session.health_updated_at) {
+    console.log(`  health_updated_at: ${session.health_updated_at}`);
+  }
+  if (session.health_summary) {
+    const compactHealthSummary = session.health_summary.replace(/\s+/g, " ").trim();
+    const clippedHealthSummary = compactHealthSummary.length > 180 ? `${compactHealthSummary.slice(0, 177)}...` : compactHealthSummary;
+    console.log(`  health_summary: ${clippedHealthSummary}`);
+  }
   if (session.last_command_summary) {
     const compactSummary = session.last_command_summary.replace(/\s+/g, " ").trim();
     const clippedSummary = compactSummary.length > 180 ? `${compactSummary.slice(0, 177)}...` : compactSummary;

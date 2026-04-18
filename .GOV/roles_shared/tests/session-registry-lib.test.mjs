@@ -216,3 +216,20 @@ test("CLI escalation keeps governance path context and marks startup as requeste
   assert.equal(summary.local_worktree_dir, "../wtc-test");
   assert.equal(summary.active_terminal_kind, "SYSTEM_TERMINAL");
 });
+
+test("new session records default ACP health fields and expose them through the registry summary", () => {
+  const registry = defaultRegistry();
+  const session = getOrCreateSessionRecord(registry, {
+    wp_id: "WP-TEST",
+    role: "WP_VALIDATOR",
+    local_branch: "feat/WP-TEST",
+    local_worktree_dir: "../wtv-test",
+    terminal_title: "WP_VALIDATOR WP-TEST",
+  });
+
+  const summary = registrySessionSummary(session);
+  assert.equal(summary.health_state, "UNKNOWN");
+  assert.equal(summary.health_reason_code, "UNKNOWN");
+  assert.equal(summary.health_source, "ACP_WATCHDOG_V1");
+  assert.equal(summary.health_updated_at, "");
+});

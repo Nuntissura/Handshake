@@ -2216,6 +2216,58 @@ test("active notification projection keeps only the live route notification for 
   assert.equal(projection.historyHidden, true);
 });
 
+test("active notification projection respects runtime route anchors even when the direct review contract is not applicable", () => {
+  const projection = deriveActiveWpNotificationProjection({
+    statusEvaluation: {
+      applicable: false,
+      state: "COMM_NA",
+    },
+    runtimeStatus: {
+      workflow_lane: "MANUAL_RELAY",
+      next_expected_actor: "WP_VALIDATOR",
+      next_expected_session: "wpv-1",
+      route_anchor_target_role: "WP_VALIDATOR",
+      route_anchor_target_session: "wpv-1",
+      route_anchor_correlation_id: "handoff-1",
+      open_review_items: [
+        {
+          correlation_id: "handoff-1",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-1",
+        },
+      ],
+    },
+    pendingNotifications: [
+      {
+        source_kind: "CODER_HANDOFF",
+        source_role: "CODER",
+        source_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "older-handoff",
+        timestamp_utc: "2026-03-22T10:03:00Z",
+        summary: "Older handoff should stay hidden",
+      },
+      {
+        source_kind: "CODER_HANDOFF",
+        source_role: "CODER",
+        source_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+        summary: "Anchored handoff should stay visible",
+      },
+    ],
+  });
+
+  assert.equal(projection.pendingCount, 1);
+  assert.deepEqual(projection.byKind, { CODER_HANDOFF: 1 });
+  assert.equal(projection.notifications[0].summary, "Anchored handoff should stay visible");
+  assert.equal(projection.hiddenPendingCount, 1);
+  assert.equal(projection.historyHidden, true);
+});
+
 test("active notification projection hides unread review residue once the WP is closed", () => {
   const input = baseInput({
     receipts: [

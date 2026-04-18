@@ -190,6 +190,18 @@ export function latestOrchestratorGovernanceCheckpoint(notificationsByRole = {})
   return checkpoints.sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
 }
 
+export function latestOrchestratorAcpHealthAlert(notificationsByRole = {}) {
+  const notifications = notificationsByRole?.ORCHESTRATOR?.notifications || [];
+  const alerts = notifications.filter((entry) => String(entry?.source_kind || "").trim().toUpperCase() === "ACP_HEALTH_ALERT");
+  return alerts.sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
+}
+
+export function latestOrchestratorRelayWatchdogRepair(notificationsByRole = {}) {
+  const notifications = notificationsByRole?.ORCHESTRATOR?.notifications || [];
+  const repairs = notifications.filter((entry) => String(entry?.source_kind || "").trim().toUpperCase() === "RELAY_WATCHDOG_REPAIR");
+  return repairs.sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
+}
+
 export function findActiveTokenBudgetContinuationWaiver(packetText = "") {
   const waiverLedger = parsePolicyWaiverLedger(packetText);
   return waiverLedger.activeEntries.find((entry) => {
@@ -706,6 +718,49 @@ function main() {
     ? loadRelayEscalationState(repoRoot, wpId, packetRuntimeState, notificationState.pendingNotifications)
     : null;
   const orchestratorCheckpoint = latestOrchestratorGovernanceCheckpoint(notificationState.byRole);
+  const relayWatchdogRepair = latestOrchestratorRelayWatchdogRepair(notificationState.byRole);
+  if (relayWatchdogRepair) {
+    printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
+    printOperatorEnvelope("NONE", "RETRY_SUPPRESSION_ACTIVE");
+    printConfidence(confidence.level, confidenceDetail);
+    printState("Relay watchdog has suppressed duplicate automatic re-wakes for the current failure class; route repair must change the lane state before another governed wake is attempted.");
+    printFindings([
+      ...tokenPolicyContinuation.findings,
+      `Repair summary: ${relayWatchdogRepair.summary || "<missing>"}`,
+      `Repair correlation: ${relayWatchdogRepair.correlation_id || "<missing>"}`,
+      `Packet: ${packetPath}`,
+    ]);
+    printNextCommands([
+      `just check-notifications ${wpId} ORCHESTRATOR`,
+      `just session-registry-status ${wpId}`,
+      `just wp-relay-watchdog ${wpId} --observe-only`,
+      `just wp-lane-health ${wpId}`,
+      `just orchestrator-next ${wpId}`,
+    ]);
+    return;
+  }
+  const acpHealthAlert = latestOrchestratorAcpHealthAlert(notificationState.byRole);
+  if (acpHealthAlert) {
+    printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
+    printOperatorEnvelope("NONE", "ACP_SESSION_HEALTH");
+    printConfidence(confidence.level, confidenceDetail);
+    printState("ACP/session health alert is blocking reliable governed dispatch until session-control health is repaired.");
+    printFindings([
+      ...tokenPolicyContinuation.findings,
+      `Alert summary: ${acpHealthAlert.summary || "<missing>"}`,
+      `Alert correlation: ${acpHealthAlert.correlation_id || "<missing>"}`,
+      `Packet: ${packetPath}`,
+    ]);
+    printNextCommands([
+      `just check-notifications ${wpId} ORCHESTRATOR`,
+      `just session-registry-status ${wpId}`,
+      `just wp-lane-health ${wpId}`,
+      `just broker-status`,
+      `just wp-relay-watchdog ${wpId} --observe-only`,
+      `just orchestrator-next ${wpId}`,
+    ]);
+    return;
+  }
   const latestValidatorAssessment = packetRuntimeState
     ? deriveLatestValidatorAssessment(packetRuntimeState.receipts || [])
     : null;

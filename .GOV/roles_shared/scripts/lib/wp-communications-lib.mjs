@@ -399,6 +399,11 @@ export function validateRuntimeStatus(data) {
     "committed_handoff_range_source",
     "max_worker_interrupt_cycles",
     "current_worker_interrupt_cycle",
+    "max_same_failure_rewake_attempts",
+    "current_same_failure_rewake_count",
+    "last_relay_failure_fingerprint",
+    "last_relay_failure_first_seen_at",
+    "last_relay_failure_last_seen_at",
   ];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
@@ -698,6 +703,27 @@ export function validateRuntimeStatus(data) {
     data.current_worker_interrupt_cycle > data.max_worker_interrupt_cycles
   ) {
     errors.push("current_worker_interrupt_cycle exceeds max_worker_interrupt_cycles");
+  }
+  if (!(data.max_same_failure_rewake_attempts === undefined || (Number.isInteger(data.max_same_failure_rewake_attempts) && data.max_same_failure_rewake_attempts >= 1))) {
+    errors.push("max_same_failure_rewake_attempts must be an integer >= 1 when present");
+  }
+  if (!(data.current_same_failure_rewake_count === undefined || (Number.isInteger(data.current_same_failure_rewake_count) && data.current_same_failure_rewake_count >= 0))) {
+    errors.push("current_same_failure_rewake_count must be an integer >= 0 when present");
+  } else if (
+    Number.isInteger(data.current_same_failure_rewake_count) &&
+    Number.isInteger(data.max_same_failure_rewake_attempts) &&
+    data.current_same_failure_rewake_count > data.max_same_failure_rewake_attempts
+  ) {
+    errors.push("current_same_failure_rewake_count exceeds max_same_failure_rewake_attempts");
+  }
+  if ("last_relay_failure_fingerprint" in data && !isNullableString(data.last_relay_failure_fingerprint)) {
+    errors.push(`last_relay_failure_fingerprint invalid (${data.last_relay_failure_fingerprint})`);
+  }
+  if ("last_relay_failure_first_seen_at" in data && !isNullableString(data.last_relay_failure_first_seen_at)) {
+    errors.push(`last_relay_failure_first_seen_at invalid (${data.last_relay_failure_first_seen_at})`);
+  }
+  if ("last_relay_failure_last_seen_at" in data && !isNullableString(data.last_relay_failure_last_seen_at)) {
+    errors.push(`last_relay_failure_last_seen_at invalid (${data.last_relay_failure_last_seen_at})`);
   }
   if (!isNullableRfc3339Utc(data.last_backup_push_at)) errors.push("last_backup_push_at must be null or RFC3339 UTC");
   if (!isNullableSha(data.last_backup_push_sha)) errors.push("last_backup_push_sha must be null or a commit SHA");

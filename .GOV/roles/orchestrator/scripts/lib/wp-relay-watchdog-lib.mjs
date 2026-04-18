@@ -13,6 +13,11 @@ function parseNonNegativeInteger(value, fallback = 0) {
   return parsed;
 }
 
+function normalizeNullableToken(value = "") {
+  const text = String(value || "").trim();
+  return text || "NONE";
+}
+
 export function relayEscalationCycleBudget(relayStatus = null) {
   const currentCycle = parseNonNegativeInteger(relayStatus?.metrics?.current_relay_escalation_cycle, 0);
   const maxCycleRaw = parseNonNegativeInteger(relayStatus?.metrics?.max_relay_escalation_cycles, 1);
@@ -54,12 +59,57 @@ export function activeRunsForTarget(activeRuns = [], {
   });
 }
 
+export function deriveRelayFailureFingerprint({
+  relayStatus = null,
+  decision = null,
+  laneVerdict = null,
+} = {}) {
+  if (relayStatus?.applicable !== true) return null;
+  const action = String(decision?.action || "").trim().toUpperCase();
+  if (!["STEER", "ESCALATE_RELAY_LIMIT", "REPORT_STALLED_ACTIVE_RUN", "SUPPRESS_DUPLICATE_REWAKE"].includes(action)) {
+    return null;
+  }
+  const metrics = relayStatus?.metrics || {};
+  return [
+    action,
+    normalizeNullableToken(relayStatus?.status),
+    normalizeNullableToken(decision?.reason || relayStatus?.reason_code),
+    normalizeNullableToken(laneVerdict?.verdict),
+    normalizeNullableToken(relayStatus?.target_role),
+    normalizeNullableToken(relayStatus?.target_session),
+    normalizeNullableToken(metrics.route_anchor_at),
+    normalizeNullableToken(metrics.latest_notification_at),
+    normalizeNullableToken(metrics.latest_target_receipt_at),
+    normalizeNullableToken(metrics.latest_session_activity_at),
+  ].join("|");
+}
+
+export function duplicateRelayRewakeBudget(runtimeStatus = null, failureFingerprint = null) {
+  const normalizedFingerprint = String(failureFingerprint || "").trim();
+  const maxAttempts = Math.max(
+    1,
+    parseNonNegativeInteger(runtimeStatus?.max_same_failure_rewake_attempts, 2),
+  );
+  const currentAttempts = normalizedFingerprint
+    && String(runtimeStatus?.last_relay_failure_fingerprint || "").trim() === normalizedFingerprint
+    ? parseNonNegativeInteger(runtimeStatus?.current_same_failure_rewake_count, 0)
+    : 0;
+  return {
+    failureFingerprint: normalizedFingerprint || null,
+    currentAttempts,
+    maxAttempts,
+    exhausted: Boolean(normalizedFingerprint) && currentAttempts >= maxAttempts,
+    remainingAttempts: Math.max(0, maxAttempts - currentAttempts),
+  };
+}
+
 export function deriveRelayWatchdogDecision({
   relayStatus = null,
   activeRuns = [],
   stallScanStatus = "UNKNOWN",
   outputFreshnessStatus = "UNKNOWN",
   allowWatchSteer = true,
+  duplicateRewakeBudget = null,
 } = {}) {
   const cycleBudget = relayEscalationCycleBudget(relayStatus);
   if (!relayStatus?.applicable) {
@@ -141,6 +191,7 @@ export function deriveRelayWatchdogDecision({
     };
   }
 
+  const rewakeBudget = duplicateRewakeBudget || duplicateRelayRewakeBudget();
   if (cycleBudget.exhausted) {
     return {
       action: "ESCALATE_RELAY_LIMIT",
@@ -151,6 +202,19 @@ export function deriveRelayWatchdogDecision({
       nextCycle: cycleBudget.currentCycle,
       maxCycle: cycleBudget.maxCycle,
       limitReached: true,
+    };
+  }
+
+  if (rewakeBudget.exhausted) {
+    return {
+      action: "SUPPRESS_DUPLICATE_REWAKE",
+      reason: "SAME_FAILURE_REWAKE_BUDGET_EXHAUSTED",
+      shouldSteer: false,
+      cycleAction: "KEEP",
+      currentCycle: cycleBudget.currentCycle,
+      nextCycle: cycleBudget.currentCycle,
+      maxCycle: cycleBudget.maxCycle,
+      limitReached: false,
     };
   }
 
@@ -172,6 +236,7 @@ export function buildRelayWatchdogSummary({
   decision = null,
   laneVerdict = null,
   workerInterruptBudget = null,
+  duplicateRewakeBudget = null,
   activeRuns = [],
   stallScanStatus = "UNKNOWN",
   outputFreshnessStatus = "UNKNOWN",
@@ -201,6 +266,7 @@ export function buildRelayWatchdogSummary({
     `output_freshness=${String(outputFreshnessStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
     `lane_verdict=${String(laneVerdict?.verdict || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}`,
     `worker_interrupt=${Number.isInteger(workerInterruptBudget?.currentCycle) ? workerInterruptBudget.currentCycle : 0}/${Number.isInteger(workerInterruptBudget?.maxCycle) ? workerInterruptBudget.maxCycle : 1}`,
+    `same_failure_rewake=${Number.isInteger(duplicateRewakeBudget?.currentAttempts) ? duplicateRewakeBudget.currentAttempts : 0}/${Number.isInteger(duplicateRewakeBudget?.maxAttempts) ? duplicateRewakeBudget.maxAttempts : 2}`,
   ];
   return parts.join(" | ");
 }
@@ -412,7 +478,7 @@ export function buildRelayRepairSignal({
   stallScanStatus = "UNKNOWN",
 } = {}) {
   const action = String(decision?.action || "").trim().toUpperCase();
-  if (!["REPORT_STALLED_ACTIVE_RUN", "ESCALATE_RELAY_LIMIT"].includes(action)) {
+  if (!["REPORT_STALLED_ACTIVE_RUN", "ESCALATE_RELAY_LIMIT", "SUPPRESS_DUPLICATE_REWAKE"].includes(action)) {
     return null;
   }
 
@@ -425,7 +491,9 @@ export function buildRelayRepairSignal({
   const cycle = `${Number.isInteger(decision?.currentCycle) ? decision.currentCycle : 0}/${Number.isInteger(decision?.maxCycle) ? decision.maxCycle : 1}`;
   const summary = action === "REPORT_STALLED_ACTIVE_RUN"
     ? `RELAY_WATCHDOG_REPAIR: active run for ${targetLabel} appears stalled (${reason}); stall_scan=${String(stallScanStatus || "UNKNOWN").trim().toUpperCase() || "UNKNOWN"}; bounded repair escalation is required.`
-    : `RELAY_WATCHDOG_REPAIR: relay budget exhausted for ${targetLabel} after cycle=${cycle} (${reason}); automatic re-wake is halted until orchestrator repair intervenes.`;
+    : action === "ESCALATE_RELAY_LIMIT"
+      ? `RELAY_WATCHDOG_REPAIR: relay budget exhausted for ${targetLabel} after cycle=${cycle} (${reason}); automatic re-wake is halted until orchestrator repair intervenes.`
+      : `RELAY_WATCHDOG_REPAIR: repeated identical route failure persisted for ${targetLabel} (${reason}); duplicate auto re-wake is suppressed until orchestrator repair changes the route state.`;
 
   return {
     sourceKind: "RELAY_WATCHDOG_REPAIR",
