@@ -355,7 +355,7 @@ Post-crash: Zero governed communication. The recovery Orchestrator never establi
 
 ## 9b. Build Artifact Hygiene
 
-- BUILD_TARGET_PATH: `../Handshake Artifacts/handshake-cargo-target/`
+- BUILD_TARGET_PATH: `../Handshake_Artifacts/handshake-cargo-target/`
 - BUILD_TARGET_CLEANED_BY: NONE
 - BUILD_TARGET_CLEANED_AT: N/A
 - BUILD_TARGET_STATE_AT_CLOSEOUT: NOT_CHECKED

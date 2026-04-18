@@ -3,7 +3,7 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NonInteractive", "-Command"
 
 GOV_ROOT := env_var_or_default('HANDSHAKE_GOV_ROOT', '.GOV')
 MAIN_ROOT := "../handshake_main"
-ARTIFACT_ROOT := env_var_or_default('HANDSHAKE_ARTIFACT_ROOT', '../Handshake Artifacts')
+ARTIFACT_ROOT := env_var_or_default('HANDSHAKE_ARTIFACT_ROOT', '../Handshake_Artifacts')
 CARGO_TARGET_DIR := "{{ARTIFACT_ROOT}}/handshake-cargo-target"
 
 docs-check:

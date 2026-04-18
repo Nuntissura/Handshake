@@ -1,11 +1,11 @@
 # PAST_WORK_INDEX
 
 ## Current authoritative references
-- [Handshake_Master_Spec_v02.180.md](../spec/Handshake_Master_Spec_v02.180.md) - current authoritative Master Spec (`SPEC_CURRENT` target).
+- [Handshake_Master_Spec_v02.181.md](../spec/Handshake_Master_Spec_v02.181.md) - current authoritative Master Spec (`SPEC_CURRENT` target).
 - [Handshake_Codex_v1.4.md](../codex/Handshake_Codex_v1.4.md) - current governance and operating rules.
 
 ## Recent spec history
-- [Handshake_Master_Spec_v02.177.md](../spec/history/Handshake_Master_Spec_v02.177.md) - immediate prior spec drop for diffing.
+- [Handshake_Master_Spec_v02.180.md](../spec/Handshake_Master_Spec_v02.180.md) - immediate prior spec file for diffing.
 
 ## Governance archaeology
 - [VALIDATOR_GATES.json](legacy/validator/VALIDATOR_GATES.json) - legacy validator gate snapshot kept for archaeology.

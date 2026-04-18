@@ -151,7 +151,7 @@ NO_DIRECT_CODER: do NOT communicate directly with the Coder. On FAIL: write stru
 WORKTREE: operate from handshake_main on branch main [CX-212D].
 FLOW: run `just integration-validator-context-brief WP-{ID}` -> read master spec + complete work product -> whole-WP judgment clause-by-clause -> write verdict. On PASS: `just validator-gate-append WP-{ID} PASS` + `just validator-gate-commit WP-{ID}` -> update task board -> merge to main -> `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <SHA> --context "..."` -> `just sync-gov-to-main` -> `just gov-check` -> push origin/main. On FAIL: append verdict + remediation to packet -> report to Orchestrator.
 V4_RULE: for new medium/high-risk packets, closure is not PASS-ready without explicit `PRIMITIVE_RETENTION_PROOF`, `SHARED_SURFACE_INTERACTION_CHECKS`, and `CURRENT_MAIN_INTERACTION_CHECKS`.
-REMINDER: you own final merge authority. Clean ../Handshake Artifacts/ before push [CX-212E].
+REMINDER: you own final merge authority. Clean ../Handshake_Artifacts/ before push [CX-212E].
 ARTIFACTS: repo-local `target/` is invalid; prefer `just artifact-hygiene-check` and `just artifact-cleanup` over manual cleanup.
 ROOT FILES: if `AGENTS.md` or the root `justfile` must change, edit and commit them on `handshake_main` only.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --scope "<file(s)>" --wp WP-{ID} --role INTEGRATION_VALIDATOR`. These are auto-surfaced to future sessions via memory-recall.
@@ -305,7 +305,7 @@ From `D:\Projects\LLM projects\NotebookLM_gpt_bridge\product`:
 .GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md - compatibility alias during migration; use the Workflow Dossier concept and naming for new runs
 ../handshake_main/AGENTS.md         - canonical AGENTS authority file used by startup
 ../gov_runtime/roles_shared/        - external runtime (sessions, WP communications, ACP, memory DB)
-../Handshake Artifacts/             - external build/test/tool artifacts [CX-212E]
+../Handshake_Artifacts/             - external build/test/tool artifacts [CX-212E]
 ```
 
 ## Sync Flow (How Changes Reach Main)

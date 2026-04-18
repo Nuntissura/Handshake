@@ -218,7 +218,39 @@ test("evaluatePacketRuntimeProjectionDrift flags stale bootstrap runtime after d
   );
 
   assert.equal(drift.ok, false);
+  assert.deepEqual(drift.owner_classes, ["PACKET_CLOSEOUT_TRUTH", "RUNTIME_PROJECTION"]);
+  assert.deepEqual(drift.repair_order, ["PACKET_CLOSEOUT_TRUTH", "RUNTIME_PROJECTION"]);
+  assert.match(drift.owner_summary, /packet closeout truth and runtime projection/i);
   assert.match(drift.issues.join("\n"), /runtime\.current_phase is still BOOTSTRAP/i);
   assert.match(drift.issues.join("\n"), /runtime\.current_milestone .* should be VERDICT/i);
   assert.match(drift.issues.join("\n"), /CURRENT_MAIN_COMPATIBILITY_STATUS=NOT_RUN/i);
+  assert.equal(
+    drift.issue_details.find((detail) => detail.message.includes("CURRENT_MAIN_COMPATIBILITY_STATUS=NOT_RUN"))?.owner,
+    "PACKET_CLOSEOUT_TRUTH",
+  );
+});
+
+test("evaluatePacketRuntimeProjectionDrift isolates runtime-only ownership when packet closeout truth is already aligned", () => {
+  const drift = evaluatePacketRuntimeProjectionDrift(
+    packetFixture({
+      status: "Validated (PASS)",
+      containment: "CONTAINED_IN_MAIN",
+    }),
+    {
+      current_packet_status: "Validated (PASS)",
+      current_task_board_status: "DONE_VALIDATED",
+      current_phase: "BOOTSTRAP",
+      runtime_status: "submitted",
+      main_containment_status: "CONTAINED_IN_MAIN",
+    },
+  );
+
+  assert.equal(drift.ok, false);
+  assert.deepEqual(drift.owner_classes, ["RUNTIME_PROJECTION"]);
+  assert.deepEqual(drift.repair_order, ["RUNTIME_PROJECTION"]);
+  assert.match(drift.owner_summary, /runtime projection/i);
+  assert.ok(drift.issue_details.length >= 2);
+  assert.ok(drift.issue_details.every((detail) => detail.owner === "RUNTIME_PROJECTION"));
+  assert.match(drift.issues.join("\n"), /runtime\.current_phase .* should be STATUS_SYNC/i);
+  assert.match(drift.issues.join("\n"), /runtime\.runtime_status .* should be completed/i);
 });

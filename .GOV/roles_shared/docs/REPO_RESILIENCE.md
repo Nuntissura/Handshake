@@ -8,7 +8,7 @@ This document defines the repo-resilience layer for Handshake governance.
 - Preserve both committed git history and working-file snapshots outside the repo tree.
 - Keep permanent topology deterministic across `handshake_main`, `wt-ilja`, and `wt-gov-kernel`.
 - Keep offline backups safe from mass-deletion sync by using append-only timestamped snapshots instead of destructive mirrors.
-- Keep `../Handshake Artifacts/` bounded by governed cleanup and retention manifests instead of ad hoc manual deletion.
+- Keep `../Handshake_Artifacts/` bounded by governed cleanup and retention manifests instead of ad hoc manual deletion.
 
 ## Commands
 
@@ -46,7 +46,7 @@ This document defines the repo-resilience layer for Handshake governance.
   - create git bundles for committed refs
   - copy current worktree files outside the repo tree so dirty state survives deletion incidents
 - Artifact retention is governed separately from snapshots:
-  - canonical roots under `../Handshake Artifacts/` stay durable
+  - canonical roots under `../Handshake_Artifacts/` stay durable
   - cleanup may remove only reclaimable residue
   - every governed artifact cleanup or integration-validator closeout writes a retention manifest under `handshake-tool/artifact-retention/`
   - authority: `.GOV/roles_shared/docs/ARTIFACT_RETENTION_POLICY.md`

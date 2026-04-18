@@ -117,6 +117,9 @@ test("reconcileWpCommunicationTruth replays final review receipts into packet an
     "Blockers: Awaiting the final direct review exchange with INTEGRATION_VALIDATOR.",
     "Next: CODER initiates the final direct review exchange with INTEGRATION_VALIDATOR.",
     "",
+    "## VALIDATION_EVIDENCE",
+    "- Proof command: `just phase-check HANDOFF WP-TEST-COMMS-v1 CODER --range 0123456789abcdef0123456789abcdef01234567..89abcdef0123456789abcdef0123456789abcdef`",
+    "",
   ].join("\n");
 
   const runtimeStatus = {
@@ -241,6 +244,19 @@ test("reconcileWpCommunicationTruth replays final review receipts into packet an
   );
   assert.equal(reconciliation.nextRuntimeStatus.last_event, "receipt_review_response");
   assert.equal(reconciliation.nextRuntimeStatus.last_event_at, "2026-04-01T02:46:32.499Z");
+  assert.equal(reconciliation.nextRuntimeStatus.authoritative_review_receipt_kind, "REVIEW_RESPONSE");
+  assert.equal(reconciliation.nextRuntimeStatus.authoritative_review_correlation_id, "final-review-1");
+  assert.equal(reconciliation.nextRuntimeStatus.authoritative_review_actor_session, "integration_validator:test-session");
+  assert.equal(reconciliation.nextRuntimeStatus.authoritative_review_target_session, "coder:test-session");
+  assert.equal(reconciliation.nextRuntimeStatus.authoritative_review_round, 1);
+  assert.equal(reconciliation.nextRuntimeStatus.committed_handoff_base_sha, "0123456789abcdef0123456789abcdef01234567");
+  assert.equal(reconciliation.nextRuntimeStatus.committed_handoff_head_sha, "89abcdef0123456789abcdef0123456789abcdef");
+  assert.equal(reconciliation.nextRuntimeStatus.committed_handoff_range_source, "PACKET_EXPLICIT_HANDOFF_RANGE");
+  assert.equal(reconciliation.nextRuntimeStatus.route_anchor_state, "COMM_OK");
+  assert.equal(reconciliation.nextRuntimeStatus.route_anchor_kind, "REVIEW_RESPONSE");
+  assert.equal(reconciliation.nextRuntimeStatus.route_anchor_correlation_id, "final-review-1");
+  assert.equal(reconciliation.nextRuntimeStatus.route_anchor_target_role, "ORCHESTRATOR");
+  assert.equal(reconciliation.nextRuntimeStatus.route_anchor_target_session, null);
 });
 
 test("reconcileWpCommunicationTruth resets relay cycle after route progress clears a stale validator wake", () => {

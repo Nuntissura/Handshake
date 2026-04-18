@@ -1398,7 +1398,7 @@
 ### 2026.04.05.14 / GOV-CHANGE-20260405-14
 
 - STATUS: APPLIED
-- SUMMARY: completed `RGF-84` by turning governed artifact cleanup into a policy-backed retention workflow with durable manifests, so closeout now records exactly what residue was removed versus retained under `Handshake Artifacts`
+- SUMMARY: completed `RGF-84` by turning governed artifact cleanup into a policy-backed retention workflow with durable manifests, so closeout now records exactly what residue was removed versus retained under `Handshake_Artifacts`
 - CHANGE_TYPE: ARTIFACT_RETENTION_HARDENING
 - DRIVER_EVIDENCE:
   - `RGF-84`
@@ -1419,7 +1419,7 @@
 - FOLLOW_ON_ITEMS:
   - `RGF-82`
   - `RGF-85`
-- OUTCOME: manual `artifact-cleanup` and integration-validator closeout now emit JSON retention manifests under `../Handshake Artifacts/handshake-tool/artifact-retention/`, preserving durable cleanup evidence while keeping canonical artifact roots and non-reclaimable residue out of the auto-delete set
+- OUTCOME: manual `artifact-cleanup` and integration-validator closeout now emit JSON retention manifests under `../Handshake_Artifacts/handshake-tool/artifact-retention/`, preserving durable cleanup evidence while keeping canonical artifact roots and non-reclaimable residue out of the auto-delete set
 
 ### 2026.04.05.15 / GOV-CHANGE-20260405-15
 
@@ -2285,3 +2285,91 @@
   - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md` (fixed heading)
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` (added RGF-194)
 - OUTCOME: Integration Validator startup prompt now correctly instructs the model to route FAIL remediation through Orchestrator instead of communicating directly with coder; governance memory DB is clean of stale RUBRIK/KUBRIK entries; RGF-194 opened for future check consolidation
+
+### 2026.04.18.1 / GOV-CHANGE-20260418-01
+
+- STATUS: APPLIED
+- SUMMARY: opened the current repo-governance hardening queue, reconciled board truth for bundled governance checks, and recorded the next implementation sequence around workflow truth, ACP resilience, and degraded-mode parity
+- CHANGE_TYPE: GOVERNANCE_PLANNING
+- DRIVER_EVIDENCE:
+  - Operator directive on 2026-04-18 to convert the new repo-governance research into concrete taskboard items and start the first implementation set
+  - `.GOV/reference/research_and_papers/Multi_Model_Architecture/Repo_Governance_Failure_Taxonomy.md`
+  - `.GOV/reference/research_and_papers/Multi_Model_Architecture/Workflow_State_Packet_Truth_and_Range_Drift.md`
+  - `.GOV/reference/research_and_papers/Multi_Model_Architecture/ACP_Broker_and_Session_Control.md`
+  - `.GOV/Audits/smoketest/DOSSIER_20260412_GOVERNANCE_WORKFLOW_MIRROR_WORKFLOW_DOSSIER.md`
+  - `.GOV/Audits/smoketest/DOSSIER_20260413_CALENDAR_STORAGE_WORKFLOW_DOSSIER.md`
+  - `.GOV/Audits/smoketest/DOSSIER_20260413_PROJECT_AGNOSTIC_WORKFLOW_STATE_REGISTRY_WORKFLOW_DOSSIER.md`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-198`
+  - `RGF-199`
+  - `RGF-200`
+  - `RGF-201`
+  - `RGF-202`
+  - `RGF-203`
+- OUTCOME: the board now records the active repo-governance hardening queue, marks bundled governance checks (`RGF-194`) as already live, and sequences the next work around canonical workflow truth, ACP health, retry suppression, and manual-relay parity
+
+### 2026.04.18.2 / GOV-CHANGE-20260418-02
+
+- STATUS: APPLIED
+- SUMMARY: implemented the first workflow-truth hardening slice by classifying packet/runtime drift by owning surface and surfacing repair order in `orchestrator-next`
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-198`
+  - workflow truth drift research: `.GOV/reference/research_and_papers/Multi_Model_Architecture/Workflow_State_Packet_Truth_and_Range_Drift.md`
+  - failure taxonomy: `.GOV/reference/research_and_papers/Multi_Model_Architecture/Repo_Governance_Failure_Taxonomy.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-199`
+  - `RGF-200`
+- OUTCOME: status-sync drift no longer presents as anonymous mismatch text only; the runtime evaluation now reports which truth surface owns each mismatch and the order repairs should follow before further delegation resumes
+
+### 2026.04.18.3 / GOV-CHANGE-20260418-03
+
+- STATUS: APPLIED
+- SUMMARY: froze explicit committed handoff range and authoritative latest-review identity into runtime projection during WP communication reconciliation
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-199`
+  - failure taxonomy and range-drift research around mutable `base..head` reconstruction during validator/closeout work
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-review-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/roles_shared/tests/wp-review-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+  - `.GOV/roles_shared/tests/ensure-wp-communications.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-200`
+- OUTCOME: runtime status now carries durable review anchor fields for the latest authoritative review receipt and any explicit committed handoff range, which reduces later dependence on mutable packet prose when validator and closeout surfaces need the same handoff truth
+
+### 2026.04.18.4 / GOV-CHANGE-20260418-04
+
+- STATUS: APPLIED
+- SUMMARY: persisted canonical route-anchor truth into runtime status and reused it across route selection, notification visibility, boundary checks, and manual-relay fallback
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-200`
+  - ACP/session control research: `.GOV/reference/research_and_papers/Multi_Model_Architecture/ACP_Broker_and_Session_Control.md`
+  - workflow truth drift research: `.GOV/reference/research_and_papers/Multi_Model_Architecture/Workflow_State_Packet_Truth_and_Range_Drift.md`
+  - workflow-mirror and calendar-storage smoketest dossiers documenting route drift and stalled wakeups
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/roles/orchestrator/scripts/lib/manual-relay-envelope-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/ensure-wp-communications.test.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/manual-relay-envelope-lib.test.mjs`
+  - `.GOV/roles_shared/fixtures/wp-communication-health/09-verdict-waiting-for-final-review.json`
+- FOLLOW_ON_ITEMS:
+  - `RGF-201`
+  - `RGF-202`
+- OUTCOME: runtime status now stores `route_anchor_*` fields so reconciliation, boundary checks, and manual relay all converge on the same correlation and target; blocked review queues keep the anchored work item even if `open_review_items` reorder; verdict progression retains the authoritative final-review correlation after a completed review; and the waiting-for-final-review fixture now matches the deliberate VERDICT preflight rule that the lane can be mechanically healthy while still waiting for the Integration Validator exchange

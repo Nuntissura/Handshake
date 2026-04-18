@@ -34,11 +34,11 @@
 
 
 
-# Handshake Master Specification v02.179
+# Handshake Master Specification v02.180
 
 **Status:** LIVING  
-**Version:** v02.179
-**Date:** 2026-03-28
+**Version:** v02.180
+**Date:** 2026-04-07
 **Authority:** [CX-001] (The Master Spec is the Source of Truth)
 
 **Purpose:** Complete reference combining product vision, Diary governance, extraction pipeline, Phase 1 closure requirements, and technical supply-chain gate specs.

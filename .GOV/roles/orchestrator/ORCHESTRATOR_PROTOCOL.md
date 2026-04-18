@@ -77,9 +77,9 @@ See also:
 
 ## Product Runtime Root (Current Default)
 
-- External build, test, and tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
+- External build, test, and tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
 - Repo-local `target/` directories are workflow-invalid residue. Run `just artifact-hygiene-check` before claiming clean governance/product state, and use `just artifact-cleanup` or the governed closeout path to remove reclaimable residue.
-- Governed artifact cleanup now writes a retention manifest under `../Handshake Artifacts/handshake-tool/artifact-retention/`; treat that manifest as the durable proof of what was removed versus retained.
+- Governed artifact cleanup now writes a retention manifest under `../Handshake_Artifacts/handshake-tool/artifact-retention/`; treat that manifest as the durable proof of what was removed versus retained.
 - Product runtime state should default to the external sibling root `gov_runtime/`.
 - Do not treat repo-root `data/` or `.handshake/` as the template for new runtime work.
 

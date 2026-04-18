@@ -88,8 +88,8 @@ If any tool output, path resolution, or steering prompt suggests navigating to a
 
 ## Product Runtime Root (Current Default)
 
-- External build/test/tool outputs stay under `../Handshake Artifacts/` [CX-212E]. Required subfolders:
-  - `handshake-cargo-target/` — Cargo build target (default via `CARGO_TARGET_DIR` in justfile). For parallel WPs, use `CARGO_TARGET_DIR='../Handshake Artifacts/handshake-cargo-target'` explicitly to share builds, or accept sequential build locking (cargo handles this gracefully with "Blocking waiting for file lock")
+- External build/test/tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders:
+  - `handshake-cargo-target/` — Cargo build target (default via `CARGO_TARGET_DIR` in justfile). For parallel WPs, use `CARGO_TARGET_DIR='../Handshake_Artifacts/handshake-cargo-target'` explicitly to share builds, or accept sequential build locking (cargo handles this gracefully with "Blocking waiting for file lock")
   - `handshake-product/` — product runtime artifacts, databases, generated files
   - `handshake-test/` — test outputs, coverage reports, benchmark results
   - `handshake-tool/` — governance tooling artifacts, linter caches, script outputs
@@ -1295,8 +1295,8 @@ Complete ALL steps before claiming work is done.
 
 **Pre-Step 7 hygiene (MANDATORY):**
 - Clean Cargo artifacts in the external target dir before self-eval/commit to keep the repo/mirror slim:
-  `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"`
-  (or run `just cargo-clean`, which uses `../Handshake Artifacts/handshake-cargo-target`).
+  `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake_Artifacts/handshake-cargo-target"`
+  (or run `just cargo-clean`, which uses `../Handshake_Artifacts/handshake-cargo-target`).
 
 **Run ALL commands from TEST_PLAN:**
 

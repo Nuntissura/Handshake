@@ -653,6 +653,146 @@ test("auto route wakes integration validator when final review request is open",
   assert.equal(route.notification, null, "explicit review request already targets integration validator");
 });
 
+test("route anchors preserve the blocked validator target when open review items reorder", () => {
+  const input = baseInput({
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap and skeleton cleared; proceed.",
+        timestamp_utc: "2026-03-22T10:02:30Z",
+      },
+      {
+        receipt_kind: "CODER_HANDOFF",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_REVIEW",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        ack_for: "handoff-1",
+        summary: "Advisory review posted; ready for final review.",
+        timestamp_utc: "2026-03-22T10:04:00Z",
+      },
+    ],
+    runtimeStatus: {
+      route_anchor_state: "COMM_BLOCKED_OPEN_ITEMS",
+      route_anchor_kind: "REVIEW_REQUEST",
+      route_anchor_correlation_id: "review-2",
+      route_anchor_target_role: "WP_VALIDATOR",
+      route_anchor_target_session: "wpv-1",
+      open_review_items: [
+        {
+          correlation_id: "review-1",
+          receipt_kind: "REVIEW_REQUEST",
+          summary: "Older review request should stay hidden after reorder.",
+          opened_by_role: "CODER",
+          opened_by_session: "coder-1",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-1",
+          requires_ack: true,
+          opened_at: "2026-03-22T10:05:00Z",
+          updated_at: "2026-03-22T10:05:00Z",
+        },
+        {
+          correlation_id: "review-2",
+          receipt_kind: "REVIEW_REQUEST",
+          summary: "Anchored review request should remain visible.",
+          opened_by_role: "CODER",
+          opened_by_session: "coder-1",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-1",
+          requires_ack: true,
+          opened_at: "2026-03-22T10:06:00Z",
+          updated_at: "2026-03-22T10:06:00Z",
+        },
+      ],
+    },
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: null,
+  });
+  const notificationProjection = deriveActiveWpNotificationProjection({
+    statusEvaluation: evaluation,
+    runtimeStatus: input.runtimeStatus,
+    pendingNotifications: [
+      {
+        timestamp_utc: "2026-03-22T10:07:00Z",
+        source_kind: "REVIEW_REQUEST",
+        source_role: "CODER",
+        source_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "review-1",
+        summary: "Older review request should stay hidden after reorder.",
+      },
+      {
+        timestamp_utc: "2026-03-22T10:08:00Z",
+        source_kind: "REVIEW_REQUEST",
+        source_role: "CODER",
+        source_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "review-2",
+        summary: "Anchored review request should remain visible.",
+      },
+    ],
+    autoRoute: route,
+  });
+
+  assert.equal(evaluation.state, "COMM_BLOCKED_OPEN_ITEMS");
+  assert.equal(route.nextExpectedActor, "WP_VALIDATOR");
+  assert.equal(route.nextExpectedSession, "wpv-1");
+  assert.equal(route.routeAnchor?.correlationId, "review-2");
+  assert.equal(route.routeAnchor?.targetRole, "WP_VALIDATOR");
+  assert.deepEqual(
+    notificationProjection.notifications.map((entry) => entry.correlation_id),
+    ["review-2"],
+  );
+  assert.deepEqual(
+    notificationProjection.hiddenNotifications.map((entry) => entry.correlation_id).sort(),
+    ["review-1"],
+  );
+});
+
 test("negative validator review routes the lane back to coder remediation instead of final review", () => {
   const input = baseInput({
     receipts: [
@@ -2731,6 +2871,11 @@ test("boundary check accepts runtime-projected validator session after watchdog 
       ready_for_validation: true,
       ready_for_validation_reason: "Coder intent recorded; WP validator must clear bootstrap/skeleton intent review before implementation or full handoff",
       attention_required: false,
+      route_anchor_state: "COMM_WAITING_FOR_INTENT_CHECKPOINT",
+      route_anchor_kind: "VALIDATOR_RESPONSE",
+      route_anchor_correlation_id: "kickoff-1",
+      route_anchor_target_role: "WP_VALIDATOR",
+      route_anchor_target_session: "wpv-1",
     },
   });
 

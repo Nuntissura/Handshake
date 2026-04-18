@@ -1,4 +1,5 @@
 import { parsePacketStatus } from "./packet-runtime-projection-lib.mjs";
+import { parseExplicitCoderHandoffRange } from "./role-resume-utils.mjs";
 import {
   derivePacketMilestone,
   isTerminalPacketStatus,
@@ -25,6 +26,35 @@ function replacePacketStatusField(text, value) {
 
 function normalizeState(value) {
   return String(value || "").trim().toUpperCase();
+}
+
+function parsePacketWpId(packetText = "") {
+  const fieldMatch = String(packetText || "").match(/^\s*-\s*(?:WP_ID|TASK_ID)\s*:\s*([^\r\n]+)\s*$/mi);
+  if (fieldMatch) return String(fieldMatch[1] || "").trim();
+  const headingMatch = String(packetText || "").match(/^#\s*Task Packet:\s*(WP-[^\s`]+)/mi);
+  return headingMatch ? String(headingMatch[1] || "").trim() : "";
+}
+
+function nullableInteger(value) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
+function deriveImmutableReviewAnchorProjection(packetText = "", evaluation = {}) {
+  const latestAssessment = evaluation?.latestValidatorAssessment || null;
+  const wpId = parsePacketWpId(packetText);
+  const explicitCommittedRange = wpId ? parseExplicitCoderHandoffRange(packetText, wpId) : null;
+
+  return {
+    authoritative_review_receipt_kind: latestAssessment?.receiptKind || null,
+    authoritative_review_correlation_id: latestAssessment?.correlationId || null,
+    authoritative_review_actor_session: latestAssessment?.actorSession || null,
+    authoritative_review_target_session: latestAssessment?.targetSession || null,
+    authoritative_review_round: nullableInteger(latestAssessment?.reviewRound),
+    committed_handoff_base_sha: explicitCommittedRange?.baseRev || null,
+    committed_handoff_head_sha: explicitCommittedRange?.headRev || null,
+    committed_handoff_range_source: explicitCommittedRange ? "PACKET_EXPLICIT_HANDOFF_RANGE" : null,
+  };
 }
 
 function currentStateForEvaluation(evaluationState, autoRoute = {}, evaluation = {}) {
@@ -158,6 +188,7 @@ export function applyWpReviewPacketProjection(packetText, projection = {}) {
 
 export function applyWpReviewRuntimeProjection(runtimeStatus, {
   evaluation,
+  packetText = "",
 } = {}) {
   if (!evaluation?.applicable) return { ...(runtimeStatus || {}) };
 
@@ -207,6 +238,7 @@ export function applyWpReviewRuntimeProjection(runtimeStatus, {
   nextRuntime.current_milestone = milestone;
   nextRuntime.current_phase = runtimePhaseForMilestone(milestone, nextRuntime.current_phase || "BOOTSTRAP");
   nextRuntime.last_milestone_sync_at = nextRuntime.last_event_at || nextRuntime.last_milestone_sync_at || new Date().toISOString();
+  Object.assign(nextRuntime, deriveImmutableReviewAnchorProjection(packetText, evaluation));
 
   return nextRuntime;
 }

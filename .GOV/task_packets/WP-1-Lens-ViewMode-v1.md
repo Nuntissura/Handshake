@@ -256,7 +256,7 @@ git revert COMMIT_SHA
   - `cd app; pnpm test`
   - `just test`
   - `cd src/backend/handshake_core; cargo test`
-  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target-release" --release --test lens_viewmode_tests -q`
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake_Artifacts/handshake-cargo-target-release" --release --test lens_viewmode_tests -q`
 
 ## VALIDATION
 - (Mechanical manifest for audit. This section records hashes/lines for Validator review. It is NOT a claim of official Validation.)
@@ -512,7 +512,7 @@ git revert COMMIT_SHA
   - PROOF_LINES:
     - `running 183 tests`
     - `test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;`
-- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir \"../Handshake Artifacts/handshake-cargo-target-release\" --release --test lens_viewmode_tests -q`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir \"../Handshake_Artifacts/handshake-cargo-target-release\" --release --test lens_viewmode_tests -q`
   - EXIT_CODE: 0
   - PROOF_LINES:
     - `running 3 tests`

@@ -536,7 +536,7 @@ git revert <commit-sha>
   - Implemented OutputRootDir config + Stage Sessions + cookie import.
   - Remediated cancel/kill-tree/shutdown reliability for external download processes.
   - Remediated validator-error-codes/validator-scan findings (typed WorkflowError + nondeterminism waiver + no expect()).
-  - Routed Cargo build artifacts to external target dir (`../Handshake Artifacts/handshake-cargo-target`).
+  - Routed Cargo build artifacts to external target dir (`../Handshake_Artifacts/handshake-cargo-target`).
 - Touched files (staged):
   - .GOV/refinements/WP-1-Media-Downloader-v2.md
   - .GOV/task_packets/WP-1-Media-Downloader-v2.md
@@ -673,7 +673,7 @@ git revert <commit-sha>
 - COMMAND: `just cargo-clean`
 - EXIT_CODE: 0
 - PROOF_LINES: "cargo clean -p handshake_core"
-- PROOF_LINES: "target-dir \"../Handshake Artifacts/handshake-cargo-target\""
+- PROOF_LINES: "target-dir \"../Handshake_Artifacts/handshake-cargo-target\""
  
 - COMMAND: `just validator-error-codes`
 - EXIT_CODE: 0

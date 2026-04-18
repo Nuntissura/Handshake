@@ -12,6 +12,11 @@ function normalizeText(value, fallback = "<none>") {
   return raw || fallback;
 }
 
+function nullableText(value) {
+  const raw = String(value || "").trim();
+  return raw || null;
+}
+
 function formatEndpoint(role, session = null) {
   const normalizedRole = normalizeRole(role) || "UNKNOWN";
   const normalizedSession = normalizeSession(session);
@@ -20,6 +25,7 @@ function formatEndpoint(role, session = null) {
 
 export function preferredTargetSession(runtimeStatus = {}, governedSession = null) {
   return normalizeSession(runtimeStatus?.next_expected_session)
+    || normalizeSession(runtimeStatus?.route_anchor_target_session)
     || normalizeSession(governedSession?.session_id)
     || null;
 }
@@ -37,17 +43,24 @@ function relayKindForSourceKind(sourceKind) {
   return "ACTION";
 }
 
-function targetOpenReviewItem(runtimeStatus = {}, nextActor = "", targetSession = null) {
+function targetOpenReviewItem(runtimeStatus = {}, nextActor = "", targetSession = null, correlationId = null) {
   const items = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
-  return items
+  const matched = items
     .filter((item) => normalizeRole(item?.target_role) === nextActor)
+    .filter((item) => {
+      const itemCorrelationId = nullableText(item?.correlation_id);
+      if (!correlationId) return true;
+      return itemCorrelationId === correlationId;
+    })
     .filter((item) => {
       const itemTargetSession = normalizeSession(item?.target_session);
       if (!targetSession) return true;
       if (!itemTargetSession) return true;
       return itemTargetSession === targetSession;
-    })
-    .sort((left, right) => String(right?.updated_at || right?.opened_at || "").localeCompare(String(left?.updated_at || left?.opened_at || "")))[0] || null;
+    });
+  return matched
+    .sort((left, right) => String(right?.updated_at || right?.opened_at || "").localeCompare(String(left?.updated_at || left?.opened_at || "")))[0]
+    || null;
 }
 
 function latestTargetNotification(notifications = []) {
@@ -64,15 +77,22 @@ export function deriveRelayEnvelope({
   dispatchAction = "SEND_PROMPT",
 } = {}) {
   const notification = latestTargetNotification(notifications?.notifications || []);
-  const reviewItem = targetOpenReviewItem(runtimeStatus, nextActor, targetSession);
-  const sourceKind = normalizeRole(notification?.source_kind || reviewItem?.receipt_kind || runtimeStatus?.waiting_on || "ACTION");
+  const routeAnchorCorrelationId = nullableText(runtimeStatus?.route_anchor_correlation_id);
+  const reviewItem = targetOpenReviewItem(runtimeStatus, nextActor, targetSession, routeAnchorCorrelationId);
+  const sourceKind = normalizeRole(
+    notification?.source_kind
+    || reviewItem?.receipt_kind
+    || runtimeStatus?.route_anchor_kind
+    || runtimeStatus?.waiting_on
+    || "ACTION",
+  );
   const relayKind = relayKindForSourceKind(sourceKind);
   const fromRole = normalizeRole(notification?.source_role || reviewItem?.opened_by_role || "RUNTIME");
   const fromSession = normalizeSession(notification?.source_session || reviewItem?.opened_by_session);
   const message = normalizeText(
     notification?.summary || reviewItem?.summary || `Runtime is waiting on ${runtimeStatus?.waiting_on || "the next governed action"}.`,
   );
-  const correlationId = normalizeText(notification?.correlation_id || reviewItem?.correlation_id);
+  const correlationId = normalizeText(notification?.correlation_id || reviewItem?.correlation_id || routeAnchorCorrelationId);
   const ackRequired = Boolean(reviewItem?.requires_ack);
 
   return {

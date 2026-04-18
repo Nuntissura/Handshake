@@ -203,6 +203,44 @@ test("active review projection moves runtime out of stale bootstrap when remedia
   assert.equal(runtime.current_milestone, "MICROTASK");
 });
 
+test("active review projection freezes explicit handoff range and authoritative review identity into runtime truth", () => {
+  const runtime = applyWpReviewRuntimeProjection(
+    {
+      current_packet_status: "In Progress",
+      runtime_status: "working",
+      current_phase: "VALIDATION",
+    },
+    {
+      evaluation: {
+        applicable: true,
+        state: "COMM_OK",
+        latestValidatorAssessment: {
+          receiptKind: "REVIEW_RESPONSE",
+          correlationId: "final-review-1",
+          actorSession: "integration_validator:test-session",
+          targetSession: "coder:test-session",
+          reviewRound: 2,
+        },
+      },
+      packetText: [
+        packetFixture("In Progress"),
+        "## VALIDATION_EVIDENCE",
+        "- Proof command: `just phase-check HANDOFF WP-TEST-REVIEW-PROJECTION-v1 CODER --range 0123456789abcdef0123456789abcdef01234567..89abcdef0123456789abcdef0123456789abcdef`",
+        "",
+      ].join("\n"),
+    },
+  );
+
+  assert.equal(runtime.authoritative_review_receipt_kind, "REVIEW_RESPONSE");
+  assert.equal(runtime.authoritative_review_correlation_id, "final-review-1");
+  assert.equal(runtime.authoritative_review_actor_session, "integration_validator:test-session");
+  assert.equal(runtime.authoritative_review_target_session, "coder:test-session");
+  assert.equal(runtime.authoritative_review_round, 2);
+  assert.equal(runtime.committed_handoff_base_sha, "0123456789abcdef0123456789abcdef01234567");
+  assert.equal(runtime.committed_handoff_head_sha, "89abcdef0123456789abcdef0123456789abcdef");
+  assert.equal(runtime.committed_handoff_range_source, "PACKET_EXPLICIT_HANDOFF_RANGE");
+});
+
 test("active review projection keeps terminal packet runtime untouched", () => {
   const runtime = applyWpReviewRuntimeProjection(
     {

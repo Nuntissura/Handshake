@@ -54,7 +54,7 @@ These are safe starting points for orientation and health checks.
   - inspects the canonisation file set for governance drift and prints the mandatory review checklist; after running it, inspect every listed file and update applicable drift before closeout
 - `just artifact-hygiene-check`
   - `read-only`
-  - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake Artifacts` residue fail closed
+  - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake_Artifacts` residue fail closed
   - retention policy authority: `.GOV/roles_shared/docs/ARTIFACT_RETENTION_POLICY.md`
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
@@ -394,7 +394,7 @@ Use this flow only for repo-governance maintenance that stays out of product cod
 - `just artifact-cleanup [--dry-run]`
   - `runtime-write`
   - removes only reclaimable stale external artifact folders and repo-local `target/` residue; closeout now runs this mechanically before containment sync
-  - writes a retention manifest under `../Handshake Artifacts/handshake-tool/artifact-retention/`
+  - writes a retention manifest under `../Handshake_Artifacts/handshake-tool/artifact-retention/`
 - `just sync-gov-to-main`
   - `governance-write`
   - mirrors kernel `/.GOV/` into `handshake_main` and auto-commits on local `main`

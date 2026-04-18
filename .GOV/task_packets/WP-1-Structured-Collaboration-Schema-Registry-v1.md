@@ -747,7 +747,7 @@ Tests:
 - `just gov-check`: PASS
 - `just validator-handoff-check WP-1-Structured-Collaboration-Schema-Registry-v1`: FAIL (`post_work_status=FAIL`)
 - `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1`: FAIL
-- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"`: FAIL in this Windows environment during `libduckdb-sys` compilation
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake_Artifacts/handshake-cargo-target"`: FAIL in this Windows environment during `libduckdb-sys` compilation
 - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct`: PASS
 - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_tests --target-dir D:\hct`: PASS
 - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests --target-dir D:\hct`: PASS

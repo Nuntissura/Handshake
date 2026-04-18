@@ -384,6 +384,19 @@ export function validateRuntimeStatus(data) {
     "current_main_compatibility_verified_at_utc",
     "packet_widening_decision",
     "packet_widening_evidence",
+    "route_anchor_state",
+    "route_anchor_kind",
+    "route_anchor_correlation_id",
+    "route_anchor_target_role",
+    "route_anchor_target_session",
+    "authoritative_review_receipt_kind",
+    "authoritative_review_correlation_id",
+    "authoritative_review_actor_session",
+    "authoritative_review_target_session",
+    "authoritative_review_round",
+    "committed_handoff_base_sha",
+    "committed_handoff_head_sha",
+    "committed_handoff_range_source",
     "max_worker_interrupt_cycles",
     "current_worker_interrupt_cycle",
   ];
@@ -476,6 +489,45 @@ export function validateRuntimeStatus(data) {
   }
   if ("packet_widening_evidence" in data && !isNullableString(data.packet_widening_evidence)) {
     errors.push(`packet_widening_evidence invalid (${data.packet_widening_evidence})`);
+  }
+  if ("route_anchor_state" in data && !isNullableString(data.route_anchor_state)) {
+    errors.push(`route_anchor_state invalid (${data.route_anchor_state})`);
+  }
+  if ("route_anchor_kind" in data && !isNullableString(data.route_anchor_kind)) {
+    errors.push(`route_anchor_kind invalid (${data.route_anchor_kind})`);
+  }
+  if ("route_anchor_correlation_id" in data && !isNullableString(data.route_anchor_correlation_id)) {
+    errors.push(`route_anchor_correlation_id invalid (${data.route_anchor_correlation_id})`);
+  }
+  if ("route_anchor_target_role" in data && !isNullableString(data.route_anchor_target_role)) {
+    errors.push(`route_anchor_target_role invalid (${data.route_anchor_target_role})`);
+  }
+  if ("route_anchor_target_session" in data && !isNullableString(data.route_anchor_target_session)) {
+    errors.push(`route_anchor_target_session invalid (${data.route_anchor_target_session})`);
+  }
+  if ("authoritative_review_receipt_kind" in data && !isNullableString(data.authoritative_review_receipt_kind)) {
+    errors.push(`authoritative_review_receipt_kind invalid (${data.authoritative_review_receipt_kind})`);
+  }
+  if ("authoritative_review_correlation_id" in data && !isNullableString(data.authoritative_review_correlation_id)) {
+    errors.push(`authoritative_review_correlation_id invalid (${data.authoritative_review_correlation_id})`);
+  }
+  if ("authoritative_review_actor_session" in data && !isNullableString(data.authoritative_review_actor_session)) {
+    errors.push(`authoritative_review_actor_session invalid (${data.authoritative_review_actor_session})`);
+  }
+  if ("authoritative_review_target_session" in data && !isNullableString(data.authoritative_review_target_session)) {
+    errors.push(`authoritative_review_target_session invalid (${data.authoritative_review_target_session})`);
+  }
+  if ("authoritative_review_round" in data && !(data.authoritative_review_round === null || Number.isInteger(data.authoritative_review_round))) {
+    errors.push(`authoritative_review_round invalid (${data.authoritative_review_round})`);
+  }
+  if ("committed_handoff_base_sha" in data && !isNullableSha(data.committed_handoff_base_sha)) {
+    errors.push(`committed_handoff_base_sha invalid (${data.committed_handoff_base_sha})`);
+  }
+  if ("committed_handoff_head_sha" in data && !isNullableSha(data.committed_handoff_head_sha)) {
+    errors.push(`committed_handoff_head_sha invalid (${data.committed_handoff_head_sha})`);
+  }
+  if ("committed_handoff_range_source" in data && !isNullableString(data.committed_handoff_range_source)) {
+    errors.push(`committed_handoff_range_source invalid (${data.committed_handoff_range_source})`);
   }
   if (!RUNTIME_STATUS_VALUES.includes(data.runtime_status)) errors.push(`runtime_status invalid (${data.runtime_status})`);
   if (!isNonEmptyString(data.current_phase) || !/^[A-Z][A-Z0-9_]*$/.test(data.current_phase)) {
@@ -675,7 +727,7 @@ export function validateReceipt(entry) {
     "state_after",
     "refs",
   ];
-  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "microtask_contract", "workflow_invalidity_code"];
+  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "microtask_contract", "workflow_invalidity_code", "resolved_cwd"];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in entry)) errors.push(`missing key: ${key}`);

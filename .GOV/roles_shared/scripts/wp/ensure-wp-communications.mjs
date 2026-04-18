@@ -272,11 +272,19 @@ export function reconcileWpCommunicationTruth({
         nextRuntimeStatus[fieldName] = autoRoute[autoRouteFieldName];
       }
     }
+    nextRuntimeStatus.route_anchor_state = autoRoute.routeAnchor?.state || null;
+    nextRuntimeStatus.route_anchor_kind = autoRoute.routeAnchor?.kind || null;
+    nextRuntimeStatus.route_anchor_correlation_id = autoRoute.routeAnchor?.correlationId || null;
+    nextRuntimeStatus.route_anchor_target_role = autoRoute.routeAnchor?.targetRole || null;
+    nextRuntimeStatus.route_anchor_target_session = autoRoute.routeAnchor?.targetSession || null;
     if (latestReceipt) {
       nextRuntimeStatus.last_event = `receipt_${String(latestReceipt.receipt_kind || "").trim().toLowerCase()}`;
       nextRuntimeStatus.last_event_at = latestReceipt.timestamp_utc || nextRuntimeStatus.last_event_at;
     }
-    nextRuntimeStatus = applyWpReviewRuntimeProjection(nextRuntimeStatus, { evaluation });
+    nextRuntimeStatus = applyWpReviewRuntimeProjection(nextRuntimeStatus, {
+      evaluation,
+      packetText: nextPacketText,
+    });
     if (shouldResetRelayEscalationCycle(runtimeStatus, nextRuntimeStatus, latestReceipt)) {
       nextRuntimeStatus.current_relay_escalation_cycle = 0;
       nextRuntimeStatus.current_worker_interrupt_cycle = 0;

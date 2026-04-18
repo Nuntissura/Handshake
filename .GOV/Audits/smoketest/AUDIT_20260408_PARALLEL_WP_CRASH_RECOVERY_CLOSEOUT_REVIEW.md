@@ -407,7 +407,7 @@ Assessment:
 
 ## 9b. Build Artifact Hygiene
 
-- BUILD_TARGET_PATH: `..\Handshake Artifacts`
+- BUILD_TARGET_PATH: `..\Handshake_Artifacts`
 - BUILD_TARGET_CLEANED_BY: NOT_CHECKED
 - BUILD_TARGET_CLEANED_AT: N/A
 - BUILD_TARGET_STATE_AT_CLOSEOUT: NOT_CHECKED

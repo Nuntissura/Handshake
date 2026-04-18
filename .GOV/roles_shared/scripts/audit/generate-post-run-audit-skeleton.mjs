@@ -909,7 +909,7 @@ function buildLiveReview({
     "",
     "## 9b. Build Artifact Hygiene",
     "",
-    "- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake Artifacts`",
+    "- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake_Artifacts`",
     "- BUILD_TARGET_CLEANED_BY: NONE",
     "- BUILD_TARGET_CLEANED_AT: N/A",
     "- BUILD_TARGET_STATE_AT_CLOSEOUT: NOT_CHECKED",

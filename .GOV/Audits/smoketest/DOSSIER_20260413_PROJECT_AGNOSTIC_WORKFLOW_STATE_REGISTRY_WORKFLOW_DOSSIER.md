@@ -234,7 +234,7 @@ Assessment:
 
 ## 9b. Build Artifact Hygiene
 
-- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake Artifacts`
+- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake_Artifacts`
 - BUILD_TARGET_CLEANED_BY: `phase-check CLOSEOUT` mechanical closeout bundle
 - BUILD_TARGET_CLEANED_AT: 2026-04-13T05:19:43.890Z
 - BUILD_TARGET_STATE_AT_CLOSEOUT: PASS_WITH_RETENTION_MANIFEST

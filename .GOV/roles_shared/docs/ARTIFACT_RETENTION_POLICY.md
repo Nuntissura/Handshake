@@ -5,7 +5,7 @@
 
 ## Purpose
 
-Keep `../Handshake Artifacts/` bounded without losing the governed proof needed for closeout, audit, and recovery.
+Keep `../Handshake_Artifacts/` bounded without losing the governed proof needed for closeout, audit, and recovery.
 
 ## Canonical artifact roots
 
@@ -36,7 +36,7 @@ The governed cleanup path must preserve:
 
 Every governed artifact cleanup or integration-validator closeout must write a JSON retention manifest under:
 
-- `../Handshake Artifacts/handshake-tool/artifact-retention/`
+- `../Handshake_Artifacts/handshake-tool/artifact-retention/`
 
 The manifest records:
 

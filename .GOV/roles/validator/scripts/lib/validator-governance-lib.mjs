@@ -1564,7 +1564,7 @@ const CARGO_CLEAN_ARGS = [
   "--manifest-path",
   "src/backend/handshake_core/Cargo.toml",
   "--target-dir",
-  "../Handshake Artifacts/handshake-cargo-target",
+  "../Handshake_Artifacts/handshake-cargo-target",
 ];
 
 export function buildValidatorHandoffCheckResult({

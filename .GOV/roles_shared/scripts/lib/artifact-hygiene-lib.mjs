@@ -4,7 +4,7 @@ import { discoverGitCheckouts } from "../topology/git-topology-lib.mjs";
 import { REPO_ROOT, normalizePath } from "./runtime-paths.mjs";
 
 export const HANDSHAKE_ARTIFACT_ROOT_ENV_VAR = "HANDSHAKE_ARTIFACT_ROOT";
-export const DEFAULT_ARTIFACT_ROOT_DIRNAME = "Handshake Artifacts";
+export const DEFAULT_ARTIFACT_ROOT_DIRNAME = "Handshake_Artifacts";
 export const CANONICAL_ARTIFACT_DIRS = Object.freeze([
   "handshake-cargo-target",
   "handshake-product",

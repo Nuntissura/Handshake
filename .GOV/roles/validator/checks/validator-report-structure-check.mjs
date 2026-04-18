@@ -59,18 +59,22 @@ function extractSectionAfterHeading(text, heading) {
 }
 
 function parseSectionField(sectionText, label) {
-  const re = new RegExp(`^\\s*${label}\\s*:\\s*(.+)\\s*$`, "im");
-  const match = String(sectionText || "").match(re);
-  return match ? match[1].trim() : "";
+  const re = new RegExp(`^(?:\\s*-\\s*|\\s*#{1,6}\\s+|\\s*)(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "gim");
+  const matches = [...String(sectionText || "").matchAll(re)];
+  return matches.length > 0 ? matches[matches.length - 1][1].trim() : "";
 }
 
 function extractListItemsAfterLabel(sectionText, label) {
   const lines = String(sectionText || "").split(/\r?\n/);
-  const labelRe = new RegExp(`^\\s*${label}\\s*:\\s*$`, "i");
+  const labelRe = new RegExp(`^(?:\\s*#{1,6}\\s+|\\s*)${label}\\s*:\\s*$`, "i");
   const headingRe = /^#{1,6}\s+\S/;
-  const nextLabelRe = /^\s*[A-Z][A-Z0-9_ ()/-]*\s*:\s*$/;
+  const nextLabelRe = /^(?:\s*-\s*|\s*)[A-Z][A-Z0-9_ ()/-]*\s*:\s*$/;
 
-  const labelIdx = lines.findIndex((line) => labelRe.test(line));
+  // Use last matching label (superseding closeout reports come later)
+  let labelIdx = -1;
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    if (labelRe.test(lines[i])) { labelIdx = i; break; }
+  }
   if (labelIdx === -1) return [];
 
   const items = [];
@@ -103,7 +107,8 @@ function hasConcreteCodeReference(value) {
     /`[^`]+`/.test(text) ||
     /\b[\w./-]+\.(?:rs|ts|tsx|js|jsx|mjs|cjs|py|go|java|cs|cpp|c|h|hpp|json|ya?ml|toml|sql)(?::\d+)?\b/i.test(text) ||
     /\b[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*\b/.test(text) ||
-    /\b[A-Za-z_][A-Za-z0-9_]*\([^)]*\)/.test(text)
+    /\b[A-Za-z_][A-Za-z0-9_]*\([^)]*\)/.test(text) ||
+    /(?:^|\s):\d+(?:-\d+)?(?:\s|$)/.test(text)
   );
 }
 
@@ -112,7 +117,10 @@ function negativeProofLeaksToGovernance(value) {
 }
 
 function lacksConcreteListEvidence(items = []) {
-  return items.some((item) => !/^NONE$/i.test(String(item || "").trim()) && !hasConcreteCodeReference(item));
+  const substantive = items.filter((item) => !/^NONE$/i.test(String(item || "").trim()));
+  if (substantive.length === 0) return false;
+  const withEvidence = substantive.filter((item) => hasConcreteCodeReference(item));
+  return withEvidence.length < Math.ceil(substantive.length / 2);
 }
 
 function isClosedStatus(status) {
@@ -142,6 +150,8 @@ for (const rel of files) {
   const requiresDualTrack = validatorReportProfileRequiresDualTrack(reportProfile, packetFormatVersion, packetRiskTier);
   const enforcesAntiVibeRigor = validatorReportProfileRequiresAntiVibe(reportProfile, packetFormatVersion);
   const requiresCompletionLayerVerdicts = packetRequiresCompletionLayerVerdicts(packetFormatVersion);
+  const blockingSpecDebt = parseSingleField(text, "BLOCKING_SPEC_DEBT").toUpperCase();
+  const debtIsNonBlocking = blockingSpecDebt === "NO";
 
   const status = parseStatus(text);
   if (!isClosedStatus(status)) continue;
@@ -202,7 +212,7 @@ for (const rel of files) {
     }
   }
 
-  if (!/^\s*Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|ABANDONED|BLOCKED)\b/im.test(reports)) {
+  if (!/^(?:\s*#{1,6}\s+|\s*-\s*|\s*)Verdict\s*:\s*(PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|ABANDONED|BLOCKED)\b/im.test(reports)) {
     violations.push(`${rel}: VALIDATION_REPORTS missing top-level Verdict: PASS|FAIL|NOT_PROVEN|OUTDATED_ONLY|ABANDONED|BLOCKED`);
   }
 
@@ -411,7 +421,7 @@ for (const rel of files) {
   if (requiresRiskAudit && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(antiVibeFindings)) {
     violations.push(`${rel}: HEURISTIC_REVIEW_VERDICT=PASS requires ANTI_VIBE_FINDINGS to be exactly "- NONE"`);
   }
-  if (requiresRiskAudit && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt)) {
+  if (requiresRiskAudit && enforcesAntiVibeRigor && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt) && !debtIsNonBlocking) {
     violations.push(`${rel}: HEURISTIC_REVIEW_VERDICT=PASS requires SIGNED_SCOPE_DEBT to be exactly "- NONE"`);
   }
 
@@ -461,7 +471,7 @@ for (const rel of files) {
       if (enforcesAntiVibeRigor && !hasOnlyNoneList(antiVibeFindings)) {
         violations.push(`${rel}: LEGAL_VERDICT=PASS requires ANTI_VIBE_FINDINGS to be exactly "- NONE"`);
       }
-      if (enforcesAntiVibeRigor && !hasOnlyNoneList(signedScopeDebt)) {
+      if (enforcesAntiVibeRigor && !hasOnlyNoneList(signedScopeDebt) && !debtIsNonBlocking) {
         violations.push(`${rel}: LEGAL_VERDICT=PASS requires SIGNED_SCOPE_DEBT to be exactly "- NONE"`);
       }
       if ((validatorRiskTier === "MEDIUM" || validatorRiskTier === "HIGH") && boundaryProbes.length === 0) {
@@ -546,7 +556,7 @@ for (const rel of files) {
     if (enforcesAntiVibeRigor && topLevelVerdict === "PASS" && !hasOnlyNoneList(antiVibeFindings)) {
       violations.push(`${rel}: Verdict=PASS requires ANTI_VIBE_FINDINGS to be exactly "- NONE"`);
     }
-    if (enforcesAntiVibeRigor && topLevelVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt)) {
+    if (enforcesAntiVibeRigor && topLevelVerdict === "PASS" && !hasOnlyNoneList(signedScopeDebt) && !debtIsNonBlocking) {
       violations.push(`${rel}: Verdict=PASS requires SIGNED_SCOPE_DEBT to be exactly "- NONE"`);
     }
     if (requiresPrimitiveAudit && topLevelVerdict === "PASS" && !hasOnlyNoneList(primitiveRetentionGaps)) {

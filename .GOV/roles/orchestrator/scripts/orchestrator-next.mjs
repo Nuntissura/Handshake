@@ -715,15 +715,25 @@ function main() {
     packetRuntimeState?.runtimeStatus || {},
   );
   if (packetRuntimeState && !packetRuntimeState.drift.ok) {
+    const driftOwners = Array.isArray(packetRuntimeState.drift.owner_classes)
+      ? packetRuntimeState.drift.owner_classes
+      : [];
+    const blockerClass = driftOwners.length > 1
+      ? "TRUTH_AUTHORITY_DRIFT"
+      : (driftOwners[0] || "STATUS_SYNC_DRIFT");
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
-    printOperatorEnvelope("NONE", "NONE");
+    printOperatorEnvelope("NONE", blockerClass);
     printConfidence(confidence.level, confidenceDetail);
     printState("Packet/runtime closeout projection drift is blocking further delegation until status truth is reconciled.");
     printFindings([
       ...tokenPolicyContinuation.findings,
+      ...(packetRuntimeState.drift.owner_summary ? [packetRuntimeState.drift.owner_summary] : []),
+      ...(driftOwners.length > 0 ? [`Repair order: ${driftOwners.join(" -> ")}`] : []),
       `Packet: ${packetPath}`,
       `Runtime: ${parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE") || "<missing>"}`,
-      ...packetRuntimeState.drift.issues,
+      ...(Array.isArray(packetRuntimeState.drift.issue_details) && packetRuntimeState.drift.issue_details.length > 0
+        ? packetRuntimeState.drift.issue_details.map((detail) => `[${detail.owner}] ${detail.message}`)
+        : packetRuntimeState.drift.issues),
     ]);
     printNextCommands([
       `just integration-validator-context-brief ${wpId}`,

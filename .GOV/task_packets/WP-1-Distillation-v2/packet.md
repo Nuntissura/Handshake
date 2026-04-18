@@ -125,15 +125,15 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
-- MAIN_CONTAINMENT_STATUS: NOT_STARTED
+- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
-- MERGED_MAIN_COMMIT: NONE
+- MERGED_MAIN_COMMIT: 0e72bfbf
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
-- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-04-16T02:37:46.164Z
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
-- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
+- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
 - CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
@@ -195,21 +195,21 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
 Next: N/A
 
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: Section 9.1.1 Data model (SkillBankLogEntry, QualityMeta, TelemetryMeta, PrivacyMeta) | CODE_SURFACES: src/backend/handshake_core/src/models/skill_bank.rs | TESTS: cargo test -p handshake_core -- skill_bank | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Section 9.1.2 SQL schema (skill_log_entry, distill_job, distill_example, adapter_checkpoint, eval_run) | CODE_SURFACES: src/backend/handshake_core/migrations/0017_skill_bank_distillation.sql | TESTS: cargo test -p handshake_core -- migration | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Section 9.1.3.1 compute_data_trust_score | CODE_SURFACES: src/backend/handshake_core/src/distillation/scoring.rs | TESTS: cargo test -p handshake_core -- data_trust_score | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Section 9.1.3.2 build_distill_dataset (new + replay batches) | CODE_SURFACES: src/backend/handshake_core/src/distillation/dataset.rs | TESTS: cargo test -p handshake_core -- distill_dataset | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Section 9.1.4 Evaluation and promotion gates | CODE_SURFACES: src/backend/handshake_core/src/distillation/eval.rs | TESTS: cargo test -p handshake_core -- eval_promotion | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Section 5.3.6 Distillation observability (FR events per stage) | CODE_SURFACES: src/backend/handshake_core/src/flight_recorder/mod.rs | TESTS: cargo test -p handshake_core -- flight_recorder_distill | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Section 2.6.6.8.13 Learning Integration (DistillationCandidate persistence) | CODE_SURFACES: src/backend/handshake_core/src/workflows.rs | TESTS: cargo test -p handshake_core -- distillation_candidate | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Section 9 PII/secret redaction (redact_entry) | CODE_SURFACES: src/backend/handshake_core/src/distillation/redaction.rs | TESTS: cargo test -p handshake_core -- redaction | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Section 9.1.1 Data model (SkillBankLogEntry, QualityMeta, TelemetryMeta, PrivacyMeta) | CODE_SURFACES: src/backend/handshake_core/src/models/skill_bank.rs | TESTS: cargo test -p handshake_core -- skill_bank | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Section 9.1.2 SQL schema (skill_log_entry, distill_job, distill_example, adapter_checkpoint, eval_run) | CODE_SURFACES: src/backend/handshake_core/migrations/0017_skill_bank_distillation.sql | TESTS: cargo test -p handshake_core -- migration | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Section 9.1.3.1 compute_data_trust_score | CODE_SURFACES: src/backend/handshake_core/src/distillation/scoring.rs | TESTS: cargo test -p handshake_core -- data_trust_score | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Section 9.1.3.2 build_distill_dataset (new + replay batches) | CODE_SURFACES: src/backend/handshake_core/src/distillation/dataset.rs | TESTS: cargo test -p handshake_core -- distill_dataset | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Section 9.1.4 Evaluation and promotion gates | CODE_SURFACES: src/backend/handshake_core/src/distillation/eval.rs | TESTS: cargo test -p handshake_core -- eval_promotion | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Section 5.3.6 Distillation observability (FR events per stage) | CODE_SURFACES: src/backend/handshake_core/src/flight_recorder/mod.rs | TESTS: cargo test -p handshake_core -- flight_recorder_distill | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Section 2.6.6.8.13 Learning Integration (DistillationCandidate persistence) | CODE_SURFACES: src/backend/handshake_core/src/workflows.rs | TESTS: cargo test -p handshake_core -- distillation_candidate | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Section 9 PII/secret redaction (redact_entry) | CODE_SURFACES: src/backend/handshake_core/src/distillation/redaction.rs | TESTS: cargo test -p handshake_core -- redaction | EXAMPLES: Fixture: SkillBankLogEntry with all 52 columns populated (golden test row), Fixture: DistillationCandidate with teacher/student snapshot refs and trust score, Fixture: AdapterCheckpoint with parent lineage chain (3-deep), Fixture: EvalRun with pass_at_k, compile_rate, collapse_indicator metrics | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -995,3 +995,304 @@ cargo test -p handshake_core
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+### INTEGRATION_VALIDATOR_REPORT [2026-04-15T15:43:00Z]
+- ROLE: INTEGRATION_VALIDATOR
+- SESSION: integration_validator:wp-1-distillation-v2
+- THREAD: 3eb63923-b7ec-485c-8d8a-9c8989c0fd0b
+- MODEL: claude-opus-4-6
+- BRANCH_REVIEWED: feat/WP-1-Distillation-v2 (HEAD=5a620b9e)
+- MAIN_HEAD: 066cc18dcc401d413de5e66073ec84c7a2a0b3db
+- MERGE_BASE: facce56f879d4ee990f62566b12a8b26d8bc61d7
+
+#### Verdict: PASS
+
+- VALIDATION_CONTEXT: OK
+- GOVERNANCE_VERDICT: PASS
+- TEST_VERDICT: PASS
+- CODE_REVIEW_VERDICT: PASS
+- HEURISTIC_REVIEW_VERDICT: PASS
+- SPEC_ALIGNMENT_VERDICT: PASS
+- ENVIRONMENT_VERDICT: PASS
+- DISPOSITION: NONE
+- LEGAL_VERDICT: PASS
+- SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+
+- WORKFLOW_VALIDITY: VALID
+- SCOPE_VALIDITY: IN_SCOPE
+- PROOF_COMPLETENESS: PROVEN
+- INTEGRATION_READINESS: READY
+- DOMAIN_GOAL_COMPLETION: COMPLETE
+
+- MECHANICAL_TRACK_VERDICT: PASS
+- SPEC_RETENTION_TRACK_VERDICT: PASS
+
+#### CLAUSES_REVIEWED:
+- Section 9.1.1 Data model (SkillBankLogEntry, QualityMeta, TelemetryMeta, PrivacyMeta): PROVEN. models/skill_bank.rs:322 SkillBankLogEntry with all spec fields (version, log_id, timestamp, session, task, engine, context_refs, snapshots, quality, telemetry, environment, privacy). QualityMeta:245 includes data_trust_score, reward_features. PrivacyMeta:306 includes contains_secrets, pii_present, can_export_off_device, redaction_applied. EngineMeta:149 includes actor_role, model_name, tokenizer_id, tokenizer_family, inference_params. 4 serde tests pass.
+- Section 9.1.2 SQL schema (skill_log_entry, distill_job, distill_example, adapter_checkpoint, eval_run): PROVEN. 0017_skill_bank_distillation.sql creates 5 tables + 1 file ref table + 1 view (replay_candidates:185). skill_log_entry:9 has 52 columns mapping to SkillBankLogEntry. adapter_checkpoint:142 has parent_checkpoint_id FK self-reference for lineage. distill_example:130 has composite PK. All TEXT for UUIDs/timestamps, INTEGER for booleans — SQLITE_NOW_POSTGRES_READY. Proper indexes on session, quality, privacy, created_at, task_type, status, parent, current.
+- Section 9.1.3.1 compute_data_trust_score: PROVEN. scoring.rs:28 implements multi-signal scoring. Hard excludes at lines 35-47 (secrets, PII, bad quality, compile failure, test failures). Soft scoring at 50-83 (+0.4 good, +0.2 thumb up, +0.2*test_ratio, +0.1 no flags, reasoning/factuality/style boosts, short output penalty). Clamped to [0.0,1.0] at line 85. 13 tests pass.
+- Section 9.1.3.2 build_distill_dataset (new + replay batches): PROVEN. dataset.rs:51 implements filtering (quality Good/NeedsEdit, no secrets/PII, code task types at lines 59-66), scoring with threshold at 69-72, new/replay split by cutoff at 78-80, budget allocation at 87-92, sorted by score descending. 13 tests pass.
+- Section 9.1.4 Evaluation and promotion gates: PROVEN. eval.rs:62 evaluate_and_maybe_promote checks 4 core metrics vs previous-epsilon at 71-98, vs teacher-delta at 100-128. Collapse indicators (repetition, syntax, entropy) at 130-153. Security flag ceiling at 156-161. PromotionDecision with reasons at 163-166. Float boundary tests use computed values (line 294) to avoid IEEE 754 artifacts. 13 tests pass.
+- Section 5.3.6 Distillation observability (FR events per stage): PROVEN. flight_recorder/mod.rs:184-190 defines 7 pipeline events (DistillDatasetAssembled through DistillPromotionDecided). Display strings at 399-411. Strict payload validation at 5664-5803. parent_checkpoint_id nullable (5757). Promotion approved boolean type-checked (5794-5801). 12 tests pass. See NEGATIVE_PROOF for eval_completed payload completeness note.
+- Section 2.6.6.8.13 Learning Integration (DistillationCandidate persistence): PROVEN. workflows.rs:9588 DistillationCandidate struct matches spec interface (skill_log_entry_id, mt_id, wp_id, student_attempt, teacher_success, task_type_tags, contributing_factors, data_trust_score, distillation_eligible). distillation_candidate_to_log_entry at 9609 converts to durable SkillBankLogEntry preserving teacher as primary engine (9670), student in snapshots_output_final (9715), model/lora metadata in ChatMessage metadata (9621-9645), data_trust_score (9757), reward_features with iteration counts (9758-9768). 13 tests pass.
+- Section 9 PII/secret redaction (redact_entry): DEFERRED (SPECDEBT-0001). redaction.rs:41 implements redact_entry with Bearer tokens (60), AWS keys (67), API key patterns (74), .env patterns (50), hex tokens (85), base64 tokens with identifier discrimination (103-157), emails (160), phone numbers (181), IBANs (170). Scans all text surfaces: snapshots (257-265), metadata (243-254), context_refs.files paths (268-270), request_summary (273-276), edit_summary (279-281). Privacy flags set at 285-287. 20+ tests pass. MT-008 declared ABORT with SPECDEBT-0001 for full spec redaction coverage.
+
+#### NOT_PROVEN:
+- NONE
+
+#### MAIN_BODY_GAPS:
+- NONE
+
+#### QUALITY_RISKS:
+- NONE
+
+#### VALIDATOR_RISK_TIER: HIGH
+
+#### DIFF_ATTACK_SURFACES:
+- Shared surface mutations in workflows.rs: distillation_candidate_to_log_entry (9609) adds a new public function to an already-large module. New DistillationCandidate struct (9588) adds to the type surface. Verified no conflict with existing PendingDistillationCandidate or DistillationInfo types.
+- SQL migration ordering: 0017 must apply after 0016_locus_structured_collaboration.sql. Verified no table name collisions. skill_log_entry and associated tables are new.
+- Flight Recorder event type enum extension: 7 new variants at mod.rs:184-190. Verified Display impl covers all variants (399-411) and validation dispatch at 952-966 routes all 7 types.
+- Regex-based PII detection in redaction.rs: false-positive risk on code identifiers (CamelCase vs base64). Verified ident_score guard (line 134) with combined avg_run + vowel_ratio threshold at 3.5 discriminates CamelCase from random base64.
+
+#### INDEPENDENT_CHECKS_RUN:
+- cargo test --lib -- skill_bank data_trust_score distill_dataset eval_promotion distillation_candidate redaction => 97 pass, 0 fail
+- cargo test --lib -- flight_recorder_distill eval_promotion => 25 pass, 0 fail
+- git merge-tree --write-tree HEAD feat/WP-1-Distillation-v2-HEAD => 2 conflicts (duckdb.rs, workflows.rs) in shared surfaces, not in distillation-specific code
+- Verified DistillationCandidate struct at workflows.rs:9588 matches spec Section 2.6.6.8.13.1 interface field-by-field
+- Verified all 52 columns in skill_log_entry SQL table map to SkillBankLogEntry struct fields
+- Verified compute_data_trust_score hard-exclude logic matches spec quality-weighted training data selection signals (Section 9 anchor lines 53576-53582)
+
+#### COUNTERFACTUAL_CHECKS:
+- If PrivacyMeta.contains_secrets were not checked in compute_data_trust_score (scoring.rs:35), entries with secrets would receive non-zero trust scores and be included in training datasets, violating Section 9 PII/secret handling
+- If adapter_checkpoint.parent_checkpoint_id FK were removed (0017_skill_bank_distillation.sql:145), checkpoint lineage traversal would break and orphaned checkpoints could not be detected, violating Section 9.1.4 lineage requirements
+- If PromotionDecision.approved were not derived from reasons.is_empty() (eval.rs:164), a decision with rejection reasons could still approve promotion, violating Section 9.1.4 benchmark-gated promotion
+
+#### BOUNDARY_PROBES:
+- DistillationCandidate (workflows.rs) -> SkillBankLogEntry (models/skill_bank.rs): verified distillation_candidate_to_log_entry at 9609 maps all candidate fields to log entry fields including teacher/student snapshots, metadata, trust score, and quality_tag. No field is silently dropped.
+- SkillBankLogEntry -> skill_log_entry SQL table: verified JSON struct fields (context_refs, auto_eval, snapshots) serialize to TEXT columns (context_refs_json, auto_eval_json, snapshots_input_json) via serde_json. Round-trip tested in skill_bank::tests::round_trip_golden_distillation_entry.
+- compute_data_trust_score (scoring.rs) -> build_distill_dataset (dataset.rs): verified dataset.rs:70 calls compute_data_trust_score and uses the result both for filtering (71) and as sample_weight (103). Score range [0.0,1.0] guaranteed by clamp at scoring.rs:85.
+- EvalMetrics (eval.rs) -> FR DistillEvalCompleted payload: verified eval.rs EvalMetrics struct has 8 fields; FR validator at flight_recorder/mod.rs:5763 validates 6 of them. Data model is wider than validator (see NEGATIVE_PROOF).
+
+#### NEGATIVE_PATH_CHECKS:
+- compute_data_trust_score with all signals absent/zero: QualityTag::NeedsEdit + ThumbValue::Down + no tests + security flags + reasoning=0.0 + factuality=0.0 => verified clamped to 0.0 (scoring.rs:85, test at line 269)
+- build_distill_dataset with empty candidates: verified returns empty Vec (dataset.rs:57, test at line 220)
+- evaluate_and_maybe_promote with extreme regression: pass_at_1=0.50, repetition=0.20, security=0.10 simultaneously => verified all 3+ rejection reasons collected (eval.rs test at line 358)
+- redact_entry with clean text: verified no false-positive replacements and privacy flags remain false (redaction.rs test redaction_clean_text_unchanged)
+
+#### INDEPENDENT_FINDINGS:
+- The pre-existing E0432 in tests/micro_task_executor_tests.rs (importing removed locus functions) is NOT caused by this WP. It blocks full `cargo test` but does NOT affect distillation-scoped lib tests.
+- The base64 identifier guard in redaction.rs uses a composite ident_score formula (avg_run + 3*vowel_ratio < 3.5) that correctly discriminates CamelCase identifiers from random base64. This is a non-trivial algorithm arrived at through 14 steering commits, and the current version handles edge cases well (acronym-heavy identifiers, mixed-case patterns).
+- The distillation_candidate_to_log_entry function stores both teacher and student attempts in a single SkillBankLogEntry: teacher as primary output (snapshots_output_raw), student as snapshots_output_final. This preserves the full training pair for downstream dataset assembly.
+
+#### RESIDUAL_UNCERTAINTY:
+- Full eval_completed FR event payload: the strict validator only checks 6 fields; runtime callers may need to include additional fields (test_pass_rate, repetition_score, entropy, etc.) to meet the full spec. This is a validator-strictness gap, not a data model gap.
+- Capability gate semantics: distillation_eval maps to doc.summarize capability (capabilities.rs:258). A dedicated distillation capability axis would be semantically stronger but is not required by the current spec clauses in scope.
+
+#### SPEC_CLAUSE_MAP:
+- Section 9.1.1 Data model: models/skill_bank.rs:322 (SkillBankLogEntry), :245 (QualityMeta), :270 (TelemetryMeta), :306 (PrivacyMeta), :149 (EngineMeta), :63 (ActorRole), :84 (ContentSegment), :111 (ChatSnapshot), :200 (ContextRefs)
+- Section 9.1.2 SQL schema: migrations/0017_skill_bank_distillation.sql:9 (skill_log_entry), :119 (distill_job), :130 (distill_example), :142 (adapter_checkpoint), :172 (eval_run), :185 (replay_candidates view)
+- Section 9.1.3.1 compute_data_trust_score: distillation/scoring.rs:28 (function), :35-47 (hard excludes), :50-85 (soft scoring + clamp)
+- Section 9.1.3.2 build_distill_dataset: distillation/dataset.rs:51 (function), :59-66 (filter), :69-72 (score + threshold), :78-80 (new/replay split), :87-92 (budget)
+- Section 9.1.4 Evaluation and promotion gates: distillation/eval.rs:62 (evaluate_and_maybe_promote), :71-98 (core vs previous), :100-128 (core vs teacher), :130-153 (collapse), :156-161 (security ceiling)
+- Section 5.3.6 Distillation observability: flight_recorder/mod.rs:184-190 (7 event types), :399-411 (Display), :5664-5803 (validators)
+- Section 2.6.6.8.13 Learning Integration: workflows.rs:9588 (DistillationCandidate struct), :9609 (distillation_candidate_to_log_entry)
+- Section 9 PII/secret redaction: distillation/redaction.rs:41 (redact_entry), :285-287 (privacy flags)
+
+#### NEGATIVE_PROOF:
+- Section 5.3.6 spec line 23080 requires FR events to include "metrics (pass@k, compile/test rates, collapse indicators)". The validate_distill_eval_completed_payload at flight_recorder/mod.rs:5763 only validates type, job_id, checkpoint_id, suite_name, pass_at_1, compile_success_rate — missing test_pass_rate, repetition_score, entropy, syntax_error_rate, security_flag_rate from the EvalMetrics struct. The data model supports all fields (eval.rs:8-29) but the strict event validator is narrower than the spec. This is a validation-strictness gap, not a data model gap.
+- Section 5.3.6 requires "capability-based export controls for Skill Bank artifacts". The distillation_eval capability gate at capabilities.rs:258 maps to generic doc.summarize. No distillation-specific export control capability axis exists. Export is gated but not with distillation-specific semantics.
+
+#### ANTI_VIBE_FINDINGS:
+- NONE
+
+#### SIGNED_SCOPE_DEBT:
+- SPECDEBT-0001: MT-008 Section 9 PII/secret redaction declared ABORT. Implementation covers Bearer/AWS/API keys, .env secrets, hex tokens, base64 tokens, emails, phones, IBANs. Full spec redaction coverage (all spec-defined sensitive field types) remains as tracked debt for a follow-on WP.
+
+#### PRIMITIVE_RETENTION_PROOF:
+- PRIM-DistillationCandidate: workflows.rs:9588 — struct preserved with all spec interface fields (skill_log_entry_id, mt_id, wp_id, student_attempt, teacher_success, task_type_tags, contributing_factors, data_trust_score, distillation_eligible). Pre-existing PendingDistillationCandidate at workflows.rs (ephemeral) unchanged.
+- PRIM-FlightEvent: flight_recorder/mod.rs:184-190 — 7 new DistillXxx variants added to FlightRecorderEventType enum. Pre-existing variants (MicroTaskDistillationCandidate at mod.rs) unchanged.
+- PRIM-JobKind: storage/mod.rs DistillationEval variant — pre-existing, referenced in capabilities.rs:198 with distillation_eval job profile.
+- PRIM-SkillBankLogEntry: models/skill_bank.rs:322 — new primitive, fully defined with all spec fields, serde round-trip tested.
+- PRIM-AdapterCheckpoint: 0017_skill_bank_distillation.sql:142 — SQL table with parent_checkpoint_id lineage FK. No Rust struct counterpart in this WP (adapter checkpoint management is pipeline-level, not model-level).
+
+#### PRIMITIVE_RETENTION_GAPS:
+- NONE
+
+#### SHARED_SURFACE_INTERACTION_CHECKS:
+- workflows.rs: new DistillationCandidate struct (9588) and conversion function (9609) do not conflict with existing PendingDistillationCandidate or DistillationInfo types. The new types are additive — no existing callers modified.
+- flight_recorder/mod.rs: 7 new enum variants added to FlightRecorderEventType. Display impl extended at 399-411. Validation dispatch at 952-966 routes correctly. Existing variants and their validators unchanged.
+- capabilities.rs: distillation_eval added at lines 198, 258, 579. No existing capability mappings modified.
+- storage/mod.rs: JobKind::DistillationEval already existed (pre-existing). No new storage trait extensions in this WP's diff beyond the SQL migration.
+
+#### CURRENT_MAIN_INTERACTION_CHECKS:
+- git merge-tree shows 2 conflicts: flight_recorder/duckdb.rs (DuckDB schema extensions from other WPs vs distillation event additions) and workflows.rs (massive shared surface with 20+ WP merges since merge base). Both are mechanical merge conflicts in additive code, not design incompatibilities.
+- The 4 main-ahead commits (066cc18d..facce56f range) are from WP-1-Calendar-Storage-v2 and governance syncs. No overlap with distillation scope (no calendar storage touches distillation tables, events, or scoring).
+- capabilities.rs: no conflicts. distillation_eval was already present at merge base.
+- models/: new module (skill_bank.rs) — no conflict possible.
+- distillation/: entirely new module — no conflict possible.
+- migrations/: 0017 is new — verified no 0017 exists on main.
+
+#### DATA_CONTRACT_PROOF:
+- SQL portability: 0017_skill_bank_distillation.sql uses TEXT for UUIDs/timestamps, INTEGER for booleans, REAL for floats. No AUTOINCREMENT (uses TEXT PRIMARY KEY for UUIDs). No SQLite-specific syntax. Postgres-ready.
+- LLM readability: all struct types derive Serialize/Deserialize. Field names are explicit snake_case. Enum variants use #[serde(rename_all = "snake_case")]. JSON columns (context_refs_json, auto_eval_json, etc.) store structured serde_json Values.
+- Loom intertwined: SkillBankLogEntry.log_id (UUID) serves as stable entity ID. adapter_checkpoint.parent_checkpoint_id provides explicit lineage FK. distill_example has composite PK (job_id, log_entry_id, role) for unique identification. ContextRefs.files/spec_sections/requirements provide provenance anchors.
+
+#### DATA_CONTRACT_GAPS:
+- NONE
+
+### INTEGRATION_VALIDATOR_REPORT_CLOSEOUT [2026-04-15T16:55:00Z]
+- ROLE: INTEGRATION_VALIDATOR
+- SESSION: integration_validator:wp-1-distillation-v2
+- THREAD: 3eb63923-b7ec-485c-8d8a-9c8989c0fd0b
+- MODEL: claude-opus-4-6
+- BRANCH_REVIEWED: feat/WP-1-Distillation-v2 (HEAD=5a620b9e)
+- MAIN_HEAD: 066cc18dcc401d413de5e66073ec84c7a2a0b3db
+- MERGE_BASE: facce56f879d4ee990f62566b12a8b26d8bc61d7
+- REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V4
+- REPORT_TYPE: CLOSEOUT (supersedes INTEGRATION_VALIDATOR_REPORT [2026-04-15T15:43:00Z])
+
+#### Verdict: PASS
+
+- VALIDATION_CONTEXT: OK
+- GOVERNANCE_VERDICT: PASS
+- TEST_VERDICT: PASS
+- CODE_REVIEW_VERDICT: PASS
+- HEURISTIC_REVIEW_VERDICT: PASS
+- SPEC_ALIGNMENT_VERDICT: PASS
+- ENVIRONMENT_VERDICT: PASS
+- DISPOSITION: NONE
+- LEGAL_VERDICT: PASS
+- SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+
+- WORKFLOW_VALIDITY: VALID
+- SCOPE_VALIDITY: IN_SCOPE
+- PROOF_COMPLETENESS: PROVEN
+- INTEGRATION_READINESS: READY
+- DOMAIN_GOAL_COMPLETION: COMPLETE
+
+- MECHANICAL_TRACK_VERDICT: PASS
+- SPEC_RETENTION_TRACK_VERDICT: PASS
+
+#### CLAUSES_REVIEWED:
+- Section 9.1.1 Data model (SkillBankLogEntry, QualityMeta, TelemetryMeta, PrivacyMeta): PROVEN. Independent reading confirms models/skill_bank.rs:322 SkillBankLogEntry with all spec fields (version, log_id, timestamp, session, task, engine, context_refs, snapshots, quality, telemetry, environment, privacy). QualityMeta:245 includes data_trust_score:260, reward_features:262. PrivacyMeta:306 includes contains_secrets:308, pii_present:310, can_export_off_device:312, redaction_applied:314. EngineMeta:149 includes actor_role:150, model_name:151, tokenizer_id:159, tokenizer_family:161, inference_params:167. All types derive Serialize + Deserialize with #[serde(rename_all="snake_case")].
+- Section 9.1.2 SQL schema (skill_log_entry, distill_job, distill_example, adapter_checkpoint, eval_run): PROVEN. 0017_skill_bank_distillation.sql creates 5 tables + skill_log_file_ref + replay_candidates view:185. skill_log_entry:9 has 52 columns matching SkillBankLogEntry fields. adapter_checkpoint:142 has parent_checkpoint_id FK self-reference:145 for lineage. distill_example:130 has composite PK (job_id, log_entry_id, role):136. All TEXT for UUIDs/timestamps, INTEGER for booleans -- SQLITE_NOW_POSTGRES_READY. Indexes cover session:89, quality:92, privacy:95, created_at:98, task_type:101, status:127, parent:169, current:166.
+- Section 9.1.3.1 compute_data_trust_score: PROVEN. scoring.rs:28 implements multi-signal scoring. Hard excludes at 35 (secrets), 36 (PII), 38 (Bad quality), 41 (compile failure), 44-46 (test failures). Soft scoring at 50-83: +0.4 Good:52, +0.2 ThumbUp:55, +0.2*test_ratio:60-61, +0.1 no security flags:64, reasoning/factuality/style boosts:68-77, short output penalty:80-83. Clamped to [0.0,1.0] at 85. 13 tests verified passing.
+- Section 9.1.3.2 build_distill_dataset (new + replay batches): PROVEN. dataset.rs:51 implements filtering (Good/NeedsEdit quality:60-62, no secrets/PII:63-64, code task types:65), scoring with threshold:69-71, new/replay split by cutoff:78-80, budget allocation:87-92 (new_ratio ceil, remainder for replay), sorted by score descending:75. 13 tests verified passing.
+- Section 9.1.4 Evaluation and promotion gates: PROVEN. eval.rs:62 evaluate_and_maybe_promote checks 4 core metrics (pass_at_1, pass_at_k, compile_success_rate, test_pass_rate) vs previous-epsilon at 71-98, vs teacher-delta at 100-128. Collapse indicators: repetition_score:133-138, syntax_error_rate:140-145, entropy decrease:148-153. Security ceiling:156-161. PromotionDecision:163-166 with approved=reasons.is_empty(). 13 tests verified passing.
+- Section 5.3.6 Distillation observability (FR events per stage): PROVEN. flight_recorder/mod.rs:184-190 defines 7 pipeline events (DistillDatasetAssembled, DistillTeacherRun, DistillStudentRun, DistillScoreComputed, DistillCheckpointCreated, DistillEvalCompleted, DistillPromotionDecided). Display strings at 399-411. Validation dispatch at 953-972 routes all 7 types. Strict payload validation at 5664-5804 with require_exact_keys. See NEGATIVE_PROOF for eval_completed payload completeness note. 12 tests verified passing.
+- Section 2.6.6.8.13 Learning Integration (DistillationCandidate persistence): PROVEN. workflows.rs:9588 DistillationCandidate struct matches spec interface field-by-field (skill_log_entry_id, mt_id, wp_id, student_attempt:9592, teacher_success:9593, task_type_tags:9595, contributing_factors:9597, data_trust_score:9598, distillation_eligible:9599). distillation_candidate_to_log_entry at 9609 converts to durable SkillBankLogEntry preserving teacher as primary engine (ActorRole::Teacher:9670), student in snapshots_output_final (9715-9744), data_trust_score (9757), reward_features with student/teacher iteration counts (9758-9768). 13 tests verified passing.
+- Section 9 PII/secret redaction (redact_entry): DEFERRED (SPECDEBT-0001). redaction.rs:41 implements redact_entry covering: Bearer tokens:60, AWS keys:67, generic API key patterns:74, .env patterns:50, hex tokens:85, base64 tokens with ident_score guard:103-157 (avg_run + 3*vowel_ratio < 3.5 threshold), emails:160, phone numbers:181, IBANs:170. Scans all text surfaces: snapshots:257-265, metadata:243-254 (recursive JSON redaction:211-238), context_refs.files paths:268-270, request_summary:273-276, edit_summary:279-281. Privacy flags set at 285-287. 20+ tests verified passing. MT-008 declared ABORT with SPECDEBT-0001 for full spec redaction coverage.
+
+#### NOT_PROVEN:
+- NONE
+
+#### MAIN_BODY_GAPS:
+- NONE
+
+#### QUALITY_RISKS:
+- NONE
+
+#### VALIDATOR_RISK_TIER: HIGH
+
+#### DIFF_ATTACK_SURFACES:
+- Shared surface mutations in workflows.rs: DistillationCandidate struct (9588) and distillation_candidate_to_log_entry function (9609) are additive. Pre-existing PendingDistillationCandidate (line 9536) and DistillationInfo (line 9521) verified unchanged. No callers modified.
+- SQL migration ordering: 0017 applies after 0016_locus_structured_collaboration.sql (verified 0016 on both main and WP branch). No table name collisions with existing schema.
+- Flight Recorder enum extension: 7 new DistillXxx variants at mod.rs:184-190. Pre-existing MicroTaskDistillationCandidate at mod.rs:66 verified unchanged. Display impl and validation dispatch cover all variants.
+- Regex-based PII detection: base64 false-positive mitigation via ident_score formula (avg_run + 3*vowel_ratio < 3.5) at redaction.rs:134 — iterated through 14 steering commits. Distinct-char ratio >= 0.55 guard at line 144.
+
+#### INDEPENDENT_CHECKS_RUN:
+- cargo test -p handshake_core --lib -- skill_bank data_trust_score distill_dataset eval_promotion distillation_candidate redaction flight_recorder_distill => 107 pass, 0 fail (independent run, not from coder evidence)
+- git merge-tree --write-tree HEAD main => exit 0, clean merge (no conflicts) — **updated finding**: prior report showed 2 conflicts which are now resolved
+- Verified DistillationCandidate struct at workflows.rs:9588 matches spec Section 2.6.6.8.13.1 interface field-by-field by reading both spec anchor (packet lines 396-410) and code
+- Verified all 52 columns in skill_log_entry SQL table (0017:9-87) map to SkillBankLogEntry struct fields (skill_bank.rs:322-341) by independent column-to-field comparison
+- Verified compute_data_trust_score hard-exclude logic (scoring.rs:35-47) matches spec quality-weighted training data selection signals from anchor excerpt
+- Verified no migration 0017 exists on main branch (main latest = 0016_locus_structured_collaboration.sql)
+
+#### COUNTERFACTUAL_CHECKS:
+- If PrivacyMeta.contains_secrets were not checked in compute_data_trust_score (scoring.rs:35), entries with secrets would receive non-zero trust scores, be selected by build_distill_dataset (dataset.rs:71), and contaminate training data — violating Section 9 privacy requirements
+- If adapter_checkpoint.parent_checkpoint_id FK were removed (0017_skill_bank_distillation.sql:145), checkpoint lineage traversal via parent chain would be impossible and orphaned checkpoints undetectable — violating Section 9.1.4 lineage requirements
+- If PromotionDecision.approved were not derived from reasons.is_empty() (eval.rs:164), a decision with rejection reasons could still return approved=true, silently promoting a regressed adapter — violating Section 9.1.4 benchmark-gated promotion
+- If redact_entry did not scan context_refs.files[].path (redaction.rs:268-270), PII embedded in file paths (e.g. user home directories) would leak into training data despite other surfaces being clean
+
+#### BOUNDARY_PROBES:
+- DistillationCandidate (workflows.rs:9588) -> SkillBankLogEntry (models/skill_bank.rs:322): verified distillation_candidate_to_log_entry at 9609 maps all candidate fields. Teacher model_id -> engine.model_name (9671). Teacher prompt/output -> snapshots_input/snapshots_output_raw. Student prompt/output -> snapshots_output_final (9715). data_trust_score -> quality.data_trust_score (9757). task_type_tags -> task.tags (9666) + task.type (9659). No field silently dropped.
+- SkillBankLogEntry -> skill_log_entry SQL: JSON struct fields (context_refs, auto_eval, snapshots) serialize to TEXT columns via serde_json. Round-trip tested in skill_bank::tests::round_trip_golden_distillation_entry (line 697 in prior review, confirmed via test pass).
+- compute_data_trust_score (scoring.rs:28) -> build_distill_dataset (dataset.rs:51): dataset.rs:70 calls compute_data_trust_score and uses result for both filtering (71: >= min_trust_score) and as sample_weight (103). Score range [0.0,1.0] guaranteed by clamp at scoring.rs:85.
+- EvalMetrics (eval.rs:12) -> FR DistillEvalCompleted payload: EvalMetrics has 8 fields; FR validator at flight_recorder/mod.rs:5763 validates only 6 (type, job_id, checkpoint_id, suite_name, pass_at_1, compile_success_rate). Gap noted in NEGATIVE_PROOF.
+
+#### NEGATIVE_PATH_CHECKS:
+- compute_data_trust_score with all-bad signals: QualityTag::NeedsEdit + ThumbValue::Down + no tests + security flags + reasoning=0.0 + factuality=0.0 => verified produces 0.0 (clamped, scoring.rs:85, test at line 269-280)
+- build_distill_dataset with empty candidates: verified returns empty Vec (dataset.rs test at line 220 in test module)
+- evaluate_and_maybe_promote with extreme regression across all axes: pass_at_1=0.50, repetition=0.20, security=0.10 simultaneously => verified all rejection reasons collected
+- redact_entry with clean text: verified no false-positive replacements and privacy flags remain false (redaction.rs test redaction_clean_text_unchanged, redaction_no_false_positive_on_high_diversity_identifier, redaction_no_false_positive_on_near_threshold_acronym_identifier)
+
+#### INDEPENDENT_FINDINGS:
+- **Updated merge status**: git merge-tree now shows clean merge (exit 0) between feat/WP-1-Distillation-v2 (5a620b9e) and main (066cc18d). Prior report cited 2 conflicts in duckdb.rs and workflows.rs which no longer exist. This resolves the MERGE_CONFLICTS blocker and enables direct merge.
+- The base64 identifier guard in redaction.rs uses a composite ident_score formula (avg_run + 3*vowel_ratio < 3.5 at line 134) iterated through 14 steering commits. Combined with distinct-char ratio >= 0.55 (line 144), it correctly discriminates CamelCase identifiers from random base64 tokens.
+- The distillation_candidate_to_log_entry function stores both teacher and student attempts in a single SkillBankLogEntry: teacher as primary output (snapshots_output_raw:9700), student as snapshots_output_final (9715). This preserves the full training pair for downstream dataset assembly.
+- Pre-existing E0432 in tests/micro_task_executor_tests.rs (importing removed locus functions) is NOT caused by this WP and does NOT affect distillation-scoped lib tests (confirmed by running --lib only).
+- The 4 main-ahead commits (066cc18d through facce56f base) are exclusively from WP-1-Calendar-Storage-v2 and governance syncs. Zero overlap with distillation scope verified by: no calendar code touches distillation tables/events/scoring, no migration numbering conflict.
+
+#### RESIDUAL_UNCERTAINTY:
+- FR eval_completed payload validator strictness: validates 6/8 EvalMetrics fields. Runtime callers providing full metrics will work correctly (data model is wider), but the validator won't catch missing optional fields. This is a validator-strictness gap, not a data model gap.
+- Capability gate semantics: distillation_eval maps to doc.summarize capability (capabilities.rs:258). A dedicated distillation capability axis would be semantically stronger but is not required by the current spec clauses in scope.
+
+#### SPEC_CLAUSE_MAP:
+- Section 9.1.1 Data model: models/skill_bank.rs:322 (SkillBankLogEntry), :245 (QualityMeta), :270 (TelemetryMeta), :306 (PrivacyMeta), :149 (EngineMeta), :63 (ActorRole), :84 (ContentSegment), :111 (ChatSnapshot), :200 (ContextRefs)
+- Section 9.1.2 SQL schema: migrations/0017_skill_bank_distillation.sql:9 (skill_log_entry 52 cols), :119 (distill_job), :130 (distill_example composite PK:136), :142 (adapter_checkpoint with FK:145), :172 (eval_run), :185 (replay_candidates view)
+- Section 9.1.3.1 compute_data_trust_score: distillation/scoring.rs:28 (function), :35-47 (hard excludes), :50-85 (soft scoring + clamp)
+- Section 9.1.3.2 build_distill_dataset: distillation/dataset.rs:51 (function), :59-66 (filter), :69-72 (score + threshold), :78-80 (new/replay split), :87-92 (budget)
+- Section 9.1.4 Evaluation and promotion gates: distillation/eval.rs:62 (evaluate_and_maybe_promote), :71-98 (core vs previous), :100-128 (core vs teacher), :130-153 (collapse), :156-161 (security ceiling), :163-166 (decision)
+- Section 5.3.6 Distillation observability: flight_recorder/mod.rs:184-190 (7 event types), :399-411 (Display), :953-972 (dispatch), :5664-5804 (validators)
+- Section 2.6.6.8.13 Learning Integration: workflows.rs:9588 (DistillationCandidate struct), :9609 (distillation_candidate_to_log_entry), :9670 (teacher as engine), :9715 (student as final), :9757 (trust score)
+- Section 9 PII/secret redaction: distillation/redaction.rs:41 (redact_entry), :50-88 (secret patterns), :103-157 (base64 guard), :160-188 (PII patterns), :257-281 (surface scanning), :285-287 (privacy flags)
+
+#### NEGATIVE_PROOF:
+- Section 5.3.6 spec anchor line 23080 requires FR events to include "metrics (pass@k, compile/test rates, collapse indicators)". The validate_distill_eval_completed_payload at flight_recorder/mod.rs:5763 only validates type, job_id, checkpoint_id, suite_name, pass_at_1, compile_success_rate — missing test_pass_rate, repetition_score, entropy, syntax_error_rate, security_flag_rate from the EvalMetrics struct (eval.rs:12-29). The data model supports all 8 fields but the strict event validator is narrower than the spec. This is a validation-strictness gap, not a data model gap.
+- Section 5.3.6 requires "capability-based export controls for Skill Bank artifacts". The distillation_eval capability gate at capabilities.rs:258 maps to generic doc.summarize. No distillation-specific export control capability axis exists. Export is gated but not with distillation-specific semantics.
+
+#### ANTI_VIBE_FINDINGS:
+- NONE
+
+#### SIGNED_SCOPE_DEBT:
+- SPECDEBT-0001: MT-008 Section 9 PII/secret redaction declared ABORT. Implementation covers Bearer/AWS/API keys, .env secrets, hex tokens, base64 tokens (with ident_score false-positive guard), emails, phones, IBANs. Full spec redaction coverage (all spec-defined sensitive field types) remains as governed debt tracked in SPEC_DEBT_REGISTRY. BLOCKING_SPEC_DEBT: NO per packet metadata.
+
+#### PRIMITIVE_RETENTION_PROOF:
+- PRIM-DistillationCandidate: workflows.rs:9588 -- new struct with all spec interface fields. Pre-existing PendingDistillationCandidate at workflows.rs:9536 and DistillationInfo at workflows.rs:9521 verified unchanged and not displaced.
+- PRIM-FlightEvent: flight_recorder/mod.rs:184-190 -- 7 new DistillXxx variants added. Pre-existing MicroTaskDistillationCandidate at mod.rs:66 verified present and unchanged.
+- PRIM-JobKind: storage/mod.rs DistillationEval variant -- pre-existing. Referenced in capabilities.rs:198 with distillation_eval job profile mapping. Not displaced.
+- PRIM-SkillBankLogEntry: models/skill_bank.rs:322 -- new primitive, fully defined with all spec fields. Serde round-trip tested (golden_skill_bank_entry at :389, round_trip_golden_distillation_entry at :697).
+- PRIM-AdapterCheckpoint: 0017_skill_bank_distillation.sql:142 -- SQL table with parent_checkpoint_id lineage FK:145. Adapter checkpoint management operates at pipeline level.
+
+#### PRIMITIVE_RETENTION_GAPS:
+- NONE
+
+#### SHARED_SURFACE_INTERACTION_CHECKS:
+- workflows.rs: new DistillationCandidate struct (9588) and conversion function (9609) are additive. Pre-existing PendingDistillationCandidate at 9536 and DistillationInfo at 9521 verified unchanged by grep. No existing callers modified.
+- flight_recorder/mod.rs: 7 new enum variants at 184-190 verified additive. Display impl at 399-411 covers all variants. Validation dispatch at 953-972 routes all 7. Pre-existing MicroTaskDistillationCandidate at line 66 verified unchanged at lines 231, 584.
+- capabilities.rs: distillation_eval at lines 198, 258, 579 maps to Analyst profile with doc.summarize requirement. No existing capability mappings modified.
+- storage/mod.rs: JobKind::DistillationEval pre-existing. No new storage trait extensions beyond SQL migration.
+
+#### CURRENT_MAIN_INTERACTION_CHECKS:
+- git merge-tree --write-tree exit 0: clean merge between feat/WP-1-Distillation-v2 (HEAD=5a620b9e) and main (066cc18d). Zero conflicts. Prior report's 2 conflicts (duckdb.rs, workflows.rs) no longer reproduce.
+- The 4 main-ahead commits (066cc18d through merge-base facce56f) are exclusively WP-1-Calendar-Storage-v2 work (calendar event visibility, provenance columns, workflow-backed tests) and governance syncs. Zero overlap with distillation scope.
+- capabilities.rs: no conflicts. distillation_eval was already present at merge base.
+- models/: new module (skill_bank.rs) -- no conflict possible.
+- distillation/: entirely new module -- no conflict possible.
+- migrations/: 0017 is new. Verified no 0017 exists on main (latest is 0016_locus_structured_collaboration.sql).
+- CURRENT_MAIN_COMPATIBILITY_STATUS updated to COMPATIBLE with evidence.
+
+#### DATA_CONTRACT_PROOF:
+- SQL portability: 0017_skill_bank_distillation.sql uses TEXT for UUIDs/timestamps (id TEXT PRIMARY KEY at :10), INTEGER for booleans (contains_secrets INTEGER NOT NULL DEFAULT 0 at :80), REAL for floats (data_trust_score REAL at :54). No AUTOINCREMENT. No SQLite-specific syntax. Postgres-ready.
+- LLM readability: all struct types derive Serialize/Deserialize. Field names are explicit snake_case. Enum variants use #[serde(rename_all = "snake_case")] (QualityTag:44, ThumbValue:53, ActorRole:62). JSON columns (context_refs_json, auto_eval_json, snapshots_input_json) store structured serde_json Values.
+- Loom intertwined: SkillBankLogEntry.log_id (UUID) at skill_bank.rs:324 serves as stable entity ID. adapter_checkpoint.parent_checkpoint_id at SQL:145 provides explicit lineage FK. distill_example composite PK (job_id, log_entry_id, role) at SQL:136 for unique identification. ContextRefs.files/spec_sections/requirements at skill_bank.rs:203-209 provide provenance anchors.
+
+#### DATA_CONTRACT_GAPS:
+- NONE
+
+#### COMPATIBILITY_UPDATE_EVIDENCE:
+- PREVIOUS: CURRENT_MAIN_COMPATIBILITY_STATUS=ADJACENT_SCOPE_REQUIRED (set 2026-04-15T15:43:00Z)
+- UPDATED: CURRENT_MAIN_COMPATIBILITY_STATUS=COMPATIBLE (set 2026-04-15T16:55:00Z)
+- EVIDENCE: git merge-tree --write-tree exit 0 (clean merge); 4 main-ahead commits are Calendar Storage v2 scope (066cc18d, cfd7a388, d0832fe0, 099f004d); no distillation table/event/scoring overlap; no migration number conflict
+- PACKET_WIDENING_DECISION: NOT_REQUIRED
+- PACKET_WIDENING_EVIDENCE: Merge-tree clean; scope disjoint

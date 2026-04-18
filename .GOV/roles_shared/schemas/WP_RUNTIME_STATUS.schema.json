@@ -243,6 +243,87 @@
         "null"
       ]
     },
+    "route_anchor_state": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "route_anchor_kind": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "route_anchor_correlation_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "route_anchor_target_role": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "route_anchor_target_session": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authoritative_review_receipt_kind": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authoritative_review_correlation_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authoritative_review_actor_session": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authoritative_review_target_session": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authoritative_review_round": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "committed_handoff_base_sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-fA-F]{7,40}$"
+    },
+    "committed_handoff_head_sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-fA-F]{7,40}$"
+    },
+    "committed_handoff_range_source": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "runtime_status": {
       "enum": [
         "submitted",

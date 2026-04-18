@@ -992,7 +992,7 @@ DIFF_ATTACK_SURFACES:
 - DuckDB column index offset changes in `duckdb.rs:721-728` are fragile: adding/removing a column before `model_session_id` in the SELECT statement silently breaks row parsing. No compile-time guard exists.
 - API filter pass-through at `api/flight_recorder.rs:188` is out of declared IN_SCOPE_PATHS but necessary for end-to-end query support.
 INDEPENDENT_CHECKS_RUN:
-- `cargo test --lib --manifest-path src/backend/handshake_core/Cargo.toml` with `CARGO_TARGET_DIR='../Handshake Artifacts/handshake-cargo-target'` => compilation error E0599 at duckdb.rs:1502: `no method named with_activity_span_id found for struct FlightRecorderEvent`
+- `cargo test --lib --manifest-path src/backend/handshake_core/Cargo.toml` with `CARGO_TARGET_DIR='../Handshake_Artifacts/handshake-cargo-target'` => compilation error E0599 at duckdb.rs:1502: `no method named with_activity_span_id found for struct FlightRecorderEvent`
 - `rg -n "model_session_id" src/backend/handshake_core/src` => 53 matches across 4 files; all 12 emitter call sites in workflows.rs confirmed correct
 - `rg -n "with_activity_span" src/backend/handshake_core/src/flight_recorder/mod.rs` => method is `with_activity_span` at line 413, not `with_activity_span_id`
 - `rg -n "record_event" src/backend/handshake_core/src/workflows.rs` => 60+ call sites; verified that all 12 session-scoped emitters (those referencing `metadata.session_id`) carry `.with_model_session_id()`

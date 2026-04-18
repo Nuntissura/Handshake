@@ -57,7 +57,7 @@ test("evaluateArtifactHygiene detects repo-local target dirs and stale noncanoni
     fs.mkdirSync(path.join(artifactRootAbs, "handshake-cargo-target-release"), { recursive: true });
     const staleDate = new Date(Date.now() - (5 * 60 * 1000));
     fs.utimesSync(path.join(artifactRootAbs, "validator_wp1_target"), staleDate, staleDate);
-    writeCargoConfig(mainRoot, "../Handshake Artifacts/handshake-cargo-target");
+    writeCargoConfig(mainRoot, "../Handshake_Artifacts/handshake-cargo-target");
 
     const evaluation = evaluateArtifactHygiene({
       repoRoot,

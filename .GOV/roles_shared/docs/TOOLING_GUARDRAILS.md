@@ -58,7 +58,7 @@ Rules:
 - Why:
   - Spaces break `cmd.exe` quoting, junction creation (`mklink /J`), `rmdir`, shell pipelines, and copy-paste of paths. Root cause of the `D:\D:\` malformed junction bug in wt-ilja [CX-109A].
 - Context:
-  - Existing repo paths with spaces (e.g., `Handshake Worktrees/`, `Handshake Artifacts/`) are legacy. Full rename is planned but deferred. All NEW paths must comply immediately.
+  - Existing repo paths with spaces (e.g., `Handshake Worktrees/`, `Handshake_Artifacts/`) are legacy. Full rename is planned but deferred. All NEW paths must comply immediately.
 
 ### TG-006
 - Do:

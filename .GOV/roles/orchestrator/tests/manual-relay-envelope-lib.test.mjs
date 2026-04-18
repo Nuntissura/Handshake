@@ -6,6 +6,7 @@ import {
   deriveRelayEnvelope,
   buildManualRelayDispatchPrompt,
   deriveManualRelayEnvelope,
+  preferredTargetSession,
 } from "../scripts/lib/manual-relay-envelope-lib.mjs";
 
 test("deriveManualRelayEnvelope prefers targeted notifications and classifies relay kind", () => {
@@ -98,6 +99,32 @@ test("deriveRelayEnvelope falls back to runtime waiting state when no targeted n
   assert.equal(envelope.relayKind, "INTENT");
   assert.equal(envelope.sourceKind, "CODER_INTENT");
   assert.match(envelope.message, /Runtime is waiting on CODER_INTENT/);
+});
+
+test("deriveRelayEnvelope reuses route anchor context when no targeted notification or review item exists", () => {
+  const runtimeStatus = {
+    waiting_on: "OPEN_REVIEW_ITEM_REVIEW_REQUEST",
+    current_phase: "VALIDATION",
+    route_anchor_kind: "REVIEW_REQUEST",
+    route_anchor_correlation_id: "review-2",
+    route_anchor_target_session: "wpv-2",
+    open_review_items: [],
+  };
+  const targetSession = preferredTargetSession(runtimeStatus, null);
+  const envelope = deriveRelayEnvelope({
+    wpId: "WP-TEST-GOVERNED-ROUTE",
+    runtimeStatus,
+    nextActor: "WP_VALIDATOR",
+    targetSession,
+    notifications: { notifications: [] },
+    dispatchAction: "SEND_PROMPT",
+  });
+
+  assert.equal(targetSession, "wpv-2");
+  assert.equal(envelope.toEndpoint, "WP_VALIDATOR:wpv-2");
+  assert.equal(envelope.sourceKind, "REVIEW_REQUEST");
+  assert.equal(envelope.correlationId, "review-2");
+  assert.match(envelope.message, /OPEN_REVIEW_ITEM_REVIEW_REQUEST/);
 });
 
 test("buildRelayDispatchPrompt supports orchestrator-managed route labels", () => {

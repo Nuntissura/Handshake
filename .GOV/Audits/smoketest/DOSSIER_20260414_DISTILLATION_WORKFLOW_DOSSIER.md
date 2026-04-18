@@ -206,7 +206,7 @@ Assessment:
 
 ## 9b. Build Artifact Hygiene
 
-- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake Artifacts`
+- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake_Artifacts`
 - BUILD_TARGET_CLEANED_BY: NONE
 - BUILD_TARGET_CLEANED_AT: N/A
 - BUILD_TARGET_STATE_AT_CLOSEOUT: NOT_CHECKED
@@ -375,3 +375,7 @@ This section is append-only. Roles add findings as they occur during WP work.
 Format: `- [TIMESTAMP] [ROLE] [CATEGORY] <finding>`
 
 - [<TIMESTAMP>] [CODER|WP_VALIDATOR|ORCHESTRATOR] [CATEGORY] <finding>
+
+## LIVE_EXECUTION_LOG
+
+- [2026-04-16 04:37:23 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=032c5ac5-0881-4798-a680-771a263b592d | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Distillation-v2/7b4b4045-4c57-4c1f-b538-1766b2fb1aea.jsonl | wp=WP-1-Distillation-v2 | detail=Governed session closed and steerable thread 032c5ac5-0881-4798-a680-771a263b592d was cleared.

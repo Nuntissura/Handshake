@@ -233,7 +233,7 @@ const iljaAbs = absFromRepo(ILJA_SPEC.rel_path);
 // ─── Step 7: Artifact cleanup ───────────────────────────────────
 let artifactCleanupOk = false;
 {
-  const s = step("artifact-cleanup", "dry-run then actual cleanup of Handshake Artifacts");
+  const s = step("artifact-cleanup", "dry-run then actual cleanup of Handshake_Artifacts");
 
   // Dry run first
   log("  running artifact-cleanup --dry-run...");
