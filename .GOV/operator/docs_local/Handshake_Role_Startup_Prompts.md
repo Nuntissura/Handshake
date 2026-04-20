@@ -14,7 +14,9 @@ Canonical checkout + protected governance surfaces:
 
 Notes:
 - `handshake_main` is the canonical main checkout used for integration/sync/push.
+- `handshake_main` is also the main-only authoring surface for the canonical root `AGENTS.md` and root `justfile`.
 - `wt-gov-kernel` is the live governance kernel worktree.
+- `wt-gov-kernel` may carry a kernel-local launcher `justfile`, but it does not replace main ownership of the canonical root file.
 - Active WP worktrees are `wtc-*` and are created per active WP.
 
 WP worktrees in orchestrator-managed ACP lanes: **1 per active WP** [CX-503G].
@@ -25,16 +27,20 @@ WP worktrees in orchestrator-managed ACP lanes: **1 per active WP** [CX-503G].
 
 **Live junction model [CX-212C/F]:** `wt-gov-kernel` carries the real live `.GOV/` tree. Consumer non-main worktrees such as `wt-ilja` and `wtc-*` use a junction to `wt-gov-kernel/.GOV`. `.GOV/` edits are committed on `gov_kernel` only, never on feature branches.
 
-## Absolute Paths (This Machine)
+## Workspace Anchors
 
-Copy/paste (PowerShell):
+Prefer repo-relative or workspace-relative forms on governance surfaces:
 
-```powershell
-cd "D:\Projects\LLM projects\Handshake\Prompts"
-cd "D:\Projects\LLM projects\Handshake\Handshake Worktrees\handshake_main"
-cd "D:\Projects\LLM projects\Handshake\Handshake Worktrees\wt-gov-kernel"
-cd "D:\Projects\LLM projects\Handshake\Handshake Worktrees\wt-ilja"
+```text
+../handshake_main
+../wt-gov-kernel
+../wt-ilja
+.GOV/...
+../gov_runtime/...
+../Handshake_Artifacts/...
 ```
+
+Do not paste host absolute paths into packets, diagnostics, workflow dossiers, monitor output, or startup guidance. If a governed surface emits an absolute host path, treat it as governance drift and repair the emitting surface.
 
 ## Claude Code
 
@@ -185,9 +191,9 @@ just launch-memory-manager --force
 
 Intelligent review session (governed ACP session, on demand):
 ```powershell
-just launch-memory-manager-session                           # default: SYSTEM_TERMINAL, PRIMARY model
-just launch-memory-manager-session "SYSTEM_TERMINAL" "PRIMARY"  # explicit
-just launch-memory-manager-session "PRINT" "FALLBACK"           # print launch command only
+just launch-memory-manager-session
+just launch-memory-manager-session "SYSTEM_TERMINAL" "PRIMARY"
+just launch-memory-manager-session "PRINT" "FALLBACK"
 ```
 
 The session launcher runs the mechanical pre-pass first, then launches a governed ACP session with synthetic WP-ID `WP-MEMORY-HYGIENE_<timestamp>`. The memory manager communicates proposals back to the orchestrator via `MEMORY_PROPOSAL`, `MEMORY_FLAG`, and `MEMORY_RGF_CANDIDATE` receipts. Proposals are also backed up to `.GOV/roles/memory_manager/proposals/`.
@@ -314,6 +320,7 @@ From `D:\Projects\LLM projects\NotebookLM_gpt_bridge\product`:
 - `AGENTS.md` / root `justfile` changes -> edit in `handshake_main` on local `main` -> commit on `main` -> push `main`
 - Product code -> coder commits on `feat/WP-*` -> Integration Validator performs contained-main reconciliation into `main` -> push `main`
 - `gov_kernel` is a governance source branch, not an integration branch. Governance reaches `main` through `just sync-gov-to-main`, not by merging `gov_kernel` into `main` directly.
+- `just gov-flush` is the governed maintenance publish path for repo-governance work; it now preflights artifact-root drift before any push path.
 
 ## Model Profile Catalog
 
@@ -338,6 +345,7 @@ codex -m <model-from-packet-profile> -c 'model_reasoning_effort=<reasoning-from-
 
 ```text
 just orchestrator-startup
+just classic-orchestrator-startup
 just coder-startup
 just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR
 just memory-manager-startup
@@ -354,6 +362,7 @@ just repomem insight "<key realization>" [--wp WP-{ID}] [--files "a,b"] [--decis
 just repomem close "<session summary>" --decisions "key decisions made" [--wp WP-{ID}]
 just role-startup-topology-check [--audit-permanent]
 just orchestrator-next [WP-{ID}]
+just orchestrator-steer-next WP-{ID} "<context>" [PRIMARY|FALLBACK]
 just coder-next [WP-{ID}]
 just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-{ID}]
 just active-lane-brief <ROLE> <WP-{ID}>   - canonical context digest when things feel fragmented
@@ -433,8 +442,9 @@ just operator-monitor              - compatibility alias
 ```text
 just record-refinement WP-{ID}
 just record-signature WP-{ID} <signature> <MANUAL_RELAY|ORCHESTRATOR_MANAGED> <Coder-A..Coder-Z>
-just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]
+just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE] [ACTIVATION_MANAGER_MODEL_PROFILE]
   - mandatory before packet creation for packet families that require explicit per-role model bundles
+  - omit args only when you deliberately want the default all-GPT bundle recorded for every role, including Activation Manager
 just record-prepare WP-{ID} [workflow_lane] [execution_owner] [branch] [worktree_dir]
 just orchestrator-prepare-and-packet WP-{ID}
   - Full wrapper: create WP worktree + record prepare + create packet + commit on gov_kernel + backup snapshot + seed the live Workflow Dossier
@@ -499,6 +509,8 @@ just sync-all-role-worktrees
 just sync-gov-to-main
   - default responsibility: Integration Validator before pushing to origin/main [CX-212D]
   - Orchestrator may run it only when explicitly instructed by the Operator
+just gov-flush
+  - governed repo-governance publish path; preflights artifact-root drift before any push path and then runs memory hygiene, artifact cleanup, and backup snapshotting
 just closeout-repair WP-{ID} [--dry-run] [--debug]  - mechanical closeout pre-repair (run before IntVal launch)
 just gov-check
 just canonise-gov                          - audit protocol/doc consistency after governance refactors
@@ -543,7 +555,7 @@ For `ORCHESTRATOR_MANAGED`:
 3. `just launch-activation-manager-session WP-{ID}` — AM does refinement, research, spec enrichment
 4. inspect the written refinement file plus `REFINEMENT_HANDOFF_SUMMARY`
 5. `just record-signature ... ORCHESTRATOR_MANAGED <Coder-A..Coder-Z>` — orchestrator hands off signature
-6. `just record-role-model-profiles WP-{ID} ...`
+6. `just record-role-model-profiles WP-{ID} ... [ACTIVATION_MANAGER_MODEL_PROFILE]`
 7. AM registers signature, creates packet/MTs/worktree/backup, declares `ACTIVATION_READINESS`
 8. `just orchestrator-prepare-and-packet WP-{ID}` — commit + backup + seed Workflow Dossier
 
@@ -554,6 +566,11 @@ For `ORCHESTRATOR_MANAGED`:
 **Phase 5: Per-MT loop (autonomous)**
 11. `just wp-relay-watchdog WP-{ID} --loop` — mechanical stall detection
 12. `just operator-viewport` — monitor when needed
+
+Post-signature / resume rules:
+- `just orchestrator-next WP-{ID}` is the primary resume/inspection surface.
+- On `ORCHESTRATOR_MANAGED`, routine post-signature "proceed" asks are invalid. If continuation is blocked, expect one machine-visible `BLOCKER_CLASS`.
+- `just orchestrator-steer-next WP-{ID} "<context>"` is a wake-only path. If it reports `queue_pending=...`, do not resend another steer.
 
 **Phase 6: Mechanical closeout prep (orchestrator runs directly)**
 13. `just closeout-repair WP-{ID}` — fix SHAs, artifacts, clause sync

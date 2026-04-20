@@ -407,9 +407,9 @@ For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, treat Activation Manager as mandatory 
 
 Before packet creation on new packet families, record the explicit per-role model bundle:
 
-- `just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
+- `just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE] [ACTIVATION_MANAGER_MODEL_PROFILE]`
 - This writes `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1` into the packet/stub family and makes the role-profile bundle authoritative for later claim and launch checks.
-- If omitted, the gate records deliberate defaults (`OPENAI_GPT_5_4_XHIGH` for every role).
+- If omitted, the gate records deliberate defaults (`OPENAI_GPT_5_4_XHIGH` for every role, including Activation Manager).
 - Use this gate to declare mixed-provider intent, for example GPT orchestration/validation with Claude Code coding, even when governed Claude launch support is not implemented yet.
 
 ## Preflight and Resume

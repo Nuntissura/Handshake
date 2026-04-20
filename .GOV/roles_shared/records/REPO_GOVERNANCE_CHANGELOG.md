@@ -3038,3 +3038,20 @@
 - FOLLOW_ON_ITEMS:
   - none
 - OUTCOME: the product worktrees now resolve Cargo artifacts to the canonical `Handshake_Artifacts/handshake-cargo-target` root, `artifact-hygiene-check` and `artifact-cleanup --dry-run` pass again, and `gov-flush` now blocks before any publish step when discovered worktrees drift to a stale Cargo artifact root or repo-local `target/` residue.
+
+### 2026.04.20.15 / GOV-CHANGE-20260420-15
+
+- STATUS: APPLIED
+- SUMMARY: refreshed the operator startup cheat sheet for the new lane/path command contract and repaired stale role-model-profile command signatures in the protocols
+- CHANGE_TYPE: DOCUMENTATION_HARDENING
+- DRIVER_EVIDENCE:
+  - `Operator request 2026-04-20`
+  - startup cheat sheet drift after recent lane/topology/governance hardening
+  - protocol inconsistency on `record-role-model-profiles` argument shape
+- SURFACES:
+  - `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+- FOLLOW_ON_ITEMS:
+  - none
+- OUTCOME: the operator cheat sheet now uses repo-relative workspace anchors instead of host absolute paths, documents `gov-flush`, `classic-orchestrator-startup`, and `orchestrator-steer-next`, clarifies main-only ownership of the canonical root `AGENTS.md` and root `justfile`, and aligns `record-role-model-profiles` with the live five-argument command contract including `ACTIVATION_MANAGER_MODEL_PROFILE`.

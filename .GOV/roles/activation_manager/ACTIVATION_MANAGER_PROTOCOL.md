@@ -185,7 +185,7 @@ ACTIVATION_READINESS
   - `just activation-manager <startup|prompt|next|readiness> [WP-{ID}] [--write|--json]`
   - `just activation-manager record-refinement WP-{ID} [detail]`
   - `just activation-manager record-signature WP-{ID} <signature> [workflow_lane] [execution_lane]`
-  - `just activation-manager record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
+  - `just activation-manager record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE] [ACTIVATION_MANAGER_MODEL_PROFILE]`
   - `just activation-manager record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
   - `just activation-manager create-task-packet WP-{ID} "<context>"`
   - `just activation-manager task-board-set WP-{ID} <STATUS> [reason]`
