@@ -37,8 +37,9 @@ import {
   runGitInherit,
 } from "./git-topology-lib.mjs";
 import { ensureGovKernelTracksGov } from "./reseed-permanent-worktree-from-main.mjs";
-import { GOV_ROOT_ABS } from "../lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, normalizePath } from "../lib/runtime-paths.mjs";
 import { registerFailCaptureHook, captureFailure } from "../lib/fail-capture-lib.mjs";
+import { evaluateArtifactHygiene } from "../lib/artifact-hygiene-lib.mjs";
 
 registerFailCaptureHook("gov-flush.mjs", { role: "SHARED" });
 
@@ -81,6 +82,19 @@ function printReport() {
   console.log();
 }
 
+function artifactRootDriftDetails(evaluation) {
+  const cargoDetails = (evaluation.cargoTargetConfigs || [])
+    .filter((entry) => !entry.matchesCanonicalTarget)
+    .map((entry) =>
+      `${normalizePath(path.relative(entry.repoRootAbs, entry.cargoConfigAbs))}: cargo target-dir resolves to ${normalizePath(entry.resolvedTargetDirAbs || "<unset>")} but must resolve to ${normalizePath(entry.expectedTargetDirAbs)}`
+    );
+  const repoLocalDetails = (evaluation.repoLocalForbiddenDirs || [])
+    .map((entry) =>
+      `repo-local forbidden build artifact directory detected: ${normalizePath(path.relative(entry.repoRootAbs, entry.absPath))} under ${normalizePath(entry.repoRootAbs)}`
+    );
+  return [...cargoDetails, ...repoLocalDetails];
+}
+
 function runJust(recipe, args = []) {
   const result = spawnSync("just", [recipe, ...args], {
     cwd: REPO_ROOT,
@@ -105,6 +119,22 @@ const ILJA_SPEC = WORKTREE_SPECS.find(s => s.id === "wt-ilja");
 const govKernelAbs = absFromRepo(GOV_KERNEL_SPEC.rel_path);
 const mainAbs = absFromRepo(MAIN_SPEC.rel_path);
 const iljaAbs = absFromRepo(ILJA_SPEC.rel_path);
+
+// ─── Step 0: Artifact-root drift preflight ──────────────────────────────────
+{
+  const s = step("artifact-root-preflight", "fail early if Cargo target-dir posture drift would break artifact hygiene");
+  const evaluation = evaluateArtifactHygiene({ repoRoot: REPO_ROOT });
+  const driftDetails = artifactRootDriftDetails(evaluation);
+  if (driftDetails.length > 0) {
+    s.status = "FAIL";
+    fail("artifact-root drift blocks gov-flush preflight", [
+      `artifact_root=${normalizePath(evaluation.artifactRootAbs)}`,
+      ...driftDetails,
+      "fix Cargo target-dir posture before running gov-flush so governance publish does not succeed while cleanup and backup are guaranteed to fail",
+    ]);
+  }
+  log(`  artifact root verified: ${normalizePath(evaluation.artifactRootAbs)}`);
+}
 
 // ─── Step 1: Commit all dirty governance files + push gov_kernel ─
 {
