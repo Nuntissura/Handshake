@@ -152,3 +152,14 @@ Rules:
   - Absolute paths are host-specific noise. They leak workstation topology into governance truth, make logs harder to compare across machines, and directly violate drive-agnostic governance rules.
 - Context:
   - Recurring on stale-worktree diagnostics, operator monitor summaries, and protocol/examples that accidentally surface `D:/...` or other absolute paths instead of governed relative forms.
+
+### TG-014
+- Do:
+  - Keep every discovered worktree `.cargo/config.toml` aligned to the canonical external artifact root from project invariants.
+  - Treat Cargo `target-dir` drift as a governance-blocking hygiene issue and fix it before running `gov-flush`.
+- Don't:
+  - Do not allow coder or validator worktrees to introduce alternate artifact roots such as spaced-path variants or repo-local `target/` fallbacks.
+- Why:
+  - Artifact-root drift makes build outputs appear random, breaks deterministic cleanup, and allows governance publish to succeed while artifact retention and NAS backup fail later in the flush pipeline.
+- Context:
+  - Recurring when product worktrees drift away from the canonical `Handshake_Artifacts/handshake-cargo-target` root and the mismatch only becomes visible during late `gov-flush` cleanup.

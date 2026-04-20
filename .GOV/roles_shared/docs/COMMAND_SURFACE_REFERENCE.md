@@ -231,6 +231,7 @@ These legacy commands still work (they redirect to the governance memory DB) but
 - `just gov-flush`
   - `governance-write` + `runtime-write`
   - deterministic governance flush pipeline: commit dirty .GOV/ files + push gov_kernel, sync gov to main, push main, reseed wt-ilja, push user_ilja, artifact cleanup (dry-run then actual, no force delete), NAS backup (only if cleanup succeeded)
+  - preflights artifact-root drift before any push path; mismatched Cargo `target-dir` posture or repo-local `target/` residue now fail before governance publish starts
   - reports all committed files back in the output
   - artifact cleanup failure is reported but does not undo the commits, pushes, and syncs that preceded it
   - run after a governance session to propagate all changes and secure them on GitHub + NAS

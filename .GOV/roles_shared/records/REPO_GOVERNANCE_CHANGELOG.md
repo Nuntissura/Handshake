@@ -3020,3 +3020,21 @@
 - FOLLOW_ON_ITEMS:
   - none in the current tranche
 - OUTCOME: governed operator surfaces now distinguish run-level activity from step-level activity and surface the latest durable push alert without reopening terminal transcripts, while final-lane closeout surfaces all consume one shared dependency view with explicit publication truth and blocking keys. The active governance tranche is complete through `RGF-209`.
+
+### 2026.04.20.14 / GOV-CHANGE-20260420-14
+
+- STATUS: APPLIED
+- SUMMARY: normalized Cargo artifact-root posture and made `gov-flush` fail early on artifact-root drift
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `gov-flush` artifact-cleanup failure on stale Cargo `target-dir` posture
+  - artifact hygiene policy: `PROJECT_INVARIANTS.md`
+  - retention policy: `ARTIFACT_RETENTION_POLICY.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/topology/gov-flush.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+  - `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`
+- FOLLOW_ON_ITEMS:
+  - none
+- OUTCOME: the product worktrees now resolve Cargo artifacts to the canonical `Handshake_Artifacts/handshake-cargo-target` root, `artifact-hygiene-check` and `artifact-cleanup --dry-run` pass again, and `gov-flush` now blocks before any publish step when discovered worktrees drift to a stale Cargo artifact root or repo-local `target/` residue.
