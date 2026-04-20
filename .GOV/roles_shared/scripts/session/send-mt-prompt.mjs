@@ -82,7 +82,7 @@ const prompt = [
   ``,
   `Instructions:`,
   `1. Implement the microtask described above`,
-  `2. Use CARGO_TARGET_DIR='../Handshake Artifacts/handshake-cargo-target' for builds`,
+  `2. Use CARGO_TARGET_DIR='../Handshake_Artifacts/handshake-cargo-target' for builds`,
   `3. Commit with message: feat: ${mtId} ${description}`,
   `4. After commit, the git hook will automatically send a review request to the validator`,
   `5. STOP and wait for the validator's response before starting the next MT`,

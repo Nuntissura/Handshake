@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -45,6 +46,7 @@ import {
   workflowInvalidityReceipts,
 } from "../../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { ensureValidatorGateDir, resolveValidatorGatePath } from "../../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import { buildGovernedActionResult } from "../../../../roles_shared/scripts/session/session-governed-action-lib.mjs";
 import { loadSessionRegistry } from "../../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
   defaultIntegrationValidatorBranch,
@@ -247,6 +249,49 @@ function blockedValidatorMessage(actorRole, nextExpectedActor, waitingOn, commun
   return "Validator work is not the current route target yet.";
 }
 
+function validatorResumeRuleId(actionKind = "") {
+  const normalizedActionKind = String(actionKind || "").trim().toUpperCase();
+  if (!normalizedActionKind) return "VALIDATOR_GATE_SKIP_RESUME";
+  return `VALIDATOR_GATE_${normalizedActionKind}_RESUME`;
+}
+
+function validatorResumeOutcomeState(actionKind = "") {
+  switch (String(actionKind || "").trim().toUpperCase()) {
+    case "DENY":
+      return "REJECTED";
+    case "DEFER":
+      return "DEFERRED";
+    case "SKIP":
+      return "SKIPPED";
+    default:
+      return "SETTLED";
+  }
+}
+
+function validatorResumeCommandId({
+  wpId = "",
+  actorRole = "",
+  actorSessionKey = "",
+  actorSessionId = "",
+  nextExpectedActor = "",
+  waitingOn = "",
+  actionKind = "",
+  parallelReview = false,
+} = {}) {
+  const seed = [
+    String(wpId || "").trim() || "WP-UNKNOWN",
+    String(actorRole || "").trim() || "VALIDATOR",
+    String(actorSessionKey || "").trim(),
+    String(actorSessionId || "").trim(),
+    String(nextExpectedActor || "").trim(),
+    String(waitingOn || "").trim(),
+    String(actionKind || "").trim(),
+    parallelReview ? "PARALLEL" : "SERIAL",
+  ].join("|");
+  const hash = crypto.createHash("sha1").update(seed).digest("hex").slice(0, 16);
+  return `validator-resume-${hash}`;
+}
+
 export function loadValidatorCommunicationState({
   wpId = "",
   packetPath = "",
@@ -279,73 +324,114 @@ export function loadValidatorCommunicationState({
   };
 }
 
-export function deriveValidatorResumeState({
+export function deriveValidatorResumeAction({
+  wpId = "",
   actorRole = "",
+  actorSessionKey = "",
+  actorSessionId = "",
   communicationState = null,
 } = {}) {
-  const normalizedRole = normalizeValidatorRole(actorRole);
+  const normalizedRole = normalizeValidatorRole(actorRole) || "VALIDATOR";
   const nextExpectedActor = normalizeValidatorRole(communicationState?.runtimeStatus?.next_expected_actor);
   const waitingOn = String(communicationState?.runtimeStatus?.waiting_on || "").trim();
   const latestAssessment = communicationState?.latestValidatorAssessment || null;
   const communicationApplicable = Boolean(communicationState?.communicationEvaluation?.applicable);
   const overlapQueue = parallelMicrotaskReviewItems(normalizedRole, communicationState);
+  const parallelReviewReady = overlapQueue.length > 0;
 
-  if (!["WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(normalizedRole) || !communicationApplicable) {
-    return {
-      ready: false,
-      blockedByRoute: false,
-      parallelReviewReady: false,
-      nextExpectedActor,
-      waitingOn,
-      latestAssessment,
-      message: "",
-    };
+  let actionKind = "SKIP";
+  let message = "";
+  let decisionReasonCode = communicationApplicable ? "NO_PROJECTED_VALIDATOR_ROUTE" : "COMMUNICATION_NOT_APPLICABLE";
+
+  if (["WP_VALIDATOR", "INTEGRATION_VALIDATOR"].includes(normalizedRole) && communicationApplicable) {
+    if (nextExpectedActor === normalizedRole) {
+      actionKind = "APPROVE";
+      message = validatorReadyMessage(normalizedRole, waitingOn, communicationState);
+      decisionReasonCode = waitingOn
+        ? `ROUTED_${String(waitingOn || "").trim().toUpperCase()}`
+        : "ROUTED_TO_VALIDATOR";
+    } else if (parallelReviewReady) {
+      actionKind = "APPROVE";
+      message = `Parallel microtask review queue is available for WP validator while ${nextExpectedActor || "CODER"} continues implementation.`;
+      decisionReasonCode = "PARALLEL_MICROTASK_REVIEW";
+    } else if (nextExpectedActor) {
+      actionKind = "DEFER";
+      message = blockedValidatorMessage(normalizedRole, nextExpectedActor, waitingOn, communicationState);
+      decisionReasonCode = `WAITING_ON_${nextExpectedActor}`;
+    }
   }
 
-  if (nextExpectedActor === normalizedRole) {
-    return {
-      ready: true,
-      blockedByRoute: false,
-      parallelReviewReady: false,
-      nextExpectedActor,
-      waitingOn,
-      latestAssessment,
-      message: validatorReadyMessage(normalizedRole, waitingOn, communicationState),
-    };
-  }
-
-  if (overlapQueue.length > 0) {
-    return {
-      ready: true,
-      blockedByRoute: false,
-      parallelReviewReady: true,
-      nextExpectedActor,
-      waitingOn,
-      latestAssessment,
-      message: `Parallel microtask review queue is available for WP validator while ${nextExpectedActor || "CODER"} continues implementation.`,
-    };
-  }
-
-  if (nextExpectedActor) {
-    return {
-      ready: false,
-      blockedByRoute: true,
-      parallelReviewReady: false,
-      nextExpectedActor,
-      waitingOn,
-      latestAssessment,
-      message: blockedValidatorMessage(normalizedRole, nextExpectedActor, waitingOn, communicationState),
-    };
-  }
+  const commandId = validatorResumeCommandId({
+    wpId,
+    actorRole: normalizedRole,
+    actorSessionKey,
+    actorSessionId,
+    nextExpectedActor,
+    waitingOn,
+    actionKind,
+    parallelReview: parallelReviewReady,
+  });
+  const sessionKey = normalizeSession(actorSessionKey)
+    || normalizeSession(actorSessionId)
+    || `${normalizedRole}:${String(wpId || "").trim() || "WP-UNKNOWN"}`;
+  const governedAction = buildGovernedActionResult({
+    actionId: commandId,
+    ruleId: validatorResumeRuleId(actionKind),
+    actionKind,
+    commandId,
+    sessionKey,
+    wpId: String(wpId || "").trim() || "WP-UNKNOWN",
+    role: normalizedRole,
+    status: "COMPLETED",
+    outcomeState: validatorResumeOutcomeState(actionKind),
+    summary: message,
+    metadata: {
+      resume_source: "VALIDATOR_COMMUNICATION_RUNTIME",
+      decision_reason_code: decisionReasonCode,
+      next_expected_actor: nextExpectedActor || "",
+      waiting_on: waitingOn || "",
+      communication_applicable: communicationApplicable ? "true" : "false",
+      parallel_review: parallelReviewReady ? "true" : "false",
+      latest_assessment_verdict: latestAssessment?.verdict || "",
+      latest_assessment_kind: latestAssessment?.receiptKind || "",
+      latest_assessment_reason: latestAssessment?.reason || "",
+    },
+  });
 
   return {
-    ready: false,
-    blockedByRoute: false,
-    parallelReviewReady: false,
+    governedAction,
     nextExpectedActor,
     waitingOn,
     latestAssessment,
-    message: "",
+    parallelReviewReady,
+    message,
+  };
+}
+
+export function deriveValidatorResumeState({
+  wpId = "",
+  actorRole = "",
+  actorSessionKey = "",
+  actorSessionId = "",
+  communicationState = null,
+} = {}) {
+  const derived = deriveValidatorResumeAction({
+    wpId,
+    actorRole,
+    actorSessionKey,
+    actorSessionId,
+    communicationState,
+  });
+
+  return {
+    ready: derived.governedAction.action_kind === "APPROVE",
+    blockedByRoute: derived.governedAction.action_kind === "DEFER",
+    parallelReviewReady: derived.parallelReviewReady,
+    nextExpectedActor: derived.nextExpectedActor,
+    waitingOn: derived.waitingOn,
+    latestAssessment: derived.latestAssessment,
+    message: derived.message,
+    governedAction: derived.governedAction,
   };
 }
 
@@ -1564,7 +1650,7 @@ const CARGO_CLEAN_ARGS = [
   "--manifest-path",
   "src/backend/handshake_core/Cargo.toml",
   "--target-dir",
-  "../Handshake Artifacts/handshake-cargo-target",
+  "../Handshake_Artifacts/handshake-cargo-target",
 ];
 
 export function buildValidatorHandoffCheckResult({

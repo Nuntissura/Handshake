@@ -7,6 +7,7 @@ import {
   GOV_ROOT_REPO_REL,
   GOVERNANCE_RUNTIME_ROOT_REPO_REL,
   REPO_ROOT,
+  normalizePath,
   repoPathAbs,
   resolveOrchestratorGatesPath,
   resolveWorkPacketPath,
@@ -422,6 +423,14 @@ export function resolvePrepareWorktreeAbs(prepareEntry, referenceRepoRoot) {
     : path.resolve(referenceRepoRoot || REPO_ROOT, worktreeDir);
 }
 
+export function displayRepoRelativePath(absPath, referenceRepoRoot) {
+  const normalizedAbs = String(absPath || "").trim();
+  if (!normalizedAbs) return "";
+  const base = path.resolve(referenceRepoRoot || currentGitContext().topLevel || REPO_ROOT);
+  const relative = path.relative(base, path.resolve(normalizedAbs));
+  return normalizePath(relative || ".");
+}
+
 function isPendingAuthorityValue(value) {
   const normalized = String(value || "").trim();
   return normalized === "" || normalized === "<pending>" || normalized === "<missing>";
@@ -503,16 +512,17 @@ export function preparePacketTruthState(wpId, prepareEntry, referenceRepoRoot) {
 export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot) {
   const repoRoot = referenceRepoRoot || currentGitContext().topLevel || REPO_ROOT;
   const worktreeAbs = resolvePrepareWorktreeAbs(prepareEntry, repoRoot);
+  const worktreeDisplay = String(prepareEntry?.worktree_dir || "").trim() || displayRepoRelativePath(worktreeAbs, repoRoot);
   const expectedBranch = String(prepareEntry?.branch || "").trim();
   const issues = [];
 
   if (!worktreeAbs) {
     issues.push("PREPARE is missing worktree_dir");
-    return { ok: false, repoRoot, worktreeAbs: "", expectedBranch, issues };
+    return { ok: false, repoRoot, worktreeAbs: "", worktreeDisplay: "", expectedBranch, issues };
   }
   if (!exists(worktreeAbs)) {
-    issues.push(`Assigned worktree does not exist: ${worktreeAbs}`);
-    return { ok: false, repoRoot, worktreeAbs, expectedBranch, issues };
+    issues.push(`Assigned worktree does not exist: ${worktreeDisplay}`);
+    return { ok: false, repoRoot, worktreeAbs, worktreeDisplay, expectedBranch, issues };
   }
 
   const actualBranch = safeExecInDir(worktreeAbs, "git rev-parse --abbrev-ref HEAD");
@@ -525,7 +535,7 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
   const packetPath = path.join(worktreeAbs, packetPathRel);
   const referencePacketPath = path.join(repoRoot, packetPathRel);
   if (!exists(packetPath)) {
-    issues.push(`Assigned worktree is missing the official packet: ${packetPath}`);
+    issues.push(`Assigned worktree is missing the official packet: ${normalizePath(path.join(worktreeDisplay || ".", packetPathRel))}`);
   } else if (exists(referencePacketPath)) {
     const referencePacket = fs.readFileSync(referencePacketPath, "utf8");
     const worktreePacket = fs.readFileSync(packetPath, "utf8");
@@ -585,6 +595,7 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
     ok: issues.length === 0,
     repoRoot,
     worktreeAbs,
+    worktreeDisplay,
     expectedBranch,
     actualBranch,
     referenceBoardStatus,
@@ -663,7 +674,7 @@ export function workflowStartReadinessState({ repoRoot, gateLogs } = {}) {
       if (!worktreeAbs) {
         violations.push(`${wpId}: PREPARE is missing worktree_dir`);
       } else if (!exists(worktreeAbs)) {
-        violations.push(`${wpId}: PREPARE points to a missing worktree: ${worktreeAbs}`);
+        violations.push(`${wpId}: PREPARE points to a missing worktree: ${displayRepoRelativePath(worktreeAbs, resolvedRepoRoot)}`);
       }
       continue;
     }

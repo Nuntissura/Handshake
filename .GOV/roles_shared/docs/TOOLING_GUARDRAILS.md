@@ -58,7 +58,7 @@ Rules:
 - Why:
   - Spaces break `cmd.exe` quoting, junction creation (`mklink /J`), `rmdir`, shell pipelines, and copy-paste of paths. Root cause of the `D:\D:\` malformed junction bug in wt-ilja [CX-109A].
 - Context:
-  - Existing repo paths with spaces (e.g., `Handshake Worktrees/`, `Handshake Artifacts/`) are legacy. Full rename is planned but deferred. All NEW paths must comply immediately.
+  - Existing repo paths with spaces (e.g., `Handshake Worktrees/`, `Handshake_Artifacts/`) are legacy. Full rename is planned but deferred. All NEW paths must comply immediately.
 
 ### TG-006
 - Do:
@@ -141,3 +141,14 @@ Rules:
   - File sprawl makes the governance surface harder to navigate, test, and maintain. Every new file adds import paths, test files, build-order entries, and cognitive overhead.
 - Context:
   - Recurring pattern: a new capability (metrics, idle ledger, scope classification) gets its own script when it should be an export on the existing domain lib.
+
+### TG-013
+- Do:
+  - Emit repo-relative or workspace-relative paths on operator-facing governance surfaces, for example `.GOV/...`, `../wtc-...`, `../handshake_main`, or `../gov_runtime/...`.
+  - Keep absolute paths as internal script resolution detail only.
+- Don't:
+  - Do not print drive-specific or host-specific absolute paths in orchestrator diagnostics, monitor output, protocol examples, packet guidance, or workflow-dossier narration.
+- Why:
+  - Absolute paths are host-specific noise. They leak workstation topology into governance truth, make logs harder to compare across machines, and directly violate drive-agnostic governance rules.
+- Context:
+  - Recurring on stale-worktree diagnostics, operator monitor summaries, and protocol/examples that accidentally surface `D:/...` or other absolute paths instead of governed relative forms.

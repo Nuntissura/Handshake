@@ -2,8 +2,8 @@
  * closeout-repair.mjs [RGF-193]
  *
  * Mechanical closeout pre-repair script.
- * Runs all closeout precondition checks, collects ALL failures (not just the first),
- * applies known mechanical fixes, and re-verifies.
+ * Runs closeout precondition checks, classifies failures from direct packet/runtime
+ * truth, applies known mechanical fixes, and re-verifies.
  *
  * This script runs BEFORE the Integration Validator launches.
  * It eliminates the multi-retry closeout loop that previously consumed 85% of token budget.
@@ -13,36 +13,82 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync, execSync } from "node:child_process";
+import { execFileSync, execSync, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import {
-  REPO_ROOT,
   GOV_ROOT_REPO_REL,
-  repoPathAbs,
+  REPO_ROOT,
   govRootAbsPath,
-  resolveWorkPacketPath,
+  normalizePath,
+  resolveWorkPacketPathAtRepo,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { buildWpCommunicationHealthCheckResult } from "../../../roles_shared/checks/wp-communication-health-check.mjs";
+import { resolveCloseoutSyncCwd } from "../../../roles_shared/checks/phase-check.mjs";
+import {
+  buildIntegrationValidatorCloseoutCheckResult,
+  loadDeclaredRuntimeStatus,
+} from "../../../roles/validator/scripts/lib/integration-validator-closeout-lib.mjs";
+import { buildValidatorPacketCompleteResult } from "../../../roles/validator/scripts/lib/validator-governance-lib.mjs";
+import { validateSignedScopeCompatibilityTruth } from "../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
+import {
+  parseSignedScopePatchArtifacts,
+  validateSignedScopeSurface,
+} from "../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
+import { validateClauseReportConsistency } from "../../../roles_shared/scripts/lib/packet-closure-monitor-lib.mjs";
 
 registerFailCaptureHook("closeout-repair");
 
-const args = process.argv.slice(2);
-const wpId = args.find((a) => a.startsWith("WP-"));
-const dryRun = args.includes("--dry-run");
-const debug = args.includes("--debug");
+const CLOSEOUT_FAILURE_MESSAGES = {
+  BASELINE_SHA_MISMATCH: "CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA mismatch",
+  SIGNED_SCOPE_COMPATIBILITY_INVALID: "signed-scope compatibility truth is invalid",
+  MISSING_SIGNED_SCOPE_PATCH: "signed-scope patch artifact is missing",
+  SIGNED_SCOPE_SURFACE_INVALID: "signed-scope surface declarations are invalid",
+  CLAUSE_COVERAGE_MISMATCH: "clause coverage mismatch between matrix and validation reports",
+  MISSING_VALIDATION_VERDICT: "missing or incomplete validation verdict in packet",
+  PACKET_COMPLETENESS_OTHER: "packet completeness issue",
+  COMMUNICATION_HEALTH: "communication health check issue",
+  INTEGRATION_VALIDATOR_CLOSEOUT: "integration-validator closeout check failure",
+};
 
-if (!wpId) {
-  failWithMemory(
-    `Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/closeout-repair.mjs <WP_ID> [--dry-run] [--debug]`,
-    { role: "ORCHESTRATOR" }
-  );
+function currentGitContextAt(cwd = REPO_ROOT) {
+  const resolvedCwd = path.resolve(cwd || REPO_ROOT);
+  const runGit = (args = []) => {
+    const result = spawnSync("git", args, {
+      cwd: resolvedCwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return result.status === 0 ? String(result.stdout || "").trim() : "";
+  };
+  return {
+    branch: runGit(["rev-parse", "--abbrev-ref", "HEAD"]),
+    topLevel: runGit(["rev-parse", "--show-toplevel"]),
+    statusShort: runGit(["status", "-sb"]),
+    statusPorcelain: runGit(["status", "--porcelain=v1"]),
+  };
+}
+
+function normalizeDisplayDetail(detail, repoRoot = REPO_ROOT) {
+  let text = normalizePath(String(detail || "").trim());
+  if (!text) return text;
+  const replacements = [
+    [normalizePath(path.resolve(repoRoot, "../handshake_main")), "../handshake_main"],
+    [normalizePath(path.resolve(repoRoot)), "."],
+  ].sort((left, right) => right[0].length - left[0].length);
+  for (const [absoluteValue, displayValue] of replacements) {
+    if (!absoluteValue) continue;
+    text = text.split(absoluteValue).join(displayValue);
+  }
+  return text;
 }
 
 function log(msg) {
   console.log(`[closeout-repair] ${msg}`);
 }
 
-function logDebug(msg) {
-  if (debug) console.log(`[closeout-repair][debug] ${msg}`);
+function logDebug(enabled, msg) {
+  if (enabled) console.log(`[closeout-repair][debug] ${msg}`);
 }
 
 function runCommand(cmd, opts = {}) {
@@ -59,17 +105,18 @@ function runCommand(cmd, opts = {}) {
   }
 }
 
-function runPhaseCheck(wpId, extraArgs = "") {
+export function runPhaseCheck(wpId, extraArgs = "", {
+  repoRoot = REPO_ROOT,
+} = {}) {
   const cmd = `node "${govRootAbsPath("roles_shared", "checks", "phase-check.mjs")}" CLOSEOUT ${wpId} ${extraArgs}`;
-  logDebug(`Running: ${cmd}`);
   try {
     const result = execSync(cmd, {
       encoding: "utf8",
-      cwd: REPO_ROOT,
+      cwd: repoRoot,
       stdio: ["ignore", "pipe", "pipe"],
       timeout: 120000,
     });
-    return { passed: true, stdout: result, stderr: "" };
+    return { passed: true, stdout: result, stderr: "", message: "" };
   } catch (e) {
     return {
       passed: false,
@@ -80,229 +127,500 @@ function runPhaseCheck(wpId, extraArgs = "") {
   }
 }
 
-// ── Step 1: Run phase-check CLOSEOUT and collect all failures ──
-
-log(`Step 1: Running phase-check CLOSEOUT for ${wpId} to identify failures...`);
-const initialCheck = runPhaseCheck(wpId);
-
-if (initialCheck.passed) {
-  log("RESULT: phase-check CLOSEOUT already passes. No repair needed.");
-  process.exit(0);
+function extractValidationReportsSection(packetText = "") {
+  const lines = String(packetText || "").split(/\r?\n/);
+  const startIndex = lines.findIndex((line) => /^##\s+VALIDATION_REPORTS\b/i.test(line));
+  if (startIndex === -1) return "";
+  let endIndex = lines.length;
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    if (/^##\s+\S/.test(lines[index])) {
+      endIndex = index;
+      break;
+    }
+  }
+  return lines.slice(startIndex, endIndex).join("\n");
 }
 
-log("phase-check CLOSEOUT failed. Analyzing failures...");
-logDebug(`stdout: ${initialCheck.stdout}`);
-logDebug(`stderr: ${initialCheck.stderr}`);
-
-const combinedOutput = `${initialCheck.stdout}\n${initialCheck.stderr}\n${initialCheck.message}`;
-const failures = [];
-const repairs = [];
-
-// ── Step 2: Identify specific failure types ──
-
-// 2a: CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA mismatch
-if (combinedOutput.includes("CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA") ||
-    combinedOutput.includes("baseline") && combinedOutput.includes("main HEAD")) {
-  failures.push("BASELINE_SHA_MISMATCH");
-  log("  Detected: CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA mismatch");
+export function packetHasValidationVerdict(packetText = "") {
+  const reportsSection = extractValidationReportsSection(packetText);
+  return /^(?:\s*-\s*|\s*#{1,6}\s+|\s*)Verdict\s*:\s*(PASS|FAIL|ABANDONED|OUTDATED_ONLY|PENDING)\s*$/gim.test(reportsSection);
 }
 
-// 2b: Missing signed-scope.patch artifact
-if (combinedOutput.includes("signed-scope") || combinedOutput.includes("signed_scope") ||
-    combinedOutput.includes("patch artifact")) {
-  failures.push("MISSING_SIGNED_SCOPE_PATCH");
-  log("  Detected: signed-scope patch artifact issue");
-}
-
-// 2c: Clause coverage mismatch
-if (combinedOutput.includes("CLAUSE") && combinedOutput.includes("mismatch") ||
-    combinedOutput.includes("CLAUSES_REVIEWED") ||
-    combinedOutput.includes("clause") && combinedOutput.includes("coverage")) {
-  failures.push("CLAUSE_COVERAGE_MISMATCH");
-  log("  Detected: clause coverage mismatch between matrix and validation reports");
-}
-
-// 2d: Missing validation verdict
-if (combinedOutput.includes("validation_verdict") ||
-    combinedOutput.includes("Verdict") && combinedOutput.includes("missing") ||
-    combinedOutput.includes("validator-packet-complete")) {
-  failures.push("MISSING_VALIDATION_VERDICT");
-  log("  Detected: missing or incomplete validation verdict in packet");
-}
-
-// 2e: Communication health check
-if (combinedOutput.includes("wp-communication-health-check") ||
-    combinedOutput.includes("pending") && combinedOutput.includes("route")) {
-  failures.push("COMMUNICATION_HEALTH");
-  log("  Detected: communication health check issue");
-}
-
-// 2f: Integration validator closeout check
-if (combinedOutput.includes("integration-validator-closeout-check")) {
-  failures.push("INTEGRATION_VALIDATOR_CLOSEOUT");
-  log("  Detected: integration-validator-closeout-check failure");
-}
-
-if (failures.length === 0) {
-  log("  Could not classify specific failures. Raw output:");
-  console.log(combinedOutput.slice(0, 2000));
-  failWithMemory("closeout-repair could not classify failures from phase-check output", {
-    wpId,
-    role: "ORCHESTRATOR",
-    details: [combinedOutput.slice(0, 300)],
+function pushFailure(failures, code, details = []) {
+  const normalizedDetails = (details || [])
+    .map((detail) => String(detail || "").trim())
+    .filter(Boolean);
+  if (failures.some((entry) => entry.code === code)) return;
+  failures.push({
+    code,
+    summary: CLOSEOUT_FAILURE_MESSAGES[code] || code,
+    details: normalizedDetails,
   });
 }
 
-log(`  Total failures identified: ${failures.length}`);
-
-// ── Step 3: Apply mechanical fixes ──
-
-if (dryRun) {
-  log("DRY RUN: Would attempt the following repairs:");
-  for (const f of failures) log(`  - ${f}`);
-  log("Exiting without changes.");
-  process.exit(0);
-}
-
-log("Step 3: Applying mechanical fixes...");
-
-// 3a: Fix BASELINE_SHA_MISMATCH
-if (failures.includes("BASELINE_SHA_MISMATCH")) {
-  log("  Repairing: CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA...");
-  try {
-    // Get current main HEAD from handshake_main
-    const mainWorktree = repoPathAbs("../handshake_main");
-    const currentMainHead = execFileSync("git", ["-C", mainWorktree, "rev-parse", "HEAD"], {
+export function readCurrentMainHeadSha({
+  repoRoot = REPO_ROOT,
+  gitExec = execFileSync,
+} = {}) {
+  const mainWorktree = path.resolve(repoRoot, "../handshake_main");
+  return String(
+    gitExec("git", ["-C", mainWorktree, "rev-parse", "HEAD"], {
       encoding: "utf8",
-    }).trim();
+    }) || "",
+  ).trim();
+}
 
-    if (/^[0-9a-f]{40}$/i.test(currentMainHead)) {
-      const packetInfo = resolveWorkPacketPath(wpId);
-      const packetPath = packetInfo?.packetPath || null;
-      if (packetPath && fs.existsSync(repoPathAbs(packetPath))) {
-        let packetText = fs.readFileSync(repoPathAbs(packetPath), "utf8");
-        const oldMatch = packetText.match(
-          /(\*\*CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA\*\*:\s*)`?([0-9a-f]{40}|NOT_RUN|NONE)`?/i
-        );
-        if (oldMatch) {
-          packetText = packetText.replace(
-            oldMatch[0],
-            `${oldMatch[1]}${currentMainHead}`
-          );
-          fs.writeFileSync(repoPathAbs(packetPath), packetText, "utf8");
-          repairs.push("BASELINE_SHA_MISMATCH");
-          log(`    Fixed: updated to ${currentMainHead}`);
-        } else {
-          log("    Could not find CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA field in packet");
-        }
-      } else {
-        log(`    Could not find packet at resolved path for ${wpId}`);
-      }
-    } else {
-      log(`    Invalid main HEAD: ${currentMainHead}`);
-    }
-  } catch (e) {
-    log(`    Failed to repair: ${e.message}`);
+function resolvePacketContext(wpId, repoRoot = REPO_ROOT) {
+  const resolved = resolveWorkPacketPathAtRepo(repoRoot, wpId, ".GOV");
+  if (!resolved?.packetPath || !resolved?.packetAbsPath || !fs.existsSync(resolved.packetAbsPath)) {
+    throw new Error(`Official packet not found for ${wpId}`);
   }
+  return {
+    packetPath: normalizePath(path.relative(repoRoot, resolved.packetAbsPath)) || normalizePath(resolved.packetPath),
+    packetAbsPath: resolved.packetAbsPath,
+    packetText: fs.readFileSync(resolved.packetAbsPath, "utf8"),
+  };
 }
 
-// 3b: Fix MISSING_SIGNED_SCOPE_PATCH
-if (failures.includes("MISSING_SIGNED_SCOPE_PATCH")) {
-  log("  Repairing: signed-scope.patch...");
-  try {
-    const packetInfo = resolveWorkPacketPath(wpId);
-    const packetPath = packetInfo?.packetPath || null;
-    if (!packetPath) {
-      throw new Error(`Could not resolve packet path for ${wpId}`);
-    }
-    const packetDir = path.dirname(repoPathAbs(packetPath));
-    const patchPath = path.join(packetDir, "signed-scope.patch");
-
-    // Read packet to find MERGE_BASE_SHA and target
-    const packetText = fs.readFileSync(repoPathAbs(packetPath), "utf8");
-    const baseMatch = packetText.match(/\*\*MERGE_BASE_SHA\*\*:\s*`?([0-9a-f]{40})`?/i);
-    const targetMatch = packetText.match(/\*\*COMMITTED_TARGET_HEAD_SHA\*\*:\s*`?([0-9a-f]{40})`?/i);
-
-    if (baseMatch && targetMatch) {
-      const base = baseMatch[1];
-      const target = targetMatch[1];
-      // Find the worktree that has this commit
-      const mainWorktree = repoPathAbs("../handshake_main");
-      const diff = execFileSync("git", ["-C", mainWorktree, "diff", `${base}..${target}`], {
-        encoding: "utf8",
-        maxBuffer: 10 * 1024 * 1024,
-      });
-      fs.writeFileSync(patchPath, diff, "utf8");
-      repairs.push("MISSING_SIGNED_SCOPE_PATCH");
-      log(`    Fixed: generated patch from ${base.slice(0, 8)}..${target.slice(0, 8)} (${diff.length} bytes)`);
-    } else {
-      log("    Could not find MERGE_BASE_SHA and/or COMMITTED_TARGET_HEAD_SHA in packet");
-    }
-  } catch (e) {
-    log(`    Failed to repair: ${e.message}`);
+export function resolveDeclaredPatchArtifactPath({
+  packetText = "",
+  packetPath = "",
+  repoRoot = REPO_ROOT,
+} = {}) {
+  const patchArtifacts = parseSignedScopePatchArtifacts(packetText);
+  if (patchArtifacts.length === 1) {
+    return path.resolve(repoRoot, patchArtifacts[0]);
   }
+  if (!packetPath) return "";
+  const packetAbsPath = path.resolve(repoRoot, packetPath);
+  return path.join(path.dirname(packetAbsPath), "signed-scope.patch");
 }
 
-// 3c: CLAUSE_COVERAGE_MISMATCH — report but don't auto-fix (requires judgment)
-if (failures.includes("CLAUSE_COVERAGE_MISMATCH")) {
-  log("  CLAUSE_COVERAGE_MISMATCH: cannot auto-fix (requires clause-level judgment)");
-  log("    Manual action: ensure CLAUSE_CLOSURE_MATRIX rows match VALIDATION_REPORTS CLAUSES_REVIEWED");
-  log("    This may require Integration Validator judgment or Orchestrator manual sync");
+function parseCommitField(packetText, label) {
+  const match = String(packetText || "").match(
+    new RegExp(`\\*\\*${label}\\*\\*:\\s*\`?([0-9a-f]{40})\`?`, "i"),
+  );
+  return match ? match[1] : "";
 }
 
-// 3d: MISSING_VALIDATION_VERDICT — check if validator gate has verdict
-if (failures.includes("MISSING_VALIDATION_VERDICT")) {
-  log("  Checking validator gate state for existing verdict...");
-  try {
-    const gateResult = runCommand(
-      `node "${govRootAbsPath("roles", "validator", "checks", "validator_gates.mjs")}" status ${wpId}`
+export function collectCloseoutRepairFailures({
+  packetText = "",
+  packetPath = "",
+  currentMainHeadSha = "",
+  validatorPacketCompleteResult = null,
+  communicationHealthResult = null,
+  closeoutResult = null,
+  signedScopeSurfaceValidation = null,
+  clauseConsistencyValidation = null,
+} = {}) {
+  const failures = [];
+  const compatibilityValidation = validateSignedScopeCompatibilityTruth(packetText, {
+    packetPath,
+    currentMainHeadSha,
+    requireReadyForPass: false,
+  });
+
+  const baselineMismatchErrors = (compatibilityValidation.errors || []).filter((error) =>
+    /CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA .* does not match current local main HEAD/i.test(String(error || ""))
+  );
+  if (baselineMismatchErrors.length > 0) {
+    pushFailure(failures, "BASELINE_SHA_MISMATCH", baselineMismatchErrors);
+  }
+
+  const remainingCompatibilityErrors = (compatibilityValidation.errors || []).filter((error) =>
+    !baselineMismatchErrors.includes(error)
+  );
+  if (remainingCompatibilityErrors.length > 0) {
+    pushFailure(failures, "SIGNED_SCOPE_COMPATIBILITY_INVALID", remainingCompatibilityErrors);
+  }
+
+  const patchArtifactMissingErrors = (signedScopeSurfaceValidation?.errors || []).filter((error) =>
+    /signed scope patch artifact is missing/i.test(String(error || ""))
+  );
+  if (patchArtifactMissingErrors.length > 0) {
+    pushFailure(failures, "MISSING_SIGNED_SCOPE_PATCH", patchArtifactMissingErrors);
+  }
+
+  const remainingSignedScopeErrors = (signedScopeSurfaceValidation?.errors || []).filter((error) =>
+    !patchArtifactMissingErrors.includes(error)
+  );
+  if (remainingSignedScopeErrors.length > 0) {
+    pushFailure(failures, "SIGNED_SCOPE_SURFACE_INVALID", remainingSignedScopeErrors);
+  }
+
+  if ((clauseConsistencyValidation?.errors || []).length > 0) {
+    pushFailure(failures, "CLAUSE_COVERAGE_MISMATCH", clauseConsistencyValidation.errors);
+  }
+
+  const validatorPacketDetails = [
+    validatorPacketCompleteResult?.message,
+    ...(validatorPacketCompleteResult?.details || []),
+  ].filter(Boolean);
+  const missingVerdictSignals = !packetHasValidationVerdict(packetText)
+    || validatorPacketDetails.some((detail) =>
+      /validation_verdict|verdict/i.test(String(detail || ""))
     );
-    if (typeof gateResult === "string" && gateResult.includes("PASS") && gateResult.includes("COMMITTED")) {
-      log("    Validator gate shows PASS/COMMITTED. Verdict should already be in packet.");
-      log("    If packet lacks the verdict block, the closeout-truth-sync should handle this.");
-    } else {
-      log("    Validator gate does not show a committed PASS verdict.");
-      log("    Manual action: run validator-gate-append and validator-gate-commit if appropriate");
+  if (missingVerdictSignals) {
+    pushFailure(
+      failures,
+      "MISSING_VALIDATION_VERDICT",
+      validatorPacketDetails.length > 0
+        ? validatorPacketDetails
+        : ["VALIDATION_REPORTS does not contain a concrete Verdict line."],
+    );
+  }
+
+  if (validatorPacketCompleteResult && !validatorPacketCompleteResult.ok) {
+    const clauseMessage = validatorPacketDetails.some((detail) =>
+      /CLAUSE_CLOSURE_MATRIX \/ VALIDATION_REPORTS mismatch|CLAUSES_REVIEWED|clause/i.test(String(detail || ""))
+    );
+    const verdictMessage = validatorPacketDetails.some((detail) =>
+      /validation_verdict|verdict/i.test(String(detail || ""))
+    );
+    if (!clauseMessage && !verdictMessage) {
+      pushFailure(failures, "PACKET_COMPLETENESS_OTHER", validatorPacketDetails);
     }
-  } catch (e) {
-    log(`    Could not check validator gate state: ${e.message}`);
+  }
+
+  if (communicationHealthResult && !communicationHealthResult.ok) {
+    pushFailure(
+      failures,
+      "COMMUNICATION_HEALTH",
+      [communicationHealthResult.message, ...(communicationHealthResult.details || [])].filter(Boolean),
+    );
+  }
+
+  if (closeoutResult && !closeoutResult.ok) {
+    pushFailure(
+      failures,
+      "INTEGRATION_VALIDATOR_CLOSEOUT",
+      [closeoutResult.message, ...(closeoutResult.details || [])].filter(Boolean),
+    );
+  }
+
+  return {
+    failures,
+    compatibilityValidation,
+  };
+}
+
+export function applyBaselineShaRepair({
+  packetText = "",
+  packetPath = "",
+  currentMainHeadSha = "",
+  repoRoot = REPO_ROOT,
+} = {}) {
+  if (!/^[0-9a-f]{40}$/i.test(String(currentMainHeadSha || "").trim())) {
+    return { applied: false, reason: `Invalid main HEAD: ${currentMainHeadSha || "<missing>"}` };
+  }
+
+  const packetAbsPath = path.resolve(repoRoot, packetPath);
+  const oldMatch = String(packetText || "").match(
+    /(\*\*CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA\*\*:\s*)`?([0-9a-f]{40}|NOT_RUN|NONE)`?/i,
+  );
+  if (!oldMatch) {
+    return { applied: false, reason: "Could not find CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA field in packet" };
+  }
+
+  const nextPacketText = String(packetText || "").replace(oldMatch[0], `${oldMatch[1]}${currentMainHeadSha}`);
+  fs.writeFileSync(packetAbsPath, nextPacketText, "utf8");
+  return {
+    applied: true,
+    packetText: nextPacketText,
+    path: normalizePath(path.relative(repoRoot, packetAbsPath)),
+    currentMainHeadSha,
+  };
+}
+
+export function applySignedScopePatchRepair({
+  packetText = "",
+  packetPath = "",
+  repoRoot = REPO_ROOT,
+  gitExec = execFileSync,
+} = {}) {
+  const mergeBaseSha = parseCommitField(packetText, "MERGE_BASE_SHA");
+  const targetHeadSha = parseCommitField(packetText, "COMMITTED_TARGET_HEAD_SHA");
+  if (!mergeBaseSha || !targetHeadSha) {
+    return {
+      applied: false,
+      reason: "Could not find MERGE_BASE_SHA and/or COMMITTED_TARGET_HEAD_SHA in packet",
+    };
+  }
+
+  const patchAbsPath = resolveDeclaredPatchArtifactPath({
+    packetText,
+    packetPath,
+    repoRoot,
+  });
+  if (!patchAbsPath) {
+    return { applied: false, reason: "Could not resolve a patch artifact path from packet truth" };
+  }
+
+  fs.mkdirSync(path.dirname(patchAbsPath), { recursive: true });
+  const mainWorktree = path.resolve(repoRoot, "../handshake_main");
+  const diff = String(gitExec("git", ["-C", mainWorktree, "diff", `${mergeBaseSha}..${targetHeadSha}`], {
+    encoding: "utf8",
+    maxBuffer: 10 * 1024 * 1024,
+  }) || "");
+  fs.writeFileSync(patchAbsPath, diff, "utf8");
+  return {
+    applied: true,
+    mergeBaseSha,
+    targetHeadSha,
+    diffLength: diff.length,
+    patchPath: normalizePath(path.relative(repoRoot, patchAbsPath)),
+  };
+}
+
+function buildCloseoutRepairDiagnostics(wpId, {
+  repoRoot = REPO_ROOT,
+} = {}) {
+  const packetContext = resolvePacketContext(wpId, repoRoot);
+  const currentMainHeadSha = readCurrentMainHeadSha({ repoRoot });
+  const validatorPacketCompleteResult = buildValidatorPacketCompleteResult({ wpId });
+  const communicationHealthResult = buildWpCommunicationHealthCheckResult({
+    wpId,
+    stage: "STATUS",
+  });
+  const validatorCwd = resolveCloseoutSyncCwd({
+    wpId,
+    phaseCheckCwd: repoRoot,
+  });
+  const closeoutResult = buildIntegrationValidatorCloseoutCheckResult({
+    wpId,
+    repoRootOverride: validatorCwd,
+    gitContextOverride: currentGitContextAt(validatorCwd),
+  });
+  const declaredRuntime = loadDeclaredRuntimeStatus({
+    repoRoot,
+    packetContent: packetContext.packetText,
+  });
+  const signedScopeSurfaceValidation = validateSignedScopeSurface(packetContext.packetText, { repoRoot });
+  const clauseConsistencyValidation = validateClauseReportConsistency(packetContext.packetText);
+  const failureAnalysis = collectCloseoutRepairFailures({
+    packetText: packetContext.packetText,
+    packetPath: packetContext.packetPath,
+    currentMainHeadSha,
+    validatorPacketCompleteResult,
+    communicationHealthResult,
+    closeoutResult,
+    signedScopeSurfaceValidation,
+    clauseConsistencyValidation,
+  });
+
+  return {
+    ...packetContext,
+    currentMainHeadSha,
+    validatorPacketCompleteResult,
+    communicationHealthResult,
+    closeoutResult,
+    closeoutDependencyView: closeoutResult?.closeoutDependencyView || null,
+    closeoutSyncGovernance: closeoutResult?.closeoutSyncGovernance || null,
+    signedScopeSurfaceValidation,
+    clauseConsistencyValidation,
+    runtimeStatusLoaded: declaredRuntime.runtimeStatusLoaded,
+    ...failureAnalysis,
+  };
+}
+
+function logDetectedFailures(
+  failures = [],
+  repoRoot = REPO_ROOT,
+  debug = false,
+  closeoutSyncGovernance = null,
+  closeoutDependencyView = null,
+) {
+  const latestGovernedAction = closeoutSyncGovernance?.latestGovernedAction || null;
+  const latestEvent = closeoutSyncGovernance?.latestEvent || null;
+  if (closeoutDependencyView?.summary) {
+    log(`  Closeout dependency summary: ${closeoutDependencyView.summary}`);
+  }
+  if (latestGovernedAction || latestEvent) {
+    log(
+      `  Last governed closeout sync: ${latestEvent?.mode || "NONE"} via ${latestGovernedAction?.rule_id || "NONE"} `
+      + `(${latestGovernedAction?.resume_disposition || "NONE"}) @ ${latestGovernedAction?.updated_at || latestEvent?.timestamp_utc || "<missing>"}`,
+    );
+  }
+  for (const failure of failures) {
+    log(`  Detected: ${failure.summary}`);
+    if (debug) {
+      for (const detail of failure.details.slice(0, 4)) {
+        logDebug(debug, `detail[${failure.code}]: ${normalizeDisplayDetail(detail, repoRoot)}`);
+      }
+    }
+  }
+  log(`  Total failures identified: ${failures.length}`);
+}
+
+function logManualAction(code) {
+  if (code === "CLAUSE_COVERAGE_MISMATCH") {
+    log("  CLAUSE_COVERAGE_MISMATCH: cannot auto-fix (requires clause-level judgment)");
+    log("    Manual action: ensure CLAUSE_CLOSURE_MATRIX rows match VALIDATION_REPORTS CLAUSES_REVIEWED.");
+    return;
+  }
+  if (code === "MISSING_VALIDATION_VERDICT") {
+    log("  MISSING_VALIDATION_VERDICT: validator verdict block is incomplete or absent.");
+    log("    Manual action: repair the governed validation report / verdict write path before closeout.");
+    return;
+  }
+  if (code === "PACKET_COMPLETENESS_OTHER") {
+    log("  PACKET_COMPLETENESS_OTHER: packet completeness still fails outside the known verdict/clause repair classes.");
+    log("    Manual action: repair the packet according to validator-packet-complete output, then re-run closeout-repair.");
+    return;
+  }
+  if (code === "COMMUNICATION_HEALTH") {
+    log("  COMMUNICATION_HEALTH: direct review route or notification projection is inconsistent.");
+    log("    Manual action: verify receipts, notifications, and route residue before closeout.");
+    return;
+  }
+  if (code === "INTEGRATION_VALIDATOR_CLOSEOUT") {
+    log("  INTEGRATION_VALIDATOR_CLOSEOUT: topology or session-control truth is not closeout-ready.");
+    log("    Manual action: verify final-lane topology, session registry, and broker consistency.");
+    return;
+  }
+  if (code === "SIGNED_SCOPE_COMPATIBILITY_INVALID") {
+    log("  SIGNED_SCOPE_COMPATIBILITY_INVALID: signed-scope compatibility truth is invalid outside a simple baseline mismatch.");
+    log("    Manual action: repair CURRENT_MAIN_COMPATIBILITY_* / PACKET_WIDENING_* truth before closeout.");
+    return;
+  }
+  if (code === "SIGNED_SCOPE_SURFACE_INVALID") {
+    log("  SIGNED_SCOPE_SURFACE_INVALID: signed-scope declarations are invalid outside a simple missing artifact.");
+    log("    Manual action: repair the declared target-file / artifact surface before closeout.");
   }
 }
 
-// 3e: COMMUNICATION_HEALTH — report only
-if (failures.includes("COMMUNICATION_HEALTH")) {
-  log("  COMMUNICATION_HEALTH: checking for stale route residue...");
-  log("    This is typically caused by pending receipts or unacknowledged notifications.");
-  log("    Manual action: verify all review receipts are settled and notifications acknowledged.");
-}
+export function runCloseoutRepairCli(argv = process.argv.slice(2)) {
+  const wpId = argv.find((value) => value.startsWith("WP-"));
+  const dryRun = argv.includes("--dry-run");
+  const debug = argv.includes("--debug");
 
-// 3f: INTEGRATION_VALIDATOR_CLOSEOUT — report
-if (failures.includes("INTEGRATION_VALIDATOR_CLOSEOUT")) {
-  log("  INTEGRATION_VALIDATOR_CLOSEOUT: topology or session control issue.");
-  log("    This is typically caused by session registry/control misalignment.");
-  log("    Manual action: verify session states and broker consistency.");
-}
+  if (!wpId) {
+    failWithMemory(
+      `Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/closeout-repair.mjs <WP_ID> [--dry-run] [--debug]`,
+      { role: "ORCHESTRATOR" },
+    );
+  }
 
-// ── Step 4: Re-verify ──
-
-if (repairs.length > 0) {
-  log(`Step 4: Re-verifying after ${repairs.length} repair(s)...`);
-  const recheck = runPhaseCheck(wpId);
-
-  if (recheck.passed) {
-    log("RESULT: phase-check CLOSEOUT now passes after repair.");
-    log(`Repairs applied: ${repairs.join(", ")}`);
+  log(`Step 1: Running phase-check CLOSEOUT for ${wpId} to identify failures...`);
+  const initialCheck = runPhaseCheck(wpId);
+  if (initialCheck.passed) {
+    log("RESULT: phase-check CLOSEOUT already passes. No repair needed.");
     process.exit(0);
-  } else {
+  }
+
+  log("phase-check CLOSEOUT failed. Analyzing failures from direct packet/runtime truth...");
+  logDebug(debug, `stdout: ${String(initialCheck.stdout || "").trim()}`);
+  logDebug(debug, `stderr: ${String(initialCheck.stderr || "").trim()}`);
+
+  const diagnostics = buildCloseoutRepairDiagnostics(wpId);
+  const { failures } = diagnostics;
+  if (failures.length === 0) {
+    failWithMemory("closeout-repair could not classify failures from direct closeout truth", {
+      wpId,
+      role: "ORCHESTRATOR",
+      details: [
+        String(initialCheck.stdout || "").slice(0, 300),
+        String(initialCheck.stderr || "").slice(0, 300),
+        diagnostics.validatorPacketCompleteResult?.message || "",
+        diagnostics.communicationHealthResult?.message || "",
+        diagnostics.closeoutResult?.message || "",
+      ].filter(Boolean),
+    });
+  }
+
+  logDetectedFailures(
+    failures,
+    REPO_ROOT,
+    debug,
+    diagnostics.closeoutSyncGovernance,
+    diagnostics.closeoutDependencyView,
+  );
+
+  if (dryRun) {
+    log("DRY RUN: Would attempt the following repairs:");
+    for (const failure of failures) log(`  - ${failure.code}`);
+    process.exit(0);
+  }
+
+  log("Step 3: Applying mechanical fixes...");
+  const repairs = [];
+  let currentPacketText = diagnostics.packetText;
+
+  if (failures.some((failure) => failure.code === "BASELINE_SHA_MISMATCH")) {
+    log("  Repairing: CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA...");
+    try {
+      const result = applyBaselineShaRepair({
+        packetText: currentPacketText,
+        packetPath: diagnostics.packetPath,
+        currentMainHeadSha: diagnostics.currentMainHeadSha,
+        repoRoot: REPO_ROOT,
+      });
+      if (result.applied) {
+        currentPacketText = result.packetText;
+        repairs.push("BASELINE_SHA_MISMATCH");
+        log(`    Fixed: updated to ${result.currentMainHeadSha}`);
+      } else {
+        log(`    Failed to repair: ${result.reason}`);
+      }
+    } catch (error) {
+      log(`    Failed to repair: ${error.message}`);
+    }
+  }
+
+  if (failures.some((failure) => failure.code === "MISSING_SIGNED_SCOPE_PATCH")) {
+    log("  Repairing: signed-scope patch artifact...");
+    try {
+      const result = applySignedScopePatchRepair({
+        packetText: currentPacketText,
+        packetPath: diagnostics.packetPath,
+        repoRoot: REPO_ROOT,
+      });
+      if (result.applied) {
+        repairs.push("MISSING_SIGNED_SCOPE_PATCH");
+        log(
+          `    Fixed: generated ${result.patchPath} from ${result.mergeBaseSha.slice(0, 8)}..${result.targetHeadSha.slice(0, 8)} (${result.diffLength} bytes)`,
+        );
+      } else {
+        log(`    Failed to repair: ${result.reason}`);
+      }
+    } catch (error) {
+      log(`    Failed to repair: ${error.message}`);
+    }
+  }
+
+  for (const failure of failures) {
+    if (repairs.includes(failure.code)) continue;
+    logManualAction(failure.code);
+    if (debug) {
+      for (const detail of failure.details.slice(0, 4)) {
+        logDebug(debug, `manual[${failure.code}]: ${normalizeDisplayDetail(detail, REPO_ROOT)}`);
+      }
+    }
+  }
+
+  if (repairs.length > 0) {
+    log(`Step 4: Re-verifying after ${repairs.length} repair(s)...`);
+    const recheck = runPhaseCheck(wpId);
+    if (recheck.passed) {
+      log("RESULT: phase-check CLOSEOUT now passes after repair.");
+      log(`Repairs applied: ${repairs.join(", ")}`);
+      process.exit(0);
+    }
+
     log("RESULT: phase-check CLOSEOUT still fails after repair.");
     log(`Repairs applied: ${repairs.join(", ")}`);
-    log(`Remaining failures: ${failures.filter((f) => !repairs.includes(f)).join(", ")}`);
-    logDebug(`Recheck output: ${recheck.stdout}`);
+    log(`Remaining failures: ${failures.filter((failure) => !repairs.includes(failure.code)).map((failure) => failure.code).join(", ")}`);
+    logDebug(debug, `recheck stdout: ${String(recheck.stdout || "").trim()}`);
     process.exit(1);
   }
-} else {
+
   log("RESULT: No mechanical repairs could be applied automatically.");
-  log(`Identified failures: ${failures.join(", ")}`);
+  log(`Identified failures: ${failures.map((failure) => failure.code).join(", ")}`);
   log("Manual intervention required before Integration Validator launch.");
   process.exit(1);
+}
+
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+if (isMain) {
+  runCloseoutRepairCli();
 }

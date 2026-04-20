@@ -690,8 +690,8 @@ Hygiene / Forbidden Patterns:
 - `just gov-check`: PASS
 
 Tests:
-- `cargo test -p handshake_core loom --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
-- `cargo test -p handshake_core --test storage_conformance --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+- `cargo test -p handshake_core loom --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake_Artifacts/handshake-cargo-target"`: PASS
+- `cargo test -p handshake_core --test storage_conformance --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake_Artifacts/handshake-cargo-target"`: PASS
 
 Risks & Suggested Actions:
 - Fill the packet handoff sections with the real deterministic manifest, requirement-to-file evidence, and command evidence, then re-run `just post-work WP-1-Loom-Storage-Portability-v1`.
@@ -733,8 +733,8 @@ Hygiene / Forbidden Patterns:
 - `just gov-check`: FAIL
 
 Tests:
-- `cargo test -p handshake_core loom --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
-- `cargo test -p handshake_core --test storage_conformance --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+- `cargo test -p handshake_core loom --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake_Artifacts/handshake-cargo-target"`: PASS
+- `cargo test -p handshake_core --test storage_conformance --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake_Artifacts/handshake-cargo-target"`: PASS
 - `just post-work WP-1-Loom-Storage-Portability-v1 --rev 32948835b3d9c8c7b1cbeb7b20b79ed81350acae`: PASS
 
 Risks & Suggested Actions:
@@ -779,8 +779,8 @@ Hygiene / Forbidden Patterns:
 - `just gov-check`: FAIL
 
 Tests:
-- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
-- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom --target-dir "../Handshake_Artifacts/handshake-cargo-target"`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance --target-dir "../Handshake_Artifacts/handshake-cargo-target"`: PASS
 - `just post-work WP-1-Loom-Storage-Portability-v1 --rev c4ba7deb57810293d4f6e4bea207eeb2e56a645b`: FAIL
 
 Risks & Suggested Actions:
@@ -828,8 +828,8 @@ Hygiene / Forbidden Patterns:
 - `just gov-check`: PASS
 
 Tests:
-- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
-- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom --target-dir "../Handshake_Artifacts/handshake-cargo-target"`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance --target-dir "../Handshake_Artifacts/handshake-cargo-target"`: PASS
 - `just post-work WP-1-Loom-Storage-Portability-v1 --range 1a2568b0842ecc7b9b9aca4efcc9911cc2ce8cc8..def20eafe2a401587e4166463638129e3f1fa912`: PASS (with CX-573F warnings only)
 
 Risks & Residual Notes:

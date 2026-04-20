@@ -62,7 +62,11 @@ for (const rel of files) {
   }
 
   const reportsText = String(reportConsistency.parsed?.reports?.raw || "");
-  const specAlignmentVerdict = ((reportsText.match(/^\s*SPEC_ALIGNMENT_VERDICT\s*:\s*(.+)\s*$/im) || [])[1] || "").trim().toUpperCase();
+  const specAlignmentVerdict = (() => {
+    const re = /^(?:\s*-\s*|\s*#{1,6}\s+|\s*)SPEC_ALIGNMENT_VERDICT\s*:\s*(.+)\s*$/gim;
+    const matches = [...reportsText.matchAll(re)];
+    return matches.length > 0 ? (matches[matches.length - 1][1] || "").trim().toUpperCase() : "";
+  })();
   if (specAlignmentVerdict === "PASS") {
     const passConsistency = validatePacketClosureMonitoring(text, {
       requireRows: true,

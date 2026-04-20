@@ -153,3 +153,43 @@ test("merge progression truth fails when runtime current_packet_status lags pack
   });
   assert.match(result.errors.join("\n"), /current_packet_status .* must match packet Status/i);
 });
+
+test("merge progression truth accepts canonical execution_state authority when flat mirrors are stale", () => {
+  const packetText = buildPacket({
+    status: "Validated (PASS)",
+    mainContainmentStatus: "CONTAINED_IN_MAIN",
+    mergedMainCommit: "abc1234",
+    mainContainmentVerifiedAtUtc: "2026-03-25T12:00:00Z",
+  });
+  const result = validateMergeProgressionTruth(packetText, {
+    runtimeStatusData: {
+      current_packet_status: "Done",
+      main_containment_status: "MERGE_PENDING",
+      merged_main_commit: null,
+      main_containment_verified_at_utc: null,
+      execution_state: {
+        schema_version: "wp_execution_state@1",
+        authority: {
+          packet_status: "Validated (PASS)",
+          main_containment_status: "CONTAINED_IN_MAIN",
+          merged_main_commit: "abc1234",
+          main_containment_verified_at_utc: "2026-03-25T12:00:00Z",
+          review_anchor: {},
+          route_anchor: {},
+        },
+        checkpoint_lineage: {
+          schema_version: "wp_execution_checkpoint_lineage@1",
+          latest_checkpoint_id: null,
+          latest_checkpoint_at_utc: null,
+          latest_checkpoint_kind: null,
+          latest_restore_point_id: null,
+          latest_checkpoint_fingerprint: null,
+          checkpoint_count: 0,
+          checkpoints: [],
+        },
+      },
+    },
+    mainContainmentVerifier: () => ({ ok: true, reason: "contained in main" }),
+  });
+  assert.deepEqual(result.errors, []);
+});

@@ -698,6 +698,7 @@ const request = buildSessionControlRequest({
   reasoningConfigValue: commandKind === "START_SESSION"
     ? (selectedProfile?.launch_reasoning_config_value || "")
     : (session.reasoning_config_value || ""),
+  busyIngressMode: commandKind === "SEND_PROMPT" ? "ENQUEUE_ON_BUSY" : "REJECT",
 });
 
 let acpResponse;
@@ -804,6 +805,38 @@ const outcomeState = String(
 ).trim().toUpperCase() || "FAILED";
 
 if (String(response.status || "").toLowerCase() !== "completed") {
+  if (
+    commandKind === "SEND_PROMPT"
+    && String(response.status || "").toLowerCase() === "queued"
+    && outcomeState === "ACCEPTED_PENDING"
+  ) {
+    const detail = response.error
+      || response.last_agent_message
+      || `Queued ${session.session_key} behind active run ${response.blocking_run_id || "<unknown>"}.`;
+    emitSessionOutcomeLines({
+      requestCommandId: request.command_id,
+      sessionKey: session.session_key,
+      threadId: refreshedSession.session_thread_id || response.thread_id || "",
+      runtimeState: refreshedSession.runtime_state,
+      settledCommandKind: request.command_kind,
+      outcomeState,
+      outputJsonlFile: response.output_jsonl_file || request.output_jsonl_file || "",
+      detail,
+      lastAgentMessage: response.last_agent_message || "",
+    });
+    appendWorkflowDossierExecutionLog(wpId, buildAcpExecutionLogLine({
+      when: new Date(),
+      commandKind,
+      settledRole: role,
+      targetWpId: wpId,
+      status: "QUEUED",
+      outcomeState,
+      threadId: refreshedSession.session_thread_id || response.thread_id || "",
+      outputJsonlFile: response.output_jsonl_file || request.output_jsonl_file || "",
+      detail,
+    }));
+    process.exit(0);
+  }
   if (commandKind === "START_SESSION" && ["BUSY_ACTIVE_RUN", "REQUIRES_RECOVERY"].includes(outcomeState)) {
     const recoveredReadySession = await waitForSessionReady(session.session_key);
     if (recoveredReadySession) {
@@ -835,7 +868,7 @@ if (String(response.status || "").toLowerCase() !== "completed") {
       process.exit(0);
     }
   }
-  // RGF-172: SEND_PROMPT + BUSY_ACTIVE_RUN — report explicitly, do not retry.
+  // RGF-172/RGF-206: if the broker still rejects instead of queueing, surface the busy collision explicitly.
   if (commandKind === "SEND_PROMPT" && outcomeState === "BUSY_ACTIVE_RUN") {
     const detail = response.error
       || `Session ${session.session_key} has a concurrent active run. Wait for it to complete before sending another prompt.`;

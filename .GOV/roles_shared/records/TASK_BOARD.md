@@ -94,7 +94,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
-- **[WP-1-Distillation-v2]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 
@@ -105,6 +104,12 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-ASR-Transcribe-Media-v1]** - [STUB]
 - **[WP-1-Stage-ASR-Transcript-Lineage-v1]** - [STUB]
 - **[WP-1-Governance-Pack-v1]** - [STUB]
+- **[WP-1-Software-Delivery-Governance-Overlay-Boundary-v1]** - [STUB]
+- **[WP-1-Software-Delivery-Runtime-Truth-v1]** - [STUB]
+- **[WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1]** - [STUB]
+- **[WP-1-Software-Delivery-Projection-Surface-Discipline-v1]** - [STUB]
+- **[WP-1-Software-Delivery-Overlay-Coordination-Records-v1]** - [STUB]
+- **[WP-1-Software-Delivery-Overlay-Lifecycle-Recovery-Control-Plane-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
 - **[WP-1-Spec-Creation-System-v2.2.1-v1]** - [STUB]
 - **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
@@ -1086,6 +1091,9 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Project-Agnostic-Workflow-State-Registry-v1]** - [VALIDATED]
 
 - **[WP-1-Calendar-Storage-v2]** - [VALIDATED]
+
+
+- **[WP-1-Distillation-v2]** - [VALIDATED]
 
 ## Blocked
 ---

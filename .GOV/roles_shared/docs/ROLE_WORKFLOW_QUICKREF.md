@@ -144,6 +144,8 @@ Primary commands:
 - `just workflow-dossier-init WP-... [output]`
 - `just workflow-dossier-note WP-... <EXECUTION|GOV_CHANGE|CONCERN|FINDING> "<summary>" [--role ROLE] [--tag TAG] [--surface SURFACE]`
 - `just workflow-dossier-sync WP-... [--role ROLE] [--tag ACP_SYNC] [--surface MECHANICAL]`
+- `just workflow-dossier-inject-repomem WP-... [--debug]`
+- `just workflow-dossier-autofill-costs WP-... [--debug]`
 - `just orchestrator-prepare-and-packet` now seeds the live workflow dossier automatically; use `workflow-dossier-init` only for repair or manual re-seeding
 - `just coder-worktree-add WP-...`
 - `just wp-validator-worktree-add WP-...`

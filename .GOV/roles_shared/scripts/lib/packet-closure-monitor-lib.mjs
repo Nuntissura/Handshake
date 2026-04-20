@@ -62,19 +62,21 @@ function replaceSection(text, heading, replacement) {
 
 function extractListItemsAfterLabel(sectionText, label) {
   const lines = String(sectionText || '').split(/\r?\n/);
-  const labelRe = new RegExp(`^(?:-\\s*)?(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*$`, 'i');
+  const labelRe = new RegExp(`^(?:\\s*#{1,6}\\s+|\\s*-\\s*|\\s*)(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*$`, 'i');
   const headingRe = /^#{1,6}\s+\S/;
-  const nextLabelRe = /^(?:-\s*)?(?:\*\*)?[A-Z][A-Z0-9_ ()/.-]*(?:\*\*)?\s*:\s*(?:.+)?$/;
-  const labelIdx = lines.findIndex((line) => labelRe.test(line));
-  if (labelIdx === -1) return [];
-
+  const nextLabelRe = /^(?:\s*-\s*|\s*)[A-Z][A-Z0-9_ ()/.-]*(?:\*\*)?\s*:\s*$/;
+  // Collect items from ALL occurrences (reports are append-only; clause text
+  // may appear in any report, not just the most recent one).
   const items = [];
-  for (let index = labelIdx + 1; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (headingRe.test(line)) break;
-    if (nextLabelRe.test(line)) break;
-    const match = line.match(/^\s*-\s+(.+)\s*$/);
-    if (match) items.push((match[1] || '').trim());
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!labelRe.test(lines[i])) continue;
+    for (let index = i + 1; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (headingRe.test(line)) break;
+      if (nextLabelRe.test(line)) break;
+      const match = line.match(/^\s*-\s+(.+)\s*$/);
+      if (match) items.push((match[1] || '').trim());
+    }
   }
   return items;
 }
@@ -122,7 +124,9 @@ function parseValidationReportsSection(packetText) {
     clausesReviewed: extractListItemsAfterLabel(reportsSection, 'CLAUSES_REVIEWED').filter((item) => !/^NONE$/i.test(item || '')),
     notProven: extractListItemsAfterLabel(reportsSection, 'NOT_PROVEN').filter((item) => !/^NONE$/i.test(item || '')),
     specAlignmentVerdict: (() => {
-      const match = reportsSection.match(/^\s*SPEC_ALIGNMENT_VERDICT\s*:\s*(.+)\s*$/im);
+      const re = /^(?:\s*-\s*|\s*#{1,6}\s+|\s*)SPEC_ALIGNMENT_VERDICT\s*:\s*(.+)\s*$/gim;
+      const matches = [...reportsSection.matchAll(re)];
+      const match = matches.length > 0 ? matches[matches.length - 1] : null;
       return match ? (match[1] || '').trim().toUpperCase() : '';
     })(),
   };

@@ -54,16 +54,17 @@ These are safe starting points for orientation and health checks.
   - inspects the canonisation file set for governance drift and prints the mandatory review checklist; after running it, inspect every listed file and update applicable drift before closeout
 - `just artifact-hygiene-check`
   - `read-only`
-  - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake Artifacts` residue fail closed
+  - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake_Artifacts` residue fail closed
   - retention policy authority: `.GOV/roles_shared/docs/ARTIFACT_RETENTION_POLICY.md`
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
-  - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role, derived stalled-relay status, the active terminal batch id, and owned-terminal metadata/reclaim status
+  - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role, derived stalled-relay status, the runtime-native relay escalation policy (`failure_class`, `policy_state`, `next_strategy`, strategy budget), the active terminal batch id, and owned-terminal metadata/reclaim status
 - `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--observe-only] [--restart-output-idle-seconds N]`
   - `runtime-write`
   - run a local non-LLM relay watcher over one or more orchestrator-managed WPs; stale `WATCH` / `ESCALATED` routes are re-steered only when the projected target session is not already running
   - active target runs are checked conservatively with `session-stall-scan`, which now treats ACP `command_execution`, `file_change`, `web_search`, and `todo_list` events as progress before reporting `WAIT_ACTIVE_RUN` / `REPORT_STALLED_ACTIVE_RUN`
   - successful automatic re-steers increment the runtime relay-cycle counter; healthy lanes reset it; once the WP exhausts `max_relay_escalation_cycles`, the watchdog stops auto-re-waking and leaves the lane attention-visible
+  - every watchdog pass also persists a typed `relay_escalation_policy` object in runtime truth so follow-on status surfaces can read the canonical `failure_class`, `policy_state`, `next_strategy`, and strategy budget instead of reconstructing retry state from counters or prose
   - direct worker interruption uses a separate runtime budget: `current_worker_interrupt_cycle` against `max_worker_interrupt_cycles`
   - `--allow-restart` is default-off; when enabled, restart remains conservative and only cancels/re-steers a proven stale active run after the lane verdict permits bounded worker interruption, freshness guards pass (`COMMAND_RUNNING`, expired `timeout_at`, and old output/session activity), and the worker-interrupt budget has remaining capacity
   - `--observe-only` keeps the command read-only: it prints the same conservative poke verdict the watchdog would use, but does not steer, restart, or mutate runtime state
@@ -109,6 +110,7 @@ These are safe starting points for orientation and health checks.
   - if the target session is not running yet, this helper now starts it and immediately sends the typed route payload in the same invocation
   - the governed prompt carries typed route context (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) derived from receipt/notification truth instead of generic resume prose
   - when stalled-relay escalation is active, this is the canonical continue/repair command instead of silent waiting
+  - before dispatch, the helper now echoes the runtime-native relay escalation policy for the lane (`failure_class`, `policy_state`, `next_strategy`, strategy budget) so repairs are based on canonical runtime truth rather than local transcript interpretation
 - `just manual-relay-next WP-{ID} [--debug]`
   - `read-only`
   - for `WORKFLOW_LANE=MANUAL_RELAY`, inspect runtime next-actor truth without dispatching any prompt; this surface belongs to `CLASSIC_ORCHESTRATOR`
@@ -212,6 +214,7 @@ The following commands now require a `context` string (>=40 chars) that is captu
 - `just orchestrator-steer-next WP-{ID} "<context>" [MODEL] [FLAGS]`
 - `just manual-relay-dispatch WP-{ID} "<context>" [MODEL] [FLAGS]`
 - `just phase-check CLOSEOUT WP-{ID} [ROLE] [session] --sync-mode <MERGE_PENDING|CONTAINED_IN_MAIN|FAIL|OUTDATED_ONLY|ABANDONED> --context "<context>" [--merged-main-sha <SHA>] [--sync-debug]`
+  - closeout readiness and sync guidance now flow through one shared closeout dependency view, so the closeout artifact carries explicit publication truth and blocking keys instead of re-deriving them independently from packet/runtime/task-board state
 - `just wp-traceability-set BASE_WP ACTIVE_WP "<context>"`
 - `just begin-refinement WP-{ID} "<intent>"` (intent serves as context, >=40 chars)
 - `just begin-research "<intent>"` (intent serves as context, >=40 chars)
@@ -254,7 +257,7 @@ These legacy commands still work (they redirect to the governance memory DB) but
   - set traceability mapping between a base WP and its active packet (supersession, versioning)
 - `just wp-lane-health WP-{ID}`
   - `read-only`
-  - inspect lane health for a WP: session liveness, relay state, stall detection
+  - inspect lane health for a WP: session liveness, relay state, stall detection, and whether the runtime-native relay escalation policy has already blocked further automatic recovery
 - `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--observe-only] [--restart-output-idle-seconds N]`
   - `runtime-write`
   - non-LLM relay watcher for orchestrator-managed lanes; consumes receipt/notification/escalation truth, records a `STEERING` receipt when it performs a safe automatic re-wake, and persists both bounded relay-cycle accounting and bounded worker-interrupt accounting into WP runtime status
@@ -394,7 +397,7 @@ Use this flow only for repo-governance maintenance that stays out of product cod
 - `just artifact-cleanup [--dry-run]`
   - `runtime-write`
   - removes only reclaimable stale external artifact folders and repo-local `target/` residue; closeout now runs this mechanically before containment sync
-  - writes a retention manifest under `../Handshake Artifacts/handshake-tool/artifact-retention/`
+  - writes a retention manifest under `../Handshake_Artifacts/handshake-tool/artifact-retention/`
 - `just sync-gov-to-main`
   - `governance-write`
   - mirrors kernel `/.GOV/` into `handshake_main` and auto-commits on local `main`
@@ -449,6 +452,12 @@ These mutate packet, board, traceability, or related governed surfaces.
   - `governance-write`
   - append a fresh mechanical ACP/runtime/receipt snapshot into `LIVE_EXECUTION_LOG` and a latency/drift ledger line into `LIVE_IDLE_LEDGER`
   - the execution snapshot now includes per-lane ACP activity summaries so the Orchestrator can compare idle gaps against actual session output before waking a role
+- `just workflow-dossier-inject-repomem WP-{ID} [--debug]`
+  - `governance-write`
+  - backfill governance-memory session-open, pre-task, insight, and session-close entries into the active workflow dossier without manual copy/paste
+- `just workflow-dossier-autofill-costs WP-{ID} [--debug]`
+  - `governance-write`
+  - backfill cost and token rollups into the active workflow dossier from the authoritative runtime and session telemetry surfaces
 - `just live-smoketest-review-init WP-{ID} [output]`
   - `governance-write`
   - compatibility alias for `just workflow-dossier-init`
@@ -575,7 +584,7 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 - `just closeout-repair WP-{ID} [--dry-run] [--debug]`
   - `governance-write`
   - mechanical closeout pre-repair surface owned by the Orchestrator
-  - run before `phase-check CLOSEOUT` when closeout truth is suspected to be broken; it attempts bounded mechanical repair of packet/runtime/SHA/artifact issues and then expects the canonical `phase-check CLOSEOUT` bundle to carry the real proof
+  - run before `phase-check CLOSEOUT` when closeout truth is suspected to be broken; it attempts bounded mechanical repair of packet/runtime/SHA/artifact issues, reports the shared closeout dependency summary when blockage remains, and then expects the canonical `phase-check CLOSEOUT` bundle to carry the real proof
 - `just wp-communication-health-check WP-{ID} [STATUS|KICKOFF|HANDOFF|VERDICT]`
   - `read-only`
   - low-level communication proof and route health; phase-level role guidance should usually prefer the canonical `phase-check` entrypoint above

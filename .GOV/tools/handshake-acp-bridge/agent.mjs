@@ -6,6 +6,7 @@ import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   appendJsonlLine,
+  enqueuePendingSessionControlRequest,
   ensureSessionStateFiles,
   loadSessionControlResults,
   loadSessionRegistry,
@@ -13,6 +14,9 @@ import {
   markSessionThreadObserved,
   markSessionCommandResult,
   markSessionCommandRunning,
+  peekPendingSessionControlRequest,
+  removePendingSessionControlRequest,
+  registrySessionSummary,
   writeJsonFile,
 } from "../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { reclaimOwnedSessionTerminals } from "../../roles_shared/scripts/session/terminal-ownership-lib.mjs";
@@ -55,6 +59,7 @@ const resultsPath = path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE);
 const orchestratorSteerNextScriptPath = path.resolve(repoRoot, ".GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs");
 const serverHost = "127.0.0.1";
 const activeRuns = new Map();
+const drainingSessions = new Set();
 const socketContexts = new WeakMap();
 const brokerAuthToken = ensureBrokerAuthToken(repoRoot);
 
@@ -213,8 +218,52 @@ function notify(socket, method, params) {
   });
 }
 
+function brokerPort() {
+  const address = server?.address?.();
+  return typeof address === "object" && address ? address.port || 0 : 0;
+}
+
 function findActiveRunBySession(sessionId) {
   return [...activeRuns.values()].find((run) => run.request.session_key === sessionId) || null;
+}
+
+function buildRequestRecord(request, validation) {
+  return {
+    ...request,
+    selected_model: validation.selectedModel || request.selected_model || "",
+    output_jsonl_file: validation.outputFile.replace(/\\/g, "/"),
+    session_thread_id: request.command_kind === "SEND_PROMPT" ? validation.threadId : "",
+  };
+}
+
+function requestWirePayload(requestRecord, {
+  status = "",
+  outcomeState = "",
+  threadId = "",
+  outputJsonlFile = "",
+  lastAgentMessage = "",
+  error = "",
+  durationMs = 0,
+  brokerRunId = "",
+  blockingRunId = "",
+  queueDepth = 0,
+  queuedAt = "",
+} = {}) {
+  return {
+    command_id: requestRecord.command_id,
+    session_id: requestRecord.session_key,
+    thread_id: threadId,
+    status: String(status || "").toLowerCase(),
+    outcome_state: outcomeState,
+    output_jsonl_file: outputJsonlFile,
+    last_agent_message: lastAgentMessage,
+    error,
+    duration_ms: durationMs,
+    broker_run_id: brokerRunId,
+    blocking_run_id: blockingRunId,
+    queue_depth: queueDepth,
+    queued_at: queuedAt,
+  };
 }
 
 function recoverActiveRun(run, repairReason) {
@@ -229,7 +278,7 @@ function recoverActiveRun(run, repairReason) {
   if (run.timer) clearTimeout(run.timer);
   run.settled = true;
   activeRuns.delete(commandId);
-  persistBrokerState(server.address().port);
+  persistBrokerState(brokerPort());
 
   const resultMap = loadResultMap();
   const existingResult = resultMap.get(commandId);
@@ -252,6 +301,7 @@ function recoverActiveRun(run, repairReason) {
       duration_ms: existingResult.duration_ms || 0,
       broker_run_id: commandId,
     });
+    void drainQueuedRequestsForSession(request.session_key);
     return existingResult;
   }
 
@@ -283,6 +333,7 @@ function recoverActiveRun(run, repairReason) {
     durationMs: 0,
     targetCommandId: inferred.targetCommandId,
     cancelStatus: inferred.cancelStatus,
+    governedAction: request.governed_action,
   });
 
   const persisted = mutateSessionRegistrySync(repoRoot, (liveRegistry) => {
@@ -314,6 +365,7 @@ function recoverActiveRun(run, repairReason) {
     duration_ms: result.duration_ms,
     broker_run_id: request.command_id,
   });
+  void drainQueuedRequestsForSession(request.session_key);
   return result;
 }
 
@@ -401,6 +453,8 @@ function ensureResultPersisted(request, session, result) {
 
 function settleRejectedRequest(request, reason) {
   const outputFile = defaultSessionOutputFile(repoRoot, request.session_key, request.command_id);
+  const { registry } = loadSessionRegistry(repoRoot);
+  const currentSession = (registry.sessions || []).find((entry) => entry.session_key === request.session_key) || null;
   const requestsPath = path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE);
   const requestMap = loadRequestMap();
   if (!requestMap.has(request.command_id)) {
@@ -417,7 +471,7 @@ function settleRejectedRequest(request, reason) {
     wpId: request.wp_id,
     role: request.role,
     status: "FAILED",
-    threadId: session?.session_thread_id || "",
+    threadId: currentSession?.session_thread_id || "",
     summary: reason,
     outputJsonlFile: outputFile,
     lastAgentMessage: "",
@@ -425,6 +479,7 @@ function settleRejectedRequest(request, reason) {
     durationMs: 0,
     targetCommandId: request.target_command_id || "",
     cancelStatus: request.command_kind === "CANCEL_SESSION" ? "rejected" : "",
+    governedAction: request.governed_action,
   });
   const persisted = mutateSessionRegistrySync(repoRoot, (registry) => {
     const session = registry.sessions.find((entry) => entry.session_key === request.session_key);
@@ -476,6 +531,7 @@ function reconcileOrphanedRuns() {
       lastAgentMessage: "",
       error: "Handshake ACP broker restarted while the governed run was active.",
       durationMs: 0,
+      governedAction: request.governed_action,
     });
     const persisted = mutateSessionRegistrySync(repoRoot, (registry) => {
       const session = registry.sessions.find((entry) => entry.session_key === request.session_key);
@@ -565,6 +621,334 @@ function validateGovernedRequest(request, expectedCommandKind) {
   };
 }
 
+async function launchGovernedRequestRun({
+  socket = null,
+  rpcId = null,
+  requestRecord,
+  validation,
+  queuedLaunch = false,
+} = {}) {
+  const { absWorktreeDir, selectedModel, selectedProfile, outputFile, threadId } = validation;
+  const requestMap = loadRequestMap();
+  if (!requestMap.has(requestRecord.command_id)) {
+    appendOutputEvent(outputFile, {
+      type: "control.requested",
+      session_id: requestRecord.session_key,
+      command_id: requestRecord.command_id,
+      command_kind: requestRecord.command_kind,
+    });
+    appendJsonlLine(path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE), requestRecord);
+  }
+  if (queuedLaunch) {
+    appendOutputEvent(outputFile, {
+      type: "control.queue.dequeued",
+      session_id: requestRecord.session_key,
+      command_id: requestRecord.command_id,
+      command_kind: requestRecord.command_kind,
+    });
+  }
+
+  mutateSessionRegistrySync(repoRoot, (registry) => {
+    const session = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
+    if (!session) {
+      throw new Error(`Governed session ${requestRecord.session_key} is not registered`);
+    }
+    markSessionCommandRunning(session, requestRecord);
+    session.active_host = SESSION_CONTROL_HOST_PRIMARY;
+    session.active_terminal_kind = SESSION_ACTIVE_TERMINAL_KIND_NONE;
+  });
+
+  const runState = {
+    socket,
+    rpcId,
+    request: requestRecord,
+    outputFile,
+    startedAt: nowIso(),
+    timeoutAt: new Date(Date.now() + (SESSION_CONTROL_RUN_TIMEOUT_SECONDS * 1000)).toISOString(),
+    child: null,
+    childPid: 0,
+    terminationReason: "",
+    cancellationRequested: false,
+    settled: false,
+  };
+  activeRuns.set(requestRecord.command_id, runState);
+  persistBrokerState(brokerPort());
+
+  if (socket && rpcId !== null) {
+    notify(socket, "session/update", {
+      session_id: requestRecord.session_key,
+      stage: "run.started",
+      command_id: requestRecord.command_id,
+      timestamp: runState.startedAt,
+    });
+  }
+
+  const settle = (execution) => {
+    if (runState.settled) return;
+    runState.settled = true;
+    if (runState.timer) clearTimeout(runState.timer);
+    activeRuns.delete(requestRecord.command_id);
+    persistBrokerState(brokerPort());
+
+    const errorMessage = runState.terminationReason || execution.stderr || "";
+    const summary = execution.lastAgentMessage || (errorMessage ? errorMessage : requestRecord.summary);
+    const result = mutateSessionRegistrySync(repoRoot, (registry) => {
+      const latestSession = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
+      if (!latestSession) {
+        throw new Error(`Governed session ${requestRecord.session_key} is not registered`);
+      }
+      const result = buildSessionControlResult({
+        commandId: requestRecord.command_id,
+        commandKind: requestRecord.command_kind,
+        sessionKey: requestRecord.session_key,
+        wpId: requestRecord.wp_id,
+        role: requestRecord.role,
+        status: execution.ok && !runState.terminationReason ? "COMPLETED" : "FAILED",
+        threadId: execution.threadId || latestSession.session_thread_id || "",
+        summary,
+        outputJsonlFile: outputFile,
+        lastAgentMessage: execution.lastAgentMessage || "",
+        error: execution.ok && !runState.terminationReason ? "" : (errorMessage || `governed role command exited with ${execution.exitCode}`),
+        durationMs: execution.durationMs,
+        targetCommandId: requestRecord.target_command_id || "",
+        cancelStatus: "",
+        governedAction: requestRecord.governed_action,
+      });
+
+      ensureResultPersisted(requestRecord, latestSession, result);
+      return result;
+    });
+
+    if (socket && rpcId !== null) {
+      respond(socket, rpcId, requestWirePayload(requestRecord, {
+        status: result.status,
+        outcomeState: result.outcome_state || classifySessionControlOutcomeState({
+          status: result.status,
+          commandKind: requestRecord.command_kind,
+          error: result.error,
+          summary: result.summary,
+          cancelStatus: result.cancel_status,
+        }),
+        threadId: result.thread_id || "",
+        outputJsonlFile: outputFile,
+        lastAgentMessage: result.last_agent_message || "",
+        error: result.error || "",
+        durationMs: result.duration_ms,
+        brokerRunId: requestRecord.command_id,
+      }));
+    }
+
+    try {
+      const reclaimResults = reclaimOwnedSessionTerminals(repoRoot, { sessionKey: requestRecord.session_key });
+      if (socket && rpcId !== null) {
+        for (const reclaim of reclaimResults) {
+          notify(socket, "session/update", {
+            session_id: requestRecord.session_key,
+            stage: "terminal.reclaimed",
+            command_id: requestRecord.command_id,
+            reclaim_status: reclaim.reclaim_status,
+            process_id: reclaim.process_id,
+            terminal_batch_id: reclaim.terminal_batch_id,
+            timestamp: nowIso(),
+          });
+        }
+      }
+    } catch {
+      // Reclaim is best-effort and must not block request settlement.
+    }
+
+    void drainQueuedRequestsForSession(requestRecord.session_key);
+  };
+
+  runState.timer = setTimeout(() => {
+    runState.terminationReason = `Handshake ACP broker timed out after ${SESSION_CONTROL_RUN_TIMEOUT_SECONDS}s`;
+    if (runState.childPid) killProcessTree(runState.childPid);
+  }, SESSION_CONTROL_RUN_TIMEOUT_SECONDS * 1000);
+
+  const runFn = selectedProfile ? runGovernedRoleCommand : runCodexThreadCommand;
+  void runFn({
+    profile: selectedProfile || null,
+    absWorktreeDir,
+    selectedModel,
+    prompt: requestRecord.prompt,
+    outputFile,
+    threadId: requestRecord.command_kind === "SEND_PROMPT" ? threadId : "",
+    environmentOverrides: requestRecord.environment_overrides || {},
+    onSpawn: (child) => {
+      runState.child = child;
+      runState.childPid = child.pid || 0;
+      persistBrokerState(brokerPort());
+      if (runState.terminationReason && runState.childPid) {
+        killProcessTree(runState.childPid);
+      }
+      if (socket && rpcId !== null) {
+        notify(socket, "session/update", {
+          session_id: requestRecord.session_key,
+          stage: "process.spawned",
+          command_id: requestRecord.command_id,
+          pid: runState.childPid,
+          timestamp: nowIso(),
+        });
+      }
+    },
+    onEvent: (event) => {
+      const observedThreadId = event.thread_id || event.session_id || "";
+      if ((event.type === "thread.started" || event.type === "result") && observedThreadId) {
+        mutateSessionRegistrySync(repoRoot, (registry) => {
+          const liveSession = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
+          if (!liveSession) return;
+          markSessionThreadObserved(
+            liveSession,
+            observedThreadId,
+            event.timestamp || nowIso(),
+          );
+        });
+      }
+      if (socket && rpcId !== null) {
+        notify(socket, "session/update", {
+          session_id: requestRecord.session_key,
+          command_id: requestRecord.command_id,
+          stage: event.type || "event",
+          thread_id: observedThreadId,
+          timestamp: nowIso(),
+        });
+      }
+    },
+  }).then(settle).catch((error) => {
+    appendOutputEvent(outputFile, {
+      type: "broker.error",
+      message: error.message || "Handshake ACP broker run failed",
+    });
+    settle({
+      ok: false,
+      exitCode: 1,
+      threadId: threadId || "",
+      lastAgentMessage: "",
+      stderr: error.message || "Handshake ACP broker run failed",
+      durationMs: 0,
+    });
+  });
+}
+
+function queueGovernedRequestOnBusy(socket, rpcId, requestRecord, blockingRun) {
+  const outputFile = requestRecord.output_jsonl_file;
+  const queuedAt = nowIso();
+  const requestMap = loadRequestMap();
+  if (!requestMap.has(requestRecord.command_id)) {
+    appendOutputEvent(outputFile, {
+      type: "control.requested",
+      session_id: requestRecord.session_key,
+      command_id: requestRecord.command_id,
+      command_kind: requestRecord.command_kind,
+    });
+    appendJsonlLine(path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE), requestRecord);
+  }
+  appendOutputEvent(outputFile, {
+    type: "control.busy_queued",
+    session_id: requestRecord.session_key,
+    command_id: requestRecord.command_id,
+    command_kind: requestRecord.command_kind,
+    blocking_command_id: blockingRun?.request?.command_id || "",
+  });
+
+  let queueDepth = 0;
+  mutateSessionRegistrySync(repoRoot, (registry) => {
+    const session = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
+    if (!session) {
+      throw new Error(`Governed session ${requestRecord.session_key} is not registered`);
+    }
+    enqueuePendingSessionControlRequest(session, requestRecord, {
+      queueReasonCode: "BUSY_ACTIVE_RUN",
+      blockingCommandId: blockingRun?.request?.command_id || "",
+      queuedAt,
+    });
+    queueDepth = Array.isArray(session.pending_control_queue) ? session.pending_control_queue.length : 0;
+  });
+  persistBrokerState(brokerPort());
+
+  notify(socket, "session/update", {
+    session_id: requestRecord.session_key,
+    stage: "run.queued",
+    command_id: requestRecord.command_id,
+    blocking_command_id: blockingRun?.request?.command_id || "",
+    queue_depth: queueDepth,
+    timestamp: queuedAt,
+  });
+  respond(socket, rpcId, requestWirePayload(requestRecord, {
+    status: "QUEUED",
+    outcomeState: "ACCEPTED_PENDING",
+    threadId: requestRecord.session_thread_id || "",
+    outputJsonlFile: outputFile,
+    lastAgentMessage: "",
+    error: "",
+    durationMs: 0,
+    brokerRunId: blockingRun?.request?.command_id || "",
+    blockingRunId: blockingRun?.request?.command_id || "",
+    queueDepth,
+    queuedAt,
+  }));
+}
+
+async function drainQueuedRequestsForSession(sessionKeyValue = "") {
+  const normalizedSessionKey = String(sessionKeyValue || "").trim();
+  if (!normalizedSessionKey || drainingSessions.has(normalizedSessionKey)) return;
+  drainingSessions.add(normalizedSessionKey);
+  try {
+    while (!findActiveRunBySession(normalizedSessionKey)) {
+      const { registry } = loadSessionRegistry(repoRoot);
+      const session = (registry.sessions || []).find((entry) => entry.session_key === normalizedSessionKey) || null;
+      const queued = session ? peekPendingSessionControlRequest(session) : null;
+      if (!session || !queued) break;
+
+      const request = loadRequestMap().get(queued.command_id);
+      if (!request) {
+        mutateSessionRegistrySync(repoRoot, (liveRegistry) => {
+          const liveSession = (liveRegistry.sessions || []).find((entry) => entry.session_key === normalizedSessionKey);
+          if (!liveSession) return;
+          removePendingSessionControlRequest(liveSession, queued.command_id);
+        });
+        continue;
+      }
+      if (loadResultMap().has(queued.command_id)) {
+        mutateSessionRegistrySync(repoRoot, (liveRegistry) => {
+          const liveSession = (liveRegistry.sessions || []).find((entry) => entry.session_key === normalizedSessionKey);
+          if (!liveSession) return;
+          removePendingSessionControlRequest(liveSession, queued.command_id);
+        });
+        continue;
+      }
+
+      const validation = validateGovernedRequest(request, request.command_kind);
+      if (validation.existingResult) {
+        mutateSessionRegistrySync(repoRoot, (liveRegistry) => {
+          const liveSession = (liveRegistry.sessions || []).find((entry) => entry.session_key === normalizedSessionKey);
+          if (!liveSession) return;
+          removePendingSessionControlRequest(liveSession, queued.command_id);
+        });
+        continue;
+      }
+      if (!validation.ok) {
+        mutateSessionRegistrySync(repoRoot, (liveRegistry) => {
+          const liveSession = (liveRegistry.sessions || []).find((entry) => entry.session_key === normalizedSessionKey);
+          if (!liveSession) return;
+          removePendingSessionControlRequest(liveSession, queued.command_id);
+        });
+        settleRejectedRequest(request, `Queued request ${queued.command_id} could not be resumed: ${validation.reason}`);
+        continue;
+      }
+
+      await launchGovernedRequestRun({
+        requestRecord: buildRequestRecord(request, validation),
+        validation,
+        queuedLaunch: true,
+      });
+      break;
+    }
+  } finally {
+    drainingSessions.delete(normalizedSessionKey);
+  }
+}
+
 function handleSessionClose(socket, id, params = {}) {
   const request = params.request || params;
   const validation = validateGovernedRequest(request, "CLOSE_SESSION");
@@ -583,6 +967,15 @@ function handleSessionClose(socket, id, params = {}) {
     const result = settleRejectedRequest(
       request,
       `Cannot close ${request.session_key} while governed run ${concurrent.request.command_id} is active.`,
+    );
+    respond(socket, id, result);
+    return;
+  }
+  if (Array.isArray(validation.session?.pending_control_queue) && validation.session.pending_control_queue.length > 0) {
+    const queuedHead = peekPendingSessionControlRequest(validation.session);
+    const result = settleRejectedRequest(
+      request,
+      `Cannot close ${request.session_key} while queued governed prompt ${queuedHead?.command_id || "<unknown>"} is pending.`,
     );
     respond(socket, id, result);
     return;
@@ -628,6 +1021,7 @@ function handleSessionClose(socket, id, params = {}) {
       lastAgentMessage: "",
       error: "",
       durationMs: 0,
+      governedAction: requestRecord.governed_action,
     });
 
     ensureResultPersisted(requestRecord, session, result);
@@ -676,199 +1070,26 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
 
   const remainingConcurrent = findActiveRunBySession(request.session_key);
   if (remainingConcurrent) {
+    const requestRecord = buildRequestRecord(request, validation);
+    if (
+      requestRecord.command_kind === "SEND_PROMPT"
+      && String(requestRecord.busy_ingress_mode || "").trim().toUpperCase() === "ENQUEUE_ON_BUSY"
+    ) {
+      queueGovernedRequestOnBusy(socket, id, requestRecord, remainingConcurrent);
+      return;
+    }
     const result = settleRejectedRequest(
-      request,
+      requestRecord,
       `Concurrent governed run already active for ${request.session_key} (${remainingConcurrent.request.command_id})`,
     );
     respond(socket, id, result);
     return;
   }
-
-  const { absWorktreeDir, selectedModel, selectedProfile, outputFile, threadId } = validation;
-  const requestRecord = {
-    ...request,
-    selected_model: selectedModel,
-    output_jsonl_file: outputFile.replace(/\\/g, "/"),
-    session_thread_id: request.command_kind === "SEND_PROMPT" ? threadId : "",
-  };
-
-  const requestMap = loadRequestMap();
-  if (!requestMap.has(requestRecord.command_id)) {
-    appendOutputEvent(outputFile, {
-      type: "control.requested",
-      session_id: requestRecord.session_key,
-      command_id: requestRecord.command_id,
-      command_kind: requestRecord.command_kind,
-    });
-    appendJsonlLine(path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE), requestRecord);
-  }
-
-  mutateSessionRegistrySync(repoRoot, (registry) => {
-    const session = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
-    if (!session) {
-      throw new Error(`Governed session ${requestRecord.session_key} is not registered`);
-    }
-    markSessionCommandRunning(session, requestRecord);
-    session.active_host = SESSION_CONTROL_HOST_PRIMARY;
-    session.active_terminal_kind = SESSION_ACTIVE_TERMINAL_KIND_NONE;
-  });
-
-  const runState = {
+  await launchGovernedRequestRun({
     socket,
     rpcId: id,
-    request: requestRecord,
-    outputFile,
-    startedAt: nowIso(),
-    timeoutAt: new Date(Date.now() + (SESSION_CONTROL_RUN_TIMEOUT_SECONDS * 1000)).toISOString(),
-    child: null,
-    childPid: 0,
-    terminationReason: "",
-    cancellationRequested: false,
-    settled: false,
-  };
-  activeRuns.set(requestRecord.command_id, runState);
-  persistBrokerState(server.address().port);
-
-  notify(socket, "session/update", {
-    session_id: requestRecord.session_key,
-    stage: "run.started",
-    command_id: requestRecord.command_id,
-    timestamp: runState.startedAt,
-  });
-
-  const settle = (execution) => {
-    if (runState.settled) return;
-    runState.settled = true;
-    if (runState.timer) clearTimeout(runState.timer);
-    activeRuns.delete(requestRecord.command_id);
-    persistBrokerState(server.address().port);
-
-    const errorMessage = runState.terminationReason || execution.stderr || "";
-    const summary = execution.lastAgentMessage || (errorMessage ? errorMessage : requestRecord.summary);
-    const result = mutateSessionRegistrySync(repoRoot, (registry) => {
-      const latestSession = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
-      if (!latestSession) {
-        throw new Error(`Governed session ${requestRecord.session_key} is not registered`);
-      }
-      const result = buildSessionControlResult({
-        commandId: requestRecord.command_id,
-        commandKind: requestRecord.command_kind,
-        sessionKey: requestRecord.session_key,
-        wpId: requestRecord.wp_id,
-        role: requestRecord.role,
-        status: execution.ok && !runState.terminationReason ? "COMPLETED" : "FAILED",
-        threadId: execution.threadId || latestSession.session_thread_id || "",
-        summary,
-        outputJsonlFile: outputFile,
-        lastAgentMessage: execution.lastAgentMessage || "",
-        error: execution.ok && !runState.terminationReason ? "" : (errorMessage || `governed role command exited with ${execution.exitCode}`),
-        durationMs: execution.durationMs,
-        targetCommandId: requestRecord.target_command_id || "",
-        cancelStatus: "",
-      });
-
-      ensureResultPersisted(requestRecord, latestSession, result);
-      return result;
-    });
-
-    respond(socket, id, {
-      command_id: requestRecord.command_id,
-      session_id: requestRecord.session_key,
-      thread_id: result.thread_id || "",
-      status: String(result.status || "").toLowerCase(),
-      outcome_state: result.outcome_state || classifySessionControlOutcomeState({
-        status: result.status,
-        commandKind: requestRecord.command_kind,
-        error: result.error,
-        summary: result.summary,
-        cancelStatus: result.cancel_status,
-      }),
-      output_jsonl_file: outputFile,
-      last_agent_message: result.last_agent_message || "",
-      error: result.error || "",
-      duration_ms: result.duration_ms,
-      broker_run_id: requestRecord.command_id,
-    });
-
-    try {
-      const reclaimResults = reclaimOwnedSessionTerminals(repoRoot, { sessionKey: requestRecord.session_key });
-      for (const r of reclaimResults) {
-        notify(socket, "session/update", {
-          session_id: requestRecord.session_key,
-          stage: "terminal.reclaimed",
-          command_id: requestRecord.command_id,
-          reclaim_status: r.reclaim_status,
-          process_id: r.process_id,
-          terminal_batch_id: r.terminal_batch_id,
-          timestamp: nowIso(),
-        });
-      }
-    } catch { /* reclaim is best-effort; do not fail the settled run */ }
-  };
-
-  runState.timer = setTimeout(() => {
-    runState.terminationReason = `Handshake ACP broker timed out after ${SESSION_CONTROL_RUN_TIMEOUT_SECONDS}s`;
-    if (runState.childPid) killProcessTree(runState.childPid);
-  }, SESSION_CONTROL_RUN_TIMEOUT_SECONDS * 1000);
-
-  const runFn = selectedProfile ? runGovernedRoleCommand : runCodexThreadCommand;
-  void runFn({
-    profile: selectedProfile || null,
-    absWorktreeDir,
-    selectedModel,
-    prompt: requestRecord.prompt,
-    outputFile,
-    threadId: requestRecord.command_kind === "SEND_PROMPT" ? threadId : "",
-    environmentOverrides: requestRecord.environment_overrides || {},
-    onSpawn: (child) => {
-      runState.child = child;
-      runState.childPid = child.pid || 0;
-      persistBrokerState(server.address().port);
-      if (runState.terminationReason && runState.childPid) {
-        killProcessTree(runState.childPid);
-      }
-      notify(socket, "session/update", {
-        session_id: requestRecord.session_key,
-        stage: "process.spawned",
-        command_id: requestRecord.command_id,
-        pid: runState.childPid,
-        timestamp: nowIso(),
-      });
-    },
-    onEvent: (event) => {
-      const observedThreadId = event.thread_id || event.session_id || "";
-      if ((event.type === "thread.started" || event.type === "result") && observedThreadId) {
-        mutateSessionRegistrySync(repoRoot, (registry) => {
-          const liveSession = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
-          if (!liveSession) return;
-          markSessionThreadObserved(
-            liveSession,
-            observedThreadId,
-            event.timestamp || nowIso(),
-          );
-        });
-      }
-      notify(socket, "session/update", {
-        session_id: requestRecord.session_key,
-        command_id: requestRecord.command_id,
-        stage: event.type || "event",
-        thread_id: observedThreadId,
-        timestamp: nowIso(),
-      });
-    },
-  }).then(settle).catch((error) => {
-    appendOutputEvent(outputFile, {
-      type: "broker.error",
-      message: error.message || "Handshake ACP broker run failed",
-    });
-    settle({
-      ok: false,
-      exitCode: 1,
-      threadId: session.session_thread_id || "",
-      lastAgentMessage: "",
-      stderr: error.message || "Handshake ACP broker run failed",
-      durationMs: 0,
-    });
+    requestRecord: buildRequestRecord(request, validation),
+    validation,
   });
 }
 
@@ -882,22 +1103,25 @@ function handleSessionLoad(socket, id, params = {}) {
     respondError(socket, id, -32004, "Governed session not found", { session_id: sessionId });
     return;
   }
+  const summary = registrySessionSummary(session);
   respond(socket, id, {
-    session_id: session.session_key,
-    session_key: session.session_key,
-    role: session.role,
-    wp_id: session.wp_id,
-    thread_id: session.session_thread_id || "",
+    session_id: summary.session_key,
+    session_key: summary.session_key,
+    role: summary.role,
+    wp_id: summary.wp_id,
+    thread_id: summary.session_thread_id || "",
     requested_model: session.requested_model || "",
-    control_protocol: session.control_protocol || "",
-    control_transport: session.control_transport || "",
-    active_host: session.active_host || "NONE",
-    active_terminal_kind: session.active_terminal_kind || "NONE",
-    runtime_state: session.runtime_state || "",
-    last_command_kind: session.last_command_kind || "",
-    last_command_status: session.last_command_status || "",
-    last_command_summary: session.last_command_summary || "",
-    last_command_output_file: session.last_command_output_file || "",
+    control_protocol: summary.control_protocol || "",
+    control_transport: summary.control_transport || "",
+    active_host: summary.active_host || "NONE",
+    active_terminal_kind: summary.active_terminal_kind || "NONE",
+    runtime_state: summary.runtime_state || "",
+    last_command_kind: summary.last_command_kind || "",
+    last_command_status: summary.last_command_status || "",
+    last_command_summary: summary.last_command_summary || "",
+    last_command_output_file: summary.last_command_output_file || "",
+    pending_control_queue_count: summary.pending_control_queue_count || 0,
+    next_queued_control_request: summary.next_queued_control_request || null,
   });
 }
 
@@ -962,6 +1186,7 @@ function handleSessionCancel(socket, id, params = {}) {
         durationMs: 0,
         targetCommandId: requestRecord.target_command_id || runId || "",
         cancelStatus: "not_running",
+        governedAction: requestRecord.governed_action,
       });
       mutateSessionRegistrySync(repoRoot, (registry) => {
         const session = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
@@ -1025,6 +1250,7 @@ function handleSessionCancel(socket, id, params = {}) {
       durationMs: 0,
       targetCommandId: run.request.command_id,
       cancelStatus: "cancellation_requested",
+      governedAction: requestRecord.governed_action,
     });
     mutateSessionRegistrySync(repoRoot, (registry) => {
       const session = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
@@ -1202,6 +1428,12 @@ if (prior.broker_pid && prior.broker_pid !== process.pid && isProcessAlive(prior
 const server = net.createServer(handleSocket);
 server.listen(0, serverHost, () => {
   persistBrokerState(server.address().port);
+  const { registry } = loadSessionRegistry(repoRoot);
+  for (const session of registry.sessions || []) {
+    if (Array.isArray(session.pending_control_queue) && session.pending_control_queue.length > 0) {
+      void drainQueuedRequestsForSession(session.session_key);
+    }
+  }
 });
 
 process.on("SIGINT", shutdown);

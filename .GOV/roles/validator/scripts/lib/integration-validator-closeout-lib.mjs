@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
   currentGitContext,
@@ -32,12 +33,19 @@ import {
 } from "./validator-governance-lib.mjs";
 import { validateSignedScopeCompatibilityTruth } from "../../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
 import { validateCandidateTargetAgainstSignedScope } from "../../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
+import { buildCloseoutDependencyView } from "../../../../roles_shared/scripts/lib/wp-closeout-dependency-lib.mjs";
 import {
   committedEvidenceForCloseout,
   livePrepareWorktreeHealthEvidence,
 } from "./committed-validation-evidence-lib.mjs";
 import { GOV_ROOT_ABS, GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { settleRecoverableSessionControlResults } from "../../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
+import { parseJsonFile } from "../../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { readExecutionPublicationView } from "../../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
+import {
+  buildGovernedActionResult,
+  summarizeGovernedAction,
+} from "../../../../roles_shared/scripts/session/session-governed-action-lib.mjs";
 
 function makeIssueSet() {
   return new Set();
@@ -51,6 +59,49 @@ function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = String(text || "").match(re);
   return match ? match[1].trim() : "";
+}
+
+export function loadDeclaredRuntimeStatus({
+  repoRoot = REPO_ROOT,
+  packetContent = "",
+  fileExists = fs.existsSync,
+  runtimeStatusOverride = undefined,
+} = {}) {
+  if (runtimeStatusOverride !== undefined) {
+    return {
+      runtimeStatusFile: parseSingleField(packetContent, "WP_RUNTIME_STATUS_FILE"),
+      runtimeStatusPathAbs: "",
+      runtimeStatus: runtimeStatusOverride || {},
+      runtimeStatusLoaded: true,
+    };
+  }
+
+  const runtimeStatusFile = parseSingleField(packetContent, "WP_RUNTIME_STATUS_FILE");
+  if (!runtimeStatusFile) {
+    return {
+      runtimeStatusFile: "",
+      runtimeStatusPathAbs: "",
+      runtimeStatus: {},
+      runtimeStatusLoaded: false,
+    };
+  }
+
+  const runtimeStatusPathAbs = repoPathAbs(runtimeStatusFile);
+  if (!fileExists(runtimeStatusPathAbs)) {
+    return {
+      runtimeStatusFile,
+      runtimeStatusPathAbs,
+      runtimeStatus: {},
+      runtimeStatusLoaded: false,
+    };
+  }
+
+  return {
+    runtimeStatusFile,
+    runtimeStatusPathAbs,
+    runtimeStatus: parseJsonFile(runtimeStatusPathAbs),
+    runtimeStatusLoaded: true,
+  };
 }
 
 function normalizeSessionOfRecord(value) {
@@ -118,8 +169,28 @@ function normalizeCloseoutSyncEventMap(rawValue) {
   return Object.fromEntries(
     Object.entries(rawValue)
       .filter(([key, value]) => String(key || "").trim() && Array.isArray(value))
-      .map(([key, value]) => [String(key).trim(), value.filter((entry) => entry && typeof entry === "object")]),
+      .map(([key, value]) => [
+        String(key).trim(),
+        value
+          .map((entry) => normalizeCloseoutSyncEvent(entry))
+          .filter(Boolean),
+      ]),
   );
+}
+
+function normalizeCloseoutSyncEvent(event = null) {
+  if (!event || typeof event !== "object" || Array.isArray(event)) return null;
+  const governedAction = event.governed_action && typeof event.governed_action === "object"
+    ? event.governed_action
+    : null;
+  const governedActionSummary = summarizeGovernedAction(
+    governedAction || event.governed_action_summary || {},
+  );
+  return {
+    ...event,
+    governed_action: governedAction,
+    governed_action_summary: governedActionSummary,
+  };
 }
 
 function defaultGovernanceViolationReporterRole({
@@ -253,7 +324,8 @@ export function appendCloseoutSyncProvenance(gateState = {}, {
   event = null,
 } = {}) {
   const normalizedWpId = String(wpId || "").trim();
-  if (!normalizedWpId || !event || typeof event !== "object") {
+  const normalizedEvent = normalizeCloseoutSyncEvent(event);
+  if (!normalizedWpId || !normalizedEvent) {
     return gateState && typeof gateState === "object" ? { ...gateState } : {};
   }
 
@@ -262,7 +334,7 @@ export function appendCloseoutSyncProvenance(gateState = {}, {
   const existingEvents = Array.isArray(closeoutSyncEvents[normalizedWpId]) ? closeoutSyncEvents[normalizedWpId] : [];
   nextState.closeout_sync_events = {
     ...closeoutSyncEvents,
-    [normalizedWpId]: [...existingEvents, { ...event }],
+    [normalizedWpId]: [...existingEvents, normalizedEvent],
   };
   return nextState;
 }
@@ -273,6 +345,59 @@ export function latestCloseoutSyncEvent(gateState = {}, wpId = "") {
   const closeoutSyncEvents = normalizeCloseoutSyncEventMap(gateState?.closeout_sync_events);
   return [...(closeoutSyncEvents[normalizedWpId] || [])]
     .sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
+}
+
+export function latestCloseoutSyncGovernedAction(gateState = {}, wpId = "") {
+  return latestCloseoutSyncEvent(gateState, wpId)?.governed_action_summary || null;
+}
+
+export function summarizeCloseoutSyncGovernance(gateState = {}, wpId = "") {
+  const latestEvent = latestCloseoutSyncEvent(gateState, wpId);
+  const latestGovernedAction = latestEvent?.governed_action_summary || null;
+  return {
+    status: latestEvent ? "RECORDED" : "MISSING",
+    latestEvent,
+    latestGovernedAction,
+  };
+}
+
+export function buildCloseoutSyncGovernedAction({
+  wpId = "",
+  mode = "",
+  packetStatus = "",
+  mainContainmentStatus = "",
+  actorRole = "INTEGRATION_VALIDATOR",
+  actorSessionKey = "",
+  actorSessionId = "",
+  mergedMainCommit = "",
+  baselineSha = "",
+  summary = "",
+  processedAt = "",
+} = {}) {
+  const normalizedWpId = String(wpId || "").trim() || "WP-UNKNOWN";
+  const timestamp = String(processedAt || "").trim() || new Date().toISOString();
+  const commandId = `integration-validator-closeout-sync-${crypto.randomUUID()}`;
+  return buildGovernedActionResult({
+    ruleId: "INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE",
+    actionKind: "EXTERNAL_EXECUTE",
+    commandKind: "CLOSEOUT_SYNC",
+    actionId: commandId,
+    commandId,
+    sessionKey: String(actorSessionKey || actorSessionId || `INTEGRATION_VALIDATOR:${normalizedWpId}`).trim(),
+    wpId: normalizedWpId,
+    role: String(actorRole || "INTEGRATION_VALIDATOR").trim(),
+    status: "COMPLETED",
+    outcomeState: "SETTLED",
+    summary: String(summary || `Integration Validator recorded closeout sync ${mode || "<unknown>"} for ${normalizedWpId}.`).trim(),
+    processedAt: timestamp,
+    metadata: {
+      closeout_mode: String(mode || "").trim(),
+      packet_status: String(packetStatus || "").trim(),
+      main_containment_status: String(mainContainmentStatus || "").trim(),
+      merged_main_commit: String(mergedMainCommit || "").trim(),
+      baseline_sha: String(baselineSha || "").trim(),
+    },
+  });
 }
 
 function defaultGitRunner(worktreeAbs, args) {
@@ -598,25 +723,35 @@ export function evaluateIntegrationValidatorCloseoutState({
   });
   const candidateSignedScope = topology.targetHeadSha
     ? validateCandidateTargetAgainstSignedScope(packetContent, {
-      repoRoot,
-      targetHeadSha: topology.targetHeadSha,
-      currentMainHeadSha: topology.currentMainHeadSha || "",
+        repoRoot,
+        targetHeadSha: topology.targetHeadSha,
+        currentMainHeadSha: topology.currentMainHeadSha || "",
       gitRunner,
     })
     : {
       ok: false,
       errors: ["candidate target validation requires committed target_head_sha"],
     };
-
-  return {
-    ok: topology.ok
-      && closeoutBundle.ok
-      && (!requireRecordedScopeCompatibility || scopeCompatibility.errors.length === 0)
-      && candidateSignedScope.errors.length === 0,
+  const dependencyView = buildCloseoutDependencyView({
+    packetContent,
+    closeoutRequirements: {
+      requireReadyForPass,
+      requireRecordedScopeCompatibility,
+      terminalNonPass: false,
+    },
     topology,
     closeoutBundle,
     scopeCompatibility,
     candidateSignedScope,
+  });
+
+  return {
+    ok: dependencyView.ok,
+    topology,
+    closeoutBundle,
+    scopeCompatibility,
+    candidateSignedScope,
+    dependencyView,
     issues: [
       ...topology.issues,
       ...closeoutBundle.issues,
@@ -654,10 +789,21 @@ function isTerminalNonPassPacketState({ packetStatus = "", currentWpStatus = "" 
 
 export function resolveIntegrationValidatorCloseoutRequirements({
   packetContent = "",
+  runtimeStatus = undefined,
+  taskBoardStatus = "",
   allowSyncRepair = false,
 } = {}) {
-  const packetStatus = parseStatus(packetContent);
-  const currentWpStatus = parseCurrentWpStatus(packetContent);
+  const packetStatusArtifact = parseStatus(packetContent);
+  const currentWpStatusArtifact = parseCurrentWpStatus(packetContent);
+  const publication = readExecutionPublicationView({
+    runtimeStatus: runtimeStatus || {},
+    packetStatus: packetStatusArtifact,
+    taskBoardStatus,
+  });
+  const packetStatus = publication.packet_status || packetStatusArtifact;
+  const currentWpStatus = publication.has_canonical_authority
+    ? (publication.task_board_status || currentWpStatusArtifact)
+    : (currentWpStatusArtifact || publication.task_board_status || "");
   const terminalNonPass = isTerminalNonPassPacketState({
     packetStatus,
     currentWpStatus,
@@ -711,6 +857,7 @@ export function buildIntegrationValidatorCloseoutCheckResult({
   }
 
   const gateState = loadIntegrationValidatorGateState(normalizedWpId);
+  const closeoutSyncGovernance = summarizeCloseoutSyncGovernance(gateState, normalizedWpId);
   const committedEvidence = gateState?.committed_validation_evidence?.[normalizedWpId] || null;
   const actorContext = resolveValidatorActorContext({
     repoRoot,
@@ -718,8 +865,13 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     packetContent,
     gitContext,
   });
+  const declaredRuntime = loadDeclaredRuntimeStatus({
+    repoRoot,
+    packetContent,
+  });
   const closeoutRequirements = resolveIntegrationValidatorCloseoutRequirements({
     packetContent,
+    runtimeStatus: declaredRuntime.runtimeStatus,
     allowSyncRepair,
   });
   const initialBrokerState = readJsonFile(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE), { active_runs: [] });
@@ -743,9 +895,23 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     requireReadyForPass: closeoutRequirements.requireReadyForPass,
     requireRecordedScopeCompatibility: closeoutRequirements.requireRecordedScopeCompatibility,
   });
+  const closeoutDependencyView = buildCloseoutDependencyView({
+    packetContent,
+    runtimeStatus: declaredRuntime.runtimeStatus,
+    closeoutRequirements,
+    topology: evaluation.topology,
+    closeoutBundle: evaluation.closeoutBundle,
+    scopeCompatibility: evaluation.scopeCompatibility,
+    candidateSignedScope: evaluation.candidateSignedScope,
+    closeoutSyncGovernance,
+  });
 
   if (!evaluation.ok) {
     return integrationValidatorCloseoutFailure("Integration-validator topology or closeout bundle is not ready", [
+      `dependency_summary=${closeoutDependencyView.summary}`,
+      ...closeoutDependencyView.blocking_keys.map((key) =>
+        `blocking_dependency.${key}=${closeoutDependencyView.dependencies[key]?.summary || "UNKNOWN"}`
+      ),
       ...evaluation.issues,
     ], 1);
   }
@@ -753,11 +919,21 @@ export function buildIntegrationValidatorCloseoutCheckResult({
   return {
     ok: true,
     exitCode: 0,
-    message: `${normalizedWpId} final-lane topology and closeout bundle are coherent`,
+    message: `${normalizedWpId} final-lane closeout dependencies are coherent`,
+    closeoutSyncGovernance,
+    closeoutDependencyView,
     details: [
+      `dependency_summary=${closeoutDependencyView.summary}`,
+      `publication_mode=${closeoutDependencyView.publication.closeout_mode}`,
+      `publication_verdict=${closeoutDependencyView.publication.validation_verdict}`,
+      `publication_main_containment=${closeoutDependencyView.publication.main_containment_status}`,
       `target_head_sha=${evaluation.topology.targetHeadSha || "<unknown>"}`,
       `current_main_head_sha=${evaluation.topology.currentMainHeadSha || "<unknown>"}`,
-      `current_main_compatibility_status=${evaluation.scopeCompatibility?.parsed?.currentMainCompatibilityStatus || "<unknown>"}`,
+      `dependency.topology=${closeoutDependencyView.dependencies.topology.status}:${closeoutDependencyView.dependencies.topology.summary}`,
+      `dependency.closeout_bundle=${closeoutDependencyView.dependencies.closeout_bundle.status}:${closeoutDependencyView.dependencies.closeout_bundle.summary}`,
+      `dependency.scope_compatibility=${closeoutDependencyView.dependencies.scope_compatibility.status}:${closeoutDependencyView.dependencies.scope_compatibility.summary}`,
+      `dependency.candidate_target=${closeoutDependencyView.dependencies.candidate_target.status}:${closeoutDependencyView.dependencies.candidate_target.summary}`,
+      `dependency.sync_provenance=${closeoutDependencyView.dependencies.sync_provenance.status}:${closeoutDependencyView.dependencies.sync_provenance.summary}`,
       `sync_repair_mode=${allowSyncRepair ? "ENABLED" : "DISABLED"}`,
       `require_ready_for_pass=${closeoutRequirements.requireReadyForPass ? "YES" : "NO"}`,
       `terminal_non_pass_packet=${closeoutRequirements.terminalNonPass ? "YES" : "NO"}`,
@@ -766,6 +942,10 @@ export function buildIntegrationValidatorCloseoutCheckResult({
       `result_count=${evaluation.closeoutBundle.summary.result_count}`,
       `session_count=${evaluation.closeoutBundle.summary.session_count}`,
       `active_run_count=${evaluation.closeoutBundle.summary.active_run_count}`,
+      `latest_closeout_sync_mode=${closeoutSyncGovernance.latestEvent?.mode || "NONE"}`,
+      `latest_closeout_sync_recorded_at=${closeoutSyncGovernance.latestEvent?.timestamp_utc || "NONE"}`,
+      `latest_closeout_governed_action_rule=${closeoutSyncGovernance.latestGovernedAction?.rule_id || "NONE"}`,
+      `latest_closeout_governed_action_disposition=${closeoutSyncGovernance.latestGovernedAction?.resume_disposition || "NONE"}`,
       `self_settled_count=${settlement.settled.length}`,
       `next=just validator-gate-commit ${normalizedWpId}`,
     ],

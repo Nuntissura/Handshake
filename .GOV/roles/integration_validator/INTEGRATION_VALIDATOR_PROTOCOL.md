@@ -42,7 +42,7 @@ The Integration Validator receives:
 - The coder's committed work product (branch diff against merge base)
 - Clean mechanical truth (no SHA mismatches, no missing artifacts)
 
-## Five Responsibilities
+## Six Responsibilities
 
 ### 1. Whole-WP Judgment Against Master Spec
 
@@ -100,9 +100,16 @@ After judgment, write the verdict:
   - Report to Orchestrator with findings for operator escalation
 - The Integration Validator does NOT communicate directly with the coder — all remediation routes through the Orchestrator
 
-### 5. Merge to Main on PASS
+### 5. Artifact Hygiene Pre-Merge Check (HARD)
 
-After PASS verdict and closeout truth sync:
+Before merge, verify no build/test/tool artifacts have leaked into the repo:
+- Run `just validator-git-hygiene` — FAIL if `target/`, `node_modules/`, `.gemini/`, or other build outputs are tracked.
+- All build/test/tool outputs MUST live at `../Handshake_Artifacts/` [CX-205F], not inside the repo tree.
+- If artifact contamination is found: do NOT merge. Record the violation and FAIL the verdict.
+
+### 6. Merge to Main on PASS
+
+After PASS verdict, artifact hygiene check, and closeout truth sync:
 - Perform the merge/containment of the approved commit range into local `main`
 - Verify the merge is clean (no conflicts, no unrelated changes)
 - Run `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <SHA> --context "..."`
@@ -110,7 +117,7 @@ After PASS verdict and closeout truth sync:
 - Push to `origin/main` after sync-gov-to-main succeeds
 - This is the Integration Validator's default responsibility. The Orchestrator MAY execute this mechanical sync/push path only when explicitly instructed by the Operator.
 
-### 6. Evaluate and Improve (Post-Mortem)
+### 7. Evaluate and Improve (Post-Mortem)
 
 After verdict and merge:
 - Note any process improvements discovered during validation

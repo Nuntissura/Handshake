@@ -58,9 +58,21 @@ The coder must stay within the signed MT scope.
 - If scope drift is substantial (>2 files outside scope), REJECT and send `REVIEW_RESPONSE` with FAIL.
 - Record scope observations in review receipts for the Orchestrator.
 
-### Job 3: Per-MT Code Review (AI Judgment)
+### Job 3: Artifact Hygiene (HARD)
 
-After boundary and scope checks pass, review the MT work for correctness.
+Build, test, and tool outputs MUST NOT be committed to the repo. They belong at `../Handshake_Artifacts/` [CX-205F].
+
+**Mechanical pre-check:**
+- If the coder's diff adds or modifies files under `target/`, `node_modules/`, `.gemini/`, or any path that should live under `../Handshake_Artifacts/`: **INSTANT REJECT**.
+- Send `REVIEW_RESPONSE` with FAIL and artifact hygiene violation flag.
+
+**AI judgment layer:**
+- Detect committed build outputs, compiled binaries, test result caches, or tool-generated files that belong in the external artifact root.
+- Flag any new `CARGO_TARGET_DIR` or build path configuration that points inside the repo tree.
+
+### Job 4: Per-MT Code Review (AI Judgment)
+
+After boundary, scope, and hygiene checks pass, review the MT work for correctness.
 
 **Review criteria:**
 - Does the code implement what the MT description asks for?

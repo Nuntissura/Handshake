@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { parseJsonFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { materializeRuntimeAuthorityView } from "../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
 import { repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -105,7 +106,7 @@ function loadPacketRuntime(wpId) {
   return {
     packetPath,
     runtimePath,
-    runtimeStatus: parseJsonFile(runtimePath),
+    runtimeStatus: materializeRuntimeAuthorityView(parseJsonFile(runtimePath)),
   };
 }
 

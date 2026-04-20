@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   appendJsonlLine,
+  isPendingSessionControlRequest,
   loadSessionControlRequests,
   loadSessionControlResults,
   loadSessionRegistry,
@@ -212,6 +213,7 @@ export function settleRecoverableSessionControlResults(repoRoot, {
     if (activeRunIds.has(commandId)) continue;
 
     const session = sessionByKey.get(String(request?.session_key || "").trim()) || null;
+    if (session && isPendingSessionControlRequest(session, commandId)) continue;
     const inferred = inferRecoverableSessionControlResult({
       repoRoot,
       request,
@@ -239,6 +241,7 @@ export function settleRecoverableSessionControlResults(repoRoot, {
       durationMs: 0,
       targetCommandId: inferred.targetCommandId,
       cancelStatus: inferred.cancelStatus,
+      governedAction: request.governed_action,
     });
 
     mutateSessionRegistrySync(repoRoot, (liveRegistry) => {

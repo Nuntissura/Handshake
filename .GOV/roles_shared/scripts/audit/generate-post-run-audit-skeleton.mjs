@@ -31,7 +31,10 @@ import {
   parseJsonFile,
   parseJsonlFile,
 } from "../lib/wp-communications-lib.mjs";
+import { readExecutionPublicationView } from "../lib/wp-execution-state-lib.mjs";
+import { deriveValidatorGateSessionStatus } from "../lib/validator-gate-governed-action-lib.mjs";
 import { resolveValidatorGatePath } from "../lib/validator-gate-paths.mjs";
+import { latestCloseoutSyncEvent } from "../../../roles/validator/scripts/lib/integration-validator-closeout-lib.mjs";
 import {
   repoPathAbs,
   resolveOrchestratorGatesPath,
@@ -180,6 +183,14 @@ function taskBoardStatus(governanceRepoRoot, wpId) {
   return match ? match[1].trim() : "";
 }
 
+function readPublicationStatusView({ governanceRepoRoot, wpId, packetText, runtime } = {}) {
+  return readExecutionPublicationView({
+    runtimeStatus: runtime || {},
+    packetStatus: parsePacketStatus(packetText),
+    taskBoardStatus: taskBoardStatus(governanceRepoRoot, wpId),
+  });
+}
+
 function readBrokerState(repoRoot) {
   const brokerPath = path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE);
   const broker = fs.existsSync(brokerPath) ? parseJsonFile(brokerPath) : null;
@@ -314,19 +325,24 @@ function readValidatorGateSummary(wpId) {
 
   const raw = parseJsonFile(gatePath);
   const session = raw?.validation_sessions?.[wpId] || null;
+  const sessionView = deriveValidatorGateSessionStatus(session || {});
   const committedEvidence = raw?.committed_validation_evidence?.[wpId] || null;
   const gates = Array.isArray(session?.gates) ? session.gates : [];
+  const latestCloseoutEvent = latestCloseoutSyncEvent(raw, wpId);
   return {
     exists: true,
     gatePath,
     verdict: session?.verdict || "NONE",
-    status: session?.status || "NONE",
+    status: sessionView.status || session?.status || "NONE",
     gateCount: gates.length,
     lastGate: gates.at(-1) || null,
+    lastGovernedAction: sessionView.lastGovernedAction || null,
     committedEvidenceStatus: committedEvidence?.status || "NONE",
     committedEvidenceTarget: committedEvidence?.committed_validation_target || "NONE",
     committedEvidenceHead: committedEvidence?.target_head_sha || "NONE",
     committedEvidenceValidatedAt: committedEvidence?.validated_at || "NONE",
+    lastCloseoutSyncEvent: latestCloseoutEvent || null,
+    lastCloseoutGovernedAction: latestCloseoutEvent?.governed_action_summary || null,
   };
 }
 
@@ -401,6 +417,7 @@ function buildSkeleton({
   receiptsPath,
   threadPath,
   runtime,
+  runtimePublication,
   receipts,
   threadSummary,
   gateLogs,
@@ -415,8 +432,8 @@ function buildSkeleton({
   communicationBoundaryEvaluation,
   computedPolicyEvaluation,
 }) {
-  const packetStatus = parsePacketStatus(packetText) || "<missing>";
-  const boardStatus = taskBoardStatus(governanceRepoRoot, wpId) || "<missing>";
+  const packetStatus = runtimePublication?.packet_status || parsePacketStatus(packetText) || "<missing>";
+  const boardStatus = runtimePublication?.task_board_status || taskBoardStatus(governanceRepoRoot, wpId) || "<missing>";
   const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const receiptSummary = formatReceiptSummary(receipts);
   const receiptKindLines = formatReceiptKinds(receipts);
@@ -527,10 +544,13 @@ function buildSkeleton({
     `- SESSION_STATUS: ${validatorGateSummary.status || "NONE"}`,
     `- GATE_COUNT: ${validatorGateSummary.gateCount || 0}`,
     `- LAST_GATE: ${validatorGateSummary.lastGate ? `${validatorGateSummary.lastGate.gate} @ ${validatorGateSummary.lastGate.timestamp || "<missing>"}` : "NONE"}`,
+    `- LAST_GOVERNED_GATE_ACTION: ${validatorGateSummary.lastGovernedAction ? `${validatorGateSummary.lastGovernedAction.rule_id || "NONE"} | ${validatorGateSummary.lastGovernedAction.gate_status || "NONE"} | ${validatorGateSummary.lastGovernedAction.updated_at || "<missing>"}` : "NONE"}`,
+    `- LAST_GOVERNED_CLOSEOUT_ACTION: ${validatorGateSummary.lastCloseoutGovernedAction ? `${validatorGateSummary.lastCloseoutGovernedAction.rule_id || "NONE"} | ${validatorGateSummary.lastCloseoutGovernedAction.resume_disposition || "NONE"} | ${validatorGateSummary.lastCloseoutGovernedAction.updated_at || "<missing>"}` : "NONE"}`,
     `- COMMITTED_EVIDENCE_STATUS: ${validatorGateSummary.committedEvidenceStatus || "NONE"}`,
     `- COMMITTED_EVIDENCE_TARGET: ${validatorGateSummary.committedEvidenceTarget || "NONE"}`,
     `- COMMITTED_EVIDENCE_HEAD: ${validatorGateSummary.committedEvidenceHead || "NONE"}`,
     `- COMMITTED_EVIDENCE_VALIDATED_AT: ${validatorGateSummary.committedEvidenceValidatedAt || "NONE"}`,
+    `- LAST_CLOSEOUT_SYNC_MODE: ${validatorGateSummary.lastCloseoutSyncEvent?.mode || "NONE"}`,
     "",
     "## Computed Closure Snapshot",
     `- APPLICABLE: ${computedPolicyEvaluation?.applicable ? "YES" : "NO"}`,
@@ -672,6 +692,7 @@ function buildLiveReview({
   receiptsPath,
   threadPath,
   runtime,
+  runtimePublication,
   receipts,
   threadSummary,
   sessions,
@@ -684,8 +705,8 @@ function buildLiveReview({
   const dateTag = formatDateTag(now);
   const slugUnderscore = auditSlugFromWpId(wpId);
   const slugHyphen = auditSlugHyphen(wpId);
-  const packetStatus = parsePacketStatus(packetText) || "<missing>";
-  const boardStatus = taskBoardStatus(governanceRepoRoot, wpId) || "<missing>";
+  const packetStatus = runtimePublication?.packet_status || parsePacketStatus(packetText) || "<missing>";
+  const boardStatus = runtimePublication?.task_board_status || taskBoardStatus(governanceRepoRoot, wpId) || "<missing>";
   const workflowLane = parseSingleField(packetText, "WORKFLOW_LANE") || "<missing>";
   const executionOwner = parseSingleField(packetText, "EXECUTION_OWNER") || "<missing>";
   const microtaskRows = buildPerMicrotaskSeedRows(listMicrotasks(packetAbsPath));
@@ -909,7 +930,7 @@ function buildLiveReview({
     "",
     "## 9b. Build Artifact Hygiene",
     "",
-    "- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake Artifacts`",
+    "- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake_Artifacts`",
     "- BUILD_TARGET_CLEANED_BY: NONE",
     "- BUILD_TARGET_CLEANED_AT: N/A",
     "- BUILD_TARGET_STATE_AT_CLOSEOUT: NOT_CHECKED",
@@ -1099,6 +1120,13 @@ function main() {
   const threadPath = parseSingleField(packetText, "WP_THREAD_FILE");
   const commDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
   const runtime = runtimePath && fs.existsSync(repoPathAbs(runtimePath)) ? parseJsonFile(runtimePath) : null;
+  const runtimePublication = readPublicationStatusView({
+    governanceRepoRoot,
+    wpId: options.wpId,
+    packetText,
+    runtime,
+  });
+  const runtimeView = runtimePublication.runtime;
   const receipts = receiptsPath && fs.existsSync(repoPathAbs(receiptsPath)) ? parseJsonlFile(receiptsPath) : [];
   const threadSummary = readThreadSummary(threadPath);
   const notificationSummary = summarizeNotifications(options.wpId, commDir);
@@ -1118,7 +1146,7 @@ function main() {
     communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
     communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
     receipts,
-    runtimeStatus: runtime || {},
+    runtimeStatus: runtimeView || {},
   };
   const communicationStatusEvaluation = evaluateWpCommunicationHealth({
     ...communicationHealthArgs,
@@ -1131,7 +1159,7 @@ function main() {
   const communicationBoundaryEvaluation = evaluateWpCommunicationBoundary({
     stage: "VERDICT",
     statusEvaluation: communicationVerdictEvaluation,
-    runtimeStatus: runtime || {},
+    runtimeStatus: runtimeView || {},
     latestReceipt,
     pendingNotifications,
   });
@@ -1169,7 +1197,8 @@ function main() {
         runtimePath,
         receiptsPath,
         threadPath,
-        runtime,
+        runtime: runtimeView,
+        runtimePublication,
         receipts,
         threadSummary,
         sessions,
@@ -1188,7 +1217,8 @@ function main() {
         runtimePath,
         receiptsPath,
         threadPath,
-        runtime,
+        runtime: runtimeView,
+        runtimePublication,
         receipts,
         threadSummary,
         gateLogs,

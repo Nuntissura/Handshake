@@ -36,9 +36,16 @@ import {
     resolveValidatorActorContext,
 } from '../scripts/lib/validator-governance-lib.mjs';
 import {
+    appendValidatorGateGovernedAction,
+    buildValidatorGateGovernedAction,
+    deriveValidatorGateSessionStatus,
+    normalizeValidatorGateSession,
+} from '../../../roles_shared/scripts/lib/validator-gate-governed-action-lib.mjs';
+import {
     committedEvidenceForCloseout,
     livePrepareWorktreeHealthEvidence,
 } from '../scripts/lib/committed-validation-evidence-lib.mjs';
+import { latestCloseoutSyncEvent } from '../scripts/lib/integration-validator-closeout-lib.mjs';
 import { registerFailCaptureHook, failWithMemory } from '../../../roles_shared/scripts/lib/fail-capture-lib.mjs';
 registerFailCaptureHook("validator_gates.mjs", { role: "WP_VALIDATOR" });
 
@@ -55,7 +62,11 @@ function stateFilePath(wpId) {
 function normalizeState(raw) {
     const validation_sessions =
         raw?.validation_sessions && typeof raw.validation_sessions === 'object'
-            ? raw.validation_sessions
+            ? Object.fromEntries(
+                Object.entries(raw.validation_sessions)
+                    .map(([key, value]) => [String(key).trim(), normalizeValidatorGateSession(value)])
+                    .filter(([key]) => key),
+            )
             : {};
     const committed_validation_evidence =
         raw?.committed_validation_evidence && typeof raw.committed_validation_evidence === 'object'
@@ -68,7 +79,9 @@ function normalizeState(raw) {
 
     return {
         validation_sessions,
-        archived_sessions: Array.isArray(raw?.archived_sessions) ? raw.archived_sessions : [],
+        archived_sessions: Array.isArray(raw?.archived_sessions)
+            ? raw.archived_sessions.map((entry) => normalizeValidatorGateSession(entry))
+            : [],
         committed_validation_evidence,
         closeout_sync_events,
     };
@@ -140,7 +153,8 @@ function assertWpId(id) {
 }
 
 function getSession(state, wpId) {
-    return state?.validation_sessions?.[wpId] || null;
+    const session = state?.validation_sessions?.[wpId] || null;
+    return session ? normalizeValidatorGateSession(session) : null;
 }
 
 function validatorGovernanceStateForWp(wpId, sessionStatus = '') {
@@ -161,6 +175,42 @@ function currentValidatorActorContextForWp(wpId) {
         packetContent: loadPacket(wpId),
         gitContext,
     });
+}
+
+function effectiveSessionStatus(session) {
+    return deriveValidatorGateSessionStatus(session).status;
+}
+
+function recordGateAction(session, {
+    wpId,
+    gateAction,
+    actorContext = null,
+    summary = "",
+    gateStatus = "",
+    gateVerdict = "",
+    previousStatus = "",
+    processedAt = "",
+    metadata = {},
+} = {}) {
+    const resolvedActorContext = actorContext || currentValidatorActorContextForWp(wpId);
+    const action = buildValidatorGateGovernedAction({
+        wpId,
+        gateAction,
+        sessionKey: session?.validator_session_key
+            || resolvedActorContext?.actorSessionKey
+            || resolvedActorContext?.actorSessionId
+            || "",
+        role: session?.validator_role
+            || resolvedActorContext?.actorRole
+            || "WP_VALIDATOR",
+        summary,
+        gateStatus,
+        gateVerdict,
+        previousStatus,
+        processedAt,
+        metadata,
+    });
+    return appendValidatorGateGovernedAction(session, action);
 }
 
 function failIfWrongToolLaneForGovernedGateWrite(wpId, actionName) {
@@ -276,9 +326,9 @@ if (action === 'present-report') {
     assertWpId(wpId);
     failIfWrongToolLaneForGovernedGateWrite(wpId, 'present-report');
     const state = loadWpState(wpId);
-    const session = getSession(state, wpId);
+    let session = getSession(state, wpId);
     const verdictArg = extraArg?.trim() ? extraArg.trim().toUpperCase() : null;
-    failIfLegacyRemediationRequired(wpId, session?.status || '');
+    failIfLegacyRemediationRequired(wpId, effectiveSessionStatus(session || {}));
 
     if (!session) {
         fail(`No validation session for ${wpId}`, [
@@ -286,6 +336,7 @@ if (action === 'present-report') {
             `Run: just validator-gate-append ${wpId} {PASS|FAIL|ABANDONED}`
         ]);
     }
+    const currentSessionStatus = effectiveSessionStatus(session);
 
     if (verdictArg && verdictArg !== 'PASS' && verdictArg !== 'FAIL' && verdictArg !== 'ABANDONED') {
         fail('Verdict must be PASS, FAIL, or ABANDONED (or omitted)', [`Received: ${extraArg}`]);
@@ -301,7 +352,7 @@ if (action === 'present-report') {
     // Enforce "present only at the end" pause:
     // - FAIL: after append
     // - PASS: after commit gate
-    if (session.status === 'REPORT_PRESENTED') {
+    if (currentSessionStatus === 'REPORT_PRESENTED') {
         success(`Gate 3 SKIPPED: ${wpId} already in state REPORT_PRESENTED`, [
             `Verdict: ${session.verdict}`,
             '',
@@ -311,7 +362,7 @@ if (action === 'present-report') {
         process.exit(0);
     }
 
-    if (session.status === 'USER_ACKNOWLEDGED') {
+    if (currentSessionStatus === 'USER_ACKNOWLEDGED') {
         success(`Gate 3 SKIPPED: ${wpId} already acknowledged`, [
             `Verdict: ${session.verdict}`,
         ]);
@@ -319,16 +370,16 @@ if (action === 'present-report') {
     }
 
     if (session.verdict === 'PASS') {
-        if (session.status !== 'COMMITTED') {
-            fail(`Cannot present report for ${wpId} in state ${session.status}`, [
+        if (currentSessionStatus !== 'COMMITTED') {
+            fail(`Cannot present report for ${wpId} in state ${currentSessionStatus}`, [
                 'PASS flow requires commit gate before final report presentation.',
                 'Expected state: COMMITTED',
                 `Next: just validator-gate-commit ${wpId}`
             ]);
         }
     } else {
-        if (session.status !== 'WP_APPENDED') {
-            fail(`Cannot present report for ${wpId} in state ${session.status}`, [
+        if (currentSessionStatus !== 'WP_APPENDED') {
+            fail(`Cannot present report for ${wpId} in state ${currentSessionStatus}`, [
                 `${session.verdict} flow requires append gate before final report presentation.`,
                 'Expected state: WP_APPENDED',
                 `Next: just validator-gate-append ${wpId} ${session.verdict}`
@@ -348,6 +399,15 @@ if (action === 'present-report') {
         verdict: session.verdict,
         timestamp: new Date().toISOString()
     });
+    session = recordGateAction(session, {
+        wpId,
+        gateAction: 'PRESENT_REPORT',
+        summary: `Validation report presentation recorded for ${wpId}.`,
+        gateStatus: 'REPORT_PRESENTED',
+        gateVerdict: session.verdict,
+        previousStatus: currentSessionStatus,
+    });
+    state.validation_sessions[wpId] = session;
     saveWpState(wpId, state);
 
     success(`Gate 3 PASSED: Report presented for ${wpId}`, [
@@ -367,16 +427,17 @@ if (action === 'acknowledge') {
     failIfWrongToolLaneForGovernedGateWrite(wpId, 'acknowledge');
 
     const state = loadWpState(wpId);
-    const session = getSession(state, wpId);
-    failIfLegacyRemediationRequired(wpId, session?.status || '');
+    let session = getSession(state, wpId);
+    failIfLegacyRemediationRequired(wpId, effectiveSessionStatus(session || {}));
     if (!session) {
         fail(`No validation session for ${wpId}`, [
             `Run: just validator-gate-append ${wpId} {PASS|FAIL|ABANDONED}`
         ]);
     }
+    const currentSessionStatus = effectiveSessionStatus(session);
 
-    if (session.status !== 'REPORT_PRESENTED') {
-        fail(`Cannot acknowledge: ${wpId} is in state ${session.status}`, [
+    if (currentSessionStatus !== 'REPORT_PRESENTED') {
+        fail(`Cannot acknowledge: ${wpId} is in state ${currentSessionStatus}`, [
             'Expected state: REPORT_PRESENTED'
         ]);
     }
@@ -393,6 +454,15 @@ if (action === 'acknowledge') {
         timestamp: new Date().toISOString()
     });
     session.completed = new Date().toISOString();
+    session = recordGateAction(session, {
+        wpId,
+        gateAction: 'ACKNOWLEDGE',
+        summary: `Validation report acknowledgment recorded for ${wpId}.`,
+        gateStatus: 'USER_ACKNOWLEDGED',
+        gateVerdict: session.verdict,
+        previousStatus: currentSessionStatus,
+    });
+    state.validation_sessions[wpId] = session;
     saveWpState(wpId, state);
 
     if (session.verdict === 'PASS') {
@@ -439,7 +509,7 @@ if (action === 'append') {
     }
 
     let session = getSession(state, wpId);
-    failIfLegacyRemediationRequired(wpId, session?.status || '');
+    failIfLegacyRemediationRequired(wpId, effectiveSessionStatus(session || {}));
     const nowIso = new Date().toISOString();
     if (!session) {
         if (!verdictArg) {
@@ -449,6 +519,7 @@ if (action === 'append') {
         }
 
         let actorAuthority = null;
+        const actorContext = currentValidatorActorContextForWp(wpId);
         if (verdictArg === 'PASS') {
             actorAuthority = ensurePassAuthorityForWp(wpId, null, 'PASS append');
         }
@@ -457,21 +528,33 @@ if (action === 'append') {
             wpId,
             verdict: verdictArg,
             status: 'WP_APPENDED',
-            validator_role: actorAuthority?.actorContext?.actorRole || '',
-            validator_session_key: actorAuthority?.actorContext?.actorSessionKey || '',
-            validator_session_id: actorAuthority?.actorContext?.actorSessionId || '',
-            validator_thread_id: actorAuthority?.actorContext?.actorThreadId || '',
-            validator_branch: actorAuthority?.actorContext?.actorBranch || '',
-            validator_worktree_dir: actorAuthority?.actorContext?.actorWorktreeDir || '',
+            validator_role: actorAuthority?.actorContext?.actorRole || actorContext?.actorRole || '',
+            validator_session_key: actorAuthority?.actorContext?.actorSessionKey || actorContext?.actorSessionKey || '',
+            validator_session_id: actorAuthority?.actorContext?.actorSessionId || actorContext?.actorSessionId || '',
+            validator_thread_id: actorAuthority?.actorContext?.actorThreadId || actorContext?.actorThreadId || '',
+            validator_branch: actorAuthority?.actorContext?.actorBranch || actorContext?.actorBranch || '',
+            validator_worktree_dir: actorAuthority?.actorContext?.actorWorktreeDir || actorContext?.actorWorktreeDir || '',
             technical_authority: actorAuthority?.authority?.technicalAuthority || '',
             merge_authority: actorAuthority?.authority?.mergeAuthority || '',
             started: nowIso,
+            governed_action_history: [],
+            last_governed_action: null,
             gates: [{
                 gate: 'WP_APPENDED',
                 verdict: verdictArg,
                 timestamp: nowIso
             }]
         };
+        session = recordGateAction(session, {
+            wpId,
+            gateAction: 'APPEND',
+            actorContext: actorAuthority?.actorContext || actorContext,
+            summary: `Validation report append recorded for ${wpId}.`,
+            gateStatus: 'WP_APPENDED',
+            gateVerdict: verdictArg,
+            previousStatus: '',
+            processedAt: nowIso,
+        });
         state.validation_sessions[wpId] = session;
         saveWpState(wpId, state);
 
@@ -503,15 +586,16 @@ if (action === 'append') {
             `Provided: ${verdictArg}`
         ]);
     }
+    const currentSessionStatus = effectiveSessionStatus(session);
 
-    if (session.status === 'WP_APPENDED') {
+    if (currentSessionStatus === 'WP_APPENDED') {
         success(`Gate 1 SKIPPED: ${wpId} already in state WP_APPENDED`, [
             `Verdict: ${session.verdict}`
         ]);
         process.exit(0);
     }
 
-    fail(`Cannot append: ${wpId} is in state ${session.status}`, [
+    fail(`Cannot append: ${wpId} is in state ${currentSessionStatus}`, [
         'Append is the first gate in the sequence.',
         'If you need to re-run gates for this WP, reset the session first:',
         `Run: just validator-gate-reset ${wpId} --confirm`
@@ -527,13 +611,14 @@ if (action === 'commit') {
     failIfWrongToolLaneForGovernedGateWrite(wpId, 'commit');
 
     const state = loadWpState(wpId);
-    const session = getSession(state, wpId);
-    failIfLegacyRemediationRequired(wpId, session?.status || '');
+    let session = getSession(state, wpId);
+    failIfLegacyRemediationRequired(wpId, effectiveSessionStatus(session || {}));
     if (!session) {
         fail(`No validation session for ${wpId}`, [
             `Run: just validator-gate-append ${wpId} PASS`
         ]);
     }
+    const currentSessionStatus = effectiveSessionStatus(session);
 
     if (session.verdict !== 'PASS') {
         fail(`Cannot commit: ${wpId} verdict was ${session.verdict}`, [
@@ -542,7 +627,7 @@ if (action === 'commit') {
         ]);
     }
 
-    if (session.status === 'COMMITTED') {
+    if (currentSessionStatus === 'COMMITTED') {
         success(`Gate 2 SKIPPED: ${wpId} already in state COMMITTED`, [
             '',
             '[NEXT] Paste the full validation report to chat (right before merge), then record it:',
@@ -551,8 +636,8 @@ if (action === 'commit') {
         process.exit(0);
     }
 
-    if (session.status !== 'WP_APPENDED') {
-        fail(`Cannot commit: ${wpId} is in state ${session.status}`, [
+    if (currentSessionStatus !== 'WP_APPENDED') {
+        fail(`Cannot commit: ${wpId} is in state ${currentSessionStatus}`, [
             'Expected state: WP_APPENDED',
             'Complete all prior gates before committing'
         ]);
@@ -622,6 +707,16 @@ if (action === 'commit') {
         gate: 'COMMITTED',
         timestamp: new Date().toISOString()
     });
+    session = recordGateAction(session, {
+        wpId,
+        gateAction: 'COMMIT',
+        actorContext: actorAuthority.actorContext,
+        summary: `PASS commit clearance recorded for ${wpId}.`,
+        gateStatus: 'COMMITTED',
+        gateVerdict: session.verdict,
+        previousStatus: currentSessionStatus,
+    });
+    state.validation_sessions[wpId] = session;
     saveWpState(wpId, state);
 
     success(`Gate 2 PASSED: ${wpId} cleared for commit`, [
@@ -646,7 +741,8 @@ if (action === 'status') {
 
     const state = loadWpState(wpId);
     const session = getSession(state, wpId);
-    const governanceState = validatorGovernanceStateForWp(wpId, session?.status || '');
+    const sessionView = deriveValidatorGateSessionStatus(session || {});
+    const governanceState = validatorGovernanceStateForWp(wpId, sessionView.status || session?.status || '');
     if (!session) {
         console.log(`[VALIDATOR GATE STATUS] No session for ${wpId}`);
         if (governanceState.legacyRemediationRequired) {
@@ -662,7 +758,7 @@ if (action === 'status') {
 
     console.log(`[VALIDATOR GATE STATUS] ${wpId}`);
     console.log(`  Verdict: ${session.verdict}`);
-    console.log(`  Status: ${session.status}`);
+    console.log(`  Status: ${sessionView.status}`);
     console.log(`  Started: ${session.started}`);
     if (session.completed) {
         console.log(`  Completed: ${session.completed}`);
@@ -683,6 +779,14 @@ if (action === 'status') {
         console.log(`    Technical authority: ${session.technical_authority || '<unspecified>'}`);
         console.log(`    Merge authority: ${session.merge_authority || '<unspecified>'}`);
     }
+    if (sessionView.lastGovernedAction) {
+        console.log('  Last governed gate action:');
+        console.log(`    Rule: ${sessionView.lastGovernedAction.rule_id || '<none>'}`);
+        console.log(`    Action: ${sessionView.lastGovernedAction.gate_action || sessionView.lastGovernedAction.action_kind || '<none>'}`);
+        console.log(`    Gate status: ${sessionView.lastGovernedAction.gate_status || '<none>'}`);
+        console.log(`    Resume disposition: ${sessionView.lastGovernedAction.resume_disposition || '<none>'}`);
+        console.log(`    Updated at: ${sessionView.lastGovernedAction.updated_at || '<none>'}`);
+    }
     const committedEvidence = state?.committed_validation_evidence?.[wpId] || null;
     const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
     const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
@@ -697,19 +801,20 @@ if (action === 'status') {
     } else {
         console.log('  Committed validation: (missing)');
     }
-    const latestCloseoutSyncEvent = Array.isArray(state?.closeout_sync_events?.[wpId])
-        ? [...state.closeout_sync_events[wpId]]
-            .sort((left, right) => String(right?.timestamp_utc || '').localeCompare(String(left?.timestamp_utc || '')))[0]
-        : null;
-    if (latestCloseoutSyncEvent) {
+    const latestCloseoutEvent = latestCloseoutSyncEvent(state, wpId);
+    if (latestCloseoutEvent) {
         console.log('  Latest closeout sync:');
-        console.log(`    Mode: ${latestCloseoutSyncEvent.mode || '<none>'}`);
-        console.log(`    Packet status: ${latestCloseoutSyncEvent.packet_status || '<none>'}`);
-        console.log(`    Main containment: ${latestCloseoutSyncEvent.main_containment_status || '<none>'}`);
-        console.log(`    Actor: ${latestCloseoutSyncEvent.actor_role || '<none>'} / ${latestCloseoutSyncEvent.actor_session_id || '<none>'}`);
-        console.log(`    Recorded at: ${latestCloseoutSyncEvent.timestamp_utc || '<none>'}`);
-        if (latestCloseoutSyncEvent.merged_main_commit) {
-            console.log(`    Merged main commit: ${latestCloseoutSyncEvent.merged_main_commit}`);
+        console.log(`    Mode: ${latestCloseoutEvent.mode || '<none>'}`);
+        console.log(`    Packet status: ${latestCloseoutEvent.packet_status || '<none>'}`);
+        console.log(`    Main containment: ${latestCloseoutEvent.main_containment_status || '<none>'}`);
+        console.log(`    Actor: ${latestCloseoutEvent.actor_role || '<none>'} / ${latestCloseoutEvent.actor_session_id || '<none>'}`);
+        console.log(`    Recorded at: ${latestCloseoutEvent.timestamp_utc || '<none>'}`);
+        if (latestCloseoutEvent.governed_action_summary) {
+            console.log(`    Governed action rule: ${latestCloseoutEvent.governed_action_summary.rule_id || '<none>'}`);
+            console.log(`    Governed action disposition: ${latestCloseoutEvent.governed_action_summary.resume_disposition || '<none>'}`);
+        }
+        if (latestCloseoutEvent.merged_main_commit) {
+            console.log(`    Merged main commit: ${latestCloseoutEvent.merged_main_commit}`);
         }
     }
     console.log('  Gates:');
@@ -737,7 +842,7 @@ if (action === 'status') {
     };
     console.log(`  Next: ${governanceState.legacyRemediationRequired
         ? 'BLOCKED - request new remediation WP variant; do not merge or reopen this packet in-place'
-        : (nextActions[session.status] || 'unknown')}`);
+        : (nextActions[sessionView.status] || 'unknown')}`);
     process.exit(0);
 }
 
@@ -767,6 +872,19 @@ if (action === 'reset') {
         archived_at: new Date().toISOString(),
         archive_reason: 'manual_reset'
     });
+    const resetSession = recordGateAction(session, {
+        wpId,
+        gateAction: 'RESET',
+        summary: `Validator gate session reset recorded for ${wpId}.`,
+        gateStatus: 'RESET',
+        gateVerdict: session.verdict,
+        previousStatus: effectiveSessionStatus(session),
+    });
+    state.archived_sessions[state.archived_sessions.length - 1] = {
+        ...state.archived_sessions[state.archived_sessions.length - 1],
+        governed_action_history: resetSession.governed_action_history,
+        last_governed_action: resetSession.last_governed_action,
+    };
 
     delete state.validation_sessions[wpId];
     saveWpState(wpId, state);

@@ -9,7 +9,7 @@ import { buildSteeringPrompt, resolveRoleConfig } from "../../../roles_shared/sc
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { defaultSessionOutputFile } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
-import { parseJsonFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { repoPathAbs, resolveWorkPacketPath, REPO_ROOT, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { checkNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { steerActionForSession } from "./lib/orchestrator-steer-lib.mjs";
@@ -19,6 +19,8 @@ import {
   preferredTargetSession,
 } from "./lib/manual-relay-envelope-lib.mjs";
 import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
+import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 
 const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 const SESSION_CONTROL_COMMAND_PATH = path.resolve(
@@ -84,7 +86,32 @@ if (!runtimeStatusFile || !fs.existsSync(repoPathAbs(runtimeStatusFile))) {
   fail("WP runtime status file is missing", [runtimeStatusFile || "<missing>"]);
 }
 
+const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
 const runtimeStatus = parseJsonFile(runtimeStatusFile);
+const receipts = receiptsFile && fs.existsSync(repoPathAbs(receiptsFile)) ? parseJsonlFile(receiptsFile) : [];
+const communicationEvaluation = evaluateWpCommunicationHealth({
+  wpId,
+  stage: "STATUS",
+  packetPath,
+  packetContent: packetText,
+  workflowLane,
+  packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
+  communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
+  communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
+  receipts,
+  runtimeStatus,
+});
+const packetRuntimeDrift = evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus, {
+  communicationEvaluation,
+});
+if (!packetRuntimeDrift.ok) {
+  fail("Packet/runtime projection drift blocks manual relay dispatch until workflow truth is reconciled", [
+    packetRuntimeDrift.owner_summary || "drift owner unknown",
+    ...packetRuntimeDrift.issues,
+    packetPath,
+    runtimeStatusFile,
+  ]);
+}
 const nextActor = normalizeRole(runtimeStatus.next_expected_actor);
 if (!ACTIVE_ROLE_SET.has(nextActor)) {
   fail("No governed next actor is currently projected for manual relay", [

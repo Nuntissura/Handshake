@@ -8,15 +8,17 @@ import {
   packetExists,
   packetPath,
   parseCurrentWpStatus,
-  parseStatus,
   taskBoardStatus,
 } from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { evaluateWpDeclaredTopology } from "../../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
+import { buildCloseoutDependencyView } from "../../../../roles_shared/scripts/lib/wp-closeout-dependency-lib.mjs";
 import { REPO_ROOT, repoPathAbs } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { resolveValidatorGatePath } from "../../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import {
   evaluateIntegrationValidatorCloseoutState,
   latestCloseoutSyncEvent,
+  latestCloseoutSyncGovernedAction,
+  loadDeclaredRuntimeStatus,
   resolveIntegrationValidatorCloseoutRequirements,
 } from "./integration-validator-closeout-lib.mjs";
 import {
@@ -28,6 +30,8 @@ import {
   committedEvidenceForCloseout,
   livePrepareWorktreeHealthEvidence,
 } from "./committed-validation-evidence-lib.mjs";
+import { parsePacketStatus, taskBoardStatusForPacketStatus } from "../../../../roles_shared/scripts/lib/wp-authority-projection-lib.mjs";
+import { readExecutionPublicationView } from "../../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
 
 const COMMAND_SURFACE_PATH = ".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md";
 
@@ -80,6 +84,8 @@ export function buildIntegrationValidatorContextBrief({
   results = null,
   registrySessions = null,
   brokerState = null,
+  runtimeStatus = undefined,
+  taskBoardStatusOverride = "",
   gitRunner = null,
   worktreeExists = fs.existsSync,
   fileExists = fs.existsSync,
@@ -92,9 +98,25 @@ export function buildIntegrationValidatorContextBrief({
 
   const packetPathValue = normalizePath(packetPathValueOverride || packetPath(wpId));
   const packetReadPath = normalizePath(repoPathAbs(packetPathValue));
-  const packetStatus = normalizeStatus(parseStatus(packetContent), "<missing>");
-  const currentWpStatus = normalizeStatus(parseCurrentWpStatus(packetContent), "<empty>");
-  const boardStatus = normalizeStatus(taskBoardStatus(wpId), "<none>");
+  const packetStatusArtifact = parsePacketStatus(packetContent);
+  const currentWpStatusArtifact = parseCurrentWpStatus(packetContent);
+  const boardStatusArtifact = String(taskBoardStatusOverride || taskBoardStatus(wpId) || "").trim();
+  const publication = readExecutionPublicationView({
+    runtimeStatus: runtimeStatus || {},
+    packetStatus: packetStatusArtifact,
+    taskBoardStatus: boardStatusArtifact || taskBoardStatusForPacketStatus(packetStatusArtifact || ""),
+  });
+  const packetStatus = normalizeStatus(publication.packet_status || packetStatusArtifact, "<missing>");
+  const currentWpStatus = normalizeStatus(
+    publication.has_canonical_authority
+      ? (publication.task_board_status || currentWpStatusArtifact)
+      : (currentWpStatusArtifact || publication.task_board_status),
+    "<empty>",
+  );
+  const boardStatus = normalizeStatus(
+    publication.task_board_status || boardStatusArtifact || taskBoardStatusForPacketStatus(packetStatusArtifact || ""),
+    "<none>",
+  );
   const authority = readValidatorAuthority(packetContent);
   const actorContext = resolveValidatorActorContext({
     repoRoot,
@@ -105,6 +127,8 @@ export function buildIntegrationValidatorContextBrief({
   });
   const closeoutRequirements = resolveIntegrationValidatorCloseoutRequirements({
     packetContent,
+    runtimeStatus,
+    taskBoardStatus: publication.task_board_status || boardStatusArtifact,
   });
   const governanceState = evaluateValidatorPacketGovernanceState({
     wpId,
@@ -138,6 +162,21 @@ export function buildIntegrationValidatorContextBrief({
   const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
   const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
   const latestCloseoutEvent = latestCloseoutSyncEvent(gateState, wpId);
+  const latestCloseoutGovernedAction = latestCloseoutSyncGovernedAction(gateState, wpId);
+  const closeoutDependencyView = buildCloseoutDependencyView({
+    packetContent,
+    runtimeStatus,
+    taskBoardStatus: publication.task_board_status || boardStatusArtifact,
+    closeoutRequirements,
+    topology: closeoutEvaluation.topology,
+    closeoutBundle: closeoutEvaluation.closeoutBundle,
+    scopeCompatibility: closeoutEvaluation.scopeCompatibility,
+    candidateSignedScope: closeoutEvaluation.candidateSignedScope,
+    closeoutSyncGovernance: {
+      latestEvent: latestCloseoutEvent,
+      latestGovernedAction: latestCloseoutGovernedAction,
+    },
+  });
 
   const contextStatus = !governanceState.allowValidationResume
     ? "GOVERNANCE_BLOCKED"
@@ -179,6 +218,9 @@ export function buildIntegrationValidatorContextBrief({
       require_recorded_scope_compatibility: closeoutRequirements.requireRecordedScopeCompatibility,
       terminal_non_pass_packet: closeoutRequirements.terminalNonPass,
     },
+    closeout_dependency_summary: closeoutDependencyView.summary,
+    closeout_publication: closeoutDependencyView.publication,
+    closeout_dependencies: closeoutDependencyView.dependencies,
     workflow_lane: authority.workflowLane || "<missing>",
     packet_path: packetPathValue,
     packet_read_path: packetReadPath || "<missing>",
@@ -268,6 +310,10 @@ export function buildIntegrationValidatorContextBrief({
       main_containment_status: normalizeStatus(latestCloseoutEvent?.main_containment_status, "NONE"),
       merged_main_commit: normalizeStatus(latestCloseoutEvent?.merged_main_commit, "NONE"),
       baseline_sha: normalizeStatus(latestCloseoutEvent?.current_main_compatibility_baseline_sha, "NONE"),
+      governed_action_rule: normalizeStatus(latestCloseoutGovernedAction?.rule_id, "NONE"),
+      governed_action_kind: normalizeStatus(latestCloseoutGovernedAction?.action_kind, "NONE"),
+      governed_action_resume_disposition: normalizeStatus(latestCloseoutGovernedAction?.resume_disposition, "NONE"),
+      governed_action_updated_at: normalizeStatus(latestCloseoutGovernedAction?.updated_at, "NONE"),
     },
     required_commands: requiredCommandsForState({
       wpId,
@@ -284,15 +330,18 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- WP_ID: ${brief.wp_id}`,
     `- CONTEXT_STATUS: ${brief.context_status}`,
     `- CLOSEOUT_READINESS: ${brief.closeout_readiness}`,
+    `- CLOSEOUT_DEPENDENCY_SUMMARY: ${brief.closeout_dependency_summary}`,
     `- WORKFLOW_LANE: ${brief.workflow_lane} | PACKET_STATUS: ${brief.packet_status} | CURRENT_WP_STATUS: ${brief.current_wp_status} | TASK_BOARD_STATUS: ${brief.task_board_status}`,
     `- CLOSEOUT_REQUIREMENTS: require_ready_for_pass=${brief.closeout_requirements.require_ready_for_pass ? "YES" : "NO"} | require_recorded_scope_compatibility=${brief.closeout_requirements.require_recorded_scope_compatibility ? "YES" : "NO"} | terminal_non_pass_packet=${brief.closeout_requirements.terminal_non_pass_packet ? "YES" : "NO"}`,
+    `- CLOSEOUT_PUBLICATION: mode=${brief.closeout_publication.closeout_mode} | verdict=${brief.closeout_publication.validation_verdict} | containment=${brief.closeout_publication.main_containment_status} | canonical=${brief.closeout_publication.has_canonical_authority ? "YES" : "NO"}`,
+    `- CLOSEOUT_DEPENDENCIES: topology=${brief.closeout_dependencies.topology.status} | bundle=${brief.closeout_dependencies.closeout_bundle.status} | scope=${brief.closeout_dependencies.scope_compatibility.status} | candidate=${brief.closeout_dependencies.candidate_target.status} | provenance=${brief.closeout_dependencies.sync_provenance.status}`,
     `- AUTHORITIES: technical=${brief.authority.technical_authority} | merge=${brief.authority.merge_authority} | integration_validator=${brief.authority.integration_validator_of_record} | wp_validator=${brief.authority.wp_validator_of_record}`,
     `- ACTOR_CONTEXT: role=${brief.actor_context.role} | source=${brief.actor_context.source} | session=${brief.actor_context.session_id} | thread=${brief.actor_context.thread_id} | branch=${brief.actor_context.branch}`,
     `- GOVERNANCE_ROOT: live=${brief.governance_root.live_root} | main_backup=${brief.governance_root.local_main_backup_root} | mode=${brief.governance_root.mode}`,
     `- COMMITTED_HANDOFF: status=${brief.committed_handoff.status} | live_prepare=${brief.committed_handoff.live_prepare_worktree_status} | mode=${brief.committed_handoff.committed_validation_mode} | target=${brief.committed_handoff.committed_validation_target}`,
     `- MAIN_COMPATIBILITY: status=${brief.current_main_compatibility.status} | baseline=${brief.current_main_compatibility.baseline_sha} | verified_at=${brief.current_main_compatibility.verified_at_utc} | main_head=${brief.current_main_compatibility.current_main_head_sha}`,
     `- CLOSEOUT_BUNDLE: requests=${brief.closeout_bundle.request_count} | results=${brief.closeout_bundle.result_count} | sessions=${brief.closeout_bundle.session_count} | active_runs=${brief.closeout_bundle.active_run_count}`,
-    `- CLOSEOUT_PROVENANCE: status=${brief.closeout_provenance.status} | mode=${brief.closeout_provenance.mode} | actor=${brief.closeout_provenance.actor_role}/${brief.closeout_provenance.actor_session_id} | recorded_at=${brief.closeout_provenance.recorded_at_utc}`,
+    `- CLOSEOUT_PROVENANCE: status=${brief.closeout_provenance.status} | mode=${brief.closeout_provenance.mode} | actor=${brief.closeout_provenance.actor_role}/${brief.closeout_provenance.actor_session_id} | governed_action=${brief.closeout_provenance.governed_action_rule}/${brief.closeout_provenance.governed_action_resume_disposition} | recorded_at=${brief.closeout_provenance.recorded_at_utc}`,
     `- ARTIFACT_POINTERS: packet_logical=${brief.packet_path} | packet_read=${brief.packet_read_path} | command_surface=${brief.command_surface_path} | gate_state=${brief.committed_handoff.gate_state_path} | prepare_worktree=${brief.committed_handoff.prepare_worktree_dir}`,
     `- MINIMAL_LIVE_READ_SET: ${formatBoundedList(brief.minimal_live_read_set, 6).join(" | ")}`,
     `- STARTUP_SEQUENCE: ${brief.startup_sequence.join(" -> ")}`,
@@ -347,14 +396,20 @@ export function buildIntegrationValidatorContextBriefFromEnvironment({
       resolvedGateState = JSON.parse(fs.readFileSync(repoPathAbs(resolvedGateStatePath), "utf8"));
     }
   }
+  const packetContent = loadPacket(normalizedWpId);
+  const declaredRuntime = loadDeclaredRuntimeStatus({
+    repoRoot: repoRoot || resolvedGitContext.topLevel || REPO_ROOT,
+    packetContent,
+  });
 
   return buildIntegrationValidatorContextBrief({
     repoRoot: repoRoot || resolvedGitContext.topLevel || REPO_ROOT,
     wpId: normalizedWpId,
-    packetContent: loadPacket(normalizedWpId),
+    packetContent,
     gitContext: resolvedGitContext,
     gateState: resolvedGateState,
     committedEvidence: resolvedGateState?.committed_validation_evidence?.[normalizedWpId] || null,
+    runtimeStatus: declaredRuntime.runtimeStatus,
     gateStatePath: resolvedGateStatePath,
   });
 }

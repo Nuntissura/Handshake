@@ -63,18 +63,21 @@ function extractSectionAfterHeading(text, heading) {
 }
 
 function parseSectionField(sectionText, label) {
-  // RGF-90: accept optional "- " bullet prefix so validator reports with markdown bullets parse correctly.
-  const re = new RegExp(`^\\s*(?:-\\s*)?${label}\\s*:\\s*(.+)\\s*$`, "im");
+  // RGF-90 + RGF-197: accept bullet, heading, or bare prefix.
+  // Use first match — in append-only reports the authoritative Integration Validator
+  // report comes before later WP Validator reports that may have different verdicts.
+  const re = new RegExp(`^(?:\\s*-\\s*|\\s*#{1,6}\\s+|\\s*)(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "im");
   const match = String(sectionText || "").match(re);
   return match ? match[1].trim() : "";
 }
 
 function extractListItemsAfterLabel(sectionText, label) {
   const lines = String(sectionText || "").split(/\r?\n/);
-  // RGF-90: accept optional "- " bullet prefix on label lines.
-  const labelRe = new RegExp(`^\\s*(?:-\\s*)?${label}\\s*:\\s*$`, "i");
+  // RGF-90 + RGF-197: accept heading prefix; use first match to stay consistent
+  // with parseSectionField (both read the authoritative report, not a later WP Validator report).
+  const labelRe = new RegExp(`^(?:\\s*#{1,6}\\s+|\\s*-\\s*|\\s*)(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*$`, "i");
   const headingRe = /^#{1,6}\s+\S/;
-  const nextLabelRe = /^\s*(?:-\s*)?[A-Z][A-Z0-9_ ()/-]*\s*:\s*$/;
+  const nextLabelRe = /^(?:\s*-\s*|\s*)[A-Z][A-Z0-9_ ()/-]*\s*:\s*$/;
 
   const labelIdx = lines.findIndex((line) => labelRe.test(line));
   if (labelIdx === -1) return [];
@@ -119,7 +122,11 @@ function riskTierRank(value) {
 }
 
 function lacksConcreteListEvidence(items = []) {
-  return items.some((item) => !/^NONE$/i.test(String(item || "").trim()) && !hasConcreteCodeReference(item));
+  // RGF-197: majority-based — require at least half the substantive items to have concrete refs.
+  const substantive = items.filter((item) => !/^NONE$/i.test(String(item || "").trim()));
+  if (substantive.length === 0) return false;
+  const withEvidence = substantive.filter((item) => hasConcreteCodeReference(item));
+  return withEvidence.length < Math.ceil(substantive.length / 2);
 }
 
 function hasConcreteCodeReference(value) {

@@ -18,6 +18,7 @@ import {
   parsePacketSingleField,
 } from "./scope-surface-lib.mjs";
 import { deriveWpMicrotaskPlan } from "./wp-microtask-lib.mjs";
+import { materializeRuntimeAuthorityView } from "./wp-execution-state-lib.mjs";
 import { validatorReportProfileUsesHeuristicRigor } from "./validator-report-profile-lib.mjs";
 
 export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STARTUP", "STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
@@ -152,6 +153,7 @@ function partitionOpenReviewItems(openReviewItems = []) {
  * @returns {{ items: Array, next_action: string, blocked_reason: string|null }}
  */
 export function buildRoleInbox(role, runtimeStatus = {}) {
+  runtimeStatus = materializeRuntimeAuthorityView(runtimeStatus);
   const normalizedRole = normalizeRole(role);
   const openItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
   const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
@@ -277,6 +279,13 @@ function startupMeshAlreadySatisfied({ counts = {}, runtimeStatus = {} } = {}) {
 
 function activeCorrelationIdsFromStatus(statusEvaluation = null, runtimeStatus = {}) {
   const ids = new Set();
+  const anchoredCorrelationId = nullableComparable(runtimeStatus?.route_anchor_correlation_id);
+  if (anchoredCorrelationId) {
+    ids.add(anchoredCorrelationId);
+    if (String(statusEvaluation?.state || "").trim().toUpperCase() === "COMM_BLOCKED_OPEN_ITEMS") {
+      return ids;
+    }
+  }
   for (const item of Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : []) {
     const correlationId = nullableComparable(item?.correlation_id);
     if (correlationId) ids.add(correlationId);
@@ -330,6 +339,17 @@ function notificationMatchesProjectedRoute(notification = null, autoRoute = null
   return Boolean(correlationId) && activeCorrelationIds.has(correlationId);
 }
 
+function runtimeFallbackNotificationRoute(runtimeStatus = {}) {
+  const nextExpectedActor = normalizeRole(runtimeStatus?.route_anchor_target_role || runtimeStatus?.next_expected_actor);
+  if (!nextExpectedActor || nextExpectedActor === "NONE") return null;
+  return {
+    applicable: true,
+    nextExpectedActor,
+    nextExpectedSession: normalizeSession(runtimeStatus?.route_anchor_target_session || runtimeStatus?.next_expected_session),
+    secondaryNotifications: [],
+  };
+}
+
 export function deriveActiveWpNotificationProjection({
   statusEvaluation = null,
   runtimeStatus = {},
@@ -337,6 +357,7 @@ export function deriveActiveWpNotificationProjection({
   latestReceipt = null,
   autoRoute = null,
 } = {}) {
+  runtimeStatus = materializeRuntimeAuthorityView(runtimeStatus);
   const unreadNotifications = Array.isArray(pendingNotifications) ? pendingNotifications : [];
   const fallbackVisible = latestProjectedNotifications(unreadNotifications);
   if (unreadNotifications.length === 0) {
@@ -353,6 +374,28 @@ export function deriveActiveWpNotificationProjection({
   }
 
   if (!statusEvaluation?.applicable) {
+    const runtimeFallbackRouteProjection = runtimeFallbackNotificationRoute(runtimeStatus);
+    if (runtimeFallbackRouteProjection) {
+      const activeCorrelationIds = activeCorrelationIdsFromStatus(statusEvaluation, runtimeStatus);
+      const visibleNotifications = latestProjectedNotifications(
+        unreadNotifications.filter((entry) =>
+          notificationMatchesProjectedRoute(entry, runtimeFallbackRouteProjection, activeCorrelationIds)
+        ),
+      );
+      if (visibleNotifications.length > 0) {
+        const hiddenNotifications = unreadNotifications.filter((entry) => !visibleNotifications.includes(entry));
+        return {
+          notifications: visibleNotifications,
+          pendingCount: visibleNotifications.length,
+          byKind: buildNotificationKindCounts(visibleNotifications),
+          hiddenNotifications,
+          hiddenPendingCount: hiddenNotifications.length,
+          hiddenByKind: buildNotificationKindCounts(hiddenNotifications),
+          historyHidden: hiddenNotifications.length > 0,
+          autoRoute: runtimeFallbackRouteProjection,
+        };
+      }
+    }
     return {
       notifications: fallbackVisible,
       pendingCount: fallbackVisible.length,
@@ -811,6 +854,7 @@ export function evaluateWpCommunicationHealth({
   receipts = [],
   runtimeStatus = {},
 } = {}) {
+  runtimeStatus = materializeRuntimeAuthorityView(runtimeStatus);
   const normalizedStage = String(stage || "STATUS").trim().toUpperCase();
   if (!COMMUNICATION_HEALTH_STAGE_VALUES.includes(normalizedStage)) {
     throw new Error(`Invalid communication health stage: ${stage}`);
@@ -1509,6 +1553,78 @@ function route({
   };
 }
 
+function routeAnchorKindForState(state = "", evaluation = {}, runtimeStatus = {}) {
+  switch (String(state || "").trim().toUpperCase()) {
+    case "COMM_MISSING_KICKOFF":
+      return "VALIDATOR_KICKOFF";
+    case "COMM_WAITING_FOR_INTENT":
+      return "CODER_INTENT";
+    case "COMM_WAITING_FOR_INTENT_CHECKPOINT":
+      return "VALIDATOR_RESPONSE";
+    case "COMM_WAITING_FOR_HANDOFF":
+    case "COMM_DEFERRED_REPAIR_QUEUE":
+    case "COMM_REPAIR_REQUIRED":
+      return "CODER_HANDOFF";
+    case "COMM_WAITING_FOR_REVIEW":
+      return "VALIDATOR_REVIEW";
+    case "COMM_WAITING_FOR_FINAL_REVIEW":
+      return "REVIEW_REQUEST";
+    case "COMM_WORKFLOW_INVALID":
+      return "WORKFLOW_INVALIDITY";
+    case "COMM_MISCONFIGURED":
+      return "REPAIR";
+    case "COMM_OK":
+      return normalizeReceiptKind(evaluation?.latestValidatorAssessment?.receiptKind || "REVIEW_RESPONSE") || "REVIEW_RESPONSE";
+    default:
+      return normalizeReceiptKind(runtimeStatus?.waiting_on) || "ACTION";
+  }
+}
+
+function selectRouteDriverOpenReviewItem(runtimeStatus = {}, openReviewItems = []) {
+  const items = Array.isArray(openReviewItems) ? openReviewItems : [];
+  if (items.length === 0) return null;
+
+  const anchoredCorrelationId = nullableComparable(runtimeStatus?.route_anchor_correlation_id);
+  const anchoredTargetRole = normalizeRole(runtimeStatus?.route_anchor_target_role);
+  const anchoredTargetSession = normalizeSession(runtimeStatus?.route_anchor_target_session);
+  if (anchoredCorrelationId) {
+    const anchoredItem = items.find((item) => {
+      if (nullableComparable(item?.correlation_id) !== anchoredCorrelationId) return false;
+      if (anchoredTargetRole && normalizeRole(item?.target_role) !== anchoredTargetRole) return false;
+      const itemTargetSession = normalizeSession(item?.target_session);
+      if (anchoredTargetSession && itemTargetSession && itemTargetSession !== anchoredTargetSession) return false;
+      return true;
+    });
+    if (anchoredItem) return anchoredItem;
+  }
+
+  return items[0] || null;
+}
+
+function buildRouteAnchor({
+  evaluation = {},
+  projection = {},
+  runtimeStatus = {},
+  selectedOpenReviewItem = null,
+} = {}) {
+  const targetRole = normalizeRole(projection?.nextExpectedActor);
+  if (!targetRole || targetRole === "NONE") return null;
+
+  return {
+    state: String(projection?.state || evaluation?.state || "").trim().toUpperCase() || null,
+    kind: normalizeReceiptKind(
+      selectedOpenReviewItem?.receipt_kind
+      || routeAnchorKindForState(projection?.state || evaluation?.state, evaluation, runtimeStatus),
+    ),
+    correlationId: nullableComparable(
+      selectedOpenReviewItem?.correlation_id
+      || boundaryCorrelationId(evaluation, runtimeStatus),
+    ),
+    targetRole,
+    targetSession: normalizeSession(projection?.nextExpectedSession || projection?.waitingOnSession),
+  };
+}
+
 function runtimeIsContainedTerminalCloseout(runtimeStatus = {}) {
   const runtimeStatusValue = String(runtimeStatus?.runtime_status || "").trim().toLowerCase();
   const nextExpectedActor = normalizeRole(runtimeStatus?.next_expected_actor);
@@ -1551,6 +1667,7 @@ export function deriveWpCommunicationAutoRoute({
   runtimeStatus = {},
   latestReceipt = null,
 } = {}) {
+  runtimeStatus = materializeRuntimeAuthorityView(runtimeStatus);
   if (!evaluation?.applicable) {
     return {
       applicable: false,
@@ -1576,6 +1693,7 @@ export function deriveWpCommunicationAutoRoute({
         nextExpectedActor: "NONE",
         waitingOn: "CLOSED",
       }),
+      routeAnchor: null,
       notification: null,
     };
   }
@@ -1588,6 +1706,13 @@ export function deriveWpCommunicationAutoRoute({
         nextExpectedSession: sessionForRole(runtimeStatus, "INTEGRATION_VALIDATOR"),
         waitingOn: "MAIN_CONTAINMENT",
       }),
+      routeAnchor: {
+        state: String(evaluation.state || "").trim().toUpperCase() || null,
+        kind: "MAIN_CONTAINMENT",
+        correlationId: null,
+        targetRole: "INTEGRATION_VALIDATOR",
+        targetSession: sessionForRole(runtimeStatus, "INTEGRATION_VALIDATOR"),
+      },
       notification: null,
     };
   }
@@ -1603,6 +1728,7 @@ export function deriveWpCommunicationAutoRoute({
   );
   const openReviewItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
   let secondaryNotifications = [];
+  let selectedOpenReviewItem = null;
 
   let projection;
   switch (evaluation.state) {
@@ -1724,7 +1850,8 @@ export function deriveWpCommunicationAutoRoute({
       });
       break;
     case "COMM_BLOCKED_OPEN_ITEMS": {
-      const nextItem = openReviewItems[0] || null;
+      const nextItem = selectRouteDriverOpenReviewItem(runtimeStatus, openReviewItems);
+      selectedOpenReviewItem = nextItem;
       const targetRole = normalizeRole(nextItem?.target_role) || "ORCHESTRATOR";
       const targetSession = sessionForRole(runtimeStatus, targetRole, nextItem?.target_session ?? null);
       const needsValidator = targetRole === "WP_VALIDATOR" || targetRole === "INTEGRATION_VALIDATOR" || targetRole === "VALIDATOR";
@@ -1785,6 +1912,12 @@ export function deriveWpCommunicationAutoRoute({
 
   const notificationTargetRole = projection.nextExpectedActor;
   const notificationTargetSession = projection.nextExpectedSession;
+  const routeAnchor = buildRouteAnchor({
+    evaluation,
+    projection,
+    runtimeStatus,
+    selectedOpenReviewItem,
+  });
   const notification = projection.notificationSummary
     && notificationTargetRole
     && notificationTargetRole !== "NONE"
@@ -1799,6 +1932,7 @@ export function deriveWpCommunicationAutoRoute({
 
   return {
     ...projection,
+    routeAnchor,
     notification,
     secondaryNotifications,
   };
@@ -1810,6 +1944,8 @@ function nullableComparable(value) {
 }
 
 function boundaryCorrelationId(statusEvaluation, runtimeStatus = {}) {
+  const anchoredCorrelationId = nullableComparable(runtimeStatus?.route_anchor_correlation_id);
+  if (anchoredCorrelationId) return anchoredCorrelationId;
   switch (String(statusEvaluation?.state || "").trim().toUpperCase()) {
     case "COMM_WAITING_FOR_INTENT":
     case "COMM_WAITING_FOR_INTENT_CHECKPOINT":
@@ -1823,10 +1959,12 @@ function boundaryCorrelationId(statusEvaluation, runtimeStatus = {}) {
       return nullableComparable(statusEvaluation?.correlations?.handoff);
     case "COMM_WAITING_FOR_FINAL_REVIEW":
       return nullableComparable(statusEvaluation?.correlations?.finalReview);
+    case "COMM_OK":
+      return nullableComparable(statusEvaluation?.latestValidatorAssessment?.correlationId);
     case "COMM_BLOCKED_OPEN_ITEMS":
       return nullableComparable(
         Array.isArray(runtimeStatus?.open_review_items) && runtimeStatus.open_review_items.length > 0
-          ? runtimeStatus.open_review_items[0]?.correlation_id
+          ? selectRouteDriverOpenReviewItem(runtimeStatus, runtimeStatus.open_review_items)?.correlation_id
           : statusEvaluation?.correlations?.finalReview,
       );
     default:
@@ -1867,6 +2005,7 @@ export function evaluateWpCommunicationBoundary({
   latestReceipt = null,
   pendingNotifications = [],
 } = {}) {
+  runtimeStatus = materializeRuntimeAuthorityView(runtimeStatus);
   const normalizedStage = String(stage || "STATUS").trim().toUpperCase();
   if (!statusEvaluation?.applicable) {
     return {
@@ -1912,6 +2051,11 @@ export function evaluateWpCommunicationBoundary({
   compareField("ready_for_validation", autoRoute.readyForValidation, (value) => Boolean(value));
   compareField("ready_for_validation_reason", autoRoute.readyForValidationReason, nullableComparable);
   compareField("attention_required", autoRoute.attentionRequired, (value) => Boolean(value));
+  compareField("route_anchor_state", autoRoute.routeAnchor?.state, nullableComparable);
+  compareField("route_anchor_kind", autoRoute.routeAnchor?.kind, nullableComparable);
+  compareField("route_anchor_correlation_id", autoRoute.routeAnchor?.correlationId, nullableComparable);
+  compareField("route_anchor_target_role", autoRoute.routeAnchor?.targetRole, normalizeRole);
+  compareField("route_anchor_target_session", autoRoute.routeAnchor?.targetSession, normalizeSession);
 
   let boundaryNotifications = [];
   if (normalizedStage !== "STATUS" && boundaryActorRequiresAck(autoRoute.nextExpectedActor)) {

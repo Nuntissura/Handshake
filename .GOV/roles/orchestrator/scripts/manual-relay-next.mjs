@@ -6,11 +6,13 @@ import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/s
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { resolveRoleConfig } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
-import { parseJsonFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { repoPathAbs, resolveWorkPacketPath, REPO_ROOT, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { checkNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { steerActionForSession } from "./lib/orchestrator-steer-lib.mjs";
 import { deriveManualRelayEnvelope, preferredTargetSession } from "./lib/manual-relay-envelope-lib.mjs";
+import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 
 const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
 
@@ -64,7 +66,32 @@ if (!runtimeStatusFile || !fs.existsSync(repoPathAbs(runtimeStatusFile))) {
   fail("WP runtime status file is missing", [runtimeStatusFile || "<missing>"]);
 }
 
+const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
 const runtimeStatus = parseJsonFile(runtimeStatusFile);
+const receipts = receiptsFile && fs.existsSync(repoPathAbs(receiptsFile)) ? parseJsonlFile(receiptsFile) : [];
+const communicationEvaluation = evaluateWpCommunicationHealth({
+  wpId,
+  stage: "STATUS",
+  packetPath,
+  packetContent: packetText,
+  workflowLane,
+  packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
+  communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
+  communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
+  receipts,
+  runtimeStatus,
+});
+const packetRuntimeDrift = evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus, {
+  communicationEvaluation,
+});
+if (!packetRuntimeDrift.ok) {
+  fail("Packet/runtime projection drift blocks manual relay until workflow truth is reconciled", [
+    packetRuntimeDrift.owner_summary || "drift owner unknown",
+    ...packetRuntimeDrift.issues,
+    packetPath,
+    runtimeStatusFile,
+  ]);
+}
 const nextActor = normalizeRole(runtimeStatus.next_expected_actor);
 if (!ACTIVE_ROLE_SET.has(nextActor)) {
   fail("No governed next actor is currently projected for manual relay", [
@@ -104,6 +131,8 @@ console.log(`[MANUAL_RELAY_NEXT] current_phase=${runtimeStatus.current_phase || 
 console.log(`[MANUAL_RELAY_NEXT] dispatch_action=${dispatchAction}`);
 console.log(`[MANUAL_RELAY_NEXT] notifications_pending=${notifications.pendingCount}`);
 console.log(`[MANUAL_RELAY_NEXT] notifications_by_kind=${JSON.stringify(notifications.byKind || {})}`);
+console.log(`[MANUAL_RELAY_NEXT] notifications_hidden=${notifications.hiddenPendingCount || 0}`);
+console.log(`[MANUAL_RELAY_NEXT] route_anchor_correlation=${runtimeStatus.route_anchor_correlation_id || "<none>"}`);
 console.log(`[MANUAL_RELAY_NEXT] state=Operator remains the relay; use the structured envelope below to separate role-to-role traffic from operator explanation.`);
 console.log("RELAY_ENVELOPE [CX-MANUAL-RELAY-001]");
 console.log(`- FROM: ${envelope.fromEndpoint}`);

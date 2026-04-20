@@ -5,13 +5,16 @@ import path from "node:path";
 import test from "node:test";
 import {
   appendCloseoutSyncProvenance,
+  buildCloseoutSyncGovernedAction,
   deriveFinalLaneGovernanceInvalidity,
   evaluateIntegrationValidatorCloseoutState,
   evaluateIntegrationValidatorTopology,
   evaluateWpSessionControlCloseoutBundle,
   latestCloseoutSyncEvent,
+  latestCloseoutSyncGovernedAction,
   resolveIntegrationValidatorCloseoutRequirements,
   resolveCloseoutValidatorSessionsOfRecord,
+  summarizeCloseoutSyncGovernance,
 } from "../scripts/lib/integration-validator-closeout-lib.mjs";
 
 function writeFile(targetPath, content) {
@@ -98,6 +101,34 @@ test("terminal OUTDATED_ONLY packets drop PASS-ready closeout requirements while
     }),
   });
 
+  assert.equal(requirements.terminalNonPass, true);
+  assert.equal(requirements.requireReadyForPass, false);
+  assert.equal(requirements.requireRecordedScopeCompatibility, true);
+});
+
+test("canonical execution-state terminal non-pass status suppresses PASS-ready closeout requirements even when packet text is stale", () => {
+  const requirements = resolveIntegrationValidatorCloseoutRequirements({
+    packetContent: packetFixture({
+      status: "Done",
+      currentWpStatus: "IN_PROGRESS",
+    }),
+    runtimeStatus: {
+      current_packet_status: "Done",
+      current_task_board_status: "IN_PROGRESS",
+      execution_state: {
+        schema_version: "wp_execution_state@1",
+        authority: {
+          packet_status: "Validated (OUTDATED_ONLY)",
+          task_board_status: "DONE_OUTDATED_ONLY",
+          runtime_status: "completed",
+        },
+      },
+    },
+    taskBoardStatus: "IN_PROGRESS",
+  });
+
+  assert.equal(requirements.packetStatus, "Validated (OUTDATED_ONLY)");
+  assert.equal(requirements.currentWpStatus, "DONE_OUTDATED_ONLY");
   assert.equal(requirements.terminalNonPass, true);
   assert.equal(requirements.requireReadyForPass, false);
   assert.equal(requirements.requireRecordedScopeCompatibility, true);
@@ -404,6 +435,9 @@ test("integration-validator closeout state combines topology and WP-scoped close
   assert.equal(evaluation.ok, true);
   assert.equal(evaluation.issues.length, 0);
   assert.equal(evaluation.closeoutBundle.summary.active_run_count, 0);
+  assert.equal(evaluation.dependencyView.ok, true);
+  assert.equal(evaluation.dependencyView.publication.closeout_mode, "MERGE_PENDING");
+  assert.equal(evaluation.dependencyView.dependencies.scope_compatibility.status, "PASS");
 });
 
 test("integration-validator closeout state passes with a self-owned active final-lane broker run", () => {
@@ -610,6 +644,14 @@ test("appendCloseoutSyncProvenance records and returns the latest closeout event
       mode: "MERGE_PENDING",
       actor_role: "INTEGRATION_VALIDATOR",
       actor_session_id: "integration-validator-session",
+      governed_action: buildCloseoutSyncGovernedAction({
+        wpId: "WP-TEST-VALIDATOR-v1",
+        mode: "MERGE_PENDING",
+        packetStatus: "Validated (PASS)",
+        mainContainmentStatus: "MERGE_PENDING",
+        actorSessionId: "integration-validator-session",
+        processedAt: "2026-04-01T12:00:00Z",
+      }),
     },
   });
 
@@ -617,6 +659,36 @@ test("appendCloseoutSyncProvenance records and returns the latest closeout event
   assert.equal(latest?.mode, "MERGE_PENDING");
   assert.equal(latest?.actor_role, "INTEGRATION_VALIDATOR");
   assert.equal(latest?.actor_session_id, "integration-validator-session");
+  assert.equal(latest?.governed_action_summary?.rule_id, "INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE");
+  assert.equal(
+    latestCloseoutSyncGovernedAction(nextState, "WP-TEST-VALIDATOR-v1")?.resume_disposition,
+    "CONSUME_RESULT",
+  );
+});
+
+test("summarizeCloseoutSyncGovernance returns the typed final-lane sync summary", () => {
+  const gateState = appendCloseoutSyncProvenance({}, {
+    wpId: "WP-TEST-VALIDATOR-v1",
+    event: {
+      timestamp_utc: "2026-04-01T12:00:00Z",
+      mode: "CONTAINED_IN_MAIN",
+      actor_role: "INTEGRATION_VALIDATOR",
+      actor_session_id: "integration-validator-session",
+      governed_action: buildCloseoutSyncGovernedAction({
+        wpId: "WP-TEST-VALIDATOR-v1",
+        mode: "CONTAINED_IN_MAIN",
+        packetStatus: "Validated (PASS)",
+        mainContainmentStatus: "CONTAINED_IN_MAIN",
+        actorSessionId: "integration-validator-session",
+        processedAt: "2026-04-01T12:00:00Z",
+      }),
+    },
+  });
+
+  const summary = summarizeCloseoutSyncGovernance(gateState, "WP-TEST-VALIDATOR-v1");
+  assert.equal(summary.status, "RECORDED");
+  assert.equal(summary.latestEvent?.mode, "CONTAINED_IN_MAIN");
+  assert.equal(summary.latestGovernedAction?.rule_id, "INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE");
 });
 
 test("resolveCloseoutValidatorSessionsOfRecord derives terminal validator-of-record values from receipts and actor context", () => {

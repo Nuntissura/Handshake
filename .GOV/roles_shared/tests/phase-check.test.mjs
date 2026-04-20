@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { REPO_ROOT } from "../scripts/lib/runtime-paths.mjs";
 import {
+  buildCloseoutNextCommands,
   buildPhaseCheckCommand,
   buildPhaseCheckPlan,
   parseCloseoutSyncOptions,
@@ -275,6 +276,113 @@ test("closeout phase plan forwards governed sync args into the closeout prefligh
     "--context",
     "recording merge-pending truth after governed final-lane review completed cleanly",
   ]);
+});
+
+test("closeout next commands prefer canonical runtime publication when packet merge truth is stale", () => {
+  const wpId = "WP-TEST-PHASE-CLOSEOUT-v1";
+  const packetDir = path.join(".GOV", "task_packets", wpId);
+  const packetPath = path.join(packetDir, "packet.md");
+
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(packetPath, [
+    `# Task Packet: ${wpId}`,
+    "",
+    "Status: Done",
+    "",
+    "## METADATA",
+    "- MAIN_CONTAINMENT_STATUS: NOT_STARTED",
+    "- MERGED_MAIN_COMMIT: NONE",
+    "- MAIN_CONTAINMENT_VERIFIED_AT_UTC: NONE",
+    "",
+    "## VALIDATION_REPORTS",
+    "#### Verdict: PENDING",
+  ].join("\n"), "utf8");
+
+  try {
+    const nextCommands = buildCloseoutNextCommands({
+      wpId,
+      ok: true,
+      runtimeStatusOverride: {
+        current_packet_status: "Done",
+        current_task_board_status: "IN_PROGRESS",
+        main_containment_status: "NOT_STARTED",
+        execution_state: {
+          schema_version: "wp_execution_state@1",
+          authority: {
+            packet_status: "Validated (PASS)",
+            task_board_status: "DONE_VALIDATED",
+            main_containment_status: "MERGE_PENDING",
+          },
+        },
+      },
+    });
+
+    assert(nextCommands.some((line) =>
+      /just phase-check CLOSEOUT WP-TEST-PHASE-CLOSEOUT-v1 --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA>/.test(line)
+    ));
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
+test("closeout next commands surface the typed governed closeout sync when merge-pending truth is already recorded", () => {
+  const wpId = "WP-TEST-PHASE-CLOSEOUT-GOV-v1";
+  const packetDir = path.join(".GOV", "task_packets", wpId);
+  const packetPath = path.join(packetDir, "packet.md");
+
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(packetPath, [
+    `# Task Packet: ${wpId}`,
+    "",
+    "Status: Done",
+    "",
+    "## METADATA",
+    "- MAIN_CONTAINMENT_STATUS: MERGE_PENDING",
+    "- MERGED_MAIN_COMMIT: NONE",
+    "- MAIN_CONTAINMENT_VERIFIED_AT_UTC: NONE",
+    "",
+    "## VALIDATION_REPORTS",
+    "#### Verdict: PASS",
+  ].join("\n"), "utf8");
+
+  try {
+    const nextCommands = buildCloseoutNextCommands({
+      wpId,
+      ok: true,
+      integrationValidatorCloseoutResult: {
+        closeoutSyncGovernance: {
+          latestEvent: {
+            mode: "MERGE_PENDING",
+            timestamp_utc: "2026-04-20T10:15:00Z",
+          },
+          latestGovernedAction: {
+            rule_id: "INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE",
+            resume_disposition: "CONSUME_RESULT",
+            updated_at: "2026-04-20T10:15:00Z",
+          },
+        },
+      },
+      runtimeStatusOverride: {
+        current_packet_status: "Validated (PASS)",
+        current_task_board_status: "DONE_VALIDATED",
+        main_containment_status: "MERGE_PENDING",
+        execution_state: {
+          schema_version: "wp_execution_state@1",
+          authority: {
+            packet_status: "Validated (PASS)",
+            task_board_status: "DONE_VALIDATED",
+            main_containment_status: "MERGE_PENDING",
+          },
+        },
+      },
+    });
+
+    assert(nextCommands.some((line) =>
+      /Merge-pending closeout sync is already recorded via governed action INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE @ 2026-04-20T10:15:00Z/.test(line)
+    ));
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
 });
 
 test("terminal READY session cleanup targets only governed READY sessions for the active WP", () => {

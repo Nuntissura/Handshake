@@ -5,9 +5,12 @@ import {
   activeRunsForTarget,
   buildRelayRepairSignal,
   buildRelayWatchdogSummary,
+  deriveRelayEscalationPolicy,
+  deriveRelayFailureFingerprint,
   deriveRelayLaneVerdict,
   deriveRelayWatchdogDecision,
   deriveRelayWatchdogRestartDecision,
+  duplicateRelayRewakeBudget,
   formatRelayLaneVerdict,
   relayRepairSignalAlreadyPending,
   relayEscalationCycleBudget,
@@ -108,6 +111,41 @@ test("watchdog steers a watched route when no active run exists", () => {
   assert.equal(decision.nextCycle, 1);
 });
 
+test("duplicate rewake budget tracks identical failure fingerprints and suppresses repeated identical steers", () => {
+  const staleRelay = relayStatus({
+    status: "ESCALATED",
+    reason_code: "PENDING_NOTIFICATION_STALE",
+    metrics: {
+      current_relay_escalation_cycle: 1,
+      max_relay_escalation_cycles: 3,
+      route_anchor_at: "2026-04-18T10:00:00Z",
+      latest_notification_at: "2026-04-18T10:00:00Z",
+      latest_target_receipt_at: "2026-04-18T09:55:00Z",
+      latest_session_activity_at: "2026-04-18T09:54:00Z",
+    },
+  });
+  const fingerprint = deriveRelayFailureFingerprint({
+    relayStatus: staleRelay,
+    decision: { action: "STEER", reason: staleRelay.reason_code },
+    laneVerdict: { verdict: "ROUTE_STALE_NO_ACTIVE_RUN" },
+  });
+  const budget = duplicateRelayRewakeBudget({
+    last_relay_failure_fingerprint: fingerprint,
+    current_same_failure_rewake_count: 2,
+    max_same_failure_rewake_attempts: 2,
+  }, fingerprint);
+  const decision = deriveRelayWatchdogDecision({
+    relayStatus: staleRelay,
+    activeRuns: [],
+    stallScanStatus: "UNKNOWN",
+    duplicateRewakeBudget: budget,
+  });
+
+  assert.equal(budget.exhausted, true);
+  assert.equal(decision.action, "SUPPRESS_DUPLICATE_REWAKE");
+  assert.equal(decision.shouldSteer, false);
+});
+
 test("watchdog waits when the target role already has an active run", () => {
   const decision = deriveRelayWatchdogDecision({
     relayStatus: relayStatus(),
@@ -199,6 +237,10 @@ test("watchdog summary is compact and includes the relay decision", () => {
     relayStatus: relayStatus(),
     decision,
     laneVerdict,
+    duplicateRewakeBudget: {
+      currentAttempts: 1,
+      maxAttempts: 2,
+    },
     activeRuns: [],
     stallScanStatus: "UNKNOWN",
     outputFreshnessStatus: "UNKNOWN",
@@ -212,6 +254,118 @@ test("watchdog summary is compact and includes the relay decision", () => {
   assert.match(summary, /output_freshness=UNKNOWN/);
   assert.match(summary, /lane_verdict=ROUTE_STALE_NO_ACTIVE_RUN/);
   assert.match(summary, /worker_interrupt=0\/1/);
+  assert.match(summary, /same_failure_rewake=1\/2/);
+});
+
+test("relay escalation policy records relay-cycle retries as alternate-method budgeted recovery", () => {
+  const decision = deriveRelayWatchdogDecision({
+    relayStatus: relayStatus(),
+    activeRuns: [],
+  });
+  const laneVerdict = deriveRelayLaneVerdict({
+    relayStatus: relayStatus(),
+    decision,
+    activeRuns: [],
+  });
+  const policy = deriveRelayEscalationPolicy({
+    relayStatus: relayStatus(),
+    decision,
+    laneVerdict,
+  });
+
+  assert.equal(policy.failure_class, "ROUTE_STALE_NO_ACTIVE_RUN");
+  assert.equal(policy.policy_state, "AUTO_RETRY_ALLOWED");
+  assert.equal(policy.next_strategy, "ALTERNATE_METHOD");
+  assert.equal(policy.budget_scope, "RELAY_ESCALATION_CYCLE");
+  assert.equal(policy.budget_used, 1);
+  assert.equal(policy.budget_limit, 2);
+});
+
+test("relay escalation policy records queued defer when the governed lane is still active", () => {
+  const decision = deriveRelayWatchdogDecision({
+    relayStatus: relayStatus({ reason_code: "WAITING_ON_VALIDATOR_REVIEW" }),
+    activeRuns: [{ role: "CODER", session_key: "CODER:WP-TEST-v1" }],
+    stallScanStatus: "CLEAR",
+  });
+  const laneVerdict = deriveRelayLaneVerdict({
+    relayStatus: relayStatus({ reason_code: "WAITING_ON_VALIDATOR_REVIEW" }),
+    decision,
+    activeRuns: [{ role: "CODER", session_key: "CODER:WP-TEST-v1" }],
+    stallScanStatus: "CLEAR",
+    outputFreshnessStatus: "RECENT",
+    waitingOn: "WP_VALIDATOR review response",
+  });
+  const policy = deriveRelayEscalationPolicy({
+    relayStatus: relayStatus({ reason_code: "WAITING_ON_VALIDATOR_REVIEW" }),
+    decision,
+    laneVerdict,
+  });
+
+  assert.equal(policy.policy_state, "DEFERRED");
+  assert.equal(policy.next_strategy, "QUEUED_DEFER");
+  assert.equal(policy.budget_scope, "NONE");
+  assert.equal(policy.budget_used, 0);
+  assert.equal(policy.budget_limit, 0);
+});
+
+test("relay escalation policy blocks duplicate re-wake loops until route method changes", () => {
+  const policy = deriveRelayEscalationPolicy({
+    relayStatus: relayStatus({ status: "ESCALATED", reason_code: "PENDING_NOTIFICATION_STALE" }),
+    decision: {
+      action: "SUPPRESS_DUPLICATE_REWAKE",
+      reason: "SAME_FAILURE_REWAKE_BUDGET_EXHAUSTED",
+      currentCycle: 1,
+      maxCycle: 3,
+    },
+    laneVerdict: {
+      verdict: "ROUTE_STALE_NO_ACTIVE_RUN",
+      reasonCode: "PENDING_NOTIFICATION_STALE",
+    },
+    duplicateRewakeBudget: {
+      currentAttempts: 2,
+      maxAttempts: 2,
+    },
+  });
+
+  assert.equal(policy.failure_class, "DUPLICATE_REWAKE_LOOP");
+  assert.equal(policy.policy_state, "AUTO_RETRY_BLOCKED");
+  assert.equal(policy.next_strategy, "ALTERNATE_METHOD");
+  assert.equal(policy.budget_scope, "SAME_FAILURE_REWAKE");
+  assert.equal(policy.budget_used, 2);
+  assert.equal(policy.budget_limit, 2);
+});
+
+test("relay escalation policy escalates exhausted worker interrupts to alternate-model recovery", () => {
+  const policy = deriveRelayEscalationPolicy({
+    relayStatus: relayStatus({ status: "ESCALATED", reason_code: "SESSION_ACTIVE_NO_RECEIPT_PROGRESS" }),
+    decision: {
+      action: "REPORT_STALLED_ACTIVE_RUN",
+      reason: "SESSION_ACTIVE_NO_RECEIPT_PROGRESS",
+      currentCycle: 1,
+      maxCycle: 3,
+    },
+    laneVerdict: {
+      verdict: "STALL_RETRY_LOOP",
+      reasonCode: "SESSION_ACTIVE_NO_RECEIPT_PROGRESS",
+    },
+    workerInterruptBudget: {
+      currentCycle: 1,
+      maxCycle: 1,
+      exhausted: true,
+    },
+    restartDecision: {
+      action: "RESTART_BUDGET_EXHAUSTED",
+      reason: "MAX_WORKER_INTERRUPT_CYCLES_REACHED",
+      shouldRestart: false,
+    },
+  });
+
+  assert.equal(policy.failure_class, "WORKER_INTERRUPT_LIMIT");
+  assert.equal(policy.policy_state, "AUTO_RETRY_BLOCKED");
+  assert.equal(policy.next_strategy, "ALTERNATE_MODEL");
+  assert.equal(policy.budget_scope, "WORKER_INTERRUPT_CYCLE");
+  assert.equal(policy.budget_used, 1);
+  assert.equal(policy.budget_limit, 1);
 });
 
 test("lane verdict classifies active runs with fresh output as quiet but progressing", () => {
@@ -381,11 +535,16 @@ test("watchdog builds a stalled-run repair signal for orchestrator visibility", 
     relayStatus: relayStatus({ status: "ESCALATED", reason_code: "SESSION_ACTIVE_NO_RECEIPT_PROGRESS" }),
     decision,
     stallScanStatus: "STALL",
+    relayEscalationPolicy: {
+      next_strategy: "ALTERNATE_METHOD",
+      policy_state: "AUTO_RETRY_BLOCKED",
+    },
   });
 
   assert.equal(repair.targetRole, "ORCHESTRATOR");
   assert.match(repair.summary, /active run/i);
   assert.match(repair.summary, /stall_scan=STALL/);
+  assert.match(repair.summary, /next_strategy=ALTERNATE_METHOD/);
   assert.match(repair.correlationId, /REPORT_STALLED_ACTIVE_RUN/);
 });
 
@@ -422,6 +581,25 @@ test("watchdog builds a relay-limit repair signal and suppresses duplicates", ()
     ], repair),
     true,
   );
+});
+
+test("watchdog builds a repair signal when duplicate re-wake suppression activates", () => {
+  const repair = buildRelayRepairSignal({
+    wpId: "WP-TEST-v1",
+    relayStatus: relayStatus({
+      status: "ESCALATED",
+      reason_code: "PENDING_NOTIFICATION_STALE",
+    }),
+    decision: {
+      action: "SUPPRESS_DUPLICATE_REWAKE",
+      reason: "SAME_FAILURE_REWAKE_BUDGET_EXHAUSTED",
+      currentCycle: 1,
+      maxCycle: 3,
+    },
+  });
+
+  assert.match(repair.summary, /duplicate auto re-wake is suppressed/i);
+  assert.match(repair.correlationId, /SUPPRESS_DUPLICATE_REWAKE/);
 });
 
 test("restart decision stays disabled unless explicitly allowed", () => {

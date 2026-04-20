@@ -10,10 +10,12 @@ import {
   activeOrchestratorCandidates,
   buildPostWorkCommand,
   comparePrepareAgainstPacketTruth,
+  displayRepoRelativePath,
   inferWpIdFromPrepare,
   isTerminalTaskBoardStatus,
   normalizeVerdict,
   parseExplicitCoderHandoffRange,
+  preparedWorktreeSyncState,
   resolveCommittedCoderHandoffRange,
   workflowStartReadinessState,
 } from "../scripts/lib/role-resume-utils.mjs";
@@ -83,6 +85,35 @@ test("comparePrepareAgainstPacketTruth flags packet/PREPARE authority drift", ()
     "Official packet LOCAL_BRANCH conflicts with PREPARE: expected feat/WP-1-Example-v1, got feat/WP-1-Other-v1",
     "Official packet LOCAL_WORKTREE_DIR conflicts with PREPARE: expected ../wtc-example-v1, got ../wtc-other-v1",
   ]);
+});
+
+test("displayRepoRelativePath prefers repo-relative formatting over absolute host paths", () => {
+  const repoRoot = "D:/Projects/Handshake/wt-gov-kernel";
+  assert.equal(
+    displayRepoRelativePath("D:/Projects/Handshake/handshake_main", repoRoot),
+    "../handshake_main",
+  );
+  assert.equal(
+    displayRepoRelativePath("D:/Projects/Handshake/wt-gov-kernel/.GOV/roles_shared/records/TASK_BOARD.md", repoRoot),
+    ".GOV/roles_shared/records/TASK_BOARD.md",
+  );
+});
+
+test("preparedWorktreeSyncState reports missing worktrees with relative display paths", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-role-resume-display-"));
+  try {
+    const syncState = preparedWorktreeSyncState("WP-1-Display-v1", {
+      branch: "feat/WP-1-Display-v1",
+      worktree_dir: "../wtc-missing-display-v1",
+    }, repoRoot);
+
+    assert.equal(syncState.ok, false);
+    assert.equal(syncState.worktreeDisplay, "../wtc-missing-display-v1");
+    assert.match(syncState.issues.join("\n"), /\.\.\/wtc-missing-display-v1/);
+    assert.doesNotMatch(syncState.issues.join("\n"), /^[A-Za-z]:\//m);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
 });
 
 test("parseExplicitCoderHandoffRange prefers the latest fixed packet range and ignores HEAD-based commands", () => {

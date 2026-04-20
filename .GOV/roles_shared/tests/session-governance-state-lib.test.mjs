@@ -137,3 +137,66 @@ test("evaluateSessionGovernanceState stays repo-local even when HANDSHAKE_GOV_RO
     }
   });
 });
+
+test("evaluateSessionGovernanceState prefers canonical runtime projection when packet and board artifacts lag", () => {
+  withTempRepo((repoRoot) => {
+    const wpId = "WP-1-Example-v1";
+    const runtimeStatusPath = path.join(repoRoot, "gov_runtime", "roles_shared", "WP_COMMUNICATIONS", wpId, "RUNTIME_STATUS.json");
+    writeFile(
+      path.join(repoRoot, ".GOV", "task_packets", `${wpId}.md`),
+      [
+        "# Task Packet",
+        "",
+        `- WP_RUNTIME_STATUS_FILE: ${path.relative(repoRoot, runtimeStatusPath).replace(/\\\\/g, "/")}`,
+        "- **Status:** In Progress",
+      ].join("\n"),
+    );
+    writeFile(
+      runtimeStatusPath,
+      JSON.stringify({
+        schema_version: "wp_runtime_status@1",
+        current_packet_status: "In Progress",
+        current_task_board_status: "IN_PROGRESS",
+        runtime_status: "working",
+        current_phase: "IMPLEMENTATION",
+        execution_state: {
+          schema_version: "wp_execution_state@1",
+          authority: {
+            packet_status: "Validated (PASS)",
+            task_board_status: "DONE_VALIDATED",
+            runtime_status: "completed",
+            phase: "STATUS_SYNC",
+            route_anchor: {},
+            review_anchor: {},
+          },
+          checkpoint_lineage: {
+            schema_version: "wp_execution_checkpoint_lineage@1",
+            latest_checkpoint_id: null,
+            latest_checkpoint_at_utc: null,
+            latest_checkpoint_kind: null,
+            latest_restore_point_id: null,
+            latest_checkpoint_fingerprint: null,
+            checkpoint_count: 0,
+            checkpoints: [],
+          },
+        },
+      }, null, 2),
+    );
+
+    const result = evaluateSessionGovernanceState(repoRoot, {
+      wp_id: wpId,
+      local_worktree_dir: "wt-example",
+    });
+
+    assert.equal(result.packetStatusArtifact, "In Progress");
+    assert.equal(result.taskBoardStatusArtifact, "READY_FOR_DEV");
+    assert.equal(result.runtimePacketStatus, "Validated (PASS)");
+    assert.equal(result.runtimeTaskBoardStatus, "DONE_VALIDATED");
+    assert.equal(result.packetStatus, "Validated (PASS)");
+    assert.equal(result.taskBoardStatus, "DONE_VALIDATED");
+    assert.equal(result.packetProjectionDrift, true);
+    assert.equal(result.taskBoardProjectionDrift, true);
+    assert.equal(result.launchAllowed, false);
+    assert.equal(result.terminalTaskBoardStatus, true);
+  });
+});

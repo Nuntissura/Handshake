@@ -69,7 +69,7 @@
   },
   "expected": {
     "applicable": true,
-    "ok": false,
+    "ok": true,
     "state": "COMM_WAITING_FOR_FINAL_REVIEW"
   },
   "monitor": [

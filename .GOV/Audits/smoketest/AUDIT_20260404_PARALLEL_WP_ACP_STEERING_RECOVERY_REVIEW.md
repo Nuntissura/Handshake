@@ -557,7 +557,7 @@ The governance surface is still not healthy enough to call this parallel ACP flo
 - Finding `SMK-PAR-005`: non-authoritative runtime/build data still leaks into expensive places despite the external-artifacts policy.
   - Evidence:
     - `handshake_main` is clean in git and its object store is small (`size-pack: 38.96 MiB`), but the checkout is about `27.11 GB` because `src/backend/handshake_core/target/` exists inside the repo tree.
-    - `Handshake Artifacts` is about `139 GB`, dominated by `handshake-cargo-target` (`102.11 GB`) plus stale WP-specific targets `validator_wp1_f69f9c5_target` (`25.66 GB`) and `intval-wp1-boundary-target` (`11.33 GB`).
+    - `Handshake_Artifacts` is about `139 GB`, dominated by `handshake-cargo-target` (`102.11 GB`) plus stale WP-specific targets `validator_wp1_f69f9c5_target` (`25.66 GB`) and `intval-wp1-boundary-target` (`11.33 GB`).
   - Impact: canonical worktrees stay heavy, backups and scans get slower, and cleanup is not happening mechanically at WP closeout.
 - Finding `SMK-PAR-006`: terminal/session host lifecycle is not governed tightly enough.
   - Evidence: session registry tracks `active_terminal_title` / kind, but not durable OS PID / window handle ownership. Current runtime can prove dispatch, not exact terminal-window ownership. The desktop still shows many `Code`, `cmd`, `powershell`, and `codex` processes with no safe per-WP closeout binding.

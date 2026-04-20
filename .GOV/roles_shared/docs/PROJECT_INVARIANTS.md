@@ -54,10 +54,10 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 
 ## 6) Tooling paths (Handshake defaults)
 
-- BUILD_ARTIFACTS_ROOT_DIR (external): `../Handshake Artifacts/`
-- CARGO_TARGET_DIR (external): `../Handshake Artifacts/handshake-cargo-target`
+- BUILD_ARTIFACTS_ROOT_DIR (external): `../Handshake_Artifacts/`
+- CARGO_TARGET_DIR (external): `../Handshake_Artifacts/handshake-cargo-target`
 - BUILD_ARTIFACTS_CANONICAL_DIRS: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`
-- ARTIFACT_RETENTION_MANIFEST_DIR: `../Handshake Artifacts/handshake-tool/artifact-retention/`
+- ARTIFACT_RETENTION_MANIFEST_DIR: `../Handshake_Artifacts/handshake-tool/artifact-retention/`
 - BUILD_ARTIFACTS_POLICY: repo-local `target/` directories are invalid and must be cleaned or blocked by governance checks
 - NODE_PACKAGE_MANAGER: `pnpm` (for `app/`)
 

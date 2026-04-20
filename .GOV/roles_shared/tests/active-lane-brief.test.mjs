@@ -213,8 +213,11 @@ test("active-lane-brief reports compact authority and relay summary", () => {
   assert.equal(brief.runtime.next_expected_actor, "CODER");
   assert.equal(brief.runtime.milestone, "MICROTASK");
   assert.equal(brief.runtime.task_board_status, "IN_PROGRESS");
+  assert.equal(brief.session.effective_governed_action.command_kind, "<none>");
+  assert.equal(brief.session.effective_governed_action.source, "<none>");
   assert.equal(brief.relay.status, "NORMAL");
-  assert.match(brief.relay.summary, /Relay is healthy/i);
+  assert.match(brief.relay.summary, /Relay is /i);
+  assert.equal(brief.relay.policy, null);
   assert.equal(brief.microtasks.declared_count, 1);
   assert.equal(brief.microtasks.active_microtask.mt_id, "MT-001");
   assert.equal(brief.microtasks.previous_microtask, null);
@@ -222,6 +225,62 @@ test("active-lane-brief reports compact authority and relay summary", () => {
   assert.equal(brief.review_queue[0].microtask_contract.scope_ref, "CLAUSE_CLOSURE_MATRIX/CX-LANE-001");
   assert.equal(brief.review_queue[0].microtask_contract.expected_receipt_kind, "CODER_INTENT");
   assert.ok(brief.next_commands.some((entry) => entry.includes(`just check-notifications ${fixture.wpId} CODER`)));
+});
+
+test("active-lane-brief projects typed relay policy when runtime truth records one", () => {
+  const fixture = createFixture();
+  const runtimeStatusPath = path.join(
+    fixture.govRuntimeRoot,
+    "roles_shared",
+    "WP_COMMUNICATIONS",
+    fixture.wpId,
+    "RUNTIME_STATUS.json",
+  );
+  const runtimeStatus = JSON.parse(fs.readFileSync(runtimeStatusPath, "utf8"));
+  runtimeStatus.relay_escalation_policy = {
+    source_surface: "wp-relay-watchdog",
+    failure_class: "VALIDATOR_SESSION_UNAVAILABLE",
+    policy_state: "AUTO_RETRY_BLOCKED",
+    next_strategy: "HUMAN_STOP",
+    reason_code: "validator-session-not-steerable",
+    budget_scope: "RELAY_ESCALATION_CYCLE",
+    budget_used: 2,
+    budget_limit: 2,
+    summary: "Relay escalation budget is exhausted for repeated validator wake failures.",
+    updated_at: "2099-01-01T10:02:00Z",
+  };
+  fs.writeFileSync(runtimeStatusPath, `${JSON.stringify(runtimeStatus, null, 2)}\n`, "utf8");
+
+  const jsonResult = spawnSync(process.execPath, [briefScript, "CODER", fixture.wpId, "--json"], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      HANDSHAKE_GOV_ROOT: fixture.govRoot,
+      HANDSHAKE_GOV_RUNTIME_ROOT: fixture.govRuntimeRoot,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(jsonResult.status, 0, jsonResult.stderr || jsonResult.stdout);
+  const brief = JSON.parse(jsonResult.stdout);
+  assert.equal(brief.relay.policy.failure_class, "VALIDATOR_SESSION_UNAVAILABLE");
+  assert.equal(brief.relay.policy.policy_state, "AUTO_RETRY_BLOCKED");
+  assert.equal(brief.relay.policy.next_strategy, "HUMAN_STOP");
+  assert.equal(brief.relay.policy.budget_scope, "RELAY_ESCALATION_CYCLE");
+  assert.equal(brief.relay.policy.budget_used, 2);
+  assert.equal(brief.relay.policy.budget_limit, 2);
+
+  const textResult = spawnSync(process.execPath, [briefScript, "CODER", fixture.wpId], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      HANDSHAKE_GOV_ROOT: fixture.govRoot,
+      HANDSHAKE_GOV_RUNTIME_ROOT: fixture.govRuntimeRoot,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(textResult.status, 0, textResult.stderr || textResult.stdout);
+  assert.match(textResult.stdout, /RELAY_POLICY: failure_class=VALIDATOR_SESSION_UNAVAILABLE/);
+  assert.match(textResult.stdout, /RELAY_POLICY_SUMMARY: Relay escalation budget is exhausted/i);
 });
 
 test("active-lane-brief hides stale notification and relay noise for terminal WPs by default", () => {
@@ -300,4 +359,62 @@ test("active-lane-brief only shows review items for the active target session", 
   assert.equal(brief.session.actor_session, "coder-1");
   assert.equal(brief.review_queue.length, 1);
   assert.equal(brief.review_queue[0].correlation_id, "kick-1");
+});
+
+test("active-lane-brief prefers canonical execution_state status when flat runtime mirrors lag", () => {
+  const fixture = createFixture();
+  const runtimeStatusPath = path.join(
+    fixture.govRuntimeRoot,
+    "roles_shared",
+    "WP_COMMUNICATIONS",
+    fixture.wpId,
+    "RUNTIME_STATUS.json",
+  );
+  const runtimeStatus = JSON.parse(fs.readFileSync(runtimeStatusPath, "utf8"));
+  runtimeStatus.execution_state = {
+    schema_version: "wp_execution_state@1",
+    authority: {
+      packet_status: "Validated (PASS)",
+      task_board_status: "DONE_VALIDATED",
+      runtime_status: "completed",
+      phase: "STATUS_SYNC",
+      milestone: "CONTAINMENT",
+      next_expected_actor: "NONE",
+      next_expected_session: null,
+      waiting_on: "CLOSED",
+      waiting_on_session: null,
+      route_anchor: {},
+      review_anchor: {},
+    },
+    checkpoint_lineage: {
+      schema_version: "wp_execution_checkpoint_lineage@1",
+      latest_checkpoint_id: null,
+      latest_checkpoint_at_utc: null,
+      latest_checkpoint_kind: null,
+      latest_restore_point_id: null,
+      latest_checkpoint_fingerprint: null,
+      checkpoint_count: 0,
+      checkpoints: [],
+    },
+  };
+  fs.writeFileSync(runtimeStatusPath, `${JSON.stringify(runtimeStatus, null, 2)}\n`, "utf8");
+
+  const result = spawnSync(process.execPath, [briefScript, "CODER", fixture.wpId, "--json"], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      HANDSHAKE_GOV_ROOT: fixture.govRoot,
+      HANDSHAKE_GOV_RUNTIME_ROOT: fixture.govRuntimeRoot,
+    },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const brief = JSON.parse(result.stdout);
+  assert.equal(brief.runtime.status, "completed");
+  assert.equal(brief.runtime.phase, "STATUS_SYNC");
+  assert.equal(brief.runtime.task_board_status, "DONE_VALIDATED");
+  assert.equal(brief.session.effective_governed_action.command_kind, "<none>");
+  assert.equal(brief.notifications.history_hidden, true);
+  assert.equal(brief.relay.status, "TERMINAL_HIDDEN");
 });

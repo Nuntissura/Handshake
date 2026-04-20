@@ -8,13 +8,26 @@ import {
   registrySessionSummary,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
+import {
+  activeRunsForSession,
+  buildSessionTelemetry,
+  formatPushAlertInline,
+  formatSessionRunTelemetryInline,
+  formatSessionStepTelemetryInline,
+  selectLatestPushAlert,
+} from "../../../roles_shared/scripts/session/session-telemetry-lib.mjs";
 import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import {
+  normalizeRelayEscalationPolicy,
+  relayEscalationPolicyBudgetLabel,
+} from "../../../roles_shared/scripts/lib/wp-relay-policy-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
+import { SESSION_CONTROL_BROKER_STATE_FILE } from "../../../roles_shared/scripts/session/session-policy.mjs";
 
 const repoRoot = REPO_ROOT;
 const wpIdFilter = String(process.argv[2] || "").trim();
@@ -51,6 +64,29 @@ const terminalHistorySuppressed = Boolean(
   || isTerminalPacketStatus(wpGovernanceState?.packetStatus),
 );
 
+function loadBrokerActiveRuns() {
+  if (!fs.existsSync(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE))) return [];
+  try {
+    const brokerState = parseJsonFile(SESSION_CONTROL_BROKER_STATE_FILE);
+    return Array.isArray(brokerState?.active_runs) ? brokerState.active_runs : [];
+  } catch {
+    return [];
+  }
+}
+
+const brokerActiveRuns = loadBrokerActiveRuns();
+const notificationCache = new Map();
+
+function notificationsForWp(wpId) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId) return [];
+  if (notificationCache.has(normalizedWpId)) return notificationCache.get(normalizedWpId);
+  const notifications = Object.values(checkAllNotifications({ wpId: normalizedWpId }))
+    .flatMap((entry) => entry.notifications || []);
+  notificationCache.set(normalizedWpId, notifications);
+  return notifications;
+}
+
 function loadRelayStatusForWp(wpId) {
   const packetPath = resolveWorkPacketPath(wpId)?.packetPath || "";
   const packetAbsPath = repoPathAbs(packetPath);
@@ -76,17 +112,22 @@ function loadRelayStatusForWp(wpId) {
     runtimeStatus,
   });
   const pendingNotifications = Object.values(checkAllNotifications({ wpId })).flatMap((entry) => entry.notifications || []);
-  return evaluateWpRelayEscalation({
-    wpId,
-    runtimeStatus,
-    communicationEvaluation,
-    receipts,
-    pendingNotifications,
-    registrySessions: registry.sessions || [],
-  });
+  return {
+    relayStatus: evaluateWpRelayEscalation({
+      wpId,
+      runtimeStatus,
+      communicationEvaluation,
+      receipts,
+      pendingNotifications,
+      registrySessions: registry.sessions || [],
+    }),
+    relayPolicy: normalizeRelayEscalationPolicy(runtimeStatus?.relay_escalation_policy),
+  };
 }
 
-const relayStatus = wpIdFilter ? loadRelayStatusForWp(wpIdFilter) : null;
+const relayDiagnostics = wpIdFilter ? loadRelayStatusForWp(wpIdFilter) : null;
+const relayStatus = relayDiagnostics?.relayStatus || null;
+const relayPolicy = relayDiagnostics?.relayPolicy || null;
 
 console.log("ROLE_SESSION_REGISTRY");
 console.log(`- updated_at: ${registry.updated_at}`);
@@ -118,6 +159,15 @@ if (sessions.length === 0) {
 
 for (const session of sessions) {
   const governance = evaluateSessionGovernanceState(repoRoot, session);
+  const telemetry = buildSessionTelemetry({
+    session,
+    activeRuns: activeRunsForSession(session, brokerActiveRuns),
+    repoRoot,
+  });
+  const latestPushAlert = selectLatestPushAlert(notificationsForWp(session.wp_id), {
+    targetRole: session.role,
+    targetSession: session.session_thread_id || "",
+  });
   console.log("");
   console.log(`- session_key: ${session.session_key}`);
   console.log(`  role: ${session.role}`);
@@ -154,13 +204,48 @@ for (const session of sessions) {
   if (session.owned_terminal_reclaimed_at) {
     console.log(`  owned_terminal_reclaimed_at: ${session.owned_terminal_reclaimed_at}`);
   }
-  console.log(`  last_command_kind: ${session.last_command_kind}`);
-  console.log(`  last_command_status: ${session.last_command_status}`);
+  console.log(`  effective_command_kind: ${session.effective_governed_action?.command_kind || session.last_command_kind}`);
+  console.log(`  effective_command_status: ${session.effective_governed_action?.status || session.last_command_status}`);
   console.log(`  last_command_output_file: ${session.last_command_output_file || "<none>"}`);
-  if (session.last_command_summary) {
-    const compactSummary = session.last_command_summary.replace(/\s+/g, " ").trim();
+  console.log(`  pending_control_queue_count: ${session.pending_control_queue_count || 0}`);
+  if (session.next_queued_control_request) {
+    console.log(`  next_queued_control_request_id: ${session.next_queued_control_request.command_id || "<none>"}`);
+    console.log(`  next_queued_control_request_kind: ${session.next_queued_control_request.command_kind || "<none>"}`);
+    console.log(`  next_queued_control_request_reason: ${session.next_queued_control_request.queue_reason_code || "<none>"}`);
+  }
+  if (session.effective_governed_action) {
+    console.log(`  effective_governed_action_id: ${session.effective_governed_action.action_id || "<none>"}`);
+    console.log(`  effective_governed_action_rule_id: ${session.effective_governed_action.rule_id || "<none>"}`);
+    console.log(`  effective_governed_action_kind: ${session.effective_governed_action.action_kind || "<none>"}`);
+    console.log(`  effective_governed_action_state: ${session.effective_governed_action.action_state || "<none>"}`);
+    console.log(`  effective_governed_action_resume_disposition: ${session.effective_governed_action.resume_disposition || "<none>"}`);
+    console.log(`  effective_governed_action_source: ${session.effective_governed_action.source || "<none>"}`);
+  }
+  console.log(`  health_state: ${session.health_state || "UNKNOWN"}`);
+  console.log(`  health_reason_code: ${session.health_reason_code || "UNKNOWN"}`);
+  console.log(`  health_source: ${session.health_source || "<none>"}`);
+  if (session.health_updated_at) {
+    console.log(`  health_updated_at: ${session.health_updated_at}`);
+  }
+  if (session.health_summary) {
+    const compactHealthSummary = session.health_summary.replace(/\s+/g, " ").trim();
+    const clippedHealthSummary = compactHealthSummary.length > 180 ? `${compactHealthSummary.slice(0, 177)}...` : compactHealthSummary;
+    console.log(`  health_summary: ${clippedHealthSummary}`);
+  }
+  const effectiveSummary = String(
+    session.effective_governed_action?.summary
+    || session.last_command_summary
+    || "",
+  ).trim();
+  if (effectiveSummary) {
+    const compactSummary = effectiveSummary.replace(/\s+/g, " ").trim();
     const clippedSummary = compactSummary.length > 180 ? `${compactSummary.slice(0, 177)}...` : compactSummary;
-    console.log(`  last_command_summary: ${clippedSummary}`);
+    console.log(`  effective_governed_summary: ${clippedSummary}`);
+  }
+  console.log(`  run_telemetry: ${formatSessionRunTelemetryInline(telemetry.run)}`);
+  console.log(`  step_telemetry: ${formatSessionStepTelemetryInline(telemetry.step)}`);
+  if (latestPushAlert) {
+    console.log(`  latest_push_alert: ${formatPushAlertInline(latestPushAlert)}`);
   }
   if (session.runtime_state === "TERMINAL_COMMAND_DISPATCHED") {
     console.log("  note: bridge dispatched the governed command to a VS Code terminal; CLI startup is not yet proven by this state alone");
@@ -180,6 +265,7 @@ for (const session of sessions) {
 }
 
 if (relayStatus) {
+  const wpLatestPushAlert = selectLatestPushAlert(notificationsForWp(wpIdFilter), { targetRole: "ORCHESTRATOR" });
   console.log("");
   console.log("WP_RELAY_ESCALATION");
   console.log(`- wp_id: ${wpIdFilter}`);
@@ -194,8 +280,23 @@ if (relayStatus) {
     console.log(`- reason_code: ${relayStatus.reason_code}`);
     console.log(`- target: ${relayStatus.target_role || "<none>"}${relayStatus.target_session ? `:${relayStatus.target_session}` : ""}`);
     console.log(`- summary: ${relayStatus.summary}`);
+    if (wpLatestPushAlert) {
+      console.log(`- latest_push_alert: ${formatPushAlertInline(wpLatestPushAlert)}`);
+    }
     if (relayStatus.recommended_command) {
       console.log(`- recommended_command: ${relayStatus.recommended_command}`);
+    }
+    if (relayPolicy) {
+      console.log(`- failure_class: ${relayPolicy.failure_class}`);
+      console.log(`- policy_state: ${relayPolicy.policy_state}`);
+      console.log(`- next_strategy: ${relayPolicy.next_strategy}`);
+      console.log(`- budget_scope: ${relayPolicy.budget_scope}`);
+      if (relayPolicy.budget_scope !== "NONE") {
+        console.log(`- strategy_budget: ${relayEscalationPolicyBudgetLabel(relayPolicy)}`);
+      }
+      console.log(`- policy_reason_code: ${relayPolicy.reason_code}`);
+      console.log(`- policy_summary: ${relayPolicy.summary}`);
+      console.log(`- policy_updated_at: ${relayPolicy.updated_at}`);
     }
     const metrics = relayStatus.metrics || {};
       if (Object.keys(metrics).length > 0) {

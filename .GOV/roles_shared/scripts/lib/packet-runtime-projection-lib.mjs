@@ -5,6 +5,10 @@ import {
   taskBoardStatusForPacketStatus,
   runtimePhaseForMilestone,
 } from "./wp-authority-projection-lib.mjs";
+import {
+  readExecutionPublicationView,
+  syncRuntimeExecutionState,
+} from "./wp-execution-state-lib.mjs";
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -119,23 +123,84 @@ export function syncRuntimeProjectionFromPacket(runtimeStatus, packetText, {
   nextRuntime.packet_widening_evidence = projection.packet_widening_evidence;
   nextRuntime.last_event = eventName;
   nextRuntime.last_event_at = eventAt;
-  return nextRuntime;
+  return syncRuntimeExecutionState(nextRuntime, {
+    eventName,
+    eventAt,
+    checkpointKind: "PACKET_SYNC",
+  });
+}
+
+const DRIFT_OWNER_PRIORITY = {
+  PACKET_CLOSEOUT_TRUTH: 0,
+  RUNTIME_PROJECTION: 1,
+};
+
+function packetRuntimeDriftDetail(owner, surface, message) {
+  return { owner, surface, message };
+}
+
+function orderDriftOwners(ownerSet) {
+  return Array.from(ownerSet).sort((left, right) => {
+    const leftPriority = DRIFT_OWNER_PRIORITY[left] ?? Number.MAX_SAFE_INTEGER;
+    const rightPriority = DRIFT_OWNER_PRIORITY[right] ?? Number.MAX_SAFE_INTEGER;
+    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+    return String(left).localeCompare(String(right));
+  });
+}
+
+function ownerLabel(owner) {
+  switch (owner) {
+    case "PACKET_CLOSEOUT_TRUTH":
+      return "packet closeout truth";
+    case "RUNTIME_PROJECTION":
+      return "runtime projection";
+    default:
+      return String(owner || "").trim().toLowerCase().replaceAll("_", " ");
+  }
+}
+
+function buildDriftOwnerSummary(ownerClasses) {
+  if (!Array.isArray(ownerClasses) || ownerClasses.length === 0) {
+    return null;
+  }
+  if (ownerClasses.length === 1) {
+    return `Drift is owned by ${ownerLabel(ownerClasses[0])}; repair ${ownerLabel(ownerClasses[0])} first.`;
+  }
+  return `Drift spans ${ownerClasses.map(ownerLabel).join(" and ")}; repair ${ownerClasses.map(ownerLabel).join(" -> ")} in that order.`;
 }
 
 export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus = {}, {
   communicationEvaluation = null,
 } = {}) {
+  const publication = readExecutionPublicationView({
+    runtimeStatus,
+    packetStatus: parsePacketStatus(packetText),
+  });
+  runtimeStatus = publication.runtime;
   const projection = parseRuntimeProjectionFromPacket(packetText);
   const issues = [];
+  const issueDetails = [];
+  const ownerClasses = new Set();
+  const canonicalAuthorityOwnsPublication = publication.has_canonical_authority;
   const runtimePhase = String(runtimeStatus?.current_phase || "").trim().toUpperCase();
   const runtimeStatusValue = String(runtimeStatus?.runtime_status || "").trim().toLowerCase();
+  const effectivePacketStatus = String(publication.packet_status || projection.current_packet_status || "").trim();
 
   if (
     projection.current_packet_status
     && String(runtimeStatus?.current_packet_status || "").trim() !== String(projection.current_packet_status || "").trim()
   ) {
-    issues.push(
-      `runtime.current_packet_status (${runtimeStatus?.current_packet_status || "<missing>"}) does not match packet status (${projection.current_packet_status})`,
+    const message = canonicalAuthorityOwnsPublication
+      ? `packet status (${projection.current_packet_status}) does not match canonical execution publication status (${runtimeStatus?.current_packet_status || "<missing>"})`
+      : `runtime.current_packet_status (${runtimeStatus?.current_packet_status || "<missing>"}) does not match packet status (${projection.current_packet_status})`;
+    issues.push(message);
+    ownerClasses.add(canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION");
+    issueDetails.push(
+      packetRuntimeDriftDetail(
+        canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION",
+        canonicalAuthorityOwnsPublication ? "packet.Status" : "runtime.current_packet_status",
+        message,
+      ),
     );
   }
 
@@ -143,8 +208,17 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
     projection.current_task_board_status
     && String(runtimeStatus?.current_task_board_status || "").trim().toUpperCase() !== String(projection.current_task_board_status || "").trim().toUpperCase()
   ) {
-    issues.push(
-      `runtime.current_task_board_status (${runtimeStatus?.current_task_board_status || "<missing>"}) does not match packet/task-board projection (${projection.current_task_board_status})`,
+    const message = canonicalAuthorityOwnsPublication
+      ? `packet/task-board projection (${projection.current_task_board_status}) does not match canonical execution publication status (${runtimeStatus?.current_task_board_status || "<missing>"})`
+      : `runtime.current_task_board_status (${runtimeStatus?.current_task_board_status || "<missing>"}) does not match packet/task-board projection (${projection.current_task_board_status})`;
+    issues.push(message);
+    ownerClasses.add(canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION");
+    issueDetails.push(
+      packetRuntimeDriftDetail(
+        canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION",
+        canonicalAuthorityOwnsPublication ? "packet.STATUS_HANDOFF.Current_WP_STATUS" : "runtime.current_task_board_status",
+        message,
+      ),
     );
   }
 
@@ -152,17 +226,44 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
     projection.main_containment_status
     && String(runtimeStatus?.main_containment_status || "").trim().toUpperCase() !== String(projection.main_containment_status || "").trim().toUpperCase()
   ) {
-    issues.push(
-      `runtime.main_containment_status (${runtimeStatus?.main_containment_status || "<missing>"}) does not match packet MAIN_CONTAINMENT_STATUS (${projection.main_containment_status})`,
+    const message = canonicalAuthorityOwnsPublication
+      ? `packet MAIN_CONTAINMENT_STATUS (${projection.main_containment_status}) does not match canonical execution publication status (${runtimeStatus?.main_containment_status || "<missing>"})`
+      : `runtime.main_containment_status (${runtimeStatus?.main_containment_status || "<missing>"}) does not match packet MAIN_CONTAINMENT_STATUS (${projection.main_containment_status})`;
+    issues.push(message);
+    ownerClasses.add(canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION");
+    issueDetails.push(
+      packetRuntimeDriftDetail(
+        canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION",
+        canonicalAuthorityOwnsPublication ? "packet.MAIN_CONTAINMENT_STATUS" : "runtime.main_containment_status",
+        message,
+      ),
     );
   }
 
-  if (projection.current_packet_status === "Done" || /^Validated \(/i.test(projection.current_packet_status || "")) {
+  if (effectivePacketStatus === "Done" || /^Validated \(/i.test(effectivePacketStatus)) {
     if (runtimePhase !== "STATUS_SYNC") {
-      issues.push(`runtime.current_phase (${runtimeStatus?.current_phase || "<missing>"}) should be STATUS_SYNC once packet status is ${projection.current_packet_status}`);
+      const message = `runtime.current_phase (${runtimeStatus?.current_phase || "<missing>"}) should be STATUS_SYNC once packet status is ${effectivePacketStatus}`;
+      issues.push(message);
+      ownerClasses.add("RUNTIME_PROJECTION");
+      issueDetails.push(
+        packetRuntimeDriftDetail(
+          "RUNTIME_PROJECTION",
+          "runtime.current_phase",
+          message,
+        ),
+      );
     }
     if (runtimeStatusValue !== "completed") {
-      issues.push(`runtime.runtime_status (${runtimeStatus?.runtime_status || "<missing>"}) should be completed once packet status is ${projection.current_packet_status}`);
+      const message = `runtime.runtime_status (${runtimeStatus?.runtime_status || "<missing>"}) should be completed once packet status is ${effectivePacketStatus}`;
+      issues.push(message);
+      ownerClasses.add("RUNTIME_PROJECTION");
+      issueDetails.push(
+        packetRuntimeDriftDetail(
+          "RUNTIME_PROJECTION",
+          "runtime.runtime_status",
+          message,
+        ),
+      );
     }
   }
 
@@ -172,19 +273,53 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
     && String(communicationEvaluation.state || "").trim().toUpperCase() === "COMM_OK"
   ) {
     if (runtimePhase === "BOOTSTRAP") {
-      issues.push("runtime.current_phase is still BOOTSTRAP even though direct review is already complete");
+      const message = "runtime.current_phase is still BOOTSTRAP even though direct review is already complete";
+      issues.push(message);
+      ownerClasses.add("RUNTIME_PROJECTION");
+      issueDetails.push(
+        packetRuntimeDriftDetail(
+          "RUNTIME_PROJECTION",
+          "runtime.current_phase",
+          message,
+        ),
+      );
     }
     if (String(runtimeStatus?.current_milestone || "").trim().toUpperCase() !== "VERDICT") {
-      issues.push(`runtime.current_milestone (${runtimeStatus?.current_milestone || "<missing>"}) should be VERDICT once the direct-review lane is complete`);
+      const message = `runtime.current_milestone (${runtimeStatus?.current_milestone || "<missing>"}) should be VERDICT once the direct-review lane is complete`;
+      issues.push(message);
+      ownerClasses.add("RUNTIME_PROJECTION");
+      issueDetails.push(
+        packetRuntimeDriftDetail(
+          "RUNTIME_PROJECTION",
+          "runtime.current_milestone",
+          message,
+        ),
+      );
     }
     if (String(projection.current_main_compatibility_status || "").trim().toUpperCase() === "NOT_RUN") {
-      issues.push("packet still reports CURRENT_MAIN_COMPATIBILITY_STATUS=NOT_RUN even though the final direct-review lane is complete");
+      const message = "packet still reports CURRENT_MAIN_COMPATIBILITY_STATUS=NOT_RUN even though the final direct-review lane is complete";
+      issues.push(message);
+      ownerClasses.add("PACKET_CLOSEOUT_TRUTH");
+      issueDetails.push(
+        packetRuntimeDriftDetail(
+          "PACKET_CLOSEOUT_TRUTH",
+          "packet.CURRENT_MAIN_COMPATIBILITY_STATUS",
+          message,
+        ),
+      );
     }
   }
+
+  const orderedOwners = orderDriftOwners(ownerClasses);
 
   return {
     ok: issues.length === 0,
     projection,
+    publication,
     issues,
+    issue_details: issueDetails,
+    owner_classes: orderedOwners,
+    repair_order: orderedOwners,
+    owner_summary: buildDriftOwnerSummary(orderedOwners),
   };
 }

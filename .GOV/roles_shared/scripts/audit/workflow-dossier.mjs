@@ -20,17 +20,22 @@ import {
   parseThreadEntriesText,
 } from "../session/wp-timeline-lib.mjs";
 import {
-  inspectSessionOutputActivity,
-  summarizeActivityEvent,
-} from "../session/session-output-activity-lib.mjs";
-import {
   NOTIFICATION_CURSOR_FILE_NAME,
   NOTIFICATIONS_FILE_NAME,
   parseJsonFile,
   parseJsonlFile,
 } from "../lib/wp-communications-lib.mjs";
+import { readExecutionProjectionView } from "../lib/wp-execution-state-lib.mjs";
 import { resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
 import { checkAllNotifications } from "../wp/wp-check-notifications.mjs";
+import {
+  activeRunsForSession,
+  buildSessionTelemetry,
+  formatPushAlertInline,
+  formatSessionRunTelemetryInline,
+  formatSessionStepTelemetryInline,
+  selectLatestPushAlert,
+} from "../session/session-telemetry-lib.mjs";
 import {
   appendWorkflowDossierEntry,
   formatWorkflowDossierTimestamp,
@@ -135,24 +140,22 @@ function formatDurationCompact(value) {
   return minutes > 0 ? `${hours}h${minutes}m` : `${hours}h`;
 }
 
-function summarizeSessionLaneActivity(rootDir, session, nowMs) {
+function summarizeSessionLaneTelemetry(rootDir, session, { now, activeRuns, notifications } = {}) {
   const role = String(session?.role || "ROLE").trim().toUpperCase() || "ROLE";
-  const runtimeState = String(session?.runtime_state || "NONE").trim().toUpperCase() || "NONE";
-  const outputFile = String(session?.last_command_output_file || "").trim();
-  if (!outputFile) {
-    return `${role}:${runtimeState}:no_output`;
-  }
-  const activity = inspectSessionOutputActivity(path.resolve(rootDir, outputFile), { nowMs });
-  if (activity.latestProgressEvent) {
-    return `${role}:${runtimeState}:${summarizeActivityEvent(activity.latestProgressEvent, { nowMs })}`;
-  }
-  if (activity.latestAgentMessageEvent) {
-    return `${role}:${runtimeState}:${summarizeActivityEvent(activity.latestAgentMessageEvent, { nowMs })}`;
-  }
-  if (Number.isInteger(activity.outputFileIdleSeconds)) {
-    return `${role}:${runtimeState}:output@${formatDurationCompact(activity.outputFileIdleSeconds * 1000)}`;
-  }
-  return `${role}:${runtimeState}:no_activity`;
+  const telemetry = buildSessionTelemetry({
+    session,
+    activeRuns: activeRunsForSession(session, activeRuns),
+    repoRoot: rootDir,
+    now,
+  });
+  const latestPushAlert = selectLatestPushAlert(notifications, {
+    targetRole: role,
+    targetSession: String(session?.session_thread_id || "").trim(),
+  });
+  return [
+    `${role}{${formatSessionRunTelemetryInline(telemetry.run)};${formatSessionStepTelemetryInline(telemetry.step)}}`,
+    latestPushAlert ? `${role}{${formatPushAlertInline(latestPushAlert)}}` : "",
+  ].filter(Boolean).join(";");
 }
 
 function usage() {
@@ -345,9 +348,10 @@ function runSync(rootDir, options) {
   const receiptsPath = parseSingleField(packetText, "WP_RECEIPTS_FILE");
   const threadPath = parseSingleField(packetText, "WP_THREAD_FILE");
   const commDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
-  const runtime = runtimePath && fs.existsSync(path.resolve(rootDir, runtimePath))
-    ? parseJsonFile(path.resolve(rootDir, runtimePath))
-    : {};
+  const runtimeProjection = runtimePath && fs.existsSync(path.resolve(rootDir, runtimePath))
+    ? readExecutionProjectionView(parseJsonFile(path.resolve(rootDir, runtimePath)))
+    : readExecutionProjectionView({});
+  const runtime = runtimeProjection.runtime;
   const receipts = receiptsPath && fs.existsSync(path.resolve(rootDir, receiptsPath))
     ? parseJsonlFile(path.resolve(rootDir, receiptsPath))
     : [];
@@ -372,7 +376,11 @@ function runSync(rootDir, options) {
   const relayLaneVerdict = relayWatchdog?.laneVerdict || null;
   const workerInterruptBudget = relayWatchdog?.workerInterruptBudget || null;
   const sessionActivitySummary = sessions
-    .map((session) => summarizeSessionLaneActivity(rootDir, session, nowMs))
+    .map((session) => summarizeSessionLaneTelemetry(rootDir, session, {
+      now,
+      activeRuns: brokerSummary.activeRuns,
+      notifications,
+    }))
     .filter(Boolean)
     .join(",");
   const timelineEntries = buildWpTimelineEntries({
@@ -400,7 +408,7 @@ function runSync(rootDir, options) {
     now: nowMs,
   });
   const latestMechanicalEvent = latestDate([
-    runtime?.last_event_at,
+    runtimeProjection.last_event_at,
     latestControlResult.completed_at,
     latestControlResult.created_at,
     latestControlResult.timestamp,
@@ -409,8 +417,8 @@ function runSync(rootDir, options) {
     brokerSummary.updatedAt,
   ]);
 
-  const runtimeStatus = String(runtime?.runtime_status || runtime?.status || "NONE").trim() || "NONE";
-  const waitingOn = String(runtime?.waiting_on || runtime?.next_actor || "NONE").trim() || "NONE";
+  const runtimeStatus = runtimeProjection.runtime_status || "NONE";
+  const waitingOn = runtimeProjection.waiting_on || runtimeProjection.next_expected_actor || "NONE";
   const latestControlSummary = latestControlResult.command_kind
     ? `${latestControlResult.command_kind}/${latestControlResult.status || "UNKNOWN"}`
     : "NONE";
@@ -425,7 +433,8 @@ function runSync(rootDir, options) {
     `pending=${notificationSummary.totalPending}`,
     `latest_control=${latestControlSummary}`,
     `latest_receipt=${latestReceiptSummary}`,
-    `acp=${sessionActivitySummary || "NONE"}`,
+    `run_step=${sessionActivitySummary || "NONE"}`,
+    `push_alert=${formatPushAlertInline(selectLatestPushAlert(notifications, { targetRole: "ORCHESTRATOR" }))}`,
     `lane=${relayLaneVerdict ? `${relayLaneVerdict.verdict}/${relayLaneVerdict.reasonCode}` : "NONE"}`,
     `interrupt_budget=${workerInterruptBudget ? `${workerInterruptBudget.currentCycle}/${workerInterruptBudget.maxCycle}` : "NONE"}`,
     `idle=${formatIdleMinutes(latestMechanicalEvent)}m`,
@@ -584,8 +593,10 @@ function loadWpTimelineData(rootDir, wpId) {
   const receiptsPath = parseSingleField(packetText, "WP_RECEIPTS_FILE");
   const threadPath = parseSingleField(packetText, "WP_THREAD_FILE");
   const commDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
-  const runtime = runtimePath && fs.existsSync(path.resolve(rootDir, runtimePath))
-    ? parseJsonFile(path.resolve(rootDir, runtimePath)) : {};
+  const runtimeProjection = runtimePath && fs.existsSync(path.resolve(rootDir, runtimePath))
+    ? readExecutionProjectionView(parseJsonFile(path.resolve(rootDir, runtimePath)))
+    : readExecutionProjectionView({});
+  const runtime = runtimeProjection.runtime;
   const receipts = receiptsPath && fs.existsSync(path.resolve(rootDir, receiptsPath))
     ? parseJsonlFile(path.resolve(rootDir, receiptsPath)) : [];
   const threadEntries = threadPath && fs.existsSync(path.resolve(rootDir, threadPath))

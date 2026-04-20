@@ -26,6 +26,7 @@ import {
   taskBoardStatus,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { listValidatorGateStateFiles, resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import { deriveValidatorGateSessionStatus } from "../../../roles_shared/scripts/lib/validator-gate-governed-action-lib.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, inferWpIdFromPacketPath, repoPathAbs, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
   buildValidatorReadyCommands,
@@ -117,7 +118,8 @@ function collectPendingSessions() {
   for (const filePath of listValidatorGateStateFiles()) {
     const wpId = path.basename(filePath).replace(/\.json$/i, "");
     const session = loadValidationSession(wpId);
-    if (!session || session.status === "USER_ACKNOWLEDGED") continue;
+    const sessionStatus = deriveValidatorGateSessionStatus(session || {}).status;
+    if (!session || sessionStatus === "USER_ACKNOWLEDGED") continue;
 
     const boardStatus = taskBoardStatus(wpId);
     if (isTerminalTaskBoardStatus(boardStatus)) continue;
@@ -129,7 +131,7 @@ function collectPendingSessions() {
       packetContent,
       currentWpStatus: parseCurrentWpStatus(packetContent),
       taskBoardStatus: boardStatus,
-      sessionStatus: session.status,
+      sessionStatus,
     });
     if (!validatorGovernanceState.allowValidationResume) continue;
 
@@ -137,12 +139,12 @@ function collectPendingSessions() {
       String(session.gates?.[session.gates.length - 1]?.timestamp || session.started || ""),
     );
     const score =
-      validatorSessionScore(session.status) +
+      validatorSessionScore(sessionStatus) +
       (Number.isNaN(timestamp) ? 0 : freshnessBoost(timestamp));
 
     candidates.push({
       wpId,
-      reason: `validator gate session ${session.status}`,
+      reason: `validator gate session ${sessionStatus}`,
       score,
       timestamp: Number.isNaN(timestamp) ? 0 : timestamp,
     });
@@ -351,6 +353,7 @@ const currentWpStatusLower = currentWpStatus.toLowerCase();
 const boardStatus = taskBoardStatus(wpId) || "<none>";
 const postWorkCommand = buildPostWorkCommand(wpId, packetContent);
 const session = loadValidationSession(wpId);
+const sessionStatus = deriveValidatorGateSessionStatus(session || {}).status;
 const validatorActorContext = resolveValidatorActorContext({
   repoRoot: gitContext.topLevel || REPO_ROOT,
   wpId,
@@ -405,7 +408,7 @@ const validatorGovernanceState = evaluateValidatorPacketGovernanceState({
   packetContent,
   currentWpStatus,
   taskBoardStatus: boardStatus,
-  sessionStatus: session?.status || "",
+  sessionStatus: sessionStatus || session?.status || "",
   actorContext: validatorActorContext,
 });
 const communicationState = loadValidatorCommunicationState({
@@ -414,7 +417,10 @@ const communicationState = loadValidatorCommunicationState({
   packetContent,
 });
 const validatorResumeState = deriveValidatorResumeState({
+  wpId,
   actorRole: validatorActorContext.actorRole,
+  actorSessionKey: validatorActorContext.actorSessionKey,
+  actorSessionId: validatorActorContext.actorSessionId,
   communicationState,
 });
 const passAuthorityCheck = evaluateValidatorPassAuthority({
@@ -453,13 +459,13 @@ const findings = [
   `Packet status: ${packetStatus || "<missing>"}`,
   `Current WP_STATUS: ${currentWpStatus || "<empty>"}`,
   `Task Board status: ${boardStatus}`,
-  `Validator gate status: ${session.status}`,
+  `Validator gate status: ${sessionStatus}`,
   `Resolved validator lane: ${validatorActorContext.actorRole} (${validatorActorContext.source})`,
 ];
 
   printVerdict(verdict);
 
-  if (session.status === "WP_APPENDED") {
+  if (sessionStatus === "WP_APPENDED") {
     if (verdict === "PASS" && !passAuthorityCheck.ok) {
       printVerdict("BLOCKED");
       printLifecycle({ wpId, stage: "VALIDATION", next: "STOP" });
@@ -503,7 +509,7 @@ const findings = [
     process.exit(0);
   }
 
-  if (session.status === "COMMITTED") {
+  if (sessionStatus === "COMMITTED") {
     if (verdict === "PASS" && !passAuthorityCheck.ok) {
       printVerdict("BLOCKED");
       printLifecycle({ wpId, stage: "VALIDATION", next: "STOP" });
@@ -537,7 +543,7 @@ const findings = [
     process.exit(0);
   }
 
-  if (session.status === "REPORT_PRESENTED") {
+  if (sessionStatus === "REPORT_PRESENTED") {
     printLifecycle({ wpId, stage: "VALIDATION", next: "STOP" });
     printOperatorAction(`User acknowledgment for ${wpId}`);
     printConfidence(confidence, confidenceDetail);
@@ -547,7 +553,7 @@ const findings = [
     process.exit(0);
   }
 
-  if (session.status === "USER_ACKNOWLEDGED") {
+  if (sessionStatus === "USER_ACKNOWLEDGED") {
     printLifecycle({
       wpId,
       stage: verdict === "PASS" ? "MERGE" : "VALIDATION",
@@ -595,6 +601,9 @@ const findings = [
   validatorResumeState.latestAssessment
     ? `Latest validator assessment: ${validatorResumeState.latestAssessment.verdict} via ${validatorResumeState.latestAssessment.receiptKind} - ${validatorResumeState.latestAssessment.reason}`
     : null,
+  validatorResumeState.governedAction?.rule_id
+    ? `Governed resume action: ${validatorResumeState.governedAction.action_kind}/${validatorResumeState.governedAction.resume_disposition} via ${validatorResumeState.governedAction.rule_id}`
+    : null,
 ].filter(Boolean);
 
 if (["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"].includes(boardStatus)) {
@@ -616,7 +625,7 @@ if (["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"].includes(b
   process.exit(0);
 }
 
-if (validatorResumeState.ready) {
+if (validatorResumeState.governedAction?.action_kind === "APPROVE") {
   printVerdict("PENDING");
   printLifecycle({ wpId, stage: "VALIDATION", next: "VALIDATION" });
   printOperatorAction("NONE");
@@ -634,7 +643,7 @@ if (validatorResumeState.ready) {
   process.exit(0);
 }
 
-if (validatorResumeState.blockedByRoute) {
+if (validatorResumeState.governedAction?.action_kind === "DEFER") {
   printVerdict("PENDING");
   printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
   printOperatorAction("NONE");

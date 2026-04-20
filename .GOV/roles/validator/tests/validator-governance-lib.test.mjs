@@ -3,12 +3,14 @@ import path from "node:path";
 import test from "node:test";
 import {
   buildValidatorReadyCommands,
+  deriveValidatorResumeAction,
   deriveValidatorResumeState,
   evaluateValidatorPacketGovernanceState,
   evaluateValidatorPassAuthority,
   readValidatorAuthority,
   resolveValidatorActorContext,
 } from "../scripts/lib/validator-governance-lib.mjs";
+import { validateGovernedActionResultShape } from "../../../roles_shared/scripts/session/session-governed-action-lib.mjs";
 import { defaultWpValidatorBranch, defaultWpValidatorWorktreeDir } from "../../../roles_shared/scripts/session/session-policy.mjs";
 
 function packetFixture({
@@ -388,7 +390,9 @@ test("wp-validator ready commands surface overlap microtask review guidance when
 
 test("validator resume state follows projected WP validator review truth", () => {
   const state = deriveValidatorResumeState({
+    wpId: "WP-TEST-VALIDATOR-v1",
     actorRole: "WP_VALIDATOR",
+    actorSessionId: "wp-validator-session",
     communicationState: {
       runtimeStatus: {
         next_expected_actor: "WP_VALIDATOR",
@@ -407,11 +411,15 @@ test("validator resume state follows projected WP validator review truth", () =>
   assert.equal(state.nextExpectedActor, "WP_VALIDATOR");
   assert.equal(state.waitingOn, "WP_VALIDATOR_REVIEW");
   assert.match(state.message, /WP validator review is required now/i);
+  assert.equal(state.governedAction.rule_id, "VALIDATOR_GATE_APPROVE_RESUME");
+  assert.equal(state.governedAction.resume_disposition, "RESUME_ALLOWED");
 });
 
 test("validator resume state follows projected WP validator intent checkpoint truth", () => {
   const state = deriveValidatorResumeState({
+    wpId: "WP-TEST-VALIDATOR-v1",
     actorRole: "WP_VALIDATOR",
+    actorSessionId: "wp-validator-session",
     communicationState: {
       runtimeStatus: {
         next_expected_actor: "WP_VALIDATOR",
@@ -430,11 +438,15 @@ test("validator resume state follows projected WP validator intent checkpoint tr
   assert.equal(state.nextExpectedActor, "WP_VALIDATOR");
   assert.equal(state.waitingOn, "WP_VALIDATOR_INTENT_CHECKPOINT");
   assert.match(state.message, /checkpoint review is required/i);
+  assert.equal(state.governedAction.rule_id, "VALIDATOR_GATE_APPROVE_RESUME");
+  assert.equal(state.governedAction.resume_disposition, "RESUME_ALLOWED");
 });
 
 test("validator resume state reports coder remediation after failed assessment", () => {
   const state = deriveValidatorResumeState({
+    wpId: "WP-TEST-VALIDATOR-v1",
     actorRole: "WP_VALIDATOR",
+    actorSessionId: "wp-validator-session",
     communicationState: {
       runtimeStatus: {
         next_expected_actor: "CODER",
@@ -457,11 +469,15 @@ test("validator resume state reports coder remediation after failed assessment",
   assert.equal(state.nextExpectedActor, "CODER");
   assert.match(state.message, /Latest validator assessment already recorded FAIL/i);
   assert.match(state.message, /coder remediation is next/i);
+  assert.equal(state.governedAction.rule_id, "VALIDATOR_GATE_DEFER_RESUME");
+  assert.equal(state.governedAction.resume_disposition, "DEFERRED");
 });
 
 test("validator resume state exposes parallel overlap review work even when coder remains the routed next actor", () => {
   const state = deriveValidatorResumeState({
+    wpId: "WP-TEST-VALIDATOR-v1",
     actorRole: "WP_VALIDATOR",
+    actorSessionId: "wp-validator-session",
     communicationState: {
       runtimeStatus: {
         next_expected_actor: "CODER",
@@ -495,11 +511,15 @@ test("validator resume state exposes parallel overlap review work even when code
   assert.equal(state.parallelReviewReady, true);
   assert.equal(state.blockedByRoute, false);
   assert.match(state.message, /Parallel microtask review queue is available/i);
+  assert.equal(state.governedAction.rule_id, "VALIDATOR_GATE_APPROVE_RESUME");
+  assert.equal(state.governedAction.resume_disposition, "RESUME_ALLOWED");
 });
 
 test("validator resume state follows projected integration-validator review truth", () => {
   const state = deriveValidatorResumeState({
+    wpId: "WP-TEST-VALIDATOR-v1",
     actorRole: "INTEGRATION_VALIDATOR",
+    actorSessionKey: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
     communicationState: {
       runtimeStatus: {
         next_expected_actor: "INTEGRATION_VALIDATOR",
@@ -517,4 +537,26 @@ test("validator resume state follows projected integration-validator review trut
   assert.equal(state.blockedByRoute, false);
   assert.equal(state.nextExpectedActor, "INTEGRATION_VALIDATOR");
   assert.match(state.message, /final direct review exchange/i);
+  assert.equal(state.governedAction.rule_id, "VALIDATOR_GATE_APPROVE_RESUME");
+  assert.equal(state.governedAction.resume_disposition, "RESUME_ALLOWED");
+});
+
+test("validator resume action emits a typed skip envelope when runtime communication truth is unavailable", () => {
+  const action = deriveValidatorResumeAction({
+    wpId: "WP-TEST-VALIDATOR-v1",
+    actorRole: "WP_VALIDATOR",
+    actorSessionId: "wp-validator-session",
+    communicationState: {
+      runtimeStatus: {},
+      communicationEvaluation: {
+        applicable: false,
+      },
+      latestValidatorAssessment: null,
+    },
+  });
+
+  assert.equal(action.governedAction.rule_id, "VALIDATOR_GATE_SKIP_RESUME");
+  assert.equal(action.governedAction.resume_disposition, "SKIP_ALLOWED");
+  assert.equal(action.governedAction.metadata.decision_reason_code, "COMMUNICATION_NOT_APPLICABLE");
+  assert.deepEqual(validateGovernedActionResultShape(action.governedAction), []);
 });

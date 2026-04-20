@@ -8,8 +8,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   appendJsonlLine,
   defaultRegistry,
+  enqueuePendingSessionControlRequest,
   getOrCreateSessionRecord,
   loadSessionRegistry,
+  markSessionCommandQueued,
+  markSessionCommandResult,
   markCliEscalationUsed,
   markPluginResult,
   parseJsonlFile,
@@ -215,4 +218,159 @@ test("CLI escalation keeps governance path context and marks startup as requeste
   assert.equal(summary.local_branch, "feat/WP-TEST");
   assert.equal(summary.local_worktree_dir, "../wtc-test");
   assert.equal(summary.active_terminal_kind, "SYSTEM_TERMINAL");
+});
+
+test("new session records default ACP health fields and expose them through the registry summary", () => {
+  const registry = defaultRegistry();
+  const session = getOrCreateSessionRecord(registry, {
+    wp_id: "WP-TEST",
+    role: "WP_VALIDATOR",
+    local_branch: "feat/WP-TEST",
+    local_worktree_dir: "../wtv-test",
+    terminal_title: "WP_VALIDATOR WP-TEST",
+  });
+
+  const summary = registrySessionSummary(session);
+  assert.equal(summary.health_state, "UNKNOWN");
+  assert.equal(summary.health_reason_code, "UNKNOWN");
+  assert.equal(summary.health_source, "ACP_WATCHDOG_V1");
+  assert.equal(summary.health_updated_at, "");
+});
+
+test("session command projection keeps a bounded governed action history alongside last_command fields", () => {
+  const registry = defaultRegistry();
+  const session = getOrCreateSessionRecord(registry, {
+    wp_id: "WP-TEST",
+    role: "CODER",
+    local_branch: "feat/WP-TEST",
+    local_worktree_dir: "../wtc-test",
+    terminal_title: "CODER WP-TEST",
+  });
+
+  const command = {
+    command_id: "33333333-3333-3333-3333-333333333333",
+    command_kind: "SEND_PROMPT",
+    created_at: "2026-04-20T10:00:00Z",
+    summary: "Resume the coder lane.",
+    output_jsonl_file: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-TEST/333.jsonl",
+    governed_action: {
+      schema_id: "hsk.governed_action_request@1",
+      schema_version: "governed_action_request_v1",
+      action_id: "33333333-3333-3333-3333-333333333333",
+      requested_at: "2026-04-20T10:00:00Z",
+      rule_id: "SESSION_CONTROL_SEND_PROMPT_EXTERNAL_EXECUTE",
+      action_kind: "EXTERNAL_EXECUTE",
+      action_surface: "SESSION_CONTROL",
+      command_kind: "SEND_PROMPT",
+      command_id: "33333333-3333-3333-3333-333333333333",
+      created_by_role: "ORCHESTRATOR",
+      session_key: "CODER:WP-TEST",
+      wp_id: "WP-TEST",
+      role: "CODER",
+      target_command_id: "",
+      reason_code: "SEND_PROMPT",
+      summary: "Resume the coder lane.",
+      resume_policy: "WAIT_FOR_TRANSPORT_RESULT",
+      metadata: {},
+    },
+  };
+  markSessionCommandQueued(session, command);
+  markSessionCommandResult(session, {
+    command_id: command.command_id,
+    command_kind: command.command_kind,
+    processed_at: "2026-04-20T10:01:00Z",
+    status: "COMPLETED",
+    outcome_state: "SETTLED",
+    summary: "Coder lane resumed.",
+    output_jsonl_file: command.output_jsonl_file,
+    thread_id: "thread_test",
+    governed_action: {
+      schema_id: "hsk.governed_action_result@1",
+      schema_version: "governed_action_result_v1",
+      action_id: "33333333-3333-3333-3333-333333333333",
+      processed_at: "2026-04-20T10:01:00Z",
+      rule_id: "SESSION_CONTROL_SEND_PROMPT_EXTERNAL_EXECUTE",
+      action_kind: "EXTERNAL_EXECUTE",
+      action_surface: "SESSION_CONTROL",
+      command_kind: "SEND_PROMPT",
+      command_id: "33333333-3333-3333-3333-333333333333",
+      session_key: "CODER:WP-TEST",
+      wp_id: "WP-TEST",
+      role: "CODER",
+      status: "COMPLETED",
+      outcome_state: "SETTLED",
+      result_state: "SETTLED",
+      resume_disposition: "CONSUME_RESULT",
+      target_command_id: "",
+      summary: "Coder lane resumed.",
+      error: "",
+      metadata: {},
+    },
+  });
+
+  const summary = registrySessionSummary(session);
+  assert.equal(summary.last_command_status, "COMPLETED");
+  assert.equal(summary.last_governed_action.rule_id, "SESSION_CONTROL_SEND_PROMPT_EXTERNAL_EXECUTE");
+  assert.equal(summary.last_governed_action.action_state, "SETTLED");
+  assert.equal(summary.last_governed_action.resume_disposition, "CONSUME_RESULT");
+  assert.equal(summary.effective_governed_action.rule_id, "SESSION_CONTROL_SEND_PROMPT_EXTERNAL_EXECUTE");
+  assert.equal(summary.effective_governed_action.command_kind, "SEND_PROMPT");
+  assert.equal(summary.effective_governed_action.status, "COMPLETED");
+  assert.equal(summary.effective_governed_action.source, "governed_action");
+  assert.equal(summary.action_history.length, 1);
+});
+
+test("session registry summary exposes pending queued control requests without replacing the effective action", () => {
+  const registry = defaultRegistry();
+  const session = getOrCreateSessionRecord(registry, {
+    wp_id: "WP-TEST",
+    role: "CODER",
+    local_branch: "feat/WP-TEST",
+    local_worktree_dir: "../wtc-test",
+    terminal_title: "CODER WP-TEST",
+  });
+
+  session.last_command_id = "active-command";
+  session.last_command_kind = "SEND_PROMPT";
+  session.last_command_status = "RUNNING";
+  session.last_command_summary = "Active governed prompt is still running.";
+
+  enqueuePendingSessionControlRequest(session, {
+    command_id: "queued-command",
+    command_kind: "SEND_PROMPT",
+    target_command_id: "",
+    summary: "Queued follow-up prompt.",
+    output_jsonl_file: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-TEST/queued.jsonl",
+    busy_ingress_mode: "ENQUEUE_ON_BUSY",
+    governed_action: {
+      schema_id: "hsk.governed_action_request@1",
+      schema_version: "governed_action_request_v1",
+      action_id: "queued-command",
+      requested_at: "2026-04-20T10:02:00Z",
+      rule_id: "SESSION_CONTROL_SEND_PROMPT_EXTERNAL_EXECUTE",
+      action_kind: "EXTERNAL_EXECUTE",
+      action_surface: "SESSION_CONTROL",
+      command_kind: "SEND_PROMPT",
+      command_id: "queued-command",
+      created_by_role: "ORCHESTRATOR",
+      session_key: "CODER:WP-TEST",
+      wp_id: "WP-TEST",
+      role: "CODER",
+      reason_code: "SEND_PROMPT",
+      summary: "Queued follow-up prompt.",
+      resume_policy: "WAIT_FOR_TRANSPORT_RESULT",
+      metadata: {},
+    },
+  }, {
+    queueReasonCode: "BUSY_ACTIVE_RUN",
+    blockingCommandId: "active-command",
+    queuedAt: "2026-04-20T10:02:00Z",
+  });
+
+  const summary = registrySessionSummary(session);
+  assert.equal(summary.pending_control_queue_count, 1);
+  assert.equal(summary.next_queued_control_request.command_id, "queued-command");
+  assert.equal(summary.next_queued_control_request.queue_reason_code, "BUSY_ACTIVE_RUN");
+  assert.equal(summary.effective_governed_action.command_id, "active-command");
+  assert.equal(summary.effective_governed_action.status, "RUNNING");
 });

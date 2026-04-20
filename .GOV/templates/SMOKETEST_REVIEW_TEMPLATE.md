@@ -251,7 +251,7 @@ Assessment:
 
 ## 9b. Build Artifact Hygiene
 
-- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake Artifacts` (resolve from topology; typically a sibling of the worktree root)
+- BUILD_TARGET_PATH: `<WORKSPACE_ROOT>/Handshake_Artifacts` (resolve from topology; typically a sibling of the worktree root)
 - BUILD_TARGET_CLEANED_BY: <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|NONE|N/A>
 - BUILD_TARGET_CLEANED_AT: <timestamp or N/A>
 - BUILD_TARGET_STATE_AT_CLOSEOUT: <CLEAN|STALE|NOT_CHECKED>

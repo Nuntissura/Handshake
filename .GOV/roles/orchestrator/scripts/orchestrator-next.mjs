@@ -17,6 +17,7 @@ import {
 import {
   activeOrchestratorCandidates,
   currentGitContext,
+  displayRepoRelativePath,
   inferOrchestratorWpId,
   loadOrchestratorGateLogs,
   preparedWorktreeSyncState,
@@ -31,13 +32,22 @@ import {
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { EXECUTION_OWNER_RANGE_HELP } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { buildPhaseCheckCommand } from "../../../roles_shared/checks/phase-check-lib.mjs";
-import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { loadSessionRegistry, registrySessionSummary } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 import { deriveLatestValidatorAssessment, evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import {
+  normalizeRelayEscalationPolicy,
+  relayEscalationPolicyBudgetLabel,
+} from "../../../roles_shared/scripts/lib/wp-relay-policy-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
+import {
+  inferExecutionCloseoutMode,
+  materializeRuntimeAuthorityView,
+  readExecutionPublicationView,
+} from "../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { parsePolicyWaiverLedger } from "../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
@@ -48,6 +58,13 @@ import {
   normalizeWorkflowLane,
   readActivationReadinessState,
 } from "./lib/workflow-lane-guidance-lib.mjs";
+import { nextQueuedControlRequest, pendingControlQueueCount } from "./lib/orchestrator-steer-lib.mjs";
+
+function displayPathForOperator(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "<unknown>";
+  return displayRepoRelativePath(normalized, REPO_ROOT) || ".";
+}
 
 // RGF-129/G4: Surface governance memory insights for the active WP
 function loadMemoryInsights(wpId) {
@@ -139,7 +156,7 @@ function loadProjectionDriftState(wpId, packetPath, packetText) {
   const receiptsAbs = repoPathAbs(receiptsFile);
   if (!runtimeStatusFile || !exists(runtimeStatusAbs)) return null;
 
-  const runtimeStatus = parseJsonFile(runtimeStatusFile);
+  const runtimeStatus = materializeRuntimeAuthorityView(parseJsonFile(runtimeStatusFile));
   const receipts = receiptsFile && exists(receiptsAbs) ? parseJsonlFile(receiptsFile) : [];
   const communicationEvaluation = evaluateWpCommunicationHealth({
     wpId,
@@ -163,16 +180,15 @@ function loadProjectionDriftState(wpId, packetPath, packetText) {
   };
 }
 
-function loadRelayEscalationState(repoRoot, wpId, packetRuntimeState, pendingNotifications = []) {
+function loadRelayEscalationState(wpId, packetRuntimeState, pendingNotifications = [], registrySessions = []) {
   if (!packetRuntimeState?.runtimeStatus || !packetRuntimeState?.communicationEvaluation) return null;
-  const { registry } = loadSessionRegistry(repoRoot);
   return evaluateWpRelayEscalation({
     wpId,
     runtimeStatus: packetRuntimeState.runtimeStatus,
     communicationEvaluation: packetRuntimeState.communicationEvaluation,
     receipts: packetRuntimeState.receipts || [],
     pendingNotifications,
-    registrySessions: registry.sessions || [],
+    registrySessions,
   });
 }
 
@@ -188,6 +204,59 @@ export function latestOrchestratorGovernanceCheckpoint(notificationsByRole = {})
   const notifications = notificationsByRole?.ORCHESTRATOR?.notifications || [];
   const checkpoints = notifications.filter((entry) => String(entry?.source_kind || "").trim().toUpperCase() === "GOVERNANCE_CHECKPOINT");
   return checkpoints.sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
+}
+
+export function latestOrchestratorAcpHealthAlert(notificationsByRole = {}) {
+  const notifications = notificationsByRole?.ORCHESTRATOR?.notifications || [];
+  const alerts = notifications.filter((entry) => String(entry?.source_kind || "").trim().toUpperCase() === "ACP_HEALTH_ALERT");
+  return alerts.sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
+}
+
+export function latestOrchestratorRelayWatchdogRepair(notificationsByRole = {}) {
+  const notifications = notificationsByRole?.ORCHESTRATOR?.notifications || [];
+  const repairs = notifications.filter((entry) => String(entry?.source_kind || "").trim().toUpperCase() === "RELAY_WATCHDOG_REPAIR");
+  return repairs.sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
+}
+
+export function relayEscalationPolicyFindings(policy = null) {
+  const normalized = normalizeRelayEscalationPolicy(policy);
+  if (!normalized) return [];
+  return [
+    `Relay failure class: ${normalized.failure_class}`,
+    `Relay policy: ${normalized.policy_state} -> ${normalized.next_strategy}`,
+    normalized.budget_scope === "NONE"
+      ? "Relay strategy budget: NONE"
+      : `Relay strategy budget: ${relayEscalationPolicyBudgetLabel(normalized)}`,
+    normalized.reason_code ? `Relay policy reason: ${normalized.reason_code}` : null,
+    normalized.summary ? `Relay policy summary: ${normalized.summary}` : null,
+  ].filter(Boolean);
+}
+
+export function queuedGovernedWaitState({
+  workflowLane = "",
+  runtimeStatus = {},
+  registrySessions = [],
+} = {}) {
+  if (normalizeWorkflowLane(workflowLane) !== "ORCHESTRATOR_MANAGED") return null;
+  const nextActor = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
+  if (!GOVERNED_ROLE_RELAY_TARGETS.has(nextActor)) return null;
+
+  const matchingSession = (registrySessions || []).find((entry) =>
+    String(entry?.role || "").trim().toUpperCase() === nextActor
+  ) || null;
+  if (!matchingSession) return null;
+
+  const queueCount = pendingControlQueueCount(matchingSession);
+  if (queueCount <= 0) return null;
+
+  const queuedRequest = nextQueuedControlRequest(matchingSession);
+  return {
+    role: nextActor,
+    session: matchingSession,
+    queueCount,
+    queuedRequest,
+    target: `${nextActor}${runtimeStatus?.next_expected_session ? `:${runtimeStatus.next_expected_session}` : ""}`,
+  };
 }
 
 export function findActiveTokenBudgetContinuationWaiver(packetText = "") {
@@ -263,13 +332,7 @@ function orchestratorAssessmentState(checkpointNotification, assessment = null, 
 }
 
 export function closeoutModeFromPacketStatus(packetStatus = "") {
-  const normalized = String(packetStatus || "").trim();
-  if (normalized === "Done") return "DONE_MERGE_PENDING";
-  if (/^Validated\s*\(\s*PASS\s*\)$/i.test(normalized)) return "DONE_VALIDATED";
-  if (/^Validated\s*\(\s*FAIL\s*\)$/i.test(normalized)) return "DONE_FAIL";
-  if (/^Validated\s*\(\s*ABANDONED\s*\)$/i.test(normalized)) return "DONE_ABANDONED";
-  if (/^Validated\s*\(\s*OUTDATED_ONLY\s*\)$/i.test(normalized)) return "DONE_OUTDATED_ONLY";
-  return "";
+  return inferExecutionCloseoutMode({ packetStatus })?.task_board_status || "";
 }
 
 export function isTerminalOrchestratorBoardStatus(status = "") {
@@ -277,10 +340,24 @@ export function isTerminalOrchestratorBoardStatus(status = "") {
 }
 
 function closeoutSyncCommandForProjection(wpId, projection = {}, runtimeStatus = {}, communicationEvaluation = null) {
-  const packetStatus = String(projection.current_packet_status || "").trim();
-  const closeoutMode = closeoutModeFromPacketStatus(packetStatus);
+  const publication = readExecutionPublicationView({
+    runtimeStatus,
+    packetStatus: projection.current_packet_status,
+    taskBoardStatus: projection.current_task_board_status,
+  });
+  const closeoutMode = inferExecutionCloseoutMode({
+    packetStatus: publication.packet_status,
+    taskBoardStatus: publication.task_board_status,
+    mainContainmentStatus: publication.runtime?.main_containment_status,
+  });
   if (closeoutMode) {
-    return `just task-board-set ${wpId} ${closeoutMode}`;
+    if (publication.has_canonical_authority && publication.packet_projection_drift) {
+      const mergedMainShaSegment = closeoutMode.require_merged_main_commit
+        ? " --merged-main-sha <MERGED_MAIN_SHA>"
+        : "";
+      return `just phase-check CLOSEOUT ${wpId} --sync-mode ${closeoutMode.mode}${mergedMainShaSegment} --context "<why this closeout truth is being recorded, >=40 chars>"`;
+    }
+    return `just task-board-set ${wpId} ${closeoutMode.task_board_status}`;
   }
   if (
     communicationEvaluation?.ok
@@ -463,7 +540,7 @@ function main() {
       }));
     const findings = [
       `Current branch: ${gitContext.branch || "<unknown>"}`,
-      `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+      `Current worktree: ${displayPathForOperator(gitContext.topLevel)}`,
     ];
 
     if (activeCandidates.length > 0) {
@@ -500,7 +577,7 @@ function main() {
     printFindings([
       `Packet: ${packetPath}`,
       `Current branch: ${gitContext.branch || "<unknown>"}`,
-      `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+      `Current worktree: ${displayPathForOperator(gitContext.topLevel)}`,
     ]);
     printNextCommands([
       `cat ${packetPath}`,
@@ -702,10 +779,57 @@ function main() {
   }
   const packetRuntimeState = loadProjectionDriftState(wpId, packetPath, packetText);
   const notificationState = packetRuntimeState ? loadNotificationState(wpId) : { byRole: {}, pendingNotifications: [] };
+  const { registry } = packetRuntimeState ? loadSessionRegistry(repoRoot) : { registry: { sessions: [] } };
+  const governedSessions = (registry.sessions || []).filter((entry) => String(entry?.wp_id || "").trim() === wpId);
+  const governedSessionSummaries = governedSessions.map((entry) => registrySessionSummary(entry));
   const relayEscalation = packetRuntimeState
-    ? loadRelayEscalationState(repoRoot, wpId, packetRuntimeState, notificationState.pendingNotifications)
+    ? loadRelayEscalationState(wpId, packetRuntimeState, notificationState.pendingNotifications, governedSessions)
     : null;
   const orchestratorCheckpoint = latestOrchestratorGovernanceCheckpoint(notificationState.byRole);
+  const relayWatchdogRepair = latestOrchestratorRelayWatchdogRepair(notificationState.byRole);
+  if (relayWatchdogRepair) {
+    printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
+    printOperatorEnvelope("NONE", "RETRY_SUPPRESSION_ACTIVE");
+    printConfidence(confidence.level, confidenceDetail);
+    printState("Relay watchdog has suppressed duplicate automatic re-wakes for the current failure class; route repair must change the lane state before another governed wake is attempted.");
+    printFindings([
+      ...tokenPolicyContinuation.findings,
+      ...relayEscalationPolicyFindings(packetRuntimeState?.runtimeStatus?.relay_escalation_policy),
+      `Repair summary: ${relayWatchdogRepair.summary || "<missing>"}`,
+      `Repair correlation: ${relayWatchdogRepair.correlation_id || "<missing>"}`,
+      `Packet: ${packetPath}`,
+    ]);
+    printNextCommands([
+      `just check-notifications ${wpId} ORCHESTRATOR`,
+      `just session-registry-status ${wpId}`,
+      `just wp-relay-watchdog ${wpId} --observe-only`,
+      `just wp-lane-health ${wpId}`,
+      `just orchestrator-next ${wpId}`,
+    ]);
+    return;
+  }
+  const acpHealthAlert = latestOrchestratorAcpHealthAlert(notificationState.byRole);
+  if (acpHealthAlert) {
+    printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
+    printOperatorEnvelope("NONE", "ACP_SESSION_HEALTH");
+    printConfidence(confidence.level, confidenceDetail);
+    printState("ACP/session health alert is blocking reliable governed dispatch until session-control health is repaired.");
+    printFindings([
+      ...tokenPolicyContinuation.findings,
+      `Alert summary: ${acpHealthAlert.summary || "<missing>"}`,
+      `Alert correlation: ${acpHealthAlert.correlation_id || "<missing>"}`,
+      `Packet: ${packetPath}`,
+    ]);
+    printNextCommands([
+      `just check-notifications ${wpId} ORCHESTRATOR`,
+      `just session-registry-status ${wpId}`,
+      `just wp-lane-health ${wpId}`,
+      `just broker-status`,
+      `just wp-relay-watchdog ${wpId} --observe-only`,
+      `just orchestrator-next ${wpId}`,
+    ]);
+    return;
+  }
   const latestValidatorAssessment = packetRuntimeState
     ? deriveLatestValidatorAssessment(packetRuntimeState.receipts || [])
     : null;
@@ -715,15 +839,25 @@ function main() {
     packetRuntimeState?.runtimeStatus || {},
   );
   if (packetRuntimeState && !packetRuntimeState.drift.ok) {
+    const driftOwners = Array.isArray(packetRuntimeState.drift.owner_classes)
+      ? packetRuntimeState.drift.owner_classes
+      : [];
+    const blockerClass = driftOwners.length > 1
+      ? "TRUTH_AUTHORITY_DRIFT"
+      : (driftOwners[0] || "STATUS_SYNC_DRIFT");
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
-    printOperatorEnvelope("NONE", "NONE");
+    printOperatorEnvelope("NONE", blockerClass);
     printConfidence(confidence.level, confidenceDetail);
     printState("Packet/runtime closeout projection drift is blocking further delegation until status truth is reconciled.");
     printFindings([
       ...tokenPolicyContinuation.findings,
+      ...(packetRuntimeState.drift.owner_summary ? [packetRuntimeState.drift.owner_summary] : []),
+      ...(driftOwners.length > 0 ? [`Repair order: ${driftOwners.join(" -> ")}`] : []),
       `Packet: ${packetPath}`,
       `Runtime: ${parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE") || "<missing>"}`,
-      ...packetRuntimeState.drift.issues,
+      ...(Array.isArray(packetRuntimeState.drift.issue_details) && packetRuntimeState.drift.issue_details.length > 0
+        ? packetRuntimeState.drift.issue_details.map((detail) => `[${detail.owner}] ${detail.message}`)
+        : packetRuntimeState.drift.issues),
     ]);
     printNextCommands([
       `just integration-validator-context-brief ${wpId}`,
@@ -733,6 +867,34 @@ function main() {
         packetRuntimeState.runtimeStatus,
         packetRuntimeState.communicationEvaluation,
       ),
+      `just orchestrator-next ${wpId}`,
+    ]);
+    return;
+  }
+  const queueWaitState = queuedGovernedWaitState({
+    workflowLane,
+    runtimeStatus: packetRuntimeState?.runtimeStatus || {},
+    registrySessions: governedSessionSummaries,
+  });
+  if (queueWaitState) {
+    printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
+    printOperatorEnvelope("NONE", "NONE");
+    printConfidence(confidence.level, confidenceDetail);
+    printState(`Queue-backed governed follow-up is already accepted for ${queueWaitState.target}; wait for broker drain instead of resending another steer.`);
+    printFindings([
+      ...tokenPolicyContinuation.findings,
+      `Target: ${queueWaitState.target}`,
+      `Queue depth: ${queueWaitState.queueCount}`,
+      `Queued command: ${queueWaitState.queuedRequest?.command_kind || "<unknown>"}`,
+      `Queued at: ${queueWaitState.queuedRequest?.queued_at || queueWaitState.session?.updated_at || "<none>"}`,
+      `Blocking command: ${queueWaitState.queuedRequest?.blocking_command_id || "<none>"}`,
+      `Thread: ${queueWaitState.session?.session_thread_id || "<none>"}`,
+      ...(queueWaitState.queuedRequest?.summary ? [`Queue summary: ${queueWaitState.queuedRequest.summary}`] : []),
+    ]);
+    printNextCommands([
+      `just active-lane-brief ${queueWaitState.role} ${wpId}`,
+      `just session-registry-status ${wpId}`,
+      `just wp-lane-health ${wpId}`,
       `just orchestrator-next ${wpId}`,
     ]);
     return;
@@ -749,6 +911,7 @@ function main() {
     printFindings([
       ...tokenPolicyContinuation.findings,
       ...(assessmentState?.findings || []),
+      ...relayEscalationPolicyFindings(packetRuntimeState?.runtimeStatus?.relay_escalation_policy),
       `Target: ${relayEscalation.target_role}${relayEscalation.target_session ? `:${relayEscalation.target_session}` : ""}`,
       `Route anchor: ${relayEscalation.metrics.route_anchor_at || "<missing>"}`,
       `Latest notification: ${relayEscalation.metrics.latest_notification_at || "<none>"}`,
@@ -772,14 +935,14 @@ function main() {
     printState("Work packet exists, but the assigned WP worktree is stale and coder handoff is blocked.");
     printFindings([
       ...tokenPolicyContinuation.findings,
-      `Assigned worktree: ${syncState.worktreeAbs || "<missing>"}`,
+      `Assigned worktree: ${syncState.worktreeDisplay || "<missing>"}`,
       `Expected branch: ${syncState.expectedBranch || "<missing>"}`,
       ...(syncState.actualBranch ? [`Actual branch: ${syncState.actualBranch}`] : []),
       ...syncState.issues,
     ]);
     printNextCommands([
-      `# Validator: fast-forward ${syncState.expectedBranch || "the assigned WP branch"} and ${syncState.worktreeAbs || "the assigned WP worktree"} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`,
-      `# Then re-run in ${syncState.worktreeAbs || "the assigned WP worktree"}: ${startupCommand}`,
+      `# Validator: fast-forward ${syncState.expectedBranch || "the assigned WP branch"} and ${syncState.worktreeDisplay || "the assigned WP worktree"} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`,
+      `# Then re-run in ${syncState.worktreeDisplay || "the assigned WP worktree"}: ${startupCommand}`,
       `just orchestrator-next ${wpId}`,
     ]);
     return;
@@ -793,7 +956,7 @@ function main() {
       ...tokenPolicyContinuation.findings,
       `Resume source: ${inferred.source}`,
       `Current branch: ${gitContext.branch || "<unknown>"}`,
-      `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+      `Current worktree: ${displayPathForOperator(gitContext.topLevel)}`,
       ...assessmentState.findings,
       ...(relayEscalation?.applicable && relayEscalation.status === "WATCH"
         ? [relayEscalation.summary]
@@ -833,7 +996,7 @@ function main() {
     ...tokenPolicyContinuation.findings,
     `Resume source: ${inferred.source}`,
     `Current branch: ${gitContext.branch || "<unknown>"}`,
-    `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+    `Current worktree: ${displayPathForOperator(gitContext.topLevel)}`,
     ...(packetFormatVersion >= "2026-04-01"
       ? [`Packet law: format=${packetFormatVersion} | data_contract=${dataContractProfile} | handoff_rigor=${coderHandoffRigorProfile || "<unknown>"} | validator_report=${validatorReportProfile || "<unknown>"}`]
       : []),

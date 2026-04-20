@@ -6,6 +6,7 @@ import {
   packetRequiresMergeContainmentTruth,
 } from "../session/session-policy.mjs";
 import { REPO_ROOT } from "./runtime-paths.mjs";
+import { materializeRuntimeAuthorityView } from "./wp-execution-state-lib.mjs";
 
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
 const RFC3339_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -85,8 +86,15 @@ function normalizeNoneLike(value) {
 
 function parseValidationVerdict(packetText) {
   const section = extractSectionAfterHeading(packetText, "VALIDATION_REPORTS");
-  const match = String(section || "").match(/^\s*Verdict\s*:\s*(.+)\s*$/im);
-  return match ? String(match[1] || "").trim().toUpperCase() : "";
+  const re = /^(?:\s*#{1,6}\s+|\s*-\s*|\s*)Verdict\s*:\s*(.+)\s*$/gim;
+  const matches = [...String(section || "").matchAll(re)];
+  if (matches.length === 0) return "";
+  // Reports are append-only: earlier FAIL reports coexist with later PASS.
+  // Return the highest-authority verdict (PASS > others) since the packet
+  // status was set by the merge authority based on the authoritative report.
+  const verdicts = matches.map((m) => String(m[1] || "").trim().toUpperCase());
+  if (verdicts.includes("PASS")) return "PASS";
+  return verdicts[verdicts.length - 1];
 }
 
 function resolveIntegrationValidatorWorktreeAbs(packetText, repoRoot) {
@@ -378,7 +386,7 @@ export function validateMergeProgressionTruth(
       runtime = null;
     } else {
       try {
-        runtime = JSON.parse(fs.readFileSync(runtimeAbs, "utf8"));
+        runtime = materializeRuntimeAuthorityView(JSON.parse(fs.readFileSync(runtimeAbs, "utf8")));
       } catch (error) {
         errors.push(`WP runtime status surface is unreadable: ${runtimePath} (${error.message})`);
         runtime = null;
@@ -387,6 +395,7 @@ export function validateMergeProgressionTruth(
   }
 
   if (runtime && typeof runtime === "object") {
+    runtime = materializeRuntimeAuthorityView(runtime);
     const runtimePacketStatus = String(runtime.current_packet_status || "").trim();
     const runtimeContainmentStatus = String(runtime.main_containment_status || "").trim().toUpperCase();
     const runtimeMergedMainCommit = runtime.merged_main_commit === null ? "NONE" : normalizeNoneLike(runtime.merged_main_commit);

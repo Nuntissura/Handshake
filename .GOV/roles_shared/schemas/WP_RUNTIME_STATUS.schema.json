@@ -243,6 +243,125 @@
         "null"
       ]
     },
+    "execution_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "authority",
+        "checkpoint_lineage"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "wp_execution_state@1"
+        },
+        "authority": {
+          "type": "object"
+        },
+        "checkpoint_lineage": {
+          "type": "object"
+        }
+      }
+    },
+    "route_anchor_state": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "route_anchor_kind": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "route_anchor_correlation_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "route_anchor_target_role": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "route_anchor_target_session": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "last_relay_failure_fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "last_relay_failure_first_seen_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "last_relay_failure_last_seen_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authoritative_review_receipt_kind": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authoritative_review_correlation_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authoritative_review_actor_session": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authoritative_review_target_session": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authoritative_review_round": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "committed_handoff_base_sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-fA-F]{7,40}$"
+    },
+    "committed_handoff_head_sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-fA-F]{7,40}$"
+    },
+    "committed_handoff_range_source": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "runtime_status": {
       "enum": [
         "submitted",
@@ -685,6 +804,86 @@
     "current_worker_interrupt_cycle": {
       "type": "integer",
       "minimum": 0
+    },
+    "max_same_failure_rewake_attempts": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "current_same_failure_rewake_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "relay_escalation_policy": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "source_surface",
+        "failure_class",
+        "policy_state",
+        "next_strategy",
+        "reason_code",
+        "budget_scope",
+        "budget_used",
+        "budget_limit",
+        "summary",
+        "updated_at"
+      ],
+      "properties": {
+        "source_surface": {
+          "type": "string",
+          "minLength": 1
+        },
+        "failure_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_state": {
+          "enum": [
+            "DEFERRED",
+            "AUTO_RETRY_ALLOWED",
+            "AUTO_RETRY_BLOCKED"
+          ]
+        },
+        "next_strategy": {
+          "enum": [
+            "QUEUED_DEFER",
+            "ALTERNATE_METHOD",
+            "ALTERNATE_MODEL",
+            "HUMAN_STOP"
+          ]
+        },
+        "reason_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "budget_scope": {
+          "enum": [
+            "NONE",
+            "RELAY_ESCALATION_CYCLE",
+            "SAME_FAILURE_REWAKE",
+            "WORKER_INTERRUPT_CYCLE"
+          ]
+        },
+        "budget_used": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "budget_limit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "updated_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+        }
+      }
     },
     "last_backup_push_at": {
       "type": [

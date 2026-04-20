@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { defaultRegistry } from "../scripts/session/session-registry-lib.mjs";
+import { defaultRegistry, enqueuePendingSessionControlRequest } from "../scripts/session/session-registry-lib.mjs";
 import {
   SESSION_CONTROL_BROKER_STATE_FILE,
   SESSION_CONTROL_OUTPUT_DIR,
@@ -114,6 +114,44 @@ test("self-settlement writes a FAILED result when broker.rejected exists without
 
   const outputEvents = readJsonl(path.resolve(repoRoot, request.output_jsonl_file));
   assert.ok(outputEvents.some((event) => event.type === "broker.self_settle"));
+});
+
+test("self-settlement leaves intentionally queued requests unsettled", () => {
+  const repoRoot = tempRepoRoot();
+  const commandId = "cmd-queued";
+  const request = requestFixture(repoRoot, { commandId });
+  appendJsonl(path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE), request);
+  const registry = defaultRegistry();
+  const session = {
+    session_key: request.session_key,
+    session_id: "coder:wp-test-runtime-v1",
+    wp_id: request.wp_id,
+    role: request.role,
+    local_branch: request.local_branch,
+    local_worktree_dir: request.local_worktree_dir,
+    session_thread_id: "thread-1",
+    startup_proof_state: "READY",
+    last_command_id: "active-command",
+    last_command_kind: "SEND_PROMPT",
+    last_command_status: "RUNNING",
+    last_command_output_file: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-TEST-RUNTIME-v1/active.jsonl",
+    runtime_state: "COMMAND_RUNNING",
+  };
+  enqueuePendingSessionControlRequest(session, request, {
+    queueReasonCode: "BUSY_ACTIVE_RUN",
+    blockingCommandId: "active-command",
+    queuedAt: "2026-04-20T10:02:00.000Z",
+  });
+  registry.sessions.push(session);
+  writeJson(path.resolve(repoRoot, SESSION_REGISTRY_FILE), registry);
+
+  const reconciliation = settleRecoverableSessionControlResults(repoRoot, {
+    brokerState: { active_runs: [] },
+  });
+
+  assert.equal(reconciliation.settled.length, 0);
+  const results = readJsonl(path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE));
+  assert.equal(results.length, 0);
 });
 
 test("self-settlement mirrors session-registry terminal state when the result row is missing", () => {

@@ -8,11 +8,19 @@ import { buildSteeringPrompt, resolveRoleConfig } from "../../../roles_shared/sc
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import {
+  normalizeRelayEscalationPolicy,
+  relayEscalationPolicyBudgetLabel,
+} from "../../../roles_shared/scripts/lib/wp-relay-policy-lib.mjs";
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { checkAllNotifications, checkNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { evaluateWpCommunicationBoundary, evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
-import { steerActionForSession } from "./lib/orchestrator-steer-lib.mjs";
+import {
+  nextQueuedControlRequest,
+  pendingControlQueueCount,
+  steerActionForSession,
+} from "./lib/orchestrator-steer-lib.mjs";
 import { activationReadinessRequiresActivationManager } from "./lib/workflow-lane-guidance-lib.mjs";
 import {
   buildRelayDispatchPrompt,
@@ -150,6 +158,7 @@ const relayEscalation = evaluateWpRelayEscalation({
   pendingNotifications,
   registrySessions: registry.sessions || [],
 });
+const relayPolicy = normalizeRelayEscalationPolicy(runtimeStatus?.relay_escalation_policy);
 const boundaryEvaluation = evaluateWpCommunicationBoundary({
   stage: "STATUS",
   statusEvaluation: communicationEvaluation,
@@ -191,6 +200,30 @@ const nextSession = explicitTargetRole
   : nextActor === "ACTIVATION_MANAGER"
   ? sessionKey("ACTIVATION_MANAGER", wpId)
   : preferredTargetSession(runtimeStatus, governedSession);
+const queuedControlCount = pendingControlQueueCount(governedSession);
+const queuedControlRequest = nextQueuedControlRequest(governedSession);
+if (nextActor !== "ACTIVATION_MANAGER" && action === "SEND_PROMPT" && queuedControlCount > 0 && queuedControlRequest) {
+  console.log(`[ORCHESTRATOR_STEER_NEXT] wp_id=${wpId}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] next_actor=${nextActor}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] next_session=${nextSession || "<none>"}`);
+  if (explicitTargetRole) {
+    console.log(`[ORCHESTRATOR_STEER_NEXT] explicit_target_role=${explicitTargetRole}`);
+    console.log(`[ORCHESTRATOR_STEER_NEXT] explicit_target_session=${explicitTargetSession || "<none>"}`);
+  }
+  console.log(`[ORCHESTRATOR_STEER_NEXT] waiting_on=${runtimeStatus.waiting_on || "<missing>"}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] action=${action}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] queue_pending=${queuedControlCount}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] queued_command=${queuedControlRequest.command_kind || "<unknown>"}`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] queued_at=${queuedControlRequest.queued_at || "<no-ts>"}`);
+  if (queuedControlRequest.blocking_command_id) {
+    console.log(`[ORCHESTRATOR_STEER_NEXT] blocking_command=${queuedControlRequest.blocking_command_id}`);
+  }
+  if (queuedControlRequest.summary) {
+    console.log(`[ORCHESTRATOR_STEER_NEXT] queued_summary=${queuedControlRequest.summary}`);
+  }
+  console.log("[ORCHESTRATOR_STEER_NEXT] state=queue-backed follow-up already exists for this governed session; wait for broker drain instead of sending another prompt");
+  process.exit(0);
+}
 let envelope = null;
 let prompt = "";
 if (nextActor === "ACTIVATION_MANAGER") {
@@ -244,6 +277,17 @@ console.log(`[ORCHESTRATOR_STEER_NEXT] waiting_on=${runtimeStatus.waiting_on || 
 console.log(`[ORCHESTRATOR_STEER_NEXT] relay_status=${relayEscalation.status}`);
 if (relayEscalation.status !== "NOT_APPLICABLE") {
   console.log(`[ORCHESTRATOR_STEER_NEXT] relay_summary=${relayEscalation.summary}`);
+  if (relayPolicy) {
+    console.log(`[ORCHESTRATOR_STEER_NEXT] relay_failure_class=${relayPolicy.failure_class}`);
+    console.log(`[ORCHESTRATOR_STEER_NEXT] relay_policy_state=${relayPolicy.policy_state}`);
+    console.log(`[ORCHESTRATOR_STEER_NEXT] relay_next_strategy=${relayPolicy.next_strategy}`);
+    console.log(`[ORCHESTRATOR_STEER_NEXT] relay_budget_scope=${relayPolicy.budget_scope}`);
+    if (relayPolicy.budget_scope !== "NONE") {
+      console.log(`[ORCHESTRATOR_STEER_NEXT] relay_budget=${relayEscalationPolicyBudgetLabel(relayPolicy)}`);
+    }
+    console.log(`[ORCHESTRATOR_STEER_NEXT] relay_policy_reason_code=${relayPolicy.reason_code}`);
+    console.log(`[ORCHESTRATOR_STEER_NEXT] relay_policy_summary=${relayPolicy.summary}`);
+  }
 }
 if (nextActor === "ACTIVATION_MANAGER") {
   console.log(`[ORCHESTRATOR_STEER_NEXT] activation_readiness_verdict=${activationGate.readiness.verdict}`);
