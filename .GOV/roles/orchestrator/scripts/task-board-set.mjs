@@ -14,6 +14,10 @@ import {
   expectedPacketStatusForTaskBoardStatus,
   parsePacketStatus,
 } from "../../../roles_shared/scripts/lib/wp-authority-projection-lib.mjs";
+import {
+  materializeRuntimeAuthorityView,
+  readExecutionPublicationView,
+} from "../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
 import { writeJsonFile } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { reconcileWpCommunicationTruth } from "../../../roles_shared/scripts/wp/ensure-wp-communications.mjs";
 import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
@@ -119,13 +123,12 @@ function sectionForStatus(status) {
   }
 }
 
-function syncRuntimeProjectionIfDeclared(wpId, packetText) {
+function loadDeclaredRuntimeContext(packetText) {
   const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   if (!runtimeStatusFile) return null;
   const runtimeStatusAbsPath = repoPathAbs(runtimeStatusFile);
   if (!fs.existsSync(runtimeStatusAbsPath)) return null;
   const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
-
   const runtimeStatus = parseJsonFile(runtimeStatusAbsPath);
   const receipts = receiptsFile && fs.existsSync(repoPathAbs(receiptsFile))
     ? String(fs.readFileSync(repoPathAbs(receiptsFile), "utf8"))
@@ -134,6 +137,36 @@ function syncRuntimeProjectionIfDeclared(wpId, packetText) {
       .filter(Boolean)
       .map((line) => JSON.parse(line))
     : [];
+  return {
+    runtimeStatusFile,
+    runtimeStatusAbsPath,
+    runtimeStatus,
+    receipts,
+  };
+}
+
+function syncRuntimeProjectionIfDeclared(wpId, packetText, runtimeContext = null, {
+  syncFromPacket = true,
+} = {}) {
+  const declaredRuntime = runtimeContext || loadDeclaredRuntimeContext(packetText);
+  if (!declaredRuntime) return null;
+  const {
+    runtimeStatusFile,
+    runtimeStatusAbsPath,
+    runtimeStatus,
+    receipts,
+  } = declaredRuntime;
+
+  if (!syncFromPacket) {
+    const materializedRuntime = materializeRuntimeAuthorityView(runtimeStatus);
+    const runtimeErrors = validateRuntimeStatus(materializedRuntime);
+    if (runtimeErrors.length > 0) {
+      fail(`Runtime authority materialization failed for ${wpId}`, runtimeErrors);
+    }
+    writeJsonFile(runtimeStatusAbsPath, materializedRuntime);
+    return runtimeStatusFile;
+  }
+
   const reconciled = reconcileWpCommunicationTruth({
     wpId,
     packetPath: resolveWorkPacketPath(wpId)?.packetPath || "",
@@ -186,9 +219,24 @@ function main() {
     fail("Official packet not found", [packetPath || `<missing packet path for ${wpId}>`]);
   }
   const packetText = readText(packetAbsPath);
+  const runtimeContext = loadDeclaredRuntimeContext(packetText);
   const expectedPacketStatus = expectedPacketStatusForTaskBoardStatus(status);
   const actualPacketStatus = parsePacketStatus(packetText);
-  if (expectedPacketStatus && actualPacketStatus !== expectedPacketStatus) {
+  const runtimePublication = readExecutionPublicationView({
+    runtimeStatus: runtimeContext?.runtimeStatus || {},
+    packetStatus: actualPacketStatus,
+  });
+  if (runtimePublication.has_canonical_authority && runtimePublication.task_board_status) {
+    if (status !== runtimePublication.task_board_status) {
+      fail("TASK_BOARD status transition conflicts with canonical execution authority", [
+        `wp_id=${wpId}`,
+        `task_board_status=${status}`,
+        `canonical_task_board_status=${runtimePublication.task_board_status}`,
+        `canonical_packet_status=${runtimePublication.canonical_packet_status || "<missing>"}`,
+        `packet_artifact_status=${actualPacketStatus || "<missing>"}`,
+      ]);
+    }
+  } else if (expectedPacketStatus && actualPacketStatus !== expectedPacketStatus) {
     fail("TASK_BOARD status transition conflicts with packet truth", [
       `wp_id=${wpId}`,
       `task_board_status=${status}`,
@@ -245,11 +293,14 @@ function main() {
   // Ensure file ends with a newline.
   const out = lines.join(eol);
   writeText(taskBoardAbsPath, out.endsWith(eol) ? out : out + eol);
-  const runtimeStatusFile = syncRuntimeProjectionIfDeclared(wpId, packetText);
+  const runtimeStatusFile = syncRuntimeProjectionIfDeclared(wpId, packetText, runtimeContext, {
+    syncFromPacket: !runtimePublication.has_canonical_authority,
+  });
 
   console.log("task-board-set ok");
   console.log(`- wp_id: ${wpId}`);
   console.log(`- status: ${status}`);
+  if (runtimePublication.has_canonical_authority) console.log("- runtime_authority: canonical");
   if (runtimeStatusFile) console.log(`- runtime_synced: ${runtimeStatusFile}`);
 }
 

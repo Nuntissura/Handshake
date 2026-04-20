@@ -87,6 +87,9 @@ test("syncRuntimeProjectionFromPacket updates runtime projection fields and even
   assert.equal(runtime.main_containment_verified_at_utc, "2026-03-26T12:00:00Z");
   assert.equal(runtime.last_event, "task_board_sync");
   assert.equal(runtime.last_event_at, "2026-03-26T13:00:00Z");
+  assert.equal(runtime.execution_state.authority.packet_status, "Validated (PASS)");
+  assert.equal(runtime.execution_state.authority.main_containment_status, "CONTAINED_IN_MAIN");
+  assert.equal(runtime.execution_state.checkpoint_lineage.latest_checkpoint_kind, "PACKET_SYNC");
 });
 
 test("syncRuntimeProjectionFromPacket drives validated packets into STATUS_SYNC completed runtime state", () => {
@@ -128,6 +131,8 @@ test("syncRuntimeProjectionFromPacket drives validated packets into STATUS_SYNC 
   assert.deepEqual(runtime.current_files_touched, []);
   assert.deepEqual(runtime.active_role_sessions, []);
   assert.deepEqual(runtime.open_review_items, []);
+  assert.equal(runtime.execution_state.authority.next_expected_actor, "NONE");
+  assert.equal(runtime.execution_state.checkpoint_lineage.checkpoint_count, 1);
 });
 
 test("syncRuntimeProjectionFromPacket treats Validated (ABANDONED) as a closed terminal runtime state", () => {
@@ -253,4 +258,41 @@ test("evaluatePacketRuntimeProjectionDrift isolates runtime-only ownership when 
   assert.ok(drift.issue_details.every((detail) => detail.owner === "RUNTIME_PROJECTION"));
   assert.match(drift.issues.join("\n"), /runtime\.current_phase .* should be STATUS_SYNC/i);
   assert.match(drift.issues.join("\n"), /runtime\.runtime_status .* should be completed/i);
+});
+
+test("evaluatePacketRuntimeProjectionDrift treats packet publication as the owner when canonical execution authority disagrees", () => {
+  const drift = evaluatePacketRuntimeProjectionDrift(
+    packetFixture({
+      status: "Done",
+      containment: "MERGE_PENDING",
+      merged: "NONE",
+      verifiedAt: "N/A",
+    }),
+    {
+      current_packet_status: "Done",
+      current_task_board_status: "DONE_MERGE_PENDING",
+      current_phase: "STATUS_SYNC",
+      runtime_status: "completed",
+      main_containment_status: "MERGE_PENDING",
+      execution_state: {
+        authority: {
+          packet_status: "Validated (PASS)",
+          task_board_status: "DONE_VALIDATED",
+          phase: "STATUS_SYNC",
+          runtime_status: "completed",
+          main_containment_status: "CONTAINED_IN_MAIN",
+          route_anchor: {},
+          review_anchor: {},
+        },
+      },
+    },
+  );
+
+  assert.equal(drift.ok, false);
+  assert.deepEqual(drift.owner_classes, ["PACKET_CLOSEOUT_TRUTH"]);
+  assert.ok(drift.publication.has_canonical_authority);
+  assert.equal(drift.publication.packet_status, "Validated (PASS)");
+  assert.equal(drift.publication.packet_projection_drift, true);
+  assert.match(drift.issues.join("\n"), /packet status .* canonical execution publication status/i);
+  assert.ok(drift.issue_details.every((detail) => detail.owner === "PACKET_CLOSEOUT_TRUTH"));
 });

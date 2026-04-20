@@ -5,6 +5,10 @@ import {
   taskBoardStatusForPacketStatus,
   runtimePhaseForMilestone,
 } from "./wp-authority-projection-lib.mjs";
+import {
+  readExecutionPublicationView,
+  syncRuntimeExecutionState,
+} from "./wp-execution-state-lib.mjs";
 
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
@@ -119,7 +123,11 @@ export function syncRuntimeProjectionFromPacket(runtimeStatus, packetText, {
   nextRuntime.packet_widening_evidence = projection.packet_widening_evidence;
   nextRuntime.last_event = eventName;
   nextRuntime.last_event_at = eventAt;
-  return nextRuntime;
+  return syncRuntimeExecutionState(nextRuntime, {
+    eventName,
+    eventAt,
+    checkpointKind: "PACKET_SYNC",
+  });
 }
 
 const DRIFT_OWNER_PRIORITY = {
@@ -164,24 +172,33 @@ function buildDriftOwnerSummary(ownerClasses) {
 export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus = {}, {
   communicationEvaluation = null,
 } = {}) {
+  const publication = readExecutionPublicationView({
+    runtimeStatus,
+    packetStatus: parsePacketStatus(packetText),
+  });
+  runtimeStatus = publication.runtime;
   const projection = parseRuntimeProjectionFromPacket(packetText);
   const issues = [];
   const issueDetails = [];
   const ownerClasses = new Set();
+  const canonicalAuthorityOwnsPublication = publication.has_canonical_authority;
   const runtimePhase = String(runtimeStatus?.current_phase || "").trim().toUpperCase();
   const runtimeStatusValue = String(runtimeStatus?.runtime_status || "").trim().toLowerCase();
+  const effectivePacketStatus = String(publication.packet_status || projection.current_packet_status || "").trim();
 
   if (
     projection.current_packet_status
     && String(runtimeStatus?.current_packet_status || "").trim() !== String(projection.current_packet_status || "").trim()
   ) {
-    const message = `runtime.current_packet_status (${runtimeStatus?.current_packet_status || "<missing>"}) does not match packet status (${projection.current_packet_status})`;
+    const message = canonicalAuthorityOwnsPublication
+      ? `packet status (${projection.current_packet_status}) does not match canonical execution publication status (${runtimeStatus?.current_packet_status || "<missing>"})`
+      : `runtime.current_packet_status (${runtimeStatus?.current_packet_status || "<missing>"}) does not match packet status (${projection.current_packet_status})`;
     issues.push(message);
-    ownerClasses.add("RUNTIME_PROJECTION");
+    ownerClasses.add(canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION");
     issueDetails.push(
       packetRuntimeDriftDetail(
-        "RUNTIME_PROJECTION",
-        "runtime.current_packet_status",
+        canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION",
+        canonicalAuthorityOwnsPublication ? "packet.Status" : "runtime.current_packet_status",
         message,
       ),
     );
@@ -191,13 +208,15 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
     projection.current_task_board_status
     && String(runtimeStatus?.current_task_board_status || "").trim().toUpperCase() !== String(projection.current_task_board_status || "").trim().toUpperCase()
   ) {
-    const message = `runtime.current_task_board_status (${runtimeStatus?.current_task_board_status || "<missing>"}) does not match packet/task-board projection (${projection.current_task_board_status})`;
+    const message = canonicalAuthorityOwnsPublication
+      ? `packet/task-board projection (${projection.current_task_board_status}) does not match canonical execution publication status (${runtimeStatus?.current_task_board_status || "<missing>"})`
+      : `runtime.current_task_board_status (${runtimeStatus?.current_task_board_status || "<missing>"}) does not match packet/task-board projection (${projection.current_task_board_status})`;
     issues.push(message);
-    ownerClasses.add("RUNTIME_PROJECTION");
+    ownerClasses.add(canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION");
     issueDetails.push(
       packetRuntimeDriftDetail(
-        "RUNTIME_PROJECTION",
-        "runtime.current_task_board_status",
+        canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION",
+        canonicalAuthorityOwnsPublication ? "packet.STATUS_HANDOFF.Current_WP_STATUS" : "runtime.current_task_board_status",
         message,
       ),
     );
@@ -207,21 +226,23 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
     projection.main_containment_status
     && String(runtimeStatus?.main_containment_status || "").trim().toUpperCase() !== String(projection.main_containment_status || "").trim().toUpperCase()
   ) {
-    const message = `runtime.main_containment_status (${runtimeStatus?.main_containment_status || "<missing>"}) does not match packet MAIN_CONTAINMENT_STATUS (${projection.main_containment_status})`;
+    const message = canonicalAuthorityOwnsPublication
+      ? `packet MAIN_CONTAINMENT_STATUS (${projection.main_containment_status}) does not match canonical execution publication status (${runtimeStatus?.main_containment_status || "<missing>"})`
+      : `runtime.main_containment_status (${runtimeStatus?.main_containment_status || "<missing>"}) does not match packet MAIN_CONTAINMENT_STATUS (${projection.main_containment_status})`;
     issues.push(message);
-    ownerClasses.add("RUNTIME_PROJECTION");
+    ownerClasses.add(canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION");
     issueDetails.push(
       packetRuntimeDriftDetail(
-        "RUNTIME_PROJECTION",
-        "runtime.main_containment_status",
+        canonicalAuthorityOwnsPublication ? "PACKET_CLOSEOUT_TRUTH" : "RUNTIME_PROJECTION",
+        canonicalAuthorityOwnsPublication ? "packet.MAIN_CONTAINMENT_STATUS" : "runtime.main_containment_status",
         message,
       ),
     );
   }
 
-  if (projection.current_packet_status === "Done" || /^Validated \(/i.test(projection.current_packet_status || "")) {
+  if (effectivePacketStatus === "Done" || /^Validated \(/i.test(effectivePacketStatus)) {
     if (runtimePhase !== "STATUS_SYNC") {
-      const message = `runtime.current_phase (${runtimeStatus?.current_phase || "<missing>"}) should be STATUS_SYNC once packet status is ${projection.current_packet_status}`;
+      const message = `runtime.current_phase (${runtimeStatus?.current_phase || "<missing>"}) should be STATUS_SYNC once packet status is ${effectivePacketStatus}`;
       issues.push(message);
       ownerClasses.add("RUNTIME_PROJECTION");
       issueDetails.push(
@@ -233,7 +254,7 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
       );
     }
     if (runtimeStatusValue !== "completed") {
-      const message = `runtime.runtime_status (${runtimeStatus?.runtime_status || "<missing>"}) should be completed once packet status is ${projection.current_packet_status}`;
+      const message = `runtime.runtime_status (${runtimeStatus?.runtime_status || "<missing>"}) should be completed once packet status is ${effectivePacketStatus}`;
       issues.push(message);
       ownerClasses.add("RUNTIME_PROJECTION");
       issueDetails.push(
@@ -294,6 +315,7 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
   return {
     ok: issues.length === 0,
     projection,
+    publication,
     issues,
     issue_details: issueDetails,
     owner_classes: orderedOwners,

@@ -359,6 +359,8 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
   - stale-session visibility
   - next expected actor
 - Use `RECEIPTS.jsonl` for deterministic validation-start, validation-query, status-sync, repair, and handoff receipts.
+- When the declared `WP_RUNTIME_STATUS_FILE` contains `execution_state.authority`, treat that canonical runtime publication view as the first closeout/context truth for packet status, task-board status, and containment state. Packet prose and task-board artifacts are fallback projections when canonical runtime authority is absent, not competing truth.
+- The shared execution-state library now owns closeout mode normalization (`MERGE_PENDING`, `CONTAINED_IN_MAIN`, `FAIL`, `OUTDATED_ONLY`, `ABANDONED`) and terminal publication verdict inference. Final-lane helpers must consume that shared projection instead of carrying private packet-status mapping tables.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` packets with `PACKET_FORMAT_VERSION >= 2026-03-21`, the required direct-review contract is:
   - `VALIDATOR_KICKOFF` from `WP_VALIDATOR -> CODER`
   - `CODER_INTENT` from `CODER -> WP_VALIDATOR`, correlated to kickoff
@@ -472,12 +474,14 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
 - Require evidence that `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` ran and passed before PASS handoff or PASS commit clearance. This composite gate includes packet completeness, committed PREPARE-source handoff validation, and the governed handoff communication proof. If absent or failing, verdict = FAIL until fixed.
 - Require evidence that `just phase-check CLOSEOUT WP-{ID}` ran and passed before PASS commit clearance. This composite gate includes packet completeness, the final review communication proof, the integration-validator context bundle, and the governed closeout preflight. If absent or failing, verdict = FAIL until fixed.
+- `integration-validator-context-brief`, `integration-validator-closeout-check`, and `phase-check CLOSEOUT` now honor canonical `execution_state.authority` first during final-lane closeout. Do not waive a stale packet/task-board mismatch by hand if runtime authority already proves the effective terminal state or containment mode.
 - When `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` is used to write terminal truth, it now also appends the mechanical closeout trace into the active Workflow Dossier. After that succeeds, append the human post-mortem/review and closeout rubric in the dossier before final closure claims.
 - After the closeout preflight is green, prefer the same phase-owned surface for governed truth sync:
   - PASS before local-main containment: `just phase-check CLOSEOUT WP-{ID} --sync-mode MERGE_PENDING --context "<why this closeout truth is being recorded, >=40 chars>"`
   - PASS after local-main containment is real: `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`
 - For contained-main promotion, the candidate target must still match the signed artifact exactly, but the contained local-`main` commit may differ when conflict resolution or main-harmonization was required. That closure remains legal only when the resulting contained commit stays entirely within the signed file surface and still passes the governed closeout proof/tripwire checks.
 - Successful closeout sync must also leave machine-readable provenance: a validator gate-state closeout event plus a closeout `STATUS` receipt naming the governed Integration Validator lane, mode, and containment/baseline truth that was recorded.
+- Successful closeout sync must also stamp the typed governed action `INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`; `integration-validator-context-brief` and `validator-gate-status` should prefer that governed action summary when reading the last terminal sync instead of reducing the event back to plain mode/status prose.
 - If closeout is attempted from the wrong role/lane, from a kernel/orchestrator surface, or with live governance still resolving from `handshake_main/.GOV`, record `WORKFLOW_INVALIDITY` (`ROLE_BOUNDARY_BREACH`, `FINAL_LANE_AUTHORITY_VIOLATION`, or `FINAL_LANE_GOV_ROOT_VIOLATION`) and halt before packet/runtime/TASK_BOARD truth is promoted.
 - For governed non-PASS terminal closure, use the same phase-owned surface instead of manual packet/runtime/TASK_BOARD edits:
   - `just phase-check CLOSEOUT WP-{ID} --sync-mode FAIL --context "<why FAIL truth is being recorded, >=40 chars>"`
@@ -693,6 +697,8 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` (manual repair helper for any still-open registry-owned governed system-terminal windows after closeout; default current-batch targeting is the safe path)
 - `just gov-check` (required before PASS merge/push and for any governance-only validator changes; catches activation traceability drift, Task Board/build-order drift, and shared governance regressions)
 - `just validator-gate-*` write commands now reject unbound/wrong-lane orchestrator-managed usage early; if the current checkout is not a governed validator lane, use `just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID}`, `just integration-validator-context-brief WP-{ID}`, or `just external-validator-brief WP-{ID}` instead of forcing gate writes from the wrong surface
+- `just validator-next [ROLE] WP-{ID}` now projects a typed `VALIDATOR_GATE_{APPROVE|DEFER|SKIP}_RESUME` governed-action envelope from runtime route truth before falling back to packet markers; treat that as the canonical resume decision surface instead of reconstructing next work from transcript prose
+- `just validator-gate-*` mutations now also stamp typed governed gate actions into the validator gate ledger; `validator-gate-status`, `validator-next`, and audit readers should prefer that governed gate action history over the legacy raw `status` mirror when both are present
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
 - `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend readiness)
 - `just validator-spec-regression` (SPEC_CURRENT points to latest; required anchors like A2.3.12 present)

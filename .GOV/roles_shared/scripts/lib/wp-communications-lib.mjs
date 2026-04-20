@@ -4,6 +4,10 @@ import { EXECUTION_OWNER_VALUES } from "../session/session-policy.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "./merge-progression-truth-lib.mjs";
 import { RUNTIME_MILESTONE_VALUES, TASK_BOARD_STATUS_VALUES } from "./wp-authority-projection-lib.mjs";
 import {
+  EXECUTION_STATE_LINEAGE_SCHEMA_VERSION,
+  EXECUTION_STATE_SCHEMA_VERSION,
+} from "./wp-execution-state-lib.mjs";
+import {
   GOV_ROOT_REPO_REL,
   LEGACY_TASK_PACKETS_DIRNAME,
   LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT,
@@ -83,6 +87,9 @@ export const AUTHORITY_KIND_VALUES = [
   "SECONDARY_VALIDATOR",
 ];
 export const VALIDATOR_ROLE_KIND_VALUES = ["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "SECONDARY_VALIDATOR"];
+export const RELAY_ESCALATION_POLICY_STATE_VALUES = ["DEFERRED", "AUTO_RETRY_ALLOWED", "AUTO_RETRY_BLOCKED"];
+export const RELAY_ESCALATION_NEXT_STRATEGY_VALUES = ["QUEUED_DEFER", "ALTERNATE_METHOD", "ALTERNATE_MODEL", "HUMAN_STOP"];
+export const RELAY_ESCALATION_BUDGET_SCOPE_VALUES = ["NONE", "RELAY_ESCALATION_CYCLE", "SAME_FAILURE_REWAKE", "WORKER_INTERRUPT_CYCLE"];
 export const RECEIPT_ROLE_VALUES = [
   "SYSTEM",
   "OPERATOR",
@@ -243,6 +250,239 @@ function validateMicrotaskContract(value, prefix, errors) {
   }
 }
 
+function validateExecutionState(value, prefix, errors) {
+  if (!(value === undefined || isPlainObject(value))) {
+    errors.push(`${prefix} must be an object when present`);
+    return;
+  }
+  if (value === undefined) return;
+
+  const requiredKeys = ["schema_version", "authority", "checkpoint_lineage"];
+  const allowedKeys = new Set(requiredKeys);
+  for (const key of requiredKeys) {
+    if (!(key in value)) errors.push(`${prefix} missing key: ${key}`);
+  }
+  for (const key of Object.keys(value)) {
+    if (!allowedKeys.has(key)) errors.push(`${prefix}.${key} is not allowed`);
+  }
+  if (value.schema_version !== EXECUTION_STATE_SCHEMA_VERSION) {
+    errors.push(`${prefix}.schema_version must be ${EXECUTION_STATE_SCHEMA_VERSION}`);
+  }
+
+  const authority = value.authority;
+  if (!isPlainObject(authority)) {
+    errors.push(`${prefix}.authority must be an object`);
+  } else {
+    const routeAnchor = authority.route_anchor;
+    const reviewAnchor = authority.review_anchor;
+    if (!isNullableString(authority.packet_status)) errors.push(`${prefix}.authority.packet_status must be null or a non-empty string`);
+    if (!isNullableString(authority.task_board_status)) errors.push(`${prefix}.authority.task_board_status must be null or a non-empty string`);
+    if (!isNullableString(authority.milestone)) errors.push(`${prefix}.authority.milestone must be null or a non-empty string`);
+    if (!isNullableString(authority.phase)) errors.push(`${prefix}.authority.phase must be null or a non-empty string`);
+    if (!isNullableString(authority.runtime_status)) errors.push(`${prefix}.authority.runtime_status must be null or a non-empty string`);
+    if (!isNullableString(authority.next_expected_actor)) errors.push(`${prefix}.authority.next_expected_actor must be null or a non-empty string`);
+    if (!isNullableString(authority.next_expected_session)) errors.push(`${prefix}.authority.next_expected_session must be null or a non-empty string`);
+    if (!isNullableString(authority.waiting_on)) errors.push(`${prefix}.authority.waiting_on must be null or a non-empty string`);
+    if (!isNullableString(authority.waiting_on_session)) errors.push(`${prefix}.authority.waiting_on_session must be null or a non-empty string`);
+    if (!isNullableString(authority.validator_trigger)) errors.push(`${prefix}.authority.validator_trigger must be null or a non-empty string`);
+    if (!isNullableString(authority.validator_trigger_reason)) errors.push(`${prefix}.authority.validator_trigger_reason must be null or a non-empty string`);
+    if (typeof authority.attention_required !== "boolean") errors.push(`${prefix}.authority.attention_required must be boolean`);
+    if (typeof authority.ready_for_validation !== "boolean") errors.push(`${prefix}.authority.ready_for_validation must be boolean`);
+    if (!isNullableString(authority.ready_for_validation_reason)) errors.push(`${prefix}.authority.ready_for_validation_reason must be null or a non-empty string`);
+    if (!isNullableString(authority.wp_validator_of_record)) errors.push(`${prefix}.authority.wp_validator_of_record must be null or a non-empty string`);
+    if (!isNullableString(authority.integration_validator_of_record)) errors.push(`${prefix}.authority.integration_validator_of_record must be null or a non-empty string`);
+    if (!isNullableString(authority.main_containment_status)) errors.push(`${prefix}.authority.main_containment_status must be null or a non-empty string`);
+    if (!isNullableString(authority.merged_main_commit)) errors.push(`${prefix}.authority.merged_main_commit must be null or a non-empty string`);
+    if (!isNullableString(authority.main_containment_verified_at_utc)) errors.push(`${prefix}.authority.main_containment_verified_at_utc must be null or a non-empty string`);
+    if (!isNullableString(authority.current_main_compatibility_status)) errors.push(`${prefix}.authority.current_main_compatibility_status must be null or a non-empty string`);
+    if (!isNullableString(authority.current_main_compatibility_baseline_sha)) errors.push(`${prefix}.authority.current_main_compatibility_baseline_sha must be null or a non-empty string`);
+    if (!isNullableString(authority.current_main_compatibility_verified_at_utc)) errors.push(`${prefix}.authority.current_main_compatibility_verified_at_utc must be null or a non-empty string`);
+    if (!isNullableString(authority.packet_widening_decision)) errors.push(`${prefix}.authority.packet_widening_decision must be null or a non-empty string`);
+    if (!isNullableString(authority.packet_widening_evidence)) errors.push(`${prefix}.authority.packet_widening_evidence must be null or a non-empty string`);
+
+    if (!isPlainObject(routeAnchor)) {
+      errors.push(`${prefix}.authority.route_anchor must be an object`);
+    } else {
+      if (!isNullableString(routeAnchor.state)) errors.push(`${prefix}.authority.route_anchor.state must be null or a non-empty string`);
+      if (!isNullableString(routeAnchor.kind)) errors.push(`${prefix}.authority.route_anchor.kind must be null or a non-empty string`);
+      if (!isNullableString(routeAnchor.correlation_id)) errors.push(`${prefix}.authority.route_anchor.correlation_id must be null or a non-empty string`);
+      if (!isNullableString(routeAnchor.target_role)) errors.push(`${prefix}.authority.route_anchor.target_role must be null or a non-empty string`);
+      if (!isNullableString(routeAnchor.target_session)) errors.push(`${prefix}.authority.route_anchor.target_session must be null or a non-empty string`);
+    }
+
+    if (!isPlainObject(reviewAnchor)) {
+      errors.push(`${prefix}.authority.review_anchor must be an object`);
+    } else {
+      if (!isNullableString(reviewAnchor.receipt_kind)) errors.push(`${prefix}.authority.review_anchor.receipt_kind must be null or a non-empty string`);
+      if (!isNullableString(reviewAnchor.correlation_id)) errors.push(`${prefix}.authority.review_anchor.correlation_id must be null or a non-empty string`);
+      if (!isNullableString(reviewAnchor.actor_session)) errors.push(`${prefix}.authority.review_anchor.actor_session must be null or a non-empty string`);
+      if (!isNullableString(reviewAnchor.target_session)) errors.push(`${prefix}.authority.review_anchor.target_session must be null or a non-empty string`);
+      if (!(reviewAnchor.round === null || reviewAnchor.round === undefined || Number.isInteger(reviewAnchor.round))) {
+        errors.push(`${prefix}.authority.review_anchor.round must be null or an integer`);
+      }
+      if (!isNullableString(reviewAnchor.committed_handoff_base_sha)) errors.push(`${prefix}.authority.review_anchor.committed_handoff_base_sha must be null or a non-empty string`);
+      if (!isNullableString(reviewAnchor.committed_handoff_head_sha)) errors.push(`${prefix}.authority.review_anchor.committed_handoff_head_sha must be null or a non-empty string`);
+      if (!isNullableString(reviewAnchor.committed_handoff_range_source)) errors.push(`${prefix}.authority.review_anchor.committed_handoff_range_source must be null or a non-empty string`);
+    }
+  }
+
+  const lineage = value.checkpoint_lineage;
+  if (!isPlainObject(lineage)) {
+    errors.push(`${prefix}.checkpoint_lineage must be an object`);
+    return;
+  }
+  const lineageRequiredKeys = [
+    "schema_version",
+    "latest_checkpoint_id",
+    "latest_checkpoint_at_utc",
+    "latest_checkpoint_kind",
+    "latest_restore_point_id",
+    "latest_checkpoint_fingerprint",
+    "checkpoint_count",
+    "checkpoints",
+  ];
+  const lineageAllowedKeys = new Set(lineageRequiredKeys);
+  for (const key of lineageRequiredKeys) {
+    if (!(key in lineage)) errors.push(`${prefix}.checkpoint_lineage missing key: ${key}`);
+  }
+  for (const key of Object.keys(lineage)) {
+    if (!lineageAllowedKeys.has(key)) errors.push(`${prefix}.checkpoint_lineage.${key} is not allowed`);
+  }
+  if (lineage.schema_version !== EXECUTION_STATE_LINEAGE_SCHEMA_VERSION) {
+    errors.push(`${prefix}.checkpoint_lineage.schema_version must be ${EXECUTION_STATE_LINEAGE_SCHEMA_VERSION}`);
+  }
+  if (!isNullableString(lineage.latest_checkpoint_id)) errors.push(`${prefix}.checkpoint_lineage.latest_checkpoint_id must be null or a non-empty string`);
+  if (!isNullableRfc3339Utc(lineage.latest_checkpoint_at_utc)) errors.push(`${prefix}.checkpoint_lineage.latest_checkpoint_at_utc must be RFC3339 UTC or null`);
+  if (!isNullableString(lineage.latest_checkpoint_kind)) errors.push(`${prefix}.checkpoint_lineage.latest_checkpoint_kind must be null or a non-empty string`);
+  if (!isNullableString(lineage.latest_restore_point_id)) errors.push(`${prefix}.checkpoint_lineage.latest_restore_point_id must be null or a non-empty string`);
+  if (!isNullableString(lineage.latest_checkpoint_fingerprint)) errors.push(`${prefix}.checkpoint_lineage.latest_checkpoint_fingerprint must be null or a non-empty string`);
+  if (!Number.isInteger(lineage.checkpoint_count) || lineage.checkpoint_count < 0) {
+    errors.push(`${prefix}.checkpoint_lineage.checkpoint_count must be an integer >= 0`);
+  }
+  if (!Array.isArray(lineage.checkpoints)) {
+    errors.push(`${prefix}.checkpoint_lineage.checkpoints must be an array`);
+  } else {
+    lineage.checkpoints.forEach((entry, index) => {
+      if (!isPlainObject(entry)) {
+        errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}] must be an object`);
+        return;
+      }
+      const checkpointRequiredKeys = [
+        "checkpoint_id",
+        "parent_checkpoint_id",
+        "recorded_at_utc",
+        "event_name",
+        "checkpoint_kind",
+        "restore_supported",
+        "restore_hint",
+        "packet_status",
+        "task_board_status",
+        "milestone",
+        "phase",
+        "runtime_status",
+        "next_expected_actor",
+        "next_expected_session",
+        "waiting_on",
+        "waiting_on_session",
+        "route_anchor_state",
+        "route_anchor_kind",
+        "route_anchor_correlation_id",
+        "route_anchor_target_role",
+        "route_anchor_target_session",
+        "review_anchor_kind",
+        "review_anchor_correlation_id",
+        "committed_handoff_base_sha",
+        "committed_handoff_head_sha",
+      ];
+      for (const key of checkpointRequiredKeys) {
+        if (!(key in entry)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}] missing key: ${key}`);
+      }
+      if (!isNonEmptyString(entry.checkpoint_id)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].checkpoint_id must be a non-empty string`);
+      if (!isNullableString(entry.parent_checkpoint_id)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].parent_checkpoint_id must be null or a non-empty string`);
+      if (!isRfc3339Utc(entry.recorded_at_utc)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].recorded_at_utc must be RFC3339 UTC`);
+      if (!isNonEmptyString(entry.event_name)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].event_name must be a non-empty string`);
+      if (!isNonEmptyString(entry.checkpoint_kind)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].checkpoint_kind must be a non-empty string`);
+      if (typeof entry.restore_supported !== "boolean") errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].restore_supported must be boolean`);
+      if (!isNonEmptyString(entry.restore_hint)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].restore_hint must be a non-empty string`);
+      if (!isNullableString(entry.packet_status)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].packet_status must be null or a non-empty string`);
+      if (!isNullableString(entry.task_board_status)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].task_board_status must be null or a non-empty string`);
+      if (!isNullableString(entry.milestone)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].milestone must be null or a non-empty string`);
+      if (!isNullableString(entry.phase)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].phase must be null or a non-empty string`);
+      if (!isNullableString(entry.runtime_status)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].runtime_status must be null or a non-empty string`);
+      if (!isNullableString(entry.next_expected_actor)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].next_expected_actor must be null or a non-empty string`);
+      if (!isNullableString(entry.next_expected_session)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].next_expected_session must be null or a non-empty string`);
+      if (!isNullableString(entry.waiting_on)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].waiting_on must be null or a non-empty string`);
+      if (!isNullableString(entry.waiting_on_session)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].waiting_on_session must be null or a non-empty string`);
+      if (!isNullableString(entry.route_anchor_state)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].route_anchor_state must be null or a non-empty string`);
+      if (!isNullableString(entry.route_anchor_kind)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].route_anchor_kind must be null or a non-empty string`);
+      if (!isNullableString(entry.route_anchor_correlation_id)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].route_anchor_correlation_id must be null or a non-empty string`);
+      if (!isNullableString(entry.route_anchor_target_role)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].route_anchor_target_role must be null or a non-empty string`);
+      if (!isNullableString(entry.route_anchor_target_session)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].route_anchor_target_session must be null or a non-empty string`);
+      if (!isNullableString(entry.review_anchor_kind)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].review_anchor_kind must be null or a non-empty string`);
+      if (!isNullableString(entry.review_anchor_correlation_id)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].review_anchor_correlation_id must be null or a non-empty string`);
+      if (!isNullableString(entry.committed_handoff_base_sha)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].committed_handoff_base_sha must be null or a non-empty string`);
+      if (!isNullableString(entry.committed_handoff_head_sha)) errors.push(`${prefix}.checkpoint_lineage.checkpoints[${index}].committed_handoff_head_sha must be null or a non-empty string`);
+    });
+  }
+}
+
+function validateRelayEscalationPolicy(value, prefix, errors) {
+  if (!(value === undefined || value === null || isPlainObject(value))) {
+    errors.push(`${prefix} must be null or an object`);
+    return;
+  }
+  if (value === undefined || value === null) return;
+
+  const requiredKeys = [
+    "source_surface",
+    "failure_class",
+    "policy_state",
+    "next_strategy",
+    "reason_code",
+    "budget_scope",
+    "budget_used",
+    "budget_limit",
+    "summary",
+    "updated_at",
+  ];
+  const allowedKeys = new Set(requiredKeys);
+  for (const key of requiredKeys) {
+    if (!(key in value)) errors.push(`${prefix} missing key: ${key}`);
+  }
+  for (const key of Object.keys(value)) {
+    if (!allowedKeys.has(key)) errors.push(`${prefix}.${key} is not allowed`);
+  }
+
+  if (!isNonEmptyString(value.source_surface)) errors.push(`${prefix}.source_surface must be a non-empty string`);
+  if (!isNonEmptyString(value.failure_class)) errors.push(`${prefix}.failure_class must be a non-empty string`);
+  if (!RELAY_ESCALATION_POLICY_STATE_VALUES.includes(value.policy_state)) {
+    errors.push(`${prefix}.policy_state invalid (${value.policy_state})`);
+  }
+  if (!RELAY_ESCALATION_NEXT_STRATEGY_VALUES.includes(value.next_strategy)) {
+    errors.push(`${prefix}.next_strategy invalid (${value.next_strategy})`);
+  }
+  if (!isNonEmptyString(value.reason_code)) errors.push(`${prefix}.reason_code must be a non-empty string`);
+  if (!RELAY_ESCALATION_BUDGET_SCOPE_VALUES.includes(value.budget_scope)) {
+    errors.push(`${prefix}.budget_scope invalid (${value.budget_scope})`);
+  }
+  if (!Number.isInteger(value.budget_used) || value.budget_used < 0) {
+    errors.push(`${prefix}.budget_used must be an integer >= 0`);
+  }
+  if (!Number.isInteger(value.budget_limit) || value.budget_limit < 0) {
+    errors.push(`${prefix}.budget_limit must be an integer >= 0`);
+  }
+  if (value.budget_scope === "NONE") {
+    if (value.budget_used !== 0) errors.push(`${prefix}.budget_used must be 0 when budget_scope is NONE`);
+    if (value.budget_limit !== 0) errors.push(`${prefix}.budget_limit must be 0 when budget_scope is NONE`);
+  } else if (value.budget_limit < 1) {
+    errors.push(`${prefix}.budget_limit must be >= 1 when budget_scope is not NONE`);
+  } else if (value.budget_used > value.budget_limit) {
+    errors.push(`${prefix}.budget_used exceeds budget_limit`);
+  }
+  if (!isNonEmptyString(value.summary)) errors.push(`${prefix}.summary must be a non-empty string`);
+  if (!isRfc3339Utc(value.updated_at)) errors.push(`${prefix}.updated_at must be RFC3339 UTC`);
+}
+
 export function workflowInvalidityReceipts(receipts = []) {
   return (Array.isArray(receipts) ? receipts : []).filter(
     (entry) => String(entry?.receipt_kind || "").trim().toUpperCase() === WORKFLOW_INVALIDITY_RECEIPT_KIND,
@@ -384,6 +624,7 @@ export function validateRuntimeStatus(data) {
     "current_main_compatibility_verified_at_utc",
     "packet_widening_decision",
     "packet_widening_evidence",
+    "execution_state",
     "route_anchor_state",
     "route_anchor_kind",
     "route_anchor_correlation_id",
@@ -404,6 +645,7 @@ export function validateRuntimeStatus(data) {
     "last_relay_failure_fingerprint",
     "last_relay_failure_first_seen_at",
     "last_relay_failure_last_seen_at",
+    "relay_escalation_policy",
   ];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
@@ -495,6 +737,7 @@ export function validateRuntimeStatus(data) {
   if ("packet_widening_evidence" in data && !isNullableString(data.packet_widening_evidence)) {
     errors.push(`packet_widening_evidence invalid (${data.packet_widening_evidence})`);
   }
+  validateExecutionState(data.execution_state, "execution_state", errors);
   if ("route_anchor_state" in data && !isNullableString(data.route_anchor_state)) {
     errors.push(`route_anchor_state invalid (${data.route_anchor_state})`);
   }
@@ -725,6 +968,7 @@ export function validateRuntimeStatus(data) {
   if ("last_relay_failure_last_seen_at" in data && !isNullableString(data.last_relay_failure_last_seen_at)) {
     errors.push(`last_relay_failure_last_seen_at invalid (${data.last_relay_failure_last_seen_at})`);
   }
+  validateRelayEscalationPolicy(data.relay_escalation_policy, "relay_escalation_policy", errors);
   if (!isNullableRfc3339Utc(data.last_backup_push_at)) errors.push("last_backup_push_at must be null or RFC3339 UTC");
   if (!isNullableSha(data.last_backup_push_sha)) errors.push("last_backup_push_sha must be null or a commit SHA");
 

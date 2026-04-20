@@ -58,6 +58,11 @@ Expected operator model:
 
 - launch/bootstrap may still involve the VS Code bridge
 - steering is ACP-backed and repo-governed
+- busy follow-up work is queue-backed and deterministic rather than manual retry driven
+- queue-backed follow-up is visible in the operator monitor, `orchestrator-steer-next`, and `orchestrator-next`, so duplicate steer attempts are suppressed by runtime state instead of operator judgment
+- run-level state and step-level activity are projected separately in the live status surfaces, so a lane can be waiting legitimately without pretending the active run is idle
+- durable push alerts surface the latest degraded, stalled, or churn condition directly in the operator-facing views, so operators do not need to reopen terminals just to discover why a lane stopped moving
+- relay repair now uses a typed runtime policy (`failure_class`, `policy_state`, `next_strategy`, strategy budget), so once automatic recovery changes or stops the operator sees the required strategy shift directly instead of reconstructing it from counters
 - the TUI is the viewport, not the control authority
 
 ### Old Workflow vs New Workflow
@@ -74,6 +79,10 @@ New workflow:
 - Orchestrator starts a governed session once and gets a stable thread identity
 - later steering resumes that same governed session through the ACP-style broker
 - every governed command writes request/result/output artifacts
+- request/result rows now carry a typed `governed_action` envelope backed by a shared rule registry, and the session registry projects the latest bounded `action_history` so resume/status views can read structured intent instead of inferring only from freeform summaries
+- busy `SEND_PROMPT` ingress now queues once against the governed session identity instead of failing immediately, and the broker drains that durable queue automatically when the active run settles or after broker restart recovery
+- session-registry status, active-lane briefs, operator monitor, and runtime invariant checks now all read the same effective governed session-action view, so typed action history outranks mirrored `last_command_*` fields when both are present
+- session-registry status, active-lane briefs, lane-health views, operator monitor, and workflow dossier sync now also read one shared telemetry projection that separates run telemetry from step telemetry and carries the latest durable push alert
 - cancel is first-class and auditable
 - close is first-class and auditable
 - operator monitoring sees canonical board state plus governed control activity and broker/session lifecycle state

@@ -11,6 +11,7 @@ import {
   ROLE_SESSION_PRIMARY_MODEL,
   ROLE_SESSION_REASONING_CONFIG_KEY,
   ROLE_SESSION_REASONING_CONFIG_VALUE,
+  SESSION_BUSY_INGRESS_MODES,
   resolveRoleModelProfileSelection,
   roleModelProfileField,
   roleModelProfileSupportsGovernedLaunch,
@@ -29,6 +30,13 @@ import {
   roleNextCommand,
   roleStartupCommand,
 } from "./session-policy.mjs";
+import {
+  buildGovernedActionRequest,
+  buildGovernedActionResult,
+  defaultGovernedActionRuleIdForSessionCommand,
+  validateGovernedActionRequestShape,
+  validateGovernedActionResultShape,
+} from "./session-governed-action-lib.mjs";
 import { buildPhaseCheckCommand } from "../../checks/phase-check-lib.mjs";
 import { buildRoleInbox } from "../lib/wp-communication-health-lib.mjs";
 import {
@@ -1110,16 +1118,44 @@ export function buildSessionControlRequest({
   createdByRole = "ORCHESTRATOR",
   reasoningConfigKey = ROLE_SESSION_REASONING_CONFIG_KEY,
   reasoningConfigValue = ROLE_SESSION_REASONING_CONFIG_VALUE,
+  busyIngressMode = "",
+  governedAction = null,
 }) {
   const COMMAND_KIND = String(commandKind || "").trim().toUpperCase();
   if (!SESSION_COMMAND_KINDS.includes(COMMAND_KIND)) {
     throw new Error(`Unknown SESSION_COMMAND kind: ${COMMAND_KIND}`);
   }
+  const normalizedBusyIngressMode = String(
+    busyIngressMode
+    || (COMMAND_KIND === "SEND_PROMPT" ? "ENQUEUE_ON_BUSY" : "REJECT"),
+  ).trim().toUpperCase();
+  if (!SESSION_BUSY_INGRESS_MODES.includes(normalizedBusyIngressMode)) {
+    throw new Error(`Unknown SESSION_COMMAND busy_ingress_mode: ${normalizedBusyIngressMode}`);
+  }
+  const nextCommandId = commandId || crypto.randomUUID();
+  const createdAt = nowIso();
+  const outputJsonlPath = normalizePath(outputJsonlFile);
+  const governedActionRequest = buildGovernedActionRequest({
+    actionId: governedAction?.action_id || nextCommandId,
+    ruleId: governedAction?.rule_id || defaultGovernedActionRuleIdForSessionCommand(COMMAND_KIND, governedAction?.action_kind),
+    actionKind: governedAction?.action_kind || "EXTERNAL_EXECUTE",
+    commandKind: COMMAND_KIND,
+    commandId: nextCommandId,
+    sessionKey,
+    wpId,
+    role,
+    createdByRole,
+    targetCommandId,
+    summary: governedAction?.summary ?? summary,
+    reasonCode: governedAction?.reason_code || COMMAND_KIND,
+    metadata: governedAction?.metadata || { output_jsonl_file: outputJsonlPath },
+    requestedAt: createdAt,
+  });
   return {
     schema_id: SESSION_CONTROL_REQUEST_SCHEMA_ID,
     schema_version: SESSION_CONTROL_REQUEST_SCHEMA_VERSION,
-    command_id: commandId || crypto.randomUUID(),
-    created_at: nowIso(),
+    command_id: nextCommandId,
+    created_at: createdAt,
     command_kind: COMMAND_KIND,
     created_by_role: createdByRole,
     session_key: sessionKey,
@@ -1134,7 +1170,8 @@ export function buildSessionControlRequest({
     reasoning_config_value: reasoningConfigValue,
     prompt,
     summary,
-    output_jsonl_file: normalizePath(outputJsonlFile),
+    output_jsonl_file: outputJsonlPath,
+    busy_ingress_mode: normalizedBusyIngressMode,
     environment_overrides: environmentOverrides && typeof environmentOverrides === "object"
       ? Object.fromEntries(
         Object.entries(environmentOverrides)
@@ -1143,6 +1180,7 @@ export function buildSessionControlRequest({
       )
       : {},
     target_command_id: targetCommandId,
+    governed_action: governedActionRequest,
   };
 }
 
@@ -1163,6 +1201,7 @@ export function buildSessionControlResult({
   cancelStatus = "",
   outcomeState = "",
   brokerBuildId = SESSION_CONTROL_BROKER_BUILD_ID,
+  governedAction = null,
 }) {
   const STATUS = String(status || "").trim().toUpperCase();
   if (!SESSION_COMMAND_STATUSES.includes(STATUS)) {
@@ -1179,11 +1218,30 @@ export function buildSessionControlResult({
   if (!SESSION_COMMAND_OUTCOME_STATES.includes(OUTCOME_STATE)) {
     throw new Error(`Unknown SESSION_COMMAND outcome_state: ${OUTCOME_STATE}`);
   }
+  const processedAt = nowIso();
+  const outputJsonlPath = normalizePath(outputJsonlFile);
+  const governedActionResult = buildGovernedActionResult({
+    actionId: governedAction?.action_id || commandId,
+    ruleId: governedAction?.rule_id || defaultGovernedActionRuleIdForSessionCommand(COMMAND_KIND, governedAction?.action_kind),
+    actionKind: governedAction?.action_kind || "EXTERNAL_EXECUTE",
+    commandKind: COMMAND_KIND,
+    commandId,
+    sessionKey,
+    wpId,
+    role,
+    status: STATUS,
+    outcomeState: OUTCOME_STATE,
+    targetCommandId,
+    summary: summary || governedAction?.summary || "",
+    error,
+    metadata: governedAction?.metadata || { output_jsonl_file: outputJsonlPath },
+    processedAt,
+  });
   return {
     schema_id: SESSION_CONTROL_RESULT_SCHEMA_ID,
     schema_version: SESSION_CONTROL_RESULT_SCHEMA_VERSION,
     command_id: commandId,
-    processed_at: nowIso(),
+    processed_at: processedAt,
     command_kind: COMMAND_KIND,
     session_key: sessionKey,
     wp_id: wpId,
@@ -1192,13 +1250,14 @@ export function buildSessionControlResult({
     outcome_state: OUTCOME_STATE,
     thread_id: threadId,
     summary,
-    output_jsonl_file: normalizePath(outputJsonlFile),
+    output_jsonl_file: outputJsonlPath,
     last_agent_message: lastAgentMessage,
     error,
     duration_ms: durationMs,
     target_command_id: targetCommandId,
     cancel_status: cancelStatus,
     broker_build_id: brokerBuildId,
+    governed_action: governedActionResult,
   };
 }
 
@@ -1751,6 +1810,12 @@ export function validateSessionControlRequestShape(request) {
   if (!request.role) errors.push("role is required");
   if (!["CANCEL_SESSION", "CLOSE_SESSION"].includes(commandKind) && !request.prompt) errors.push("prompt is required");
   if (!request.output_jsonl_file) errors.push("output_jsonl_file is required");
+  if (
+    "busy_ingress_mode" in request
+    && !SESSION_BUSY_INGRESS_MODES.includes(String(request.busy_ingress_mode || "").trim().toUpperCase())
+  ) {
+    errors.push(`busy_ingress_mode must be one of ${SESSION_BUSY_INGRESS_MODES.join(" | ")}`);
+  }
   if ("environment_overrides" in request) {
     if (!request.environment_overrides || typeof request.environment_overrides !== "object" || Array.isArray(request.environment_overrides)) {
       errors.push("environment_overrides must be an object when present");
@@ -1764,6 +1829,7 @@ export function validateSessionControlRequestShape(request) {
   if (commandKind === "CANCEL_SESSION" && !request.target_command_id) {
     errors.push("target_command_id is required for CANCEL_SESSION");
   }
+  errors.push(...validateGovernedActionRequestShape(request.governed_action, { allowMissing: true }));
   return errors;
 }
 
@@ -1787,5 +1853,6 @@ export function validateSessionControlResultShape(result) {
   if (commandKind === "CANCEL_SESSION" && !result.target_command_id) {
     errors.push("target_command_id is required for CANCEL_SESSION");
   }
+  errors.push(...validateGovernedActionResultShape(result.governed_action, { allowMissing: true }));
   return errors;
 }

@@ -13,8 +13,12 @@
  */
 
 import fs from "node:fs";
-import path from "node:path";
 import { repoPathAbs, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
+import { parseJsonFile, validateRuntimeStatus } from "../lib/wp-communications-lib.mjs";
+import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
+import { readExecutionPublicationView } from "../lib/wp-execution-state-lib.mjs";
+import { buildCloseoutDependencyView } from "../lib/wp-closeout-dependency-lib.mjs";
+import { writeJsonFile } from "../session/session-registry-lib.mjs";
 
 const wpId = String(process.argv[2] || "").trim();
 const mergedMainCommit = String(process.argv[3] || "").trim();
@@ -37,6 +41,48 @@ if (!fs.existsSync(packetAbsPath)) {
 
 let content = fs.readFileSync(packetAbsPath, "utf8");
 let changes = 0;
+const packetStatusBefore = parsePacketStatus(content);
+const runtimeStatusFile = parseSingleField(content, "WP_RUNTIME_STATUS_FILE");
+const runtimeStatusAbsPath = runtimeStatusFile ? repoPathAbs(runtimeStatusFile) : "";
+const runtimeStatus = runtimeStatusAbsPath && fs.existsSync(runtimeStatusAbsPath)
+  ? parseJsonFile(runtimeStatusAbsPath)
+  : null;
+const runtimePublication = readExecutionPublicationView({
+  runtimeStatus: runtimeStatus || {},
+  packetStatus: packetStatusBefore,
+});
+const closeoutDependencyView = buildCloseoutDependencyView({
+  packetContent: content,
+  runtimeStatus: runtimeStatus || {},
+  closeoutRequirements: {
+    requireReadyForPass: true,
+    requireRecordedScopeCompatibility: false,
+    terminalNonPass: false,
+  },
+  topology: { ok: true },
+  closeoutBundle: { ok: true, summary: {} },
+  scopeCompatibility: { errors: [] },
+  candidateSignedScope: { errors: [] },
+});
+
+if (
+  runtimePublication.has_canonical_authority
+  && (
+    (runtimePublication.canonical_packet_status && runtimePublication.canonical_packet_status !== "Validated (PASS)")
+    || (
+      runtimePublication.canonical_task_board_status
+      && runtimePublication.canonical_task_board_status !== "DONE_VALIDATED"
+    )
+  )
+) {
+  console.error(
+    `[WP_CLOSEOUT_FORMAT] Canonical execution authority does not allow PASS closeout: `
+    + `packet=${runtimePublication.canonical_packet_status || "<missing>"} `
+    + `task_board=${runtimePublication.canonical_task_board_status || "<missing>"} `
+    + `dependency_view=${closeoutDependencyView.summary}`,
+  );
+  process.exit(1);
+}
 
 // 1. Update Status
 content = content.replace(
@@ -81,8 +127,39 @@ if (closureCount > 0) {
 }
 
 fs.writeFileSync(packetAbsPath, content, "utf8");
+let runtimeSynced = "";
+if (runtimeStatusAbsPath && runtimeStatus) {
+  const syncedRuntime = syncRuntimeProjectionFromPacket(runtimeStatus, content, {
+    eventName: "wp_closeout_format",
+  });
+  const runtimeErrors = validateRuntimeStatus(syncedRuntime);
+  if (runtimeErrors.length > 0) {
+    console.error(`[WP_CLOSEOUT_FORMAT] Runtime sync failed for ${wpId}`);
+    for (const error of runtimeErrors) {
+      console.error(`- ${error}`);
+    }
+    process.exit(1);
+  }
+  writeJsonFile(runtimeStatusAbsPath, syncedRuntime);
+  runtimeSynced = runtimeStatusFile;
+}
 console.log(`[WP_CLOSEOUT_FORMAT] Packet updated: ${resolved.packetPath || resolved}`);
 console.log(`[WP_CLOSEOUT_FORMAT] Changes: ${changes}`);
+if (runtimeSynced) console.log(`[WP_CLOSEOUT_FORMAT] Runtime synced: ${runtimeSynced}`);
 console.log(`[WP_CLOSEOUT_FORMAT] Next: just task-board-set ${wpId} DONE_VALIDATED`);
 console.log(`[WP_CLOSEOUT_FORMAT] Next: just build-order-sync`);
 console.log(`[WP_CLOSEOUT_FORMAT] Next: just gov-check`);
+
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
+  const match = String(text || "").match(re);
+  return match ? match[1].trim() : "";
+}
+
+function parsePacketStatus(text) {
+  return (
+    (String(text || "").match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
+    || (String(text || "").match(/^\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
+    || ""
+  ).trim();
+}

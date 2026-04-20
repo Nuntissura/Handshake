@@ -4,13 +4,26 @@ import { fileURLToPath } from "node:url";
 import { REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { parseJsonFile, parseJsonlFile } from "../lib/wp-communications-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../lib/wp-communication-health-lib.mjs";
+import { readExecutionProjectionView } from "../lib/wp-execution-state-lib.mjs";
 import { deriveWpMicrotaskPlan } from "../lib/wp-microtask-lib.mjs";
+import {
+  normalizeRelayEscalationPolicy,
+  relayEscalationPolicyBudgetLabel,
+} from "../lib/wp-relay-policy-lib.mjs";
 import { evaluateWpRelayEscalation } from "../lib/wp-relay-escalation-lib.mjs";
 import { checkAllNotifications, checkNotifications } from "../wp/wp-check-notifications.mjs";
 import { evaluateSessionGovernanceState } from "./session-governance-state-lib.mjs";
 import { loadSessionRegistry } from "./session-registry-lib.mjs";
 import { buildRoleAuthorityString, resolveRoleConfig } from "./session-control-lib.mjs";
-import { sessionKey } from "./session-policy.mjs";
+import { SESSION_CONTROL_BROKER_STATE_FILE, sessionKey } from "./session-policy.mjs";
+import {
+  activeRunsForSession,
+  buildSessionTelemetry,
+  formatPushAlertInline,
+  formatSessionRunTelemetryInline,
+  formatSessionStepTelemetryInline,
+  selectLatestPushAlert,
+} from "./session-telemetry-lib.mjs";
 
 const COMMAND_SURFACE_PATH = ".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md";
 
@@ -103,9 +116,10 @@ export function buildActiveLaneBrief({
   const governanceRepoRoot = path.resolve(path.dirname(packetAbsPath), "..", "..", "..");
   const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
-  const runtimeStatus = runtimeStatusFile && fs.existsSync(repoPathAbs(runtimeStatusFile))
-    ? parseJsonFile(runtimeStatusFile)
-    : {};
+  const runtimeProjection = runtimeStatusFile && fs.existsSync(repoPathAbs(runtimeStatusFile))
+    ? readExecutionProjectionView(parseJsonFile(runtimeStatusFile))
+    : readExecutionProjectionView({});
+  const runtimeStatus = runtimeProjection.runtime;
   const receipts = receiptsFile && fs.existsSync(repoPathAbs(receiptsFile))
     ? parseJsonlFile(receiptsFile)
     : [];
@@ -140,7 +154,7 @@ export function buildActiveLaneBrief({
   const terminalNoiseSuppressed = Boolean(
     governanceState.terminalTaskBoardStatus
     || isTerminalPacketStatus(governanceState.packetStatus)
-    || isTerminalPacketStatus(runtimeStatus.current_packet_status),
+    || runtimeProjection.terminal,
   );
   const hiddenNotificationCount = notifications.historyHidden
     ? Number(notifications.hiddenPendingCount || 0)
@@ -166,7 +180,22 @@ export function buildActiveLaneBrief({
         recommended_command: null,
       }
     : relay;
+  const relayPolicyView = terminalNoiseSuppressed
+    ? null
+    : normalizeRelayEscalationPolicy(runtimeStatus?.relay_escalation_policy);
   const preferredSession = preferredRoleSession(runtimeStatus, normalizedRole);
+  const brokerActiveRuns = fs.existsSync(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE))
+    ? (parseJsonFile(SESSION_CONTROL_BROKER_STATE_FILE)?.active_runs || [])
+    : [];
+  const sessionTelemetry = buildSessionTelemetry({
+    session,
+    activeRuns: activeRunsForSession(session, brokerActiveRuns),
+    repoRoot,
+  });
+  const latestPushAlert = selectLatestPushAlert(pendingNotifications, {
+    targetRole: normalizedRole,
+    targetSession: preferredSession || "",
+  });
   const reviewQueue = terminalNoiseSuppressed
     ? []
     : (Array.isArray(runtimeStatus.open_review_items) ? runtimeStatus.open_review_items : [])
@@ -212,16 +241,16 @@ export function buildActiveLaneBrief({
       next_command: roleConfig.nextCommand,
     },
     runtime: {
-      status: normalize(runtimeStatus.runtime_status),
-      phase: normalize(runtimeStatus.current_phase),
-      milestone: normalize(runtimeStatus.current_milestone),
-      task_board_status: normalize(runtimeStatus.current_task_board_status),
-      next_expected_actor: normalize(runtimeStatus.next_expected_actor),
-      next_expected_session: normalize(runtimeStatus.next_expected_session),
-      waiting_on: normalize(runtimeStatus.waiting_on),
-      waiting_on_session: normalize(runtimeStatus.waiting_on_session),
-      last_event: normalize(runtimeStatus.last_event),
-      open_review_items: Array.isArray(runtimeStatus.open_review_items) ? runtimeStatus.open_review_items.length : 0,
+      status: normalize(runtimeProjection.runtime_status),
+      phase: normalize(runtimeProjection.phase),
+      milestone: normalize(runtimeProjection.milestone),
+      task_board_status: normalize(runtimeProjection.task_board_status),
+      next_expected_actor: normalize(runtimeProjection.next_expected_actor),
+      next_expected_session: normalize(runtimeProjection.next_expected_session),
+      waiting_on: normalize(runtimeProjection.waiting_on),
+      waiting_on_session: normalize(runtimeProjection.waiting_on_session),
+      last_event: normalize(runtimeProjection.last_event),
+      open_review_items: Number(runtimeProjection.open_review_items_count || 0),
     },
     session: {
       session_key: normalize(session?.session_key),
@@ -231,6 +260,33 @@ export function buildActiveLaneBrief({
       thread_id: normalize(session?.session_thread_id),
       last_command_kind: normalize(session?.last_command_kind),
       last_command_status: normalize(session?.last_command_status),
+      effective_governed_action: {
+        command_kind: normalize(session?.effective_governed_action?.command_kind),
+        command_status: normalize(session?.effective_governed_action?.status),
+        action_kind: normalize(session?.effective_governed_action?.action_kind),
+        action_state: normalize(session?.effective_governed_action?.action_state),
+        rule_id: normalize(session?.effective_governed_action?.rule_id),
+        resume_disposition: normalize(session?.effective_governed_action?.resume_disposition),
+        source: normalize(session?.effective_governed_action?.source),
+      },
+      last_governed_action: {
+        action_id: normalize(session?.last_governed_action?.action_id),
+        rule_id: normalize(session?.last_governed_action?.rule_id),
+        action_kind: normalize(session?.last_governed_action?.action_kind),
+        action_state: normalize(session?.last_governed_action?.action_state),
+        resume_disposition: normalize(session?.last_governed_action?.resume_disposition),
+      },
+      pending_control_queue_count: Number(session?.pending_control_queue_count || 0),
+      next_queued_control_request: {
+        command_id: normalize(session?.next_queued_control_request?.command_id),
+        command_kind: normalize(session?.next_queued_control_request?.command_kind),
+        queue_reason_code: normalize(session?.next_queued_control_request?.queue_reason_code),
+      },
+      telemetry: {
+        run: sessionTelemetry.run,
+        step: sessionTelemetry.step,
+        latest_push_alert: latestPushAlert,
+      },
     },
     notifications: {
       pending_count: visibleNotifications.pendingCount || 0,
@@ -252,6 +308,7 @@ export function buildActiveLaneBrief({
       summary: relayView.summary,
       reason_code: relayView.reason_code,
       recommended_command: relayView.recommended_command,
+      policy: relayPolicyView,
     },
     minimal_live_read_set: [
       "startup output",
@@ -268,6 +325,9 @@ export function buildActiveLaneBrief({
 }
 
 export function formatActiveLaneBrief(brief) {
+  const relayPolicyBudget = brief.relay.policy
+    ? relayEscalationPolicyBudgetLabel(brief.relay.policy)
+    : null;
   return [
     "ACTIVE_LANE_BRIEF [CX-LANE-001]",
     `- ROLE: ${brief.role} | WP_ID: ${brief.wp_id}`,
@@ -275,7 +335,8 @@ export function formatActiveLaneBrief(brief) {
     `- PACKET: ${brief.packet_path}`,
     `- ROLE_CONTEXT: branch=${brief.role_config.branch} | worktree=${brief.role_config.worktree_dir}`,
     `- RUNTIME: status=${brief.runtime.status} | phase=${brief.runtime.phase} | milestone=${brief.runtime.milestone} | board=${brief.runtime.task_board_status} | next=${brief.runtime.next_expected_actor}${brief.runtime.next_expected_session !== "<none>" ? `:${brief.runtime.next_expected_session}` : ""} | waiting_on=${brief.runtime.waiting_on}${brief.runtime.waiting_on_session !== "<none>" ? ` (${brief.runtime.waiting_on_session})` : ""}`,
-    `- SESSION: key=${brief.session.session_key} | actor_session=${brief.session.actor_session} | runtime_state=${brief.session.runtime_state} | thread=${brief.session.thread_id} | last_command=${brief.session.last_command_kind}/${brief.session.last_command_status}`,
+    `- SESSION: key=${brief.session.session_key} | actor_session=${brief.session.actor_session} | runtime_state=${brief.session.runtime_state} | thread=${brief.session.thread_id} | effective_command=${brief.session.effective_governed_action.command_kind}/${brief.session.effective_governed_action.command_status} | effective_action=${brief.session.effective_governed_action.action_kind}/${brief.session.effective_governed_action.action_state} | disposition=${brief.session.effective_governed_action.resume_disposition} | source=${brief.session.effective_governed_action.source} | queued=${brief.session.pending_control_queue_count}${brief.session.next_queued_control_request.command_id !== "<none>" ? ` | next_queue=${brief.session.next_queued_control_request.command_kind}:${brief.session.next_queued_control_request.command_id}` : ""}`,
+    `- SESSION_TELEMETRY: ${formatSessionRunTelemetryInline(brief.session.telemetry?.run)} | ${formatSessionStepTelemetryInline(brief.session.telemetry?.step)}${brief.session.telemetry?.latest_push_alert ? ` | ${formatPushAlertInline(brief.session.telemetry.latest_push_alert)}` : ""}`,
     `- NOTIFICATIONS: pending=${brief.notifications.pending_count} | by_kind=${JSON.stringify(brief.notifications.by_kind)}`,
     `- MICROTASKS: declared=${brief.microtasks.declared_count} | active=${brief.microtasks.active_microtask?.mt_id || "<none>"} | next=${brief.microtasks.suggested_next_microtask?.mt_id || "<none>"}`,
     ...(brief.microtasks.active_microtask
@@ -342,6 +403,13 @@ export function formatActiveLaneBrief(brief) {
     `- RELAY: status=${brief.relay.status} | severity=${brief.relay.severity} | reason=${brief.relay.reason_code}`,
     `- RELAY_SUMMARY: ${brief.relay.summary}`,
     ...(brief.relay.recommended_command ? [`- RELAY_COMMAND: ${brief.relay.recommended_command}`] : []),
+    ...(brief.relay.policy
+      ? [
+          `- RELAY_POLICY: failure_class=${brief.relay.policy.failure_class} | state=${brief.relay.policy.policy_state} | next_strategy=${brief.relay.policy.next_strategy} | budget=${relayPolicyBudget}`,
+          `- RELAY_POLICY_META: source=${brief.relay.policy.source_surface} | reason=${brief.relay.policy.reason_code} | updated_at=${brief.relay.policy.updated_at}`,
+          `- RELAY_POLICY_SUMMARY: ${brief.relay.policy.summary}`,
+        ]
+      : []),
     `- MINIMAL_LIVE_READ_SET: ${brief.minimal_live_read_set.join(" | ")}`,
     `- NEXT_COMMANDS: ${brief.next_commands.join(" -> ")}`,
     `- FULL_OUTPUT_RULE: use --json for machine-readable detail instead of rereading packet/runtime/session surfaces separately`,

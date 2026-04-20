@@ -286,6 +286,9 @@ test("session-control results persist outcome_state", () => {
   });
 
   assert.equal(result.outcome_state, "BUSY_ACTIVE_RUN");
+  assert.equal(result.governed_action.action_id, "123e4567-e89b-12d3-a456-426614174000");
+  assert.equal(result.governed_action.rule_id, "SESSION_CONTROL_START_SESSION_EXTERNAL_EXECUTE");
+  assert.equal(result.governed_action.resume_disposition, "REPAIR_REQUIRED");
 });
 
 test("steering prompt stays compact and codex-explicit", () => {
@@ -332,4 +335,25 @@ test("integration-validator control requests carry kernel governance env overrid
     HANDSHAKE_GOV_ROOT: "D:/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV",
   });
   assert.equal(request.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
+  assert.equal(request.governed_action.rule_id, "SESSION_CONTROL_START_SESSION_EXTERNAL_EXECUTE");
+  assert.equal(request.governed_action.command_id, request.command_id);
+  assert.equal(request.busy_ingress_mode, "REJECT");
+});
+
+test("send prompt control requests default to queued busy ingress mode", () => {
+  const request = buildSessionControlRequest({
+    commandKind: "SEND_PROMPT",
+    wpId: "WP-TEST-STEER-v1",
+    role: "CODER",
+    sessionKey: "CODER:WP-TEST-STEER-v1",
+    localBranch: "feat/WP-TEST-STEER-v1",
+    localWorktreeDir: "../wtc-test",
+    absWorktreeDir: "D:/Handshake/Handshake Worktrees/wtc-test",
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    prompt: "Continue the governed coder lane.",
+    threadId: "thread_test",
+    outputJsonlFile: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/test.jsonl",
+  });
+
+  assert.equal(request.busy_ingress_mode, "ENQUEUE_ON_BUSY");
 });

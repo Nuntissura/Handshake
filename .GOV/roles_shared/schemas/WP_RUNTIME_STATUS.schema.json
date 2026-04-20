@@ -243,6 +243,26 @@
         "null"
       ]
     },
+    "execution_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "authority",
+        "checkpoint_lineage"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "wp_execution_state@1"
+        },
+        "authority": {
+          "type": "object"
+        },
+        "checkpoint_lineage": {
+          "type": "object"
+        }
+      }
+    },
     "route_anchor_state": {
       "type": [
         "string",
@@ -792,6 +812,78 @@
     "current_same_failure_rewake_count": {
       "type": "integer",
       "minimum": 0
+    },
+    "relay_escalation_policy": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "source_surface",
+        "failure_class",
+        "policy_state",
+        "next_strategy",
+        "reason_code",
+        "budget_scope",
+        "budget_used",
+        "budget_limit",
+        "summary",
+        "updated_at"
+      ],
+      "properties": {
+        "source_surface": {
+          "type": "string",
+          "minLength": 1
+        },
+        "failure_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_state": {
+          "enum": [
+            "DEFERRED",
+            "AUTO_RETRY_ALLOWED",
+            "AUTO_RETRY_BLOCKED"
+          ]
+        },
+        "next_strategy": {
+          "enum": [
+            "QUEUED_DEFER",
+            "ALTERNATE_METHOD",
+            "ALTERNATE_MODEL",
+            "HUMAN_STOP"
+          ]
+        },
+        "reason_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "budget_scope": {
+          "enum": [
+            "NONE",
+            "RELAY_ESCALATION_CYCLE",
+            "SAME_FAILURE_REWAKE",
+            "WORKER_INTERRUPT_CYCLE"
+          ]
+        },
+        "budget_used": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "budget_limit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "updated_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+        }
+      }
     },
     "last_backup_push_at": {
       "type": [

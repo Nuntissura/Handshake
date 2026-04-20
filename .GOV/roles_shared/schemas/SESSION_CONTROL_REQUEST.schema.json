@@ -94,6 +94,18 @@
     },
     "output_jsonl_file": {
       "type": "string"
+    },
+    "busy_ingress_mode": {
+      "enum": [
+        "REJECT",
+        "ENQUEUE_ON_BUSY"
+      ]
+    },
+    "environment_overrides": {
+      "type": "object"
+    },
+    "governed_action": {
+      "type": "object"
     }
   },
   "allOf": [

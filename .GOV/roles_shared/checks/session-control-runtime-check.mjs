@@ -17,6 +17,7 @@ import {
   REPO_ROOT,
 } from "../scripts/lib/runtime-paths.mjs";
 import {
+  isPendingSessionControlRequest,
   loadSessionControlRequests,
   loadSessionControlResults,
   loadSessionRegistry,
@@ -28,6 +29,12 @@ import {
   validateSessionControlRequestShape,
   validateSessionControlResultShape,
 } from "../scripts/session/session-control-lib.mjs";
+import {
+  effectiveSessionGovernedAction,
+  governedSessionMirrorDrift,
+  validateGovernedActionRequestShape,
+  validateGovernedActionResultShape,
+} from "../scripts/session/session-governed-action-lib.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 
 registerFailCaptureHook("session-control-runtime-check.mjs", { role: "SHARED" });
@@ -141,6 +148,7 @@ function validateRequestShapeForRuntime(request) {
   if (kind === "CANCEL_SESSION" && !resolveTargetCommandId(request)) {
     errors.push("CANCEL_SESSION requires target_command_id or cancel_target_command_id");
   }
+  errors.push(...validateGovernedActionRequestShape(request?.governed_action, { allowMissing: true }));
   return [...new Set(errors)];
 }
 
@@ -168,6 +176,7 @@ function validateResultShapeForRuntime(result) {
   if (kind === "CANCEL_SESSION" && !resolveTargetCommandId(result)) {
     errors.push("CANCEL_SESSION requires target_command_id or cancel_target_command_id");
   }
+  errors.push(...validateGovernedActionResultShape(result?.governed_action, { allowMissing: true }));
   return [...new Set(errors)];
 }
 
@@ -426,34 +435,37 @@ for (const request of requests) {
 
   const createdAtMs = Date.parse(request.created_at || "");
   const requestAgeMs = Number.isNaN(createdAtMs) ? Number.POSITIVE_INFINITY : (Date.now() - createdAtMs);
+  const effectiveSessionAction = session ? effectiveSessionGovernedAction(session) : null;
+  const queuedInRegistry = Boolean(session && isPendingSessionControlRequest(session, request.command_id));
   const registryShowsRunning = Boolean(
-    session
-    && session.last_command_id === request.command_id
-    && session.last_command_status === "RUNNING",
+    effectiveSessionAction
+    && effectiveSessionAction.command_id === request.command_id
+    && effectiveSessionAction.status === "RUNNING",
   );
 
   if (!outputExists && !brokerRun && !registryShowsRunning) {
     invariantErrors.push(`request ${request.command_id} is missing output log ${outputPath}`);
   }
 
-  if (!brokerRun && !registryShowsRunning) {
+  if (!brokerRun && !registryShowsRunning && !queuedInRegistry) {
     invariantErrors.push(`request ${request.command_id} has no settled result and no active broker/session state`);
     continue;
   }
 
-  if (requestAgeMs > maxUnsettledAgeMs) {
+  if (!queuedInRegistry && requestAgeMs > maxUnsettledAgeMs) {
     invariantErrors.push(`request ${request.command_id} is older than ${SESSION_CONTROL_RUN_TIMEOUT_SECONDS + SESSION_CONTROL_RUN_STALE_GRACE_SECONDS}s without a settled result`);
   }
 }
 
 for (const session of registry.sessions || []) {
-  if (!session.last_command_id) continue;
-  const request = requestById.get(session.last_command_id);
-  const result = resultById.get(session.last_command_id);
-  const brokerRun = brokerRunById.get(session.last_command_id);
+  const effectiveSessionAction = effectiveSessionGovernedAction(session);
+  if (!effectiveSessionAction?.command_id) continue;
+  const request = requestById.get(effectiveSessionAction.command_id);
+  const result = resultById.get(effectiveSessionAction.command_id);
+  const brokerRun = brokerRunById.get(effectiveSessionAction.command_id);
 
   if (!request) {
-    invariantErrors.push(`session ${session.session_key} references missing last_command_id ${session.last_command_id}`);
+    invariantErrors.push(`session ${session.session_key} references missing effective governed command_id ${effectiveSessionAction.command_id}`);
     continue;
   }
 
@@ -469,7 +481,7 @@ for (const session of registry.sessions || []) {
     }
   }
 
-  if (session.last_command_status === "RUNNING") {
+  if (effectiveSessionAction.status === "RUNNING") {
     if (normalizePath(session.last_command_output_file || "") && !lastCommandOutputExists) {
       const createdAtMs = Date.parse(request.created_at || "");
       const requestAgeMs = Number.isNaN(createdAtMs) ? Number.POSITIVE_INFINITY : (Date.now() - createdAtMs);
@@ -489,15 +501,19 @@ for (const session of registry.sessions || []) {
     }
   }
 
-  if (session.last_command_status === "COMPLETED" || session.last_command_status === "FAILED") {
+  if (effectiveSessionAction.status === "COMPLETED" || effectiveSessionAction.status === "FAILED") {
     if (normalizePath(session.last_command_output_file || "") && !lastCommandOutputExists) {
       invariantErrors.push(`session ${session.session_key} last_command_output_file is missing on disk`);
     }
     if (!result) {
-      invariantErrors.push(`session ${session.session_key} last command ${session.last_command_id} has no settled result`);
-    } else if (result.status !== session.last_command_status) {
+      invariantErrors.push(`session ${session.session_key} last command ${effectiveSessionAction.command_id} has no settled result`);
+    } else if (result.status !== effectiveSessionAction.status) {
       invariantErrors.push(`session ${session.session_key} last command status disagrees with settled result`);
     }
+  }
+
+  for (const drift of governedSessionMirrorDrift(session)) {
+    invariantErrors.push(`session ${session.session_key} ${drift}`);
   }
 
   if (session.startup_proof_state === "READY" && !session.session_thread_id) {
@@ -513,6 +529,28 @@ for (const session of registry.sessions || []) {
   }
   if (session.runtime_state === "CLOSED" && session.session_thread_id) {
     invariantErrors.push(`session ${session.session_key} is CLOSED but still has a session_thread_id`);
+  }
+}
+
+for (const session of registry.sessions || []) {
+  for (const queuedRequest of session.pending_control_queue || []) {
+    const request = requestById.get(queuedRequest.command_id);
+    if (!request) {
+      invariantErrors.push(`session ${session.session_key} pending_control_queue references missing request ${queuedRequest.command_id}`);
+      continue;
+    }
+    if (resultById.has(queuedRequest.command_id)) {
+      invariantErrors.push(`session ${session.session_key} pending_control_queue still references settled request ${queuedRequest.command_id}`);
+    }
+    if (normalizedCommandKind(request.command_kind) !== "SEND_PROMPT") {
+      invariantErrors.push(`session ${session.session_key} pending_control_queue request ${queuedRequest.command_id} must be SEND_PROMPT`);
+    }
+    if (String(request.busy_ingress_mode || "").trim().toUpperCase() !== "ENQUEUE_ON_BUSY") {
+      invariantErrors.push(`session ${session.session_key} pending_control_queue request ${queuedRequest.command_id} must declare busy_ingress_mode=ENQUEUE_ON_BUSY`);
+    }
+    if (brokerRunById.has(queuedRequest.command_id)) {
+      invariantErrors.push(`session ${session.session_key} pending_control_queue request ${queuedRequest.command_id} is already listed as an active broker run`);
+    }
   }
 }
 

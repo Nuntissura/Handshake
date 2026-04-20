@@ -1477,7 +1477,7 @@ try {
     nextCommands.push(`just wp-traceability-set ${baseWpId} ${WP_ID}`);
   }
   if (!syncState.ok) {
-    nextCommands.push(`# Repair ${syncState.expectedBranch || 'the assigned WP branch'} and ${syncState.worktreeAbs || 'the assigned WP worktree'} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`);
+    nextCommands.push(`# Repair ${syncState.expectedBranch || 'the assigned WP branch'} and ${syncState.worktreeDisplay || 'the assigned WP worktree'} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`);
     if (normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED') {
       nextCommands.push(...buildActivationManagerLaunchCommands(WP_ID));
     } else if (normalizedWorkflowLane === 'MANUAL_RELAY') {

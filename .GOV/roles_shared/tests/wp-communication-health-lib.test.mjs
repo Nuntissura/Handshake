@@ -13,6 +13,10 @@ import {
   evaluateWpCommunicationBoundary,
   evaluateWpCommunicationHealth,
 } from "../scripts/lib/wp-communication-health-lib.mjs";
+import {
+  EXECUTION_STATE_LINEAGE_SCHEMA_VERSION,
+  EXECUTION_STATE_SCHEMA_VERSION,
+} from "../scripts/lib/wp-execution-state-lib.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = path.resolve(__dirname, "../fixtures/wp-communication-health");
@@ -2942,6 +2946,116 @@ test("boundary check accepts runtime-projected validator session after watchdog 
 
   assert.equal(statusEvaluation.state, "COMM_WAITING_FOR_INTENT_CHECKPOINT");
   assert.equal(boundary.ok, true, JSON.stringify(boundary, null, 2));
+  assert.equal(boundary.autoRoute?.nextExpectedSession, "wpv-1");
+});
+
+test("boundary check prefers canonical execution_state authority over stale flat route mirrors", () => {
+  const input = baseInput({
+    receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap and skeleton cleared; proceed.",
+        timestamp_utc: "2026-03-22T10:02:30Z",
+      },
+      {
+        receipt_kind: "CODER_HANDOFF",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+    ],
+    runtimeStatus: {
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-stale",
+      waiting_on: "CODER_HANDOFF",
+      waiting_on_session: "coder-stale",
+      validator_trigger: "NONE",
+      validator_trigger_reason: null,
+      ready_for_validation: false,
+      ready_for_validation_reason: null,
+      attention_required: false,
+      route_anchor_state: "COMM_WAITING_FOR_HANDOFF",
+      route_anchor_kind: "CODER_HANDOFF",
+      route_anchor_correlation_id: "handoff-stale",
+      route_anchor_target_role: "CODER",
+      route_anchor_target_session: "coder-stale",
+      execution_state: {
+        schema_version: EXECUTION_STATE_SCHEMA_VERSION,
+        authority: {
+          next_expected_actor: "WP_VALIDATOR",
+          next_expected_session: "wpv-1",
+          waiting_on: "WP_VALIDATOR_REVIEW",
+          waiting_on_session: "wpv-1",
+          validator_trigger: "HANDOFF_READY",
+          validator_trigger_reason: "Coder handoff recorded; WP validator review required",
+          ready_for_validation: true,
+          ready_for_validation_reason: "Coder handoff recorded; WP validator review required",
+          attention_required: false,
+          route_anchor: {
+            state: "COMM_WAITING_FOR_REVIEW",
+            kind: "VALIDATOR_REVIEW",
+            correlation_id: "handoff-1",
+            target_role: "WP_VALIDATOR",
+            target_session: "wpv-1",
+          },
+          review_anchor: {},
+        },
+        checkpoint_lineage: {
+          schema_version: EXECUTION_STATE_LINEAGE_SCHEMA_VERSION,
+          latest_checkpoint_id: null,
+          latest_checkpoint_at_utc: null,
+          latest_checkpoint_kind: null,
+          latest_restore_point_id: null,
+          latest_checkpoint_fingerprint: null,
+          checkpoint_count: 0,
+          checkpoints: [],
+        },
+      },
+    },
+  });
+
+  const statusEvaluation = evaluateWpCommunicationHealth(input);
+  const boundary = evaluateWpCommunicationBoundary({
+    stage: "HANDOFF",
+    statusEvaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+    pendingNotifications: [],
+  });
+
+  assert.equal(statusEvaluation.state, "COMM_WAITING_FOR_REVIEW");
+  assert.equal(boundary.ok, true, JSON.stringify(boundary, null, 2));
+  assert.equal(boundary.autoRoute?.nextExpectedActor, "WP_VALIDATOR");
   assert.equal(boundary.autoRoute?.nextExpectedSession, "wpv-1");
 });
 

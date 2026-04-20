@@ -23,6 +23,7 @@ import {
   parseJsonlFile,
   validateRuntimeStatus,
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { parseExecutionCloseoutMode } from "../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
 import {
   buildValidatorPacketCompleteResult,
   evaluateValidatorPacketGovernanceState,
@@ -30,6 +31,7 @@ import {
 } from "../scripts/lib/validator-governance-lib.mjs";
 import {
   appendCloseoutSyncProvenance,
+  buildCloseoutSyncGovernedAction,
   deriveFinalLaneGovernanceInvalidity,
   evaluateIntegrationValidatorCloseoutState,
   resolveCloseoutValidatorSessionsOfRecord,
@@ -265,58 +267,16 @@ function appendCloseoutGovernanceInvalidityIfNeeded({
 }
 
 function parseMode(rawMode) {
-  const mode = String(rawMode || "").trim().toUpperCase();
-  if (mode === "MERGE_PENDING" || mode === "DONE_MERGE_PENDING") {
-    return {
-      mode: "MERGE_PENDING",
-      boardStatus: "DONE_MERGE_PENDING",
-      packetStatus: "Done",
-      mainContainmentStatus: "MERGE_PENDING",
-      requireMergedMainCommit: false,
-      requiredValidationVerdict: "PASS",
-    };
-  }
-  if (mode === "CONTAINED_IN_MAIN" || mode === "DONE_VALIDATED") {
-    return {
-      mode: "CONTAINED_IN_MAIN",
-      boardStatus: "DONE_VALIDATED",
-      packetStatus: "Validated (PASS)",
-      mainContainmentStatus: "CONTAINED_IN_MAIN",
-      requireMergedMainCommit: true,
-      requiredValidationVerdict: "PASS",
-    };
-  }
-  if (mode === "FAIL" || mode === "DONE_FAIL") {
-    return {
-      mode: "FAIL",
-      boardStatus: "DONE_FAIL",
-      packetStatus: "Validated (FAIL)",
-      mainContainmentStatus: "NOT_REQUIRED",
-      requireMergedMainCommit: false,
-      requiredValidationVerdict: "FAIL",
-    };
-  }
-  if (mode === "OUTDATED_ONLY" || mode === "DONE_OUTDATED_ONLY") {
-    return {
-      mode: "OUTDATED_ONLY",
-      boardStatus: "DONE_OUTDATED_ONLY",
-      packetStatus: "Validated (OUTDATED_ONLY)",
-      mainContainmentStatus: "NOT_REQUIRED",
-      requireMergedMainCommit: false,
-      requiredValidationVerdict: "OUTDATED_ONLY",
-    };
-  }
-  if (mode === "ABANDONED" || mode === "DONE_ABANDONED") {
-    return {
-      mode: "ABANDONED",
-      boardStatus: "DONE_ABANDONED",
-      packetStatus: "Validated (ABANDONED)",
-      mainContainmentStatus: "NOT_REQUIRED",
-      requireMergedMainCommit: false,
-      requiredValidationVerdict: "ABANDONED",
-    };
-  }
-  return null;
+  const modeSpec = parseExecutionCloseoutMode(rawMode);
+  if (!modeSpec) return null;
+  return {
+    mode: modeSpec.mode,
+    boardStatus: modeSpec.task_board_status,
+    packetStatus: modeSpec.packet_status,
+    mainContainmentStatus: modeSpec.main_containment_status,
+    requireMergedMainCommit: modeSpec.require_merged_main_commit,
+    requiredValidationVerdict: modeSpec.required_validation_verdict,
+  };
 }
 
 const wpId = String(process.argv[2] || "").trim();
@@ -628,6 +588,25 @@ try {
       artifact_retention_manifest_abs: normalizePath(artifactRetentionManifestWrite.manifestAbsPath),
       artifact_cleanup_removed_repo_local_dirs: artifactCleanup.removedRepoLocalDirs.map((entry) => normalizePath(entry)),
       artifact_cleanup_removed_external_dirs: artifactCleanup.removedExternalDirs.map((entry) => normalizePath(entry)),
+      governed_action: buildCloseoutSyncGovernedAction({
+        wpId,
+        mode: requestedMode.mode,
+        packetStatus: requestedMode.packetStatus,
+        mainContainmentStatus: requestedMode.mainContainmentStatus,
+        actorRole: actorContext.actorRole || "INTEGRATION_VALIDATOR",
+        actorSessionKey: actorContext.actorSessionKey || "",
+        actorSessionId: actorContext.actorSessionId || "",
+        mergedMainCommit: requestedMode.requireMergedMainCommit ? mergedMainCommit : "",
+        baselineSha,
+        summary: [
+          `Integration Validator recorded closeout sync ${requestedMode.mode} for ${wpId}.`,
+          `packet_status=${requestedMode.packetStatus}.`,
+          `main_containment_status=${requestedMode.mainContainmentStatus}.`,
+          requestedMode.requireMergedMainCommit ? `merged_main_commit=${mergedMainCommit}.` : null,
+          `baseline_sha=${baselineSha}.`,
+        ].filter(Boolean).join(" "),
+        processedAt: timestamp,
+      }),
     },
   });
   writeGateState(wpId, nextGateState);

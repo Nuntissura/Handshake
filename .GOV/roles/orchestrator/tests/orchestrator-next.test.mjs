@@ -8,6 +8,8 @@ import {
   latestOrchestratorAcpHealthAlert,
   latestOrchestratorGovernanceCheckpoint,
   latestOrchestratorRelayWatchdogRepair,
+  queuedGovernedWaitState,
+  relayEscalationPolicyFindings,
   tokenPolicyContinuationDecision,
 } from "../scripts/orchestrator-next.mjs";
 
@@ -154,4 +156,71 @@ test("orchestrator-next blocks token policy conflicts without a continuation wai
   assert.equal(decision.blockLedgerHealth, true);
   assert.equal(decision.blockBudget, true);
   assert.deepEqual(decision.findings, []);
+});
+
+test("orchestrator-next classifies queue-backed governed wait state for the projected actor", () => {
+  const queued = queuedGovernedWaitState({
+    workflowLane: "ORCHESTRATOR_MANAGED",
+    runtimeStatus: {
+      next_expected_actor: "CODER",
+      next_expected_session: "CODER-WP-1-Test-v1",
+    },
+    registrySessions: [
+      {
+        role: "CODER",
+        session_thread_id: "thread-123",
+        updated_at: "2026-04-20T12:00:00Z",
+        pending_control_queue_count: 2,
+        next_queued_control_request: {
+          command_kind: "SEND_PROMPT",
+          queued_at: "2026-04-20T11:59:00Z",
+          blocking_command_id: "command-123",
+          summary: "Resume queued coder follow-up",
+        },
+      },
+    ],
+  });
+
+  assert.equal(queued?.role, "CODER");
+  assert.equal(queued?.target, "CODER:CODER-WP-1-Test-v1");
+  assert.equal(queued?.queueCount, 2);
+  assert.equal(queued?.queuedRequest?.command_kind, "SEND_PROMPT");
+});
+
+test("orchestrator-next ignores queued work when the projected next actor is not a governed relay target", () => {
+  const queued = queuedGovernedWaitState({
+    workflowLane: "ORCHESTRATOR_MANAGED",
+    runtimeStatus: {
+      next_expected_actor: "ORCHESTRATOR",
+    },
+    registrySessions: [
+      {
+        role: "CODER",
+        pending_control_queue_count: 1,
+        next_queued_control_request: {
+          command_kind: "SEND_PROMPT",
+        },
+      },
+    ],
+  });
+
+  assert.equal(queued, null);
+});
+
+test("orchestrator-next formats relay escalation policy findings from runtime truth", () => {
+  const findings = relayEscalationPolicyFindings({
+    failure_class: "DUPLICATE_REWAKE_LOOP",
+    policy_state: "AUTO_RETRY_BLOCKED",
+    next_strategy: "ALTERNATE_METHOD",
+    budget_scope: "SAME_FAILURE_REWAKE",
+    budget_used: 2,
+    budget_limit: 2,
+    reason_code: "SAME_FAILURE_REWAKE_BUDGET_EXHAUSTED",
+    summary: "duplicate re-wake loop exhausted the same-failure budget",
+  });
+
+  assert.match(findings.join(" | "), /DUPLICATE_REWAKE_LOOP/);
+  assert.match(findings.join(" | "), /AUTO_RETRY_BLOCKED -> ALTERNATE_METHOD/);
+  assert.match(findings.join(" | "), /SAME_FAILURE_REWAKE:2\/2/);
+  assert.match(findings.join(" | "), /SAME_FAILURE_REWAKE_BUDGET_EXHAUSTED/);
 });

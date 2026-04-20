@@ -6,6 +6,7 @@ import {
   packetRequiresMergeContainmentTruth,
 } from "../session/session-policy.mjs";
 import { REPO_ROOT } from "./runtime-paths.mjs";
+import { materializeRuntimeAuthorityView } from "./wp-execution-state-lib.mjs";
 
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
 const RFC3339_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -385,7 +386,7 @@ export function validateMergeProgressionTruth(
       runtime = null;
     } else {
       try {
-        runtime = JSON.parse(fs.readFileSync(runtimeAbs, "utf8"));
+        runtime = materializeRuntimeAuthorityView(JSON.parse(fs.readFileSync(runtimeAbs, "utf8")));
       } catch (error) {
         errors.push(`WP runtime status surface is unreadable: ${runtimePath} (${error.message})`);
         runtime = null;
@@ -394,6 +395,7 @@ export function validateMergeProgressionTruth(
   }
 
   if (runtime && typeof runtime === "object") {
+    runtime = materializeRuntimeAuthorityView(runtime);
     const runtimePacketStatus = String(runtime.current_packet_status || "").trim();
     const runtimeContainmentStatus = String(runtime.main_containment_status || "").trim().toUpperCase();
     const runtimeMergedMainCommit = runtime.merged_main_commit === null ? "NONE" : normalizeNoneLike(runtime.merged_main_commit);

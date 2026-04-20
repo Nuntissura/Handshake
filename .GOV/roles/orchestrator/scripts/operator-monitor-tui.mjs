@@ -22,7 +22,17 @@ import {
   validateReceipt,
   validateRuntimeStatus,
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { materializeRuntimeAuthorityView } from "../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
 import { loadSessionRegistry, registryBatchLaunchSummary, registrySessionSummary } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { effectiveSessionGovernedAction } from "../../../roles_shared/scripts/session/session-governed-action-lib.mjs";
+import {
+  activeRunsForSession,
+  buildSessionTelemetry,
+  formatPushAlertInline,
+  formatSessionRunTelemetryInline,
+  formatSessionStepTelemetryInline,
+  selectLatestPushAlert,
+} from "../../../roles_shared/scripts/session/session-telemetry-lib.mjs";
 import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import {
   SESSION_CONTROL_BROKER_STATE_FILE,
@@ -32,6 +42,11 @@ import {
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { TOPOLOGY_REGISTRY_JSON_PATH } from "../../../roles_shared/scripts/topology/git-topology-lib.mjs";
+import {
+  relayEscalationPolicyBudgetLabel,
+  relayEscalationPolicyInlineSummary,
+  relayEscalationPolicyStrategyLabel,
+} from "../../../roles_shared/scripts/lib/wp-relay-policy-lib.mjs";
 import {
   GOV_ROOT_REPO_REL,
   REPO_ROOT,
@@ -156,6 +171,12 @@ function truncateVisible(value, width) {
   if (visibleLength(text) <= width) return `${text}${" ".repeat(Math.max(0, width - visibleLength(text)))}`;
   if (width === 1) return sliceAnsi(text, 1);
   return `${sliceAnsi(text, Math.max(0, width - 3))}...`;
+}
+
+function displayRelativePath(absolutePath, basePath = CURRENT_WORKTREE_DIR) {
+  const value = String(absolutePath || "").trim();
+  if (!value) return "";
+  return normalize(path.relative(basePath, path.resolve(value)) || ".");
 }
 
 function resolveMonitorPath(filePath) {
@@ -450,13 +471,17 @@ function currentBranch() {
 }
 
 function loadBoardSourceInfo() {
+  const currentBoardAbsPath = repoPathAbs(TASK_BOARD_PATH);
   const info = {
     current_branch: currentBranch(),
     current_worktree_dir: normalize(CURRENT_WORKTREE_DIR),
-    current_board_path: normalize(repoPathAbs(TASK_BOARD_PATH)),
+    current_board_path: normalize(currentBoardAbsPath),
+    current_board_display: displayRelativePath(currentBoardAbsPath),
     canonical_branch: "main",
     canonical_worktree_dir: "",
     canonical_board_path: "",
+    canonical_board_display: "",
+    canonical_worktree_display: "",
     board_drift: "UNKNOWN",
     display: "board=current",
     detail: "",
@@ -474,12 +499,14 @@ function loadBoardSourceInfo() {
     if (canonical?.rel_path) {
       info.canonical_worktree_dir = normalize(path.resolve(CURRENT_WORKTREE_DIR, canonical.rel_path));
       info.canonical_board_path = normalize(path.resolve(CURRENT_WORKTREE_DIR, canonical.rel_path, `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`));
+      info.canonical_worktree_display = normalize(canonical.rel_path);
+      info.canonical_board_display = displayRelativePath(info.canonical_board_path);
     }
     const isCanonical = info.canonical_worktree_dir && info.current_worktree_dir === info.canonical_worktree_dir;
     if (isCanonical) {
       info.board_drift = "CANONICAL";
       info.display = `board=canonical:${info.canonical_branch}`;
-      info.detail = `current=${info.current_board_path}`;
+      info.detail = `current=${info.current_board_display}`;
       return info;
     }
     if (info.canonical_board_path && fs.existsSync(info.canonical_board_path) && fs.existsSync(info.current_board_path)) {
@@ -487,11 +514,11 @@ function loadBoardSourceInfo() {
       const canonicalBoard = normalizeBoardText(readText(info.canonical_board_path));
       info.board_drift = currentBoard === canonicalBoard ? "IN_SYNC" : "DIVERGED";
     }
-    info.display = `board=mirror:${info.current_branch || "<unknown>"} | canonical=${info.canonical_branch}@${info.canonical_worktree_dir || "<unknown>"} | drift=${info.board_drift}`;
-    info.detail = `current=${info.current_board_path} | canonical=${info.canonical_board_path || "<unknown>"}`;
+    info.display = `board=mirror:${info.current_branch || "<unknown>"} | canonical=${info.canonical_branch}@${info.canonical_worktree_display || "<unknown>"} | drift=${info.board_drift}`;
+    info.detail = `current=${info.current_board_display} | canonical=${info.canonical_board_display || "<unknown>"}`;
   } catch {
     info.display = `board=current:${info.current_branch || "<unknown>"}`;
-    info.detail = `current=${info.current_board_path}`;
+    info.detail = `current=${info.current_board_display}`;
   }
   return info;
 }
@@ -570,6 +597,109 @@ function formatTarget(role, session) {
   const targetSession = String(session || "").trim();
   if (!targetRole) return "";
   return targetSession ? `${targetRole}:${targetSession}` : targetRole;
+}
+
+function sessionGovernedActionView(session = {}) {
+  const effective = session?.effective_governed_action || effectiveSessionGovernedAction(session) || null;
+  if (!effective) {
+    return {
+      commandLabel: "NONE/NONE",
+      actionLabel: "NONE/NONE",
+      ruleLabel: "<none>",
+      dispositionLabel: "<none>",
+      summary: String(session?.last_command_summary || "").trim(),
+      source: "none",
+    };
+  }
+
+  return {
+    commandLabel: `${effective.command_kind || "NONE"}/${effective.status || "NONE"}`,
+    actionLabel: `${effective.action_kind || "NONE"}/${effective.action_state || "NONE"}`,
+    ruleLabel: effective.rule_id || "<none>",
+    dispositionLabel: effective.resume_disposition || "<none>",
+    summary: String(effective.summary || session?.last_command_summary || "").trim(),
+    source: effective.source || "governed_action",
+  };
+}
+
+function sessionPendingQueueCount(session = {}) {
+  const explicitCount = Number(session?.pending_control_queue_count);
+  if (Number.isInteger(explicitCount) && explicitCount >= 0) return explicitCount;
+  if (Array.isArray(session?.pending_control_queue)) return session.pending_control_queue.length;
+  if (session?.next_queued_control_request && typeof session.next_queued_control_request === "object") return 1;
+  return 0;
+}
+
+function sessionNextQueuedControlRequest(session = {}) {
+  if (session?.next_queued_control_request && typeof session.next_queued_control_request === "object") {
+    return session.next_queued_control_request;
+  }
+  if (Array.isArray(session?.pending_control_queue) && session.pending_control_queue.length > 0) {
+    return session.pending_control_queue[0];
+  }
+  return null;
+}
+
+function sessionQueuedWorkDetailLines(session = {}) {
+  const count = sessionPendingQueueCount(session);
+  if (count <= 0) return [];
+  const nextQueued = sessionNextQueuedControlRequest(session);
+  const queueLine = [
+    `queue=${count}`,
+    `next=${nextQueued?.command_kind || "<unknown>"}`,
+    `queued=${nextQueued?.queued_at || session.updated_at || "<no-ts>"}`,
+    `blocking=${nextQueued?.blocking_command_id || "<none>"}`,
+  ].join(" | ");
+  const lines = [`  ${queueLine}`];
+  if (nextQueued?.summary) lines.push(`  queued_summary=${nextQueued.summary}`);
+  return lines;
+}
+
+export function summarizeQueuedGovernedWork(record = {}) {
+  const queuedSessions = (record.registrySessions || [])
+    .map((session) => ({
+      session,
+      pendingCount: sessionPendingQueueCount(session),
+      nextQueuedControlRequest: sessionNextQueuedControlRequest(session),
+    }))
+    .filter((entry) => entry.pendingCount > 0)
+    .sort((left, right) =>
+      String(left.nextQueuedControlRequest?.queued_at || left.session.updated_at || "").localeCompare(
+        String(right.nextQueuedControlRequest?.queued_at || right.session.updated_at || ""),
+      )
+      || String(left.session.role || "").localeCompare(String(right.session.role || ""))
+    );
+  const totalQueuedRequests = queuedSessions.reduce((sum, entry) => sum + entry.pendingCount, 0);
+  const head = queuedSessions[0] || null;
+  return {
+    totalQueuedRequests,
+    sessionCount: queuedSessions.length,
+    queuedSessions,
+    headSession: head?.session || null,
+    headRequest: head?.nextQueuedControlRequest || null,
+  };
+}
+
+function latestPushAlertForRecord(record) {
+  return selectLatestPushAlert(record?.packetRecord?.pendingNotifications?.entries || [], {
+    targetRole: "ORCHESTRATOR",
+  });
+}
+
+function sessionTelemetryForRecord(record, session) {
+  const telemetry = buildSessionTelemetry({
+    session,
+    activeRuns: activeRunsForSession(session, record?.controlBrokerRuns || []),
+    repoRoot: REPO_ROOT,
+  });
+  const latestPushAlert = selectLatestPushAlert(record?.packetRecord?.pendingNotifications?.entries || [], {
+    targetRole: session?.role || "",
+    targetSession: session?.session_thread_id || "",
+  });
+  return {
+    ...telemetry,
+    latestPushAlert,
+  };
 }
 
 function boardBadge(section) {
@@ -709,8 +839,9 @@ function notificationChip(record) {
   if (isTerminalRecord(record)) return "";
   const pending = record.packetRecord?.pendingNotifications || { total: 0 };
   const count = pending.total || 0;
+  const latestPushAlert = latestPushAlertForRecord(record);
   if (count <= 0) return "";
-  const text = `\u2709${count}`;
+  const text = latestPushAlert ? `\u2709${count}!` : `\u2709${count}`;
   return paint(text, count >= 3 ? STATE_COLORS.blocked : "\x1b[38;5;208m", { bold: true });
 }
 
@@ -760,6 +891,7 @@ function resolveWorktreeInfo(localWorktreeDir) {
   if (!value || value === "<pending>") {
     return {
       absolutePath: "",
+      displayPath: "",
       exists: false,
       status: "PENDING",
     };
@@ -767,6 +899,7 @@ function resolveWorktreeInfo(localWorktreeDir) {
   const absolutePath = path.resolve(CURRENT_WORKTREE_DIR, value);
   return {
     absolutePath: normalize(absolutePath),
+    displayPath: displayRelativePath(absolutePath),
     exists: fs.existsSync(absolutePath),
     status: fs.existsSync(absolutePath) ? "PRESENT" : "MISSING",
   };
@@ -803,10 +936,11 @@ function parsePrepareAssignments() {
 }
 
 function loadPendingNotifications(wpId, communicationDir) {
-  const result = { total: 0, byRole: {} };
+  const result = { total: 0, byRole: {}, entries: [] };
   try {
     if (!wpId || !communicationDir) return result;
     const checks = Object.values(checkAllNotifications({ wpId }));
+    result.entries = checks.flatMap((entry) => entry.notifications || []);
     result.total = checks.reduce((sum, entry) => sum + Number(entry.pendingCount || 0), 0);
     for (const entry of checks) {
       result.byRole[entry.role] = Number(entry.pendingCount || 0);
@@ -861,6 +995,7 @@ function parsePacketRecord(packetPath, prepareAssignment = null) {
   }
   const worktreeInfo = resolveWorktreeInfo(record.localWorktreeDir);
   record.localWorktreeAbsPath = worktreeInfo.absolutePath;
+  record.localWorktreeDisplayPath = worktreeInfo.displayPath;
   record.localWorktreeExists = worktreeInfo.exists;
   record.localWorktreeStatus = worktreeInfo.status;
   record.prepareAssignment = prepareAssignment ? {
@@ -871,7 +1006,7 @@ function parsePacketRecord(packetPath, prepareAssignment = null) {
 
   try {
     if (runtimePath && fs.existsSync(repoPathAbs(runtimePath))) {
-      const runtime = parseJsonFile(runtimePath);
+      const runtime = materializeRuntimeAuthorityView(parseJsonFile(runtimePath));
       record.runtimeValidationErrors = validateRuntimeStatus(runtime);
       record.runtime = runtime;
     } else {
@@ -1117,6 +1252,7 @@ function loadMonitorModel() {
         pendingNotifications: Object.values(checkAllNotifications({ wpId: entry.wpId })).flatMap((notificationEntry) => notificationEntry.notifications || []),
         registrySessions,
       });
+      packetRecord.relayPolicy = packetRecord.runtime?.relay_escalation_policy || null;
     }
     const canonicalBoardEntry = canonicalByWpId.get(entry.wpId) || (selectedBoardSource === "CANONICAL_MAIN" ? entry : null);
     const currentBoardEntry = currentByWpId.get(entry.wpId) || null;
@@ -1182,13 +1318,15 @@ function loadMonitorModel() {
   return { records, boardSource, brokerState };
 }
 
-function filterRecords(records, filter) {
+export function filterRecords(records, filter) {
   if (filter === "ALL") return records;
   if (filter === "ACTIVE") {
     return records.filter((record) => {
       const activeRegistrySession = (record.registrySessions || []).some((session) => ACTIVE_RUNTIME_STATES.has(session.runtime_state));
+      const queuedGovernedWork = (record.registrySessions || []).some((session) => sessionPendingQueueCount(session) > 0);
       const activeControl =
-        (record.pendingControlRequests || []).length > 0
+        queuedGovernedWork
+        || (record.pendingControlRequests || []).length > 0
         || (record.controlBrokerRuns || []).length > 0
         || (record.controlResults || []).some((entry) => ["QUEUED", "RUNNING"].includes(String(entry.status || "").toUpperCase()));
       if (["DONE", "SUPERSEDED"].includes(record.boardSection)) {
@@ -1362,15 +1500,23 @@ function renderList(records, selectedIndex, width, height, listHasFocus) {
   return rows;
 }
 
-function compactNextActionLabel(record) {
+export function compactNextActionLabel(record) {
   if (!record) return "none";
   if (isTerminalRecord(record)) return "history";
   const relay = record.packetRecord?.relayEscalation || null;
-  if (relay?.status === "ESCALATED" && relay.target_role) {
-    return `${relay.target_role}${relay.target_session ? `:${relay.target_session}` : ""}`;
+  const relayPolicy = relayPolicyForRecord(record);
+  if (relay?.status === "ESCALATED") {
+    const target = relay.target_role ? `${relay.target_role}${relay.target_session ? `:${relay.target_session}` : ""}` : "";
+    const strategy = relayEscalationPolicyStrategyLabel(relayPolicy);
+    if (target && strategy) return `${target}/${strategy}`;
+    if (target) return target;
+    if (strategy) return strategy;
   }
   const operatorPending = Number(record.packetRecord?.pendingNotifications?.byRole?.OPERATOR || 0);
   if (operatorPending > 0) return "operator";
+  if (latestPushAlertForRecord(record)) return "alert";
+  const queuedGovernedWork = summarizeQueuedGovernedWork(record);
+  if (queuedGovernedWork.totalQueuedRequests > 0) return `queue:${queuedGovernedWork.totalQueuedRequests}`;
   const runtime = record.packetRecord?.runtime || {};
   const nextTarget = formatTarget(runtime.next_expected_actor, runtime.next_expected_session);
   if (nextTarget) return nextTarget;
@@ -1380,18 +1526,34 @@ function compactNextActionLabel(record) {
   return "idle";
 }
 
-function nextActionSummary(record) {
+export function nextActionSummary(record) {
   if (!record) return "No WP selected.";
   if (isTerminalRecord(record)) {
     return "Terminal WP history only; stale relay and backlog residue are hidden by default.";
   }
   const relay = record.packetRecord?.relayEscalation || null;
+  const relayPolicy = relayPolicyForRecord(record);
   if (relay?.status === "ESCALATED") {
-    return `${relay.summary}${relay.recommended_command ? ` Run: ${relay.recommended_command}` : ""}`;
+    const policyDetail = relayPolicy
+      ? ` Policy: ${relayEscalationPolicyInlineSummary(relayPolicy)}. ${relayPolicy.summary || ""}`
+      : "";
+    return `${relay.summary}${policyDetail}${relay.recommended_command ? ` Run: ${relay.recommended_command}` : ""}`;
   }
   const operatorPending = Number(record.packetRecord?.pendingNotifications?.byRole?.OPERATOR || 0);
   if (operatorPending > 0) {
     return `Operator action required: ${operatorPending} unread operator notification(s) are pending for this WP.`;
+  }
+  const latestPushAlert = latestPushAlertForRecord(record);
+  if (latestPushAlert) {
+    return `Push alert pending: ${formatPushAlertInline(latestPushAlert)}${latestPushAlert.summary ? ` | ${latestPushAlert.summary}` : ""}`;
+  }
+  const queuedGovernedWork = summarizeQueuedGovernedWork(record);
+  if (queuedGovernedWork.totalQueuedRequests > 0) {
+    const headSession = queuedGovernedWork.headSession || {};
+    const headRequest = queuedGovernedWork.headRequest || {};
+    const queuedAt = headRequest.queued_at || headSession.updated_at || "<no-ts>";
+    const summarySuffix = headRequest.summary ? ` ${headRequest.summary}` : "";
+    return `Queued governed work: ${queuedGovernedWork.totalQueuedRequests} follow-up request(s) across ${queuedGovernedWork.sessionCount} session(s); next is ${headSession.role || "<unknown>"} ${headRequest.command_kind || "SEND_PROMPT"} queued ${queuedAt}. Wait for broker drain instead of resending another steer.${summarySuffix}`;
   }
   const runtime = record.packetRecord?.runtime || {};
   const nextTarget = formatTarget(runtime.next_expected_actor, runtime.next_expected_session);
@@ -1406,10 +1568,16 @@ function nextActionSummary(record) {
   return "No immediate governed action is pending.";
 }
 
+function relayPolicyForRecord(record) {
+  const candidate = record?.packetRecord?.relayPolicy || record?.packetRecord?.runtime?.relay_escalation_policy || null;
+  return candidate && typeof candidate === "object" ? candidate : null;
+}
+
 function buildTopSummary(records, filtered, selected, model, uiState) {
   const activeRuns = records.reduce((sum, record) => sum + Number((record.controlBrokerRuns || []).length), 0);
   const activeSessions = records.reduce((sum, record) =>
     sum + Number((record.registrySessions || []).filter((session) => ACTIVE_RUNTIME_STATES.has(session.runtime_state)).length), 0);
+  const queuedRequests = records.reduce((sum, record) => sum + summarizeQueuedGovernedWork(record).totalQueuedRequests, 0);
   const openReviews = records.reduce((sum, record) => {
     if (isTerminalRecord(record)) return sum;
     return sum + Number(record.packetRecord?.openReviewItems?.length || 0);
@@ -1418,6 +1586,7 @@ function buildTopSummary(records, filtered, selected, model, uiState) {
     if (isTerminalRecord(record)) return sum;
     return sum + Number(record.packetRecord?.pendingNotifications?.total || 0);
   }, 0);
+  const pushAlerts = records.reduce((sum, record) => sum + Number(Boolean(latestPushAlertForRecord(record))), 0);
   const escalatedRelayCount = records.reduce((sum, record) =>
     sum + Number(record.packetRecord?.relayEscalation?.status === "ESCALATED"), 0);
   const staleCount = records.reduce((sum, record) => sum + Number(Boolean(record.stale && !isTerminalRecord(record))), 0);
@@ -1432,7 +1601,7 @@ function buildTopSummary(records, filtered, selected, model, uiState) {
   const board = model.boardSource?.display || "board=<unknown>";
   return [
     `${paint("Operator Viewport", STATUS_COLORS.ACTIVE, { bold: true })} | mode=${uiState.admin ? "ADMIN" : "VIEW"} | focus=${uiState.focusedPane} | filter=${uiState.filter} | view=${uiState.detailView}`,
-    `${paint(`visible=${filtered.length}/${records.length}`, STATUS_COLORS.ACTIVE, { bold: true })}  ${paint(`sessions=${activeSessions}`, STATUS_COLORS.READY_FOR_DEV)}  ${paint(`runs=${activeRuns}`, STATUS_COLORS.IN_PROGRESS)}  ${paint(`reviews=${openReviews}`, openReviews > 0 ? STATE_COLORS.waiting : STATE_COLORS.none, { bold: openReviews > 0 })}  ${paint(`notif=${pendingNotifications}`, pendingNotifications > 0 ? "\x1b[38;5;208m" : STATE_COLORS.none, { bold: pendingNotifications > 0 })}  ${paint(`relay=${escalatedRelayCount}`, escalatedRelayCount > 0 ? STATE_COLORS.blocked : STATE_COLORS.none, { bold: escalatedRelayCount > 0 })}  ${paint(`stale=${staleCount}`, staleCount > 0 ? STATE_COLORS.blocked : STATE_COLORS.none, { bold: staleCount > 0 })}  ${paint(`tokens=${formatTokenCount(totalInputTokens)}/${worstBudget}`, budgetColors[worstBudget] || STATE_COLORS.none, { bold: worstBudget !== "PASS" })}`,
+    `${paint(`visible=${filtered.length}/${records.length}`, STATUS_COLORS.ACTIVE, { bold: true })}  ${paint(`sessions=${activeSessions}`, STATUS_COLORS.READY_FOR_DEV)}  ${paint(`runs=${activeRuns}`, STATUS_COLORS.IN_PROGRESS)}  ${paint(`queued=${queuedRequests}`, queuedRequests > 0 ? STATE_COLORS.waiting : STATE_COLORS.none, { bold: queuedRequests > 0 })}  ${paint(`reviews=${openReviews}`, openReviews > 0 ? STATE_COLORS.waiting : STATE_COLORS.none, { bold: openReviews > 0 })}  ${paint(`notif=${pendingNotifications}`, pendingNotifications > 0 ? "\x1b[38;5;208m" : STATE_COLORS.none, { bold: pendingNotifications > 0 })}  ${paint(`alerts=${pushAlerts}`, pushAlerts > 0 ? STATE_COLORS.blocked : STATE_COLORS.none, { bold: pushAlerts > 0 })}  ${paint(`relay=${escalatedRelayCount}`, escalatedRelayCount > 0 ? STATE_COLORS.blocked : STATE_COLORS.none, { bold: escalatedRelayCount > 0 })}  ${paint(`stale=${staleCount}`, staleCount > 0 ? STATE_COLORS.blocked : STATE_COLORS.none, { bold: staleCount > 0 })}  ${paint(`tokens=${formatTokenCount(totalInputTokens)}/${worstBudget}`, budgetColors[worstBudget] || STATE_COLORS.none, { bold: worstBudget !== "PASS" })}`,
     `${board} | ${broker} | actor=${uiState.actorRole}/${uiState.actorSession}`,
     `next_action=${nextActionSummary(selected)}`,
   ];
@@ -1451,13 +1620,13 @@ function buildDetailLines(record, width, detailView, uiState) {
     `wpval=${packet?.wpValidatorOfRecord || "<unassigned>"} | ival=${packet?.integrationValidatorOfRecord || "<unassigned>"}`,
     `branch=${packet?.localBranch || "<pending>"}`,
     `worktree=${packet?.localWorktreeDir || "<pending>"}`,
-    `worktree_state=${packet?.localWorktreeStatus || "UNKNOWN"}${packet?.localWorktreeAbsPath ? ` | abs=${packet.localWorktreeAbsPath}` : ""}`,
+    `worktree_state=${packet?.localWorktreeStatus || "UNKNOWN"}${packet?.localWorktreeDisplayPath ? ` | resolved=${packet.localWorktreeDisplayPath}` : ""}`,
     `board_source=${record.boardSource?.display || "<unknown>"}`,
     `selected_board_source=${record.selectedBoardSource || "CURRENT_WORKTREE"}`,
     `acp_broker=${broker.summary || "broker=<unknown>"}`,
   ];
   if (record.boardSource?.canonical_board_path) {
-    lines.push(`canonical_board=${record.boardSource.canonical_board_path} | drift=${record.boardSource.board_drift || "UNKNOWN"}`);
+    lines.push(`canonical_board=${record.boardSource.canonical_board_display || "<unknown>"} | drift=${record.boardSource.board_drift || "UNKNOWN"}`);
   }
   lines.push(`canonical_entry=${formatBoardEntry(record.canonicalBoardEntry)} | current_entry=${formatBoardEntry(record.currentBoardEntry)}`);
   lines.push(`current_entry_drift=${record.currentBoardMatchesSelected === null ? "UNKNOWN" : (record.currentBoardMatchesSelected ? "NO" : "YES")}`);
@@ -1508,10 +1677,15 @@ function buildDetailLines(record, width, detailView, uiState) {
       lines.push("No governed sessions.");
     } else {
       for (const session of record.registrySessions) {
+        const actionView = sessionGovernedActionView(session);
+        const telemetry = sessionTelemetryForRecord(record, session);
         lines.push(`${session.role} | state=${session.runtime_state} | protocol=${session.control_protocol || "<none>"}`);
         lines.push(`  transport=${session.control_transport || "<none>"} | host=${session.active_host || session.preferred_host || "NONE"} | terminal=${session.active_terminal_kind || "NONE"}`);
-        lines.push(`  thread=${session.session_thread_id || "<none>"} | cmd=${session.last_command_kind || "NONE"}/${session.last_command_status || "NONE"}`);
-        if (session.last_command_summary) lines.push(`  ${session.last_command_summary}`);
+        lines.push(`  thread=${session.session_thread_id || "<none>"} | cmd=${actionView.commandLabel} | action=${actionView.actionLabel}`);
+        lines.push(`  rule=${actionView.ruleLabel} | disposition=${actionView.dispositionLabel} | source=${actionView.source}`);
+        lines.push(`  telemetry=${formatSessionRunTelemetryInline(telemetry.run)} | ${formatSessionStepTelemetryInline(telemetry.step)}`);
+        if (telemetry.latestPushAlert) lines.push(`  ${formatPushAlertInline(telemetry.latestPushAlert)}`);
+        if (actionView.summary) lines.push(`  ${actionView.summary}`);
       }
     }
     lines.push("");
@@ -1589,18 +1763,27 @@ function buildDetailLines(record, width, detailView, uiState) {
     } else {
       for (const session of record.registrySessions) {
         const activeRun = (record.controlBrokerRuns || []).find((run) => run.role === session.role) || null;
+        const actionView = sessionGovernedActionView(session);
+        const telemetry = sessionTelemetryForRecord(record, session);
         lines.push(`${session.role} | ${session.runtime_state} | host=${session.active_host || session.preferred_host}`);
         lines.push(`  req=${session.plugin_request_count} fail=${session.plugin_failure_count} last=${session.plugin_last_result}`);
         if (session.session_thread_id) {
-          lines.push(`  thread=${session.session_thread_id} cmd=${session.last_command_kind}/${session.last_command_status}`);
+          lines.push(`  thread=${session.session_thread_id} cmd=${actionView.commandLabel} action=${actionView.actionLabel}`);
+          lines.push(`  rule=${actionView.ruleLabel} disposition=${actionView.dispositionLabel}`);
           if (session.control_protocol) lines.push(`  protocol=${session.control_protocol} transport=${session.control_transport || "<none>"}`);
         }
+        if (!session.session_thread_id) {
+          lines.push(`  cmd=${actionView.commandLabel} action=${actionView.actionLabel} | rule=${actionView.ruleLabel}`);
+        }
+        if (actionView.summary) lines.push(`  ${actionView.summary}`);
         if (session.runtime_state === "CLOSED") {
           lines.push("  note=session thread registration cleared; start-session is required before steering again");
         }
         if (activeRun) {
           lines.push(`  active_run=${activeRun.command_kind} started=${activeRun.started_at || "<no-ts>"} timeout=${activeRun.timeout_at || "<none>"}`);
         }
+        lines.push(`  telemetry=${formatSessionRunTelemetryInline(telemetry.run)} | ${formatSessionStepTelemetryInline(telemetry.step)}`);
+        if (telemetry.latestPushAlert) lines.push(`  ${formatPushAlertInline(telemetry.latestPushAlert)}`);
         if (session.runtime_state === "TERMINAL_COMMAND_DISPATCHED" || session.runtime_state === "PLUGIN_CONFIRMED") {
           lines.push("  note=terminal dispatch only; wait for receipts/heartbeat/runtime movement");
         } else if (session.runtime_state === "READY") {
@@ -1655,13 +1838,13 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
     `wpval=${packet?.wpValidatorOfRecord || "<unassigned>"} | ival=${packet?.integrationValidatorOfRecord || "<unassigned>"}`,
     `branch=${packet?.localBranch || "<pending>"}`,
     `worktree=${packet?.localWorktreeDir || "<pending>"}`,
-    `worktree_state=${packet?.localWorktreeStatus || "UNKNOWN"}${packet?.localWorktreeAbsPath ? ` | abs=${packet.localWorktreeAbsPath}` : ""}`,
+    `worktree_state=${packet?.localWorktreeStatus || "UNKNOWN"}${packet?.localWorktreeDisplayPath ? ` | resolved=${packet.localWorktreeDisplayPath}` : ""}`,
     `board_source=${record.boardSource?.display || "<unknown>"}`,
     `selected_board_source=${record.selectedBoardSource || "CURRENT_WORKTREE"}`,
     `acp_broker=${broker.summary || "broker=<unknown>"}`,
   ];
   if (record.boardSource?.canonical_board_path) {
-    lines.push(`canonical_board=${record.boardSource.canonical_board_path} | drift=${record.boardSource.board_drift || "UNKNOWN"}`);
+    lines.push(`canonical_board=${record.boardSource.canonical_board_display || "<unknown>"} | drift=${record.boardSource.board_drift || "UNKNOWN"}`);
   }
   lines.push(`canonical_entry=${formatBoardEntry(record.canonicalBoardEntry)} | current_entry=${formatBoardEntry(record.currentBoardEntry)}`);
   lines.push(`current_entry_drift=${record.currentBoardMatchesSelected === null ? "UNKNOWN" : (record.currentBoardMatchesSelected ? "NO" : "YES")}`);
@@ -1707,11 +1890,17 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
     } else {
       for (const session of record.registrySessions) {
         const activeRun = (record.controlBrokerRuns || []).find((run) => run.role === session.role) || null;
+        const actionView = sessionGovernedActionView(session);
+        const telemetry = sessionTelemetryForRecord(record, session);
         lines.push(`${session.role} | ${session.runtime_state} | host=${session.active_host || session.preferred_host}`);
-        lines.push(`  thread=${session.session_thread_id || "<none>"} | cmd=${session.last_command_kind || "NONE"}/${session.last_command_status || "NONE"}`);
+        lines.push(`  thread=${session.session_thread_id || "<none>"} | cmd=${actionView.commandLabel} | action=${actionView.actionLabel}`);
+        lines.push(`  rule=${actionView.ruleLabel} | disposition=${actionView.dispositionLabel} | source=${actionView.source}`);
         lines.push(`  protocol=${session.control_protocol || "<none>"} | transport=${session.control_transport || "<none>"}`);
+        lines.push(`  telemetry=${formatSessionRunTelemetryInline(telemetry.run)} | ${formatSessionStepTelemetryInline(telemetry.step)}`);
+        if (telemetry.latestPushAlert) lines.push(`  ${formatPushAlertInline(telemetry.latestPushAlert)}`);
         if (session.requested_model) lines.push(`  model=${session.requested_model}${session.reasoning_config_value ? ` | reasoning=${session.reasoning_config_value}` : ""}`);
-        if (session.last_command_summary) lines.push(`  ${session.last_command_summary}`);
+        if (actionView.summary) lines.push(`  ${actionView.summary}`);
+        lines.push(...sessionQueuedWorkDetailLines(session));
         if (activeRun) lines.push(`  active_run=${activeRun.command_kind} started=${activeRun.started_at || "<no-ts>"} timeout=${activeRun.timeout_at || "<none>"}`);
         const sessionTokens = (record.tokenUsage?.commands || []).filter((cmd) => cmd.session_key === session.session_key);
         if (sessionTokens.length > 0) {
@@ -1739,10 +1928,16 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
       lines.push("No governed sessions.");
     } else {
       for (const session of record.registrySessions) {
+        const actionView = sessionGovernedActionView(session);
+        const telemetry = sessionTelemetryForRecord(record, session);
         lines.push(`${session.role} | state=${session.runtime_state} | protocol=${session.control_protocol || "<none>"}`);
         lines.push(`  transport=${session.control_transport || "<none>"} | host=${session.active_host || session.preferred_host || "NONE"} | terminal=${session.active_terminal_kind || "NONE"}`);
-        lines.push(`  thread=${session.session_thread_id || "<none>"} | cmd=${session.last_command_kind || "NONE"}/${session.last_command_status || "NONE"}`);
-        if (session.last_command_summary) lines.push(`  ${session.last_command_summary}`);
+        lines.push(`  thread=${session.session_thread_id || "<none>"} | cmd=${actionView.commandLabel} | action=${actionView.actionLabel}`);
+        lines.push(`  rule=${actionView.ruleLabel} | disposition=${actionView.dispositionLabel} | source=${actionView.source}`);
+        lines.push(`  telemetry=${formatSessionRunTelemetryInline(telemetry.run)} | ${formatSessionStepTelemetryInline(telemetry.step)}`);
+        if (telemetry.latestPushAlert) lines.push(`  ${formatPushAlertInline(telemetry.latestPushAlert)}`);
+        if (actionView.summary) lines.push(`  ${actionView.summary}`);
+        lines.push(...sessionQueuedWorkDetailLines(session));
       }
     }
     lines.push("");
@@ -1812,6 +2007,7 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
     lines.push(`  ${roleLaneChip(record, "CODER")}  ${roleLaneChip(record, "WP_VALIDATOR")}  ${roleLaneChip(record, "INTEGRATION_VALIDATOR")}  ${reviewPressureChip(record)}  ${communicationHealthChip(record)}`);
     lines.push("");
     const pendingNotifs = record.packetRecord?.pendingNotifications || { total: 0, byRole: {} };
+    const latestPushAlert = latestPushAlertForRecord(record);
     lines.push("PENDING NOTIFICATIONS");
     if (terminalHistorySuppressed) {
       lines.push("Hidden by default for terminal WP; use history/runtime artifacts when explicitly needed.");
@@ -1822,6 +2018,10 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
       for (const [roleName, count] of Object.entries(pendingNotifs.byRole)) {
         lines.push(`  ${paint(roleName, ROLE_COLORS[roleName] || STATUS_COLORS.OTHER)}: ${count} unread`);
       }
+    }
+    if (latestPushAlert) {
+      lines.push(`Latest push alert: ${formatPushAlertInline(latestPushAlert)}`);
+      if (latestPushAlert.summary) lines.push(`  ${latestPushAlert.summary}`);
     }
     lines.push("");
     lines.push("OPEN REVIEW ITEMS");
@@ -1870,12 +2070,22 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
     } else {
       for (const session of record.registrySessions) {
         const activeRun = (record.controlBrokerRuns || []).find((run) => run.role === session.role) || null;
+        const actionView = sessionGovernedActionView(session);
+        const telemetry = sessionTelemetryForRecord(record, session);
         lines.push(`${session.role} | ${session.runtime_state} | host=${session.active_host || session.preferred_host}`);
         lines.push(`  req=${session.plugin_request_count} fail=${session.plugin_failure_count} last=${session.plugin_last_result}`);
         if (session.session_thread_id) {
-          lines.push(`  thread=${session.session_thread_id} cmd=${session.last_command_kind}/${session.last_command_status}`);
+          lines.push(`  thread=${session.session_thread_id} cmd=${actionView.commandLabel} action=${actionView.actionLabel}`);
+          lines.push(`  rule=${actionView.ruleLabel} disposition=${actionView.dispositionLabel}`);
           if (session.control_protocol) lines.push(`  protocol=${session.control_protocol} transport=${session.control_transport || "<none>"}`);
         }
+        if (!session.session_thread_id) {
+          lines.push(`  cmd=${actionView.commandLabel} action=${actionView.actionLabel} | rule=${actionView.ruleLabel}`);
+        }
+        if (actionView.summary) lines.push(`  ${actionView.summary}`);
+        lines.push(...sessionQueuedWorkDetailLines(session));
+        lines.push(`  telemetry=${formatSessionRunTelemetryInline(telemetry.run)} | ${formatSessionStepTelemetryInline(telemetry.step)}`);
+        if (telemetry.latestPushAlert) lines.push(`  ${formatPushAlertInline(telemetry.latestPushAlert)}`);
         if (session.runtime_state === "CLOSED") lines.push("  note=session thread registration cleared; start-session is required before steering again");
         if (activeRun) lines.push(`  active_run=${activeRun.command_kind} started=${activeRun.started_at || "<no-ts>"} timeout=${activeRun.timeout_at || "<none>"}`);
         if (session.runtime_state === "TERMINAL_COMMAND_DISPATCHED" || session.runtime_state === "PLUGIN_CONFIRMED") {

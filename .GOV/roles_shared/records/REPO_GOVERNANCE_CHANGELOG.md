@@ -2443,3 +2443,580 @@
 - FOLLOW_ON_ITEMS:
   - none in the current repo-governance hardening queue
 - OUTCOME: manual relay now prefers the runtime-anchored notification correlation when multiple stale candidate notifications exist, reuses the shared active-notification projection to hide non-live residue for the target role, surfaces hidden-notification counts to the classic operator view, and hard-stops manual-relay-next/manual-relay-dispatch when packet/runtime closeout truth drifts so degraded mode no longer bypasses the same workflow-state spine that governs ACP lanes
+
+### 2026.04.19.1 / GOV-CHANGE-20260419-01
+
+- STATUS: APPLIED
+- SUMMARY: recorded the next repo-governance hardening tranche as six concrete governance-board items centered on canonical state, typed governed actions, queued ingress, runtime escalation, telemetry split, and closeout dependency collapse
+- CHANGE_TYPE: GOVERNANCE_PLANNING
+- DRIVER_EVIDENCE:
+  - research synthesis across `Workflow_State_Packet_Truth_and_Range_Drift.md`, `_work/Repo_Governance_Harness_Comparison_WORKING.md`, `Repo_Governance_Failure_Taxonomy.md`, `_work/Typed_Runtime_Resume_Approval_WORKING.md`, `_work/Harness_Adoption_Extraction_WORKING.md`, `Harness_Lessons_Learned.md`, `Technical_Implementation_Research.md`, `ACP_Broker_and_Session_Control.md`, and `Validator_Routing_Gates_and_Closeout_Repair.md`
+  - `RGF-204`
+  - `RGF-205`
+  - `RGF-206`
+  - `RGF-207`
+  - `RGF-208`
+  - `RGF-209`
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-204`
+  - `RGF-205`
+- OUTCOME: the governance board now carries the next implementation-ready hardening tranche instead of leaving the research synthesis as narrative only, with `RGF-204` designated as the first launchable slice and the remaining items sequenced behind that canonical-state cutover
+
+### 2026.04.19.2 / GOV-CHANGE-20260419-02
+
+- STATUS: APPLIED
+- SUMMARY: landed the first `RGF-204` slice by introducing canonical runtime `execution_state` authority, checkpoint lineage, and restore helpers while keeping legacy flat runtime fields as compatibility projections
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-204`
+  - research synthesis across `Workflow_State_Packet_Truth_and_Range_Drift.md`, `_work/Repo_Governance_Harness_Comparison_WORKING.md`, `Repo_Governance_Failure_Taxonomy.md`, and `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-execution-state-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-review-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/templates/WP_RUNTIME_STATUS_TEMPLATE.json`
+  - `.GOV/roles_shared/tests/wp-execution-state-lib.test.mjs`
+  - `.GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-review-projection-lib.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-204`
+  - `RGF-205`
+- OUTCOME: runtime truth now persists one canonical `execution_state.authority` block plus durable checkpoint lineage, the main packet/review projection writers stamp that canonical block on every sync, restore-to-checkpoint logic exists mechanically, and the existing flat runtime fields are now compatibility mirrors rather than the only durable authority surface
+
+### 2026.04.19.3 / GOV-CHANGE-20260419-03
+
+- STATUS: APPLIED
+- SUMMARY: landed the second `RGF-204` slice by making the main read-side governance surfaces hydrate runtime truth from canonical `execution_state.authority` before evaluating route, closeout, or operator status
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-204`
+  - research synthesis across `Workflow_State_Packet_Truth_and_Range_Drift.md`, `_work/Repo_Governance_Harness_Comparison_WORKING.md`, `Repo_Governance_Failure_Taxonomy.md`, and `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-execution-state-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/merge-progression-truth-lib.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-autonomous-monitor.mjs`
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/roles_shared/tests/wp-execution-state-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/merge-progression-truth-lib.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-204`
+  - `RGF-205`
+- OUTCOME: the runtime read path no longer depends on flat-field truth reconstruction alone; health/routing logic, drift detection, merge-progress validation, resume tooling, autonomous monitoring, operator status, and workflow-dossier sync now materialize the runtime view from canonical `execution_state.authority` with flat fields treated as compatibility mirrors when the canonical block is present
+
+### 2026.04.19.4 / GOV-CHANGE-20260419-04
+
+- STATUS: APPLIED
+- SUMMARY: hardened orchestrator-facing path discipline so governance/operator surfaces stop emitting host-specific absolute paths and the protocol now states that relative paths are mandatory on operator-facing outputs
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-204`
+  - `CX-109`
+- SURFACES:
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/scripts/lib/role-resume-utils.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`
+  - `.GOV/roles_shared/tests/role-resume-utils.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-204`
+- OUTCOME: stale-worktree diagnostics and board/worktree monitor summaries now prefer repo-relative or workspace-relative paths, and the orchestrator law explicitly forbids absolute-path leakage on operator-facing governance surfaces while still allowing internal absolute-path resolution inside scripts
+
+### 2026.04.19.5 / GOV-CHANGE-20260419-05
+
+- STATUS: APPLIED
+- SUMMARY: pushed the next `RGF-204` cutover into shared task-board and dossier status readers so canonical `execution_state` truth now drives session governance, active-lane briefs, and workflow-dossier sync instead of those surfaces independently reconstructing status from mixed packet/board/runtime mirrors
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-204`
+  - research synthesis across `Workflow_State_Packet_Truth_and_Range_Drift.md`, `_work/Repo_Governance_Harness_Comparison_WORKING.md`, `Repo_Governance_Failure_Taxonomy.md`, and `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-execution-state-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-authority-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-governance-state-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles_shared/tests/wp-execution-state-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-governance-state-lib.test.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-204`
+  - `RGF-205`
+- OUTCOME: board- and dossier-facing status summaries now share one canonical runtime projection helper, flat runtime mirrors no longer outrank packet/task-board artifacts unless an explicit `execution_state.authority` block exists, and terminal `DONE_*` runtime task-board states now resolve consistently across projection readers instead of silently appearing active
+
+### 2026.04.19.6 / GOV-CHANGE-20260419-06
+
+- STATUS: APPLIED
+- SUMMARY: extended the `RGF-204` cutover into task-board mutation, closeout packet publication, and audit skeleton reporting so those publication surfaces now consume the shared canonical execution publication view instead of each deriving status independently from packet and board text
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-204`
+  - research synthesis across `Workflow_State_Packet_Truth_and_Range_Drift.md`, `_work/Repo_Governance_Harness_Comparison_WORKING.md`, `Repo_Governance_Failure_Taxonomy.md`, and `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-execution-state-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/task-board-set.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-closeout-format.mjs`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/roles/orchestrator/tests/task-board-set.test.mjs`
+  - `.GOV/roles_shared/tests/wp-closeout-format.test.mjs`
+  - `.GOV/roles_shared/tests/generate-post-run-audit-skeleton.test.mjs`
+  - `.GOV/roles_shared/tests/wp-execution-state-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-204`
+  - `RGF-205`
+- OUTCOME: canonical-mode task-board writes now validate against `execution_state.authority` and only refresh runtime compatibility mirrors instead of re-deriving runtime from packet text, closeout formatting syncs updated packet publication back into runtime truth, and audit skeletons now report packet/task-board publication status from the shared canonical publication view when explicit execution authority exists
+
+### 2026.04.19.7 / GOV-CHANGE-20260419-07
+
+- STATUS: APPLIED
+- SUMMARY: pushed the `RGF-204` cutover into integration-validator closeout/context helpers so final-lane readiness and terminal non-pass requirements now honor the declared runtime publication view before trusting stale packet or task-board artifacts
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-204`
+  - research synthesis across `Workflow_State_Packet_Truth_and_Range_Drift.md`, `_work/Repo_Governance_Harness_Comparison_WORKING.md`, `Repo_Governance_Failure_Taxonomy.md`, and `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-context-brief-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-204`
+  - `RGF-209`
+- OUTCOME: integration-validator closeout requirements and context briefs now load the declared runtime status file, prefer canonical `execution_state.authority` packet/task-board publication truth when it exists, and treat packet text or board artifacts as fallback only when canonical runtime authority is absent, reducing final-lane resume and closeout drift caused by stale packet archaeology
+
+### 2026.04.19.8 / GOV-CHANGE-20260419-08
+
+- STATUS: APPLIED
+- SUMMARY: extended the `RGF-204` cutover into `phase-check CLOSEOUT` next-command generation so closeout sync suggestions no longer treat a stale PASS packet as terminal when canonical containment truth still says `MERGE_PENDING`
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-204`
+  - research synthesis across `Workflow_State_Packet_Truth_and_Range_Drift.md`, `_work/Repo_Governance_Harness_Comparison_WORKING.md`, `Repo_Governance_Failure_Taxonomy.md`, and `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-204`
+  - `RGF-209`
+- OUTCOME: phase-check closeout suggestions now read the declared runtime publication view, infer the effective closeout verdict from canonical packet/task-board authority, and only skip directly to final PASS flow when containment is actually `CONTAINED_IN_MAIN` or `NOT_REQUIRED`, eliminating one more stale-packet shortcut in the closeout path
+
+### 2026.04.19.9 / GOV-CHANGE-20260419-09
+
+- STATUS: APPLIED
+- SUMMARY: refactored `closeout-repair` so its diagnosis step now classifies failures from direct packet/runtime/helper truth instead of scraping `phase-check CLOSEOUT` output text, while keeping phase-check as the outer verifier
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-204`
+  - `RGF-209`
+  - research synthesis across `Workflow_State_Packet_Truth_and_Range_Drift.md`, `Validator_Routing_Gates_and_Closeout_Repair.md`, `_work/Repo_Governance_Harness_Comparison_WORKING.md`, and `Repo_Governance_Failure_Taxonomy.md`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs`
+  - `.GOV/roles/orchestrator/tests/closeout-repair.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-204`
+  - `RGF-209`
+- OUTCOME: closeout-repair now inventories baseline drift, declared patch-artifact drift, clause/report drift, missing verdicts, packet completeness residue, communication-health failures, and integration-validator closeout blockers from direct helper state; it auto-repairs only the narrow mechanical set (baseline SHA sync and declared patch regeneration), uses packet-declared artifact paths instead of hardcoded patch locations, and leaves remaining closeout issues as explicit manual classes instead of guessing from phase-check transcript text
+
+### 2026.04.19.10 / GOV-CHANGE-20260419-10
+
+- STATUS: APPLIED
+- SUMMARY: closed the remaining `RGF-204` residue by centralizing closeout mode inference and canonical publication ownership in the shared execution-state library, then rewiring final-lane callers to consume that shared truth
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-204`
+  - research synthesis across `Workflow_State_Packet_Truth_and_Range_Drift.md`, `_work/Repo_Governance_Harness_Comparison_WORKING.md`, `Repo_Governance_Failure_Taxonomy.md`, and `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-execution-state-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles_shared/tests/wp-execution-state-lib.test.mjs`
+  - `.GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-205`
+  - `RGF-209`
+- OUTCOME: canonical `execution_state.authority` now owns the remaining closeout/publication rule tables as well as packet-vs-runtime publication drift ownership, `phase-check` / `orchestrator-next` / `integration-validator-closeout-sync` consume the same shared closeout mode definitions, and `RGF-204` is complete because packet/task-board publication no longer depends on scattered helper-local closeout mappings in the terminal path
+
+### 2026.04.20.1 / GOV-CHANGE-20260420-01
+
+- STATUS: APPLIED
+- SUMMARY: started `RGF-205` by introducing a registry-backed governed-action envelope into the session-control lane and projecting a bounded runtime action history for governed sessions
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-205`
+  - typed resume/approval research: `_work/Typed_Runtime_Resume_Approval_WORKING.md`
+  - harness adoption research: `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-governed-action-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-self-settle-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/checks/session-control-runtime-check.mjs`
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/docs_repo/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/tests/session-governed-action-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-registry-lib.test.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-205`
+  - `RGF-206`
+  - `RGF-209`
+- OUTCOME: session-control request/result builders now emit a nested `governed_action` envelope with stable action ids, typed action kinds, and rule-registry-backed policy metadata; broker and self-settle result paths preserve that same action identity through settlement; governed session runtime now keeps a capped `action_history` projection that status and resume surfaces can read directly; and the runtime check validates the new envelope when present while staying backward-compatible with pre-envelope ledger rows
+
+### 2026.04.20.2 / GOV-CHANGE-20260420-02
+
+- STATUS: APPLIED
+- SUMMARY: widened `RGF-205` into the validator resume lane by replacing freeform runtime-route resume heuristics with typed `VALIDATOR_GATE_*_RESUME` governed-action envelopes
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-205`
+  - typed resume/approval research: `_work/Typed_Runtime_Resume_Approval_WORKING.md`
+  - harness adoption research: `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/validator/scripts/validator-next.mjs`
+  - `.GOV/roles/validator/tests/validator-governance-lib.test.mjs`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-205`
+  - `RGF-206`
+  - `RGF-209`
+- OUTCOME: validator-governance resume helpers now derive typed governed-action envelopes for runtime-routed approve/defer/skip decisions, `validator-next` consumes those envelopes instead of branching only on boolean readiness/prose, and validator findings now surface the rule-backed resume action that drove the decision; the validator gate ledger format itself remains unchanged for now
+
+### 2026.04.20.3 / GOV-CHANGE-20260420-03
+
+- STATUS: APPLIED
+- SUMMARY: widened `RGF-205` into the validator gate ledger so governed gate progression is persisted and read as typed action history instead of only gate-status strings
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-205`
+  - typed resume/approval research: `_work/Typed_Runtime_Resume_Approval_WORKING.md`
+  - harness adoption research: `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-governed-action-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/validator-gate-governed-action-lib.mjs`
+  - `.GOV/roles/validator/checks/validator_gates.mjs`
+  - `.GOV/roles/validator/scripts/validator-next.mjs`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/roles_shared/tests/validator-gate-governed-action-lib.test.mjs`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-205`
+  - `RGF-206`
+  - `RGF-209`
+- OUTCOME: validator gate writes now stamp typed governed-action entries for append/commit/present/acknowledge/reset, gate sessions preserve a governed action history and last governed action summary, status and audit readers prefer the typed gate action status over the legacy `session.status` mirror, and `validator-next` ranks/branches off that effective gate status instead of depending only on raw gate-state strings
+
+### 2026.04.20.4 / GOV-CHANGE-20260420-04
+
+- STATUS: APPLIED
+- SUMMARY: widened `RGF-205` into the final-lane closeout sync so the terminal Integration Validator sync is recorded as a typed governed external-execute action instead of only a bespoke event row
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-205`
+  - typed resume/approval research: `_work/Typed_Runtime_Resume_Approval_WORKING.md`
+  - harness adoption research: `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-governed-action-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs`
+  - `.GOV/roles/validator/checks/validator_gates.mjs`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/roles_shared/tests/session-governed-action-lib.test.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-context-brief-lib.test.mjs`
+  - `.GOV/roles_shared/tests/generate-post-run-audit-skeleton.test.mjs`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-205`
+  - `RGF-206`
+  - `RGF-209`
+- OUTCOME: the rule registry now covers `INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`, closeout sync events persist the typed governed action result that performed the terminal write, final-lane context/status readers plus the post-run audit skeleton surface that governed action summary instead of reducing terminal sync back to plain mode/status prose, and validator-facing closeout provenance now stays within the same rule-backed action model as session-control transport, validator resume routing, and validator gate progression
+
+### 2026.04.20.5 / GOV-CHANGE-20260420-05
+
+- STATUS: APPLIED
+- SUMMARY: widened `RGF-205` into orchestrator-side closeout readers so `phase-check CLOSEOUT` and `closeout-repair` consume the shared typed closeout-governance summary instead of independent terminal-sync interpretation
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-205`
+  - typed resume/approval research: `_work/Typed_Runtime_Resume_Approval_WORKING.md`
+  - harness adoption research: `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-205`
+  - `RGF-206`
+  - `RGF-209`
+- OUTCOME: the closeout library now exposes one typed closeout-governance summary, `buildIntegrationValidatorCloseoutCheckResult` projects that summary alongside the existing topology/bundle proof, `phase-check CLOSEOUT` uses it when shaping next-command guidance for recorded terminal sync states, and `closeout-repair` surfaces the same governed closeout action during failure diagnosis instead of treating terminal sync provenance as helper-local event prose
+
+### 2026.04.20.6 / GOV-CHANGE-20260420-06
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-205` by routing the remaining session-control and orchestrator status surfaces through one effective governed session-action projection instead of local `last_command_*` interpretation
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-205`
+  - typed resume/approval research: `_work/Typed_Runtime_Resume_Approval_WORKING.md`
+  - harness adoption research: `_work/Harness_Adoption_Extraction_WORKING.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-governed-action-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/checks/session-control-runtime-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/docs_repo/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/tests/session-governed-action-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-registry-lib.test.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-206`
+  - `RGF-207`
+  - `RGF-209`
+- OUTCOME: the shared session-governed-action library now derives one effective governed session-action view from typed `action_history` / `last_governed_action` with legacy command fields as fallback only, registry summaries project that effective action directly, active-lane briefs and session-registry status expose it as the primary session-control truth, operator monitor panes render command/action/rule/disposition from the same projection, and the session-control runtime invariant check now validates command mirrors against the effective governed action rather than re-deriving drift locally; with that final reader cutover in place, `RGF-205` is complete
+
+### 2026.04.20.7 / GOV-CHANGE-20260420-07
+
+- STATUS: APPLIED
+- SUMMARY: started `RGF-206` by replacing busy `SEND_PROMPT` rejection with durable queued ingress and broker auto-drain semantics across the governed session-control lane
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-206`
+  - harness adoption research: `_work/Harness_Adoption_Extraction_WORKING.md`
+  - ACP/session-control research: `ACP_Broker_and_Session_Control.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-policy.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-self-settle-lib.mjs`
+  - `.GOV/roles_shared/checks/session-control-runtime-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `.GOV/roles_shared/schemas/SESSION_CONTROL_REQUEST.schema.json`
+  - `.GOV/docs_repo/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-registry-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-self-settle-lib.test.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-206`
+  - `RGF-207`
+  - `RGF-208`
+- OUTCOME: governed `SEND_PROMPT` requests now declare `busy_ingress_mode`, busy ACP ingress persists one durable `pending_control_queue` entry against stable session identity instead of forcing immediate rejection, queued requests survive broker restart and auto-drain after the active run settles, self-settle plus runtime invariant checks now recognize queued requests as legitimate pending state, close-session rejects when queued follow-up work still exists, and operator/session status surfaces expose queue count and next queued request so manual steer/retry loops are replaced by deterministic busy-ingress behavior
+
+### 2026.04.20.8 / GOV-CHANGE-20260420-08
+
+- STATUS: APPLIED
+- SUMMARY: continued `RGF-206` by making governed steer and operator status surfaces treat queued busy-session follow-up as first-class truth rather than something to re-infer or resend
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-206`
+  - harness adoption research: `_work/Harness_Adoption_Extraction_WORKING.md`
+  - ACP/session-control research: `ACP_Broker_and_Session_Control.md`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/orchestrator-steer-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-steer-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/operator-monitor-tui.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/docs_repo/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-206`
+  - `RGF-207`
+  - `RGF-208`
+- OUTCOME: `orchestrator-steer-next` now checks the durable session queue before dispatch and exits successfully when queue-backed follow-up already exists for the governed lane, so re-wake loops stop generating duplicate `SEND_PROMPT` attempts; the operator monitor now counts queued governed work in the top summary, keeps terminal packets visible in the ACTIVE filter when queue-backed work is still pending, and shows queue depth plus queue-head detail in next-action, overview, sessions, and control views so busy-session wait state becomes explicit runtime truth instead of artifact archaeology; `RGF-206` remains open only for queue-aware `orchestrator-next` classification
+
+### 2026.04.20.9 / GOV-CHANGE-20260420-09
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-206` by making `orchestrator-next` classify queue-backed governed follow-up directly, closing the remaining busy-session resend gap
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-206`
+  - harness adoption research: `_work/Harness_Adoption_Extraction_WORKING.md`
+  - ACP/session-control research: `ACP_Broker_and_Session_Control.md`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/docs_repo/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-207`
+  - `RGF-208`
+  - `RGF-209`
+- OUTCOME: `orchestrator-next` now reads the governed session registry for the projected next actor, detects when queue-backed follow-up is already accepted for that lane, and reports a deterministic wait state with status/health commands instead of suggesting another relay wake; with `orchestrator-steer-next`, the ACP broker, and the operator monitor already queue-aware, the busy-session resend loop is now closed end-to-end and `RGF-206` is complete
+
+### 2026.04.20.10 / GOV-CHANGE-20260420-10
+
+- STATUS: APPLIED
+- SUMMARY: started `RGF-207` by persisting a typed relay escalation policy object in runtime truth and projecting required next-strategy state through the orchestrator relay surfaces
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-207`
+  - retry/escalation research: `Harness_Lessons_Learned.md`
+  - retry/escalation research: `Technical_Implementation_Research.md`
+  - retry/escalation research: `Repo_Governance_Failure_Taxonomy.md`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/lib/wp-relay-watchdog-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles/orchestrator/tests/wp-relay-watchdog-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/templates/WP_RUNTIME_STATUS_TEMPLATE.json`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-207`
+  - `RGF-208`
+  - `RGF-209`
+- OUTCOME: the relay watchdog now derives a typed `relay_escalation_policy` object with `failure_class`, `policy_state`, `next_strategy`, strategy-budget scope, and summary; runtime truth persists that object directly next to the relay/interrupt counters; repair notifications can include the required strategy shift; `session-registry-status`, `wp-relay-watchdog`, and `orchestrator-next` surface the same runtime-native policy so operators stop reconstructing retry state from counters and prose; and the first `RGF-207` slice is in place with the four mechanical strategy classes (`QUEUED_DEFER`, `ALTERNATE_METHOD`, `ALTERNATE_MODEL`, `HUMAN_STOP`) now projected from canonical runtime state
+
+### 2026.04.20.11 / GOV-CHANGE-20260420-11
+
+- STATUS: APPLIED
+- SUMMARY: extended `RGF-207` typed relay escalation policy projection into the remaining live operator and lane-diagnostic surfaces
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-207`
+  - retry/escalation research: `Harness_Lessons_Learned.md`
+  - retry/escalation research: `Repo_Governance_Failure_Taxonomy.md`
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `.GOV/roles/orchestrator/tests/operator-monitor-tui.test.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-207`
+  - `RGF-208`
+  - `RGF-209`
+- OUTCOME: the operator monitor now carries the canonical runtime `relay_escalation_policy` alongside relay status and uses it when summarizing the next governed action, `orchestrator-steer-next` prints the same failure-class / strategy-budget policy before dispatching a governed wake, active-lane briefs project the typed policy in both JSON and formatted text, and `wp-lane-health` reads the same runtime-native policy so blocked auto-recovery shows up as a deterministic diagnostic instead of session-guesswork. The remaining lane-health worktree warning now emits a repo/workspace-relative path (`../wt-...`) rather than a host-specific absolute path, aligning the live diagnostic surface with the orchestrator protocol rule against absolute-path operator output.
+
+### 2026.04.20.12 / GOV-CHANGE-20260420-12
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-207` by consolidating relay-policy formatting into one shared helper and closing the remaining documentation/status drift
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-207`
+  - retry/escalation research: `Harness_Lessons_Learned.md`
+  - retry/escalation research: `Technical_Implementation_Research.md`
+  - retry/escalation research: `Repo_Governance_Failure_Taxonomy.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-relay-policy-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-relay-policy-lib.test.mjs`
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/docs_repo/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-208`
+  - `RGF-209`
+- OUTCOME: relay escalation policy now has one shared normalization/formatting surface, so the watchdog, orchestrator status helpers, operator monitor, active-lane brief, and lane-health diagnostics all read and present the same canonical `failure_class`, `policy_state`, `next_strategy`, and strategy budget. The relay stop path was already runtime-native; this completion tranche removes the remaining helper-local drift and finishes the item with operator-facing docs/runbooks updated to describe the typed repair policy explicitly. `RGF-207` is complete and the next governance tranche is now `RGF-208`.
+
+### 2026.04.20.13 / GOV-CHANGE-20260420-13
+
+- STATUS: APPLIED
+- SUMMARY: completed `RGF-208` and `RGF-209` by separating run-vs-step telemetry with durable push-alert projection and collapsing PASS closeout onto one canonical dependency view
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `RGF-208`
+  - `RGF-209`
+  - telemetry research: `_work/Harness_Adoption_Extraction_WORKING.md`
+  - ACP/session-control research: `ACP_Broker_and_Session_Control.md`
+  - closeout research: `Validator_Routing_Gates_and_Closeout_Repair.md`
+  - workflow-truth research: `Workflow_State_Packet_Truth_and_Range_Drift.md`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/session/session-telemetry-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-closeout-dependency-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-closeout-format.mjs`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+  - `.GOV/docs_repo/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - none in the current tranche
+- OUTCOME: governed operator surfaces now distinguish run-level activity from step-level activity and surface the latest durable push alert without reopening terminal transcripts, while final-lane closeout surfaces all consume one shared dependency view with explicit publication truth and blocking keys. The active governance tranche is complete through `RGF-209`.

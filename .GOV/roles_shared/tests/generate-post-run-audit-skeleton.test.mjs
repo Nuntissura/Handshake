@@ -83,6 +83,208 @@ test("generate-post-run-audit-skeleton reads task board status from the packet g
   }
 });
 
+test("generate-post-run-audit-skeleton prefers canonical execution publication status when runtime authority exists", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-audit-skeleton-canonical-"));
+  const govRoot = path.join(repoRoot, ".GOV");
+  const govRuntimeRoot = path.join(repoRoot, "gov_runtime");
+  const wpId = "WP-1-Test-v1";
+  const packetPath = path.join(govRoot, "task_packets", wpId, "packet.md");
+  const commDir = path.join(govRuntimeRoot, "roles_shared", "WP_COMMUNICATIONS", wpId);
+  const runtimeStatusPath = path.join(commDir, "RUNTIME_STATUS.json");
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const threadPath = path.join(commDir, "THREAD.md");
+  const outputPath = path.join(repoRoot, "audit.md");
+
+  try {
+    writeText(
+      path.join(govRoot, "roles_shared", "records", "TASK_BOARD.md"),
+      "# Board\n\n## Ready for Dev\n- **[WP-1-Test-v1]** - [READY_FOR_DEV]\n",
+    );
+    writeText(
+      packetPath,
+      [
+        `- WP_RUNTIME_STATUS_FILE: ${normalizePath(runtimeStatusPath)}`,
+        `- WP_RECEIPTS_FILE: ${normalizePath(receiptsPath)}`,
+        `- WP_THREAD_FILE: ${normalizePath(threadPath)}`,
+        `- WP_COMMUNICATION_DIR: ${normalizePath(commDir)}`,
+        "- PACKET_FORMAT_VERSION: 2026-03-29",
+        "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+        "- COMMUNICATION_CONTRACT: DIRECT_REVIEW_REQUIRED",
+        "- COMMUNICATION_HEALTH_GATE: WP_COMMUNICATION_HEALTH_V1",
+        "- **Status:** In Progress",
+      ].join("\n"),
+    );
+    writeText(
+      runtimeStatusPath,
+      `${JSON.stringify({
+        schema_version: "wp_runtime_status@1",
+        wp_id: wpId,
+        current_packet_status: "In Progress",
+        current_task_board_status: "IN_PROGRESS",
+        runtime_status: "working",
+        current_phase: "IMPLEMENTATION",
+        next_expected_actor: "CODER",
+        open_review_items: [],
+        last_event_at: "2026-03-31T10:00:00Z",
+        execution_state: {
+          schema_version: "wp_execution_state@1",
+          authority: {
+            packet_status: "Validated (PASS)",
+            task_board_status: "DONE_VALIDATED",
+            runtime_status: "completed",
+            phase: "STATUS_SYNC",
+            next_expected_actor: "NONE",
+            route_anchor: {},
+            review_anchor: {},
+          },
+          checkpoint_lineage: {
+            schema_version: "wp_execution_checkpoint_lineage@1",
+            latest_checkpoint_id: null,
+            latest_checkpoint_at_utc: null,
+            latest_checkpoint_kind: null,
+            latest_restore_point_id: null,
+            latest_checkpoint_fingerprint: null,
+            checkpoint_count: 0,
+            checkpoints: [],
+          },
+        },
+      }, null, 2)}\n`,
+    );
+    writeText(receiptsPath, "\n");
+    writeText(threadPath, "# thread\n");
+
+    const result = spawnSync(
+      process.execPath,
+      [".GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs", wpId, "--output", outputPath],
+      {
+        cwd: path.resolve("D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel"),
+        env: {
+          ...process.env,
+          HANDSHAKE_GOV_ROOT: govRoot,
+          HANDSHAKE_GOV_RUNTIME_ROOT: govRuntimeRoot,
+        },
+        encoding: "utf8",
+      },
+    );
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const audit = fs.readFileSync(outputPath, "utf8");
+    assert.match(audit, /- TASK_BOARD_STATUS: DONE_VALIDATED/);
+    assert.match(audit, /- PACKET_STATUS: Validated \(PASS\)/);
+    assert.match(audit, /- RUNTIME_STATUS: completed/);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("generate-post-run-audit-skeleton includes the last governed closeout action from validator gate provenance", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-audit-skeleton-closeout-"));
+  const govRoot = path.join(repoRoot, ".GOV");
+  const govRuntimeRoot = path.join(repoRoot, "gov_runtime");
+  const wpId = "WP-1-Test-v1";
+  const packetPath = path.join(govRoot, "task_packets", wpId, "packet.md");
+  const commDir = path.join(govRuntimeRoot, "roles_shared", "WP_COMMUNICATIONS", wpId);
+  const runtimeStatusPath = path.join(commDir, "RUNTIME_STATUS.json");
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const threadPath = path.join(commDir, "THREAD.md");
+  const gateStatePath = path.join(govRuntimeRoot, "roles_shared", "validator_gates", `${wpId}.json`);
+  const outputPath = path.join(repoRoot, "audit.md");
+
+  try {
+    writeText(
+      path.join(govRoot, "roles_shared", "records", "TASK_BOARD.md"),
+      "# Board\n\n## Done\n- **[WP-1-Test-v1]** - [VALIDATED]\n",
+    );
+    writeText(
+      packetPath,
+      [
+        `- WP_RUNTIME_STATUS_FILE: ${normalizePath(runtimeStatusPath)}`,
+        `- WP_RECEIPTS_FILE: ${normalizePath(receiptsPath)}`,
+        `- WP_THREAD_FILE: ${normalizePath(threadPath)}`,
+        `- WP_COMMUNICATION_DIR: ${normalizePath(commDir)}`,
+        "- PACKET_FORMAT_VERSION: 2026-03-29",
+        "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+        "- COMMUNICATION_CONTRACT: DIRECT_REVIEW_REQUIRED",
+        "- COMMUNICATION_HEALTH_GATE: WP_COMMUNICATION_HEALTH_V1",
+        "- **Status:** Validated (PASS)",
+      ].join("\n"),
+    );
+    writeText(
+      runtimeStatusPath,
+      `${JSON.stringify({
+        schema_version: "wp_runtime_status@1",
+        wp_id: wpId,
+        current_packet_status: "Validated (PASS)",
+        runtime_status: "completed",
+        current_phase: "CLOSED",
+        next_expected_actor: "NONE",
+        open_review_items: [],
+        last_event_at: "2026-03-31T10:00:00Z",
+      }, null, 2)}\n`,
+    );
+    writeText(
+      gateStatePath,
+      `${JSON.stringify({
+        closeout_sync_events: {
+          [wpId]: [
+            {
+              timestamp_utc: "2026-04-20T10:15:00Z",
+              mode: "CONTAINED_IN_MAIN",
+              actor_role: "INTEGRATION_VALIDATOR",
+              actor_session_id: "integration-validator-session",
+              governed_action: {
+                schema_id: "hsk.governed_action_result@1",
+                schema_version: "governed_action_result_v1",
+                action_id: "closeout-sync-action-1",
+                processed_at: "2026-04-20T10:15:00Z",
+                rule_id: "INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE",
+                action_kind: "EXTERNAL_EXECUTE",
+                action_surface: "INTEGRATION_VALIDATOR_CLOSEOUT",
+                command_kind: "CLOSEOUT_SYNC",
+                command_id: "closeout-sync-action-1",
+                session_key: "INTEGRATION_VALIDATOR:WP-1-Test-v1",
+                wp_id: wpId,
+                role: "INTEGRATION_VALIDATOR",
+                status: "COMPLETED",
+                outcome_state: "SETTLED",
+                result_state: "SETTLED",
+                resume_disposition: "CONSUME_RESULT",
+                target_command_id: "",
+                summary: "Integration Validator recorded closeout sync CONTAINED_IN_MAIN for WP-1-Test-v1.",
+                error: "",
+                metadata: {},
+              },
+            },
+          ],
+        },
+      }, null, 2)}\n`,
+    );
+    writeText(receiptsPath, "\n");
+    writeText(threadPath, "# thread\n");
+
+    const result = spawnSync(
+      process.execPath,
+      [".GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs", wpId, "--output", outputPath],
+      {
+        cwd: path.resolve("D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel"),
+        env: {
+          ...process.env,
+          HANDSHAKE_GOV_ROOT: govRoot,
+          HANDSHAKE_GOV_RUNTIME_ROOT: govRuntimeRoot,
+        },
+        encoding: "utf8",
+      },
+    );
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const audit = fs.readFileSync(outputPath, "utf8");
+    assert.match(audit, /- LAST_GOVERNED_CLOSEOUT_ACTION: INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE \| CONSUME_RESULT \| 2026-04-20T10:15:00Z/);
+    assert.match(audit, /- LAST_CLOSEOUT_SYNC_MODE: CONTAINED_IN_MAIN/);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
 test("generate-post-run-audit-skeleton loads session control state from the packet governance root instead of caller cwd", () => {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-audit-skeleton-"));
   const unrelatedCwd = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-audit-cwd-"));

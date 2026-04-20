@@ -16,6 +16,10 @@ import {
   validateRuntimeStatus,
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import {
+  normalizeRelayEscalationPolicy,
+  relayEscalationPolicyBudgetLabel,
+} from "../../../roles_shared/scripts/lib/wp-relay-policy-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { appendWpNotification } from "../../../roles_shared/scripts/wp/wp-notification-append.mjs";
@@ -30,6 +34,7 @@ import {
 } from "../../../roles_shared/scripts/session/session-health-projection-lib.mjs";
 import {
   activeRunsForTarget,
+  deriveRelayEscalationPolicy,
   buildRelayRepairSignal,
   buildRelayWatchdogSummary,
   deriveRelayFailureFingerprint,
@@ -609,6 +614,7 @@ function updateRelayWatchdogRuntimeState({
   decision = null,
   restartRepair = null,
   failureFingerprint = null,
+  relayEscalationPolicy = null,
 } = {}) {
   if (!runtimeStatusFile || !runtimeStatusAbsPath || !fs.existsSync(runtimeStatusAbsPath) || !shouldPersistRelayWatchdogState(decision, restartRepair)) {
     return null;
@@ -666,6 +672,9 @@ function updateRelayWatchdogRuntimeState({
     }
 
     runtime.max_same_failure_rewake_attempts = maxSameFailureRewakeAttempts;
+    runtime.relay_escalation_policy = relayEscalationPolicy && typeof relayEscalationPolicy === "object"
+      ? relayEscalationPolicy
+      : null;
     const normalizedFailureFingerprint = String(failureFingerprint || "").trim();
     if (!normalizedFailureFingerprint) {
       runtime.last_relay_failure_fingerprint = null;
@@ -705,6 +714,7 @@ function updateRelayWatchdogRuntimeState({
       attentionRequired: runtime.attention_required === true,
       lastEvent: runtime.last_event,
       lastEventAt: runtime.last_event_at,
+      relayEscalationPolicy: runtime.relay_escalation_policy || null,
     };
   });
 }
@@ -714,12 +724,14 @@ function maybeEmitRelayRepairSignal({
   base = null,
   decision = null,
   stallScan = null,
+  relayEscalationPolicy = null,
 } = {}) {
   const repairSignal = buildRelayRepairSignal({
     wpId,
     relayStatus: base?.relayStatus,
     decision,
     stallScanStatus: stallScan?.status,
+    relayEscalationPolicy,
   });
   if (!repairSignal) {
     return { status: "NOT_APPLICABLE", reason: "NO_REPAIR_SIGNAL" };
@@ -879,6 +891,14 @@ function evaluateWp(wpId, {
     executeRestart: !observeOnly,
     restartOutputIdleSeconds,
   });
+  const relayEscalationPolicy = normalizeRelayEscalationPolicy(deriveRelayEscalationPolicy({
+    relayStatus: base.relayStatus,
+    decision,
+    laneVerdict,
+    duplicateRewakeBudget: effectiveDuplicateRewakeBudget,
+    workerInterruptBudget,
+    restartDecision: restartRepair?.restartDecision || null,
+  }));
   const summary = buildRelayWatchdogSummary({
     wpId,
     relayStatus: base.relayStatus,
@@ -914,6 +934,7 @@ function evaluateWp(wpId, {
       workerInterruptBudget,
       duplicateRewakeBudget: effectiveDuplicateRewakeBudget,
       failureFingerprint,
+      relayEscalationPolicy,
       restartRepair,
       runtimeUpdate: null,
       repairSignal: { status: "NOT_APPLICABLE", reason: "OBSERVE_ONLY" },
@@ -930,6 +951,7 @@ function evaluateWp(wpId, {
       runtimeStatusAbsPath: base.runtimeStatusAbsPath,
       decision,
       restartRepair,
+      relayEscalationPolicy,
     });
     return {
       wpId,
@@ -947,6 +969,7 @@ function evaluateWp(wpId, {
       workerInterruptBudget,
       duplicateRewakeBudget: effectiveDuplicateRewakeBudget,
       failureFingerprint,
+      relayEscalationPolicy,
       restartRepair,
       runtimeUpdate,
       outputLines: restartRepair.outputLines,
@@ -964,12 +987,14 @@ function evaluateWp(wpId, {
       decision,
       restartRepair,
       failureFingerprint,
+      relayEscalationPolicy,
     });
     const repairSignal = maybeEmitRelayRepairSignal({
       wpId,
       base,
       decision,
       stallScan,
+      relayEscalationPolicy,
     });
     const healthAlert = maybeEmitAcpHealthAlert({
       wpId,
@@ -992,6 +1017,7 @@ function evaluateWp(wpId, {
       workerInterruptBudget,
       duplicateRewakeBudget: effectiveDuplicateRewakeBudget,
       failureFingerprint,
+      relayEscalationPolicy,
       runtimeUpdate,
       repairSignal,
       healthAlert,
@@ -1006,6 +1032,7 @@ function evaluateWp(wpId, {
     runtimeStatusAbsPath: base.runtimeStatusAbsPath,
     decision,
     failureFingerprint,
+    relayEscalationPolicy,
   });
   appendWpReceipt({
     wpId,
@@ -1034,6 +1061,7 @@ function evaluateWp(wpId, {
     workerInterruptBudget,
     duplicateRewakeBudget: effectiveDuplicateRewakeBudget,
     failureFingerprint,
+    relayEscalationPolicy,
     restartRepair,
     runtimeUpdate,
     repairSignal: { status: "NOT_APPLICABLE", reason: "STEER_ACTION" },
@@ -1087,6 +1115,7 @@ function serializeResult(result) {
     healthStateChanged: result.healthStateChanged === true,
     workerInterruptBudget: result.workerInterruptBudget || null,
     duplicateRewakeBudget: result.duplicateRewakeBudget || null,
+    relayEscalationPolicy: result.relayEscalationPolicy || null,
     failureFingerprint: result.failureFingerprint || null,
     runtimeUpdate: result.runtimeUpdate || null,
     restartRepair: result.restartRepair || null,
@@ -1136,6 +1165,16 @@ function printResult(result, { json = false } = {}) {
   if (result.duplicateRewakeBudget) {
     console.log(`- same_failure_rewake_budget: ${result.duplicateRewakeBudget.currentAttempts}/${result.duplicateRewakeBudget.maxAttempts}`);
     console.log(`- same_failure_rewake_exhausted: ${result.duplicateRewakeBudget.exhausted ? "YES" : "NO"}`);
+  }
+  if (result.relayEscalationPolicy) {
+    console.log(`- relay_failure_class: ${result.relayEscalationPolicy.failure_class}`);
+    console.log(`- relay_policy_state: ${result.relayEscalationPolicy.policy_state}`);
+    console.log(`- relay_next_strategy: ${result.relayEscalationPolicy.next_strategy}`);
+    console.log(`- relay_budget_scope: ${result.relayEscalationPolicy.budget_scope}`);
+    if (result.relayEscalationPolicy.budget_scope !== "NONE") {
+      console.log(`- relay_budget: ${relayEscalationPolicyBudgetLabel(result.relayEscalationPolicy)}`);
+    }
+    console.log(`- relay_policy_summary: ${result.relayEscalationPolicy.summary}`);
   }
   if (result.stallScan) {
     console.log(`- stall_scan_status: ${result.stallScan.status}`);

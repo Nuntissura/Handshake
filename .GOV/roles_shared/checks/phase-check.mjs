@@ -26,6 +26,7 @@ import {
 import {
   buildIntegrationValidatorCloseoutCheckResult,
   formatIntegrationValidatorCloseoutCheckResult,
+  loadDeclaredRuntimeStatus,
 } from "../../roles/validator/scripts/lib/integration-validator-closeout-lib.mjs";
 import {
   buildValidatorPacketCompleteResult,
@@ -34,6 +35,11 @@ import {
   formatValidatorHandoffCheckResult,
 } from "../../roles/validator/scripts/lib/validator-governance-lib.mjs";
 import { parseMergeProgressionTruth } from "../scripts/lib/merge-progression-truth-lib.mjs";
+import {
+  inferValidationVerdictFromPublication,
+  parseExecutionCloseoutMode,
+  readExecutionPublicationView,
+} from "../scripts/lib/wp-execution-state-lib.mjs";
 import { findOpenWorkflowDossierPath } from "../scripts/audit/workflow-dossier-lib.mjs";
 import {
   buildWpMetrics,
@@ -218,38 +224,12 @@ function runSubprocessStep({ scriptPath: targetScriptPath, args = [] }) {
 }
 
 function parseCloseoutSyncMode(rawMode = "") {
-  const mode = String(rawMode || "").trim().toUpperCase();
-  if (mode === "MERGE_PENDING" || mode === "DONE_MERGE_PENDING") {
-    return {
-      mode: "MERGE_PENDING",
-      requireMergedMainCommit: false,
-    };
-  }
-  if (mode === "CONTAINED_IN_MAIN" || mode === "DONE_VALIDATED") {
-    return {
-      mode: "CONTAINED_IN_MAIN",
-      requireMergedMainCommit: true,
-    };
-  }
-  if (mode === "FAIL" || mode === "DONE_FAIL") {
-    return {
-      mode: "FAIL",
-      requireMergedMainCommit: false,
-    };
-  }
-  if (mode === "OUTDATED_ONLY" || mode === "DONE_OUTDATED_ONLY") {
-    return {
-      mode: "OUTDATED_ONLY",
-      requireMergedMainCommit: false,
-    };
-  }
-  if (mode === "ABANDONED" || mode === "DONE_ABANDONED") {
-    return {
-      mode: "ABANDONED",
-      requireMergedMainCommit: false,
-    };
-  }
-  return null;
+  const modeSpec = parseExecutionCloseoutMode(rawMode);
+  if (!modeSpec) return null;
+  return {
+    mode: modeSpec.mode,
+    requireMergedMainCommit: modeSpec.require_merged_main_commit,
+  };
 }
 
 function hasCloseoutSyncFlags(args = []) {
@@ -776,6 +756,7 @@ function runStep(step) {
     return {
       ok: result.ok,
       output: formatIntegrationValidatorCloseoutCheckResult(result),
+      resultData: result,
     };
   }
   return runSubprocessStep(step);
@@ -833,6 +814,42 @@ function hasCommitBySubjectRegex(subjectRegex) {
   });
   if (result.status !== 0) return false;
   return Boolean(String(result.stdout || "").trim());
+}
+
+function resolveCloseoutPublicationTruth({
+  wpId = "",
+  packetText = "",
+  repoRoot = resolvePhaseCheckCwd(),
+  runtimeStatusOverride = undefined,
+} = {}) {
+  const parsedTruth = parseMergeProgressionTruth(packetText);
+  const declaredRuntime = loadDeclaredRuntimeStatus({
+    repoRoot,
+    packetContent: packetText,
+    runtimeStatusOverride,
+  });
+  const publication = readExecutionPublicationView({
+    runtimeStatus: declaredRuntime.runtimeStatus,
+    packetStatus: parsedTruth.status,
+  });
+
+  return {
+    parsedTruth,
+    publication,
+    effectivePacketStatus: publication.packet_status || parsedTruth.status,
+    effectiveTaskBoardStatus: publication.task_board_status || "",
+    effectiveMainContainmentStatus:
+      String(publication.runtime?.main_containment_status || "").trim().toUpperCase()
+      || parsedTruth.mainContainmentStatus,
+    effectiveMergedMainCommit:
+      String(publication.runtime?.merged_main_commit || "").trim()
+      || parsedTruth.mergedMainCommit,
+    effectiveValidationVerdict: inferValidationVerdictFromPublication({
+      packetStatus: publication.packet_status || parsedTruth.status,
+      taskBoardStatus: publication.task_board_status || "",
+      fallbackVerdict: parsedTruth.validationVerdict,
+    }),
+  };
 }
 
 async function printFailLog(wpId) {
@@ -967,13 +984,15 @@ function buildStartupCoderOutcome({
   };
 }
 
-function buildCloseoutNextCommands({
+export function buildCloseoutNextCommands({
   wpId,
   args = [],
   verbose = false,
   ok = true,
   syncOptions = {},
   workflowDossierCloseoutOk = true,
+  runtimeStatusOverride = undefined,
+  integrationValidatorCloseoutResult = null,
 } = {}) {
   const rerunArgs = verbose ? args : [...args.filter((value) => value !== "--verbose"), "--verbose"];
   const rerunVerbose = buildPhaseCheckCommand({
@@ -987,9 +1006,18 @@ function buildCloseoutNextCommands({
     args: args.filter((value) => value !== "--verbose"),
   });
   const nextCommands = [];
+  const latestCloseoutGovernedAction = integrationValidatorCloseoutResult?.closeoutSyncGovernance?.latestGovernedAction || null;
+  const latestCloseoutEvent = integrationValidatorCloseoutResult?.closeoutSyncGovernance?.latestEvent || null;
+  const closeoutDependencyView = integrationValidatorCloseoutResult?.closeoutDependencyView || null;
+  const governedCloseoutMarker = latestCloseoutGovernedAction
+    ? `${latestCloseoutGovernedAction.rule_id || "NONE"} @ ${latestCloseoutGovernedAction.updated_at || "<missing>"}`
+    : "";
   if (!verbose) nextCommands.push(`For full nested gate output: ${rerunVerbose}`);
   if (!ok) {
     nextCommands.push("Review the failures above.");
+    if (closeoutDependencyView?.summary) {
+      nextCommands.push(`Canonical closeout dependency view: ${closeoutDependencyView.summary}`);
+    }
     nextCommands.push(`Fix the closeout topology or governed truth issue, then re-run: ${rerunDefault}`);
     return nextCommands;
   }
@@ -1001,43 +1029,71 @@ function buildCloseoutNextCommands({
 
   const syncMode = String(syncOptions?.modeSpec?.mode || "").trim().toUpperCase();
   if (syncMode === "MERGE_PENDING") {
-    nextCommands.push("Mechanical Workflow Dossier closeout sync is recorded. Keep the dossier live; add the final review/rubric only after terminal closeout.");
+    nextCommands.push(
+      latestCloseoutGovernedAction
+        ? `Mechanical Workflow Dossier closeout sync is recorded via governed action ${governedCloseoutMarker}. Keep the dossier live; add the final review/rubric only after terminal closeout.`
+        : "Mechanical Workflow Dossier closeout sync is recorded. Keep the dossier live; add the final review/rubric only after terminal closeout.",
+    );
     nextCommands.push(
       `After local main containment is real: just phase-check CLOSEOUT ${wpId} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`,
     );
     return nextCommands;
   }
   if (syncMode === "CONTAINED_IN_MAIN") {
-    nextCommands.push("Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended.");
+    nextCommands.push(
+      latestCloseoutGovernedAction
+        ? `Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended via governed action ${governedCloseoutMarker}.`
+        : "Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended.",
+    );
     nextCommands.push(`Proceed to final PASS gate flow (for example: just validator-gate-commit ${wpId}).`);
     return nextCommands;
   }
   if (syncMode) {
-    nextCommands.push("Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended.");
+    nextCommands.push(
+      latestCloseoutGovernedAction
+        ? `Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended via governed action ${governedCloseoutMarker}.`
+        : "Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended.",
+    );
     nextCommands.push("Proceed with the remaining validator gate flow for the recorded terminal verdict.");
     return nextCommands;
   }
 
   const packetText = readPacketText(wpId);
-  const parsedTruth = parseMergeProgressionTruth(packetText);
+  const closeoutTruth = resolveCloseoutPublicationTruth({
+    wpId,
+    packetText,
+    repoRoot: resolvePhaseCheckCwd(),
+    runtimeStatusOverride,
+  });
+  const effectiveMainContainmentStatus = closeoutDependencyView?.publication?.main_containment_status || closeoutTruth.effectiveMainContainmentStatus;
+  const effectiveValidationVerdict = closeoutDependencyView?.publication?.validation_verdict || closeoutTruth.effectiveValidationVerdict;
   let suggestedMode = "";
   let suggestedMergedMainSha = false;
-  if (parsedTruth.validationVerdict === "PASS") {
-    if (parsedTruth.mainContainmentStatus === "CONTAINED_IN_MAIN" || /^Validated\s*\(\s*PASS\s*\)$/i.test(parsedTruth.status)) {
-      nextCommands.push(`Closeout truth already reflects contained-main PASS. Proceed to the remaining final gate flow (for example: just validator-gate-commit ${wpId}).`);
+  if (effectiveValidationVerdict === "PASS") {
+    if (effectiveMainContainmentStatus === "CONTAINED_IN_MAIN" || effectiveMainContainmentStatus === "NOT_REQUIRED") {
+      nextCommands.push(
+        latestCloseoutEvent?.mode === "CONTAINED_IN_MAIN" && latestCloseoutGovernedAction
+          ? `Closeout truth already reflects contained-main PASS via governed action ${governedCloseoutMarker}. Proceed to the remaining final gate flow (for example: just validator-gate-commit ${wpId}).`
+          : `Closeout truth already reflects contained-main PASS. Proceed to the remaining final gate flow (for example: just validator-gate-commit ${wpId}).`,
+      );
       return nextCommands;
     }
-    if (parsedTruth.mainContainmentStatus === "MERGE_PENDING") {
+    if (effectiveMainContainmentStatus === "MERGE_PENDING") {
+      if (latestCloseoutEvent?.mode === "MERGE_PENDING" && latestCloseoutGovernedAction) {
+        nextCommands.push(
+          `Merge-pending closeout sync is already recorded via governed action ${governedCloseoutMarker}; promote to contained-main only after the local main merge is real.`,
+        );
+      }
       suggestedMode = "CONTAINED_IN_MAIN";
       suggestedMergedMainSha = true;
     } else {
       suggestedMode = "MERGE_PENDING";
     }
-  } else if (parsedTruth.validationVerdict === "FAIL") {
+  } else if (effectiveValidationVerdict === "FAIL") {
     suggestedMode = "FAIL";
-  } else if (parsedTruth.validationVerdict === "OUTDATED_ONLY") {
+  } else if (effectiveValidationVerdict === "OUTDATED_ONLY") {
     suggestedMode = "OUTDATED_ONLY";
-  } else if (parsedTruth.validationVerdict === "ABANDONED") {
+  } else if (effectiveValidationVerdict === "ABANDONED") {
     suggestedMode = "ABANDONED";
   }
 
@@ -1207,6 +1263,7 @@ async function runCli() {
         ok,
         syncOptions: closeoutSyncOptions,
         workflowDossierCloseoutOk: workflowDossierCloseoutResult?.ok !== false,
+        integrationValidatorCloseoutResult: stepResults.get("integration-validator-closeout-check")?.resultData || null,
       });
       console.log("");
       console.log("NEXT_COMMANDS [CX-PHASE-CHECK-001]");

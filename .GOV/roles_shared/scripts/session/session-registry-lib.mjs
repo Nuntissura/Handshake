@@ -35,6 +35,7 @@ import {
   SESSION_PLUGIN_BRIDGE_ID,
   SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION,
   SESSION_PLUGIN_REQUESTS_FILE,
+  SESSION_PENDING_CONTROL_QUEUE_LIMIT,
   SESSION_REGISTRY_FILE,
   SESSION_REQUEST_STATUSES,
   SESSION_RUNTIME_STATES,
@@ -49,6 +50,7 @@ import {
   terminalTitle,
 } from "./session-policy.mjs";
 import { SESSION_HEALTH_SOURCE, SESSION_HEALTH_STATE_VALUES } from "./session-health-projection-lib.mjs";
+import { effectiveSessionGovernedAction, summarizeGovernedAction } from "./session-governed-action-lib.mjs";
 
 export const ROLE_SESSION_REGISTRY_SCHEMA_ID = "hsk.role_session_registry@1";
 export const ROLE_SESSION_REGISTRY_SCHEMA_VERSION = "role_session_registry_v1";
@@ -72,6 +74,7 @@ const ACTIVE_BATCH_RUNTIME_STATES = new Set([
   "WAITING",
 ]);
 const TERMINAL_BATCH_ID_PREFIX = "TBATCH";
+const SESSION_ACTION_HISTORY_LIMIT = 16;
 
 function nowIso() {
   return new Date().toISOString();
@@ -249,7 +252,184 @@ function normalizeSessionRecord(session) {
   session.last_heartbeat_at = session.last_heartbeat_at || "";
   session.last_error = session.last_error || "";
   session.last_event_at = session.last_event_at || "";
+  session.action_history = normalizeSessionActionHistory(session.action_history);
+  session.pending_control_queue = normalizePendingControlQueue(session.pending_control_queue);
   return session;
+}
+
+function normalizeSessionActionHistoryEntry(entry = {}) {
+  const summary = summarizeGovernedAction(entry);
+  if (!summary) return null;
+  return {
+    action_id: summary.action_id,
+    rule_id: summary.rule_id,
+    action_kind: summary.action_kind,
+    action_surface: summary.action_surface,
+    command_kind: summary.command_kind,
+    command_id: summary.command_id,
+    action_state: summary.action_state,
+    status: summary.status,
+    outcome_state: summary.outcome_state,
+    resume_disposition: summary.resume_disposition,
+    target_command_id: summary.target_command_id,
+    reason_code: summary.reason_code,
+    summary: summary.summary,
+    requested_at: summary.requested_at,
+    processed_at: summary.processed_at,
+    updated_at: summary.updated_at,
+  };
+}
+
+function normalizeSessionActionHistory(entries = []) {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((entry) => normalizeSessionActionHistoryEntry(entry))
+    .filter(Boolean)
+    .slice(-SESSION_ACTION_HISTORY_LIMIT);
+}
+
+function upsertSessionActionHistory(session, action = {}, overrides = {}) {
+  const baseEntry = normalizeSessionActionHistoryEntry({
+    ...action,
+    ...overrides,
+  });
+  if (!baseEntry) return;
+  const history = normalizeSessionActionHistory(session.action_history);
+  const index = history.findIndex((entry) => entry.action_id === baseEntry.action_id);
+  const existing = index >= 0 ? history[index] : null;
+  const merged = {
+    ...(existing || {}),
+    ...baseEntry,
+    requested_at: baseEntry.requested_at || existing?.requested_at || "",
+    processed_at: baseEntry.processed_at || existing?.processed_at || "",
+    updated_at: baseEntry.updated_at || existing?.updated_at || nowIso(),
+  };
+  if (index >= 0) {
+    history[index] = merged;
+  } else {
+    history.push(merged);
+  }
+  session.action_history = history.slice(-SESSION_ACTION_HISTORY_LIMIT);
+}
+
+function normalizePendingControlQueueEntry(entry = {}) {
+  const commandId = String(entry?.command_id || "").trim();
+  const commandKind = String(entry?.command_kind || "").trim().toUpperCase();
+  if (!commandId || !commandKind) return null;
+
+  const governedAction = summarizeGovernedAction({
+    action_id: entry?.action_id || entry?.governed_action?.action_id || commandId,
+    rule_id: entry?.rule_id || entry?.governed_action?.rule_id || "",
+    action_kind: entry?.action_kind || entry?.governed_action?.action_kind || "EXTERNAL_EXECUTE",
+    action_surface: entry?.action_surface || entry?.governed_action?.action_surface || "SESSION_CONTROL",
+    command_kind: commandKind,
+    command_id: commandId,
+    action_state: entry?.action_state || entry?.governed_action?.action_state || "REQUESTED",
+    status: entry?.status || entry?.governed_action?.status || "QUEUED",
+    outcome_state: entry?.outcome_state || entry?.governed_action?.outcome_state || "",
+    resume_disposition: entry?.resume_disposition || entry?.governed_action?.resume_disposition || "PENDING",
+    target_command_id: entry?.target_command_id || entry?.governed_action?.target_command_id || "",
+    reason_code: entry?.reason_code || entry?.governed_action?.reason_code || "",
+    summary: entry?.summary || entry?.governed_action?.summary || "",
+    requested_at: entry?.requested_at || entry?.governed_action?.requested_at || entry?.queued_at || "",
+    updated_at: entry?.updated_at || entry?.governed_action?.updated_at || entry?.queued_at || "",
+  });
+  if (!governedAction) return null;
+
+  return {
+    command_id: commandId,
+    command_kind: commandKind,
+    target_command_id: String(entry?.target_command_id || governedAction.target_command_id || "").trim(),
+    summary: String(entry?.summary || governedAction.summary || "").trim(),
+    output_jsonl_file: normalizePath(entry?.output_jsonl_file || ""),
+    busy_ingress_mode: String(entry?.busy_ingress_mode || "ENQUEUE_ON_BUSY").trim().toUpperCase() || "ENQUEUE_ON_BUSY",
+    queue_reason_code: String(entry?.queue_reason_code || "").trim().toUpperCase() || "BUSY_ACTIVE_RUN",
+    blocking_command_id: String(entry?.blocking_command_id || "").trim(),
+    queued_at: String(entry?.queued_at || governedAction.requested_at || "").trim(),
+    updated_at: String(entry?.updated_at || governedAction.updated_at || entry?.queued_at || "").trim(),
+    action_id: governedAction.action_id,
+    rule_id: governedAction.rule_id,
+    action_kind: governedAction.action_kind,
+    action_surface: governedAction.action_surface,
+    action_state: governedAction.action_state,
+    status: governedAction.status,
+    outcome_state: governedAction.outcome_state,
+    resume_disposition: governedAction.resume_disposition,
+    reason_code: governedAction.reason_code,
+    requested_at: governedAction.requested_at,
+  };
+}
+
+function normalizePendingControlQueue(entries = []) {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((entry) => normalizePendingControlQueueEntry(entry))
+    .filter(Boolean)
+    .slice(-SESSION_PENDING_CONTROL_QUEUE_LIMIT);
+}
+
+export function enqueuePendingSessionControlRequest(session, request, {
+  queueReasonCode = "BUSY_ACTIVE_RUN",
+  blockingCommandId = "",
+  queuedAt = "",
+} = {}) {
+  const normalizedEntry = normalizePendingControlQueueEntry({
+    command_id: request?.command_id,
+    command_kind: request?.command_kind,
+    target_command_id: request?.target_command_id || "",
+    summary: request?.summary || request?.governed_action?.summary || "",
+    output_jsonl_file: request?.output_jsonl_file || "",
+    busy_ingress_mode: request?.busy_ingress_mode || "ENQUEUE_ON_BUSY",
+    queue_reason_code: queueReasonCode,
+    blocking_command_id: blockingCommandId,
+    queued_at: queuedAt || request?.created_at || nowIso(),
+    updated_at: queuedAt || request?.created_at || nowIso(),
+    governed_action: request?.governed_action || {},
+  });
+  if (!normalizedEntry) return null;
+
+  const queue = normalizePendingControlQueue(session.pending_control_queue);
+  const existingIndex = queue.findIndex((entry) => entry.command_id === normalizedEntry.command_id);
+  if (existingIndex >= 0) {
+    queue[existingIndex] = {
+      ...queue[existingIndex],
+      ...normalizedEntry,
+      queued_at: queue[existingIndex].queued_at || normalizedEntry.queued_at,
+      updated_at: normalizedEntry.updated_at || nowIso(),
+    };
+  } else {
+    queue.push(normalizedEntry);
+  }
+  session.pending_control_queue = queue.slice(-SESSION_PENDING_CONTROL_QUEUE_LIMIT);
+  session.last_event_at = normalizedEntry.updated_at || nowIso();
+  return normalizedEntry;
+}
+
+export function removePendingSessionControlRequest(session, commandId = "") {
+  const normalizedCommandId = String(commandId || "").trim();
+  if (!normalizedCommandId) return null;
+  const queue = normalizePendingControlQueue(session.pending_control_queue);
+  const index = queue.findIndex((entry) => entry.command_id === normalizedCommandId);
+  if (index < 0) {
+    session.pending_control_queue = queue;
+    return null;
+  }
+  const [removed] = queue.splice(index, 1);
+  session.pending_control_queue = queue;
+  session.last_event_at = nowIso();
+  return removed;
+}
+
+export function peekPendingSessionControlRequest(session) {
+  const queue = normalizePendingControlQueue(session?.pending_control_queue);
+  return queue.length > 0 ? queue[0] : null;
+}
+
+export function isPendingSessionControlRequest(session, commandId = "") {
+  const normalizedCommandId = String(commandId || "").trim();
+  if (!normalizedCommandId) return false;
+  return normalizePendingControlQueue(session?.pending_control_queue)
+    .some((entry) => entry.command_id === normalizedCommandId);
 }
 
 function normalizeRegistryBatchState(registry) {
@@ -568,6 +748,8 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
       last_command_prompt_at: "",
       last_command_completed_at: "",
       last_command_output_file: "",
+      action_history: [],
+      pending_control_queue: [],
       plugin_request_count: 0,
       plugin_failure_count: 0,
       plugin_last_request_id: "",
@@ -806,6 +988,15 @@ export function markSessionCommandQueued(session, command) {
   session.last_command_completed_at = "";
   session.last_command_output_file = command.output_jsonl_file || "";
   session.last_event_at = command.created_at || nowIso();
+  upsertSessionActionHistory(session, command.governed_action, {
+    command_id: command.command_id,
+    command_kind: command.command_kind,
+    action_state: "REQUESTED",
+    status: "QUEUED",
+    summary: command.summary || command.governed_action?.summary || "",
+    requested_at: command.created_at || nowIso(),
+    updated_at: command.created_at || nowIso(),
+  });
   if (command.command_kind === "START_SESSION") {
     session.runtime_state = "STARTING";
     session.startup_proof_state = "START_REQUESTED";
@@ -814,6 +1005,7 @@ export function markSessionCommandQueued(session, command) {
 }
 
 export function markSessionCommandRunning(session, command) {
+  removePendingSessionControlRequest(session, command.command_id);
   session.last_command_id = command.command_id;
   session.last_command_kind = command.command_kind;
   session.last_command_status = "RUNNING";
@@ -821,6 +1013,15 @@ export function markSessionCommandRunning(session, command) {
   session.last_command_prompt_at = command.created_at || nowIso();
   session.last_command_output_file = command.output_jsonl_file || "";
   session.last_event_at = nowIso();
+  upsertSessionActionHistory(session, command.governed_action, {
+    command_id: command.command_id,
+    command_kind: command.command_kind,
+    action_state: "ACCEPTED_PENDING",
+    status: "RUNNING",
+    summary: command.summary || command.governed_action?.summary || "",
+    requested_at: command.created_at || nowIso(),
+    updated_at: session.last_event_at,
+  });
   session.runtime_state = command.command_kind === "START_SESSION" ? "STARTING" : "COMMAND_RUNNING";
   if (command.command_kind === "START_SESSION") {
     session.startup_proof_state = "START_REQUESTED";
@@ -842,6 +1043,7 @@ export function markSessionThreadObserved(session, threadId, observedAt = nowIso
 }
 
 export function markSessionCommandResult(session, result) {
+  removePendingSessionControlRequest(session, result.command_id);
   const status = String(result.status || "").trim().toUpperCase();
   if (!SESSION_COMMAND_STATUSES.includes(status)) {
     throw new Error(`Unknown session command status: ${status}`);
@@ -854,6 +1056,17 @@ export function markSessionCommandResult(session, result) {
   session.last_command_completed_at = result.processed_at || nowIso();
   session.last_command_output_file = result.output_jsonl_file || session.last_command_output_file || "";
   session.last_event_at = result.processed_at || nowIso();
+  upsertSessionActionHistory(session, result.governed_action, {
+    command_id: result.command_id,
+    command_kind: result.command_kind,
+    action_state: result.governed_action?.result_state || status,
+    status,
+    outcome_state: result.outcome_state || "",
+    resume_disposition: result.governed_action?.resume_disposition || "",
+    summary: result.summary || result.governed_action?.summary || "",
+    processed_at: result.processed_at || nowIso(),
+    updated_at: result.processed_at || nowIso(),
+  });
 
   if (result.thread_id) {
     session.session_thread_id = result.thread_id;
@@ -898,6 +1111,15 @@ export function assertOrchestratorLaunchAuthority(currentBranch) {
 }
 
 export function registrySessionSummary(session) {
+  const actionHistory = normalizeSessionActionHistory(session.action_history);
+  const pendingControlQueue = normalizePendingControlQueue(session.pending_control_queue);
+  const nextQueuedControlRequest = pendingControlQueue.length > 0 ? pendingControlQueue[0] : null;
+  const lastGovernedAction = actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null;
+  const effectiveGovernedAction = effectiveSessionGovernedAction({
+    ...session,
+    action_history: actionHistory,
+    last_governed_action: lastGovernedAction,
+  });
   return {
     session_key: session.session_key,
     role: session.role,
@@ -941,6 +1163,12 @@ export function registrySessionSummary(session) {
     last_command_status: session.last_command_status || "NONE",
     last_command_summary: session.last_command_summary || "",
     last_command_output_file: session.last_command_output_file || "",
+    last_governed_action: lastGovernedAction,
+    effective_governed_action: effectiveGovernedAction,
+    action_history: actionHistory,
+    pending_control_queue_count: pendingControlQueue.length,
+    next_queued_control_request: nextQueuedControlRequest,
+    pending_control_queue: pendingControlQueue,
     updated_at: session.last_event_at || "",
   };
 }
@@ -1065,6 +1293,34 @@ export function validateRegistryShape(registry) {
     }
     if (session.last_command_status && session.last_command_status !== "NONE" && !SESSION_COMMAND_STATUSES.includes(session.last_command_status)) {
       errors.push(`session ${session.session_key || "<missing>"} has invalid last_command_status ${session.last_command_status}`);
+    }
+    if (!Array.isArray(session.action_history || [])) {
+      errors.push(`session ${session.session_key || "<missing>"} action_history must be an array`);
+    } else {
+      for (const entry of session.action_history || []) {
+        const normalizedEntry = normalizeSessionActionHistoryEntry(entry);
+        if (!normalizedEntry) {
+          errors.push(`session ${session.session_key || "<missing>"} has invalid action_history entry`);
+          continue;
+        }
+        if (!normalizedEntry.command_id) {
+          errors.push(`session ${session.session_key || "<missing>"} action_history entry ${normalizedEntry.action_id} is missing command_id`);
+        }
+      }
+    }
+    if (!Array.isArray(session.pending_control_queue || [])) {
+      errors.push(`session ${session.session_key || "<missing>"} pending_control_queue must be an array`);
+    } else {
+      for (const entry of session.pending_control_queue || []) {
+        const normalizedEntry = normalizePendingControlQueueEntry(entry);
+        if (!normalizedEntry) {
+          errors.push(`session ${session.session_key || "<missing>"} has invalid pending_control_queue entry`);
+          continue;
+        }
+        if (!normalizedEntry.output_jsonl_file) {
+          errors.push(`session ${session.session_key || "<missing>"} pending_control_queue entry ${normalizedEntry.command_id} is missing output_jsonl_file`);
+        }
+      }
     }
     if (!SESSION_HEALTH_STATE_VALUES.includes(session.health_state || "UNKNOWN")) {
       errors.push(`session ${session.session_key || "<missing>"} has invalid health_state ${session.health_state}`);

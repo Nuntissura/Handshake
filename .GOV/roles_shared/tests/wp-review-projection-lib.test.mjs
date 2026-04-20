@@ -78,6 +78,8 @@ test("intent checkpoint review preserves ready packet status during validator-si
   assert.equal(runtime.runtime_status, "working");
   assert.equal(runtime.current_phase, "BOOTSTRAP");
   assert.equal(runtime.current_milestone, "SKELETON");
+  assert.equal(runtime.execution_state.authority.phase, "BOOTSTRAP");
+  assert.equal(runtime.execution_state.checkpoint_lineage.latest_checkpoint_kind, "REVIEW_SYNC");
 });
 
 test("missing kickoff preserves ready packet status before coder claim", () => {
@@ -239,6 +241,8 @@ test("active review projection freezes explicit handoff range and authoritative 
   assert.equal(runtime.committed_handoff_base_sha, "0123456789abcdef0123456789abcdef01234567");
   assert.equal(runtime.committed_handoff_head_sha, "89abcdef0123456789abcdef0123456789abcdef");
   assert.equal(runtime.committed_handoff_range_source, "PACKET_EXPLICIT_HANDOFF_RANGE");
+  assert.equal(runtime.execution_state.authority.review_anchor.receipt_kind, "REVIEW_RESPONSE");
+  assert.equal(runtime.execution_state.authority.review_anchor.committed_handoff_head_sha, "89abcdef0123456789abcdef0123456789abcdef");
 });
 
 test("active review projection keeps terminal packet runtime untouched", () => {

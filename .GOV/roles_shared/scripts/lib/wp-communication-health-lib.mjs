@@ -18,6 +18,7 @@ import {
   parsePacketSingleField,
 } from "./scope-surface-lib.mjs";
 import { deriveWpMicrotaskPlan } from "./wp-microtask-lib.mjs";
+import { materializeRuntimeAuthorityView } from "./wp-execution-state-lib.mjs";
 import { validatorReportProfileUsesHeuristicRigor } from "./validator-report-profile-lib.mjs";
 
 export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STARTUP", "STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
@@ -152,6 +153,7 @@ function partitionOpenReviewItems(openReviewItems = []) {
  * @returns {{ items: Array, next_action: string, blocked_reason: string|null }}
  */
 export function buildRoleInbox(role, runtimeStatus = {}) {
+  runtimeStatus = materializeRuntimeAuthorityView(runtimeStatus);
   const normalizedRole = normalizeRole(role);
   const openItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
   const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
@@ -355,6 +357,7 @@ export function deriveActiveWpNotificationProjection({
   latestReceipt = null,
   autoRoute = null,
 } = {}) {
+  runtimeStatus = materializeRuntimeAuthorityView(runtimeStatus);
   const unreadNotifications = Array.isArray(pendingNotifications) ? pendingNotifications : [];
   const fallbackVisible = latestProjectedNotifications(unreadNotifications);
   if (unreadNotifications.length === 0) {
@@ -851,6 +854,7 @@ export function evaluateWpCommunicationHealth({
   receipts = [],
   runtimeStatus = {},
 } = {}) {
+  runtimeStatus = materializeRuntimeAuthorityView(runtimeStatus);
   const normalizedStage = String(stage || "STATUS").trim().toUpperCase();
   if (!COMMUNICATION_HEALTH_STAGE_VALUES.includes(normalizedStage)) {
     throw new Error(`Invalid communication health stage: ${stage}`);
@@ -1663,6 +1667,7 @@ export function deriveWpCommunicationAutoRoute({
   runtimeStatus = {},
   latestReceipt = null,
 } = {}) {
+  runtimeStatus = materializeRuntimeAuthorityView(runtimeStatus);
   if (!evaluation?.applicable) {
     return {
       applicable: false,
@@ -2000,6 +2005,7 @@ export function evaluateWpCommunicationBoundary({
   latestReceipt = null,
   pendingNotifications = [],
 } = {}) {
+  runtimeStatus = materializeRuntimeAuthorityView(runtimeStatus);
   const normalizedStage = String(stage || "STATUS").trim().toUpperCase();
   if (!statusEvaluation?.applicable) {
     return {

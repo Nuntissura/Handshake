@@ -7,6 +7,7 @@ import {
   runtimePhaseForMilestone,
   taskBoardStatusForPacketStatus,
 } from "./wp-authority-projection-lib.mjs";
+import { syncRuntimeExecutionState } from "./wp-execution-state-lib.mjs";
 
 function replaceCurrentStateField(text, label, value) {
   const re = new RegExp(`^(\\s*${label}\\s*:\\s*)(.+)\\s*$`, "mi");
@@ -239,6 +240,9 @@ export function applyWpReviewRuntimeProjection(runtimeStatus, {
   nextRuntime.current_phase = runtimePhaseForMilestone(milestone, nextRuntime.current_phase || "BOOTSTRAP");
   nextRuntime.last_milestone_sync_at = nextRuntime.last_event_at || nextRuntime.last_milestone_sync_at || new Date().toISOString();
   Object.assign(nextRuntime, deriveImmutableReviewAnchorProjection(packetText, evaluation));
-
-  return nextRuntime;
+  return syncRuntimeExecutionState(nextRuntime, {
+    eventName: nextRuntime.last_event || "wp_review_projection",
+    eventAt: nextRuntime.last_event_at || new Date().toISOString(),
+    checkpointKind: "REVIEW_SYNC",
+  });
 }

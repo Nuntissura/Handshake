@@ -117,6 +117,40 @@ test("integration-validator context brief surfaces canonical final-lane authorit
         },
       ],
       brokerState: { active_runs: [] },
+      gateState: {
+        closeout_sync_events: {
+          "WP-TEST-VALIDATOR-v1": [
+            {
+              timestamp_utc: "2026-04-01T12:00:00Z",
+              mode: "MERGE_PENDING",
+              actor_role: "INTEGRATION_VALIDATOR",
+              actor_session_id: "integration-validator-session",
+              governed_action: {
+                schema_id: "hsk.governed_action_result@1",
+                schema_version: "governed_action_result_v1",
+                action_id: "closeout-sync-action-1",
+                processed_at: "2026-04-01T12:00:00Z",
+                rule_id: "INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE",
+                action_kind: "EXTERNAL_EXECUTE",
+                action_surface: "INTEGRATION_VALIDATOR_CLOSEOUT",
+                command_kind: "CLOSEOUT_SYNC",
+                command_id: "closeout-sync-action-1",
+                session_key: "INTEGRATION_VALIDATOR:WP-TEST-VALIDATOR-v1",
+                wp_id: "WP-TEST-VALIDATOR-v1",
+                role: "INTEGRATION_VALIDATOR",
+                status: "COMPLETED",
+                outcome_state: "SETTLED",
+                result_state: "SETTLED",
+                resume_disposition: "CONSUME_RESULT",
+                target_command_id: "",
+                summary: "Integration Validator recorded closeout sync MERGE_PENDING for WP-TEST-VALIDATOR-v1.",
+                error: "",
+                metadata: {},
+              },
+            },
+          ],
+        },
+      },
       worktreeExists: () => true,
       fileExists: () => true,
       gitRunner: (args) => {
@@ -160,6 +194,11 @@ test("integration-validator context brief surfaces canonical final-lane authorit
       "just ack-notifications WP-TEST-VALIDATOR-v1 INTEGRATION_VALIDATOR integration-validator-session",
       "just phase-check CLOSEOUT WP-TEST-VALIDATOR-v1",
     ]);
+    assert.equal(brief.closeout_provenance.governed_action_rule, "INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE");
+    assert.equal(brief.closeout_provenance.governed_action_resume_disposition, "CONSUME_RESULT");
+    assert.match(brief.closeout_dependency_summary, /blockers=none/);
+    assert.equal(brief.closeout_publication.closeout_mode, "MERGE_PENDING");
+    assert.equal(brief.closeout_dependencies.sync_provenance.status, "RECORDED");
     assert.match(brief.anti_rediscovery_rule, /Do not rebuild final-lane/i);
   } finally {
     fs.rmSync(artifactDir, { recursive: true, force: true });
@@ -197,4 +236,46 @@ test("integration-validator context brief falls back to remediation commands for
     "just validator-policy-gate WP-TEST-VALIDATOR-v1",
     "just phase-check CLOSEOUT WP-TEST-VALIDATOR-v1",
   ]);
+});
+
+test("integration-validator context brief prefers canonical execution-state closeout status over stale packet and board artifacts", () => {
+  const brief = buildIntegrationValidatorContextBrief({
+    repoRoot: ".",
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetContent: modernPacket("artifacts/validator-signed-scope.patch", "../handshake_main"),
+    packetPathValueOverride: ".GOV/task_packets/WP-TEST-VALIDATOR-v1/packet.md",
+    gitContext: {
+      branch: "main",
+      topLevel: "../handshake_main",
+    },
+    runtimeStatus: {
+      current_packet_status: "Done",
+      current_task_board_status: "IN_PROGRESS",
+      execution_state: {
+        schema_version: "wp_execution_state@1",
+        authority: {
+          packet_status: "Validated (FAIL)",
+          task_board_status: "DONE_FAIL",
+          runtime_status: "completed",
+        },
+      },
+    },
+    taskBoardStatusOverride: "IN_PROGRESS",
+    registrySessions: [],
+    requests: [],
+    results: [],
+    brokerState: { active_runs: [] },
+    worktreeExists: () => true,
+    fileExists: () => true,
+    declaredTopologyEvaluation: {
+      ok: true,
+      issues: [],
+    },
+  });
+
+  assert.equal(brief.packet_status, "Validated (FAIL)");
+  assert.equal(brief.current_wp_status, "DONE_FAIL");
+  assert.equal(brief.task_board_status, "DONE_FAIL");
+  assert.equal(brief.closeout_requirements.terminal_non_pass_packet, true);
+  assert.equal(brief.closeout_requirements.require_ready_for_pass, false);
 });
