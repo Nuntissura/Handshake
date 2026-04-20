@@ -37,7 +37,7 @@ import {
   runGitInherit,
 } from "./git-topology-lib.mjs";
 import { ensureGovKernelTracksGov } from "./reseed-permanent-worktree-from-main.mjs";
-import { GOV_ROOT_ABS } from "../lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, normalizePath } from "../lib/runtime-paths.mjs";
 import { registerFailCaptureHook, captureFailure } from "../lib/fail-capture-lib.mjs";
 import { evaluateArtifactHygiene } from "../lib/artifact-hygiene-lib.mjs";
 
