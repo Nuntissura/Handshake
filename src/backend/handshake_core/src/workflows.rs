@@ -8601,6 +8601,10 @@ async fn run_job(
                 .await;
         }
 
+        if job.protocol_id == "calendar_sync" {
+            return run_calendar_sync_job(state, job, workflow_run_id, trace_id).await;
+        }
+
         if job.protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID {
             let inputs = parse_inputs(job.job_inputs.as_ref());
             let request: GovernancePackExportRequest = serde_json::from_value(inputs)
@@ -12163,6 +12167,121 @@ fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, W
         MD_TOOL_ENGINE_ID,
         Arc::new(MediaDownloaderEngineAdapter::new(repo_root.to_path_buf())),
     ))
+}
+
+fn workflow_mex_context(job: &AiJob, workflow_run_id: Uuid, trace_id: Uuid) -> Value {
+    json!({
+        "job_id": job.job_id.to_string(),
+        "workflow_run_id": workflow_run_id.to_string(),
+        "trace_id": trace_id.to_string(),
+        "protocol_id": job.protocol_id.clone(),
+    })
+}
+
+async fn run_calendar_sync_job(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+) -> Result<RunJobOutcome, WorkflowError> {
+    if job.protocol_id != "calendar_sync" {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_contract".to_string(),
+            output: None,
+            error_message: Some("invalid protocol_id for calendar_sync".to_string()),
+        });
+    }
+
+    let inputs = parse_inputs(job.job_inputs.as_ref());
+    let source_id = inputs
+        .get("source_id")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| WorkflowError::Terminal("source_id is required".to_string()))?;
+
+    let repo_root =
+        repo_root_from_manifest_dir().map_err(|err| WorkflowError::Terminal(err.to_string()))?;
+    let mex_runtime = build_mex_runtime(state, &repo_root)?;
+    let capabilities_requested = state
+        .capability_registry
+        .required_capabilities_for_job_request(job.job_kind.as_str(), &job.protocol_id)?;
+
+    let mut params = if inputs.is_object() { inputs } else { json!({}) };
+    if let Some(params_obj) = params.as_object_mut() {
+        params_obj.insert("source_id".to_string(), json!(source_id));
+        params_obj.insert(
+            "workflow_context".to_string(),
+            workflow_mex_context(job, workflow_run_id, trace_id),
+        );
+    }
+
+    let result = mex_runtime
+        .execute(PlannedOperation {
+            schema_version: POE_SCHEMA_VERSION.to_string(),
+            op_id: Uuid::new_v4(),
+            engine_id: "engine.calendar_sync".to_string(),
+            engine_version_req: None,
+            operation: "calendar.sync".to_string(),
+            inputs: Vec::new(),
+            params,
+            capabilities_requested,
+            capability_profile_id: Some(job.capability_profile_id.clone()),
+            human_consent_obtained: false,
+            budget: BudgetSpec {
+                cpu_time_ms: Some(1_000),
+                wall_time_ms: Some(2_000),
+                memory_bytes: Some(64 * 1024 * 1024),
+                output_bytes: Some(2 * 1024 * 1024),
+            },
+            determinism: DeterminismLevel::D2,
+            evidence_policy: Some(EvidencePolicy {
+                required: true,
+                notes: Some("calendar_sync workflow entrypoint".to_string()),
+            }),
+            output_spec: OutputSpec {
+                expected_types: vec!["calendar_sync_result".to_string()],
+                max_bytes: Some(2 * 1024 * 1024),
+            },
+        })
+        .await
+        .map_err(|err| WorkflowError::Terminal(format!("MEX execute failed: {err}")))?;
+
+    let engine_status = match &result.status {
+        EngineStatus::Succeeded => "succeeded",
+        EngineStatus::Failed => "failed",
+        EngineStatus::Denied => "denied",
+    };
+    let payload = json!({
+        "protocol_id": job.protocol_id.clone(),
+        "engine_id": result.provenance.engine_id.clone(),
+        "operation": "calendar.sync",
+        "status": engine_status,
+        "outputs": result
+            .outputs
+            .iter()
+            .map(ArtifactHandle::canonical_id)
+            .collect::<Vec<_>>(),
+        "evidence": result
+            .evidence
+            .iter()
+            .map(ArtifactHandle::canonical_id)
+            .collect::<Vec<_>>(),
+    });
+
+    let final_state = match &result.status {
+        EngineStatus::Succeeded => JobState::Completed,
+        EngineStatus::Failed => JobState::CompletedWithIssues,
+        EngineStatus::Denied => JobState::Failed,
+    };
+
+    Ok(RunJobOutcome {
+        state: final_state,
+        status_reason: engine_status.to_string(),
+        output: Some(payload),
+        error_message: None,
+    })
 }
 
 fn normalize_in_scope_paths_for_validation(in_scope_paths: &[String]) -> Vec<String> {
@@ -24886,6 +25005,7 @@ mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
+    use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEventType};
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
     use crate::storage::{
@@ -25695,6 +25815,74 @@ mod tests {
             }
             other => panic!("expected denied calendar_sync capability, got {other:?}"),
         }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn calendar_sync_workflow_routes_through_mex_runtime_with_linked_tool_event(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::new_v4(),
+                job_kind: JobKind::WorkflowRun,
+                protocol_id: "calendar_sync".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "CalendarSync".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({ "source_id": "source-1" })),
+            })
+            .await?;
+        let job_id = job.job_id;
+        let trace_id = job.trace_id;
+
+        let result = start_workflow_for_job(&state, job).await;
+        let err = result.expect_err("missing calendar adapter should still route through MEX");
+        let err_text = err.to_string();
+        assert!(
+            err_text.contains("MEX execute failed"),
+            "unexpected error surface: {err_text}"
+        );
+        assert!(
+            err_text.contains("engine.calendar_sync"),
+            "unexpected error surface: {err_text}"
+        );
+
+        let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+        assert!(matches!(updated_job.state, JobState::Failed));
+        let workflow_run_id = updated_job
+            .workflow_run_id
+            .expect("calendar_sync workflow should allocate a workflow_run_id");
+        let workflow_run_id_str = workflow_run_id.to_string();
+
+        let events = state
+            .flight_recorder
+            .list_events(EventFilter {
+                job_id: Some(job_id.to_string()),
+                ..Default::default()
+            })
+            .await?;
+        let tool_call = events
+            .iter()
+            .find(|event| event.event_type == FlightRecorderEventType::ToolCall)
+            .expect("calendar_sync route should emit a tool_call event");
+        assert_eq!(tool_call.workflow_id.as_deref(), Some(workflow_run_id_str.as_str()));
+        assert_eq!(tool_call.trace_id, trace_id);
+        assert_eq!(
+            tool_call
+                .payload
+                .get("error")
+                .and_then(|value| value.get("code"))
+                .and_then(|value| value.as_str()),
+            Some("MEX_ADAPTER_MISSING")
+        );
+
         Ok(())
     }
 

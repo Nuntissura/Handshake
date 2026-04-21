@@ -156,6 +156,36 @@ impl MexRuntime {
         handles.iter().map(|h| h.canonical_id()).collect()
     }
 
+    fn workflow_context_value<'a>(op: &'a PlannedOperation, key: &str) -> Option<&'a Value> {
+        op.params
+            .get("workflow_context")
+            .and_then(|ctx| ctx.get(key))
+            .or_else(|| op.params.get(key))
+    }
+
+    fn workflow_context_str<'a>(op: &'a PlannedOperation, key: &str) -> Option<&'a str> {
+        Self::workflow_context_value(op, key)
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
+
+    fn recorder_job_id(op: &PlannedOperation) -> String {
+        Self::workflow_context_str(op, "job_id")
+            .map(|value| value.to_owned())
+            .unwrap_or_else(|| op.op_id.to_string())
+    }
+
+    fn recorder_workflow_id(op: &PlannedOperation) -> Option<String> {
+        Self::workflow_context_str(op, "workflow_run_id").map(|value| value.to_owned())
+    }
+
+    fn recorder_trace_id(op: &PlannedOperation) -> Uuid {
+        Self::workflow_context_str(op, "trace_id")
+            .and_then(|value| Uuid::parse_str(value).ok())
+            .unwrap_or(op.op_id)
+    }
+
     fn record_tool_fr_event(
         &self,
         op: &PlannedOperation,
@@ -181,8 +211,9 @@ impl MexRuntime {
             serde_json::to_string(&payload).map_err(|e| MexRuntimeError::Logging(e.to_string()))?;
 
         let source = format!("mex:{}", op.engine_id);
-        let job_id = op.op_id.to_string();
-        let workflow_run_id: Option<&str> = None;
+        let job_id = Self::recorder_job_id(op);
+        let workflow_run_id_owned = Self::recorder_workflow_id(op);
+        let workflow_run_id = workflow_run_id_owned.as_deref();
         let session_id: Option<&str> = None;
         let task_id: Option<&str> = None;
 
@@ -222,6 +253,9 @@ impl MexRuntime {
 
     fn record_tool_call(&self, op: &PlannedOperation) -> Result<(), MexRuntimeError> {
         let capability_id = op.capabilities_requested.first().cloned();
+        let job_id = Self::recorder_job_id(op);
+        let workflow_run_id = Self::recorder_workflow_id(op);
+        let trace_id = Self::recorder_trace_id(op);
         let payload = json!({
             "tool_name": format!("mex:{}", op.engine_id),
             "tool_version": null,
@@ -231,9 +265,9 @@ impl MexRuntime {
             "status": "success",
             "duration_ms": null,
             "error_code": null,
-            "job_id": op.op_id.to_string(),
-            "workflow_run_id": null,
-            "trace_id": op.op_id.to_string(),
+            "job_id": job_id,
+            "workflow_run_id": workflow_run_id,
+            "trace_id": trace_id.to_string(),
             "capability_id": capability_id,
             "capabilities": op.capabilities_requested,
             "budget": op.budget,
@@ -251,6 +285,9 @@ impl MexRuntime {
         status: &str,
         error_code: Option<String>,
     ) -> Result<(), MexRuntimeError> {
+        let job_id = Self::recorder_job_id(op);
+        let workflow_run_id = Self::recorder_workflow_id(op);
+        let trace_id = Self::recorder_trace_id(op);
         let tool_version = result
             .and_then(|r| r.provenance.engine_version.clone())
             .unwrap_or_default();
@@ -281,9 +318,9 @@ impl MexRuntime {
             "status": status,
             "duration_ms": duration_ms,
             "error_code": error_code,
-            "job_id": op.op_id.to_string(),
-            "workflow_run_id": null,
-            "trace_id": op.op_id.to_string(),
+            "job_id": job_id,
+            "workflow_run_id": workflow_run_id,
+            "trace_id": trace_id.to_string(),
             "capability_id": capability_id,
             "capabilities": op.capabilities_requested,
             "budget": op.budget,
@@ -300,7 +337,6 @@ impl MexRuntime {
         )?;
 
         let tool_call_id = op.op_id;
-        let trace_id = op.op_id;
         let tool_id = canonical_mex_tool_id(&op.engine_id, &op.operation);
         let tool_version = result
             .and_then(|r| r.provenance.engine_version.as_deref())
@@ -424,7 +460,12 @@ impl MexRuntime {
             trace_id,
             tool_call_payload,
         )
-        .with_job_id(op.op_id.to_string());
+        .with_job_id(Self::recorder_job_id(op));
+        let event = if let Some(workflow_run_id) = workflow_run_id {
+            event.with_workflow_id(workflow_run_id)
+        } else {
+            event
+        };
         self.flight_recorder
             .record_event(event)
             .await
@@ -467,13 +508,22 @@ impl MexRuntime {
             }
         }
 
-        let engine_id = op.engine_id.clone();
-        let adapter = self
-            .adapters
-            .get(&engine_id)
-            .ok_or_else(|| MexRuntimeError::AdapterMissing(engine_id.clone()))?;
-
         self.record_tool_call(&op)?;
+        let engine_id = op.engine_id.clone();
+        let adapter = match self.adapters.get(&engine_id).cloned() {
+            Some(adapter) => adapter,
+            None => {
+                self.record_tool_result(
+                    &op,
+                    None,
+                    None,
+                    "error",
+                    Some("MEX_ADAPTER_MISSING".to_string()),
+                )
+                .await?;
+                return Err(MexRuntimeError::AdapterMissing(engine_id));
+            }
+        };
 
         // WAIVER [CX-573E]: Instant::now() is required for duration measurement (observability only).
         let start = Instant::now();
@@ -549,7 +599,7 @@ impl MexRuntime {
             code: denial.code.clone(),
             tags: None,
             wsid: None,
-            job_id: Some(op.op_id.to_string()),
+            job_id: Some(Self::recorder_job_id(op)),
             model_id: None,
             actor: Some(DiagnosticActor::System),
             capability_id: None,
@@ -592,7 +642,7 @@ impl MexRuntime {
             code: None,
             tags: None,
             wsid: None,
-            job_id: Some(op.op_id.to_string()),
+            job_id: Some(Self::recorder_job_id(op)),
             model_id: None,
             actor: Some(DiagnosticActor::System),
             capability_id: None,
@@ -625,7 +675,9 @@ impl MexRuntime {
         decision_outcome: &str,
     ) -> Result<(), MexRuntimeError> {
         let actor_id = "mex_runtime";
-        let job_id = op.op_id.to_string();
+        let job_id = Self::recorder_job_id(op);
+        let workflow_run_id = Self::recorder_workflow_id(op);
+        let trace_id = Self::recorder_trace_id(op);
         let payload = json!({
             "capability_id": capability_id,
             "actor_id": actor_id,
@@ -636,12 +688,17 @@ impl MexRuntime {
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::CapabilityAction,
             FlightRecorderActor::System,
-            op.op_id,
+            trace_id,
             payload,
         )
-        .with_job_id(op.op_id.to_string())
+        .with_job_id(Self::recorder_job_id(op))
         .with_actor_id(actor_id)
         .with_capability(capability_id.to_string());
+        let event = if let Some(workflow_run_id) = workflow_run_id {
+            event.with_workflow_id(workflow_run_id)
+        } else {
+            event
+        };
 
         self.flight_recorder
             .record_event(event)
@@ -657,6 +714,8 @@ impl MexRuntime {
         denial: Option<&GateDenial>,
         diagnostic_id: Option<uuid::Uuid>,
     ) -> Result<(), MexRuntimeError> {
+        let trace_id = Self::recorder_trace_id(op);
+        let workflow_run_id = Self::recorder_workflow_id(op);
         let level = match denial.map(|d| d.severity.clone()) {
             Some(DenialSeverity::Warn) => "warning",
             Some(DenialSeverity::Error) => "error",
@@ -683,11 +742,16 @@ impl MexRuntime {
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::System,
             FlightRecorderActor::System,
-            op.op_id,
+            trace_id,
             payload,
         )
-        .with_job_id(op.op_id.to_string())
+        .with_job_id(Self::recorder_job_id(op))
         .with_actor_id("mex_runtime");
+        let event = if let Some(workflow_run_id) = workflow_run_id {
+            event.with_workflow_id(workflow_run_id)
+        } else {
+            event
+        };
 
         self.flight_recorder
             .record_event(event)

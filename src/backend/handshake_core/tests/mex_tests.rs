@@ -645,6 +645,19 @@ fn calendar_sync_registry() -> MexRegistry {
     MexRegistry::from_map(engines)
 }
 
+fn calendar_sync_workflow_context(
+    workflow_job_id: &str,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+) -> serde_json::Value {
+    serde_json::json!({
+        "job_id": workflow_job_id,
+        "workflow_run_id": workflow_run_id.to_string(),
+        "trace_id": trace_id.to_string(),
+        "protocol_id": "calendar_sync",
+    })
+}
+
 fn build_runtime_with_supply_chain_adapter(
     registry: MexRegistry,
     recorder: Arc<DuckDbFlightRecorder>,
@@ -902,6 +915,93 @@ async fn calendar_sync_runtime_executes_with_calendar_contract() {
 }
 
 #[tokio::test]
+async fn calendar_sync_runtime_preserves_workflow_context_in_tool_events() {
+    let registry = calendar_sync_registry();
+    let recorder = recorder();
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
+    let runtime = MexRuntime::new(registry, flight_recorder, diagnostics, mex_gates())
+        .with_adapter("engine.calendar_sync", Arc::new(PassThroughAdapter));
+    let workflow_job_id = Uuid::new_v4().to_string();
+    let workflow_run_id = Uuid::new_v4();
+    let trace_id = Uuid::new_v4();
+    let workflow_run_id_str = workflow_run_id.to_string();
+    let trace_id_str = trace_id.to_string();
+
+    let op = PlannedOperation {
+        schema_version: POE_SCHEMA_VERSION.to_string(),
+        op_id: Uuid::new_v4(),
+        engine_id: "engine.calendar_sync".to_string(),
+        engine_version_req: None,
+        operation: "calendar.sync".to_string(),
+        inputs: vec![ArtifactHandle::new(
+            Uuid::new_v4(),
+            "/calendar/source".to_string(),
+        )],
+        params: serde_json::json!({
+            "source_id": "source-1",
+            "workflow_context": calendar_sync_workflow_context(
+                &workflow_job_id,
+                workflow_run_id,
+                trace_id,
+            ),
+        }),
+        capabilities_requested: vec![
+            "calendar.sync.read".to_string(),
+            "calendar.sync.write".to_string(),
+        ],
+        capability_profile_id: Some("CalendarSync".to_string()),
+        human_consent_obtained: false,
+        budget: BudgetSpec {
+            cpu_time_ms: Some(1000),
+            wall_time_ms: Some(2000),
+            memory_bytes: Some(64 * 1024 * 1024),
+            output_bytes: Some(2 * 1024 * 1024),
+        },
+        determinism: DeterminismLevel::D2,
+        evidence_policy: Some(EvidencePolicy {
+            required: true,
+            notes: None,
+        }),
+        output_spec: OutputSpec {
+            expected_types: vec!["calendar_sync_result".to_string()],
+            max_bytes: Some(2 * 1024 * 1024),
+        },
+    };
+
+    let result = runtime.execute(op).await.expect("runtime should succeed");
+    assert_eq!(
+        result.status,
+        handshake_core::mex::envelope::EngineStatus::Succeeded
+    );
+
+    let events = recorder
+        .list_events(EventFilter {
+            job_id: Some(workflow_job_id.clone()),
+            ..Default::default()
+        })
+        .await
+        .expect("events should be queryable");
+    let tool_event = events
+        .iter()
+        .find(|event| event.event_type == FlightRecorderEventType::ToolCall)
+        .expect("tool_call event should be recorded");
+    assert_eq!(tool_event.workflow_id.as_deref(), Some(workflow_run_id_str.as_str()));
+    assert_eq!(tool_event.trace_id, trace_id);
+    assert_eq!(
+        tool_event.payload.get("trace_id").and_then(|value| value.as_str()),
+        Some(trace_id_str.as_str())
+    );
+    assert_eq!(
+        tool_event
+            .payload
+            .get("workflow_run_id")
+            .and_then(|value| value.as_str()),
+        Some(workflow_run_id_str.as_str())
+    );
+}
+
+#[tokio::test]
 async fn calendar_sync_runtime_denies_wrong_profile_without_unknown_capability() {
     let registry = calendar_sync_registry();
     let recorder = recorder();
@@ -953,6 +1053,97 @@ async fn calendar_sync_runtime_denies_wrong_profile_without_unknown_capability()
     assert_eq!(
         denial.reason,
         "Capability not granted by capability_profile_id"
+    );
+}
+
+#[tokio::test]
+async fn calendar_sync_adapter_missing_records_tool_failure_with_workflow_context() {
+    let registry = calendar_sync_registry();
+    let recorder = recorder();
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
+    let runtime = MexRuntime::new(registry, flight_recorder, diagnostics, mex_gates());
+    let workflow_job_id = Uuid::new_v4().to_string();
+    let workflow_run_id = Uuid::new_v4();
+    let trace_id = Uuid::new_v4();
+    let workflow_run_id_str = workflow_run_id.to_string();
+
+    let op = PlannedOperation {
+        schema_version: POE_SCHEMA_VERSION.to_string(),
+        op_id: Uuid::new_v4(),
+        engine_id: "engine.calendar_sync".to_string(),
+        engine_version_req: None,
+        operation: "calendar.sync".to_string(),
+        inputs: vec![ArtifactHandle::new(
+            Uuid::new_v4(),
+            "/calendar/source".to_string(),
+        )],
+        params: serde_json::json!({
+            "source_id": "source-1",
+            "workflow_context": calendar_sync_workflow_context(
+                &workflow_job_id,
+                workflow_run_id,
+                trace_id,
+            ),
+        }),
+        capabilities_requested: vec![
+            "calendar.sync.read".to_string(),
+            "calendar.sync.write".to_string(),
+        ],
+        capability_profile_id: Some("CalendarSync".to_string()),
+        human_consent_obtained: false,
+        budget: BudgetSpec {
+            cpu_time_ms: Some(1000),
+            wall_time_ms: Some(2000),
+            memory_bytes: Some(64 * 1024 * 1024),
+            output_bytes: Some(2 * 1024 * 1024),
+        },
+        determinism: DeterminismLevel::D2,
+        evidence_policy: Some(EvidencePolicy {
+            required: true,
+            notes: None,
+        }),
+        output_spec: OutputSpec {
+            expected_types: vec!["calendar_sync_result".to_string()],
+            max_bytes: Some(2 * 1024 * 1024),
+        },
+    };
+
+    let err = runtime
+        .execute(op)
+        .await
+        .expect_err("missing adapter should surface as a runtime error");
+    assert!(matches!(
+        err,
+        MexRuntimeError::AdapterMissing(ref engine_id) if engine_id == "engine.calendar_sync"
+    ));
+
+    let events = recorder
+        .list_events(EventFilter {
+            job_id: Some(workflow_job_id.clone()),
+            ..Default::default()
+        })
+        .await
+        .expect("events should be queryable");
+    let tool_event = events
+        .iter()
+        .find(|event| event.event_type == FlightRecorderEventType::ToolCall)
+        .expect("adapter-missing path should still emit a tool_call event");
+    assert_eq!(tool_event.workflow_id.as_deref(), Some(workflow_run_id_str.as_str()));
+    assert_eq!(
+        tool_event
+            .payload
+            .get("ok")
+            .and_then(|value| value.as_bool()),
+        Some(false)
+    );
+    assert_eq!(
+        tool_event
+            .payload
+            .get("error")
+            .and_then(|value| value.get("code"))
+            .and_then(|value| value.as_str()),
+        Some("MEX_ADAPTER_MISSING")
     );
 }
 
