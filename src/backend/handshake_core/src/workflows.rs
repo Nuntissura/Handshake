@@ -12650,25 +12650,106 @@ fn load_calendar_sync_result_from_output(
     })
 }
 
-fn calendar_sync_provider_access_payload(
-    sync_result: &crate::storage::CalendarSyncResult,
+fn calendar_sync_provider_access_payload_from_parts(
+    provider_type: Option<&str>,
+    write_policy: Option<&crate::storage::CalendarSourceWritePolicy>,
+    direction: Option<&CalendarSyncDirection>,
 ) -> Value {
     json!({
         "path": "workflow:calendar_sync->engine.calendar_sync/calendar.sync",
         "workflow_only": true,
-        "provider_type": sync_result.provider_type.as_str(),
-        "write_policy": sync_result.write_policy.as_str(),
-        "read_only_source": matches!(
-            sync_result.write_policy,
-            crate::storage::CalendarSourceWritePolicy::ReadOnlyImport
+        "provider_type": provider_type,
+        "write_policy": write_policy.map(|policy| policy.as_str()),
+        "read_only_source": write_policy.map(|policy| {
+            matches!(
+                policy,
+                crate::storage::CalendarSourceWritePolicy::ReadOnlyImport
+            )
+        }),
+        "provider_mutation_requested": direction.map(
+            CalendarSyncEngineAdapter::direction_requests_provider_mutation
         ),
-        "provider_mutation_requested": CalendarSyncEngineAdapter::direction_requests_provider_mutation(
-            &sync_result.direction
-        ),
-        "provider_mutation_allowed": CalendarSyncEngineAdapter::source_allows_provider_mutation(
-            &sync_result.write_policy
+        "provider_mutation_allowed": write_policy.map(
+            CalendarSyncEngineAdapter::source_allows_provider_mutation
         ),
     })
+}
+
+fn calendar_sync_provider_access_payload(
+    sync_result: &crate::storage::CalendarSyncResult,
+) -> Value {
+    calendar_sync_provider_access_payload_from_parts(
+        Some(sync_result.provider_type.as_str()),
+        Some(&sync_result.write_policy),
+        Some(&sync_result.direction),
+    )
+}
+
+fn build_calendar_sync_denied_payload(
+    protocol_id: &str,
+    workspace_id: &str,
+    source_id: &str,
+    direction_raw: &str,
+    window_start: &str,
+    window_end: &str,
+    result: &crate::mex::envelope::EngineResult,
+    source: Option<&crate::storage::CalendarSource>,
+) -> (Value, Option<String>) {
+    let direction = CalendarSyncDirection::from_str(direction_raw).ok();
+    let direction_value = direction
+        .as_ref()
+        .map(CalendarSyncDirection::as_str)
+        .unwrap_or(direction_raw);
+    let error = result.errors.first();
+    let error_code = error
+        .map(|item| item.code.clone())
+        .unwrap_or_else(|| "ENGINE_CALENDAR_SYNC_DENIED".to_string());
+    let error_message = error
+        .map(|item| item.message.clone())
+        .unwrap_or_else(|| "calendar_sync execution denied".to_string());
+    let source_sync_state = source
+        .map(|item| serde_json::to_value(&item.sync_state).unwrap_or(Value::Null))
+        .unwrap_or(Value::Null);
+
+    (
+        json!({
+            "workspace_id": workspace_id,
+            "source_id": source_id,
+            "direction": direction_value,
+            "time_window": {
+                "start_utc": window_start,
+                "end_utc": window_end,
+            },
+            "protocol_id": protocol_id,
+            "engine_id": result.provenance.engine_id.clone(),
+            "operation": "calendar.sync",
+            "status": "denied",
+            "schema_version": CALENDAR_SYNC_RESULT_SCHEMA_VERSION,
+            "provider_type": source.map(|item| item.provider_type.as_str()),
+            "write_policy": source.map(|item| item.write_policy.as_str()),
+            "updated_event_count": 0,
+            "source_sync_state": source_sync_state,
+            "provider_access": calendar_sync_provider_access_payload_from_parts(
+                source.map(|item| item.provider_type.as_str()),
+                source.map(|item| &item.write_policy),
+                direction.as_ref(),
+            ),
+            "error_code": error_code,
+            "error_message": error_message,
+            "output_types": [],
+            "outputs": result
+                .outputs
+                .iter()
+                .map(ArtifactHandle::canonical_id)
+                .collect::<Vec<_>>(),
+            "evidence": result
+                .evidence
+                .iter()
+                .map(ArtifactHandle::canonical_id)
+                .collect::<Vec<_>>(),
+        }),
+        Some(error_message),
+    )
 }
 
 async fn run_calendar_sync_job(
@@ -12787,40 +12868,62 @@ async fn run_calendar_sync_job(
         EngineStatus::Failed => "failed",
         EngineStatus::Denied => "denied",
     };
-    let sync_result = load_calendar_sync_result_from_output(&repo_root, &result)?;
-    let payload = json!({
-        "workspace_id": workspace_id,
-        "source_id": source_id,
-        "direction": direction,
-        "time_window": {
-            "start_utc": window_start,
-            "end_utc": window_end,
-        },
-        "protocol_id": job.protocol_id.clone(),
-        "engine_id": result.provenance.engine_id.clone(),
-        "operation": "calendar.sync",
-        "status": engine_status,
-        "schema_version": sync_result.schema_version.clone(),
-        "provider_type": sync_result.provider_type.as_str(),
-        "write_policy": sync_result.write_policy.as_str(),
-        "updated_event_count": sync_result.updated_event_count,
-        "source_sync_state": serde_json::to_value(&sync_result.source_sync_state)
-            .unwrap_or(Value::Null),
-        "provider_access": calendar_sync_provider_access_payload(&sync_result),
-        "error_code": sync_result.error_code.clone(),
-        "error_message": sync_result.error_message.clone(),
-        "output_types": ["calendar_sync_result"],
-        "outputs": result
-            .outputs
-            .iter()
-            .map(ArtifactHandle::canonical_id)
-            .collect::<Vec<_>>(),
-        "evidence": result
-            .evidence
-            .iter()
-            .map(ArtifactHandle::canonical_id)
-            .collect::<Vec<_>>(),
-    });
+    let (payload, error_message) = if matches!(result.status, EngineStatus::Denied) {
+        let source = state
+            .storage
+            .get_calendar_source(workspace_id, source_id)
+            .await
+            .ok()
+            .flatten();
+        build_calendar_sync_denied_payload(
+            &job.protocol_id,
+            workspace_id,
+            source_id,
+            direction,
+            window_start,
+            window_end,
+            &result,
+            source.as_ref(),
+        )
+    } else {
+        let sync_result = load_calendar_sync_result_from_output(&repo_root, &result)?;
+        (
+            json!({
+                "workspace_id": workspace_id,
+                "source_id": source_id,
+                "direction": direction,
+                "time_window": {
+                    "start_utc": window_start,
+                    "end_utc": window_end,
+                },
+                "protocol_id": job.protocol_id.clone(),
+                "engine_id": result.provenance.engine_id.clone(),
+                "operation": "calendar.sync",
+                "status": engine_status,
+                "schema_version": sync_result.schema_version.clone(),
+                "provider_type": sync_result.provider_type.as_str(),
+                "write_policy": sync_result.write_policy.as_str(),
+                "updated_event_count": sync_result.updated_event_count,
+                "source_sync_state": serde_json::to_value(&sync_result.source_sync_state)
+                    .unwrap_or(Value::Null),
+                "provider_access": calendar_sync_provider_access_payload(&sync_result),
+                "error_code": sync_result.error_code.clone(),
+                "error_message": sync_result.error_message.clone(),
+                "output_types": ["calendar_sync_result"],
+                "outputs": result
+                    .outputs
+                    .iter()
+                    .map(ArtifactHandle::canonical_id)
+                    .collect::<Vec<_>>(),
+                "evidence": result
+                    .evidence
+                    .iter()
+                    .map(ArtifactHandle::canonical_id)
+                    .collect::<Vec<_>>(),
+            }),
+            sync_result.error_message.clone(),
+        )
+    };
 
     let final_state = match &result.status {
         EngineStatus::Succeeded => JobState::Completed,
@@ -12832,7 +12935,7 @@ async fn run_calendar_sync_job(
         state: final_state,
         status_reason: engine_status.to_string(),
         output: Some(payload),
-        error_message: sync_result.error_message.clone(),
+        error_message,
     })
 }
 
@@ -25563,7 +25666,7 @@ mod tests {
     use crate::storage::{
         sqlite::SqliteDatabase, tests::postgres_backend_from_env, AccessMode,
         CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility,
-        CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
+        CalendarSource, CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
         CalendarSourceWritePolicy, CalendarSyncStateStage, Database, JobKind, JobMetrics, JobState,
         ModelSession, ModelSessionState, NewWorkspace, SafetyMode, WriteContext,
     };
@@ -26932,6 +27035,127 @@ mod tests {
         assert!(stored_source.sync_state.last_push_at.is_none());
 
         Ok(())
+    }
+
+    #[test]
+    fn calendar_sync_denied_payload_surfaces_provider_access_without_result_artifact() {
+        let source = CalendarSource {
+            id: "source-read-only".to_string(),
+            workspace_id: "workspace-1".to_string(),
+            display_name: "Google / Read-only Mutation Block".to_string(),
+            provider_type: CalendarSourceProviderType::Google,
+            write_policy: CalendarSourceWritePolicy::ReadOnlyImport,
+            default_tzid: "Europe/Brussels".to_string(),
+            auto_export: false,
+            credentials_ref: Some("cred:test".to_string()),
+            provider_calendar_id: Some("primary".to_string()),
+            capability_profile_id: Some("CalendarSync".to_string()),
+            config: json!({ "calendar_id": "primary" }),
+            sync_state: CalendarSourceSyncState::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let error_handle = ArtifactHandle::new(
+            Uuid::new_v4(),
+            "data/mex_shell/ops/denied/error.txt".to_string(),
+        );
+        let result = EngineResult {
+            op_id: Uuid::new_v4(),
+            status: EngineStatus::Denied,
+            started_at: Utc::now(),
+            ended_at: Utc::now(),
+            outputs: vec![error_handle.clone()],
+            evidence: vec![error_handle.clone()],
+            provenance: ProvenanceRecord {
+                engine_id: "engine.calendar_sync".to_string(),
+                engine_version: Some("test".to_string()),
+                implementation: Some("calendar_sync_adapter".to_string()),
+                determinism: DeterminismLevel::D2,
+                config_hash: None,
+                inputs: Vec::new(),
+                outputs: vec![error_handle.clone()],
+                capabilities_granted: vec!["calendar.sync".to_string()],
+                environment: None,
+            },
+            errors: vec![EngineError {
+                code: "CALENDAR_SYNC_READ_ONLY_WRITE_BLOCKED".to_string(),
+                message: "calendar source source-read-only uses write_policy read_only_import and cannot execute push provider mutations; use pull for inspect/import only".to_string(),
+                details_ref: Some(error_handle.clone()),
+            }],
+            logs_ref: None,
+        };
+
+        let (payload, error_message) = build_calendar_sync_denied_payload(
+            "calendar_sync",
+            "workspace-1",
+            "source-read-only",
+            "push",
+            "2026-04-21T12:00:00Z",
+            "2026-04-21T13:00:00Z",
+            &result,
+            Some(&source),
+        );
+        let output_ref = error_handle.canonical_id();
+
+        assert_eq!(payload.get("status").and_then(Value::as_str), Some("denied"));
+        assert_eq!(
+            payload.get("schema_version").and_then(Value::as_str),
+            Some(CALENDAR_SYNC_RESULT_SCHEMA_VERSION)
+        );
+        assert_eq!(
+            payload.get("provider_type").and_then(Value::as_str),
+            Some("google")
+        );
+        assert_eq!(
+            payload.get("write_policy").and_then(Value::as_str),
+            Some("read_only_import")
+        );
+        assert_eq!(
+            payload.get("error_code").and_then(Value::as_str),
+            Some("CALENDAR_SYNC_READ_ONLY_WRITE_BLOCKED")
+        );
+        assert_eq!(
+            payload
+                .get("provider_access")
+                .and_then(|value| value.get("path"))
+                .and_then(Value::as_str),
+            Some("workflow:calendar_sync->engine.calendar_sync/calendar.sync")
+        );
+        assert_eq!(
+            payload
+                .get("provider_access")
+                .and_then(|value| value.get("provider_mutation_requested"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .get("provider_access")
+                .and_then(|value| value.get("provider_mutation_allowed"))
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .get("outputs")
+                .and_then(Value::as_array)
+                .and_then(|items| items.first())
+                .and_then(Value::as_str),
+            Some(output_ref.as_str())
+        );
+        assert_eq!(
+            payload
+                .get("output_types")
+                .and_then(Value::as_array)
+                .map(Vec::len),
+            Some(0)
+        );
+        assert_eq!(
+            error_message.as_deref(),
+            Some(
+                "calendar source source-read-only uses write_policy read_only_import and cannot execute push provider mutations; use pull for inspect/import only"
+            )
+        );
     }
 
     #[tokio::test]
