@@ -95,6 +95,8 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
+- **[WP-1-Calendar-Sync-Engine-v1]** - [READY_FOR_DEV]
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -146,7 +148,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Atelier-Lens-v2]** - [STUB]
 - **[WP-1-Studio-Runtime-Visibility-v1]** - [STUB]
 - **[WP-1-Calendar-Lens-v3]** - [STUB]
-- **[WP-1-Calendar-Sync-Engine-v1]** - [STUB]
 - **[WP-1-Calendar-Policy-Integration-v1]** - [STUB]
 - **[WP-1-Calendar-Law-Compliance-Tests-v1]** - [STUB]
 - **[WP-1-Calendar-Correlation-Export-v1]** - [STUB]
